@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <artifactId>addons-parent-pom</artifactId>
+    <groupId>org.exoplatform.addons</groupId>
+    <version>12-RC02</version>
+    <relativePath/>
+  </parent>
+  <groupId>org.exoplatform.agenda</groupId>
+  <artifactId>agenda-parent</artifactId>
+  <version>1.0.x-SNAPSHOT</version>
+  <packaging>pom</packaging>
+  <name>eXo Agenda - Parent POM</name>
+  <description>eXo Agenda Addon</description>
+  <modules>
+    <module>agenda-api</module>
+    <module>agenda-services</module>
+    <module>agenda-webapps</module>
+    <module>agenda-packaging</module>
+  </modules>
+  <scm>
+    <connection>scm:git:git://github.com/exoplatform/agenda.git</connection>
+    <developerConnection>scm:git:ssh://git@github.com/exoplatform/agenda.git</developerConnection>
+    <url>https://github.com/exoplatform/agenda</url>
+    <tag>HEAD</tag>
+  </scm>
+  <properties>
+    <!-- 3rd party libraries versions -->
+    <org.exoplatform.social.version>6.1.x-SNAPSHOT</org.exoplatform.social.version>
+    <org.exoplatform.platform-ui.version>6.1.x-SNAPSHOT</org.exoplatform.platform-ui.version>
+
+    <!-- Used to generate default methods for POJO -->
+    <org.lombok.version>1.18.2</org.lombok.version>
+    <org.lombok.plugin.version>1.18.0.0</org.lombok.plugin.version>
+
+    <!-- Maven Plugin for JS and CSS bundling and Unit Test execution -->
+    <com.github.eirslett.frontend.version>1.6</com.github.eirslett.frontend.version>
+  </properties>
+  <dependencyManagement>
+    <dependencies>
+      <!-- Import versions from platform project -->
+      <dependency>
+        <groupId>org.exoplatform.social</groupId>
+        <artifactId>social</artifactId>
+        <version>${org.exoplatform.social.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.exoplatform.platform-ui</groupId>
+        <artifactId>platform-ui</artifactId>
+        <version>${org.exoplatform.platform-ui.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
+      <!-- Current project artifacts -->
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>agenda-api</artifactId>
+        <version>${project.version}</version>
+        <scope>provided</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>agenda-services</artifactId>
+        <version>${project.version}</version>
+        <scope>provided</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>agenda-webapps</artifactId>
+        <version>${project.version}</version>
+        <scope>provided</scope>
+        <type>war</type>
+      </dependency>
+
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>agenda-packaging</artifactId>
+        <version>${project.version}</version>
+        <scope>provided</scope>
+        <type>war</type>
+      </dependency>
+
+      <dependency>
+        <groupId>org.projectlombok</groupId>
+        <artifactId>lombok</artifactId>
+        <version>${org.lombok.version}</version>
+        <scope>provided</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+  <build>
+    <pluginManagement>
+      <plugins>
+        <!-- Maven Plugin for JS and CSS bundling and Unit Test execution -->
+        <plugin>
+          <groupId>com.github.eirslett</groupId>
+          <artifactId>frontend-maven-plugin</artifactId>
+          <version>${com.github.eirslett.frontend.version}</version>
+        </plugin>
+        <!-- Maven Plugin for generating contracts JAVA sources -->
+        <plugin>
+          <groupId>org.projectlombok</groupId>
+          <artifactId>lombok-maven-plugin</artifactId>
+          <version>${org.lombok.plugin.version}</version>
+          <executions>
+            <execution>
+              <phase>generate-sources</phase>
+              <goals>
+                <goal>delombok</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
+</project>
