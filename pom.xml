@@ -9,7 +9,7 @@
   </parent>
   <groupId>org.exoplatform.agenda</groupId>
   <artifactId>agenda-parent</artifactId>
-  <version>1.0.x-SNAPSHOT</version>
+  <version>1.0.x-agenda-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>eXo Agenda - Parent POM</name>
   <description>eXo Agenda Addon</description>
