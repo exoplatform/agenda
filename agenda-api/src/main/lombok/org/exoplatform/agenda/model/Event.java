@@ -52,7 +52,7 @@ public class Event {
    * Configured Identifier of Remote Calendar identifier, for example: "google"
    * for Google Calendar and "office365" for Office 365 Calendar.
    */
-  private String            remoteStoreId;
+  private String            remoteProviderId;
 
   private Calendar          calendar;
 
