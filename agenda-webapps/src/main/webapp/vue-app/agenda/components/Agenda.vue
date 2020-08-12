@@ -140,6 +140,9 @@ export default {
   mounted() {
     document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
     this.$refs.calendar.checkChange();
+    this.$root.$on('switch-type', (data) => {
+      this.type = data;
+    })
   },
   methods: {
     viewDay ({ date }) {
