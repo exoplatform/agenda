@@ -43,16 +43,16 @@
     </dependency>
     <dependency>
       <groupId>org.exoplatform.social</groupId>
+      <artifactId>social-component-service</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.exoplatform.social</groupId>
       <artifactId>social-component-notification</artifactId>
       <scope>provided</scope>
     </dependency>
 
     <!-- Test -->
-    <dependency>
-      <groupId>org.exoplatform.commons</groupId>
-      <artifactId>commons-testing</artifactId>
-      <scope>test</scope>
-    </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-simple</artifactId>
