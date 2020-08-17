@@ -14,21 +14,19 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see<http://www.gnu.org/licenses/>.
 */
-package org.exoplatform.agenda.model;
 
-import java.util.List;
+package org.exoplatform.agenda.util;
 
-import lombok.*;
+import org.exoplatform.services.security.ConversationState;
 
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-public class EventList {
+public class RestUtils {
 
-  private List<Event> events;
+  public static final int DEFAULT_LIMIT = 10;
 
-  private String      start;
+  private RestUtils() {
+  }
 
-  private String      end;
-
+  public static final String getCurrentUser() {
+    return ConversationState.getCurrent().getIdentity().getUserId();
+  }
 }

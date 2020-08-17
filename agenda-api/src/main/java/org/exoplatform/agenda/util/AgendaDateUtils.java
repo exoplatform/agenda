@@ -14,19 +14,25 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see<http://www.gnu.org/licenses/>.
 */
+package org.exoplatform.agenda.util;
 
-package org.exoplatform.agenda.rest;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.ResolverStyle;
 
-import org.exoplatform.services.security.ConversationState;
+public class AgendaDateUtils {
+  public static final DateTimeFormatter RFC_3339_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss[.SSS]XXX")
+                                                                              .withResolverStyle(ResolverStyle.LENIENT);
 
-public class RestUtils {
-
-  public static final int DEFAULT_LIMIT = 10;
-
-  private RestUtils() {
+  private AgendaDateUtils() {
   }
 
-  public static final String getCurrentUser() {
-    return ConversationState.getCurrent().getIdentity().getUserId();
+  public static ZonedDateTime parseRFC3339Date(String dateString) {
+    return ZonedDateTime.parse(dateString, RFC_3339_FORMATTER);
   }
+
+  public static String toRFC3339Date(ZonedDateTime dateTime) {
+    return dateTime.format(RFC_3339_FORMATTER);
+  }
+
 }
