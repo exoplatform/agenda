@@ -36,6 +36,19 @@
                 Month
               </v-btn>
             </div>
+            <div class="uiSearchInput">
+              <input
+                id="inputValue"
+                type="text"
+                placeholder="Look for an event ...">
+            </div>
+            <v-spacer />
+            <v-btn icon>
+              <v-icon>mdi-format-list-bulleted</v-icon>
+            </v-btn>
+            <v-btn icon>
+              <v-icon> mdi-settings</v-icon>
+            </v-btn>
           </v-toolbar>
         </v-flex>
       </v-layout>
