@@ -29,7 +29,7 @@ public interface AgendaCalendarService {
    * @param query Search query term
    * @param offset Offset of the search
    * @param limit Limit of results to retrieve
-   * @param username User name
+   * @param username User name accessing calendars
    * @return {@link List} of {@link Calendar}
    */
   List<Calendar> getCalendars(String query, int offset, int limit, String username);
@@ -41,7 +41,7 @@ public interface AgendaCalendarService {
    * @param query Search query term
    * @param offset Offset of the search
    * @param limit Limit of results to retrieve
-   * @param username User name
+   * @param username User name accessing calendars
    * @return {@link List} of {@link Calendar}
    * @throws IllegalAccessException when user is not authorized to delete the
    *           calendar
@@ -56,7 +56,7 @@ public interface AgendaCalendarService {
    * Count available calendars for a designated user
    * 
    * @param query Search query term
-   * @param username User name
+   * @param username User name accessing calendars
    * @return count of available calendars
    */
   int countCalendars(String query, String username);
@@ -66,7 +66,7 @@ public interface AgendaCalendarService {
    * 
    * @param ownerId calendar owner technical identity identifier
    * @param query Search query term
-   * @param username User name
+   * @param username User name accessing calendars
    * @return count of available calendars
    */
   int countCalendarsByOwner(long ownerId, String query, String username);
@@ -75,7 +75,7 @@ public interface AgendaCalendarService {
    * Retrieves a calendar identified by its technical identifier.
    * 
    * @param calendarId technical identifier of a calendar
-   * @param username User name
+   * @param username User name accessing calendar
    * @return A {@link Calendar} object
    * @throws IllegalAccessException when user is not authorized to access
    *           calendar
@@ -86,7 +86,7 @@ public interface AgendaCalendarService {
    * Creates a new calendar
    * 
    * @param calendar {@link Calendar} object to create
-   * @param username User name
+   * @param username User name creating calendar
    * @return created {@link Calendar} with generated technical identifier
    * @throws IllegalAccessException when user is not authorized to create a
    *           calendar for the designated owner defined in object
@@ -97,7 +97,7 @@ public interface AgendaCalendarService {
    * Updates an existing calendar
    * 
    * @param calendar {@link Calendar} object to update
-   * @param username User name
+   * @param username User name updating calendar
    * @throws IllegalAccessException when user is not authorized to update the
    *           calendar
    * @throws ObjectNotFoundException when the calendar identified by its
@@ -106,10 +106,10 @@ public interface AgendaCalendarService {
   void updateCalendar(Calendar calendar, String username) throws IllegalAccessException, ObjectNotFoundException;
 
   /**
-   * Updates an existing calendar
+   * Deletes an existing calendar
    * 
    * @param calendarId Calendar technical identifier to delete
-   * @param username User name
+   * @param username User name deleting calendar
    * @throws IllegalAccessException when user is not authorized to delete the
    *           calendar
    * @throws ObjectNotFoundException when the calendar identified by its
