@@ -10,37 +10,45 @@
             dense>
             <v-btn
               class="btn btn-primary mr-2">
-              ok
+              <v-icon dark left>mdi-plus</v-icon>
+              {{ $t('agenda.button.addEvent') }}
             </v-btn>
             <v-btn
               class="btn">
-              cancel
+              <v-icon dark left>mdi-sync</v-icon>
+              {{ $t('agenda.button.syncCalendar') }}
             </v-btn>
-            <div>
-              <v-btn
-                text
-                large
-                @click="$root.$emit('switch-type', 'day')">
-                Day
-              </v-btn>
-              <v-btn
-                text
-                large
-                @click="$root.$emit('switch-type', 'week')">
-                Week
-              </v-btn>
-              <v-btn
-                text
-                large
-                @click="$root.$emit('switch-type', 'month')">
-                Month
-              </v-btn>
+            <div class="ml-4">
+              <v-tabs v-model="activeView">
+                <v-tab
+                  dark
+                  @click="$root.$emit('switch-type', 'day')">
+                  {{ $t('agenda.label.viewDay') }}
+                </v-tab>
+                <v-tab
+                  dark
+                  @click="$root.$emit('switch-type', 'week')">
+                  {{ $t('agenda.label.viewWeek') }}
+                </v-tab>
+                <v-tab
+                  dark
+                  @click="$root.$emit('switch-type', 'month')">
+                  {{ $t('agenda.label.viewMonth') }}
+                </v-tab>
+              </v-tabs>
             </div>
             <div class="uiSearchInput">
               <input
                 id="inputValue"
                 type="text"
-                placeholder="Look for an event ...">
+                class="input-large ignore-vuetify-classes"
+                :placeholder="$t('agenda.SearchEventPlaceholder')">
+            </div>
+            <div>
+              <select class="width-auto my-auto ml-4 pr-2 subtitle-1 ignore-vuetify-classes d-none d-sm-inline">
+                <option>My Event</option>
+                <option>All Events</option>
+              </select>
             </div>
             <v-spacer />
             <v-btn icon>
@@ -57,7 +65,9 @@
 </template>
 
 <script>
-    export default {
-        name: "AgendaHeader"
-    }
+export default {
+  data: () => ({
+    activeView:1
+  })
+}
 </script>
