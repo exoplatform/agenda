@@ -17,9 +17,24 @@
               cancel
             </v-btn>
             <div>
-              <v-btn @click="$root.$emit('switch-type', 'day')" text large>Day</v-btn>
-              <v-btn @click="$root.$emit('switch-type', 'week')" text large>Week</v-btn>
-              <v-btn @click="$root.$emit('switch-type', 'month')" text large>Month</v-btn>
+              <v-btn
+                text
+                large
+                @click="$root.$emit('switch-type', 'day')">
+                Day
+              </v-btn>
+              <v-btn
+                text
+                large
+                @click="$root.$emit('switch-type', 'week')">
+                Week
+              </v-btn>
+              <v-btn
+                text
+                large
+                @click="$root.$emit('switch-type', 'month')">
+                Month
+              </v-btn>
             </div>
           </v-toolbar>
         </v-flex>
