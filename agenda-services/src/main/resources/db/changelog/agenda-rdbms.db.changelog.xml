@@ -72,7 +72,7 @@
         <constraints foreignKeyName="FK_AGENDA_REMOTE_PROVIDER" references="EXO_AGENDA_REMOTE_PROVIDER(AGENDA_PROVIDER_ID)" />
       </column>
       <column name="REMOTE_ID" type="VARCHAR(500)" />
-      <column name="CREATOR" type="BIGINT">
+      <column name="CREATOR_ID" type="BIGINT">
         <constraints nullable="false" />
       </column>
       <column name="CREATED_DATE" type="TIMESTAMP" defaultValueDate="${now}">
@@ -189,6 +189,9 @@
       </column>
       <column name="EVENT_ID" type="BIGINT">
         <constraints nullable="false" foreignKeyName="FK_AGENDA_EVENT_REMINDER" references="EXO_AGENDA_EVENT(EVENT_ID)" />
+      </column>
+      <column name="RECEIVER_ID" type="BIGINT">
+        <constraints nullable="false" />
       </column>
       <column name="MINUTES" type="INT">
         <constraints nullable="false" />
