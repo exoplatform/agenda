@@ -63,7 +63,7 @@ public class EventEntity implements Serializable {
   @Column(name = "OCCURRENCE_ID")
   private String            occurrenceId;
 
-  @Column(name = "CREATOR", nullable = false)
+  @Column(name = "CREATOR_ID", nullable = false)
   private long              creatorId;
 
   @Column(name = "CREATED_DATE", nullable = false)

@@ -40,6 +40,9 @@ public class EventReminder implements Serializable {
   @JoinColumn(name = "EVENT_ID", referencedColumnName = "EVENT_ID")
   private EventEntity       event;
 
+  @Column(name = "RECEIVER_ID", nullable = false)
+  private long              receiverId;
+
   @Column(name = "TYPE", nullable = false)
   private String            type;
 
@@ -89,4 +92,11 @@ public class EventReminder implements Serializable {
     this.triggerDate = triggerDate;
   }
 
+  public long getReceiverId() {
+    return receiverId;
+  }
+
+  public void setReceiverId(long receiverId) {
+    this.receiverId = receiverId;
+  }
 }
