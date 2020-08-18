@@ -18,6 +18,7 @@ package org.exoplatform.agenda.rest;
 
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.*;
@@ -28,10 +29,12 @@ import javax.ws.rs.core.Response.Status;
 import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
-import org.exoplatform.agenda.model.*;
+import org.exoplatform.agenda.model.Event;
+import org.exoplatform.agenda.model.EventReminder;
+import org.exoplatform.agenda.rest.model.EventEntity;
+import org.exoplatform.agenda.rest.model.EventList;
 import org.exoplatform.agenda.service.*;
-import org.exoplatform.agenda.util.AgendaDateUtils;
-import org.exoplatform.agenda.util.RestUtils;
+import org.exoplatform.agenda.util.*;
 import org.exoplatform.common.http.HTTPStatus;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.services.log.ExoLogger;
@@ -100,8 +103,10 @@ public class AgendaEventRest {
       } else {
         events = agendaEventService.getEventsByOwner(ownerId, startDatetime, endDatetime, currentUser);
       }
+      List<EventEntity> eventEntities = events.stream().map(EntityBuilder::fromEvent).collect(Collectors.toList());
+
       EventList eventList = new EventList();
-      eventList.setEvents(events);
+      eventList.setEvents(eventEntities);
       eventList.setStart(start);
       eventList.setEnd(end);
       return Response.ok(eventList).build();
@@ -136,7 +141,7 @@ public class AgendaEventRest {
       if (event == null) {
         return Response.status(Status.NOT_FOUND).build();
       } else {
-        return Response.ok(event).build();
+        return Response.ok(EntityBuilder.fromEvent(event)).build();
       }
     } catch (IllegalAccessException e) {
       LOG.warn("User '{}' attempts to access not authorized event with Id '{}'", currentUser, eventId);
@@ -157,17 +162,17 @@ public class AgendaEventRest {
       @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
       @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
   })
-  public Response createEvent(@ApiParam(value = "Event object to create", required = true) Event event) {
-    if (event == null) {
+  public Response createEvent(@ApiParam(value = "Event object to create", required = true) EventEntity eventEntity) {
+    if (eventEntity == null) {
       return Response.status(Status.BAD_REQUEST).entity("Event object is mandatory").build();
     }
 
     String currentUser = RestUtils.getCurrentUser();
     try {
-      agendaEventService.createEvent(event, currentUser);
+      agendaEventService.createEvent(EntityBuilder.toEvent(eventEntity), currentUser);
       return Response.noContent().build();
     } catch (IllegalAccessException e) {
-      LOG.warn("User '{}' attempts to create an event for owner '{}'", currentUser, event.getCalendar());
+      LOG.warn("User '{}' attempts to create an event in calendar '{}'", currentUser, eventEntity.getCalendar());
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error creating an event", e);
@@ -186,17 +191,17 @@ public class AgendaEventRest {
       @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
       @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
   })
-  public Response updateEvent(@ApiParam(value = "Event object to update", required = true) Event event) {
-    if (event == null) {
+  public Response updateEvent(@ApiParam(value = "Event object to update", required = true) EventEntity eventEntity) {
+    if (eventEntity == null) {
       return Response.status(Status.BAD_REQUEST).entity("Event object is mandatory").build();
     }
-    if (event.getId() <= 0) {
+    if (eventEntity.getId() <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Event technical identifier must be positive").build();
     }
 
     String currentUser = RestUtils.getCurrentUser();
     try {
-      agendaEventService.updateEvent(event, currentUser);
+      agendaEventService.updateEvent(EntityBuilder.toEvent(eventEntity), currentUser);
       return Response.noContent().build();
     } catch (Exception e) {
       LOG.warn("Error updating an event", e);

@@ -14,7 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see<http://www.gnu.org/licenses/>.
 */
-
 package org.exoplatform.agenda.util;
 
 import org.exoplatform.services.security.ConversationState;
@@ -29,4 +28,5 @@ public class RestUtils {
   public static final String getCurrentUser() {
     return ConversationState.getCurrent().getIdentity().getUserId();
   }
+
 }
