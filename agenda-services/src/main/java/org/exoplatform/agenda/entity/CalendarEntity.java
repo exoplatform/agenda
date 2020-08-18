@@ -23,14 +23,11 @@ import javax.persistence.*;
 
 import org.exoplatform.commons.api.persistence.ExoEntity;
 
-@Entity(name = "Calendar")
+@Entity(name = "AgendaCalendar")
 @ExoEntity
 @Table(name = "EXO_AGENDA_CALENDAR")
-@NamedQueries(
-  {
-      @NamedQuery(name = "Calendar.getAllCalendars", query = "select c from Calendar c ORDER BY c.createdDate DESC")
-  }
-)
+@NamedQueries({
+})
 public class CalendarEntity implements Serializable {
 
   private static final long serialVersionUID = -5042089789130151840L;

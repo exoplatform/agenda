@@ -20,31 +20,31 @@ import java.io.Serializable;
 
 import javax.persistence.*;
 
-import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.commons.api.persistence.ExoEntity;
 
-@Entity(name = "EventAttendee")
+@Entity(name = "AgendaEventAttachment")
 @ExoEntity
-@Table(name = "EXO_AGENDA_ATTENDEE")
-public class EventAttendee implements Serializable {
+@Table(name = "EXO_AGENDA_ATTACHMENT")
+@NamedQueries({
+    @NamedQuery(name = "AgendaEventAttachment.deleteCalendarAttachments", query = "DELETE FROM AgendaEventAttachment a WHERE a.event.id IN (SELECT evt.id FROM AgendaEvent evt WHERE evt.calendar.id = :calendarId)"),
+    @NamedQuery(name = "AgendaEventAttachment.deleteEventAttachments", query = "DELETE FROM AgendaEventAttachment a WHERE a.event.id = :eventId"),
+})
+public class EventAttachmentEntity implements Serializable {
 
-  private static final long     serialVersionUID = 8633143729031653190L;
+  private static final long serialVersionUID = -5042195477763593110L;
 
   @Id
-  @SequenceGenerator(name = "SEQ_AGENDA_EVENT_ATTENDEE_ID", sequenceName = "SEQ_AGENDA_EVENT_ATTENDEE_ID")
-  @GeneratedValue(strategy = GenerationType.AUTO, generator = "SEQ_AGENDA_EVENT_ATTENDEE_ID")
-  @Column(name = "EVENT_ATTENDEE_ID")
-  private Long                  id;
+  @SequenceGenerator(name = "SEQ_AGENDA_EVENT_ATTACHMENT_ID", sequenceName = "SEQ_AGENDA_EVENT_ATTACHMENT_ID")
+  @GeneratedValue(strategy = GenerationType.AUTO, generator = "SEQ_AGENDA_EVENT_ATTACHMENT_ID")
+  @Column(name = "EVENT_ATTACHMENT_ID")
+  private Long              id;
 
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "EVENT_ID", referencedColumnName = "EVENT_ID")
-  private EventEntity           event;
+  private EventEntity       event;
 
-  @Column(name = "IDENTITY_ID", nullable = false)
-  private long                  identityId;
-
-  @Column(name = "RESPONSE", nullable = false)
-  private EventAttendeeResponse response;
+  @Column(name = "FILE_ID", nullable = false)
+  private long              fileId;
 
   public Long getId() {
     return id;
@@ -62,20 +62,12 @@ public class EventAttendee implements Serializable {
     this.event = event;
   }
 
-  public long getIdentityId() {
-    return identityId;
+  public long getFileId() {
+    return fileId;
   }
 
-  public void setIdentityId(long identityId) {
-    this.identityId = identityId;
-  }
-
-  public EventAttendeeResponse getResponse() {
-    return response;
-  }
-
-  public void setResponse(EventAttendeeResponse response) {
-    this.response = response;
+  public void setFileId(long fileId) {
+    this.fileId = fileId;
   }
 
 }
