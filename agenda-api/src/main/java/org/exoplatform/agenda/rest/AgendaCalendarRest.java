@@ -204,7 +204,7 @@ public class AgendaCalendarRest {
 
   @DELETE
   @RolesAllowed("users")
-  @ApiOperation(value = "Deletes an existing calendar", httpMethod = "DELETE", response = Response.class, consumes = "application/json")
+  @ApiOperation(value = "Deletes an existing calendar", httpMethod = "DELETE", response = Response.class)
   @ApiResponses(value = {
       @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
       @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object not found"),
