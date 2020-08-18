@@ -14,31 +14,23 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see<http://www.gnu.org/licenses/>.
 */
-package org.exoplatform.agenda.model;
+package org.exoplatform.agenda.rest.model;
+
+import java.util.List;
 
 import lombok.*;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class Calendar {
+public class CalendarList {
 
-  private long       id;
+  private List<CalendarEntity> calendars;
 
-  private long       ownerId;
+  private int                  offset;
 
-  private boolean    system;
+  private int                  limit;
 
-  private String     title;
-
-  private String     description;
-
-  private String     created;
-
-  private String     updated;
-
-  private String     color;
-
-  private Permission acl;
+  private int                  size;
 
 }

@@ -19,6 +19,7 @@ package org.exoplatform.agenda.rest;
 import static org.exoplatform.agenda.util.RestUtils.DEFAULT_LIMIT;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.*;
@@ -27,8 +28,10 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
 import org.exoplatform.agenda.model.Calendar;
-import org.exoplatform.agenda.model.CalendarList;
+import org.exoplatform.agenda.rest.model.CalendarEntity;
+import org.exoplatform.agenda.rest.model.CalendarList;
 import org.exoplatform.agenda.service.AgendaCalendarService;
+import org.exoplatform.agenda.util.EntityBuilder;
 import org.exoplatform.agenda.util.RestUtils;
 import org.exoplatform.common.http.HTTPStatus;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
@@ -60,7 +63,6 @@ public class AgendaCalendarRest {
       @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
   })
   public Response list(@ApiParam(value = "Identity technical identifier", required = false) @PathParam("ownerId") long ownerId,
-                       @ApiParam(value = "Search keyword to use to search for calendars", required = false) @QueryParam("q") String query,
                        @ApiParam(value = "Whether return size of results or not", required = false, defaultValue = "false") @QueryParam("returnSize") boolean returnSize,
                        @ApiParam(value = "Offset of result", required = false, defaultValue = "0") @QueryParam("offset") int offset,
                        @ApiParam(value = "Limit of result", required = false, defaultValue = "10") @QueryParam("limit") int limit) {
@@ -75,19 +77,25 @@ public class AgendaCalendarRest {
     try {
       List<Calendar> calendars = null;
       if (ownerId <= 0) {
-        calendars = agendaCalendarService.getCalendars(query, offset, limit, currentUser);
+        calendars = agendaCalendarService.getCalendars(offset, limit, currentUser);
       } else {
-        calendars = agendaCalendarService.getCalendarsByOwner(ownerId, query, offset, limit, currentUser);
+        calendars = agendaCalendarService.getCalendarsByOwner(ownerId, offset, limit, currentUser);
       }
       CalendarList calendarList = new CalendarList();
-      calendarList.setCalendars(calendars);
+      List<CalendarEntity> calendarEntities = calendars.stream().map(EntityBuilder::fromCalendar).collect(Collectors.toList());
+      calendarList.setCalendars(calendarEntities);
       if (returnSize && !calendars.isEmpty()) {
-        int returnedCalendarSize = calendarList.getCalendars().size();
+        int returnedCalendarSize = calendars.size();
         // retieve count from DB only if the size of returned calendars equals
         // to the requested limit, in which case the calendar size may be
         // greater than limit
         if (returnedCalendarSize >= limit) {
-          int calendarCount = agendaCalendarService.countCalendarsByOwner(ownerId, query, currentUser);
+          int calendarCount = 0;
+          if (ownerId > 0) {
+            calendarCount = agendaCalendarService.countCalendarsByOwner(ownerId, currentUser);
+          } else {
+            calendarCount = agendaCalendarService.countCalendars(currentUser);
+          }
           calendarList.setSize(calendarCount);
         } else {
           calendarList.setSize(returnedCalendarSize);
@@ -126,7 +134,7 @@ public class AgendaCalendarRest {
       if (calendar == null) {
         return Response.status(Status.NOT_FOUND).build();
       } else {
-        return Response.ok(calendar).build();
+        return Response.ok(EntityBuilder.fromCalendar(calendar)).build();
       }
     } catch (IllegalAccessException e) {
       LOG.warn("User '{}' attempts to access not authorized calendar with Id '{}'", currentUser, calendarId);
@@ -147,20 +155,20 @@ public class AgendaCalendarRest {
       @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
       @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
   })
-  public Response createCalendar(@ApiParam(value = "Calendar object to create", required = true) Calendar calendar) {
-    if (calendar == null) {
+  public Response createCalendar(@ApiParam(value = "Calendar object to create", required = true) CalendarEntity calendarEntity) {
+    if (calendarEntity == null) {
       return Response.status(Status.BAD_REQUEST).entity("Calendar object is mandatory").build();
     }
-    if (calendar.getOwner() == null) {
+    if (calendarEntity.getOwner() == null) {
       return Response.status(Status.BAD_REQUEST).entity("Calendar owner is mandatory").build();
     }
 
     String currentUser = RestUtils.getCurrentUser();
     try {
-      agendaCalendarService.createCalendar(calendar, currentUser);
+      agendaCalendarService.createCalendar(EntityBuilder.toCalendar(calendarEntity), currentUser);
       return Response.noContent().build();
     } catch (IllegalAccessException e) {
-      LOG.warn("User '{}' attempts to create a calendar for owner '{}'", currentUser, calendar.getOwner().getId());
+      LOG.warn("User '{}' attempts to create a calendar for owner '{}'", currentUser, calendarEntity.getOwner());
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error creating a calendar", e);
@@ -179,22 +187,22 @@ public class AgendaCalendarRest {
       @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
       @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
   })
-  public Response updateCalendar(@ApiParam(value = "Calendar object to update", required = true) Calendar calendar) {
-    if (calendar == null) {
+  public Response updateCalendar(@ApiParam(value = "Calendar object to update", required = true) CalendarEntity calendarEntity) {
+    if (calendarEntity == null) {
       return Response.status(Status.BAD_REQUEST).entity("Calendar object is mandatory").build();
     }
-    if (calendar.getId() <= 0) {
+    if (calendarEntity.getId() <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Calendar technical identifier must be positive").build();
     }
 
     String currentUser = RestUtils.getCurrentUser();
     try {
-      agendaCalendarService.updateCalendar(calendar, currentUser);
+      agendaCalendarService.updateCalendar(EntityBuilder.toCalendar(calendarEntity), currentUser);
       return Response.noContent().build();
     } catch (ObjectNotFoundException e) {
       return Response.status(Status.NOT_FOUND).entity("Calendar not found").build();
     } catch (IllegalAccessException e) {
-      LOG.error("User '{}' attempts to update a calendar for owner '{}'", currentUser, calendar.getOwner().getId());
+      LOG.error("User '{}' attempts to update a calendar for owner '{}'", currentUser, calendarEntity.getOwner());
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error updating a calendar", e);

@@ -14,31 +14,31 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see<http://www.gnu.org/licenses/>.
 */
-package org.exoplatform.agenda.model;
+package org.exoplatform.agenda.storage;
 
-import lombok.*;
+import java.util.List;
 
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-public class Calendar {
+import org.exoplatform.agenda.model.Calendar;
 
-  private long       id;
+public class AgendaCalendarStorage {
 
-  private long       ownerId;
+  public AgendaCalendarStorage() {
+    // TODO Auto-generated constructor stub
+  }
 
-  private boolean    system;
+  public List<Calendar> getCalendarsByOwners(int offset, int limit, Long... ownerIds) {
+    // TODO Auto-generated method stub
+    return null;
+  }
 
-  private String     title;
+  public int countCalendarsByOwners(Long... ownerIds) {
+    // TODO Auto-generated method stub
+    return 0;
+  }
 
-  private String     description;
-
-  private String     created;
-
-  private String     updated;
-
-  private String     color;
-
-  private Permission acl;
+  public Calendar getCalendarById(long calendarId) {
+    // TODO Auto-generated method stub
+    return null;
+  }
 
 }

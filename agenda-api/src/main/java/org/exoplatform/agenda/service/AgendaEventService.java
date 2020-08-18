@@ -65,6 +65,14 @@ public interface AgendaEventService {
   public Event getEventById(long eventId, String username) throws IllegalAccessException;
 
   /**
+   * Retrieves an event identified by its technical identifier.
+   * 
+   * @param eventId technical identifier of event
+   * @return Corresponding {@link Event} or null if not found
+   */
+  public Event getEventById(long eventId);
+
+  /**
    * Creates an event in designated calendar or in user personal calendar if
    * null
    * 

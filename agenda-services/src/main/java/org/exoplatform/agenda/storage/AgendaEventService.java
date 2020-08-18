@@ -14,23 +14,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see<http://www.gnu.org/licenses/>.
 */
-package org.exoplatform.agenda.model;
+package org.exoplatform.agenda.storage;
 
-import java.util.List;
+public class AgendaEventService {
 
-import lombok.*;
-
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-public class CalendarList {
-
-  private List<Calendar> calendars;
-
-  private int            offset;
-
-  private int            limit;
-
-  private int            size;
+  public AgendaEventService() {
+    // TODO Auto-generated constructor stub
+  }
 
 }
