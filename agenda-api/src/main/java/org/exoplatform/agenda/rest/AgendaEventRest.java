@@ -27,15 +27,18 @@ import javax.ws.rs.core.Response.Status;
 
 import org.apache.commons.lang3.StringUtils;
 
+import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.model.*;
-import org.exoplatform.agenda.service.AgendaEventReminderService;
-import org.exoplatform.agenda.service.AgendaEventService;
+import org.exoplatform.agenda.service.*;
 import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.agenda.util.RestUtils;
 import org.exoplatform.common.http.HTTPStatus;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
+import org.exoplatform.social.core.identity.model.Identity;
+import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
+import org.exoplatform.social.core.manager.IdentityManager;
 
 import io.swagger.annotations.*;
 
@@ -43,15 +46,24 @@ import io.swagger.annotations.*;
 @Api(value = "/v1/agenda/events", description = "Manages agenda events associated to users and spaces") // NOSONAR
 public class AgendaEventRest {
 
-  private static final Log           LOG = ExoLogger.getLogger(AgendaEventRest.class);
+  private static final Log             LOG = ExoLogger.getLogger(AgendaEventRest.class);
 
-  private AgendaEventService         agendaEventService;
+  private IdentityManager              identityManager;
 
-  private AgendaEventReminderService agendaEventReminderService;
+  private AgendaEventService           agendaEventService;
 
-  public AgendaEventRest(AgendaEventService agendaEventService, AgendaEventReminderService agendaEventReminderService) {
+  private AgendaEventReminderService   agendaEventReminderService;
+
+  private AgendaEventInvitationService agendaEventInvitationService;
+
+  public AgendaEventRest(IdentityManager identityManager,
+                         AgendaEventService agendaEventService,
+                         AgendaEventReminderService agendaEventReminderService,
+                         AgendaEventInvitationService agendaEventInvitationService) {
+    this.identityManager = identityManager;
     this.agendaEventService = agendaEventService;
     this.agendaEventReminderService = agendaEventReminderService;
+    this.agendaEventInvitationService = agendaEventInvitationService;
   }
 
   @GET
@@ -76,6 +88,9 @@ public class AgendaEventRest {
 
     ZonedDateTime startDatetime = AgendaDateUtils.parseRFC3339Date(start);
     ZonedDateTime endDatetime = AgendaDateUtils.parseRFC3339Date(end);
+    if (endDatetime.isBefore(startDatetime) || endDatetime.equals(startDatetime)) {
+      return Response.status(Status.BAD_REQUEST).entity("Start date must be before end date").build();
+    }
 
     String currentUser = RestUtils.getCurrentUser();
     try {
@@ -135,7 +150,7 @@ public class AgendaEventRest {
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(value = "Creates a new event", httpMethod = "POST", response = Response.class, consumes = "application/json")
+  @ApiOperation(value = "Create a new event", httpMethod = "POST", response = Response.class, consumes = "application/json")
   @ApiResponses(value = {
       @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
       @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
@@ -163,7 +178,7 @@ public class AgendaEventRest {
   @PUT
   @Consumes(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(value = "Updates an existing event", httpMethod = "PUT", response = Response.class, consumes = "application/json")
+  @ApiOperation(value = "Update an existing event", httpMethod = "PUT", response = Response.class, consumes = "application/json")
   @ApiResponses(value = {
       @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
       @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object not found"),
@@ -182,7 +197,7 @@ public class AgendaEventRest {
     String currentUser = RestUtils.getCurrentUser();
     try {
       agendaEventService.updateEvent(event, currentUser);
-      return Response.status(Status.NOT_FOUND).entity("Event not found").build();
+      return Response.noContent().build();
     } catch (Exception e) {
       LOG.warn("Error updating an event", e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -191,7 +206,7 @@ public class AgendaEventRest {
 
   @DELETE
   @RolesAllowed("users")
-  @ApiOperation(value = "Deletes an existing event", httpMethod = "DELETE", response = Response.class, consumes = "application/json")
+  @ApiOperation(value = "Delete an existing event", httpMethod = "DELETE", response = Response.class)
   @ApiResponses(value = {
       @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
       @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object not found"),
@@ -223,7 +238,7 @@ public class AgendaEventRest {
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(value = "Retrieves preferred reminders for currently authenticated user for an event identified by its technical identifier.", httpMethod = "GET", response = Response.class, produces = "application/json")
+  @ApiOperation(value = "Retrieve preferred reminders for currently authenticated user for an event identified by its technical identifier.", httpMethod = "GET", response = Response.class, produces = "application/json")
   @ApiResponses(value = {
       @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
       @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
@@ -258,9 +273,9 @@ public class AgendaEventRest {
   @PUT
   @Consumes(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(value = "Updates the list of preferred reminders for authenticated user on a selected event.", httpMethod = "PUT", response = Response.class, produces = "application/json")
+  @ApiOperation(value = "Update the list of preferred reminders for authenticated user on a selected event.", httpMethod = "PUT", response = Response.class, consumes = "application/json")
   @ApiResponses(value = {
-      @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+      @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
       @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
       @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
       @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
@@ -282,6 +297,94 @@ public class AgendaEventRest {
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error updating event reminders with id '{}'", eventId, e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
+  @Path("{eventId}/response")
+  @GET
+  @Produces(MediaType.TEXT_PLAIN)
+  @ApiOperation(value = "Retrieves currently authenticated (using token or effectively authenticated) user response to an event.", httpMethod = "GET", response = Response.class, produces = "text/plain")
+  @ApiResponses(value = {
+      @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+      @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+      @ApiResponse(code = HTTPStatus.FORBIDDEN, message = "Forbidden operation"),
+      @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+      @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+  })
+  public Response getEventResponse(@ApiParam(value = "Event technical identifier", required = true) @PathParam("eventId") long eventId,
+                                   @ApiParam(value = "User token to ", required = false) @QueryParam("token") String token) {
+    if (eventId <= 0) {
+      return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
+    }
+
+    String currentUser = RestUtils.getCurrentUser();
+    try {
+      Identity identity = null;
+      if (StringUtils.isNotBlank(token)) {
+        identity = agendaEventInvitationService.readUserIdentity(token, eventId, null);
+      } else if (StringUtils.isNotBlank(currentUser)) {
+        identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, currentUser);
+      }
+      if (identity == null) {
+        return Response.status(Status.FORBIDDEN).build();
+      }
+      EventAttendeeResponse response = agendaEventInvitationService.getEventResponse(identity.getId(), eventId);
+      return Response.ok(response.getValue()).build();
+    } catch (ObjectNotFoundException e) {
+      return Response.status(Status.NOT_FOUND).entity("Event not found").build();
+    } catch (IllegalAccessException e) {
+      LOG.warn("User '{}' attempts to access invitation response for a not authorized event with Id '{}'", currentUser, eventId);
+      return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
+    } catch (Exception e) {
+      LOG.warn("Error retrieving event reminders with id '{}'", eventId, e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
+  @Path("{eventId}/response/send")
+  @GET
+  @ApiOperation(value = "Send event invitation response for currently authenticated user (using token or effectively authenticated).", httpMethod = "GET", response = Response.class)
+  @ApiResponses(value = {
+      @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
+      @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+      @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+      @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+  })
+  public Response sendEventResponse(@ApiParam(value = "Event technical identifier", required = true) @PathParam("eventId") long eventId,
+                                    @ApiParam(value = "User token to ", required = false) @QueryParam("token") String token,
+                                    @ApiParam(value = "Response to event invitation. Possible values: ACCEPTED, DECLINED or TENTATIVE.", required = true) @QueryParam("response") String responseString) {
+    if (eventId <= 0) {
+      return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
+    }
+    if (StringUtils.isBlank(responseString)) {
+      return Response.status(Status.BAD_REQUEST).entity("Event response is mandatory").build();
+    }
+    EventAttendeeResponse response = EventAttendeeResponse.fromValue(responseString);
+    if (response == null || response == EventAttendeeResponse.NEEDS_ACTION) {
+      return Response.status(Status.BAD_REQUEST).entity("Event response is not recognized").build();
+    }
+
+    String currentUser = RestUtils.getCurrentUser();
+    try {
+      Identity identity = null;
+      if (StringUtils.isNotBlank(token)) {
+        identity = agendaEventInvitationService.readUserIdentity(token, eventId, response);
+      } else if (StringUtils.isNotBlank(currentUser)) {
+        identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, currentUser);
+      }
+      if (identity == null) {
+        return Response.status(Status.FORBIDDEN).build();
+      }
+      agendaEventInvitationService.sendEventResponse(identity.getId(), eventId, response);
+      return Response.noContent().build();
+    } catch (ObjectNotFoundException e) {
+      return Response.status(Status.NOT_FOUND).entity("Event not found").build();
+    } catch (IllegalAccessException e) {
+      LOG.warn("User '{}' attempts to send invitation response for a not authorized event with Id '{}'", currentUser, eventId);
+      return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
+    } catch (Exception e) {
+      LOG.warn("Error retrieving event reminders with id '{}'", eventId, e);
       return Response.serverError().entity(e.getMessage()).build();
     }
   }

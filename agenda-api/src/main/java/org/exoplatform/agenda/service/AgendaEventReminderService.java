@@ -45,7 +45,7 @@ public interface AgendaEventReminderService {
    * 
    * @param eventId {@link Event} technical identifier
    * @param reminders {@link List} of {@link EventReminder}
-   * @param username
+   * @param username User updating his/her reminders on the event
    * @throws IllegalAccessException when user attempts to acces non authorized
    *           event
    * @throws ObjectNotFoundException when user attempts to acces not found event
