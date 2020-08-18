@@ -24,10 +24,14 @@ import javax.persistence.*;
 import org.exoplatform.agenda.constant.EventRecurrenceFrequency;
 import org.exoplatform.commons.api.persistence.ExoEntity;
 
-@Entity(name = "EventRecurrence")
+@Entity(name = "AgendaEventRecurrence")
 @ExoEntity
 @Table(name = "EXO_AGENDA_RECURRENCE")
-public class EventRecurrence implements Serializable {
+@NamedQueries({
+  @NamedQuery(name = "AgendaEventRecurrence.deleteCalendarRecurrences", query = "DELETE FROM AgendaEventRecurrence a WHERE a.event.id IN (SELECT evt.id FROM AgendaEvent evt WHERE evt.calendar.id = :calendarId)"),
+  @NamedQuery(name = "AgendaEventRecurrence.deleteEventRecurrences", query = "DELETE FROM AgendaEventRecurrence a WHERE a.event.id = :eventId"),
+})
+public class EventRecurrenceEntity implements Serializable {
 
   private static final long        serialVersionUID = -4214007539857435152L;
 

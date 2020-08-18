@@ -23,10 +23,14 @@ import javax.persistence.*;
 
 import org.exoplatform.commons.api.persistence.ExoEntity;
 
-@Entity(name = "EventReminder")
+@Entity(name = "AgendaEventReminder")
 @ExoEntity
 @Table(name = "EXO_AGENDA_REMINDER")
-public class EventReminder implements Serializable {
+@NamedQueries({
+  @NamedQuery(name = "AgendaEventReminder.deleteCalendarReminders", query = "DELETE FROM AgendaEventReminder a WHERE a.event.id IN (SELECT evt.id FROM AgendaEvent evt WHERE evt.calendar.id = :calendarId)"),
+  @NamedQuery(name = "AgendaEventReminder.deleteEventReminders", query = "DELETE FROM AgendaEventReminder a WHERE a.event.id = :eventId"),
+})
+public class EventReminderEntity implements Serializable {
 
   private static final long serialVersionUID = 6460217989840428489L;
 
