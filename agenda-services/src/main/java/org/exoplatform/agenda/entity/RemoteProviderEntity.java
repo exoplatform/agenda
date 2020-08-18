@@ -22,25 +22,21 @@ import javax.persistence.*;
 
 import org.exoplatform.commons.api.persistence.ExoEntity;
 
-@Entity(name = "EventAttachment")
+@Entity(name = "AgendaRemoteProvider")
 @ExoEntity
-@Table(name = "EXO_AGENDA_ATTACHMENT")
-public class EventAttachment implements Serializable {
+@Table(name = "EXO_AGENDA_REMOTE_PROVIDER")
+public class RemoteProviderEntity implements Serializable {
 
-  private static final long serialVersionUID = -5042195477763593110L;
+  private static final long serialVersionUID = -5031970577705728288L;
 
   @Id
-  @SequenceGenerator(name = "SEQ_AGENDA_EVENT_ATTACHMENT_ID", sequenceName = "SEQ_AGENDA_EVENT_ATTACHMENT_ID")
-  @GeneratedValue(strategy = GenerationType.AUTO, generator = "SEQ_AGENDA_EVENT_ATTACHMENT_ID")
-  @Column(name = "EVENT_ATTACHMENT_ID")
+  @SequenceGenerator(name = "SEQ_AGENDA_PROVIDER_ID", sequenceName = "SEQ_AGENDA_PROVIDER_ID")
+  @GeneratedValue(strategy = GenerationType.AUTO, generator = "SEQ_AGENDA_PROVIDER_ID")
+  @Column(name = "AGENDA_PROVIDER_ID")
   private Long              id;
 
-  @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "EVENT_ID", referencedColumnName = "EVENT_ID")
-  private EventEntity       event;
-
-  @Column(name = "FILE_ID", nullable = false)
-  private long              fileId;
+  @Column(name = "NAME", nullable = false)
+  private String            name;
 
   public Long getId() {
     return id;
@@ -50,20 +46,12 @@ public class EventAttachment implements Serializable {
     this.id = id;
   }
 
-  public EventEntity getEvent() {
-    return event;
+  public String getName() {
+    return name;
   }
 
-  public void setEvent(EventEntity event) {
-    this.event = event;
-  }
-
-  public long getFileId() {
-    return fileId;
-  }
-
-  public void setFileId(long fileId) {
-    this.fileId = fileId;
+  public void setName(String name) {
+    this.name = name;
   }
 
 }
