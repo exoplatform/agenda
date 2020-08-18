@@ -26,19 +26,17 @@ public interface AgendaCalendarService {
   /**
    * Retrieve list of calendars for a designated user
    * 
-   * @param query Search query term
    * @param offset Offset of the search
    * @param limit Limit of results to retrieve
    * @param username User name accessing calendars
    * @return {@link List} of {@link Calendar}
    */
-  List<Calendar> getCalendars(String query, int offset, int limit, String username);
+  List<Calendar> getCalendars(int offset, int limit, String username);
 
   /**
    * Retrieve list of calendars for a designated user
    * 
    * @param ownerId calendar owner technical identity identifier
-   * @param query Search query term
    * @param offset Offset of the search
    * @param limit Limit of results to retrieve
    * @param username User name accessing calendars
@@ -47,7 +45,6 @@ public interface AgendaCalendarService {
    *           calendar
    */
   List<Calendar> getCalendarsByOwner(long ownerId,
-                                     String query,
                                      int offset,
                                      int limit,
                                      String username) throws IllegalAccessException;
@@ -55,21 +52,21 @@ public interface AgendaCalendarService {
   /**
    * Count available calendars for a designated user
    * 
-   * @param query Search query term
    * @param username User name accessing calendars
    * @return count of available calendars
    */
-  int countCalendars(String query, String username);
+  int countCalendars(String username);
 
   /**
    * Count available calendars for a designated user
    * 
    * @param ownerId calendar owner technical identity identifier
-   * @param query Search query term
    * @param username User name accessing calendars
    * @return count of available calendars
+   * @throws IllegalAccessException when user is not authorized to delete the
+   *           calendar
    */
-  int countCalendarsByOwner(long ownerId, String query, String username);
+  int countCalendarsByOwner(long ownerId, String username) throws IllegalAccessException;
 
   /**
    * Retrieves a calendar identified by its technical identifier.
@@ -81,6 +78,14 @@ public interface AgendaCalendarService {
    *           calendar
    */
   Calendar getCalendarById(long calendarId, String username) throws IllegalAccessException;
+
+  /**
+   * Retrieves a calendar identified by its technical identifier.
+   * 
+   * @param calendarId technical identifier of a calendar
+   * @return A {@link Calendar} object
+   */
+  Calendar getCalendarById(long calendarId);
 
   /**
    * Creates a new calendar

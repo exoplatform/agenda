@@ -14,17 +14,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see<http://www.gnu.org/licenses/>.
 */
-package org.exoplatform.agenda.model;
+package org.exoplatform.agenda.rest.model;
 
 import org.exoplatform.agenda.constant.EventAvailability;
 import org.exoplatform.agenda.constant.EventStatus;
+import org.exoplatform.social.rest.entity.IdentityEntity;
 
 import lombok.*;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class Event {
+public class EventEntity {
 
   private long              id;
 
@@ -38,7 +39,7 @@ public class Event {
    * duplicated in user calendar only.</li>
    * </ul>
    */
-  private long              parentId;
+  private EventEntity       parent;
 
   /**
    * External Event technical identifier if imported from external Store. This
@@ -53,9 +54,9 @@ public class Event {
    */
   private String            remoteProviderId;
 
-  private long              calendarId;
+  private CalendarEntity    calendar;
 
-  private long              creatorId;
+  private IdentityEntity    creator;
 
   private String            created;
 

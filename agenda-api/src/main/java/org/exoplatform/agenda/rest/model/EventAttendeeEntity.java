@@ -14,31 +14,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see<http://www.gnu.org/licenses/>.
 */
-package org.exoplatform.agenda.model;
+package org.exoplatform.agenda.rest.model;
+
+import org.exoplatform.agenda.constant.EventAttendeeResponse;
+import org.exoplatform.social.rest.entity.IdentityEntity;
 
 import lombok.*;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class Calendar {
+public class EventAttendeeEntity {
 
-  private long       id;
+  private IdentityEntity        identity;
 
-  private long       ownerId;
-
-  private boolean    system;
-
-  private String     title;
-
-  private String     description;
-
-  private String     created;
-
-  private String     updated;
-
-  private String     color;
-
-  private Permission acl;
+  private EventAttendeeResponse response;
 
 }

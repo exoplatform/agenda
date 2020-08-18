@@ -17,7 +17,6 @@
 package org.exoplatform.agenda.model;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
-import org.exoplatform.social.rest.entity.IdentityEntity;
 
 import lombok.*;
 
@@ -26,7 +25,7 @@ import lombok.*;
 @NoArgsConstructor
 public class EventAttendee {
 
-  private IdentityEntity        identity;
+  private long                  identityId;
 
   private EventAttendeeResponse response;
 
