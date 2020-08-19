@@ -53,6 +53,16 @@ public class CalendarDAO extends GenericDAOJPAImpl<CalendarEntity, Long> {
     return super.update(entity);
   }
 
+  public List<Long> getCalendarIdsByOwnerIds(int offset, int limit, Long... ownerIds) {
+    // TODO
+    return null;
+  }
+
+  public int countCalendarsByOwners(Long... ownerIds) {
+    // TODO Auto-generated method stub
+    return 0;
+  }
+
   @Override
   public void deleteAll() {
     throw new UnsupportedOperationException();
