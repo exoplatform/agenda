@@ -25,79 +25,78 @@ import org.exoplatform.agenda.constant.EventAvailability;
 import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.commons.api.persistence.ExoEntity;
 
-@Entity(name = "Event")
+@Entity(name = "AgendaEvent")
 @ExoEntity
 @Table(name = "EXO_AGENDA_EVENT")
-@NamedQueries(
-  {
-  }
-)
+@NamedQueries({
+    @NamedQuery(name = "AgendaEvent.deleteCalendarEvents", query = "DELETE FROM AgendaEvent ev WHERE ev.calendar.id = :calendarId")
+})
 public class EventEntity implements Serializable {
 
-  private static final long serialVersionUID = -597472315530960636L;
+  private static final long     serialVersionUID = -597472315530960636L;
 
   @Id
   @SequenceGenerator(name = "SEQ_AGENDA_EVENT_ID", sequenceName = "SEQ_AGENDA_EVENT_ID")
   @GeneratedValue(strategy = GenerationType.AUTO, generator = "SEQ_AGENDA_EVENT_ID")
   @Column(name = "EVENT_ID")
-  private Long              id;
+  private Long                  id;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "PARENT_EVENT_ID", referencedColumnName = "EVENT_ID")
-  private EventEntity       parent;
+  private EventEntity           parent;
 
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "CALENDAR_ID", referencedColumnName = "CALENDAR_ID")
-  private CalendarEntity    calendar;
+  private CalendarEntity        calendar;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "REMOTE_PROVIDER_ID", referencedColumnName = "AGENDA_PROVIDER_ID")
-  private RemoteProvider    remoteProvider;
+  private RemoteProviderEntity  remoteProvider;
 
   @Column(name = "REMOTE_ID")
-  private String            remoteId;
+  private String                remoteId;
 
   @OneToOne(mappedBy = "event", fetch = FetchType.EAGER)
-  private EventRecurrence   recurrence;
+  private EventRecurrenceEntity recurrence;
 
   @Column(name = "OCCURRENCE_ID")
-  private String            occurrenceId;
+  private String                occurrenceId;
 
-  @Column(name = "CREATOR", nullable = false)
-  private long              creatorId;
+  @Column(name = "CREATOR_ID", nullable = false)
+  private long                  creatorId;
 
   @Column(name = "CREATED_DATE", nullable = false)
-  private Date              createdDate;
+  private Date                  createdDate;
 
   @Column(name = "UPDATED_DATE")
-  private Date              updatedDate;
+  private Date                  updatedDate;
 
   @Column(name = "ALL_DAY")
-  private boolean           allDay;
+  private boolean               allDay;
 
   @Column(name = "START_DATE")
-  private Date              startDate;
+  private Date                  startDate;
 
   @Column(name = "END_DATE")
-  private Date              endDate;
+  private Date                  endDate;
 
   @Column(name = "SUMMARY")
-  private String            summary;
+  private String                summary;
 
   @Column(name = "DESCRIPTION")
-  private String            description;
+  private String                description;
 
   @Column(name = "LOCATION")
-  private String            location;
+  private String                location;
 
   @Column(name = "COLOR")
-  private String            color;
+  private String                color;
 
   @Column(name = "AVAILABILITY", nullable = false)
-  private EventAvailability availability;
+  private EventAvailability     availability;
 
   @Column(name = "STATUS", nullable = false)
-  private EventStatus       status;
+  private EventStatus           status;
 
   public Long getId() {
     return id;
@@ -123,11 +122,11 @@ public class EventEntity implements Serializable {
     this.calendar = calendar;
   }
 
-  public RemoteProvider getRemoteProvider() {
+  public RemoteProviderEntity getRemoteProvider() {
     return remoteProvider;
   }
 
-  public void setRemoteProvider(RemoteProvider remoteProvider) {
+  public void setRemoteProvider(RemoteProviderEntity remoteProvider) {
     this.remoteProvider = remoteProvider;
   }
 
@@ -139,11 +138,11 @@ public class EventEntity implements Serializable {
     this.remoteId = remoteId;
   }
 
-  public EventRecurrence getRecurrence() {
+  public EventRecurrenceEntity getRecurrence() {
     return recurrence;
   }
 
-  public void setRecurrence(EventRecurrence recurrence) {
+  public void setRecurrence(EventRecurrenceEntity recurrence) {
     this.recurrence = recurrence;
   }
 

@@ -3,6 +3,66 @@
   for more details. You should have received a copy of the GNU Lesser General Public License along with this software; if not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA, or see the FSF site: http://www.fsf.org. -->
 <configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.exoplatform.org/xml/ns/kernel_1_2.xsd http://www.exoplatform.org/xml/ns/kernel_1_2.xsd" xmlns="http://www.exoplatform.org/xml/ns/kernel_1_2.xsd">
 
+  <component>
+    <type>org.exoplatform.agenda.dao.CalendarDAO</type>
+  </component>
+
+  <component>
+    <type>org.exoplatform.agenda.dao.EventDAO</type>
+  </component>
+
+  <component>
+    <type>org.exoplatform.agenda.dao.EventAttachmentDAO</type>
+  </component>
+
+  <component>
+    <type>org.exoplatform.agenda.dao.EventAttendeeDAO</type>
+  </component>
+
+  <component>
+    <type>org.exoplatform.agenda.dao.EventConferenceDAO</type>
+  </component>
+
+  <component>
+    <type>org.exoplatform.agenda.dao.EventRecurrenceDAO</type>
+  </component>
+
+  <component>
+    <type>org.exoplatform.agenda.dao.EventReminderDAO</type>
+  </component>
+
+  <component>
+    <type>org.exoplatform.agenda.dao.RemoteProviderDAO</type>
+  </component>
+
+  <component>
+    <key>org.exoplatform.agenda.service.AgendaCalendarService</key>
+    <type>org.exoplatform.agenda.service.AgendaCalendarServiceImpl</type>
+  </component>
+
+  <component>
+    <key>org.exoplatform.agenda.service.AgendaEventService</key>
+    <type>org.exoplatform.agenda.service.AgendaEventServiceImpl</type>
+  </component>
+
+  <component>
+    <key>org.exoplatform.agenda.service.AgendaEventReminderService</key>
+    <type>org.exoplatform.agenda.service.AgendaEventReminderServiceImpl</type>
+  </component>
+
+  <component>
+    <key>org.exoplatform.agenda.service.AgendaEventInvitationService</key>
+    <type>org.exoplatform.agenda.service.AgendaEventInvitationServiceImpl</type>
+  </component>
+
+  <component>
+    <type>org.exoplatform.agenda.rest.AgendaCalendarRest</type>
+  </component>
+
+  <component>
+    <type>org.exoplatform.agenda.rest.AgendaEventRest</type>
+  </component>
+
   <external-component-plugins>
     <target-component>org.exoplatform.commons.api.persistence.DataInitializer</target-component>
     <component-plugin>
