@@ -42,6 +42,7 @@ public class CalendarDAO extends GenericDAOJPAImpl<CalendarEntity, Long> {
   @ExoTransactional
   public CalendarEntity create(CalendarEntity entity) {
     entity.setCreatedDate(new Date());
+    entity.setUpdatedDate(null);
     return super.create(entity);
   }
 

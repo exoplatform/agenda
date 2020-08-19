@@ -79,7 +79,7 @@ public class AgendaCalendarRest {
       if (ownerId <= 0) {
         calendars = agendaCalendarService.getCalendars(offset, limit, currentUser);
       } else {
-        calendars = agendaCalendarService.getCalendarsByOwner(ownerId, offset, limit, currentUser);
+        calendars = agendaCalendarService.getCalendarsByOwnerId(ownerId, offset, limit, currentUser);
       }
       CalendarList calendarList = new CalendarList();
       List<CalendarEntity> calendarEntities = calendars.stream().map(EntityBuilder::fromCalendar).collect(Collectors.toList());
@@ -92,7 +92,7 @@ public class AgendaCalendarRest {
         if (returnedCalendarSize >= limit) {
           int calendarCount = 0;
           if (ownerId > 0) {
-            calendarCount = agendaCalendarService.countCalendarsByOwner(ownerId, currentUser);
+            calendarCount = agendaCalendarService.countCalendarsByOwnerId(ownerId, currentUser);
           } else {
             calendarCount = agendaCalendarService.countCalendars(currentUser);
           }
