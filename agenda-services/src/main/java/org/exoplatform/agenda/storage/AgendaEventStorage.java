@@ -16,9 +16,9 @@
 */
 package org.exoplatform.agenda.storage;
 
-public class AgendaEventService {
+public class AgendaEventStorage {
 
-  public AgendaEventService() {
+  public AgendaEventStorage() {
     // TODO Auto-generated constructor stub
   }
 

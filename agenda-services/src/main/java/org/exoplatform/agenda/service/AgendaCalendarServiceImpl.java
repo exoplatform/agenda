@@ -171,6 +171,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     }
     boolean canEditCalendar = checkAclByCalendarOwner(calendar.getOwnerId(), username, true);
     calendar.setAcl(new Permission(canEditCalendar));
+    fillCalendarTitleByOwnerName(calendar);
     return calendar;
   }
 
@@ -182,7 +183,12 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     if (calendarId <= 0) {
       throw new IllegalArgumentException("Calendar id has to be positive integer");
     }
-    return agendaCalendarStorage.getCalendarById(calendarId);
+    Calendar calendar = agendaCalendarStorage.getCalendarById(calendarId);
+    if (calendar == null) {
+      return null;
+    }
+    fillCalendarTitleByOwnerName(calendar);
+    return calendar;
   }
 
   /**
@@ -390,4 +396,13 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     calendar.setOwnerId(storedCalendar.getOwnerId());
   }
 
+  private void fillCalendarTitleByOwnerName(Calendar calendar) {
+    Identity requestedOwner = identityManager.getIdentity(String.valueOf(calendar.getOwnerId()));
+    if (StringUtils.equals(requestedOwner.getProviderId(), OrganizationIdentityProvider.NAME)) {
+      calendar.setTitle(requestedOwner.getProfile().getFullName());
+    } else if (StringUtils.equals(requestedOwner.getProviderId(), SpaceIdentityProvider.NAME)) {
+      Space space = spaceService.getSpaceByPrettyName(requestedOwner.getRemoteId());
+      calendar.setTitle(space.getDisplayName());
+    }
+  }
 }
