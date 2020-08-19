@@ -44,7 +44,7 @@ public interface AgendaCalendarService {
    * @throws IllegalAccessException when user is not authorized to delete the
    *           calendar
    */
-  List<Calendar> getCalendarsByOwner(long ownerId,
+  List<Calendar> getCalendarsByOwnerId(long ownerId,
                                      int offset,
                                      int limit,
                                      String username) throws IllegalAccessException;
@@ -66,7 +66,7 @@ public interface AgendaCalendarService {
    * @throws IllegalAccessException when user is not authorized to delete the
    *           calendar
    */
-  int countCalendarsByOwner(long ownerId, String username) throws IllegalAccessException;
+  int countCalendarsByOwnerId(long ownerId, String username) throws IllegalAccessException;
 
   /**
    * Retrieves a calendar identified by its technical identifier.
@@ -99,6 +99,14 @@ public interface AgendaCalendarService {
   Calendar createCalendar(Calendar calendar, String username) throws IllegalAccessException;
 
   /**
+   * Creates a new calendar
+   * 
+   * @param calendar {@link Calendar} object to create
+   * @return created {@link Calendar} with generated technical identifier
+   */
+  Calendar createCalendar(Calendar calendar);
+
+  /**
    * Updates an existing calendar
    * 
    * @param calendar {@link Calendar} object to update
@@ -109,6 +117,13 @@ public interface AgendaCalendarService {
    *           technical identifier is not found
    */
   void updateCalendar(Calendar calendar, String username) throws IllegalAccessException, ObjectNotFoundException;
+
+  /**
+   * Updates an existing calendar
+   * 
+   * @param calendar {@link Calendar} object to update
+   */
+  void updateCalendar(Calendar calendar);
 
   /**
    * Deletes an existing calendar
