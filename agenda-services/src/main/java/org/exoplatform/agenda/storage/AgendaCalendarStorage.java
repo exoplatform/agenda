@@ -26,7 +26,7 @@ public class AgendaCalendarStorage {
     // TODO Auto-generated constructor stub
   }
 
-  public List<Calendar> getCalendarsByOwners(int offset, int limit, Long... ownerIds) {
+  public List<Long> getCalendarIdsByOwnerIds(int offset, int limit, Long... ownerIds) {
     // TODO Auto-generated method stub
     return null;
   }
@@ -39,6 +39,21 @@ public class AgendaCalendarStorage {
   public Calendar getCalendarById(long calendarId) {
     // TODO Auto-generated method stub
     return null;
+  }
+
+  public Calendar createCalendar(Calendar calendar) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+  public void updateCalendar(Calendar calendar) {
+    // TODO Auto-generated method stub
+
+  }
+
+  public void deleteCalendarById(long calendarId) {
+    // TODO Auto-generated method stub
+    
   }
 
 }
