@@ -30,8 +30,10 @@ public interface AgendaCalendarService {
    * @param limit Limit of results to retrieve
    * @param username User name accessing calendars
    * @return {@link List} of {@link Calendar}
+   * @throws Exception when an error occurs while retrieving calendars from
+   *           database
    */
-  List<Calendar> getCalendars(int offset, int limit, String username);
+  List<Calendar> getCalendars(int offset, int limit, String username) throws Exception; // NOSONAR
 
   /**
    * Retrieve list of calendars for a designated user
@@ -45,17 +47,18 @@ public interface AgendaCalendarService {
    *           calendar
    */
   List<Calendar> getCalendarsByOwnerId(long ownerId,
-                                     int offset,
-                                     int limit,
-                                     String username) throws IllegalAccessException;
+                                       int offset,
+                                       int limit,
+                                       String username) throws IllegalAccessException;
 
   /**
    * Count available calendars for a designated user
    * 
    * @param username User name accessing calendars
    * @return count of available calendars
+   * @throws Exception when an error occurs while accessing database
    */
-  int countCalendars(String username);
+  int countCalendars(String username) throws Exception; // NOSONAR
 
   /**
    * Count available calendars for a designated user
@@ -122,8 +125,10 @@ public interface AgendaCalendarService {
    * Updates an existing calendar
    * 
    * @param calendar {@link Calendar} object to update
+   * @throws ObjectNotFoundException when the calendar identified by its
+   *           technical identifier is not found
    */
-  void updateCalendar(Calendar calendar);
+  void updateCalendar(Calendar calendar) throws ObjectNotFoundException;
 
   /**
    * Deletes an existing calendar
@@ -136,5 +141,14 @@ public interface AgendaCalendarService {
    *           technical identifier is not found
    */
   void deleteCalendarById(long calendarId, String username) throws IllegalAccessException, ObjectNotFoundException;
+
+  /**
+   * Deletes an existing calendar
+   * 
+   * @param calendarId Calendar technical identifier to delete
+   * @throws ObjectNotFoundException when the calendar identified by its
+   *           technical identifier is not found
+   */
+  void deleteCalendarById(long calendarId) throws ObjectNotFoundException;
 
 }
