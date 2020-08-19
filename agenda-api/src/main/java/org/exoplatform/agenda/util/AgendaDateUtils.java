@@ -16,9 +16,11 @@
 */
 package org.exoplatform.agenda.util;
 
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.ResolverStyle;
+import java.util.Date;
 
 public class AgendaDateUtils {
   public static final DateTimeFormatter RFC_3339_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss[.SSS]XXX")
@@ -27,12 +29,21 @@ public class AgendaDateUtils {
   private AgendaDateUtils() {
   }
 
-  public static ZonedDateTime parseRFC3339Date(String dateString) {
+  public static ZonedDateTime parseRFC3339ToZonedDateTime(String dateString) {
     return ZonedDateTime.parse(dateString, RFC_3339_FORMATTER);
   }
 
-  public static String toRFC3339Date(ZonedDateTime dateTime) {
-    return dateTime.format(RFC_3339_FORMATTER);
+  public static Date parseRFC3339Date(String dateString) {
+    ZonedDateTime zonedDateTime = ZonedDateTime.parse(dateString, RFC_3339_FORMATTER);
+    return Date.from(zonedDateTime.toInstant());
   }
 
+  public static String toRFC3339Date(ZonedDateTime zonedDateTime) {
+    return zonedDateTime.format(RFC_3339_FORMATTER);
+  }
+
+  public static String toRFC3339Date(Date dateTime) {
+    ZonedDateTime zonedDateTime = ZonedDateTime.from(dateTime.toInstant().atOffset(ZoneOffset.UTC));
+    return zonedDateTime.format(RFC_3339_FORMATTER);
+  }
 }
