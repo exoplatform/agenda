@@ -20,7 +20,6 @@ import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.plugin.AgendaExternalUserIdentityProvider;
-import org.exoplatform.agenda.service.AgendaEventInvitationService;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
