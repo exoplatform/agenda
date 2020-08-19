@@ -16,44 +16,73 @@
 */
 package org.exoplatform.agenda.storage;
 
+import static org.exoplatform.agenda.util.EntityMapper.fromEntity;
+import static org.exoplatform.agenda.util.EntityMapper.toEntity;
+
 import java.util.List;
 
+import org.exoplatform.agenda.dao.CalendarDAO;
+import org.exoplatform.agenda.entity.CalendarEntity;
 import org.exoplatform.agenda.model.Calendar;
+import org.exoplatform.services.listener.ListenerService;
+import org.exoplatform.services.log.ExoLogger;
+import org.exoplatform.services.log.Log;
 
 public class AgendaCalendarStorage {
 
-  public AgendaCalendarStorage() {
-    // TODO Auto-generated constructor stub
+  private static final Log LOG = ExoLogger.getLogger(AgendaCalendarStorage.class);
+
+  private ListenerService  listenerService;
+
+  private CalendarDAO      calendarDAO;
+
+  public AgendaCalendarStorage(CalendarDAO calendarDAO, ListenerService listenerService) {
+    this.listenerService = listenerService;
+    this.calendarDAO = calendarDAO;
   }
 
   public List<Long> getCalendarIdsByOwnerIds(int offset, int limit, Long... ownerIds) {
-    // TODO Auto-generated method stub
-    return null;
+    return this.calendarDAO.getCalendarIdsByOwnerIds(offset, limit, ownerIds);
   }
 
   public int countCalendarsByOwners(Long... ownerIds) {
-    // TODO Auto-generated method stub
-    return 0;
+    return this.calendarDAO.countCalendarsByOwners(ownerIds);
   }
 
   public Calendar getCalendarById(long calendarId) {
-    // TODO Auto-generated method stub
-    return null;
+    CalendarEntity calendarEntity = this.calendarDAO.find(calendarId);
+    return fromEntity(calendarEntity);
   }
 
   public Calendar createCalendar(Calendar calendar) {
-    // TODO Auto-generated method stub
-    return null;
+    CalendarEntity calendarEntity = toEntity(calendar);
+    calendarEntity = calendarDAO.create(calendarEntity);
+    Calendar createdCalendar = fromEntity(calendarEntity);
+    broadcastEvent("exo.agenda.calendar.created", createdCalendar);
+    return createdCalendar;
   }
 
   public void updateCalendar(Calendar calendar) {
-    // TODO Auto-generated method stub
-
+    CalendarEntity calendarEntity = toEntity(calendar);
+    calendarEntity = calendarDAO.update(calendarEntity);
+    broadcastEvent("exo.agenda.calendar.updated", fromEntity(calendarEntity));
   }
 
   public void deleteCalendarById(long calendarId) {
-    // TODO Auto-generated method stub
-    
+    CalendarEntity calendarEntity = this.calendarDAO.find(calendarId);
+    if (calendarEntity == null) {
+      return;
+    }
+    calendarDAO.delete(calendarEntity);
+    broadcastEvent("exo.agenda.calendar.deleted", fromEntity(calendarEntity));
+  }
+
+  private void broadcastEvent(String eventName, Calendar calendar) {
+    try {
+      listenerService.broadcast(eventName, null, calendar);
+    } catch (Exception e) {
+      LOG.warn("Error broadcasting event '" + eventName + "' on agenda calendar with id '" + calendar.getId() + "'", e);
+    }
   }
 
 }

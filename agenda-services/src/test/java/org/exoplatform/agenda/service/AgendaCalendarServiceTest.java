@@ -35,6 +35,7 @@ import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.social.core.identity.model.Identity;
+import org.exoplatform.social.core.identity.model.Profile;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
@@ -62,8 +63,17 @@ public class AgendaCalendarServiceTest {
   @Test
   public void testGetCalendarById() {
     long calendarId = 1;
+    long calendarOwnerId = 2;
+
+    String username = "testuser";
+    Identity calendarOwnerIdentity = new Identity(OrganizationIdentityProvider.NAME, username);
+    calendarOwnerIdentity.setId(String.valueOf(calendarOwnerId));
+    Profile calendarOwnerProfile = new Profile();
+    calendarOwnerProfile.setProperty(Profile.FULL_NAME, username);
+    calendarOwnerIdentity.setProfile(calendarOwnerProfile);
+
     Calendar calendar = new Calendar(calendarId,
-                                     2,
+                                     calendarOwnerId,
                                      true,
                                      "title",
                                      "description",
@@ -72,6 +82,9 @@ public class AgendaCalendarServiceTest {
                                      "color",
                                      null);
     when(agendaCalendarStorage.getCalendarById(eq(calendarId))).thenReturn(calendar);
+    when(identityManager.getIdentity(eq(String.valueOf(calendarOwnerId)))).thenReturn(calendarOwnerIdentity);
+    when(identityManager.getOrCreateIdentity(eq(OrganizationIdentityProvider.NAME),
+                                             eq(username))).thenReturn(calendarOwnerIdentity);
 
     // 0. Arguments validation tests
     try {
@@ -85,6 +98,7 @@ public class AgendaCalendarServiceTest {
     Calendar retrievedCalendar = agendaCalendarService.getCalendarById(calendarId);
     assertNotNull(retrievedCalendar);
     assertEquals(calendar, retrievedCalendar);
+    assertEquals(username, calendar.getTitle());
 
     // 2. Test retrieve not existing calendar
     long notExistingCalendarId = calendarId + 2;
@@ -100,6 +114,9 @@ public class AgendaCalendarServiceTest {
     String username = "testuser";
     Identity calendarOwnerIdentity = new Identity(OrganizationIdentityProvider.NAME, username);
     calendarOwnerIdentity.setId(String.valueOf(calendarOwnerId));
+    Profile calendarOwnerProfile = new Profile();
+    calendarOwnerProfile.setProperty(Profile.FULL_NAME, username);
+    calendarOwnerIdentity.setProfile(calendarOwnerProfile);
 
     Calendar calendar = new Calendar(calendarId,
                                      calendarOwnerId,

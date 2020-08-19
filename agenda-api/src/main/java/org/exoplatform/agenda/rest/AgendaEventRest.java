@@ -89,8 +89,8 @@ public class AgendaEventRest {
       return Response.status(Status.BAD_REQUEST).entity("End datetime is mandatory").build();
     }
 
-    ZonedDateTime startDatetime = AgendaDateUtils.parseRFC3339Date(start);
-    ZonedDateTime endDatetime = AgendaDateUtils.parseRFC3339Date(end);
+    ZonedDateTime startDatetime = AgendaDateUtils.parseRFC3339ToZonedDateTime(start);
+    ZonedDateTime endDatetime = AgendaDateUtils.parseRFC3339ToZonedDateTime(end);
     if (endDatetime.isBefore(startDatetime) || endDatetime.equals(startDatetime)) {
       return Response.status(Status.BAD_REQUEST).entity("Start date must be before end date").build();
     }
