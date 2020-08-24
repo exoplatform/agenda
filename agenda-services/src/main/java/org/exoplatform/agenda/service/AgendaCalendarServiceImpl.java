@@ -57,55 +57,47 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
    * {@inheritDoc}
    */
   @Override
-  public List<Calendar> getCalendars(int offset, int limit, String username) {
+  public List<Calendar> getCalendars(int offset, int limit, String username) throws Exception {
     if (username == null) {
       throw new IllegalArgumentException("Username is mandatory");
     }
     Identity identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
     if (identity == null) {
-      return Collections.emptyList();
+      throw new IllegalStateException("User with name " + username + " is not found");
     }
-    try {
-      List<Long> identityIds = new ArrayList<>();
-      identityIds.add(Long.parseLong(identity.getId()));
-      addUserSpacesIdentities(username, identityIds);
-      Long[] ownerIds = identityIds.toArray(new Long[0]);
-      List<Long> calendarsIds = this.agendaCalendarStorage.getCalendarIdsByOwnerIds(offset, limit, ownerIds);
-      return calendarsIds.stream().map(calendarId -> {
-        try {
-          return getCalendarById(calendarId, username);
-        } catch (IllegalAccessException e) {
-          LOG.error("Impossible use case happened, this must be a bug. The user should be able to access calendar with id : "
-              + calendarId, e);
-          return null;
-        }
-      }).collect(Collectors.toList());
-    } catch (Exception e) {
-      throw new IllegalStateException("An unknown error occurred while accessing spaces list of user " + username);
-    }
+    List<Long> identityIds = new ArrayList<>();
+    identityIds.add(Long.parseLong(identity.getId()));
+    addUserSpacesIdentities(username, identityIds);
+    Long[] ownerIds = identityIds.toArray(new Long[0]);
+    List<Long> calendarsIds = this.agendaCalendarStorage.getCalendarIdsByOwnerIds(offset, limit, ownerIds);
+    return calendarsIds.stream().map(calendarId -> {
+      try {
+        return getCalendarById(calendarId, username);
+      } catch (IllegalAccessException e) {
+        LOG.error("Impossible use case happened, this must be a bug. The user should be able to access calendar with id : "
+            + calendarId, e);
+        return null;
+      }
+    }).filter(calendar -> calendar != null).collect(Collectors.toList());
   }
 
   /**
    * {@inheritDoc}
    */
   @Override
-  public int countCalendars(String username) {
+  public int countCalendars(String username) throws Exception {
     if (username == null) {
       throw new IllegalArgumentException("Username is mandatory");
     }
     Identity identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
     if (identity == null) {
-      return 0;
+      throw new IllegalStateException("User with name " + username + " is not found");
     }
-    try {
-      List<Long> identityIds = new ArrayList<>();
-      identityIds.add(Long.parseLong(identity.getId()));
-      addUserSpacesIdentities(username, identityIds);
-      Long[] ownerIds = identityIds.toArray(new Long[0]);
-      return this.agendaCalendarStorage.countCalendarsByOwners(ownerIds);
-    } catch (Exception e) {
-      throw new IllegalStateException("An unknown error occurred while accessing spaces list of user " + username);
-    }
+    List<Long> identityIds = new ArrayList<>();
+    identityIds.add(Long.parseLong(identity.getId()));
+    addUserSpacesIdentities(username, identityIds);
+    Long[] ownerIds = identityIds.toArray(new Long[0]);
+    return this.agendaCalendarStorage.countCalendarsByOwners(ownerIds);
   }
 
   /**
@@ -116,6 +108,9 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
                                               int offset,
                                               int limit,
                                               String username) throws IllegalAccessException {
+    if (ownerId <= 0) {
+      throw new IllegalArgumentException("Owner id is mandatory");
+    }
     if (username == null) {
       throw new IllegalArgumentException("Username is mandatory");
     }
@@ -133,7 +128,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
             + calendarId, e);
         return null;
       }
-    }).collect(Collectors.toList());
+    }).filter(calendar -> calendar != null).collect(Collectors.toList());
   }
 
   /**
@@ -141,6 +136,9 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
    */
   @Override
   public int countCalendarsByOwnerId(long ownerId, String username) throws IllegalAccessException {
+    if (ownerId <= 0) {
+      throw new IllegalArgumentException("Owner id is mandatory");
+    }
     if (username == null) {
       throw new IllegalArgumentException("Username is mandatory");
     }
@@ -157,6 +155,9 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
    */
   @Override
   public Calendar getCalendarById(long calendarId, String username) throws IllegalAccessException {
+    if (calendarId <= 0) {
+      throw new IllegalArgumentException("Calendar id has to be positive integer");
+    }
     if (username == null) {
       throw new IllegalArgumentException("Username is mandatory");
     }
@@ -165,8 +166,12 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
       throw new IllegalStateException("User with name " + username + " is not found");
     }
     Calendar calendar = agendaCalendarStorage.getCalendarById(calendarId);
+    if (calendar == null) {
+      return null;
+    }
     boolean canEditCalendar = checkAclByCalendarOwner(calendar.getOwnerId(), username, true);
     calendar.setAcl(new Permission(canEditCalendar));
+    fillCalendarTitleByOwnerName(calendar);
     return calendar;
   }
 
@@ -175,7 +180,15 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
    */
   @Override
   public Calendar getCalendarById(long calendarId) {
-    return agendaCalendarStorage.getCalendarById(calendarId);
+    if (calendarId <= 0) {
+      throw new IllegalArgumentException("Calendar id has to be positive integer");
+    }
+    Calendar calendar = agendaCalendarStorage.getCalendarById(calendarId);
+    if (calendar == null) {
+      return null;
+    }
+    fillCalendarTitleByOwnerName(calendar);
+    return calendar;
   }
 
   /**
@@ -186,6 +199,9 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     if (calendar == null) {
       throw new IllegalArgumentException("Calendar is mandatory");
     }
+    if (calendar.getId() != 0) {
+      throw new IllegalArgumentException("Calendar id must be equal to 0");
+    }
     if (username == null) {
       throw new IllegalArgumentException("Username is mandatory");
     }
@@ -194,6 +210,9 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
       // Automatically set owner of calendar, the currently authenticated user
       // if no owner has been specified
       Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+      if (userIdentity == null) {
+        throw new IllegalStateException("User with name " + username + " is not found");
+      }
       calendar.setOwnerId(Long.parseLong(userIdentity.getId()));
     } else {
       checkAclByCalendarOwner(calendar.getOwnerId(), username, false);
@@ -213,8 +232,20 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     if (calendar == null) {
       throw new IllegalArgumentException("Calendar is mandatory");
     }
+    if (calendar.getId() != 0) {
+      throw new IllegalArgumentException("Calendar id must be equal to 0");
+    }
     if (calendar.getOwnerId() <= 0) {
-      throw new IllegalStateException("Calendar owner is missing");
+      throw new IllegalArgumentException("Calendar owner is missing");
+    }
+    Identity calendarOwnerIdentity = identityManager.getIdentity(String.valueOf(calendar.getOwnerId()));
+    if (calendarOwnerIdentity == null) {
+      throw new IllegalStateException("Calendar owner is not found");
+    }
+    if (!StringUtils.equals(OrganizationIdentityProvider.NAME, calendarOwnerIdentity.getProviderId())
+        && !StringUtils.equals(SpaceIdentityProvider.NAME, calendarOwnerIdentity.getProviderId())) {
+      throw new IllegalStateException("Calendar owner providerId '" + calendarOwnerIdentity.getProviderId()
+          + "' is not managed by Calendar API");
     }
 
     // System had created the calendar manually
@@ -248,7 +279,13 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
    * {@inheritDoc}
    */
   @Override
-  public void updateCalendar(Calendar calendar) {
+  public void updateCalendar(Calendar calendar) throws ObjectNotFoundException {
+    if (calendar == null) {
+      throw new IllegalArgumentException("Calendar is mandatory");
+    }
+    if (calendar.getId() <= 0) {
+      throw new IllegalArgumentException("Calendar id has to be positive integer");
+    }
     refillReadOnlyFields(calendar);
     agendaCalendarStorage.updateCalendar(calendar);
   }
@@ -266,12 +303,28 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     }
     Calendar calendar = agendaCalendarStorage.getCalendarById(calendarId);
     if (calendar == null) {
-      throw new IllegalStateException("Calendar with id " + calendarId + " wasn't found");
+      throw new ObjectNotFoundException("Calendar with id " + calendarId + " wasn't found");
     }
     if (calendar.isSystem()) {
       throw new IllegalStateException("Calendar with id " + calendarId + " is a system calendar, thus it couldn't be deleted");
     }
     checkAclByCalendarOwner(calendar.getOwnerId(), username, false);
+    deleteCalendarById(calendarId);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void deleteCalendarById(long calendarId) throws ObjectNotFoundException {
+    if (calendarId <= 0) {
+      throw new IllegalArgumentException("Calendar id has to be positive integer");
+    }
+    Calendar calendar = agendaCalendarStorage.getCalendarById(calendarId);
+    if (calendar == null) {
+      throw new ObjectNotFoundException("Calendar with id " + calendarId + " doesn't exists");
+    }
+
     agendaCalendarStorage.deleteCalendarById(calendarId);
   }
 
@@ -289,7 +342,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     }
 
     if (StringUtils.equals(OrganizationIdentityProvider.NAME, requestedOwner.getProviderId())) {
-      if (!StringUtils.equals(requestedOwner.getId(), String.valueOf(calendarOwnerId))) {
+      if (!StringUtils.equals(requestedOwner.getRemoteId(), username)) {
         throw new IllegalAccessException("User " + username + " is not allowed to retrieve calendar data of user "
             + requestedOwner.getRemoteId());
       }
@@ -301,7 +354,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
         Space space = spaceService.getSpaceByPrettyName(requestedOwner.getRemoteId());
         if (!spaceService.isMember(space, username)) {
           throw new IllegalAccessException("User " + username + " is not allowed to retrieve calendar data of space "
-              + space.getDisplayName());
+              + requestedOwner.getRemoteId());
         }
         boolean isManager = spaceService.isManager(space, username);
         if (!readonly && !isManager) {
@@ -332,11 +385,24 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     }
   }
 
-  private void refillReadOnlyFields(Calendar calendar) {
+  private void refillReadOnlyFields(Calendar calendar) throws ObjectNotFoundException {
     // Refill readonly fields from Database
-    Calendar storedCalendar = agendaCalendarStorage.getCalendarById(calendar.getId());
+    long calendarId = calendar.getId();
+    Calendar storedCalendar = agendaCalendarStorage.getCalendarById(calendarId);
+    if (storedCalendar == null) {
+      throw new ObjectNotFoundException("Calendar with id " + calendarId + " wasn't found");
+    }
     calendar.setCreated(storedCalendar.getCreated());
     calendar.setOwnerId(storedCalendar.getOwnerId());
   }
 
+  private void fillCalendarTitleByOwnerName(Calendar calendar) {
+    Identity requestedOwner = identityManager.getIdentity(String.valueOf(calendar.getOwnerId()));
+    if (StringUtils.equals(requestedOwner.getProviderId(), OrganizationIdentityProvider.NAME)) {
+      calendar.setTitle(requestedOwner.getProfile().getFullName());
+    } else if (StringUtils.equals(requestedOwner.getProviderId(), SpaceIdentityProvider.NAME)) {
+      Space space = spaceService.getSpaceByPrettyName(requestedOwner.getRemoteId());
+      calendar.setTitle(space.getDisplayName());
+    }
+  }
 }

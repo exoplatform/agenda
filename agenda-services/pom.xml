@@ -8,7 +8,7 @@
   <artifactId>agenda-services</artifactId>
   <name>eXo Agenda - Services</name>
   <properties>
-    <exo.test.coverage.ratio>0.47</exo.test.coverage.ratio>
+    <exo.test.coverage.ratio>0.70</exo.test.coverage.ratio>
   </properties>
   <dependencies>
     <dependency>
@@ -56,6 +56,11 @@
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-simple</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-all</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
