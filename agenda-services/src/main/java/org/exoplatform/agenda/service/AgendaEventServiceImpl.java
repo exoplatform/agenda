@@ -16,22 +16,64 @@
 */
 package org.exoplatform.agenda.service;
 
+import java.text.ParseException;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
-import java.util.List;
+import java.util.*;
 
 import org.exoplatform.agenda.model.Event;
+import org.exoplatform.agenda.storage.AgendaEventStorage;
+import org.exoplatform.agenda.util.AgendaDateUtils;
+import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.commons.utils.ListAccess;
+import org.exoplatform.social.core.identity.model.Identity;
+import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
+import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.social.core.space.model.Space;
+import org.exoplatform.social.core.space.spi.SpaceService;
 
 public class AgendaEventServiceImpl implements AgendaEventService {
 
-  public AgendaEventServiceImpl() {
-    // TODO Auto-generated constructor stub
+  private AgendaEventStorage agendaEventStorage;
+
+  private IdentityManager    identityManager;
+
+  private SpaceService       spaceService;
+
+  public AgendaEventServiceImpl(AgendaEventStorage agendaEventStorage,
+                                IdentityManager identityManager,
+                                SpaceService spaceService) {
+    this.agendaEventStorage = agendaEventStorage;
+    this.identityManager = identityManager;
+    this.spaceService = spaceService;
   }
 
   @Override
   public List<Event> getEvents(ZonedDateTime start, ZonedDateTime end, String username) {
-    // TODO Auto-generated method stub
-    return null;
+    Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+    List<Long> calendarOwners = new ArrayList<>();
+    String userIdentityId = userIdentity.getId();
+    calendarOwners.add(Long.parseLong(userIdentityId));
+    try {
+      Utils.addUserSpacesIdentities(spaceService, identityManager, username, calendarOwners);
+    } catch (Exception e) {
+      throw new IllegalStateException("Error while retrieving spaces of user with id: " + userIdentityId, e);
+    }
+
+    TimeZone userTimezone = AgendaDateUtils.getUserTimezone(userIdentity);
+    List<Event> events = this.agendaEventStorage.getEvents(start, end, userTimezone, calendarOwners.toArray(new Long[0]));
+    if (events == null || events.isEmpty()) {
+      return Collections.emptyList();
+    }
+    List<Event> computedEvents = new ArrayList<>();
+    for (Event event : events) {
+      if (event.getRecurrence() != null) {
+        List<Event> occurrences = Utils.getOccurrences(event, start.toLocalDate(), end.toLocalDate(), userTimezone);
+        // TODO
+      }
+    }
+    return computedEvents;
   }
 
   @Override

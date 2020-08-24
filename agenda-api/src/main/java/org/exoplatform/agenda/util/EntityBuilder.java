@@ -77,7 +77,13 @@ public class EntityBuilder {
                      eventEntity.getEnd(),
                      eventEntity.isAllDay(),
                      eventEntity.getAvailability(),
-                     eventEntity.getStatus());
+                     eventEntity.getStatus(),
+                     eventEntity.getRecurrence(),
+                     eventEntity.getOccurrence(),
+                     eventEntity.getAcl(),
+                     eventEntity.getAttendees(),
+                     eventEntity.getConferences(),
+                     eventEntity.getAttachments());
   }
 
   public static final EventEntity fromEvent(Event event) {
@@ -97,7 +103,14 @@ public class EntityBuilder {
                            event.getEnd(),
                            event.isAllDay(),
                            event.getAvailability(),
-                           event.getStatus());
+                           event.getStatus(),
+                           event.getRecurrence(),
+                           event.getOccurrence(),
+                           event.getAcl(),
+                           event.getAttendees(),
+                           event.getConferences(),
+                           event.getAttachments(),
+                           null);
   }
 
   private static CalendarEntity getCalendarEntity(long calendarId) {

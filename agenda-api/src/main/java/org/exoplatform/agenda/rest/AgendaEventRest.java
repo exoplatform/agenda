@@ -103,7 +103,16 @@ public class AgendaEventRest {
       } else {
         events = agendaEventService.getEventsByOwner(ownerId, startDatetime, endDatetime, currentUser);
       }
-      List<EventEntity> eventEntities = events.stream().map(EntityBuilder::fromEvent).collect(Collectors.toList());
+      List<EventEntity> eventEntities = events.stream().map(event -> {
+        EventEntity eventEntity = EntityBuilder.fromEvent(event);
+        try {
+          List<EventReminder> eventReminders = agendaEventReminderService.getEventReminders(eventEntity.getId(), currentUser);
+          eventEntity.setReminders(eventReminders);
+        } catch (Exception e) {
+          LOG.warn("Error retrieving event reminders, retrieve event without reminders", e);
+        }
+        return eventEntity;
+      }).collect(Collectors.toList());
 
       EventList eventList = new EventList();
       eventList.setEvents(eventEntities);
@@ -141,7 +150,10 @@ public class AgendaEventRest {
       if (event == null) {
         return Response.status(Status.NOT_FOUND).build();
       } else {
-        return Response.ok(EntityBuilder.fromEvent(event)).build();
+        EventEntity eventEntity = EntityBuilder.fromEvent(event);
+        List<EventReminder> eventReminders = agendaEventReminderService.getEventReminders(eventEntity.getId(), currentUser);
+        eventEntity.setReminders(eventReminders);
+        return Response.ok(eventEntity).build();
       }
     } catch (IllegalAccessException e) {
       LOG.warn("User '{}' attempts to access not authorized event with Id '{}'", currentUser, eventId);

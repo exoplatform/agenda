@@ -16,10 +16,21 @@
 */
 package org.exoplatform.agenda.storage;
 
+import java.time.ZonedDateTime;
+import java.util.List;
+import java.util.TimeZone;
+
+import org.exoplatform.agenda.model.Event;
+
 public class AgendaEventStorage {
 
   public AgendaEventStorage() {
     // TODO Auto-generated constructor stub
+  }
+
+  public List<Event> getEvents(ZonedDateTime start, ZonedDateTime end, TimeZone timezone, Long[] array) {
+    // TODO Auto-generated method stub
+    return null;
   }
 
 }

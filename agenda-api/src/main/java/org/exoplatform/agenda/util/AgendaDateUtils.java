@@ -21,6 +21,9 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.ResolverStyle;
 import java.util.Date;
+import java.util.TimeZone;
+
+import org.exoplatform.social.core.identity.model.Identity;
 
 public class AgendaDateUtils {
   public static final DateTimeFormatter RFC_3339_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss[.SSS]XXX")
@@ -35,15 +38,28 @@ public class AgendaDateUtils {
 
   public static Date parseRFC3339Date(String dateString) {
     ZonedDateTime zonedDateTime = ZonedDateTime.parse(dateString, RFC_3339_FORMATTER);
-    return Date.from(zonedDateTime.toInstant());
+    return Date.from(zonedDateTime.withZoneSameInstant(ZoneOffset.UTC).toInstant());
   }
 
   public static String toRFC3339Date(ZonedDateTime zonedDateTime) {
-    return zonedDateTime.format(RFC_3339_FORMATTER);
+    return zonedDateTime.withZoneSameInstant(ZoneOffset.UTC).format(RFC_3339_FORMATTER);
+  }
+
+  public static String toRFC3339Date(ZonedDateTime zonedDateTime, ZoneOffset zoneOffset) {
+    return zonedDateTime.withZoneSameInstant(zoneOffset).format(RFC_3339_FORMATTER);
   }
 
   public static String toRFC3339Date(Date dateTime) {
     ZonedDateTime zonedDateTime = ZonedDateTime.from(dateTime.toInstant().atOffset(ZoneOffset.UTC));
-    return zonedDateTime.format(RFC_3339_FORMATTER);
+    return zonedDateTime.withZoneSameInstant(ZoneOffset.UTC).format(RFC_3339_FORMATTER);
+  }
+
+  public static TimeZone getUserTimezone(Identity userIdentity) {
+    if (userIdentity == null || userIdentity.getProfile() == null || userIdentity.getProfile().getTimeZone() == null) {
+      return TimeZone.getDefault();
+    } else {
+      String timeZoneId = userIdentity.getProfile().getTimeZone();
+      return TimeZone.getTimeZone(timeZoneId);
+    }
   }
 }

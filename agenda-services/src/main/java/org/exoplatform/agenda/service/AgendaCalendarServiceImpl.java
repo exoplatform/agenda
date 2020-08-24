@@ -16,7 +16,8 @@
 */
 package org.exoplatform.agenda.service;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Collectors;
 
 import org.apache.commons.codec.binary.StringUtils;
@@ -24,8 +25,8 @@ import org.apache.commons.codec.binary.StringUtils;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.Permission;
 import org.exoplatform.agenda.storage.AgendaCalendarStorage;
+import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
-import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.identity.model.Identity;
@@ -67,7 +68,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     }
     List<Long> identityIds = new ArrayList<>();
     identityIds.add(Long.parseLong(identity.getId()));
-    addUserSpacesIdentities(username, identityIds);
+    Utils.addUserSpacesIdentities(spaceService, identityManager, username, identityIds);
     Long[] ownerIds = identityIds.toArray(new Long[0]);
     List<Long> calendarsIds = this.agendaCalendarStorage.getCalendarIdsByOwnerIds(offset, limit, ownerIds);
     return calendarsIds.stream().map(calendarId -> {
@@ -95,7 +96,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     }
     List<Long> identityIds = new ArrayList<>();
     identityIds.add(Long.parseLong(identity.getId()));
-    addUserSpacesIdentities(username, identityIds);
+    Utils.addUserSpacesIdentities(spaceService, identityManager, username, identityIds);
     Long[] ownerIds = identityIds.toArray(new Long[0]);
     return this.agendaCalendarStorage.countCalendarsByOwners(ownerIds);
   }
@@ -366,22 +367,6 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     } else {
       throw new IllegalStateException("Identity with provider type '" + requestedOwner.getProviderId()
           + "' is not managed in calendar owner field");
-    }
-  }
-
-  private void addUserSpacesIdentities(String username, List<Long> identityIds) throws Exception {
-    ListAccess<Space> userSpaces = spaceService.getMemberSpaces(username);
-    int spacesSize = userSpaces.getSize();
-    int offsetToFetch = 0;
-    int limitToFetch = spacesSize > 20 ? 20 : spacesSize;
-    while (limitToFetch > 0) {
-      Space[] spaces = userSpaces.load(offsetToFetch, limitToFetch);
-      Arrays.stream(spaces).forEach(space -> {
-        Identity spaceIdentity = identityManager.getOrCreateIdentity(SpaceIdentityProvider.NAME, space.getPrettyName());
-        identityIds.add(Long.parseLong(spaceIdentity.getId()));
-      });
-      offsetToFetch += limitToFetch;
-      limitToFetch = (spacesSize - offsetToFetch) > 20 ? 20 : (spacesSize - offsetToFetch);
     }
   }
 
