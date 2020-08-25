@@ -8,11 +8,7 @@
             class="ma-5"
             flat
             dense>
-            <v-btn
-              class="btn btn-primary mr-2">
-              <v-icon dark left>mdi-plus</v-icon>
-              {{ $t('agenda.button.addEvent') }}
-            </v-btn>
+            <create-event-button />
             <v-btn
               class="btn">
               <v-icon dark left>mdi-sync</v-icon>
