@@ -17,7 +17,7 @@
 <script>
 export default {
   props: {
-    eventList: {
+    events: {
       type: Array,
       default: () => null
     }

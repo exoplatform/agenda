@@ -1,22 +1,20 @@
 <template>
-  <div>
-    <v-row class="fill-height">
-      <v-col>
-        <v-sheet height="64">
-          <agenda-toolbar />
-        </v-sheet>
-        <v-sheet height="600">
-          <agenda-schedule :event-list="events" />
-        </v-sheet>
-      </v-col>
-    </v-row>
-  </div>
+  <v-row class="fill-height">
+    <v-col>
+      <v-sheet height="64">
+        <agenda-toolbar :title="calendar" />
+      </v-sheet>
+      <v-sheet height="600">
+        <agenda-schedule :event-list="events" />
+      </v-sheet>
+    </v-col>
+  </v-row>
 </template>
 
 <script>
 export default {
   data: () => ({
-    calendar: {},
+    calendar: {name:'agenda'},
     focus: '',
     type: 'week',
     typeToLabel: {
