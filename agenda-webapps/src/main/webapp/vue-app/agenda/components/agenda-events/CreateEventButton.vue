@@ -1,6 +1,6 @@
 <template>
   <v-row justify="center">
-    <create-event :show-dialog-event="showEventDialog" @dialog-event-opened="showEventDialog = $event" />
+    <create-event-dialog :show-dialog-event="showDialog" />
     <v-btn
       class="btn btn-primary mr-2"
       @click="openEventDialog">
@@ -13,12 +13,17 @@
 export default {
   data () {
     return {
-      showEventDialog: false,
+      showDialog: false,
     }
+  },
+  mounted() {
+    this.$root.$on('dialog-event-closed', (data) => {
+      this.showDialog = data;
+    });
   },
   methods:{
     openEventDialog(){
-      this.showEventDialog = true;
+      this.showDialog = true;
     },
   }
 }
