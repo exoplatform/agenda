@@ -1,5 +1,7 @@
 import './initComponents.js';
 
+import * as eventService from './js/EventService.js';
+
 // get overrided components if exists
 if (extensionRegistry) {
   const components = extensionRegistry.loadComponents('Agenda');
@@ -14,6 +16,10 @@ Vue.use(Vuetify);
 const vuetify = new Vuetify({
   dark: true,
   iconfont: '',
+});
+
+window.Object.defineProperty(Vue.prototype, '$eventService', {
+  value: eventService,
 });
 
 document.dispatchEvent(new CustomEvent('displayTopBarLoading'));

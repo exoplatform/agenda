@@ -31,7 +31,7 @@
                     name="title"
                     class="ignore-vuetify-classes my-3"
                     required>
-                  <v-icon size="18" class="ml-2 mr-2">fa-caret-right</v-icon>
+                  <span>In</span>
                   <input
                     ref="selectInput1"
                     type="text"
@@ -114,7 +114,7 @@
                         close
                         pill>
                         <v-avatar left>
-                          <v-img src="https://cdn.vuetifyjs.com/images/john.png"></v-img>
+                          <v-img src="https://cdn.vuetifyjs.com/images/john.png" />
                         </v-avatar>
                         New Tweets
                       </v-chip>
@@ -123,7 +123,14 @@
                 </v-row>
               </v-container>
             </form>
-            <v-btn text>Cancel</v-btn>
+            <v-row>
+              <v-col />
+              <v-col />
+              <v-col>
+                <v-btn text>Cancel</v-btn>
+                <v-btn color="primary" @click="nextStep">Continue</v-btn>
+              </v-col>
+            </v-row>
           </v-stepper-content>
           <v-stepper-content step="2">
             <v-card
