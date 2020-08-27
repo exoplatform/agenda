@@ -1,12 +1,12 @@
 import Agenda from './components/Agenda.vue';
 import AgendaHeader from './components/AgendaHeader.vue';
-import AgendaView from './components/AgendaView.vue';
-import CreateEventButton from './components/agenda-events/CreateEventButton.vue';
-import SyncEventButton from './components/agenda-events/SyncEventButton.vue';
-import CreateEventDialog from './components/agenda-events/AgendaEventDialog.vue';
-import CreateEventStepper from './components/agenda-events/CreateEventStepper.vue';
+import AgendaBody from './components/AgendaBody.vue';
+import AgendaCalendar from './components/AgendaCalendar.vue';
+import CreateEventButton from './components/CreateEventButton.vue';
+import SyncEventButton from './components/SyncEventButton.vue';
+import AgendaEventDialog from './components/AgendaEventDialog.vue';
+import AgendaEventForm from './components/AgendaEventForm.vue';
 import AgendaToolbar from './components/AgendaToolbar.vue';
-import AgendaSchedule from './components/AgendaSchedule.vue';
 import AgendaPreviewEventDialog from './components/AgendaPreviewEventDialog.vue';
 import AgendaSwitchView from './components/AgendaSwitchView.vue';
 import AgendaSearchEvent from './components/AgendaSearchEvent.vue';
@@ -14,17 +14,16 @@ import AgendaFilterButton from './components/AgendaFilterButton.vue';
 import AgendaSettingsButton from './components/AgendaSettingsButton.vue';
 import AgendaPullDownEvent from './components/AgendaPullDownEvent.vue';
 
-
 const components = {
   'agenda': Agenda,
   'agenda-header': AgendaHeader,
-  'agenda-view': AgendaView,
+  'agenda-body': AgendaBody,
+  'agenda-calendar': AgendaCalendar,
   'create-event-button': CreateEventButton,
   'sync-event-button':SyncEventButton,
-  'create-event-dialog': CreateEventDialog,
-  'create-event-stepper': CreateEventStepper,
+  'agenda-event-dialog': AgendaEventDialog,
+  'agenda-event-form': AgendaEventForm,
   'agenda-toolbar': AgendaToolbar,
-  'agenda-schedule': AgendaSchedule,
   'agenda-event-preview-dialog': AgendaPreviewEventDialog,
   'agenda-switch-view': AgendaSwitchView,
   'agenda-search-event': AgendaSearchEvent,

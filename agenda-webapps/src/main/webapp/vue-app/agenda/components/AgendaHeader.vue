@@ -1,20 +1,29 @@
 <template>
-  <v-layout justify-center>
-    <v-flex xs12>
-      <v-toolbar
-        color="white"
-        class="ma-5"
-        flat
-        dense>
-        <create-event-button />
-        <sync-event-button />
-        <agenda-switch-view />
-        <agenda-search-event />
-        <agenda-pulldown-event />
-        <v-spacer />
-        <agenda-filter-button />
-        <agenda-settings-button />
-      </v-toolbar>
-    </v-flex>
-  </v-layout>
+  <v-toolbar
+    color="white"
+    flat
+    dense
+  >
+    <create-event-button class="mr-2" />
+    <sync-event-button />
+    <v-spacer />
+    <agenda-switch-view :calendar-type="calendarType" />
+    <v-spacer />
+    <agenda-search-event />
+    <agenda-pulldown-event class="ml-4 pr-2" />
+    <agenda-filter-button />
+    <agenda-settings-button />
+  </v-toolbar>
 </template>
+
+
+<script>
+export default {
+  props: {
+    calendarType: {
+      type: String,
+      default: null
+    },
+  },
+};
+</script>

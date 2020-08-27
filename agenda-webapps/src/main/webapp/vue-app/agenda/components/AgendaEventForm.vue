@@ -1,14 +1,19 @@
 <template>
   <v-stepper v-model="stepper">
     <v-stepper-header>
-      <v-stepper-step step="1">{{ $t('agenda.stepEventDetails') }}</v-stepper-step>
+      <v-stepper-step step="1">
+        {{ $t('agenda.stepEventDetails') }}
+      </v-stepper-step>
       <v-divider />
-      <v-stepper-step step="2">{{ $t('agenda.stepEventChooseDate') }}</v-stepper-step>
+      <v-stepper-step step="2">
+        {{ $t('agenda.stepEventChooseDate') }}
+      </v-stepper-step>
       <v-btn
         color="grey"
         icon
         dark
-        @click="closeDialog">
+        @click="closeDialog"
+      >
         <v-icon>mdi-close</v-icon>
       </v-btn>
     </v-stepper-header>
@@ -24,36 +29,44 @@
                 type="text"
                 name="title"
                 class="ignore-vuetify-classes my-3"
-                required>
+                required
+              >
               <span>In</span>
               <input
                 ref="selectInput1"
                 type="text"
                 name="name"
                 class="ignore-vuetify-classes my-3"
-                required>
+                required
+              >
             </v-row>
             <v-row>
               <v-col>
                 <v-row>
-                  <v-icon size="18" class="mr-11">fas fa-map-marker-alt</v-icon>
+                  <v-icon size="18" class="mr-11">
+                    fas fa-map-marker-alt
+                  </v-icon>
                   <input
                     ref="locationEvent"
                     :placeholder="$t('agenda.eventLocation')"
                     type="text"
                     name="locationEvent"
                     class="ignore-vuetify-classes my-3"
-                    required>
+                    required
+                  >
                 </v-row>
                 <v-row>
-                  <v-icon size="18" class="mr-11">fas fa-bell</v-icon>
+                  <v-icon size="18" class="mr-11">
+                    fas fa-bell
+                  </v-icon>
                   <label class="float-left mr-4"><div>{{ $t('agenda.label.notifyUsers') }}</div></label>
                   <input
                     ref="timeNotification"
                     type="text"
                     name="timeNotification"
                     class="ignore-vuetify-classes my-3"
-                    required>
+                    required
+                  >
                   <select class="width-auto my-auto ml-4 pr-2 subtitle-1 ignore-vuetify-classes d-none d-sm-inline">
                     <option>Minutes</option>
                     <option>Hours</option>
@@ -64,16 +77,21 @@
                 </v-row>
                 <v-row> <a>{{ $t('agenda.addNotification') }}</a></v-row>
                 <v-row>
-                  <v-icon size="18" class="mr-11">fas fa-redo-alt</v-icon>
+                  <v-icon size="18" class="mr-11">
+                    fas fa-redo-alt
+                  </v-icon>
                   <input
                     ref="repeatMode"
                     type="text"
                     name="repeatMode"
                     class="ignore-vuetify-classes my-3"
-                    required>
+                    required
+                  >
                 </v-row>
                 <v-row>
-                  <v-icon size="18" class="mr-11">fas fa-file-alt</v-icon>
+                  <v-icon size="18" class="mr-11">
+                    fas fa-file-alt
+                  </v-icon>
                   <textarea
                     ref="autoFocusInput1"
                     :placeholder="$t('agenda.description')"
@@ -82,31 +100,39 @@
                     rows="20"
                     maxlength="2000"
                     noresize
-                    class="ignore-vuetify-classes my-3">
-                      </textarea>
+                    class="ignore-vuetify-classes my-3"
+                  ></textarea>
                 </v-row>
                 <v-row>
-                  <v-icon size="18" class="mr-2">fas fa-paperclip</v-icon>
+                  <v-icon size="18" class="mr-2">
+                    fas fa-paperclip
+                  </v-icon>
                   <a>{{ $t('agenda.attachFile') }}</a>
                 </v-row>
               </v-col>
-              <v-col cols="1"><v-divider vertical /></v-col>
+              <v-col cols="1">
+                <v-divider vertical />
+              </v-col>
               <v-col>
                 <v-row>
-                  <v-icon size="18" class="mr-2">fas fa-users</v-icon>
+                  <v-icon size="18" class="mr-2">
+                    fas fa-users
+                  </v-icon>
                   <input
                     ref="addParticipants"
                     :placeholder="$t('agenda.addParticipants')"
                     type="text"
                     name="addParticipants"
                     class="ignore-vuetify-classes my-3"
-                    required>
+                    required
+                  >
                 </v-row>
                 <v-row>
                   <v-chip
                     color="primary"
                     close
-                    pill>
+                    pill
+                  >
                     <v-avatar left>
                       <v-img src="https://cdn.vuetifyjs.com/images/john.png" />
                     </v-avatar>
@@ -121,8 +147,12 @@
           <v-col />
           <v-col />
           <v-col>
-            <v-btn text>Cancel</v-btn>
-            <v-btn color="primary" @click="nextStep">Continue</v-btn>
+            <v-btn text>
+              Cancel
+            </v-btn>
+            <v-btn color="primary" @click="nextStep">
+              Continue
+            </v-btn>
           </v-col>
         </v-row>
       </v-stepper-content>
@@ -130,14 +160,18 @@
         <v-card
           class="mb-12"
           color="grey lighten-1"
-          height="200px" />
+          height="200px"
+        />
 
         <v-btn
           color="primary"
-          @click="nextStep">
+          @click="nextStep"
+        >
           Continue
         </v-btn>
-        <v-btn text>Cancel</v-btn>
+        <v-btn text>
+          Cancel
+        </v-btn>
       </v-stepper-content>
     </v-stepper-items>
   </v-stepper>
@@ -145,26 +179,27 @@
 <script>
 export default {
   props: {
-    showStepperEvent: Boolean
+    event: {
+      type: Object,
+      default: () => ({})
+    },
   },
   data () {
     return {
-      showDialogEvent: false,
       stepper: 1
-    }
+    };
   },
   methods:{
     closeDialog() {
-       this.showDialogEvent = false;
-       this.$root.$emit('dialog-event-closed',this.showDialogEvent);
+      this.$emit('close');
     },
     nextStep() {
-       if (this.stepper < 2) {
-          this.stepper ++;
-       } else {
-          this.stepper = 1;
-        }
+      if (this.stepper < 2) {
+        this.stepper ++;
+      } else {
+        this.stepper = 1;
+      }
     }
-    }
-}
+  }
+};
 </script>

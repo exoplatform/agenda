@@ -1,29 +1,30 @@
 <template>
-  <v-col class="ml-4">
-    <v-tabs v-model="activeView">
-      <v-tab
-        dark
-        @click="$root.$emit('switch-type', 'day')">
-        {{ $t('agenda.label.viewDay') }}
-      </v-tab>
-      <v-tab
-        dark
-        @click="$root.$emit('switch-type', 'week')">
-        {{ $t('agenda.label.viewWeek') }}
-      </v-tab>
-      <v-tab
-        dark
-        @click="$root.$emit('switch-type', 'month')">
-        {{ $t('agenda.label.viewMonth') }}
-      </v-tab>
-    </v-tabs>
-  </v-col>
+  <v-tabs v-model="calendarType" align-with-title centered>
+    <v-tab href="#day" dark>
+      {{ $t('agenda.label.viewDay') }}
+    </v-tab>
+    <v-tab href="#week" dark>
+      {{ $t('agenda.label.viewWeek') }}
+    </v-tab>
+    <v-tab href="#month" dark>
+      {{ $t('agenda.label.viewMonth') }}
+    </v-tab>
+  </v-tabs>
 </template>
-
 <script>
 export default {
-  data: () => ({
-    activeView:1
-  })
-}
+  props: {
+    calendarType: {
+      type: String,
+      default: null
+    },
+  },
+  watch: {
+    calendarType(newValue, oldValue) {
+      if (oldValue) {
+        this.$root.$emit('agenda-change-period-type', this.calendarType);
+      }
+    },
+  },
+};
 </script>
