@@ -1,5 +1,11 @@
 import './initComponents.js';
 
+import * as eventService from './js/EventService.js';
+import * as calendarService from './js/CalendarService.js';
+import * as agendaUtils from './js/AgendaUtils.js';
+
+const userTimeZone = agendaUtils.getUserTimezone();
+
 // get overrided components if exists
 if (extensionRegistry) {
   const components = extensionRegistry.loadComponents('Agenda');
@@ -16,6 +22,19 @@ const vuetify = new Vuetify({
   iconfont: '',
 });
 
+window.Object.defineProperty(Vue.prototype, '$calendarService', {
+  value: calendarService,
+});
+window.Object.defineProperty(Vue.prototype, '$eventService', {
+  value: eventService,
+});
+window.Object.defineProperty(Vue.prototype, '$agendaUtils', {
+  value: agendaUtils,
+});
+window.Object.defineProperty(Vue.prototype, '$userTimeZone', {
+  value: userTimeZone,
+});
+
 document.dispatchEvent(new CustomEvent('displayTopBarLoading'));
 
 const appId = 'AgendaApplication';
@@ -30,7 +49,7 @@ export function init() {
   exoi18n.loadLanguageAsync(lang, url).then(i18n => {
     // init Vue app when locale ressources are ready
     new Vue({
-      template: `<agenda id="${appId}" />`,
+      template: `<agenda id="${appId}" calendar-type="week" />`,
       vuetify,
       i18n
     }).$mount(`#${appId}`);
