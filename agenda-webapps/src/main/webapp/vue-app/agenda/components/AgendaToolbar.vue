@@ -43,6 +43,7 @@ export default {
   methods: {
     setToday () {
       this.focus = '';
+      this.$root.$emit('set-to-day',this.focus);
     },
     prevDate () {
       this.$refs.calendar.prev();

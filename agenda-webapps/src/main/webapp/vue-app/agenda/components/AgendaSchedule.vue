@@ -10,7 +10,7 @@
       @click:event="showEvent"
       @click:more="viewDay"
       @click:date="viewDay" />
-    <agenda-event />
+    <agenda-event-preview-dialog />
   </div>
 </template>
 
@@ -24,32 +24,25 @@ export default {
   },
   data: () => ({
     focus: '',
-    type: 'week'
+    type: 'week',
+    selectedEvent: {},
+    selectedElement: null,
+    selectedOpen: false
   }),
   mounted() {
     this.$root.$on('switch-type', (data) => {
       this.type = data;
+    });
+    this.$root.$on('set-to-day', (data) => {
+      this.focus = data;
     });
   },
   methods:{
     getEventColor (event) {
       return event.color;
     },
-    showEvent ({ nativeEvent, event }) {
-      const open = () => {
-         this.selectedEvent = event;
-         this.selectedElement = nativeEvent.target;
-         setTimeout(() => this.selectedOpen = true, 10);
-      }
-
-      if (this.selectedOpen) {
-         this.selectedOpen = false;
-         setTimeout(open, 10);
-      } else {
-         open();
-      }
-
-      nativeEvent.stopPropagation();
+    showEvent () {
+      this.focus = '';
     },
     viewDay ({ date }) {
        this.focus = date;

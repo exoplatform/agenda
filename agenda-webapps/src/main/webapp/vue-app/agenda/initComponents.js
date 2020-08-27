@@ -7,7 +7,7 @@ import CreateEventDialog from './components/agenda-events/AgendaEventDialog.vue'
 import CreateEventStepper from './components/agenda-events/CreateEventStepper.vue';
 import AgendaToolbar from './components/AgendaToolbar.vue';
 import AgendaSchedule from './components/AgendaSchedule.vue';
-import AgendaEvent from './components/AgendaEvent.vue';
+import AgendaPreviewEventDialog from './components/AgendaPreviewEventDialog.vue';
 import AgendaSwitchView from './components/AgendaSwitchView.vue';
 import AgendaSearchEvent from './components/AgendaSearchEvent.vue';
 import AgendaFilterButton from './components/AgendaFilterButton.vue';
@@ -25,7 +25,7 @@ const components = {
   'create-event-stepper': CreateEventStepper,
   'agenda-toolbar': AgendaToolbar,
   'agenda-schedule': AgendaSchedule,
-  'agenda-event': AgendaEvent,
+  'agenda-event-preview-dialog': AgendaPreviewEventDialog,
   'agenda-switch-view': AgendaSwitchView,
   'agenda-search-event': AgendaSearchEvent,
   'agenda-filter-button': AgendaFilterButton,

@@ -13,42 +13,14 @@
 
 <script>
 export default {
-  data: () => ({
+  props: {
+    events: {
+      type: Array,
+      default: () => null
+    },
     calendar: {
-      name:'agenda'
-    },
-    focus: '',
-    type: 'week',
-    typeToLabel: {
-        month: 'Month',
-        week: 'Week',
-        day: 'Day',
-        '4day': '4 Days',
-    },
-    selectedEvent: {},
-    events: []
-  }),
-  created() {
-    this.initEvents();
-  },
-  mounted() {
-    document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
-  },
-  methods: {
-    initEvents() {
-      const eventsList = this.$eventService.getEventList();
-      eventsList.then( resp => {
-        resp.forEach(event =>{
-            this.events.push({
-                name: event.creator,
-                start: event.start,
-                end: event.end,
-                color: event.color
-                })
-            })
-        }).catch(error =>{
-            console.error('Error getting value',error);
-        });
+      type: Object,
+      default: () => null
     }
   },
 };
