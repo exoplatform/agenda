@@ -30,7 +30,7 @@ import lombok.*;
 @NoArgsConstructor
 public class EventEntity {
 
-  private long                  id;
+  private long                        id;
 
   /**
    * Parent event object, when :
@@ -42,43 +42,42 @@ public class EventEntity {
    * duplicated in user calendar only.</li>
    * </ul>
    */
-  private EventEntity           parent;
+  private EventEntity                 parent;
 
   /**
    * External Event technical identifier if imported from external Store. This
    * can be used to identify calendar event if re-importing events from remote
    * provider.
    */
-  private String                remoteId;
+  private String                      remoteId;
 
   /**
-   * Configured Identifier of Remote Calendar identifier, for example: "google"
-   * for Google Calendar and "office365" for Office 365 Calendar.
+   * Configured Identifier of Remote Calendar provider.
    */
-  private String                remoteProviderId;
+  private long                        remoteProviderId;
 
-  private CalendarEntity        calendar;
+  private CalendarEntity              calendar;
 
-  private IdentityEntity        creator;
+  private IdentityEntity              creator;
 
-  private String                created;
+  private String                      created;
 
-  private String                updated;
+  private String                      updated;
 
-  private String                summary;
+  private String                      summary;
 
-  private String                description;
+  private String                      description;
 
   /**
    * Geopgraphic location of the event, content is free text and no predefined
    * format is used.
    */
-  private String                location;
+  private String                      location;
 
   /**
    * CSS color HEX value of the event
    */
-  private String                color;
+  private String                      color;
 
   /**
    * Start date of the event.
@@ -89,7 +88,7 @@ public class EventEntity {
    * 'yyyy-mm-dd', for example: 2020-07-20.</li>
    * </ul>
    */
-  private String                start;
+  private String                      start;
 
   /**
    * End date of the event.
@@ -100,34 +99,36 @@ public class EventEntity {
    * 'yyyy-mm-dd', for example: 2020-07-20.</li>
    * </ul>
    */
-  private String                end;
+  private String                      end;
 
   /**
    * Whether the event happens all-day or at dedicated period of a day
    */
-  private boolean               allDay;
+  private boolean                     allDay;
 
-  private EventAvailability     availability;
+  private EventAvailability           availability;
 
-  private EventStatus           status;
+  private EventStatus                 status;
 
   /**
    * Event parent recurrence details
    */
-  private EventRecurrence       recurrence;
+  private EventRecurrenceEntity       recurrence;
 
-  private EventOccurrence       occurrence;
+  private EventOccurrence             occurrence;
 
-  private Permission            acl;
+  private Permission                  acl;
 
-  private List<EventAttendee>   attendees;
+  private List<EventAttendeeEntity>   attendees;
 
-  private List<EventConference> conferences;
+  private List<EventConference>       conferences;
 
-  private List<EventAttachment> attachments;
+  private List<EventAttachmentEntity> attachments;
 
   /**
    * List of reminders of currently authenticated user
    */
-  private List<EventReminder>   reminders;
+  private List<EventReminderEntity>   reminders;
+
+  private transient boolean           sendInvitation;
 }

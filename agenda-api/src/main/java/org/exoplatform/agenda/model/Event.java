@@ -16,7 +16,7 @@
 */
 package org.exoplatform.agenda.model;
 
-import java.util.List;
+import java.time.ZonedDateTime;
 
 import org.exoplatform.agenda.constant.EventAvailability;
 import org.exoplatform.agenda.constant.EventStatus;
@@ -28,7 +28,7 @@ import lombok.*;
 @NoArgsConstructor
 public class Event implements Cloneable {
 
-  private long                  id;
+  private long              id;
 
   /**
    * Parent event object, when :
@@ -40,98 +40,77 @@ public class Event implements Cloneable {
    * duplicated in user calendar only.</li>
    * </ul>
    */
-  private long                  parentId;
+  private long              parentId;
 
   /**
    * External Event technical identifier if imported from external Store. This
    * can be used to identify calendar event if re-importing events from remote
    * provider.
    */
-  private String                remoteId;
+  private String            remoteId;
 
   /**
    * Configured Identifier of Remote Calendar identifier, for example: "google"
    * for Google Calendar and "office365" for Office 365 Calendar.
    */
-  private String                remoteProviderId;
+  private long              remoteProviderId;
 
-  private long                  calendarId;
+  private long              calendarId;
 
-  private long                  creatorId;
+  private long              creatorId;
 
-  private String                created;
+  private long              modifierId;
 
-  private String                updated;
+  private ZonedDateTime     created;
 
-  private String                summary;
+  private ZonedDateTime     updated;
 
-  private String                description;
+  private String            summary;
+
+  private String            description;
 
   /**
    * Geopgraphic location of the event, content is free text and no predefined
    * format is used.
    */
-  private String                location;
+  private String            location;
 
   /**
    * CSS color HEX value of the event
    */
-  private String                color;
+  private String            color;
 
-  /**
-   * Start date of the event.
-   * <ul>
-   * <li>It's of type datetime converted to user timezone if not "all-day"
-   * event.(Timestamp representation using RFC-3339.)</li>
-   * <li>When it's an all-day event, the returned date is of format
-   * 'yyyy-mm-dd', for example: 2020-07-20.</li>
-   * </ul>
-   */
-  private String                start;
+  private ZonedDateTime     start;
 
-  /**
-   * End date of the event.
-   * <ul>
-   * <li>It's of type datetime converted to user timezone if not "all-day"
-   * event.(Timestamp representation using RFC-3339.)</li>
-   * <li>When it's an all-day event, the returned date is of format
-   * 'yyyy-mm-dd', for example: 2020-07-20.</li>
-   * </ul>
-   */
-  private String                end;
+  private ZonedDateTime     end;
 
   /**
    * Whether the event happens all-day or at dedicated period of a day
    */
-  private boolean               allDay;
+  private boolean           allDay;
 
-  private EventAvailability     availability;
+  private EventAvailability availability;
 
-  private EventStatus           status;
+  private EventStatus       status;
 
   /**
    * Event parent recurrence details
    */
-  private EventRecurrence       recurrence;
+  private EventRecurrence   recurrence;
 
-  private EventOccurrence       occurrence;
+  private EventOccurrence   occurrence;
 
-  private Permission            acl;
-
-  private List<EventAttendee>   attendees;
-
-  private List<EventConference> conferences;
-
-  private List<EventAttachment> attachments;
+  private Permission        acl;
 
   @Override
-  public Event clone() {
+  public Event clone() { // NOSONAR
     return new Event(id,
                      parentId,
                      remoteId,
                      remoteProviderId,
                      calendarId,
                      creatorId,
+                     modifierId,
                      created,
                      updated,
                      summary,
@@ -143,11 +122,8 @@ public class Event implements Cloneable {
                      allDay,
                      availability,
                      status,
-                     recurrence,
-                     occurrence,
-                     acl,
-                     attendees,
-                     conferences,
-                     attachments);
+                     recurrence == null ? null : recurrence.clone(),
+                     occurrence == null ? null : occurrence.clone(),
+                     acl == null ? null : acl.clone());
   }
 }

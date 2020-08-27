@@ -134,9 +134,7 @@
       <column name="EVENT_ID" type="BIGINT">
         <constraints nullable="false" foreignKeyName="FK_AGENDA_EVENT_CONFERENCE" references="EXO_AGENDA_EVENT(EVENT_ID)" />
       </column>
-      <column name="TYPE" type="VARCHAR(200)">
-        <constraints nullable="false" />
-      </column>
+      <column name="TYPE" type="VARCHAR(200)" />
       <column name="URI" type="VARCHAR(500)" />
       <column name="PHONE" type="VARCHAR(200)" />
       <column name="ACCESS_CODE" type="VARCHAR(200)" />

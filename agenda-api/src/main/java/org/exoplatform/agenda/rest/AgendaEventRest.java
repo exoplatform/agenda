@@ -16,7 +16,9 @@
 */
 package org.exoplatform.agenda.rest;
 
+import java.net.URI;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -29,10 +31,8 @@ import javax.ws.rs.core.Response.Status;
 import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
-import org.exoplatform.agenda.model.Event;
-import org.exoplatform.agenda.model.EventReminder;
-import org.exoplatform.agenda.rest.model.EventEntity;
-import org.exoplatform.agenda.rest.model.EventList;
+import org.exoplatform.agenda.model.*;
+import org.exoplatform.agenda.rest.model.*;
 import org.exoplatform.agenda.service.*;
 import org.exoplatform.agenda.util.*;
 import org.exoplatform.common.http.HTTPStatus;
@@ -105,9 +105,25 @@ public class AgendaEventRest {
       }
       List<EventEntity> eventEntities = events.stream().map(event -> {
         EventEntity eventEntity = EntityBuilder.fromEvent(event);
+        long userIdentityId = RestUtils.getCurrentUserIdentityId();
+
         try {
-          List<EventReminder> eventReminders = agendaEventReminderService.getEventReminders(eventEntity.getId(), currentUser);
-          eventEntity.setReminders(eventReminders);
+          fillAttendees(eventEntity);
+        } catch (Exception e) {
+          LOG.warn("Error retrieving event reminders, retrieve event without reminders", e);
+        }
+        try {
+          fillAttachments(eventEntity);
+        } catch (Exception e) {
+          LOG.warn("Error retrieving event reminders, retrieve event without reminders", e);
+        }
+        try {
+          fillConferences(eventEntity);
+        } catch (Exception e) {
+          LOG.warn("Error retrieving event reminders, retrieve event without reminders", e);
+        }
+        try {
+          fillReminders(eventEntity, userIdentityId);
         } catch (Exception e) {
           LOG.warn("Error retrieving event reminders, retrieve event without reminders", e);
         }
@@ -151,8 +167,11 @@ public class AgendaEventRest {
         return Response.status(Status.NOT_FOUND).build();
       } else {
         EventEntity eventEntity = EntityBuilder.fromEvent(event);
-        List<EventReminder> eventReminders = agendaEventReminderService.getEventReminders(eventEntity.getId(), currentUser);
-        eventEntity.setReminders(eventReminders);
+        long userIdentityId = RestUtils.getCurrentUserIdentityId();
+        fillAttendees(eventEntity);
+        fillAttachments(eventEntity);
+        fillConferences(eventEntity);
+        fillReminders(eventEntity, userIdentityId);
         return Response.ok(eventEntity).build();
       }
     } catch (IllegalAccessException e) {
@@ -181,7 +200,35 @@ public class AgendaEventRest {
 
     String currentUser = RestUtils.getCurrentUser();
     try {
-      agendaEventService.createEvent(EntityBuilder.toEvent(eventEntity), currentUser);
+      List<EventAttendeeEntity> attendeeEntities = eventEntity.getAttendees();
+      List<EventAttendee> attendees = null;
+      if (attendeeEntities != null && !attendeeEntities.isEmpty()) {
+        attendees = new ArrayList<>();
+        for (EventAttendeeEntity attendeeEntity : attendeeEntities) {
+          attendees.add(EntityBuilder.toEventAttendee(attendeeEntity));
+        }
+      }
+
+      List<EventAttachmentEntity> attachmentEntities = eventEntity.getAttachments();
+      List<EventAttachment> attachments = attachmentEntities == null
+          || attachmentEntities.isEmpty() ? null
+                                          : attachmentEntities.stream()
+                                                              .map(EntityBuilder::toEventAttachment)
+                                                              .collect(Collectors.toList());
+      List<EventReminderEntity> reminderEntities = eventEntity.getReminders();
+      List<EventReminder> reminders = reminderEntities == null
+          || reminderEntities.isEmpty() ? null
+                                        : reminderEntities.stream()
+                                                          .map(EntityBuilder::toEventReminder)
+                                                          .collect(Collectors.toList());
+
+      agendaEventService.createEvent(EntityBuilder.toEvent(eventEntity),
+                                     attendees,
+                                     eventEntity.getConferences(),
+                                     attachments,
+                                     reminders,
+                                     eventEntity.isSendInvitation(),
+                                     currentUser);
       return Response.noContent().build();
     } catch (IllegalAccessException e) {
       LOG.warn("User '{}' attempts to create an event in calendar '{}'", currentUser, eventEntity.getCalendar());
@@ -213,7 +260,35 @@ public class AgendaEventRest {
 
     String currentUser = RestUtils.getCurrentUser();
     try {
-      agendaEventService.updateEvent(EntityBuilder.toEvent(eventEntity), currentUser);
+      List<EventAttendeeEntity> attendeeEntities = eventEntity.getAttendees();
+      List<EventAttendee> attendees = null;
+      if (attendeeEntities != null && !attendeeEntities.isEmpty()) {
+        attendees = new ArrayList<>();
+        for (EventAttendeeEntity attendeeEntity : attendeeEntities) {
+          attendees.add(EntityBuilder.toEventAttendee(attendeeEntity));
+        }
+      }
+
+      List<EventAttachmentEntity> attachmentEntities = eventEntity.getAttachments();
+      List<EventAttachment> attachments = attachmentEntities == null
+          || attachmentEntities.isEmpty() ? null
+                                          : attachmentEntities.stream()
+                                                              .map(EntityBuilder::toEventAttachment)
+                                                              .collect(Collectors.toList());
+
+      Event event = EntityBuilder.toEvent(eventEntity);
+      List<EventReminder> reminders = eventEntity.getReminders() == null ? null
+                                                                         : eventEntity.getReminders()
+                                                                                      .stream()
+                                                                                      .map(EntityBuilder::toEventReminder)
+                                                                                      .collect(Collectors.toList());
+      agendaEventService.updateEvent(event,
+                                     attendees,
+                                     eventEntity.getConferences(),
+                                     attachments,
+                                     reminders,
+                                     eventEntity.isSendInvitation(),
+                                     currentUser);
       return Response.noContent().build();
     } catch (Exception e) {
       LOG.warn("Error updating an event", e);
@@ -266,20 +341,14 @@ public class AgendaEventRest {
     if (eventId <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
     }
-
-    String currentUser = RestUtils.getCurrentUser();
+    long identityId = RestUtils.getCurrentUserIdentityId();
     try {
-      List<EventReminder> reminders = agendaEventReminderService.getEventReminders(eventId, currentUser);
+      List<EventReminder> reminders = agendaEventReminderService.getEventReminders(eventId, identityId);
       if (reminders == null) {
         return Response.status(Status.NOT_FOUND).build();
       } else {
         return Response.ok(reminders).build();
       }
-    } catch (ObjectNotFoundException e) {
-      return Response.status(Status.NOT_FOUND).entity("Event not found").build();
-    } catch (IllegalAccessException e) {
-      LOG.warn("User '{}' attempts to access reminders for a not authorized event with Id '{}'", currentUser, eventId);
-      return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error retrieving event reminders with id '{}'", eventId, e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -303,14 +372,12 @@ public class AgendaEventRest {
       return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
     }
 
-    String currentUser = RestUtils.getCurrentUser();
+    long currentUserIdentityId = RestUtils.getCurrentUserIdentityId();
     try {
-      agendaEventReminderService.updateEventReminders(eventId, reminders, currentUser);
+      agendaEventReminderService.saveEventReminders(eventId, reminders, currentUserIdentityId);
       return Response.noContent().build();
-    } catch (ObjectNotFoundException e) {
-      return Response.status(Status.NOT_FOUND).entity("Event not found").build();
     } catch (IllegalAccessException e) {
-      LOG.warn("User '{}' attempts to access reminders for a not authorized event with Id '{}'", currentUser, eventId);
+      LOG.warn("User '{}' attempts to access reminders for a not authorized event with Id '{}'", currentUserIdentityId, eventId);
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error updating event reminders with id '{}'", eventId, e);
@@ -404,6 +471,55 @@ public class AgendaEventRest {
       LOG.warn("Error retrieving event reminders with id '{}'", eventId, e);
       return Response.serverError().entity(e.getMessage()).build();
     }
+  }
+
+  @Path("attachment/{attachmentId}")
+  @GET
+  @ApiOperation(value = "Download Event attachment", httpMethod = "GET", response = Response.class)
+  @ApiResponses(value = {
+      @ApiResponse(code = HTTPStatus.FOUND, message = "Temporary Redirect"),
+      @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+      @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+      @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+  })
+  public Response downloadAttachment(@ApiParam(value = "Event technical identifier", required = true) @PathParam("attachmentId") long attachmentId) {
+    // TODO
+    // Verify attachment is attached to a permitted event
+    // + Build a new DownloadResource
+    return Response.temporaryRedirect(new URI("")).build();
+  }
+
+  private void fillAttendees(EventEntity eventEntity) {
+    List<EventAttendee> eventAttendees = agendaEventService.getEventAttendees(eventEntity.getId());
+    List<EventAttendeeEntity> eventAttendeeEntities =
+                                                    eventAttendees.stream()
+                                                                  .map(EntityBuilder::fromEventAttendee)
+                                                                  .collect(Collectors.toList());
+    eventEntity.setAttendees(eventAttendeeEntities);
+  }
+
+  private void fillAttachments(EventEntity eventEntity) {
+    List<EventAttachment> eventAttachments = agendaEventService.getEventAttachments(eventEntity.getId());
+    List<EventAttachmentEntity> eventAttachmentEntities =
+                                                        eventAttachments.stream()
+                                                                        .map(EntityBuilder::fromEventAttachment)
+                                                                        .collect(Collectors.toList());
+    eventEntity.setAttachments(eventAttachmentEntities);
+  }
+
+  private void fillConferences(EventEntity eventEntity) {
+    List<EventConference> eventConferences = agendaEventService.getEventConferences(eventEntity.getId());
+    eventEntity.setConferences(eventConferences);
+  }
+
+  private void fillReminders(EventEntity eventEntity, long currentUserIdentityId) {
+    List<EventReminder> eventReminders = agendaEventReminderService.getEventReminders(eventEntity.getId(),
+                                                                                      currentUserIdentityId);
+    List<EventReminderEntity> eventReminderEntities =
+                                                    eventReminders.stream()
+                                                                  .map(EntityBuilder::fromEventReminder)
+                                                                  .collect(Collectors.toList());
+    eventEntity.setReminders(eventReminderEntities);
   }
 
 }

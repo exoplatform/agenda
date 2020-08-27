@@ -16,8 +16,11 @@
 */
 package org.exoplatform.agenda.service;
 
+import java.util.List;
+
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.model.Event;
+import org.exoplatform.agenda.model.EventAttendee;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.web.security.security.TokenServiceInitializationException;
@@ -95,4 +98,31 @@ public interface AgendaEventInvitationService {
    */
   public void sendEventResponse(String identityId, long eventId, EventAttendeeResponse response) throws ObjectNotFoundException,
                                                                                                  IllegalAccessException;
+
+  /**
+   * Invites a user, space or external user to an event.
+   * 
+   * @param eventId technical identifier of the event
+   * @param identityId technical identitifier of {@link Identity}
+   * @param response default answer of the attendee that could be null, in which
+   *          case {@link EventAttendeeResponse#NEEDS_ACTION} will be used
+   * @param sendInvitation whether send invitations or not
+   */
+  public void invite(long eventId, long identityId, EventAttendeeResponse response, boolean sendInvitation);
+
+  /**
+   * @param event
+   * @param attendees
+   * @param creatorIdentityId
+   * @param sendInvitations
+   */
+  void saveEventAttendees(Event event, List<EventAttendee> attendees, long creatorIdentityId, boolean sendInvitations);
+
+  /**
+   * Sends an invitation to an event for a user/space
+   * 
+   * @param event {@link Event} to invite users to
+   * @param receiverId identity Id of invitation receiver
+   */
+  public void sendInvitation(Event event, long receiverId);
 }

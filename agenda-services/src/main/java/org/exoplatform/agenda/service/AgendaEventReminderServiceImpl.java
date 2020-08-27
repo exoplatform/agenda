@@ -19,7 +19,6 @@ package org.exoplatform.agenda.service;
 import java.util.List;
 
 import org.exoplatform.agenda.model.EventReminder;
-import org.exoplatform.commons.exception.ObjectNotFoundException;
 
 public class AgendaEventReminderServiceImpl implements AgendaEventReminderService {
 
@@ -28,17 +27,15 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
   }
 
   @Override
-  public List<EventReminder> getEventReminders(long eventId, String username) throws IllegalAccessException,
-                                                                              ObjectNotFoundException {
+  public List<EventReminder> getEventReminders(long eventId, long userIdentityId) {
     // TODO Auto-generated method stub
     return null;
   }
 
   @Override
-  public void updateEventReminders(long eventId, List<EventReminder> reminders, String username) throws IllegalAccessException,
-                                                                                                 ObjectNotFoundException {
+  public void saveEventReminders(long eventId, List<EventReminder> reminders, long userIdentityId) throws IllegalAccessException {
     // TODO Auto-generated method stub
-
+    
   }
 
 }

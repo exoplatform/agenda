@@ -28,8 +28,8 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
 @ExoEntity
 @Table(name = "EXO_AGENDA_RECURRENCE")
 @NamedQueries({
-  @NamedQuery(name = "AgendaEventRecurrence.deleteCalendarRecurrences", query = "DELETE FROM AgendaEventRecurrence a WHERE a.event.id IN (SELECT evt.id FROM AgendaEvent evt WHERE evt.calendar.id = :calendarId)"),
-  @NamedQuery(name = "AgendaEventRecurrence.deleteEventRecurrences", query = "DELETE FROM AgendaEventRecurrence a WHERE a.event.id = :eventId"),
+    @NamedQuery(name = "AgendaEventRecurrence.deleteCalendarRecurrences", query = "DELETE FROM AgendaEventRecurrence a WHERE a.event.id IN (SELECT evt.id FROM AgendaEvent evt WHERE evt.calendar.id = :calendarId)"),
+    @NamedQuery(name = "AgendaEventRecurrence.deleteEventRecurrences", query = "DELETE FROM AgendaEventRecurrence a WHERE a.event.id = :eventId"),
 })
 public class EventRecurrenceEntity implements Serializable {
 
@@ -52,7 +52,7 @@ public class EventRecurrenceEntity implements Serializable {
   private Date                     endDate;
 
   @Column(name = "RECURRENCE_FREQUENCY", nullable = false)
-  private EventRecurrenceFrequency frquency;
+  private EventRecurrenceFrequency frequency;
 
   @Column(name = "RECURRENCE_INTERVAL", nullable = false)
   private int                      interval;
@@ -98,12 +98,12 @@ public class EventRecurrenceEntity implements Serializable {
     this.endDate = endDate;
   }
 
-  public EventRecurrenceFrequency getFrquency() {
-    return frquency;
+  public EventRecurrenceFrequency getFrequency() {
+    return frequency;
   }
 
-  public void setFrquency(EventRecurrenceFrequency frquency) {
-    this.frquency = frquency;
+  public void setFrequency(EventRecurrenceFrequency frequency) {
+    this.frequency = frequency;
   }
 
   public int getInterval() {

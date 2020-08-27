@@ -16,6 +16,9 @@
 */
 package org.exoplatform.agenda.model;
 
+import java.io.Serializable;
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.exoplatform.agenda.constant.EventRecurrenceFrequency;
@@ -25,9 +28,13 @@ import lombok.*;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class EventRecurrence {
+public class EventRecurrence implements Cloneable, Serializable {
 
-  private String                   until;
+  private static final long        serialVersionUID = 5053547947788569270L;
+
+  private long                     id;
+
+  private ZonedDateTime            until;
 
   private int                      count;
 
@@ -51,4 +58,36 @@ public class EventRecurrence {
 
   private List<String>             byMonth;
 
+  /**
+   * This field is computed from recurrence properties to know what is the first
+   * start date of all occurrences of current recurrent event. It's made
+   * transient to not retrieve it in REST Object details
+   */
+  private transient ZonedDateTime  overallStart;
+
+  /**
+   * This field is computed from recurrence properties to know what is the first
+   * start date of all occurrences of current recurrent event. It's made
+   * transient to not retrieve it in REST Object details
+   */
+  private transient ZonedDateTime  overallEnd;
+
+  @Override
+  public EventRecurrence clone() { // NOSONAR
+    return new EventRecurrence(id,
+                               until,
+                               count,
+                               frequency,
+                               interval,
+                               bySecond == null ? null : new ArrayList<>(bySecond),
+                               byMinute == null ? null : new ArrayList<>(byMinute),
+                               byHour == null ? null : new ArrayList<>(byHour),
+                               byDay == null ? null : new ArrayList<>(byDay),
+                               byMonthDay == null ? null : new ArrayList<>(byMonthDay),
+                               byYearDay == null ? null : new ArrayList<>(byYearDay),
+                               byWeekNo == null ? null : new ArrayList<>(byWeekNo),
+                               byMonth == null ? null : new ArrayList<>(byMonth),
+                               overallStart,
+                               overallEnd);
+  }
 }

@@ -16,6 +16,8 @@
 */
 package org.exoplatform.agenda.dao;
 
+import java.util.List;
+
 import javax.persistence.Query;
 
 import org.exoplatform.agenda.entity.EventReminderEntity;
@@ -36,6 +38,11 @@ public class EventReminderDAO extends GenericDAOJPAImpl<EventReminderEntity, Lon
     Query deleteEventsQuery = getEntityManager().createNamedQuery("AgendaEventReminder.deleteEventReminders");
     deleteEventsQuery.setParameter("eventId", eventId);
     deleteEventsQuery.executeUpdate();
+  }
+
+  public List<EventReminderEntity> getEventReminders(long eventId, long userId) {
+    // TODO Auto-generated method stub
+    return null;
   }
 
 }

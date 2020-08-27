@@ -47,7 +47,7 @@ public class EventReminderEntity implements Serializable {
   @Column(name = "RECEIVER_ID", nullable = false)
   private long              receiverId;
 
-  @Column(name = "TYPE", nullable = false)
+  @Column(name = "TYPE")
   private String            type;
 
   @Column(name = "MINUTES", nullable = false)

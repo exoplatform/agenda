@@ -23,38 +23,19 @@ import lombok.*;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class EventAttachment {
+public class EventAttachment implements Cloneable {
+
+  private long id;
 
   /**
    * {@link FileService} technical identifier of attached file
    */
-  private String id;
+  private long fileId;
 
-  /**
-   * Generated ID used to upload a file when creating or editing an event where
-   * a new attachment is added. This ID will be used to retrieve File from
-   * UploadService.
-   */
-  private String uploadId;
+  private long eventId;
 
-  /**
-   * Download URL of file
-   */
-  private String url;
-
-  /**
-   * File name
-   */
-  private String name;
-
-  /**
-   * Mime typ of the file
-   */
-  private String mimeType;
-
-  /**
-   * File size in bytes
-   */
-  private long   size;
-
+  @Override
+  protected EventAttachment clone() { // NOSONAR
+    return new EventAttachment(id, fileId, eventId);
+  }
 }

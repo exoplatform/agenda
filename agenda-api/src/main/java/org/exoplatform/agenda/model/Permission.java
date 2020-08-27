@@ -21,8 +21,12 @@ import lombok.*;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class Permission {
+public class Permission implements Cloneable {
 
   private boolean canEdit;
 
+  @Override
+  public Permission clone() { // NOSONAR
+    return new Permission(canEdit);
+  }
 }

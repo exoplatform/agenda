@@ -19,16 +19,27 @@ package org.exoplatform.agenda.model;
 import lombok.*;
 
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
-public class EventOccurrence implements Cloneable {
+@EqualsAndHashCode(callSuper = false)
+public class EventAttachmentUpload extends EventAttachment {
 
-  private String  id;
+  /**
+   * Generated ID used to upload a file when creating or editing an event where
+   * a new attachment is added. This ID will be used to retrieve File from
+   * UploadService.
+   */
+  private String uploadId;
 
-  private boolean exceptional;
+  public EventAttachmentUpload(long id,
+                               long fileId,
+                               long eventId,
+                               String uploadId) {
+    super(id, fileId, eventId);
+    this.uploadId = uploadId;
+  }
 
   @Override
-  public EventOccurrence clone() { // NOSONAR
-    return new EventOccurrence(id, exceptional);
+  protected EventAttachmentUpload clone() { // NOSONAR
+    return new EventAttachmentUpload(getId(), getFileId(), getEventId(), getUploadId());
   }
 }

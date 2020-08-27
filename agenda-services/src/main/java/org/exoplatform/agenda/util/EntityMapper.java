@@ -16,8 +16,8 @@
 */
 package org.exoplatform.agenda.util;
 
-import org.exoplatform.agenda.entity.CalendarEntity;
-import org.exoplatform.agenda.model.Calendar;
+import org.exoplatform.agenda.entity.*;
+import org.exoplatform.agenda.model.*;
 
 public class EntityMapper {
 
@@ -62,6 +62,87 @@ public class EntityMapper {
     calendarEntity.setDescription(calendar.getDescription());
     calendarEntity.setSystem(calendar.isSystem());
     return calendarEntity;
+  }
+
+  public static EventReminder fromEntity(EventReminderEntity eventReminderEntity) {
+    return new EventReminder(eventReminderEntity.getId(),
+                             eventReminderEntity.getReceiverId(),
+                             eventReminderEntity.getType(),
+                             eventReminderEntity.getMinutes(),
+                             AgendaDateUtils.fromDate(eventReminderEntity.getTriggerDate()));
+  }
+
+  public static EventReminderEntity toEntity(EventReminder eventReminder) {
+    EventReminderEntity eventReminderEntity = new EventReminderEntity();
+    eventReminderEntity.setId(eventReminder.getId());
+    eventReminderEntity.setMinutes(eventReminder.getMinutes());
+    eventReminderEntity.setReceiverId(eventReminder.getReceiverId());
+    eventReminderEntity.setTriggerDate(AgendaDateUtils.toDate(eventReminder.getDatetime()));
+    eventReminderEntity.setType(eventReminder.getType());
+    return eventReminderEntity;
+  }
+
+  public static Event fromEntity(EventEntity eventEntity) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+  public static EventEntity toEntity(Event event) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+  public static EventRecurrenceEntity toEntity(Event event, EventRecurrence recurrence) {
+    EventRecurrenceEntity eventRecurrenceEntity = new EventRecurrenceEntity();
+    eventRecurrenceEntity.setCount(recurrence.getCount());
+    // Store in Recurrence properties the start and end dates of the event as
+    // given by the user
+    eventRecurrenceEntity.setStartDate(AgendaDateUtils.toDate(event.getStart()));
+    eventRecurrenceEntity.setEndDate(AgendaDateUtils.toDate(event.getEnd()));
+    eventRecurrenceEntity.setFrequency(recurrence.getFrequency());
+    eventRecurrenceEntity.setUntilDate(AgendaDateUtils.toDate(recurrence.getUntil()));
+    eventRecurrenceEntity.setId(recurrence.getId());
+    eventRecurrenceEntity.setInterval(recurrence.getInterval());
+    return eventRecurrenceEntity;
+  }
+
+  public static EventAttendee fromEntity(EventAttendeeEntity eventAttendeeEntity) {
+    return new EventAttendee(eventAttendeeEntity.getId(), eventAttendeeEntity.getIdentityId(), eventAttendeeEntity.getResponse());
+  }
+
+  public static EventAttendeeEntity toEntity(EventAttendee eventAttendee) {
+    EventAttendeeEntity eventAttendeeEntity = new EventAttendeeEntity();
+    eventAttendeeEntity.setId(eventAttendee.getId());
+    eventAttendeeEntity.setIdentityId(eventAttendee.getIdentityId());
+    eventAttendeeEntity.setResponse(eventAttendee.getResponse());
+    return eventAttendeeEntity;
+  }
+
+  public static EventAttachment fromEntity(EventAttachmentEntity eventAttachmentEntity) {
+    return new EventAttachment(eventAttachmentEntity.getId(),
+                               eventAttachmentEntity.getFileId(),
+                               eventAttachmentEntity.getEvent().getId());
+  }
+
+  public static EventConference fromEntity(EventConferenceEntity eventConferenceEntity) {
+    return new EventConference(eventConferenceEntity.getId(),
+                               eventConferenceEntity.getEvent().getId(),
+                               eventConferenceEntity.getType(),
+                               eventConferenceEntity.getUri(),
+                               eventConferenceEntity.getPhone(),
+                               eventConferenceEntity.getAccessCode(),
+                               eventConferenceEntity.getDescription());
+  }
+
+  public static EventConferenceEntity toEntity(EventConference eventConference) {
+    EventConferenceEntity eventConferenceEntity = new EventConferenceEntity();
+    eventConferenceEntity.setId(eventConference.getId());
+    eventConferenceEntity.setAccessCode(eventConference.getAccessCode());
+    eventConferenceEntity.setDescription(eventConference.getDescription());
+    eventConferenceEntity.setPhone(eventConference.getPhone());
+    eventConferenceEntity.setType(eventConference.getType());
+    eventConferenceEntity.setUri(eventConference.getUri());
+    return eventConferenceEntity;
   }
 
 }

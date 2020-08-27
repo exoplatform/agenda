@@ -14,21 +14,25 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see<http://www.gnu.org/licenses/>.
 */
-package org.exoplatform.agenda.model;
+package org.exoplatform.agenda.exception;
 
-import lombok.*;
+public class AgendaException extends Exception {
 
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-public class EventOccurrence implements Cloneable {
+  private static final long         serialVersionUID = 3558967988412136652L;
 
-  private String  id;
+  private final AgendaExceptionType agendaExceptionType;
 
-  private boolean exceptional;
+  public AgendaException(AgendaExceptionType agendaExceptionType) {
+    super(agendaExceptionType.getMessage());
+    this.agendaExceptionType = agendaExceptionType;
+  }
 
-  @Override
-  public EventOccurrence clone() { // NOSONAR
-    return new EventOccurrence(id, exceptional);
+  public AgendaException(AgendaExceptionType agendaExceptionType, Exception e) {
+    super(agendaExceptionType.getMessage(), e);
+    this.agendaExceptionType = agendaExceptionType;
+  }
+
+  public AgendaExceptionType getAgendaExceptionType() {
+    return agendaExceptionType;
   }
 }

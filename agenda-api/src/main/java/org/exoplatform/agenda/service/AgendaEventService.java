@@ -19,8 +19,8 @@ package org.exoplatform.agenda.service;
 import java.time.ZonedDateTime;
 import java.util.List;
 
-import org.exoplatform.agenda.model.Calendar;
-import org.exoplatform.agenda.model.Event;
+import org.exoplatform.agenda.exception.AgendaException;
+import org.exoplatform.agenda.model.*;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.social.core.identity.model.Identity;
 
@@ -77,10 +77,25 @@ public interface AgendaEventService {
    * null
    * 
    * @param event {@link Event} to create
+   * @param attendees event attendees of type {@link EventAttendee}
+   * @param conferences event conferences of type {@link EventConference}
+   * @param attachments event attachment of type {@link EventAttachment}
+   * @param reminders {@link List} of preferred user reminders of type
+   *          {@link EventReminder}
+   * @param sendInvitation whether send invitation to attendees or not
    * @param username User name creating event
-   * @throws IllegalAccessException when user is not allowed to access event
+   * @return Created {@link Event} with technichal identifier
+   * @throws IllegalAccessException when user is not allowed to create event on
+   *           calendar
+   * @throws AgendaException when the event attributes aren't valid
    */
-  public void createEvent(Event event, String username) throws IllegalAccessException;
+  public Event createEvent(Event event,
+                           List<EventAttendee> attendees,
+                           List<EventConference> conferences,
+                           List<EventAttachment> attachments,
+                           List<EventReminder> reminders,
+                           boolean sendInvitation,
+                           String username) throws IllegalAccessException, AgendaException;
 
   /**
    * Updates an existing event in-place when the user is owner of parent
@@ -88,9 +103,25 @@ public interface AgendaEventService {
    * personal calendar
    * 
    * @param event {@link Event} to create
-   * @param username User name creating event
+   * @param attendees event attendees of type {@link EventAttendee}
+   * @param conferences event conferences of type {@link EventConference}
+   * @param attachments event attachment of type {@link EventAttachment}
+   * @param reminders {@link List} of preferred user reminders of type
+   *          {@link EventReminder}
+   * @param sendInvitation whether re-send invitation to attendees or not
+   * @param username User name updating event
+   * @throws IllegalAccessException when user is not allowed to update event
+   * @throws ObjectNotFoundException when the event identified by its technical
+   *           identifier is not found
+   * @throws AgendaException when the event attributes aren't valid
    */
-  public void updateEvent(Event event, String username);
+  public void updateEvent(Event event,
+                          List<EventAttendee> attendees,
+                          List<EventConference> conferences,
+                          List<EventAttachment> attachments,
+                          List<EventReminder> reminders,
+                          boolean sendInvitation,
+                          String username) throws IllegalAccessException, ObjectNotFoundException, AgendaException;
 
   /**
    * Deletes an existing event
@@ -103,5 +134,29 @@ public interface AgendaEventService {
    *           identifier is not found
    */
   void deleteEventById(long eventId, String username) throws IllegalAccessException, ObjectNotFoundException;
+
+  /**
+   * Return the list of attendees of an event
+   * 
+   * @param eventId agenda {@link Event} identifier
+   * @return {@link List} of {@link EventAttendee}
+   */
+  public List<EventAttendee> getEventAttendees(long eventId);
+
+  /**
+   * Return the list of attachments of an event
+   * 
+   * @param eventId agenda {@link Event} identifier
+   * @return {@link List} of {@link EventAttachment}
+   */
+  public List<EventAttachment> getEventAttachments(long eventId);
+
+  /**
+   * Return the list of conferences of an event
+   * 
+   * @param eventId agenda {@link Event} identifier
+   * @return {@link List} of {@link EventConference}
+   */
+  public List<EventConference> getEventConferences(long eventId);
 
 }

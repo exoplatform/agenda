@@ -17,15 +17,14 @@
 package org.exoplatform.agenda.util;
 
 import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.time.*;
 import java.util.*;
+import java.util.Date;
 import java.util.TimeZone;
 
-import org.apache.commons.lang3.StringUtils;
-
 import org.exoplatform.agenda.constant.EventRecurrenceFrequency;
-import org.exoplatform.agenda.model.Event;
-import org.exoplatform.agenda.model.EventRecurrence;
+import org.exoplatform.agenda.model.*;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
@@ -40,6 +39,8 @@ import net.fortuna.ical4j.model.component.VEvent;
 import net.fortuna.ical4j.model.property.RRule;
 
 public class Utils {
+
+  public static final String OCCURRENCE_ID_DATE_FORMAT = "yyyyMMdd'T'HHmmss'Z'";
 
   private Utils() {
   }
@@ -66,9 +67,9 @@ public class Utils {
   public static List<Event> getOccurrences(Event event,
                                            LocalDate from,
                                            LocalDate to,
-                                           TimeZone timeZone) throws ParseException {
-    long startTime = AgendaDateUtils.parseRFC3339ToZonedDateTime(event.getStart()).toEpochSecond() * 1000;
-    long endTime = AgendaDateUtils.parseRFC3339ToZonedDateTime(event.getEnd()).toEpochSecond() * 1000;
+                                           TimeZone timeZone) {
+    long startTime = event.getStart().toEpochSecond() * 1000;
+    long endTime = event.getEnd().toEpochSecond() * 1000;
 
     DateTime startDateTime = new DateTime(startTime);
     DateTime endDateTime = new DateTime(endTime);
@@ -85,115 +86,128 @@ public class Utils {
     if (list == null || list.isEmpty()) {
       return Collections.emptyList();
     }
+
     List<Event> occurrences = new ArrayList<>();
+
     Iterator<?> periods = list.iterator();
     while (periods.hasNext()) {
       Period occurrencePeriod = (Period) periods.next();
       occurrencePeriod.getStart();
       occurrencePeriod.getEnd();
       Event occurrence = event.clone();
-      occurrence.setStart(AgendaDateUtils.toRFC3339Date(occurrencePeriod.getStart()));
-      occurrence.setEnd(AgendaDateUtils.toRFC3339Date(occurrencePeriod.getEnd()));
+      occurrence.setStart(occurrencePeriod.getStart().toInstant().atZone(ZoneOffset.UTC));
+      occurrence.setEnd(occurrencePeriod.getEnd().toInstant().atZone(ZoneOffset.UTC));
+      String occurrenceId = buildOccurrenceId(occurrencePeriod.getStart(), timeZone);
+      occurrence.setOccurrence(new EventOccurrence(occurrenceId, false));
+      occurrence.setParentId(event.getId());
+      occurrence.setRecurrence(null);
       occurrences.add(occurrence);
     }
     return occurrences;
   }
 
   @SuppressWarnings("unchecked")
-  public static Recur getICalendarRecur(Event event, EventRecurrence recurrence, TimeZone timeZone) throws ParseException {
-    EventRecurrenceFrequency frequency = recurrence.getFrequency();
-    // get the repeat count property of recurrence event
-    int count = recurrence.getCount();
-    int interval = recurrence.getInterval();
-    String untilString = recurrence.getUntil();
-    long untilTime = 0;
-    if (StringUtils.isNotBlank(untilString)) {
-      ZoneId zoneId = timeZone.toZoneId();
-      untilTime = AgendaDateUtils.parseRFC3339ToZonedDateTime(untilString)
-                                 .withZoneSameInstant(zoneId)
-                                 .toLocalDate()
-                                 .atTime(23, 59, 59)
-                                 .atZone(zoneId)
-                                 .toEpochSecond()
-          * 1000;
-    }
+  public static Recur getICalendarRecur(Event event, EventRecurrence recurrence, TimeZone timeZone) {
+    try {
+      EventRecurrenceFrequency frequency = recurrence.getFrequency();
+      int count = recurrence.getCount();
+      int interval = recurrence.getInterval();
+      ZonedDateTime until = recurrence.getUntil();
+      long untilTime = 0;
+      if (until != null) {
+        ZoneId zoneId = timeZone.toZoneId();
+        untilTime = until.withZoneSameInstant(zoneId)
+                         .toLocalDate()
+                         .atTime(23, 59, 59)
+                         .atZone(zoneId)
+                         .toEpochSecond()
+            * 1000;
+      }
 
-    Recur recur = null;
-    switch (frequency) {
-    case DAILY:
-      if (untilTime > 0) {
-        recur = new Recur(Recur.DAILY, new net.fortuna.ical4j.model.Date(untilTime));
-      } else if (count > 0) {
-        recur = new Recur(Recur.DAILY, count);
-      } else {
-        recur = new Recur("FREQ=DAILY");
-      }
-      recur.setInterval(interval);
-      return recur;
-    case WEEKLY:
-      if (untilTime > 0) {
-        recur = new Recur(Recur.WEEKLY, new net.fortuna.ical4j.model.Date(untilTime));
-      } else if (count > 0) {
-        recur = new Recur(Recur.WEEKLY, count);
-      } else {
-        recur = new Recur("FREQ=WEEKLY");
-      }
-      recur.setInterval(interval);
-      List<String> repeatByDay = recurrence.getByDay();
-      if (repeatByDay == null || repeatByDay.isEmpty()) {
-        Log.warn("Event with id '" + event.getId() + "' has wrong 'repeatByDay' property value");
-        return null;
-      }
-      WeekDayList weekDayList = new WeekDayList();
-      for (String s : repeatByDay) {
-        weekDayList.add(new WeekDay(s));
-      }
-      recur.getDayList().addAll(weekDayList);
-      return recur;
-    case MONTHLY:
-      if (untilTime > 0) {
-        recur = new Recur(Recur.MONTHLY, new net.fortuna.ical4j.model.Date(untilTime));
-      } else if (count > 0) {
-        recur = new Recur(Recur.MONTHLY, count);
-      } else {
-        recur = new Recur("FREQ=MONTHLY");
-      }
-      recur.setInterval(interval);
-
-      List<String> repeatByMonthDay = recurrence.getByMonthDay();
-      // case 1: byMonthDay: day 1, 15, 26 of month
-      if (repeatByMonthDay != null && !repeatByMonthDay.isEmpty()) {
-        NumberList numberList = new NumberList();
-        for (String monthDay : repeatByMonthDay) {
-          numberList.add(Integer.parseInt(monthDay));
+      Recur recur = null;
+      switch (frequency) {
+      case DAILY:
+        if (untilTime > 0) {
+          recur = new Recur(Recur.DAILY, new net.fortuna.ical4j.model.Date(untilTime));
+        } else if (count > 0) {
+          recur = new Recur(Recur.DAILY, count);
+        } else {
+          recur = new Recur("FREQ=DAILY");
         }
-        recur.getMonthDayList().addAll(numberList);
-      } else {
-        repeatByDay = recurrence.getByDay();
+        recur.setInterval(interval);
+        return recur;
+      case WEEKLY:
+        if (untilTime > 0) {
+          recur = new Recur(Recur.WEEKLY, new net.fortuna.ical4j.model.Date(untilTime));
+        } else if (count > 0) {
+          recur = new Recur(Recur.WEEKLY, count);
+        } else {
+          recur = new Recur("FREQ=WEEKLY");
+        }
+        recur.setInterval(interval);
+        List<String> repeatByDay = recurrence.getByDay();
         if (repeatByDay == null || repeatByDay.isEmpty()) {
           Log.warn("Event with id '" + event.getId() + "' has wrong 'repeatByDay' property value");
           return null;
         }
-        weekDayList = new WeekDayList();
+        WeekDayList weekDayList = new WeekDayList();
         for (String s : repeatByDay) {
           weekDayList.add(new WeekDay(s));
         }
         recur.getDayList().addAll(weekDayList);
+        return recur;
+      case MONTHLY:
+        if (untilTime > 0) {
+          recur = new Recur(Recur.MONTHLY, new net.fortuna.ical4j.model.Date(untilTime));
+        } else if (count > 0) {
+          recur = new Recur(Recur.MONTHLY, count);
+        } else {
+          recur = new Recur("FREQ=MONTHLY");
+        }
+        recur.setInterval(interval);
+
+        List<String> repeatByMonthDay = recurrence.getByMonthDay();
+        if (repeatByMonthDay != null && !repeatByMonthDay.isEmpty()) {
+          NumberList numberList = new NumberList();
+          for (String monthDay : repeatByMonthDay) {
+            numberList.add(Integer.parseInt(monthDay));
+          }
+          recur.getMonthDayList().addAll(numberList);
+        } else {
+          repeatByDay = recurrence.getByDay();
+          if (repeatByDay == null || repeatByDay.isEmpty()) {
+            Log.warn("Event with id '" + event.getId() + "' has wrong 'repeatByDay' property value");
+            return null;
+          }
+          weekDayList = new WeekDayList();
+          for (String s : repeatByDay) {
+            weekDayList.add(new WeekDay(s));
+          }
+          recur.getDayList().addAll(weekDayList);
+        }
+        return recur;
+      case YEARLY:
+        if (untilTime > 0) {
+          recur = new Recur(Recur.YEARLY, new net.fortuna.ical4j.model.Date(untilTime));
+        } else if (count > 0) {
+          recur = new Recur(Recur.YEARLY, count);
+        } else {
+          recur = new Recur("FREQ=YEARLY");
+        }
+        recur.setInterval(interval);
+        return recur;
+      default:
+        throw new UnsupportedOperationException("Frequency of type " + frequency.name() + " is not suported");
       }
-      return recur;
-    case YEARLY:
-      if (untilTime > 0) {
-        recur = new Recur(Recur.YEARLY, new net.fortuna.ical4j.model.Date(untilTime));
-      } else if (count > 0) {
-        recur = new Recur(Recur.YEARLY, count);
-      } else {
-        recur = new Recur("FREQ=YEARLY");
-      }
-      recur.setInterval(interval);
-      return recur;
-    default:
-      throw new UnsupportedOperationException("Frequency of type " + frequency.name() + " is not suported");
+    } catch (ParseException e) {
+      throw new IllegalStateException("Error computing recurrence for event with id " + event.getId(), e);
     }
+  }
+
+  public static String buildOccurrenceId(Date formTime, TimeZone timeZone) {
+    SimpleDateFormat format = new SimpleDateFormat(OCCURRENCE_ID_DATE_FORMAT);
+    format.setTimeZone(timeZone);
+    return format.format(formTime);
   }
 
 }
