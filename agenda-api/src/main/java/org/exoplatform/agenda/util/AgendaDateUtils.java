@@ -25,7 +25,10 @@ import java.util.TimeZone;
 
 import org.apache.commons.lang3.StringUtils;
 
+import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.social.core.identity.model.Identity;
+import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
+import org.exoplatform.social.core.manager.IdentityManager;
 
 public class AgendaDateUtils {
   public static final DateTimeFormatter RFC_3339_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss[.SSS]XXX")
@@ -92,5 +95,14 @@ public class AgendaDateUtils {
       return null;
     }
     return date.toInstant().atZone(ZoneOffset.UTC);
+  }
+
+  public static TimeZone getUserTimezone(String username) {
+    IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
+    Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+    if (userIdentity == null) {
+      return TimeZone.getTimeZone(ZoneOffset.UTC);
+    }
+    return getUserTimezone(userIdentity);
   }
 }

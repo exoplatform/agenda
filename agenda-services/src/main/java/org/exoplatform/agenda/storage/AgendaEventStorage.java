@@ -88,9 +88,16 @@ public class AgendaEventStorage {
     this.listenerService = listenerService;
   }
 
-  public List<Long> getEventIds(ZonedDateTime start, ZonedDateTime end, TimeZone timezone, Long... ownerIds) {
-    // TODO Auto-generated method stub
-    return null;
+  public List<Long> getEventIds(ZonedDateTime start, ZonedDateTime end, Long... ownerIds) {
+    if (start == null) {
+      throw new IllegalArgumentException("Start date is mandatory");
+    }
+    if (end == null) {
+      throw new IllegalArgumentException("End date is mandatory");
+    }
+    Date startDate = new Date(start.toEpochSecond() * 1000);
+    Date endDate = new Date(end.toEpochSecond() * 1000);
+    return eventDAO.getEventIdsByPeriod(startDate, endDate);
   }
 
   public Event getEventById(long eventId) {
@@ -146,6 +153,13 @@ public class AgendaEventStorage {
     saveEventReminders(event, reminders, creatorId, false);
 
     broadcastEvent("exo.agenda.calendar.updated", event, creatorId);
+  }
+
+  public void deleteEventById(long eventId) {
+    EventEntity eventEntity = eventDAO.deleteEvent(eventId);
+    if (eventEntity != null) {
+      broadcastEvent("exo.agenda.calendar.deleted", EntityMapper.fromEntity(eventEntity), 0);
+    }
   }
 
   public void saveEventReminders(Event event, List<EventReminder> reminders, long userId, boolean newEvent) {
@@ -207,10 +221,9 @@ public class AgendaEventStorage {
     if (eventReminderEntities == null) {
       return Collections.emptyList();
     }
-    return eventReminderEntities == null ? Collections.emptyList()
-                                         : eventReminderEntities.stream()
-                                                                .map(eventReminderEntity -> EntityMapper.fromEntity(eventReminderEntity))
-                                                                .collect(Collectors.toList());
+    return eventReminderEntities.stream()
+                                .map(eventReminderEntity -> EntityMapper.fromEntity(eventReminderEntity))
+                                .collect(Collectors.toList());
   }
 
   public void saveEventAttendees(Event event, List<EventAttendee> attendees, long creatorUserId, boolean newEvent) {
@@ -274,10 +287,9 @@ public class AgendaEventStorage {
     if (eventAttendeeEntities == null) {
       return Collections.emptyList();
     }
-    return eventAttendeeEntities == null ? Collections.emptyList()
-                                         : eventAttendeeEntities.stream()
-                                                                .map(eventAttendeeEntity -> EntityMapper.fromEntity(eventAttendeeEntity))
-                                                                .collect(Collectors.toList());
+    return eventAttendeeEntities.stream()
+                                .map(eventAttendeeEntity -> EntityMapper.fromEntity(eventAttendeeEntity))
+                                .collect(Collectors.toList());
   }
 
   public void removeEventAttendee(long eventAttendeeId) {

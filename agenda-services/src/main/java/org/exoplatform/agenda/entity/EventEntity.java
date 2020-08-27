@@ -29,7 +29,8 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
 @ExoEntity
 @Table(name = "EXO_AGENDA_EVENT")
 @NamedQueries({
-    @NamedQuery(name = "AgendaEvent.deleteCalendarEvents", query = "DELETE FROM AgendaEvent ev WHERE ev.calendar.id = :calendarId")
+    @NamedQuery(name = "AgendaEvent.deleteCalendarEvents", query = "DELETE FROM AgendaEvent ev WHERE ev.calendar.id = :calendarId"),
+    @NamedQuery(name = "AgendaEvent.getEventIdsByPeriod", query = "SELECT ev FROM AgendaEvent ev WHERE (ev.start >= :start AND ev.start < :end) OR (ev.end >= :start AND ev.end < :end)"),
 })
 public class EventEntity implements Serializable {
 

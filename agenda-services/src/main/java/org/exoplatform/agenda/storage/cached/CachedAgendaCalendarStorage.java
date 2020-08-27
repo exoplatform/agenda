@@ -40,7 +40,11 @@ public class CachedAgendaCalendarStorage extends AgendaCalendarStorage {
     this.calendarFutureCache = new FutureExoCache<>(new Loader<Long, Calendar, Object>() {
       @Override
       public Calendar retrieve(Object context, Long calendarId) throws Exception {
-        return CachedAgendaCalendarStorage.super.getCalendarById(calendarId);
+        Calendar calendar = CachedAgendaCalendarStorage.super.getCalendarById(calendarId);
+        if (calendar != null) {
+          calendar = calendar.clone();
+        }
+        return calendar;
       }
     }, calendarCache);
   }

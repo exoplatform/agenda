@@ -152,4 +152,10 @@ public class AgendaEventInvitationServiceImpl implements AgendaEventInvitationSe
       }
     }
   }
+
+  @Override
+  public void sendInvitation(Event event, long receiverId) {
+    // TODO Auto-generated method stub
+    
+  }
 }
