@@ -26,7 +26,8 @@ const config = {
   },
   output: {
     path: path.join(__dirname, 'target/agenda/'),
-    filename: 'js/[name].bundle.js'
+    filename: 'js/[name].bundle.js',
+    libraryTarget: 'amd'
   },
   externals: {
     vue: 'Vue',
