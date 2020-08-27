@@ -5,7 +5,7 @@
         <agenda-toolbar :title="calendar" />
       </v-sheet>
       <v-sheet height="600">
-        <agenda-schedule :event-list="events" />
+        <agenda-schedule :events="events" />
       </v-sheet>
     </v-col>
   </v-row>
@@ -14,7 +14,9 @@
 <script>
 export default {
   data: () => ({
-    calendar: {name:'agenda'},
+    calendar: {
+      name:'agenda'
+    },
     focus: '',
     type: 'week',
     typeToLabel: {

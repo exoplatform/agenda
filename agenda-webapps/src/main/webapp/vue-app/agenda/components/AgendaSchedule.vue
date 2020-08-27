@@ -4,7 +4,7 @@
       ref="calendar"
       v-model="focus"
       color="primary"
-      :events="eventList"
+      :events="events"
       :event-color="getEventColor"
       :type="type"
       @click:event="showEvent"

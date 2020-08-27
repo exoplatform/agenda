@@ -5,7 +5,7 @@
       class="mr-4"
       color="grey darken-2"
       @click="setToday">
-      Today
+      {{ $t('agenda.toDay') }}
     </v-btn>
     <v-btn
       fab

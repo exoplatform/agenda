@@ -12,6 +12,7 @@ import AgendaSwitchView from './components/AgendaSwitchView.vue';
 import AgendaSearchEvent from './components/AgendaSearchEvent.vue';
 import AgendaFilterButton from './components/AgendaFilterButton.vue';
 import AgendaSettingsButton from './components/AgendaSettingsButton.vue';
+import AgendaPullDownEvent from './components/AgendaPullDownEvent.vue';
 
 
 const components = {
@@ -28,7 +29,8 @@ const components = {
   'agenda-switch-view': AgendaSwitchView,
   'agenda-search-event': AgendaSearchEvent,
   'agenda-filter-button': AgendaFilterButton,
-  'agenda-settings-button': AgendaSettingsButton
+  'agenda-settings-button': AgendaSettingsButton,
+  'agenda-pulldown-event': AgendaPullDownEvent
 };
 
 for (const key in components) {
