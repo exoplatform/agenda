@@ -5,7 +5,9 @@
     fullscreen
     hide-overlay
   >
-    <agenda-event-form :event="event" @close="close" />
+    <v-card>
+      <agenda-event-form :event="event" @close="close" />
+    </v-card>
   </v-dialog>
 </template>
 
