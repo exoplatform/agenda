@@ -7,7 +7,7 @@ export function getEvents(query, ownerId, start, end) {
 //    start: start,
 //    end: end
 //  });
-  return fetch('http://www.json-generator.com/api/json/get/cbniKiTuPS?indent=2', {
+  return fetch('http://www.json-generator.com/api/json/get/bTzbamEySq?indent=2', {
     method: 'GET',
     //    FIXME credentials: 'include',
   }).then((resp) => {
