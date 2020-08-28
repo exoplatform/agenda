@@ -27,6 +27,7 @@ export default {
     loading: false,
     searchTerm: null,
     ownerId: eXo.env.portal.userIdentityId,
+    periodTitle: '',
     period: {
       start: null,
       end: null,
