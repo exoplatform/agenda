@@ -9,6 +9,7 @@
         :events="events"
         :period-title="periodTitle"
         :calendar-type="calendarType"
+        :weekdays="weekdays"
       />
       <agenda-event-dialog ref="eventFormDialog" />
     </v-main>
@@ -31,10 +32,13 @@ export default {
       end: null,
     },
     events: [],
+    periodTitle: '',
+    weekdays: [1, 2, 3, 4, 5, 6, 0],
   }),
   watch: {
     period() {
       this.retrieveEvents();
+      this.periodTitle = this.generateCalendarTitle();
     },
     searchTerm() {
       this.retrieveEvents();
@@ -50,8 +54,7 @@ export default {
   created() {
     this.$root.$on('agenda-change-period', period => {
       this.period = period;
-      // FIXME
-      this.periodTitle = 'TODO';
+      this.periodTitle = period.title;
     });
     this.$root.$on('agenda-change-period-type', calendarType => this.calendarType = calendarType);
     this.$root.$on('agenda-search', searchTerm => this.searchTerm = searchTerm);
@@ -72,6 +75,17 @@ export default {
         }).catch(error =>{
           console.error('Error retrieving events', error);
         }).finally(() => this.loading = false);
+    },
+    generateCalendarTitle() {
+      let generatedPeriodTitle = this.periodTitle;
+      if(this.calendarType === 'week') {
+        const weekNumber = this.$agendaUtils.getWeekNumber(new Date(this.period.start));
+        generatedPeriodTitle = `${this.periodTitle} - ${this.$t('agenda.header.toolbar.title.week')} ${weekNumber}`;
+      } else if (this.calendarType === 'day') {
+        const currentDay = new Date(this.period.start).getDate();
+        generatedPeriodTitle = `${this.periodTitle} - ${currentDay}`;
+      }
+      return generatedPeriodTitle;
     }
   },
 };

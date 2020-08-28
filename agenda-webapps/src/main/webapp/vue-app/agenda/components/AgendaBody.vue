@@ -1,7 +1,7 @@
 <template>
   <v-flex>
     <agenda-toolbar :period-title="periodTitle" />
-    <agenda-calendar :events="events" :calendar-type="calendarType" />
+    <agenda-calendar :events="events" :calendar-type="calendarType" :weekdays="weekdays" />
   </v-flex>
 </template>
 
@@ -17,6 +17,10 @@ export default {
       default: null
     },
     events: {
+      type: Array,
+      default: () => null
+    },
+    weekdays: {
       type: Array,
       default: () => null
     },
