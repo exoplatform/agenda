@@ -4,8 +4,8 @@
     flat
     dense
   >
-    <create-event-button class="mr-2" />
-    <sync-event-button />
+    <agenda-create-event-button class="mr-2" />
+    <agenda-sync-event-button />
     <v-spacer />
     <agenda-switch-view :calendar-type="calendarType" />
     <v-spacer />

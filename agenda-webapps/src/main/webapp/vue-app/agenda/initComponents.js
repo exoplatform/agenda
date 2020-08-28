@@ -1,26 +1,27 @@
-import Agenda from './components/Agenda.vue';
-import AgendaHeader from './components/AgendaHeader.vue';
-import AgendaBody from './components/AgendaBody.vue';
-import AgendaCalendar from './components/AgendaCalendar.vue';
-import CreateEventButton from './components/CreateEventButton.vue';
-import SyncEventButton from './components/SyncEventButton.vue';
-import AgendaEventDialog from './components/AgendaEventDialog.vue';
-import AgendaEventForm from './components/AgendaEventForm.vue';
-import AgendaToolbar from './components/AgendaToolbar.vue';
-import AgendaPreviewEventDialog from './components/AgendaPreviewEventDialog.vue';
-import AgendaSwitchView from './components/AgendaSwitchView.vue';
-import AgendaSearchEvent from './components/AgendaSearchEvent.vue';
-import AgendaFilterButton from './components/AgendaFilterButton.vue';
-import AgendaSettingsButton from './components/AgendaSettingsButton.vue';
-import AgendaPullDownEvent from './components/AgendaPullDownEvent.vue';
+import Agenda from './components/calendar-body/Agenda.vue';
+import AgendaHeader from './components/calendar-body/AgendaHeader.vue';
+import AgendaBody from './components/calendar-body/AgendaBody.vue';
+import AgendaCalendar from './components/calendar-body/AgendaCalendar.vue';
+import AgendaCreateEventButton from './components/top-toolbar/AgendaCreateEventButton.vue';
+import SyncEventButton from './components/top-toolbar/AgendaSyncEventButton.vue';
+import AgendaEventDialog from './components/event/AgendaEventDialog.vue';
+import AgendaEventForm from './components/event/AgendaEventForm.vue';
+import AgendaToolbar from './components/calendar-body/AgendaToolbar.vue';
+import AgendaPreviewEventDialog from './components/calendar-body/AgendaPreviewEventDialog.vue';
+import AgendaSwitchView from './components/top-toolbar/AgendaSwitchView.vue';
+import AgendaSearchEvent from './components/top-toolbar/AgendaSearchEvent.vue';
+import AgendaFilterButton from './components/top-toolbar/AgendaFilterButton.vue';
+import AgendaSettingsButton from './components/top-toolbar/AgendaSettingsButton.vue';
+import AgendaPullDownEvent from './components/top-toolbar/AgendaPullDownEvent.vue';
+import AgendaEventDetailsForm from './components/event/AgendaEventDetailsForm.vue';
 
 const components = {
   'agenda': Agenda,
   'agenda-header': AgendaHeader,
   'agenda-body': AgendaBody,
   'agenda-calendar': AgendaCalendar,
-  'create-event-button': CreateEventButton,
-  'sync-event-button':SyncEventButton,
+  'agenda-create-event-button': AgendaCreateEventButton,
+  'agenda-sync-event-button':SyncEventButton,
   'agenda-event-dialog': AgendaEventDialog,
   'agenda-event-form': AgendaEventForm,
   'agenda-toolbar': AgendaToolbar,
@@ -29,7 +30,8 @@ const components = {
   'agenda-search-event': AgendaSearchEvent,
   'agenda-filter-button': AgendaFilterButton,
   'agenda-settings-button': AgendaSettingsButton,
-  'agenda-pulldown-event': AgendaPullDownEvent
+  'agenda-pulldown-event': AgendaPullDownEvent,
+  'agenda-event-details-form': AgendaEventDetailsForm
 };
 
 for (const key in components) {
