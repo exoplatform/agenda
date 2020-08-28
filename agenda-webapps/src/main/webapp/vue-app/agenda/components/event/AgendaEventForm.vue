@@ -1,11 +1,11 @@
 <template>
   <v-stepper v-model="stepper">
     <v-stepper-header>
-      <v-stepper-step step="1">
+      <v-stepper-step step="1" class="text-header-title" color="primary">
         {{ $t('agenda.stepEventDetails') }}
       </v-stepper-step>
       <v-divider />
-      <v-stepper-step step="2">
+      <v-stepper-step step="2" class="text-header-title">
         {{ $t('agenda.stepEventChooseDate') }}
       </v-stepper-step>
       <v-btn
@@ -14,41 +14,38 @@
         dark
         @click="closeDialog"
       >
-        <v-icon class="mt-9">mdi-close</v-icon>
+        <v-icon class="mt-9">
+          mdi-close
+        </v-icon>
       </v-btn>
     </v-stepper-header>
     <v-stepper-items>
       <v-stepper-content step="1">
-        <agenda-event-details-form />
-        <v-row>
-          <v-col />
-          <v-col />
-          <v-col>
-            <v-btn text>
-              Cancel
-            </v-btn>
-            <v-btn color="primary" @click="nextStep">
-              Continue
-            </v-btn>
-          </v-col>
-        </v-row>
+        <agenda-event-details-form class="mx-4" />
+        <v-layout row justify-end>
+          <v-btn text>
+            Cancel
+          </v-btn>
+          <v-btn color="primary" class="mr-5" @click="nextStep">
+            Continue
+          </v-btn>
+        </v-layout>
       </v-stepper-content>
       <v-stepper-content step="2">
         <v-card
-          class="mb-12"
-          color="grey lighten-1"
           height="200px"
         />
-
-        <v-btn
-          color="primary"
-          @click="nextStep"
-        >
-          Continue
-        </v-btn>
-        <v-btn text>
-          Cancel
-        </v-btn>
+        <v-layout row justify-end>
+          <v-btn
+            color="primary"
+            @click="nextStep"
+          >
+            Continue
+          </v-btn>
+          <v-btn text>
+            Cancel
+          </v-btn>
+        </v-layout>
       </v-stepper-content>
     </v-stepper-items>
   </v-stepper>
