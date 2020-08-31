@@ -9,12 +9,13 @@
         {{ $t('agenda.stepEventChooseDate') }}
       </v-stepper-step>
       <v-btn
+        class="mt-5"
         color="grey"
         icon
         dark
         @click="closeDialog"
       >
-        <v-icon class="mt-9">
+        <v-icon>
           mdi-close
         </v-icon>
       </v-btn>
