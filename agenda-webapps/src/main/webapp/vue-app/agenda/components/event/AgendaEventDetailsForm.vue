@@ -33,7 +33,6 @@
               <option>weeks</option>
             </select>
             <span>{{ $t('agenda.label.beforeStart') }}</span>
-            <span>{{ notifs.id }}</span>
             <v-btn
               color="grey"
               icon
