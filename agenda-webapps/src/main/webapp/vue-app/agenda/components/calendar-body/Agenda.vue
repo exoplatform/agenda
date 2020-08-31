@@ -33,7 +33,6 @@ export default {
       end: null,
     },
     events: [],
-    periodTitle: '',
     weekdays: [1, 2, 3, 4, 5, 6, 0],
   }),
   watch: {
