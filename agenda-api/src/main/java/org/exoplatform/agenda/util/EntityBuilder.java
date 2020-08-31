@@ -24,21 +24,15 @@ import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.rest.model.*;
 import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.agenda.service.AgendaEventService;
-import org.exoplatform.commons.file.model.FileItem;
+import org.exoplatform.commons.file.model.FileInfo;
 import org.exoplatform.commons.file.services.FileService;
-import org.exoplatform.commons.file.services.FileStorageException;
-import org.exoplatform.container.ExoContainerContext;
-import org.exoplatform.services.log.ExoLogger;
-import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.rest.entity.IdentityEntity;
 
 public class EntityBuilder {
 
-  private static final Log    LOG                  = ExoLogger.getLogger(EntityBuilder.class);
-
-  private static final String IDENTITIES_REST_PATH = "/v1/social/identities";                 // NOSONAR
+  private static final String IDENTITIES_REST_PATH = "/v1/social/identities"; // NOSONAR
 
   private static final String IDENTITIES_EXPAND    = "all";
 
@@ -57,9 +51,9 @@ public class EntityBuilder {
                         calendarEntity.getAcl());
   }
 
-  public static final CalendarEntity fromCalendar(Calendar calendar) {
+  public static final CalendarEntity fromCalendar(IdentityManager identityManager, Calendar calendar) {
     return new CalendarEntity(calendar.getId(),
-                              getIdentityEntity(calendar.getOwnerId()),
+                              getIdentityEntity(identityManager, calendar.getOwnerId()),
                               calendar.isSystem(),
                               calendar.getTitle(),
                               calendar.getDescription(),
@@ -86,9 +80,17 @@ public class EntityBuilder {
                                        recurrenceEntity.getByYearDay(),
                                        recurrenceEntity.getByWeekNo(),
                                        recurrenceEntity.getByMonth(),
+                                       recurrenceEntity.getBySetPos(),
                                        null,
                                        null);
     }
+    EventOccurrenceEntity occurrenceEntity = eventEntity.getOccurrence();
+    EventOccurrence occurrence = null;
+    if (occurrenceEntity != null) {
+      occurrence = new EventOccurrence(AgendaDateUtils.parseRFC3339ToZonedDateTime(occurrenceEntity.getId()),
+                                       occurrenceEntity.isExceptional());
+    }
+
     return new Event(eventEntity.getId(),
                      eventEntity.getParent() == null ? 0l : eventEntity.getParent().getId(),
                      eventEntity.getRemoteId(),
@@ -108,7 +110,7 @@ public class EntityBuilder {
                      eventEntity.getAvailability(),
                      eventEntity.getStatus(),
                      recurrence,
-                     eventEntity.getOccurrence(),
+                     occurrence,
                      eventEntity.getAcl());
   }
 
@@ -130,13 +132,13 @@ public class EntityBuilder {
                                                                               attachmentEntity.getUploadId());
   }
 
-  public static EventAttendee toEventAttendee(EventAttendeeEntity attendeeEntity) throws AgendaException {
+  public static EventAttendee toEventAttendee(IdentityManager identityManager,
+                                              EventAttendeeEntity attendeeEntity) throws AgendaException {
     long identityId = 0;
     IdentityEntity attendeeIdentityEntity = attendeeEntity.getIdentity();
     String providerId = attendeeIdentityEntity.getProviderId();
     String remoteId = attendeeIdentityEntity.getRemoteId();
     if (StringUtils.isNotBlank(providerId) && StringUtils.isNotBlank(remoteId)) {
-      IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
       Identity identity = identityManager.getOrCreateIdentity(providerId, remoteId);
       identityId = Long.parseLong(identity.getId());
     } else if (StringUtils.isNotBlank(attendeeIdentityEntity.getId())) {
@@ -147,34 +149,22 @@ public class EntityBuilder {
     return new EventAttendee(attendeeEntity.getId(), identityId, attendeeEntity.getResponse());
   }
 
-  public static final EventAttendeeEntity fromEventAttendee(EventAttendee eventAttendee) {
+  public static final EventAttendeeEntity fromEventAttendee(IdentityManager identityManager, EventAttendee eventAttendee) {
     return new EventAttendeeEntity(eventAttendee.getId(),
-                                   getIdentityEntity(eventAttendee.getIdentityId()),
+                                   getIdentityEntity(identityManager, eventAttendee.getIdentityId()),
                                    eventAttendee.getResponse());
   }
 
-  public static final EventAttachmentEntity fromEventAttachment(EventAttachment eventAttachment) {
-    FileService fileService = ExoContainerContext.getService(FileService.class);
-    FileItem file = null;
-    try {
-      file = fileService.getFile(eventAttachment.getFileId());
-    } catch (FileStorageException e) {
-      LOG.warn("Can't find file with id '{}'", eventAttachment.getFileId());
-    }
-    if (file == null) {
+  public static final EventAttachmentEntity fromEventAttachment(FileService fileService, EventAttachment eventAttachment) {
+    FileInfo fileInfo = fileService.getFileInfo(eventAttachment.getFileId());
+    if (fileInfo == null) {
       return null;
     }
-    String name = file.getFileInfo().getName();
-    String mimeType = file.getFileInfo().getMimetype();
-    long size = file.getFileInfo().getSize();
-
-    return new EventAttachmentEntity(eventAttachment.getId(),
-                                     eventAttachment.getFileId(),
-                                     null,
-                                     null,
-                                     name,
-                                     mimeType,
-                                     size);
+    String name = fileInfo.getName();
+    String mimeType = fileInfo.getMimetype();
+    long size = fileInfo.getSize();
+    String url = RestUtils.getBaseRestURI() + "/v1/agenda/events/attachment/" + eventAttachment.getId();
+    return new EventAttachmentEntity(eventAttachment.getId(), eventAttachment.getFileId(), null, url, name, mimeType, size);
   }
 
   public static final EventReminderEntity fromEventReminder(EventReminder eventReminder) {
@@ -185,7 +175,10 @@ public class EntityBuilder {
                                    AgendaDateUtils.toRFC3339Date(eventReminder.getDatetime()));
   }
 
-  public static final EventEntity fromEvent(Event event) {
+  public static final EventEntity fromEvent(AgendaCalendarService agendaCalendarService,
+                                            AgendaEventService agendaEventService,
+                                            IdentityManager identityManager,
+                                            Event event) {
     EventRecurrence recurrence = event.getRecurrence();
     EventRecurrenceEntity recurrenceEntity = null;
     if (recurrence != null) {
@@ -201,27 +194,33 @@ public class EntityBuilder {
                                                    recurrence.getByMonthDay(),
                                                    recurrence.getByYearDay(),
                                                    recurrence.getByWeekNo(),
-                                                   recurrence.getByMonth());
+                                                   recurrence.getByMonth(),
+                                                   recurrence.getBySetPos());
+    }
+    EventOccurrence occurrence = event.getOccurrence();
+    EventOccurrenceEntity occurrenceEntity = null;
+    if (occurrence != null) {
+      occurrenceEntity = new EventOccurrenceEntity(AgendaDateUtils.toRFC3339Date(occurrence.getId()), occurrence.isExceptional());
     }
     return new EventEntity(event.getId(),
-                           getEventEntity(event.getParentId()),
+                           getEventEntity(agendaCalendarService, agendaEventService, identityManager, event.getParentId()),
                            event.getRemoteId(),
                            event.getRemoteProviderId(),
-                           getCalendarEntity(event.getCalendarId()),
-                           getIdentityEntity(event.getCreatorId()),
+                           getCalendarEntity(agendaCalendarService, identityManager, event.getCalendarId()),
+                           getIdentityEntity(identityManager, event.getCreatorId()),
                            AgendaDateUtils.toRFC3339Date(event.getCreated()),
                            AgendaDateUtils.toRFC3339Date(event.getUpdated()),
                            event.getSummary(),
                            event.getDescription(),
                            event.getLocation(),
                            event.getColor(),
-                           AgendaDateUtils.toRFC3339Date(event.getStart()),
-                           AgendaDateUtils.toRFC3339Date(event.getEnd()),
+                           AgendaDateUtils.toRFC3339Date(event.getStart(), event.isAllDay()),
+                           AgendaDateUtils.toRFC3339Date(event.getEnd(), event.isAllDay()),
                            event.isAllDay(),
                            event.getAvailability(),
                            event.getStatus(),
                            recurrenceEntity,
-                           event.getOccurrence(),
+                           occurrenceEntity,
                            event.getAcl(),
                            null,
                            null,
@@ -230,34 +229,36 @@ public class EntityBuilder {
                            false);
   }
 
-  private static CalendarEntity getCalendarEntity(long calendarId) {
+  private static CalendarEntity getCalendarEntity(AgendaCalendarService agendaCalendarService,
+                                                  IdentityManager identityManager,
+                                                  long calendarId) {
     if (calendarId <= 0) {
       return null;
     }
-    AgendaCalendarService agendaCalendarService = ExoContainerContext.getService(AgendaCalendarService.class);
     Calendar calendar = agendaCalendarService.getCalendarById(calendarId);
-    return fromCalendar(calendar);
+    return fromCalendar(identityManager, calendar);
   }
 
-  private static EventEntity getEventEntity(long eventId) {
+  private static EventEntity getEventEntity(AgendaCalendarService agendaCalendarService,
+                                            AgendaEventService agendaEventService,
+                                            IdentityManager identityManager,
+                                            long eventId) {
     if (eventId <= 0) {
       return null;
     }
-    AgendaEventService agendaEventService = ExoContainerContext.getService(AgendaEventService.class);
     Event event = agendaEventService.getEventById(eventId);
-    return fromEvent(event);
+    return fromEvent(agendaCalendarService, agendaEventService, identityManager, event);
   }
 
-  private static IdentityEntity getIdentityEntity(long ownerId) {
-    Identity identity = getIdentity(ownerId);
+  private static IdentityEntity getIdentityEntity(IdentityManager identityManager, long ownerId) {
+    Identity identity = getIdentity(identityManager, ownerId);
     if (identity == null) {
       return null;
     }
     return org.exoplatform.social.rest.api.EntityBuilder.buildEntityIdentity(identity, IDENTITIES_REST_PATH, IDENTITIES_EXPAND);
   }
 
-  private static final Identity getIdentity(long identityId) {
-    IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
+  private static final Identity getIdentity(IdentityManager identityManager, long identityId) {
     return identityManager.getIdentity(String.valueOf(identityId));
   }
 

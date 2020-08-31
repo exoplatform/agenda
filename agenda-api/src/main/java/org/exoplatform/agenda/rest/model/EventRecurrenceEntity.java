@@ -57,6 +57,8 @@ public class EventRecurrenceEntity implements Cloneable, Serializable {
 
   private List<String>             byMonth;
 
+  private List<String>             bySetPos;
+
   @Override
   public EventRecurrenceEntity clone() { // NOSONAR
     return new EventRecurrenceEntity(id,
@@ -71,6 +73,7 @@ public class EventRecurrenceEntity implements Cloneable, Serializable {
                                      byMonthDay == null ? null : new ArrayList<>(byMonthDay),
                                      byYearDay == null ? null : new ArrayList<>(byYearDay),
                                      byWeekNo == null ? null : new ArrayList<>(byWeekNo),
-                                     byMonth == null ? null : new ArrayList<>(byMonth));
+                                     byMonth == null ? null : new ArrayList<>(byMonth),
+                                     bySetPos);
   }
 }

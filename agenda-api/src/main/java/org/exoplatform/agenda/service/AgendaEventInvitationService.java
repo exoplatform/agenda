@@ -111,10 +111,11 @@ public interface AgendaEventInvitationService {
   public void invite(long eventId, long identityId, EventAttendeeResponse response, boolean sendInvitation);
 
   /**
-   * @param event
-   * @param attendees
-   * @param creatorIdentityId
-   * @param sendInvitations
+   * @param event {@link Event} to attach attendees
+   * @param attendees {@link List} of {@link EventAttendee} to save for event
+   * @param creatorIdentityId technical identifier if {@link Identity} updating
+   *          event
+   * @param sendInvitations whether send invitations to other attendees or not
    */
   void saveEventAttendees(Event event, List<EventAttendee> attendees, long creatorIdentityId, boolean sendInvitations);
 

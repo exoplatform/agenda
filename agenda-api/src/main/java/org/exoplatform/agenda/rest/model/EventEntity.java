@@ -20,7 +20,8 @@ import java.util.List;
 
 import org.exoplatform.agenda.constant.EventAvailability;
 import org.exoplatform.agenda.constant.EventStatus;
-import org.exoplatform.agenda.model.*;
+import org.exoplatform.agenda.model.EventConference;
+import org.exoplatform.agenda.model.Permission;
 import org.exoplatform.social.rest.entity.IdentityEntity;
 
 import lombok.*;
@@ -115,7 +116,7 @@ public class EventEntity {
    */
   private EventRecurrenceEntity       recurrence;
 
-  private EventOccurrence             occurrence;
+  private EventOccurrenceEntity       occurrence;
 
   private Permission                  acl;
 

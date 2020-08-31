@@ -22,6 +22,7 @@ import java.util.List;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.download.DownloadService;
 import org.exoplatform.social.core.identity.model.Identity;
 
 public interface AgendaEventService {
@@ -152,6 +153,29 @@ public interface AgendaEventService {
   public List<EventAttachment> getEventAttachments(long eventId);
 
   /**
+   * Retrieve event attachement identified by its technical identifier
+   * 
+   * @param attachmentId technical identifier of {@link EventAttachment}
+   * @param username user accessing attachment
+   * @return {@link EventAttachment} if found else null
+   * @throws IllegalAccessException when user hasn't enough privileges to access
+   *           event
+   */
+  public EventAttachment getEventAttachmentById(long attachmentId, String username) throws IllegalAccessException;
+
+  /**
+   * Generate a new download identifier that the user will be able to use to
+   * download a resource
+   * 
+   * @param attachmentId technical identifier of {@link EventAttachment}
+   * @param username user accessing attachment
+   * @return generated downloadId coming from {@link DownloadService}
+   * @throws IllegalAccessException when user hasn't enough privileges to access
+   *           event
+   */
+  public String getEventAttachmentDownloadLink(long attachmentId, String username) throws IllegalAccessException;
+
+  /**
    * Return the list of conferences of an event
    * 
    * @param eventId agenda {@link Event} identifier
@@ -159,4 +183,16 @@ public interface AgendaEventService {
    */
   public List<EventConference> getEventConferences(long eventId);
 
+  /**
+   * @return {@link List} of available events {@link RemoteProvider}
+   */
+  List<RemoteProvider> getRemoteProviders();
+
+  /**
+   * Creates a new events {@link RemoteProvider}
+   * 
+   * @param remoteProvider events remote provider to store
+   * @return created {@link RemoteProvider}
+   */
+  RemoteProvider saveRemoteProvider(RemoteProvider remoteProvider);
 }

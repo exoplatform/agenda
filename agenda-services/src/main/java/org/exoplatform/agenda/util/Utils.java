@@ -23,16 +23,17 @@ import java.util.*;
 import java.util.Date;
 import java.util.TimeZone;
 
-import org.exoplatform.agenda.constant.EventRecurrenceFrequency;
+import org.apache.commons.lang.StringUtils;
+
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.social.core.identity.model.Identity;
+import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 
-import jdk.internal.jline.internal.Log;
 import net.fortuna.ical4j.model.*;
 import net.fortuna.ical4j.model.Period;
 import net.fortuna.ical4j.model.component.VEvent;
@@ -40,7 +41,7 @@ import net.fortuna.ical4j.model.property.RRule;
 
 public class Utils {
 
-  public static final String OCCURRENCE_ID_DATE_FORMAT = "yyyyMMdd'T'HHmmss'Z'";
+  private static final TimeZoneRegistry ICAL4J_TIME_ZONE_REGISTRY = TimeZoneRegistryFactory.getInstance().createRegistry();
 
   private Utils() {
   }
@@ -64,24 +65,29 @@ public class Utils {
     }
   }
 
-  public static List<Event> getOccurrences(Event event,
-                                           LocalDate from,
-                                           LocalDate to,
-                                           TimeZone timeZone) {
+  public static List<Event> getOccurrences(Event event, LocalDate from, LocalDate to, TimeZone timeZone) {
     long startTime = event.getStart().toEpochSecond() * 1000;
     long endTime = event.getEnd().toEpochSecond() * 1000;
 
+    net.fortuna.ical4j.model.TimeZone ical4jTimezone = ICAL4J_TIME_ZONE_REGISTRY.getTimeZone(timeZone.getID());
+
     DateTime startDateTime = new DateTime(startTime);
+    startDateTime.setTimeZone(ical4jTimezone);
     DateTime endDateTime = new DateTime(endTime);
+    endDateTime.setTimeZone(ical4jTimezone);
     VEvent vevent = new VEvent(startDateTime, endDateTime, event.getSummary());
-    Recur recur = getICalendarRecur(event, event.getRecurrence(), timeZone);
+    Recur recur = getICalendarRecur(event, event.getRecurrence());
     vevent.getProperties().add(new RRule(recur));
 
-    long fromTime = from.atStartOfDay().toEpochSecond(ZoneOffset.UTC) * 1000;
-    long toTime = to.atTime(23, 59, 59).toEpochSecond(ZoneOffset.UTC) * 1000;
+    ZoneId userZoneId = timeZone.toZoneId();
+    long fromTime = from.atStartOfDay(userZoneId).toEpochSecond() * 1000;
+    long toTime = to.atStartOfDay(userZoneId).plusDays(1).minusSeconds(1).toEpochSecond() * 1000;
     DateTime ical4jFrom = new DateTime(fromTime);
+    ical4jFrom.setTimeZone(ical4jTimezone);
     DateTime ical4jTo = new DateTime(toTime);
+    ical4jTo.setTimeZone(ical4jTimezone);
     Period period = new Period(ical4jFrom, ical4jTo);
+    period.setTimeZone(ical4jTimezone);
     PeriodList list = vevent.calculateRecurrenceSet(period);
     if (list == null || list.isEmpty()) {
       return Collections.emptyList();
@@ -92,12 +98,11 @@ public class Utils {
     Iterator<?> periods = list.iterator();
     while (periods.hasNext()) {
       Period occurrencePeriod = (Period) periods.next();
-      occurrencePeriod.getStart();
-      occurrencePeriod.getEnd();
       Event occurrence = event.clone();
-      occurrence.setStart(occurrencePeriod.getStart().toInstant().atZone(ZoneOffset.UTC));
-      occurrence.setEnd(occurrencePeriod.getEnd().toInstant().atZone(ZoneOffset.UTC));
-      String occurrenceId = buildOccurrenceId(occurrencePeriod.getStart(), timeZone);
+      occurrence.setId(0);
+      occurrence.setStart(occurrencePeriod.getStart().toInstant().atZone(userZoneId));
+      occurrence.setEnd(occurrencePeriod.getEnd().toInstant().atZone(userZoneId));
+      ZonedDateTime occurrenceId = AgendaDateUtils.fromDate(occurrencePeriod.getStart());
       occurrence.setOccurrence(new EventOccurrence(occurrenceId, false));
       occurrence.setParentId(event.getId());
       occurrence.setRecurrence(null);
@@ -106,108 +111,154 @@ public class Utils {
     return occurrences;
   }
 
-  @SuppressWarnings("unchecked")
-  public static Recur getICalendarRecur(Event event, EventRecurrence recurrence, TimeZone timeZone) {
+  public static Recur getICalendarRecur(Event event, EventRecurrence recurrence) {
     try {
-      EventRecurrenceFrequency frequency = recurrence.getFrequency();
-      int count = recurrence.getCount();
-      int interval = recurrence.getInterval();
-      ZonedDateTime until = recurrence.getUntil();
-      long untilTime = 0;
-      if (until != null) {
-        ZoneId zoneId = timeZone.toZoneId();
-        untilTime = until.withZoneSameInstant(zoneId)
-                         .toLocalDate()
-                         .atTime(23, 59, 59)
-                         .atZone(zoneId)
-                         .toEpochSecond()
-            * 1000;
+      Recur recur = new Recur("FREQ=" + recurrence.getFrequency().name());
+      recur.setCount(recurrence.getCount());
+      recur.setInterval(recurrence.getInterval());
+      if (recurrence.getUntil() != null) {
+        DateTime dateTime = new DateTime(AgendaDateUtils.toDate(recurrence.getUntil()));
+        dateTime.setUtc(true);
+        recur.setUntil(dateTime);
       }
-
-      Recur recur = null;
-      switch (frequency) {
-      case DAILY:
-        if (untilTime > 0) {
-          recur = new Recur(Recur.DAILY, new net.fortuna.ical4j.model.Date(untilTime));
-        } else if (count > 0) {
-          recur = new Recur(Recur.DAILY, count);
-        } else {
-          recur = new Recur("FREQ=DAILY");
-        }
-        recur.setInterval(interval);
-        return recur;
-      case WEEKLY:
-        if (untilTime > 0) {
-          recur = new Recur(Recur.WEEKLY, new net.fortuna.ical4j.model.Date(untilTime));
-        } else if (count > 0) {
-          recur = new Recur(Recur.WEEKLY, count);
-        } else {
-          recur = new Recur("FREQ=WEEKLY");
-        }
-        recur.setInterval(interval);
-        List<String> repeatByDay = recurrence.getByDay();
-        if (repeatByDay == null || repeatByDay.isEmpty()) {
-          Log.warn("Event with id '" + event.getId() + "' has wrong 'repeatByDay' property value");
-          return null;
-        }
-        WeekDayList weekDayList = new WeekDayList();
-        for (String s : repeatByDay) {
-          weekDayList.add(new WeekDay(s));
-        }
-        recur.getDayList().addAll(weekDayList);
-        return recur;
-      case MONTHLY:
-        if (untilTime > 0) {
-          recur = new Recur(Recur.MONTHLY, new net.fortuna.ical4j.model.Date(untilTime));
-        } else if (count > 0) {
-          recur = new Recur(Recur.MONTHLY, count);
-        } else {
-          recur = new Recur("FREQ=MONTHLY");
-        }
-        recur.setInterval(interval);
-
-        List<String> repeatByMonthDay = recurrence.getByMonthDay();
-        if (repeatByMonthDay != null && !repeatByMonthDay.isEmpty()) {
-          NumberList numberList = new NumberList();
-          for (String monthDay : repeatByMonthDay) {
-            numberList.add(Integer.parseInt(monthDay));
-          }
-          recur.getMonthDayList().addAll(numberList);
-        } else {
-          repeatByDay = recurrence.getByDay();
-          if (repeatByDay == null || repeatByDay.isEmpty()) {
-            Log.warn("Event with id '" + event.getId() + "' has wrong 'repeatByDay' property value");
-            return null;
-          }
-          weekDayList = new WeekDayList();
-          for (String s : repeatByDay) {
-            weekDayList.add(new WeekDay(s));
-          }
-          recur.getDayList().addAll(weekDayList);
-        }
-        return recur;
-      case YEARLY:
-        if (untilTime > 0) {
-          recur = new Recur(Recur.YEARLY, new net.fortuna.ical4j.model.Date(untilTime));
-        } else if (count > 0) {
-          recur = new Recur(Recur.YEARLY, count);
-        } else {
-          recur = new Recur("FREQ=YEARLY");
-        }
-        recur.setInterval(interval);
-        return recur;
-      default:
-        throw new UnsupportedOperationException("Frequency of type " + frequency.name() + " is not suported");
+      if (recurrence.getBySecond() != null && !recurrence.getBySecond().isEmpty()) {
+        recurrence.getBySecond().forEach(second -> recur.getSecondList().add(Integer.parseInt(second)));
       }
+      if (recurrence.getByMinute() != null && !recurrence.getByMinute().isEmpty()) {
+        recurrence.getByMinute().forEach(minute -> recur.getMinuteList().add(Integer.parseInt(minute)));
+      }
+      if (recurrence.getByHour() != null && !recurrence.getByHour().isEmpty()) {
+        recurrence.getByHour().forEach(hour -> recur.getHourList().add(Integer.parseInt(hour)));
+      }
+      if (recurrence.getByDay() != null && !recurrence.getByDay().isEmpty()) {
+        recurrence.getByDay().forEach(day -> recur.getDayList().add(new WeekDay(day)));
+      }
+      if (recurrence.getByMonthDay() != null && !recurrence.getByMonthDay().isEmpty()) {
+        recurrence.getByMonthDay().forEach(monthDay -> recur.getMonthDayList().add(Integer.parseInt(monthDay)));
+      }
+      if (recurrence.getByYearDay() != null && !recurrence.getByYearDay().isEmpty()) {
+        recurrence.getByYearDay().forEach(yearDay -> recur.getYearDayList().add(Integer.parseInt(yearDay)));
+      }
+      if (recurrence.getByWeekNo() != null && !recurrence.getByWeekNo().isEmpty()) {
+        recurrence.getByWeekNo().forEach(weekNo -> recur.getWeekNoList().add(Integer.parseInt(weekNo)));
+      }
+      if (recurrence.getByMonth() != null && !recurrence.getByMonth().isEmpty()) {
+        recurrence.getByMonth().forEach(month -> recur.getMonthList().add(Integer.parseInt(month)));
+      }
+      if (recurrence.getBySetPos() != null && !recurrence.getBySetPos().isEmpty()) {
+        recurrence.getBySetPos().forEach(setPos -> recur.getSetPosList().add(Integer.parseInt(setPos)));
+      }
+      return recur;
     } catch (ParseException e) {
       throw new IllegalStateException("Error computing recurrence for event with id " + event.getId(), e);
     }
   }
 
-  public static String buildOccurrenceId(Date formTime, TimeZone timeZone) {
-    SimpleDateFormat format = new SimpleDateFormat(OCCURRENCE_ID_DATE_FORMAT);
-    format.setTimeZone(timeZone);
-    return format.format(formTime);
+  /**
+   * @param identityManager {@link IdentityManager} service instance
+   * @param spaceService {@link SpaceService} service instance
+   * @param ownerId calendar owner {@link Identity} technical identifier
+   * @param username name of user accessing calendar data
+   * @param readonly whether the access is to read or to write
+   * @return true if user can modify calendar, else return false
+   * @throws IllegalAccessException when the user ACL fails
+   */
+  public static boolean checkAclByCalendarOwner(IdentityManager identityManager,
+                                                SpaceService spaceService,
+                                                long ownerId,
+                                                String username,
+                                                boolean readonly) throws IllegalAccessException {
+    Identity requestedOwner = identityManager.getIdentity(String.valueOf(ownerId));
+    if (requestedOwner == null) {
+      throw new IllegalStateException("Calendar owner with id " + ownerId + " wasn't found");
+    }
+
+    if (StringUtils.equals(OrganizationIdentityProvider.NAME, requestedOwner.getProviderId())) {
+      if (!StringUtils.equals(requestedOwner.getRemoteId(), username)) {
+        throw new IllegalAccessException("User " + username + " is not allowed to retrieve calendar data of user "
+            + requestedOwner.getRemoteId());
+      }
+      return true;
+    } else if (StringUtils.equals(SpaceIdentityProvider.NAME, requestedOwner.getProviderId())) {
+      if (spaceService.isSuperManager(username)) {
+        return true;
+      } else {
+        Space space = spaceService.getSpaceByPrettyName(requestedOwner.getRemoteId());
+        if (!spaceService.isMember(space, username)) {
+          throw new IllegalAccessException("User " + username + " is not allowed to retrieve calendar data of space "
+              + requestedOwner.getRemoteId());
+        }
+        boolean isManager = spaceService.isManager(space, username);
+        if (!readonly && !isManager) {
+          throw new IllegalAccessException("User " + username + " is not allowed to write calendar data of space "
+              + space.getDisplayName());
+        }
+        return isManager;
+      }
+    } else {
+      throw new IllegalStateException("Identity with provider type '" + requestedOwner.getProviderId()
+          + "' is not managed in calendar owner field");
+    }
+  }
+
+  /**
+   * @param identityManager {@link IdentityManager} service instance
+   * @param spaceService {@link SpaceService} service instance
+   * @param ownerId calendar owner {@link Identity} technical identifier
+   * @param username name of user accessing calendar data
+   * @return true if user can modify calendar or its events, else return false
+   */
+  public static boolean canEditCalendar(IdentityManager identityManager,
+                                        SpaceService spaceService,
+                                        long ownerId,
+                                        String username) {
+    Identity requestedOwner = identityManager.getIdentity(String.valueOf(ownerId));
+    if (requestedOwner == null) {
+      throw new IllegalStateException("Calendar owner with id " + ownerId + " wasn't found");
+    }
+
+    if (StringUtils.equals(OrganizationIdentityProvider.NAME, requestedOwner.getProviderId())) {
+      return StringUtils.equals(requestedOwner.getRemoteId(), username);
+    } else if (StringUtils.equals(SpaceIdentityProvider.NAME, requestedOwner.getProviderId())) {
+      if (spaceService.isSuperManager(username)) {
+        return true;
+      } else {
+        Space space = spaceService.getSpaceByPrettyName(requestedOwner.getRemoteId());
+        return spaceService.isManager(space, username);
+      }
+    } else {
+      return false;
+    }
+  }
+
+  /**
+   * @param identityManager {@link IdentityManager} service instance
+   * @param spaceService {@link SpaceService} service instance
+   * @param ownerId calendar owner {@link Identity} technical identifier
+   * @param username name of user accessing calendar data
+   * @return true if user can access calendar or its events, else return false
+   */
+  public static boolean canAccessCalendar(IdentityManager identityManager,
+                                          SpaceService spaceService,
+                                          long ownerId,
+                                          String username) {
+    Identity requestedOwner = identityManager.getIdentity(String.valueOf(ownerId));
+    if (requestedOwner == null) {
+      throw new IllegalStateException("Calendar owner with id " + ownerId + " wasn't found");
+    }
+
+    if (StringUtils.equals(OrganizationIdentityProvider.NAME, requestedOwner.getProviderId())) {
+      return StringUtils.equals(requestedOwner.getRemoteId(), username);
+    } else if (StringUtils.equals(SpaceIdentityProvider.NAME, requestedOwner.getProviderId())) {
+      if (spaceService.isSuperManager(username)) {
+        return true;
+      } else {
+        Space space = spaceService.getSpaceByPrettyName(requestedOwner.getRemoteId());
+        return spaceService.isMember(space, username);
+      }
+    } else {
+      return false;
+    }
   }
 
 }

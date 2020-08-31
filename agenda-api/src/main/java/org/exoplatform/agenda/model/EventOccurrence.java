@@ -16,6 +16,8 @@
 */
 package org.exoplatform.agenda.model;
 
+import java.time.ZonedDateTime;
+
 import lombok.*;
 
 @Data
@@ -23,9 +25,9 @@ import lombok.*;
 @NoArgsConstructor
 public class EventOccurrence implements Cloneable {
 
-  private String  id;
+  private ZonedDateTime id;
 
-  private boolean exceptional;
+  private boolean       exceptional;
 
   @Override
   public EventOccurrence clone() { // NOSONAR

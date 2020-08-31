@@ -58,6 +58,8 @@ public class EventRecurrence implements Cloneable, Serializable {
 
   private List<String>             byMonth;
 
+  private List<String>             bySetPos;
+
   /**
    * This field is computed from recurrence properties to know what is the first
    * start date of all occurrences of current recurrent event. It's made
@@ -87,6 +89,7 @@ public class EventRecurrence implements Cloneable, Serializable {
                                byYearDay == null ? null : new ArrayList<>(byYearDay),
                                byWeekNo == null ? null : new ArrayList<>(byWeekNo),
                                byMonth == null ? null : new ArrayList<>(byMonth),
+                               bySetPos,
                                overallStart,
                                overallEnd);
   }

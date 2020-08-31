@@ -5,7 +5,9 @@ public enum AgendaExceptionType {
   CALENDAR_NOT_FOUND("calendar", "agenda.calendarNotFound"),
   WRONG_EVENT_ATTENDEE_ID("attendee", "agenda.wrongAttendeeId"),
   EVENT_START_DATE_MANDATORY("startDate", "agenda.startDateMandatory"),
-  EVENT_END_DATE_MANDATORY("endDate", "agenda.endDateMandatory");
+  EVENT_END_DATE_MANDATORY("endDate", "agenda.endDateMandatory"),
+  EVENT_RECURRENCE_FREQUENCY_MANDATORY("recurrenceFrequency", "agenda.recurrenceFrequencyMandatory"),
+  EVENT_RECURRENCE_INTERVAL_MANDATORY("recurrenceInterval", "agenda.recurrenceIntervalMandatory");
 
   private String field;
 

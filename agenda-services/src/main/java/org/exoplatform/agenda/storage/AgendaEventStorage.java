@@ -16,8 +16,7 @@
 */
 package org.exoplatform.agenda.storage;
 
-import java.io.File;
-import java.io.FileInputStream;
+import java.io.*;
 import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -27,9 +26,13 @@ import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.dao.*;
 import org.exoplatform.agenda.entity.*;
 import org.exoplatform.agenda.model.*;
+import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.agenda.util.EntityMapper;
 import org.exoplatform.commons.file.model.FileItem;
 import org.exoplatform.commons.file.services.FileService;
+import org.exoplatform.commons.file.services.FileStorageException;
+import org.exoplatform.download.DownloadResource;
+import org.exoplatform.download.DownloadService;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -38,34 +41,37 @@ import org.exoplatform.upload.UploadService;
 
 public class AgendaEventStorage {
 
-  private static final Log    LOG                    = ExoLogger.getLogger(AgendaEventStorage.class);
+  public static final String AGENDA_FILE_SERVICE_NS = "agenda";
 
-  private static final String AGENDA_FILE_SERVICE_NS = "agenda";
+  private static final Log   LOG                    = ExoLogger.getLogger(AgendaEventStorage.class);
 
-  private FileService         fileService;
+  private FileService        fileService;
 
-  private UploadService       uploadService;
+  private UploadService      uploadService;
 
-  private CalendarDAO         calendarDAO;
+  private DownloadService    downloadService;
 
-  private RemoteProviderDAO   remoteProviderDAO;
+  private CalendarDAO        calendarDAO;
 
-  private EventDAO            eventDAO;
+  private RemoteProviderDAO  remoteProviderDAO;
 
-  private EventReminderDAO    eventReminderDAO;
+  private EventDAO           eventDAO;
 
-  private EventConferenceDAO  eventConferenceDAO;
+  private EventReminderDAO   eventReminderDAO;
 
-  private EventAttachmentDAO  eventAttachmentDAO;
+  private EventConferenceDAO eventConferenceDAO;
 
-  private EventAttendeeDAO    eventAttendeeDAO;
+  private EventAttachmentDAO eventAttachmentDAO;
 
-  private EventRecurrenceDAO  eventRecurrenceDAO;
+  private EventAttendeeDAO   eventAttendeeDAO;
 
-  private ListenerService     listenerService;
+  private EventRecurrenceDAO eventRecurrenceDAO;
+
+  private ListenerService    listenerService;
 
   public AgendaEventStorage(FileService fileService,
                             UploadService uploadService,
+                            DownloadService downloadService,
                             RemoteProviderDAO remoteProviderDAO,
                             CalendarDAO calendarDAO,
                             EventDAO eventDAO,
@@ -77,6 +83,7 @@ public class AgendaEventStorage {
                             ListenerService listenerService) {
     this.fileService = fileService;
     this.uploadService = uploadService;
+    this.downloadService = downloadService;
     this.calendarDAO = calendarDAO;
     this.remoteProviderDAO = remoteProviderDAO;
     this.eventDAO = eventDAO;
@@ -95,9 +102,10 @@ public class AgendaEventStorage {
     if (end == null) {
       throw new IllegalArgumentException("End date is mandatory");
     }
+
     Date startDate = new Date(start.toEpochSecond() * 1000);
     Date endDate = new Date(end.toEpochSecond() * 1000);
-    return eventDAO.getEventIdsByPeriod(startDate, endDate);
+    return eventDAO.getEventIdsByPeriod(startDate, endDate, ownerIds);
   }
 
   public Event getEventById(long eventId) {
@@ -136,23 +144,22 @@ public class AgendaEventStorage {
                           List<EventConference> conferences,
                           List<EventAttendee> attendees,
                           List<EventReminder> reminders) {
+    long modifierId = event.getModifierId();
+
     EventEntity eventEntity = updateEvent(event);
-    updateEventRecurrence(event, eventEntity);
 
     eventEntity = eventDAO.find(eventEntity.getId());
     event = EntityMapper.fromEntity(eventEntity);
 
-    long creatorId = eventEntity.getCreatorId();
-
-    saveEventAttachments(event.getId(), attachments, creatorId, false);
+    saveEventAttachments(event.getId(), attachments, modifierId, false);
 
     saveEventConferences(event.getId(), conferences, false);
 
-    saveEventAttendees(event, attendees, creatorId, false);
+    saveEventAttendees(event, attendees, modifierId, false);
 
-    saveEventReminders(event, reminders, creatorId, false);
+    saveEventReminders(event, reminders, modifierId, false);
 
-    broadcastEvent("exo.agenda.calendar.updated", event, creatorId);
+    broadcastEvent("exo.agenda.calendar.updated", event, modifierId);
   }
 
   public void deleteEventById(long eventId) {
@@ -163,8 +170,7 @@ public class AgendaEventStorage {
   }
 
   public void saveEventReminders(Event event, List<EventReminder> reminders, long userId, boolean newEvent) {
-    List<EventReminder> savedReminders = newEvent ? Collections.emptyList()
-                                                  : getEventReminders(event.getId(), userId);
+    List<EventReminder> savedReminders = newEvent ? Collections.emptyList() : getEventReminders(event.getId(), userId);
     List<EventReminder> newReminders = reminders == null ? Collections.emptyList() : reminders;
     List<EventReminder> remindersToDelete =
                                           savedReminders.stream()
@@ -178,7 +184,7 @@ public class AgendaEventStorage {
     }
 
     // Create new Reminders
-    for (EventReminder eventReminder : reminders) {
+    for (EventReminder eventReminder : newReminders) {
       if (newEvent && eventReminder.getId() != 0) {
         LOG.warn("Event Reminders must not have an id for new events");
         eventReminder.setId(0);
@@ -189,12 +195,10 @@ public class AgendaEventStorage {
   }
 
   public void saveEventReminder(Event event, EventReminder eventReminder) {
-    if (event.getRecurrence() != null) {
-      ZonedDateTime eventStartDate = event.getStart();
-      ZonedDateTime reminderDate = eventReminder.getMinutes() > 0 ? eventStartDate.minusMinutes(eventReminder.getMinutes())
-                                                                  : eventStartDate;
-      eventReminder.setDatetime(reminderDate);
-    }
+    ZonedDateTime eventStartDate = event.getStart();
+    ZonedDateTime reminderDate = eventReminder.getMinutes() > 0 ? eventStartDate.minusMinutes(eventReminder.getMinutes())
+                                                                : eventStartDate;
+    eventReminder.setDatetime(reminderDate);
 
     EventReminderEntity eventReminderEntity = EntityMapper.toEntity(eventReminder);
 
@@ -229,8 +233,7 @@ public class AgendaEventStorage {
   public void saveEventAttendees(Event event, List<EventAttendee> attendees, long creatorUserId, boolean newEvent) {
     long eventId = event.getId();
 
-    List<EventAttendee> savedAttendees = newEvent ? Collections.emptyList()
-                                                  : getEventAttendees(event.getId());
+    List<EventAttendee> savedAttendees = newEvent ? Collections.emptyList() : getEventAttendees(event.getId());
     List<EventAttendee> newAttendees = attendees == null ? Collections.emptyList() : attendees;
     List<EventAttendee> attendeesToDelete =
                                           savedAttendees.stream()
@@ -252,10 +255,9 @@ public class AgendaEventStorage {
     // Create new attendees
     for (EventAttendee eventAttendee : attendeesToCreate) {
       long identityId = eventAttendee.getIdentityId();
-      boolean isCreator = identityId != creatorUserId;
 
       EventAttendeeResponse response = null;
-      if (isCreator) {
+      if (identityId == creatorUserId) {
         if (event.getStatus() == EventStatus.CONFIRMED) {
           response = EventAttendeeResponse.ACCEPTED;
         } else if (event.getStatus() == EventStatus.TENTATIVE) {
@@ -263,6 +265,8 @@ public class AgendaEventStorage {
         } else if (event.getStatus() == EventStatus.CANCELED) {
           response = EventAttendeeResponse.DECLINED;
         }
+      } else {
+        response = EventAttendeeResponse.NEEDS_ACTION;
       }
       eventAttendee.setResponse(response);
       saveEventAttendee(eventAttendee, eventId);
@@ -311,9 +315,9 @@ public class AgendaEventStorage {
   }
 
   public void removeEventAttachment(long attachmentId) {
-    EventAttendeeEntity eventAttendeeEntity = eventAttendeeDAO.find(attachmentId);
-    if (eventAttendeeEntity != null) {
-      eventAttendeeDAO.delete(eventAttendeeEntity);
+    EventAttachmentEntity eventAttachmentEntity = eventAttachmentDAO.find(attachmentId);
+    if (eventAttachmentEntity != null) {
+      eventAttachmentDAO.delete(eventAttachmentEntity);
     }
   }
 
@@ -323,6 +327,29 @@ public class AgendaEventStorage {
       return Collections.emptyList();
     }
     return eventAttachments.stream().map(EntityMapper::fromEntity).collect(Collectors.toList());
+  }
+
+  public EventAttachment getEventAttachmentById(long attachmentId) {
+    EventAttachmentEntity eventAttachmentEntity = eventAttachmentDAO.find(attachmentId);
+    if (eventAttachmentEntity == null) {
+      return null;
+    }
+    return EntityMapper.fromEntity(eventAttachmentEntity);
+  }
+
+  public String getEventAttachmentDownloadLink(long attachmentId) {
+    EventAttachmentEntity eventAttachmentEntity = eventAttachmentDAO.find(attachmentId);
+    if (eventAttachmentEntity == null) {
+      return null;
+    }
+    try {
+      FileItem file = fileService.getFile(eventAttachmentEntity.getFileId());
+      InputStreamDownloadResource resource = new InputStreamDownloadResource(file);
+      String downloadResourceId = downloadService.addDownloadResource(resource);
+      return downloadService.getDownloadLink(downloadResourceId);
+    } catch (IOException | FileStorageException e) {
+      throw new IllegalStateException("Error while retrieving file of attachment with id " + attachmentId);
+    }
   }
 
   public EventConference saveEventConference(EventConference eventConference) {
@@ -360,8 +387,7 @@ public class AgendaEventStorage {
   }
 
   public void saveEventAttachments(long eventId, List<EventAttachment> attachments, long creatorIdentityId, boolean newEvent) {
-    List<EventAttachment> savedAttachments = newEvent ? Collections.emptyList()
-                                                      : getEventAttachments(eventId);
+    List<EventAttachment> savedAttachments = newEvent ? Collections.emptyList() : getEventAttachments(eventId);
     List<EventAttachment> newAttachments = attachments == null ? Collections.emptyList() : attachments;
     List<EventAttachment> attachmentsToDelete =
                                               savedAttachments.stream()
@@ -374,11 +400,12 @@ public class AgendaEventStorage {
       removeEventAttachment(eventAttachment.getId());
     }
 
-    List<EventAttachment> attachmentsToCreate = newAttachments == null ? Collections.emptyList()
-                                                                       : newAttachments.stream()
-                                                                                       .filter(newAttachment -> savedAttachments.stream()
-                                                                                                                                .noneMatch(attachment -> newAttachment.getFileId() == attachment.getFileId()))
-                                                                                       .collect(Collectors.toList());
+    List<EventAttachment> attachmentsToCreate =
+                                              newAttachments == null ? Collections.emptyList()
+                                                                     : newAttachments.stream()
+                                                                                     .filter(newAttachment -> savedAttachments.stream()
+                                                                                                                              .noneMatch(attachment -> newAttachment.getFileId() == attachment.getFileId()))
+                                                                                     .collect(Collectors.toList());
     // Create new attachments
     for (EventAttachment eventAttachment : attachmentsToCreate) {
       if (eventAttachment instanceof EventAttachmentUpload) {
@@ -422,8 +449,7 @@ public class AgendaEventStorage {
   }
 
   public void saveEventConferences(long eventId, List<EventConference> conferences, boolean newEvent) {
-    List<EventConference> savedConferences = newEvent ? Collections.emptyList()
-                                                      : getEventConferences(eventId);
+    List<EventConference> savedConferences = newEvent ? Collections.emptyList() : getEventConferences(eventId);
     List<EventConference> newConferences = conferences == null ? Collections.emptyList() : conferences;
     List<EventConference> conferencesToDelete =
                                               savedConferences.stream()
@@ -437,7 +463,7 @@ public class AgendaEventStorage {
     }
 
     // Create new conferences
-    for (EventConference eventConference : conferences) {
+    for (EventConference eventConference : newConferences) {
       eventConference.setEventId(eventId);
       if (newEvent && eventConference.getId() != 0) {
         LOG.warn("Event conferences must not have an id for new events");
@@ -445,6 +471,40 @@ public class AgendaEventStorage {
       }
       saveEventConference(eventConference);
     }
+  }
+
+  public List<RemoteProvider> getRemoteProviders() {
+    List<RemoteProviderEntity> remoteProviders = remoteProviderDAO.findAll();
+    return remoteProviders == null ? Collections.emptyList()
+                                   : remoteProviders.stream()
+                                                    .map(remoteProviderEntity -> EntityMapper.fromEntity(remoteProviderEntity))
+                                                    .collect(Collectors.toList());
+  }
+
+  public RemoteProvider saveRemoteProvider(RemoteProvider remoteProvider) {
+    RemoteProviderEntity remoteProviderEntity = EntityMapper.toEntity(remoteProvider);
+    if (remoteProviderEntity.getId() == null) {
+      remoteProviderEntity = remoteProviderDAO.create(remoteProviderEntity);
+    } else {
+      remoteProviderEntity = remoteProviderDAO.update(remoteProviderEntity);
+    }
+    return EntityMapper.fromEntity(remoteProviderEntity);
+  }
+
+  /**
+   * @param parentRecurrentEvent a parent recurrent {@link Event}
+   * @param start start DateTime of period to search on
+   * @param end end DateTime of period to search on
+   * @return {@link List} of {@link ZonedDateTime} corresponding to exceptional
+   *         occurences events Identifiers of a parent recurrent event for a
+   *         selected period of time
+   */
+  public List<Long> getExceptionalOccurenceEventIds(long parentRecurrentEvent,
+                                                    ZonedDateTime start,
+                                                    ZonedDateTime end) {
+    return eventDAO.getExceptionalOccurenceEventIds(parentRecurrentEvent,
+                                                    AgendaDateUtils.toDate(start),
+                                                    AgendaDateUtils.toDate(end));
   }
 
   private EventEntity createEvent(Event event) {
@@ -456,21 +516,33 @@ public class AgendaEventStorage {
       eventEntity.setParent(parentEvent);
     }
 
-    CalendarEntity calendarEntity = calendarDAO.find(event.getCalendarId());
-    eventEntity.setCalendar(calendarEntity);
+    updateEventCalendar(event, eventEntity);
 
     if (event.getRemoteProviderId() > 0) {
       RemoteProviderEntity remoteProviderEntity = remoteProviderDAO.find(event.getRemoteProviderId());
       eventEntity.setRemoteProvider(remoteProviderEntity);
     }
 
-    eventEntity = eventDAO.create(eventEntity);
-    return eventEntity;
+    return eventDAO.create(eventEntity);
   }
 
   private EventEntity updateEvent(Event event) {
     EventEntity eventEntity = EntityMapper.toEntity(event);
 
+    updateEventParent(event, eventEntity);
+    updateEventCalendar(event, eventEntity);
+    updateEventRemoteProvider(event, eventEntity);
+    updateEventRecurrence(event, eventEntity);
+
+    return eventDAO.update(eventEntity);
+  }
+
+  private void updateEventCalendar(Event event, EventEntity eventEntity) {
+    CalendarEntity calendarEntity = calendarDAO.find(event.getCalendarId());
+    eventEntity.setCalendar(calendarEntity);
+  }
+
+  private void updateEventParent(Event event, EventEntity eventEntity) {
     if (event.getParentId() > 0) {
       EventEntity parentEvent = eventDAO.find(event.getParentId());
       if (parentEvent == null) {
@@ -478,10 +550,9 @@ public class AgendaEventStorage {
       }
       eventEntity.setParent(parentEvent);
     }
+  }
 
-    CalendarEntity calendarEntity = calendarDAO.find(event.getCalendarId());
-    eventEntity.setCalendar(calendarEntity);
-
+  private void updateEventRemoteProvider(Event event, EventEntity eventEntity) {
     if (event.getRemoteProviderId() > 0) {
       RemoteProviderEntity remoteProviderEntity = remoteProviderDAO.find(event.getRemoteProviderId());
       if (remoteProviderEntity == null) {
@@ -489,24 +560,11 @@ public class AgendaEventStorage {
       }
       eventEntity.setRemoteProvider(remoteProviderEntity);
     }
-
-    return eventDAO.update(eventEntity);
-  }
-
-  private void createEventRecurrence(Event event, EventEntity eventEntity) {
-    if (event.getRecurrence() != null) {
-      EventRecurrenceEntity eventRecurrenceEntity = EntityMapper.toEntity(event, event.getRecurrence());
-      eventRecurrenceEntity.setId(null);
-      eventRecurrenceEntity.setEvent(eventEntity);
-      eventEntity.setRecurrence(eventRecurrenceEntity);
-      eventRecurrenceDAO.create(eventRecurrenceEntity);
-    }
   }
 
   private void updateEventRecurrence(Event event, EventEntity eventEntity) {
     EventRecurrence recurrence = event.getRecurrence();
-    EventEntity storedEventEntity = null;
-    storedEventEntity = eventDAO.find(eventEntity.getId());
+    EventEntity storedEventEntity = eventDAO.find(eventEntity.getId());
     if (storedEventEntity == null) {
       throw new IllegalStateException("Can't find event with id " + eventEntity.getId());
     }
@@ -527,11 +585,35 @@ public class AgendaEventStorage {
     }
   }
 
+  private void createEventRecurrence(Event event, EventEntity eventEntity) {
+    if (event.getRecurrence() != null) {
+      EventRecurrenceEntity eventRecurrenceEntity = EntityMapper.toEntity(event, event.getRecurrence());
+      eventRecurrenceEntity.setId(null);
+      eventRecurrenceEntity.setEvent(eventEntity);
+      eventEntity.setRecurrence(eventRecurrenceEntity);
+      eventRecurrenceDAO.create(eventRecurrenceEntity);
+    }
+  }
+
   private void broadcastEvent(String eventName, Event event, long userId) {
     try {
       listenerService.broadcast(eventName, userId, event);
     } catch (Exception e) {
       LOG.warn("Error broadcasting event '" + eventName + "' on agenda event with id '" + event.getId() + "'", e);
+    }
+  }
+
+  public class InputStreamDownloadResource extends DownloadResource {
+    private InputStream inputStream;
+
+    public InputStreamDownloadResource(FileItem fileItem) throws IOException {
+      super(fileItem.getFileInfo().getMimetype());
+      setDownloadName(fileItem.getFileInfo().getName());
+      this.inputStream = fileItem.getAsStream();
+    }
+
+    public InputStream getInputStream() {
+      return inputStream;
     }
   }
 

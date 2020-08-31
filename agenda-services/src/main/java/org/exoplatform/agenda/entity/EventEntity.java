@@ -18,6 +18,7 @@ package org.exoplatform.agenda.entity;
 
 import java.io.Serializable;
 import java.util.Date;
+import java.util.List;
 
 import javax.persistence.*;
 
@@ -28,76 +29,95 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
 @Entity(name = "AgendaEvent")
 @ExoEntity
 @Table(name = "EXO_AGENDA_EVENT")
-@NamedQueries({
-    @NamedQuery(name = "AgendaEvent.deleteCalendarEvents", query = "DELETE FROM AgendaEvent ev WHERE ev.calendar.id = :calendarId"),
-    @NamedQuery(name = "AgendaEvent.getEventIdsByPeriod", query = "SELECT ev FROM AgendaEvent ev WHERE (ev.start >= :start AND ev.start < :end) OR (ev.end >= :start AND ev.end < :end)"),
-})
+@NamedQueries(
+  {
+      @NamedQuery(
+          name = "AgendaEvent.deleteCalendarEvents", query = "DELETE FROM AgendaEvent ev WHERE ev.calendar.id = :calendarId"
+      ),
+      @NamedQuery(
+          name = "AgendaEvent.getEventIdsByPeriodAndOwnerIds", query = "SELECT ev.id FROM AgendaEvent ev"
+              + " INNER JOIN ev.attendees att"
+              + " WHERE att.identityId IN (:ownerIds)"
+              + " AND ev.startDate < :end"
+              + " AND (ev.endDate IS NULL OR ev.endDate >= :start)"
+      ),
+      @NamedQuery(
+          name = "AgendaEvent.getExceptionalOccurenceEventIds", query = "SELECT ev.id FROM AgendaEvent ev"
+              + " WHERE ev.parent.id = :parentEventId"
+              + " AND ev.occurrenceId <= :end"
+              + " AND ev.occurrenceId >= :start"
+      ),
+  }
+)
 public class EventEntity implements Serializable {
 
-  private static final long     serialVersionUID = -597472315530960636L;
+  private static final long         serialVersionUID = -597472315530960636L;
 
   @Id
   @SequenceGenerator(name = "SEQ_AGENDA_EVENT_ID", sequenceName = "SEQ_AGENDA_EVENT_ID")
   @GeneratedValue(strategy = GenerationType.AUTO, generator = "SEQ_AGENDA_EVENT_ID")
   @Column(name = "EVENT_ID")
-  private Long                  id;
+  private Long                      id;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "PARENT_EVENT_ID", referencedColumnName = "EVENT_ID")
-  private EventEntity           parent;
+  private EventEntity               parent;
 
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "CALENDAR_ID", referencedColumnName = "CALENDAR_ID")
-  private CalendarEntity        calendar;
+  private CalendarEntity            calendar;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "REMOTE_PROVIDER_ID", referencedColumnName = "AGENDA_PROVIDER_ID")
-  private RemoteProviderEntity  remoteProvider;
+  private RemoteProviderEntity      remoteProvider;
+
+  @OneToMany(mappedBy = "event", fetch = FetchType.LAZY)
+  private List<EventAttendeeEntity> attendees;
 
   @Column(name = "REMOTE_ID")
-  private String                remoteId;
+  private String                    remoteId;
 
   @OneToOne(mappedBy = "event", fetch = FetchType.EAGER)
-  private EventRecurrenceEntity recurrence;
+  private EventRecurrenceEntity     recurrence;
 
   @Column(name = "OCCURRENCE_ID")
-  private String                occurrenceId;
+  private Date                      occurrenceId;
 
   @Column(name = "CREATOR_ID", nullable = false)
-  private long                  creatorId;
+  private long                      creatorId;
 
   @Column(name = "CREATED_DATE", nullable = false)
-  private Date                  createdDate;
+  private Date                      createdDate;
 
   @Column(name = "UPDATED_DATE")
-  private Date                  updatedDate;
+  private Date                      updatedDate;
 
   @Column(name = "ALL_DAY")
-  private boolean               allDay;
+  private boolean                   allDay;
 
   @Column(name = "START_DATE")
-  private Date                  startDate;
+  private Date                      startDate;
 
   @Column(name = "END_DATE")
-  private Date                  endDate;
+  private Date                      endDate;
 
   @Column(name = "SUMMARY")
-  private String                summary;
+  private String                    summary;
 
   @Column(name = "DESCRIPTION")
-  private String                description;
+  private String                    description;
 
   @Column(name = "LOCATION")
-  private String                location;
+  private String                    location;
 
   @Column(name = "COLOR")
-  private String                color;
+  private String                    color;
 
   @Column(name = "AVAILABILITY", nullable = false)
-  private EventAvailability     availability;
+  private EventAvailability         availability;
 
   @Column(name = "STATUS", nullable = false)
-  private EventStatus           status;
+  private EventStatus               status;
 
   public Long getId() {
     return id;
@@ -147,11 +167,11 @@ public class EventEntity implements Serializable {
     this.recurrence = recurrence;
   }
 
-  public String getOccurrenceId() {
+  public Date getOccurrenceId() {
     return occurrenceId;
   }
 
-  public void setOccurrenceId(String occurrenceId) {
+  public void setOccurrenceId(Date occurrenceId) {
     this.occurrenceId = occurrenceId;
   }
 

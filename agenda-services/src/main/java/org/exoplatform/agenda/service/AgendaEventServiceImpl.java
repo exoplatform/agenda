@@ -18,7 +18,6 @@ package org.exoplatform.agenda.service;
 
 import java.time.*;
 import java.util.*;
-import java.util.TimeZone;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
@@ -33,21 +32,14 @@ import org.exoplatform.agenda.storage.AgendaEventStorage;
 import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
-import org.exoplatform.services.log.ExoLogger;
-import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
+import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 
-import net.fortuna.ical4j.model.*;
-import net.fortuna.ical4j.model.Period;
-import net.fortuna.ical4j.model.component.VEvent;
-import net.fortuna.ical4j.model.property.RRule;
-
 public class AgendaEventServiceImpl implements AgendaEventService {
-
-  private static final Log             LOG = ExoLogger.getLogger(AgendaEventServiceImpl.class);
 
   private AgendaCalendarService        agendaCalendarService;
 
@@ -81,9 +73,13 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       return null;
     }
     computeAcl(event, username);
-    TimeZone userTimezone = AgendaDateUtils.getUserTimezone(username);
-    adjustEventDatesForRead(event, userTimezone);
-    return event;
+    if (event.getAcl() != null && event.getAcl().isCanEdit() || isEventAttendee(eventId, username)) {
+      TimeZone userTimezone = AgendaDateUtils.getUserTimezone(username);
+      adjustEventDatesForRead(event, userTimezone);
+      return event;
+    } else {
+      throw new IllegalAccessException("User " + username + "is not allowed to access event with id " + eventId);
+    }
   }
 
   /**
@@ -120,11 +116,23 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (event.getEnd() == null) {
       throw new AgendaException(AgendaExceptionType.EVENT_END_DATE_MANDATORY);
     }
+    if (event.getStart().isAfter(event.getEnd())) {
+      throw new AgendaException(AgendaExceptionType.EVENT_START_DATE_BEFORE_END_DATE);
+    }
     if (event.getAvailability() == null) {
       event.setAvailability(EventAvailability.DEFAULT);
     }
     if (event.getStatus() == null) {
       event.setStatus(EventStatus.CONFIRMED);
+    }
+    EventRecurrence recurrence = event.getRecurrence();
+    if (recurrence != null) {
+      if (recurrence.getFrequency() == null) {
+        throw new AgendaException(AgendaExceptionType.EVENT_RECURRENCE_FREQUENCY_MANDATORY);
+      }
+      if (recurrence.getInterval() <= 0) {
+        throw new AgendaException(AgendaExceptionType.EVENT_RECURRENCE_INTERVAL_MANDATORY);
+      }
     }
 
     long calendarId = event.getCalendarId();
@@ -142,7 +150,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
     long userIdentityId = Long.parseLong(userIdentity.getId());
 
-    EventRecurrence recurrence = event.getRecurrence();
     EventOccurrence occurrence = event.getOccurrence();
     if (occurrence != null && occurrence.getId() != null) {
       recurrence = null;
@@ -150,7 +157,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
 
     adjustEventDatesForWrite(event);
-    computeRecurrentEventDates(event);
 
     Event eventToCreate = new Event(0,
                                     event.getParentId(),
@@ -174,15 +180,11 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                     occurrence,
                                     null);
 
-    Event createdEvent = agendaEventStorage.createEvent(eventToCreate,
-                                                        attachments,
-                                                        conferences,
-                                                        attendees,
-                                                        reminders);
+    Event createdEvent = agendaEventStorage.createEvent(eventToCreate, attachments, conferences, attendees, reminders);
     if (sendInvitation && attendees != null) {
       sendInvitations(createdEvent, attendees, userIdentityId);
     }
-    return createdEvent;
+    return getEventById(createdEvent.getId(), username);
   }
 
   /**
@@ -210,6 +212,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
     if (event.getEnd() == null) {
       throw new AgendaException(AgendaExceptionType.EVENT_END_DATE_MANDATORY);
+    }
+    if (event.getStart().isAfter(event.getEnd())) {
+      throw new AgendaException(AgendaExceptionType.EVENT_START_DATE_BEFORE_END_DATE);
     }
     if (event.getAvailability() == null) {
       event.setAvailability(EventAvailability.DEFAULT);
@@ -243,9 +248,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
 
     adjustEventDatesForWrite(event);
-    computeRecurrentEventDates(event);
 
-    Event eventToUpdate = new Event(0,
+    Event eventToUpdate = new Event(event.getId(),
                                     event.getParentId(),
                                     event.getRemoteId(),
                                     event.getRemoteProviderId(),
@@ -253,7 +257,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                     storedEvent.getCreatorId(),
                                     userIdentityId,
                                     storedEvent.getCreated(),
-                                    null,
+                                    ZonedDateTime.now(),
                                     event.getSummary(),
                                     event.getDescription(),
                                     event.getLocation(),
@@ -267,11 +271,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                     occurrence,
                                     null);
 
-    agendaEventStorage.updateEvent(eventToUpdate,
-                                   attachments,
-                                   conferences,
-                                   attendees,
-                                   reminders);
+    agendaEventStorage.updateEvent(eventToUpdate, attachments, conferences, attendees, reminders);
     if (sendInvitation && attendees != null) {
       sendInvitations(eventToUpdate, attendees, userIdentityId);
     }
@@ -318,12 +318,45 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                       ZonedDateTime end,
                                       String username) throws IllegalAccessException {
     Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
-    return getEvents(start, end, userIdentity, ownerId);
+    if (Utils.canAccessCalendar(identityManager, spaceService, ownerId, username)) {
+      return getEvents(start, end, userIdentity, ownerId);
+    } else {
+      throw new IllegalAccessException("User '" + userIdentity.getId() + "' is not allowed to access calendar of identity '"
+          + ownerId + "'");
+    }
   }
 
   @Override
   public List<EventAttachment> getEventAttachments(long eventId) {
     return agendaEventStorage.getEventAttachments(eventId);
+  }
+
+  @Override
+  public EventAttachment getEventAttachmentById(long attachmentId, String username) throws IllegalAccessException {
+    EventAttachment attachment = agendaEventStorage.getEventAttachmentById(attachmentId);
+    if (attachment == null) {
+      return null;
+    }
+    long eventId = attachment.getEventId();
+    Event event = agendaEventStorage.getEventById(eventId);
+    if (event == null) {
+      return null;
+    }
+    computeAcl(event, username);
+    if (event.getAcl() != null && event.getAcl().isCanEdit() || isEventAttendee(eventId, username)) {
+      return attachment;
+    } else {
+      throw new IllegalAccessException("User " + username + "is not allowed to access event with id " + eventId);
+    }
+  }
+
+  @Override
+  public String getEventAttachmentDownloadLink(long attachmentId, String username) throws IllegalAccessException {
+    EventAttachment eventAttachment = getEventAttachmentById(attachmentId, username);
+    if (eventAttachment == null) {
+      return null;
+    }
+    return agendaEventStorage.getEventAttachmentDownloadLink(attachmentId);
   }
 
   @Override
@@ -336,6 +369,16 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     return agendaEventStorage.getEventConferences(eventId);
   }
 
+  @Override
+  public List<RemoteProvider> getRemoteProviders() {
+    return agendaEventStorage.getRemoteProviders();
+  }
+
+  @Override
+  public RemoteProvider saveRemoteProvider(RemoteProvider remoteProvider) {
+    return agendaEventStorage.saveRemoteProvider(remoteProvider);
+  }
+
   private void sendInvitations(Event event, List<EventAttendee> attendees, long userIdentityId) {
     for (EventAttendee eventAttendee : attendees) {
       if (eventAttendee.getIdentityId() != userIdentityId) {
@@ -344,89 +387,44 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
   }
 
-  private void computeRecurrentEventDates(Event event) {
-    EventRecurrence recurrence = event.getRecurrence();
-    if (recurrence == null) {
-      return;
-    }
-
-    ZonedDateTime start = event.getStart();
-    ZonedDateTime end = event.getEnd();
-
-    long startTime = start.toEpochSecond() * 1000;
-    long endTime = end.toEpochSecond() * 1000;
-
-    DateTime startDateTime = new DateTime(startTime);
-    DateTime endDateTime = new DateTime(endTime);
-
-    VEvent vevent = new VEvent(startDateTime, endDateTime, event.getSummary());
-    Recur recur = Utils.getICalendarRecur(event, recurrence, TimeZone.getTimeZone(ZoneOffset.UTC));
-    vevent.getProperties().add(new RRule(recur));
-
-    long fromTime = start.toEpochSecond() * 1000;
-    DateTime ical4jFrom = new DateTime(fromTime);
-
-    ZonedDateTime untilDateTime = null;
-    boolean neverEnds = true;
-    if (recurrence.getUntil() != null) {
-      neverEnds = false;
-      untilDateTime = recurrence.getUntil().withHour(23).withMinute(59).withSecond(59);
-    } else if (recurrence.getCount() > 0) {
-      neverEnds = false;
-      untilDateTime = end.withHour(23).withMinute(59).withSecond(59);
-      int countIntervals = recurrence.getInterval() * recurrence.getCount();
-      switch (recurrence.getFrequency()) {
-      case YEARLY:
-        untilDateTime = untilDateTime.plusYears(countIntervals);
-        break;
-      case MONTHLY:
-        untilDateTime = untilDateTime.plusMonths(countIntervals);
-        break;
-      case WEEKLY:
-        untilDateTime = untilDateTime.plusWeeks(countIntervals);
-        break;
-      case DAILY:
-        untilDateTime = untilDateTime.plusDays(countIntervals);
-        break;
-      default:
-        break;
-      }
-    } else {
-      neverEnds = true;
-      untilDateTime = end.withHour(23).withMinute(59).withSecond(59);
-    }
-    long toTime = untilDateTime.toEpochSecond() * 1000;
-    DateTime ical4jTo = new DateTime(toTime);
-
-    Period period = new Period(ical4jFrom, ical4jTo);
-    PeriodList list = vevent.calculateRecurrenceSet(period);
-
-    Period firstOccurrencePeriod = (Period) list.first();
-    Period lastOccurrencePeriod = (Period) list.last();
-
-    ZonedDateTime overallStart = firstOccurrencePeriod.getStart().toInstant().atZone(ZoneOffset.UTC);
-    recurrence.setOverallStart(overallStart);
-
-    if (!neverEnds) {
-      ZonedDateTime overallEnd = lastOccurrencePeriod.getEnd().toInstant().atZone(ZoneOffset.UTC);
-      recurrence.setOverallEnd(overallEnd);
-    }
-  }
-
   private List<Event> getEvents(ZonedDateTime start, ZonedDateTime end, Identity userIdentity, Long... calendarOwners) {
-    List<Long> eventIds = this.agendaEventStorage.getEventIds(start, end, calendarOwners);
+    // Retrieve events minus a day and plus a day to include all day events
+    // That could transit due to timezone of user. Then filter resulted events
+    // at the end to get only events that are between orginal start and end
+    // dates. Example: given:
+    // - an all day event of 2020-09-02 is stored in UTC in DB with information
+    // (start = 2020-09-02T00:00:00Z, end = 2020-09-02T23:59:59Z )
+    // - the user has a timezone +03:00
+    // - the search is made on events between 2020-09-02T00:00:00+03:00, end =
+    // 2020-09-02T02:00:00+03:00
+    // The event isn't retrieved with the query dates because in DB, the start
+    // and end dates are different, using user timezone (start =
+    // 2020-09-02T03:00:00+03:00, end = 2020-09-03T02:59:59+03:00 ). Thus the
+    // event will not be retrieved
+    ZonedDateTime startMinusADay = start.minusDays(1);
+    ZonedDateTime endPlusADay = end.plusDays(1);
+
+    List<Long> eventIds = this.agendaEventStorage.getEventIds(startMinusADay, endPlusADay, calendarOwners);
     if (eventIds == null || eventIds.isEmpty()) {
       return Collections.emptyList();
     }
     TimeZone userTimezone = AgendaDateUtils.getUserTimezone(userIdentity);
 
-    List<Event> events = eventIds.stream()
-                                 .map(this::getEventById)
-                                 .collect(Collectors.toList());
+    List<Event> events = eventIds.stream().map(this::getEventById).collect(Collectors.toList());
     events.forEach(event -> adjustEventDatesForRead(event, userTimezone));
     computeEventsAcl(userIdentity, events);
 
-    return computeRecurrentEvents(events, start, end, userTimezone);
+    events = computeRecurrentEvents(events, startMinusADay, endPlusADay, userTimezone);
+
+    // filter events using original start and end dates
+    return filterEvents(events, start, end);
+  }
+
+  private List<Event> filterEvents(List<Event> events, ZonedDateTime start, ZonedDateTime end) {
+    return events.stream()
+                 .filter(event -> event.getStart().isBefore(end)
+                     && (event.getEnd() == null || event.getEnd().isAfter(start)))
+                 .collect(Collectors.toList());
   }
 
   private void adjustEventDatesForRead(Event event, TimeZone userTimezone) {
@@ -436,40 +434,58 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     ZoneId zoneId = userTimezone.toZoneId();
     if (event.isAllDay()) {
       start = start.toLocalDate().atStartOfDay(zoneId);
-      end = end.toLocalDate().atStartOfDay(zoneId).minusSeconds(1);
+      end = end.toLocalDate().atStartOfDay(zoneId).plusDays(1).minusSeconds(1);
     } else {
       start = start.withZoneSameInstant(zoneId);
       end = end.withZoneSameInstant(zoneId);
     }
-
-    if (event.getRecurrence() != null && event.getRecurrence().getUntil() != null) {
-      event.getRecurrence().setUntil(event.getRecurrence().getUntil().withZoneSameInstant(zoneId));
-    }
-
     event.setStart(start);
     event.setEnd(end);
+
+    EventRecurrence recurrence = event.getRecurrence();
+    if (recurrence != null && recurrence.getUntil() != null) {
+      ZonedDateTime recurrenceUntil = recurrence.getUntil();
+      // end of until day in User TimeZone
+      recurrenceUntil = ZonedDateTime.now(zoneId)
+                                     .withYear(recurrenceUntil.getYear())
+                                     .withMonth(recurrenceUntil.getMonthValue())
+                                     .withDayOfMonth(recurrenceUntil.getDayOfMonth())
+                                     .toLocalDate()
+                                     .atStartOfDay(zoneId)
+                                     .plusDays(1)
+                                     .minusSeconds(1);
+      recurrence.setUntil(recurrenceUntil);
+    }
   }
 
-  private void adjustEventDatesForWrite(Event event) throws AgendaException {
+  private void adjustEventDatesForWrite(Event event) {
     ZonedDateTime start = event.getStart();
     ZonedDateTime end = event.getEnd();
 
-    if (start.isBefore(end)) {
-      throw new AgendaException(AgendaExceptionType.EVENT_START_DATE_BEFORE_END_DATE);
-    } else if (event.isAllDay()) {
+    if (event.isAllDay()) {
       start = start.toLocalDate().atStartOfDay(ZoneOffset.UTC);
-      end = end.toLocalDate().atStartOfDay(ZoneOffset.UTC);
+      end = end.toLocalDate().atStartOfDay(ZoneOffset.UTC).plusDays(1).minusSeconds(1);
     } else {
       start = start.withZoneSameInstant(ZoneOffset.UTC);
       end = end.withZoneSameInstant(ZoneOffset.UTC);
     }
-
-    if (event.getRecurrence() != null && event.getRecurrence().getUntil() != null) {
-      event.getRecurrence().setUntil(event.getRecurrence().getUntil().withZoneSameInstant(ZoneOffset.UTC));
-    }
-
     event.setStart(start);
     event.setEnd(end);
+
+    EventRecurrence recurrence = event.getRecurrence();
+    if (recurrence != null && recurrence.getUntil() != null) {
+      ZonedDateTime recurrenceUntil = recurrence.getUntil();
+      // end of until day in UTC
+      recurrenceUntil = ZonedDateTime.now(ZoneOffset.UTC)
+                                     .withYear(recurrenceUntil.getYear())
+                                     .withMonth(recurrenceUntil.getMonthValue())
+                                     .withDayOfMonth(recurrenceUntil.getDayOfMonth())
+                                     .toLocalDate()
+                                     .atStartOfDay(ZoneOffset.UTC)
+                                     .plusDays(1)
+                                     .minusSeconds(1);
+      recurrence.setUntil(recurrenceUntil);
+    }
   }
 
   private List<Long> getCalendarOwnersOfUser(Identity userIdentity) {
@@ -486,37 +502,37 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
   private void computeEventsAcl(Identity userIdentity, List<Event> events) {
     long userIdentityId = Long.parseLong(userIdentity.getId());
-    Map<Long, Calendar> calendars = new HashMap<>();
+    Map<Long, Permission> calendarsPermission = new HashMap<>();
     for (Event event : events) {
       long creatorId = event.getCreatorId();
       if (creatorId == userIdentityId) {
         event.setAcl(new Permission(true));
       } else {
-        long calendarId = event.getCalendarId();
-        try {
-          Calendar calendar = calendars.get(calendarId);
-          if (calendar == null) {
-            calendar = agendaCalendarService.getCalendarById(calendarId, userIdentity.getRemoteId());
-            calendars.put(calendarId, calendar);
-          }
-          event.setAcl(calendar.getAcl());
-        } catch (IllegalAccessException e) {
-          LOG.warn("Impossible case happens, this must be a bug. The user has been denied access to the calendar of a retrieved event",
-                   e);
-        }
+        String username = userIdentity.getRemoteId();
+
+        Permission calendarPermission = calendarsPermission.computeIfAbsent(event.getCalendarId(),
+                                                                            calendarId -> this.getUserPermission(calendarId,
+                                                                                                                 username));
+        event.setAcl(calendarPermission);
       }
     }
   }
 
-  private void computeAcl(Event event, String username) throws IllegalAccessException {
+  public Permission getUserPermission(Long calendarId, String username) {
+    Calendar calendar = agendaCalendarService.getCalendarById(calendarId);
+    long ownerId = calendar.getOwnerId();
+    boolean canEdit = Utils.canEditCalendar(identityManager, spaceService, ownerId, username);
+    return new Permission(canEdit);
+  }
+
+  private void computeAcl(Event event, String username) {
     Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
     long userIdentityId = Long.parseLong(userIdentity.getId());
     long creatorId = event.getCreatorId();
     if (creatorId == userIdentityId) {
       event.setAcl(new Permission(true));
     } else {
-      Calendar calendar = agendaCalendarService.getCalendarById(event.getCalendarId(), username);
-      event.setAcl(calendar.getAcl());
+      event.setAcl(getUserPermission(event.getCalendarId(), username));
     }
   }
 
@@ -527,7 +543,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
         computedEvents.add(event);
       } else {
         List<Event> occurrences = Utils.getOccurrences(event, start.toLocalDate(), end.toLocalDate(), userTimezone);
-        occurrences = filterExceptionalEvents(occurrences, events);
+        occurrences = filterExceptionalEvents(event, occurrences, start, end);
         if (!occurrences.isEmpty()) {
           computedEvents.addAll(occurrences);
         }
@@ -541,15 +557,50 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     computedEvents.sort((event1, event2) -> event1.getStart().compareTo(event2.getStart()));
   }
 
-  private List<Event> filterExceptionalEvents(List<Event> occurrences, List<Event> events) {
+  private List<Event> filterExceptionalEvents(Event recurrentEvent,
+                                              List<Event> occurrences,
+                                              ZonedDateTime start,
+                                              ZonedDateTime end) {
+    List<Long> exceptionalOccurenceEventIds = agendaEventStorage.getExceptionalOccurenceEventIds(recurrentEvent.getId(),
+                                                                                                 start,
+                                                                                                 end);
+    List<Event> exceptionalEvents = exceptionalOccurenceEventIds == null
+        || exceptionalOccurenceEventIds.isEmpty() ? Collections.emptyList()
+                                                  : exceptionalOccurenceEventIds.stream()
+                                                                                .map(this::getEventById)
+                                                                                .collect(Collectors.toList());
     return occurrences.stream()
-                      .filter(occurrence -> events.stream()
-                                                  .anyMatch(exceptionalOccurrenceEvent -> exceptionalOccurrenceEvent.getOccurrence() != null
-                                                      && exceptionalOccurrenceEvent.getParentId() == occurrence.getParentId()
-                                                      && StringUtils.equals(occurrence.getOccurrence().getId(),
-                                                                            exceptionalOccurrenceEvent.getOccurrence()
-                                                                                                      .getId())))
+                      .filter(occurrence -> exceptionalEvents.stream()
+                                                             .noneMatch(exceptionalOccurence -> occurrence.getOccurrence()
+                                                                                                          .getId()
+                                                                                                          .isEqual(exceptionalOccurence.getOccurrence()
+                                                                                                                                       .getId())))
                       .collect(Collectors.toList());
+  }
+
+  private boolean isEventAttendee(long eventId, String username) {
+    Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+    long userIdentityId = Long.parseLong(userIdentity.getId());
+
+    List<EventAttendee> eventAttendees = getEventAttendees(eventId);
+    return eventAttendees != null
+        && eventAttendees.stream().anyMatch(eventAttendee -> {
+          if (userIdentityId == eventAttendee.getIdentityId()) {
+            return true;
+          } else {
+            Identity identity = identityManager.getIdentity(String.valueOf(eventAttendee.getIdentityId()));
+            if (StringUtils.equals(identity.getProviderId(), SpaceIdentityProvider.NAME)) {
+              if (spaceService.isSuperManager(username)) {
+                return true;
+              } else {
+                Space space = spaceService.getSpaceByPrettyName(identity.getRemoteId());
+                return spaceService.isMember(space, username);
+              }
+            } else {
+              return false;
+            }
+          }
+        });
   }
 
 }

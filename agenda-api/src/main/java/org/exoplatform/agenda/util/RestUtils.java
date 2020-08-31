@@ -16,7 +16,7 @@
 */
 package org.exoplatform.agenda.util;
 
-import org.exoplatform.container.ExoContainerContext;
+import org.exoplatform.container.PortalContainer;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
@@ -33,17 +33,23 @@ public class RestUtils {
     return ConversationState.getCurrent().getIdentity().getUserId();
   }
 
-  public static final Identity getCurrentUserIdentity() {
+  public static final Identity getCurrentUserIdentity(IdentityManager identityManager) {
     String currentUser = getCurrentUser();
-    IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
     return identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, currentUser);
   }
 
-  public static final long getCurrentUserIdentityId() {
+  public static final long getCurrentUserIdentityId(IdentityManager identityManager) {
     String currentUser = getCurrentUser();
-    IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
     Identity identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, currentUser);
     return identity == null ? 0 : Long.parseLong(identity.getId());
+  }
+
+  public static String getBaseRestURI() {
+    return getBasePortalURI() + "/" + PortalContainer.getCurrentRestContextName();
+  }
+
+  public static String getBasePortalURI() {
+    return "/" + PortalContainer.getCurrentPortalContainerName();
   }
 
 }

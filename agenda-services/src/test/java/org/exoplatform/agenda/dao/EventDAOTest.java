@@ -16,7 +16,7 @@
 */
 package org.exoplatform.agenda.dao;
 
-import java.sql.Date;
+import java.util.Date;
 
 import org.exoplatform.agenda.constant.EventAvailability;
 import org.exoplatform.agenda.constant.EventStatus;
@@ -42,7 +42,7 @@ public class EventDAOTest extends TestCase {
 
   private String            summary      = "Summary";
 
-  private String            occurrenceId = "OccurrenceId";
+  private Date              occurrenceId = new Date();
 
   private String            remoteId     = "RemoteId";
 
@@ -142,7 +142,7 @@ public class EventDAOTest extends TestCase {
                                String location,
                                String description,
                                String summary,
-                               String occurrenceId,
+                               Date occurrenceId,
                                String remoteId,
                                EventStatus status,
                                long creatorId,

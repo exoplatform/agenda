@@ -21,7 +21,6 @@ import java.util.Date;
 
 import javax.persistence.*;
 
-import org.exoplatform.agenda.constant.EventRecurrenceFrequency;
 import org.exoplatform.commons.api.persistence.ExoEntity;
 
 @Entity(name = "AgendaEventRecurrence")
@@ -29,42 +28,29 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
 @Table(name = "EXO_AGENDA_RECURRENCE")
 @NamedQueries({
     @NamedQuery(name = "AgendaEventRecurrence.deleteCalendarRecurrences", query = "DELETE FROM AgendaEventRecurrence a WHERE a.event.id IN (SELECT evt.id FROM AgendaEvent evt WHERE evt.calendar.id = :calendarId)"),
-    @NamedQuery(name = "AgendaEventRecurrence.deleteEventRecurrences", query = "DELETE FROM AgendaEventRecurrence a WHERE a.event.id = :eventId"),
-})
+    @NamedQuery(name = "AgendaEventRecurrence.deleteEventRecurrences", query = "DELETE FROM AgendaEventRecurrence a WHERE a.event.id = :eventId"), })
 public class EventRecurrenceEntity implements Serializable {
 
-  private static final long        serialVersionUID = -4214007539857435152L;
+  private static final long serialVersionUID = -4214007539857435152L;
 
   @Id
   @SequenceGenerator(name = "SEQ_AGENDA_EVENT_RECURRENCE_ID", sequenceName = "SEQ_AGENDA_EVENT_RECURRENCE_ID")
   @GeneratedValue(strategy = GenerationType.AUTO, generator = "SEQ_AGENDA_EVENT_RECURRENCE_ID")
   @Column(name = "EVENT_RECURRENCE_ID")
-  private Long                     id;
+  private Long              id;
 
   @OneToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "EVENT_ID", referencedColumnName = "EVENT_ID")
-  private EventEntity              event;
+  private EventEntity       event;
 
   @Column(name = "RECURRENCE_START_DATE", nullable = false)
-  private Date                     startDate;
+  private Date              startDate;
 
   @Column(name = "RECURRENCE_END_DATE", nullable = false)
-  private Date                     endDate;
+  private Date              endDate;
 
-  @Column(name = "RECURRENCE_FREQUENCY", nullable = false)
-  private EventRecurrenceFrequency frequency;
-
-  @Column(name = "RECURRENCE_INTERVAL", nullable = false)
-  private int                      interval;
-
-  @Column(name = "RECURRENCE_UNTIL_DATE")
-  private Date                     untilDate;
-
-  @Column(name = "RECURRENCE_COUNT")
-  private int                      count;
-
-  @Column(name = "RECURRENCE_BY")
-  private String                   by;
+  @Column(name = "RECURRENCE_RRULE")
+  private String            rrule;
 
   public Long getId() {
     return id;
@@ -98,44 +84,12 @@ public class EventRecurrenceEntity implements Serializable {
     this.endDate = endDate;
   }
 
-  public EventRecurrenceFrequency getFrequency() {
-    return frequency;
+  public String getRrule() {
+    return rrule;
   }
 
-  public void setFrequency(EventRecurrenceFrequency frequency) {
-    this.frequency = frequency;
-  }
-
-  public int getInterval() {
-    return interval;
-  }
-
-  public void setInterval(int interval) {
-    this.interval = interval;
-  }
-
-  public Date getUntilDate() {
-    return untilDate;
-  }
-
-  public void setUntilDate(Date untilDate) {
-    this.untilDate = untilDate;
-  }
-
-  public int getCount() {
-    return count;
-  }
-
-  public void setCount(int count) {
-    this.count = count;
-  }
-
-  public String getBy() {
-    return by;
-  }
-
-  public void setBy(String by) {
-    this.by = by;
+  public void setRrule(String rrule) {
+    this.rrule = rrule;
   }
 
 }

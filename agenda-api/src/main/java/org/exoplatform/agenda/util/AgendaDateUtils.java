@@ -16,6 +16,7 @@
 */
 package org.exoplatform.agenda.util;
 
+import java.text.ParseException;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -31,8 +32,15 @@ import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvide
 import org.exoplatform.social.core.manager.IdentityManager;
 
 public class AgendaDateUtils {
-  public static final DateTimeFormatter RFC_3339_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss[.SSS]XXX")
-                                                                              .withResolverStyle(ResolverStyle.LENIENT);
+  public static final DateTimeFormatter RFC_3339_FORMATTER      =
+                                                           DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss[.SSS]XXX")
+                                                                            .withResolverStyle(ResolverStyle.LENIENT);
+
+  public static final DateTimeFormatter ALL_DAY_FORMATTER       = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+                                                                                   .withResolverStyle(ResolverStyle.LENIENT);
+
+  public static final DateTimeFormatter OCCURRENCE_ID_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmssXXX")
+                                                                                   .withResolverStyle(ResolverStyle.LENIENT);
 
   private AgendaDateUtils() {
   }
@@ -49,6 +57,17 @@ public class AgendaDateUtils {
       return null;
     }
     return zonedDateTime.format(RFC_3339_FORMATTER);
+  }
+
+  public static String toRFC3339Date(ZonedDateTime zonedDateTime, boolean allDay) {
+    if (zonedDateTime == null) {
+      return null;
+    }
+    if (allDay) {
+      return zonedDateTime.format(ALL_DAY_FORMATTER);
+    } else {
+      return zonedDateTime.format(RFC_3339_FORMATTER);
+    }
   }
 
   public static String toRFC3339Date(ZonedDateTime zonedDateTime, ZoneOffset zoneOffset) {
@@ -105,4 +124,19 @@ public class AgendaDateUtils {
     }
     return getUserTimezone(userIdentity);
   }
+
+  public static String buildOccurrenceId(Date formTime) {
+    if (formTime == null) {
+      return null;
+    }
+    return OCCURRENCE_ID_FORMATTER.format(formTime.toInstant().atOffset(ZoneOffset.UTC));
+  }
+
+  public static ZonedDateTime buildOccurrenceDateTime(String occurrenceId) throws ParseException {
+    if (StringUtils.isBlank(occurrenceId)) {
+      return null;
+    }
+    return ZonedDateTime.parse(occurrenceId, OCCURRENCE_ID_FORMATTER);
+  }
+
 }
