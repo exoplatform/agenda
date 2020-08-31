@@ -1,7 +1,7 @@
 <template>
   <v-stepper v-model="stepper">
     <v-stepper-header>
-      <v-stepper-step step="1" class="text-header-title" color="primary">
+      <v-stepper-step step="1" class="text-header-title">
         {{ $t('agenda.stepEventDetails') }}
       </v-stepper-step>
       <v-divider />
