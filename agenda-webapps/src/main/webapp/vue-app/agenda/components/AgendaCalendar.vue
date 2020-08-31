@@ -6,6 +6,8 @@
       :events="events"
       :event-color="getEventColor"
       :type="calendarType"
+      :weekdays="weekdays"
+      :show-week="true"
       color="primary"
       @click:event="showEvent"
       @click:more="viewDay"
@@ -27,6 +29,10 @@ export default {
       type: Array,
       default: null
     },
+    weekdays: {
+      type: Array,
+      default: () => null
+    },
   },
   data: () => ({
     selectedDate: '',
@@ -47,7 +53,8 @@ export default {
   },
   methods:{
     retrievePeriodEvents(range) {
-      const period = this.$agendaUtils.convertVuetifyRangeToPeriod(range, this.$userTimezone);
+      const period = this.$agendaUtils.convertVuetifyRangeToPeriod(range, this.$userTimeZone);
+      period.title = this.$refs.calendar.title;
       this.$root.$emit('agenda-change-period', period);
     },
     getEventColor(event) {
