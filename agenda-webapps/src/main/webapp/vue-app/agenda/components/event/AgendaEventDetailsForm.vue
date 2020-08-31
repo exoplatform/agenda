@@ -3,7 +3,7 @@
     <div class="row">
       <div>
         <label class="float-left mt-5 mr-3 text-subtitle-1">Create</label>
-        <input ref="eventTitle" :placeholder="$t('agenda.eventTitle')" type="text" name="title" class="ignore-vuetify-classes my-3" />
+        <input ref="eventTitle" :placeholder="$t('agenda.eventTitle')" type="text" name="title" class="ignore-vuetify-classes my-3" required />
       </div>
       <div>
         <span class="mt-5  ml-4 mr-4 text-subtitle-1 font-weight-bold">in</span>
@@ -17,7 +17,7 @@
             <v-icon size="18" class="mr-11">
               fas fa-map-marker-alt
             </v-icon>
-            <input ref="locationEvent" :placeholder="$t('agenda.eventLocation')" type="text" name="locationEvent" class="ignore-vuetify-classes my-3 location-event" />
+            <input ref="locationEvent" :placeholder="$t('agenda.eventLocation')" type="text" name="locationEvent" class="ignore-vuetify-classes my-3 location-event" required />
           </div>
         </div>
         <div class="row ">
@@ -84,7 +84,7 @@
           <v-icon size="18" class="mr-11">
             fas fa-paperclip
           </v-icon>
-          <a class="text-subtitle-1 font-weight-regular attach-file-link">{{ $t('agenda.attachFile') }}</a>
+          <a class="text-subtitle-1 font-weight-regular attach-file-link" @click="uploadFile">{{ $t('agenda.attachFile') }}</a>
         </div>
       </div>
       <span>
@@ -123,6 +123,9 @@
           {{ $t('agenda.enableInvitationDescription') }}
         </div>
       </div>
+      <div class="fileHidden" style="display:none">
+        <input ref="uploadInput" class="file" name="file" type="file" multiple="multiple" style="display:none">
+      </div>
     </div>
   </v-container>
 </template>
@@ -136,9 +139,10 @@ export default {
       notifications: [],
       nbNotif: 0,
       enablePermission: false,
-      enableInvitation: false
+      enableInvitation: false,
     };
   },
+
   computed: {
     suggesterLabels() {
       return {
@@ -164,7 +168,10 @@ export default {
     },
     removeNotifUser(index) {
       this.notifications = this.notifications.filter((n) => n.id !== index);
-    }
+    },
+    uploadFile(){
+      this.$refs.uploadInput.click();
+    },
   }
 };
 </script>
