@@ -14,6 +14,7 @@ import AgendaFilterButton from './components/top-toolbar/AgendaFilterButton.vue'
 import AgendaSettingsButton from './components/top-toolbar/AgendaSettingsButton.vue';
 import AgendaPullDownEvent from './components/top-toolbar/AgendaPullDownEvent.vue';
 import AgendaEventDetailsForm from './components/event/AgendaEventDetailsForm.vue';
+import AgendaFileAttachments from './components/event/AgendaFileAttachments.vue';
 
 const components = {
   'agenda': Agenda,
@@ -31,7 +32,8 @@ const components = {
   'agenda-filter-button': AgendaFilterButton,
   'agenda-settings-button': AgendaSettingsButton,
   'agenda-pulldown-event': AgendaPullDownEvent,
-  'agenda-event-details-form': AgendaEventDetailsForm
+  'agenda-event-details-form': AgendaEventDetailsForm,
+  'agenda-file-attachments': AgendaFileAttachments
 };
 
 for (const key in components) {
