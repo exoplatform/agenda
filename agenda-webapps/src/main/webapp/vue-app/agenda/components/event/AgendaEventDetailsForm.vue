@@ -17,7 +17,7 @@
             <v-icon size="18" class="mr-11">
               fas fa-map-marker-alt
             </v-icon>
-            <input ref="locationEvent" :placeholder="$t('agenda.eventLocation')" type="text" name="locationEvent" class="ignore-vuetify-classes my-3 location-event" required />
+            <input ref="locationEvent" :placeholder="$t('agenda.eventLocation')" type="text" name="locationEvent" class="ignore-vuetify-classes my-3 location-event-input" required />
           </div>
         </div>
         <div class="row ">
@@ -84,7 +84,20 @@
           <v-icon size="18" class="mr-11">
             fas fa-paperclip
           </v-icon>
-          <a class="text-subtitle-1 font-weight-regular attach-file-link" @click="uploadFile">{{ $t('agenda.attachFile') }}</a>
+          <v-list-item v-for="attachedFile in files" :key="attachedFile.name">
+            <span class="text-subtitle-1 font-weight-regular">{{ attachedFile.name }}.{{ attachedFile.mimeType }}({{ formatFileSize(attachedFile.size) }})</span>
+            <v-btn
+              color="grey"
+              icon
+              dark
+              @click="removeFile(attachedFile.uploadId)"
+            >
+              <v-icon>
+                mdi-close
+              </v-icon>
+            </v-btn>
+          </v-list-item>
+          <agenda-file-attachments :attachments-file="files" @files="files = $event" />
         </div>
       </div>
       <span>
@@ -123,9 +136,6 @@
           {{ $t('agenda.enableInvitationDescription') }}
         </div>
       </div>
-      <div class="fileHidden" style="display:none">
-        <input ref="uploadInput" class="file" name="file" type="file" multiple="multiple" style="display:none">
-      </div>
     </div>
   </v-container>
 </template>
@@ -134,6 +144,7 @@
 export default {
   data() {
     return {
+      files:[],
       savingUser: false,
       invitedMembers: [],
       notifications: [],
@@ -169,9 +180,12 @@ export default {
     removeNotifUser(index) {
       this.notifications = this.notifications.filter((n) => n.id !== index);
     },
-    uploadFile(){
-      this.$refs.uploadInput.click();
+    removeFile(index) {
+      this.files = this.files.filter((n) => n.uploadId !== index);
     },
+    formatFileSize(size) {
+      return this.$agendaUtils.getFormattedFileSize(size);
+    }
   }
 };
 </script>
