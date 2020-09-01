@@ -28,3 +28,29 @@ export function getWeekNumber(date) {
   }
   return Math.ceil((firstThursday - date.valueOf()) / 604800000);
 }
+
+export function getFormattedFileSize(fileSize) {
+  let measure = 'bytes';
+  const BYTES_IN_KB = 1024;
+  const BYTES_IN_GB = 1073741824;
+  const MB_IN_GB = 10;
+  const BYTES_IN_MB = 1048576;
+  const formattedSizePrecision = 2;
+  const minGb = MB_IN_GB * BYTES_IN_MB; // equals 0.01 GB
+  const minMb = 10000; // equals 0.01 MB, which is the smallest number with precision `formattedSizePrecision`
+  const minKb = 10; // equals 0.01 KB, which is the smallest number with precision `formattedSizePrecision`
+  let size = fileSize;
+  if (fileSize < minKb) {
+    measure = ' bytes';
+  } else if (fileSize < minMb) {
+    size = fileSize / BYTES_IN_KB;
+    measure = ' kilo';
+  } else if (fileSize < minGb) {
+    size = fileSize / BYTES_IN_MB;
+    measure = ' mega';
+  } else {
+    size = fileSize / BYTES_IN_GB;
+    measure = ' giga';
+  }
+  return (+size).toFixed(formattedSizePrecision).concat(measure);
+}
