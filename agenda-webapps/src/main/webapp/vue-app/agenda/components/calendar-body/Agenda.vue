@@ -67,8 +67,8 @@ export default {
     retrieveEvents() {
       this.loading = true;
       this.$eventService.getEvents(this.searchTerm, this.ownerId, this.period.start, this.period.end)
-        .then(events => {
-          this.events = events || [];
+        .then(data => {
+          this.events = data && data.events || [];
           this.events.forEach(event => {
             event.name = event.summary;
           });

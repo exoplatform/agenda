@@ -18,8 +18,7 @@ package org.exoplatform.agenda.rest;
 
 import java.net.URI;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import javax.annotation.security.RolesAllowed;
@@ -40,6 +39,7 @@ import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.file.services.FileService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
+import org.exoplatform.services.rest.resource.ResourceContainer;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
@@ -48,7 +48,7 @@ import io.swagger.annotations.*;
 
 @Path("/v1/agenda/events")
 @Api(value = "/v1/agenda/events", description = "Manages agenda events associated to users and spaces") // NOSONAR
-public class AgendaEventRest {
+public class AgendaEventRest implements ResourceContainer {
 
   private static final Log             LOG = ExoLogger.getLogger(AgendaEventRest.class);
 
@@ -88,7 +88,7 @@ public class AgendaEventRest {
       @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
   public Response list(@ApiParam(value = "Identity technical identifier", required = false) @PathParam("ownerId") long ownerId,
                        @ApiParam(value = "Start datetime using RFC-3339 representation including timezone", required = true) @QueryParam("start") String start,
-                       @ApiParam(value = "End datetime using RFC-3339 representation including timezone", required = true) @QueryParam("limit") String end) {
+                       @ApiParam(value = "End datetime using RFC-3339 representation including timezone", required = true) @QueryParam("end") String end) {
     if (StringUtils.isBlank(start)) {
       return Response.status(Status.BAD_REQUEST).entity("Start datetime is mandatory").build();
     }
