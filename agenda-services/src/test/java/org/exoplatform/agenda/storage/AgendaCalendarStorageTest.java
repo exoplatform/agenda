@@ -94,14 +94,14 @@ public class AgendaCalendarStorageTest {
 
   @Test
   public void testCountCalendarsByOwners() {
-    when(calendarDAO.countCalendarsByOwners(anyVararg())).thenReturn(1);
+    when(calendarDAO.countCalendarsByOwnerIds(anyVararg())).thenReturn(1);
     int count = agendaCalendarStorage.countCalendarsByOwners(2l);
     assertEquals(1, count);
 
-    verify(calendarDAO, times(1)).countCalendarsByOwners(2l);
+    verify(calendarDAO, times(1)).countCalendarsByOwnerIds(2l);
     agendaCalendarStorage.countCalendarsByOwners(2l);
     // No cache used for this call
-    verify(calendarDAO, times(2)).countCalendarsByOwners(2l);
+    verify(calendarDAO, times(2)).countCalendarsByOwnerIds(2l);
   }
 
   @Test

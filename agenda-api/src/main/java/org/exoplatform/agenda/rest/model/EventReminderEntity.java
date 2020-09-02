@@ -14,19 +14,27 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see<http://www.gnu.org/licenses/>.
 */
-package org.exoplatform.agenda.model;
+package org.exoplatform.agenda.rest.model;
 
 import lombok.*;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class Permission implements Cloneable {
+public class EventReminderEntity {
 
-  private boolean canEdit;
+  private long   id;
 
-  @Override
-  public Permission clone() { // NOSONAR
-    return new Permission(canEdit);
-  }
+  private long   receiverId;
+
+  private String type;
+
+  private int    minutes;
+
+  /**
+   * Date and time converted to user timezone (Timestamp representation using
+   * RFC-3339). This is the computed datetime to send reminder.
+   */
+  private String datetime;
+
 }

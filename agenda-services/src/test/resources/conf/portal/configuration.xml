@@ -46,6 +46,10 @@
     <type>org.exoplatform.commons.persistence.impl.EntityManagerService</type>
   </component>
 
+  <import>jar:/conf/exo.agenda.service-dependencies-configuration.xml</import>
+  <import>jar:/conf/exo.agenda.service-configuration.xml</import>
+  <import>jar:/conf/exo.agenda.service-local-configuration.xml</import>
+
   <remove-configuration>org.exoplatform.services.naming.InitialContextInitializer</remove-configuration>
   <remove-configuration>org.exoplatform.commons.search.index.IndexingOperationProcessor</remove-configuration>
   <remove-configuration>org.exoplatform.commons.search.rest.IndexingManagementRestServiceV1</remove-configuration>

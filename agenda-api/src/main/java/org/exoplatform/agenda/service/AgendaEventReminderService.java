@@ -20,24 +20,21 @@ import java.util.List;
 
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventReminder;
-import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.social.core.identity.model.Identity;
 
 public interface AgendaEventReminderService {
 
   /**
-   * Retrieve list of reminders for current user. If there is no specific
-   * reminder, the default user reminders will be used. (Combined between User
-   * Settings and default values)
+   * Retrieve list of reminders for a user. If there is no specific reminder,
+   * the default user reminders will be used. (Combined between User Settings
+   * and default values)
    * 
    * @param eventId {@link Event} technical identifier
-   * @param username User accessing reminders of the event
+   * @param userIdentityId User technical identifier ({@link Identity#getId()})
    * @return {@link List} of {@link EventReminder} corresponding to user
    *         preferences.
-   * @throws IllegalAccessException when user attempts to acces non authorized
-   *           event
-   * @throws ObjectNotFoundException when user attempts to acces not found event
    */
-  List<EventReminder> getEventReminders(long eventId, String username) throws IllegalAccessException, ObjectNotFoundException;
+  List<EventReminder> getEventReminders(long eventId, long userIdentityId);
 
   /**
    * Updates the list of {@link EventReminder} associated to a user on a
@@ -45,12 +42,10 @@ public interface AgendaEventReminderService {
    * 
    * @param eventId {@link Event} technical identifier
    * @param reminders {@link List} of {@link EventReminder}
-   * @param username User updating his/her reminders on the event
-   * @throws IllegalAccessException when user attempts to acces non authorized
-   *           event
-   * @throws ObjectNotFoundException when user attempts to acces not found event
+   * @param userIdentityId User technical identifier ({@link Identity#getId()})
+   *          updating his/her reminders on the event
+   * @throws IllegalAccessException when user isn't an attendee of the event
    */
-  void updateEventReminders(long eventId, List<EventReminder> reminders, String username) throws IllegalAccessException,
-                                                                                          ObjectNotFoundException;
+  void saveEventReminders(long eventId, List<EventReminder> reminders, long userIdentityId) throws IllegalAccessException;
 
 }

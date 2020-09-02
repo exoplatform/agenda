@@ -16,6 +16,8 @@
 */
 package org.exoplatform.agenda.model;
 
+import java.time.ZonedDateTime;
+
 import org.exoplatform.agenda.constant.EventAvailability;
 import org.exoplatform.agenda.constant.EventStatus;
 
@@ -24,7 +26,7 @@ import lombok.*;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class Event {
+public class Event implements Cloneable {
 
   private long              id;
 
@@ -51,15 +53,17 @@ public class Event {
    * Configured Identifier of Remote Calendar identifier, for example: "google"
    * for Google Calendar and "office365" for Office 365 Calendar.
    */
-  private String            remoteProviderId;
+  private long              remoteProviderId;
 
   private long              calendarId;
 
   private long              creatorId;
 
-  private String            created;
+  private long              modifierId;
 
-  private String            updated;
+  private ZonedDateTime     created;
+
+  private ZonedDateTime     updated;
 
   private String            summary;
 
@@ -76,27 +80,9 @@ public class Event {
    */
   private String            color;
 
-  /**
-   * Start date of the event.
-   * <ul>
-   * <li>It's of type datetime converted to user timezone if not "all-day"
-   * event.(Timestamp representation using RFC-3339.)</li>
-   * <li>When it's an all-day event, the returned date is of format
-   * 'yyyy-mm-dd', for example: 2020-07-20.</li>
-   * </ul>
-   */
-  private String            start;
+  private ZonedDateTime     start;
 
-  /**
-   * End date of the event.
-   * <ul>
-   * <li>It's of type datetime converted to user timezone if not "all-day"
-   * event.(Timestamp representation using RFC-3339.)</li>
-   * <li>When it's an all-day event, the returned date is of format
-   * 'yyyy-mm-dd', for example: 2020-07-20.</li>
-   * </ul>
-   */
-  private String            end;
+  private ZonedDateTime     end;
 
   /**
    * Whether the event happens all-day or at dedicated period of a day
@@ -107,4 +93,37 @@ public class Event {
 
   private EventStatus       status;
 
+  /**
+   * Event parent recurrence details
+   */
+  private EventRecurrence   recurrence;
+
+  private EventOccurrence   occurrence;
+
+  private Permission        acl;
+
+  @Override
+  public Event clone() { // NOSONAR
+    return new Event(id,
+                     parentId,
+                     remoteId,
+                     remoteProviderId,
+                     calendarId,
+                     creatorId,
+                     modifierId,
+                     created,
+                     updated,
+                     summary,
+                     description,
+                     location,
+                     color,
+                     start,
+                     end,
+                     allDay,
+                     availability,
+                     status,
+                     recurrence == null ? null : recurrence.clone(),
+                     occurrence == null ? null : occurrence.clone(),
+                     acl == null ? null : acl.clone());
+  }
 }

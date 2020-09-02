@@ -46,7 +46,7 @@ public class AgendaCalendarStorage {
   }
 
   public int countCalendarsByOwners(Long... ownerIds) {
-    return this.calendarDAO.countCalendarsByOwners(ownerIds);
+    return this.calendarDAO.countCalendarsByOwnerIds(ownerIds);
   }
 
   public Calendar getCalendarById(long calendarId) {
