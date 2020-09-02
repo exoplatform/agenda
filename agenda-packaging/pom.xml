@@ -27,6 +27,11 @@
       <scope>provided</scope>
       <type>war</type>
     </dependency>
+    <dependency>
+      <groupId>ical4j</groupId>
+      <artifactId>ical4j</artifactId>
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
   <build>
     <finalName>agenda-addon</finalName>

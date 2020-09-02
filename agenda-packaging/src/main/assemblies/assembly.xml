@@ -22,6 +22,7 @@
       <outputDirectory>/</outputDirectory>
       <includes>
         <include>${project.groupId}:*:jar</include>
+        <include>ical4j:ical4j:jar</include>
       </includes>
       <scope>provided</scope>
       <outputFileNameMapping>${artifact.build.finalName}.jar</outputFileNameMapping>
