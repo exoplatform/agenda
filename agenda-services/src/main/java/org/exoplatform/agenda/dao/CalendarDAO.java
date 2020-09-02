@@ -16,8 +16,9 @@
 */
 package org.exoplatform.agenda.dao;
 
-import java.util.Date;
-import java.util.List;
+import java.util.*;
+
+import javax.persistence.TypedQuery;
 
 import org.exoplatform.agenda.entity.CalendarEntity;
 import org.exoplatform.commons.api.persistence.ExoTransactional;
@@ -54,13 +55,21 @@ public class CalendarDAO extends GenericDAOJPAImpl<CalendarEntity, Long> {
   }
 
   public List<Long> getCalendarIdsByOwnerIds(int offset, int limit, Long... ownerIds) {
-    // TODO
-    return null;
+    TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaCalendar.getCalendarIdsByOwnerIds",
+                                                                 Long.class);
+    query.setParameter("ownerIds", Arrays.asList(ownerIds));
+    List<Long> resultList = query.getResultList();
+    query.setFirstResult(offset);
+    query.setMaxResults(limit);
+    return resultList == null ? Collections.emptyList() : resultList;
   }
 
-  public int countCalendarsByOwners(Long... ownerIds) {
-    // TODO Auto-generated method stub
-    return 0;
+  public int countCalendarsByOwnerIds(Long... ownerIds) {
+    TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaCalendar.countCalendarsByOwnerIds",
+                                                                 Long.class);
+    query.setParameter("ownerIds", Arrays.asList(ownerIds));
+    Long count = query.getSingleResult();
+    return count == null ? 0 : count.intValue();
   }
 
   @Override

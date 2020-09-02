@@ -16,61 +16,591 @@
 */
 package org.exoplatform.agenda.service;
 
-import java.time.ZonedDateTime;
-import java.util.List;
+import java.time.*;
+import java.util.*;
+import java.util.stream.Collectors;
 
-import org.exoplatform.agenda.model.Event;
+import org.apache.commons.lang3.StringUtils;
+
+import org.exoplatform.agenda.constant.EventAvailability;
+import org.exoplatform.agenda.constant.EventStatus;
+import org.exoplatform.agenda.exception.AgendaException;
+import org.exoplatform.agenda.exception.AgendaExceptionType;
+import org.exoplatform.agenda.model.*;
+import org.exoplatform.agenda.model.Calendar;
+import org.exoplatform.agenda.storage.AgendaEventStorage;
+import org.exoplatform.agenda.util.AgendaDateUtils;
+import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.social.core.identity.model.Identity;
+import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
+import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
+import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.social.core.space.model.Space;
+import org.exoplatform.social.core.space.spi.SpaceService;
 
 public class AgendaEventServiceImpl implements AgendaEventService {
 
-  public AgendaEventServiceImpl() {
-    // TODO Auto-generated constructor stub
+  private AgendaCalendarService        agendaCalendarService;
+
+  private AgendaEventInvitationService agendaEventInvitationService;
+
+  private AgendaEventStorage           agendaEventStorage;
+
+  private IdentityManager              identityManager;
+
+  private SpaceService                 spaceService;
+
+  public AgendaEventServiceImpl(AgendaCalendarService agendaCalendarService,
+                                AgendaEventInvitationService agendaEventInvitationService,
+                                AgendaEventStorage agendaEventStorage,
+                                IdentityManager identityManager,
+                                SpaceService spaceService) {
+    this.agendaCalendarService = agendaCalendarService;
+    this.agendaEventInvitationService = agendaEventInvitationService;
+    this.agendaEventStorage = agendaEventStorage;
+    this.identityManager = identityManager;
+    this.spaceService = spaceService;
   }
 
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Event getEventById(long eventId, String username) throws IllegalAccessException {
+    Event event = agendaEventStorage.getEventById(eventId);
+    if (event == null) {
+      return null;
+    }
+    computeAcl(event, username);
+    if (event.getAcl() != null && event.getAcl().isCanEdit() || isEventAttendee(eventId, username)) {
+      TimeZone userTimezone = AgendaDateUtils.getUserTimezone(username);
+      adjustEventDatesForRead(event, userTimezone);
+      return event;
+    } else {
+      throw new IllegalAccessException("User " + username + "is not allowed to access event with id " + eventId);
+    }
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Event getEventById(long eventId) {
+    return agendaEventStorage.getEventById(eventId);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Event createEvent(Event event,
+                           List<EventAttendee> attendees,
+                           List<EventConference> conferences,
+                           List<EventAttachment> attachments,
+                           List<EventReminder> reminders,
+                           boolean sendInvitation,
+                           String username) throws IllegalAccessException, AgendaException {
+    if (StringUtils.isBlank(username)) {
+      throw new IllegalArgumentException("username is null");
+    }
+    if (event == null) {
+      throw new IllegalArgumentException("Event is null");
+    }
+    if (event.getId() > 0) {
+      throw new IllegalArgumentException("Event id must be null");
+    }
+    if (event.getStart() == null) {
+      throw new AgendaException(AgendaExceptionType.EVENT_START_DATE_MANDATORY);
+    }
+    if (event.getEnd() == null) {
+      throw new AgendaException(AgendaExceptionType.EVENT_END_DATE_MANDATORY);
+    }
+    if (event.getStart().isAfter(event.getEnd())) {
+      throw new AgendaException(AgendaExceptionType.EVENT_START_DATE_BEFORE_END_DATE);
+    }
+    if (event.getAvailability() == null) {
+      event.setAvailability(EventAvailability.DEFAULT);
+    }
+    if (event.getStatus() == null) {
+      event.setStatus(EventStatus.CONFIRMED);
+    }
+    EventRecurrence recurrence = event.getRecurrence();
+    if (recurrence != null) {
+      if (recurrence.getFrequency() == null) {
+        throw new AgendaException(AgendaExceptionType.EVENT_RECURRENCE_FREQUENCY_MANDATORY);
+      }
+      if (recurrence.getInterval() <= 0) {
+        throw new AgendaException(AgendaExceptionType.EVENT_RECURRENCE_INTERVAL_MANDATORY);
+      }
+    }
+
+    long calendarId = event.getCalendarId();
+    Calendar calendar = agendaCalendarService.getCalendarById(calendarId, username);
+    if (calendar == null) {
+      throw new AgendaException(AgendaExceptionType.CALENDAR_NOT_FOUND);
+    }
+    if (calendar.getAcl() == null || !calendar.getAcl().isCanEdit()) {
+      throw new IllegalAccessException("User '" + username + "' can't create an event in calendar " + calendar.getTitle());
+    }
+
+    Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+    if (userIdentity == null) {
+      throw new IllegalAccessException("User '" + username + "' doesn't exist");
+    }
+    long userIdentityId = Long.parseLong(userIdentity.getId());
+
+    EventOccurrence occurrence = event.getOccurrence();
+    if (occurrence != null && occurrence.getId() != null) {
+      recurrence = null;
+      event.setRecurrence(null);
+    }
+
+    adjustEventDatesForWrite(event);
+
+    Event eventToCreate = new Event(0,
+                                    event.getParentId(),
+                                    event.getRemoteId(),
+                                    event.getRemoteProviderId(),
+                                    calendarId,
+                                    userIdentityId,
+                                    userIdentityId,
+                                    ZonedDateTime.now(),
+                                    null,
+                                    event.getSummary(),
+                                    event.getDescription(),
+                                    event.getLocation(),
+                                    event.getColor(),
+                                    event.getStart(),
+                                    event.getEnd(),
+                                    event.isAllDay(),
+                                    event.getAvailability(),
+                                    event.getStatus(),
+                                    recurrence,
+                                    occurrence,
+                                    null);
+
+    Event createdEvent = agendaEventStorage.createEvent(eventToCreate, attachments, conferences, attendees, reminders);
+    if (sendInvitation && attendees != null) {
+      sendInvitations(createdEvent, attendees, userIdentityId);
+    }
+    return getEventById(createdEvent.getId(), username);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void updateEvent(Event event,
+                          List<EventAttendee> attendees,
+                          List<EventConference> conferences,
+                          List<EventAttachment> attachments,
+                          List<EventReminder> reminders,
+                          boolean sendInvitation,
+                          String username) throws AgendaException, IllegalAccessException {
+    if (StringUtils.isBlank(username)) {
+      throw new IllegalArgumentException("username is null");
+    }
+    if (event == null) {
+      throw new IllegalArgumentException("Event is null");
+    }
+    if (event.getId() <= 0) {
+      throw new IllegalArgumentException("Event id must not be null");
+    }
+    if (event.getStart() == null) {
+      throw new AgendaException(AgendaExceptionType.EVENT_START_DATE_MANDATORY);
+    }
+    if (event.getEnd() == null) {
+      throw new AgendaException(AgendaExceptionType.EVENT_END_DATE_MANDATORY);
+    }
+    if (event.getStart().isAfter(event.getEnd())) {
+      throw new AgendaException(AgendaExceptionType.EVENT_START_DATE_BEFORE_END_DATE);
+    }
+    if (event.getAvailability() == null) {
+      event.setAvailability(EventAvailability.DEFAULT);
+    }
+    if (event.getStatus() == null) {
+      event.setStatus(EventStatus.CONFIRMED);
+    }
+
+    Event storedEvent = getEventById(event.getId());
+
+    long calendarId = event.getCalendarId();
+    Calendar calendar = agendaCalendarService.getCalendarById(calendarId, username);
+    if (calendar == null) {
+      throw new AgendaException(AgendaExceptionType.CALENDAR_NOT_FOUND);
+    }
+    if (calendar.getAcl() == null || !calendar.getAcl().isCanEdit()) {
+      throw new IllegalAccessException("User '" + username + "' can't create an event in calendar " + calendar.getTitle());
+    }
+
+    Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+    if (userIdentity == null) {
+      throw new IllegalAccessException("User '" + username + "' doesn't exist");
+    }
+    long userIdentityId = Long.parseLong(userIdentity.getId());
+
+    EventRecurrence recurrence = event.getRecurrence();
+    EventOccurrence occurrence = event.getOccurrence();
+    if (occurrence != null && occurrence.getId() != null) {
+      recurrence = null;
+      event.setRecurrence(null);
+    }
+
+    adjustEventDatesForWrite(event);
+
+    Event eventToUpdate = new Event(event.getId(),
+                                    event.getParentId(),
+                                    event.getRemoteId(),
+                                    event.getRemoteProviderId(),
+                                    calendarId,
+                                    storedEvent.getCreatorId(),
+                                    userIdentityId,
+                                    storedEvent.getCreated(),
+                                    ZonedDateTime.now(),
+                                    event.getSummary(),
+                                    event.getDescription(),
+                                    event.getLocation(),
+                                    event.getColor(),
+                                    event.getStart(),
+                                    event.getEnd(),
+                                    event.isAllDay(),
+                                    event.getAvailability(),
+                                    event.getStatus(),
+                                    recurrence,
+                                    occurrence,
+                                    null);
+
+    agendaEventStorage.updateEvent(eventToUpdate, attachments, conferences, attendees, reminders);
+    if (sendInvitation && attendees != null) {
+      sendInvitations(eventToUpdate, attendees, userIdentityId);
+    }
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void deleteEventById(long eventId, String username) throws IllegalAccessException, ObjectNotFoundException {
+    if (StringUtils.isBlank(username)) {
+      throw new IllegalArgumentException("username is null");
+    }
+    if (eventId <= 0) {
+      throw new IllegalArgumentException("eventId must be positive");
+    }
+    Event event = agendaEventStorage.getEventById(eventId);
+    if (event == null) {
+      throw new ObjectNotFoundException("Event with id " + eventId + " is not found");
+    }
+    computeAcl(event, username);
+    if (event.getAcl() == null || !event.getAcl().isCanEdit()) {
+      throw new IllegalAccessException("User " + username + " hasnt enough privileges to delete event with id " + eventId);
+    }
+    agendaEventStorage.deleteEventById(eventId);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public List<Event> getEvents(ZonedDateTime start, ZonedDateTime end, String username) {
-    // TODO Auto-generated method stub
-    return null;
+    Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+    List<Long> calendarOwners = getCalendarOwnersOfUser(userIdentity);
+    return getEvents(start, end, userIdentity, calendarOwners.toArray(new Long[0]));
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public List<Event> getEventsByOwner(long ownerId,
                                       ZonedDateTime start,
                                       ZonedDateTime end,
                                       String username) throws IllegalAccessException {
-    // TODO Auto-generated method stub
-    return null;
+    Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+    if (Utils.canAccessCalendar(identityManager, spaceService, ownerId, username)) {
+      return getEvents(start, end, userIdentity, ownerId);
+    } else {
+      throw new IllegalAccessException("User '" + userIdentity.getId() + "' is not allowed to access calendar of identity '"
+          + ownerId + "'");
+    }
   }
 
   @Override
-  public Event getEventById(long eventId, String username) throws IllegalAccessException {
-    // TODO Auto-generated method stub
-    return null;
+  public List<EventAttachment> getEventAttachments(long eventId) {
+    return agendaEventStorage.getEventAttachments(eventId);
   }
 
   @Override
-  public Event getEventById(long eventId) {
-    // TODO Auto-generated method stub
-    return null;
+  public EventAttachment getEventAttachmentById(long attachmentId, String username) throws IllegalAccessException {
+    EventAttachment attachment = agendaEventStorage.getEventAttachmentById(attachmentId);
+    if (attachment == null) {
+      return null;
+    }
+    long eventId = attachment.getEventId();
+    Event event = agendaEventStorage.getEventById(eventId);
+    if (event == null) {
+      return null;
+    }
+    computeAcl(event, username);
+    if (event.getAcl() != null && event.getAcl().isCanEdit() || isEventAttendee(eventId, username)) {
+      return attachment;
+    } else {
+      throw new IllegalAccessException("User " + username + "is not allowed to access event with id " + eventId);
+    }
   }
 
   @Override
-  public void createEvent(Event event, String username) throws IllegalAccessException {
-    // TODO Auto-generated method stub
-
+  public String getEventAttachmentDownloadLink(long attachmentId, String username) throws IllegalAccessException {
+    EventAttachment eventAttachment = getEventAttachmentById(attachmentId, username);
+    if (eventAttachment == null) {
+      return null;
+    }
+    return agendaEventStorage.getEventAttachmentDownloadLink(attachmentId);
   }
 
   @Override
-  public void updateEvent(Event event, String username) {
-    // TODO Auto-generated method stub
-
+  public List<EventAttendee> getEventAttendees(long eventId) {
+    return agendaEventStorage.getEventAttendees(eventId);
   }
 
   @Override
-  public void deleteEventById(long eventId, String username) throws IllegalAccessException, ObjectNotFoundException {
-    // TODO Auto-generated method stub
+  public List<EventConference> getEventConferences(long eventId) {
+    return agendaEventStorage.getEventConferences(eventId);
+  }
 
+  @Override
+  public List<RemoteProvider> getRemoteProviders() {
+    return agendaEventStorage.getRemoteProviders();
+  }
+
+  @Override
+  public RemoteProvider saveRemoteProvider(RemoteProvider remoteProvider) {
+    return agendaEventStorage.saveRemoteProvider(remoteProvider);
+  }
+
+  private void sendInvitations(Event event, List<EventAttendee> attendees, long userIdentityId) {
+    for (EventAttendee eventAttendee : attendees) {
+      if (eventAttendee.getIdentityId() != userIdentityId) {
+        agendaEventInvitationService.sendInvitation(event, eventAttendee.getIdentityId());
+      }
+    }
+  }
+
+  private List<Event> getEvents(ZonedDateTime start, ZonedDateTime end, Identity userIdentity, Long... calendarOwners) {
+    // Retrieve events minus a day and plus a day to include all day events
+    // That could transit due to timezone of user. Then filter resulted events
+    // at the end to get only events that are between orginal start and end
+    // dates. Example: given:
+    // - an all day event of 2020-09-02 is stored in UTC in DB with information
+    // (start = 2020-09-02T00:00:00Z, end = 2020-09-02T23:59:59Z )
+    // - the user has a timezone +03:00
+    // - the search is made on events between 2020-09-02T00:00:00+03:00, end =
+    // 2020-09-02T02:00:00+03:00
+    // The event isn't retrieved with the query dates because in DB, the start
+    // and end dates are different, using user timezone (start =
+    // 2020-09-02T03:00:00+03:00, end = 2020-09-03T02:59:59+03:00 ). Thus the
+    // event will not be retrieved
+    ZonedDateTime startMinusADay = start.minusDays(1);
+    ZonedDateTime endPlusADay = end.plusDays(1);
+
+    List<Long> eventIds = this.agendaEventStorage.getEventIds(startMinusADay, endPlusADay, calendarOwners);
+    if (eventIds == null || eventIds.isEmpty()) {
+      return Collections.emptyList();
+    }
+    TimeZone userTimezone = AgendaDateUtils.getUserTimezone(userIdentity);
+
+    List<Event> events = eventIds.stream().map(this::getEventById).collect(Collectors.toList());
+    events.forEach(event -> adjustEventDatesForRead(event, userTimezone));
+    computeEventsAcl(userIdentity, events);
+
+    events = computeRecurrentEvents(events, startMinusADay, endPlusADay, userTimezone);
+
+    // filter events using original start and end dates
+    return filterEvents(events, start, end);
+  }
+
+  private List<Event> filterEvents(List<Event> events, ZonedDateTime start, ZonedDateTime end) {
+    return events.stream()
+                 .filter(event -> event.getStart().isBefore(end)
+                     && (event.getEnd() == null || event.getEnd().isAfter(start)))
+                 .collect(Collectors.toList());
+  }
+
+  private void adjustEventDatesForRead(Event event, TimeZone userTimezone) {
+    ZonedDateTime start = event.getStart();
+    ZonedDateTime end = event.getEnd();
+
+    ZoneId zoneId = userTimezone.toZoneId();
+    if (event.isAllDay()) {
+      start = start.toLocalDate().atStartOfDay(zoneId);
+      end = end.toLocalDate().atStartOfDay(zoneId).plusDays(1).minusSeconds(1);
+    } else {
+      start = start.withZoneSameInstant(zoneId);
+      end = end.withZoneSameInstant(zoneId);
+    }
+    event.setStart(start);
+    event.setEnd(end);
+
+    EventRecurrence recurrence = event.getRecurrence();
+    if (recurrence != null && recurrence.getUntil() != null) {
+      ZonedDateTime recurrenceUntil = recurrence.getUntil();
+      // end of until day in User TimeZone
+      recurrenceUntil = ZonedDateTime.now(zoneId)
+                                     .withYear(recurrenceUntil.getYear())
+                                     .withMonth(recurrenceUntil.getMonthValue())
+                                     .withDayOfMonth(recurrenceUntil.getDayOfMonth())
+                                     .toLocalDate()
+                                     .atStartOfDay(zoneId)
+                                     .plusDays(1)
+                                     .minusSeconds(1);
+      recurrence.setUntil(recurrenceUntil);
+    }
+  }
+
+  private void adjustEventDatesForWrite(Event event) {
+    ZonedDateTime start = event.getStart();
+    ZonedDateTime end = event.getEnd();
+
+    if (event.isAllDay()) {
+      start = start.toLocalDate().atStartOfDay(ZoneOffset.UTC);
+      end = end.toLocalDate().atStartOfDay(ZoneOffset.UTC).plusDays(1).minusSeconds(1);
+    } else {
+      start = start.withZoneSameInstant(ZoneOffset.UTC);
+      end = end.withZoneSameInstant(ZoneOffset.UTC);
+    }
+    event.setStart(start);
+    event.setEnd(end);
+
+    EventRecurrence recurrence = event.getRecurrence();
+    if (recurrence != null && recurrence.getUntil() != null) {
+      ZonedDateTime recurrenceUntil = recurrence.getUntil();
+      // end of until day in UTC
+      recurrenceUntil = ZonedDateTime.now(ZoneOffset.UTC)
+                                     .withYear(recurrenceUntil.getYear())
+                                     .withMonth(recurrenceUntil.getMonthValue())
+                                     .withDayOfMonth(recurrenceUntil.getDayOfMonth())
+                                     .toLocalDate()
+                                     .atStartOfDay(ZoneOffset.UTC)
+                                     .plusDays(1)
+                                     .minusSeconds(1);
+      recurrence.setUntil(recurrenceUntil);
+    }
+  }
+
+  private List<Long> getCalendarOwnersOfUser(Identity userIdentity) {
+    List<Long> calendarOwners = new ArrayList<>();
+    String userIdentityId = userIdentity.getId();
+    calendarOwners.add(Long.parseLong(userIdentityId));
+    try {
+      Utils.addUserSpacesIdentities(spaceService, identityManager, userIdentity.getRemoteId(), calendarOwners);
+    } catch (Exception e) {
+      throw new IllegalStateException("Error while retrieving spaces of user with id: " + userIdentityId, e);
+    }
+    return calendarOwners;
+  }
+
+  private void computeEventsAcl(Identity userIdentity, List<Event> events) {
+    long userIdentityId = Long.parseLong(userIdentity.getId());
+    Map<Long, Permission> calendarsPermission = new HashMap<>();
+    for (Event event : events) {
+      long creatorId = event.getCreatorId();
+      if (creatorId == userIdentityId) {
+        event.setAcl(new Permission(true));
+      } else {
+        String username = userIdentity.getRemoteId();
+
+        Permission calendarPermission = calendarsPermission.computeIfAbsent(event.getCalendarId(),
+                                                                            calendarId -> this.getUserPermission(calendarId,
+                                                                                                                 username));
+        event.setAcl(calendarPermission);
+      }
+    }
+  }
+
+  public Permission getUserPermission(Long calendarId, String username) {
+    Calendar calendar = agendaCalendarService.getCalendarById(calendarId);
+    long ownerId = calendar.getOwnerId();
+    boolean canEdit = Utils.canEditCalendar(identityManager, spaceService, ownerId, username);
+    return new Permission(canEdit);
+  }
+
+  private void computeAcl(Event event, String username) {
+    Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+    long userIdentityId = Long.parseLong(userIdentity.getId());
+    long creatorId = event.getCreatorId();
+    if (creatorId == userIdentityId) {
+      event.setAcl(new Permission(true));
+    } else {
+      event.setAcl(getUserPermission(event.getCalendarId(), username));
+    }
+  }
+
+  private List<Event> computeRecurrentEvents(List<Event> events, ZonedDateTime start, ZonedDateTime end, TimeZone userTimezone) {
+    List<Event> computedEvents = new ArrayList<>();
+    for (Event event : events) {
+      if (event.getRecurrence() == null) {
+        computedEvents.add(event);
+      } else {
+        List<Event> occurrences = Utils.getOccurrences(event, start.toLocalDate(), end.toLocalDate(), userTimezone);
+        occurrences = filterExceptionalEvents(event, occurrences, start, end);
+        if (!occurrences.isEmpty()) {
+          computedEvents.addAll(occurrences);
+        }
+      }
+    }
+    sortEvents(computedEvents);
+    return computedEvents;
+  }
+
+  private void sortEvents(List<Event> computedEvents) {
+    computedEvents.sort((event1, event2) -> event1.getStart().compareTo(event2.getStart()));
+  }
+
+  private List<Event> filterExceptionalEvents(Event recurrentEvent,
+                                              List<Event> occurrences,
+                                              ZonedDateTime start,
+                                              ZonedDateTime end) {
+    List<Long> exceptionalOccurenceEventIds = agendaEventStorage.getExceptionalOccurenceEventIds(recurrentEvent.getId(),
+                                                                                                 start,
+                                                                                                 end);
+    List<Event> exceptionalEvents = exceptionalOccurenceEventIds == null
+        || exceptionalOccurenceEventIds.isEmpty() ? Collections.emptyList()
+                                                  : exceptionalOccurenceEventIds.stream()
+                                                                                .map(this::getEventById)
+                                                                                .collect(Collectors.toList());
+    return occurrences.stream()
+                      .filter(occurrence -> exceptionalEvents.stream()
+                                                             .noneMatch(exceptionalOccurence -> occurrence.getOccurrence()
+                                                                                                          .getId()
+                                                                                                          .isEqual(exceptionalOccurence.getOccurrence()
+                                                                                                                                       .getId())))
+                      .collect(Collectors.toList());
+  }
+
+  private boolean isEventAttendee(long eventId, String username) {
+    Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+    long userIdentityId = Long.parseLong(userIdentity.getId());
+
+    List<EventAttendee> eventAttendees = getEventAttendees(eventId);
+    return eventAttendees != null
+        && eventAttendees.stream().anyMatch(eventAttendee -> {
+          if (userIdentityId == eventAttendee.getIdentityId()) {
+            return true;
+          } else {
+            Identity identity = identityManager.getIdentity(String.valueOf(eventAttendee.getIdentityId()));
+            if (StringUtils.equals(identity.getProviderId(), SpaceIdentityProvider.NAME)) {
+              if (spaceService.isSuperManager(username)) {
+                return true;
+              } else {
+                Space space = spaceService.getSpaceByPrettyName(identity.getRemoteId());
+                return spaceService.isMember(space, username);
+              }
+            } else {
+              return false;
+            }
+          }
+        });
   }
 
 }

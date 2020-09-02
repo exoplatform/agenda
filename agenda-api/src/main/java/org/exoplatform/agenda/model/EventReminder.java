@@ -16,6 +16,8 @@
 */
 package org.exoplatform.agenda.model;
 
+import java.time.ZonedDateTime;
+
 import lombok.*;
 
 @Data
@@ -23,16 +25,18 @@ import lombok.*;
 @NoArgsConstructor
 public class EventReminder {
 
-  private long   id;
+  private long          id;
 
-  private String type;
+  private long          receiverId;
 
-  private int    minutes;
+  private String        type;
+
+  private int           minutes;
 
   /**
    * Date and time converted to user timezone (Timestamp representation using
    * RFC-3339). This is the computed datetime to send reminder.
    */
-  private String datetime;
+  private ZonedDateTime datetime;
 
 }

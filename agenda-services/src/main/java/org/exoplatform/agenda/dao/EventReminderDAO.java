@@ -16,7 +16,11 @@
 */
 package org.exoplatform.agenda.dao;
 
+import java.util.Collections;
+import java.util.List;
+
 import javax.persistence.Query;
+import javax.persistence.TypedQuery;
 
 import org.exoplatform.agenda.entity.EventReminderEntity;
 import org.exoplatform.commons.api.persistence.ExoTransactional;
@@ -36,6 +40,25 @@ public class EventReminderDAO extends GenericDAOJPAImpl<EventReminderEntity, Lon
     Query deleteEventsQuery = getEntityManager().createNamedQuery("AgendaEventReminder.deleteEventReminders");
     deleteEventsQuery.setParameter("eventId", eventId);
     deleteEventsQuery.executeUpdate();
+  }
+
+  public List<EventReminderEntity> getEventReminders(long eventId, long userId) {
+    TypedQuery<EventReminderEntity> query =
+                                          getEntityManager().createNamedQuery("AgendaEventReminder.getEventRemindersByEventIdAndUserId",
+                                                                              EventReminderEntity.class);
+    query.setParameter("eventId", eventId);
+    query.setParameter("userId", userId);
+    List<EventReminderEntity> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList() : resultList;
+  }
+
+  public List<EventReminderEntity> getEventReminders(long eventId) {
+    TypedQuery<EventReminderEntity> query =
+                                          getEntityManager().createNamedQuery("AgendaEventReminder.getEventRemindersByEventId",
+                                                                              EventReminderEntity.class);
+    query.setParameter("eventId", eventId);
+    List<EventReminderEntity> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList() : resultList;
   }
 
 }
