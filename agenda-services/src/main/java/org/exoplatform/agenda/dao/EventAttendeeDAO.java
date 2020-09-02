@@ -16,7 +16,11 @@
 */
 package org.exoplatform.agenda.dao;
 
+import java.util.Collections;
+import java.util.List;
+
 import javax.persistence.Query;
+import javax.persistence.TypedQuery;
 
 import org.exoplatform.agenda.entity.EventAttendeeEntity;
 import org.exoplatform.commons.api.persistence.ExoTransactional;
@@ -36,6 +40,14 @@ public class EventAttendeeDAO extends GenericDAOJPAImpl<EventAttendeeEntity, Lon
     Query deleteEventsQuery = getEntityManager().createNamedQuery("AgendaEventAttendee.deleteEventAttendees");
     deleteEventsQuery.setParameter("eventId", eventId);
     deleteEventsQuery.executeUpdate();
+  }
+
+  public List<EventAttendeeEntity> getEventAttendees(long eventId) {
+    TypedQuery<EventAttendeeEntity> query = getEntityManager().createNamedQuery("AgendaEventAttendee.getEventAttendeesByEventId",
+                                                                                EventAttendeeEntity.class);
+    query.setParameter("eventId", eventId);
+    List<EventAttendeeEntity> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList() : resultList;
   }
 
 }

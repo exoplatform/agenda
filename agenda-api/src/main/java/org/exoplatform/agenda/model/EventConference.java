@@ -16,23 +16,36 @@
 */
 package org.exoplatform.agenda.model;
 
+import java.io.Serializable;
+
 import lombok.*;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class EventConference {
+public class EventConference implements Cloneable, Serializable {
 
-  private long   id;
+  private static final long serialVersionUID = -1220341038848536226L;
 
-  private String type;
+  private long              id;
 
-  private String uri;
+  /**
+   * Made transient to avoid returning this in REST Response
+   */
+  private transient long    eventId;
 
-  private String phone;
+  private String            type;
 
-  private String accessCode;
+  private String            uri;
 
-  private String description;
+  private String            phone;
 
+  private String            accessCode;
+
+  private String            description;
+
+  @Override
+  public EventConference clone() { // NOSONAR
+    return new EventConference(id, eventId, type, uri, phone, accessCode, description);
+  }
 }

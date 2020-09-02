@@ -23,10 +23,16 @@ import lombok.*;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class EventAttendee {
+public class EventAttendee implements Cloneable {
+
+  private long                  id;
 
   private long                  identityId;
 
   private EventAttendeeResponse response;
 
+  @Override
+  protected EventAttendee clone() { // NOSONAR
+    return new EventAttendee(id, identityId, response);
+  }
 }

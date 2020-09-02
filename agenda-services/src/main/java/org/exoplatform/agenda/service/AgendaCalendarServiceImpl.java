@@ -16,7 +16,8 @@
 */
 package org.exoplatform.agenda.service;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Collectors;
 
 import org.apache.commons.codec.binary.StringUtils;
@@ -24,8 +25,8 @@ import org.apache.commons.codec.binary.StringUtils;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.Permission;
 import org.exoplatform.agenda.storage.AgendaCalendarStorage;
+import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
-import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.identity.model.Identity;
@@ -67,7 +68,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     }
     List<Long> identityIds = new ArrayList<>();
     identityIds.add(Long.parseLong(identity.getId()));
-    addUserSpacesIdentities(username, identityIds);
+    Utils.addUserSpacesIdentities(spaceService, identityManager, username, identityIds);
     Long[] ownerIds = identityIds.toArray(new Long[0]);
     List<Long> calendarsIds = this.agendaCalendarStorage.getCalendarIdsByOwnerIds(offset, limit, ownerIds);
     return calendarsIds.stream().map(calendarId -> {
@@ -95,7 +96,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     }
     List<Long> identityIds = new ArrayList<>();
     identityIds.add(Long.parseLong(identity.getId()));
-    addUserSpacesIdentities(username, identityIds);
+    Utils.addUserSpacesIdentities(spaceService, identityManager, username, identityIds);
     Long[] ownerIds = identityIds.toArray(new Long[0]);
     return this.agendaCalendarStorage.countCalendarsByOwners(ownerIds);
   }
@@ -118,7 +119,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     if (userIdentity == null) {
       throw new IllegalStateException("User with name " + username + " is not found");
     }
-    checkAclByCalendarOwner(ownerId, username, true);
+    Utils.checkAclByCalendarOwner(identityManager, spaceService, ownerId, username, true);
     List<Long> calendarsIds = this.agendaCalendarStorage.getCalendarIdsByOwnerIds(offset, limit, ownerId);
     return calendarsIds.stream().map(calendarId -> {
       try {
@@ -146,7 +147,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     if (userIdentity == null) {
       throw new IllegalStateException("User with name " + username + " is not found");
     }
-    checkAclByCalendarOwner(ownerId, username, true);
+    Utils.checkAclByCalendarOwner(identityManager, spaceService, ownerId, username, true);
     return this.agendaCalendarStorage.countCalendarsByOwners(ownerId);
   }
 
@@ -169,7 +170,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     if (calendar == null) {
       return null;
     }
-    boolean canEditCalendar = checkAclByCalendarOwner(calendar.getOwnerId(), username, true);
+    boolean canEditCalendar = Utils.checkAclByCalendarOwner(identityManager, spaceService, calendar.getOwnerId(), username, true);
     calendar.setAcl(new Permission(canEditCalendar));
     fillCalendarTitleByOwnerName(calendar);
     return calendar;
@@ -215,7 +216,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
       }
       calendar.setOwnerId(Long.parseLong(userIdentity.getId()));
     } else {
-      checkAclByCalendarOwner(calendar.getOwnerId(), username, false);
+      Utils.checkAclByCalendarOwner(identityManager, spaceService, calendar.getOwnerId(), username, false);
     }
 
     // User had created the calendar manually
@@ -271,7 +272,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     // Refill readonly fields from Database to avoid letting users modifying
     // data using UI or REST calls
     refillReadOnlyFields(calendar);
-    checkAclByCalendarOwner(calendar.getOwnerId(), username, false);
+    Utils.checkAclByCalendarOwner(identityManager, spaceService, calendar.getOwnerId(), username, false);
     agendaCalendarStorage.updateCalendar(calendar);
   }
 
@@ -308,7 +309,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     if (calendar.isSystem()) {
       throw new IllegalStateException("Calendar with id " + calendarId + " is a system calendar, thus it couldn't be deleted");
     }
-    checkAclByCalendarOwner(calendar.getOwnerId(), username, false);
+    Utils.checkAclByCalendarOwner(identityManager, spaceService, calendar.getOwnerId(), username, false);
     deleteCalendarById(calendarId);
   }
 
@@ -326,63 +327,6 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     }
 
     agendaCalendarStorage.deleteCalendarById(calendarId);
-  }
-
-  /**
-   * @param calendarOwnerId calendar owner {@link Identity} technical identifier
-   * @param username name of user accessing calendar data
-   * @param readonly whether the access is to read or to write
-   * @return true if user can modify calendar, else return false
-   * @throws IllegalAccessException when the user ACL fails
-   */
-  private boolean checkAclByCalendarOwner(long calendarOwnerId, String username, boolean readonly) throws IllegalAccessException {
-    Identity requestedOwner = identityManager.getIdentity(String.valueOf(calendarOwnerId));
-    if (requestedOwner == null) {
-      throw new IllegalStateException("Calendar owner with id " + calendarOwnerId + " wasn't found");
-    }
-
-    if (StringUtils.equals(OrganizationIdentityProvider.NAME, requestedOwner.getProviderId())) {
-      if (!StringUtils.equals(requestedOwner.getRemoteId(), username)) {
-        throw new IllegalAccessException("User " + username + " is not allowed to retrieve calendar data of user "
-            + requestedOwner.getRemoteId());
-      }
-      return true;
-    } else if (StringUtils.equals(SpaceIdentityProvider.NAME, requestedOwner.getProviderId())) {
-      if (spaceService.isSuperManager(username)) {
-        return true;
-      } else {
-        Space space = spaceService.getSpaceByPrettyName(requestedOwner.getRemoteId());
-        if (!spaceService.isMember(space, username)) {
-          throw new IllegalAccessException("User " + username + " is not allowed to retrieve calendar data of space "
-              + requestedOwner.getRemoteId());
-        }
-        boolean isManager = spaceService.isManager(space, username);
-        if (!readonly && !isManager) {
-          throw new IllegalAccessException("User " + username + " is not allowed to write calendar data of space "
-              + space.getDisplayName());
-        }
-        return isManager;
-      }
-    } else {
-      throw new IllegalStateException("Identity with provider type '" + requestedOwner.getProviderId()
-          + "' is not managed in calendar owner field");
-    }
-  }
-
-  private void addUserSpacesIdentities(String username, List<Long> identityIds) throws Exception {
-    ListAccess<Space> userSpaces = spaceService.getMemberSpaces(username);
-    int spacesSize = userSpaces.getSize();
-    int offsetToFetch = 0;
-    int limitToFetch = spacesSize > 20 ? 20 : spacesSize;
-    while (limitToFetch > 0) {
-      Space[] spaces = userSpaces.load(offsetToFetch, limitToFetch);
-      Arrays.stream(spaces).forEach(space -> {
-        Identity spaceIdentity = identityManager.getOrCreateIdentity(SpaceIdentityProvider.NAME, space.getPrettyName());
-        identityIds.add(Long.parseLong(spaceIdentity.getId()));
-      });
-      offsetToFetch += limitToFetch;
-      limitToFetch = (spacesSize - offsetToFetch) > 20 ? 20 : (spacesSize - offsetToFetch);
-    }
   }
 
   private void refillReadOnlyFields(Calendar calendar) throws ObjectNotFoundException {

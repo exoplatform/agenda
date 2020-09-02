@@ -27,8 +27,10 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
 @ExoEntity
 @Table(name = "EXO_AGENDA_REMINDER")
 @NamedQueries({
-  @NamedQuery(name = "AgendaEventReminder.deleteCalendarReminders", query = "DELETE FROM AgendaEventReminder a WHERE a.event.id IN (SELECT evt.id FROM AgendaEvent evt WHERE evt.calendar.id = :calendarId)"),
-  @NamedQuery(name = "AgendaEventReminder.deleteEventReminders", query = "DELETE FROM AgendaEventReminder a WHERE a.event.id = :eventId"),
+    @NamedQuery(name = "AgendaEventReminder.deleteCalendarReminders", query = "DELETE FROM AgendaEventReminder a WHERE a.event.id IN (SELECT evt.id FROM AgendaEvent evt WHERE evt.calendar.id = :calendarId)"),
+    @NamedQuery(name = "AgendaEventReminder.deleteEventReminders", query = "DELETE FROM AgendaEventReminder a WHERE a.event.id = :eventId"),
+    @NamedQuery(name = "AgendaEventReminder.getEventRemindersByEventIdAndUserId", query = "SELECT a FROM AgendaEventReminder a WHERE a.event.id = :eventId AND a.receiverId = :userId"),
+    @NamedQuery(name = "AgendaEventReminder.getEventRemindersByEventId", query = "SELECT a FROM AgendaEventReminder a WHERE a.event.id = :eventId"),
 })
 public class EventReminderEntity implements Serializable {
 
@@ -47,7 +49,7 @@ public class EventReminderEntity implements Serializable {
   @Column(name = "RECEIVER_ID", nullable = false)
   private long              receiverId;
 
-  @Column(name = "TYPE", nullable = false)
+  @Column(name = "TYPE")
   private String            type;
 
   @Column(name = "MINUTES", nullable = false)

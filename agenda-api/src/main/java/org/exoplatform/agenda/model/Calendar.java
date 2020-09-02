@@ -21,7 +21,7 @@ import lombok.*;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class Calendar {
+public class Calendar implements Cloneable {
 
   private long       id;
 
@@ -41,4 +41,7 @@ public class Calendar {
 
   private Permission acl;
 
+  public Calendar clone() { // NOSONAR
+    return new Calendar(id, ownerId, system, title, description, created, updated, color, acl);
+  }
 }

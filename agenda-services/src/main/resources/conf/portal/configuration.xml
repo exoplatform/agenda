@@ -41,6 +41,20 @@
   </component>
 
   <component>
+    <key>org.exoplatform.agenda.storage.AgendaCalendarStorage</key>
+    <type>org.exoplatform.agenda.storage.cached.CachedAgendaCalendarStorage</type>
+  </component>
+
+  <component>
+    <type>org.exoplatform.agenda.storage.AgendaEventStorage</type>
+  </component>
+
+  <component>
+    <key>org.exoplatform.agenda.service.AgendaEventService</key>
+    <type>org.exoplatform.agenda.service.AgendaEventServiceImpl</type>
+  </component>
+
+  <component>
     <key>org.exoplatform.agenda.service.AgendaEventService</key>
     <type>org.exoplatform.agenda.service.AgendaEventServiceImpl</type>
   </component>
@@ -75,6 +89,22 @@
           <description>Change logs of Agenda RDBMS</description>
           <value>db/changelog/agenda-rdbms.db.changelog.xml</value>
         </values-param>
+      </init-params>
+    </component-plugin>
+  </external-component-plugins>
+
+  <external-component-plugins>
+    <target-component>org.exoplatform.commons.file.services.NameSpaceService</target-component>
+    <component-plugin>
+      <name>AgendaNameSpacePlugin</name>
+      <set-method>addNameSpacePlugin</set-method>
+      <type>org.exoplatform.commons.file.services.NameSpacePlugin</type>
+      <init-params>
+        <properties-param>
+          <name>fileNameSpace.params</name>
+          <property name="name" value="agenda" />
+          <property name="description" value="agenda events attachments" />
+        </properties-param>
       </init-params>
     </component-plugin>
   </external-component-plugins>

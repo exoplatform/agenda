@@ -16,10 +16,10 @@
 */
 package org.exoplatform.agenda.dao;
 
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
 import javax.persistence.Query;
+import javax.persistence.TypedQuery;
 
 import org.exoplatform.agenda.entity.EventEntity;
 import org.exoplatform.commons.api.persistence.ExoTransactional;
@@ -77,6 +77,26 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     executeDeleteCalendarEventsQuery(calendarId);
   }
 
+  public EventEntity deleteEvent(long eventId) {
+    EventEntity eventEntity = find(eventId);
+    if (eventEntity == null) {
+      return null;
+    }
+
+    this.eventConferenceDAO.deleteEventConferences(eventId);
+    this.eventAttendeeDAO.deleteEventAttendees(eventId);
+    this.eventAttachmentDAO.deleteEventAttachments(eventId);
+    this.eventReminderDAO.deleteEventReminders(eventId);
+
+    if (eventEntity.getRecurrence() != null) {
+      this.eventRecurrenceDAO.delete(eventEntity.getRecurrence());
+    }
+
+    delete(eventEntity);
+
+    return eventEntity;
+  }
+
   @Override
   @ExoTransactional
   public EventEntity create(EventEntity entity) {
@@ -112,4 +132,23 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     deleteEventsQuery.setParameter("calendarId", calendarId);
     deleteEventsQuery.executeUpdate();
   }
+
+  public List<Long> getEventIdsByPeriod(Date startDate, Date endDate, Long... ownerIds) {
+    TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaEvent.getEventIdsByPeriodAndOwnerIds", Long.class);
+    query.setParameter("start", startDate);
+    query.setParameter("end", endDate);
+    query.setParameter("ownerIds", Arrays.asList(ownerIds));
+    List<Long> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList() : resultList;
+  }
+
+  public List<Long> getExceptionalOccurenceEventIds(long parentRecurrentEvent, Date startDate, Date endDate) {
+    TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaEvent.getExceptionalOccurenceEventIds", Long.class);
+    query.setParameter("parentEventId", parentRecurrentEvent);
+    query.setParameter("start", startDate);
+    query.setParameter("end", endDate);
+    List<Long> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList() : resultList;
+  }
+
 }
