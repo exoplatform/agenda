@@ -28,6 +28,7 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
 @NamedQueries({
     @NamedQuery(name = "AgendaEventAttachment.deleteCalendarAttachments", query = "DELETE FROM AgendaEventAttachment a WHERE a.event.id IN (SELECT evt.id FROM AgendaEvent evt WHERE evt.calendar.id = :calendarId)"),
     @NamedQuery(name = "AgendaEventAttachment.deleteEventAttachments", query = "DELETE FROM AgendaEventAttachment a WHERE a.event.id = :eventId"),
+    @NamedQuery(name = "AgendaEventAttachment.getEventAttachmentsByEventId", query = "SELECT a FROM AgendaEventAttachment a WHERE a.event.id = :eventId"),
 })
 public class EventAttachmentEntity implements Serializable {
 

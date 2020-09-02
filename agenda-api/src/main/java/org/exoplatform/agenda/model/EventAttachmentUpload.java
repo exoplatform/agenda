@@ -19,14 +19,27 @@ package org.exoplatform.agenda.model;
 import lombok.*;
 
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
-public class Permission implements Cloneable {
+@EqualsAndHashCode(callSuper = false)
+public class EventAttachmentUpload extends EventAttachment {
 
-  private boolean canEdit;
+  /**
+   * Generated ID used to upload a file when creating or editing an event where
+   * a new attachment is added. This ID will be used to retrieve File from
+   * UploadService.
+   */
+  private String uploadId;
+
+  public EventAttachmentUpload(long id,
+                               long fileId,
+                               long eventId,
+                               String uploadId) {
+    super(id, fileId, eventId);
+    this.uploadId = uploadId;
+  }
 
   @Override
-  public Permission clone() { // NOSONAR
-    return new Permission(canEdit);
+  protected EventAttachmentUpload clone() { // NOSONAR
+    return new EventAttachmentUpload(getId(), getFileId(), getEventId(), getUploadId());
   }
 }

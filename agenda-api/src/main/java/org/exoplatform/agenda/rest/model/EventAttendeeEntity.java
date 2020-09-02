@@ -16,6 +16,8 @@
 */
 package org.exoplatform.agenda.rest.model;
 
+import java.io.Serializable;
+
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.social.rest.entity.IdentityEntity;
 
@@ -24,7 +26,11 @@ import lombok.*;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class EventAttendeeEntity {
+public class EventAttendeeEntity implements Serializable {
+
+  private static final long     serialVersionUID = 4729314827604510766L;
+
+  private long                  id;
 
   private IdentityEntity        identity;
 

@@ -16,9 +16,14 @@
 */
 package org.exoplatform.agenda.service;
 
+import java.util.List;
+
 import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
+import org.exoplatform.agenda.constant.EventStatus;
+import org.exoplatform.agenda.model.Event;
+import org.exoplatform.agenda.model.EventAttendee;
 import org.exoplatform.agenda.plugin.AgendaExternalUserIdentityProvider;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.social.core.identity.model.Identity;
@@ -116,5 +121,41 @@ public class AgendaEventInvitationServiceImpl implements AgendaEventInvitationSe
   public void sendEventResponse(String identityId, long eventId, EventAttendeeResponse response) throws ObjectNotFoundException,
                                                                                                  IllegalAccessException {
     // TODO Auto-generated method stub
+  }
+
+  @Override
+  public void invite(long eventId, long identityId, EventAttendeeResponse response, boolean sendInvitation) {
+    // TODO Auto-generated method stub
+
+  }
+
+  @Override
+  public void saveEventAttendees(Event event, List<EventAttendee> attendees, long creatorIdentityId, boolean sendInvitations) {
+    if (attendees != null) {
+      for (EventAttendee eventAttendee : attendees) {
+        long eventId = event.getId();
+        long identityId = eventAttendee.getIdentityId();
+        boolean isCreator = identityId != creatorIdentityId;
+        boolean sendInvitationToUser = sendInvitations && isCreator;
+
+        EventAttendeeResponse response = null;
+        if (isCreator) {
+          if (event.getStatus() == EventStatus.CONFIRMED) {
+            response = EventAttendeeResponse.ACCEPTED;
+          } else if (event.getStatus() == EventStatus.TENTATIVE) {
+            response = EventAttendeeResponse.TENTATIVE;
+          } else if (event.getStatus() == EventStatus.CANCELED) {
+            response = EventAttendeeResponse.DECLINED;
+          }
+        }
+        invite(eventId, identityId, response, sendInvitationToUser);
+      }
+    }
+  }
+
+  @Override
+  public void sendInvitation(Event event, long receiverId) {
+    // TODO Auto-generated method stub
+    
   }
 }
