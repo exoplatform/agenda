@@ -30,7 +30,7 @@ export function getWeekNumber(date) {
 }
 
 export function getFormattedFileSize(fileSize) {
-  let measure = 'bytes';
+  let measure;
   const BYTES_IN_KB = 1024;
   const BYTES_IN_GB = 1073741824;
   const MB_IN_GB = 10;
@@ -41,16 +41,30 @@ export function getFormattedFileSize(fileSize) {
   const minKb = 10; // equals 0.01 KB, which is the smallest number with precision `formattedSizePrecision`
   let size = fileSize;
   if (fileSize < minKb) {
-    measure = ' bytes';
+    measure = ' bytes'; // TODO I18N
   } else if (fileSize < minMb) {
     size = fileSize / BYTES_IN_KB;
-    measure = ' kilo';
+    measure = ' kilo'; // TODO I18N
   } else if (fileSize < minGb) {
     size = fileSize / BYTES_IN_MB;
-    measure = ' mega';
+    measure = ' mega'; // TODO I18N
   } else {
     size = fileSize / BYTES_IN_GB;
-    measure = ' giga';
+    measure = ' giga'; // TODO I18N
   }
   return (+size).toFixed(formattedSizePrecision).concat(measure);
+}
+
+export function toRFC3339(date) {
+  return `${date.getFullYear()  }-${ 
+    pad(date.getMonth() + 1)  }-${ 
+    pad(date.getDate())  }T${ 
+    pad(date.getHours())  }:${ 
+    pad(date.getMinutes())  }:${ 
+    pad(date.getSeconds())  
+  }${getUserTimezone()}`;
+}
+
+function pad(n) {
+  return n < 10 && `0${n}` || n;
 }

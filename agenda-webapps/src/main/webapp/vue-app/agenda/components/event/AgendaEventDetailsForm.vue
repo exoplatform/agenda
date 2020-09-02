@@ -20,7 +20,7 @@
             <input ref="locationEvent" :placeholder="$t('agenda.eventLocation')" type="text" name="locationEvent" class="ignore-vuetify-classes my-3 location-event-input" required />
           </div>
         </div>
-        <div class="row ">
+        <div class="row">
           <div>
             <v-list>
               <v-icon size="18" class="mr-11">
@@ -153,7 +153,6 @@ export default {
       enableInvitation: false,
     };
   },
-
   computed: {
     suggesterLabels() {
       return {
