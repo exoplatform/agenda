@@ -3,14 +3,12 @@
     <v-main class="pa-5">
       <agenda-header
         :calendar-type="calendarType"
-        class="mb-5"
-      />
+        class="mb-5" />
       <agenda-body
         :events="events"
         :period-title="periodTitle"
         :calendar-type="calendarType"
-        :weekdays="weekdays"
-      />
+        :weekdays="weekdays" />
       <agenda-event-dialog ref="eventFormDialog" />
     </v-main>
   </v-app>
@@ -58,7 +56,6 @@ export default {
     });
     this.$root.$on('agenda-change-period-type', calendarType => this.calendarType = calendarType);
     this.$root.$on('agenda-search', searchTerm => this.searchTerm = searchTerm);
-    this.$root.$on('agenda-open-event-form', event => this.$refs.eventFormDialog.open(event));
   },
   mounted() {
     document.dispatchEvent(new CustomEvent('hideTopBarLoading'));

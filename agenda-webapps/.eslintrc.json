@@ -79,7 +79,28 @@
         "valid-jsdoc": ["error"],
         "yoda": ["error", "never", { "exceptRange": true }],
         "vue/html-self-closing": "off",
-        "vue/max-attributes-per-line": "off"
+        "vue/max-attributes-per-line": ["warn", {
+          "singleline": 2,
+          "multiline": {
+            "max": 1,
+            "allowFirstLine": false
+          }
+        }],
+        "vue/singleline-html-element-content-newline": ["off"],
+        "vue/html-self-closing": ["warn", {
+          "html": {
+            "void": "never",
+            "normal": "never",
+            "component": "always"
+          },
+          "svg": "never",
+          "math": "never"
+        }],
+        "vue/html-closing-bracket-newline": ["warn", {
+          "singleline": "never",
+          "multiline": "never"
+        }],
+        "vue/component-name-in-template-casing": ["error", "kebab-case"]
     },
     "overrides": [{
         "files": [ "src/test/**/*" ],

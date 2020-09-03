@@ -16,14 +16,18 @@
 */
 package org.exoplatform.agenda.model;
 
+import java.io.Serializable;
+
 import lombok.*;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class Permission implements Cloneable {
+public class Permission implements Cloneable, Serializable {
 
-  private boolean canEdit;
+  private static final long serialVersionUID = -505066459639689152L;
+
+  private boolean           canEdit;
 
   @Override
   public Permission clone() { // NOSONAR

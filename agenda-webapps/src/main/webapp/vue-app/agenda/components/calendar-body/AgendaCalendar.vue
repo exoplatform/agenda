@@ -12,8 +12,7 @@
       @click:event="showEvent"
       @click:more="viewDay"
       @click:date="viewDay"
-      @change="retrievePeriodEvents"
-    />
+      @change="retrievePeriodEvents" />
     <agenda-event-preview-dialog />
   </div>
 </template>
