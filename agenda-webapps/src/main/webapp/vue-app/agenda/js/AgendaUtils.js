@@ -64,6 +64,9 @@ export function toVuetifyDate(date) {
 }
 
 export function toRFC3339(date) {
+  if (typeof date === 'number') {
+    date = new Date(date);
+  }
   return `${date.getFullYear()  }-${ 
     pad(date.getMonth() + 1)  }-${ 
     pad(date.getDate())  }T${ 

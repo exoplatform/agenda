@@ -38,6 +38,12 @@
   <component>
     <key>org.exoplatform.agenda.service.AgendaCalendarService</key>
     <type>org.exoplatform.agenda.service.AgendaCalendarServiceImpl</type>
+    <init-params>
+      <value-param>
+        <name>defaultColor</name>
+        <value>${exo.agenda.calendar.defaultColor:#2196F3}</value>
+      </value-param>
+    </init-params>
   </component>
 
   <component>
