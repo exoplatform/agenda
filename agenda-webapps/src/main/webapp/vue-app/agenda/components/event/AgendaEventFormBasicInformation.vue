@@ -139,7 +139,7 @@
           <exo-identity-suggester
             ref="autoFocusInput3"
             v-model="invitedMembers"
-            :labels="suggesterLabels"
+            :labels="participantSuggesterLabels"
             :disabled="savingUser"
             name="inviteMembers"
             type-of-relations="user_to_invite"
