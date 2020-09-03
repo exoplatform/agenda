@@ -4,7 +4,14 @@
       <a class="text-subtitle-1 font-weight-regular attach-file-link" @click="uploadFile">{{ $t('agenda.attachFile') }}</a>
     </div>
     <div class="fileHidden" style="display:none">
-      <input ref="uploadInput" class="file" name="file" type="file" multiple="multiple" style="display:none" @change="handleFileUpload($refs.uploadInput.files)">
+      <input
+        ref="uploadInput"
+        class="file"
+        name="file"
+        type="file"
+        multiple="multiple"
+        style="display:none"
+        @change="handleFileUpload($refs.uploadInput.files)">
     </div>
   </div>
 </template>

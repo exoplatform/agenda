@@ -3,11 +3,28 @@
     <div class="row">
       <div>
         <label class="float-left mt-5 mr-3 text-subtitle-1">Create</label>
-        <input ref="eventTitle" :placeholder="$t('agenda.eventTitle')" type="text" name="title" class="ignore-vuetify-classes my-3" required />
+        <input
+          id="eventTitle"
+          ref="eventTitle"
+          v-model="event.summary"
+          :placeholder="$t('agenda.eventTitle')"
+          type="text"
+          name="title"
+          class="ignore-vuetify-classes my-3"
+          required>
       </div>
       <div>
         <span class="mt-5  ml-4 mr-4 text-subtitle-1 font-weight-bold">in</span>
-        <input ref="selectInput2" type="text" name="name" class="ignore-vuetify-classes my-3" />
+        <exo-identity-suggester
+          id="calendarOwnerAutocomplete"
+          ref="calendarOwnerId"
+          v-model="event.calendar.owner.id"
+          :labels="calendarSuggesterLabels"
+          :include-users="false"
+          name="calendarOwnerAutocomplete"
+          class="user-suggester"
+          include-spaces
+          multiple />
       </div>
     </div>
     <div class="row">
@@ -17,7 +34,15 @@
             <v-icon size="18" class="mr-11">
               fas fa-map-marker-alt
             </v-icon>
-            <input ref="locationEvent" :placeholder="$t('agenda.eventLocation')" type="text" name="locationEvent" class="ignore-vuetify-classes my-3 location-event-input" required />
+            <input
+              id="eventLocation"
+              ref="eventLocation"
+              v-model="event.location"
+              :placeholder="$t('agenda.eventLocation')"
+              type="text"
+              name="locationEvent"
+              class="ignore-vuetify-classes my-3 location-event-input"
+              required>
           </div>
         </div>
         <div class="row">
@@ -28,7 +53,11 @@
               </v-icon>
               <v-list-item v-for="notifs in notifications" :key="notifs">
                 <label class="float-left ml-4 mr-4">{{ $t('agenda.label.notifyUsers') }}</label>
-                <input ref="timeNotification" type="text" name="timeNotification" class="ignore-vuetify-classes my-3 time-notification" />
+                <input
+                  ref="timeNotification"
+                  type="text"
+                  name="timeNotification"
+                  class="ignore-vuetify-classes my-3 time-notification">
                 <select class="width-auto my-auto ml-4 pr-2 subtitle-1 ignore-vuetify-classes d-none d-sm-inline notification-date-option">
                   <option>{{ $t('agenda.option.minutes') }}</option>
                   <option>{{ $t('agenda.option.hours') }}</option>
@@ -40,8 +69,7 @@
                   color="grey"
                   icon
                   dark
-                  @click="removeNotifUser(notifs.id)"
-                >
+                  @click="removeNotifUser(notifs.id)">
                   <v-icon>
                     mdi-close
                   </v-icon>
@@ -68,15 +96,16 @@
             fas fa-file-alt
           </v-icon>
           <textarea
-            ref="autoFocusInput1"
+            id="eventDescription"
+            ref="eventDescription"
+            v-model="event.description"
             :placeholder="$t('agenda.description')"
             type="text"
             name="description"
             rows="20"
             maxlength="2000"
             noresize
-            class="ignore-vuetify-classes my-3 description-event-textarea"
-          >
+            class="ignore-vuetify-classes my-3 description-event-textarea">
           </textarea>
         </div>
 
@@ -90,8 +119,7 @@
               color="grey"
               icon
               dark
-              @click="removeFile(attachedFile.uploadId)"
-            >
+              @click="removeFile(attachedFile.uploadId)">
               <v-icon>
                 mdi-close
               </v-icon>
@@ -117,9 +145,7 @@
             type-of-relations="user_to_invite"
             class="ma-4 user-suggester"
             include-users
-            include-spaces
-            multiple
-          />
+            include-spaces />
         </div>
         <div class="row">
           <label class="switch-label-text mt-1 text-subtitle-1 font-weight-bold">{{ $t('agenda.modifyEventPermission') }}</label>
@@ -142,6 +168,12 @@
 
 <script>
 export default {
+  props: {
+    event: {
+      type: Object,
+      default: () => ({}),
+    },
+  },
   data() {
     return {
       files:[],
@@ -154,12 +186,18 @@ export default {
     };
   },
   computed: {
-    suggesterLabels() {
+    participantSuggesterLabels() {
       return {
         placeholder: this.$t('agenda.addParticipants'),
-        noDataLabel: this.$t('peopleList.label.noDataLabel'),
+        noDataLabel: this.$t('agenda.noDataLabel'),
       };
-    }
+    },
+    calendarSuggesterLabels() {
+      return {
+        placeholder: this.$t('agenda.chooseCalendar'),
+        noDataLabel: this.$t('agenda.noDataLabel'),
+      };
+    },
   },
   watch: {
     savingUser() {

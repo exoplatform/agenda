@@ -4,8 +4,7 @@
       outlined
       class="btn mr-4"
       color="grey darken-2"
-      @click="setToday"
-    >
+      @click="setToday">
       {{ $t('agenda.toDay') }}
     </v-btn>
     <v-row align="center" justify="center">
@@ -14,8 +13,7 @@
         text
         small
         color="grey darken-2"
-        @click="prevDate"
-      >
+        @click="prevDate">
         <v-icon small>
           mdi-menu-left
         </v-icon>
@@ -28,8 +26,7 @@
         text
         small
         color="grey darken-2"
-        @click="nextDate"
-      >
+        @click="nextDate">
         <v-icon small>
           mdi-menu-right
         </v-icon>

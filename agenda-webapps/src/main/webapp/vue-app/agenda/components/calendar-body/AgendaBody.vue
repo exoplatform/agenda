@@ -1,7 +1,10 @@
 <template>
   <v-flex>
     <agenda-toolbar :period-title="periodTitle" />
-    <agenda-calendar :events="events" :calendar-type="calendarType" :weekdays="weekdays" />
+    <agenda-calendar
+      :events="events"
+      :calendar-type="calendarType"
+      :weekdays="weekdays" />
   </v-flex>
 </template>
 
