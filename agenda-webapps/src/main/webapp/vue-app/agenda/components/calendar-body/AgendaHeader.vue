@@ -2,8 +2,7 @@
   <v-toolbar
     color="white"
     flat
-    dense
-  >
+    dense>
     <agenda-create-event-button class="mr-2" />
     <agenda-sync-event-button />
     <v-spacer />

@@ -16,6 +16,7 @@
 */
 package org.exoplatform.agenda.rest.model;
 
+import java.io.Serializable;
 import java.util.List;
 
 import lombok.*;
@@ -23,7 +24,9 @@ import lombok.*;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class CalendarList {
+public class CalendarList implements Serializable {
+
+  private static final long    serialVersionUID = -3532407964104047773L;
 
   private List<CalendarEntity> calendars;
 

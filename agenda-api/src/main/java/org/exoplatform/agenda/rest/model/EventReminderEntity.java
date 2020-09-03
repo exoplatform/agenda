@@ -16,25 +16,29 @@
 */
 package org.exoplatform.agenda.rest.model;
 
+import java.io.Serializable;
+
 import lombok.*;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class EventReminderEntity {
+public class EventReminderEntity implements Serializable {
 
-  private long   id;
+  private static final long serialVersionUID = 6943741617810854720L;
 
-  private long   receiverId;
+  private long              id;
 
-  private String type;
+  private long              receiverId;
 
-  private int    minutes;
+  private String            type;
+
+  private int               minutes;
 
   /**
    * Date and time converted to user timezone (Timestamp representation using
    * RFC-3339). This is the computed datetime to send reminder.
    */
-  private String datetime;
+  private String            datetime;
 
 }

@@ -6,6 +6,8 @@ import AgendaCreateEventButton from './components/top-toolbar/AgendaCreateEventB
 import SyncEventButton from './components/top-toolbar/AgendaSyncEventButton.vue';
 import AgendaEventDialog from './components/event/AgendaEventDialog.vue';
 import AgendaEventForm from './components/event/AgendaEventForm.vue';
+import AgendaEventFormBasicInformation from './components/event/AgendaEventFormBasicInformation.vue';
+import AgendaEventFormDates from './components/event/AgendaEventFormDates.vue';
 import AgendaToolbar from './components/calendar-body/AgendaToolbar.vue';
 import AgendaPreviewEventDialog from './components/calendar-body/AgendaPreviewEventDialog.vue';
 import AgendaSwitchView from './components/top-toolbar/AgendaSwitchView.vue';
@@ -13,7 +15,6 @@ import AgendaSearchEvent from './components/top-toolbar/AgendaSearchEvent.vue';
 import AgendaFilterButton from './components/top-toolbar/AgendaFilterButton.vue';
 import AgendaSettingsButton from './components/top-toolbar/AgendaSettingsButton.vue';
 import AgendaPullDownEvent from './components/top-toolbar/AgendaPullDownEvent.vue';
-import AgendaEventDetailsForm from './components/event/AgendaEventDetailsForm.vue';
 import AgendaFileAttachments from './components/event/AgendaFileAttachments.vue';
 
 const components = {
@@ -32,7 +33,8 @@ const components = {
   'agenda-filter-button': AgendaFilterButton,
   'agenda-settings-button': AgendaSettingsButton,
   'agenda-pulldown-event': AgendaPullDownEvent,
-  'agenda-event-details-form': AgendaEventDetailsForm,
+  'agenda-event-form-basic-information': AgendaEventFormBasicInformation,
+  'agenda-event-form-dates': AgendaEventFormDates,
   'agenda-file-attachments': AgendaFileAttachments
 };
 

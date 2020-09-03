@@ -3,16 +3,13 @@
     v-model="selectedOpen"
     :close-on-content-click="false"
     :activator="selectedElement"
-    offset-x
-  >
+    offset-x>
     <v-card
       color="grey lighten-4"
-      flat
-    >
+      flat>
       <v-toolbar
         :color="selectedEvent.color"
-        dark
-      >
+        dark>
         <v-btn icon>
           <v-icon>mdi-pencil</v-icon>
         </v-btn>
@@ -32,8 +29,7 @@
         <v-btn
           text
           color="secondary"
-          @click="selectedOpen = false"
-        >
+          @click="selectedOpen = false">
           Cancel
         </v-btn>
       </v-card-actions>

@@ -1,8 +1,7 @@
 <template>
   <v-btn
     class="btn btn-primary"
-    @click="openEventDialog"
-  >
+    @click="openNewEventForm">
     <v-icon dark left>
       mdi-plus
     </v-icon>
@@ -12,8 +11,8 @@
 <script>
 export default {
   methods:{
-    openEventDialog(){
-      this.$root.$emit('agenda-open-event-form');
+    openNewEventForm(){
+      this.$root.$emit('agenda-event-form', {});
     },
   }
 };

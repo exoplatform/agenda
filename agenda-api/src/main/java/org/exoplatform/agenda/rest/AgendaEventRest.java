@@ -81,11 +81,16 @@ public class AgendaEventRest implements ResourceContainer {
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(value = "Retrieves the list of events available for an owner of type user or space, identitifed by its identity technical identifier."
-      + " If no designated owner, all events available for authenticated user will be retrieved.", httpMethod = "GET", response = Response.class, produces = "application/json")
-  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-      @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-      @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
+  @ApiOperation(
+      value = "Retrieves the list of events available for an owner of type user or space, identitifed by its identity technical identifier."
+          + " If no designated owner, all events available for authenticated user will be retrieved.",
+      httpMethod = "GET", response = Response.class, produces = "application/json"
+  )
+  @ApiResponses(
+      value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+  )
   public Response list(@ApiParam(value = "Identity technical identifier", required = false) @PathParam("ownerId") long ownerId,
                        @ApiParam(value = "Start datetime using RFC-3339 representation including timezone", required = true) @QueryParam("start") String start,
                        @ApiParam(value = "End datetime using RFC-3339 representation including timezone", required = true) @QueryParam("end") String end) {
@@ -155,12 +160,19 @@ public class AgendaEventRest implements ResourceContainer {
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(value = "Retrieves an event identified by its technical identifier.", httpMethod = "GET", response = Response.class, produces = "application/json")
-  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-      @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-      @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-      @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
-  public Response getEventById(@ApiParam(value = "Event technical identifier", required = true) @PathParam("eventId") long eventId) {
+  @ApiOperation(
+      value = "Retrieves an event identified by its technical identifier.", httpMethod = "GET", response = Response.class,
+      produces = "application/json"
+  )
+  @ApiResponses(
+      value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+  )
+  public Response getEventById(@ApiParam(value = "Event technical identifier", required = true) @PathParam(
+    "eventId"
+  ) long eventId) {
     if (eventId <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
     }
@@ -192,17 +204,26 @@ public class AgendaEventRest implements ResourceContainer {
   @Consumes(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
   @ApiOperation(value = "Create a new event", httpMethod = "POST", response = Response.class, consumes = "application/json")
-  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
-      @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-      @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-      @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
+  @ApiResponses(
+      value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+  )
   public Response createEvent(@ApiParam(value = "Event object to create", required = true) EventEntity eventEntity) {
     if (eventEntity == null) {
       return Response.status(Status.BAD_REQUEST).entity("Event object is mandatory").build();
     }
+    if (eventEntity.getCalendar() == null || eventEntity.getCalendar().getOwner() == null
+        || eventEntity.getCalendar().getOwner().getId() == null) {
+      return Response.status(Status.BAD_REQUEST).entity("Event calendar object is mandatory").build();
+    }
 
     String currentUser = RestUtils.getCurrentUser();
     try {
+      long ownerId = 0;
+      agendaCalendarService.getOrCreateCalendarByOwnerId(ownerId);
+
       List<EventAttendeeEntity> attendeeEntities = eventEntity.getAttendees();
       List<EventAttendee> attendees = null;
       if (attendeeEntities != null && !attendeeEntities.isEmpty()) {
@@ -246,11 +267,13 @@ public class AgendaEventRest implements ResourceContainer {
   @Consumes(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
   @ApiOperation(value = "Update an existing event", httpMethod = "PUT", response = Response.class, consumes = "application/json")
-  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
-      @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object not found"),
-      @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-      @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-      @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
+  @ApiResponses(
+      value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object not found"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+  )
   public Response updateEvent(@ApiParam(value = "Event object to update", required = true) EventEntity eventEntity) {
     if (eventEntity == null) {
       return Response.status(Status.BAD_REQUEST).entity("Event object is mandatory").build();
@@ -300,12 +323,16 @@ public class AgendaEventRest implements ResourceContainer {
   @DELETE
   @RolesAllowed("users")
   @ApiOperation(value = "Delete an existing event", httpMethod = "DELETE", response = Response.class)
-  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
-      @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object not found"),
-      @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-      @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-      @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
-  public Response deleteEvent(@ApiParam(value = "Event technical identifier", required = true) @PathParam("eventId") long eventId) {
+  @ApiResponses(
+      value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object not found"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+  )
+  public Response deleteEvent(@ApiParam(value = "Event technical identifier", required = true) @PathParam(
+    "eventId"
+  ) long eventId) {
     if (eventId <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Event technical identifier must be positive").build();
     }
@@ -329,12 +356,19 @@ public class AgendaEventRest implements ResourceContainer {
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(value = "Retrieve preferred reminders for currently authenticated user for an event identified by its technical identifier.", httpMethod = "GET", response = Response.class, produces = "application/json")
-  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-      @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-      @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-      @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
-  public Response getEventRemindersById(@ApiParam(value = "Event technical identifier", required = true) @PathParam("eventId") long eventId) {
+  @ApiOperation(
+      value = "Retrieve preferred reminders for currently authenticated user for an event identified by its technical identifier.",
+      httpMethod = "GET", response = Response.class, produces = "application/json"
+  )
+  @ApiResponses(
+      value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+  )
+  public Response getEventRemindersById(@ApiParam(value = "Event technical identifier", required = true) @PathParam(
+    "eventId"
+  ) long eventId) {
     if (eventId <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
     }
@@ -356,13 +390,23 @@ public class AgendaEventRest implements ResourceContainer {
   @PUT
   @Consumes(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(value = "Update the list of preferred reminders for authenticated user on a selected event.", httpMethod = "PUT", response = Response.class, consumes = "application/json")
-  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
-      @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-      @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-      @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
-  public Response updateEventReminders(@ApiParam(value = "Event technical identifier", required = true) @PathParam("eventId") long eventId,
-                                       @ApiParam(value = "List of reminders to store on event for currently authenticated user", required = true) List<EventReminder> reminders) {
+  @ApiOperation(
+      value = "Update the list of preferred reminders for authenticated user on a selected event.", httpMethod = "PUT",
+      response = Response.class, consumes = "application/json"
+  )
+  @ApiResponses(
+      value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+  )
+  public Response updateEventReminders(@ApiParam(value = "Event technical identifier", required = true) @PathParam(
+    "eventId"
+  ) long eventId,
+                                       @ApiParam(
+                                           value = "List of reminders to store on event for currently authenticated user",
+                                           required = true
+                                       ) List<EventReminder> reminders) {
     if (eventId <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
     }
@@ -383,13 +427,20 @@ public class AgendaEventRest implements ResourceContainer {
   @Path("{eventId}/response")
   @GET
   @Produces(MediaType.TEXT_PLAIN)
-  @ApiOperation(value = "Retrieves currently authenticated (using token or effectively authenticated) user response to an event.", httpMethod = "GET", response = Response.class, produces = "text/plain")
-  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-      @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-      @ApiResponse(code = HTTPStatus.FORBIDDEN, message = "Forbidden operation"),
-      @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-      @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
-  public Response getEventResponse(@ApiParam(value = "Event technical identifier", required = true) @PathParam("eventId") long eventId,
+  @ApiOperation(
+      value = "Retrieves currently authenticated (using token or effectively authenticated) user response to an event.",
+      httpMethod = "GET", response = Response.class, produces = "text/plain"
+  )
+  @ApiResponses(
+      value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.FORBIDDEN, message = "Forbidden operation"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+  )
+  public Response getEventResponse(@ApiParam(value = "Event technical identifier", required = true) @PathParam(
+    "eventId"
+  ) long eventId,
                                    @ApiParam(value = "User token to ", required = false) @QueryParam("token") String token) {
     if (eventId <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
@@ -421,14 +472,26 @@ public class AgendaEventRest implements ResourceContainer {
 
   @Path("{eventId}/response/send")
   @GET
-  @ApiOperation(value = "Send event invitation response for currently authenticated user (using token or effectively authenticated).", httpMethod = "GET", response = Response.class)
-  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
-      @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-      @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-      @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
-  public Response sendEventResponse(@ApiParam(value = "Event technical identifier", required = true) @PathParam("eventId") long eventId,
-                                    @ApiParam(value = "User token to ", required = false) @QueryParam("token") String token,
-                                    @ApiParam(value = "Response to event invitation. Possible values: ACCEPTED, DECLINED or TENTATIVE.", required = true) @QueryParam("response") String responseString) {
+  @ApiOperation(
+      value = "Send event invitation response for currently authenticated user (using token or effectively authenticated).",
+      httpMethod = "GET", response = Response.class
+  )
+  @ApiResponses(
+      value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+  )
+  public Response sendEventResponse(@ApiParam(value = "Event technical identifier", required = true) @PathParam(
+    "eventId"
+  ) long eventId,
+                                    @ApiParam(value = "User token to ", required = false) @QueryParam(
+                                      "token"
+                                    ) String token,
+                                    @ApiParam(
+                                        value = "Response to event invitation. Possible values: ACCEPTED, DECLINED or TENTATIVE.",
+                                        required = true
+                                    ) @QueryParam("response") String responseString) {
     if (eventId <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
     }
@@ -467,11 +530,15 @@ public class AgendaEventRest implements ResourceContainer {
   @Path("attachment/{attachmentId}")
   @GET
   @ApiOperation(value = "Download Event attachment", httpMethod = "GET", response = Response.class)
-  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.FOUND, message = "Temporary Redirect"),
-      @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-      @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-      @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
-  public Response downloadAttachment(@ApiParam(value = "Event technical identifier", required = true) @PathParam("attachmentId") long attachmentId) {
+  @ApiResponses(
+      value = { @ApiResponse(code = HTTPStatus.FOUND, message = "Temporary Redirect"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+  )
+  public Response downloadAttachment(@ApiParam(value = "Event technical identifier", required = true) @PathParam(
+    "attachmentId"
+  ) long attachmentId) {
     String currentUser = RestUtils.getCurrentUser();
     try {
       String downloadLink = agendaEventService.getEventAttachmentDownloadLink(attachmentId, currentUser);

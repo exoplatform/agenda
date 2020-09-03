@@ -5,6 +5,7 @@ export function getEvents(query, ownerId, start, end) {
     start = toRFC3339(start);
     end = toRFC3339(end);
   }
+
   const params = $.param({
     query: query || '',
     ownerId: ownerId,
@@ -22,6 +23,7 @@ export function getEvents(query, ownerId, start, end) {
       throw new Error('Error getting event list');
     }
   });
+
 }
 
 export function createEvent(event) {
