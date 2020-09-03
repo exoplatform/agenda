@@ -56,6 +56,7 @@ export default {
     });
     this.$root.$on('agenda-change-period-type', calendarType => this.calendarType = calendarType);
     this.$root.$on('agenda-search', searchTerm => this.searchTerm = searchTerm);
+    this.$root.$on('refresh', this.retrieveEvents);
   },
   mounted() {
     document.dispatchEvent(new CustomEvent('hideTopBarLoading'));

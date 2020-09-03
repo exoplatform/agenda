@@ -30,6 +30,9 @@ export function createEvent(event) {
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events`, {
     method: 'POST',
     credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json'
+    },
     body: JSON.stringify(event),
   }).then((resp) => {
     if (resp && resp.ok) {
