@@ -91,6 +91,12 @@ public interface AgendaCalendarService {
   Calendar getCalendarById(long calendarId);
 
   /**
+   * @param ownerId {@link Calendar} technical identifier
+   * @return {@link Calendar} if found in database else create it
+   */
+  Calendar getOrCreateCalendarByOwnerId(long ownerId);
+
+  /**
    * Creates a new calendar
    * 
    * @param calendar {@link Calendar} object to create

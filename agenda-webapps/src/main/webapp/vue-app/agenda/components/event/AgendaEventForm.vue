@@ -40,11 +40,13 @@
         </v-flex>
         <v-layout row justify-end>
           <v-btn
+            :loading="saving"
+            :disabled="saving"
             color="primary"
             @click="nextStep">
             Continue
           </v-btn>
-          <v-btn text>
+          <v-btn text @click="close">
             Cancel
           </v-btn>
         </v-layout>
@@ -63,6 +65,7 @@ export default {
   data () {
     return {
       stepper: 1,
+      saving: false,
     };
   },
   methods:{
@@ -70,8 +73,15 @@ export default {
       this.$emit('close');
     },
     nextStep() {
-      if (this.stepper < 2) {
-        this.stepper ++;
+      if (this.stepper > 1) {
+        this.saving = true;
+        this.$eventService.createEvent(this.event)
+          .then(() => this.$emit('saved'))
+          .finally(() => {
+            this.saving = false;
+          });
+      } else if (this.stepper === 1) {
+        this.stepper++;
       } else {
         this.stepper = 1;
       }
