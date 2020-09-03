@@ -55,6 +55,14 @@ export function getFormattedFileSize(fileSize) {
   return (+size).toFixed(formattedSizePrecision).concat(measure);
 }
 
+export function toVuetifyDate(date) {
+  return `${date.getFullYear()}-${ 
+    pad(date.getMonth() + 1)}-${ 
+    pad(date.getDate())} ${
+    pad(date.getHours())}:${ 
+    pad(date.getMinutes())}`;
+}
+
 export function toRFC3339(date) {
   return `${date.getFullYear()  }-${ 
     pad(date.getMonth() + 1)  }-${ 

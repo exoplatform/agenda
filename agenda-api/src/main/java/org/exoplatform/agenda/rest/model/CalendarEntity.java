@@ -16,6 +16,8 @@
 */
 package org.exoplatform.agenda.rest.model;
 
+import java.io.Serializable;
+
 import org.exoplatform.agenda.model.Permission;
 import org.exoplatform.social.rest.entity.IdentityEntity;
 
@@ -24,24 +26,26 @@ import lombok.*;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class CalendarEntity {
+public class CalendarEntity implements Serializable {
 
-  private long           id;
+  private static final long serialVersionUID = 2689301355435962774L;
 
-  private IdentityEntity owner;
+  private long              id;
 
-  private boolean        system;
+  private IdentityEntity    owner;
 
-  private String         title;
+  private boolean           system;
 
-  private String         description;
+  private String            title;
 
-  private String         created;
+  private String            description;
 
-  private String         updated;
+  private String            created;
 
-  private String         color;
+  private String            updated;
 
-  private Permission     acl;
+  private String            color;
+
+  private Permission        acl;
 
 }

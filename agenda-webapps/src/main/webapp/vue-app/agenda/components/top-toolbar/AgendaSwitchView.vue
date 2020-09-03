@@ -1,5 +1,8 @@
 <template>
-  <v-tabs v-model="calendarType" align-with-title centered>
+  <v-tabs
+    v-model="calendarType"
+    align-with-title
+    centered>
     <v-tab href="#day" dark>
       {{ $t('agenda.label.viewDay') }}
     </v-tab>
