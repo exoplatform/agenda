@@ -27,6 +27,7 @@ import org.exoplatform.agenda.model.Permission;
 import org.exoplatform.agenda.storage.AgendaCalendarStorage;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.identity.model.Identity;
@@ -46,12 +47,16 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
 
   private SpaceService          spaceService;
 
+  private String                defaultColor;
+
   public AgendaCalendarServiceImpl(AgendaCalendarStorage agendaCalendarStorage,
                                    IdentityManager identityManager,
-                                   SpaceService spaceService) {
+                                   SpaceService spaceService,
+                                   InitParams initParams) {
     this.agendaCalendarStorage = agendaCalendarStorage;
     this.identityManager = identityManager;
     this.spaceService = spaceService;
+    this.defaultColor = initParams.getValueParam("defaultColor").getValue();
   }
 
   /**
@@ -190,6 +195,27 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     }
     fillCalendarTitleByOwnerName(calendar);
     return calendar;
+  }
+
+  @Override
+  public Calendar getOrCreateCalendarByOwnerId(long ownerId) {
+    if (ownerId <= 0) {
+      throw new IllegalArgumentException("Calendar ownerId has to be positive integer");
+    }
+    Identity userIdentity = identityManager.getIdentity(String.valueOf(ownerId));
+    if (userIdentity == null) {
+      throw new IllegalStateException("User with technical identifier " + ownerId + " is not found");
+    }
+    int countCalendarsByOwners = agendaCalendarStorage.countCalendarsByOwners(ownerId);
+    if (countCalendarsByOwners == 0) {
+      Calendar calendar = new Calendar(0, ownerId, true, null, null, null, null, this.defaultColor, null);
+      agendaCalendarStorage.createCalendar(calendar);
+    } else {
+      List<Long> calendarIds = agendaCalendarStorage.getCalendarIdsByOwnerIds(0, 1, ownerId);
+      long calendarId = calendarIds.get(0);
+      return this.getCalendarById(calendarId);
+    }
+    return null;
   }
 
   /**

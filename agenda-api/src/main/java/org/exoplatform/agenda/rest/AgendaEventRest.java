@@ -31,6 +31,7 @@ import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.model.*;
+import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.rest.model.*;
 import org.exoplatform.agenda.service.*;
 import org.exoplatform.agenda.util.*;
@@ -221,8 +222,7 @@ public class AgendaEventRest implements ResourceContainer {
 
     String currentUser = RestUtils.getCurrentUser();
     try {
-      long ownerId = 0;
-      agendaCalendarService.getOrCreateCalendarByOwnerId(ownerId);
+      checkCalendar(eventEntity);
 
       List<EventAttendeeEntity> attendeeEntities = eventEntity.getAttendees();
       List<EventAttendee> attendees = null;
@@ -552,6 +552,14 @@ public class AgendaEventRest implements ResourceContainer {
     } catch (Exception e) {
       LOG.warn("Error retrieving event attachment with Id '{}'", attachmentId, e);
       return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
+  private void checkCalendar(EventEntity eventEntity) {
+    if (eventEntity.getCalendar().getId() <= 0) {
+      String ownerId = eventEntity.getCalendar().getOwner().getId();
+      Calendar calendar = agendaCalendarService.getOrCreateCalendarByOwnerId(Long.parseLong(ownerId));
+      eventEntity.getCalendar().setId(calendar.getId());
     }
   }
 

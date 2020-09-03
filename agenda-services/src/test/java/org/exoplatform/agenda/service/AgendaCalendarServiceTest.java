@@ -21,8 +21,7 @@ import static org.mockito.Matchers.*;
 import static org.mockito.Mockito.*;
 
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -34,6 +33,8 @@ import org.exoplatform.agenda.storage.AgendaCalendarStorage;
 import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.ListAccess;
+import org.exoplatform.container.xml.InitParams;
+import org.exoplatform.container.xml.ValueParam;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.model.Profile;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
@@ -57,7 +58,12 @@ public class AgendaCalendarServiceTest {
     spaceService = mock(SpaceService.class);
     identityManager = mock(IdentityManager.class);
     agendaCalendarStorage = mock(AgendaCalendarStorage.class);
-    agendaCalendarService = new AgendaCalendarServiceImpl(agendaCalendarStorage, identityManager, spaceService);
+    InitParams initParams = new InitParams();
+    ValueParam value = new ValueParam();
+    value.setName("defaultColor");
+    value.setValue("#111111");
+    initParams.addParam(value);
+    agendaCalendarService = new AgendaCalendarServiceImpl(agendaCalendarStorage, identityManager, spaceService, initParams);
   }
 
   @Test
@@ -107,6 +113,52 @@ public class AgendaCalendarServiceTest {
   }
 
   @Test
+  public void testGetOrCreateCalendarByOwnerId() throws Exception { // NOSONAR
+    long calendarOwnerId = 2;
+
+    String username = "testuser";
+    Identity calendarOwnerIdentity = new Identity(OrganizationIdentityProvider.NAME, username);
+    calendarOwnerIdentity.setId(String.valueOf(calendarOwnerId));
+    when(identityManager.getIdentity(eq(String.valueOf(calendarOwnerId)))).thenReturn(calendarOwnerIdentity);
+    when(agendaCalendarStorage.countCalendarsByOwners(any())).thenReturn(0);
+
+    agendaCalendarService.getOrCreateCalendarByOwnerId(calendarOwnerId);
+
+    verify(agendaCalendarStorage, times(1)).createCalendar(any());
+  }
+
+  @Test
+  public void testGetOrCreateCalendarByOwnerId_NoCreate() throws Exception { // NOSONAR
+    long calendarId = 1;
+    long calendarOwnerId = 2;
+
+    String username = "testuser";
+    Identity calendarOwnerIdentity = new Identity(OrganizationIdentityProvider.NAME, username);
+    calendarOwnerIdentity.setId(String.valueOf(calendarOwnerId));
+    when(identityManager.getIdentity(eq(String.valueOf(calendarOwnerId)))).thenReturn(calendarOwnerIdentity);
+    when(agendaCalendarStorage.countCalendarsByOwners(any())).thenReturn(1);
+
+    Calendar calendar = new Calendar(calendarId,
+                                     calendarOwnerId,
+                                     true,
+                                     "title",
+                                     "description",
+                                     AgendaDateUtils.toRFC3339Date(ZonedDateTime.now()),
+                                     AgendaDateUtils.toRFC3339Date(ZonedDateTime.now()),
+                                     "color",
+                                     null);
+    when(agendaCalendarStorage.getCalendarIdsByOwnerIds(anyInt(),
+                                                        anyInt(),
+                                                        any())).thenReturn(Collections.singletonList(calendar.getId()));
+    when(agendaCalendarStorage.getCalendarById(eq(calendarId))).thenReturn(calendar);
+
+    Calendar retrievedCalendar = agendaCalendarService.getOrCreateCalendarByOwnerId(calendarOwnerId);
+
+    assertEquals(calendar, retrievedCalendar);
+    verify(agendaCalendarStorage, times(0)).createCalendar(any());
+  }
+
+  @Test
   public void testGetCalendarByIdAndUsername() throws Exception { // NOSONAR
     long calendarId = 1;
     long calendarOwnerId = 2;
@@ -139,6 +191,7 @@ public class AgendaCalendarServiceTest {
     } catch (Exception e1) {
       // Expected
     }
+
     try {
       agendaCalendarService.getCalendarById(calendarId, null);
       fail("Should throw an exception when username is null");

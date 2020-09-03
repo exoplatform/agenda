@@ -4,7 +4,10 @@
     fullscreen
     hide-overlay>
     <v-card>
-      <agenda-event-form :event="event" @close="close" />
+      <agenda-event-form
+        :event="event"
+        @close="close"
+        @saved="saved" />
     </v-card>
   </v-dialog>
 </template>
@@ -48,16 +51,14 @@ export default {
       if (!event.attendees) {
         event.attendees = [];
       }
-      if (!event.start) {
-        event.start = new Date().getTime();
-      }
-      if (!event.end) {
-        event.end = event.start;
-      }
       this.event = event;
     },
     close() {
       this.dialog = false;
+    },
+    saved() {
+      this.$root.$emit('refresh');
+      this.close();
     },
   },
 };
