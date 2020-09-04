@@ -35,7 +35,7 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
           name = "AgendaEvent.deleteCalendarEvents", query = "DELETE FROM AgendaEvent ev WHERE ev.calendar.id = :calendarId"
       ),
       @NamedQuery(
-          name = "AgendaEvent.getEventIdsByPeriodAndOwnerIds", query = "SELECT ev.id FROM AgendaEvent ev"
+          name = "AgendaEvent.getEventIdsByPeriodAndOwnerIds", query = "SELECT DISTINCT(ev.id) FROM AgendaEvent ev"
               + " INNER JOIN ev.attendees att"
               + " WHERE att.identityId IN (:ownerIds)"
               + " AND ev.startDate < :end"

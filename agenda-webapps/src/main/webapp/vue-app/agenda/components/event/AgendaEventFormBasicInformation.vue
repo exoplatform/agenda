@@ -15,13 +15,12 @@
       <exo-identity-suggester
         id="calendarOwnerAutocomplete"
         ref="calendarOwnerId"
-        v-model="event.calendar.owner.id"
+        v-model="calendarOwner"
         :labels="calendarSuggesterLabels"
         :include-users="false"
         name="calendarOwnerAutocomplete"
-        class="space-suggester"
-        include-spaces
-        multiple />
+        class="user-suggester"
+        include-spaces />
     </div>
     <div class="d-flex flex-row">
       <div class="d-flex flex-column">
@@ -131,11 +130,14 @@
             v-model="invitedMembers"
             :labels="participantSuggesterLabels"
             :disabled="savingUser"
+            :search-options="{
+              currentUser: '',
+            }"
             name="inviteMembers"
-            type-of-relations="user_to_invite"
-            class="user-suggester"
+            class="ma-4 user-suggester"
             include-users
-            include-spaces />
+            include-spaces
+            multiple />
         </div>
         <div class="d-flex flex-row">
           <label class="switch-label-text mt-1 text-subtitle-1 font-weight-bold">{{ $t('agenda.modifyEventPermission') }}</label>
@@ -167,7 +169,9 @@ export default {
   data() {
     return {
       files:[],
+      currentUser: null,
       savingUser: false,
+      calendarOwner: null,
       invitedMembers: [],
       notifications: [],
       nbNotif: 0,
@@ -197,12 +201,57 @@ export default {
         this.$refs.agendaEventForm.endLoading();
       }
     },
+    calendarOwner() {
+      if (this.calendarOwner) {
+        this.event.calendar.owner = {
+          remoteId: this.calendarOwner.remoteId,
+          providerId: this.calendarOwner.providerId,
+        };
+      } else {
+        this.event.calendar.owner = null;
+      }
+    },
+    invitedMembers() {
+      if (!this.event.attendees) {
+        this.event.attendees = [];
+      }
+
+      if (this.invitedMembers) {
+        this.event.attendees = this.invitedMembers.map(identity => ({identity: {
+          remoteId: identity.remoteId,
+          providerId: identity.providerId,
+        }}));
+      } else {
+        this.event.attendees = [];
+      }
+    },
+  },
+  mounted(){
+    this.$userService.getUser(eXo.env.portal.userName).then(user => {
+      this.currentUser = user;
+      this.reset();
+    });
   },
   methods:{
+    reset() {
+      if (!this.event.id) {
+        if (this.currentUser) {
+          this.invitedMembers = [{
+            id: eXo.env.portal.userIdentityId,
+            providerId: 'organization',
+            remoteId: eXo.env.portal.userName,
+            profile: {
+              avatarUrl: this.currentUser.avatar,
+              fullName: this.currentUser.fullname,
+            },
+          }];
+        } else {
+          this.invitedMembers = [];
+        }
+      }
+    },
     addNotification() {
-      this.notifications.push({
-        id: this.nbNotif++
-      });
+      this.notifications.push({});
     },
     removeNotifUser(index) {
       this.notifications = this.notifications.filter((n) => n.id !== index);

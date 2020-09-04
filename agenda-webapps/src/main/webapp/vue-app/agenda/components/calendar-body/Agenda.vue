@@ -66,10 +66,13 @@ export default {
       this.loading = true;
       this.$eventService.getEvents(this.searchTerm, this.ownerId, this.period.start, this.period.end)
         .then(data => {
-          this.events = data && data.events || [];
-          this.events.forEach(event => {
+          const events = data && data.events || [];
+          events.forEach(event => {
             event.name = event.summary;
+            event.startDate = event.start && new Date(event.start) || null;
+            event.endDate = event.end && new Date(event.end) || null;
           });
+          this.events = events;
         }).catch(error =>{
           console.error('Error retrieving events', error);
         }).finally(() => this.loading = false);

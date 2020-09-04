@@ -13,7 +13,7 @@
         color="grey"
         icon
         dark
-        @click="closeDialog">
+        @click="$emit('close')">
         <v-icon>
           mdi-close
         </v-icon>
@@ -21,9 +21,11 @@
     </v-stepper-header>
     <v-stepper-items>
       <v-stepper-content step="1">
-        <agenda-event-form-basic-information :event="event" class="mx-4" />
-        <div
-          class="d-flex flex-row justify-md-end">
+        <agenda-event-form-basic-information
+          ref="basicInformation"
+          :event="event"
+          class="mx-4" />
+        <div class="d-flex flex-row justify-md-end">
           <v-btn text>
             Cancel
           </v-btn>
@@ -47,7 +49,10 @@
             @click="nextStep">
             Continue
           </v-btn>
-          <v-btn text @click="close">
+          <v-btn
+            :disabled="saving"
+            text
+            @click="close">
             Cancel
           </v-btn>
         </div>
@@ -69,9 +74,12 @@ export default {
       saving: false,
     };
   },
+  mounted() {
+    this.reset();
+  },
   methods:{
-    closeDialog() {
-      this.$emit('close');
+    reset() {
+      this.$refs.basicInformation.reset();
     },
     nextStep() {
       if (this.stepper > 1) {

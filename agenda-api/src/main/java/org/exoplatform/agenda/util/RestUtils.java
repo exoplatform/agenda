@@ -16,11 +16,14 @@
 */
 package org.exoplatform.agenda.util;
 
+import org.apache.commons.lang3.StringUtils;
+
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.social.rest.entity.IdentityEntity;
 
 public class RestUtils {
 
@@ -50,6 +53,30 @@ public class RestUtils {
 
   public static String getBasePortalURI() {
     return "/" + PortalContainer.getCurrentPortalContainerName();
+  }
+
+  public static String getIdentityId(IdentityEntity identityEntity, IdentityManager identityManager) {
+    if (identityEntity == null) {
+      return null;
+    }
+    String identityIdString = identityEntity.getId();
+    String remoteId = identityEntity.getRemoteId();
+    String providerId = identityEntity.getProviderId();
+
+    if (StringUtils.isNotBlank(identityIdString)) {
+      Identity identity = identityManager.getIdentity(identityIdString);
+      if (identity == null) {
+        // Wrong id, attempt with remoteId and providerId
+        identityIdString = null;
+      }
+    }
+    if (StringUtils.isBlank(identityIdString) && StringUtils.isNotBlank(remoteId) && StringUtils.isNotBlank(providerId)) {
+      Identity identity = identityManager.getOrCreateIdentity(providerId, remoteId);
+      if (identity != null) {
+        identityIdString = identity.getId();
+      }
+    }
+    return identityIdString;
   }
 
 }

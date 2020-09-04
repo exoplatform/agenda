@@ -3,12 +3,11 @@
     v-model="dialog"
     fullscreen
     hide-overlay>
-    <v-card>
-      <agenda-event-form
-        :event="event"
-        @close="close"
-        @saved="saved" />
-    </v-card>
+    <agenda-event-form
+      ref="eventForm"
+      :event="event"
+      @close="close"
+      @saved="saved" />
   </v-dialog>
 </template>
 
@@ -52,6 +51,9 @@ export default {
         event.attendees = [];
       }
       this.event = event;
+      if (this.$refs.eventForm) {
+        this.$nextTick().then(this.$refs.eventForm.reset);
+      }
     },
     close() {
       this.dialog = false;
