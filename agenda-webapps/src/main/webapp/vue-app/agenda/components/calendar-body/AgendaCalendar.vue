@@ -5,9 +5,13 @@
       v-model="selectedDate"
       :events="events"
       :event-color="getEventColor"
+      :event-timed="isEventTimed"
       :type="calendarType"
       :weekdays="weekdays"
       :show-week="true"
+      event-name="summary"
+      event-start="startDate"
+      event-end="endDate"
       color="primary"
       @click:event="showEvent"
       @click:more="viewDay"
@@ -58,6 +62,9 @@ export default {
     },
     getEventColor(event) {
       return event.color || event.calendar && event.calendar.color || 'primary';
+    },
+    isEventTimed(event) {
+      return event && !event.allDay;
     },
     showEvent() {
       // TODO
