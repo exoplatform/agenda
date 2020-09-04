@@ -22,7 +22,8 @@
     <v-stepper-items>
       <v-stepper-content step="1">
         <agenda-event-form-basic-information :event="event" class="mx-4" />
-        <v-layout row justify-end>
+        <div
+          class="d-flex flex-row justify-md-end">
           <v-btn text>
             Cancel
           </v-btn>
@@ -32,13 +33,13 @@
             @click="nextStep">
             Continue
           </v-btn>
-        </v-layout>
+        </div>
       </v-stepper-content>
       <v-stepper-content step="2">
         <v-flex>
           <agenda-event-form-dates :event="event" />
         </v-flex>
-        <v-layout row justify-end>
+        <div class="d-flex flex-row justify-md-end">
           <v-btn
             :loading="saving"
             :disabled="saving"
@@ -49,7 +50,7 @@
           <v-btn text @click="close">
             Cancel
           </v-btn>
-        </v-layout>
+        </div>
       </v-stepper-content>
     </v-stepper-items>
   </v-stepper>
