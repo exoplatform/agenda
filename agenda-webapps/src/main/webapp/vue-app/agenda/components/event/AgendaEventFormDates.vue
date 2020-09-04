@@ -6,7 +6,7 @@
           ref="calendar"
           v-model="value"
           color="primary"
-          type="4day"
+          type="week"
           :events="events"
           :event-color="getEventColor"
           :event-ripple="false"

@@ -6,6 +6,7 @@
     <agenda-event-form
       ref="eventForm"
       :event="event"
+      class="fill-height"
       @close="close"
       @saved="saved" />
   </v-dialog>
