@@ -209,13 +209,13 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     int countCalendarsByOwners = agendaCalendarStorage.countCalendarsByOwners(ownerId);
     if (countCalendarsByOwners == 0) {
       Calendar calendar = new Calendar(0, ownerId, true, null, null, null, null, this.defaultColor, null);
-      agendaCalendarStorage.createCalendar(calendar);
+      calendar = agendaCalendarStorage.createCalendar(calendar);
+      return calendar;
     } else {
       List<Long> calendarIds = agendaCalendarStorage.getCalendarIdsByOwnerIds(0, 1, ownerId);
       long calendarId = calendarIds.get(0);
       return this.getCalendarById(calendarId);
     }
-    return null;
   }
 
   /**
