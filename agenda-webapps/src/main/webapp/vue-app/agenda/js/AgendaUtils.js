@@ -10,8 +10,8 @@ export function getUserTimezone() {
 export function convertVuetifyRangeToPeriod(range, userTimezone) {
   const rangeStartHour = range.start.hour < 10 ? `0${range.start.hour}` : range.start.hour;
   const rangeStartMinute = range.start.minute < 10 ? `0${range.start.minute}` : range.start.minute;
-  const rangeEndHour = range.end.hour < 10 ? `0${range.end.hour}` : range.start.hour;
-  const rangeEndMinute = range.end.minute < 10 ? `0${range.end.minute}` : range.start.minute;
+  const rangeEndHour = range.end.hour < 10 ? `0${range.end.hour}` : range.end.hour;
+  const rangeEndMinute = range.end.minute < 10 ? `0${range.end.minute}` : range.end.minute;
   return {
     start: `${range.start.date}T${rangeStartHour}:${rangeStartMinute}:00.000${userTimezone}`,
     end: `${range.end.date}T${rangeEndHour}:${rangeEndMinute}:00.000${userTimezone}`,

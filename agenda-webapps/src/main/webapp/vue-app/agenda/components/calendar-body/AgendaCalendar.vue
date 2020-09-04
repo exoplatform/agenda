@@ -56,6 +56,15 @@ export default {
   },
   methods:{
     retrievePeriodEvents(range) {
+      // In Vuetify, the 'start object' === 'end object',
+      // this is a workaround to avoid changing end date
+      // and impact start date as well, when we are in day view
+      range.end = Object.assign({}, range.end);
+
+      // End of the day of end date
+      range.end.hour = 23;
+      range.end.minute = 59;
+
       const period = this.$agendaUtils.convertVuetifyRangeToPeriod(range, this.$userTimeZone);
       period.title = this.$refs.calendar.title;
       this.$root.$emit('agenda-change-period', period);
