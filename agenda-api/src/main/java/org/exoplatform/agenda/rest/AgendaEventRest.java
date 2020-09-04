@@ -591,21 +591,21 @@ public class AgendaEventRest implements ResourceContainer {
 
   private void fillAttendees(EventEntity eventEntity) {
     List<EventAttendee> eventAttendees = agendaEventService.getEventAttendees(eventEntity.getId());
-    List<EventAttendeeEntity> eventAttendeeEntities =
-                                                    eventAttendees.stream()
-                                                                  .map(eventAttendee -> EntityBuilder.fromEventAttendee(identityManager,
-                                                                                                                        eventAttendee))
-                                                                  .collect(Collectors.toList());
+    List<EventAttendeeEntity> eventAttendeeEntities = eventAttendees == null ? null
+                                                                             : eventAttendees.stream()
+                                                                                             .map(eventAttendee -> EntityBuilder.fromEventAttendee(identityManager,
+                                                                                                                                                   eventAttendee))
+                                                                                             .collect(Collectors.toList());
     eventEntity.setAttendees(eventAttendeeEntities);
   }
 
   private void fillAttachments(EventEntity eventEntity) {
     List<EventAttachment> eventAttachments = agendaEventService.getEventAttachments(eventEntity.getId());
-    List<EventAttachmentEntity> eventAttachmentEntities =
-                                                        eventAttachments.stream()
-                                                                        .map(eventAttachment -> EntityBuilder.fromEventAttachment(fileService,
-                                                                                                                                  eventAttachment))
-                                                                        .collect(Collectors.toList());
+    List<EventAttachmentEntity> eventAttachmentEntities = eventAttachments == null ? null
+                                                                                   : eventAttachments.stream()
+                                                                                                     .map(eventAttachment -> EntityBuilder.fromEventAttachment(fileService,
+                                                                                                                                                               eventAttachment))
+                                                                                                     .collect(Collectors.toList());
     eventEntity.setAttachments(eventAttachmentEntities);
   }
 
@@ -616,9 +616,10 @@ public class AgendaEventRest implements ResourceContainer {
 
   private void fillReminders(EventEntity eventEntity, long currentUserIdentityId) {
     List<EventReminder> eventReminders = agendaEventReminderService.getEventReminders(eventEntity.getId(), currentUserIdentityId);
-    List<EventReminderEntity> eventReminderEntities = eventReminders.stream()
-                                                                    .map(EntityBuilder::fromEventReminder)
-                                                                    .collect(Collectors.toList());
+    List<EventReminderEntity> eventReminderEntities = eventReminders == null ? null
+                                                                             : eventReminders.stream()
+                                                                                             .map(EntityBuilder::fromEventReminder)
+                                                                                             .collect(Collectors.toList());
     eventEntity.setReminders(eventReminderEntities);
   }
 
