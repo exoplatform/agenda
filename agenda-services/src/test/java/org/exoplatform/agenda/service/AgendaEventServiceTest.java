@@ -552,13 +552,12 @@ public class AgendaEventServiceTest {
     assertNotNull(events);
     assertEquals(4, events.size());
 
-    events = agendaEventService.getEvents(
-                                          event1.getRecurrence()
+    events = agendaEventService.getEvents(event1.getRecurrence()
                                                 .getUntil()
-                                                .plusDays(1)
+                                                .plusDays(2)
                                                 .toLocalDate()
                                                 .atStartOfDay(ZoneId.systemDefault()),
-                                          event1.getRecurrence().getUntil().plusDays(2),
+                                          event1.getRecurrence().getUntil().plusDays(3),
                                           testuser2Identity.getRemoteId());
     assertNotNull(events);
     assertEquals(0, events.size());
