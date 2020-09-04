@@ -18,7 +18,8 @@ package org.exoplatform.agenda.rest;
 
 import java.net.URI;
 import java.time.ZonedDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Collectors;
 
 import javax.annotation.security.RolesAllowed;
@@ -30,8 +31,9 @@ import javax.ws.rs.core.Response.Status;
 import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
+import org.exoplatform.agenda.exception.AgendaException;
+import org.exoplatform.agenda.exception.AgendaExceptionType;
 import org.exoplatform.agenda.model.*;
-import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.rest.model.*;
 import org.exoplatform.agenda.service.*;
 import org.exoplatform.agenda.util.*;
@@ -44,6 +46,7 @@ import org.exoplatform.services.rest.resource.ResourceContainer;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.social.rest.entity.IdentityEntity;
 
 import io.swagger.annotations.*;
 
@@ -209,15 +212,15 @@ public class AgendaEventRest implements ResourceContainer {
       value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
           @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
           @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+      }
   )
   public Response createEvent(@ApiParam(value = "Event object to create", required = true) EventEntity eventEntity) {
     if (eventEntity == null) {
-      return Response.status(Status.BAD_REQUEST).entity("Event object is mandatory").build();
+      return Response.status(Status.BAD_REQUEST).entity(AgendaExceptionType.EVENT_MANDATORY.getCompleteMessage()).build();
     }
-    if (eventEntity.getCalendar() == null || eventEntity.getCalendar().getOwner() == null
-        || eventEntity.getCalendar().getOwner().getId() == null) {
-      return Response.status(Status.BAD_REQUEST).entity("Event calendar object is mandatory").build();
+    if (eventEntity.getCalendar() == null || eventEntity.getCalendar().getOwner() == null) {
+      return Response.status(Status.BAD_REQUEST).entity(AgendaExceptionType.CALENDAR_OWNER_NOT_FOUND).build();
     }
 
     String currentUser = RestUtils.getCurrentUser();
@@ -229,6 +232,12 @@ public class AgendaEventRest implements ResourceContainer {
       if (attendeeEntities != null && !attendeeEntities.isEmpty()) {
         attendees = new ArrayList<>();
         for (EventAttendeeEntity attendeeEntity : attendeeEntities) {
+          IdentityEntity attendeeIdentity = attendeeEntity.getIdentity();
+          String attendeeIdString = RestUtils.getIdentityId(attendeeIdentity, identityManager);
+          if (StringUtils.isBlank(attendeeIdString)) {
+            throw new AgendaException(AgendaExceptionType.ATTENDEE_IDENTITY_NOT_FOUND);
+          }
+          attendeeIdentity.setId(attendeeIdString);
           attendees.add(EntityBuilder.toEventAttendee(identityManager, attendeeEntity));
         }
       }
@@ -257,6 +266,8 @@ public class AgendaEventRest implements ResourceContainer {
     } catch (IllegalAccessException e) {
       LOG.warn("User '{}' attempts to create an event in calendar '{}'", currentUser, eventEntity.getCalendar());
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
+    } catch (AgendaException e) {
+      return Response.serverError().entity(e.getAgendaExceptionType().getCompleteMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error creating an event", e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -272,18 +283,21 @@ public class AgendaEventRest implements ResourceContainer {
           @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object not found"),
           @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
           @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+      }
   )
   public Response updateEvent(@ApiParam(value = "Event object to update", required = true) EventEntity eventEntity) {
     if (eventEntity == null) {
-      return Response.status(Status.BAD_REQUEST).entity("Event object is mandatory").build();
+      return Response.status(Status.BAD_REQUEST).entity(AgendaExceptionType.EVENT_MANDATORY.getCompleteMessage()).build();
     }
     if (eventEntity.getId() <= 0) {
-      return Response.status(Status.BAD_REQUEST).entity("Event technical identifier must be positive").build();
+      return Response.status(Status.BAD_REQUEST).entity(AgendaExceptionType.EVENT_ID_MANDATORY.getCompleteMessage()).build();
     }
 
     String currentUser = RestUtils.getCurrentUser();
     try {
+      checkCalendar(eventEntity);
+
       List<EventAttendeeEntity> attendeeEntities = eventEntity.getAttendees();
       List<EventAttendee> attendees = null;
       if (attendeeEntities != null && !attendeeEntities.isEmpty()) {
@@ -314,6 +328,8 @@ public class AgendaEventRest implements ResourceContainer {
                                      eventEntity.isSendInvitation(),
                                      currentUser);
       return Response.noContent().build();
+    } catch (AgendaException e) {
+      return Response.serverError().entity(e.getAgendaExceptionType().getCompleteMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error updating an event", e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -555,10 +571,20 @@ public class AgendaEventRest implements ResourceContainer {
     }
   }
 
-  private void checkCalendar(EventEntity eventEntity) {
-    if (eventEntity.getCalendar().getId() <= 0) {
-      String ownerId = eventEntity.getCalendar().getOwner().getId();
-      Calendar calendar = agendaCalendarService.getOrCreateCalendarByOwnerId(Long.parseLong(ownerId));
+  private void checkCalendar(EventEntity eventEntity) throws AgendaException {
+    IdentityEntity identityEntity = eventEntity.getCalendar().getOwner();
+
+    String ownerIdString = RestUtils.getIdentityId(identityEntity, identityManager);
+    if (StringUtils.isBlank(ownerIdString)) {
+      throw new AgendaException(AgendaExceptionType.CALENDAR_OWNER_NOT_FOUND);
+    }
+    identityEntity.setId(ownerIdString);
+    Calendar calendar = agendaCalendarService.getOrCreateCalendarByOwnerId(Long.parseLong(ownerIdString));
+    if (calendar == null) {
+      throw new AgendaException(AgendaExceptionType.CALENDAR_NOT_FOUND);
+    } else if (eventEntity.getCalendar() == null) {
+      eventEntity.setCalendar(EntityBuilder.fromCalendar(identityManager, calendar));
+    } else {
       eventEntity.getCalendar().setId(calendar.getId());
     }
   }
