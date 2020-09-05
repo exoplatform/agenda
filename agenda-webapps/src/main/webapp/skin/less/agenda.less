@@ -1,7 +1,12 @@
 @import "./variables.less";
 
 .agenda-application {
-
+  .v-calendar {
+    min-height: ~"calc(100vh - 230px)";
+  }
+  .v-calendar-daily__scroll-area {
+    overflow: auto;
+  }
 }
 .event-form {
   .space-suggester {

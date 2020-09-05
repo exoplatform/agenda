@@ -1,24 +1,21 @@
 <template>
-  <div>
-    <v-calendar
-      ref="calendar"
-      v-model="selectedDate"
-      :events="events"
-      :event-color="getEventColor"
-      :event-timed="isEventTimed"
-      :type="calendarType"
-      :weekdays="weekdays"
-      :show-week="true"
-      event-name="summary"
-      event-start="startDate"
-      event-end="endDate"
-      color="primary"
-      @click:event="showEvent"
-      @click:more="viewDay"
-      @click:date="viewDay"
-      @change="retrievePeriodEvents" />
-    <agenda-event-preview-dialog />
-  </div>
+  <v-calendar
+    ref="calendar"
+    v-model="selectedDate"
+    :events="events"
+    :event-color="getEventColor"
+    :event-timed="isEventTimed"
+    :type="calendarType"
+    :weekdays="weekdays"
+    :show-week="true"
+    event-name="summary"
+    event-start="startDate"
+    event-end="endDate"
+    color="primary"
+    @click:event="showEvent"
+    @click:more="viewDay"
+    @click:date="viewDay"
+    @change="retrievePeriodEvents" />
 </template>
 
 <script>
