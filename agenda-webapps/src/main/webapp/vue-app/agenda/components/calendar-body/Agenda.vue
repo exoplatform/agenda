@@ -10,6 +10,7 @@
         :calendar-type="calendarType"
         :weekdays="weekdays" />
       <agenda-event-dialog ref="eventFormDialog" />
+      <agenda-event-preview-dialog />
     </v-main>
   </v-app>
 </template>
