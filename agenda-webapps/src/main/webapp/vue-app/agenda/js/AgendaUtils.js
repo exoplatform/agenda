@@ -76,6 +76,18 @@ export function toRFC3339(date) {
   }${getUserTimezone()}`;
 }
 
+export function generateCalendarTitle(calendarType, startDate, periodTitle, weekTitle) {
+  if(calendarType === 'week') {
+    const weekNumber = getWeekNumber(startDate);
+    return `${periodTitle} - ${weekTitle} ${weekNumber}`;
+  } else if (calendarType === 'day') {
+    const currentDay = startDate.getDate();
+    return `${periodTitle} - ${currentDay}`;
+  } else if (calendarType === 'month') {
+    return periodTitle;
+  }
+}
+
 function pad(n) {
   return n < 10 && `0${n}` || n;
 }

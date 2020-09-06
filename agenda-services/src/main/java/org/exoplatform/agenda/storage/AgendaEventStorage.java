@@ -25,6 +25,8 @@ import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.dao.*;
 import org.exoplatform.agenda.entity.*;
+import org.exoplatform.agenda.exception.AgendaException;
+import org.exoplatform.agenda.exception.AgendaExceptionType;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.agenda.util.EntityMapper;
@@ -120,7 +122,7 @@ public class AgendaEventStorage {
                            List<EventAttachment> attachments,
                            List<EventConference> conferences,
                            List<EventAttendee> attendees,
-                           List<EventReminder> reminders) {
+                           List<EventReminder> reminders) throws AgendaException {
     EventEntity eventEntity = createEvent(event);
     createEventRecurrence(event, eventEntity);
 
@@ -143,7 +145,7 @@ public class AgendaEventStorage {
                           List<EventAttachment> attachments,
                           List<EventConference> conferences,
                           List<EventAttendee> attendees,
-                          List<EventReminder> reminders) {
+                          List<EventReminder> reminders) throws AgendaException {
     long modifierId = event.getModifierId();
 
     EventEntity eventEntity = updateEvent(event);
@@ -169,7 +171,10 @@ public class AgendaEventStorage {
     }
   }
 
-  public void saveEventReminders(Event event, List<EventReminder> reminders, long userId, boolean newEvent) {
+  public void saveEventReminders(Event event,
+                                 List<EventReminder> reminders,
+                                 long userId,
+                                 boolean newEvent) throws AgendaException {
     List<EventReminder> savedReminders = newEvent ? Collections.emptyList() : getEventReminders(event.getId(), userId);
     List<EventReminder> newReminders = reminders == null ? Collections.emptyList() : reminders;
     List<EventReminder> remindersToDelete =
@@ -194,10 +199,30 @@ public class AgendaEventStorage {
     }
   }
 
-  public void saveEventReminder(Event event, EventReminder eventReminder) {
+  public void saveEventReminder(Event event, EventReminder eventReminder) throws AgendaException {
     ZonedDateTime eventStartDate = event.getStart();
-    ZonedDateTime reminderDate = eventReminder.getMinutes() > 0 ? eventStartDate.minusMinutes(eventReminder.getMinutes())
-                                                                : eventStartDate;
+    if (eventReminder.getBefore() <= 0 || eventReminder.getBeforePeriodType() == null) {
+      throw new AgendaException(AgendaExceptionType.REMINDER_DATE_CANT_COMPUTE);
+    }
+    ZonedDateTime reminderDate = null;
+    if (eventReminder.getBefore() == 0) {
+      switch (eventReminder.getBeforePeriodType()) {
+      case MINUTE:
+        reminderDate = eventStartDate.minusMinutes(eventReminder.getBefore());
+        break;
+      case HOUR:
+        reminderDate = eventStartDate.minusHours(eventReminder.getBefore());
+        break;
+      case DAY:
+        reminderDate = eventStartDate.minusDays(eventReminder.getBefore());
+        break;
+      case WEEK:
+        reminderDate = eventStartDate.minusWeeks(eventReminder.getBefore());
+        break;
+      }
+    } else {
+      reminderDate = eventStartDate;
+    }
     eventReminder.setDatetime(reminderDate);
 
     EventReminderEntity eventReminderEntity = EntityMapper.toEntity(eventReminder);

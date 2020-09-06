@@ -11,6 +11,7 @@ public enum AgendaExceptionType {
   EVENT_RECURRENCE_INTERVAL_MANDATORY("recurrenceInterval", "agenda.recurrenceIntervalMandatory"),
   EVENT_ID_MANDATORY("eventId", "agenda.eventIdMandatory"),
   EVENT_MANDATORY("event", "agenda.eventMandatory"),
+  REMINDER_DATE_CANT_COMPUTE("eventReminder", "agenda.eventReminderCantBeComputed"),
   ATTENDEE_IDENTITY_NOT_FOUND("eventAttendee", "agenda.eventAttendeeIdentityMandatory");
 
   private String field;

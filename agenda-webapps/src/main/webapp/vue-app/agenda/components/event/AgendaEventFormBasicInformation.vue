@@ -1,7 +1,7 @@
 <template>
-  <v-container ref="agendaEventForm" class="event-form">
-    <div class="d-flex flex-row">
-      <label class="float-left mt-5 mr-3 text-subtitle-1">Create</label>
+  <v-flex ref="agendaEventForm">
+    <div class="d-flex flex-column flex-md-row">
+      <label class="float-left mt-5 mr-3 text-subtitle-1 d-none d-md-inline">Create</label>
       <input
         id="eventTitle"
         ref="eventTitle"
@@ -11,10 +11,10 @@
         name="title"
         class="ignore-vuetify-classes my-3"
         required>
-      <span class="mt-5  ml-4 mr-4 text-subtitle-1 font-weight-bold">in</span>
+      <span class="mt-5 ml-4 mr-4 text-subtitle-1 font-weight-bold d-none d-md-inline">in</span>
       <exo-identity-suggester
         id="calendarOwnerAutocomplete"
-        ref="calendarOwnerId"
+        ref="calendarOwner"
         v-model="calendarOwner"
         :labels="calendarSuggesterLabels"
         :include-users="false"
@@ -22,8 +22,8 @@
         class="user-suggester"
         include-spaces />
     </div>
-    <div class="d-flex flex-row mt-1 event-form-body">
-      <div class="d-flex flex-column flex-grow-1">
+    <div class="d-flex flex-column flex-md-row mt-1 event-form-body">
+      <div class="d-flex flex-column flex-grow-1 event-form-body-left">
         <div class="d-flex flex-row">
           <v-icon size="18" class="mr-11">
             fas fa-map-marker-alt
@@ -39,52 +39,27 @@
             required>
         </div>
         <div class="d-flex flex-row">
-          <v-list>
-            <v-icon size="18" class="mr-11">
+          <v-flex class="flex-grow-0">
+            <v-icon size="18" class="my-5 mr-11">
               fas fa-bell
             </v-icon>
-            <v-list-item v-for="notifs in notifications" :key="notifs">
-              <label class="float-left ml-4 mr-4">{{ $t('agenda.label.notifyUsers') }}</label>
-              <input
-                ref="timeNotification"
-                type="text"
-                name="timeNotification"
-                class="ignore-vuetify-classes my-3 time-notification">
-              <select class="width-auto my-auto ml-4 pr-2 subtitle-1 ignore-vuetify-classes d-none d-sm-inline notification-date-option">
-                <option>{{ $t('agenda.option.minutes') }}</option>
-                <option>{{ $t('agenda.option.hours') }}</option>
-                <option>{{ $t('agenda.option.days') }}</option>
-                <option>{{ $t('agenda.option.weeks') }}</option>
-              </select>
-              <span class="ml-4">{{ $t('agenda.label.beforeStart') }}</span>
-              <v-btn
-                color="grey"
-                icon
-                dark
-                @click="removeNotifUser(notifs.id)">
-                <v-icon>
-                  mdi-close
-                </v-icon>
-              </v-btn>
-            </v-list-item>
-            <a class="text-subtitle-1 font-weight-regular add-notification-link" @click="addNotification">{{ $t('agenda.addNotification') }}</a>
-          </v-list>
+          </v-flex>
+          <agenda-event-form-reminders :event="event" />
         </div>
         <div class="d-flex flex-row">
           <v-icon size="18" class="mr-11">
             fas fa-redo-alt
           </v-icon>
           <select class="width-auto my-auto pr-2 subtitle-1 ignore-vuetify-classes d-none d-sm-inline">
-            <option>1</option>
-            <option>2</option>
-            <option>3</option>
-            <option>4</option>
+            <option>{{ $t('agenda.doNotRepeat') }}</option>
           </select>
         </div>
         <div class="d-flex flex-row">
-          <v-icon size="18" class="mr-12">
-            fas fa-file-alt
-          </v-icon>
+          <v-flex class="flex-grow-0">
+            <v-icon size="18" class="my-5 mr-11">
+              fas fa-file-alt
+            </v-icon>
+          </v-flex>
           <textarea
             id="eventDescription"
             ref="eventDescription"
@@ -99,35 +74,25 @@
           </textarea>
         </div>
         <div class="d-flex flex-row">
-          <v-icon size="18" class="mr-11">
-            fas fa-paperclip
-          </v-icon>
-          <v-list-item v-for="attachedFile in files" :key="attachedFile.name">
-            <span class="text-subtitle-1 font-weight-regular">{{ attachedFile.name }}.{{ attachedFile.mimeType }}({{ formatFileSize(attachedFile.size) }})</span>
-            <v-btn
-              color="grey"
-              icon
-              dark
-              @click="removeFile(attachedFile.uploadId)">
-              <v-icon>
-                mdi-close
-              </v-icon>
-            </v-btn>
-          </v-list-item>
-          <agenda-file-attachments :attachments-file="files" @files="files = $event" />
+          <v-flex class="flex-grow-0">
+            <v-icon size="18" class="my-5 mr-11">
+              fas fa-paperclip
+            </v-icon>
+          </v-flex>
+          <agenda-event-form-attachments :event="event" />
         </div>
       </div>
-      <div class="d-flex flex-column mx-5">
+      <div class="d-none d-md-flex flex-column mx-5 event-form-body-divider ">
         <v-divider vertical />
       </div>
-      <div class="d-flex flex-column flex-grow-1">
+      <div class="d-flex flex-column flex-grow-1 event-form-body-right">
         <div class="d-flex flex-row">
           <v-flex class="flex-grow-0 mr-2">
             <v-icon class="mt-5" size="18">
               fas fa-users
             </v-icon>
           </v-flex>
-          <v-flex class="mx-4">
+          <v-flex class="ml-4">
             <exo-identity-suggester
               ref="invitedAttendeeAutoComplete"
               v-model="invitedAttendee"
@@ -149,10 +114,16 @@
                 class="identitySuggesterItem mr-4 mt-4"
                 @click:close="removeAttendee(attendee)">
                 <v-avatar v-if="attendee.identity.profile" left>
-                  <v-img :src="attendee.identity.profile.avatarUrl" />
+                  <v-img :src="attendee.identity.profile.avatar" />
                 </v-avatar>
-                <span class="text-truncate">
-                  {{ attendee.identity.profile && attendee.identity.profile.fullName || attendee.identity.remoteId }}
+                <v-avatar v-else-if="attendee.identity.space" left>
+                  <v-img :src="attendee.identity.space.avatarUrl" />
+                </v-avatar>
+                <span v-if="attendee.identity.profile" class="text-truncate">
+                  {{ attendee.identity.profile && attendee.identity.profile.fullname || attendee.identity.remoteId }}
+                </span>
+                <span v-else-if="attendee.identity.space" class="text-truncate">
+                  {{ attendee.identity.space && attendee.identity.space.displayName || attendee.identity.remoteId }}
                 </span>
               </v-chip>
             </div>
@@ -174,7 +145,7 @@
         </div>
       </div>
     </div>
-  </v-container>
+  </v-flex>
 </template>
 
 <script>
@@ -223,6 +194,9 @@ export default {
         this.$refs.agendaEventForm.endLoading();
       }
     },
+    currentUser() {
+      this.reset();
+    },
     calendarOwner() {
       if (this.calendarOwner) {
         this.event.calendar.owner = {
@@ -251,8 +225,8 @@ export default {
           remoteId: this.invitedAttendee.remoteId,
           providerId: this.invitedAttendee.providerId,
           profile: {
-            avatarUrl: this.invitedAttendee.profile.avatarUrl,
-            fullName: this.invitedAttendee.profile.fullName,
+            avatar: this.invitedAttendee.profile.avatarUrl,
+            fullname: this.invitedAttendee.profile.fullName,
           },
         }});
       }
@@ -262,12 +236,36 @@ export default {
   mounted(){
     this.$userService.getUser(eXo.env.portal.userName).then(user => {
       this.currentUser = user;
-      this.reset();
     });
   },
   methods:{
+    validateForm() {
+
+      
+      
+      
+      // TODO form validation
+
+      
+      return true;
+    },
     reset() {
-      if (!this.event.id) { // In case of new event
+      if (this.event.id) { // In case of new event
+        const owner = this.event.calendar.owner;
+        this.calendarOwner = {
+          id: `${owner.providerId}:${owner.remoteId}`,
+          remoteId: owner.remoteId,
+          providerId: owner.providerId,
+          profile: {
+            avatarUrl: owner.profile && owner.profile.avatar || owner.space && owner.space.avatarUrl || '',
+            fullName: owner.profile && owner.profile.fullName || owner.space && owner.space.displayName || '',
+          },
+        };
+        this.$refs.calendarOwner.items = [this.calendarOwner];
+      } else { // In case of new event
+        this.$refs.calendarOwner.items = [];
+        this.calendarOwner = {};
+
         // Add current user as default attendee
         if (this.currentUser) {
           this.event.attendees = [{identity: {
@@ -275,8 +273,8 @@ export default {
             providerId: 'organization',
             remoteId: eXo.env.portal.userName,
             profile: {
-              avatarUrl: this.currentUser.avatar,
-              fullName: this.currentUser.fullname,
+              avatar: this.currentUser.avatar,
+              fullname: this.currentUser.fullname,
             },
           }}];
         } else {
@@ -284,11 +282,14 @@ export default {
         }
       }
     },
-    addNotification() {
-      this.notifications.push({});
+    addReminder() {
+      this.event.reminders.push({
+        before: 10,
+        beforePeriodType: 'MINUTE',
+      });
     },
-    removeNotifUser(index) {
-      this.notifications = this.notifications.filter((n) => n.id !== index);
+    removeReminder(index) {
+      this.event.reminders.splice(index, 1);
     },
     removeAttendee(attendee) {
       const index = this.event.attendees.findIndex(addedAttendee => {
