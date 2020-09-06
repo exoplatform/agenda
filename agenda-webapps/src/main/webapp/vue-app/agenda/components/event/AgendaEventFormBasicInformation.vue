@@ -22,8 +22,8 @@
         class="user-suggester"
         include-spaces />
     </div>
-    <div class="d-flex flex-row">
-      <div class="d-flex flex-column">
+    <div class="d-flex flex-row mt-1 event-form-body">
+      <div class="d-flex flex-column flex-grow-1">
         <div class="d-flex flex-row">
           <v-icon size="18" class="mr-11">
             fas fa-map-marker-alt
@@ -117,27 +117,46 @@
           <agenda-file-attachments :attachments-file="files" @files="files = $event" />
         </div>
       </div>
-      <div class="d-flex flex-column ml-5">
+      <div class="d-flex flex-column mx-5">
         <v-divider vertical />
       </div>
-      <div class="d-flex flex-column ml-5">
+      <div class="d-flex flex-column flex-grow-1">
         <div class="d-flex flex-row">
-          <v-icon size="18" class="mr-2">
-            fas fa-users
-          </v-icon>
-          <exo-identity-suggester
-            ref="autoFocusInput3"
-            v-model="invitedMembers"
-            :labels="participantSuggesterLabels"
-            :disabled="savingUser"
-            :search-options="{
-              currentUser: '',
-            }"
-            name="inviteMembers"
-            class="ma-4 user-suggester"
-            include-users
-            include-spaces
-            multiple />
+          <v-flex class="flex-grow-0 mr-2">
+            <v-icon class="mt-5" size="18">
+              fas fa-users
+            </v-icon>
+          </v-flex>
+          <v-flex class="mx-4">
+            <exo-identity-suggester
+              ref="invitedAttendeeAutoComplete"
+              v-model="invitedAttendee"
+              :labels="participantSuggesterLabels"
+              :disabled="savingUser"
+              :search-options="{
+                currentUser: '',
+              }"
+              :ignore-items="ignoredMembers"
+              name="inviteAttendee"
+              class="user-suggester"
+              include-users
+              include-spaces />
+            <div v-if="event.attendees" class="identitySuggester no-border mt-0">
+              <v-chip
+                v-for="attendee in event.attendees"
+                :key="attendee.identity.id"
+                close
+                class="identitySuggesterItem mr-4 mt-4"
+                @click:close="removeAttendee(attendee)">
+                <v-avatar v-if="attendee.identity.profile" left>
+                  <v-img :src="attendee.identity.profile.avatarUrl" />
+                </v-avatar>
+                <span class="text-truncate">
+                  {{ attendee.identity.profile && attendee.identity.profile.fullName || attendee.identity.remoteId }}
+                </span>
+              </v-chip>
+            </div>
+          </v-flex>
         </div>
         <div class="d-flex flex-row">
           <label class="switch-label-text mt-1 text-subtitle-1 font-weight-bold">{{ $t('agenda.modifyEventPermission') }}</label>
@@ -172,7 +191,7 @@ export default {
       currentUser: null,
       savingUser: false,
       calendarOwner: null,
-      invitedMembers: [],
+      invitedAttendee: [],
       notifications: [],
       nbNotif: 0,
       enablePermission: false,
@@ -191,6 +210,9 @@ export default {
         placeholder: this.$t('agenda.chooseCalendar'),
         noDataLabel: this.$t('agenda.noDataLabel'),
       };
+    },
+    ignoredMembers() {
+      return this.event.attendees.flatMap(attendee => [attendee.id, `${attendee.identity.providerId}:${attendee.identity.remoteId}`]);
     },
   },
   watch: {
@@ -211,19 +233,30 @@ export default {
         this.event.calendar.owner = null;
       }
     },
-    invitedMembers() {
+    invitedAttendee() {
+      if (!this.invitedAttendee) {
+        this.$nextTick(this.$refs.invitedAttendeeAutoComplete.$refs.selectAutoComplete.deleteCurrentItem);
+        return;
+      }
       if (!this.event.attendees) {
         this.event.attendees = [];
       }
 
-      if (this.invitedMembers) {
-        this.event.attendees = this.invitedMembers.map(identity => ({identity: {
-          remoteId: identity.remoteId,
-          providerId: identity.providerId,
-        }}));
-      } else {
-        this.event.attendees = [];
+      const found = this.event.attendees.find(attendee => {
+        return attendee.identity.remoteId === this.invitedAttendee.remoteId
+          && attendee.identity.providerId === this.invitedAttendee.providerId;
+      });
+      if (!found) {
+        this.event.attendees.push({identity: {
+          remoteId: this.invitedAttendee.remoteId,
+          providerId: this.invitedAttendee.providerId,
+          profile: {
+            avatarUrl: this.invitedAttendee.profile.avatarUrl,
+            fullName: this.invitedAttendee.profile.fullName,
+          },
+        }});
       }
+      this.invitedAttendee = null;
     },
   },
   mounted(){
@@ -234,9 +267,10 @@ export default {
   },
   methods:{
     reset() {
-      if (!this.event.id) {
+      if (!this.event.id) { // In case of new event
+        // Add current user as default attendee
         if (this.currentUser) {
-          this.invitedMembers = [{
+          this.event.attendees = [{identity: {
             id: eXo.env.portal.userIdentityId,
             providerId: 'organization',
             remoteId: eXo.env.portal.userName,
@@ -244,9 +278,9 @@ export default {
               avatarUrl: this.currentUser.avatar,
               fullName: this.currentUser.fullname,
             },
-          }];
+          }}];
         } else {
-          this.invitedMembers = [];
+          this.event.attendees = [];
         }
       }
     },
@@ -255,6 +289,15 @@ export default {
     },
     removeNotifUser(index) {
       this.notifications = this.notifications.filter((n) => n.id !== index);
+    },
+    removeAttendee(attendee) {
+      const index = this.event.attendees.findIndex(addedAttendee => {
+        return attendee.identity.remoteId === addedAttendee.identity.remoteId
+        && attendee.identity.providerId === addedAttendee.identity.providerId;
+      });
+      if (index >= 0) {
+        this.event.attendees.splice(index, 1);
+      }
     },
     removeFile(index) {
       this.files = this.files.filter((n) => n.uploadId !== index);
