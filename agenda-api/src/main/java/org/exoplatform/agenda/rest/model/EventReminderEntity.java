@@ -31,9 +31,9 @@ public class EventReminderEntity implements Serializable {
 
   private long              receiverId;
 
-  private String            type;
+  private int               before;
 
-  private int               minutes;
+  private String            beforePeriodType;
 
   /**
    * Date and time converted to user timezone (Timestamp representation using

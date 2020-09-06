@@ -1,42 +1,74 @@
 <template>
   <v-row class="fill-height">
     <v-col>
-      <v-sheet height="600">
-        <v-calendar
-          ref="calendar"
-          v-model="value"
-          color="primary"
-          type="week"
-          :events="events"
-          :event-color="getEventColor"
-          :event-ripple="false"
-          @mousedown:event="startDrag"
-          @mousedown:time="startTime"
-          @mousemove:time="mouseMove"
-          @mouseup:time="endDrag"
-          @mouseleave.native="cancelDrag">
-          <template #event="{ event }">
-            <div class="v-event-draggable">
-              <strong>{{ event.summary }}</strong>
-              <div class="d-flex flex-nowrap v-event-draggable">
-                <date-format
-                  :value="event.start"
-                  :format="dateTimeFormat"
-                  class="v-event-draggable" />
-                <strong class="mx-2">-</strong>
-                <date-format
-                  :value="event.end"
-                  :format="dateTimeFormat"
-                  class="v-event-draggable" />
-              </div>
+      <v-toolbar flat color="white">
+        <v-switch
+          v-model="allDay"
+          :label="$t('agenda.allDay')" />
+        <v-row align="center" justify="center">
+          <v-btn
+            fab
+            text
+            small
+            color="grey darken-2"
+            @click="prevDate">
+            <v-icon small>
+              mdi-menu-left
+            </v-icon>
+          </v-btn>
+          <v-toolbar-title v-if="periodTitle">
+            {{ periodTitle }}
+          </v-toolbar-title>
+          <v-btn
+            fab
+            text
+            small
+            color="grey darken-2"
+            @click="nextDate">
+            <v-icon small>
+              mdi-menu-right
+            </v-icon>
+          </v-btn>
+        </v-row>
+      </v-toolbar>
+      <v-calendar
+        ref="calendar"
+        v-model="value"
+        :events="events"
+        :event-color="getEventColor"
+        :event-timed="isEventTimed"
+        :start="dayToDisplay"
+        :weekdays="weekdays"
+        :event-ripple="false"
+        color="primary"
+        type="week"
+        @mousedown:event="startDrag"
+        @mousedown:time="startTime"
+        @mousemove:time="mouseMove"
+        @mouseup:time="endDrag"
+        @mouseleave.native="cancelDrag"
+        @change="retrievePeriod">
+        <template #event="{ event }">
+          <div class="v-event-draggable">
+            <strong>{{ event.summary }}</strong>
+            <div class="d-flex flex-nowrap v-event-draggable">
+              <date-format
+                :value="event.start"
+                :format="dateTimeFormat"
+                class="v-event-draggable" />
+              <strong class="mx-2">-</strong>
+              <date-format
+                :value="event.end"
+                :format="dateTimeFormat"
+                class="v-event-draggable" />
             </div>
-            <div
-              v-if="timed"
-              class="v-event-drag-bottom"
-              @mousedown.stop="extendBottom(event)"></div>
-          </template>
-        </v-calendar>
-      </v-sheet>
+          </div>
+          <div
+            v-if="timed"
+            class="v-event-drag-bottom"
+            @mousedown.stop="extendBottom(event)"></div>
+        </template>
+      </v-calendar>
     </v-col>
   </v-row>
 </template>
@@ -48,15 +80,22 @@ export default {
       type: Object,
       default: () => ({}),
     },
+    weekdays: {
+      type: Array,
+      default: () => null
+    },
   },
   data: () => ({
     value: '',
+    periodTitle: '',
     events: [],
+    allDay: false,
     dragEvent: null,
     dragStart: null,
     createEvent: null,
     createStart: null,
     extendOriginal: null,
+    dayToDisplay: Date.now(),
     dateTimeFormat: {
       year: 'numeric',
       month: 'short',
@@ -65,15 +104,25 @@ export default {
       minute: '2-digit',
     },
   }),
+  watch: {
+    allDay() {
+      if (this.dragEvent) {
+        this.dragEvent.allDay = this.allDay;
+      }
+      if (this.createEvent) {
+        this.createEvent.allDay = this.allDay;
+      }
+    },
+  },
   methods: {
-    startDrag ({ event, timed }) {
+    startDrag({ event, timed }) {
       if (event && timed) {
         this.dragEvent = event;
         this.dragTime = null;
         this.extendOriginal = null;
       }
     },
-    startTime (tms) {
+    startTime(tms) {
       const mouse = this.toTime(tms);
 
       if (this.dragEvent && this.dragTime === null) {
@@ -87,17 +136,17 @@ export default {
           color: this.getEventColor(this.event),
           start: this.createStart,
           end: this.createStart,
-          timed: true,
+          allDay: this.allDay,
         };
         this.events.push(this.createEvent);
       }
     },
-    extendBottom (event) {
+    extendBottom(event) {
       this.createEvent = event;
       this.createStart = event.start;
       this.extendOriginal = event.end;
     },
-    mouseMove (tms) {
+    mouseMove(tms) {
       const mouse = this.toTime(tms);
 
       if (this.dragEvent && this.dragTime !== null) {
@@ -119,10 +168,13 @@ export default {
         this.createEvent.end = max;
       }
     },
-    endDrag () {
+    endDrag() {
       const eventToStore = this.dragEvent || this.createEvent;
-      this.event.start = this.$agendaUtils.toRFC3339(eventToStore.start);
-      this.event.end = this.$agendaUtils.toRFC3339(eventToStore.end);
+      if (eventToStore.start) {
+        this.event.start = this.$agendaUtils.toRFC3339(eventToStore.start);
+        this.event.end = this.$agendaUtils.toRFC3339(eventToStore.end);
+        this.event.allDay = eventToStore.allDay;
+      }
 
       this.dragTime = null;
       this.dragEvent = null;
@@ -132,7 +184,7 @@ export default {
 
       this.resetEvents();
     },
-    cancelDrag () {
+    cancelDrag() {
       if (this.createEvent) {
         if (this.extendOriginal) {
           this.createEvent.end = this.extendOriginal;
@@ -146,7 +198,7 @@ export default {
       this.dragTime = null;
       this.dragEvent = null;
     },
-    roundTime (time, down = true) {
+    roundTime(time, down = true) {
       const roundTo = 15; // minutes
       const roundDownTime = roundTo * 60 * 1000;
 
@@ -154,20 +206,44 @@ export default {
         ? time - time % roundDownTime
         : time + (roundDownTime - time % roundDownTime);
     },
-    toTime (tms) {
+    toTime(tms) {
       return new Date(tms.year, tms.month - 1, tms.day, tms.hour, tms.minute).getTime();
     },
     getEventColor(event) {
       return event && (event.color || event.calendar && event.calendar.color) || '#2196F3';
     },
+    isEventTimed(event) {
+      return event && !event.allDay;
+    },
+    nextDate() {
+      this.$refs.calendar.next();
+    },
+    prevDate() {
+      this.$refs.calendar.prev();
+    },
     resetEvents() {
+      if (!this.event.start) {
+        this.event.start = this.$agendaUtils.toRFC3339(new Date());
+        this.event.end = this.$agendaUtils.toRFC3339(new Date());
+        this.event.allDay = this.allDay;
+      }
+      const startDate =  new Date(this.event.start);
+      const year = startDate.getYear() + 1900;
+      const month = startDate.getMonth() + 1;
+      const day = startDate.getDate();
+      this.dayToDisplay = `${year}-${month < 10 ? `0${  month}` : month}-${day < 10 ? `0${  day}`:day}`;
       this.events = [{
         summary: this.event.summary,
         color: this.getEventColor(),
-        start: new Date(this.event.start).getTime(),
+        start: startDate.getTime(),
         end: new Date(this.event.end).getTime(),
-        timed: true,
+        allDay: this.event.allDay,
       }];
+    },
+    retrievePeriod(range) {
+      const period = this.$agendaUtils.convertVuetifyRangeToPeriod(range, this.$userTimeZone);
+      period.title = this.$refs.calendar.title;
+      this.periodTitle = this.$agendaUtils.generateCalendarTitle('week', new Date(period.start), period.title, this.$t('agenda.header.toolbar.title.week'));
     },
   },
 };

@@ -1,55 +1,85 @@
 @import "./variables.less";
 
-.agenda-application {
-  .v-calendar {
-    min-height: ~"calc(100vh - 230px)";
-  }
+.VuetifyApp {
   .v-calendar-daily__scroll-area {
-    overflow: auto;
+    overflow: auto !important;
+  }
+  .v-calendar-daily__head {
+    margin: 0 !important;
+  }
+  .agenda-application {
+    .v-calendar {
+      min-height: ~"calc(100vh - 230px)";
+    }
+  }
+  .event-form {
+    .v-stepper__content {
+      box-sizing: border-box;
+    }
+    .space-suggester {
+      max-width: 270px;
+    }
+    .location-event-input {
+      width: 500px;
+    }
+    .description-event-textarea {
+      width: 500px;
+    }
+    .time-notification {
+      width:50px;
+    }
+    select {
+      height: 40px;
+    }
+    .add-notification-link {
+      text-decoration: underline;
+    }
+    .attach-file-link {
+      text-decoration: underline;
+    }
+    .notification-date-option {
+      min-height: 40px;
+    }
+    .event-form-body > * {
+      max-width: ~"calc(50% - 21px)";
+    }
+    .event-form-body-left > * {
+      min-height: 64px;
+    }
+    .v-stepper__items {
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+    .v-autocomplete.identitySuggester {
+      width: 290px;
+  
+      &.identitySuggester {
+        margin-bottom: 0 !important;
+      }
+      .v-input__slot {
+        margin: auto !important;
+      }
+      .v-select__selections {
+        flex-wrap: nowrap;
+        white-space: nowrap;
+        overflow: hidden;
+        margin: auto;
+        display: flex !important;
+      }
+      input {
+        padding: 0;
+      }
+    }
   }
 }
-.event-form {
-  .space-suggester {
-    max-width: 270px;
-  }
-  .location-event-input {
-    width: 500px;
-  }
-  .description-event-textarea {
-    width: 500px;
-  }
-  .time-notification {
-    width:50px;
-  }
-  .add-notification-link {
-    text-decoration: underline;
-  }
-  .attach-file-link {
-    text-decoration: underline;
-  }
-  .notification-date-option {
-    min-height: 40px;
-  }
-  .event-form-body > * {
-    max-width: ~"calc(50% - 21px)";
-  }
-  .v-autocomplete {
-    width: 290px;
-
-    &.identitySuggester {
-      margin-bottom: 0 !important;
-    }
-    .v-input__slot {
-      margin: auto !important;
-    }
-    .v-select__selections {
-      flex-wrap: nowrap;
-      white-space: nowrap;
-      overflow: hidden;
-      margin: auto;
-
-      .identitySuggesterItem {
-        top: 3px;
+@media (max-width: @maxMobileWidth) {
+  .VuetifyApp {
+    .event-form {
+      .event-form-body > * {
+        max-width: 100%;
+      }
+      .v-autocomplete {
+        width: 100%;
       }
     }
   }

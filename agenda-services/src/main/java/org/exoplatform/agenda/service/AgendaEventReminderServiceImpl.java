@@ -19,23 +19,25 @@ package org.exoplatform.agenda.service;
 import java.util.List;
 
 import org.exoplatform.agenda.model.EventReminder;
+import org.exoplatform.agenda.storage.AgendaEventStorage;
 
 public class AgendaEventReminderServiceImpl implements AgendaEventReminderService {
 
-  public AgendaEventReminderServiceImpl() {
-    // TODO Auto-generated constructor stub
+  private AgendaEventStorage agendaEventStorage;
+
+  public AgendaEventReminderServiceImpl(AgendaEventStorage agendaEventStorage) {
+    this.agendaEventStorage = agendaEventStorage;
   }
 
   @Override
   public List<EventReminder> getEventReminders(long eventId, long userIdentityId) {
-    // TODO Auto-generated method stub
-    return null;
+    // TODO compute default event reminder for users
+    return this.agendaEventStorage.getEventReminders(eventId, userIdentityId);
   }
 
   @Override
   public void saveEventReminders(long eventId, List<EventReminder> reminders, long userIdentityId) throws IllegalAccessException {
     // TODO Auto-generated method stub
-    
   }
 
 }

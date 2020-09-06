@@ -187,10 +187,10 @@
       <column name="RECEIVER_ID" type="BIGINT">
         <constraints nullable="false" />
       </column>
-      <column name="MINUTES" type="INT">
+      <column name="BEFORE" type="INT">
         <constraints nullable="false" />
       </column>
-      <column name="TYPE" type="VARCHAR(200)">
+      <column name="BEFORE_PERIOD_TYPE" type="SMALLINT">
         <constraints nullable="false" />
       </column>
       <column name="TRIGGER_DATE" type="TIMESTAMP" defaultValueComputed="NULL" />
