@@ -30,7 +30,27 @@
   .notification-date-option {
     min-height: 40px;
   }
-  .user-suggester {
-    max-width: 80%;
+  .event-form-body > * {
+    max-width: ~"calc(50% - 21px)";
+  }
+  .v-autocomplete {
+    width: 290px;
+
+    &.identitySuggester {
+      margin-bottom: 0 !important;
+    }
+    .v-input__slot {
+      margin: auto !important;
+    }
+    .v-select__selections {
+      flex-wrap: nowrap;
+      white-space: nowrap;
+      overflow: hidden;
+      margin: auto;
+
+      .identitySuggesterItem {
+        top: 3px;
+      }
+    }
   }
 }
