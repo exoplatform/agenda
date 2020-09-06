@@ -6,7 +6,8 @@
     <agenda-event-form
       ref="eventForm"
       :event="event"
-      class="fill-height"
+      :weekdays="weekdays"
+      class="fill-height event-form"
       @close="close"
       @saved="saved" />
   </v-dialog>
@@ -14,6 +15,12 @@
 
 <script>
 export default {
+  props: {
+    weekdays: {
+      type: Array,
+      default: () => null
+    },
+  },
   data () {
     return {
       dialog: false,
@@ -35,7 +42,11 @@ export default {
   methods: {
     open(event) {
       this.dialog = true;
-      event = event || {};
+      if (event) {
+        event = Object.assign({}, event);
+      } else {
+        event = {};
+      }
       if (!event.calendar) {
         event.calendar = {};
       }

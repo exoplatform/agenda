@@ -17,10 +17,8 @@
 package org.exoplatform.agenda.util;
 
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.time.*;
 import java.util.*;
-import java.util.Date;
 import java.util.TimeZone;
 
 import org.apache.commons.lang.StringUtils;

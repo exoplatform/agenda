@@ -226,8 +226,14 @@ public class AgendaEventServiceTest {
                  createdEventRecurrence.getOverallStart());
 
     assertNotNull(createdEventRecurrence.getOverallEnd());
-    assertEquals(end.plusDays(2).withZoneSameInstant(ZoneOffset.UTC),
-                 createdEventRecurrence.getOverallEnd());
+    assertEquals(end.withZoneSameLocal(ZoneOffset.UTC).plusDays(2).toLocalDate(),
+                 createdEventRecurrence.getOverallEnd().toLocalDate());
+    assertEquals(end.withZoneSameInstant(ZoneOffset.UTC).plusDays(2).getHour(),
+                 createdEventRecurrence.getOverallEnd().getHour());
+    assertEquals(end.withZoneSameInstant(ZoneOffset.UTC).plusDays(2).getMinute(),
+                 createdEventRecurrence.getOverallEnd().getMinute());
+    assertEquals(end.withZoneSameInstant(ZoneOffset.UTC).plusDays(2).getSecond(),
+                 createdEventRecurrence.getOverallEnd().getSecond());
   }
 
   @Test
@@ -781,7 +787,7 @@ public class AgendaEventServiceTest {
       ATTACHMENTS.add(eventAttachment);
 
       REMINDERS.clear();
-      REMINDERS.add(new EventReminder(0, 0, "mail", 1, null));
+      REMINDERS.add(new EventReminder(0, 1l, 1, ReminderPeriodType.MINUTE, null));
 
       return agendaEventService.createEvent(event.clone(),
                                             (ArrayList<EventAttendee>) ATTENDEES.clone(),

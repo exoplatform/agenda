@@ -21,42 +21,57 @@ import java.util.Date;
 
 import javax.persistence.*;
 
+import org.exoplatform.agenda.constant.ReminderPeriodType;
 import org.exoplatform.commons.api.persistence.ExoEntity;
 
 @Entity(name = "AgendaEventReminder")
 @ExoEntity
 @Table(name = "EXO_AGENDA_REMINDER")
-@NamedQueries({
-    @NamedQuery(name = "AgendaEventReminder.deleteCalendarReminders", query = "DELETE FROM AgendaEventReminder a WHERE a.event.id IN (SELECT evt.id FROM AgendaEvent evt WHERE evt.calendar.id = :calendarId)"),
-    @NamedQuery(name = "AgendaEventReminder.deleteEventReminders", query = "DELETE FROM AgendaEventReminder a WHERE a.event.id = :eventId"),
-    @NamedQuery(name = "AgendaEventReminder.getEventRemindersByEventIdAndUserId", query = "SELECT a FROM AgendaEventReminder a WHERE a.event.id = :eventId AND a.receiverId = :userId"),
-    @NamedQuery(name = "AgendaEventReminder.getEventRemindersByEventId", query = "SELECT a FROM AgendaEventReminder a WHERE a.event.id = :eventId"),
-})
+@NamedQueries(
+  {
+      @NamedQuery(
+          name = "AgendaEventReminder.deleteCalendarReminders",
+          query = "DELETE FROM AgendaEventReminder a WHERE a.event.id IN (SELECT evt.id FROM AgendaEvent evt WHERE evt.calendar.id = :calendarId)"
+      ),
+      @NamedQuery(
+          name = "AgendaEventReminder.deleteEventReminders",
+          query = "DELETE FROM AgendaEventReminder a WHERE a.event.id = :eventId"
+      ),
+      @NamedQuery(
+          name = "AgendaEventReminder.getEventRemindersByEventIdAndUserId",
+          query = "SELECT a FROM AgendaEventReminder a WHERE a.event.id = :eventId AND a.receiverId = :userId"
+      ),
+      @NamedQuery(
+          name = "AgendaEventReminder.getEventRemindersByEventId",
+          query = "SELECT a FROM AgendaEventReminder a WHERE a.event.id = :eventId"
+      ),
+  }
+)
 public class EventReminderEntity implements Serializable {
 
-  private static final long serialVersionUID = 6460217989840428489L;
+  private static final long  serialVersionUID = 6460217989840428489L;
 
   @Id
   @SequenceGenerator(name = "SEQ_AGENDA_EVENT_REMINDER_ID", sequenceName = "SEQ_AGENDA_EVENT_REMINDER_ID")
   @GeneratedValue(strategy = GenerationType.AUTO, generator = "SEQ_AGENDA_EVENT_REMINDER_ID")
   @Column(name = "EVENT_REMINDER_ID")
-  private Long              id;
+  private Long               id;
 
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "EVENT_ID", referencedColumnName = "EVENT_ID")
-  private EventEntity       event;
+  private EventEntity        event;
 
   @Column(name = "RECEIVER_ID", nullable = false)
-  private long              receiverId;
+  private long               receiverId;
 
-  @Column(name = "TYPE")
-  private String            type;
+  @Column(name = "BEFORE", nullable = false)
+  private int                before;
 
-  @Column(name = "MINUTES", nullable = false)
-  private int               minutes;
+  @Column(name = "BEFORE_PERIOD_TYPE", nullable = false)
+  private ReminderPeriodType beforeType;
 
   @Column(name = "TRIGGER_DATE", nullable = false)
-  private Date              triggerDate;
+  private Date               triggerDate;
 
   public Long getId() {
     return id;
@@ -74,20 +89,20 @@ public class EventReminderEntity implements Serializable {
     this.event = event;
   }
 
-  public String getType() {
-    return type;
+  public int getBefore() {
+    return before;
   }
 
-  public void setType(String type) {
-    this.type = type;
+  public void setBefore(int before) {
+    this.before = before;
   }
 
-  public int getMinutes() {
-    return minutes;
+  public ReminderPeriodType getBeforeType() {
+    return beforeType;
   }
 
-  public void setMinutes(int minutes) {
-    this.minutes = minutes;
+  public void setBeforeType(ReminderPeriodType beforeType) {
+    this.beforeType = beforeType;
   }
 
   public Date getTriggerDate() {
