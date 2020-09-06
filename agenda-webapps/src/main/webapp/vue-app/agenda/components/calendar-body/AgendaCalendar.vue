@@ -7,11 +7,11 @@
     :event-timed="isEventTimed"
     :type="calendarType"
     :weekdays="weekdays"
-    :show-week="true"
     event-name="summary"
     event-start="startDate"
     event-end="endDate"
     color="primary"
+    show-week
     @click:event="showEvent"
     @click:more="viewDay"
     @click:date="viewDay"
@@ -72,8 +72,9 @@ export default {
     isEventTimed(event) {
       return event && !event.allDay;
     },
-    showEvent() {
-      // TODO
+    showEvent(event) {
+      event = event && event.event || event;
+      this.$root.$emit('agenda-event-form', event);
     },
     viewDay({ date }) {
       this.focus = date;

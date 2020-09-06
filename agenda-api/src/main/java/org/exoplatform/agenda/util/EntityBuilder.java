@@ -18,6 +18,7 @@ package org.exoplatform.agenda.util;
 
 import org.apache.commons.lang3.StringUtils;
 
+import org.exoplatform.agenda.constant.ReminderPeriodType;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
 import org.exoplatform.agenda.model.*;
@@ -115,10 +116,15 @@ public class EntityBuilder {
   }
 
   public static EventReminder toEventReminder(EventReminderEntity eventReminderEntity) {
+    String beforePeriodTypeName = eventReminderEntity.getBeforePeriodType();
+    ReminderPeriodType beforePeriodType = null;
+    if (StringUtils.isNotBlank(beforePeriodTypeName)) {
+      beforePeriodType = ReminderPeriodType.valueOf(beforePeriodTypeName.toUpperCase());
+    }
     return new EventReminder(eventReminderEntity.getId(),
                              eventReminderEntity.getReceiverId(),
-                             eventReminderEntity.getType(),
-                             eventReminderEntity.getMinutes(),
+                             eventReminderEntity.getBefore(),
+                             beforePeriodType,
                              AgendaDateUtils.parseRFC3339ToZonedDateTime(eventReminderEntity.getDatetime()));
   }
 
@@ -170,8 +176,9 @@ public class EntityBuilder {
   public static final EventReminderEntity fromEventReminder(EventReminder eventReminder) {
     return new EventReminderEntity(eventReminder.getId(),
                                    eventReminder.getReceiverId(),
-                                   eventReminder.getType(),
-                                   eventReminder.getMinutes(),
+                                   eventReminder.getBefore(),
+                                   eventReminder.getBeforePeriodType() == null ? null
+                                                                               : eventReminder.getBeforePeriodType().name(),
                                    AgendaDateUtils.toRFC3339Date(eventReminder.getDatetime()));
   }
 
