@@ -248,7 +248,7 @@ export default {
   },
   methods:{
     validateForm() {
-      if(!this.event.summary) {
+      if (!this.event.summary) {
         this.fieldError = this.$t('agenda.message.missingEventTitle');
         this.error = true;
         window.setTimeout(() => {
@@ -262,21 +262,21 @@ export default {
           this.error = null;
         }, 5000);
         return false;
-      } else if(this.calendarOwner === null) {
+      } else if (this.calendarOwner === null) {
         this.fieldError = this.$t('agenda.message.missingSpaceName');
         this.error = true;
         window.setTimeout(() => {
           this.error = null;
         }, 5000);
         return false;
-      }else if(!this.event.location) {
+      } else if (!this.event.location) {
         this.fieldError = this.$t('agenda.message.missingEventLocation');
         this.error = true;
         window.setTimeout(() => {
           this.error = null;
         }, 5000);
         return false;
-      }else{
+      } else {
         this.error = null;
         return true;
       }
@@ -332,12 +332,6 @@ export default {
         this.event.attendees.splice(index, 1);
       }
     },
-    removeFile(index) {
-      this.files = this.files.filter((n) => n.uploadId !== index);
-    },
-    formatFileSize(size) {
-      return this.$agendaUtils.getFormattedFileSize(size);
-    }
   }
 };
 </script>
