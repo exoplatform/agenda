@@ -71,6 +71,10 @@ public class AgendaEventServiceTest {
 
   private Calendar                                calendar;
 
+  private Calendar                                spaceCalendar;
+
+  private Space                                   space;
+
   private Identity                                testuser1Identity;
 
   private Identity                                testuser2Identity;
@@ -108,10 +112,10 @@ public class AgendaEventServiceTest {
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
 
     boolean allDay = true;
-    long creatorId = Long.parseLong(testuser1Identity.getId());
+    String creatorUserName = testuser1Identity.getRemoteId();
 
-    Event event = newEventInstance(start, start, allDay, creatorId);
-    Event createdEvent = createEvent(event.clone(), testuser2Identity, testuser3Identity);
+    Event event = newEventInstance(start, start, allDay);
+    Event createdEvent = createEvent(event.clone(), creatorUserName, testuser2Identity, testuser3Identity);
 
     assertNotNull(createdEvent);
     assertTrue(createdEvent.getId() > 0);
@@ -123,7 +127,7 @@ public class AgendaEventServiceTest {
     assertEquals(event.getStart().toLocalDate(), createdEvent.getStart().toLocalDate());
     assertEquals(event.getEnd().toLocalDate(), createdEvent.getEnd().toLocalDate());
     assertEquals(event.getLocation(), createdEvent.getLocation());
-    assertEquals(event.getCreatorId(), createdEvent.getCreatorId());
+    assertEquals(Long.parseLong(testuser1Identity.getId()), createdEvent.getCreatorId());
     assertEquals(event.getRemoteId(), createdEvent.getRemoteId());
     assertEquals(event.getRemoteProviderId(), createdEvent.getRemoteProviderId());
     assertEquals(event.getAvailability(), createdEvent.getAvailability());
@@ -165,15 +169,39 @@ public class AgendaEventServiceTest {
   }
 
   @Test
+  public void testCreateEvent_InSpace_AsMember() throws Exception { // NOSONAR
+    ZonedDateTime start = ZonedDateTime.now().withNano(0);
+
+    boolean allDay = true;
+    String creatorUserName = testuser1Identity.getRemoteId();
+
+    Event event = newEventInstance(start, start, allDay);
+    event.setCalendarId(spaceCalendar.getId());
+    Event createdEvent = createEvent(event.clone(), creatorUserName, testuser2Identity, testuser3Identity);
+
+    assertNotNull(createdEvent);
+    assertTrue(createdEvent.getId() > 0);
+
+    try {
+      event = newEventInstance(start, start, allDay);
+      event.setCalendarId(spaceCalendar.getId());
+      createEvent(event.clone(), testuser5Identity.getRemoteId(), testuser2Identity, testuser3Identity);
+      fail("testuser5 is not member of space and shouldn't be able to create an event");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+  }
+
+  @Test
   public void testGetEventById_Recurrent() throws Exception { // NOSONAR
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
     ZonedDateTime end = ZonedDateTime.now().withNano(0).plusHours(2);
 
     boolean allDay = false;
-    long creatorId = Long.parseLong(testuser1Identity.getId());
+    String creatorUserName = testuser1Identity.getRemoteId();
 
-    Event event = newEventInstance(start, end, allDay, creatorId);
-    Event createdEvent = createEvent(event.clone(), testuser2Identity);
+    Event event = newEventInstance(start, end, allDay);
+    Event createdEvent = createEvent(event.clone(), creatorUserName, testuser2Identity);
     createdEvent = agendaEventService.getEventById(createdEvent.getId(), testuser2Identity.getRemoteId());
 
     assertNotNull(createdEvent);
@@ -184,7 +212,7 @@ public class AgendaEventServiceTest {
     assertEquals(event.getCalendarId(), createdEvent.getCalendarId());
     assertEquals(event.getColor(), createdEvent.getColor());
     assertEquals(event.getLocation(), createdEvent.getLocation());
-    assertEquals(event.getCreatorId(), createdEvent.getCreatorId());
+    assertEquals(Long.parseLong(testuser1Identity.getId()), createdEvent.getCreatorId());
     assertEquals(event.getRemoteId(), createdEvent.getRemoteId());
     assertEquals(event.getRemoteProviderId(), createdEvent.getRemoteProviderId());
     assertEquals(event.getAvailability(), createdEvent.getAvailability());
@@ -241,9 +269,9 @@ public class AgendaEventServiceTest {
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
 
     boolean allDay = true;
-    long creatorId = Long.parseLong(testuser1Identity.getId());
+    String creatorUserName = testuser1Identity.getRemoteId();
 
-    Event event = newEventInstance(start, start, allDay, creatorId);
+    Event event = newEventInstance(start, start, allDay);
     event.getRecurrence().setFrequency(EventRecurrenceFrequency.YEARLY);
     event.getRecurrence().setBySecond(Collections.singletonList("1"));
     event.getRecurrence().setByMinute(Collections.singletonList("1"));
@@ -254,7 +282,7 @@ public class AgendaEventServiceTest {
     event.getRecurrence().setByWeekNo(Collections.singletonList("30"));
     event.getRecurrence().setByYearDay(Collections.singletonList("165"));
     event.getRecurrence().setBySetPos(Collections.singletonList("-1"));
-    event = createEvent(event.clone(), testuser2Identity);
+    event = createEvent(event.clone(), creatorUserName, testuser2Identity);
 
     Event createdEvent = agendaEventService.getEventById(event.getId(), testuser2Identity.getRemoteId());
 
@@ -284,10 +312,10 @@ public class AgendaEventServiceTest {
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
 
     boolean allDay = true;
-    long creatorId = Long.parseLong(testuser1Identity.getId());
+    String creatorUserName = testuser1Identity.getRemoteId();
 
-    Event event = newEventInstance(start, start, allDay, creatorId);
-    event = createEvent(event.clone(), testuser2Identity);
+    Event event = newEventInstance(start, start, allDay);
+    event = createEvent(event.clone(), creatorUserName, testuser2Identity);
 
     try {
       agendaEventService.getEventById(event.getId(), testuser3Identity.getRemoteId());
@@ -353,10 +381,10 @@ public class AgendaEventServiceTest {
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
 
     boolean allDay = true;
-    long creatorId = Long.parseLong(testuser1Identity.getId());
+    String creatorUserName = testuser1Identity.getRemoteId();
 
-    Event event = newEventInstance(start, start, allDay, creatorId);
-    event = createEvent(event.clone(), testuser2Identity);
+    Event event = newEventInstance(start, start, allDay);
+    event = createEvent(event.clone(), creatorUserName, testuser2Identity);
 
     long eventId = event.getId();
     Event createdEvent = agendaEventService.getEventById(eventId, testuser2Identity.getRemoteId());
@@ -385,14 +413,48 @@ public class AgendaEventServiceTest {
   }
 
   @Test
+  public void testUpdateEvent_InSpace_AsMember() throws Exception { // NOSONAR
+    ZonedDateTime start = ZonedDateTime.now().withNano(0);
+
+    boolean allDay = true;
+    String creatorUserName = testuser1Identity.getRemoteId();
+
+    Event event = newEventInstance(start, start, allDay);
+    event.setCalendarId(spaceCalendar.getId());
+    Event createdEvent = createEvent(event.clone(), creatorUserName, testuser2Identity, testuser3Identity);
+
+    assertNotNull(createdEvent);
+    assertTrue(createdEvent.getId() > 0);
+
+    String newDescription = "Desc2";
+    createdEvent.setDescription(newDescription);
+    agendaEventService.updateEvent(createdEvent, null, null, null, null, false, testuser1Identity.getRemoteId());
+
+    Event updatedEvent = agendaEventService.getEventById(createdEvent.getId(), testuser1Identity.getRemoteId());
+
+    assertNotNull(updatedEvent);
+    assertEquals(newDescription, updatedEvent.getDescription());
+
+    spaceService.removeMember(space, testuser1Identity.getRemoteId());
+    try {
+      agendaEventService.updateEvent(updatedEvent, null, null, null, null, false, testuser1Identity.getRemoteId());
+      fail("testuser1 shouldn't be able to update a previously created event by him, while he's not member of space anymore");
+    } catch (IllegalAccessException e) {
+      // Expected
+    } finally {
+      spaceService.addMember(space, testuser1Identity.getRemoteId());
+    }
+  }
+
+  @Test
   public void testDeleteEvent() throws Exception { // NOSONAR
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
 
     boolean allDay = true;
-    long creatorId = Long.parseLong(testuser1Identity.getId());
+    String creatorUserName = testuser1Identity.getRemoteId();
 
-    Event event = newEventInstance(start, start, allDay, creatorId);
-    event = createEvent(event.clone(), testuser2Identity);
+    Event event = newEventInstance(start, start, allDay);
+    event = createEvent(event.clone(), creatorUserName, testuser2Identity);
 
     long eventId = event.getId();
     try {
@@ -424,10 +486,10 @@ public class AgendaEventServiceTest {
     ZonedDateTime end = ZonedDateTime.now().plusHours(2).withNano(0);
 
     boolean allDay = false;
-    long creatorId = Long.parseLong(testuser1Identity.getId());
+    String creatorUserName = testuser1Identity.getRemoteId();
 
-    Event event = newEventInstance(start, end, allDay, creatorId);
-    event = createEvent(event.clone(), testuser2Identity);
+    Event event = newEventInstance(start, end, allDay);
+    event = createEvent(event.clone(), creatorUserName, testuser2Identity);
     Event createdEvent = agendaEventService.getEventById(event.getId(), testuser2Identity.getRemoteId());
 
     assertNotNull(createdEvent);
@@ -441,7 +503,7 @@ public class AgendaEventServiceTest {
     assertEquals(0, events.get(0).getId());
 
     Event exceptionalEvent = events.get(0).clone();
-    exceptionalEvent = createEvent(exceptionalEvent, testuser2Identity);
+    exceptionalEvent = createEvent(exceptionalEvent, creatorUserName, testuser2Identity);
 
     events = agendaEventService.getEvents(ZonedDateTime.now().plusHours(1),
                                           ZonedDateTime.now().plusMinutes(90),
@@ -480,16 +542,12 @@ public class AgendaEventServiceTest {
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
 
     boolean allDay = true;
-    long creatorId = Long.parseLong(testuser1Identity.getId());
+    String creatorUserName = testuser1Identity.getRemoteId();
 
-    Space space = createSpace("testspace",
-                              testuser1Identity.getRemoteId(),
-                              testuser2Identity.getRemoteId(),
-                              testuser3Identity.getRemoteId());
     Identity spaceIdentity = identityManager.getOrCreateIdentity(SpaceIdentityProvider.NAME, space.getPrettyName());
 
-    Event event = newEventInstance(start, start, allDay, creatorId);
-    event = createEvent(event.clone(), spaceIdentity);
+    Event event = newEventInstance(start, start, allDay);
+    event = createEvent(event.clone(), creatorUserName, spaceIdentity);
     Event createdEvent = agendaEventService.getEventById(event.getId(), testuser2Identity.getRemoteId());
 
     assertNotNull(createdEvent);
@@ -522,8 +580,8 @@ public class AgendaEventServiceTest {
     ZonedDateTime start = now.withNano(0);
     ZonedDateTime end = start.plusHours(2);
 
-    Event event = newEventInstance(start, end, false, Long.parseLong(testuser1Identity.getId()));
-    Event event1 = createEvent(event.clone(), testuser2Identity, testuser3Identity);
+    Event event = newEventInstance(start, end, false);
+    Event event1 = createEvent(event.clone(), testuser1Identity.getRemoteId(), testuser2Identity, testuser3Identity);
     event1 = agendaEventService.getEventById(event1.getId(), testuser1Identity.getRemoteId());
 
     List<Event> events = agendaEventService.getEvents(start, end, testuser2Identity.getRemoteId());
@@ -543,8 +601,8 @@ public class AgendaEventServiceTest {
     assertEquals(0, occurrenceEvent.getId());
     assertEquals(event1.getId(), occurrenceEvent.getParentId());
 
-    event = newEventInstance(start, start, true, Long.parseLong(testuser1Identity.getId()));
-    createEvent(event.clone(), testuser2Identity);
+    event = newEventInstance(start, start, true);
+    createEvent(event.clone(), testuser1Identity.getRemoteId(), testuser2Identity);
 
     events = agendaEventService.getEvents(ZonedDateTime.now().plusHours(1),
                                           ZonedDateTime.now().plusMinutes(90),
@@ -586,8 +644,8 @@ public class AgendaEventServiceTest {
       // Expected
     }
 
-    Event event = newEventInstance(start, end, false, Long.parseLong(testuser1Identity.getId()));
-    Event event1 = createEvent(event.clone(), testuser1Identity, testuser2Identity);
+    Event event = newEventInstance(start, end, false);
+    Event event1 = createEvent(event.clone(), testuser1Identity.getRemoteId(), testuser1Identity, testuser2Identity);
     event1 = agendaEventService.getEventById(event1.getId(), testuser1Identity.getRemoteId());
 
     List<Event> events = agendaEventService.getEventsByOwner(Long.parseLong(testuser1Identity.getId()),
@@ -611,8 +669,8 @@ public class AgendaEventServiceTest {
     assertEquals(0, occurrenceEvent.getId());
     assertEquals(event1.getId(), occurrenceEvent.getParentId());
 
-    event = newEventInstance(start, start, true, Long.parseLong(testuser1Identity.getId()));
-    createEvent(event.clone(), testuser1Identity, testuser2Identity);
+    event = newEventInstance(start, start, true);
+    createEvent(event.clone(), testuser1Identity.getRemoteId(), testuser1Identity, testuser2Identity);
 
     events = agendaEventService.getEventsByOwner(Long.parseLong(testuser1Identity.getId()),
                                                  ZonedDateTime.now().plusHours(1),
@@ -634,10 +692,10 @@ public class AgendaEventServiceTest {
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
 
     boolean allDay = true;
-    long creatorId = Long.parseLong(testuser1Identity.getId());
+    String creatorUserName = testuser1Identity.getRemoteId();
 
-    Event event = newEventInstance(start, start, allDay, creatorId);
-    event = createEvent(event.clone(), testuser2Identity);
+    Event event = newEventInstance(start, start, allDay);
+    event = createEvent(event.clone(), creatorUserName, testuser2Identity);
 
     long eventId = event.getId();
     List<EventAttachment> eventAttachments = agendaEventService.getEventAttachments(eventId);
@@ -658,10 +716,10 @@ public class AgendaEventServiceTest {
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
 
     boolean allDay = true;
-    long creatorId = Long.parseLong(testuser1Identity.getId());
+    String creatorUserName = testuser1Identity.getRemoteId();
 
-    Event event = newEventInstance(start, start, allDay, creatorId);
-    event = createEvent(event.clone(), testuser5Identity);
+    Event event = newEventInstance(start, start, allDay);
+    event = createEvent(event.clone(), creatorUserName, testuser5Identity);
 
     long eventId = event.getId();
     List<EventAttendee> eventAttendees = agendaEventService.getEventAttendees(eventId);
@@ -685,10 +743,10 @@ public class AgendaEventServiceTest {
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
 
     boolean allDay = true;
-    long creatorId = Long.parseLong(testuser1Identity.getId());
+    String creatorUserName = testuser1Identity.getRemoteId();
 
-    Event event = newEventInstance(start, start, allDay, creatorId);
-    event = createEvent(event.clone(), testuser4Identity);
+    Event event = newEventInstance(start, start, allDay);
+    event = createEvent(event.clone(), creatorUserName, testuser4Identity);
 
     long eventId = event.getId();
     List<EventAttachment> eventAttachments = agendaEventService.getEventAttachments(eventId);
@@ -703,10 +761,10 @@ public class AgendaEventServiceTest {
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
 
     boolean allDay = true;
-    long creatorId = Long.parseLong(testuser1Identity.getId());
+    String creatorUserName = testuser1Identity.getRemoteId();
 
-    Event event = newEventInstance(start, start, allDay, creatorId);
-    event = createEvent(event.clone(), testuser2Identity);
+    Event event = newEventInstance(start, start, allDay);
+    event = createEvent(event.clone(), creatorUserName, testuser2Identity);
 
     long eventId = event.getId();
     List<EventConference> eventConferences = agendaEventService.getEventConferences(eventId);
@@ -745,12 +803,45 @@ public class AgendaEventServiceTest {
                                                                  null,
                                                                  CALENDAR_COLOR,
                                                                  null));
+
+    String displayName = "testSpaceAgenda";
+    space = spaceService.getSpaceByDisplayName(displayName);
+    if (space == null) {
+      space = createSpace(displayName,
+                          testuser1Identity.getRemoteId(),
+                          testuser2Identity.getRemoteId(),
+                          testuser3Identity.getRemoteId());
+    }
+    if (!spaceService.isMember(space, testuser1Identity.getRemoteId())) {
+      spaceService.addMember(space, testuser1Identity.getRemoteId());
+    }
+    if (!spaceService.isMember(space, testuser2Identity.getRemoteId())) {
+      spaceService.addMember(space, testuser2Identity.getRemoteId());
+    }
+    if (!spaceService.isMember(space, testuser3Identity.getRemoteId())) {
+      spaceService.addMember(space, testuser3Identity.getRemoteId());
+    }
+    Identity spaceIdentity = identityManager.getOrCreateIdentity(SpaceIdentityProvider.NAME, space.getPrettyName());
+
+    spaceCalendar = agendaCalendarService.createCalendar(new Calendar(0,
+                                                                      Long.parseLong(spaceIdentity.getId()),
+                                                                      false,
+                                                                      null,
+                                                                      CALENDAR_DESCRIPTION,
+                                                                      null,
+                                                                      null,
+                                                                      CALENDAR_COLOR,
+                                                                      null));
     if (remoteProvider == null) {
       remoteProvider = agendaEventService.saveRemoteProvider(new RemoteProvider(0, "newRemoteProvider"));
     }
   }
 
   private void purgeData() throws ObjectNotFoundException {
+    if (spaceCalendar != null) {
+      agendaCalendarService.deleteCalendarById(spaceCalendar.getId());
+      spaceCalendar = null;
+    }
     if (calendar != null) {
       agendaCalendarService.deleteCalendarById(calendar.getId());
       calendar = null;
@@ -758,7 +849,7 @@ public class AgendaEventServiceTest {
   }
 
   @SuppressWarnings("unchecked")
-  private Event createEvent(Event event, Identity... attendeesArray) throws Exception { // NOSONAR
+  private Event createEvent(Event event, String username, Identity... attendeesArray) throws Exception { // NOSONAR
     try { // NOSONAR
       ATTENDEES.clear();
       for (Identity attendeeIdentity : attendeesArray) {
@@ -795,13 +886,13 @@ public class AgendaEventServiceTest {
                                             (ArrayList<EventAttachment>) ATTACHMENTS.clone(),
                                             (ArrayList<EventReminder>) REMINDERS.clone(),
                                             true,
-                                            testuser1Identity.getRemoteId());
+                                            username);
     } finally {
       TimeZone.setDefault(TimeZone.getTimeZone("Japan"));
     }
   }
 
-  private Event newEventInstance(ZonedDateTime start, ZonedDateTime end, boolean allDay, long creatorId) {
+  private Event newEventInstance(ZonedDateTime start, ZonedDateTime end, boolean allDay) {
     String remoteId = "5";
     long remoteProviderId = remoteProvider.getId();
     long calendarId = calendar.getId();
@@ -840,7 +931,7 @@ public class AgendaEventServiceTest {
                      remoteId,
                      remoteProviderId,
                      calendarId,
-                     creatorId,
+                     0l,
                      modifierId,
                      created,
                      updated,
@@ -868,15 +959,13 @@ public class AgendaEventServiceTest {
   }
 
   private Space createSpace(String displayName, String... members) {
-    String manager = "root";
-
-    Space space = new Space();
-    space.setDisplayName(displayName);
-    space.setPrettyName(displayName);
-    space.setManagers(new String[] { manager });
-    space.setMembers(members);
-    space.setRegistration(Space.OPEN);
-    space.setVisibility(Space.PRIVATE);
-    return spaceService.createSpace(space, manager);
+    Space newSpace = new Space();
+    newSpace.setDisplayName(displayName);
+    newSpace.setPrettyName(displayName);
+    newSpace.setManagers(new String[] { "root" });
+    newSpace.setMembers(members);
+    newSpace.setRegistration(Space.OPEN);
+    newSpace.setVisibility(Space.PRIVATE);
+    return spaceService.createSpace(newSpace, "root");
   }
 }
