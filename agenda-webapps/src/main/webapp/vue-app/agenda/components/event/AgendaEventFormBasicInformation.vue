@@ -1,5 +1,11 @@
 <template>
   <v-flex ref="agendaEventForm">
+    <v-alert
+      v-if="error"
+      type="error"
+      class="text-center">
+      {{ fieldError }}
+    </v-alert>
     <div class="d-flex flex-column flex-md-row">
       <label class="float-left mt-5 mr-3 text-subtitle-1 d-none d-md-inline">Create</label>
       <input
@@ -167,6 +173,8 @@ export default {
       nbNotif: 0,
       enablePermission: false,
       enableInvitation: false,
+      error: null,
+      fieldError: '',
     };
   },
   computed: {
@@ -240,14 +248,38 @@ export default {
   },
   methods:{
     validateForm() {
-
-      
-      
-      
-      // TODO form validation
-
-      
-      return true;
+      if(!this.event.summary) {
+        this.fieldError = this.$t('agenda.message.missingEventTitle');
+        this.error = true;
+        window.setTimeout(() => {
+          this.error = null;
+        }, 5000);
+        return false;
+      } else if (this.event.summary.length < 5 || this.event.summary.length > 1024) {
+        this.fieldError =  this.$t('agenda.message.missingLengthEventTitle');
+        this.error = true;
+        window.setTimeout(() => {
+          this.error = null;
+        }, 5000);
+        return false;
+      } else if(this.calendarOwner === null) {
+        this.fieldError = this.$t('agenda.message.missingSpaceName');
+        this.error = true;
+        window.setTimeout(() => {
+          this.error = null;
+        }, 5000);
+        return false;
+      }else if(!this.event.location) {
+        this.fieldError = this.$t('agenda.message.missingEventLocation');
+        this.error = true;
+        window.setTimeout(() => {
+          this.error = null;
+        }, 5000);
+        return false;
+      }else{
+        this.error = null;
+        return true;
+      }
     },
     reset() {
       if (this.event.id) { // In case of new event
