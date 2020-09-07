@@ -74,7 +74,7 @@ export default {
     },
     showEvent(event) {
       event = event && event.event || event;
-      this.$root.$emit('agenda-event-form', event);
+      this.$root.$emit('agenda-open-event-details', event);
     },
     viewDay({ date }) {
       this.focus = date;
