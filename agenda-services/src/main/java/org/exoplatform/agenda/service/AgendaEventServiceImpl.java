@@ -140,7 +140,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (calendar == null) {
       throw new AgendaException(AgendaExceptionType.CALENDAR_NOT_FOUND);
     }
-    if (calendar.getAcl() == null || !calendar.getAcl().isCanEdit()) {
+
+    boolean canCreateCalendarEvents = canCreateEvent(calendar, username);
+    if (!canCreateCalendarEvents) {
       throw new IllegalAccessException("User '" + username + "' can't create an event in calendar " + calendar.getTitle());
     }
 
@@ -230,15 +232,20 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (calendar == null) {
       throw new AgendaException(AgendaExceptionType.CALENDAR_NOT_FOUND);
     }
-    if (calendar.getAcl() == null || !calendar.getAcl().isCanEdit()) {
-      throw new IllegalAccessException("User '" + username + "' can't create an event in calendar " + calendar.getTitle());
-    }
 
     Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
     if (userIdentity == null) {
       throw new IllegalAccessException("User '" + username + "' doesn't exist");
     }
     long userIdentityId = Long.parseLong(userIdentity.getId());
+
+    boolean canUpdateCalendarEvents = canUpdateEvent(calendar, username);
+    boolean canCreateCalendarEvents = canUpdateCalendarEvents || canCreateEvent(calendar, username);
+
+    if (!canUpdateCalendarEvents && (userIdentityId != storedEvent.getCreatorId()
+        || (userIdentityId == storedEvent.getCreatorId() && !canCreateCalendarEvents))) {
+      throw new IllegalAccessException("User '" + username + "' can't update event " + storedEvent.getId());
+    }
 
     EventRecurrence recurrence = event.getRecurrence();
     EventOccurrence occurrence = event.getOccurrence();
@@ -601,6 +608,14 @@ public class AgendaEventServiceImpl implements AgendaEventService {
             }
           }
         });
+  }
+
+  private boolean canCreateEvent(Calendar calendar, String username) {
+    return Utils.canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), username);
+  }
+
+  private boolean canUpdateEvent(Calendar calendar, String username) {
+    return Utils.canEditCalendar(identityManager, spaceService, calendar.getOwnerId(), username);
   }
 
 }
