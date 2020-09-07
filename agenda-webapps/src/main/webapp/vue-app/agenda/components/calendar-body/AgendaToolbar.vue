@@ -9,27 +9,19 @@
     </v-btn>
     <v-row align="center" justify="center">
       <v-btn
-        fab
-        text
-        small
+        icon
         color="grey darken-2"
         @click="prevDate">
-        <v-icon small>
-          mdi-menu-left
-        </v-icon>
+        <i class="uiIconArrowLeft uiIconMedium text-color"></i>
       </v-btn>
-      <v-toolbar-title v-if="periodTitle">
+      <div class="period-title text-uppercase">
         {{ periodTitle }}
-      </v-toolbar-title>
+      </div>
       <v-btn
-        fab
-        text
-        small
+        icon
         color="grey darken-2"
         @click="nextDate">
-        <v-icon small>
-          mdi-menu-right
-        </v-icon>
+        <i class="uiIconArrowRight uiIconMedium text-color"></i>
       </v-btn>
     </v-row>
   </v-toolbar>

@@ -1,76 +1,65 @@
 <template>
-  <v-row class="fill-height">
-    <v-col>
-      <v-toolbar flat color="white">
-        <v-switch
-          v-model="allDay"
-          :label="$t('agenda.allDay')" />
-        <v-row align="center" justify="center">
-          <v-btn
-            fab
-            text
-            small
-            color="grey darken-2"
-            @click="prevDate">
-            <v-icon small>
-              mdi-menu-left
-            </v-icon>
-          </v-btn>
-          <v-toolbar-title v-if="periodTitle">
-            {{ periodTitle }}
-          </v-toolbar-title>
-          <v-btn
-            fab
-            text
-            small
-            color="grey darken-2"
-            @click="nextDate">
-            <v-icon small>
-              mdi-menu-right
-            </v-icon>
-          </v-btn>
-        </v-row>
-      </v-toolbar>
-      <v-calendar
-        ref="calendar"
-        v-model="value"
-        :events="events"
-        :event-color="getEventColor"
-        :event-timed="isEventTimed"
-        :start="dayToDisplay"
-        :weekdays="weekdays"
-        :event-ripple="false"
-        color="primary"
-        type="week"
-        @mousedown:event="startDrag"
-        @mousedown:time="startTime"
-        @mousemove:time="mouseMove"
-        @mouseup:time="endDrag"
-        @mouseleave.native="cancelDrag"
-        @change="retrievePeriod">
-        <template #event="{ event }">
-          <div class="v-event-draggable">
-            <strong>{{ event.summary }}</strong>
-            <div class="d-flex flex-nowrap v-event-draggable">
-              <date-format
-                :value="event.start"
-                :format="dateTimeFormat"
-                class="v-event-draggable" />
-              <strong class="mx-2">-</strong>
-              <date-format
-                :value="event.end"
-                :format="dateTimeFormat"
-                class="v-event-draggable" />
-            </div>
+  <v-flex>
+    <v-toolbar flat class="border-color mb-4">
+      <v-switch
+        v-model="allDay"
+        :label="$t('agenda.allDay')" />
+      <v-row align="center" justify="center" class="flex-nowrap">
+        <v-btn
+          icon
+          @click="prevDate">
+          <i class="uiIconArrowLeft uiIconMedium text-color"></i>
+        </v-btn>
+        <div class="period-title text-uppercase">
+          {{ periodTitle }}
+        </div>
+        <v-btn
+          icon
+          color="grey darken-2"
+          @click="nextDate">
+          <i class="uiIconArrowRight uiIconMedium text-color"></i>
+        </v-btn>
+      </v-row>
+    </v-toolbar>
+    <v-calendar
+      ref="calendar"
+      v-model="value"
+      :events="events"
+      :event-color="getEventColor"
+      :event-timed="isEventTimed"
+      :start="dayToDisplay"
+      :weekdays="weekdays"
+      :event-ripple="false"
+      color="primary"
+      type="week"
+      @mousedown:event="startDrag"
+      @mousedown:time="startTime"
+      @mousemove:time="mouseMove"
+      @mouseup:time="endDrag"
+      @mouseleave.native="cancelDrag"
+      @change="retrievePeriod">
+      <template #event="{ event }">
+        <div class="v-event-draggable">
+          <strong>{{ event.summary }}</strong>
+          <div class="d-flex flex-nowrap v-event-draggable">
+            <date-format
+              :value="event.start"
+              :format="dateTimeFormat"
+              class="v-event-draggable" />
+            <strong class="mx-2">-</strong>
+            <date-format
+              :value="event.end"
+              :format="dateTimeFormat"
+              class="v-event-draggable" />
           </div>
-          <div
-            v-if="timed"
-            class="v-event-drag-bottom"
-            @mousedown.stop="extendBottom(event)"></div>
-        </template>
-      </v-calendar>
-    </v-col>
-  </v-row>
+        </div>
+        <div
+          v-if="timed"
+          class="v-event-drag-bottom"
+          @mousedown.stop="extendBottom(event)"></div>
+      </template>
+    </v-calendar>
+  </v-flex>
 </template>
 
 <script>
