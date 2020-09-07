@@ -4,10 +4,18 @@
     fullscreen
     hide-overlay>
     <agenda-event-form
+      v-if="isForm"
       ref="eventForm"
       :event="event"
       :weekdays="weekdays"
       class="fill-height event-form"
+      @close="close"
+      @saved="saved" />
+    <agenda-event-details
+      v-else
+      ref="eventDetails"
+      :event="event"
+      :weekdays="weekdays"
       @close="close"
       @saved="saved" />
   </v-dialog>
@@ -25,6 +33,7 @@ export default {
     return {
       dialog: false,
       event: null,
+      isForm: false
     };
   },
   watch: {
@@ -37,7 +46,14 @@ export default {
     },
   },
   created() {
-    this.$root.$on('agenda-event-form', event => this.open(event));
+    this.$root.$on('agenda-event-form', event => {
+      this.isForm = true;
+      this.open(event);
+    });
+    this.$root.$on('agenda-open-event-details', event => {
+      this.isForm = false;
+      this.open(event);
+    });
   },
   methods: {
     open(event) {

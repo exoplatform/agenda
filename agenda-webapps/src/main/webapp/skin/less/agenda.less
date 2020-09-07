@@ -4,63 +4,80 @@
   .v-calendar-daily__scroll-area {
     overflow: auto !important;
   }
+
   .v-calendar-daily__head {
     margin: 0 !important;
   }
+
   .agenda-application {
     .v-calendar {
       min-height: ~"calc(100vh - 230px)";
     }
   }
+
   .event-form {
     .v-stepper__content {
       box-sizing: border-box;
     }
+
     .space-suggester {
       max-width: 270px;
     }
+
     .location-event-input {
       width: 500px;
     }
+
     .description-event-textarea {
       width: 500px;
     }
+
     .time-notification {
-      width:50px;
+      width: 50px;
     }
+
     .add-notification-link {
       text-decoration: underline;
     }
+
     .attach-file-link {
       text-decoration: underline;
     }
+
     .notification-date-option {
       min-height: 40px;
     }
+
     .event-form-body > * {
       max-width: ~"calc(50% - 21px)";
     }
+
     .event-form-body-left > * {
       min-height: 64px;
     }
+
     .v-stepper__items {
       overflow-y: auto;
       overflow-x: hidden;
     }
+
     .v-input--switch {
       .v-input__slot {
         margin: auto !important;
       }
     }
+
     .v-autocomplete.identitySuggester {
       width: 290px;
-  
+
       &.identitySuggester {
         margin-bottom: 0 !important;
       }
+
       .v-input__slot {
         margin: auto !important;
       }
+
       .v-select__selections {
         flex-wrap: nowrap;
         white-space: nowrap;
@@ -68,15 +85,18 @@
         margin: auto;
         display: flex !important;
       }
+
       input {
         padding: 0;
       }
     }
   }
+
   .agenda-application, .event-form {
     [class^="uiIconArrow"] {
       font-size: 12px !important;
     }
+
     .period-title {
       font-size: 1rem !important;
     }
@@ -85,6 +105,70 @@
     }
   }
 }
+
+.event-details {
+  .event-details-header {
+    .event-title {
+      font-weight: bold;
+      display: inline-block;
+      max-width: 50%;
+    }
+  }
+
+  .event-details-body {
+    .event-time {
+      .uiIconClock {
+        &:before {
+          font-size: 32px;
+          color: @darkGrey !important;
+        }
+      }
+    }
+
+    .event-description {
+      span {
+        text-align: justify;
+        flex: 1 0 0;
+      }
+    }
+
+    .event-attendees {
+      .attendee {
+        .uiIcon-attendee-response-accepted {
+          &:before {
+            content: '\e9c7';
+            color: #3cb58c;
+          }
+        }
+
+        .uiIcon-attendee-response-declined {
+          &:before {
+            content: '\e75e';
+            color: darkred;
+          }
+        }
+
+        .uiIcon-attendee-response-needs_action {
+          &:before {
+            content: '\ea0b';
+            color: @primaryColor;
+          }
+        }
+
+        .uiIcon-attendee-response-tentative {
+          &:before {
+            content: '\e76b';
+            color: @greyColorLighten1Default;
+          }
+        }
+      }
+    }
+  }
+  .darkGreyIcon {
+    color: @darkGrey;
+  }
+}
+
 @media (max-width: @maxMobileWidth) {
   .VuetifyApp {
     .event-form {
