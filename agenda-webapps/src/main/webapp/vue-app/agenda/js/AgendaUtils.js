@@ -94,6 +94,12 @@ export function getMonthFromDate(date) {
   return d.toLocaleDateString('en-US', options);
 }
 
-function pad(n) {
+export function pad(n) {
   return n < 10 && `0${n}` || n;
+}
+
+export function areDatesOnSameDay(firstDate, secondDate) {
+  return firstDate.getFullYear() === secondDate.getFullYear() &&
+  firstDate.getMonth() === secondDate.getMonth() &&
+  firstDate.getDate() === secondDate.getDate();
 }
