@@ -4,7 +4,10 @@
       <v-switch
         v-model="allDay"
         :label="$t('agenda.allDay')" />
-      <v-row align="center" justify="center" class="flex-nowrap">
+      <v-row
+        align="center"
+        justify="center"
+        class="flex-nowrap">
         <v-btn
           icon
           @click="prevDate">
