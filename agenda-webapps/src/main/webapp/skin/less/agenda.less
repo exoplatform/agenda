@@ -50,6 +50,11 @@
       overflow-y: auto;
       overflow-x: hidden;
     }
+    .v-input--switch {
+      .v-input__slot {
+        margin: auto !important;
+      }
+    }
     .v-autocomplete.identitySuggester {
       width: 290px;
   
@@ -69,6 +74,14 @@
       input {
         padding: 0;
       }
+    }
+  }
+  .agenda-application, .event-form {
+    [class^="uiIconArrow"] {
+      font-size: 12px !important;
+    }
+    .period-title {
+      font-size: 1rem !important;
     }
   }
 }
