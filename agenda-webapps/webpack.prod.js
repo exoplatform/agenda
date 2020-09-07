@@ -1,4 +1,6 @@
 const path = require('path');
+const ExtractTextWebpackPlugin = require('extract-text-webpack-plugin');
+
 
 const config = {
   context: path.resolve(__dirname, '.'),
@@ -18,9 +20,37 @@ const config = {
           'vue-loader',
           'eslint-loader',
         ]
-      }
+      },
+      {
+        test: /\.css$/,
+        use: ['vue-style-loader', 'css-loader']
+      },
+      {
+        test: /\.less$/,
+        use: ExtractTextWebpackPlugin.extract({
+          fallback: 'vue-style-loader',
+          use: [
+            {
+              loader: 'css-loader',
+              options: {
+                sourceMap: true
+              }
+            },
+            {
+              loader: 'less-loader',
+              options: {
+                sourceMap: true
+              }
+            }
+          ]
+        })
+      },
     ]
   },
+  plugins: [
+    // we use ExtractTextWebpackPlugin to extract the css code on a css file
+    new ExtractTextWebpackPlugin('skin/css/[name].css'),
+  ],
   entry: {
     agenda: './src/main/webapp/vue-app/agenda/main.js',
   },
@@ -33,7 +63,7 @@ const config = {
     vue: 'Vue',
     vuetify: 'Vuetify',
     jquery: '$',
-  },
+  }
 };
 
 module.exports = config;
