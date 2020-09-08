@@ -242,20 +242,16 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       event.setStatus(EventStatus.CONFIRMED);
     }
 
-    long eventId = event.getId();
-    Event storedEvent = getEventById(eventId);
-
-    long calendarId = event.getCalendarId();
-    Calendar calendar = agendaCalendarService.getCalendarById(calendarId, username);
-    if (calendar == null) {
-      throw new AgendaException(AgendaExceptionType.CALENDAR_NOT_FOUND);
-    }
-
     Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
     if (userIdentity == null) {
       throw new IllegalAccessException("User '" + username + "' doesn't exist");
     }
     long userIdentityId = Long.parseLong(userIdentity.getId());
+    long eventId = event.getId();
+    Event storedEvent = getEventById(eventId);
+    if (storedEvent == null) {
+      throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
+    }
 
     if (!canUpdateEvent(storedEvent, username)) {
       throw new IllegalAccessException("User '" + username + "' can't update event " + eventId);
@@ -272,14 +268,15 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
     boolean allowAttendeeToUpdate = storedEvent.getCreatorId() == userIdentityId ? event.isAllowAttendeeToUpdate()
                                                                                  : storedEvent.isAllowAttendeeToUpdate();
-    boolean allowAttendeeToInvite = storedEvent.getCreatorId() == userIdentityId ? event.isAllowAttendeeToInvite()
-                                                                                 : storedEvent.isAllowAttendeeToInvite();
+    boolean allowAttendeeToInvite = allowAttendeeToUpdate
+        || (storedEvent.getCreatorId() == userIdentityId ? event.isAllowAttendeeToInvite()
+                                                         : storedEvent.isAllowAttendeeToInvite());
 
     Event eventToUpdate = new Event(event.getId(),
                                     event.getParentId(),
                                     event.getRemoteId(),
                                     event.getRemoteProviderId(),
-                                    calendarId,
+                                    event.getCalendarId(),
                                     storedEvent.getCreatorId(),
                                     userIdentityId,
                                     storedEvent.getCreated(),
@@ -496,23 +493,26 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   public boolean canUpdateEvent(Event event, String username) {
     Identity identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
     long userIdentityId = Long.parseLong(identity.getId());
+    Calendar calendar = null;
     if (userIdentityId == event.getCreatorId()) {
+      // Check if creator can always access to calendar or not
+      calendar = agendaCalendarService.getCalendarById(event.getCalendarId());
+      if (Utils.canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), username)) {
+        return true;
+      }
+    }
+    if (event.isAllowAttendeeToUpdate() && isEventAttendee(event.getId(), username)) {
       return true;
     }
-    Calendar calendar = agendaCalendarService.getCalendarById(event.getCalendarId());
+    if (calendar == null) {
+      calendar = agendaCalendarService.getCalendarById(event.getCalendarId());
+    }
     return Utils.canEditCalendar(identityManager, spaceService, calendar.getOwnerId(), username);
   }
 
   @Override
   public boolean canCreateEvent(Calendar calendar, String username) {
     return Utils.canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), username);
-  }
-
-  private Permission getUserPermission(Long calendarId, String username) {
-    Calendar calendar = agendaCalendarService.getCalendarById(calendarId);
-    long ownerId = calendar.getOwnerId();
-    boolean canEdit = Utils.canEditCalendar(identityManager, spaceService, ownerId, username);
-    return new Permission(canEdit);
   }
 
   private List<Event> computeRecurrentEvents(List<Event> events, ZonedDateTime start, ZonedDateTime end, TimeZone userTimezone) {

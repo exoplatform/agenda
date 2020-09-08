@@ -159,6 +159,8 @@ public class EntityMapper {
     eventEntity.setStatus(event.getStatus());
     eventEntity.setSummary(event.getSummary());
     eventEntity.setUpdatedDate(AgendaDateUtils.toDate(event.getUpdated()));
+    eventEntity.setAllowAttendeeToInvite(event.isAllowAttendeeToInvite());
+    eventEntity.setAllowAttendeeToUpdate(event.isAllowAttendeeToUpdate());
 
     ZonedDateTime start = event.getStart();
     ZonedDateTime end = event.getEnd();
