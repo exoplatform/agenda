@@ -41,7 +41,7 @@ public interface AgendaEventService {
    * Retrieves the list of events for a designated owner in a selected period of
    * time.
    * 
-   * @param ownerId {@link Identity} technical identifier of the owner
+   * @param ownerIds {@link Identity} technical identifier of the owners
    * @param start {@link ZonedDateTime} as selected period start datetime
    * @param end {@link ZonedDateTime} as selected period start datetime
    * @param username User name accessing event
@@ -49,10 +49,10 @@ public interface AgendaEventService {
    * @throws IllegalAccessException when user is not allowed to access events of
    *           designated owner
    */
-  public List<Event> getEventsByOwner(long ownerId,
-                                      ZonedDateTime start,
-                                      ZonedDateTime end,
-                                      String username) throws IllegalAccessException;
+  public List<Event> getEventsByOwners(List<Long> ownerIds,
+                                       ZonedDateTime start,
+                                       ZonedDateTime end,
+                                       String username) throws IllegalAccessException;
 
   /**
    * Retrieves an event identified by its technical identifier.
