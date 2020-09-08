@@ -30,16 +30,13 @@ public class EventAttachmentUpload extends EventAttachment {
    */
   private String uploadId;
 
-  public EventAttachmentUpload(long id,
-                               long fileId,
-                               long eventId,
-                               String uploadId) {
-    super(id, fileId, eventId);
+  public EventAttachmentUpload(long id, String fileId, long eventId, String name, String mimeType, long size, String uploadId) {
+    super(id, fileId, eventId, name, mimeType, size);
     this.uploadId = uploadId;
   }
 
   @Override
-  protected EventAttachmentUpload clone() { // NOSONAR
-    return new EventAttachmentUpload(getId(), getFileId(), getEventId(), getUploadId());
+  public EventAttachmentUpload clone() { // NOSONAR
+    return new EventAttachmentUpload(getId(), getFileId(), getEventId(), getName(), getMimeType(), getSize(), uploadId);
   }
 }

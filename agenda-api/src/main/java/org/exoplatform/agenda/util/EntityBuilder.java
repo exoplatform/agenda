@@ -25,8 +25,6 @@ import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.rest.model.*;
 import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.agenda.service.AgendaEventService;
-import org.exoplatform.commons.file.model.FileInfo;
-import org.exoplatform.commons.file.services.FileService;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.rest.entity.IdentityEntity;
@@ -112,7 +110,9 @@ public class EntityBuilder {
                      eventEntity.getStatus(),
                      recurrence,
                      occurrence,
-                     eventEntity.getAcl());
+                     eventEntity.getAcl(),
+                     eventEntity.isAllowAttendeeToUpdate(),
+                     eventEntity.isAllowAttendeeToInvite());
   }
 
   public static EventReminder toEventReminder(EventReminderEntity eventReminderEntity) {
@@ -131,10 +131,16 @@ public class EntityBuilder {
   public static EventAttachment toEventAttachment(EventAttachmentEntity attachmentEntity) {
     return attachmentEntity.getUploadId() == null ? new EventAttachment(attachmentEntity.getId(),
                                                                         attachmentEntity.getFileId(),
-                                                                        0l)
+                                                                        0l,
+                                                                        attachmentEntity.getName(),
+                                                                        attachmentEntity.getMimeType(),
+                                                                        attachmentEntity.getSize())
                                                   : new EventAttachmentUpload(attachmentEntity.getId(),
                                                                               attachmentEntity.getFileId(),
                                                                               0l,
+                                                                              attachmentEntity.getName(),
+                                                                              attachmentEntity.getMimeType(),
+                                                                              attachmentEntity.getSize(),
                                                                               attachmentEntity.getUploadId());
   }
 
@@ -161,16 +167,15 @@ public class EntityBuilder {
                                    eventAttendee.getResponse());
   }
 
-  public static final EventAttachmentEntity fromEventAttachment(FileService fileService, EventAttachment eventAttachment) {
-    FileInfo fileInfo = fileService.getFileInfo(eventAttachment.getFileId());
-    if (fileInfo == null) {
-      return null;
-    }
-    String name = fileInfo.getName();
-    String mimeType = fileInfo.getMimetype();
-    long size = fileInfo.getSize();
+  public static final EventAttachmentEntity fromEventAttachment(EventAttachment eventAttachment) {
     String url = RestUtils.getBaseRestURI() + "/v1/agenda/events/attachment/" + eventAttachment.getId();
-    return new EventAttachmentEntity(eventAttachment.getId(), eventAttachment.getFileId(), null, url, name, mimeType, size);
+    return new EventAttachmentEntity(eventAttachment.getId(),
+                                     eventAttachment.getFileId(),
+                                     null,
+                                     url,
+                                     eventAttachment.getName(),
+                                     eventAttachment.getMimeType(),
+                                     eventAttachment.getSize());
   }
 
   public static final EventReminderEntity fromEventReminder(EventReminder eventReminder) {
@@ -233,7 +238,9 @@ public class EntityBuilder {
                            null,
                            null,
                            null,
-                           false);
+                           false,
+                           event.isAllowAttendeeToUpdate(),
+                           event.isAllowAttendeeToInvite());
   }
 
   private static CalendarEntity getCalendarEntity(AgendaCalendarService agendaCalendarService,

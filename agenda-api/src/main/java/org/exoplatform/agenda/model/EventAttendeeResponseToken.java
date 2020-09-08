@@ -32,8 +32,4 @@ public class EventAttendeeResponseToken {
   private long   timestamp;
 
   private EventAttendeeResponse response;
-
-  public String toString() {
-    return "";
-  }
 }

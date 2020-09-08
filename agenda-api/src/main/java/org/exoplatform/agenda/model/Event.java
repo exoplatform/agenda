@@ -102,6 +102,10 @@ public class Event implements Cloneable {
 
   private Permission        acl;
 
+  private boolean           allowAttendeeToUpdate;
+
+  private boolean           allowAttendeeToInvite;
+
   @Override
   public Event clone() { // NOSONAR
     return new Event(id,
@@ -124,6 +128,8 @@ public class Event implements Cloneable {
                      status,
                      recurrence == null ? null : recurrence.clone(),
                      occurrence == null ? null : occurrence.clone(),
-                     acl == null ? null : acl.clone());
+                     acl == null ? null : acl.clone(),
+                     allowAttendeeToUpdate,
+                     allowAttendeeToInvite);
   }
 }

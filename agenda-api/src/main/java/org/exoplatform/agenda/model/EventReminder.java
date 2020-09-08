@@ -25,7 +25,7 @@ import lombok.*;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class EventReminder {
+public class EventReminder implements Cloneable {
 
   private long               id;
 
@@ -40,5 +40,10 @@ public class EventReminder {
    * RFC-3339). This is the computed datetime to send reminder.
    */
   private ZonedDateTime      datetime;
+
+  @Override
+  public EventReminder clone() { // NOSONAR
+    return new EventReminder(id, receiverId, before, beforePeriodType, datetime);
+  }
 
 }

@@ -43,7 +43,13 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
   private AgendaCalendarService        agendaCalendarService;
 
-  private AgendaEventInvitationService agendaEventInvitationService;
+  private AgendaEventAttendeeService   attendeeService;
+
+  private AgendaEventAttachmentService attachmentService;
+
+  private AgendaEventConferenceService conferenceService;
+
+  private AgendaEventReminderService   reminderService;
 
   private AgendaEventStorage           agendaEventStorage;
 
@@ -52,12 +58,18 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   private SpaceService                 spaceService;
 
   public AgendaEventServiceImpl(AgendaCalendarService agendaCalendarService,
-                                AgendaEventInvitationService agendaEventInvitationService,
+                                AgendaEventAttendeeService attendeeService,
+                                AgendaEventAttachmentService attachmentService,
+                                AgendaEventConferenceService conferenceService,
+                                AgendaEventReminderService reminderService,
                                 AgendaEventStorage agendaEventStorage,
                                 IdentityManager identityManager,
                                 SpaceService spaceService) {
     this.agendaCalendarService = agendaCalendarService;
-    this.agendaEventInvitationService = agendaEventInvitationService;
+    this.attendeeService = attendeeService;
+    this.attachmentService = attachmentService;
+    this.conferenceService = conferenceService;
+    this.reminderService = reminderService;
     this.agendaEventStorage = agendaEventStorage;
     this.identityManager = identityManager;
     this.spaceService = spaceService;
@@ -72,10 +84,10 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (event == null) {
       return null;
     }
-    computeAcl(event, username);
-    if (event.getAcl() != null && event.getAcl().isCanEdit() || isEventAttendee(eventId, username)) {
+    if (canAccessEvent(event, username)) {
       TimeZone userTimezone = AgendaDateUtils.getUserTimezone(username);
       adjustEventDatesForRead(event, userTimezone);
+      event.setAcl(new Permission(canUpdateEvent(event, username)));
       return event;
     } else {
       throw new IllegalAccessException("User " + username + "is not allowed to access event with id " + eventId);
@@ -180,12 +192,17 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                     event.getStatus(),
                                     recurrence,
                                     occurrence,
-                                    null);
+                                    null,
+                                    event.isAllowAttendeeToUpdate(),
+                                    event.isAllowAttendeeToInvite());
 
-    Event createdEvent = agendaEventStorage.createEvent(eventToCreate, attachments, conferences, attendees, reminders);
-    if (sendInvitation && attendees != null) {
-      sendInvitations(createdEvent, attendees, userIdentityId);
-    }
+    Event createdEvent = agendaEventStorage.createEvent(eventToCreate);
+    long eventId = createdEvent.getId();
+    attachmentService.saveEventAttachments(eventId, attachments, userIdentityId);
+    conferenceService.saveEventConferences(eventId, conferences);
+    reminderService.saveEventReminders(createdEvent, reminders, userIdentityId);
+    attendeeService.saveEventAttendees(createdEvent, attendees, userIdentityId, sendInvitation, false);
+
     return getEventById(createdEvent.getId(), username);
   }
 
@@ -193,13 +210,13 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * {@inheritDoc}
    */
   @Override
-  public void updateEvent(Event event,
-                          List<EventAttendee> attendees,
-                          List<EventConference> conferences,
-                          List<EventAttachment> attachments,
-                          List<EventReminder> reminders,
-                          boolean sendInvitation,
-                          String username) throws AgendaException, IllegalAccessException {
+  public Event updateEvent(Event event,
+                           List<EventAttendee> attendees,
+                           List<EventConference> conferences,
+                           List<EventAttachment> attachments,
+                           List<EventReminder> reminders,
+                           boolean sendInvitation,
+                           String username) throws AgendaException, IllegalAccessException {
     if (StringUtils.isBlank(username)) {
       throw new IllegalArgumentException("username is null");
     }
@@ -225,7 +242,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       event.setStatus(EventStatus.CONFIRMED);
     }
 
-    Event storedEvent = getEventById(event.getId());
+    long eventId = event.getId();
+    Event storedEvent = getEventById(eventId);
 
     long calendarId = event.getCalendarId();
     Calendar calendar = agendaCalendarService.getCalendarById(calendarId, username);
@@ -239,12 +257,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
     long userIdentityId = Long.parseLong(userIdentity.getId());
 
-    boolean canUpdateCalendarEvents = canUpdateEvent(calendar, username);
-    boolean canCreateCalendarEvents = canUpdateCalendarEvents || canCreateEvent(calendar, username);
-
-    if (!canUpdateCalendarEvents && (userIdentityId != storedEvent.getCreatorId()
-        || (userIdentityId == storedEvent.getCreatorId() && !canCreateCalendarEvents))) {
-      throw new IllegalAccessException("User '" + username + "' can't update event " + storedEvent.getId());
+    if (!canUpdateEvent(storedEvent, username)) {
+      throw new IllegalAccessException("User '" + username + "' can't update event " + eventId);
     }
 
     EventRecurrence recurrence = event.getRecurrence();
@@ -255,6 +269,11 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
 
     adjustEventDatesForWrite(event);
+
+    boolean allowAttendeeToUpdate = storedEvent.getCreatorId() == userIdentityId ? event.isAllowAttendeeToUpdate()
+                                                                                 : storedEvent.isAllowAttendeeToUpdate();
+    boolean allowAttendeeToInvite = storedEvent.getCreatorId() == userIdentityId ? event.isAllowAttendeeToInvite()
+                                                                                 : storedEvent.isAllowAttendeeToInvite();
 
     Event eventToUpdate = new Event(event.getId(),
                                     event.getParentId(),
@@ -276,12 +295,17 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                     event.getStatus(),
                                     recurrence,
                                     occurrence,
-                                    null);
+                                    null,
+                                    allowAttendeeToUpdate,
+                                    allowAttendeeToInvite);
 
-    agendaEventStorage.updateEvent(eventToUpdate, attachments, conferences, attendees, reminders);
-    if (sendInvitation && attendees != null) {
-      sendInvitations(eventToUpdate, attendees, userIdentityId);
-    }
+    Event updatedEvent = agendaEventStorage.updateEvent(eventToUpdate);
+    attachmentService.saveEventAttachments(eventId, attachments, userIdentityId);
+    conferenceService.saveEventConferences(eventId, conferences);
+    reminderService.saveEventReminders(updatedEvent, reminders, userIdentityId);
+    attendeeService.saveEventAttendees(updatedEvent, attendees, userIdentityId, sendInvitation, false);
+
+    return updatedEvent;
   }
 
   /**
@@ -299,8 +323,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (event == null) {
       throw new ObjectNotFoundException("Event with id " + eventId + " is not found");
     }
-    computeAcl(event, username);
-    if (event.getAcl() == null || !event.getAcl().isCanEdit()) {
+    if (!canUpdateEvent(event, username)) {
       throw new IllegalAccessException("User " + username + " hasnt enough privileges to delete event with id " + eventId);
     }
     agendaEventStorage.deleteEventById(eventId);
@@ -334,49 +357,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   }
 
   @Override
-  public List<EventAttachment> getEventAttachments(long eventId) {
-    return agendaEventStorage.getEventAttachments(eventId);
-  }
-
-  @Override
-  public EventAttachment getEventAttachmentById(long attachmentId, String username) throws IllegalAccessException {
-    EventAttachment attachment = agendaEventStorage.getEventAttachmentById(attachmentId);
-    if (attachment == null) {
-      return null;
-    }
-    long eventId = attachment.getEventId();
-    Event event = agendaEventStorage.getEventById(eventId);
-    if (event == null) {
-      return null;
-    }
-    computeAcl(event, username);
-    if (event.getAcl() != null && event.getAcl().isCanEdit() || isEventAttendee(eventId, username)) {
-      return attachment;
-    } else {
-      throw new IllegalAccessException("User " + username + "is not allowed to access event with id " + eventId);
-    }
-  }
-
-  @Override
-  public String getEventAttachmentDownloadLink(long attachmentId, String username) throws IllegalAccessException {
-    EventAttachment eventAttachment = getEventAttachmentById(attachmentId, username);
-    if (eventAttachment == null) {
-      return null;
-    }
-    return agendaEventStorage.getEventAttachmentDownloadLink(attachmentId);
-  }
-
-  @Override
-  public List<EventAttendee> getEventAttendees(long eventId) {
-    return agendaEventStorage.getEventAttendees(eventId);
-  }
-
-  @Override
-  public List<EventConference> getEventConferences(long eventId) {
-    return agendaEventStorage.getEventConferences(eventId);
-  }
-
-  @Override
   public List<RemoteProvider> getRemoteProviders() {
     return agendaEventStorage.getRemoteProviders();
   }
@@ -384,14 +364,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   @Override
   public RemoteProvider saveRemoteProvider(RemoteProvider remoteProvider) {
     return agendaEventStorage.saveRemoteProvider(remoteProvider);
-  }
-
-  private void sendInvitations(Event event, List<EventAttendee> attendees, long userIdentityId) {
-    for (EventAttendee eventAttendee : attendees) {
-      if (eventAttendee.getIdentityId() != userIdentityId) {
-        agendaEventInvitationService.sendInvitation(event, eventAttendee.getIdentityId());
-      }
-    }
   }
 
   private List<Event> getEvents(ZonedDateTime start, ZonedDateTime end, Identity userIdentity, Long... calendarOwners) {
@@ -415,11 +387,16 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (eventIds == null || eventIds.isEmpty()) {
       return Collections.emptyList();
     }
-    TimeZone userTimezone = AgendaDateUtils.getUserTimezone(userIdentity);
-
     List<Event> events = eventIds.stream().map(this::getEventById).collect(Collectors.toList());
-    events.forEach(event -> adjustEventDatesForRead(event, userTimezone));
-    computeEventsAcl(userIdentity, events);
+
+    TimeZone userTimezone = AgendaDateUtils.getUserTimezone(userIdentity);
+    String username = userIdentity.getRemoteId();
+
+    // Compute ACL and Dates before Recurrent occurrences computing
+    events.forEach(event -> {
+      adjustEventDatesForRead(event, userTimezone);
+      event.setAcl(new Permission(canUpdateEvent(event, username)));
+    });
 
     events = computeRecurrentEvents(events, startMinusADay, endPlusADay, userTimezone);
 
@@ -507,40 +484,35 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     return calendarOwners;
   }
 
-  private void computeEventsAcl(Identity userIdentity, List<Event> events) {
-    long userIdentityId = Long.parseLong(userIdentity.getId());
-    Map<Long, Permission> calendarsPermission = new HashMap<>();
-    for (Event event : events) {
-      long creatorId = event.getCreatorId();
-      if (creatorId == userIdentityId) {
-        event.setAcl(new Permission(true));
-      } else {
-        String username = userIdentity.getRemoteId();
-
-        Permission calendarPermission = calendarsPermission.computeIfAbsent(event.getCalendarId(),
-                                                                            calendarId -> this.getUserPermission(calendarId,
-                                                                                                                 username));
-        event.setAcl(calendarPermission);
-      }
-    }
+  @Override
+  public boolean canAccessEvent(Event event, String username) {
+    long calendarId = event.getCalendarId();
+    Calendar calendar = agendaCalendarService.getCalendarById(calendarId);
+    return Utils.canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), username)
+        || isEventAttendee(event.getId(), username);
   }
 
-  public Permission getUserPermission(Long calendarId, String username) {
+  @Override
+  public boolean canUpdateEvent(Event event, String username) {
+    Identity identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+    long userIdentityId = Long.parseLong(identity.getId());
+    if (userIdentityId == event.getCreatorId()) {
+      return true;
+    }
+    Calendar calendar = agendaCalendarService.getCalendarById(event.getCalendarId());
+    return Utils.canEditCalendar(identityManager, spaceService, calendar.getOwnerId(), username);
+  }
+
+  @Override
+  public boolean canCreateEvent(Calendar calendar, String username) {
+    return Utils.canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), username);
+  }
+
+  private Permission getUserPermission(Long calendarId, String username) {
     Calendar calendar = agendaCalendarService.getCalendarById(calendarId);
     long ownerId = calendar.getOwnerId();
     boolean canEdit = Utils.canEditCalendar(identityManager, spaceService, ownerId, username);
     return new Permission(canEdit);
-  }
-
-  private void computeAcl(Event event, String username) {
-    Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
-    long userIdentityId = Long.parseLong(userIdentity.getId());
-    long creatorId = event.getCreatorId();
-    if (creatorId == userIdentityId) {
-      event.setAcl(new Permission(true));
-    } else {
-      event.setAcl(getUserPermission(event.getCalendarId(), username));
-    }
   }
 
   private List<Event> computeRecurrentEvents(List<Event> events, ZonedDateTime start, ZonedDateTime end, TimeZone userTimezone) {
@@ -589,7 +561,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
     long userIdentityId = Long.parseLong(userIdentity.getId());
 
-    List<EventAttendee> eventAttendees = getEventAttendees(eventId);
+    List<EventAttendee> eventAttendees = attendeeService.getEventAttendees(eventId);
     return eventAttendees != null
         && eventAttendees.stream().anyMatch(eventAttendee -> {
           if (userIdentityId == eventAttendee.getIdentityId()) {
@@ -608,14 +580,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
             }
           }
         });
-  }
-
-  private boolean canCreateEvent(Calendar calendar, String username) {
-    return Utils.canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), username);
-  }
-
-  private boolean canUpdateEvent(Calendar calendar, String username) {
-    return Utils.canEditCalendar(identityManager, spaceService, calendar.getOwnerId(), username);
   }
 
 }
