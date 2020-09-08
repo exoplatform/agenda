@@ -45,7 +45,7 @@ public class EventAttachmentEntity implements Serializable {
   private EventEntity       event;
 
   @Column(name = "FILE_ID", nullable = false)
-  private long              fileId;
+  private String              fileId;
 
   public Long getId() {
     return id;
@@ -63,11 +63,11 @@ public class EventAttachmentEntity implements Serializable {
     this.event = event;
   }
 
-  public long getFileId() {
+  public String getFileId() {
     return fileId;
   }
 
-  public void setFileId(long fileId) {
+  public void setFileId(String fileId) {
     this.fileId = fileId;
   }
 

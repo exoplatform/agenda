@@ -91,6 +91,8 @@
       <column name="AVAILABILITY" type="SMALLINT" />
       <column name="STATUS" type="SMALLINT" />
       <column name="ALL_DAY" type="BOOLEAN" />
+      <column name="ALLOW_ATTENDEE_TO_UPDATE" type="BOOLEAN" defaultValueBoolean="false" />
+      <column name="ALLOW_ATTENDEE_TO_INVITE" type="BOOLEAN" defaultValueBoolean="false" />
     </createTable>
     <modifySql dbms="mysql">
       <append value=" ENGINE=INNODB CHARSET=UTF8 COLLATE utf8_general_ci" />
@@ -167,7 +169,7 @@
       <column name="EVENT_ID" type="BIGINT">
         <constraints nullable="false" foreignKeyName="FK_AGENDA_EVENT_ATTACHMENT" references="EXO_AGENDA_EVENT(EVENT_ID)" />
       </column>
-      <column name="FILE_ID" type="BIGINT">
+      <column name="FILE_ID" type="VARCHAR(200)">
         <constraints nullable="false" />
       </column>
     </createTable>

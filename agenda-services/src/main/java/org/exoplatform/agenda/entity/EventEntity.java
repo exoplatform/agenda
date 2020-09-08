@@ -119,6 +119,12 @@ public class EventEntity implements Serializable {
   @Column(name = "STATUS", nullable = false)
   private EventStatus               status;
 
+  @Column(name = "ALLOW_ATTENDEE_TO_UPDATE", nullable = false)
+  private boolean                   allowAttendeeToUpdate;
+
+  @Column(name = "ALLOW_ATTENDEE_TO_INVITE", nullable = false)
+  private boolean                   allowAttendeeToInvite;
+
   public Long getId() {
     return id;
   }
@@ -269,6 +275,22 @@ public class EventEntity implements Serializable {
 
   public void setStatus(EventStatus status) {
     this.status = status;
+  }
+
+  public boolean isAllowAttendeeToUpdate() {
+    return allowAttendeeToUpdate;
+  }
+
+  public void setAllowAttendeeToUpdate(boolean allowAttendeeToUpdate) {
+    this.allowAttendeeToUpdate = allowAttendeeToUpdate;
+  }
+
+  public boolean isAllowAttendeeToInvite() {
+    return allowAttendeeToInvite;
+  }
+
+  public void setAllowAttendeeToInvite(boolean allowAttendeeToInvite) {
+    this.allowAttendeeToInvite = allowAttendeeToInvite;
   }
 
 }
