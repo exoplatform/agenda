@@ -32,7 +32,7 @@ public class EventAttendee implements Cloneable {
   private EventAttendeeResponse response;
 
   @Override
-  protected EventAttendee clone() { // NOSONAR
+  public EventAttendee clone() { // NOSONAR
     return new EventAttendee(id, identityId, response);
   }
 }

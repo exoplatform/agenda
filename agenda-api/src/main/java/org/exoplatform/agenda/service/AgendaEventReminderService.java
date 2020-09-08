@@ -18,6 +18,7 @@ package org.exoplatform.agenda.service;
 
 import java.util.List;
 
+import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventReminder;
 import org.exoplatform.social.core.identity.model.Identity;
@@ -40,12 +41,13 @@ public interface AgendaEventReminderService {
    * Updates the list of {@link EventReminder} associated to a user on a
    * selected event
    * 
-   * @param eventId {@link Event} technical identifier
+   * @param event {@link Event} on which the reminder will be attached
    * @param reminders {@link List} of {@link EventReminder}
    * @param userIdentityId User technical identifier ({@link Identity#getId()})
    *          updating his/her reminders on the event
    * @throws IllegalAccessException when user isn't an attendee of the event
+   * @throws AgendaException when a reminder datetime can't be computed
    */
-  void saveEventReminders(long eventId, List<EventReminder> reminders, long userIdentityId) throws IllegalAccessException;
-
+  void saveEventReminders(Event event, List<EventReminder> reminders, long userIdentityId) throws IllegalAccessException,
+                                                                                           AgendaException;
 }

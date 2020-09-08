@@ -4,6 +4,75 @@
 <configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.exoplatform.org/xml/ns/kernel_1_2.xsd http://www.exoplatform.org/xml/ns/kernel_1_2.xsd" xmlns="http://www.exoplatform.org/xml/ns/kernel_1_2.xsd">
 
   <component>
+    <type>org.exoplatform.agenda.rest.AgendaCalendarRest</type>
+  </component>
+
+  <component>
+    <type>org.exoplatform.agenda.rest.AgendaEventRest</type>
+  </component>
+
+  <component>
+    <key>org.exoplatform.agenda.storage.AgendaCalendarStorage</key>
+    <type>org.exoplatform.agenda.storage.cached.CachedAgendaCalendarStorage</type>
+  </component>
+
+  <component>
+    <type>org.exoplatform.agenda.storage.AgendaEventStorage</type>
+  </component>
+
+  <component>
+    <type>org.exoplatform.agenda.storage.AgendaEventAttachmentStorage</type>
+  </component>
+
+  <component>
+    <type>org.exoplatform.agenda.storage.AgendaEventAttendeeStorage</type>
+  </component>
+
+  <component>
+    <type>org.exoplatform.agenda.storage.AgendaEventConferenceStorage</type>
+  </component>
+
+  <component>
+    <type>org.exoplatform.agenda.storage.AgendaEventReminderStorage</type>
+  </component>
+
+  <component>
+    <key>org.exoplatform.agenda.service.AgendaCalendarService</key>
+    <type>org.exoplatform.agenda.service.AgendaCalendarServiceImpl</type>
+    <init-params>
+      <value-param>
+        <name>defaultColor</name>
+        <value>${exo.agenda.calendar.defaultColor:#2196F3}</value>
+      </value-param>
+    </init-params>
+  </component>
+
+  <component>
+    <key>org.exoplatform.agenda.service.AgendaEventService</key>
+    <type>org.exoplatform.agenda.service.AgendaEventServiceImpl</type>
+  </component>
+
+  <component>
+    <key>org.exoplatform.agenda.service.AgendaEventReminderService</key>
+    <type>org.exoplatform.agenda.service.AgendaEventReminderServiceImpl</type>
+  </component>
+
+  <component>
+    <key>org.exoplatform.agenda.service.AgendaEventAttachmentService</key>
+    <type>org.exoplatform.agenda.service.AgendaEventAttachmentServiceImpl</type>
+  </component>
+
+  <component>
+    <key>org.exoplatform.agenda.service.AgendaEventConferenceService</key>
+    <type>org.exoplatform.agenda.service.AgendaEventConferenceServiceImpl</type>
+  </component>
+
+  <component>
+    <key>org.exoplatform.agenda.service.AgendaEventAttendeeService</key>
+    <type>org.exoplatform.agenda.service.AgendaEventAttendeeServiceImpl</type>
+  </component>
+
+  <component>
     <type>org.exoplatform.agenda.dao.CalendarDAO</type>
   </component>
 
@@ -33,54 +102,6 @@
 
   <component>
     <type>org.exoplatform.agenda.dao.RemoteProviderDAO</type>
-  </component>
-
-  <component>
-    <key>org.exoplatform.agenda.service.AgendaCalendarService</key>
-    <type>org.exoplatform.agenda.service.AgendaCalendarServiceImpl</type>
-    <init-params>
-      <value-param>
-        <name>defaultColor</name>
-        <value>${exo.agenda.calendar.defaultColor:#2196F3}</value>
-      </value-param>
-    </init-params>
-  </component>
-
-  <component>
-    <key>org.exoplatform.agenda.storage.AgendaCalendarStorage</key>
-    <type>org.exoplatform.agenda.storage.cached.CachedAgendaCalendarStorage</type>
-  </component>
-
-  <component>
-    <type>org.exoplatform.agenda.storage.AgendaEventStorage</type>
-  </component>
-
-  <component>
-    <key>org.exoplatform.agenda.service.AgendaEventService</key>
-    <type>org.exoplatform.agenda.service.AgendaEventServiceImpl</type>
-  </component>
-
-  <component>
-    <key>org.exoplatform.agenda.service.AgendaEventService</key>
-    <type>org.exoplatform.agenda.service.AgendaEventServiceImpl</type>
-  </component>
-
-  <component>
-    <key>org.exoplatform.agenda.service.AgendaEventReminderService</key>
-    <type>org.exoplatform.agenda.service.AgendaEventReminderServiceImpl</type>
-  </component>
-
-  <component>
-    <key>org.exoplatform.agenda.service.AgendaEventInvitationService</key>
-    <type>org.exoplatform.agenda.service.AgendaEventInvitationServiceImpl</type>
-  </component>
-
-  <component>
-    <type>org.exoplatform.agenda.rest.AgendaCalendarRest</type>
-  </component>
-
-  <component>
-    <type>org.exoplatform.agenda.rest.AgendaEventRest</type>
   </component>
 
   <external-component-plugins>

@@ -25,7 +25,38 @@ import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.web.security.security.TokenServiceInitializationException;
 
-public interface AgendaEventInvitationService {
+public interface AgendaEventAttendeeService {
+
+  /**
+   * Return the list of attendees of an event
+   * 
+   * @param eventId agenda {@link Event} identifier
+   * @return {@link List} of {@link EventAttendee}
+   */
+  public List<EventAttendee> getEventAttendees(long eventId);
+
+  /**
+   * Sends an invitation to event attendees of type: user, space or external
+   * user.
+   * 
+   * @param eventId technical identifier of the event
+   */
+  public void sendInvitations(long eventId);
+
+  /**
+   * @param event {@link Event} to attach attendees
+   * @param attendees {@link List} of {@link EventAttendee} to save for event
+   * @param creatorIdentityId technical identifier if {@link Identity} updating
+   *          event
+   * @param sendInvitations whether send invitations to other attendees or not
+   * @param resetResponses whether reset attendees responses or not to default
+   *          {@link EventAttendeeResponse#NEEDS_ACTION}
+   */
+  void saveEventAttendees(Event event,
+                          List<EventAttendee> attendees,
+                          long creatorIdentityId,
+                          boolean sendInvitations,
+                          boolean resetResponses);
 
   /**
    * Generates a token that will be used to authenticate user when requesting
@@ -66,29 +97,29 @@ public interface AgendaEventInvitationService {
    *           decrypting data
    * @throws IllegalAccessException when the token has bad format
    */
-  public Identity readUserIdentity(String token,
-                                   long eventId,
-                                   EventAttendeeResponse response) throws TokenServiceInitializationException,
-                                                                   IllegalAccessException;
+  public Identity decryptUserIdentity(long eventId,
+                                      String token,
+                                      EventAttendeeResponse response) throws TokenServiceInitializationException,
+                                                                      IllegalAccessException;
 
   /**
    * Retrieves the event response of a user. If the user didn't responded to the
    * event, the default value {@link EventAttendeeResponse#NEEDS_ACTION} will be
    * retrieved.
    * 
-   * @param identityId {@link Identity} technical identifier of user
    * @param eventId Technical identifier of {@link Event}
+   * @param identityId {@link Identity} technical identifier of user
    * @return {@link EventAttendeeResponse}, no null value is returned
    * @throws ObjectNotFoundException when event with provided identifier doesn't
    *           exists
    * @throws IllegalAccessException when user is not an invitee of the event
    */
-  public EventAttendeeResponse getEventResponse(String identityId, long eventId) throws ObjectNotFoundException,
-                                                                                 IllegalAccessException;
+  public EventAttendeeResponse getEventResponse(long eventId, long identityId) throws ObjectNotFoundException,
+                                                                               IllegalAccessException;
 
   /**
-   * @param identityId {@link Identity} technical identifier of user
    * @param eventId Technical identifier of {@link Event}
+   * @param identityId {@link Identity} technical identifier of user
    * @param response User response of type {@link EventAttendeeResponse} to the
    *          event. The value {@link EventAttendeeResponse#NEEDS_ACTION} isn't
    *          allowed.
@@ -96,34 +127,7 @@ public interface AgendaEventInvitationService {
    *           exists
    * @throws IllegalAccessException when user is not an invitee of the event
    */
-  public void sendEventResponse(String identityId, long eventId, EventAttendeeResponse response) throws ObjectNotFoundException,
-                                                                                                 IllegalAccessException;
+  public void sendEventResponse(long eventId, long identityId, EventAttendeeResponse response) throws ObjectNotFoundException,
+                                                                                               IllegalAccessException;
 
-  /**
-   * Invites a user, space or external user to an event.
-   * 
-   * @param eventId technical identifier of the event
-   * @param identityId technical identitifier of {@link Identity}
-   * @param response default answer of the attendee that could be null, in which
-   *          case {@link EventAttendeeResponse#NEEDS_ACTION} will be used
-   * @param sendInvitation whether send invitations or not
-   */
-  public void invite(long eventId, long identityId, EventAttendeeResponse response, boolean sendInvitation);
-
-  /**
-   * @param event {@link Event} to attach attendees
-   * @param attendees {@link List} of {@link EventAttendee} to save for event
-   * @param creatorIdentityId technical identifier if {@link Identity} updating
-   *          event
-   * @param sendInvitations whether send invitations to other attendees or not
-   */
-  void saveEventAttendees(Event event, List<EventAttendee> attendees, long creatorIdentityId, boolean sendInvitations);
-
-  /**
-   * Sends an invitation to an event for a user/space
-   * 
-   * @param event {@link Event} to invite users to
-   * @param receiverId identity Id of invitation receiver
-   */
-  public void sendInvitation(Event event, long receiverId);
 }

@@ -24,17 +24,14 @@ import java.util.List;
 import org.exoplatform.agenda.dao.CalendarDAO;
 import org.exoplatform.agenda.entity.CalendarEntity;
 import org.exoplatform.agenda.model.Calendar;
+import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.services.listener.ListenerService;
-import org.exoplatform.services.log.ExoLogger;
-import org.exoplatform.services.log.Log;
 
 public class AgendaCalendarStorage {
 
-  private static final Log LOG = ExoLogger.getLogger(AgendaCalendarStorage.class);
+  private ListenerService listenerService;
 
-  private ListenerService  listenerService;
-
-  private CalendarDAO      calendarDAO;
+  private CalendarDAO     calendarDAO;
 
   public AgendaCalendarStorage(CalendarDAO calendarDAO, ListenerService listenerService) {
     this.listenerService = listenerService;
@@ -58,14 +55,14 @@ public class AgendaCalendarStorage {
     CalendarEntity calendarEntity = toEntity(calendar);
     calendarEntity = calendarDAO.create(calendarEntity);
     Calendar createdCalendar = fromEntity(calendarEntity);
-    broadcastEvent("exo.agenda.calendar.created", createdCalendar);
+    Utils.broadcastEvent(listenerService, "exo.agenda.calendar.created", createdCalendar, null);
     return createdCalendar;
   }
 
   public void updateCalendar(Calendar calendar) {
     CalendarEntity calendarEntity = toEntity(calendar);
     calendarEntity = calendarDAO.update(calendarEntity);
-    broadcastEvent("exo.agenda.calendar.updated", fromEntity(calendarEntity));
+    Utils.broadcastEvent(listenerService, "exo.agenda.calendar.updated", fromEntity(calendarEntity), null);
   }
 
   public void deleteCalendarById(long calendarId) {
@@ -74,15 +71,7 @@ public class AgendaCalendarStorage {
       return;
     }
     calendarDAO.delete(calendarEntity);
-    broadcastEvent("exo.agenda.calendar.deleted", fromEntity(calendarEntity));
-  }
-
-  private void broadcastEvent(String eventName, Calendar calendar) {
-    try {
-      listenerService.broadcast(eventName, null, calendar);
-    } catch (Exception e) {
-      LOG.warn("Error broadcasting event '" + eventName + "' on agenda calendar with id '" + calendar.getId() + "'", e);
-    }
+    Utils.broadcastEvent(listenerService, "exo.agenda.calendar.deleted", fromEntity(calendarEntity), null);
   }
 
 }

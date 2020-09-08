@@ -18,94 +18,18 @@ package org.exoplatform.agenda.service;
 
 import static org.junit.Assert.*;
 
-import java.io.ByteArrayInputStream;
 import java.time.*;
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
 
-import org.junit.*;
+import org.junit.Test;
 
-import org.exoplatform.agenda.constant.*;
+import org.exoplatform.agenda.constant.EventRecurrenceFrequency;
 import org.exoplatform.agenda.model.*;
-import org.exoplatform.agenda.model.Calendar;
-import org.exoplatform.agenda.storage.AgendaEventStorage;
-import org.exoplatform.commons.exception.ObjectNotFoundException;
-import org.exoplatform.commons.file.model.FileItem;
-import org.exoplatform.commons.file.services.FileService;
-import org.exoplatform.container.ExoContainerContext;
-import org.exoplatform.container.PortalContainer;
-import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.social.core.identity.model.Identity;
-import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
-import org.exoplatform.social.core.manager.IdentityManager;
-import org.exoplatform.social.core.space.model.Space;
-import org.exoplatform.social.core.space.spi.SpaceService;
 
-public class AgendaEventServiceTest {
-
-  private static final String                     CALENDAR_DESCRIPTION = "calendarDescription";
-
-  private static final String                     CALENDAR_COLOR       = "calendarColor";
-
-  private static final ArrayList<EventAttendee>   ATTENDEES            = new ArrayList<>();
-
-  private static final ArrayList<EventConference> CONFERENCES          = new ArrayList<>();
-
-  private static final ArrayList<EventAttachment> ATTACHMENTS          = new ArrayList<>();
-
-  private static final ArrayList<EventReminder>   REMINDERS            = new ArrayList<>();
-
-  private PortalContainer                         container;
-
-  private IdentityManager                         identityManager;
-
-  private SpaceService                            spaceService;
-
-  private FileService                             fileService;
-
-  private AgendaCalendarService                   agendaCalendarService;
-
-  private AgendaEventService                      agendaEventService;
-
-  private RemoteProvider                          remoteProvider;
-
-  private Calendar                                calendar;
-
-  private Calendar                                spaceCalendar;
-
-  private Space                                   space;
-
-  private Identity                                testuser1Identity;
-
-  private Identity                                testuser2Identity;
-
-  private Identity                                testuser3Identity;
-
-  private Identity                                testuser4Identity;
-
-  private Identity                                testuser5Identity;
-
-  @Before
-  public void setUp() throws ObjectNotFoundException {
-    container = PortalContainer.getInstance();
-
-    agendaCalendarService = container.getComponentInstanceOfType(AgendaCalendarService.class);
-    agendaEventService = container.getComponentInstanceOfType(AgendaEventService.class);
-    fileService = container.getComponentInstanceOfType(FileService.class);
-    identityManager = container.getComponentInstanceOfType(IdentityManager.class);
-    spaceService = container.getComponentInstanceOfType(SpaceService.class);
-
-    TimeZone.setDefault(TimeZone.getTimeZone("US/Hawaii"));
-
-    begin();
-    injectData();
-  }
-
-  @After
-  public void tearDown() throws ObjectNotFoundException {
-    purgeData();
-    end();
-  }
+public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
   @Test
   public void testCreateEvent() throws Exception { // NOSONAR
@@ -404,11 +328,11 @@ public class AgendaEventServiceTest {
     assertNull(updatedEvent.getOccurrence());
     assertEquals(0, updatedEvent.getRemoteProviderId());
 
-    List<EventAttachment> eventAttachments = agendaEventService.getEventAttachments(eventId);
+    List<EventAttachment> eventAttachments = agendaEventAttachmentService.getEventAttachments(eventId);
     assertTrue(eventAttachments == null || eventAttachments.isEmpty());
-    List<EventAttendee> eventAttendees = agendaEventService.getEventAttendees(eventId);
+    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId);
     assertTrue(eventAttendees == null || eventAttendees.isEmpty());
-    List<EventConference> eventConferences = agendaEventService.getEventConferences(eventId);
+    List<EventConference> eventConferences = agendaEventConferenceService.getEventConferences(eventId);
     assertTrue(eventConferences == null || eventConferences.isEmpty());
   }
 
@@ -472,11 +396,11 @@ public class AgendaEventServiceTest {
     event = agendaEventService.getEventById(eventId, testuser1Identity.getRemoteId());
     assertNull(event);
 
-    List<EventAttachment> eventAttachments = agendaEventService.getEventAttachments(eventId);
+    List<EventAttachment> eventAttachments = agendaEventAttachmentService.getEventAttachments(eventId);
     assertTrue(eventAttachments == null || eventAttachments.isEmpty());
-    List<EventAttendee> eventAttendees = agendaEventService.getEventAttendees(eventId);
+    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId);
     assertTrue(eventAttendees == null || eventAttendees.isEmpty());
-    List<EventConference> eventConferences = agendaEventService.getEventConferences(eventId);
+    List<EventConference> eventConferences = agendaEventConferenceService.getEventConferences(eventId);
     assertTrue(eventConferences == null || eventConferences.isEmpty());
   }
 
@@ -687,285 +611,4 @@ public class AgendaEventServiceTest {
     assertEquals(4, events.size());
   }
 
-  @Test
-  public void testEvent_Attachments() throws Exception { // NOSONAR
-    ZonedDateTime start = ZonedDateTime.now().withNano(0);
-
-    boolean allDay = true;
-    String creatorUserName = testuser1Identity.getRemoteId();
-
-    Event event = newEventInstance(start, start, allDay);
-    event = createEvent(event.clone(), creatorUserName, testuser2Identity);
-
-    long eventId = event.getId();
-    List<EventAttachment> eventAttachments = agendaEventService.getEventAttachments(eventId);
-    assertNotNull(eventAttachments);
-    assertEquals(1, eventAttachments.size());
-
-    EventAttachment eventAttachmentToStore = ATTACHMENTS.get(0);
-
-    EventAttachment eventAttachment = eventAttachments.get(0);
-    assertNotNull(eventAttachment);
-    assertTrue(eventAttachment.getId() > 0);
-    assertEquals(eventId, eventAttachment.getEventId());
-    assertEquals(eventAttachmentToStore.getFileId(), eventAttachment.getFileId());
-  }
-
-  @Test
-  public void testEvent_Attendees() throws Exception { // NOSONAR
-    ZonedDateTime start = ZonedDateTime.now().withNano(0);
-
-    boolean allDay = true;
-    String creatorUserName = testuser1Identity.getRemoteId();
-
-    Event event = newEventInstance(start, start, allDay);
-    event = createEvent(event.clone(), creatorUserName, testuser5Identity);
-
-    long eventId = event.getId();
-    List<EventAttendee> eventAttendees = agendaEventService.getEventAttendees(eventId);
-    assertNotNull(eventAttendees);
-    assertEquals(1, eventAttendees.size());
-
-    EventAttendee eventAttendeeToStore = ATTENDEES.get(0);
-
-    EventAttendee eventAttendee = eventAttendees.get(0);
-    assertNotNull(eventAttendee);
-    assertTrue(eventAttendee.getId() > 0);
-    assertEquals(eventAttendeeToStore.getIdentityId(), eventAttendee.getIdentityId());
-    assertEquals(EventAttendeeResponse.NEEDS_ACTION, eventAttendee.getResponse());
-  }
-
-  @Test
-  public void testGetEventAttachmentDownloadLink() throws Exception { // NOSONAR
-    String eventAttachmentDownloadLink = agendaEventService.getEventAttachmentDownloadLink(500l, "testuser1");
-    assertNull(eventAttachmentDownloadLink);
-
-    ZonedDateTime start = ZonedDateTime.now().withNano(0);
-
-    boolean allDay = true;
-    String creatorUserName = testuser1Identity.getRemoteId();
-
-    Event event = newEventInstance(start, start, allDay);
-    event = createEvent(event.clone(), creatorUserName, testuser4Identity);
-
-    long eventId = event.getId();
-    List<EventAttachment> eventAttachments = agendaEventService.getEventAttachments(eventId);
-    EventAttachment eventAttachment = eventAttachments.get(0);
-    eventAttachmentDownloadLink = agendaEventService.getEventAttachmentDownloadLink(eventAttachment.getId(),
-                                                                                    testuser1Identity.getRemoteId());
-    assertNotNull(eventAttachmentDownloadLink);
-  }
-
-  @Test
-  public void testEvent_Conferences() throws Exception { // NOSONAR
-    ZonedDateTime start = ZonedDateTime.now().withNano(0);
-
-    boolean allDay = true;
-    String creatorUserName = testuser1Identity.getRemoteId();
-
-    Event event = newEventInstance(start, start, allDay);
-    event = createEvent(event.clone(), creatorUserName, testuser2Identity);
-
-    long eventId = event.getId();
-    List<EventConference> eventConferences = agendaEventService.getEventConferences(eventId);
-
-    assertNotNull(eventConferences);
-    assertEquals(1, eventConferences.size());
-
-    EventConference eventConferenceToStore = CONFERENCES.get(0);
-
-    EventConference eventConference = eventConferences.get(0);
-    assertNotNull(eventConference);
-    assertTrue(eventConference.getId() > 0);
-    assertEquals(eventConferenceToStore.getAccessCode(), eventConference.getAccessCode());
-    assertEquals(eventConferenceToStore.getDescription(), eventConference.getDescription());
-    assertEquals(eventConferenceToStore.getEventId(), eventConference.getEventId());
-    assertEquals(eventConferenceToStore.getPhone(), eventConference.getPhone());
-    assertEquals(eventConferenceToStore.getType(), eventConference.getType());
-    assertEquals(eventConferenceToStore.getUri(), eventConference.getUri());
-  }
-
-  private void injectData() throws ObjectNotFoundException {
-    purgeData();
-
-    testuser1Identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, "testuser1");
-    testuser2Identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, "testuser2");
-    testuser3Identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, "testuser3");
-    testuser4Identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, "testuser4");
-    testuser5Identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, "testuser5");
-
-    calendar = agendaCalendarService.createCalendar(new Calendar(0,
-                                                                 Long.parseLong(testuser1Identity.getId()),
-                                                                 false,
-                                                                 null,
-                                                                 CALENDAR_DESCRIPTION,
-                                                                 null,
-                                                                 null,
-                                                                 CALENDAR_COLOR,
-                                                                 null));
-
-    String displayName = "testSpaceAgenda";
-    space = spaceService.getSpaceByDisplayName(displayName);
-    if (space == null) {
-      space = createSpace(displayName,
-                          testuser1Identity.getRemoteId(),
-                          testuser2Identity.getRemoteId(),
-                          testuser3Identity.getRemoteId());
-    }
-    if (!spaceService.isMember(space, testuser1Identity.getRemoteId())) {
-      spaceService.addMember(space, testuser1Identity.getRemoteId());
-    }
-    if (!spaceService.isMember(space, testuser2Identity.getRemoteId())) {
-      spaceService.addMember(space, testuser2Identity.getRemoteId());
-    }
-    if (!spaceService.isMember(space, testuser3Identity.getRemoteId())) {
-      spaceService.addMember(space, testuser3Identity.getRemoteId());
-    }
-    Identity spaceIdentity = identityManager.getOrCreateIdentity(SpaceIdentityProvider.NAME, space.getPrettyName());
-
-    spaceCalendar = agendaCalendarService.createCalendar(new Calendar(0,
-                                                                      Long.parseLong(spaceIdentity.getId()),
-                                                                      false,
-                                                                      null,
-                                                                      CALENDAR_DESCRIPTION,
-                                                                      null,
-                                                                      null,
-                                                                      CALENDAR_COLOR,
-                                                                      null));
-    if (remoteProvider == null) {
-      remoteProvider = agendaEventService.saveRemoteProvider(new RemoteProvider(0, "newRemoteProvider"));
-    }
-  }
-
-  private void purgeData() throws ObjectNotFoundException {
-    if (spaceCalendar != null) {
-      agendaCalendarService.deleteCalendarById(spaceCalendar.getId());
-      spaceCalendar = null;
-    }
-    if (calendar != null) {
-      agendaCalendarService.deleteCalendarById(calendar.getId());
-      calendar = null;
-    }
-  }
-
-  @SuppressWarnings("unchecked")
-  private Event createEvent(Event event, String username, Identity... attendeesArray) throws Exception { // NOSONAR
-    try { // NOSONAR
-      ATTENDEES.clear();
-      for (Identity attendeeIdentity : attendeesArray) {
-        EventAttendee userAttendee = new EventAttendee(0, Long.parseLong(attendeeIdentity.getId()), null);
-        ATTENDEES.add(userAttendee);
-      }
-
-      CONFERENCES.clear();
-      EventConference conference = new EventConference(0, 0, "webrtc", "conf_uri", "+123456", "654321", "confDescription");
-      CONFERENCES.add(conference);
-
-      byte[] bytesTest = "Test file content".getBytes();
-      ByteArrayInputStream inputStream = new ByteArrayInputStream(bytesTest);
-      FileItem fileItem = new FileItem(null,
-                                       "fileName",
-                                       "text/plain",
-                                       AgendaEventStorage.AGENDA_FILE_SERVICE_NS,
-                                       bytesTest.length,
-                                       new Date(),
-                                       "testuser1",
-                                       false,
-                                       inputStream);
-      fileItem = fileService.writeFile(fileItem);
-      ATTACHMENTS.clear();
-      EventAttachment eventAttachment = new EventAttachment(0, fileItem.getFileInfo().getId(), 0);
-      ATTACHMENTS.add(eventAttachment);
-
-      REMINDERS.clear();
-      REMINDERS.add(new EventReminder(0, 1l, 1, ReminderPeriodType.MINUTE, null));
-
-      return agendaEventService.createEvent(event.clone(),
-                                            (ArrayList<EventAttendee>) ATTENDEES.clone(),
-                                            (ArrayList<EventConference>) CONFERENCES.clone(),
-                                            (ArrayList<EventAttachment>) ATTACHMENTS.clone(),
-                                            (ArrayList<EventReminder>) REMINDERS.clone(),
-                                            true,
-                                            username);
-    } finally {
-      TimeZone.setDefault(TimeZone.getTimeZone("Japan"));
-    }
-  }
-
-  private Event newEventInstance(ZonedDateTime start, ZonedDateTime end, boolean allDay) {
-    String remoteId = "5";
-    long remoteProviderId = remoteProvider.getId();
-    long calendarId = calendar.getId();
-    long modifierId = 0;
-
-    ZonedDateTime created = ZonedDateTime.now();
-    ZonedDateTime updated = ZonedDateTime.now();
-
-    String summary = "eventSummary";
-    String description = "eventDescription";
-    String location = "eventLocation";
-    String color = "eventColor";
-
-    ZonedDateTime until = end.plusDays(2);
-
-    EventRecurrence recurrence = new EventRecurrence(0,
-                                                     until,
-                                                     0,
-                                                     EventRecurrenceFrequency.DAILY,
-                                                     1,
-                                                     null,
-                                                     null,
-                                                     null,
-                                                     null,
-                                                     null,
-                                                     null,
-                                                     null,
-                                                     null,
-                                                     null,
-                                                     null,
-                                                     null);
-
-    EventOccurrence occurrence = null;
-    return new Event(0l,
-                     0l,
-                     remoteId,
-                     remoteProviderId,
-                     calendarId,
-                     0l,
-                     modifierId,
-                     created,
-                     updated,
-                     summary,
-                     description,
-                     location,
-                     color,
-                     start,
-                     end,
-                     allDay,
-                     EventAvailability.FREE,
-                     EventStatus.TENTATIVE,
-                     recurrence,
-                     occurrence,
-                     null);
-  }
-
-  private void begin() {
-    ExoContainerContext.setCurrentContainer(container);
-    RequestLifeCycle.begin(container);
-  }
-
-  private void end() {
-    RequestLifeCycle.end();
-  }
-
-  private Space createSpace(String displayName, String... members) {
-    Space newSpace = new Space();
-    newSpace.setDisplayName(displayName);
-    newSpace.setPrettyName(displayName);
-    newSpace.setManagers(new String[] { "root" });
-    newSpace.setMembers(members);
-    newSpace.setRegistration(Space.OPEN);
-    newSpace.setVisibility(Space.PRIVATE);
-    return spaceService.createSpace(newSpace, "root");
-  }
 }

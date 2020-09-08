@@ -22,7 +22,6 @@ import java.util.List;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
-import org.exoplatform.download.DownloadService;
 import org.exoplatform.social.core.identity.model.Identity;
 
 public interface AgendaEventService {
@@ -111,18 +110,19 @@ public interface AgendaEventService {
    *          {@link EventReminder}
    * @param sendInvitation whether re-send invitation to attendees or not
    * @param username User name updating event
+   * @return Updated {@link Event}
    * @throws IllegalAccessException when user is not allowed to update event
    * @throws ObjectNotFoundException when the event identified by its technical
    *           identifier is not found
    * @throws AgendaException when the event attributes aren't valid
    */
-  public void updateEvent(Event event,
-                          List<EventAttendee> attendees,
-                          List<EventConference> conferences,
-                          List<EventAttachment> attachments,
-                          List<EventReminder> reminders,
-                          boolean sendInvitation,
-                          String username) throws IllegalAccessException, ObjectNotFoundException, AgendaException;
+  public Event updateEvent(Event event,
+                           List<EventAttendee> attendees,
+                           List<EventConference> conferences,
+                           List<EventAttachment> attachments,
+                           List<EventReminder> reminders,
+                           boolean sendInvitation,
+                           String username) throws IllegalAccessException, ObjectNotFoundException, AgendaException;
 
   /**
    * Deletes an existing event
@@ -137,53 +137,6 @@ public interface AgendaEventService {
   void deleteEventById(long eventId, String username) throws IllegalAccessException, ObjectNotFoundException;
 
   /**
-   * Return the list of attendees of an event
-   * 
-   * @param eventId agenda {@link Event} identifier
-   * @return {@link List} of {@link EventAttendee}
-   */
-  public List<EventAttendee> getEventAttendees(long eventId);
-
-  /**
-   * Return the list of attachments of an event
-   * 
-   * @param eventId agenda {@link Event} identifier
-   * @return {@link List} of {@link EventAttachment}
-   */
-  public List<EventAttachment> getEventAttachments(long eventId);
-
-  /**
-   * Retrieve event attachement identified by its technical identifier
-   * 
-   * @param attachmentId technical identifier of {@link EventAttachment}
-   * @param username user accessing attachment
-   * @return {@link EventAttachment} if found else null
-   * @throws IllegalAccessException when user hasn't enough privileges to access
-   *           event
-   */
-  public EventAttachment getEventAttachmentById(long attachmentId, String username) throws IllegalAccessException;
-
-  /**
-   * Generate a new download identifier that the user will be able to use to
-   * download a resource
-   * 
-   * @param attachmentId technical identifier of {@link EventAttachment}
-   * @param username user accessing attachment
-   * @return generated downloadId coming from {@link DownloadService}
-   * @throws IllegalAccessException when user hasn't enough privileges to access
-   *           event
-   */
-  public String getEventAttachmentDownloadLink(long attachmentId, String username) throws IllegalAccessException;
-
-  /**
-   * Return the list of conferences of an event
-   * 
-   * @param eventId agenda {@link Event} identifier
-   * @return {@link List} of {@link EventConference}
-   */
-  public List<EventConference> getEventConferences(long eventId);
-
-  /**
    * @return {@link List} of available events {@link RemoteProvider}
    */
   List<RemoteProvider> getRemoteProviders();
@@ -195,4 +148,35 @@ public interface AgendaEventService {
    * @return created {@link RemoteProvider}
    */
   RemoteProvider saveRemoteProvider(RemoteProvider remoteProvider);
+
+  /**
+   * Check whether user can access event or not.
+   * 
+   * @param event {@link Event} to check its permission
+   * @param username user name wiling to access event
+   * @return true if the user is a member of {@link Calendar} owner
+   *         {@link Identity} or is an {@link EventAttendee}, else return false.
+   */
+  boolean canAccessEvent(Event event, String username);
+
+  /**
+   * Check whether user can update or delete an event or not.
+   * 
+   * @param event {@link Event} to check its permission
+   * @param username user name wiling to modify or delete the event
+   * @return true if the user is a manager of {@link Calendar} owner
+   *         {@link Identity} or is an {@link EventAttendee}, else return false.
+   */
+  boolean canUpdateEvent(Event event, String username);
+
+  /**
+   * Check whether user can create an event in selected Calendar or not.
+   * 
+   * @param calendar of type {@link Calendar}
+   * @param username user name wiling to create an event
+   * @return true if the user is a member of {@link Calendar} owner
+   *         {@link Identity}, else return false.
+   */
+  boolean canCreateEvent(Calendar calendar, String username);
+
 }
