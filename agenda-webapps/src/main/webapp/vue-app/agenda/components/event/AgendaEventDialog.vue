@@ -62,6 +62,9 @@ export default {
       if (!event.attendees) {
         event.attendees = [];
       }
+      if (!event.recurrence) {
+        event.recurrence = {};
+      }
       this.event = event;
       if (this.$refs.eventForm) {
         this.$nextTick().then(this.$refs.eventForm.reset);
