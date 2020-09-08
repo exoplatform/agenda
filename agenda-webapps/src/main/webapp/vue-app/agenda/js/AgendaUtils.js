@@ -62,6 +62,38 @@ export function generateCalendarTitle(calendarType, startDate, periodTitle, week
   }
 }
 
+export function getDayNameFromDate(date) {
+  const options = { weekday: 'long' };
+  let d = null;
+  if (date) {
+    d = new Date(date);
+  } else {
+    d = new Date();
+  }
+  return d.toLocaleDateString('en-US', options);
+}
+
+export function getDayNumberFromDate(date) {
+  let d = null;
+  if (date) {
+    d = new Date(date);
+  } else {
+    d = new Date();
+  }
+  return d.getDay();
+}
+
+export function getMonthFromDate(date) {
+  const options = { month: 'long' };
+  let d = null;
+  if (date) {
+    d = new Date(date);
+  } else {
+    d = new Date();
+  }
+  return d.toLocaleDateString('en-US', options);
+}
+
 function pad(n) {
   return n < 10 && `0${n}` || n;
 }
