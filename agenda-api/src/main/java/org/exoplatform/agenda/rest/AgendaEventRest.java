@@ -39,7 +39,6 @@ import org.exoplatform.agenda.service.*;
 import org.exoplatform.agenda.util.*;
 import org.exoplatform.common.http.HTTPStatus;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
-import org.exoplatform.commons.file.services.FileService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.rest.resource.ResourceContainer;
@@ -62,24 +61,28 @@ public class AgendaEventRest implements ResourceContainer {
 
   private AgendaEventService           agendaEventService;
 
-  private FileService                  fileService;
-
   private AgendaEventReminderService   agendaEventReminderService;
 
-  private AgendaEventInvitationService agendaEventInvitationService;
+  private AgendaEventAttendeeService   agendaEventAttendeeService;
+
+  private AgendaEventAttachmentService agendaEventAttachmentService;
+
+  private AgendaEventConferenceService agendaEventConferenceService;
 
   public AgendaEventRest(IdentityManager identityManager,
-                         FileService fileService,
                          AgendaCalendarService agendaCalendarService,
                          AgendaEventService agendaEventService,
+                         AgendaEventConferenceService agendaEventConferenceService,
+                         AgendaEventAttachmentService agendaEventAttachmentService,
                          AgendaEventReminderService agendaEventReminderService,
-                         AgendaEventInvitationService agendaEventInvitationService) {
+                         AgendaEventAttendeeService agendaEventAttendeeService) {
     this.identityManager = identityManager;
-    this.fileService = fileService;
     this.agendaCalendarService = agendaCalendarService;
     this.agendaEventService = agendaEventService;
     this.agendaEventReminderService = agendaEventReminderService;
-    this.agendaEventInvitationService = agendaEventInvitationService;
+    this.agendaEventAttendeeService = agendaEventAttendeeService;
+    this.agendaEventAttachmentService = agendaEventAttachmentService;
+    this.agendaEventConferenceService = agendaEventConferenceService;
   }
 
   @GET
@@ -428,8 +431,13 @@ public class AgendaEventRest implements ResourceContainer {
     }
 
     long currentUserIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    String currentUser = RestUtils.getCurrentUser();
     try {
-      agendaEventReminderService.saveEventReminders(eventId, reminders, currentUserIdentityId);
+      Event event = agendaEventService.getEventById(eventId, currentUser);
+      if (event == null) {
+        return Response.status(Status.NOT_FOUND).entity("Event with id " + eventId + " is not found").build();
+      }
+      agendaEventReminderService.saveEventReminders(event, reminders, currentUserIdentityId);
       return Response.noContent().build();
     } catch (IllegalAccessException e) {
       LOG.warn("User '{}' attempts to access reminders for a not authorized event with Id '{}'", currentUserIdentityId, eventId);
@@ -466,14 +474,15 @@ public class AgendaEventRest implements ResourceContainer {
     try {
       Identity identity = null;
       if (StringUtils.isNotBlank(token)) {
-        identity = agendaEventInvitationService.readUserIdentity(token, eventId, null);
+        identity = agendaEventAttendeeService.decryptUserIdentity(eventId, token, null);
       } else if (StringUtils.isNotBlank(currentUser)) {
         identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, currentUser);
       }
       if (identity == null) {
         return Response.status(Status.FORBIDDEN).build();
       }
-      EventAttendeeResponse response = agendaEventInvitationService.getEventResponse(identity.getId(), eventId);
+      long identityId = Long.parseLong(identity.getId());
+      EventAttendeeResponse response = agendaEventAttendeeService.getEventResponse(eventId, identityId);
       return Response.ok(response.getValue()).build();
     } catch (ObjectNotFoundException e) {
       return Response.status(Status.NOT_FOUND).entity("Event not found").build();
@@ -523,14 +532,15 @@ public class AgendaEventRest implements ResourceContainer {
     try {
       Identity identity = null;
       if (StringUtils.isNotBlank(token)) {
-        identity = agendaEventInvitationService.readUserIdentity(token, eventId, response);
+        identity = agendaEventAttendeeService.decryptUserIdentity(eventId, token, response);
       } else if (StringUtils.isNotBlank(currentUser)) {
         identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, currentUser);
       }
       if (identity == null) {
         return Response.status(Status.FORBIDDEN).build();
       }
-      agendaEventInvitationService.sendEventResponse(identity.getId(), eventId, response);
+      long identityId = Long.parseLong(identity.getId());
+      agendaEventAttendeeService.sendEventResponse(eventId, identityId, response);
       return Response.noContent().build();
     } catch (ObjectNotFoundException e) {
       return Response.status(Status.NOT_FOUND).entity("Event not found").build();
@@ -557,7 +567,15 @@ public class AgendaEventRest implements ResourceContainer {
   ) long attachmentId) {
     String currentUser = RestUtils.getCurrentUser();
     try {
-      String downloadLink = agendaEventService.getEventAttachmentDownloadLink(attachmentId, currentUser);
+      EventAttachment attachment = agendaEventAttachmentService.getEventAttachmentById(attachmentId);
+      if (attachment == null) {
+        return Response.status(Status.NOT_FOUND).build();
+      }
+      Event event = agendaEventService.getEventById(attachment.getEventId(), currentUser);
+      if (event == null) {
+        return Response.status(Status.NOT_FOUND).build();
+      }
+      String downloadLink = agendaEventAttachmentService.generateEventAttachmentDownloadLink(attachmentId);
       if (StringUtils.isBlank(downloadLink)) {
         return Response.status(Status.NOT_FOUND).build();
       }
@@ -590,7 +608,7 @@ public class AgendaEventRest implements ResourceContainer {
   }
 
   private void fillAttendees(EventEntity eventEntity) {
-    List<EventAttendee> eventAttendees = agendaEventService.getEventAttendees(eventEntity.getId());
+    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(eventEntity.getId());
     List<EventAttendeeEntity> eventAttendeeEntities = eventAttendees == null ? null
                                                                              : eventAttendees.stream()
                                                                                              .map(eventAttendee -> EntityBuilder.fromEventAttendee(identityManager,
@@ -600,17 +618,16 @@ public class AgendaEventRest implements ResourceContainer {
   }
 
   private void fillAttachments(EventEntity eventEntity) {
-    List<EventAttachment> eventAttachments = agendaEventService.getEventAttachments(eventEntity.getId());
+    List<EventAttachment> eventAttachments = agendaEventAttachmentService.getEventAttachments(eventEntity.getId());
     List<EventAttachmentEntity> eventAttachmentEntities = eventAttachments == null ? null
                                                                                    : eventAttachments.stream()
-                                                                                                     .map(eventAttachment -> EntityBuilder.fromEventAttachment(fileService,
-                                                                                                                                                               eventAttachment))
+                                                                                                     .map(EntityBuilder::fromEventAttachment)
                                                                                                      .collect(Collectors.toList());
     eventEntity.setAttachments(eventAttachmentEntities);
   }
 
   private void fillConferences(EventEntity eventEntity) {
-    List<EventConference> eventConferences = agendaEventService.getEventConferences(eventEntity.getId());
+    List<EventConference> eventConferences = agendaEventConferenceService.getEventConferences(eventEntity.getId());
     eventEntity.setConferences(eventConferences);
   }
 

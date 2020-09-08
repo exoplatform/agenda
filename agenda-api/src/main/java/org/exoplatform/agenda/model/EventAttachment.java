@@ -16,8 +16,6 @@
 */
 package org.exoplatform.agenda.model;
 
-import org.exoplatform.commons.file.services.FileService;
-
 import lombok.*;
 
 @Data
@@ -25,17 +23,20 @@ import lombok.*;
 @NoArgsConstructor
 public class EventAttachment implements Cloneable {
 
-  private long id;
+  private long   id;
 
-  /**
-   * {@link FileService} technical identifier of attached file
-   */
-  private long fileId;
+  private String fileId;
 
-  private long eventId;
+  private long   eventId;
+
+  private String name;
+
+  private String mimeType;
+
+  private long   size;
 
   @Override
-  protected EventAttachment clone() { // NOSONAR
-    return new EventAttachment(id, fileId, eventId);
+  public EventAttachment clone() { // NOSONAR
+    return new EventAttachment(id, fileId, eventId, name, mimeType, size);
   }
 }

@@ -134,5 +134,9 @@ public class EventEntity implements Serializable {
    */
   private List<EventReminderEntity>   reminders;
 
+  private boolean                     allowAttendeeToUpdate;
+
+  private boolean                     allowAttendeeToInvite;
+
   private transient boolean           sendInvitation;
 }

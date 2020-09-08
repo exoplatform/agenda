@@ -139,7 +139,9 @@ public class EntityMapper {
                      eventEntity.getStatus(),
                      recurrence,
                      occurrence,
-                     null);
+                     null,
+                     eventEntity.isAllowAttendeeToUpdate(),
+                     eventEntity.isAllowAttendeeToInvite());
   }
 
   public static EventEntity toEntity(Event event) {
@@ -323,7 +325,10 @@ public class EntityMapper {
   public static EventAttachment fromEntity(EventAttachmentEntity eventAttachmentEntity) {
     return new EventAttachment(eventAttachmentEntity.getId(),
                                eventAttachmentEntity.getFileId(),
-                               eventAttachmentEntity.getEvent().getId());
+                               eventAttachmentEntity.getEvent().getId(),
+                               null,
+                               null,
+                               0);
   }
 
   public static EventConference fromEntity(EventConferenceEntity eventConferenceEntity) {

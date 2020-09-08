@@ -25,6 +25,9 @@ import org.apache.commons.lang.StringUtils;
 
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.commons.utils.ListAccess;
+import org.exoplatform.services.listener.ListenerService;
+import org.exoplatform.services.log.ExoLogger;
+import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
@@ -40,6 +43,8 @@ import net.fortuna.ical4j.model.property.RRule;
 public class Utils {
 
   private static final TimeZoneRegistry ICAL4J_TIME_ZONE_REGISTRY = TimeZoneRegistryFactory.getInstance().createRegistry();
+
+  private static final Log              LOG                       = ExoLogger.getLogger(Utils.class);
 
   private Utils() {
   }
@@ -256,6 +261,14 @@ public class Utils {
       }
     } else {
       return false;
+    }
+  }
+
+  public static void broadcastEvent(ListenerService listenerService, String eventName, Object source, Object data) {
+    try {
+      listenerService.broadcast(eventName, source, data);
+    } catch (Exception e) {
+      LOG.warn("Error broadcasting event '" + eventName + "' using source '" + source + "' and data " + data, e);
     }
   }
 

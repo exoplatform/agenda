@@ -18,7 +18,6 @@ package org.exoplatform.agenda.rest.model;
 
 import java.io.Serializable;
 
-import org.exoplatform.commons.file.services.FileService;
 import org.exoplatform.ws.frameworks.json.impl.JsonGeneratorImpl;
 
 import lombok.*;
@@ -32,10 +31,7 @@ public class EventAttachmentEntity implements Serializable {
 
   private long              id;
 
-  /**
-   * {@link FileService} technical identifier of attached file
-   */
-  private long              fileId;
+  private String            fileId;
 
   /**
    * Generated ID used to upload a file when creating or editing an event where
