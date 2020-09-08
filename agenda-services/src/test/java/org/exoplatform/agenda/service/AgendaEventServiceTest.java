@@ -597,11 +597,12 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     ZonedDateTime start = now.withNano(0);
     ZonedDateTime end = start.plusHours(2);
 
+    long testuser1Id = Long.parseLong(testuser1Identity.getId());
     try {
-      agendaEventService.getEventsByOwner(Long.parseLong(testuser1Identity.getId()),
-                                          ZonedDateTime.now().plusHours(1),
-                                          ZonedDateTime.now().plusMinutes(90),
-                                          testuser2Identity.getRemoteId());
+      agendaEventService.getEventsByOwners(Collections.singletonList(testuser1Id),
+                                           ZonedDateTime.now().plusHours(1),
+                                           ZonedDateTime.now().plusMinutes(90),
+                                           testuser2Identity.getRemoteId());
       fail("User 'testuser2' shouldn't be able to access calendar of user 'testuser1'");
     } catch (IllegalAccessException e) {
       // Expected
@@ -611,10 +612,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     Event event1 = createEvent(event.clone(), testuser1Identity.getRemoteId(), testuser1Identity, testuser2Identity);
     event1 = agendaEventService.getEventById(event1.getId(), testuser1Identity.getRemoteId());
 
-    List<Event> events = agendaEventService.getEventsByOwner(Long.parseLong(testuser1Identity.getId()),
-                                                             ZonedDateTime.now().plusHours(1),
-                                                             ZonedDateTime.now().plusMinutes(90),
-                                                             testuser1Identity.getRemoteId());
+    List<Event> events = agendaEventService.getEventsByOwners(Collections.singletonList(testuser1Id),
+                                                              ZonedDateTime.now().plusHours(1),
+                                                              ZonedDateTime.now().plusMinutes(90),
+                                                              testuser1Identity.getRemoteId());
     assertNotNull(events);
     assertEquals(1, events.size());
 
@@ -622,10 +623,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(0, occurrenceEvent.getId());
     assertEquals(event1.getId(), occurrenceEvent.getParentId());
 
-    events = agendaEventService.getEventsByOwner(Long.parseLong(testuser1Identity.getId()),
-                                                 ZonedDateTime.now().plusHours(1),
-                                                 ZonedDateTime.now().plusMinutes(90),
-                                                 testuser1Identity.getRemoteId());
+    events = agendaEventService.getEventsByOwners(Collections.singletonList(testuser1Id),
+                                                  ZonedDateTime.now().plusHours(1),
+                                                  ZonedDateTime.now().plusMinutes(90),
+                                                  testuser1Identity.getRemoteId());
     assertNotNull(events);
     assertEquals(1, events.size());
 
@@ -635,17 +636,17 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     event = newEventInstance(start, start, true);
     createEvent(event.clone(), testuser1Identity.getRemoteId(), testuser1Identity, testuser2Identity);
 
-    events = agendaEventService.getEventsByOwner(Long.parseLong(testuser1Identity.getId()),
-                                                 ZonedDateTime.now().plusHours(1),
-                                                 ZonedDateTime.now().plusMinutes(90),
-                                                 testuser1Identity.getRemoteId());
+    events = agendaEventService.getEventsByOwners(Collections.singletonList(testuser1Id),
+                                                  ZonedDateTime.now().plusHours(1),
+                                                  ZonedDateTime.now().plusMinutes(90),
+                                                  testuser1Identity.getRemoteId());
     assertNotNull(events);
     assertEquals(2, events.size());
 
-    events = agendaEventService.getEventsByOwner(Long.parseLong(testuser1Identity.getId()),
-                                                 ZonedDateTime.now().plusHours(1),
-                                                 ZonedDateTime.now().plusMinutes(90).plusDays(1),
-                                                 testuser1Identity.getRemoteId());
+    events = agendaEventService.getEventsByOwners(Collections.singletonList(testuser1Id),
+                                                  ZonedDateTime.now().plusHours(1),
+                                                  ZonedDateTime.now().plusMinutes(90).plusDays(1),
+                                                  testuser1Identity.getRemoteId());
     assertNotNull(events);
     assertEquals(4, events.size());
   }
