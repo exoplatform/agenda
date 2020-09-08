@@ -73,3 +73,16 @@ export function updateEvent(event) {
     }
   });
 }
+
+export function getEventById(eventId) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}`, {
+    method: 'GET',
+    credentials: 'include',
+  }).then((resp) => {
+    if (resp && resp.ok) {
+      return resp.json();
+    } else {
+      throw new Error('Error getting event');
+    }
+  });
+}
