@@ -98,7 +98,10 @@ public class AgendaEventRest implements ResourceContainer {
           @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
           @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
   )
-  public Response list(@ApiParam(value = "Identity technical identifier", required = false) @PathParam("ownerId") long ownerId,
+  public Response list(
+                       @ApiParam(value = "Identity technical identifiers of calendar owners", required = false) @PathParam(
+                         "ownerId"
+                       ) List<Long> ownerIds,
                        @ApiParam(value = "Start datetime using RFC-3339 representation including timezone", required = true) @QueryParam("start") String start,
                        @ApiParam(value = "End datetime using RFC-3339 representation including timezone", required = true) @QueryParam("end") String end) {
     if (StringUtils.isBlank(start)) {
@@ -117,10 +120,11 @@ public class AgendaEventRest implements ResourceContainer {
     String currentUser = RestUtils.getCurrentUser();
     try {
       List<Event> events = null;
-      if (ownerId <= 0) {
+      if (ownerIds.isEmpty()) {
         events = agendaEventService.getEvents(startDatetime, endDatetime, currentUser);
       } else {
-        events = agendaEventService.getEventsByOwner(ownerId, startDatetime, endDatetime, currentUser);
+        events =
+               agendaEventService.getEventsByOwners(ownerIds, startDatetime, endDatetime, currentUser);
       }
       List<EventEntity> eventEntities = events.stream().map(event -> {
         EventEntity eventEntity = EntityBuilder.fromEvent(agendaCalendarService, agendaEventService, identityManager, event);
@@ -155,7 +159,7 @@ public class AgendaEventRest implements ResourceContainer {
       eventList.setEnd(end);
       return Response.ok(eventList).build();
     } catch (IllegalAccessException e) {
-      LOG.warn("User '{}' attempts to access not authorized events of owner Id '{}'", currentUser, ownerId);
+      LOG.warn("User '{}' attempts to access not authorized events of owner Id '{}'", currentUser, ownerIds);
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error retrieving list of events", e);

@@ -340,17 +340,18 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * {@inheritDoc}
    */
   @Override
-  public List<Event> getEventsByOwner(long ownerId,
+  public List<Event> getEventsByOwners(List<Long> ownerIds,
                                       ZonedDateTime start,
                                       ZonedDateTime end,
                                       String username) throws IllegalAccessException {
     Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
-    if (Utils.canAccessCalendar(identityManager, spaceService, ownerId, username)) {
-      return getEvents(start, end, userIdentity, ownerId);
-    } else {
-      throw new IllegalAccessException("User '" + userIdentity.getId() + "' is not allowed to access calendar of identity '"
-          + ownerId + "'");
+    for (Long ownerId : ownerIds) {
+      if (!Utils.canAccessCalendar(identityManager, spaceService, ownerId, username)) {
+        throw new IllegalAccessException("User '" + userIdentity.getId() + "' is not allowed to access calendar of identity '"
+            + ownerIds + "'");
+      }
     }
+    return getEvents(start, end, userIdentity, ownerIds.toArray(new Long[0]));
   }
 
   @Override
