@@ -334,6 +334,45 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertTrue(eventAttendees == null || eventAttendees.isEmpty());
     List<EventConference> eventConferences = agendaEventConferenceService.getEventConferences(eventId);
     assertTrue(eventConferences == null || eventConferences.isEmpty());
+
+    updatedEvent.setAllowAttendeeToUpdate(true);
+    updatedEvent.setAllowAttendeeToInvite(false);
+
+    EventAttendee eventAttendee = new EventAttendee(0, Long.parseLong(testuser2Identity.getId()), null);
+    updatedEvent = agendaEventService.updateEvent(updatedEvent,
+                                                  Collections.singletonList(eventAttendee),
+                                                  null,
+                                                  null,
+                                                  null,
+                                                  false,
+                                                  testuser1Identity.getRemoteId());
+    assertTrue(updatedEvent.isAllowAttendeeToUpdate());
+    assertTrue("allowAttendeeToInvite should be true automatically when allowAttendeeToUpdate is set to true",
+               updatedEvent.isAllowAttendeeToInvite());
+
+    try {
+      updatedEvent = agendaEventService.updateEvent(updatedEvent,
+                                                    Collections.singletonList(eventAttendee),
+                                                    null,
+                                                    null,
+                                                    null,
+                                                    false,
+                                                    testuser3Identity.getRemoteId());
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+
+    updatedEvent.setAllowAttendeeToUpdate(false);
+    updatedEvent = agendaEventService.updateEvent(updatedEvent,
+                                                  Collections.singletonList(eventAttendee),
+                                                  null,
+                                                  null,
+                                                  null,
+                                                  false,
+                                                  testuser2Identity.getRemoteId());
+    assertTrue("Attendees shouldn't be able to modify allowAttendeeToInvite and allowAttendeeToUpdate",
+               updatedEvent.isAllowAttendeeToUpdate());
+    assertTrue(updatedEvent.isAllowAttendeeToInvite());
   }
 
   @Test
