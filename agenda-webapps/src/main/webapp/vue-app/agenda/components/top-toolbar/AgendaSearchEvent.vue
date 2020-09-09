@@ -7,6 +7,3 @@
       :placeholder="$t('agenda.SearchEventPlaceholder')">
   </div>
 </template>
-
-<script>
-</script>

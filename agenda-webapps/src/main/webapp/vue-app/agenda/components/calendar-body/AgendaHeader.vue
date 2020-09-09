@@ -10,7 +10,9 @@
     <v-spacer />
     <agenda-search-event />
     <agenda-pulldown-event class="ml-4 pr-2" />
-    <agenda-filter-button />
+    <v-btn icon @click="$root.$emit('agenda-calendar-owners-drawer-open')">
+      <v-icon>mdi-format-list-bulleted</v-icon>
+    </v-btn>
     <agenda-settings-button />
   </v-toolbar>
 </template>
