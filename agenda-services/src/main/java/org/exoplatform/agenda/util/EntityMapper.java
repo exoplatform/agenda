@@ -210,7 +210,7 @@ public class EntityMapper {
         }
       } else {
         neverEnds = true;
-        untilDateTime = end.plusYears(1);
+        untilDateTime = end.plusMonths(2);
       }
       long toTime = untilDateTime.toEpochSecond() * 1000;
       DateTime ical4jTo = new DateTime(toTime);
