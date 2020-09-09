@@ -40,10 +40,19 @@
     <key>org.exoplatform.agenda.service.AgendaCalendarService</key>
     <type>org.exoplatform.agenda.service.AgendaCalendarServiceImpl</type>
     <init-params>
-      <value-param>
-        <name>defaultColor</name>
-        <value>${exo.agenda.calendar.defaultColor:#2196F3}</value>
-      </value-param>
+      <values-param>
+        <name>defaultColors</name>
+        <value>${exo.agenda.calendar.defaultColor1:#08a554}</value>
+        <value>${exo.agenda.calendar.defaultColor2:#f8b121}</value>
+        <value>${exo.agenda.calendar.defaultColor3:#ee7429}</value>
+        <value>${exo.agenda.calendar.defaultColor4:#e5282c}</value>
+        <value>${exo.agenda.calendar.defaultColor5:#e32386}</value>
+        <value>${exo.agenda.calendar.defaultColor6:#2aa8e2}</value>
+        <value>${exo.agenda.calendar.defaultColor7:#743289}</value>
+        <value>${exo.agenda.calendar.defaultColor8:#ac2986}</value>
+        <value>${exo.agenda.calendar.defaultColor9:#3853a0}</value>
+        <value>${exo.agenda.calendar.defaultColor10:#32388c}</value>
+      </values-param>
     </init-params>
   </component>
 
