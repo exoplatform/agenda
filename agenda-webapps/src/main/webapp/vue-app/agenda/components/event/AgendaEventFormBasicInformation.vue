@@ -336,8 +336,13 @@ export default {
       }
     },
     reset() {
+      if (this.event.parent && this.event.parent.recurrence) {
+        this.event.id = this.event.parent.id;
+        this.event.recurrence = this.event.parent.recurrence;
+        this.event.calendar = this.event.parent.calendar;
+      }
       if (this.event.id) { // In case of edit existing event
-        this.eventRecurrence = 'DAILY';
+        this.eventRecurrence = this.event.recurrence && this.event.recurrence.frequency || 'NO REPEAT';
         const owner = this.event.calendar.owner;
         this.calendarOwner = {
           id: `${owner.providerId}:${owner.remoteId}`,

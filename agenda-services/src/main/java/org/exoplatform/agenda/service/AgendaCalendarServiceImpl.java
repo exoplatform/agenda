@@ -16,8 +16,7 @@
 */
 package org.exoplatform.agenda.service;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import org.apache.commons.codec.binary.StringUtils;
@@ -47,7 +46,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
 
   private SpaceService          spaceService;
 
-  private String                defaultColor;
+  private List<String>          defaultColors;
 
   public AgendaCalendarServiceImpl(AgendaCalendarStorage agendaCalendarStorage,
                                    IdentityManager identityManager,
@@ -56,7 +55,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     this.agendaCalendarStorage = agendaCalendarStorage;
     this.identityManager = identityManager;
     this.spaceService = spaceService;
-    this.defaultColor = initParams.getValueParam("defaultColor").getValue();
+    this.defaultColors = initParams.getValuesParam("defaultColors").getValues();
   }
 
   /**
@@ -208,7 +207,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     }
     int countCalendarsByOwners = agendaCalendarStorage.countCalendarsByOwners(ownerId);
     if (countCalendarsByOwners == 0) {
-      Calendar calendar = new Calendar(0, ownerId, true, null, null, null, null, this.defaultColor, null);
+      Calendar calendar = new Calendar(0, ownerId, true, null, null, null, null, getRandomDefaultColor(), null);
       calendar = agendaCalendarStorage.createCalendar(calendar);
       return calendar;
     } else {
@@ -353,6 +352,12 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     }
 
     agendaCalendarStorage.deleteCalendarById(calendarId);
+  }
+
+  private String getRandomDefaultColor() {
+    int size = this.defaultColors.size();
+    int index = new Random().nextInt(size);
+    return this.defaultColors.get(index);
   }
 
   private void refillReadOnlyFields(Calendar calendar) throws ObjectNotFoundException {
