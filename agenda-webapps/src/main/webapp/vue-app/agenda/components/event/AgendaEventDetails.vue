@@ -30,7 +30,8 @@
           <template v-slot:activator="{ on, attrs }">
             <v-btn
               icon
-              v-bind="attrs">
+              v-bind="attrs"
+              v-on="on">
               <v-icon>mdi-dots-vertical</v-icon>
             </v-btn>
           </template>
@@ -59,7 +60,7 @@
         <v-col>
           <v-row class="event-date align-center d-flex pb-5">
             <i class="uiIconDatePicker darkGreyIcon uiIcon32x32 pr-5"></i>
-            <div v-if="!oneDayEvent" class="sameDayDates">
+            <div v-if="!sameDayDates" class="sameDayDates">
               <div class="d-inline-flex">
                 <date-format
                   :value="event.start"
@@ -78,9 +79,15 @@
           </v-row>
           <v-row class="event-time align-center d-flex pb-5">
             <i class="uiIconClock darkGreyIcon uiIcon32x32 pr-5"></i>
-            <span>
-              {{ eventTime }}
-            </span>
+            <div class="d-inline-flex">
+              <date-format
+                :value="event.start"
+                :format="dateTimeFormat" />
+              {{ ' - ' }}
+              <date-format
+                :value="event.end"
+                :format="dateTimeFormat" />
+            </div>
           </v-row>
           <v-row class="event-location align-center d-flex pb-5">
             <i class="uiIconLocation darkGreyIcon uiIcon32x32 pr-5"></i>
@@ -120,43 +127,7 @@
         <v-col cols="1">
           <v-divider vertical />
         </v-col>
-        <v-col>
-          <v-row class="event-attendees-responses align-center d-flex mb-10">
-            <i class="uiIconGroup darkGreyIcon uiIcon32x32 pr-5"></i>
-            <span>{{ attendeeResponsesTitle }}</span>
-          </v-row>
-          <v-row class="event-attendees ml-10 flex-column">
-            <div
-              v-for="attendee in event.attendees"
-              :key="attendee"
-              class="attendee mb-5">
-              <div v-if="attendee.identity.profile" class="profileAttendee">
-                <v-avatar
-                  size="32"
-                  left
-                  class="mr-5">
-                  <v-img :src="attendee.identity.profile.avatar" />
-                </v-avatar>
-                <a :href="attendee.identity.profile.urls">
-                  {{ attendee.identity.profile.fullname }}
-                </a>
-                <i :class="`uiIcon-attendee-response-${attendee.response.toLowerCase()}`" class="ml-10"></i>
-              </div>
-              <div v-else-if="attendee.identity.space" class="spaceAttendee">
-                <v-avatar
-                  size="32"
-                  left
-                  class="mr-5">
-                  <v-img :src="attendee.identity.space.avatarUrl" />
-                </v-avatar>
-                <a :href="attendee.identity.space.url">
-                  {{ attendee.identity.space.displayName }}
-                </a>
-                <i :class="`uiIcon-attendee-response-${attendee.response.toLowerCase()}`" class="ml-10"></i>
-              </div>
-            </div>
-          </v-row>
-        </v-col>
+        <agenda-event-attendees :attendees="event.attendees" />
       </v-row>
     </v-container>
   </v-card>
@@ -171,14 +142,6 @@ export default {
   },
   data() {
     return {
-      attendeesResponse: [],
-      attendeeResponsesTitle: '',
-      oneDayEvent: this.$agendaUtils.areDatesOnSameDay(this.event.startDate, this.event.endDate),
-      items: [
-        {title: this.$t('agenda.details.header.menu.edit')},
-        {title: this.$t('agenda.details.header.menu.delete')},
-        {title: this.$t('agenda.details.header.menu.export')},
-      ],
       fullDateFormat: {
         year: 'numeric',
         month: 'short',
@@ -187,20 +150,57 @@ export default {
       dateDayFormat: {
         month: 'short',
         day: 'numeric',
+      },
+      dateTimeFormat: {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
       }
     };
   },
   computed: {
-    eventTime() {
-      return `${this.$agendaUtils.pad(this.event.startDate.getHours())}:${this.$agendaUtils.pad(this.event.startDate.getMinutes())} -
-              ${this.$agendaUtils.pad(this.event.endDate.getHours())}:${this.$agendaUtils.pad(this.event.endDate.getMinutes())}`;
-    }
-  },
-  created() {
-    this.attendeesResponse = new Map([...new Set(this.event.attendees)].map(
-      x => [x.response.toLowerCase(), this.event.attendees.filter(y => y.response.toLowerCase() === x.response.toLowerCase()).length]
-    ));
-    this.attendeeResponsesTitle = `${this.attendeesResponse.get('accepted') || '0'} ${this.$t('agenda.details.attendee.response.yes')}, ${this.attendeesResponse.get('declined') || '0'} ${this.$t('agenda.details.attendee.response.no')}, ${this.attendeesResponse.get('needs_action') || '0'} ${this.$t('agenda.details.attendee.response.awaiting')}, ${this.attendeesResponse.get('tentative') || '0'} ${this.$t('agenda.details.attendee.response.maybe')}`;
+    sameDayDates() {
+      return this.$agendaUtils.areDatesOnSameDay(this.event.startDate, this.event.endDate);
+    },
+    items() {
+      return [
+        {title: this.$t('agenda.details.header.menu.edit')},
+        {title: this.$t('agenda.details.header.menu.delete')},
+        {title: this.$t('agenda.details.header.menu.export')},
+      ];
+    },
+    acceptedResponsesCount() {
+      if (!this.event || !this.event.attendees || !this.event.attendees.length) {
+        return 0;
+      }
+      return this.event.attendees.filter(attendee => attendee && attendee.response === 'ACCEPTED').length;
+    },
+    refusedResponsesCount() {
+      if (!this.event || !this.event.attendees || !this.event.attendees.length) {
+        return 0;
+      }
+      return this.event.attendees.filter(attendee => attendee && attendee.response === 'REFUSED').length;
+    },
+    tentativeResponsesCount() {
+      if (!this.event || !this.event.attendees || !this.event.attendees.length) {
+        return 0;
+      }
+      return this.event.attendees.filter(attendee => attendee && attendee.response === 'TENTATIVE').length;
+    },
+    needsActionResponsesCount() {
+      if (!this.event || !this.event.attendees || !this.event.attendees.length) {
+        return 0;
+      }
+      return this.event.attendees.filter(attendee => attendee && attendee.response === 'NEEDS_ACTION').length;
+    },
+    attendeesResponsesTitle() {
+      return this.$t('agenda.attendeesResponsesOverview', {
+        0: this.acceptedResponsesCount,
+        1: this.refusedResponsesCount,
+        2: this.needsActionResponsesCount,
+        3: this.tentativeResponsesCount,
+      });
+    },
   },
   methods: {
     closeDialog() {
