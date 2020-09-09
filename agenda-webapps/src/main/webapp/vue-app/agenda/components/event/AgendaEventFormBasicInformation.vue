@@ -169,6 +169,10 @@ export default {
       type: Object,
       default: () => ({}),
     },
+    currentSpace: {
+      type: Object,
+      default: () => null,
+    },
   },
   data() {
     return {
@@ -247,7 +251,7 @@ export default {
       } else if (this.eventRecurrence && this.eventRecurrence === 'WEEKLY') {
         this.event.recurrence = {
           frequency: this.eventRecurrence,
-          byDay: [this.dayNamefromDate.substring(0,2)],
+          byDay: [this.dayNamefromDate.substring(0,2).toUpperCase()],
           interval: 1
         };
       } else if(this.eventRecurrence && this.eventRecurrence === 'MONTHLY') {
@@ -332,7 +336,7 @@ export default {
       }
     },
     reset() {
-      if (this.event.id) { // In case of new event
+      if (this.event.id) { // In case of edit existing event
         this.eventRecurrence = 'DAILY';
         const owner = this.event.calendar.owner;
         this.calendarOwner = {
@@ -346,8 +350,21 @@ export default {
         };
         this.$refs.calendarOwner.items = [this.calendarOwner];
       } else { // In case of new event
-        this.$refs.calendarOwner.items = [];
-        this.calendarOwner = {};
+        if (this.currentSpace) {
+          this.calendarOwner = {
+            id: `space:${this.currentSpace.prettyName}`,
+            remoteId: this.currentSpace.prettyName,
+            providerId: 'space',
+            profile: {
+              avatarUrl: this.currentSpace.avatarUrl,
+              fullName: this.currentSpace.displayName,
+            },
+          };
+          this.$refs.calendarOwner.items = [this.calendarOwner];
+        } else {
+          this.$refs.calendarOwner.items = [];
+          this.calendarOwner = {};
+        }
         this.eventRecurrence = 'NO REPEAT';
 
         // Add current user as default attendee

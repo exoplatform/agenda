@@ -28,7 +28,8 @@
         <v-stepper-content step="1">
           <agenda-event-form-basic-information
             ref="eventBasicInformation"
-            :event="event" />
+            :event="event"
+            :current-space="currentSpace" />
         </v-stepper-content>
         <v-stepper-content step="2">
           <agenda-event-form-dates
@@ -76,6 +77,10 @@ export default {
     },
     weekdays: {
       type: Array,
+      default: () => null
+    },
+    currentSpace: {
+      type: Object,
       default: () => null
     },
   },

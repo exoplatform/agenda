@@ -9,7 +9,10 @@
         :period-title="periodTitle"
         :calendar-type="calendarType"
         :weekdays="weekdays" />
-      <agenda-event-dialog ref="eventFormDialog" :weekdays="weekdays" />
+      <agenda-event-dialog
+        ref="eventFormDialog"
+        :current-space="currentSpace"
+        :weekdays="weekdays" />
       <agenda-event-preview-dialog />
       <agenda-calendar-owners-filter-drawer
         :owner-ids="ownerIds"
@@ -27,6 +30,7 @@ export default {
   },
   data: () => ({
     initialized: false,
+    currentSpace: null,
     loading: false,
     ownerIds: [],
     searchTerm: null,
@@ -71,6 +75,7 @@ export default {
         const spaceId = eXo.env.portal.spaceId;
         this.$spaceService.getSpaceById(spaceId, 'identity')
           .then((space) => {
+            this.currentSpace = space;
             if (space && space.identity && space.identity.id) {
               this.ownerIds = [space.identity.id];
             }
