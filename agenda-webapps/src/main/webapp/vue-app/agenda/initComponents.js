@@ -19,6 +19,8 @@ import AgendaPullDownEvent from './components/top-toolbar/AgendaPullDownEvent.vu
 import AgendaEventFormAttachments from './components/event/AgendaEventFormAttachments.vue';
 import AgendaEventFormAttachmentItem from './components/event/AgendaEventFormAttachmentItem.vue';
 import AgendaEventDetails from './components/event/AgendaEventDetails.vue';
+import AgendaEventAttendees from './components/event/attendee/AgendaEventAttendees.vue';
+import AgendaEventAttendeeItem from './components/event/attendee/AgendaEventAttendeeItem.vue';
 
 const components = {
   'agenda': Agenda,
@@ -41,7 +43,9 @@ const components = {
   'agenda-event-form-reminders': AgendaEventFormReminders,
   'agenda-event-form-attachments': AgendaEventFormAttachments,
   'agenda-event-form-attachment-item': AgendaEventFormAttachmentItem,
-  'agenda-event-details': AgendaEventDetails
+  'agenda-event-details': AgendaEventDetails,
+  'agenda-event-attendees': AgendaEventAttendees,
+  'agenda-event-attendee-item': AgendaEventAttendeeItem
 };
 
 for (const key in components) {
