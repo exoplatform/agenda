@@ -6,12 +6,17 @@ export function getEvents(query, ownerIds, start, end) {
     end = toRFC3339(end);
   }
 
-  const params = $.param({
+  let params = {
     query: query || '',
-    ownerIds: ownerIds,
     start: start,
     end: end,
-  }, true);
+  };
+
+  if (ownerIds && ownerIds.length) {
+    params.ownerIds = ownerIds;
+  }
+
+  params = $.param(params, true);
 
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events?${params}`, {
     method: 'GET',

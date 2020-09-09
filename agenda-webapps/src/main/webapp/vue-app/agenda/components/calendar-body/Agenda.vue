@@ -26,7 +26,9 @@ export default {
     },
   },
   data: () => ({
+    initialized: false,
     loading: false,
+    ownerIds: [],
     searchTerm: null,
     periodTitle: '',
     period: {
@@ -65,6 +67,20 @@ export default {
   },
   methods: {
     retrieveEvents() {
+      if (!this.initialized && eXo.env.portal.spaceId) {
+        const spaceId = eXo.env.portal.spaceId;
+        this.$spaceService.getSpaceById(spaceId, 'identity')
+          .then((space) => {
+            if (space && space.identity && space.identity.id) {
+              this.ownerIds = [space.identity.id];
+            }
+            this.retrieveEventsFromStore();
+          });
+      } else {
+        this.retrieveEventsFromStore();
+      }
+    },
+    retrieveEventsFromStore() {
       this.loading = true;
       this.$eventService.getEvents(this.searchTerm, this.ownerIds, this.period.start, this.period.end)
         .then(data => {
@@ -77,7 +93,10 @@ export default {
           this.events = events;
         }).catch(error =>{
           console.error('Error retrieving events', error);
-        }).finally(() => this.loading = false);
+        }).finally(() => {
+          this.initialized = true;
+          this.loading = false;
+        });
     },
     generateCalendarTitle(period) {
       return this.$agendaUtils.generateCalendarTitle(this.calendarType, new Date(period.start), period.title, this.$t('agenda.header.toolbar.title.week'));
