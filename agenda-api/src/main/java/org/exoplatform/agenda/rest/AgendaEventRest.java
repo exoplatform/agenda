@@ -99,8 +99,8 @@ public class AgendaEventRest implements ResourceContainer {
           @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
   )
   public Response list(
-                       @ApiParam(value = "Identity technical identifiers of calendar owners", required = false) @PathParam(
-                         "ownerId"
+                       @ApiParam(value = "Identity technical identifiers of calendar owners", required = false) @QueryParam(
+                         "ownerIds"
                        ) List<Long> ownerIds,
                        @ApiParam(value = "Start datetime using RFC-3339 representation including timezone", required = true) @QueryParam("start") String start,
                        @ApiParam(value = "End datetime using RFC-3339 representation including timezone", required = true) @QueryParam("end") String end) {
@@ -120,7 +120,7 @@ public class AgendaEventRest implements ResourceContainer {
     String currentUser = RestUtils.getCurrentUser();
     try {
       List<Event> events = null;
-      if (ownerIds.isEmpty()) {
+      if (ownerIds == null || ownerIds.isEmpty()) {
         events = agendaEventService.getEvents(startDatetime, endDatetime, currentUser);
       } else {
         events =

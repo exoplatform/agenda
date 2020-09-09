@@ -3,6 +3,3 @@
     <v-icon> mdi-settings</v-icon>
   </v-btn>
 </template>
-
-<script>
-</script>
