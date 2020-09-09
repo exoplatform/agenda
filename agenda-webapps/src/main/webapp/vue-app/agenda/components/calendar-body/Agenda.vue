@@ -11,6 +11,9 @@
         :weekdays="weekdays" />
       <agenda-event-dialog ref="eventFormDialog" :weekdays="weekdays" />
       <agenda-event-preview-dialog />
+      <agenda-calendar-owners-filter-drawer
+        :owner-ids="ownerIds"
+        @changed="changeDisplayedOwnerIds" />
     </v-main>
   </v-app>
 </template>
@@ -25,7 +28,6 @@ export default {
   data: () => ({
     loading: false,
     searchTerm: null,
-    ownerId: eXo.env.portal.userIdentityId,
     periodTitle: '',
     period: {
       start: null,
@@ -64,7 +66,7 @@ export default {
   methods: {
     retrieveEvents() {
       this.loading = true;
-      this.$eventService.getEvents(this.searchTerm, this.ownerId, this.period.start, this.period.end)
+      this.$eventService.getEvents(this.searchTerm, this.ownerIds, this.period.start, this.period.end)
         .then(data => {
           const events = data && data.events || [];
           events.forEach(event => {
@@ -79,7 +81,11 @@ export default {
     },
     generateCalendarTitle(period) {
       return this.$agendaUtils.generateCalendarTitle(this.calendarType, new Date(period.start), period.title, this.$t('agenda.header.toolbar.title.week'));
-    }
+    },
+    changeDisplayedOwnerIds(selectedOwnerIds) {
+      this.ownerIds = selectedOwnerIds;
+      this.retrieveEvents();
+    },
   },
 };
 </script>
