@@ -94,6 +94,30 @@ export function getMonthFromDate(date) {
   return d.toLocaleDateString('en-US', options);
 }
 
+export function getMonthNumberFromDate(date) {
+  let d = null;
+  if (date) {
+    d = new Date(date);
+  } else {
+    d = new Date();
+  }
+  return d.getMonth()+1;
+}
+
+export function getDayOfYear(date) {
+  let d = null;
+  if (date) {
+    d = new Date(date);
+  } else {
+    d = new Date();
+  }
+  const timestmp = new Date().setFullYear(new Date().getFullYear(), 0, 1);
+  const yearFirstDay = Math.floor(timestmp / 86400000);
+  const today = Math.ceil(d.getTime()/ 86400000);
+  const dayOfYear = today - yearFirstDay;
+  return dayOfYear;
+}
+
 export function pad(n) {
   return n < 10 && `0${n}` || n;
 }

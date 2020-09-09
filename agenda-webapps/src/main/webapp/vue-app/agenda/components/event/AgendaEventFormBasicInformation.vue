@@ -64,17 +64,14 @@
           <v-icon size="18" class="mr-11">
             fas fa-redo-alt
           </v-icon>
-          <select
-            v-model="eventRecurrence"
-            class="width-auto my-auto pr-2 subtitle-1 ignore-vuetify-classes d-none d-sm-inline">
-            <option value="NO REPEAT">{{ $t('agenda.doNotRepeat') }}</option>
-            <option value="DAILY">{{ $t('agenda.daily') }}</option>
-            <option value="WEEKLY">{{ $t('agenda.weekly',{ 0 : dayNamefromDate }) }}</option>
-            <option value="MONTHLY">{{ $t('agenda.monthly',{ 0 : dayNamefromDate }) }}</option>
-            <option value="YEARLY">{{ $t('agenda.annually',{ 0 : monthFromDate, 1: dayNumberFromDate}) }}</option>
-            <option value="">{{ $t('agenda.everyWeekDay') }}</option>
-            <option value="">{{ $t('agenda.custom') }}</option>
-          </select>
+          <v-select
+            v-model="eventRecurrence.frequency"
+            :items="occurrenceOptions"
+            item-text="text"
+            item-value="value"
+            outlined
+            class="recurrence-select width-auto my-auto pr-2 subtitle-1 ignore-vuetify-classes d-none d-sm-inline"
+            @input="selectRecurrence" />
         </div>
         <div class="d-flex flex-row">
           <v-flex class="flex-grow-0">
@@ -167,6 +164,10 @@
         </div>
       </div>
     </div>
+    <agenda-custom-recurrence-drawer
+      ref="customRecurrentEventDrawer"
+      fixed
+      :event="eventRecurrence" />
   </v-form>
 </template>
 
@@ -193,10 +194,45 @@ export default {
       nbNotif: 0,
       enablePermission: false,
       enableInvitation: false,
-      eventRecurrence: '',
+      error: null,
+      fieldError: '',
+      eventRecurrence: {
+        frequency: ''
+      },
+      recurrence: ''
     };
   },
   computed: {
+    occurrenceOptions() {
+      return [{
+        text: this.$t('agenda.doNotRepeat'),
+        value: 'NO REPEAT'
+      },
+      {
+        text: this.$t('agenda.daily'),
+        value: 'DAILY'
+      },
+      {
+        text: this.$t('agenda.weekly',{ 0 : this.dayNamefromDate }),
+        value: 'WEEKLY'
+      },
+      {
+        text: this.$t('agenda.monthly',{ 0 : this.dayNamefromDate }),
+        value: 'MONTHLY'
+      },
+      {
+        text: this.$t('agenda.annually',{ 0 : this.monthFromDate , 1: this.dayNumberInMonth}),
+        value: 'YEARLY'
+      },
+      {
+        text: this.$t('agenda.everyWeekDay'),
+        value: 'EVERY WEEKDAY'
+      },
+      {
+        text: this.$t('agenda.custom'),
+        value: 'CUSTOM'
+      }];
+    },
     dayNamefromDate () {
       const day = this.event.start;
       return this.$agendaUtils.getDayNameFromDate(day);
@@ -208,6 +244,24 @@ export default {
     dayNumberFromDate() {
       const day = this.event.start;
       return this.$agendaUtils.getDayNumberFromDate(day);
+    },
+    monthNumberFromDate() {
+      const day = this.event.start;
+      return this.$agendaUtils.getMonthNumberFromDate(day);
+    },
+    dayNumberInMonth() {
+      const date = this.event.start;
+      let d = null;
+      if (date) {
+        d = new Date(date);
+      } else {
+        d = new Date();
+      }
+      return d.getDate();
+    },
+    getDayNumberInYear() {
+      const day = this.event.start;
+      return this.$agendaUtils.getDayOfYear(day);
     },
     participantSuggesterLabels() {
       return {
@@ -246,35 +300,6 @@ export default {
         };
       } else {
         this.event.calendar.owner = null;
-      }
-    },
-    eventRecurrence() {
-      if (this.eventRecurrence && this.eventRecurrence === 'DAILY') {
-        this.event.recurrence = {
-          frequency: this.eventRecurrence,
-          interval: 1
-        };
-      } else if (this.eventRecurrence && this.eventRecurrence === 'NO REPEAT') {
-        this.event.recurrence = null;
-      } else if (this.eventRecurrence && this.eventRecurrence === 'WEEKLY') {
-        this.event.recurrence = {
-          frequency: this.eventRecurrence,
-          byDay: [this.dayNamefromDate.substring(0,2).toUpperCase()],
-          interval: 1
-        };
-      } else if(this.eventRecurrence && this.eventRecurrence === 'MONTHLY') {
-        this.event.recurrence = {
-          frequency: this.eventRecurrence,
-          byMonthDay: [this.dayNumberFromDate],
-        };
-      } else if(this.eventRecurrence && this.eventRecurrence === 'YEARLY') {
-        this.event.recurrence = {
-          frequency: this.eventRecurrence,
-          byYearDay: [this.dayNumberFromDate],
-          byMonth: [this.monthFromDate],
-        };
-      } else {
-        this.event.recurrence = null;
       }
     },
     invitedAttendee() {
@@ -354,7 +379,7 @@ export default {
           this.$refs.calendarOwner.items = [];
           this.calendarOwner = {};
         }
-        this.eventRecurrence = 'NO REPEAT';
+        this.eventRecurrence = { frequency:'NO REPEAT'};
 
         // Add current user as default attendee
         if (this.currentUser) {
@@ -390,13 +415,45 @@ export default {
         this.event.attendees.splice(index, 1);
       }
     },
-    displayError(error) {
-      this.fieldError = error;
-      window.setTimeout(() => {
-        this.fieldError = null;
-      }, 5000);
-      return false;
+    selectRecurrence() {
+      if (this.eventRecurrence && this.eventRecurrence.frequency === 'CUSTOM') {
+        this.$refs.customRecurrentEventDrawer.open();
+      } else if (this.eventRecurrence && this.eventRecurrence.frequency === 'DAILY') {
+        this.event.recurrence = {
+          frequency: this.eventRecurrence.frequency,
+          interval: 1
+        };
+      } else if (this.eventRecurrence && this.eventRecurrence.frequency === 'NO REPEAT') {
+        this.event.recurrence = null;
+      } else if (this.eventRecurrence && this.eventRecurrence.frequency === 'WEEKLY') {
+        this.event.recurrence = {
+          frequency: this.eventRecurrence.frequency,
+          byDay: [this.dayNamefromDate.substring(0,2).toUpperCase()],
+          interval: 1
+        };
+      } else if(this.eventRecurrence && this.eventRecurrence.frequency === 'MONTHLY') {
+        this.event.recurrence = {
+          frequency: this.eventRecurrence.frequency,
+          byDay: [this.dayNamefromDate.substring(0,2).toUpperCase()],
+          interval: 1
+        };
+      } else if(this.eventRecurrence && this.eventRecurrence.frequency === 'YEARLY') {
+        this.event.recurrence = {
+          frequency: this.eventRecurrence.frequency,
+          byMonthDay: [this.dayNumberInMonth],
+          byMonth: [this.monthNumberFromDate],
+          interval: 1
+        };
+      } else if(this.eventRecurrence && this.eventRecurrence.frequency === 'EVERY WEEKDAY') {
+        this.event.recurrence = {
+          frequency: 'WEEKLY',
+          byDay: ['Su','Mo','Tu','We','Th','Fr','Sa'],
+          interval: 1
+        };
+      } else {
+        this.event.recurrence = null;
+      }
     },
-  },
+  }
 };
 </script>
