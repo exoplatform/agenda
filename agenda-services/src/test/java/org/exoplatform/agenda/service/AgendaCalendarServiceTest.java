@@ -34,7 +34,7 @@ import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.container.xml.InitParams;
-import org.exoplatform.container.xml.ValueParam;
+import org.exoplatform.container.xml.ValuesParam;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.model.Profile;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
@@ -59,9 +59,9 @@ public class AgendaCalendarServiceTest {
     identityManager = mock(IdentityManager.class);
     agendaCalendarStorage = mock(AgendaCalendarStorage.class);
     InitParams initParams = new InitParams();
-    ValueParam value = new ValueParam();
-    value.setName("defaultColor");
-    value.setValue("#111111");
+    ValuesParam value = new ValuesParam();
+    value.setName("defaultColors");
+    value.setValues(Collections.singletonList("#111111"));
     initParams.addParam(value);
     agendaCalendarService = new AgendaCalendarServiceImpl(agendaCalendarStorage, identityManager, spaceService, initParams);
   }
