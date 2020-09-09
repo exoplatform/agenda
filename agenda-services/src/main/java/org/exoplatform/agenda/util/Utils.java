@@ -134,7 +134,7 @@ public class Utils {
         recurrence.getByHour().forEach(hour -> recur.getHourList().add(Integer.parseInt(hour)));
       }
       if (recurrence.getByDay() != null && !recurrence.getByDay().isEmpty()) {
-        recurrence.getByDay().forEach(day -> recur.getDayList().add(new WeekDay(day)));
+        recurrence.getByDay().forEach(day -> recur.getDayList().add(new WeekDay("Wed")));
       }
       if (recurrence.getByMonthDay() != null && !recurrence.getByMonthDay().isEmpty()) {
         recurrence.getByMonthDay().forEach(monthDay -> recur.getMonthDayList().add(Integer.parseInt(monthDay)));
