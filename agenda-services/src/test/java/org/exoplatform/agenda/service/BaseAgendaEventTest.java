@@ -65,6 +65,8 @@ public abstract class BaseAgendaEventTest {
 
   protected Space                                   space;
 
+  protected Identity                                spaceIdentity;
+
   protected Identity                                testuser1Identity;
 
   protected Identity                                testuser2Identity;
@@ -137,7 +139,7 @@ public abstract class BaseAgendaEventTest {
     if (!spaceService.isMember(space, testuser3Identity.getRemoteId())) {
       spaceService.addMember(space, testuser3Identity.getRemoteId());
     }
-    Identity spaceIdentity = identityManager.getOrCreateIdentity(SpaceIdentityProvider.NAME, space.getPrettyName());
+    spaceIdentity = identityManager.getOrCreateIdentity(SpaceIdentityProvider.NAME, space.getPrettyName());
 
     spaceCalendar = agendaCalendarService.createCalendar(new Calendar(0,
                                                                       Long.parseLong(spaceIdentity.getId()),

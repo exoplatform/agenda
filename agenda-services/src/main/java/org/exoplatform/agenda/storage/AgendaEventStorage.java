@@ -50,7 +50,7 @@ public class AgendaEventStorage {
     this.listenerService = listenerService;
   }
 
-  public List<Long> getEventIds(ZonedDateTime start, ZonedDateTime end, Long... ownerIds) {
+  public List<Long> getEventIdsByOwnerIds(ZonedDateTime start, ZonedDateTime end, Long... ownerIds) {
     if (start == null) {
       throw new IllegalArgumentException("Start date is mandatory");
     }
@@ -60,7 +60,23 @@ public class AgendaEventStorage {
 
     Date startDate = new Date(start.toEpochSecond() * 1000);
     Date endDate = new Date(end.toEpochSecond() * 1000);
-    return eventDAO.getEventIdsByPeriod(startDate, endDate, ownerIds);
+    return eventDAO.getEventIdsByPeriodAndOwnerIds(startDate, endDate, ownerIds);
+  }
+
+  public List<Long> getEventIdsByAttendeeIds(ZonedDateTime start,
+                                             ZonedDateTime end,
+                                             List<Long> ownerIds,
+                                             List<Long> attendeeIds) {
+    if (start == null) {
+      throw new IllegalArgumentException("Start date is mandatory");
+    }
+    if (end == null) {
+      throw new IllegalArgumentException("End date is mandatory");
+    }
+
+    Date startDate = new Date(start.toEpochSecond() * 1000);
+    Date endDate = new Date(end.toEpochSecond() * 1000);
+    return eventDAO.getEventIdsByPeriodAndAttendeeIds(startDate, endDate, ownerIds, attendeeIds);
   }
 
   public Event getEventById(long eventId) {

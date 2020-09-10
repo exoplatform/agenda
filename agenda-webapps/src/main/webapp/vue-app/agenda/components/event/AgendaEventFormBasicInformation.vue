@@ -7,7 +7,9 @@
       {{ fieldError }}
     </v-alert>
     <div class="d-flex flex-column flex-md-row">
-      <label class="float-left mt-5 mr-3 text-subtitle-1 d-none d-md-inline">Create</label>
+      <label class="float-left mt-5 mr-3 text-subtitle-1 d-none d-md-inline">
+        {{ $t('agenda.label.create') }}
+      </label>
       <input
         id="eventTitle"
         ref="eventTitle"
@@ -17,7 +19,9 @@
         name="title"
         class="ignore-vuetify-classes my-3"
         required>
-      <span class="mt-5 ml-4 mr-4 text-subtitle-1 font-weight-bold d-none d-md-inline">in</span>
+      <span class="mt-5 ml-4 mr-4 text-subtitle-1 font-weight-bold d-none d-md-inline">
+        {{ $t('agenda.label.in') }}
+      </span>
       <exo-identity-suggester
         id="calendarOwnerAutocomplete"
         ref="calendarOwner"
@@ -283,14 +287,9 @@ export default {
           && attendee.identity.providerId === this.invitedAttendee.providerId;
       });
       if (!found) {
-        this.event.attendees.push({identity: {
-          remoteId: this.invitedAttendee.remoteId,
-          providerId: this.invitedAttendee.providerId,
-          profile: {
-            avatar: this.invitedAttendee.profile.avatarUrl,
-            fullname: this.invitedAttendee.profile.fullName,
-          },
-        }});
+        this.event.attendees.push({
+          identity: this.$suggesterService.convertSuggesterItemToIdentity(this.invitedAttendee),
+        });
       }
       this.invitedAttendee = null;
     },
@@ -343,16 +342,7 @@ export default {
       }
       if (this.event.id) { // In case of edit existing event
         this.eventRecurrence = this.event.recurrence && this.event.recurrence.frequency || 'NO REPEAT';
-        const owner = this.event.calendar.owner;
-        this.calendarOwner = {
-          id: `${owner.providerId}:${owner.remoteId}`,
-          remoteId: owner.remoteId,
-          providerId: owner.providerId,
-          profile: {
-            avatarUrl: owner.profile && owner.profile.avatar || owner.space && owner.space.avatarUrl || '',
-            fullName: owner.profile && owner.profile.fullName || owner.space && owner.space.displayName || '',
-          },
-        };
+        this.calendarOwner = this.$suggesterService.convertIdentityToSuggesterItem(this.event.calendar.owner);
         this.$refs.calendarOwner.items = [this.calendarOwner];
       } else { // In case of new event
         if (this.currentSpace) {

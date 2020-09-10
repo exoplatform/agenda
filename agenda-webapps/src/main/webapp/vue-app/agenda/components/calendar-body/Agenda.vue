@@ -3,6 +3,7 @@
     <v-main class="pa-5">
       <agenda-header
         :calendar-type="calendarType"
+        :event-type="eventType"
         class="mb-5" />
       <agenda-body
         :events="events"
@@ -34,6 +35,7 @@ export default {
     loading: false,
     ownerIds: [],
     searchTerm: null,
+    eventType: 'myEvents',
     periodTitle: '',
     period: {
       start: null,
@@ -43,6 +45,9 @@ export default {
     weekdays: [1, 2, 3, 4, 5, 6, 0],
   }),
   watch: {
+    eventType() {
+      this.retrieveEvents();
+    },
     period() {
       this.retrieveEvents();
     },
@@ -65,6 +70,7 @@ export default {
     this.$root.$on('agenda-change-period-type', calendarType => this.calendarType = calendarType);
     this.$root.$on('agenda-search', searchTerm => this.searchTerm = searchTerm);
     this.$root.$on('refresh', this.retrieveEvents);
+    this.$root.$on('agenda-event-type-changed', eventType => this.eventType = eventType);
   },
   mounted() {
     document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
@@ -87,7 +93,8 @@ export default {
     },
     retrieveEventsFromStore() {
       this.loading = true;
-      this.$eventService.getEvents(this.searchTerm, this.ownerIds, this.period.start, this.period.end)
+      const userIdentityId = this.eventType === 'myEvents' && eXo.env.portal.userIdentityId || null;
+      this.$eventService.getEvents(this.searchTerm, this.ownerIds, userIdentityId, this.period.start, this.period.end)
         .then(data => {
           const events = data && data.events || [];
           events.forEach(event => {

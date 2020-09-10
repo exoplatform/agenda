@@ -55,6 +55,45 @@ public interface AgendaEventService {
                                        String username) throws IllegalAccessException;
 
   /**
+   * Retrieve {@link List} of events where the user is designated as an attendee
+   * of the {@link Event}, or the user belongs to a space that is added as
+   * attendee of the event.
+   * 
+   * @param attendeeIdentityId user {@link Identity} technical identifier
+   * @param startDatetime Period start date
+   * @param endDatetime Period end date
+   * @param username current user requesting events
+   * @return {@link List} of {@link Event}
+   * @throws IllegalAccessException when user is not the same as
+   *           attendeeIdentityId
+   */
+  public List<Event> getEventsByAttendee(long attendeeIdentityId,
+                                         ZonedDateTime startDatetime,
+                                         ZonedDateTime endDatetime,
+                                         String username) throws IllegalAccessException;
+
+  /**
+   * Retrieve {@link List} of events where the user is designated as an attendee
+   * of the {@link Event}, or the user belongs to a space that is added as
+   * attendee of the event. Additionally, the retrieved events must belongs to a
+   * calendar having an owner designated in list of owners to filter.
+   * 
+   * @param attendeeIdentityId user {@link Identity} technical identifier
+   * @param ownerIds {@link Identity} technical identifier of the owners
+   * @param startDatetime Period start date
+   * @param endDatetime Period end date
+   * @param username current user requesting events
+   * @return {@link List} of {@link Event}
+   * @throws IllegalAccessException when user doesn't have access to one of
+   *           designated owners or is not the same as attendeeIdentityId
+   */
+  public List<Event> getEventsByOwnersAndAttendee(long attendeeIdentityId,
+                                                  List<Long> ownerIds,
+                                                  ZonedDateTime startDatetime,
+                                                  ZonedDateTime endDatetime,
+                                                  String username) throws IllegalAccessException;
+
+  /**
    * Retrieves an event identified by its technical identifier.
    * 
    * @param eventId technical identifier of event
