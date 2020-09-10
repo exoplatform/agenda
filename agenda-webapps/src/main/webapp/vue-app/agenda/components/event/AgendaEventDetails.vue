@@ -60,21 +60,21 @@
         <v-col>
           <v-row class="event-date align-center d-flex pb-5">
             <i class="uiIconDatePicker darkGreyIcon uiIcon32x32 pr-5"></i>
-            <div v-if="!sameDayDates" class="sameDayDates">
-              <div class="d-inline-flex">
-                <date-format
+            <div v-if="sameDayDates" class="sameDayDates">
+              <date-format
                   :value="event.start"
-                  :format="dateDayFormat" />
-                -<date-format
-                  :value="event.end"
-                  :format="dateDayFormat" />
-                {{ `, ${eventYear}` }}
-              </div>
+                  :format="fullDateFormat" />
             </div>
             <div v-else class="differentDayDates">
-              <date-format
-                :value="event.start"
-                :format="fullDateFormat" />
+              <div class="d-inline-flex">
+                <date-format
+                    :value="event.start"
+                    :format="fullDateFormat" class="mr-1"/>
+                -
+                <date-format
+                    :value="event.end"
+                    :format="fullDateFormat" class="ml-1"/>
+              </div>
             </div>
           </v-row>
           <v-row class="event-time align-center d-flex pb-5">
@@ -82,11 +82,11 @@
             <div class="d-inline-flex">
               <date-format
                 :value="event.start"
-                :format="dateTimeFormat" />
-              {{ '&nbsp;-&nbsp;' }}
+                :format="dateTimeFormat" class="mr-1"/>
+              -
               <date-format
                 :value="event.end"
-                :format="dateTimeFormat" />
+                :format="dateTimeFormat" class="ml-1"/>
             </div>
           </v-row>
           <v-row class="event-location align-center d-flex pb-5">
