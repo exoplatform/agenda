@@ -197,7 +197,14 @@
     }
 
     .event-attendees {
+      white-space: nowrap;
       .attendee {
+        .userInfo {
+          flex: 1 0 35%;
+        }
+        .uiIcon-attendee-response {
+          flex: 1 1 65%;
+        }
         .uiIcon-attendee-response-accepted {
           &:before {
             content: '\e9c7';
