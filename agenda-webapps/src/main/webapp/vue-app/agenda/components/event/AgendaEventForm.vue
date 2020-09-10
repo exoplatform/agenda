@@ -14,7 +14,7 @@
           </span>
         </v-stepper-step>
         <v-btn
-          class="my-auto mr-2"
+          class="ml-auto mr-2"
           color="grey"
           icon
           dark

@@ -10,19 +10,14 @@
         <span class="px-4">
           {{ $t('agenda.details.title') }}
         </span>
-        <v-avatar
-          v-if="event.calendar.owner.profile"
-          size="32"
-          class="rounded px-3">
-          <v-img :src="event.calendar.owner.profile.avatar" />
-        </v-avatar>
-        <v-avatar
-          v-else-if="event.calendar.owner.space"
-          size="32"
-          class="rounded px-3">
-          <v-img :src="event.calendar.owner.space.avatarUrl" />
-        </v-avatar>
-        <a href="#" class="text-truncate">{{ event.calendar.title }}</a>
+        <template v-if="ownerProfile">
+          <v-avatar
+            size="32"
+            class="rounded px-3">
+            <v-img :src="ownerAvatarUrl" />
+          </v-avatar>
+          <a href="#" class="text-truncate">{{ ownerDisplayName }}</a>
+        </template>
       </v-toolbar-title>
       <v-spacer />
       <v-toolbar-items>
@@ -36,16 +31,21 @@
             </v-btn>
           </template>
           <v-list>
-            <v-list-item
-              v-for="(item, i) in items"
-              :key="i">
+            <v-list-item>
+              <v-list-item-title @click="$root.$emit('agenda-event-form', event)">
+                {{ $t('agenda.details.header.menu.edit') }}
+              </v-list-item-title>
               <v-list-item-title>
-                {{ item.title }}
+                {{ $t('agenda.details.header.menu.delete') }}
+              </v-list-item-title>
+              <v-list-item-title>
+                {{ $t('agenda.details.header.menu.export') }}
               </v-list-item-title>
             </v-list-item>
           </v-list>
         </v-menu>
         <v-btn
+          class="ml-auto mr-2"
           color="grey"
           icon
           dark
@@ -60,21 +60,18 @@
         <v-col>
           <v-row class="event-date align-center d-flex pb-5">
             <i class="uiIconDatePicker darkGreyIcon uiIcon32x32 pr-5"></i>
-            <div v-if="sameDayDates" class="sameDayDates">
+            <div class="d-inline-flex">
               <date-format
-                  :value="event.start"
-                  :format="fullDateFormat" />
-            </div>
-            <div v-else class="differentDayDates">
-              <div class="d-inline-flex">
-                <date-format
-                    :value="event.start"
-                    :format="fullDateFormat" class="mr-1"/>
+                :value="event.start"
+                :format="fullDateFormat"
+                class="mr-1" />
+              <template v-if="!sameDayDates">
                 -
                 <date-format
-                    :value="event.end"
-                    :format="fullDateFormat" class="ml-1"/>
-              </div>
+                  :value="event.end"
+                  :format="fullDateFormat"
+                  class="ml-1" />
+              </template>
             </div>
           </v-row>
           <v-row class="event-time align-center d-flex pb-5">
@@ -82,11 +79,13 @@
             <div class="d-inline-flex">
               <date-format
                 :value="event.start"
-                :format="dateTimeFormat" class="mr-1"/>
+                :format="dateTimeFormat"
+                class="mr-1" />
               -
               <date-format
                 :value="event.end"
-                :format="dateTimeFormat" class="ml-1"/>
+                :format="dateTimeFormat"
+                class="ml-1" />
             </div>
           </v-row>
           <v-row class="event-location align-center d-flex pb-5">
@@ -105,7 +104,9 @@
               v-for="attachedFile in event.attachments"
               :key="attachedFile.name"
               class="uploadedFilesItem">
-              <div class="showFile"><exo-attachment-item :file="attachedFile" /></div>
+              <div class="showFile"> 
+                <exo-attachment-item :file="attachedFile" />
+              </div>
             </div>
           </v-row>
           <v-row class="event-external-agendas pb-5">
@@ -159,18 +160,21 @@ export default {
     };
   },
   computed: {
+    ownerProfile() {
+      const owner = this.event && this.event.calendar && this.event.calendar.owner;
+      return owner && (owner.profile || owner.space);
+    },
+    ownerAvatarUrl() {
+      return this.ownerProfile && (this.ownerProfile.avatar || this.ownerProfile.avatarUrl);
+    },
+    ownerDisplayName() {
+      return this.ownerProfile && (this.ownerProfile.displayName || this.ownerProfile.fullname || this.ownerProfile.fullName);
+    },
     sameDayDates() {
       return this.$agendaUtils.areDatesOnSameDay(this.event.startDate, this.event.endDate);
     },
     eventYear() {
       return this.event.startDate.getFullYear();
-    },
-    items() {
-      return [
-        {title: this.$t('agenda.details.header.menu.edit')},
-        {title: this.$t('agenda.details.header.menu.delete')},
-        {title: this.$t('agenda.details.header.menu.export')},
-      ];
     },
     acceptedResponsesCount() {
       if (!this.event || !this.event.attendees || !this.event.attendees.length) {
