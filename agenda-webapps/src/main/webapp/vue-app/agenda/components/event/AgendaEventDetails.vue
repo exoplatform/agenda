@@ -31,13 +31,17 @@
             </v-btn>
           </template>
           <v-list>
-            <v-list-item>
-              <v-list-item-title @click="$root.$emit('agenda-event-form', event)">
+            <v-list-item @click="$root.$emit('agenda-event-form', event)">
+              <v-list-item-title>
                 {{ $t('agenda.details.header.menu.edit') }}
               </v-list-item-title>
+            </v-list-item>
+            <v-list-item>
               <v-list-item-title>
                 {{ $t('agenda.details.header.menu.delete') }}
               </v-list-item-title>
+            </v-list-item>
+            <v-list-item>
               <v-list-item-title>
                 {{ $t('agenda.details.header.menu.export') }}
               </v-list-item-title>
@@ -45,7 +49,7 @@
           </v-list>
         </v-menu>
         <v-btn
-          class="ml-auto mr-2"
+          class="my-auto mr-2"
           color="grey"
           icon
           dark
