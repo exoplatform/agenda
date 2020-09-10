@@ -14,7 +14,7 @@
           </span>
         </v-stepper-step>
         <v-btn
-          class="ml-auto mr-2"
+          class="my-auto mr-2"
           color="grey"
           icon
           dark
@@ -102,7 +102,6 @@ export default {
     },
     reset() {
       this.stepper = 1;
-      this.$refs.eventBasicInformation.reset();
     },
     previousStep() {
       this.stepper--;

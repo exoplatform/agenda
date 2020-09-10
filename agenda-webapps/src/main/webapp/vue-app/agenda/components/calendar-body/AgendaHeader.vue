@@ -11,15 +11,17 @@
     <agenda-search-event />
     <select
       v-model="eventType"
-      class="width-auto my-auto subtitle-1 ignore-vuetify-classes d-none d-sm-inline"
+      class="width-auto my-auto ml-4 subtitle-1 ignore-vuetify-classes d-none d-sm-inline"
       @change="$root.$emit('agenda-event-type-changed', eventType)">
       <option value="myEvents">{{ $t('agenda.myEvent') }}</option>
       <option value="allEvents">{{ $t('agenda.allEvent') }}</option>
     </select>
-    <v-btn icon @click="$root.$emit('agenda-calendar-owners-drawer-open')">
+    <v-btn icon class="ml-2" @click="$root.$emit('agenda-calendar-owners-drawer-open')">
       <v-icon>mdi-format-list-bulleted</v-icon>
     </v-btn>
-    <agenda-settings-button />
+    <v-btn icon>
+      <v-icon> mdi-settings</v-icon>
+    </v-btn>
   </v-toolbar>
 </template>
 
