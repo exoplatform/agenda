@@ -118,24 +118,12 @@ export default {
         return;
       }
       const promises = this.ownerIds.map(ownerId => {
-        return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/social/identities/${ownerId}`, {
-          method: 'GET',
-          credentials: 'include',
-        }).then(resp => {
-          return resp && resp.ok && resp.json();
-        }).then(identity => {
-          if (identity && identity.id) {
-            this.selectedOwnerSuggesters.push({
-              id: `${identity.providerId}:${identity.remoteId}`,
-              providerId: identity.providerId,
-              remoteId: identity.remoteId,
-              profile: {
-                avatarUrl: identity.space && identity.space.avatarUrl || identity.profile && identity.profile.avatar,
-                fullName: identity.space && identity.space.displayName || identity.profile && identity.profile.fullname,
-              }
-            });
-          }
-        });
+        return this.$suggesterService.getSuggesterItemByIdentityId(ownerId)
+          .then(suggesterItem => {
+            if (suggesterItem) {
+              this.selectedOwnerSuggesters.push(suggesterItem);
+            }
+          });
       });
       this.refreshing = true;
       return Promise.all(promises)

@@ -498,6 +498,9 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                           testuser2Identity.getRemoteId());
     assertNotNull(events);
     assertEquals(2, events.size());
+    assertTrue(events.stream().noneMatch(occurrenceEvent -> occurrenceEvent.getOccurrence() == null));
+    assertTrue(events.stream().anyMatch(occurrenceEvent -> occurrenceEvent.getOccurrence().isExceptional()));
+    assertTrue(events.stream().anyMatch(occurrenceEvent -> !occurrenceEvent.getOccurrence().isExceptional()));
   }
 
   @Test
@@ -649,6 +652,127 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                                   testuser1Identity.getRemoteId());
     assertNotNull(events);
     assertEquals(4, events.size());
+  }
+
+  @Test
+  public void testGetEventsByOwnersAndAttendee() throws Exception { // NOSONAR
+    ZonedDateTime now = ZonedDateTime.now();
+
+    ZonedDateTime start = now.withNano(0);
+    ZonedDateTime end = start.plusHours(2);
+
+    long testuser1Id = Long.parseLong(testuser1Identity.getId());
+    try {
+      agendaEventService.getEventsByOwnersAndAttendee(testuser1Id,
+                                                      Collections.singletonList(Long.parseLong(spaceIdentity.getId())),
+                                                      ZonedDateTime.now().plusHours(1),
+                                                      ZonedDateTime.now().plusMinutes(90),
+                                                      testuser2Identity.getRemoteId());
+      fail("User 'testuser2' shouldn't be able to access calendar of user 'testuser1'");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+
+    try {
+      agendaEventService.getEventsByOwnersAndAttendee(Long.parseLong(testuser5Identity.getId()),
+                                                      Collections.singletonList(Long.parseLong(spaceIdentity.getId())),
+                                                      ZonedDateTime.now().plusHours(1),
+                                                      ZonedDateTime.now().plusMinutes(90),
+                                                      testuser5Identity.getRemoteId());
+      fail("User 'testuser2' shouldn't be able to access calendar of user 'testuser1'");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+
+    Event event = newEventInstance(start, end, false);
+    event.setCalendarId(spaceCalendar.getId());
+    event = createEvent(event.clone(), testuser1Identity.getRemoteId(), testuser1Identity, testuser2Identity);
+    event = agendaEventService.getEventById(event.getId(), testuser1Identity.getRemoteId());
+
+    List<Event> events = agendaEventService.getEventsByOwnersAndAttendee(Long.parseLong(testuser2Identity.getId()),
+                                                                         Collections.singletonList(Long.parseLong(spaceIdentity.getId())),
+                                                                         ZonedDateTime.now().plusHours(1),
+                                                                         ZonedDateTime.now().plusMinutes(90),
+                                                                         testuser2Identity.getRemoteId());
+    assertNotNull(events);
+    assertEquals(1, events.size());
+
+    events = agendaEventService.getEventsByOwnersAndAttendee(Long.parseLong(testuser2Identity.getId()),
+                                                             Collections.singletonList(Long.parseLong(testuser2Identity.getId())),
+                                                             ZonedDateTime.now().plusHours(1),
+                                                             ZonedDateTime.now().plusMinutes(90),
+                                                             testuser2Identity.getRemoteId());
+    assertNotNull(events);
+    assertEquals(0, events.size());
+
+    events = agendaEventService.getEventsByOwnersAndAttendee(Long.parseLong(testuser3Identity.getId()),
+                                                             Collections.singletonList(Long.parseLong(spaceIdentity.getId())),
+                                                             ZonedDateTime.now().plusHours(1),
+                                                             ZonedDateTime.now().plusMinutes(90),
+                                                             testuser3Identity.getRemoteId());
+    assertNotNull(events);
+    assertEquals(0, events.size());
+
+    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(event.getId());
+    eventAttendees.add(new EventAttendee(0, Long.parseLong(spaceIdentity.getId()), null));
+    agendaEventAttendeeService.saveEventAttendees(event, eventAttendees, testuser1Id, false, false);
+
+    events = agendaEventService.getEventsByOwnersAndAttendee(Long.parseLong(testuser3Identity.getId()),
+                                                             Collections.singletonList(Long.parseLong(spaceIdentity.getId())),
+                                                             ZonedDateTime.now().plusHours(1),
+                                                             ZonedDateTime.now().plusMinutes(90),
+                                                             testuser3Identity.getRemoteId());
+    assertNotNull(events);
+    assertEquals(1, events.size());
+  }
+
+  @Test
+  public void testGetEventsByAttendee() throws Exception { // NOSONAR
+    ZonedDateTime now = ZonedDateTime.now();
+
+    ZonedDateTime start = now.withNano(0);
+    ZonedDateTime end = start.plusHours(2);
+
+    long testuser1Id = Long.parseLong(testuser1Identity.getId());
+    try {
+      agendaEventService.getEventsByAttendee(testuser1Id,
+                                             ZonedDateTime.now().plusHours(1),
+                                             ZonedDateTime.now().plusMinutes(90),
+                                             testuser2Identity.getRemoteId());
+      fail("User 'testuser2' shouldn't be able to access calendar of user 'testuser1'");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+
+    Event event = newEventInstance(start, end, false);
+    event.setCalendarId(spaceCalendar.getId());
+    event = createEvent(event.clone(), testuser1Identity.getRemoteId(), testuser1Identity, testuser2Identity);
+    event = agendaEventService.getEventById(event.getId(), testuser1Identity.getRemoteId());
+
+    List<Event> events = agendaEventService.getEventsByAttendee(Long.parseLong(testuser2Identity.getId()),
+                                                                ZonedDateTime.now().plusHours(1),
+                                                                ZonedDateTime.now().plusMinutes(90),
+                                                                testuser2Identity.getRemoteId());
+    assertNotNull(events);
+    assertEquals(1, events.size());
+
+    events = agendaEventService.getEventsByAttendee(Long.parseLong(testuser3Identity.getId()),
+                                                    ZonedDateTime.now().plusHours(1),
+                                                    ZonedDateTime.now().plusMinutes(90),
+                                                    testuser3Identity.getRemoteId());
+    assertNotNull(events);
+    assertEquals(0, events.size());
+
+    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(event.getId());
+    eventAttendees.add(new EventAttendee(0, Long.parseLong(spaceIdentity.getId()), null));
+    agendaEventAttendeeService.saveEventAttendees(event, eventAttendees, testuser1Id, false, false);
+
+    events = agendaEventService.getEventsByAttendee(Long.parseLong(testuser3Identity.getId()),
+                                                    ZonedDateTime.now().plusHours(1),
+                                                    ZonedDateTime.now().plusMinutes(90),
+                                                    testuser3Identity.getRemoteId());
+    assertNotNull(events);
+    assertEquals(1, events.size());
   }
 
 }

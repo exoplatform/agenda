@@ -332,8 +332,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   @Override
   public List<Event> getEvents(ZonedDateTime start, ZonedDateTime end, String username) {
     Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
-    List<Long> calendarOwners = getCalendarOwnersOfUser(userIdentity);
-    return getEvents(start, end, userIdentity, calendarOwners.toArray(new Long[0]));
+    List<Long> calendarOwnerIds = getCalendarOwnersOfUser(userIdentity);
+    return getEventsByOwners(start, end, userIdentity, calendarOwnerIds.toArray(new Long[0]));
   }
 
   /**
@@ -341,9 +341,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    */
   @Override
   public List<Event> getEventsByOwners(List<Long> ownerIds,
-                                      ZonedDateTime start,
-                                      ZonedDateTime end,
-                                      String username) throws IllegalAccessException {
+                                       ZonedDateTime start,
+                                       ZonedDateTime end,
+                                       String username) throws IllegalAccessException {
     Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
     for (Long ownerId : ownerIds) {
       if (!Utils.canAccessCalendar(identityManager, spaceService, ownerId, username)) {
@@ -351,20 +351,73 @@ public class AgendaEventServiceImpl implements AgendaEventService {
             + ownerIds + "'");
       }
     }
-    return getEvents(start, end, userIdentity, ownerIds.toArray(new Long[0]));
+    return getEventsByOwners(start, end, userIdentity, ownerIds.toArray(new Long[0]));
   }
 
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<Event> getEventsByAttendee(long attendeeIdentityId,
+                                         ZonedDateTime start,
+                                         ZonedDateTime end,
+                                         String username) throws IllegalAccessException {
+    Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+    if (userIdentity == null) {
+      throw new IllegalAccessException("User with name " + username + " doesn't exist");
+    }
+    if (Long.parseLong(userIdentity.getId()) != attendeeIdentityId) {
+      throw new IllegalAccessException("User with id " + userIdentity.getId() + " isn't allowed to access events of user with id "
+          + attendeeIdentityId);
+    }
+    List<Long> calendarOwnerIds = getCalendarOwnersOfUser(userIdentity);
+    return getEventsByAttendees(start, end, userIdentity, calendarOwnerIds, calendarOwnerIds);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<Event> getEventsByOwnersAndAttendee(long attendeeIdentityId,
+                                                  List<Long> ownerIds,
+                                                  ZonedDateTime start,
+                                                  ZonedDateTime end,
+                                                  String username) throws IllegalAccessException {
+    Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+    if (userIdentity == null) {
+      throw new IllegalAccessException("User with name " + username + " doesn't exist");
+    }
+    if (Long.parseLong(userIdentity.getId()) != attendeeIdentityId) {
+      throw new IllegalAccessException("User with id " + userIdentity.getId() + " isn't allowed to access events of user with id "
+          + attendeeIdentityId);
+    }
+    for (Long ownerId : ownerIds) {
+      if (!Utils.canAccessCalendar(identityManager, spaceService, ownerId, username)) {
+        throw new IllegalAccessException("User '" + userIdentity.getId() + "' is not allowed to access calendar of identity '"
+            + ownerIds + "'");
+      }
+    }
+    List<Long> eventAttendeeIds = getCalendarOwnersOfUser(userIdentity);
+    return getEventsByAttendees(start, end, userIdentity, ownerIds, eventAttendeeIds);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public List<RemoteProvider> getRemoteProviders() {
     return agendaEventStorage.getRemoteProviders();
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public RemoteProvider saveRemoteProvider(RemoteProvider remoteProvider) {
     return agendaEventStorage.saveRemoteProvider(remoteProvider);
   }
 
-  private List<Event> getEvents(ZonedDateTime start, ZonedDateTime end, Identity userIdentity, Long... calendarOwners) {
+  private List<Event> getEventsByOwners(ZonedDateTime start, ZonedDateTime end, Identity userIdentity, Long... calendarOwnerIds) {
     // Retrieve events minus a day and plus a day to include all day events
     // That could transit due to timezone of user. Then filter resulted events
     // at the end to get only events that are between orginal start and end
@@ -381,7 +434,41 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     ZonedDateTime startMinusADay = start.minusDays(1);
     ZonedDateTime endPlusADay = end.plusDays(1);
 
-    List<Long> eventIds = this.agendaEventStorage.getEventIds(startMinusADay, endPlusADay, calendarOwners);
+    List<Long> eventIds = this.agendaEventStorage.getEventIdsByOwnerIds(startMinusADay, endPlusADay, calendarOwnerIds);
+    return computeEventsProperties(start, end, userIdentity, startMinusADay, endPlusADay, eventIds);
+  }
+
+  private List<Event> getEventsByAttendees(ZonedDateTime start,
+                                           ZonedDateTime end,
+                                           Identity userIdentity,
+                                           List<Long> calendarOwnerIds,
+                                           List<Long> eventAttendeeIds) {
+    // Retrieve events minus a day and plus a day to include all day events
+    // That could transit due to timezone of user. Then filter resulted events
+    // at the end to get only events that are between orginal start and end
+    // dates. Example: given:
+    // - an all day event of 2020-09-02 is stored in UTC in DB with information
+    // (start = 2020-09-02T00:00:00Z, end = 2020-09-02T23:59:59Z )
+    // - the user has a timezone +03:00
+    // - the search is made on events between 2020-09-02T00:00:00+03:00, end =
+    // 2020-09-02T02:00:00+03:00
+    // The event isn't retrieved with the query dates because in DB, the start
+    // and end dates are different, using user timezone (start =
+    // 2020-09-02T03:00:00+03:00, end = 2020-09-03T02:59:59+03:00 ). Thus the
+    // event will not be retrieved
+    ZonedDateTime startMinusADay = start.minusDays(1);
+    ZonedDateTime endPlusADay = end.plusDays(1);
+
+    List<Long> eventIds = this.agendaEventStorage.getEventIdsByAttendeeIds(start, end, calendarOwnerIds, eventAttendeeIds);
+    return computeEventsProperties(start, end, userIdentity, startMinusADay, endPlusADay, eventIds);
+  }
+
+  private List<Event> computeEventsProperties(ZonedDateTime start,
+                                              ZonedDateTime end,
+                                              Identity userIdentity,
+                                              ZonedDateTime startMinusADay,
+                                              ZonedDateTime endPlusADay,
+                                              List<Long> eventIds) {
     if (eventIds == null || eventIds.isEmpty()) {
       return Collections.emptyList();
     }
