@@ -68,7 +68,7 @@
                 -<date-format
                   :value="event.end"
                   :format="dateDayFormat" />
-                {{ `, ${event.startDate.getFullYear()}` }}
+                {{ `, ${eventYear}` }}
               </div>
             </div>
             <div v-else class="differentDayDates">
@@ -83,7 +83,7 @@
               <date-format
                 :value="event.start"
                 :format="dateTimeFormat" />
-              {{ ' - ' }}
+              {{ '&nbsp;-&nbsp;' }}
               <date-format
                 :value="event.end"
                 :format="dateTimeFormat" />
@@ -115,7 +115,7 @@
             </div>
             <div class="external-agendas-selector align-center pb-5">
               <i class="uiIconConnect darkGreyIcon uiIcon32x32 pr-5"></i>
-              <span>Connect to</span>
+              <span>{{ $t('agenda.details.calendar.connectTo') }}</span>
               <select class="width-auto my-auto ml-4 pr-2 subtitle-1 ignore-vuetify-classes d-none d-sm-inline">
                 <option>{{ $t('agenda.details.calendar.google') }}</option>
                 <option>{{ $t('agenda.details.calendar.office') }}</option>
@@ -161,6 +161,9 @@ export default {
   computed: {
     sameDayDates() {
       return this.$agendaUtils.areDatesOnSameDay(this.event.startDate, this.event.endDate);
+    },
+    eventYear() {
+      return this.event.startDate.getFullYear();
     },
     items() {
       return [
