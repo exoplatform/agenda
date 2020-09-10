@@ -50,6 +50,14 @@ export default {
     this.$root.$on('agenda-display-calendar-previous', () => {
       this.$refs.calendar.prev();
     });
+    this.$root.$on('agenda-calendar-color-changed', (calendarId, calendarColor) => {
+      this.events.forEach(event => {
+        if (event.calendar.id === calendarId) {
+          event.calendar.color = calendarColor;
+        }
+      });
+      this.$forceUpdate();
+    });
   },
   methods:{
     retrievePeriodEvents(range) {

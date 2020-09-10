@@ -1,0 +1,103 @@
+<template>
+  <v-list-item>
+    <v-list-item-avatar>
+      <div :style="`width: 30px;height: 30px;background-color: ${calendarColor}`"></div>
+    </v-list-item-avatar>
+    <v-list-item-content>
+      <v-list-item-title v-text="calendarDisplayName" />
+    </v-list-item-content>
+    <v-list-item-action>
+      <v-menu
+        v-if="canEditCalendar"
+        ref="menu"
+        v-model="menu"
+        :close-on-content-click="false"
+        bottom
+        left>
+        <template v-slot:activator="{ on, attrs }">
+          <v-btn
+            icon
+            v-bind="attrs"
+            v-on="on">
+            <v-icon>mdi-dots-vertical</v-icon>
+          </v-btn>
+        </template>
+        <v-card>
+          <v-color-picker
+            v-model="selectedCalendarColor"
+            class="ma-2"
+            hide-inputs
+            flat />
+          <v-card-actions>
+            <v-spacer />
+            <v-btn
+              :disabled="saving"
+              class="btn ml-2"
+              @click="closeMenu">
+              {{ $t('agenda.button.cancel') }}
+            </v-btn>
+            <v-btn
+              :loading="saving"
+              :disabled="saving"
+              class="btn btn-primary ml-2"
+              @click="applyColor">
+              {{ $t('agenda.button.apply') }}
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-menu>
+    </v-list-item-action>
+  </v-list-item>
+</template>
+
+<script>
+export default {
+  props: {
+    calendar: {
+      type: Object,
+      default: null,
+    },
+  },
+  data: () => ({
+    selectedCalendarColor: null,
+    saving: false,
+    menu: false,
+  }),
+  computed: {
+    calendarColor() {
+      return this.calendar.color;
+    },
+    canEditCalendar() {
+      return this.calendar && this.calendar.acl && this.calendar.acl.canEdit;
+    },
+    calendarDisplayName() {
+      const owner = this.calendar.owner;
+      const profile = owner.space || owner.profile;
+      return profile.displayName || profile.fullname || profile.fullName;
+    },
+  },
+  created() {
+    this.selectedCalendarColor = this.calendar.color;
+  },
+  methods: {
+    reset() {
+      this.selectedCalendarColor = this.calendar.color;
+    },
+    applyColor() {
+      const calendarToSave = Object.assign({}, this.calendar);
+      calendarToSave.color = this.selectedCalendarColor;
+      this.saving = true;
+      this.$calendarService.saveCalendar(calendarToSave)
+        .then(() => {
+          this.calendar.color = this.selectedCalendarColor;
+          this.$root.$emit('agenda-calendar-color-changed', this.calendar.id, this.calendarColor);
+          this.closeMenu();
+        })
+        .finally(() => this.saving = false);
+    },
+    closeMenu() {
+      this.menu = false;
+    },
+  },
+};
+</script>

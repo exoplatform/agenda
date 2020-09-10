@@ -16,10 +16,15 @@
       <option value="myEvents">{{ $t('agenda.myEvent') }}</option>
       <option value="allEvents">{{ $t('agenda.allEvent') }}</option>
     </select>
-    <v-btn icon class="ml-2" @click="$root.$emit('agenda-calendar-owners-drawer-open')">
+    <v-btn
+      icon
+      class="ml-2"
+      @click="$root.$emit('agenda-calendar-owners-drawer-open')">
       <v-icon>mdi-format-list-bulleted</v-icon>
     </v-btn>
-    <v-btn icon>
+    <v-btn
+      icon
+      @click="$root.$emit('agenda-settings-drawer-open')">
       <v-icon> mdi-settings</v-icon>
     </v-btn>
   </v-toolbar>
