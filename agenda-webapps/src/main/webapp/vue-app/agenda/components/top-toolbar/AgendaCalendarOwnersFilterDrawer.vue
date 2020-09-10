@@ -1,6 +1,6 @@
 <template>
   <exo-drawer
-    ref="caledarOwnersFilters"
+    ref="calendarOwnersFilters"
     right
     @opened="drawer = true"
     @closed="drawer = false">
@@ -72,9 +72,9 @@ export default {
   watch: {
     refreshing() {
       if (this.refreshing) {
-        this.$refs.caledarOwnersFilters.startLoading();
+        this.$refs.calendarOwnersFilters.startLoading();
       } else {
-        this.$refs.caledarOwnersFilters.endLoading();
+        this.$refs.calendarOwnersFilters.endLoading();
       }
     },
     allCalendars(newVal, oldVal) {
@@ -101,11 +101,11 @@ export default {
       this.close();
     },
     close() {
-      this.$refs.caledarOwnersFilters.close();
+      this.$refs.calendarOwnersFilters.close();
     },
     open() {
       this.allCalendars = !this.ownerIds || !this.ownerIds.length;
-      this.$refs.caledarOwnersFilters.open();
+      this.$refs.calendarOwnersFilters.open();
       this.$nextTick().then(() => {
         this.refreshCalendarSuggester();
       });

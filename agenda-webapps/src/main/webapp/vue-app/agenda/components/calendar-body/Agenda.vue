@@ -18,6 +18,7 @@
       <agenda-calendar-owners-filter-drawer
         :owner-ids="ownerIds"
         @changed="changeDisplayedOwnerIds" />
+      <agenda-settings-drawer />
     </v-main>
   </v-app>
 </template>

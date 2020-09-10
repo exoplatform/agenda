@@ -19,6 +19,11 @@ import AgendaEventFormAttachmentItem from './components/event/AgendaEventFormAtt
 import AgendaEventDetails from './components/event/AgendaEventDetails.vue';
 import AgendaEventAttendees from './components/event/attendee/AgendaEventAttendees.vue';
 import AgendaEventAttendeeItem from './components/event/attendee/AgendaEventAttendeeItem.vue';
+import AgendaSettingsDrawer from './components/settings/AgendaSettingsDrawer.vue';
+import AgendaCalendarsTab from './components/settings/AgendaCalendarsTab.vue';
+import AgendaCalendarsItem from './components/settings/AgendaCalendarsItem.vue';
+import AgendaSettingsTab from './components/settings/AgendaSettingsTab.vue';
+import AgendaSyncTab from './components/settings/AgendaSyncTab.vue';
 
 const components = {
   'agenda': Agenda,
@@ -41,7 +46,12 @@ const components = {
   'agenda-event-form-attachment-item': AgendaEventFormAttachmentItem,
   'agenda-event-details': AgendaEventDetails,
   'agenda-event-attendees': AgendaEventAttendees,
-  'agenda-event-attendee-item': AgendaEventAttendeeItem
+  'agenda-event-attendee-item': AgendaEventAttendeeItem,
+  'agenda-settings-drawer': AgendaSettingsDrawer,
+  'agenda-calendars-tab': AgendaCalendarsTab,
+  'agenda-calendars-item': AgendaCalendarsItem,
+  'agenda-settings-tab': AgendaSettingsTab,
+  'agenda-sync-tab': AgendaSyncTab
 };
 
 for (const key in components) {

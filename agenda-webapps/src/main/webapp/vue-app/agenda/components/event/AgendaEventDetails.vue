@@ -21,7 +21,9 @@
       </v-toolbar-title>
       <v-spacer />
       <v-toolbar-items>
-        <v-menu bottom left>
+        <v-menu
+          bottom
+          left>
           <template v-slot:activator="{ on, attrs }">
             <v-btn
               icon
