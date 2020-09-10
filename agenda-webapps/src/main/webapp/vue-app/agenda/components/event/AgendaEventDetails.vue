@@ -8,7 +8,7 @@
           {{ event.summary }}
         </span>
         <span class="px-4">
-          {{ $t('agenda.details.title') }}
+          {{ $t('agenda.label.in') }}
         </span>
         <template v-if="ownerProfile">
           <v-avatar

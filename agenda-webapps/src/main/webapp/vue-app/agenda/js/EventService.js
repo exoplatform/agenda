@@ -1,6 +1,6 @@
 import {toRFC3339} from './AgendaUtils.js';
 
-export function getEvents(query, ownerIds, start, end) {
+export function getEvents(query, ownerIds, attendeeIdentityId, start, end) {
   if (typeof start === 'object') {
     start = toRFC3339(start);
     end = toRFC3339(end);
@@ -14,6 +14,10 @@ export function getEvents(query, ownerIds, start, end) {
 
   if (ownerIds && ownerIds.length) {
     params.ownerIds = ownerIds;
+  }
+
+  if (attendeeIdentityId) {
+    params.attendeeIdentityId = attendeeIdentityId;
   }
 
   params = $.param(params, true);

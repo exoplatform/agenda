@@ -18,8 +18,7 @@ package org.exoplatform.agenda.rest;
 
 import java.net.URI;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import javax.annotation.security.RolesAllowed;
@@ -34,6 +33,7 @@ import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
 import org.exoplatform.agenda.model.*;
+import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.rest.model.*;
 import org.exoplatform.agenda.service.*;
 import org.exoplatform.agenda.util.*;
@@ -102,6 +102,9 @@ public class AgendaEventRest implements ResourceContainer {
                        @ApiParam(value = "Identity technical identifiers of calendar owners", required = false) @QueryParam(
                          "ownerIds"
                        ) List<Long> ownerIds,
+                       @ApiParam(
+                           value = "Attendee identity identifier to filter on events where user is attendee", required = true
+                       ) @QueryParam("attendeeIdentityId") long attendeeIdentityId,
                        @ApiParam(value = "Start datetime using RFC-3339 representation including timezone", required = true) @QueryParam("start") String start,
                        @ApiParam(value = "End datetime using RFC-3339 representation including timezone", required = true) @QueryParam("end") String end) {
     if (StringUtils.isBlank(start)) {
@@ -120,33 +123,48 @@ public class AgendaEventRest implements ResourceContainer {
     String currentUser = RestUtils.getCurrentUser();
     try {
       List<Event> events = null;
-      if (ownerIds == null || ownerIds.isEmpty()) {
-        events = agendaEventService.getEvents(startDatetime, endDatetime, currentUser);
+      if (attendeeIdentityId > 0) {
+        if (ownerIds == null || ownerIds.isEmpty()) {
+          events = agendaEventService.getEventsByAttendee(attendeeIdentityId, startDatetime, endDatetime, currentUser);
+        } else {
+          events = agendaEventService.getEventsByOwnersAndAttendee(attendeeIdentityId,
+                                                                   ownerIds,
+                                                                   startDatetime,
+                                                                   endDatetime,
+                                                                   currentUser);
+        }
       } else {
-        events =
-               agendaEventService.getEventsByOwners(ownerIds, startDatetime, endDatetime, currentUser);
+        if (ownerIds == null || ownerIds.isEmpty()) {
+          events = agendaEventService.getEvents(startDatetime, endDatetime, currentUser);
+        } else {
+          events = agendaEventService.getEventsByOwners(ownerIds, startDatetime, endDatetime, currentUser);
+        }
       }
+      Map<Long, List<EventAttendeeEntity>> attendeesByParentEventId = new HashMap<>();
+      Map<Long, List<EventAttachmentEntity>> attachmentsByParentEventId = new HashMap<>();
+      Map<Long, List<EventConference>> conferencesByParentEventId = new HashMap<>();
+      Map<Long, List<EventReminderEntity>> remindersByParentEventId = new HashMap<>();
       List<EventEntity> eventEntities = events.stream().map(event -> {
         EventEntity eventEntity = EntityBuilder.fromEvent(agendaCalendarService, agendaEventService, identityManager, event);
         long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
 
         try {
-          fillAttendees(eventEntity);
+          fillAttendees(eventEntity, attendeesByParentEventId);
         } catch (Exception e) {
           LOG.warn("Error retrieving event reminders, retrieve event without reminders", e);
         }
         try {
-          fillAttachments(eventEntity);
+          fillAttachments(eventEntity, attachmentsByParentEventId);
         } catch (Exception e) {
           LOG.warn("Error retrieving event reminders, retrieve event without reminders", e);
         }
         try {
-          fillConferences(eventEntity);
+          fillConferences(eventEntity, conferencesByParentEventId);
         } catch (Exception e) {
           LOG.warn("Error retrieving event reminders, retrieve event without reminders", e);
         }
         try {
-          fillReminders(eventEntity, userIdentityId);
+          fillReminders(eventEntity, userIdentityId, remindersByParentEventId);
         } catch (Exception e) {
           LOG.warn("Error retrieving event reminders, retrieve event without reminders", e);
         }
@@ -611,8 +629,21 @@ public class AgendaEventRest implements ResourceContainer {
     }
   }
 
+  private void fillAttendees(EventEntity eventEntity, Map<Long, List<EventAttendeeEntity>> attendeesByParentEventId) {
+    long eventId = eventEntity.getId() == 0 && eventEntity.getParent() != null ? eventEntity.getParent().getId()
+                                                                               : eventEntity.getId();
+    if (attendeesByParentEventId.containsKey(eventId)) {
+      eventEntity.setAttendees(attendeesByParentEventId.get(eventId));
+    } else {
+      fillAttendees(eventEntity);
+      attendeesByParentEventId.put(eventId, eventEntity.getAttendees());
+    }
+  }
+
   private void fillAttendees(EventEntity eventEntity) {
-    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(eventEntity.getId());
+    long eventId = eventEntity.getId() == 0 && eventEntity.getParent() != null ? eventEntity.getParent().getId()
+                                                                               : eventEntity.getId();
+    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId);
     List<EventAttendeeEntity> eventAttendeeEntities = eventAttendees == null ? null
                                                                              : eventAttendees.stream()
                                                                                              .map(eventAttendee -> EntityBuilder.fromEventAttendee(identityManager,
@@ -621,8 +652,21 @@ public class AgendaEventRest implements ResourceContainer {
     eventEntity.setAttendees(eventAttendeeEntities);
   }
 
+  private void fillAttachments(EventEntity eventEntity, Map<Long, List<EventAttachmentEntity>> attachmentsByParentEventId) {
+    long eventId = eventEntity.getId() == 0 && eventEntity.getParent() != null ? eventEntity.getParent().getId()
+                                                                               : eventEntity.getId();
+    if (attachmentsByParentEventId.containsKey(eventId)) {
+      eventEntity.setAttachments(attachmentsByParentEventId.get(eventId));
+    } else {
+      fillAttachments(eventEntity);
+      attachmentsByParentEventId.put(eventId, eventEntity.getAttachments());
+    }
+  }
+
   private void fillAttachments(EventEntity eventEntity) {
-    List<EventAttachment> eventAttachments = agendaEventAttachmentService.getEventAttachments(eventEntity.getId());
+    long eventId = eventEntity.getId() == 0 && eventEntity.getParent() != null ? eventEntity.getParent().getId()
+                                                                               : eventEntity.getId();
+    List<EventAttachment> eventAttachments = agendaEventAttachmentService.getEventAttachments(eventId);
     List<EventAttachmentEntity> eventAttachmentEntities = eventAttachments == null ? null
                                                                                    : eventAttachments.stream()
                                                                                                      .map(EntityBuilder::fromEventAttachment)
@@ -630,13 +674,41 @@ public class AgendaEventRest implements ResourceContainer {
     eventEntity.setAttachments(eventAttachmentEntities);
   }
 
+  private void fillConferences(EventEntity eventEntity, Map<Long, List<EventConference>> conferencesByParentEventId) {
+    long eventId = eventEntity.getId() == 0 && eventEntity.getParent() != null ? eventEntity.getParent().getId()
+                                                                               : eventEntity.getId();
+    if (conferencesByParentEventId.containsKey(eventId)) {
+      eventEntity.setConferences(conferencesByParentEventId.get(eventId));
+    } else {
+      fillConferences(eventEntity);
+      conferencesByParentEventId.put(eventId, eventEntity.getConferences());
+    }
+  }
+
   private void fillConferences(EventEntity eventEntity) {
-    List<EventConference> eventConferences = agendaEventConferenceService.getEventConferences(eventEntity.getId());
+    long eventId = eventEntity.getId() == 0 && eventEntity.getParent() != null ? eventEntity.getParent().getId()
+                                                                               : eventEntity.getId();
+    List<EventConference> eventConferences = agendaEventConferenceService.getEventConferences(eventId);
     eventEntity.setConferences(eventConferences);
   }
 
-  private void fillReminders(EventEntity eventEntity, long currentUserIdentityId) {
-    List<EventReminder> eventReminders = agendaEventReminderService.getEventReminders(eventEntity.getId(), currentUserIdentityId);
+  private void fillReminders(EventEntity eventEntity,
+                             long userIdentityId,
+                             Map<Long, List<EventReminderEntity>> remindersByParentEventId) {
+    long eventId = eventEntity.getId() == 0 && eventEntity.getParent() != null ? eventEntity.getParent().getId()
+                                                                               : eventEntity.getId();
+    if (remindersByParentEventId.containsKey(eventId)) {
+      eventEntity.setReminders(remindersByParentEventId.get(eventId));
+    } else {
+      fillReminders(eventEntity, userIdentityId);
+      remindersByParentEventId.put(eventId, eventEntity.getReminders());
+    }
+  }
+
+  private void fillReminders(EventEntity eventEntity, long userIdentityId) {
+    long eventId = eventEntity.getId() == 0 && eventEntity.getParent() != null ? eventEntity.getParent().getId()
+                                                                               : eventEntity.getId();
+    List<EventReminder> eventReminders = agendaEventReminderService.getEventReminders(eventId, userIdentityId);
     List<EventReminderEntity> eventReminderEntities = eventReminders == null ? null
                                                                              : eventReminders.stream()
                                                                                              .map(EntityBuilder::fromEventReminder)
