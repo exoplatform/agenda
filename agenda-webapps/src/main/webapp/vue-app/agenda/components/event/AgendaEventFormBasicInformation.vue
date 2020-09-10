@@ -224,6 +224,9 @@ export default {
     },
   },
   watch: {
+    event() {
+      this.reset();
+    },
     savingUser() {
       if (this.savingUser) {
         this.$refs.agendaEventForm.startLoading();
@@ -298,6 +301,7 @@ export default {
     this.$userService.getUser(eXo.env.portal.userName).then(user => {
       this.currentUser = user;
     });
+    this.reset();
   },
   methods:{
     validateForm() {
