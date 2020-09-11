@@ -58,9 +58,9 @@ public class CalendarDAO extends GenericDAOJPAImpl<CalendarEntity, Long> {
     TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaCalendar.getCalendarIdsByOwnerIds",
                                                                  Long.class);
     query.setParameter("ownerIds", Arrays.asList(ownerIds));
-    List<Long> resultList = query.getResultList();
     query.setFirstResult(offset);
     query.setMaxResults(limit);
+    List<Long> resultList = query.getResultList();
     return resultList == null ? Collections.emptyList() : resultList;
   }
 
