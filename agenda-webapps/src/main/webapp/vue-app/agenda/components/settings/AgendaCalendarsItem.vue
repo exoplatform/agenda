@@ -1,7 +1,9 @@
 <template>
-  <v-list-item>
+  <v-list-item class="agenda-calendar-settings px-0">
     <v-list-item-avatar>
-      <div :style="`width: 30px;height: 30px;background-color: ${calendarColor}`"></div>
+      <div
+        :style="`background-color: ${calendarColor}`"
+        class="agenda-calendar-settings-color"></div>
     </v-list-item-avatar>
     <v-list-item-content>
       <v-list-item-title v-text="calendarDisplayName" />
