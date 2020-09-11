@@ -149,14 +149,14 @@
         </div>
         <div class="d-flex flex-row">
           <label class="switch-label-text mt-1 text-subtitle-1 font-weight-bold">{{ $t('agenda.modifyEventPermission') }}</label>
-          <v-switch v-model="enablePermission" class="mt-0 ml-4" />
+          <v-switch v-model="event.allowAttendeeToUpdate" class="mt-0 ml-4" />
         </div>
         <div class="d-flex flex-row font-weight-regular">
           {{ $t('agenda.modifyEventPermissionDescription') }}
         </div>
         <div class="d-flex flex-row">
           <label class="switch-label-text mt-1 text-subtitle-1 font-weight-bold">{{ $t('agenda.enableInvitation') }}</label>
-          <v-switch v-model="enableInvitation" class="mt-0 ml-4" />
+          <v-switch v-model="event.allowAttendeeToInvite" class="mt-0 ml-4" />
         </div>
         <div class="d-flex flex-row font-weight-regular">
           {{ $t('agenda.enableInvitationDescription') }}
@@ -224,9 +224,6 @@ export default {
     },
   },
   watch: {
-    event() {
-      this.reset();
-    },
     savingUser() {
       if (this.savingUser) {
         this.$refs.agendaEventForm.startLoading();
@@ -350,7 +347,7 @@ export default {
         this.$refs.calendarOwner.items = [this.calendarOwner];
       } else { // In case of new event
         if (this.currentSpace) {
-          this.calendarOwner = {
+          this.calendarOwner = this.event.calendar.owner = {
             id: `space:${this.currentSpace.prettyName}`,
             remoteId: this.currentSpace.prettyName,
             providerId: 'space',

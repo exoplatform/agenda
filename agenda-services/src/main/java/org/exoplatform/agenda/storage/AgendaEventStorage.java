@@ -76,7 +76,11 @@ public class AgendaEventStorage {
 
     Date startDate = new Date(start.toEpochSecond() * 1000);
     Date endDate = new Date(end.toEpochSecond() * 1000);
-    return eventDAO.getEventIdsByPeriodAndAttendeeIds(startDate, endDate, ownerIds, attendeeIds);
+    if (ownerIds == null || ownerIds.isEmpty()) {
+      return eventDAO.getEventIdsByPeriodAndAttendeeIds(startDate, endDate, attendeeIds);
+    } else {
+      return eventDAO.getEventIdsByPeriodAndAttendeeIdsAndOwnerIds(startDate, endDate, ownerIds, attendeeIds);
+    }
   }
 
   public Event getEventById(long eventId) {

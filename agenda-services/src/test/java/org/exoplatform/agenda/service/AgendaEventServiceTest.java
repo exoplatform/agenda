@@ -773,6 +773,24 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                                     testuser3Identity.getRemoteId());
     assertNotNull(events);
     assertEquals(1, events.size());
+
+    events = agendaEventService.getEventsByAttendee(Long.parseLong(testuser4Identity.getId()),
+                                                    ZonedDateTime.now().plusHours(1),
+                                                    ZonedDateTime.now().plusMinutes(90),
+                                                    testuser4Identity.getRemoteId());
+    assertNotNull(events);
+    assertEquals(0, events.size());
+
+    eventAttendees = agendaEventAttendeeService.getEventAttendees(event.getId());
+    eventAttendees.add(new EventAttendee(0, Long.parseLong(testuser4Identity.getId()), null));
+    agendaEventAttendeeService.saveEventAttendees(event, eventAttendees, testuser1Id, false, false);
+
+    events = agendaEventService.getEventsByAttendee(Long.parseLong(testuser4Identity.getId()),
+                                                    ZonedDateTime.now().plusHours(1),
+                                                    ZonedDateTime.now().plusMinutes(90),
+                                                    testuser4Identity.getRemoteId());
+    assertNotNull(events);
+    assertEquals(1, events.size());
   }
 
 }

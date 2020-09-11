@@ -238,9 +238,9 @@ public class EntityBuilder {
                            null,
                            null,
                            null,
-                           false,
                            event.isAllowAttendeeToUpdate(),
-                           event.isAllowAttendeeToInvite());
+                           event.isAllowAttendeeToInvite(),
+                           false);
   }
 
   private static CalendarEntity getCalendarEntity(AgendaCalendarService agendaCalendarService,

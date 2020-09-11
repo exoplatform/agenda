@@ -47,6 +47,7 @@ export default {
         $('body').addClass('hide-scroll');
       } else {
         setTimeout(() => $('body').removeClass('hide-scroll'), 200);
+        this.$refs.eventForm.reset();
       }
     },
   },

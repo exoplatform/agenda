@@ -189,12 +189,10 @@
       <column name="RECEIVER_ID" type="BIGINT">
         <constraints nullable="false" />
       </column>
-      <column name="BEFORE" type="INT">
+      <column name="BEFORE_VALUE" type="BIGINT">
         <constraints nullable="false" />
       </column>
-      <column name="BEFORE_PERIOD_TYPE" type="SMALLINT">
-        <constraints nullable="false" />
-      </column>
+      <column name="BEFORE_PERIOD_TYPE" type="SMALLINT" defaultValueNumeric="0" />
       <column name="TRIGGER_DATE" type="TIMESTAMP" defaultValueComputed="NULL" />
     </createTable>
     <modifySql dbms="mysql">
