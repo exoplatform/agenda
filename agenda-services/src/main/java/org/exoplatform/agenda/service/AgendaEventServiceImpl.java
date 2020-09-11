@@ -370,8 +370,10 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       throw new IllegalAccessException("User with id " + userIdentity.getId() + " isn't allowed to access events of user with id "
           + attendeeIdentityId);
     }
-    List<Long> calendarOwnerIds = getCalendarOwnersOfUser(userIdentity);
-    return getEventsByAttendees(start, end, userIdentity, calendarOwnerIds, calendarOwnerIds);
+
+    // Get spaces ids and user id, to search on them as attendee only
+    List<Long> attendeeIds = getCalendarOwnersOfUser(userIdentity);
+    return getEventsByAttendees(start, end, userIdentity, Collections.emptyList(), attendeeIds);
   }
 
   /**

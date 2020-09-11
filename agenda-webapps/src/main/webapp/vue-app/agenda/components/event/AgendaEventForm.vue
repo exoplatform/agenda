@@ -102,6 +102,9 @@ export default {
     },
     reset() {
       this.stepper = 1;
+      if (this.$refs.eventBasicInformation) {
+        this.$refs.eventBasicInformation.reset();
+      }
     },
     previousStep() {
       this.stepper--;
