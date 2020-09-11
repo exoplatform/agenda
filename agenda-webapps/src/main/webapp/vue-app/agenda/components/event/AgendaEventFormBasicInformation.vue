@@ -1,5 +1,9 @@
 <template>
-  <v-flex ref="agendaEventForm">
+  <v-form
+    ref="agendaEventForm"
+    class="flex"
+    flat
+    @submit="$emit('next-step')">
     <v-alert
       v-if="fieldError"
       type="error"
@@ -18,7 +22,8 @@
         type="text"
         name="title"
         class="ignore-vuetify-classes my-3"
-        required>
+        required
+        @change="resetCustomValidity">
       <span class="mt-5 ml-4 mr-4 text-subtitle-1 font-weight-bold d-none d-md-inline">
         {{ $t('agenda.label.in') }}
       </span>
@@ -162,7 +167,7 @@
         </div>
       </div>
     </div>
-  </v-flex>
+  </v-form>
 </template>
 
 <script>
@@ -188,7 +193,6 @@ export default {
       nbNotif: 0,
       enablePermission: false,
       enableInvitation: false,
-      fieldError: null,
       eventRecurrence: '',
     };
   },
@@ -233,6 +237,8 @@ export default {
       this.reset();
     },
     calendarOwner() {
+      this.resetCustomValidity();
+
       if (this.calendarOwner) {
         this.event.calendar.owner = {
           remoteId: this.calendarOwner.remoteId,
@@ -299,16 +305,27 @@ export default {
     this.reset();
   },
   methods:{
+    resetCustomValidity() {
+      this.$refs.eventTitle.setCustomValidity('');
+      this.$refs.calendarOwner.$el.querySelector('input').setCustomValidity('');
+    },
     validateForm() {
-      this.fieldError = null;
+      this.resetCustomValidity();
+
       if (!this.event.summary) {
-        this.displayError(this.$t('agenda.message.missingEventTitle'));
+        this.$refs.eventTitle.setCustomValidity(this.$t('agenda.message.missingEventTitle'));
       } else if (this.event.summary.length < 5 || this.event.summary.length > 1024) {
-        this.displayError(this.$t('agenda.message.missingLengthEventTitle'));
+        this.$refs.eventTitle.setCustomValidity(this.$t('agenda.message.missingLengthEventTitle'));
       }
-      if (!this.event.calendar.owner) {
-        this.displayError(this.$t('agenda.message.missingSpaceName'));
+      if (!this.event.calendar.owner || (!this.event.calendar.owner.id && !(this.event.calendar.owner.providerId && this.event.calendar.owner.remoteId))) {
+        this.$refs.calendarOwner.$el.querySelector('input').setCustomValidity(this.$t('agenda.message.missingSpaceName'));
       }
+
+      if (!this.$refs.agendaEventForm.validate() // Vuetify rules
+          || !this.$refs.agendaEventForm.$el.reportValidity()) { // Standard HTML rules
+        return;
+      }
+
       return true;
     },
     reset() {
