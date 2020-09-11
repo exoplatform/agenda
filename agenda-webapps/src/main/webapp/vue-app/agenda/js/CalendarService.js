@@ -1,5 +1,5 @@
-export function getCalendars(offset, limit) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/calendars?offset=${offset}&limit=${limit}&returnSize=true`, {
+export function getCalendars(offset, limit, returnSize) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/calendars?offset=${offset}&limit=${limit}&returnSize=${returnSize && true || false}`, {
     method: 'GET',
     credentials: 'include',
   }).then((resp) => {

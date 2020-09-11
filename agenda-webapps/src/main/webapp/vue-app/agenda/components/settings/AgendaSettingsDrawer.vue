@@ -9,7 +9,7 @@
     </template>
     <template slot="content">
       <v-tabs
-        v-model="calendarType"
+        v-model="settingTab"
         fixed-tabs
         centered
         class="pa-4 text-capitalize">
@@ -24,7 +24,10 @@
           {{ $t('agenda.sync') }}
         </v-tab>
         <v-tab-item value="agendas">
-          <agenda-calendars-tab />
+          <agenda-calendars-tab
+            ref="calendarsTab"
+            @start-loading="$refs.agendaSettingsDrawer.startLoading()"
+            @end-loading="$refs.agendaSettingsDrawer.endLoading()" />
         </v-tab-item>
         <v-tab-item value="settings">
           <agenda-settings-tab />
@@ -41,10 +44,18 @@
 export default {
   data: () => ({
     drawer: false,
+    settingTab: null,
   }),
   computed: {
   },
   watch: {
+    drawer() {
+      if (this.drawer) {
+        if (this.$refs.calendarsTab) {
+          this.$refs.calendarsTab.reset();
+        }
+      }
+    },
   },
   created() {
     this.$root.$on('agenda-settings-drawer-open', this.open);

@@ -2,7 +2,8 @@
   <v-tabs
     v-model="calendarType"
     align-with-title
-    centered>
+    centered
+    class="text-capitalize">
     <v-tab href="#day" dark>
       {{ $t('agenda.label.viewDay') }}
     </v-tab>
