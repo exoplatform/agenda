@@ -148,7 +148,6 @@ export default {
   methods: {
     open() {
       this.$refs.customRecurrentEventDrawer.open();
-      console.error('********',this.selection);
     },
   }
 };

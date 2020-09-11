@@ -70,7 +70,7 @@
             item-text="text"
             item-value="value"
             outlined
-            class="recurrence-select width-auto my-auto pr-2 subtitle-1 ignore-vuetify-classes d-none d-sm-inline"
+            class="recurrence-select flex-grow-0 my-auto pr-2 subtitle-1 ignore-vuetify-classes d-none d-sm-inline"
             @input="selectRecurrence" />
         </div>
         <div class="d-flex flex-row">
@@ -342,7 +342,7 @@ export default {
       } else if (this.event.summary.length < 5 || this.event.summary.length > 1024) {
         this.$refs.eventTitle.setCustomValidity(this.$t('agenda.message.missingLengthEventTitle'));
       }
-      if (!this.event.calendar.owner || (!this.event.calendar.owner.id && !(this.event.calendar.owner.providerId && this.event.calendar.owner.remoteId))) {
+      if (!this.event.calendar.owner || !this.event.calendar.owner.id && !(this.event.calendar.owner.providerId && this.event.calendar.owner.remoteId)) {
         this.$refs.calendarOwner.$el.querySelector('input').setCustomValidity(this.$t('agenda.message.missingSpaceName'));
       }
 
