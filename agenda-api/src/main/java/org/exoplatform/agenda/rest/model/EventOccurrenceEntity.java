@@ -7,7 +7,7 @@ import lombok.*;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class EventOccurrenceEntity implements Serializable {
+public class EventOccurrenceEntity implements Serializable, Cloneable {
 
   private static final long serialVersionUID = -6680864287258344039L;
 
@@ -15,4 +15,8 @@ public class EventOccurrenceEntity implements Serializable {
 
   private boolean           exceptional;
 
+  @Override
+  public EventOccurrenceEntity clone() {// NOSONAR
+    return new EventOccurrenceEntity(id, exceptional);
+  }
 }

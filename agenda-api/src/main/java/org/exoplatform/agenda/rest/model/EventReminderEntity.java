@@ -23,7 +23,7 @@ import lombok.*;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class EventReminderEntity implements Serializable {
+public class EventReminderEntity implements Serializable, Cloneable {
 
   private static final long serialVersionUID = 6943741617810854720L;
 
@@ -41,4 +41,8 @@ public class EventReminderEntity implements Serializable {
    */
   private String            datetime;
 
+  @Override
+  public EventReminderEntity clone() {// NOSONAR
+    return new EventReminderEntity(id, receiverId, before, beforePeriodType, datetime);
+  }
 }

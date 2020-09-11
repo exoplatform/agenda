@@ -26,7 +26,7 @@ import lombok.*;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class EventAttendeeEntity implements Serializable {
+public class EventAttendeeEntity implements Serializable, Cloneable {
 
   private static final long     serialVersionUID = 4729314827604510766L;
 
@@ -36,4 +36,8 @@ public class EventAttendeeEntity implements Serializable {
 
   private EventAttendeeResponse response;
 
+  @Override
+  public EventAttendeeEntity clone() {// NOSONAR
+    return new EventAttendeeEntity(id, identity, response);
+  }
 }

@@ -26,7 +26,7 @@ import lombok.*;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class CalendarEntity implements Serializable {
+public class CalendarEntity implements Serializable, Cloneable {
 
   private static final long serialVersionUID = 2689301355435962774L;
 
@@ -48,4 +48,8 @@ public class CalendarEntity implements Serializable {
 
   private Permission        acl;
 
+  @Override
+  public CalendarEntity clone() {// NOSONAR
+    return new CalendarEntity(id, owner, system, title, description, created, updated, color, acl == null ? null : acl.clone());
+  }
 }

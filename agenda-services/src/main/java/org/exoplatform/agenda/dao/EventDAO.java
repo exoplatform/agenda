@@ -83,6 +83,11 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
       return null;
     }
 
+    List<Long> childEventIds = this.getChildEvents(eventId);
+    for (Long childEventId : childEventIds) {
+      this.deleteEvent(childEventId);
+    }
+
     this.eventConferenceDAO.deleteEventConferences(eventId);
     this.eventAttendeeDAO.deleteEventAttendees(eventId);
     this.eventAttachmentDAO.deleteEventAttachments(eventId);
@@ -124,6 +129,13 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
   @Override
   public void updateAll(List<EventEntity> entities) {
     throw new UnsupportedOperationException();
+  }
+
+  public List<Long> getChildEvents(long eventId) {
+    TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaEvent.getChildEvents", Long.class);
+    query.setParameter("parentEventId", eventId);
+    List<Long> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList() : resultList;
   }
 
   @ExoTransactional
