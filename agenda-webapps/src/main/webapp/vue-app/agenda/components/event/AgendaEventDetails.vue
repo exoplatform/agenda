@@ -99,11 +99,11 @@
                 class="ml-1" />
             </div>
           </v-row>
-          <v-row class="event-location align-center d-flex pb-5">
+          <v-row v-if="event.location" class="event-location align-center d-flex pb-5">
             <i class="uiIconLocation darkGreyIcon uiIcon32x32 pr-5"></i>
             <span>{{ event.location }}</span>
           </v-row>
-          <v-row class="event-description d-flex pb-5">
+          <v-row v-if="event.description" class="event-description d-flex pb-5">
             <i class="uiIconDescription darkGreyIcon uiIcon32x32 pr-5"></i>
             <span>{{ event.description }}</span>
           </v-row>

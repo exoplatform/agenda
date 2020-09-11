@@ -8,9 +8,11 @@
       <input
         ref="timeNotification"
         v-model="reminder.before"
-        type="text"
+        type="number"
         name="timeNotification"
-        class="ignore-vuetify-classes my-3 time-notification">
+        class="ignore-vuetify-classes my-3 time-notification"
+        required
+        numeric>
       <select
         v-model="reminder.beforePeriodType"
         class="width-auto my-auto ml-4 pr-2 subtitle-1 ignore-vuetify-classes notification-date-option">
