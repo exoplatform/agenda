@@ -45,9 +45,11 @@ export default {
     dialog() {
       if (this.dialog) {
         $('body').addClass('hide-scroll');
+        if (this.isForm) {
+          setTimeout(() => this.$refs.eventForm.reset(), 200);
+        }
       } else {
         setTimeout(() => $('body').removeClass('hide-scroll'), 200);
-        this.$refs.eventForm.reset();
       }
     },
   },
@@ -60,6 +62,7 @@ export default {
       this.isForm = false;
       this.open(event);
     });
+    this.$root.$on('agenda-event-deleted', this.close);
   },
   methods: {
     open(event) {
@@ -88,9 +91,11 @@ export default {
         event.recurrence = {};
       }
       this.event = event;
-      if (this.$refs.eventForm) {
-        this.$nextTick().then(this.$refs.eventForm.reset);
-      }
+      this.$nextTick().then(() => {
+        if (this.$refs.eventForm) {
+          this.$refs.eventForm.reset();
+        }
+      });
     },
     close() {
       this.dialog = false;

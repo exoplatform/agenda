@@ -30,7 +30,7 @@ import lombok.*;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class EventEntity implements Serializable {
+public class EventEntity implements Serializable, Cloneable {
 
   private static final long           serialVersionUID = 4802741507885433036L;
 
@@ -139,4 +139,35 @@ public class EventEntity implements Serializable {
   private boolean                     allowAttendeeToInvite;
 
   private transient boolean           sendInvitation;
+
+  @Override
+  public EventEntity clone() {// NOSONAR
+    return new EventEntity(id,
+                           parent,
+                           remoteId,
+                           remoteProviderId,
+                           calendar,
+                           creator,
+                           created,
+                           updated,
+                           summary,
+                           description,
+                           location,
+                           color,
+                           start,
+                           end,
+                           allDay,
+                           availability,
+                           status,
+                           recurrence,
+                           occurrence,
+                           acl,
+                           attendees,
+                           conferences,
+                           attachments,
+                           reminders,
+                           allowAttendeeToUpdate,
+                           allowAttendeeToInvite,
+                           sendInvitation);
+  }
 }

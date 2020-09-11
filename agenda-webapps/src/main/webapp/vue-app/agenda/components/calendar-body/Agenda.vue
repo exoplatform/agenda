@@ -33,6 +33,7 @@ export default {
   data: () => ({
     initialized: false,
     currentSpace: null,
+    filterCanceledEvents: true,
     loading: false,
     ownerIds: [],
     searchTerm: null,
@@ -72,6 +73,7 @@ export default {
     this.$root.$on('agenda-search', searchTerm => this.searchTerm = searchTerm);
     this.$root.$on('refresh', this.retrieveEvents);
     this.$root.$on('agenda-event-type-changed', eventType => this.eventType = eventType);
+    this.$root.$on('agenda-event-deleted', this.retrieveEvents);
   },
   mounted() {
     document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
@@ -97,7 +99,10 @@ export default {
       const userIdentityId = this.eventType === 'myEvents' && eXo.env.portal.userIdentityId || null;
       this.$eventService.getEvents(this.searchTerm, this.ownerIds, userIdentityId, this.period.start, this.period.end)
         .then(data => {
-          const events = data && data.events || [];
+          let events = data && data.events || [];
+          if (this.filterCanceledEvents) {
+            events = events.filter(event => !event.status || event.status !== 'CANCELED');
+          }
           events.forEach(event => {
             event.name = event.summary;
             event.startDate = event.start && new Date(event.start) || null;

@@ -25,7 +25,7 @@ import lombok.*;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class EventAttachmentEntity implements Serializable {
+public class EventAttachmentEntity implements Serializable, Cloneable {
 
   private static final long serialVersionUID = -1529182750476812196L;
 
@@ -61,4 +61,8 @@ public class EventAttachmentEntity implements Serializable {
    */
   private long              size;
 
+  @Override
+  public EventAttachmentEntity clone() {// NOSONAR
+    return new EventAttachmentEntity(id, fileId, uploadId, url, name, mimeType, size);
+  }
 }

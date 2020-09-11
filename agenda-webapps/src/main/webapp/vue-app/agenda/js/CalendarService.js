@@ -14,6 +14,8 @@ export function getCalendars(offset, limit, returnSize) {
 export function saveCalendar(calendar) {
   calendar.owner = calendar.owner && {
     id: calendar.owner.id,
+    providerId: calendar.owner.providerId,
+    remoteId: calendar.owner.remoteId,
   };
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/calendars`, {
     method: 'PUT',
