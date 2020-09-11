@@ -45,6 +45,13 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
       @NamedQuery(
           name = "AgendaEvent.getEventIdsByPeriodAndAttendeeIds", query = "SELECT DISTINCT(ev.id) FROM AgendaEvent ev"
               + " INNER JOIN ev.attendees att"
+              + " WHERE att.identityId IN (:attendeeIds)"
+              + " AND ev.startDate < :end"
+              + " AND (ev.endDate IS NULL OR ev.endDate >= :start)"
+      ),
+      @NamedQuery(
+          name = "AgendaEvent.getEventIdsByPeriodAndAttendeeIdsAndOwnerIds", query = "SELECT DISTINCT(ev.id) FROM AgendaEvent ev"
+              + " INNER JOIN ev.attendees att"
               + " INNER JOIN ev.calendar cal"
               + " WHERE att.identityId IN (:attendeeIds)"
               + " AND cal.ownerId IN (:ownerIds)"
