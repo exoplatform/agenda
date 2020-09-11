@@ -25,6 +25,7 @@ import AgendaCalendarsItem from './components/settings/AgendaCalendarsItem.vue';
 import AgendaSettingsTab from './components/settings/AgendaSettingsTab.vue';
 import AgendaSyncTab from './components/settings/AgendaSyncTab.vue';
 import AgendaRecurrentEventDeleteConfirmDialog from './components/event/AgendaRecurrentEventDeleteConfirmDialog.vue';
+import AgendaCustomRecurrenceDrawer from './components/event/AgendaCustomRecurrenceDrawer.vue';
 
 const components = {
   'agenda': Agenda,
@@ -54,6 +55,7 @@ const components = {
   'agenda-settings-tab': AgendaSettingsTab,
   'agenda-sync-tab': AgendaSyncTab,
   'agenda-recurrent-event-delete-confirm-dialog': AgendaRecurrentEventDeleteConfirmDialog,
+  'agenda-custom-recurrence-drawer': AgendaCustomRecurrenceDrawer
 };
 
 for (const key in components) {
