@@ -1,7 +1,7 @@
 <template>
   <v-flex ref="agendaEventForm">
     <v-alert
-      v-if="error"
+      v-if="fieldError"
       type="error"
       class="text-center">
       {{ fieldError }}
@@ -45,8 +45,7 @@
             :placeholder="$t('agenda.eventLocation')"
             type="text"
             name="locationEvent"
-            class="ignore-vuetify-classes my-3 location-event-input"
-            required>
+            class="ignore-vuetify-classes my-3 location-event-input">
         </div>
         <div class="d-flex flex-row">
           <v-flex class="flex-grow-0">
@@ -189,8 +188,7 @@ export default {
       nbNotif: 0,
       enablePermission: false,
       enableInvitation: false,
-      error: null,
-      fieldError: '',
+      fieldError: null,
       eventRecurrence: '',
     };
   },
@@ -302,38 +300,16 @@ export default {
   },
   methods:{
     validateForm() {
+      this.fieldError = null;
       if (!this.event.summary) {
-        this.fieldError = this.$t('agenda.message.missingEventTitle');
-        this.error = true;
-        window.setTimeout(() => {
-          this.error = null;
-        }, 5000);
-        return false;
+        this.displayError(this.$t('agenda.message.missingEventTitle'));
       } else if (this.event.summary.length < 5 || this.event.summary.length > 1024) {
-        this.fieldError =  this.$t('agenda.message.missingLengthEventTitle');
-        this.error = true;
-        window.setTimeout(() => {
-          this.error = null;
-        }, 5000);
-        return false;
-      } else if (this.calendarOwner === null) {
-        this.fieldError = this.$t('agenda.message.missingSpaceName');
-        this.error = true;
-        window.setTimeout(() => {
-          this.error = null;
-        }, 5000);
-        return false;
-      } else if (!this.event.location) {
-        this.fieldError = this.$t('agenda.message.missingEventLocation');
-        this.error = true;
-        window.setTimeout(() => {
-          this.error = null;
-        }, 5000);
-        return false;
-      } else {
-        this.error = null;
-        return true;
+        this.displayError(this.$t('agenda.message.missingLengthEventTitle'));
       }
+      if (!this.event.calendar.owner) {
+        this.displayError(this.$t('agenda.message.missingSpaceName'));
+      }
+      return true;
     },
     reset() {
       if (this.event.parent && this.event.parent.recurrence) {
@@ -397,6 +373,13 @@ export default {
         this.event.attendees.splice(index, 1);
       }
     },
-  }
+    displayError(error) {
+      this.fieldError = error;
+      window.setTimeout(() => {
+        this.fieldError = null;
+      }, 5000);
+      return false;
+    },
+  },
 };
 </script>

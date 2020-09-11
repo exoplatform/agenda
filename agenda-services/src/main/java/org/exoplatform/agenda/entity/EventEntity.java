@@ -64,6 +64,10 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
               + " AND ev.occurrenceId <= :end"
               + " AND ev.occurrenceId >= :start"
       ),
+      @NamedQuery(
+          name = "AgendaEvent.getChildEvents", query = "SELECT DISTINCT(ev.id) FROM AgendaEvent ev"
+              + " WHERE ev.parent.id = :parentEventId"
+      ),
   }
 )
 public class EventEntity implements Serializable {

@@ -35,6 +35,29 @@ export function getEvents(query, ownerIds, attendeeIdentityId, start, end) {
 }
 
 export function createEvent(event) {
+  event.calendar = Object.assign({}, event.calendar);
+  event.calendar.owner = event.calendar.owner && {
+    id: event.calendar.owner.id,
+    providerId: event.calendar.owner.providerId,
+    remoteId: event.calendar.owner.remoteId,
+  };
+  if (event.parent) {
+    event.parent = {
+      id: event.parent.id,
+    };
+  }
+
+  event.creator = null;
+  if (event.attendees && event.attendees.length) {
+    event.attendees.forEach(attendee => {
+      attendee.identity = {
+        id: attendee.identity.id || 0,
+        providerId: attendee.identity.providerId,
+        remoteId: attendee.identity.remoteId,
+      };
+    });
+  }
+
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events`, {
     method: 'POST',
     credentials: 'include',
@@ -51,7 +74,19 @@ export function createEvent(event) {
 
 export function updateEvent(event) {
   event = Object.assign({}, event);
-  delete event.creator;
+  event.calendar = Object.assign({}, event.calendar);
+  event.calendar.owner = event.calendar.owner && {
+    id: event.calendar.owner.id,
+    providerId: event.calendar.owner.providerId,
+    remoteId: event.calendar.owner.remoteId,
+  };
+  if (event.parent) {
+    event.parent = {
+      id: event.parent.id,
+    };
+  }
+
+  event.creator = null;
   if (event.calendar && event.calendar.owner) {
     event.calendar.owner = {
       id: event.calendar.owner.id,
@@ -59,6 +94,7 @@ export function updateEvent(event) {
       providerId: event.calendar.owner.providerId,
     };
   }
+
   if (event.attendees && event.attendees.length) {
     event.attendees.forEach(attendee => {
       attendee.identity = {
@@ -92,6 +128,17 @@ export function getEventById(eventId) {
       return resp.json();
     } else {
       throw new Error('Error getting event');
+    }
+  });
+}
+
+export function deleteEvent(eventId) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  }).then((resp) => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error deleting event');
     }
   });
 }

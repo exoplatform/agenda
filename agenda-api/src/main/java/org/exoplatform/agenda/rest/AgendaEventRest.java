@@ -168,6 +168,9 @@ public class AgendaEventRest implements ResourceContainer {
         } catch (Exception e) {
           LOG.warn("Error retrieving event reminders, retrieve event without reminders", e);
         }
+        if (isComputedOccurrence(eventEntity)) {
+          cleanupAttachedEntitiesIds(eventEntity);
+        }
         return eventEntity;
       }).collect(Collectors.toList());
 
@@ -218,6 +221,9 @@ public class AgendaEventRest implements ResourceContainer {
         fillAttachments(eventEntity);
         fillConferences(eventEntity);
         fillReminders(eventEntity, userIdentityId);
+        if (isComputedOccurrence(eventEntity)) {
+          cleanupAttachedEntitiesIds(eventEntity);
+        }
         return Response.ok(eventEntity).build();
       }
     } catch (IllegalAccessException e) {
@@ -362,6 +368,7 @@ public class AgendaEventRest implements ResourceContainer {
   }
 
   @DELETE
+  @Path("{eventId}")
   @RolesAllowed("users")
   @ApiOperation(value = "Delete an existing event", httpMethod = "DELETE", response = Response.class)
   @ApiResponses(
@@ -630,8 +637,9 @@ public class AgendaEventRest implements ResourceContainer {
   }
 
   private void fillAttendees(EventEntity eventEntity, Map<Long, List<EventAttendeeEntity>> attendeesByParentEventId) {
-    long eventId = eventEntity.getId() == 0 && eventEntity.getParent() != null ? eventEntity.getParent().getId()
-                                                                               : eventEntity.getId();
+    boolean computedOccurrence = isComputedOccurrence(eventEntity);
+    long eventId = computedOccurrence ? eventEntity.getParent().getId()
+                                      : eventEntity.getId();
     if (attendeesByParentEventId.containsKey(eventId)) {
       eventEntity.setAttendees(attendeesByParentEventId.get(eventId));
     } else {
@@ -641,8 +649,9 @@ public class AgendaEventRest implements ResourceContainer {
   }
 
   private void fillAttendees(EventEntity eventEntity) {
-    long eventId = eventEntity.getId() == 0 && eventEntity.getParent() != null ? eventEntity.getParent().getId()
-                                                                               : eventEntity.getId();
+    boolean computedOccurrence = isComputedOccurrence(eventEntity);
+    long eventId = computedOccurrence ? eventEntity.getParent().getId()
+                                      : eventEntity.getId();
     List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId);
     List<EventAttendeeEntity> eventAttendeeEntities = eventAttendees == null ? null
                                                                              : eventAttendees.stream()
@@ -653,8 +662,8 @@ public class AgendaEventRest implements ResourceContainer {
   }
 
   private void fillAttachments(EventEntity eventEntity, Map<Long, List<EventAttachmentEntity>> attachmentsByParentEventId) {
-    long eventId = eventEntity.getId() == 0 && eventEntity.getParent() != null ? eventEntity.getParent().getId()
-                                                                               : eventEntity.getId();
+    long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParent().getId()
+                                                     : eventEntity.getId();
     if (attachmentsByParentEventId.containsKey(eventId)) {
       eventEntity.setAttachments(attachmentsByParentEventId.get(eventId));
     } else {
@@ -664,8 +673,8 @@ public class AgendaEventRest implements ResourceContainer {
   }
 
   private void fillAttachments(EventEntity eventEntity) {
-    long eventId = eventEntity.getId() == 0 && eventEntity.getParent() != null ? eventEntity.getParent().getId()
-                                                                               : eventEntity.getId();
+    long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParent().getId()
+                                                     : eventEntity.getId();
     List<EventAttachment> eventAttachments = agendaEventAttachmentService.getEventAttachments(eventId);
     List<EventAttachmentEntity> eventAttachmentEntities = eventAttachments == null ? null
                                                                                    : eventAttachments.stream()
@@ -675,8 +684,8 @@ public class AgendaEventRest implements ResourceContainer {
   }
 
   private void fillConferences(EventEntity eventEntity, Map<Long, List<EventConference>> conferencesByParentEventId) {
-    long eventId = eventEntity.getId() == 0 && eventEntity.getParent() != null ? eventEntity.getParent().getId()
-                                                                               : eventEntity.getId();
+    long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParent().getId()
+                                                     : eventEntity.getId();
     if (conferencesByParentEventId.containsKey(eventId)) {
       eventEntity.setConferences(conferencesByParentEventId.get(eventId));
     } else {
@@ -686,8 +695,8 @@ public class AgendaEventRest implements ResourceContainer {
   }
 
   private void fillConferences(EventEntity eventEntity) {
-    long eventId = eventEntity.getId() == 0 && eventEntity.getParent() != null ? eventEntity.getParent().getId()
-                                                                               : eventEntity.getId();
+    long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParent().getId()
+                                                     : eventEntity.getId();
     List<EventConference> eventConferences = agendaEventConferenceService.getEventConferences(eventId);
     eventEntity.setConferences(eventConferences);
   }
@@ -695,8 +704,8 @@ public class AgendaEventRest implements ResourceContainer {
   private void fillReminders(EventEntity eventEntity,
                              long userIdentityId,
                              Map<Long, List<EventReminderEntity>> remindersByParentEventId) {
-    long eventId = eventEntity.getId() == 0 && eventEntity.getParent() != null ? eventEntity.getParent().getId()
-                                                                               : eventEntity.getId();
+    long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParent().getId()
+                                                     : eventEntity.getId();
     if (remindersByParentEventId.containsKey(eventId)) {
       eventEntity.setReminders(remindersByParentEventId.get(eventId));
     } else {
@@ -706,14 +715,57 @@ public class AgendaEventRest implements ResourceContainer {
   }
 
   private void fillReminders(EventEntity eventEntity, long userIdentityId) {
-    long eventId = eventEntity.getId() == 0 && eventEntity.getParent() != null ? eventEntity.getParent().getId()
-                                                                               : eventEntity.getId();
+    long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParent().getId()
+                                                     : eventEntity.getId();
     List<EventReminder> eventReminders = agendaEventReminderService.getEventReminders(eventId, userIdentityId);
     List<EventReminderEntity> eventReminderEntities = eventReminders == null ? null
                                                                              : eventReminders.stream()
                                                                                              .map(EntityBuilder::fromEventReminder)
                                                                                              .collect(Collectors.toList());
     eventEntity.setReminders(eventReminderEntities);
+  }
+
+  private boolean isComputedOccurrence(EventEntity eventEntity) {
+    return eventEntity.getId() == 0 && eventEntity.getParent() != null;
+  }
+
+  private void cleanupAttachedEntitiesIds(EventEntity eventEntity) {
+    List<EventAttendeeEntity> attendees = eventEntity.getAttendees();
+    if (attendees != null && !attendees.isEmpty()) {
+      attendees = attendees.stream().map(attendee -> {
+        attendee = attendee.clone();
+        attendee.setId(0);
+        return attendee;
+      }).collect(Collectors.toList());
+      eventEntity.setAttendees(attendees);
+    }
+    List<EventAttachmentEntity> attachments = eventEntity.getAttachments();
+    if (attachments != null && !attachments.isEmpty()) {
+      attachments = attachments.stream().map(attachment -> {
+        attachment = attachment.clone();
+        attachment.setId(0);
+        return attachment;
+      }).collect(Collectors.toList());
+      eventEntity.setAttachments(attachments);
+    }
+    List<EventConference> conferences = eventEntity.getConferences();
+    if (conferences != null && !conferences.isEmpty()) {
+      conferences = conferences.stream().map(conference -> {
+        conference = conference.clone();
+        conference.setId(0);
+        return conference;
+      }).collect(Collectors.toList());
+      eventEntity.setConferences(conferences);
+    }
+    List<EventReminderEntity> reminders = eventEntity.getReminders();
+    if (reminders != null && !reminders.isEmpty()) {
+      reminders = reminders.stream().map(reminder -> {
+        reminder = reminder.clone();
+        reminder.setId(0);
+        return reminder;
+      }).collect(Collectors.toList());
+      eventEntity.setReminders(reminders);
+    }
   }
 
 }

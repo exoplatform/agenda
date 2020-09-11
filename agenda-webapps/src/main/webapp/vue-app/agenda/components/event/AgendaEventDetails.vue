@@ -2,7 +2,7 @@
   <v-card class="event-details">
     <v-toolbar
       flat
-      class="event-details-header">
+      class="event-details-header border-box-sizing">
       <v-toolbar-title class="d-flex align-center">
         <span class="event-title px-2 text-truncate">
           {{ event.summary }}
@@ -12,8 +12,12 @@
         </span>
         <template v-if="ownerProfile">
           <v-avatar
-            size="32"
-            class="rounded px-3">
+            height="24"
+            min-height="24"
+            width="24"
+            min-width="24"
+            size="24"
+            class="mx-3 spaceAvatar">
             <v-img :src="ownerAvatarUrl" />
           </v-avatar>
           <a href="#" class="text-truncate">{{ ownerDisplayName }}</a>
@@ -23,7 +27,8 @@
       <v-toolbar-items>
         <v-menu
           bottom
-          left>
+          left
+          offset-y>
           <template v-slot:activator="{ on, attrs }">
             <v-btn
               icon
@@ -33,12 +38,12 @@
             </v-btn>
           </template>
           <v-list>
-            <v-list-item @click="$root.$emit('agenda-event-form', event)">
+            <v-list-item v-if="canEdit" @click="$root.$emit('agenda-event-form', event)">
               <v-list-item-title>
                 {{ $t('agenda.details.header.menu.edit') }}
               </v-list-item-title>
             </v-list-item>
-            <v-list-item>
+            <v-list-item v-if="canEdit" @click="deleteConfirmDialog">
               <v-list-item-title>
                 {{ $t('agenda.details.header.menu.delete') }}
               </v-list-item-title>
@@ -137,6 +142,18 @@
         <agenda-event-attendees :attendees="event.attendees" />
       </v-row>
     </v-container>
+    <agenda-recurrent-event-delete-confirm-dialog
+      v-if="event.occurrence"
+      ref="deleteConfirmDialog"
+      :event="event" />
+    <exo-confirm-dialog
+      v-else
+      ref="deleteConfirmDialog"
+      :message="$t('agenda.message.confirmDeleteEvent')"
+      :title="$t('agenda.title.confirmDeleteEvent')"
+      :ok-label="$t('agenda.button.ok')"
+      :cancel-label="$t('agenda.button.cancel')"
+      @ok="deleteEvent" />
   </v-card>
 </template>
 <script>
@@ -166,6 +183,9 @@ export default {
     };
   },
   computed: {
+    canEdit() {
+      return this.event.acl && this.event.acl.canEdit;
+    },
     ownerProfile() {
       const owner = this.event && this.event.calendar && this.event.calendar.owner;
       return owner && (owner.profile || owner.space);
@@ -219,7 +239,13 @@ export default {
     closeDialog() {
       this.$emit('close');
     },
-
+    deleteConfirmDialog() {
+      this.$refs.deleteConfirmDialog.open();
+    },
+    deleteEvent() {
+      this.$eventService.deleteEvent(this.event.id)
+        .then(() => this.$root.$emit('agenda-event-deleted'));
+    },
   }
 };
 </script>
