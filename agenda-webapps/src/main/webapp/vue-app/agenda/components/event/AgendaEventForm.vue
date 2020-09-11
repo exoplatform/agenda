@@ -29,13 +29,15 @@
           <agenda-event-form-basic-information
             ref="eventBasicInformation"
             :event="event"
-            :current-space="currentSpace" />
+            :current-space="currentSpace"
+            @next-step="nextStep" />
         </v-stepper-content>
         <v-stepper-content step="2">
           <agenda-event-form-dates
             ref="eventDates"
             :event="event"
-            :weekdays="weekdays" />
+            :weekdays="weekdays"
+            @next-step="nextStep" />
         </v-stepper-content>
       </v-stepper-items>
     </v-stepper>
