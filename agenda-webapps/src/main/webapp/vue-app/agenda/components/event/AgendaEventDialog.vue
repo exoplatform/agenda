@@ -45,57 +45,47 @@ export default {
     dialog() {
       if (this.dialog) {
         $('body').addClass('hide-scroll');
-        if (this.isForm) {
-          setTimeout(() => this.$refs.eventForm.reset(), 200);
-        }
       } else {
         setTimeout(() => $('body').removeClass('hide-scroll'), 200);
       }
     },
   },
   created() {
-    this.$root.$on('agenda-event-form', event => {
+    this.$root.$on('agenda-event-form', agendaEvent => {
       this.isForm = true;
-      this.open(event);
+      this.open(agendaEvent);
+      this.$nextTick().then(() => this.$root.$emit('agenda-event-form-opened', agendaEvent));
     });
-    this.$root.$on('agenda-open-event-details', event => {
+    this.$root.$on('agenda-event-details', agendaEvent => {
       this.isForm = false;
-      this.open(event);
+      this.open(agendaEvent);
     });
     this.$root.$on('agenda-event-deleted', this.close);
   },
   methods: {
-    open(event) {
+    open(agendaEvent) {
       this.dialog = true;
-      if (event) {
-        event = Object.assign({}, event);
+      if (agendaEvent) {
+        agendaEvent = JSON.parse(JSON.stringify(agendaEvent));
       } else {
-        event = {};
+        agendaEvent = {};
       }
-      if (!event.calendar) {
-        event.calendar = {};
+      if (!agendaEvent.calendar) {
+        agendaEvent.calendar = {};
       }
-      if (!event.calendar.owner) {
-        event.calendar.owner = {};
+      if (!agendaEvent.calendar.owner) {
+        agendaEvent.calendar.owner = {};
       }
-      if (!event.reminders) {
-        event.reminders = [];
+      if (!agendaEvent.reminders) {
+        agendaEvent.reminders = [];
       }
-      if (!event.attachments) {
-        event.attachments = [];
+      if (!agendaEvent.attachments) {
+        agendaEvent.attachments = [];
       }
-      if (!event.attendees) {
-        event.attendees = [];
+      if (!agendaEvent.attendees) {
+        agendaEvent.attendees = [];
       }
-      if (!event.recurrence) {
-        event.recurrence = {};
-      }
-      this.event = event;
-      this.$nextTick().then(() => {
-        if (this.$refs.eventForm) {
-          this.$refs.eventForm.reset();
-        }
-      });
+      this.event = agendaEvent;
     },
     close() {
       this.dialog = false;

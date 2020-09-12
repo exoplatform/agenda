@@ -236,6 +236,7 @@ public class EntityMapper {
     EventRecurrence recurrence;
     recurrence = new EventRecurrence();
     recurrence.setId(recurrenceEntity.getId());
+    recurrence.setType(recurrenceEntity.getType());
     recurrence.setOverallStart(AgendaDateUtils.fromDate(eventEntity.getStartDate()));
     recurrence.setOverallEnd(AgendaDateUtils.fromDate(eventEntity.getEndDate()));
     Recur recur;
@@ -303,6 +304,7 @@ public class EntityMapper {
   public static EventRecurrenceEntity toEntity(Event event, EventRecurrence recurrence) {
     Recur recur = Utils.getICalendarRecur(event, recurrence);
     EventRecurrenceEntity eventRecurrenceEntity = new EventRecurrenceEntity();
+    eventRecurrenceEntity.setType(recurrence.getType());
     eventRecurrenceEntity.setRrule(recur.toString());
     // Store in Recurrence properties the start and end dates of the event as
     // given by the user

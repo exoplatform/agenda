@@ -62,7 +62,7 @@ export function generateCalendarTitle(calendarType, startDate, periodTitle, week
   }
 }
 
-export function getDayNameFromDate(date) {
+export function getDayNameFromDate(date, lang) {
   const options = { weekday: 'long' };
   let d = null;
   if (date) {
@@ -70,7 +70,7 @@ export function getDayNameFromDate(date) {
   } else {
     d = new Date();
   }
-  return d.toLocaleDateString('en-US', options);
+  return d.toLocaleDateString(lang || 'en', options);
 }
 
 export function getDayNumberFromDate(date) {
@@ -83,7 +83,7 @@ export function getDayNumberFromDate(date) {
   return d.getDay();
 }
 
-export function getMonthFromDate(date) {
+export function getMonthFromDate(date, lang) {
   const options = { month: 'long' };
   let d = null;
   if (date) {
@@ -91,7 +91,7 @@ export function getMonthFromDate(date) {
   } else {
     d = new Date();
   }
-  return d.toLocaleDateString('en-US', options);
+  return d.toLocaleDateString(lang || 'en', options);
 }
 
 export function getMonthNumberFromDate(date) {
@@ -123,6 +123,12 @@ export function pad(n) {
 }
 
 export function areDatesOnSameDay(firstDate, secondDate) {
+  if (typeof firstDate === 'string') {
+    firstDate = new Date(firstDate);
+  }
+  if (typeof secondDate === 'string') {
+    secondDate = new Date(secondDate);
+  }
   return firstDate.getFullYear() === secondDate.getFullYear() &&
   firstDate.getMonth() === secondDate.getMonth() &&
   firstDate.getDate() === secondDate.getDate();

@@ -235,6 +235,7 @@ public abstract class BaseAgendaEventTest {
     EventRecurrence recurrence = new EventRecurrence(0,
                                                      until,
                                                      0,
+                                                     EventRecurrenceType.DAILY,
                                                      EventRecurrenceFrequency.DAILY,
                                                      1,
                                                      null,

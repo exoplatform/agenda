@@ -13,7 +13,8 @@ public enum AgendaExceptionType {
   EVENT_MANDATORY("event", "agenda.eventMandatory"),
   REMINDER_DATE_CANT_COMPUTE("eventReminder", "agenda.eventReminderCantBeComputed"),
   ATTENDEE_IDENTITY_NOT_FOUND("eventAttendee", "agenda.eventAttendeeIdentityMandatory"),
-  EVENT_NOT_FOUND("event", "agenda.eventNotFound");
+  EVENT_NOT_FOUND("event", "agenda.eventNotFound"),
+  EVENT_CYCLIC_DEPENDENCY("eventParent", "agenda.sameIdAsParent");
 
   private String field;
 

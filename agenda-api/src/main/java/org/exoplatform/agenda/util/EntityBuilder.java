@@ -69,6 +69,7 @@ public class EntityBuilder {
       recurrence = new EventRecurrence(recurrenceEntity.getId(),
                                        AgendaDateUtils.parseRFC3339ToZonedDateTime(recurrenceEntity.getUntil()),
                                        recurrenceEntity.getCount(),
+                                       recurrenceEntity.getType(),
                                        recurrenceEntity.getFrequency(),
                                        recurrenceEntity.getInterval(),
                                        recurrenceEntity.getBySecond(),
@@ -197,6 +198,7 @@ public class EntityBuilder {
       recurrenceEntity = new EventRecurrenceEntity(recurrence.getId(),
                                                    AgendaDateUtils.toRFC3339Date(recurrence.getUntil()),
                                                    recurrence.getCount(),
+                                                   recurrence.getType(),
                                                    recurrence.getFrequency(),
                                                    recurrence.getInterval(),
                                                    recurrence.getBySecond(),
@@ -214,8 +216,14 @@ public class EntityBuilder {
     if (occurrence != null) {
       occurrenceEntity = new EventOccurrenceEntity(AgendaDateUtils.toRFC3339Date(occurrence.getId()), occurrence.isExceptional());
     }
+    long parentId = event.getParentId();
+    EventEntity parentEvent = null;
+    if (parentId > 0 && parentId != event.getId()) {
+      parentEvent = getEventEntity(agendaCalendarService, agendaEventService, identityManager, parentId);
+    }
+
     return new EventEntity(event.getId(),
-                           getEventEntity(agendaCalendarService, agendaEventService, identityManager, event.getParentId()),
+                           parentEvent,
                            event.getRemoteId(),
                            event.getRemoteProviderId(),
                            getCalendarEntity(agendaCalendarService, identityManager, event.getCalendarId()),

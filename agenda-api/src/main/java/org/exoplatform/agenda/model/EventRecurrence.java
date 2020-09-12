@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.exoplatform.agenda.constant.EventRecurrenceFrequency;
+import org.exoplatform.agenda.constant.EventRecurrenceType;
 
 import lombok.*;
 
@@ -37,6 +38,8 @@ public class EventRecurrence implements Cloneable, Serializable {
   private ZonedDateTime            until;
 
   private int                      count;
+
+  private EventRecurrenceType      type;
 
   private EventRecurrenceFrequency frequency;
 
@@ -79,6 +82,7 @@ public class EventRecurrence implements Cloneable, Serializable {
     return new EventRecurrence(id,
                                until,
                                count,
+                               type,
                                frequency,
                                interval,
                                bySecond == null ? null : new ArrayList<>(bySecond),
