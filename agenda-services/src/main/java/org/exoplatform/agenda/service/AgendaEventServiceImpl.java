@@ -235,6 +235,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (event.getStart().isAfter(event.getEnd())) {
       throw new AgendaException(AgendaExceptionType.EVENT_START_DATE_BEFORE_END_DATE);
     }
+    if (event.getParentId() == event.getId()) {
+      throw new AgendaException(AgendaExceptionType.EVENT_CYCLIC_DEPENDENCY);
+    }
     if (event.getAvailability() == null) {
       event.setAvailability(EventAvailability.DEFAULT);
     }
@@ -639,11 +642,18 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                                                                 .map(this::getEventById)
                                                                                 .collect(Collectors.toList());
     return occurrences.stream()
-                      .filter(occurrence -> exceptionalEvents.stream()
-                                                             .noneMatch(exceptionalOccurence -> occurrence.getOccurrence()
-                                                                                                          .getId()
-                                                                                                          .isEqual(exceptionalOccurence.getOccurrence()
-                                                                                                                                       .getId())))
+                      .filter(occurrence -> {
+                        LocalDate occurrenceDate = occurrence.getOccurrence()
+                                                             .getId()
+                                                             .toLocalDate();
+                        return exceptionalEvents.stream()
+                                                .noneMatch(exceptionalOccurence -> {
+                                                  LocalDate exceptionalOccurenceDate = exceptionalOccurence.getOccurrence()
+                                                                                                           .getId()
+                                                                                                           .toLocalDate();
+                                                  return occurrenceDate.isEqual(exceptionalOccurenceDate);
+                                                });
+                      })
                       .collect(Collectors.toList());
   }
 

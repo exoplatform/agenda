@@ -10,12 +10,10 @@
           class="uiIconClose pull-right"
           aria-hidden="true"
           @click="close"></a>
-        <!-- eslint-disable-next-line vue/no-v-html -->
         <span class="ignore-vuetify-classes PopupTitle popupTitle text-truncate">
           {{ $t('agenda.title.confirmDeleteEvent') }}
         </span>
       </div>
-      <!-- eslint-disable-next-line vue/no-v-html -->
       <v-card-text>
         {{ $t('agenda.message.confirmDeleteRecurrentEvent') }}
       </v-card-text>
@@ -101,7 +99,7 @@ export default {
       } else {
         saveEventMethod = this.$eventService.createEvent;
       }
-      const eventToDelete = Object.assign(this.event);
+      const eventToDelete = JSON.parse(JSON.stringify(this.event));
       delete eventToDelete.recurrence;
       eventToDelete.status = 'CANCELED';
 

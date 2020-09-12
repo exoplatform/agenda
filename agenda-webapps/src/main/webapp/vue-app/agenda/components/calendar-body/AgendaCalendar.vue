@@ -64,7 +64,7 @@ export default {
       // In Vuetify, the 'start object' === 'end object',
       // this is a workaround to avoid changing end date
       // and impact start date as well, when we are in day view
-      range.end = Object.assign({}, range.end);
+      range.end = JSON.parse(JSON.stringify(range.end));
 
       // End of the day of end date
       range.end.hour = 23;
@@ -82,7 +82,7 @@ export default {
     },
     showEvent(event) {
       event = event && event.event || event;
-      this.$root.$emit('agenda-open-event-details', event);
+      this.$root.$emit('agenda-event-details', event);
     },
     viewDay({ date }) {
       this.focus = date;

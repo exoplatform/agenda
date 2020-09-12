@@ -226,7 +226,7 @@ export default {
       this.dayToDisplay = `${year}-${month < 10 ? `0${  month}` : month}-${day < 10 ? `0${  day}`:day}`;
       this.events = [{
         summary: this.event.summary,
-        color: this.getEventColor(),
+        color: this.getEventColor(this.event),
         start: startDate.getTime(),
         end: new Date(this.event.end).getTime(),
         allDay: this.event.allDay,

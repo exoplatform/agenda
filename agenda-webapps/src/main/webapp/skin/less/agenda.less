@@ -131,6 +131,13 @@
     select {
       height: 40px;
     }
+    .recurrence-select {
+      padding: 0;
+
+      .v-input__control {
+        height: 40px;
+      }
+    }
     .v-event-draggable {
       user-select: none;
     }
@@ -202,6 +209,10 @@
 
 .v-tabs.text-capitalize .v-tab {
   text-transform: capitalize !important;
+}
+
+.v-dialog--fullscreen {
+  overflow: hidden !important;
 }
 
 @media (max-width: @maxMobileWidth) {
