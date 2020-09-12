@@ -215,10 +215,13 @@ public class AgendaEventStorage {
       eventRecurrenceEntity.setEvent(eventEntity);
       if (storedEventEntity.getRecurrence() != null) {
         eventRecurrenceEntity.setId(storedEventEntity.getRecurrence().getId());
-        eventRecurrenceDAO.update(eventRecurrenceEntity);
+        eventRecurrenceEntity.setEvent(storedEventEntity);
+        eventRecurrenceEntity = eventRecurrenceDAO.update(eventRecurrenceEntity);
       } else {
         eventRecurrenceEntity.setId(null);
-        eventRecurrenceDAO.update(eventRecurrenceEntity);
+        eventRecurrenceEntity.setEvent(eventEntity);
+        eventEntity.setRecurrence(eventRecurrenceEntity);
+        eventRecurrenceEntity = eventRecurrenceDAO.create(eventRecurrenceEntity);
       }
       eventEntity.setRecurrence(eventRecurrenceEntity);
     } else if (storedEventEntity.getRecurrence() != null) {

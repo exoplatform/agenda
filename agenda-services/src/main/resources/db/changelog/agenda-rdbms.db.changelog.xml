@@ -113,6 +113,7 @@
       <column name="RECURRENCE_END_DATE" type="TIMESTAMP" defaultValueDate="${now}">
         <constraints nullable="false" />
       </column>
+      <column name="RECURRENCE_TYPE" type="SMALLINT" defaultValueNumeric="0" />
       <column name="RECURRENCE_RRULE" type="VARCHAR(1000)">
         <constraints nullable="false" />
       </column>

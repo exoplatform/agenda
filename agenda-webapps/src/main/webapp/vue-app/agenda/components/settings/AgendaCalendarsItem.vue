@@ -86,7 +86,7 @@ export default {
       this.selectedCalendarColor = this.calendar.color;
     },
     applyColor() {
-      const calendarToSave = Object.assign({}, this.calendar);
+      const calendarToSave = JSON.parse(JSON.stringify(this.calendar));
       calendarToSave.color = this.selectedCalendarColor;
       this.saving = true;
       this.$calendarService.saveCalendar(calendarToSave)

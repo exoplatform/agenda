@@ -1,31 +1,41 @@
-import Agenda from './components/calendar-body/Agenda.vue';
+import Agenda from './components/Agenda.vue';
 import AgendaHeader from './components/calendar-body/AgendaHeader.vue';
 import AgendaBody from './components/calendar-body/AgendaBody.vue';
 import AgendaCalendar from './components/calendar-body/AgendaCalendar.vue';
-import AgendaCreateEventButton from './components/top-toolbar/AgendaCreateEventButton.vue';
-import SyncEventButton from './components/top-toolbar/AgendaSyncEventButton.vue';
-import AgendaEventDialog from './components/event/AgendaEventDialog.vue';
-import AgendaEventForm from './components/event/AgendaEventForm.vue';
-import AgendaEventFormBasicInformation from './components/event/AgendaEventFormBasicInformation.vue';
-import AgendaEventFormDates from './components/event/AgendaEventFormDates.vue';
-import AgendaEventFormReminders from './components/event/AgendaEventFormReminders.vue';
 import AgendaToolbar from './components/calendar-body/AgendaToolbar.vue';
 import AgendaPreviewEventDialog from './components/calendar-body/AgendaPreviewEventDialog.vue';
+
+import AgendaCreateEventButton from './components/top-toolbar/AgendaCreateEventButton.vue';
 import AgendaCalendarOwnersFilterDrawer from './components/top-toolbar/AgendaCalendarOwnersFilterDrawer.vue';
+import SyncEventButton from './components/top-toolbar/AgendaSyncEventButton.vue';
+
+import AgendaEventDialog from './components/event/AgendaEventDialog.vue';
+
+import AgendaEventForm from './components/event/form/AgendaEventForm.vue';
+import AgendaEventFormBasicInformation from './components/event/form/AgendaEventFormBasicInformation.vue';
+import AgendaEventFormDates from './components/event/form/AgendaEventFormDates.vue';
+import AgendaEventFormReminders from './components/event/form/AgendaEventFormReminders.vue';
 import AgendaSwitchView from './components/top-toolbar/AgendaSwitchView.vue';
 import AgendaSearchEvent from './components/top-toolbar/AgendaSearchEvent.vue';
-import AgendaEventFormAttachments from './components/event/AgendaEventFormAttachments.vue';
-import AgendaEventFormAttachmentItem from './components/event/AgendaEventFormAttachmentItem.vue';
-import AgendaEventDetails from './components/event/AgendaEventDetails.vue';
-import AgendaEventAttendees from './components/event/attendee/AgendaEventAttendees.vue';
-import AgendaEventAttendeeItem from './components/event/attendee/AgendaEventAttendeeItem.vue';
+import AgendaEventFormAttachments from './components/event/form/AgendaEventFormAttachments.vue';
+import AgendaEventFormAttachmentItem from './components/event/form/AgendaEventFormAttachmentItem.vue';
+import AgendaEventFormRecurrence from './components/event/form/AgendaEventFormRecurrence.vue';
+import AgendaEventFormRecurrenceDrawer from './components/event/form/AgendaEventFormRecurrenceDrawer.vue';
+import AgendaEventFormAttendees from './components/event/form/AgendaEventFormAttendees.vue';
+import AgendaEventFormAttendeeItem from './components/event/form/AgendaEventFormAttendeeItem.vue';
+import AgendaEventFormCalendarOwner from './components/event/form/AgendaEventFormCalendarOwner.vue';
+import AgendaRecurrentEventSaveConfirmDialog from './components/event/form/AgendaRecurrentEventSaveConfirmDialog.vue';
+
+import AgendaEventDetails from './components/event/view/AgendaEventDetails.vue';
+import AgendaEventAttendees from './components/event/view/AgendaEventAttendees.vue';
+import AgendaEventAttendeeItem from './components/event/view/AgendaEventAttendeeItem.vue';
+import AgendaRecurrentEventDeleteConfirmDialog from './components/event/view/AgendaRecurrentEventDeleteConfirmDialog.vue';
+
 import AgendaSettingsDrawer from './components/settings/AgendaSettingsDrawer.vue';
 import AgendaCalendarsTab from './components/settings/AgendaCalendarsTab.vue';
 import AgendaCalendarsItem from './components/settings/AgendaCalendarsItem.vue';
 import AgendaSettingsTab from './components/settings/AgendaSettingsTab.vue';
 import AgendaSyncTab from './components/settings/AgendaSyncTab.vue';
-import AgendaRecurrentEventDeleteConfirmDialog from './components/event/AgendaRecurrentEventDeleteConfirmDialog.vue';
-import AgendaCustomRecurrenceDrawer from './components/event/AgendaCustomRecurrenceDrawer.vue';
 
 const components = {
   'agenda': Agenda,
@@ -55,7 +65,12 @@ const components = {
   'agenda-settings-tab': AgendaSettingsTab,
   'agenda-sync-tab': AgendaSyncTab,
   'agenda-recurrent-event-delete-confirm-dialog': AgendaRecurrentEventDeleteConfirmDialog,
-  'agenda-custom-recurrence-drawer': AgendaCustomRecurrenceDrawer
+  'agenda-event-form-recurrence': AgendaEventFormRecurrence,
+  'agenda-event-form-recurrence-drawer': AgendaEventFormRecurrenceDrawer,
+  'agenda-event-form-attendees': AgendaEventFormAttendees,
+  'agenda-event-form-attendee-item': AgendaEventFormAttendeeItem,
+  'agenda-event-form-calendar-owner': AgendaEventFormCalendarOwner,
+  'agenda-recurrent-event-save-confirm-dialog': AgendaRecurrentEventSaveConfirmDialog,
 };
 
 for (const key in components) {

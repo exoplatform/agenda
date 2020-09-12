@@ -41,10 +41,12 @@ export function createEvent(event) {
     providerId: event.calendar.owner.providerId,
     remoteId: event.calendar.owner.remoteId,
   };
+
   if (event.parent) {
     event.parent = {
       id: event.parent.id,
     };
+    event.recurrence = null;
   }
 
   event.creator = null;
@@ -80,10 +82,12 @@ export function updateEvent(event) {
     providerId: event.calendar.owner.providerId,
     remoteId: event.calendar.owner.remoteId,
   };
+
   if (event.parent) {
     event.parent = {
       id: event.parent.id,
     };
+    event.recurrence = null;
   }
 
   event.creator = null;

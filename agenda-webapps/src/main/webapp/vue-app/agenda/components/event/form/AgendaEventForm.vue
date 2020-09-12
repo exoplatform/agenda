@@ -58,7 +58,7 @@
           :disabled="saving"
           color="primary"
           @click="nextStep">
-          {{ $t('agenda.button.continue') }}
+          {{ stepButtonLabel }}
         </v-btn>
         <v-btn
           :disabled="saving"
@@ -68,6 +68,10 @@
         </v-btn>
       </div>
     </div>
+    <agenda-recurrent-event-save-confirm-dialog
+      ref="recurrentEventConfirm"
+      :event="event"
+      @save-event="save" />
   </v-card>
 </template>
 <script>
@@ -92,6 +96,11 @@ export default {
       saving: false,
     };
   },
+  computed: {
+    stepButtonLabel() {
+      return this.stepper === 2 ? this.$t('agenda.button.save') : this.$t('agenda.button.continue');
+    },
+  },
   mounted() {
     this.reset();
   },
@@ -104,22 +113,26 @@ export default {
     },
     reset() {
       this.stepper = 1;
-      if (this.$refs.eventBasicInformation) {
-        this.$refs.eventBasicInformation.reset();
-      }
     },
     previousStep() {
       this.stepper--;
     },
+    save(eventToSave) {
+      this.saving = true;
+      const saveEventMethod = eventToSave.id ? this.$eventService.updateEvent:this.$eventService.createEvent;
+      saveEventMethod(eventToSave)
+        .then(() => this.$emit('saved'))
+        .finally(() => {
+          this.saving = false;
+        });
+    },
     nextStep() {
       if (this.stepper > 1) {
-        this.saving = true;
-        const saveEventMethod = this.event.id ? this.$eventService.updateEvent:this.$eventService.createEvent;
-        saveEventMethod(this.event)
-          .then(() => this.$emit('saved'))
-          .finally(() => {
-            this.saving = false;
-          });
+        if (this.event.occurrence) {
+          this.$refs.recurrentEventConfirm.open();
+        } else {
+          this.save(this.event);
+        }
       } else if (this.stepper === 1) {
         if (this.$refs.eventBasicInformation.validateForm()) {
           this.stepper++;
