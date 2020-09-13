@@ -56,12 +56,14 @@ export default {
   },
   methods:{
     resetCustomValidity() {
-      this.$refs.calendarOwnerSuggester.$el.querySelector('input').setCustomValidity('');
+      if (this.$refs.calendarOwnerSuggester) {
+        this.$refs.calendarOwnerSuggester.$el.querySelector('input').setCustomValidity('');
+      }
     },
     validateForm() {
       this.resetCustomValidity();
 
-      if (!this.event.calendar.owner || !this.event.calendar.owner.id && !(this.event.calendar.owner.providerId && this.event.calendar.owner.remoteId)) {
+      if (this.$refs.calendarOwnerSuggester && !this.event.calendar.owner || !this.event.calendar.owner.id && !(this.event.calendar.owner.providerId && this.event.calendar.owner.remoteId)) {
         this.$refs.calendarOwnerSuggester.$el.querySelector('input').setCustomValidity(this.$t('agenda.message.missingSpaceName'));
       }
     },
@@ -83,11 +85,11 @@ export default {
               fullName: this.currentSpace.displayName,
             },
           };
-          if (this.$refs.calendarOwnerSuggester.items) {
+          if (this.$refs.calendarOwnerSuggester) {
             this.$refs.calendarOwnerSuggester.items = [this.calendarOwner];
           }
         } else {
-          if (this.$refs.calendarOwnerSuggester.items) {
+          if (this.$refs.calendarOwnerSuggester) {
             this.$refs.calendarOwnerSuggester.items = [];
           }
           this.calendarOwner = {};

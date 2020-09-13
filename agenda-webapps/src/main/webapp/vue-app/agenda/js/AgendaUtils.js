@@ -122,6 +122,20 @@ export function pad(n) {
   return n < 10 && `0${n}` || n;
 }
 
+export function getSameTime(dateToChange, dateWithTime) {
+  const returnDate = typeof dateToChange === 'string';
+  if (typeof dateWithTime === 'string') {
+    dateWithTime = new Date(dateWithTime);
+  }
+  if (typeof dateToChange === 'string') {
+    dateToChange = new Date(dateToChange);
+  }
+  dateToChange.setHours(dateWithTime.getHours());
+  dateToChange.setMinutes(dateWithTime.getMinutes());
+  dateToChange.setSeconds(dateWithTime.getSeconds());
+  return returnDate && dateToChange || toRFC3339(dateToChange);
+}
+
 export function areDatesOnSameDay(firstDate, secondDate) {
   if (typeof firstDate === 'string') {
     firstDate = new Date(firstDate);
