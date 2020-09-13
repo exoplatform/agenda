@@ -88,15 +88,20 @@
           <v-row class="event-time align-center d-flex pb-5">
             <i class="uiIconClock darkGreyIcon uiIcon32x32 pr-5"></i>
             <div class="d-inline-flex">
-              <date-format
-                :value="event.start"
-                :format="dateTimeFormat"
-                class="mr-1" />
-              -
-              <date-format
-                :value="event.end"
-                :format="dateTimeFormat"
-                class="ml-1" />
+              <template v-if="event.allDay">
+                {{ $t('agenda.allDay') }}
+              </template>
+              <template v-else>
+                <date-format
+                  :value="event.start"
+                  :format="dateTimeFormat"
+                  class="mr-1" />
+                -
+                <date-format
+                  :value="event.end"
+                  :format="dateTimeFormat"
+                  class="ml-1" />
+              </template>
             </div>
           </v-row>
           <v-row v-if="event.location" class="event-location align-center d-flex pb-5">
