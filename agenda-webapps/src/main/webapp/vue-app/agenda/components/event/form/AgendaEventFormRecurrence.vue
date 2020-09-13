@@ -10,9 +10,15 @@
         {{ recurrenceOption.text }}
       </option>
     </select>
+    <v-btn
+      v-if="recurrenceType === 'CUSTOM'"
+      icon
+      class="ml-2 my-auto"
+      @click="openCustomRecurrenceForm">
+      <i class="uiIcon uiIconEdit  primary--text"></i>
+    </v-btn>
     <agenda-event-form-recurrence-drawer
       ref="customRecurrentEventDrawer"
-      :event-recurrence="customEventRecurrence"
       @apply="applyCustomEventRecurrence"
       @cancel="cancelCustomEventRecurrence" />
   </div>
@@ -29,13 +35,9 @@ export default {
   data() {
     return {
       recurrenceType: 'NO_REPEAT',
-      customEventRecurrence: {},
     };
   },
   computed: {
-    eventRecurrence() {
-      return this.event && this.event.parent ? this.event.parent.recurrence : this.event.recurrence;
-    },
     recurrenceOptions() {
       return [{
         text: this.$t('agenda.doNotRepeat'),
@@ -54,7 +56,7 @@ export default {
         value: 'MONTHLY'
       },
       {
-        text: this.$t('agenda.annually',{ 0 : this.localizedMonthFromDate , 1: this.dayNumberInMonth}),
+        text: this.$t('agenda.yearly',{ 0 : this.localizedMonthFromDate , 1: this.dayNumberInMonth}),
         value: 'YEARLY'
       },
       {
@@ -109,7 +111,7 @@ export default {
     recurrenceType(newVal, oldVal) {
       if (newVal && oldVal && newVal !== oldVal) {
         if (this.recurrenceType === 'CUSTOM') {
-          this.$refs.customRecurrentEventDrawer.open();
+          this.openCustomRecurrenceForm();
         } else if (this.recurrenceType === 'NO_REPEAT') {
           this.event.recurrence = null;
         } else {
@@ -141,16 +143,17 @@ export default {
     });
   },
   methods:{
-    applyCustomEventRecurrence() {
-      this.event.recurrence = JSON.parse(JSON.stringify(this.customEventRecurrence));
+    applyCustomEventRecurrence(eventRecurrence) {
+      this.event.recurrence = JSON.parse(JSON.stringify(eventRecurrence));
       this.event.recurrence.type = 'CUSTOM';
     },
     cancelCustomEventRecurrence() {
-      this.reset();
+      if (this.event.recurrence && this.event.recurrence.type !== 'CUSTOM') {
+        this.reset();
+      }
     },
     reset() {
       this.resetRecurrenceType();
-      this.resetCustomEventRecurrence();
     },
     resetRecurrenceType() {
       // Set to null before to not trigger changing event.recurrence
@@ -158,20 +161,24 @@ export default {
       this.recurrenceType = null;
 
       this.$nextTick().then(() => {
-        this.recurrenceType = this.eventRecurrence && this.eventRecurrence.type || 'NO_REPEAT';
+        const eventRecurrence = this.event && this.event.recurrence || this.event.parent && this.event.parent.recurrence;
+        this.recurrenceType = eventRecurrence && eventRecurrence.type || 'NO_REPEAT';
         this.$forceUpdate();
       });
     },
-    resetCustomEventRecurrence() {
-      if (this.eventRecurrence && this.eventRecurrence.type) {
-        this.customEventRecurrence = JSON.parse(JSON.stringify(this.eventRecurrence));
+    openCustomRecurrenceForm() {
+      let customEventRecurrence = null;
+      const eventRecurrence = this.event && this.event.recurrence || this.event.parent && this.event.parent.recurrence;
+      if (eventRecurrence) {
+        customEventRecurrence = JSON.parse(JSON.stringify(eventRecurrence));
       } else {
-        this.customEventRecurrence = {
+        customEventRecurrence = {
           frequency: 'WEEKLY',
           interval: 1,
           byDay: ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'],
         };
       }
+      this.$refs.customRecurrentEventDrawer.open(customEventRecurrence);
     },
   }
 };

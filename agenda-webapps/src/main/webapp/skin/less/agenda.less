@@ -105,18 +105,35 @@
   }
 
   .customRecurrentEventDrawer {
-    .inputOccurrence {
-      max-width: 15%;
+    .recurrenceDays {
+      .v-slide-group__prev, .v-slide-group__next {
+        display: none;
+      }
+      .v-chip {
+        padding: 0 10px;
+      }
     }
-  }
-  .customRecurrentEventDrawer {
-    .endRepeat {
-      max-width: 15%;
+    .recurrenceUntil {
+      max-width: 100%;
     }
-  }
-  .customRecurrentEventDrawer {
-    .endAfterNumber {
-      max-width: 15%;
+    input {
+      min-height: 40px;
+      max-width: 100%;
+      border: 1px solid @borderColor !important;
+      &[disabled] {
+        background-color: @disableBackground !important;
+      }
+    }
+    .col {
+      margin-top: auto;
+      margin-bottom: auto;
+      padding-top: 0;
+      padding-bottom: 0;
+    }
+    .datePickerMenu {
+      .v-menu__content {
+        margin-left: -50px;
+      }
     }
   }
 
