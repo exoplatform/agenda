@@ -12,7 +12,7 @@
         v-if="event"
         ref="form"
         class="ma-5">
-        <div class="d-flex flex-row">
+        <div class="d-flex flex-column">
           <label class="float-left text-subtitle-1 d-none d-md-inline mr-2 mt-3">
             {{ $t('agenda.drawer.label.repeat') }}
           </label>

@@ -104,6 +104,11 @@ export default {
       if (this.createEvent) {
         this.createEvent.allDay = this.allDay;
       }
+      this.event.allDay = this.allDay;
+
+      if (this.events && this.events.length) {
+        this.events[0].allDay = this.allDay;
+      }
     },
   },
   methods: {
@@ -217,8 +222,14 @@ export default {
       if (!this.event.start) {
         this.event.start = this.$agendaUtils.toRFC3339(new Date());
         this.event.end = this.$agendaUtils.toRFC3339(new Date());
+      }
+
+      if (this.event.id || this.event.parent) {
+        this.allDay = this.event.allDay;
+      } else {
         this.event.allDay = this.allDay;
       }
+
       const startDate =  new Date(this.event.start);
       const year = startDate.getYear() + 1900;
       const month = startDate.getMonth() + 1;
