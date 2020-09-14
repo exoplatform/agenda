@@ -117,7 +117,7 @@ public class Utils {
   public static Recur getICalendarRecur(Event event, EventRecurrence recurrence) {
     try {
       Recur recur = new Recur("FREQ=" + recurrence.getFrequency().name());
-      recur.setCount(recurrence.getCount());
+      recur.setCount(recurrence.getCount() > 0 ? recurrence.getCount() : 0);
       recur.setInterval(recurrence.getInterval());
       if (recurrence.getUntil() != null) {
         DateTime dateTime = new DateTime(AgendaDateUtils.toDate(recurrence.getUntil()));
