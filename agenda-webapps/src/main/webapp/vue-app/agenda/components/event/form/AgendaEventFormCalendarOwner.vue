@@ -68,7 +68,7 @@ export default {
       }
     },
     reset() {
-      if (this.event.id || this.event.parent) { // In case of edit existing event
+      if (this.event.id || this.event.occurrence) { // In case of edit existing event
         this.calendarOwner = this.$suggesterService.convertIdentityToSuggesterItem(this.event.calendar.owner);
 
         if (this.$refs.calendarOwnerSuggester) {
