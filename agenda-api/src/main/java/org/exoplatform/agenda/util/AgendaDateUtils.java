@@ -16,7 +16,6 @@
 */
 package org.exoplatform.agenda.util;
 
-import java.text.ParseException;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -132,7 +131,7 @@ public class AgendaDateUtils {
     return OCCURRENCE_ID_FORMATTER.format(formTime.toInstant().atOffset(ZoneOffset.UTC));
   }
 
-  public static ZonedDateTime buildOccurrenceDateTime(String occurrenceId) throws ParseException {
+  public static ZonedDateTime buildOccurrenceDateTime(String occurrenceId) {
     if (StringUtils.isBlank(occurrenceId)) {
       return null;
     }

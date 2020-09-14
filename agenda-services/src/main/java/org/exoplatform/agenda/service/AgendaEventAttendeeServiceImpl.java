@@ -28,12 +28,16 @@ import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
 import org.exoplatform.agenda.plugin.AgendaExternalUserIdentityProvider;
 import org.exoplatform.agenda.storage.AgendaEventAttendeeStorage;
+import org.exoplatform.agenda.storage.AgendaEventStorage;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
+import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.social.core.space.model.Space;
+import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.web.security.codec.CodecInitializer;
 import org.exoplatform.web.security.security.TokenServiceInitializationException;
 
@@ -43,19 +47,27 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
 
   private AgendaEventAttendeeStorage attendeeStorage;
 
+  private AgendaEventStorage         eventStorage;
+
   private ListenerService            listenerService;
 
   private IdentityManager            identityManager;
 
+  private SpaceService               spaceService;
+
   private CodecInitializer           codecInitializer;
 
   public AgendaEventAttendeeServiceImpl(AgendaEventAttendeeStorage attendeeStorage,
+                                        AgendaEventStorage eventStorage,
                                         ListenerService listenerService,
                                         IdentityManager identityManager,
+                                        SpaceService spaceService,
                                         CodecInitializer codecInitializer) {
     this.attendeeStorage = attendeeStorage;
+    this.eventStorage = eventStorage;
     this.codecInitializer = codecInitializer;
     this.identityManager = identityManager;
+    this.spaceService = spaceService;
     this.listenerService = listenerService;
   }
 
@@ -142,10 +154,18 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    * {@inheritDoc}
    */
   @Override
-  public EventAttendeeResponse getEventResponse(long eventId, long identityId) throws ObjectNotFoundException {
+  public EventAttendeeResponse getEventResponse(long eventId, long identityId) throws ObjectNotFoundException,
+                                                                               IllegalAccessException {
+    Event event = eventStorage.getEventById(eventId);
+    if (event == null) {
+      throw new ObjectNotFoundException("Event with id " + eventId + " wasn't found");
+    }
+    if (!isEventAttendee(eventId, identityId)) {
+      throw new IllegalAccessException("User " + identityId + " is not attendee of event " + eventId);
+    }
     EventAttendee attendee = attendeeStorage.getEventAttendee(eventId, identityId);
     if (attendee == null) {
-      throw new ObjectNotFoundException("Attendee with identity id " + eventId + " wasn't found in event " + eventId);
+      return EventAttendeeResponse.NEEDS_ACTION;
     }
     return attendee.getResponse();
   }
@@ -154,15 +174,32 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    * {@inheritDoc}
    */
   @Override
-  public void sendEventResponse(long eventId, long identityId, EventAttendeeResponse response) throws ObjectNotFoundException {
+  public void sendEventResponse(long eventId,
+                                long identityId,
+                                EventAttendeeResponse response) throws ObjectNotFoundException, IllegalAccessException {
     if (response == null) {
       throw new IllegalArgumentException("Attendee response is mandatory");
     }
+    Event event = eventStorage.getEventById(eventId);
+    if (event == null) {
+      throw new ObjectNotFoundException("Parent event with id " + eventId + " wasn't found");
+    }
+    Identity userIdentity = identityManager.getIdentity(String.valueOf(identityId));
+    if (userIdentity == null) {
+      throw new ObjectNotFoundException("Identity with id " + identityId + " wasn't found");
+    }
+    String username = userIdentity.getRemoteId();
+
+    if (!isEventAttendee(eventId, identityId)) {
+      throw new IllegalAccessException("User " + username + " isn't attendee of event with id " + eventId);
+    }
+
     EventAttendee attendee = attendeeStorage.getEventAttendee(eventId, identityId);
     if (attendee == null) {
-      throw new ObjectNotFoundException("Attendee with identity id " + eventId + " wasn't found in event " + eventId);
+      attendee = new EventAttendee(0, identityId, response);
+    } else {
+      attendee.setResponse(response);
     }
-    attendee.setResponse(response);
     attendeeStorage.saveEventAttendee(attendee, eventId);
   }
 
@@ -226,6 +263,33 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       identity = identityManager.getOrCreateIdentity(AgendaExternalUserIdentityProvider.NAME, emailOrUsername);
     }
     return identity;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public boolean isEventAttendee(long eventId, long identityId) {
+    Identity userIdentity = identityManager.getIdentity(String.valueOf(identityId));
+
+    List<EventAttendee> eventAttendees = getEventAttendees(eventId);
+    return eventAttendees != null
+        && eventAttendees.stream().anyMatch(eventAttendee -> {
+          if (identityId == eventAttendee.getIdentityId()) {
+            return true;
+          } else if (StringUtils.equals(userIdentity.getProviderId(), OrganizationIdentityProvider.NAME)) {
+            Identity identity = identityManager.getIdentity(String.valueOf(eventAttendee.getIdentityId()));
+            if (StringUtils.equals(identity.getProviderId(), SpaceIdentityProvider.NAME)) {
+              if (spaceService.isSuperManager(userIdentity.getRemoteId())) {
+                return true;
+              } else {
+                Space space = spaceService.getSpaceByPrettyName(identity.getRemoteId());
+                return spaceService.isMember(space, userIdentity.getRemoteId());
+              }
+            }
+          }
+          return false;
+        });
   }
 
   /**
