@@ -16,6 +16,8 @@
 */
 package org.exoplatform.agenda.util;
 
+import java.time.ZonedDateTime;
+
 import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.constant.ReminderPeriodType;
@@ -91,6 +93,10 @@ public class EntityBuilder {
                                        occurrenceEntity.isExceptional());
     }
 
+    ZonedDateTime startDate = eventEntity.isAllDay() ? AgendaDateUtils.parseAllDayDateToZonedDateTime(eventEntity.getStart())
+                                                     : AgendaDateUtils.parseRFC3339ToZonedDateTime(eventEntity.getStart());
+    ZonedDateTime endDate = eventEntity.isAllDay() ? AgendaDateUtils.parseAllDayDateToZonedDateTime(eventEntity.getEnd())
+                                                   : AgendaDateUtils.parseRFC3339ToZonedDateTime(eventEntity.getEnd());
     return new Event(eventEntity.getId(),
                      eventEntity.getParent() == null ? 0l : eventEntity.getParent().getId(),
                      eventEntity.getRemoteId(),
@@ -104,8 +110,8 @@ public class EntityBuilder {
                      eventEntity.getDescription(),
                      eventEntity.getLocation(),
                      eventEntity.getColor(),
-                     AgendaDateUtils.parseRFC3339ToZonedDateTime(eventEntity.getStart()),
-                     AgendaDateUtils.parseRFC3339ToZonedDateTime(eventEntity.getEnd()),
+                     startDate,
+                     endDate,
                      eventEntity.isAllDay(),
                      eventEntity.getAvailability(),
                      eventEntity.getStatus(),
