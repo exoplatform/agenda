@@ -14,6 +14,16 @@
           </span>
           <span :class="stepper > 1 && 'primary--text' || ''" class="font-weight-light">{{ $t('agenda.stepEventMultipleChoose') }}</span>
         </v-stepper-step>
+        <v-btn
+          class="my-auto mr-2"
+          color="grey"
+          icon
+          dark
+          @click="close">
+          <v-icon>
+            mdi-close
+          </v-icon>
+        </v-btn>
       </v-stepper-header>
       <v-stepper-items class="flex-grow-1">
         <v-stepper-content step="1">
@@ -114,7 +124,7 @@ export default {
       this.saving = true;
       const saveEventMethod = eventToSave.id ? this.$eventService.updateEvent:this.$eventService.createEvent;
       saveEventMethod(eventToSave)
-        .then(() => this.$emit('saved'))
+        .then(() => this.$emit('saved'),this.stepper = 1)
         .finally(() => {
           this.saving = false;
         });
