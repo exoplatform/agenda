@@ -75,7 +75,7 @@ export default {
       if (!this.attendees || !this.attendees.length) {
         return 0;
       }
-      return this.attendees.filter(attendee => attendee && attendee.response === 'REFUSED').length;
+      return this.attendees.filter(attendee => attendee && attendee.response === 'DECLINED').length;
     },
     tentativeResponsesCount() {
       if (!this.attendees || !this.attendees.length) {
