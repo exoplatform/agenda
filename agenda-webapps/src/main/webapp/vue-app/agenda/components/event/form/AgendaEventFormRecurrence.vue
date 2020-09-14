@@ -39,6 +39,10 @@ export default {
   },
   computed: {
     recurrenceOptions() {
+      const dayNumberInMonth = this.dayNumberInMonth;
+      const localizedMonthFromDate = this.localizedMonthFromDate;
+      const localizedDayNamefromDate = this.localizedDayNamefromDate;
+
       return [{
         text: this.$t('agenda.doNotRepeat'),
         value: 'NO_REPEAT'
@@ -48,20 +52,20 @@ export default {
         value: 'DAILY'
       },
       {
-        text: this.$t('agenda.weekly',{ 0 : this.localizedDayNamefromDate }),
+        text: this.$t('agenda.workingWeekDay'),
+        value: 'WEEK_DAYS'
+      },
+      {
+        text: this.$t('agenda.weekly',{ 0 : localizedDayNamefromDate }),
         value: 'WEEKLY'
       },
       {
-        text: this.$t('agenda.monthly',{ 0 : this.localizedDayNamefromDate }),
+        text: this.$t('agenda.monthly',{ 0 : dayNumberInMonth }),
         value: 'MONTHLY'
       },
       {
-        text: this.$t('agenda.yearly',{ 0 : this.localizedMonthFromDate , 1: this.dayNumberInMonth}),
+        text: this.$t('agenda.yearly',{ 0 : localizedMonthFromDate , 1: dayNumberInMonth}),
         value: 'YEARLY'
-      },
-      {
-        text: this.$t('agenda.everyWeekDay'),
-        value: 'EVERY WEEKDAY'
       },
       {
         text: this.$t('agenda.custom'),
@@ -122,7 +126,7 @@ export default {
           };
           if (this.recurrenceType === 'WEEK_DAYS') {
             this.event.recurrence.frequency = 'WEEKLY';
-            this.event.recurrence.byDay = ['SU','MO','TU','WE','TH','FR','SA'];
+            this.event.recurrence.byDay = ['MO','TU','WE','TH','FR'];
           } else if (this.recurrenceType === 'WEEKLY') {
             this.event.recurrence.byDay = [this.dayNamefromDate.substring(0,2).toUpperCase()];
           } else if (this.recurrenceType === 'MONTHLY') {
@@ -130,8 +134,6 @@ export default {
           } else if(this.recurrenceType === 'YEARLY') {
             this.event.recurrence.byMonthDay = [this.dayNumberInMonth];
             this.event.recurrence.byMonth = [this.monthNumberFromDate];
-          } else {
-            this.event.recurrence = null;
           }
         }
       }
