@@ -187,7 +187,7 @@ export default {
         this.recurrentEventDate = 'date';
         this.untilDate = new Date(this.eventRecurrence.until);
         this.eventRecurrence.count = null;
-      } else if (this.eventRecurrence.count) {
+      } else if (this.eventRecurrence.count > 0) {
         this.recurrentEventDate = 'count';
         this.eventRecurrence.until = null;
       } else {
