@@ -107,6 +107,9 @@ export default {
       this.reset();
     });
   },
+  mounted() {
+    this.reset();
+  },
   methods:{
     close() {
       this.$emit('close');
@@ -124,7 +127,7 @@ export default {
       this.saving = true;
       const saveEventMethod = eventToSave.id ? this.$eventService.updateEvent:this.$eventService.createEvent;
       saveEventMethod(eventToSave)
-        .then(() => this.$emit('saved'),this.stepper = 1)
+        .then(() => this.$emit('saved'))
         .finally(() => {
           this.saving = false;
         });
