@@ -627,6 +627,8 @@ public class AgendaEventRest implements ResourceContainer {
   private Event createEvent(EventEntity eventEntity, String currentUser) throws AgendaException, IllegalAccessException {
     checkCalendar(eventEntity);
 
+    cleanupAttachedEntitiesIds(eventEntity);
+
     List<EventAttendeeEntity> attendeeEntities = eventEntity.getAttendees();
     List<EventAttendee> attendees = null;
     if (attendeeEntities != null && !attendeeEntities.isEmpty()) {
