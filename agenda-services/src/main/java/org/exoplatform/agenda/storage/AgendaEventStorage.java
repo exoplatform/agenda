@@ -16,6 +16,7 @@
 */
 package org.exoplatform.agenda.storage;
 
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -117,17 +118,18 @@ public class AgendaEventStorage {
   }
 
   /**
-   * @param parentRecurrentEvent a parent recurrent {@link Event}
+   * @param parentRecurrentEventId a parent recurrent {@link Event} technical
+   *          identifier
    * @param start start DateTime of period to search on
    * @param end end DateTime of period to search on
    * @return {@link List} of {@link ZonedDateTime} corresponding to exceptional
    *         occurences events Identifiers of a parent recurrent event for a
    *         selected period of time
    */
-  public List<Long> getExceptionalOccurenceEventIds(long parentRecurrentEvent,
+  public List<Long> getExceptionalOccurenceEventIds(long parentRecurrentEventId,
                                                     ZonedDateTime start,
                                                     ZonedDateTime end) {
-    return eventDAO.getExceptionalOccurenceEventIds(parentRecurrentEvent,
+    return eventDAO.getExceptionalOccurenceEventIds(parentRecurrentEventId,
                                                     AgendaDateUtils.toDate(start),
                                                     AgendaDateUtils.toDate(end));
   }
@@ -157,6 +159,21 @@ public class AgendaEventStorage {
 
     Utils.broadcastEvent(listenerService, "exo.agenda.event.created", event, creatorId);
     return event;
+  }
+
+  public Event getExceptionalOccurrenceEvent(long parentRecurrentEventId, ZonedDateTime occurrenceId) {
+    ZonedDateTime start = occurrenceId.toLocalDate().atStartOfDay(ZoneOffset.UTC);
+    ZonedDateTime end = occurrenceId.toLocalDate().atStartOfDay(ZoneOffset.UTC).plusDays(1).minusSeconds(1);
+    List<Long> exceptionalOccurenceEventIds = eventDAO.getExceptionalOccurenceEventIds(parentRecurrentEventId,
+                                                                                       AgendaDateUtils.toDate(start),
+                                                                                       AgendaDateUtils.toDate(end));
+    if (exceptionalOccurenceEventIds == null || exceptionalOccurenceEventIds.isEmpty()) {
+      return null;
+    } else if (exceptionalOccurenceEventIds.size() > 1) {
+      throw new IllegalStateException("More than one exceptional event on parent event " + parentRecurrentEventId
+          + " is found for occurrence of day" + occurrenceId);
+    }
+    return getEventById(exceptionalOccurenceEventIds.get(0));
   }
 
   public Event updateEvent(Event event) {

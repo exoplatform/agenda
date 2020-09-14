@@ -127,7 +127,18 @@ public interface AgendaEventAttendeeService {
    *           exists
    * @throws IllegalAccessException when user is not an invitee of the event
    */
-  public void sendEventResponse(long eventId, long identityId, EventAttendeeResponse response) throws ObjectNotFoundException,
-                                                                                               IllegalAccessException;
+  public void sendEventResponse(long eventId,
+                                long identityId,
+                                EventAttendeeResponse response) throws ObjectNotFoundException,
+                                                                IllegalAccessException;
+
+  /**
+   * Checks whether the user is an attendee of the event or not
+   * 
+   * @param eventId Technical identifier of {@link Event}
+   * @param identityId user name
+   * @return true if user is an attendee of the event, else return false
+   */
+  boolean isEventAttendee(long eventId, long identityId);
 
 }

@@ -53,21 +53,32 @@ export default {
   created() {
     this.$root.$on('agenda-event-form', agendaEvent => {
       this.isForm = true;
+      this.$eventService.getEventById(agendaEvent.id || agendaEvent.parent.id);
       this.open(agendaEvent);
       this.$nextTick().then(() => this.$root.$emit('agenda-event-form-opened', agendaEvent));
     });
     this.$root.$on('agenda-event-details', agendaEvent => {
       this.isForm = false;
-      this.open(agendaEvent);
+
+      const eventId = agendaEvent.id ? agendaEvent.id : agendaEvent.parent && agendaEvent.parent.id;
+      this.$eventService.getEventById(eventId, 'all')
+        .then(event => {
+          agendaEvent.attendees = event.attendees;
+          agendaEvent.conferences = event.conferences;
+          agendaEvent.attachments = event.attachments;
+          agendaEvent.reminders = event.reminders;
+
+          this.open(agendaEvent);
+
+          this.$nextTick().then(() => this.$root.$emit('agenda-event-details-opened', agendaEvent));
+        });
     });
     this.$root.$on('agenda-event-deleted', this.close);
   },
   methods: {
     open(agendaEvent) {
       this.dialog = true;
-      if (agendaEvent) {
-        agendaEvent = JSON.parse(JSON.stringify(agendaEvent));
-      } else {
+      if (!agendaEvent) {
         agendaEvent = {};
       }
       if (!agendaEvent.calendar) {

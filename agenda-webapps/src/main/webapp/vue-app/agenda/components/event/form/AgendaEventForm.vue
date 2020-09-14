@@ -13,16 +13,6 @@
             {{ $t('agenda.stepEventChooseDate') }}
           </span>
         </v-stepper-step>
-        <v-btn
-          class="my-auto mr-2"
-          color="grey"
-          icon
-          dark
-          @click="$emit('close')">
-          <v-icon>
-            mdi-close
-          </v-icon>
-        </v-btn>
       </v-stepper-header>
       <v-stepper-items class="flex-grow-1">
         <v-stepper-content step="1">
@@ -101,8 +91,10 @@ export default {
       return this.stepper === 2 ? this.$t('agenda.button.save') : this.$t('agenda.button.continue');
     },
   },
-  mounted() {
-    this.reset();
+  created() {
+    this.$root.$on('agenda-event-form', () => {
+      this.reset();
+    });
   },
   methods:{
     close() {

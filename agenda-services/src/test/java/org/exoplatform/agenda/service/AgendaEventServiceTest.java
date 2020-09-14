@@ -27,6 +27,7 @@ import org.junit.Test;
 import org.exoplatform.agenda.constant.EventRecurrenceFrequency;
 import org.exoplatform.agenda.constant.EventRecurrenceType;
 import org.exoplatform.agenda.model.*;
+import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 
@@ -116,6 +117,83 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     } catch (IllegalAccessException e) {
       // Expected
     }
+  }
+
+  @Test
+  public void testGetEventById() throws Exception { // NOSONAR
+    ZonedDateTime start = ZonedDateTime.now().withNano(0);
+
+    boolean allDay = true;
+    String creatorUserName = testuser1Identity.getRemoteId();
+
+    Event event = newEventInstance(start, start, allDay);
+    event = createEvent(event.clone(), creatorUserName, testuser2Identity);
+
+    try {
+      agendaEventService.getEventById(event.getId(), testuser3Identity.getRemoteId());
+      fail("Should fail when a non attendee attempts to access event");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+
+    try {
+      agendaEventService.getEventById(event.getId(), Long.parseLong(testuser3Identity.getId()));
+      fail("Should fail when a non attendee attempts to access event");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+
+    Event createdEvent = agendaEventService.getEventById(event.getId(), Long.parseLong(testuser2Identity.getId()));
+
+    assertNotNull(createdEvent);
+    assertTrue(createdEvent.getId() > 0);
+
+    assertEquals(event.getSummary(), createdEvent.getSummary());
+    assertEquals(event.getDescription(), createdEvent.getDescription());
+    assertEquals(event.getCalendarId(), createdEvent.getCalendarId());
+    assertEquals(event.getColor(), createdEvent.getColor());
+    assertEquals(event.getLocation(), createdEvent.getLocation());
+    assertEquals(event.getCreatorId(), createdEvent.getCreatorId());
+    assertEquals(event.getRemoteId(), createdEvent.getRemoteId());
+    assertEquals(event.getRemoteProviderId(), createdEvent.getRemoteProviderId());
+    assertEquals(event.getAvailability(), createdEvent.getAvailability());
+    assertEquals(event.getOccurrence(), createdEvent.getOccurrence());
+    assertEquals(event.getStart().withZoneSameLocal(ZoneOffset.UTC), createdEvent.getStart().withZoneSameLocal(ZoneOffset.UTC));
+    assertEquals(event.getEnd().withZoneSameLocal(ZoneOffset.UTC), createdEvent.getEnd().withZoneSameLocal(ZoneOffset.UTC));
+
+    assertNotNull(createdEvent.getCreated());
+    assertNull(createdEvent.getUpdated());
+    assertEquals(0, createdEvent.getModifierId());
+
+    EventRecurrence createdEventRecurrence = createdEvent.getRecurrence();
+    assertNotNull(createdEventRecurrence);
+    assertTrue(createdEventRecurrence.getId() > 0);
+
+    EventRecurrence eventRecurrence = event.getRecurrence();
+    assertEquals(eventRecurrence.getFrequency(), createdEventRecurrence.getFrequency());
+    assertEquals(eventRecurrence.getType(), createdEventRecurrence.getType());
+    assertEquals(eventRecurrence.getInterval(), createdEventRecurrence.getInterval());
+    assertTrue(createdEventRecurrence.getCount() <= 0);
+    assertEquals(start.plusDays(2).toLocalDate(),
+                 createdEventRecurrence.getUntil().toLocalDate());
+    assertEquals(createdEvent.getRecurrence().getOverallEnd().toLocalDate(),
+                 createdEventRecurrence.getUntil().toLocalDate());
+    assertEquals(eventRecurrence.getBySecond(), createdEventRecurrence.getBySecond());
+    assertEquals(eventRecurrence.getByMinute(), createdEventRecurrence.getByMinute());
+    assertEquals(eventRecurrence.getByHour(), createdEventRecurrence.getByHour());
+    assertEquals(eventRecurrence.getByDay(), createdEventRecurrence.getByDay());
+    assertEquals(eventRecurrence.getByMonthDay(), createdEventRecurrence.getByMonthDay());
+    assertEquals(eventRecurrence.getByYearDay(), createdEventRecurrence.getByYearDay());
+    assertEquals(eventRecurrence.getByMonth(), createdEventRecurrence.getByMonth());
+    assertEquals(eventRecurrence.getByYearDay(), createdEventRecurrence.getByYearDay());
+
+    assertNotNull(createdEventRecurrence.getOverallStart());
+    assertEquals(start.toLocalDate().atStartOfDay(ZoneOffset.UTC),
+                 createdEventRecurrence.getOverallStart());
+
+    assertNotNull(createdEventRecurrence.getOverallEnd());
+    assertEquals(start.plusDays(2).toLocalDate(),
+                 createdEventRecurrence.getOverallEnd().toLocalDate());
   }
 
   @Test
@@ -304,6 +382,98 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertNotNull(createdEventRecurrence.getOverallEnd());
     assertEquals(start.plusDays(2).toLocalDate(),
                  createdEventRecurrence.getOverallEnd().toLocalDate());
+  }
+
+  @Test
+  public void testCreateEventExceptionalOccurrence() throws Exception { // NOSONAR
+    ZonedDateTime start = ZonedDateTime.now().withNano(0);
+
+    boolean allDay = true;
+    String creatorUserName = testuser1Identity.getRemoteId();
+
+    Event event = newEventInstance(start, start, allDay);
+    EventRecurrence recurrence = new EventRecurrence(0,
+                                                     start.plusDays(2),
+                                                     0,
+                                                     EventRecurrenceType.DAILY,
+                                                     EventRecurrenceFrequency.DAILY,
+                                                     1,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null);
+    event.setRecurrence(recurrence);
+
+    event = createEvent(event.clone(), creatorUserName, testuser1Identity, testuser2Identity);
+
+    try {
+      agendaEventService.createEventExceptionalOccurrence(5500l,
+                                                          ATTENDEES,
+                                                          CONFERENCES,
+                                                          ATTACHMENTS,
+                                                          REMINDERS,
+                                                          start.plusDays(2));
+    } catch (ObjectNotFoundException e) {
+      // Expected, not existing id
+    }
+
+    try {
+      agendaEventService.createEventExceptionalOccurrence(event.getId(),
+                                                          ATTENDEES,
+                                                          CONFERENCES,
+                                                          ATTACHMENTS,
+                                                          REMINDERS,
+                                                          start.plusDays(3));
+    } catch (IllegalStateException e) {
+      // Expected, not existing occurrence
+    }
+
+    try {
+      agendaEventService.createEventExceptionalOccurrence(event.getId(),
+                                                          ATTENDEES,
+                                                          CONFERENCES,
+                                                          ATTACHMENTS,
+                                                          REMINDERS,
+                                                          start.minusDays(1));
+    } catch (IllegalStateException e) {
+      // Expected, not existing occurrence
+    }
+
+    Event exceptionalOccurrence = agendaEventService.createEventExceptionalOccurrence(event.getId(),
+                                                                                      ATTENDEES,
+                                                                                      CONFERENCES,
+                                                                                      ATTACHMENTS,
+                                                                                      REMINDERS,
+                                                                                      start.plusDays(1));
+
+    assertNotNull(exceptionalOccurrence);
+    assertNotNull(exceptionalOccurrence.getOccurrence());
+    assertEquals(start.plusDays(1).toLocalDate(),
+                 exceptionalOccurrence.getStart().toLocalDate());
+    assertEquals(exceptionalOccurrence.getStart().toLocalDate(), exceptionalOccurrence.getOccurrence().getId().toLocalDate());
+    long eventId = exceptionalOccurrence.getId();
+    assertTrue(eventId > 0);
+    assertEquals(event.getId(), exceptionalOccurrence.getParentId());
+
+    List<EventAttachment> eventAttachments = agendaEventAttachmentService.getEventAttachments(eventId);
+    assertTrue(eventAttachments != null && !eventAttachments.isEmpty());
+
+    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId);
+    assertTrue(eventAttendees != null && !eventAttendees.isEmpty());
+
+    List<EventConference> eventConferences = agendaEventConferenceService.getEventConferences(eventId);
+    assertTrue(eventConferences != null && !eventConferences.isEmpty());
+
+    long userIdentityId = Long.parseLong(testuser1Identity.getId());
+    List<EventReminder> eventReminders = agendaEventReminderService.getEventReminders(eventId, userIdentityId);
+    assertTrue(eventReminders != null && !eventReminders.isEmpty());
   }
 
   @Test

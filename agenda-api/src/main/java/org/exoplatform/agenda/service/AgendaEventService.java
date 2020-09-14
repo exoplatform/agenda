@@ -107,9 +107,28 @@ public interface AgendaEventService {
    * Retrieves an event identified by its technical identifier.
    * 
    * @param eventId technical identifier of event
+   * @param identityId {@link Identity} technical identifier
+   * @return Corresponding {@link Event} or null if not found
+   * @throws IllegalAccessException when user is not allowed to access event
+   */
+  Event getEventById(long eventId, long identityId) throws IllegalAccessException;
+
+  /**
+   * Retrieves an event identified by its technical identifier.
+   * 
+   * @param eventId technical identifier of event
    * @return Corresponding {@link Event} or null if not found
    */
   public Event getEventById(long eventId);
+
+  /**
+   * Retrieves an event identified by its technical identifier.
+   * 
+   * @param eventId technical identifier of parent recurrent event
+   * @param occurrenceId technical occurrence event identifier
+   * @return Exceptional {@link Event} if found, else null
+   */
+  public Event getExceptionalOccurrenceEvent(long eventId, ZonedDateTime occurrenceId);
 
   /**
    * Creates an event in designated calendar or in user personal calendar if
@@ -199,6 +218,16 @@ public interface AgendaEventService {
   boolean canAccessEvent(Event event, String username);
 
   /**
+   * Check whether user can access event or not.
+   * 
+   * @param event {@link Event} to check its permission
+   * @param identityId {@link Identity} technical identifier
+   * @return true if the user is a member of {@link Calendar} owner
+   *         {@link Identity} or is an {@link EventAttendee}, else return false.
+   */
+  boolean canAccessEvent(Event event, long identityId);
+
+  /**
    * Check whether user can update or delete an event or not.
    * 
    * @param event {@link Event} to check its permission
@@ -217,5 +246,28 @@ public interface AgendaEventService {
    *         {@link Identity}, else return false.
    */
   boolean canCreateEvent(Calendar calendar, String username);
+
+  /**
+   * Create a new exceptional occurrence for a parent recurrent event
+   * 
+   * @param eventId technical identifier of parent recurrent event
+   * @param attendees {@link List} of attendees
+   * @param conferences {@link List} of conferences
+   * @param attachments {@link List} of attachments
+   * @param reminders {@link List} of reminders
+   * @param occurrenceId event occurent identifier
+   * @return newly created {@link Event}
+   * @throws AgendaException when the event attributes aren't valid
+   * @throws IllegalAccessException when user is not authorized to create event
+   * @throws ObjectNotFoundException when event with id wasn't found
+   */
+  public Event createEventExceptionalOccurrence(long eventId,
+                                                List<EventAttendee> attendees,
+                                                List<EventConference> conferences,
+                                                List<EventAttachment> attachments,
+                                                List<EventReminder> reminders,
+                                                ZonedDateTime occurrenceId) throws IllegalAccessException,
+                                                                            AgendaException,
+                                                                            ObjectNotFoundException;
 
 }

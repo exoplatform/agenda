@@ -25,8 +25,10 @@ import java.util.List;
 import org.junit.Test;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
+import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
+import org.exoplatform.commons.exception.ObjectNotFoundException;
 
 public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
 
@@ -52,6 +54,90 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
     assertTrue(eventAttendee.getId() > 0);
     assertEquals(eventAttendeeToStore.getIdentityId(), eventAttendee.getIdentityId());
     assertEquals(EventAttendeeResponse.NEEDS_ACTION, eventAttendee.getResponse());
+  }
+
+  @Test
+  public void testGetEventResponse() throws Exception { // NOSONAR
+    ZonedDateTime start = ZonedDateTime.now().withNano(0);
+
+    boolean allDay = true;
+    String creatorUserName = testuser1Identity.getRemoteId();
+
+    Event event = newEventInstance(start, start, allDay);
+    event.setStatus(EventStatus.CONFIRMED);
+    event = createEvent(event.clone(), creatorUserName, testuser1Identity, testuser5Identity);
+    long eventId = event.getId();
+
+    try {
+      agendaEventAttendeeService.getEventResponse(eventId, Long.parseLong(testuser4Identity.getId()));
+      fail("should throw an exception, user is not attendee of the event");
+    } catch (IllegalAccessException e) {
+      // Expected, user is not attendee of the event
+    }
+
+    try {
+      agendaEventAttendeeService.getEventResponse(5000l, Long.parseLong(testuser1Identity.getId()));
+      fail("should throw an exception, event id doesn't exists");
+    } catch (ObjectNotFoundException e) {
+      // Expected
+    }
+
+    EventAttendeeResponse eventResponse = agendaEventAttendeeService.getEventResponse(eventId,
+                                                                                      Long.parseLong(testuser1Identity.getId()));
+    assertNotNull(eventResponse);
+    assertEquals("Creator should accept event just after creating the event", EventAttendeeResponse.ACCEPTED, eventResponse);
+
+    eventResponse = agendaEventAttendeeService.getEventResponse(eventId,
+                                                                Long.parseLong(testuser5Identity.getId()));
+    assertNotNull(eventResponse);
+    assertEquals("Invitee default response should be empty just after creating the event",
+                 EventAttendeeResponse.NEEDS_ACTION,
+                 eventResponse);
+  }
+
+  @Test
+  public void testSendEventResponse() throws Exception { // NOSONAR
+    ZonedDateTime start = ZonedDateTime.now().withNano(0);
+
+    boolean allDay = true;
+    String creatorUserName = testuser1Identity.getRemoteId();
+
+    Event event = newEventInstance(start, start, allDay);
+    event.setStatus(EventStatus.CONFIRMED);
+    event = createEvent(event.clone(), creatorUserName, testuser1Identity, testuser5Identity);
+    long eventId = event.getId();
+
+    try {
+      agendaEventAttendeeService.sendEventResponse(eventId, Long.parseLong(testuser1Identity.getId()), null);
+      fail("should throw an exception, response shouldn't be null");
+    } catch (IllegalArgumentException e) {
+      // Expected
+    }
+
+    try {
+      agendaEventAttendeeService.sendEventResponse(5000l,
+                                                   Long.parseLong(testuser1Identity.getId()),
+                                                   EventAttendeeResponse.ACCEPTED);
+      fail("should throw an exception, event with id doesn't exists");
+    } catch (ObjectNotFoundException e) {
+      // Expected
+    }
+
+    agendaEventAttendeeService.sendEventResponse(eventId,
+                                                 Long.parseLong(testuser1Identity.getId()),
+                                                 EventAttendeeResponse.DECLINED);
+    EventAttendeeResponse eventResponse = agendaEventAttendeeService.getEventResponse(eventId,
+                                                                                      Long.parseLong(testuser1Identity.getId()));
+    assertNotNull(eventResponse);
+    assertEquals(EventAttendeeResponse.DECLINED, eventResponse);
+
+    agendaEventAttendeeService.sendEventResponse(eventId,
+                                                 Long.parseLong(testuser5Identity.getId()),
+                                                 EventAttendeeResponse.TENTATIVE);
+    eventResponse = agendaEventAttendeeService.getEventResponse(eventId,
+                                                                Long.parseLong(testuser5Identity.getId()));
+    assertNotNull(eventResponse);
+    assertEquals(EventAttendeeResponse.TENTATIVE, eventResponse);
   }
 
   @Test
