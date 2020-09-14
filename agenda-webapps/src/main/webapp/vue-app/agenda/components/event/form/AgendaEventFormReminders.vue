@@ -4,13 +4,13 @@
       v-for="(reminder, index) in event.reminders"
       :key="index"
       class="pl-0">
-      <label class="float-left mr-4">{{ $t('agenda.label.notifyMe') }}</label>
+      <label class="subtitle-1 float-left mr-4">{{ $t('agenda.label.notifyMe') }}</label>
       <input
         ref="timeNotification"
         v-model="reminder.before"
         type="number"
         name="timeNotification"
-        class="ignore-vuetify-classes my-3 time-notification"
+        class="subtitle-1 ignore-vuetify-classes my-3 time-notification"
         required
         numeric>
       <select
@@ -21,7 +21,7 @@
         <option value="DAY">{{ $t('agenda.option.days') }}</option>
         <option value="WEEK">{{ $t('agenda.option.weeks') }}</option>
       </select>
-      <span class="ml-4">{{ $t('agenda.label.beforeStart') }}</span>
+      <span class="subtitle-1 ml-4">{{ $t('agenda.label.beforeStart') }}</span>
       <v-btn
         color="grey"
         icon
