@@ -135,9 +135,7 @@ export default {
           end: this.createStart,
           allDay: this.allDay,
         };
-        if(!this.event.allDay) {
-          this.events.push(this.createEvent);
-        }
+        this.events = this.createEvent;
       }
     },
     extendBottom(event) {
