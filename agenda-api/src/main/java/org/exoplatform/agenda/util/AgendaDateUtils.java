@@ -16,8 +16,7 @@
 */
 package org.exoplatform.agenda.util;
 
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.format.ResolverStyle;
 import java.util.Date;
@@ -31,17 +30,27 @@ import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvide
 import org.exoplatform.social.core.manager.IdentityManager;
 
 public class AgendaDateUtils {
+  private static final String           ALL_DAY_FORMAT          = "yyyy-MM-dd";
+
   public static final DateTimeFormatter RFC_3339_FORMATTER      =
                                                            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss[.SSS]XXX")
                                                                             .withResolverStyle(ResolverStyle.LENIENT);
 
-  public static final DateTimeFormatter ALL_DAY_FORMATTER       = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+  public static final DateTimeFormatter ALL_DAY_FORMATTER       = DateTimeFormatter.ofPattern(ALL_DAY_FORMAT)
                                                                                    .withResolverStyle(ResolverStyle.LENIENT);
 
   public static final DateTimeFormatter OCCURRENCE_ID_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmssXXX")
                                                                                    .withResolverStyle(ResolverStyle.LENIENT);
 
   private AgendaDateUtils() {
+  }
+
+  public static ZonedDateTime parseAllDayDateToZonedDateTime(String dateString) {
+    if (StringUtils.isBlank(dateString)) {
+      return null;
+    }
+    return LocalDate.parse(dateString.substring(0, 10), AgendaDateUtils.ALL_DAY_FORMATTER)
+                    .atStartOfDay(ZoneOffset.UTC);
   }
 
   public static ZonedDateTime parseRFC3339ToZonedDateTime(String dateString) {

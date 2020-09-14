@@ -53,7 +53,6 @@ export default {
   created() {
     this.$root.$on('agenda-event-form', agendaEvent => {
       this.isForm = true;
-      this.$eventService.getEventById(agendaEvent.id || agendaEvent.parent.id);
       this.open(agendaEvent);
       this.$nextTick().then(() => this.$root.$emit('agenda-event-form-opened', agendaEvent));
     });
