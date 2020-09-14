@@ -71,7 +71,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(eventRecurrence.getFrequency(), createdEventRecurrence.getFrequency());
     assertEquals(eventRecurrence.getType(), createdEventRecurrence.getType());
     assertEquals(eventRecurrence.getInterval(), createdEventRecurrence.getInterval());
-    assertTrue(createdEventRecurrence.getCount() <= 0);
+    assertTrue(createdEventRecurrence.getCount() == 0);
     assertNotNull(createdEventRecurrence.getUntil());
     assertEquals(start.plusDays(2).toLocalDate(),
                  createdEventRecurrence.getUntil().toLocalDate());
@@ -173,7 +173,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(eventRecurrence.getFrequency(), createdEventRecurrence.getFrequency());
     assertEquals(eventRecurrence.getType(), createdEventRecurrence.getType());
     assertEquals(eventRecurrence.getInterval(), createdEventRecurrence.getInterval());
-    assertTrue(createdEventRecurrence.getCount() <= 0);
+    assertTrue(createdEventRecurrence.getCount() == 0);
     assertEquals(start.plusDays(2).toLocalDate(),
                  createdEventRecurrence.getUntil().toLocalDate());
     assertEquals(createdEvent.getRecurrence().getOverallEnd().toLocalDate(),
@@ -237,7 +237,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(eventRecurrence.getFrequency(), createdEventRecurrence.getFrequency());
     assertEquals(eventRecurrence.getType(), createdEventRecurrence.getType());
     assertEquals(eventRecurrence.getInterval(), createdEventRecurrence.getInterval());
-    assertTrue(createdEventRecurrence.getCount() <= 0);
+    assertTrue(createdEventRecurrence.getCount() == 0);
     assertNotNull(createdEventRecurrence.getUntil());
 
     assertEquals(end.plusDays(2).toLocalDate(),
@@ -300,7 +300,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertTrue(createdEventRecurrence.getId() > 0);
 
     EventRecurrence eventRecurrence = event.getRecurrence();
-    assertTrue(createdEventRecurrence.getCount() <= 0);
+    assertTrue(createdEventRecurrence.getCount() == 0);
     assertEquals(eventRecurrence.getType(), createdEventRecurrence.getType());
     assertEquals(eventRecurrence.getFrequency(), createdEventRecurrence.getFrequency());
     assertEquals(eventRecurrence.getInterval(), createdEventRecurrence.getInterval());
@@ -361,7 +361,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(eventRecurrence.getFrequency(), createdEventRecurrence.getFrequency());
     assertEquals(eventRecurrence.getType(), createdEventRecurrence.getType());
     assertEquals(eventRecurrence.getInterval(), createdEventRecurrence.getInterval());
-    assertTrue(createdEventRecurrence.getCount() <= 0);
+    assertTrue(createdEventRecurrence.getCount() == 0);
     assertEquals(start.plusDays(2).toLocalDate(),
                  createdEventRecurrence.getUntil().toLocalDate());
     assertEquals(createdEvent.getRecurrence().getOverallEnd().toLocalDate(),
