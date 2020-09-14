@@ -11,7 +11,7 @@
       {{ fieldError }}
     </v-alert>
     <div class="d-flex flex-column flex-md-row">
-      <label class="float-left mt-5 mr-3 text-subtitle-1 d-none d-md-inline">
+      <label class="create-event-label float-left mt-5 mr-6 text-subtitle-1 d-none d-md-inline">
         {{ $t('agenda.label.create') }}
       </label>
       <input
@@ -24,9 +24,9 @@
         class="ignore-vuetify-classes my-3"
         required
         @change="resetCustomValidity">
-      <span class="mt-5 ml-4 mr-4 text-subtitle-1 font-weight-bold d-none d-md-inline">
+      <label class="mt-5 ml-4 mr-4 text-subtitle-1 font-weight-bold d-none d-md-inline">
         {{ $t('agenda.label.in') }}
-      </span>
+      </label>
       <agenda-event-form-calendar-owner
         ref="calendarOwner"
         :event="event"
@@ -35,9 +35,7 @@
     <div class="d-flex flex-column flex-md-row mt-1 event-form-body">
       <div class="d-flex flex-column flex-grow-1 event-form-body-left">
         <div class="d-flex flex-row">
-          <v-icon size="18" class="mr-11">
-            fas fa-map-marker-alt
-          </v-icon>
+          <i class="uiIconLocation darkGreyIcon uiIcon32x32 my-3 mr-11"></i>
           <input
             id="eventLocation"
             ref="eventLocation"
@@ -49,23 +47,17 @@
         </div>
         <div class="d-flex flex-row">
           <v-flex class="flex-grow-0">
-            <v-icon size="18" class="my-5 mr-11">
-              fas fa-bell
-            </v-icon>
+            <i class="uiIconReminder darkGreyIcon uiIcon32x32 my-3 mr-11"></i>
           </v-flex>
           <agenda-event-form-reminders :event="event" />
         </div>
         <div class="d-flex flex-row">
-          <v-icon size="18" class="mr-11">
-            fas fa-redo-alt
-          </v-icon>
+          <i class="uiIconRecurrence darkGreyIcon uiIcon32x32 my-3 mr-11"></i>
           <agenda-event-form-recurrence :event="event" />
         </div>
         <div class="d-flex flex-row">
           <v-flex class="flex-grow-0">
-            <v-icon size="18" class="my-5 mr-11">
-              fas fa-file-alt
-            </v-icon>
+            <i class="uiIconDescription darkGreyIcon uiIcon32x32 my-3 mr-11"></i>
           </v-flex>
           <textarea
             id="eventDescription"
@@ -76,8 +68,7 @@
             name="description"
             rows="20"
             maxlength="2000"
-            noresize
-            class="ignore-vuetify-classes my-3 description-event-textarea">
+            class="ignore-vuetify-classes my-3 description-event-textarea textarea-no-resize">
           </textarea>
         </div>
       </div>
@@ -87,9 +78,7 @@
       <div class="d-flex flex-column flex-grow-1 event-form-body-right">
         <div class="d-flex flex-row">
           <v-flex class="flex-grow-0 mr-2">
-            <v-icon class="mt-5" size="18">
-              fas fa-users
-            </v-icon>
+            <i class="uiIconGroup darkGreyIcon uiIcon32x32 my-3"></i>
           </v-flex>
           <agenda-event-form-attendees :event="event" />
         </div>

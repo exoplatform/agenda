@@ -8,10 +8,11 @@
           </span>
         </v-stepper-step>
         <v-divider />
-        <v-stepper-step step="2" class="text-header-title">
-          <span :class="stepper > 1 && 'primary--text' || ''" class="font-weight-regular">
+        <v-stepper-step step="2">
+          <span :class="stepper > 1 && 'primary--text' || ''" class="text-header-title font-weight-regular">
             {{ $t('agenda.stepEventChooseDate') }}
           </span>
+          <span :class="stepper > 1 && 'primary--text' || ''" class="font-weight-light">{{ $t('agenda.stepEventMultipleChoose') }}</span>
         </v-stepper-step>
       </v-stepper-header>
       <v-stepper-items class="flex-grow-1">
