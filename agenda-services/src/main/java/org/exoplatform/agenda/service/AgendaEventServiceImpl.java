@@ -34,9 +34,7 @@ import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
-import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
-import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 
 public class AgendaEventServiceImpl implements AgendaEventService {
@@ -98,8 +96,38 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * {@inheritDoc}
    */
   @Override
+  public Event getEventById(long eventId, long identityId) throws IllegalAccessException {
+    Event event = agendaEventStorage.getEventById(eventId);
+    if (event == null) {
+      return null;
+    }
+
+    Identity identity = identityManager.getIdentity(String.valueOf(identityId));
+    if (canAccessEvent(event, identityId)) {
+      TimeZone userTimezone = AgendaDateUtils.getUserTimezone(identity);
+      adjustEventDatesForRead(event, userTimezone);
+      event.setAcl(new Permission(canUpdateEvent(event, identity.getRemoteId())));
+      return event;
+    } else {
+      throw new IllegalAccessException("User with identity id " + identityId + "is not allowed to access event with id "
+          + eventId);
+    }
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
   public Event getEventById(long eventId) {
     return agendaEventStorage.getEventById(eventId);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Event getExceptionalOccurrenceEvent(long eventId, ZonedDateTime occurrenceId) {
+    return agendaEventStorage.getExceptionalOccurrenceEvent(eventId, occurrenceId);
   }
 
   /**
@@ -204,6 +232,74 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     attendeeService.saveEventAttendees(createdEvent, attendees, userIdentityId, sendInvitation, false);
 
     return getEventById(createdEvent.getId(), username);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Event createEventExceptionalOccurrence(long eventId,
+                                                List<EventAttendee> attendees,
+                                                List<EventConference> conferences,
+                                                List<EventAttachment> attachments,
+                                                List<EventReminder> reminders,
+                                                ZonedDateTime occurrenceId) throws IllegalAccessException,
+                                                                            AgendaException,
+                                                                            ObjectNotFoundException {
+    Event parentEvent = getEventById(eventId);
+    if (parentEvent == null) {
+      throw new ObjectNotFoundException("Event with id " + eventId + " wasn't found");
+    }
+    if (parentEvent.getRecurrence() == null) {
+      throw new IllegalStateException("Event with id " + eventId + " isn't a recurrent event");
+    }
+    if (parentEvent.getRecurrence().getOverallStart().toLocalDate().isAfter(occurrenceId.toLocalDate())) {
+      throw new IllegalStateException("Event with id " + eventId + " doesn't have an occurrence with id " + occurrenceId);
+    }
+    if (parentEvent.getRecurrence().getOverallEnd() != null
+        && parentEvent.getRecurrence().getOverallEnd().toLocalDate().isBefore(occurrenceId.toLocalDate())) {
+      throw new IllegalStateException("Event with id " + eventId + " doesn't have an occurrence with id " + occurrenceId);
+    }
+    Event exceptionalEvent = parentEvent.clone();
+    exceptionalEvent.setId(0);
+    exceptionalEvent.setParentId(parentEvent.getId());
+    exceptionalEvent.setRecurrence(null);
+    exceptionalEvent.setOccurrence(new EventOccurrence(occurrenceId, true));
+    exceptionalEvent.setStart(exceptionalEvent.getStart()
+                                              .withYear(occurrenceId.getYear())
+                                              .withMonth(occurrenceId.getMonthValue())
+                                              .withDayOfMonth(occurrenceId.getDayOfMonth()));
+    exceptionalEvent.setEnd(exceptionalEvent.getEnd()
+                                            .withYear(occurrenceId.getYear())
+                                            .withMonth(occurrenceId.getMonthValue())
+                                            .withDayOfMonth(occurrenceId.getDayOfMonth()));
+    exceptionalEvent = agendaEventStorage.createEvent(exceptionalEvent);
+    long originalRecurrentEventCreator = parentEvent.getCreatorId();
+    long exceptionalEventId = exceptionalEvent.getId();
+
+    if (attachments != null && !attachments.isEmpty()) {
+      attachments.forEach(attachment -> {
+        attachment.setId(0);
+        attachment.setEventId(exceptionalEventId);
+      });
+      attachmentService.saveEventAttachments(exceptionalEvent.getId(), attachments, originalRecurrentEventCreator);
+    }
+    if (conferences != null && !conferences.isEmpty()) {
+      conferences.forEach(conference -> {
+        conference.setId(0);
+        conference.setEventId(exceptionalEventId);
+      });
+      conferenceService.saveEventConferences(exceptionalEvent.getId(), conferences);
+    }
+    if (reminders != null && !reminders.isEmpty()) {
+      reminders.forEach(reminder -> reminder.setId(0));
+      reminderService.saveEventReminders(exceptionalEvent, reminders, originalRecurrentEventCreator);
+    }
+    if (attendees != null && !attendees.isEmpty()) {
+      attendees.forEach(attendee -> attendee.setId(0));
+      attendeeService.saveEventAttendees(exceptionalEvent, attendees, originalRecurrentEventCreator, false, false);
+    }
+    return exceptionalEvent;
   }
 
   /**
@@ -578,8 +674,29 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   public boolean canAccessEvent(Event event, String username) {
     long calendarId = event.getCalendarId();
     Calendar calendar = agendaCalendarService.getCalendarById(calendarId);
+
+    Identity identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+    long userIdentityId = Long.parseLong(identity.getId());
+
     return Utils.canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), username)
-        || isEventAttendee(event.getId(), username);
+        || attendeeService.isEventAttendee(event.getId(), userIdentityId);
+  }
+
+  @Override
+  public boolean canAccessEvent(Event event, long identityId) {
+    long calendarId = event.getCalendarId();
+    Calendar calendar = agendaCalendarService.getCalendarById(calendarId);
+
+    Identity identity = identityManager.getIdentity(String.valueOf(identityId));
+    if (identity == null) {
+      return false;
+    }
+    if (StringUtils.equals(OrganizationIdentityProvider.NAME, identity.getProviderId())) {
+      return Utils.canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), identity.getRemoteId())
+          || attendeeService.isEventAttendee(event.getId(), identityId);
+    } else {
+      return attendeeService.isEventAttendee(event.getId(), identityId);
+    }
   }
 
   @Override
@@ -594,7 +711,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
         return true;
       }
     }
-    if (event.isAllowAttendeeToUpdate() && isEventAttendee(event.getId(), username)) {
+    if (event.isAllowAttendeeToUpdate()
+        && attendeeService.isEventAttendee(event.getId(), userIdentityId)) {
       return true;
     }
     if (calendar == null) {
@@ -655,31 +773,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                                 });
                       })
                       .collect(Collectors.toList());
-  }
-
-  private boolean isEventAttendee(long eventId, String username) {
-    Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
-    long userIdentityId = Long.parseLong(userIdentity.getId());
-
-    List<EventAttendee> eventAttendees = attendeeService.getEventAttendees(eventId);
-    return eventAttendees != null
-        && eventAttendees.stream().anyMatch(eventAttendee -> {
-          if (userIdentityId == eventAttendee.getIdentityId()) {
-            return true;
-          } else {
-            Identity identity = identityManager.getIdentity(String.valueOf(eventAttendee.getIdentityId()));
-            if (StringUtils.equals(identity.getProviderId(), SpaceIdentityProvider.NAME)) {
-              if (spaceService.isSuperManager(username)) {
-                return true;
-              } else {
-                Space space = spaceService.getSpaceByPrettyName(identity.getRemoteId());
-                return spaceService.isMember(space, username);
-              }
-            } else {
-              return false;
-            }
-          }
-        });
   }
 
 }

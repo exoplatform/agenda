@@ -105,6 +105,9 @@ public class AgendaEventRest implements ResourceContainer {
                        @ApiParam(
                            value = "Attendee identity identifier to filter on events where user is attendee", required = true
                        ) @QueryParam("attendeeIdentityId") long attendeeIdentityId,
+                       @ApiParam(value = "Properties to expand", required = true) @QueryParam(
+                         "expand"
+                       ) String expand,
                        @ApiParam(value = "Start datetime using RFC-3339 representation including timezone", required = true) @QueryParam("start") String start,
                        @ApiParam(value = "End datetime using RFC-3339 representation including timezone", required = true) @QueryParam("end") String end) {
     if (StringUtils.isBlank(start)) {
@@ -144,29 +147,40 @@ public class AgendaEventRest implements ResourceContainer {
       Map<Long, List<EventAttachmentEntity>> attachmentsByParentEventId = new HashMap<>();
       Map<Long, List<EventConference>> conferencesByParentEventId = new HashMap<>();
       Map<Long, List<EventReminderEntity>> remindersByParentEventId = new HashMap<>();
+      List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
+                                                                  : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
+                                                                                                    ","));
       List<EventEntity> eventEntities = events.stream().map(event -> {
         EventEntity eventEntity = EntityBuilder.fromEvent(agendaCalendarService, agendaEventService, identityManager, event);
         long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
 
-        try {
-          fillAttendees(eventEntity, attendeesByParentEventId);
-        } catch (Exception e) {
-          LOG.warn("Error retrieving event reminders, retrieve event without reminders", e);
+        if (expandProperties.contains("all") || expandProperties.contains("attendees")) {
+          try {
+            fillAttendees(eventEntity, attendeesByParentEventId);
+          } catch (Exception e) {
+            LOG.warn("Error retrieving event reminders, retrieve event without it", e);
+          }
         }
-        try {
-          fillAttachments(eventEntity, attachmentsByParentEventId);
-        } catch (Exception e) {
-          LOG.warn("Error retrieving event reminders, retrieve event without reminders", e);
+        if (expandProperties.contains("all") || expandProperties.contains("attachments")) {
+          try {
+            fillAttachments(eventEntity, attachmentsByParentEventId);
+          } catch (Exception e) {
+            LOG.warn("Error retrieving event reminders, retrieve event without it", e);
+          }
         }
-        try {
-          fillConferences(eventEntity, conferencesByParentEventId);
-        } catch (Exception e) {
-          LOG.warn("Error retrieving event reminders, retrieve event without reminders", e);
+        if (expandProperties.contains("all") || expandProperties.contains("conferences")) {
+          try {
+            fillConferences(eventEntity, conferencesByParentEventId);
+          } catch (Exception e) {
+            LOG.warn("Error retrieving event conferences, retrieve event without it", e);
+          }
         }
-        try {
-          fillReminders(eventEntity, userIdentityId, remindersByParentEventId);
-        } catch (Exception e) {
-          LOG.warn("Error retrieving event reminders, retrieve event without reminders", e);
+        if (expandProperties.contains("all") || expandProperties.contains("reminders")) {
+          try {
+            fillReminders(eventEntity, userIdentityId, remindersByParentEventId);
+          } catch (Exception e) {
+            LOG.warn("Error retrieving event reminders, retrieve event without it", e);
+          }
         }
         if (isComputedOccurrence(eventEntity)) {
           cleanupAttachedEntitiesIds(eventEntity);
@@ -202,28 +216,27 @@ public class AgendaEventRest implements ResourceContainer {
           @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
           @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
   )
-  public Response getEventById(@ApiParam(value = "Event technical identifier", required = true) @PathParam(
-    "eventId"
-  ) long eventId) {
+  public Response getEventById(
+                               @ApiParam(value = "Event technical identifier", required = true) @PathParam(
+                                 "eventId"
+                               ) long eventId,
+                               @ApiParam(value = "Properties to expand", required = true) @QueryParam(
+                                 "expand"
+                               ) String expand) {
     if (eventId <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
     }
 
     String currentUser = RestUtils.getCurrentUser();
     try {
-      Event event = agendaEventService.getEventById(eventId, currentUser);
-      if (event == null) {
+      List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
+                                                                  : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
+                                                                                                    ","));
+      EventEntity eventEntity =
+                              getEventByIAndUser(eventId, RestUtils.getCurrentUserIdentityId(identityManager), expandProperties);
+      if (eventEntity == null) {
         return Response.status(Status.NOT_FOUND).build();
       } else {
-        EventEntity eventEntity = EntityBuilder.fromEvent(agendaCalendarService, agendaEventService, identityManager, event);
-        long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
-        fillAttendees(eventEntity);
-        fillAttachments(eventEntity);
-        fillConferences(eventEntity);
-        fillReminders(eventEntity, userIdentityId);
-        if (isComputedOccurrence(eventEntity)) {
-          cleanupAttachedEntitiesIds(eventEntity);
-        }
         return Response.ok(eventEntity).build();
       }
     } catch (IllegalAccessException e) {
@@ -256,43 +269,7 @@ public class AgendaEventRest implements ResourceContainer {
 
     String currentUser = RestUtils.getCurrentUser();
     try {
-      checkCalendar(eventEntity);
-
-      List<EventAttendeeEntity> attendeeEntities = eventEntity.getAttendees();
-      List<EventAttendee> attendees = null;
-      if (attendeeEntities != null && !attendeeEntities.isEmpty()) {
-        attendees = new ArrayList<>();
-        for (EventAttendeeEntity attendeeEntity : attendeeEntities) {
-          IdentityEntity attendeeIdentity = attendeeEntity.getIdentity();
-          String attendeeIdString = RestUtils.getIdentityId(attendeeIdentity, identityManager);
-          if (StringUtils.isBlank(attendeeIdString)) {
-            throw new AgendaException(AgendaExceptionType.ATTENDEE_IDENTITY_NOT_FOUND);
-          }
-          attendeeIdentity.setId(attendeeIdString);
-          attendees.add(EntityBuilder.toEventAttendee(identityManager, attendeeEntity));
-        }
-      }
-
-      List<EventAttachmentEntity> attachmentEntities = eventEntity.getAttachments();
-      List<EventAttachment> attachments = attachmentEntities == null
-          || attachmentEntities.isEmpty() ? null
-                                          : attachmentEntities.stream()
-                                                              .map(EntityBuilder::toEventAttachment)
-                                                              .collect(Collectors.toList());
-      List<EventReminderEntity> reminderEntities = eventEntity.getReminders();
-      List<EventReminder> reminders = reminderEntities == null
-          || reminderEntities.isEmpty() ? null
-                                        : reminderEntities.stream()
-                                                          .map(EntityBuilder::toEventReminder)
-                                                          .collect(Collectors.toList());
-
-      agendaEventService.createEvent(EntityBuilder.toEvent(eventEntity),
-                                     attendees,
-                                     eventEntity.getConferences(),
-                                     attachments,
-                                     reminders,
-                                     eventEntity.isSendInvitation(),
-                                     currentUser);
+      createEvent(eventEntity, currentUser);
       return Response.noContent().build();
     } catch (IllegalAccessException e) {
       LOG.warn("User '{}' attempts to create an event in calendar '{}'", currentUser, eventEntity.getCalendar());
@@ -526,26 +503,34 @@ public class AgendaEventRest implements ResourceContainer {
 
   @Path("{eventId}/response/send")
   @GET
+  @Produces(MediaType.APPLICATION_JSON)
   @ApiOperation(
       value = "Send event invitation response for currently authenticated user (using token or effectively authenticated).",
-      httpMethod = "GET", response = Response.class
+      httpMethod = "GET",
+      produces = "application/json",
+      response = Response.class
   )
   @ApiResponses(
-      value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
+      value = {
+          @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
           @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
           @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
           @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
   )
-  public Response sendEventResponse(@ApiParam(value = "Event technical identifier", required = true) @PathParam(
-    "eventId"
-  ) long eventId,
-                                    @ApiParam(value = "User token to ", required = false) @QueryParam(
-                                      "token"
-                                    ) String token,
+  public Response sendEventResponse(
+                                    @ApiParam(value = "Event technical identifier", required = true) @PathParam(
+                                      "eventId"
+                                    ) long eventId,
+                                    @ApiParam(value = "Event occurrence identifier", required = true) @QueryParam(
+                                      "occurrenceId"
+                                    ) String occurrenceId,
                                     @ApiParam(
                                         value = "Response to event invitation. Possible values: ACCEPTED, DECLINED or TENTATIVE.",
                                         required = true
-                                    ) @QueryParam("response") String responseString) {
+                                    ) @QueryParam("response") String responseString,
+                                    @ApiParam(value = "User token to ", required = false) @QueryParam(
+                                      "token"
+                                    ) String token) {
     if (eventId <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
     }
@@ -562,6 +547,7 @@ public class AgendaEventRest implements ResourceContainer {
       Identity identity = null;
       if (StringUtils.isNotBlank(token)) {
         identity = agendaEventAttendeeService.decryptUserIdentity(eventId, token, response);
+        currentUser = identity.getRemoteId();
       } else if (StringUtils.isNotBlank(currentUser)) {
         identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, currentUser);
       }
@@ -569,8 +555,28 @@ public class AgendaEventRest implements ResourceContainer {
         return Response.status(Status.FORBIDDEN).build();
       }
       long identityId = Long.parseLong(identity.getId());
+      if (!agendaEventAttendeeService.isEventAttendee(eventId, identityId)) {
+        throw new IllegalAccessException("User " + currentUser + " isn't attendee of event with id " + eventId);
+      }
+
+      ZonedDateTime occurrenceIdDateTime = null;
+      if (StringUtils.isNotBlank(occurrenceId)) {
+        occurrenceIdDateTime = AgendaDateUtils.parseRFC3339ToZonedDateTime(occurrenceId);
+        Event occurrenceEvent = agendaEventService.getExceptionalOccurrenceEvent(eventId, occurrenceIdDateTime);
+        if (occurrenceEvent == null) { // Exceptional occurrence not yet created
+          EventEntity eventEntity = getEventByIAndUser(eventId, identityId, Collections.singletonList("all"));
+          if (eventEntity == null) {
+            throw new ObjectNotFoundException("Parent recurrent event with id " + eventId + " is not found");
+          }
+          if (eventEntity.getRecurrence() == null) {
+            throw new IllegalStateException("Event with id " + eventId + " is not a recurrent event");
+          }
+          occurrenceEvent = createEventOccurrence(eventEntity, occurrenceIdDateTime);
+        }
+        eventId = occurrenceEvent.getId();
+      }
       agendaEventAttendeeService.sendEventResponse(eventId, identityId, response);
-      return Response.noContent().build();
+      return getEventById(eventId, "attendees");
     } catch (ObjectNotFoundException e) {
       return Response.status(Status.NOT_FOUND).entity("Event not found").build();
     } catch (IllegalAccessException e) {
@@ -618,6 +624,87 @@ public class AgendaEventRest implements ResourceContainer {
     }
   }
 
+  private Event createEvent(EventEntity eventEntity, String currentUser) throws AgendaException, IllegalAccessException {
+    checkCalendar(eventEntity);
+
+    List<EventAttendeeEntity> attendeeEntities = eventEntity.getAttendees();
+    List<EventAttendee> attendees = null;
+    if (attendeeEntities != null && !attendeeEntities.isEmpty()) {
+      attendees = new ArrayList<>();
+      for (EventAttendeeEntity attendeeEntity : attendeeEntities) {
+        IdentityEntity attendeeIdentity = attendeeEntity.getIdentity();
+        String attendeeIdString = RestUtils.getIdentityId(attendeeIdentity, identityManager);
+        if (StringUtils.isBlank(attendeeIdString)) {
+          throw new AgendaException(AgendaExceptionType.ATTENDEE_IDENTITY_NOT_FOUND);
+        }
+        attendeeIdentity.setId(attendeeIdString);
+        attendees.add(EntityBuilder.toEventAttendee(identityManager, attendeeEntity));
+      }
+    }
+
+    List<EventAttachmentEntity> attachmentEntities = eventEntity.getAttachments();
+    List<EventAttachment> attachments = attachmentEntities == null
+        || attachmentEntities.isEmpty() ? null
+                                        : attachmentEntities.stream()
+                                                            .map(EntityBuilder::toEventAttachment)
+                                                            .collect(Collectors.toList());
+    List<EventReminderEntity> reminderEntities = eventEntity.getReminders();
+    List<EventReminder> reminders = reminderEntities == null
+        || reminderEntities.isEmpty() ? null
+                                      : reminderEntities.stream()
+                                                        .map(EntityBuilder::toEventReminder)
+                                                        .collect(Collectors.toList());
+
+    return agendaEventService.createEvent(EntityBuilder.toEvent(eventEntity),
+                                          attendees,
+                                          eventEntity.getConferences(),
+                                          attachments,
+                                          reminders,
+                                          eventEntity.isSendInvitation(),
+                                          currentUser);
+  }
+
+  private Event createEventOccurrence(EventEntity eventEntity, ZonedDateTime occurrenceId) throws AgendaException,
+                                                                                           IllegalAccessException,
+                                                                                           ObjectNotFoundException {
+    cleanupAttachedEntitiesIds(eventEntity);
+
+    List<EventAttendeeEntity> attendeeEntities = eventEntity.getAttendees();
+    List<EventAttendee> attendees = null;
+    if (attendeeEntities != null && !attendeeEntities.isEmpty()) {
+      attendees = new ArrayList<>();
+      for (EventAttendeeEntity attendeeEntity : attendeeEntities) {
+        IdentityEntity attendeeIdentity = attendeeEntity.getIdentity();
+        String attendeeIdString = RestUtils.getIdentityId(attendeeIdentity, identityManager);
+        if (StringUtils.isBlank(attendeeIdString)) {
+          throw new AgendaException(AgendaExceptionType.ATTENDEE_IDENTITY_NOT_FOUND);
+        }
+        attendeeIdentity.setId(attendeeIdString);
+        attendees.add(EntityBuilder.toEventAttendee(identityManager, attendeeEntity));
+      }
+    }
+
+    List<EventAttachmentEntity> attachmentEntities = eventEntity.getAttachments();
+    List<EventAttachment> attachments = attachmentEntities == null
+        || attachmentEntities.isEmpty() ? null
+                                        : attachmentEntities.stream()
+                                                            .map(EntityBuilder::toEventAttachment)
+                                                            .collect(Collectors.toList());
+    List<EventReminderEntity> reminderEntities = eventEntity.getReminders();
+    List<EventReminder> reminders = reminderEntities == null
+        || reminderEntities.isEmpty() ? null
+                                      : reminderEntities.stream()
+                                                        .map(EntityBuilder::toEventReminder)
+                                                        .collect(Collectors.toList());
+
+    return agendaEventService.createEventExceptionalOccurrence(eventEntity.getId(),
+                                                               attendees,
+                                                               eventEntity.getConferences(),
+                                                               attachments,
+                                                               reminders,
+                                                               occurrenceId);
+  }
+
   private void checkCalendar(EventEntity eventEntity) throws AgendaException {
     IdentityEntity identityEntity = eventEntity.getCalendar().getOwner();
 
@@ -633,6 +720,34 @@ public class AgendaEventRest implements ResourceContainer {
       eventEntity.setCalendar(EntityBuilder.fromCalendar(identityManager, calendar));
     } else {
       eventEntity.getCalendar().setId(calendar.getId());
+    }
+  }
+
+  private EventEntity getEventByIAndUser(long eventId,
+                                         long identityId,
+                                         List<String> expandProperties) throws IllegalAccessException {
+    Event event = agendaEventService.getEventById(eventId, identityId);
+    if (event == null) {
+      return null;
+    } else {
+      EventEntity eventEntity = EntityBuilder.fromEvent(agendaCalendarService, agendaEventService, identityManager, event);
+      long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+      if (expandProperties.contains("all") || expandProperties.contains("attendees")) {
+        fillAttendees(eventEntity);
+      }
+      if (expandProperties.contains("all") || expandProperties.contains("attachments")) {
+        fillAttachments(eventEntity);
+      }
+      if (expandProperties.contains("all") || expandProperties.contains("conferences")) {
+        fillConferences(eventEntity);
+      }
+      if (expandProperties.contains("all") || expandProperties.contains("reminders")) {
+        fillReminders(eventEntity, userIdentityId);
+      }
+      if (isComputedOccurrence(eventEntity)) {
+        cleanupAttachedEntitiesIds(eventEntity);
+      }
+      return eventEntity;
     }
   }
 

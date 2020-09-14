@@ -1,6 +1,6 @@
 import {toRFC3339} from './AgendaUtils.js';
 
-export function getEvents(query, ownerIds, attendeeIdentityId, start, end) {
+export function getEvents(query, ownerIds, attendeeIdentityId, start, end, expand) {
   if (typeof start === 'object') {
     start = toRFC3339(start);
     end = toRFC3339(end);
@@ -14,6 +14,10 @@ export function getEvents(query, ownerIds, attendeeIdentityId, start, end) {
 
   if (ownerIds && ownerIds.length) {
     params.ownerIds = ownerIds;
+  }
+
+  if (expand) {
+    params.expand = expand;
   }
 
   if (attendeeIdentityId) {
@@ -74,6 +78,22 @@ export function createEvent(event) {
   });
 }
 
+export function sendEventResponse(eventId, occurrenceId, response) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}/response/send?response=${response}&occurrenceId=${occurrenceId || ''}`, {
+    method: 'GET',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+  }).then((resp) => {
+    if (resp && resp.ok) {
+      return resp.json();
+    } else {
+      throw new Error('Error sending event response');
+    }
+  });
+}
+
 export function updateEvent(event) {
   event = Object.assign({}, event);
   event.calendar = Object.assign({}, event.calendar);
@@ -123,8 +143,8 @@ export function updateEvent(event) {
   });
 }
 
-export function getEventById(eventId) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}`, {
+export function getEventById(eventId, expand) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}?expand=${expand || ''}`, {
     method: 'GET',
     credentials: 'include',
   }).then((resp) => {

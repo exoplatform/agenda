@@ -1,8 +1,8 @@
 <template>
-  <v-card class="event-details">
+  <v-card flat class="event-details d-flex flex-column">
     <v-toolbar
       flat
-      class="event-details-header border-box-sizing">
+      class="event-details-header border-box-sizing flex-grow-0">
       <v-toolbar-title class="d-flex align-center">
         <span class="event-title px-2 text-truncate">
           {{ event.summary }}
@@ -55,18 +55,10 @@
             </v-list-item>
           </v-list>
         </v-menu>
-        <v-btn
-          class="my-auto mr-2"
-          color="grey"
-          icon
-          dark
-          @click="closeDialog">
-          <v-icon>mdi-close</v-icon>
-        </v-btn>
       </v-toolbar-items>
     </v-toolbar>
-    <v-divider />
-    <v-container class="event-details-body">
+    <v-divider class="flex-grow-0" />
+    <v-container class="event-details-body flex-grow-1">
       <v-row class="pa-5">
         <v-col>
           <v-row class="event-date align-center d-flex pb-5">
@@ -125,13 +117,15 @@
               </div>
             </div>
           </v-row>
-          <v-row class="event-external-agendas pb-5">
+          <v-row class="event-external-agendas align-center d-flex pb-5">
             <div class="alert alert-info mt-5 rounded-lg">
               <i class="uiIconInformation secondary--text"></i>
               {{ $t('agenda.details.calendar.synchronize') }}
             </div>
-            <div class="external-agendas-selector align-center pb-5">
-              <i class="uiIconConnect darkGreyIcon uiIcon32x32 pr-5"></i>
+          </v-row>
+          <v-row class="event-external-agendas align-center d-flex pb-5">
+            <i class="uiIconConnect darkGreyIcon uiIcon32x32 pr-5"></i>
+            <div class="external-agendas-selector align-center">
               <span>{{ $t('agenda.details.calendar.connectTo') }}</span>
               <select class="width-auto my-auto ml-4 pr-2 subtitle-1 ignore-vuetify-classes d-none d-sm-inline">
                 <option>{{ $t('agenda.details.calendar.google') }}</option>
@@ -141,12 +135,17 @@
             </div>
           </v-row>
         </v-col>
-        <v-col cols="1">
+        <v-col class="flex-grow-0">
           <v-divider vertical />
         </v-col>
-        <agenda-event-attendees :attendees="event.attendees" />
+        <agenda-event-attendees ref="agendaAttendees" :event="event" class="ml-10" />
       </v-row>
     </v-container>
+    <div class="d-flex flex-row flex-grow-0 ml-auto mx-md-10 my-2 mb-md-10">
+      <v-btn class="btn ml-auto" @click="closeDialog">
+        {{ $t('agenda.button.close') }}
+      </v-btn>
+    </div>
     <agenda-recurrent-event-delete-confirm-dialog
       v-if="event.occurrence"
       ref="deleteConfirmDialog"
@@ -217,7 +216,7 @@ export default {
       if (!this.event || !this.event.attendees || !this.event.attendees.length) {
         return 0;
       }
-      return this.event.attendees.filter(attendee => attendee && attendee.response === 'REFUSED').length;
+      return this.event.attendees.filter(attendee => attendee && attendee.response === 'DECLINED').length;
     },
     tentativeResponsesCount() {
       if (!this.event || !this.event.attendees || !this.event.attendees.length) {
@@ -240,7 +239,22 @@ export default {
       });
     },
   },
+  created() {
+    this.$root.$on('agenda-event-details-opened', this.reset);
+    this.$root.$on('agenda-event-response-sent', event => {
+      this.event.attendees = event.attendees;
+      if (event.id && !this.event.id) {
+        this.$root.$emit('refresh');
+      }
+      this.reset();
+    });
+  },
   methods: {
+    reset() {
+      if (this.$refs.agendaAttendees) {
+        this.$refs.agendaAttendees.reset();
+      }
+    },
     closeDialog() {
       this.$emit('close');
     },
