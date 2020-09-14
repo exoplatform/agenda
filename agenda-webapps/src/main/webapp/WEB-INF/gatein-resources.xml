@@ -16,6 +16,9 @@
         <path>/js/agenda.bundle.js</path>
       </script>
       <depends>
+        <module>commonVueComponents</module>
+      </depends>
+      <depends>
         <module>extensionRegistry</module>
       </depends>
       <depends>
