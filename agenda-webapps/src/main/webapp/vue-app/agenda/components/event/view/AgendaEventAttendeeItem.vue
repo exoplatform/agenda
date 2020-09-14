@@ -9,7 +9,7 @@
     <a :href="attendeeProfileLink" class="mr-5">
       {{ attendeeProfileDisplayName }}
     </a>
-    <i :class="`uiIcon-attendee-response-${attendee.response.toLowerCase()}`"></i>
+    <i :class="responseIconResponse"></i>
   </div>
 </template>
 <script>
@@ -21,14 +21,17 @@ export default {
     },
   },
   computed: {
-    attendeeProfileLink () {
+    responseIconResponse() {
+      return this.attendee && this.attendee.response && `uiIcon-attendee-response-${this.attendee.response.toLowerCase()}`;
+    },
+    attendeeProfileLink() {
       return this.attendee.identity.space ? this.attendee.identity.space.url : this.attendee.identity.profile ? this.attendee.identity.profile.urls : '';
     },
-    attendeeProfileAvatarUrl () {
+    attendeeProfileAvatarUrl() {
       return this.attendee.identity.space ? this.attendee.identity.space.avatarUrl : this.attendee.identity.profile ? this.attendee.identity.profile.avatar : '';
 
     },
-    attendeeProfileDisplayName () {
+    attendeeProfileDisplayName() {
       return this.attendee.identity.space ? this.attendee.identity.space.displayName : this.attendee.identity.profile ? this.attendee.identity.profile.fullname : '';
     },
   }

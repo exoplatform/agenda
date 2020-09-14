@@ -138,7 +138,10 @@
         <v-col class="flex-grow-0">
           <v-divider vertical />
         </v-col>
-        <agenda-event-attendees ref="agendaAttendees" :event="event" class="ml-10" />
+        <agenda-event-attendees
+          ref="agendaAttendees"
+          :event="event"
+          class="ml-10" />
       </v-row>
     </v-container>
     <div class="d-flex flex-row flex-grow-0 ml-auto mx-md-10 my-2 mb-md-10">
@@ -201,7 +204,7 @@ export default {
       return this.ownerProfile && (this.ownerProfile.displayName || this.ownerProfile.fullname || this.ownerProfile.fullName);
     },
     sameDayDates() {
-      return this.$agendaUtils.areDatesOnSameDay(this.event.startDate, this.event.endDate);
+      return this.event.startDate && this.event.endDate && this.$agendaUtils.areDatesOnSameDay(this.event.startDate, this.event.endDate);
     },
     eventYear() {
       return this.event.startDate.getFullYear();
