@@ -4,12 +4,6 @@
     class="flex"
     flat
     @submit="$emit('next-step')">
-    <v-alert
-      v-if="fieldError"
-      type="error"
-      class="text-center">
-      {{ fieldError }}
-    </v-alert>
     <div class="d-flex flex-column flex-md-row">
       <label class="float-left mt-5 mr-3 text-subtitle-1 d-none d-md-inline">
         {{ $t('agenda.label.create') }}
@@ -102,7 +96,10 @@
         </div>
         <div class="d-flex flex-row">
           <label class="switch-label-text mt-1 text-subtitle-1 font-weight-bold">{{ $t('agenda.enableInvitation') }}</label>
-          <v-switch v-model="event.allowAttendeeToInvite" class="mt-0 ml-4" />
+          <v-switch
+            v-model="event.allowAttendeeToInvite"
+            :disabled="event.allowAttendeeToUpdate"
+            class="mt-0 ml-4" />
         </div>
         <div class="d-flex flex-row font-weight-regular">
           {{ $t('agenda.enableInvitationDescription') }}
@@ -124,15 +121,17 @@ export default {
       default: () => null,
     },
   },
-  data() {
-    return {
-      notifications: [],
-      nbNotif: 0,
-      enablePermission: false,
-      enableInvitation: false,
-      error: null,
-      fieldError: '',
-    };
+  computed: {
+    allowAttendeeToUpdate() {
+      return this.event.allowAttendeeToUpdate;
+    },
+  },
+  watch: {
+    allowAttendeeToUpdate() {
+      if (this.allowAttendeeToUpdate) {
+        this.event.allowAttendeeToInvite = true;
+      }
+    },
   },
   created() {
     this.$root.$on('agenda-event-form-opened', () => {
