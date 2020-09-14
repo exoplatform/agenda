@@ -224,7 +224,7 @@ export default {
         this.event.end = this.$agendaUtils.toRFC3339(new Date());
       }
 
-      if (this.event.id || this.event.parent) {
+      if (this.event.id || this.event.occurrence) {
         this.allDay = this.event.allDay;
       } else {
         this.event.allDay = this.allDay;

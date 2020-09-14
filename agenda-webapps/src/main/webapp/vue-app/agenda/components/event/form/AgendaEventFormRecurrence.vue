@@ -118,6 +118,9 @@ export default {
           this.openCustomRecurrenceForm();
         } else if (this.recurrenceType === 'NO_REPEAT') {
           this.event.recurrence = null;
+          if (this.event.parent) {
+            this.event.parent.recurrence = null;
+          }
         } else {
           this.event.recurrence = {
             type: this.recurrenceType,
