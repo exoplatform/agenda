@@ -248,7 +248,7 @@ public class EntityMapper {
     EventRecurrenceFrequency frequency = EventRecurrenceFrequency.valueOf(recur.getFrequency());
     recurrence.setFrequency(frequency);
     recurrence.setInterval(recur.getInterval());
-    recurrence.setCount(recur.getCount());
+    recurrence.setCount(recur.getCount() > 0 ? recur.getCount() : 0);
     if (recur.getUntil() != null) {
       recurrence.setUntil(AgendaDateUtils.fromDate(recur.getUntil()));
     }
