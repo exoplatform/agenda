@@ -95,6 +95,16 @@
         </div>
       </div>
     </div>
+    <div class="d-flex flex-column flex-md-row">
+      <i class="uiIconAttach darkGreyIcon uiIcon32x32 my-3 mr-11"></i>
+      <a class="text-subtitle-1 font-weight-regular attach-file-link my-3" @click="openApp()"> {{ $t('agenda.attachFile') }}</a>
+    </div>
+    <exo-attachments
+      ref="attachmentsComponent"
+      v-model="event.attachments"
+      :space-id="currentSpace"
+      @HideAttachmentsDrawer="onHideAttachmentsDrawer"
+      @uploadingCountChanged="setUploadingCount" />
   </v-form>
 </template>
 
@@ -109,6 +119,12 @@ export default {
       type: Object,
       default: () => null,
     },
+  },
+  data() {
+    return {
+      uploading: false,
+      showAttachmentsDrawer: false,
+    };
   },
   computed: {
     allowAttendeeToUpdate() {
@@ -152,6 +168,15 @@ export default {
       }
 
       return true;
+    },
+    openApp() {
+      this.$refs.attachmentsComponent.toggleAttachmentsDrawer();
+    },
+    onHideAttachmentsDrawer(showAttachments) {
+      this.showAttachmentsDrawer = showAttachments;
+    },
+    setUploadingCount(uploadingCount) {
+      this.uploading = uploadingCount > 0;
     },
   }
 };
