@@ -40,7 +40,7 @@
             class="ignore-vuetify-classes my-3 location-event-input">
         </div>
         <div class="d-flex flex-row">
-          <v-flex class="flex-grow-0">
+          <v-flex class="flex-grow-0 mt-1">
             <i class="uiIconReminder darkGreyIcon uiIcon32x32 my-3 mr-11"></i>
           </v-flex>
           <agenda-event-form-reminders :event="event" />
@@ -71,7 +71,7 @@
       </div>
       <div class="d-flex flex-column flex-grow-1 event-form-body-right">
         <div class="d-flex flex-row">
-          <v-flex class="flex-grow-0 mr-2">
+          <v-flex class="flex-grow-0 mr-2 mt-1">
             <i class="uiIconGroup darkGreyIcon uiIcon32x32 my-3"></i>
           </v-flex>
           <agenda-event-form-attendees :event="event" />
