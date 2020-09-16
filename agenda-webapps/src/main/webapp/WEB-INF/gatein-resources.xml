@@ -43,6 +43,10 @@
       <depends>
         <module>iePolyfills</module>
       </depends>
+      <depends>
+        <module>ExoAttachmentsApp</module>
+        <as>attachmentsApp</as>
+      </depends>
     </module>
   </portlet>
 
