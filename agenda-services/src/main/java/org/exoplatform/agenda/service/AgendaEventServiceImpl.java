@@ -260,16 +260,20 @@ public class AgendaEventServiceImpl implements AgendaEventService {
         && parentEvent.getRecurrence().getOverallEnd().toLocalDate().isBefore(occurrenceId.toLocalDate())) {
       throw new IllegalStateException("Event with id " + eventId + " doesn't have an occurrence with id " + occurrenceId);
     }
+    occurrenceId = occurrenceId.withZoneSameInstant(ZoneOffset.UTC);
+
     Event exceptionalEvent = parentEvent.clone();
     exceptionalEvent.setId(0);
     exceptionalEvent.setParentId(parentEvent.getId());
     exceptionalEvent.setRecurrence(null);
     exceptionalEvent.setOccurrence(new EventOccurrence(occurrenceId, true));
     exceptionalEvent.setStart(exceptionalEvent.getStart()
+                                              .withZoneSameInstant(ZoneOffset.UTC)
                                               .withYear(occurrenceId.getYear())
                                               .withMonth(occurrenceId.getMonthValue())
                                               .withDayOfMonth(occurrenceId.getDayOfMonth()));
     exceptionalEvent.setEnd(exceptionalEvent.getEnd()
+                                            .withZoneSameInstant(ZoneOffset.UTC)
                                             .withYear(occurrenceId.getYear())
                                             .withMonth(occurrenceId.getMonthValue())
                                             .withDayOfMonth(occurrenceId.getDayOfMonth()));
