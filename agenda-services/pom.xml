@@ -8,7 +8,7 @@
   <artifactId>agenda-services</artifactId>
   <name>eXo Agenda - Services</name>
   <properties>
-    <exo.test.coverage.ratio>0.83</exo.test.coverage.ratio>
+    <exo.test.coverage.ratio>0.85</exo.test.coverage.ratio>
   </properties>
   <dependencies>
     <dependency>

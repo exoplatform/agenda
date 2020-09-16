@@ -30,26 +30,6 @@ import org.exoplatform.agenda.model.EventAttachment;
 public class AgendaEventAttachmentServiceTest extends BaseAgendaEventTest {
 
   @Test
-  public void testGetEventAttachmentDownloadLink() throws Exception { // NOSONAR
-    String eventAttachmentDownloadLink = agendaEventAttachmentService.generateEventAttachmentDownloadLink(500l);
-    assertNull(eventAttachmentDownloadLink);
-
-    ZonedDateTime start = ZonedDateTime.now().withNano(0);
-
-    boolean allDay = true;
-    String creatorUserName = testuser1Identity.getRemoteId();
-
-    Event event = newEventInstance(start, start, allDay);
-    event = createEvent(event.clone(), creatorUserName, testuser4Identity);
-
-    long eventId = event.getId();
-    List<EventAttachment> eventAttachments = agendaEventAttachmentService.getEventAttachments(eventId);
-    EventAttachment eventAttachment = eventAttachments.get(0);
-    eventAttachmentDownloadLink = agendaEventAttachmentService.generateEventAttachmentDownloadLink(eventAttachment.getId());
-    assertNotNull(eventAttachmentDownloadLink);
-  }
-
-  @Test
   public void testSaveEventAttachments() throws Exception { // NOSONAR
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
 

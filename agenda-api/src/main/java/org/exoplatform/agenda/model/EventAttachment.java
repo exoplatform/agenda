@@ -29,14 +29,8 @@ public class EventAttachment implements Cloneable {
 
   private long   eventId;
 
-  private String name;
-
-  private String mimeType;
-
-  private long   size;
-
   @Override
   public EventAttachment clone() { // NOSONAR
-    return new EventAttachment(id, fileId, eventId, name, mimeType, size);
+    return new EventAttachment(id, fileId, eventId);
   }
 }

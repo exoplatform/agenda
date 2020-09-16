@@ -329,10 +329,7 @@ public class EntityMapper {
   public static EventAttachment fromEntity(EventAttachmentEntity eventAttachmentEntity) {
     return new EventAttachment(eventAttachmentEntity.getId(),
                                eventAttachmentEntity.getFileId(),
-                               eventAttachmentEntity.getEvent().getId(),
-                               null,
-                               null,
-                               0);
+                               eventAttachmentEntity.getEvent().getId());
   }
 
   public static EventConference fromEntity(EventConferenceEntity eventConferenceEntity) {

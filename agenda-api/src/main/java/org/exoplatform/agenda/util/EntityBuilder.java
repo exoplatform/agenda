@@ -136,19 +136,9 @@ public class EntityBuilder {
   }
 
   public static EventAttachment toEventAttachment(EventAttachmentEntity attachmentEntity) {
-    return attachmentEntity.getUploadId() == null ? new EventAttachment(attachmentEntity.getId(),
-                                                                        attachmentEntity.getFileId(),
-                                                                        0l,
-                                                                        attachmentEntity.getName(),
-                                                                        attachmentEntity.getMimeType(),
-                                                                        attachmentEntity.getSize())
-                                                  : new EventAttachmentUpload(attachmentEntity.getId(),
-                                                                              attachmentEntity.getFileId(),
-                                                                              0l,
-                                                                              attachmentEntity.getName(),
-                                                                              attachmentEntity.getMimeType(),
-                                                                              attachmentEntity.getSize(),
-                                                                              attachmentEntity.getUploadId());
+    return new EventAttachment(attachmentEntity.getId(),
+                               attachmentEntity.getFileId(),
+                               0l);
   }
 
   public static EventAttendee toEventAttendee(IdentityManager identityManager,
@@ -175,14 +165,8 @@ public class EntityBuilder {
   }
 
   public static final EventAttachmentEntity fromEventAttachment(EventAttachment eventAttachment) {
-    String url = RestUtils.getBaseRestURI() + "/v1/agenda/events/attachment/" + eventAttachment.getId();
     return new EventAttachmentEntity(eventAttachment.getId(),
-                                     eventAttachment.getFileId(),
-                                     null,
-                                     url,
-                                     eventAttachment.getName(),
-                                     eventAttachment.getMimeType(),
-                                     eventAttachment.getSize());
+                                     eventAttachment.getFileId());
   }
 
   public static final EventReminderEntity fromEventReminder(EventReminder eventReminder) {
