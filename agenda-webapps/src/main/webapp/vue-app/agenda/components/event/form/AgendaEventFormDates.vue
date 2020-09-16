@@ -43,17 +43,17 @@
       @change="retrievePeriod">
       <template #event="{ event }">
         <div class="v-event-draggable">
-          <strong>{{ event.summary }}</strong>
           <div class="d-flex flex-nowrap v-event-draggable">
+            <strong>{{ event.summary }}</strong>
             <date-format
               :value="event.start"
-              :format="dateTimeFormat"
-              class="v-event-draggable" />
+              :format="timeFormat"
+              class="v-event-draggable ml-2" />
             <strong class="mx-2">-</strong>
             <date-format
               :value="event.end"
-              :format="dateTimeFormat"
-              class="v-event-draggable" />
+              :format="timeFormat"
+              class="v-event-draggable mr-2" />
           </div>
         </div>
         <div
@@ -92,6 +92,10 @@ export default {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    },
+    timeFormat: {
       hour: '2-digit',
       minute: '2-digit',
     },
@@ -168,8 +172,12 @@ export default {
     endDrag() {
       const eventToStore = this.dragEvent || this.createEvent;
       if (eventToStore.start) {
-        this.event.start = this.$agendaUtils.toRFC3339(eventToStore.start);
-        this.event.end = this.$agendaUtils.toRFC3339(eventToStore.end);
+        const timezoneDiff =  eXo.env.portal.timezoneOffset + new Date().getTimezoneOffset() * 60000;
+        const start = eventToStore.start + timezoneDiff;
+        const end = eventToStore.end + timezoneDiff;
+
+        this.event.start = this.$agendaUtils.toRFC3339(start);
+        this.event.end = this.$agendaUtils.toRFC3339(end);
         this.event.allDay = eventToStore.allDay;
       }
 
