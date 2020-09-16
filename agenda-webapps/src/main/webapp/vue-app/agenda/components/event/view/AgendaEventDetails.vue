@@ -206,9 +206,6 @@ export default {
     sameDayDates() {
       return this.event.startDate && this.event.endDate && this.$agendaUtils.areDatesOnSameDay(this.event.startDate, this.event.endDate);
     },
-    eventYear() {
-      return this.event.startDate.getFullYear();
-    },
     acceptedResponsesCount() {
       if (!this.event || !this.event.attendees || !this.event.attendees.length) {
         return 0;
