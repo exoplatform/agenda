@@ -63,6 +63,19 @@ export function createEvent(event) {
       };
     });
   }
+  const eventAttachment = [];
+  if (event.attachments && event.attachments.length) {
+    event.attachments.forEach(attachment => {
+      attachment.obj = {
+        mimeType : attachment.mimetype,
+        name : attachment.name,
+        size : attachment.size,
+        uploadId : attachment.uploadId,
+      };
+      eventAttachment.push(attachment.obj);
+    });
+  }
+  event.attachments = eventAttachment;
 
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events`, {
     method: 'POST',
