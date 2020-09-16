@@ -5,7 +5,7 @@
     dense>
     <agenda-create-event-button class="mr-2" />
     <v-spacer />
-    <agenda-switch-view :calendar-type="calendarType" />
+    <agenda-switch-view :agenda-period-type="agendaPeriodType" />
     <v-spacer />
     <select
       v-model="eventType"
@@ -26,8 +26,8 @@
     </v-btn>
     <v-btn
       icon
-      @click="$root.$emit('agenda-settings-drawer-open')">
-      <v-icon class="text-color">mdi-settings</v-icon>
+      @click="$root.$emit('user-settings-agenda-drawer-open')">
+      <v-icon>mdi-settings</v-icon>
     </v-btn>
   </v-toolbar>
 </template>
@@ -36,7 +36,7 @@
 <script>
 export default {
   props: {
-    calendarType: {
+    agendaPeriodType: {
       type: String,
       default: null
     },

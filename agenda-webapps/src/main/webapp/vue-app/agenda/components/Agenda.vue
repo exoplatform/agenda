@@ -2,16 +2,14 @@
   <v-app class="agenda-application border-box-sizing transparent" flat>
     <v-main class="pa-5">
       <agenda-header
-        :calendar-type="calendarType"
+        :agenda-period-type="settings.agendaDefaultView"
         :event-type="eventType"
         :current-space="currentSpace"
         :owner-ids="ownerIds"
         class="mb-5" />
       <agenda-body
         :events="events"
-        :period-title="periodTitle"
-        :calendar-type="calendarType"
-        :weekdays="weekdays" />
+        :period-title="periodTitle" />
       <agenda-event-dialog
         ref="eventFormDialog"
         :current-space="currentSpace"
@@ -20,18 +18,12 @@
       <agenda-filter-calendar-drawer
         :owner-ids="ownerIds"
         @changed="changeDisplayedOwnerIds" />
-      <agenda-settings-drawer />
+      <user-setting-agenda-drawer v-model="settings" />
     </v-main>
   </v-app>
 </template>
 <script>
 export default {
-  props: {
-    calendarType: {
-      type: String,
-      default: () => 'week',
-    },
-  },
   data: () => ({
     initialized: false,
     currentSpace: null,
@@ -46,6 +38,13 @@ export default {
       end: null,
     },
     events: [],
+    settings: {
+      agendaDefaultView: '',
+      agendaWeekStartOn: '',
+      showWorkingTime: '',
+      workingTimeStart: '',
+      workingTimeEnd: '',
+    },
     weekdays: [1, 2, 3, 4, 5, 6, 0],
   }),
   watch: {
@@ -71,7 +70,6 @@ export default {
       this.period = period;
       this.periodTitle = this.generateCalendarTitle(period);
     });
-    this.$root.$on('agenda-change-period-type', calendarType => this.calendarType = calendarType);
     this.$root.$on('agenda-search', searchTerm => this.searchTerm = searchTerm);
     this.$root.$on('refresh', this.retrieveEvents);
     this.$root.$on('agenda-event-type-changed', eventType => this.eventType = eventType);
@@ -80,6 +78,9 @@ export default {
   mounted() {
     document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
     this.spaceId = eXo.env.portal.spaceId;
+    this.$calendarService.getAgendaSettings().then(settings => {
+      this.settings = JSON.parse(settings.value);
+    });
   },
   methods: {
     retrieveEvents() {

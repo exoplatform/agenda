@@ -6,7 +6,9 @@
     :event-color="getEventColor"
     :event-timed="isEventTimed"
     :type="calendarType"
-    :weekdays="weekdays"
+    :weekdays="settings.agendaWeekStartOn"
+    :first-time="agendaStartTime"
+    :interval-count="agendaIntervalCount"
     event-name="summary"
     event-start="startDate"
     event-end="endDate"
@@ -28,18 +30,10 @@
 <script>
 export default {
   props: {
-    calendarType: {
-      type: String,
-      default: null
-    },
     events: {
       type: Array,
       default: null
-    },
-    weekdays: {
-      type: Array,
-      default: () => null
-    },
+    }
   },
   data: () => ({
     selectedDate: '',
@@ -47,6 +41,7 @@ export default {
     selectedElement: null,
     selectedOpen: false,
     currentTimeTop: null,
+    settings: {}
   }),
   computed: {
     nowTimeOptions() {
@@ -56,13 +51,25 @@ export default {
     currentTimeStyle() {
       return `top: ${this.currentTimeTop}px;`;
     },
+    agendaStartTime() {
+      return this.settings.showWorkingTime ? this.settings.workingTimeStart : '00:00';
+    },
+    agendaIntervalCount() {
+      return this.settings.showWorkingTime ? parseInt(this.settings.workingTimeEnd) - parseInt(this.settings.workingTimeStart) : '24';
+    },
+    calendarType() {
+      return this.settings && this.settings.agendaDefaultView;
+    }
   },
   watch: {
     calendarType() {
       this.scrollToTime();
-    },
+    }
   },
   mounted() {
+    this.$root.$on('agenda-settings-loaded',(settings) => {
+      this.settings = settings;
+    });
     this.$root.$on('agenda-display-calendar-atDate', date => {
       this.selectedDate = date || '';
     });
@@ -82,6 +89,7 @@ export default {
     });
     this.currentTimeTop = this.$refs.calendar.timeToY(this.nowTimeOptions);
     this.scrollToTime();
+    this.$root.$on('agenda-change-period-type', agendaPeriodType => this.settings.agendaDefaultView = agendaPeriodType);
   },
   methods:{
     scrollToTime() {

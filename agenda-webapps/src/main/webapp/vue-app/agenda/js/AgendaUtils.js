@@ -163,3 +163,4 @@ export function areDatesOnSameDay(firstDate, secondDate) {
   firstDate.getMonth() === secondDate.getMonth() &&
   firstDate.getDate() === secondDate.getDate();
 }
+

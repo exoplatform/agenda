@@ -3,8 +3,6 @@
     <agenda-toolbar :period-title="periodTitle" />
     <agenda-calendar
       :events="events"
-      :calendar-type="calendarType"
-      :weekdays="weekdays"
       class="flex-grow-1" />
   </v-flex>
 </template>
@@ -16,15 +14,7 @@ export default {
       type: String,
       default: () => null
     },
-    calendarType: {
-      type: String,
-      default: null
-    },
     events: {
-      type: Array,
-      default: () => null
-    },
-    weekdays: {
       type: Array,
       default: () => null
     },
