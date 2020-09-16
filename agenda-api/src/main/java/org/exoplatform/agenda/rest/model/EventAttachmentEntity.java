@@ -18,8 +18,6 @@ package org.exoplatform.agenda.rest.model;
 
 import java.io.Serializable;
 
-import org.exoplatform.ws.frameworks.json.impl.JsonGeneratorImpl;
-
 import lombok.*;
 
 @Data
@@ -33,36 +31,8 @@ public class EventAttachmentEntity implements Serializable, Cloneable {
 
   private String            fileId;
 
-  /**
-   * Generated ID used to upload a file when creating or editing an event where
-   * a new attachment is added. This ID will be used to retrieve File from
-   * UploadService. This field is made transient to avoid retrieve it in REST
-   * JSON Responses, see {@link JsonGeneratorImpl#createJsonObject(Object)}
-   */
-  private transient String  uploadId;
-
-  /**
-   * Download URL of file
-   */
-  private String            url;
-
-  /**
-   * File name
-   */
-  private String            name;
-
-  /**
-   * Mime typ of the file
-   */
-  private String            mimeType;
-
-  /**
-   * File size in bytes
-   */
-  private long              size;
-
   @Override
   public EventAttachmentEntity clone() {// NOSONAR
-    return new EventAttachmentEntity(id, fileId, uploadId, url, name, mimeType, size);
+    return new EventAttachmentEntity(id, fileId);
   }
 }

@@ -16,7 +16,6 @@
 */
 package org.exoplatform.agenda.rest;
 
-import java.net.URI;
 import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -584,42 +583,6 @@ public class AgendaEventRest implements ResourceContainer {
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error retrieving event reminders with id '{}'", eventId, e);
-      return Response.serverError().entity(e.getMessage()).build();
-    }
-  }
-
-  @Path("attachment/{attachmentId}")
-  @GET
-  @ApiOperation(value = "Download Event attachment", httpMethod = "GET", response = Response.class)
-  @ApiResponses(
-      value = { @ApiResponse(code = HTTPStatus.FOUND, message = "Temporary Redirect"),
-          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
-  )
-  public Response downloadAttachment(@ApiParam(value = "Event technical identifier", required = true) @PathParam(
-    "attachmentId"
-  ) long attachmentId) {
-    String currentUser = RestUtils.getCurrentUser();
-    try {
-      EventAttachment attachment = agendaEventAttachmentService.getEventAttachmentById(attachmentId);
-      if (attachment == null) {
-        return Response.status(Status.NOT_FOUND).build();
-      }
-      Event event = agendaEventService.getEventById(attachment.getEventId(), currentUser);
-      if (event == null) {
-        return Response.status(Status.NOT_FOUND).build();
-      }
-      String downloadLink = agendaEventAttachmentService.generateEventAttachmentDownloadLink(attachmentId);
-      if (StringUtils.isBlank(downloadLink)) {
-        return Response.status(Status.NOT_FOUND).build();
-      }
-      return Response.temporaryRedirect(new URI(downloadLink)).build();
-    } catch (IllegalAccessException e) {
-      LOG.warn("User '{}' attempts to access not authorized event attachment with Id '{}'", attachmentId, e);
-      return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
-    } catch (Exception e) {
-      LOG.warn("Error retrieving event attachment with Id '{}'", attachmentId, e);
       return Response.serverError().entity(e.getMessage()).build();
     }
   }

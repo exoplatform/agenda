@@ -1,18 +1,15 @@
 package org.exoplatform.agenda.service;
 
-import java.io.ByteArrayInputStream;
 import java.time.ZonedDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.TimeZone;
 
 import org.junit.After;
 import org.junit.Before;
 
 import org.exoplatform.agenda.constant.*;
 import org.exoplatform.agenda.model.*;
-import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
-import org.exoplatform.commons.file.model.FileItem;
-import org.exoplatform.commons.file.services.FileService;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
@@ -42,8 +39,6 @@ public abstract class BaseAgendaEventTest {
   protected IdentityManager                         identityManager;
 
   protected SpaceService                            spaceService;
-
-  protected FileService                             fileService;
 
   protected AgendaCalendarService                   agendaCalendarService;
 
@@ -87,7 +82,6 @@ public abstract class BaseAgendaEventTest {
     agendaEventAttachmentService = container.getComponentInstanceOfType(AgendaEventAttachmentService.class);
     agendaEventAttendeeService = container.getComponentInstanceOfType(AgendaEventAttendeeService.class);
     agendaEventReminderService = container.getComponentInstanceOfType(AgendaEventReminderService.class);
-    fileService = container.getComponentInstanceOfType(FileService.class);
     identityManager = container.getComponentInstanceOfType(IdentityManager.class);
     spaceService = container.getComponentInstanceOfType(SpaceService.class);
 
@@ -179,26 +173,10 @@ public abstract class BaseAgendaEventTest {
       EventConference conference = new EventConference(0, 0, "webrtc", "conf_uri", "+123456", "654321", "confDescription");
       CONFERENCES.add(conference);
 
-      byte[] bytesTest = "Test file content".getBytes();
-      ByteArrayInputStream inputStream = new ByteArrayInputStream(bytesTest);
-      FileItem fileItem = new FileItem(null,
-                                       "fileName",
-                                       "text/plain",
-                                       AgendaEventAttachmentServiceImpl.AGENDA_FILE_SERVICE_NS,
-                                       bytesTest.length,
-                                       new Date(),
-                                       "testuser1",
-                                       false,
-                                       inputStream);
-      fileItem = fileService.writeFile(fileItem);
       ATTACHMENTS.clear();
-      Long fileId = fileItem.getFileInfo().getId();
       EventAttachment eventAttachment = new EventAttachment(0,
-                                                            String.valueOf(fileId),
-                                                            0,
-                                                            fileItem.getFileInfo().getName(),
-                                                            fileItem.getFileInfo().getMimetype(),
-                                                            fileItem.getFileInfo().getSize());
+                                                            "1",
+                                                            0);
       ATTACHMENTS.add(eventAttachment);
 
       REMINDERS.clear();
