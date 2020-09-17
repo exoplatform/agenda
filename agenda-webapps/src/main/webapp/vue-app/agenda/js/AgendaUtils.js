@@ -70,7 +70,8 @@ export function getDayNameFromDate(date, lang) {
   } else {
     d = new Date();
   }
-  return d.toLocaleDateString(lang || 'en', options);
+  d = d.toLocaleDateString(lang || 'en', options);
+  return d.charAt(0).toUpperCase().concat(d.slice(1));
 }
 
 export function getDayNumberFromDate(date) {
@@ -91,7 +92,8 @@ export function getMonthFromDate(date, lang) {
   } else {
     d = new Date();
   }
-  return d.toLocaleDateString(lang || 'en', options);
+  d = d.toLocaleDateString(lang || 'en', options);
+  return d.charAt(0).toUpperCase().concat(d.slice(1));
 }
 
 export function getMonthNumberFromDate(date) {
