@@ -4,11 +4,9 @@
     flat
     dense>
     <agenda-create-event-button class="mr-2" />
-    <agenda-sync-event-button />
     <v-spacer />
     <agenda-switch-view :calendar-type="calendarType" />
     <v-spacer />
-    <agenda-search-event />
     <select
       v-model="eventType"
       class="width-auto my-auto ml-4 subtitle-1 ignore-vuetify-classes d-none d-sm-inline"
@@ -20,12 +18,12 @@
       icon
       class="ml-2"
       @click="$root.$emit('agenda-calendar-owners-drawer-open')">
-      <v-icon>mdi-format-list-bulleted</v-icon>
+      <i class="uiIcon uiIcon24x24 settingsIcon text-color"></i>
     </v-btn>
     <v-btn
       icon
       @click="$root.$emit('agenda-settings-drawer-open')">
-      <v-icon> mdi-settings</v-icon>
+      <v-icon class="text-color">mdi-settings</v-icon>
     </v-btn>
   </v-toolbar>
 </template>

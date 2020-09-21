@@ -55,6 +55,15 @@
             </v-list-item>
           </v-list>
         </v-menu>
+        <v-btn
+          class="my-auto mr-2"
+          color="grey"
+          icon
+          @click="closeDialog">
+          <v-icon>
+            mdi-close
+          </v-icon>
+        </v-btn>
       </v-toolbar-items>
     </v-toolbar>
     <v-divider class="flex-grow-0" />
@@ -96,13 +105,14 @@
               </template>
             </div>
           </v-row>
+          <agenda-event-recurrence :event="event" />
           <v-row v-if="event.location" class="event-location align-center d-flex pb-5">
-            <i class="uiIconLocation darkGreyIcon uiIcon32x32 pr-5"></i>
+            <i class="uiIconCheckin darkGreyIcon uiIcon32x32 pr-5"></i>
             <span>{{ event.location }}</span>
           </v-row>
           <v-row v-if="event.description" class="event-description d-flex pb-5">
             <i class="uiIconDescription darkGreyIcon uiIcon32x32 pr-5"></i>
-            <span>{{ event.description }}</span>
+            <span class="mt-1">{{ event.description }}</span>
           </v-row>
           <v-row
             v-if="event.attachments && event.attachments.length !== 0"
@@ -117,23 +127,6 @@
               </div>
             </div>
           </v-row>
-          <v-row class="event-external-agendas align-center d-flex pb-5">
-            <div class="alert alert-info mt-5 rounded-lg">
-              <i class="uiIconInformation secondary--text"></i>
-              {{ $t('agenda.details.calendar.synchronize') }}
-            </div>
-          </v-row>
-          <v-row class="event-external-agendas align-center d-flex pb-5">
-            <i class="uiIconConnect darkGreyIcon uiIcon32x32 pr-5"></i>
-            <div class="external-agendas-selector align-center">
-              <span>{{ $t('agenda.details.calendar.connectTo') }}</span>
-              <select class="width-auto my-auto ml-4 pr-2 subtitle-1 ignore-vuetify-classes d-none d-sm-inline">
-                <option>{{ $t('agenda.details.calendar.google') }}</option>
-                <option>{{ $t('agenda.details.calendar.office') }}</option>
-                <option>{{ $t('agenda.details.calendar.ics') }}</option>
-              </select>
-            </div>
-          </v-row>
         </v-col>
         <v-col class="flex-grow-0">
           <v-divider vertical />
@@ -144,10 +137,13 @@
           class="ml-10" />
       </v-row>
     </v-container>
-    <div class="d-flex flex-row flex-grow-0 ml-auto mx-md-10 my-2 mb-md-10">
-      <v-btn class="btn ml-auto" @click="closeDialog">
-        {{ $t('agenda.button.close') }}
-      </v-btn>
+    <v-divider />
+    <div class="d-flex">
+      <div class="flex-grow-1"></div>
+      <agenda-event-attendee-buttons
+        ref="eventAttendeeButtons"
+        :event="event"
+        class="flex-grow-0 my-6 mr-10" />
     </div>
     <agenda-recurrent-event-delete-confirm-dialog
       v-if="event.occurrence"
@@ -251,8 +247,8 @@ export default {
   },
   methods: {
     reset() {
-      if (this.$refs.agendaAttendees) {
-        this.$refs.agendaAttendees.reset();
+      if (this.$refs.eventAttendeeButtons) {
+        this.$refs.eventAttendeeButtons.reset();
       }
     },
     closeDialog() {
