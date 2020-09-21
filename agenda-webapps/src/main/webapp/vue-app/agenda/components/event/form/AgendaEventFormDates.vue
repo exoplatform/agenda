@@ -45,17 +45,17 @@
         <div class="v-event-draggable">
           <div class="d-flex flex-nowrap v-event-draggable">
             <strong>{{ event.summary }}</strong>
-            <date-format
-              v-if="!allDay"
-              :value="event.start"
-              :format="timeFormat"
-              class="v-event-draggable ml-2" />
-            <strong v-if="!allDay" class="mx-2">-</strong>
-            <date-format
-              v-if="!allDay"
-              :value="event.end"
-              :format="timeFormat"
-              class="v-event-draggable mr-2" />
+            <template v-if="!allDay">
+              <date-format
+                :value="event.start"
+                :format="timeFormat"
+                class="v-event-draggable ml-2" />
+              <strong class="mx-2">-</strong>
+              <date-format
+                :value="event.end"
+                :format="timeFormat"
+                class="v-event-draggable mr-2" />
+            </template>
           </div>
         </div>
         <div
