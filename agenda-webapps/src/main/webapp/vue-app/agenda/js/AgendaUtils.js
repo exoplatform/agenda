@@ -73,6 +73,15 @@ export function getDayNameFromDate(date, lang) {
   return d.toLocaleDateString(lang || 'en', options);
 }
 
+const DAYS_ABBREVIATIONS = ['SU', 'MO','TU','WE','TH','FR', 'SA'];
+
+export function getDayNameFromDayAbbreviation(day, lang) {
+  const date = new Date(1584226800000);
+  const dayNum = DAYS_ABBREVIATIONS.indexOf(day);
+  date.setDate(dayNum + 1);
+  return date.toLocaleDateString(lang || 'en', {weekday: 'long'});
+}
+
 export function getDayNumberFromDate(date) {
   let d = null;
   if (date) {
@@ -94,6 +103,13 @@ export function getMonthFromDate(date, lang) {
   return d.toLocaleDateString(lang || 'en', options);
 }
 
+export function getMonthNameFromMonthNumber(monthNumber, lang) {
+  const options = { month: 'long' };
+  const d = new Date();
+  d.setMonth(monthNumber);
+  return d.toLocaleDateString(lang || 'en', options);
+}
+
 export function getMonthNumberFromDate(date) {
   let d = null;
   if (date) {
@@ -101,7 +117,7 @@ export function getMonthNumberFromDate(date) {
   } else {
     d = new Date();
   }
-  return d.getMonth()+1;
+  return d.getMonth() + 1;
 }
 
 export function getDayOfYear(date) {

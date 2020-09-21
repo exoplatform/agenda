@@ -25,6 +25,9 @@
       width: 24px;
       height: 24px;
     }
+    .settingsIcon {
+      margin-bottom: 3px;
+    }
   }
 
   .event-form {
@@ -171,6 +174,10 @@
 }
 
 .event-details {
+  [class^="uiIcon"] {
+    height: 35px;
+  }
+  
   .event-details-header {
     .event-title {
       font-weight: bold;
@@ -178,14 +185,17 @@
       max-width: 50%;
     }
   }
+  .uiIconRefresh.uiIcon32x32:before {
+    color: @darkGrey !important;
+  }
 
   .event-details-body {
     .event-time {
-      .uiIconClock {
-        &:before {
-          font-size: 32px;
-          color: @darkGrey !important;
-        }
+      .uiIconClock.uiIcon32x32:before {
+        font-size: 26px;
+        margin-left: 2px;
+        margin-right: 2px;
+        color: @darkGrey !important;
       }
     }
 
@@ -202,32 +212,36 @@
         .userInfo {
           flex: 1 0 35%;
         }
-        .uiIcon-attendee-response {
+        .attendee-response {
           flex: 1 1 65%;
         }
-        .uiIcon-attendee-response-accepted {
+        .attendee-response-accepted {
           &:before {
+            font-family: "PLF-FONT-ICONS";
             content: '\e9c7';
             color: #3cb58c;
           }
         }
 
-        .uiIcon-attendee-response-declined {
+        .attendee-response-declined {
           &:before {
+            font-family: "PLF-FONT-ICONS";
             content: '\e75e';
             color: darkred;
           }
         }
 
-        .uiIcon-attendee-response-needs_action {
+        .attendee-response-needs_action {
           &:before {
+            font-family: "PLF-FONT-ICONS";
             content: '\ea0b';
             color: @primaryColor;
           }
         }
 
-        .uiIcon-attendee-response-tentative {
+        .attendee-response-tentative {
           &:before {
+            font-family: "PLF-FONT-ICONS";
             content: '\e76b';
             color: @greyColorLighten1Default;
           }

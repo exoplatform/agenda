@@ -7,7 +7,6 @@ import AgendaPreviewEventDialog from './components/calendar-body/AgendaPreviewEv
 
 import AgendaCreateEventButton from './components/top-toolbar/AgendaCreateEventButton.vue';
 import AgendaCalendarOwnersFilterDrawer from './components/top-toolbar/AgendaCalendarOwnersFilterDrawer.vue';
-import SyncEventButton from './components/top-toolbar/AgendaSyncEventButton.vue';
 
 import AgendaEventDialog from './components/event/AgendaEventDialog.vue';
 
@@ -16,7 +15,6 @@ import AgendaEventFormBasicInformation from './components/event/form/AgendaEvent
 import AgendaEventFormDates from './components/event/form/AgendaEventFormDates.vue';
 import AgendaEventFormReminders from './components/event/form/AgendaEventFormReminders.vue';
 import AgendaSwitchView from './components/top-toolbar/AgendaSwitchView.vue';
-import AgendaSearchEvent from './components/top-toolbar/AgendaSearchEvent.vue';
 import AgendaEventFormAttachments from './components/event/form/AgendaEventFormAttachments.vue';
 import AgendaEventFormAttachmentItem from './components/event/form/AgendaEventFormAttachmentItem.vue';
 import AgendaEventFormRecurrence from './components/event/form/AgendaEventFormRecurrence.vue';
@@ -27,6 +25,8 @@ import AgendaEventFormCalendarOwner from './components/event/form/AgendaEventFor
 import AgendaRecurrentEventSaveConfirmDialog from './components/event/form/AgendaRecurrentEventSaveConfirmDialog.vue';
 
 import AgendaEventDetails from './components/event/view/AgendaEventDetails.vue';
+import AgendaEventRecurrence from './components/event/view/AgendaEventRecurrence.vue';
+import AgendaEventAttendeeButtons from './components/event/view/AgendaEventAttendeeButtons.vue';
 import AgendaEventAttendees from './components/event/view/AgendaEventAttendees.vue';
 import AgendaEventAttendeeItem from './components/event/view/AgendaEventAttendeeItem.vue';
 import AgendaRecurrentEventDeleteConfirmDialog from './components/event/view/AgendaRecurrentEventDeleteConfirmDialog.vue';
@@ -45,21 +45,21 @@ const components = {
   'agenda-calendar': AgendaCalendar,
   'agenda-calendar-owners-filter-drawer': AgendaCalendarOwnersFilterDrawer,
   'agenda-create-event-button': AgendaCreateEventButton,
-  'agenda-sync-event-button':SyncEventButton,
   'agenda-event-dialog': AgendaEventDialog,
   'agenda-event-form': AgendaEventForm,
   'agenda-toolbar': AgendaToolbar,
   'agenda-event-preview-dialog': AgendaPreviewEventDialog,
   'agenda-switch-view': AgendaSwitchView,
-  'agenda-search-event': AgendaSearchEvent,
   'agenda-event-form-basic-information': AgendaEventFormBasicInformation,
   'agenda-event-form-dates': AgendaEventFormDates,
   'agenda-event-form-reminders': AgendaEventFormReminders,
   'agenda-event-form-attachments': AgendaEventFormAttachments,
   'agenda-event-form-attachment-item': AgendaEventFormAttachmentItem,
   'agenda-event-details': AgendaEventDetails,
+  'agenda-event-recurrence': AgendaEventRecurrence,
   'agenda-event-attendees': AgendaEventAttendees,
   'agenda-event-attendee-item': AgendaEventAttendeeItem,
+  'agenda-event-attendee-buttons': AgendaEventAttendeeButtons,
   'agenda-settings-drawer': AgendaSettingsDrawer,
   'agenda-calendars-tab': AgendaCalendarsTab,
   'agenda-calendars-item': AgendaCalendarsItem,
