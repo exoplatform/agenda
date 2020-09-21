@@ -24,6 +24,7 @@ import java.util.TimeZone;
 import org.apache.commons.lang.StringUtils;
 
 import org.exoplatform.agenda.model.*;
+import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
@@ -270,6 +271,15 @@ public class Utils {
     } catch (Exception e) {
       LOG.warn("Error broadcasting event '" + eventName + "' using source '" + source + "' and data " + data, e);
     }
+  }
+
+  public static Identity getIdentityById(long identityId) {
+    return getIdentityById(String.valueOf(identityId));
+  }
+
+  public static Identity getIdentityById(String identityId) {
+    IdentityManager identityManager = CommonsUtils.getService(IdentityManager.class);
+    return identityManager.getIdentity(identityId, true);
   }
 
 }

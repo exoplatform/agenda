@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.exoplatform.org/xml/ns/kernel_1_3.xsd http://www.exoplatform.org/xml/ns/kernel_1_3.xsd"
+  xmlns="http://www.exoplatform.org/xml/ns/kernel_1_3.xsd">
+  <external-component-plugins>
+    <target-component>org.exoplatform.services.listener.ListenerService</target-component>
+    <component-plugin>
+      <name>exo.addons.perkstore.order.new</name>
+      <set-method>addListener</set-method>
+      <type>org.exoplatform.agenda.listener.EventNotificationListener</type>
+    </component-plugin>
+  </external-component-plugins>
+    
+  <external-component-plugins>
+      <target-component>org.exoplatform.commons.api.notification.service.setting.PluginSettingService</target-component>
+      <component-plugin profiles="all">
+        <name>notification.groups</name>
+        <set-method>registerGroupConfig</set-method>
+        <type>org.exoplatform.commons.api.notification.plugin.GroupProviderPlugin</type>
+        <description>Perk store group</description>
+        <init-params>
+          <object-param>
+            <name>group.perkstore</name>
+            <description>The information of group perk store</description>
+            <object type="org.exoplatform.commons.api.notification.plugin.config.GroupConfig">
+              <field name="id">
+                <string>agenda</string>
+              </field>
+              <field name="resourceBundleKey">
+                <string>UINotification.label.group.Agenda</string>
+              </field>
+              <field name="order">
+                <string>300</string>
+              </field>
+            </object>
+          </object-param>
+        </init-params>
+      </component-plugin>
+  </external-component-plugins>
+    
+  <external-component-plugins>
+      <target-component>org.exoplatform.commons.api.notification.service.setting.PluginContainer</target-component>
+
+      <!-- New event notification plugin -->
+      <component-plugin>
+        <name>notification.plugins</name>
+        <set-method>addPlugin</set-method>
+        <type>org.exoplatform.agenda.notification.plugin.AgendaNotificationPlugin</type>
+        <init-params>
+          <value-param>
+            <name>notification.id</name>
+            <value>EventAddedNotificationPlugin</value>
+          </value-param>
+          <value-param>
+            <name>event.new</name>
+            <value>true</value>
+          </value-param>
+          <object-param>
+            <name>template.EventAddedNotificationPlugin</name>
+            <description>The template of EventAddedNotificationPlugin</description>
+            <object type="org.exoplatform.commons.api.notification.plugin.config.PluginConfig">
+              <field name="pluginId">
+                <string>EventAddedNotificationPlugin</string>
+              </field>
+              <field name="resourceBundleKey">
+                <string>UINotification.label.EventAddedNotificationPlugin</string>
+              </field>
+              <field name="order">
+                <string>1</string>
+              </field>
+              <field name="defaultConfig">
+                <collection type="java.util.ArrayList">
+                  <value>
+                    <string>Instantly</string>
+                  </value>
+                </collection>
+              </field>
+              <field name="groupId">
+                <string>agenda</string>
+              </field>
+              <field name="bundlePath">
+                <string>locale.notification.AgendaNotification</string>
+              </field>
+            </object>
+          </object-param>
+      </init-params>
+      </component-plugin>
+  </external-component-plugins>
+
+  <external-component-plugins>
+    <target-component>org.exoplatform.commons.api.notification.channel.ChannelManager</target-component>
+    <component-plugin>
+      <name>web.channel.agenda.template</name>
+      <set-method>registerTemplateProvider</set-method>
+      <type>org.exoplatform.agenda.notification.provider.WebTemplateProvider</type>
+      <init-params>
+        <value-param>
+          <name>channel-id</name>
+          <value>WEB_CHANNEL</value>
+        </value-param>
+      </init-params>
+    </component-plugin>
+  </external-component-plugins>
+</configuration>
