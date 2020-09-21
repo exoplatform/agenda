@@ -2,17 +2,16 @@
   <v-card flat class="d-flex flex-column">
     <v-stepper v-model="stepper" class="d-flex flex-grow-1 flex-column">
       <v-stepper-header class="flex-grow-0 no-box-shadow border-bottom-color border-box-sizing">
-        <v-stepper-step step="1" class="text-header-title">
-          <span class="primary--text font-weight-regular">
+        <v-stepper-step step="1">
+          <small class="primary--text title">
             {{ $t('agenda.stepEventDetails') }}
-          </span>
+          </small>
         </v-stepper-step>
         <v-divider />
         <v-stepper-step step="2">
-          <span :class="stepper > 1 && 'primary--text' || ''" class="text-header-title font-weight-regular">
+          <small class="title" :class="stepper > 1 && 'primary--text' || ''">
             {{ $t('agenda.stepEventChooseDate') }}
-          </span>
-          <span :class="stepper > 1 && 'primary--text' || ''" class="font-weight-light">{{ $t('agenda.stepEventMultipleChoose') }}</span>
+          </small>
         </v-stepper-step>
         <v-btn
           class="my-auto mr-2"
