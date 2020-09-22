@@ -107,11 +107,8 @@ export default {
     eventOwnerId() {
       return this.event && this.event.calendar && this.event.calendar.owner && this.event.calendar.owner.id;
     },
-    eventOwnerValid() {
-      return this.eventOwnerId;
-    },
     disableSaveButton() {
-      return this.saving || !this.eventTitleValid || !this.eventTitleValid;
+      return this.saving || !this.eventTitleValid || !this.eventOwnerId;
     },
     stepButtonLabel() {
       return this.stepper === 2 ? this.$t('agenda.button.save') : this.$t('agenda.button.continue');
