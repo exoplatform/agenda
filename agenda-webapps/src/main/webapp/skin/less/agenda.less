@@ -2,6 +2,25 @@
 
 .VuetifyApp {
 
+  .v-current-time.today {
+    height: 2px;
+    width: 100%;
+    background-color: #ea4335;
+    position: absolute;
+    pointer-events: none;
+
+    &::before {
+      content: '';
+      position: absolute;
+      background-color: #ea4335;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-top: -5px;
+      margin-left: -6.5px;
+    }
+  }
+
   .agenda-application {
     .agenda-body {
       height: ~"calc(100vh - 166px)";
