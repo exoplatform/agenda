@@ -22,6 +22,7 @@ import java.io.Writer;
 import static org.exoplatform.agenda.util.NotificationUtils.*;
 
 public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
+
   private static final Log           LOG = ExoLogger.getLogger(AgendaTemplateBuilder.class);
 
   private AgendaEventService agendaEventService;
@@ -32,47 +33,43 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
 
   private boolean                    isPushNotification;
 
-  private boolean                    isOrderNotification;
-
   private PluginKey                  key;
 
-  private boolean                    development;
+  private boolean          development;
 
-    public AgendaTemplateBuilder(TemplateProvider templateProvider, ExoContainer container, PluginKey key, boolean pushNotification) {
-        this(templateProvider, container, key, false, pushNotification);
-    }
+  public AgendaTemplateBuilder(TemplateProvider templateProvider,
+                               ExoContainer container,
+                               PluginKey key,
+                               boolean pushNotification) {
+    this.templateProvider = templateProvider;
+    this.container = container;
+    this.isPushNotification = pushNotification;
+    this.key = key;
+  }
 
-    public AgendaTemplateBuilder(TemplateProvider templateProvider, ExoContainer container, PluginKey key, boolean orderNotification, boolean pushNotification) {
-        this.templateProvider = templateProvider;
-        this.container = container;
-        this.isPushNotification = pushNotification;
-        this.isOrderNotification = orderNotification;
-        this.key = key;
-    }
-
-    @Override
+  @Override
   protected MessageInfo makeMessage(NotificationContext ctx) {
-        NotificationInfo notification = ctx.getNotificationInfo();
+    NotificationInfo notification = ctx.getNotificationInfo();
 
-        RequestLifeCycle.begin(container);
-        try {
-            Event event = getEvent(notification);
-            String notificationURL = getNotificationURL(event);
-            String pushNotificationURL = isPushNotification ? notificationURL : null;
+    RequestLifeCycle.begin(container);
+    try {
+      Event event = getEvent(notification);
+      String notificationURL = getNotificationURL(event);
+      String pushNotificationURL = isPushNotification ? notificationURL : null;
 
-            TemplateContext templateContext = buildTemplateParameters(templateProvider, notification, notificationURL);
-            MessageInfo messageInfo = buildMessageSubjectAndBody(templateContext, notification, pushNotificationURL);
-            Throwable exception = templateContext.getException();
-            logException(notification, exception);
-            ctx.setException(exception);
-            return messageInfo;
-        } catch (Throwable e) {
-            ctx.setException(e);
-            logException(notification, e);
-            return null;
-        } finally {
-            RequestLifeCycle.end();
-        }
+      TemplateContext templateContext = buildTemplateParameters(templateProvider, notification, notificationURL);
+      MessageInfo messageInfo = buildMessageSubjectAndBody(templateContext, notification, pushNotificationURL);
+      Throwable exception = templateContext.getException();
+      logException(notification, exception);
+      ctx.setException(exception);
+      return messageInfo;
+    } catch (Throwable e) {
+      ctx.setException(e);
+      logException(notification, e);
+      return null;
+    } finally {
+      RequestLifeCycle.end();
+    }
   }
 
   private void logException(NotificationInfo notification, Throwable e) {
