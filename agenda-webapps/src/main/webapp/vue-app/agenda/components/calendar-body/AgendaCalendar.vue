@@ -15,7 +15,14 @@
     @click:event="showEvent"
     @click:more="viewDay"
     @click:date="viewDay"
-    @change="retrievePeriodEvents" />
+    @change="retrievePeriodEvents">
+    <template #day-body="day">
+      <div
+        class="v-current-time"
+        :class="{ today: day.present }"
+        :style="currentTimeStyle"></div>
+    </template>
+  </v-calendar>
 </template>
 
 <script>
@@ -38,8 +45,23 @@ export default {
     selectedDate: '',
     selectedEvent: {},
     selectedElement: null,
-    selectedOpen: false
+    selectedOpen: false,
+    currentTimeTop: null,
   }),
+  computed: {
+    nowTimeOptions() {
+      const now = new Date();
+      return {hour: now.getHours(), minute: now.getMinutes()};
+    },
+    currentTimeStyle() {
+      return `top: ${this.currentTimeTop}px;`;
+    },
+  },
+  watch: {
+    calendarType() {
+      this.scrollToTime();
+    },
+  },
   mounted() {
     this.$root.$on('agenda-display-calendar-atDate', date => {
       this.selectedDate = date || '';
@@ -58,8 +80,20 @@ export default {
       });
       this.$forceUpdate();
     });
+    this.currentTimeTop = this.$refs.calendar.timeToY(this.nowTimeOptions);
+    this.scrollToTime();
   },
   methods:{
+    scrollToTime() {
+      this.$nextTick().then(() => {
+        const dailyScrollElement = document.querySelector('.v-calendar-daily__scroll-area');
+        if (dailyScrollElement) {
+          const scrollY = this.currentTimeTop - dailyScrollElement.offsetHeight / 2;
+          console.log(scrollY, this.currentTimeTop, dailyScrollElement.offsetHeight);
+          dailyScrollElement.scrollTo(0, scrollY);
+        }
+      });
+    },
     retrievePeriodEvents(range) {
       // In Vuetify, the 'start object' === 'end object',
       // this is a workaround to avoid changing end date
