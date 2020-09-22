@@ -7,6 +7,7 @@ import org.exoplatform.commons.api.notification.channel.template.TemplateProvide
 import org.exoplatform.container.ExoContainer;
 import org.exoplatform.container.xml.InitParams;
 
+import static org.exoplatform.agenda.util.NotificationUtils.AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN;
 import static org.exoplatform.agenda.util.NotificationUtils.EVENT_ADDED_KEY;
 
 @TemplateConfigs(templates = {
