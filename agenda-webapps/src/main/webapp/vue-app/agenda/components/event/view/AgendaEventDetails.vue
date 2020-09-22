@@ -48,11 +48,6 @@
                 {{ $t('agenda.details.header.menu.delete') }}
               </v-list-item-title>
             </v-list-item>
-            <v-list-item>
-              <v-list-item-title>
-                {{ $t('agenda.details.header.menu.export') }}
-              </v-list-item-title>
-            </v-list-item>
           </v-list>
         </v-menu>
         <v-btn
