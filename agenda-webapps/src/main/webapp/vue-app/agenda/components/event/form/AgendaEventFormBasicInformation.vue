@@ -83,16 +83,6 @@
         <div class="d-flex flex-row font-weight-regular">
           {{ $t('agenda.modifyEventPermissionDescription') }}
         </div>
-        <div class="d-flex flex-row">
-          <label class="switch-label-text mt-1 text-subtitle-1 font-weight-bold">{{ $t('agenda.enableInvitation') }}</label>
-          <v-switch
-            v-model="event.allowAttendeeToInvite"
-            :disabled="event.allowAttendeeToUpdate"
-            class="mt-0 ml-4" />
-        </div>
-        <div class="d-flex flex-row font-weight-regular">
-          {{ $t('agenda.enableInvitationDescription') }}
-        </div>
       </div>
     </div>
   </v-form>
