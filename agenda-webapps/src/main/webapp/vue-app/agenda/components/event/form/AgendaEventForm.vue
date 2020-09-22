@@ -34,6 +34,7 @@
         </v-stepper-content>
         <v-stepper-content step="2">
           <agenda-event-form-dates
+            v-if="stepper === 2"
             ref="eventDates"
             :event="event"
             :weekdays="weekdays"
@@ -156,7 +157,6 @@ export default {
       } else if (this.stepper === 1) {
         if (this.$refs.eventBasicInformation.validateForm()) {
           this.stepper++;
-          this.$refs.eventDates.resetEvents();
         }
       } else {
         this.stepper = 1;
