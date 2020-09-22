@@ -61,6 +61,12 @@
           class="v-event-drag-bottom"
           @mousedown.stop="extendBottom(event)"></div>
       </template>
+      <template #day-body="day">
+        <div
+          class="v-current-time"
+          :class="{ today: day.present }"
+          :style="currentTimeStyle"></div>
+      </template>
     </v-calendar>
   </v-flex>
 </template>
@@ -99,7 +105,18 @@ export default {
       hour: '2-digit',
       minute: '2-digit',
     },
+    currentTimeTop: null,
+    scrollToTimeTop: null,
   }),
+  computed: {
+    nowTimeOptions() {
+      const now = new Date();
+      return {hour: now.getHours(), minute: now.getMinutes()};
+    },
+    currentTimeStyle() {
+      return `top: ${this.currentTimeTop}px;`;
+    },
+  },
   watch: {
     allDay() {
       if (this.dragEvent) {
@@ -115,7 +132,26 @@ export default {
       }
     },
   },
+  mounted() {
+    this.currentTimeTop = this.$refs.calendar.timeToY(this.nowTimeOptions);
+    const now = this.event.start ? new Date(this.event.start) : new Date();
+    this.scrollToTimeTop = this.$refs.calendar.timeToY({
+      hour: now.getHours(),
+      minute: now.getMinutes(),
+    });
+    this.scrollToTime();
+    this.resetEvents();
+  },
   methods: {
+    scrollToTime() {
+      this.$nextTick().then(() => {
+        const dailyScrollElement = document.querySelector('.v-calendar-daily__scroll-area');
+        if (dailyScrollElement) {
+          const scrollY = this.scrollToTimeTop - dailyScrollElement.offsetHeight / 2;
+          dailyScrollElement.scrollTo(0, scrollY);
+        }
+      });
+    },
     startDrag({ event, timed }) {
       if (event && timed) {
         this.dragEvent = event;

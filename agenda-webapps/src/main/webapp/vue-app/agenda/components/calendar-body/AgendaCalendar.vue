@@ -89,7 +89,6 @@ export default {
         const dailyScrollElement = document.querySelector('.v-calendar-daily__scroll-area');
         if (dailyScrollElement) {
           const scrollY = this.currentTimeTop - dailyScrollElement.offsetHeight / 2;
-          console.log(scrollY, this.currentTimeTop, dailyScrollElement.offsetHeight);
           dailyScrollElement.scrollTo(0, scrollY);
         }
       });
