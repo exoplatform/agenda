@@ -13,15 +13,13 @@ import org.exoplatform.services.listener.Listener;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 
-import static org.exoplatform.agenda.util.NotificationUtils.EVENT_PARAMETER;
+import static org.exoplatform.agenda.util.NotificationUtils.*;
 
 @Asynchronous
 public class EventNotificationListener extends Listener<Event, Boolean> {
   private static final Log           LOG = ExoLogger.getLogger(EventNotificationListener.class);
 
   private ExoContainer               container;
-
-  private AgendaEventService agendaEventService;
 
   public EventNotificationListener(ExoContainer container) {
     this.container = container;
