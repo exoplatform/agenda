@@ -1,10 +1,11 @@
 <template>
-  <v-flex>
+  <v-flex class="d-flex flex-column agenda-body">
     <agenda-toolbar :period-title="periodTitle" />
     <agenda-calendar
       :events="events"
       :calendar-type="calendarType"
-      :weekdays="weekdays" />
+      :weekdays="weekdays"
+      class="flex-grow-1" />
   </v-flex>
 </template>
 
