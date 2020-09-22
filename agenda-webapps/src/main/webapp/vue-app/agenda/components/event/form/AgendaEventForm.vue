@@ -55,8 +55,8 @@
       <div class="ml-auto d-flex flex-row">
         <v-btn
           :loading="saving"
-          :disabled="saving"
-          color="primary"
+          :disabled="disableSaveButton"
+          class="btn btn-primary"
           @click="nextStep">
           {{ stepButtonLabel }}
         </v-btn>
@@ -97,6 +97,21 @@ export default {
     };
   },
   computed: {
+    eventTitle() {
+      return this.event && this.event.summary;
+    },
+    eventTitleValid() {
+      return this.eventTitle && this.eventTitle.length >= 5 && this.eventTitle.length < 1024;
+    },
+    eventOwnerId() {
+      return this.event && this.event.calendar && this.event.calendar.owner && this.event.calendar.owner.id;
+    },
+    eventOwnerValid() {
+      return this.eventOwnerId;
+    },
+    disableSaveButton() {
+      return this.saving || !this.eventTitleValid || !this.eventTitleValid;
+    },
     stepButtonLabel() {
       return this.stepper === 2 ? this.$t('agenda.button.save') : this.$t('agenda.button.continue');
     },
