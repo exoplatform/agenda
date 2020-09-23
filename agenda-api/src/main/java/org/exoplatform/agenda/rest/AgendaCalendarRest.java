@@ -70,7 +70,10 @@ public class AgendaCalendarRest implements ResourceContainer {
           @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
           @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
   )
-  public Response list(@ApiParam(value = "Identity technical identifier", required = false) @PathParam("ownerId") long ownerId,
+  public Response list(
+                       @ApiParam(value = "Limit of calendar owner identity ids to incluse in results", required = false) @QueryParam(
+                         "ownerIds"
+                       ) List<Long> ownerIds,
                        @ApiParam(value = "Whether return size of results or not", required = false, defaultValue = "false") @QueryParam("returnSize") boolean returnSize,
                        @ApiParam(value = "Offset of result", required = false, defaultValue = "0") @QueryParam(
                          "offset"
@@ -88,37 +91,40 @@ public class AgendaCalendarRest implements ResourceContainer {
     String currentUser = RestUtils.getCurrentUser();
     try {
       List<Calendar> calendars = null;
-      if (ownerId <= 0) {
+      if (ownerIds == null || ownerIds.isEmpty()) {
         calendars = agendaCalendarService.getCalendars(offset, limit, currentUser);
       } else {
-        calendars = agendaCalendarService.getCalendarsByOwnerId(ownerId, offset, limit, currentUser);
+        calendars = agendaCalendarService.getCalendarsByOwnerIds(ownerIds, currentUser);
       }
       CalendarList calendarList = new CalendarList();
-      List<CalendarEntity> calendarEntities = calendars.stream()
-                                                       .map(calendar -> EntityBuilder.fromCalendar(identityManager, calendar))
-                                                       .collect(Collectors.toList());
-      calendarList.setCalendars(calendarEntities);
-      if (returnSize && !calendars.isEmpty()) {
+      if (ownerIds != null && !ownerIds.isEmpty()) {
+        for (Long ownerId : ownerIds) {
+          boolean calendarNotFound = calendars.stream().noneMatch(calendar -> calendar.getOwnerId() == ownerId);
+          if (calendarNotFound) {
+            Calendar calendar = agendaCalendarService.createCalendarInstance(ownerId, currentUser);
+            calendars.add(calendar);
+          }
+        }
+      } else if (returnSize && !calendars.isEmpty()) {
         int returnedCalendarSize = calendars.size();
         // retieve count from DB only if the size of returned calendars equals
         // to the requested limit, in which case the calendar size may be
         // greater than limit
         if (returnedCalendarSize >= limit) {
-          int calendarCount = 0;
-          if (ownerId > 0) {
-            calendarCount = agendaCalendarService.countCalendarsByOwnerId(ownerId, currentUser);
-          } else {
-            calendarCount = agendaCalendarService.countCalendars(currentUser);
-          }
+          int calendarCount = agendaCalendarService.countCalendars(currentUser);
           calendarList.setSize(calendarCount);
         } else {
           calendarList.setSize(returnedCalendarSize);
         }
       }
+      List<CalendarEntity> calendarEntities = calendars.stream()
+                                                       .map(calendar -> EntityBuilder.fromCalendar(identityManager, calendar))
+                                                       .collect(Collectors.toList());
+      calendarList.setCalendars(calendarEntities);
 
       return Response.ok(calendarList).build();
     } catch (IllegalAccessException e) {
-      LOG.warn("User '{}' attempts to access not authorized calendar with owner Id '{}'", currentUser, ownerId);
+      LOG.warn("User '{}' attempts to access not authorized calendar with owner Ids '{}'", currentUser, ownerIds);
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error retrieving list of calendars", e);
@@ -241,8 +247,8 @@ public class AgendaCalendarRest implements ResourceContainer {
           @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
       )
       public Response deleteCalendar(@ApiParam(value = "Calendar technical identifier", required = true) @PathParam(
-        "calendarId"
-      ) long calendarId) {
+    "calendarId"
+  ) long calendarId) {
     if (calendarId <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Calendar technical identifier must be positive").build();
     }

@@ -1,12 +1,24 @@
-export function getCalendars(offset, limit, returnSize) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/calendars?offset=${offset}&limit=${limit}&returnSize=${returnSize && true || false}`, {
+export function getCalendars(offset, limit, returnSize, spaceIdentityIds) {
+  let params = {
+    offset: offset,
+    limit: limit,
+    returnSize: !!returnSize,
+  };
+
+  if (spaceIdentityIds && spaceIdentityIds.length) {
+    params.ownerIds = spaceIdentityIds;
+  }
+
+  params = $.param(params, true);
+
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/calendars?${params}`, {
     method: 'GET',
     credentials: 'include',
   }).then((resp) => {
-    if (!resp || !resp.ok) {
-      throw new Error('Error creating event');
-    } else {
+    if (resp && resp.ok) {
       return resp.json();
+    } else {
+      throw new Error('Error retrieving list of calendars');
     }
   });
 }
@@ -18,7 +30,7 @@ export function saveCalendar(calendar) {
     remoteId: calendar.owner.remoteId,
   };
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/calendars`, {
-    method: 'PUT',
+    method: calendar.id ? 'PUT' : 'POST',
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json'
@@ -26,7 +38,7 @@ export function saveCalendar(calendar) {
     body: JSON.stringify(calendar),
   }).then((resp) => {
     if (!resp || !resp.ok) {
-      throw new Error('Error updating calendar');
+      throw new Error('Error saving calendar');
     }
   });
 }
