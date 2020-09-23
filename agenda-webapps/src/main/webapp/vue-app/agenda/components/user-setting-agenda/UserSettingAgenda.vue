@@ -105,15 +105,14 @@ export default {
   methods: {
     refresh() {
       this.$calendarService.getAgendaSettings().then(settings => {
-          this.settings = JSON.parse(settings.value);
-        })
+        this.settings = JSON.parse(settings.value);
+      })
         .finally(() => {
           document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
           this.skeleton = false;
         });
     },
-    openDrawer()
-    {
+    openDrawer(){
       this.$refs.agendaDrawer.open();
     }
   }

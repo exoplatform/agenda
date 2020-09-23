@@ -6,7 +6,7 @@
     :event-color="getEventColor"
     :event-timed="isEventTimed"
     :type="calendarType"
-    :weekdays="settings.agendaWeekStartOn"
+    :weekdays="weekdays"
     :first-time="agendaStartTime"
     :interval-count="agendaIntervalCount"
     event-name="summary"
@@ -33,7 +33,19 @@ export default {
     events: {
       type: Array,
       default: null
-    }
+    },
+    calendarType: {
+      type: String,
+      default: null
+    },
+    weekdays: {
+      type: Array,
+      default: () => null
+    },
+    workingTime: {
+      type: Object,
+      default: () => null
+    },
   },
   data: () => ({
     selectedDate: '',
@@ -41,7 +53,6 @@ export default {
     selectedElement: null,
     selectedOpen: false,
     currentTimeTop: null,
-    settings: {}
   }),
   computed: {
     nowTimeOptions() {
@@ -52,24 +63,21 @@ export default {
       return `top: ${this.currentTimeTop}px;`;
     },
     agendaStartTime() {
-      return this.settings.showWorkingTime ? this.settings.workingTimeStart : '00:00';
+      return this.workingTime.showWorkingTime ? this.workingTime.workingTimeStart : '00:00';
     },
     agendaIntervalCount() {
-      return this.settings.showWorkingTime ? parseInt(this.settings.workingTimeEnd) - parseInt(this.settings.workingTimeStart) : '24';
-    },
-    calendarType() {
-      return this.settings && this.settings.agendaDefaultView;
+      return this.workingTime.showWorkingTime ? parseInt(this.workingTime.workingTimeEnd) - parseInt(this.workingTime.workingTimeStart) : '24';
     }
   },
   watch: {
     calendarType() {
       this.scrollToTime();
+    },
+    workingTime() {
+      this.scrollToTime();
     }
   },
   mounted() {
-    this.$root.$on('agenda-settings-loaded',(settings) => {
-      this.settings = settings;
-    });
     this.$root.$on('agenda-display-calendar-atDate', date => {
       this.selectedDate = date || '';
     });
@@ -87,15 +95,14 @@ export default {
       });
       this.$forceUpdate();
     });
-    this.currentTimeTop = this.$refs.calendar.timeToY(this.nowTimeOptions);
     this.scrollToTime();
-    this.$root.$on('agenda-change-period-type', agendaPeriodType => this.settings.agendaDefaultView = agendaPeriodType);
   },
   methods:{
     scrollToTime() {
       this.$nextTick().then(() => {
         const dailyScrollElement = document.querySelector('.v-calendar-daily__scroll-area');
         if (dailyScrollElement) {
+          this.currentTimeTop = this.$refs.calendar.timeToY(this.nowTimeOptions);
           const scrollY = this.currentTimeTop - dailyScrollElement.offsetHeight / 2;
           dailyScrollElement.scrollTo(0, scrollY);
         }

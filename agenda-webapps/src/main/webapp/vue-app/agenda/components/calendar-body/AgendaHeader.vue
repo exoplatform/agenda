@@ -5,7 +5,7 @@
     dense>
     <agenda-create-event-button class="mr-2" />
     <v-spacer />
-    <agenda-switch-view :agenda-period-type="agendaPeriodType" />
+    <agenda-switch-view :calendar-type="calendarType" />
     <v-spacer />
     <select
       v-model="eventType"
@@ -36,7 +36,7 @@
 <script>
 export default {
   props: {
-    agendaPeriodType: {
+    calendarType: {
       type: String,
       default: null
     },

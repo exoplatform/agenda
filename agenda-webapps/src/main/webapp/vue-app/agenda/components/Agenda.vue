@@ -2,14 +2,17 @@
   <v-app class="agenda-application border-box-sizing transparent" flat>
     <v-main class="pa-5">
       <agenda-header
-        :agenda-period-type="settings.agendaDefaultView"
+        :calendar-type="calendarType"
         :event-type="eventType"
         :current-space="currentSpace"
         :owner-ids="ownerIds"
         class="mb-5" />
       <agenda-body
         :events="events"
-        :period-title="periodTitle" />
+        :period-title="periodTitle"
+        :calendar-type="calendarType"
+        :weekdays="weekdays"
+        :working-time="workingTime" />
       <agenda-event-dialog
         ref="eventFormDialog"
         :current-space="currentSpace"
@@ -18,7 +21,7 @@
       <agenda-filter-calendar-drawer
         :owner-ids="ownerIds"
         @changed="changeDisplayedOwnerIds" />
-      <user-setting-agenda-drawer v-model="settings" />
+      <user-setting-agenda-drawer :settings="settings" />
     </v-main>
   </v-app>
 </template>
@@ -33,6 +36,7 @@ export default {
     searchTerm: null,
     eventType: 'myEvents',
     periodTitle: '',
+    calendarType: 'week',
     period: {
       start: null,
       end: null,
@@ -45,8 +49,19 @@ export default {
       workingTimeStart: '',
       workingTimeEnd: '',
     },
-    weekdays: [1, 2, 3, 4, 5, 6, 0],
   }),
+  computed: {
+    weekdays () {
+      return this.settings && this.$agendaUtils.getWeekSequenceFromDay(this.settings.agendaWeekStartOn);
+    },
+    workingTime () {
+      return {
+        showWorkingTime: this.settings.showWorkingTime,
+        workingTimeStart: this.settings.workingTimeStart,
+        workingTimeEnd: this.settings.workingTimeEnd
+      };
+    }
+  },
   watch: {
     eventType() {
       this.retrieveEvents();
@@ -70,6 +85,7 @@ export default {
       this.period = period;
       this.periodTitle = this.generateCalendarTitle(period);
     });
+    this.$root.$on('agenda-change-period-type', calendarType => this.calendarType = calendarType);
     this.$root.$on('agenda-search', searchTerm => this.searchTerm = searchTerm);
     this.$root.$on('refresh', this.retrieveEvents);
     this.$root.$on('agenda-event-type-changed', eventType => this.eventType = eventType);

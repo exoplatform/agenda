@@ -1,6 +1,6 @@
 <template>
   <v-tabs
-    v-model="agendaPeriodType"
+    v-model="calendarType"
     align-with-title
     centered
     class="text-capitalize">
@@ -18,15 +18,15 @@
 <script>
 export default {
   props: {
-    agendaPeriodType: {
+    calendarType: {
       type: String,
       default: null
     },
   },
   watch: {
-    agendaPeriodType(newValue, oldValue) {
+    calendarType(newValue, oldValue) {
       if (oldValue) {
-        this.$root.$emit('agenda-change-period-type', this.agendaPeriodType);
+        this.$root.$emit('agenda-change-period-type', this.calendarType);
       }
     },
   },

@@ -164,3 +164,24 @@ export function areDatesOnSameDay(firstDate, secondDate) {
   firstDate.getDate() === secondDate.getDate();
 }
 
+export function getWeekSequenceFromDay(day) {
+  switch (day) {
+  case 'MO':
+    return [1, 2, 3, 4, 5, 6, 0];
+  case 'TU':
+    return [2, 3, 4, 5, 6, 0, 1];
+  case 'WE':
+    return [3, 4, 5, 6, 0, 1, 2];
+  case 'TH':
+    return [4, 5, 6, 0, 1, 2, 3,];
+  case 'FR':
+    return [5, 6, 0, 1, 2, 3, 4];
+  case 'SA':
+    return [6, 0, 1, 2, 3, 4, 5];
+  case 'SU':
+    return [0, 1, 2, 3, 4, 5, 6];
+  default:
+    return [1, 2, 3, 4, 5, 6, 0];
+  }
+}
+
