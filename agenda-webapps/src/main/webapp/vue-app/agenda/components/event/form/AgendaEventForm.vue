@@ -104,11 +104,14 @@ export default {
     eventTitleValid() {
       return this.eventTitle && this.eventTitle.length >= 5 && this.eventTitle.length < 1024;
     },
-    eventOwnerId() {
-      return this.event && this.event.calendar && this.event.calendar.owner && this.event.calendar.owner.id;
+    eventOwner() {
+      return this.event && this.event.calendar && this.event.calendar.owner;
+    },
+    eventOwnerValid() {
+      return this.eventOwner && (this.eventOwner.id || this.eventOwner.remoteId && this.eventOwner.providerId);
     },
     disableSaveButton() {
-      return this.saving || !this.eventTitleValid || !this.eventOwnerId;
+      return this.saving || !this.eventTitleValid || !this.eventOwnerValid;
     },
     stepButtonLabel() {
       return this.stepper === 2 ? this.$t('agenda.button.save') : this.$t('agenda.button.continue');
