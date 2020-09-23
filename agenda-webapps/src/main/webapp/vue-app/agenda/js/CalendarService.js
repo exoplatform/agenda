@@ -43,8 +43,8 @@ export function saveCalendar(calendar) {
   });
 }
 
-export function saveAgendaSetting(contextKey, contextValue, scopeKey, scopeValue, key, value) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/settings/${contextKey},${contextValue}/${scopeKey},${scopeValue}/${key}`, {
+export function saveAgendaSettings(settingsValues) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/settings/USER,${eXo.env.portal.userName}/APPLICATION,Agenda/agendaSettings`, {
     method: 'PUT',
     credentials: 'include',
     headers: {
@@ -52,11 +52,11 @@ export function saveAgendaSetting(contextKey, contextValue, scopeKey, scopeValue
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      value: value,
+      value: JSON.stringify(settingsValues),
     }),
   }).then(resp => {
     if (!resp || !resp.ok) {
-      throw new Error('Response code indicates a server error', resp);
+      throw new Error('Error saving agenda settings', resp);
     }
   });
 }

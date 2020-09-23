@@ -37,7 +37,7 @@
           </div>
           <div class="d-flex flex-row align-baseline">
             <time-picker v-model="value.workingTimeStart" :disabled="!value.showWorkingTime" />
-            <label class="switch-label-text mx-5 text-subtitle-1" :class="{'disabled': !value.showWorkingTime}">{{ $t('agenda.settings.drawer.label.to') }}</label>
+            <label class="switch-label-text mx-5 text-subtitle-1" :class="{'disabled': !value.showWorkingTime}">{{ $t('agenda.label.to') }}</label>
             <time-picker v-model="value.workingTimeEnd" :disabled="!value.showWorkingTime" />
           </div>
         </v-layout>
@@ -50,13 +50,13 @@
           class="btn mr-2"
           @click="close">
           <template>
-            {{ $t('agenda.settings.drawer.button.cancel') }}
+            {{ $t('agenda.button.cancel') }}
           </template>
         </v-btn>
         <v-btn
           class="btn btn-primary"
           @click="save">
-          {{ $t('agenda.settings.drawer.button.save') }}
+          {{ $t('agenda.button.save') }}
         </v-btn>
       </div>
     </template>
@@ -83,19 +83,8 @@ export default {
     },
     save() {
       this.$refs.UserSettingAgendaDrawer.startLoading();
-      return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/settings/USER,${eXo.env.portal.userName}/APPLICATION,Agenda/agendaSettings`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          value: JSON.stringify(this.value),
-        }),
-      }).then(resp => {
-        if (resp && resp.ok) {
+      this.$calendarService.saveAgendaSettings(this.value).then(() => {
           this.$refs.UserSettingAgendaDrawer.close();
-        }
       })
         .then(() => {
           window.location.replace(window.location.href);

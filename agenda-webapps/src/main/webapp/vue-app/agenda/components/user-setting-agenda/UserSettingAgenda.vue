@@ -104,9 +104,7 @@ export default {
   },
   methods: {
     refresh() {
-      return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/settings/USER,${eXo.env.portal.userName}/APPLICATION,Agenda/agendaSettings`)
-        .then(resp => resp && resp.ok && resp.json())
-        .then(settings => {
+      this.$calendarService.getAgendaSettings().then(settings => {
           this.settings = JSON.parse(settings.value);
         })
         .finally(() => {
