@@ -1,9 +1,13 @@
 <template>
-  <input
-    v-model="query"
-    type="text"
-    class="agenda-calendar-filter-input input-large ignore-vuetify-classes"
-    :placeholder="$t('agenda.SearchCalendarPlaceholder')">
+  <v-scale-transition>
+    <v-text-field
+      v-model="query"
+      :placeholder="$t('agenda.SearchCalendarPlaceholder')"
+      :append-icon="appendIcon"
+      prepend-inner-icon="fa-filter"
+      class="agenda-calendar-filter-input pa-0 my-auto"
+      @click:append="query = null" />
+  </v-scale-transition>
 </template>
 
 <script>
@@ -21,6 +25,11 @@ export default {
     query: null,
     loading: false,
   }),
+  computed: {
+    appendIcon() {
+      return this.query && 'mdi-close' || null;
+    },
+  },
   watch: {
     query() {
       if (!this.query) {

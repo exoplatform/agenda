@@ -60,9 +60,13 @@ export default {
       type: Object,
       default: null,
     },
-    selected: {
-      type: Boolean,
-      default: false,
+    ownerIds: {
+      type: Array,
+      default: () => [],
+    },
+    selectedOwnerIds: {
+      type: Array,
+      default: () => [],
     },
   },
   data: () => ({
@@ -72,8 +76,14 @@ export default {
     checked: false,
   }),
   computed: {
+    selected() {
+      return this.selectedOwnerIds !== false && (!this.selectedOwnerIds.length || this.selectedOwnerIds.find(ownerId => ownerId === this.calendarOwnerId));
+    },
+    calendarOwnerId() {
+      return Number(this.calendar.owner.id);
+    },
     calendarMenuId() {
-      return `settingsMenu${this.calendar.owner.id}`;
+      return `settingsMenu${this.calendarOwnerId}`;
     },
     calendarColor() {
       return this.calendar.color;
@@ -113,11 +123,22 @@ export default {
   },
   methods: {
     changeSelection() {
-      if (this.selected) {
-        this.$emit('unselect-calendar');
-      } else {
-        this.$emit('select-calendar');
+      if (this.selectedOwnerIds) {
+        if (this.selected) {
+          if (this.selectedOwnerIds && !this.selectedOwnerIds.length) {
+            this.selectedOwnerIds = this.ownerIds.slice();
+          }
+          const index = this.selectedOwnerIds.findIndex(ownerId => ownerId === this.calendarOwnerId);
+          if (index >= 0) {
+            this.selectedOwnerIds.splice(index, 1);
+          }
+        } else {
+          this.selectedOwnerIds.push(this.calendarOwnerId);
+        }
+      } else if (!this.selected) {
+        this.selectedOwnerIds = [this.calendarOwnerId];
       }
+      this.$emit('changeSelection', this.selectedOwnerIds);
     },
     reset() {
       this.selectedCalendarColor = this.calendar.color;

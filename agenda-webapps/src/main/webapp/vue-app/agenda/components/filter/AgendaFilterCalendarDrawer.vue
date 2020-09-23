@@ -46,6 +46,7 @@ export default {
   data: () => ({
     drawer: false,
     selectedOwnerIds: [],
+    appliedOwnerIds: [],
   }),
   computed: {
     applyButtonDisabled() {
@@ -63,6 +64,7 @@ export default {
   },
   methods: {
     applyFilters() {
+      this.appliedOwnerIds = this.selectedOwnerIds;
       this.$emit('changed', this.selectedOwnerIds);
       this.close();
     },
@@ -70,6 +72,7 @@ export default {
       this.$refs.calendarOwnersFilters.close();
     },
     open() {
+      this.selectedOwnerIds = this.appliedOwnerIds;
       this.$refs.calendarOwnersFilters.open();
       this.$nextTick().then(() => {
         this.$refs.filterCalendarList.reset();
