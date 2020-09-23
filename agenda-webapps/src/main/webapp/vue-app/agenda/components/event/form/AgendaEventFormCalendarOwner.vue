@@ -5,6 +5,7 @@
     v-model="calendarOwner"
     :labels="calendarSuggesterLabels"
     :include-users="false"
+    :disabled="currentSpace"
     name="calendarOwnerAutocomplete"
     class="user-suggester"
     include-spaces />
