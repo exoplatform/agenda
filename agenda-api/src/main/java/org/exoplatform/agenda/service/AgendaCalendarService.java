@@ -20,6 +20,7 @@ import java.util.List;
 
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.social.core.identity.model.Identity;
 
 public interface AgendaCalendarService {
 
@@ -36,22 +37,6 @@ public interface AgendaCalendarService {
   List<Calendar> getCalendars(int offset, int limit, String username) throws Exception; // NOSONAR
 
   /**
-   * Retrieve list of calendars for a designated user
-   * 
-   * @param ownerId calendar owner technical identity identifier
-   * @param offset Offset of the search
-   * @param limit Limit of results to retrieve
-   * @param username User name accessing calendars
-   * @return {@link List} of {@link Calendar}
-   * @throws IllegalAccessException when user is not authorized to delete the
-   *           calendar
-   */
-  List<Calendar> getCalendarsByOwnerId(long ownerId,
-                                       int offset,
-                                       int limit,
-                                       String username) throws IllegalAccessException;
-
-  /**
    * Count available calendars for a designated user
    * 
    * @param username User name accessing calendars
@@ -59,17 +44,6 @@ public interface AgendaCalendarService {
    * @throws Exception when an error occurs while accessing database
    */
   int countCalendars(String username) throws Exception; // NOSONAR
-
-  /**
-   * Count available calendars for a designated user
-   * 
-   * @param ownerId calendar owner technical identity identifier
-   * @param username User name accessing calendars
-   * @return count of available calendars
-   * @throws IllegalAccessException when user is not authorized to delete the
-   *           calendar
-   */
-  int countCalendarsByOwnerId(long ownerId, String username) throws IllegalAccessException;
 
   /**
    * Retrieves a calendar identified by its technical identifier.
@@ -97,6 +71,16 @@ public interface AgendaCalendarService {
   Calendar getOrCreateCalendarByOwnerId(long ownerId);
 
   /**
+   * @param ownerIds {@link List} of {@link Identity} technical identifier
+   * @param username User accessing list of calendars
+   * @return {@link List} {@link Calendar} corresponding to calendar objects of
+   *         owners.
+   * @throws IllegalAccessException when user doesn't have acces to one of the
+   *           calendars
+   */
+  List<Calendar> getCalendarsByOwnerIds(List<Long> ownerIds, String username) throws IllegalAccessException;
+
+  /**
    * Creates a new calendar
    * 
    * @param calendar {@link Calendar} object to create
@@ -114,6 +98,25 @@ public interface AgendaCalendarService {
    * @return created {@link Calendar} with generated technical identifier
    */
   Calendar createCalendar(Calendar calendar);
+
+  /**
+   * Create new {@link Calendar} object instance
+   * 
+   * @param ownerId {@link Identity} technical id of the {@link Calendar}
+   * @return {@link Calendar} object instance
+   */
+  Calendar createCalendarInstance(long ownerId);
+
+  /**
+   * Create new {@link Calendar} object instance
+   * 
+   * @param ownerId {@link Identity} technical id of the {@link Calendar}
+   * @param username user accessing {@link Calendar}
+   * @return {@link Calendar} object instance
+   * @throws IllegalAccessException when user is not authorized to access
+   *           calendar of the designated owner
+   */
+  Calendar createCalendarInstance(long ownerId, String username) throws IllegalAccessException;
 
   /**
    * Updates an existing calendar

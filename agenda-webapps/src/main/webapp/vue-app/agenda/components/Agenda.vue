@@ -4,6 +4,7 @@
       <agenda-header
         :calendar-type="calendarType"
         :event-type="eventType"
+        :current-space="currentSpace"
         class="mb-5" />
       <agenda-body
         :events="events"
@@ -15,7 +16,7 @@
         :current-space="currentSpace"
         :weekdays="weekdays" />
       <agenda-event-preview-dialog />
-      <agenda-calendar-owners-filter-drawer
+      <agenda-filter-calendar-drawer
         :owner-ids="ownerIds"
         @changed="changeDisplayedOwnerIds" />
       <agenda-settings-drawer />
@@ -77,6 +78,7 @@ export default {
   },
   mounted() {
     document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
+    this.spaceId = eXo.env.portal.spaceId;
   },
   methods: {
     retrieveEvents() {

@@ -6,7 +6,11 @@ import AgendaToolbar from './components/calendar-body/AgendaToolbar.vue';
 import AgendaPreviewEventDialog from './components/calendar-body/AgendaPreviewEventDialog.vue';
 
 import AgendaCreateEventButton from './components/top-toolbar/AgendaCreateEventButton.vue';
-import AgendaCalendarOwnersFilterDrawer from './components/top-toolbar/AgendaCalendarOwnersFilterDrawer.vue';
+
+import AgendaFilterCalendarDrawer from './components/filter/AgendaFilterCalendarDrawer.vue';
+import AgendaFilterCalendarList from './components/filter/AgendaFilterCalendarList.vue';
+import AgendaFilterCalendarItem from './components/filter/AgendaFilterCalendarItem.vue';
+import AgendaFilterCalendarSearch from './components/filter/AgendaFilterCalendarSearch.vue';
 
 import AgendaEventDialog from './components/event/AgendaEventDialog.vue';
 
@@ -34,7 +38,6 @@ import AgendaRecurrentEventResponseConfirmDialog from './components/event/view/A
 
 import AgendaSettingsDrawer from './components/settings/AgendaSettingsDrawer.vue';
 import AgendaCalendarsTab from './components/settings/AgendaCalendarsTab.vue';
-import AgendaCalendarsItem from './components/settings/AgendaCalendarsItem.vue';
 import AgendaSettingsTab from './components/settings/AgendaSettingsTab.vue';
 import AgendaSyncTab from './components/settings/AgendaSyncTab.vue';
 
@@ -43,7 +46,10 @@ const components = {
   'agenda-header': AgendaHeader,
   'agenda-body': AgendaBody,
   'agenda-calendar': AgendaCalendar,
-  'agenda-calendar-owners-filter-drawer': AgendaCalendarOwnersFilterDrawer,
+  'agenda-filter-calendar-drawer': AgendaFilterCalendarDrawer,
+  'agenda-filter-calendar-list': AgendaFilterCalendarList,
+  'agenda-filter-calendar-item': AgendaFilterCalendarItem,
+  'agenda-filter-calendar-search': AgendaFilterCalendarSearch,
   'agenda-create-event-button': AgendaCreateEventButton,
   'agenda-event-dialog': AgendaEventDialog,
   'agenda-event-form': AgendaEventForm,
@@ -62,7 +68,6 @@ const components = {
   'agenda-event-attendee-buttons': AgendaEventAttendeeButtons,
   'agenda-settings-drawer': AgendaSettingsDrawer,
   'agenda-calendars-tab': AgendaCalendarsTab,
-  'agenda-calendars-item': AgendaCalendarsItem,
   'agenda-settings-tab': AgendaSettingsTab,
   'agenda-sync-tab': AgendaSyncTab,
   'agenda-recurrent-event-delete-confirm-dialog': AgendaRecurrentEventDeleteConfirmDialog,
