@@ -1010,18 +1010,12 @@ public class AgendaCalendarServiceTest {
   }
 
   @Test
-  public void testGetCalendarsByOwnerId() throws Exception { // NOSONAR
+  public void testGetCalendarsByOwnerIds() throws Exception { // NOSONAR
     String username = "testuser";
 
     // 0. Arguments validation
     try {
-      agendaCalendarService.getCalendarsByOwnerId(0, 0, 10, username);
-      fail("shouldn't allow to retrieve calendars list with invalid owner id");
-    } catch (IllegalArgumentException e) {
-      // Expected
-    }
-    try {
-      agendaCalendarService.getCalendarsByOwnerId(1, 0, 10, null);
+      agendaCalendarService.getCalendarsByOwnerIds(Collections.singletonList(1l), null);
       fail("shouldn't allow to retrieve calendars list with null username");
     } catch (IllegalArgumentException e) {
       // Expected
@@ -1029,7 +1023,7 @@ public class AgendaCalendarServiceTest {
 
     // 1. Test with inexistant user
     try {
-      agendaCalendarService.getCalendarsByOwnerId(1, 0, 10, "fakeUser");
+      agendaCalendarService.getCalendarsByOwnerIds(Collections.singletonList(1l), "fakeUser");
       fail("Shouldn't allow to retrieve calendars list with inexistant username");
     } catch (IllegalStateException e) {
       // Expected
@@ -1050,13 +1044,6 @@ public class AgendaCalendarServiceTest {
     when(identityManager.getIdentity(eq(String.valueOf(anotherCalendarOwnerId)))).thenReturn(anotherCalendarOwnerIdentity);
     when(identityManager.getOrCreateIdentity(eq(OrganizationIdentityProvider.NAME),
                                              eq(anotherUser))).thenReturn(anotherCalendarOwnerIdentity);
-
-    try {
-      agendaCalendarService.getCalendarsByOwnerId(anotherCalendarOwnerId, 0, 10, username);
-      fail("Shouldn't allow to retrieve calendars list of another user");
-    } catch (IllegalAccessException e) {
-      // Expected
-    }
 
     // 3. Retrieve calendars with pagination
     when(agendaCalendarStorage.getCalendarIdsByOwnerIds(anyInt(), anyInt(), anyVararg())).thenAnswer(new Answer<List<Long>>() {
@@ -1090,67 +1077,9 @@ public class AgendaCalendarServiceTest {
       }
     });
 
-    List<Calendar> calendars = agendaCalendarService.getCalendarsByOwnerId(calendarOwnerId, 0, 10, username);
-    assertNotNull(calendars);
-    assertEquals(10, calendars.size());
-
-    calendars = agendaCalendarService.getCalendarsByOwnerId(calendarOwnerId, 0, 50, username);
+    List<Calendar> calendars = agendaCalendarService.getCalendarsByOwnerIds(Collections.singletonList(calendarOwnerId), username);
     assertNotNull(calendars);
     assertEquals(45, calendars.size());
-  }
-
-  @Test
-  public void testCountCalendarsByOwnerId() throws Exception { // NOSONAR
-    // 0. Arguments validation
-    try {
-      agendaCalendarService.countCalendarsByOwnerId(1, null);
-      fail("shouldn't allow to count calendars for null user");
-    } catch (IllegalArgumentException e) {
-      // Expected
-    }
-    try {
-      agendaCalendarService.countCalendarsByOwnerId(0, "user");
-      fail("shouldn't allow to count calendars for null user");
-    } catch (IllegalArgumentException e) {
-      // Expected
-    }
-
-    // 1. Test with inexistant user
-    try {
-      agendaCalendarService.countCalendarsByOwnerId(1, "fakeUser");
-      fail("Shouldn't allow to count calendars for inexistant username");
-    } catch (IllegalStateException e) {
-      // Expected
-    }
-
-    // 2. Try to count calendars of another user
-    String username = "testuser";
-    long calendarOwnerId = 2;
-    Identity calendarOwnerIdentity = new Identity(OrganizationIdentityProvider.NAME, username);
-    calendarOwnerIdentity.setId(String.valueOf(calendarOwnerId));
-    when(identityManager.getIdentity(eq(String.valueOf(calendarOwnerId)))).thenReturn(calendarOwnerIdentity);
-    when(identityManager.getOrCreateIdentity(eq(OrganizationIdentityProvider.NAME),
-                                             eq(username))).thenReturn(calendarOwnerIdentity);
-
-    long anotherCalendarOwnerId = 3;
-    String anotherUser = "username2";
-    Identity anotherCalendarOwnerIdentity = new Identity(OrganizationIdentityProvider.NAME, anotherUser);
-    anotherCalendarOwnerIdentity.setId(String.valueOf(anotherCalendarOwnerId));
-    when(identityManager.getIdentity(eq(String.valueOf(anotherCalendarOwnerId)))).thenReturn(anotherCalendarOwnerIdentity);
-    when(identityManager.getOrCreateIdentity(eq(OrganizationIdentityProvider.NAME),
-                                             eq(anotherUser))).thenReturn(anotherCalendarOwnerIdentity);
-
-    try {
-      agendaCalendarService.countCalendarsByOwnerId(anotherCalendarOwnerId, username);
-      fail("Shouldn't allow to count calendars of another user");
-    } catch (IllegalAccessException e) {
-      // Expected
-    }
-
-    // 3. Count calendars for a user
-    when(agendaCalendarStorage.countCalendarsByOwners(eq(calendarOwnerId))).thenReturn(45);
-    long calendarsCount = agendaCalendarService.countCalendarsByOwnerId(calendarOwnerId, username);
-    assertEquals(45, calendarsCount);
   }
 
 }

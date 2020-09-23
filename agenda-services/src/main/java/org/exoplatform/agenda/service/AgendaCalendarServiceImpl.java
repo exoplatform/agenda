@@ -17,7 +17,6 @@
 package org.exoplatform.agenda.service;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 import org.apache.commons.codec.binary.StringUtils;
 
@@ -27,8 +26,6 @@ import org.exoplatform.agenda.storage.AgendaCalendarStorage;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.container.xml.InitParams;
-import org.exoplatform.services.log.ExoLogger;
-import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
@@ -37,8 +34,6 @@ import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 
 public class AgendaCalendarServiceImpl implements AgendaCalendarService {
-
-  private static final Log      LOG = ExoLogger.getLogger(AgendaCalendarServiceImpl.class);
 
   private AgendaCalendarStorage agendaCalendarStorage;
 
@@ -75,15 +70,33 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     Utils.addUserSpacesIdentities(spaceService, identityManager, username, identityIds);
     Long[] ownerIds = identityIds.toArray(new Long[0]);
     List<Long> calendarsIds = this.agendaCalendarStorage.getCalendarIdsByOwnerIds(offset, limit, ownerIds);
-    return calendarsIds.stream().map(calendarId -> {
-      try {
-        return getCalendarById(calendarId, username);
-      } catch (IllegalAccessException e) {
-        LOG.error("Impossible use case happened, this must be a bug. The user should be able to access calendar with id : "
-            + calendarId, e);
-        return null;
-      }
-    }).filter(calendar -> calendar != null).collect(Collectors.toList());
+    List<Calendar> calendars = new ArrayList<>();
+    for (Long calendarId : calendarsIds) {
+      calendars.add(getCalendarById(calendarId, username));
+    }
+    return calendars;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<Calendar> getCalendarsByOwnerIds(List<Long> ownerIds, String username) throws IllegalAccessException {
+    if (username == null) {
+      throw new IllegalArgumentException("Username is mandatory");
+    }
+    Identity identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+    if (identity == null) {
+      throw new IllegalStateException("User with name " + username + " is not found");
+    }
+    List<Long> calendarsIds = this.agendaCalendarStorage.getCalendarIdsByOwnerIds(0,
+                                                                                  Integer.MAX_VALUE,
+                                                                                  ownerIds.toArray(new Long[0]));
+    List<Calendar> calendars = new ArrayList<>();
+    for (Long calendarId : calendarsIds) {
+      calendars.add(getCalendarById(calendarId, username));
+    }
+    return calendars;
   }
 
   /**
@@ -103,56 +116,6 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     Utils.addUserSpacesIdentities(spaceService, identityManager, username, identityIds);
     Long[] ownerIds = identityIds.toArray(new Long[0]);
     return this.agendaCalendarStorage.countCalendarsByOwners(ownerIds);
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public List<Calendar> getCalendarsByOwnerId(long ownerId,
-                                              int offset,
-                                              int limit,
-                                              String username) throws IllegalAccessException {
-    if (ownerId <= 0) {
-      throw new IllegalArgumentException("Owner id is mandatory");
-    }
-    if (username == null) {
-      throw new IllegalArgumentException("Username is mandatory");
-    }
-    Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
-    if (userIdentity == null) {
-      throw new IllegalStateException("User with name " + username + " is not found");
-    }
-    Utils.checkAclByCalendarOwner(identityManager, spaceService, ownerId, username, true);
-    List<Long> calendarsIds = this.agendaCalendarStorage.getCalendarIdsByOwnerIds(offset, limit, ownerId);
-    return calendarsIds.stream().map(calendarId -> {
-      try {
-        return getCalendarById(calendarId, username);
-      } catch (IllegalAccessException e) {
-        LOG.error("Impossible use case happened, this must be a bug. The user should be able to access calendar with id : "
-            + calendarId, e);
-        return null;
-      }
-    }).filter(calendar -> calendar != null).collect(Collectors.toList());
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public int countCalendarsByOwnerId(long ownerId, String username) throws IllegalAccessException {
-    if (ownerId <= 0) {
-      throw new IllegalArgumentException("Owner id is mandatory");
-    }
-    if (username == null) {
-      throw new IllegalArgumentException("Username is mandatory");
-    }
-    Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
-    if (userIdentity == null) {
-      throw new IllegalStateException("User with name " + username + " is not found");
-    }
-    Utils.checkAclByCalendarOwner(identityManager, spaceService, ownerId, username, true);
-    return this.agendaCalendarStorage.countCalendarsByOwners(ownerId);
   }
 
   /**
@@ -207,7 +170,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     }
     int countCalendarsByOwners = agendaCalendarStorage.countCalendarsByOwners(ownerId);
     if (countCalendarsByOwners == 0) {
-      Calendar calendar = new Calendar(0, ownerId, true, null, null, null, null, getRandomDefaultColor(), null);
+      Calendar calendar = createCalendarInstance(ownerId);
       calendar = agendaCalendarStorage.createCalendar(calendar);
       return calendar;
     } else {
@@ -215,6 +178,23 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
       long calendarId = calendarIds.get(0);
       return this.getCalendarById(calendarId);
     }
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Calendar createCalendarInstance(long ownerId) {
+    return new Calendar(0, ownerId, true, null, null, null, null, getRandomDefaultColor(), null);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Calendar createCalendarInstance(long ownerId, String username) throws IllegalAccessException {
+    boolean canEditCalendar = Utils.checkAclByCalendarOwner(identityManager, spaceService, ownerId, username, true);
+    return new Calendar(0, ownerId, true, null, null, null, null, getRandomDefaultColor(), new Permission(canEditCalendar));
   }
 
   /**

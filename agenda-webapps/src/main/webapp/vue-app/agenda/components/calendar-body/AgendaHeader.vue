@@ -15,6 +15,7 @@
       <option value="allEvents">{{ $t('agenda.allEvent') }}</option>
     </select>
     <v-btn
+      v-if="!currentSpace"
       icon
       class="ml-2"
       @click="$root.$emit('agenda-calendar-owners-drawer-open')">
@@ -38,6 +39,10 @@ export default {
     },
     eventType: {
       type: String,
+      default: null
+    },
+    currentSpace: {
+      type: Object,
       default: null
     },
   },

@@ -1,19 +1,20 @@
 <template>
   <v-list-item class="agenda-calendar-settings px-0">
-    <v-list-item-avatar>
-      <div
-        :style="`background-color: ${calendarColor}`"
-        class="agenda-calendar-settings-color"></div>
-    </v-list-item-avatar>
-    <v-list-item-content>
-      <v-list-item-title v-text="calendarDisplayName" />
-    </v-list-item-content>
-    <v-list-item-action>
+    <v-list-item-action class="flex-grow-1">
+      <v-checkbox
+        v-model="checked"
+        :color="calendarColor"
+        :label="calendarDisplayName"
+        class="agenda-calendar-settings-color ma-auto"
+        @click="changeSelection" />
+    </v-list-item-action>
+    <v-list-item-action :id="calendarMenuId" class="calendarSettingActions">
       <v-menu
         v-if="canEditCalendar"
         ref="menu"
         v-model="menu"
         :close-on-content-click="false"
+        :content-class="calendarMenuId"
         bottom
         left>
         <template v-slot:activator="{ on, attrs }">
@@ -59,13 +60,21 @@ export default {
       type: Object,
       default: null,
     },
+    selected: {
+      type: Boolean,
+      default: false,
+    },
   },
   data: () => ({
     selectedCalendarColor: null,
     saving: false,
     menu: false,
+    checked: false,
   }),
   computed: {
+    calendarMenuId() {
+      return `settingsMenu${this.calendar.owner.id}`;
+    },
     calendarColor() {
       return this.calendar.color;
     },
@@ -78,10 +87,38 @@ export default {
       return profile.displayName || profile.fullname || profile.fullName;
     },
   },
+  watch: {
+    selected() {
+      this.checked = this.selected;
+    },
+  },
   created() {
     this.selectedCalendarColor = this.calendar.color;
+    // Force to close other DatePicker menus when opening a new one 
+    $('.calendarSettingActions button').on('click', (e) => {
+      if (e.target && !$(e.target).parents(`#${this.calendarMenuId}`).length) {
+        this.menu = false;
+      }
+    });
+
+    // Force to close DatePickers when clicking outside
+    $(document).on('click', (e) => {
+      if (e.target && !$(e.target).parents(`.${this.calendarMenuId}`).length) {
+        this.menu = false;
+      }
+    });
+  },
+  mounted() {
+    this.checked = this.selected;
   },
   methods: {
+    changeSelection() {
+      if (this.selected) {
+        this.$emit('unselect-calendar');
+      } else {
+        this.$emit('select-calendar');
+      }
+    },
     reset() {
       this.selectedCalendarColor = this.calendar.color;
     },
