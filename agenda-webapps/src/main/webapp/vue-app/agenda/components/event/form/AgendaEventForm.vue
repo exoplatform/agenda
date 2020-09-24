@@ -38,6 +38,7 @@
             ref="eventDates"
             :event="event"
             :weekdays="weekdays"
+            :working-time="workingTime"
             @next-step="nextStep" />
         </v-stepper-content>
       </v-stepper-items>
@@ -84,6 +85,10 @@ export default {
     },
     weekdays: {
       type: Array,
+      default: () => null
+    },
+    workingTime: {
+      type: Object,
       default: () => null
     },
     currentSpace: {

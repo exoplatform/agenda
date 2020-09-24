@@ -16,7 +16,8 @@
       <agenda-event-dialog
         ref="eventFormDialog"
         :current-space="currentSpace"
-        :weekdays="weekdays" />
+        :weekdays="weekdays"
+        :working-time="workingTime" />
       <agenda-event-preview-dialog />
       <agenda-filter-calendar-drawer
         :owner-ids="ownerIds"
@@ -55,7 +56,7 @@ export default {
       return this.settings && this.$agendaUtils.getWeekSequenceFromDay(this.settings.agendaWeekStartOn);
     },
     workingTime () {
-      return {
+      return this.settings && {
         showWorkingTime: this.settings.showWorkingTime,
         workingTimeStart: this.settings.workingTimeStart,
         workingTimeEnd: this.settings.workingTimeEnd
