@@ -23,6 +23,7 @@
         :owner-ids="ownerIds"
         @changed="changeDisplayedOwnerIds" />
       <agenda-user-setting-drawer :settings="settings" />
+      <agenda-event-quick-form-drawer :current-space="currentSpace" />
     </v-main>
   </v-app>
 </template>
