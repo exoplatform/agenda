@@ -11,27 +11,23 @@
         :events="events"
         :period-title="periodTitle"
         :calendar-type="calendarType"
-        :weekdays="weekdays" />
+        :weekdays="weekdays"
+        :working-time="workingTime" />
       <agenda-event-dialog
         ref="eventFormDialog"
         :current-space="currentSpace"
-        :weekdays="weekdays" />
+        :weekdays="weekdays"
+        :working-time="workingTime" />
       <agenda-event-preview-dialog />
       <agenda-filter-calendar-drawer
         :owner-ids="ownerIds"
         @changed="changeDisplayedOwnerIds" />
-      <agenda-settings-drawer />
+      <agenda-user-setting-drawer :settings="settings" />
     </v-main>
   </v-app>
 </template>
 <script>
 export default {
-  props: {
-    calendarType: {
-      type: String,
-      default: () => 'week',
-    },
-  },
   data: () => ({
     initialized: false,
     currentSpace: null,
@@ -41,13 +37,32 @@ export default {
     searchTerm: null,
     eventType: 'myEvents',
     periodTitle: '',
+    calendarType: 'week',
     period: {
       start: null,
       end: null,
     },
     events: [],
-    weekdays: [1, 2, 3, 4, 5, 6, 0],
+    settings: {
+      agendaDefaultView: '',
+      agendaWeekStartOn: '',
+      showWorkingTime: '',
+      workingTimeStart: '',
+      workingTimeEnd: '',
+    },
   }),
+  computed: {
+    weekdays () {
+      return this.settings && this.$agendaUtils.getWeekSequenceFromDay(this.settings.agendaWeekStartOn);
+    },
+    workingTime () {
+      return this.settings && {
+        showWorkingTime: this.settings.showWorkingTime,
+        workingTimeStart: this.settings.workingTimeStart,
+        workingTimeEnd: this.settings.workingTimeEnd
+      };
+    }
+  },
   watch: {
     eventType() {
       this.retrieveEvents();
@@ -80,6 +95,10 @@ export default {
   mounted() {
     document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
     this.spaceId = eXo.env.portal.spaceId;
+    this.$calendarService.getAgendaSettings().then(settings => {
+      this.settings = JSON.parse(settings.value);
+      this.calendarType = this.settings && this.settings.agendaDefaultView;
+    });
   },
   methods: {
     retrieveEvents() {

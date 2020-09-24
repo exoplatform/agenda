@@ -5,6 +5,7 @@
       :events="events"
       :calendar-type="calendarType"
       :weekdays="weekdays"
+      :working-time="workingTime"
       class="flex-grow-1" />
   </v-flex>
 </template>
@@ -20,11 +21,15 @@ export default {
       type: String,
       default: null
     },
-    events: {
+    weekdays: {
       type: Array,
       default: () => null
     },
-    weekdays: {
+    workingTime: {
+      type: Object,
+      default: () => null
+    },
+    events: {
       type: Array,
       default: () => null
     },

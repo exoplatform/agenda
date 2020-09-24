@@ -9,6 +9,7 @@
       :event="event"
       :weekdays="weekdays"
       :current-space="currentSpace"
+      :working-time="workingTime"
       class="fill-height event-form"
       @close="close"
       @saved="saved" />
@@ -27,6 +28,10 @@ export default {
   props: {
     weekdays: {
       type: Array,
+      default: () => null
+    },
+    workingTime: {
+      type: Object,
       default: () => null
     },
     currentSpace: {

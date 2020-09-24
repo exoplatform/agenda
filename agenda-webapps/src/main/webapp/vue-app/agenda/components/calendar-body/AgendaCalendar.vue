@@ -7,6 +7,8 @@
     :event-timed="isEventTimed"
     :type="calendarType"
     :weekdays="weekdays"
+    :first-time="agendaStartTime"
+    :interval-count="agendaIntervalCount"
     event-name="summary"
     event-start="startDate"
     event-end="endDate"
@@ -28,16 +30,20 @@
 <script>
 export default {
   props: {
-    calendarType: {
-      type: String,
-      default: null
-    },
     events: {
       type: Array,
       default: null
     },
+    calendarType: {
+      type: String,
+      default: null
+    },
     weekdays: {
       type: Array,
+      default: () => null
+    },
+    workingTime: {
+      type: Object,
       default: () => null
     },
   },
@@ -56,11 +62,20 @@ export default {
     currentTimeStyle() {
       return `top: ${this.currentTimeTop}px;`;
     },
+    agendaStartTime() {
+      return this.workingTime.showWorkingTime ? this.workingTime.workingTimeStart : '00:00';
+    },
+    agendaIntervalCount() {
+      return this.workingTime.showWorkingTime ? parseInt(this.workingTime.workingTimeEnd) - parseInt(this.workingTime.workingTimeStart) : '24';
+    }
   },
   watch: {
     calendarType() {
       this.scrollToTime();
     },
+    workingTime() {
+      this.scrollToTime();
+    }
   },
   mounted() {
     this.$root.$on('agenda-display-calendar-atDate', date => {
@@ -80,7 +95,6 @@ export default {
       });
       this.$forceUpdate();
     });
-    this.currentTimeTop = this.$refs.calendar.timeToY(this.nowTimeOptions);
     this.scrollToTime();
   },
   methods:{
@@ -88,6 +102,7 @@ export default {
       this.$nextTick().then(() => {
         const dailyScrollElement = document.querySelector('.v-calendar-daily__scroll-area');
         if (dailyScrollElement) {
+          this.currentTimeTop = this.$refs.calendar.timeToY(this.nowTimeOptions);
           const scrollY = this.currentTimeTop - dailyScrollElement.offsetHeight / 2;
           dailyScrollElement.scrollTo(0, scrollY);
         }

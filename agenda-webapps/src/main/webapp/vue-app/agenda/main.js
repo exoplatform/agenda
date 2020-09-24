@@ -49,7 +49,7 @@ export function init() {
   exoi18n.loadLanguageAsync(lang, url).then(i18n => {
     // init Vue app when locale ressources are ready
     new Vue({
-      template: `<agenda id="${appId}" calendar-type="week" />`,
+      template: `<agenda id="${appId}" />`,
       vuetify,
       i18n
     }).$mount(`#${appId}`);
