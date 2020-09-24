@@ -17,9 +17,12 @@
     <v-btn
       v-if="!currentSpace"
       icon
-      class="ml-2"
+      class="ml-2 primary--text"
       @click="$root.$emit('agenda-calendar-owners-drawer-open')">
-      <i class="uiIcon uiIcon24x24 settingsIcon text-color"></i>
+      <i class="uiIcon uiIcon24x24 settingsIcon primary--text"></i>
+      <template v-if="ownerIds && ownerIds.length">
+        ({{ ownerIds.length }})
+      </template>
     </v-btn>
     <v-btn
       icon
@@ -43,6 +46,10 @@ export default {
     },
     currentSpace: {
       type: Object,
+      default: null
+    },
+    ownerIds: {
+      type: Array,
       default: null
     },
   },
