@@ -27,7 +27,7 @@ export default {
   }),
   computed: {
     appendIcon() {
-      return this.query && 'mdi-close' || null;
+      return this.query && 'mdi-close primary--text' || null;
     },
   },
   watch: {
