@@ -10,7 +10,10 @@
           @click="changeAllSelection" />
       </v-list-item-action>
       <v-list-item-content>
-        <agenda-filter-calendar-search ref="queryInput" v-model="query" class="mb-0 mt-1" />
+        <agenda-filter-calendar-search
+          ref="queryInput"
+          v-model="query"
+          class="mb-0 mt-1" />
       </v-list-item-content>
       <v-list-item-action class="ml-2">
         <select
@@ -130,7 +133,7 @@ export default {
     changeSelection(selectedOwnerIds) {
       if (this.value && this.value.length === 1 && !selectedOwnerIds.length) {
         this.uncheckAll();
-      } else if (selectedOwnerIds.length === this.spaceIdentityIds.length) {
+      } else if (!this.query && selectedOwnerIds.length === this.spaceIdentityIds.length) {
         this.checkAll();
       } else {
         this.value = selectedOwnerIds;
@@ -139,8 +142,13 @@ export default {
       }
     },
     checkAll() {
-      this.value = [];
-      this.selectAll = true;
+      if (this.query) {
+        this.value = this.spaceIdentityIds.slice();
+        this.selectAll = false;
+      } else {
+        this.value = [];
+        this.selectAll = true;
+      }
       this.$emit('input', this.value);
     },
     uncheckAll() {
