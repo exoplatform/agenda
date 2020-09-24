@@ -16,6 +16,7 @@ import AgendaEventDialog from './components/event/AgendaEventDialog.vue';
 
 import AgendaEventForm from './components/event/form/AgendaEventForm.vue';
 import AgendaEventFormBasicInformation from './components/event/form/AgendaEventFormBasicInformation.vue';
+import AgendaEventQuickFormDrawer from './components/event/form/AgendaEventQuickFormDrawer.vue';
 import AgendaEventFormDates from './components/event/form/AgendaEventFormDates.vue';
 import AgendaEventFormReminders from './components/event/form/AgendaEventFormReminders.vue';
 import AgendaSwitchView from './components/top-toolbar/AgendaSwitchView.vue';
@@ -54,6 +55,7 @@ const components = {
   'agenda-event-preview-dialog': AgendaPreviewEventDialog,
   'agenda-switch-view': AgendaSwitchView,
   'agenda-event-form-basic-information': AgendaEventFormBasicInformation,
+  'agenda-event-quick-form-drawer': AgendaEventQuickFormDrawer,
   'agenda-event-form-dates': AgendaEventFormDates,
   'agenda-event-form-reminders': AgendaEventFormReminders,
   'agenda-event-form-attachments': AgendaEventFormAttachments,
