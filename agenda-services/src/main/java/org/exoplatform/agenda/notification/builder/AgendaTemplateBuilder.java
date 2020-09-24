@@ -23,19 +23,17 @@ import static org.exoplatform.agenda.util.NotificationUtils.*;
 
 public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
 
-  private static final Log           LOG = ExoLogger.getLogger(AgendaTemplateBuilder.class);
+  private static final Log   LOG = ExoLogger.getLogger(AgendaTemplateBuilder.class);
 
   private AgendaEventService agendaEventService;
 
-  private TemplateProvider           templateProvider;
+  private TemplateProvider   templateProvider;
 
-  private ExoContainer               container;
+  private ExoContainer       container;
 
-  private boolean                    isPushNotification;
+  private boolean            isPushNotification;
 
-  private PluginKey                  key;
-
-  private boolean          development;
+  private PluginKey          key;
 
   public AgendaTemplateBuilder(TemplateProvider templateProvider,
                                ExoContainer container,
@@ -87,7 +85,7 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
         return false;
   }
     private final Event getEvent(NotificationInfo notification) {
-      String eventIdString = notification.getValueOwnerParameter("EVENT_ID");
+      String eventIdString = notification.getValueOwnerParameter("eventId");
       if (StringUtils.isBlank(eventIdString)) {
         throw new IllegalStateException("Event id is missing in notification");
       }
@@ -107,25 +105,21 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
 
     @Override
     public Template getTemplateEngine() {
-      if (this.development) {
-        String templatePath = null;
-        try {
-          templatePath = templateProvider.getTemplateFilePathConfigs().get(key);
-          String template = TemplateUtils.loadGroovyTemplate(templatePath);
-          if (StringUtils.isBlank(template)) {
-            throw new IllegalStateException("Template with path " + templatePath + " wasn't found");
-          }
-          return new GStringTemplateEngine().createTemplate(template);
-        } catch (Exception e) {
-          LOG.warn("Error while compiling template {}", templatePath, e);
-          try {
-            return new GStringTemplateEngine().createTemplate("");
-          } catch (Exception e1) {
-            return null;
-          }
+      String templatePath = null;
+      try {
+        templatePath = templateProvider.getTemplateFilePathConfigs().get(key);
+        String template = TemplateUtils.loadGroovyTemplate(templatePath);
+        if (StringUtils.isBlank(template)) {
+          throw new IllegalStateException("Template with path " + templatePath + " wasn't found");
         }
-      } else {
-        return super.getTemplateEngine();
+        return new GStringTemplateEngine().createTemplate(template);
+      } catch (Exception e) {
+        LOG.warn("Error while compiling template {}", templatePath, e);
+        try {
+          return new GStringTemplateEngine().createTemplate("");
+        } catch (Exception e1) {
+          return null;
+        }
       }
     }
 

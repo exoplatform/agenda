@@ -14,9 +14,8 @@ import static org.exoplatform.agenda.util.NotificationUtils.EVENT_ADDED_KEY;
         @TemplateConfig(pluginId = AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/web/EventWebPlugin.gtmpl")
 })
 public class WebTemplateProvider extends TemplateProvider {
-    public WebTemplateProvider(ExoContainer container, InitParams initParams) {
-        super(initParams);
-
-        this.templateBuilders.put(EVENT_ADDED_KEY, new AgendaTemplateBuilder(this, container, EVENT_ADDED_KEY, false));
-    }
+  public WebTemplateProvider(ExoContainer container, InitParams initParams) {
+    super(initParams);
+    this.templateBuilders.put(EVENT_ADDED_KEY, new AgendaTemplateBuilder(this, container, EVENT_ADDED_KEY, false));
+  }
 }
