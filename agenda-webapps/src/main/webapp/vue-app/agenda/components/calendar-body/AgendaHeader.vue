@@ -26,8 +26,8 @@
     </v-btn>
     <v-btn
       icon
-      @click="$root.$emit('agenda-settings-drawer-open')">
-      <v-icon class="text-color">mdi-settings</v-icon>
+      @click="$root.$emit('user-settings-agenda-drawer-open')">
+      <v-icon>mdi-settings</v-icon>
     </v-btn>
   </v-toolbar>
 </template>

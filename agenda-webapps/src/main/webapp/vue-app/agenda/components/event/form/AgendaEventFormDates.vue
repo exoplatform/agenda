@@ -32,6 +32,8 @@
       :event-timed="isEventTimed"
       :start="dayToDisplay"
       :weekdays="weekdays"
+      :first-time="agendaStartTime"
+      :interval-count="agendaIntervalCount"
       :event-ripple="false"
       color="primary"
       type="week"
@@ -84,6 +86,10 @@ export default {
       type: Array,
       default: () => null
     },
+    workingTime: {
+      type: Object,
+      default: () => null
+    },
   },
   data: () => ({
     value: '',
@@ -118,6 +124,12 @@ export default {
     currentTimeStyle() {
       return `top: ${this.currentTimeTop}px;`;
     },
+    agendaStartTime() {
+      return this.workingTime.showWorkingTime ? this.workingTime.workingTimeStart : '00:00';
+    },
+    agendaIntervalCount() {
+      return this.workingTime.showWorkingTime ? parseInt(this.workingTime.workingTimeEnd) - parseInt(this.workingTime.workingTimeStart) : '24';
+    }
   },
   watch: {
     allDay() {
