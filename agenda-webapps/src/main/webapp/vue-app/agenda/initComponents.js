@@ -36,8 +36,7 @@ import AgendaEventAttendeeItem from './components/event/view/AgendaEventAttendee
 import AgendaRecurrentEventDeleteConfirmDialog from './components/event/view/AgendaRecurrentEventDeleteConfirmDialog.vue';
 import AgendaRecurrentEventResponseConfirmDialog from './components/event/view/AgendaRecurrentEventResponseConfirmDialog.vue';
 
-import UserSettingAgenda from './components/user-setting-agenda/UserSettingAgenda.vue';
-import UserSettingAgendaDrawer from './components/user-setting-agenda/UserSettingAgendaDrawer.vue';
+import AgendaUserSettingDrawer from './components/user-setting/AgendaUserSettingDrawer.vue';
 
 const components = {
   'agenda': Agenda,
@@ -72,8 +71,7 @@ const components = {
   'agenda-event-form-calendar-owner': AgendaEventFormCalendarOwner,
   'agenda-recurrent-event-save-confirm-dialog': AgendaRecurrentEventSaveConfirmDialog,
   'agenda-recurrent-event-response-confirm-dialog': AgendaRecurrentEventResponseConfirmDialog,
-  'user-setting-agenda': UserSettingAgenda,
-  'user-setting-agenda-drawer': UserSettingAgendaDrawer,
+  'agenda-user-setting-drawer': AgendaUserSettingDrawer,
 };
 
 for (const key in components) {

@@ -8,7 +8,10 @@
       {{ $t('agenda.settings.drawer.title') }}
     </template>
     <template slot="content">
-      <div class="valueTab">
+      <v-form
+        ref="agendaSettingsForm"
+        class="flex"
+        flat>
         <v-layout class="ma-5 d-flex flex-column">
           <div class="d-flex flex-column mb-5">
             <label class="switch-label-text mt-1 text-subtitle-1">{{ $t('agenda.settings.drawer.label.DefaultView') }}:</label>
@@ -49,11 +52,10 @@
               type="time"
               name="workingTimeEnd"
               :min="settings.workingTimeStart"
-              :disabled="!settings.showWorkingTime"
-              @change="checkWorkingEndTime()">
+              :disabled="!settings.showWorkingTime">
           </div>
         </v-layout>
-      </div>
+      </v-form>
     </template>
     <template slot="footer">
       <div class="d-flex">
@@ -99,22 +101,25 @@ export default {
       this.$refs.UserSettingAgendaDrawer.close();
     },
     save() {
-      this.$refs.UserSettingAgendaDrawer.startLoading();
-      this.$calendarService.saveAgendaSettings(this.settings).then(() => {
-        this.$refs.UserSettingAgendaDrawer.close();
-      })
-        .finally(() => {
-          this.$refs.UserSettingAgendaDrawer.endLoading();
+      if(this.validateForm()) {
+        this.$refs.UserSettingAgendaDrawer.startLoading();
+        this.$calendarService.saveAgendaSettings(this.settings).then(() => {
           this.$refs.UserSettingAgendaDrawer.close();
-        });
+        })
+          .finally(() => {
+            this.$refs.UserSettingAgendaDrawer.endLoading();
+          });
+      }
     },
     getDayFromAbbreviation(day) {
       return this.$agendaUtils.getDayNameFromDayAbbreviation(day, eXo.env.portal.language);
     },
-    checkWorkingEndTime() {
-      if (this.settings.workingTimeEnd < this.settings.workingTimeStart) {
-        this.settings.workingTimeEnd = this.settings.workingTimeStart;
+    validateForm() {
+      if (!this.$refs.agendaSettingsForm.validate() // Vuetify rules
+          || !this.$refs.agendaSettingsForm.$el.reportValidity()) { // Standard HTML rules
+        return;
       }
+      return true;
     }
   },
 };

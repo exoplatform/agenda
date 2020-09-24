@@ -22,7 +22,7 @@
       <agenda-filter-calendar-drawer
         :owner-ids="ownerIds"
         @changed="changeDisplayedOwnerIds" />
-      <user-setting-agenda-drawer :settings="settings" />
+      <agenda-user-setting-drawer :settings="settings" />
     </v-main>
   </v-app>
 </template>
@@ -97,6 +97,7 @@ export default {
     this.spaceId = eXo.env.portal.spaceId;
     this.$calendarService.getAgendaSettings().then(settings => {
       this.settings = JSON.parse(settings.value);
+      this.calendarType = this.settings && this.settings.agendaDefaultView;
     });
   },
   methods: {
