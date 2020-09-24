@@ -131,6 +131,9 @@ export default {
           const index = this.selectedOwnerIds.findIndex(ownerId => ownerId === this.calendarOwnerId);
           if (index >= 0) {
             this.selectedOwnerIds.splice(index, 1);
+            if (!this.selectedOwnerIds.length) {
+              this.selectedOwnerIds = false;
+            }
           }
         } else {
           this.selectedOwnerIds.push(this.calendarOwnerId);
