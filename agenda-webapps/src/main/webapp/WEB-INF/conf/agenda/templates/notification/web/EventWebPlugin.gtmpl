@@ -1,4 +1,4 @@
-<% eventTitle = _ctx.escapeHTML(STORED_PARAMETER_EVENT_TITLE); %>
+<% eventTitle = _ctx.escapeHTML(eventTitle); %>
 <li class="<%= READ %> clearfix" data-id="<%= NOTIFICATION_ID %>">
     <div class="media agendaWebNotifContent">
         <div class="avatarXSmall pull-left">
