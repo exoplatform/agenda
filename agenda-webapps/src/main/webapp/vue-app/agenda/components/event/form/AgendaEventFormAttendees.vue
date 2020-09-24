@@ -1,5 +1,5 @@
 <template>
-  <v-flex class="ml-4">
+  <v-flex class="user-suggester">
     <exo-identity-suggester
       ref="invitedAttendeeAutoComplete"
       v-model="invitedAttendee"
@@ -7,7 +7,6 @@
       :search-options="{currentUser: ''}"
       :ignore-items="ignoredMembers"
       name="inviteAttendee"
-      class="user-suggester"
       include-users
       include-spaces />
     <div v-if="event.attendees" class="identitySuggester no-border mt-0">
