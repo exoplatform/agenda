@@ -28,7 +28,7 @@
                 v-for="day in DAYS_ABBREVIATIONS"
                 :key="day"
                 :value="day">
-                {{ getDayFromAbbreviation(day) }}
+                {{ DAY_NAME_BY_ABBREVIATION[day] }}
               </option>
             </select>
           </div>
@@ -89,6 +89,19 @@ export default {
     return {
       DAYS_ABBREVIATIONS: ['SU', 'MO','TU','WE','TH','FR', 'SA']
     };
+  },
+  computed: {
+    DAY_NAME_BY_ABBREVIATION () {
+      return {
+        'MO': this.getDayFromAbbreviation('MO'),
+        'TU': this.getDayFromAbbreviation('TU'),
+        'WE': this.getDayFromAbbreviation('WE'),
+        'TH': this.getDayFromAbbreviation('TH'),
+        'FR': this.getDayFromAbbreviation('FR'),
+        'SA': this.getDayFromAbbreviation('SA'),
+        'SU': this.getDayFromAbbreviation('SU'),
+      };
+    }
   },
   created() {
     this.$root.$on('user-settings-agenda-drawer-open', this.open);
