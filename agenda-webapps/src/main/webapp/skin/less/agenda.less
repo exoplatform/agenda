@@ -30,7 +30,6 @@
   }
 
   .v-calendar-daily_head-day {
-
     .v-calendar-daily_head-day-label > button {
       width: 40px;
       height: 40px;
@@ -156,6 +155,22 @@
     }
     .darkGreyIcon {
       color: @darkGrey;
+    }
+  }
+
+  .quick-add {
+    input, textarea {
+      max-width: ~"calc(100% - 64px)";
+    }
+    #eventTitle {
+      min-width: ~"calc(100% - 20px)";
+      margin: 0 10px;
+    }
+    .v-autocomplete.identitySuggester.identitySuggester {
+      min-width: 100%;
+    }
+    .user-suggester {
+      max-width: ~"calc(100% - 59px)";
     }
   }
 

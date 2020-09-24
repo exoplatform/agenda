@@ -17,6 +17,12 @@
     @click:event="showEvent"
     @click:more="viewDay"
     @click:date="viewDay"
+    @mousedown:time="quickAddEventCreate"
+    @mousedown:day="quickAddEventCreate"
+    @mousemove:time="quickAddEventMove"
+    @mousemove:day="quickAddEventMove"
+    @mouseup:time="quickAddEventOpenDialog"
+    @mouseup:day="quickAddEventOpenDialog"
     @change="retrievePeriodEvents">
     <template #day-body="day">
       <div
@@ -48,6 +54,7 @@ export default {
     },
   },
   data: () => ({
+    quickEvent: null,
     selectedDate: '',
     selectedEvent: {},
     selectedElement: null,
@@ -95,6 +102,7 @@ export default {
       });
       this.$forceUpdate();
     });
+    this.$root.$on('agenda-event-quick-form-cancel', this.cancelCreateEvent);
     this.scrollToTime();
   },
   methods:{
@@ -129,13 +137,79 @@ export default {
       return event && !event.allDay;
     },
     showEvent(event) {
+      this.cancelCreateEvent();
       event = event && event.event || event;
       this.$root.$emit('agenda-event-details', event);
     },
     viewDay({ date }) {
       this.focus = date;
-      this.type = 'day';
-    }
+      this.$root.$emit('agenda-change-period-type', 'day');
+    },
+    cancelCreateEvent() {
+      if (this.quickEvent) {
+        const index = this.events.findIndex(event => event === this.quickEvent);
+        if (index >= 0) {
+          this.events.splice(index, 1);
+        }
+        this.quickEvent = null;
+      }
+    },
+    quickAddEventCreate(params) {
+      if (!params || params.event) {
+        return;
+      }
+      this.cancelCreateEvent();
+      const startDate = this.toDate(params, false);
+      this.quickEvent = {
+        summary: '',
+        startDate: startDate,
+        endDate: startDate,
+        allDay: !params.time,
+        editing: true,
+        calendar: {
+          owner: {},
+        },
+        reminders: [],
+        attachments: [],
+        attendees: [],
+      };
+    },
+    quickAddEventMove(params) {
+      if (this.quickEvent && this.quickEvent.editing) {
+
+        const newDate = this.toDate(params);
+        if (this.quickEvent.startDate.getTime() > newDate.getTime()) {
+          this.quickEvent.startDate = this.toDate(params, false);
+        } else {
+          this.quickEvent.endDate = this.toDate(params, true);
+        }
+
+        if (!this.quickEvent.added) {
+          this.quickEvent.added = true;
+          this.events.push(this.quickEvent);
+        }
+      }
+    },
+    quickAddEventOpenDialog() {
+      if (this.quickEvent) {
+        if (!this.quickEvent.added) {
+          this.quickEvent.added = true;
+          this.events.push(this.quickEvent);
+        }
+        delete this.quickEvent.editing;
+        this.$root.$emit('agenda-event-quick-form-open', this.quickEvent);
+      }
+    },
+    roundTime(minute, down) {
+      const roundTo = 15; // minutes
+
+      return down
+        ? minute - minute % roundTo
+        : minute + (roundTo - minute % roundTo);
+    },
+    toDate(tms, down = true) {
+      return new Date(tms.year, tms.month - 1, tms.day, tms.hour, this.roundTime(tms.minute, down));
+    },
   }
 };
 </script>
