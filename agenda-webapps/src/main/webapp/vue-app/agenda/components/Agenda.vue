@@ -5,6 +5,7 @@
         :calendar-type="calendarType"
         :event-type="eventType"
         :current-space="currentSpace"
+        :owner-ids="ownerIds"
         class="mb-5" />
       <agenda-body
         :events="events"
