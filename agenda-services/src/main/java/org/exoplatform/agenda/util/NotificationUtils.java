@@ -2,6 +2,7 @@ package org.exoplatform.agenda.util;
 
 import org.apache.commons.lang.StringUtils;
 import org.exoplatform.agenda.model.Event;
+import org.exoplatform.agenda.model.EventAttendee;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.NotificationMessageUtils;
 import org.exoplatform.commons.api.notification.channel.template.TemplateProvider;
@@ -16,56 +17,59 @@ import org.exoplatform.social.notification.plugin.SocialNotificationUtils;
 import org.exoplatform.webui.utils.TimeConvertUtils;
 
 import java.util.*;
-
+import java.util.stream.Collectors;
 
 public class NotificationUtils {
-  public static final ArgumentLiteral<Event> EVENT_PARAMETER                          =
-                                                             new ArgumentLiteral<>(Event.class, "event");
 
-  public static final String                 AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN   = "EventAddedNotificationPlugin";
+  public static final ArgumentLiteral<Long>   EVENT_ID                                 =
+                                                       new ArgumentLiteral<>(Long.class, "event_id");
 
-  private static final String                TEMPLATE_VARIABLE_NOTIFICATION_URL       = "detailsURL";
+  public static final ArgumentLiteral<String> EVENT_NAME                               =
+                                                         new ArgumentLiteral<>(String.class, "event_name");
 
-  public static final PluginKey              EVENT_ADDED_KEY                          =
-                                                             PluginKey.key(AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN);
+  public static final String                  AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN   = "EventAddedNotificationPlugin";
 
-  private static final String                STORED_PARAMETER_EVENT_TITLE             = "eventTitle";
+  private static final String                 TEMPLATE_VARIABLE_NOTIFICATION_URL       = "detailsURL";
 
-  private static final String                STORED_PARAMETER_EVENT_ID                = "eventId";
+  public static final PluginKey               EVENT_ADDED_KEY                          =
+                                                              PluginKey.key(AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN);
 
-  private static final String                STORED_PARAMETER_EVENT_START_DATE        = "startDate";
+  private static final String                 STORED_PARAMETER_EVENT_TITLE             = "eventTitle";
 
-  private static final String                STORED_PARAMETER_RECEIVER_IDENTITY_ID    = "RECEIVER_ID";
+  private static final String                 STORED_PARAMETER_EVENT_ID                = "eventId";
 
-  private static final String                TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR = "Avatar";
+  private static final String                 STORED_PARAMETER_EVENT_START_DATE        = "startDate";
 
-  private static final String                TEMPLATE_VARIABLE_SUFFIX_IDENTITY_NAME   = "Name";
+  private static final String                 TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR = "Avatar";
 
-  private static final String                TEMPLATE_VARIABLE_SUFFIX_IDENTITY_URL    = "Url";
+  private static final String                 TEMPLATE_VARIABLE_SUFFIX_IDENTITY_NAME   = "Name";
 
-  private static final String                TEMPLATE_VARIABLE_EVENT_ID             = "eventId";
+  private static final String                 TEMPLATE_VARIABLE_SUFFIX_IDENTITY_URL    = "Url";
 
-  private static final String                TEMPLATE_VARIABLE_EVENT_TITLE          = "eventTitle";
+  private static final String                 TEMPLATE_VARIABLE_EVENT_ID               = "eventId";
 
-  private static String                      defaultSite;
-  
+  private static final String                 TEMPLATE_VARIABLE_EVENT_TITLE            = "eventTitle";
+
+  private static String                       defaultSite;
+
+
   private NotificationUtils() {
   }
 
-  public static final Event getEventParameter(NotificationContext ctx) {
-    return ctx.value(EVENT_PARAMETER);
+  public static final long getEventId(NotificationContext ctx) {
+    return ctx.value(EVENT_ID);
   }
 
-  public static final void setEventParameter(NotificationContext ctx, Event event) {
-    ctx.append(EVENT_PARAMETER, event);
+  public static final void setEventId(NotificationContext ctx, long eventId) {
+    ctx.append(EVENT_ID, eventId);
   }
 
-  public static final void setNotificationRecipients(NotificationInfo notification, Event event) {
-    Set<Long> recipientList = new HashSet<>();
-    if (event == null) { // New event
-      recipientList.add(event.getCreatorId());
-    }
-    notification.to(String.valueOf(new ArrayList<>(recipientList)));
+  public static final void setNotificationRecipients(NotificationInfo notification, List<EventAttendee> eventAttendee) {
+    List<String> recipientList = eventAttendee.stream()
+                                              .map(attendee -> Utils.getIdentityById(attendee.getIdentityId()).getRemoteId())
+                                              .collect(Collectors.toList());
+    notification.to(recipientList);
+    notification.with("receivers", recipientList.toString());
   }
 
   public static final void storeEventParameters(NotificationInfo notification, Event event) {
@@ -73,7 +77,6 @@ public class NotificationUtils {
       throw new IllegalStateException("creator is null");
     }
     notification.with(STORED_PARAMETER_EVENT_ID, String.valueOf(event.getId()))
-                .with(STORED_PARAMETER_RECEIVER_IDENTITY_ID, String.valueOf(event.getCreatorId()))
                 .with(STORED_PARAMETER_EVENT_TITLE, event.getSummary())
                 .with(STORED_PARAMETER_EVENT_START_DATE, String.valueOf(event.getStart()));
   }
@@ -110,7 +113,7 @@ public class NotificationUtils {
 
     setIdentityNameAndAvatar(notification, templateContext, "receiver");
     setEventDetails(templateContext, notification);
-    
+
     templateContext.put(TEMPLATE_VARIABLE_NOTIFICATION_URL, notificationURL);
     return templateContext;
   }
@@ -127,6 +130,7 @@ public class NotificationUtils {
   private static final void setEventDetails(TemplateContext templateContext, NotificationInfo notification) {
     templateContext.put(TEMPLATE_VARIABLE_EVENT_ID, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_ID));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_TITLE, getEventTitle(notification));
+    templateContext.put("USER",notification.getTo());
   }
 
   private static final void setIdentityNameAndAvatar(NotificationInfo notification,
@@ -146,7 +150,7 @@ public class NotificationUtils {
     String fullName = identity.getProfile().getFullName();
     templateContext.put(prefix + TEMPLATE_VARIABLE_SUFFIX_IDENTITY_NAME, fullName);
     templateContext.put(prefix + TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR, identity.getProfile().getAvatarUrl());
-    templateContext.put(prefix + TEMPLATE_VARIABLE_SUFFIX_IDENTITY_URL,  identity.getProfile().getUrl());
+    templateContext.put(prefix + TEMPLATE_VARIABLE_SUFFIX_IDENTITY_URL, identity.getProfile().getUrl());
 
   }
 
@@ -175,6 +179,7 @@ public class NotificationUtils {
   }
 
   private static final void setMessageBody(TemplateContext templateContext, MessageInfo messageInfo) {
+
     messageInfo.body(TemplateUtils.processGroovy(templateContext));
   }
 

@@ -4,23 +4,23 @@
   <external-component-plugins>
     <target-component>org.exoplatform.services.listener.ListenerService</target-component>
     <component-plugin>
-      <name>exo.addons.perkstore.order.new</name>
+      <name>exo.agenda.event.added</name>
       <set-method>addListener</set-method>
       <type>org.exoplatform.agenda.listener.EventNotificationListener</type>
     </component-plugin>
   </external-component-plugins>
-    
+
   <external-component-plugins>
       <target-component>org.exoplatform.commons.api.notification.service.setting.PluginSettingService</target-component>
       <component-plugin profiles="all">
         <name>notification.groups</name>
         <set-method>registerGroupConfig</set-method>
         <type>org.exoplatform.commons.api.notification.plugin.GroupProviderPlugin</type>
-        <description>Perk store group</description>
+        <description>Agenda group</description>
         <init-params>
           <object-param>
-            <name>group.perkstore</name>
-            <description>The information of group perk store</description>
+            <name>group.agenda</name>
+            <description>The information of group agenda</description>
             <object type="org.exoplatform.commons.api.notification.plugin.config.GroupConfig">
               <field name="id">
                 <string>agenda</string>
@@ -29,7 +29,7 @@
                 <string>UINotification.label.group.Agenda</string>
               </field>
               <field name="order">
-                <string>300</string>
+                <string>400</string>
               </field>
             </object>
           </object-param>
@@ -50,10 +50,6 @@
             <name>notification.id</name>
             <value>EventAddedNotificationPlugin</value>
           </value-param>
-          <value-param>
-            <name>event.new</name>
-            <value>true</value>
-          </value-param>
           <object-param>
             <name>template.EventAddedNotificationPlugin</name>
             <description>The template of EventAddedNotificationPlugin</description>
@@ -65,7 +61,7 @@
                 <string>UINotification.label.EventAddedNotificationPlugin</string>
               </field>
               <field name="order">
-                <string>1</string>
+                <string>6</string>
               </field>
               <field name="defaultConfig">
                 <collection type="java.util.ArrayList">
