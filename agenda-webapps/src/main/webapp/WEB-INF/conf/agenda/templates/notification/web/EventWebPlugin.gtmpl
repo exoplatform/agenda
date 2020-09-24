@@ -1,16 +1,16 @@
-<% senderName = _ctx.escapeHTML(senderName); %>
+<% eventTitle = _ctx.escapeHTML(STORED_PARAMETER_EVENT_TITLE); %>
 <li class="<%= READ %> clearfix" data-id="<%= NOTIFICATION_ID %>">
     <div class="media agendaWebNotifContent">
         <div class="avatarXSmall pull-left">
-            <img src="<%= senderAvatar %>" alt="<%= senderName %>" />
+            <img src="<%= eventTitle %>" alt="<%= eventTitle %>" />
         </div>
         <div class="media-body">
             <div class="contentSmall" data-link="<%= detailsURL %>">
                 <div class="status">
                     <%
-                    String senderLink = "<a class=\"user-name text-bold\" href=\"javascript:void(0)\">" + senderName + "</a>";
+                    String senderLink = "<a class=\"user-name text-bold\" href=\"javascript:void(0)\">" + eventTitle + "</a>";
                     String message = null;
-                    message = _ctx.appRes("Notification.agenda.event.created", senderLink);
+                    message = _ctx.appRes("Notification.agenda.event.created", eventTitle);
                     %>
                     <%= message %>
                 </div>

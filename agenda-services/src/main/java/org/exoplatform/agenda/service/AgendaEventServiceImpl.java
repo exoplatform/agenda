@@ -31,6 +31,7 @@ import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.storage.AgendaEventStorage;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
@@ -56,12 +57,15 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
   private SpaceService                 spaceService;
 
+  private ListenerService              listenerService;
+
   public AgendaEventServiceImpl(AgendaCalendarService agendaCalendarService,
                                 AgendaEventAttendeeService attendeeService,
                                 AgendaEventAttachmentService attachmentService,
                                 AgendaEventConferenceService conferenceService,
                                 AgendaEventReminderService reminderService,
                                 AgendaEventStorage agendaEventStorage,
+                                ListenerService listenerService,
                                 IdentityManager identityManager,
                                 SpaceService spaceService) {
     this.agendaCalendarService = agendaCalendarService;
@@ -70,6 +74,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     this.conferenceService = conferenceService;
     this.reminderService = reminderService;
     this.agendaEventStorage = agendaEventStorage;
+    this.listenerService = listenerService;
     this.identityManager = identityManager;
     this.spaceService = spaceService;
   }
@@ -239,6 +244,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     reminderService.saveEventReminders(createdEvent, reminders, userIdentityId);
     attendeeService.saveEventAttendees(createdEvent, attendees, userIdentityId, sendInvitation, false);
 
+    Utils.broadcastEvent(listenerService, "exo.agenda.event.added", eventId, 0);
     return getEventById(createdEvent.getId(), event.getStart().getZone(), username);
   }
 
