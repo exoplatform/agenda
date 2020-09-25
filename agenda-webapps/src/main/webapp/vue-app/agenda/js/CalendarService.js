@@ -72,6 +72,8 @@ export function getAgendaSettings() {
   }).then((resp) => {
     if (resp && resp.ok) {
       return resp.json();
+    } else if (resp && resp.status === 404) {
+      return null;
     } else {
       throw new Error('Error getting agenda settings');
     }
