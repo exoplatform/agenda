@@ -81,7 +81,7 @@ export default {
   },
   methods:{
     reset() {
-      if (!this.event.id && !this.event.occurrence) { // In case of edit existing event
+      if (!this.event.id && !this.event.occurrence && (!this.event.attendees || !this.event.attendees.length)) { // In case of edit existing event
         // Add current user as default attendee
         if (this.currentUser) {
           this.event.attendees = [{identity: {

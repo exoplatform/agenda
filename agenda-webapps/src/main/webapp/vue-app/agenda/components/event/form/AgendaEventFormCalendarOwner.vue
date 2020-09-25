@@ -45,12 +45,18 @@ export default {
           remoteId: this.calendarOwner.remoteId,
           providerId: this.calendarOwner.providerId,
         };
+        if (this.calendarOwner.profile) {
+          this.event.calendar.owner.profile = {
+            avatarUrl: this.calendarOwner.profile.avatarUrl,
+            fullName: this.calendarOwner.profile.fullName,
+          };
+        }
       } else {
         this.event.calendar.owner = null;
       }
     },
   },
-  created() {
+  mounted() {
     this.$root.$on('agenda-event-form-opened', () => {
       this.$nextTick().then(() => this.reset());
     });
@@ -69,12 +75,15 @@ export default {
       }
     },
     reset() {
-      if (this.event.id || this.event.occurrence) { // In case of edit existing event
+      // eslint-disable-next-line no-extra-parens
+      if (this.event.id || this.event.occurrence ||  (this.event.calendar && this.event.calendar.owner && (this.event.calendar.owner.id || (this.event.calendar.owner.remoteId && this.event.calendar.owner.providerId)))) { // In case of edit existing event
         this.calendarOwner = this.$suggesterService.convertIdentityToSuggesterItem(this.event.calendar.owner);
 
-        if (this.$refs.calendarOwnerSuggester) {
-          this.$refs.calendarOwnerSuggester.items = [this.calendarOwner];
-        }
+        window.setTimeout(() => {
+          if (this.$refs.calendarOwnerSuggester) {
+            this.$refs.calendarOwnerSuggester.items = [this.calendarOwner];
+          }
+        }, 200);
       } else { // In case of new event
         if (this.currentSpace) {
           this.calendarOwner = this.event.calendar.owner = {

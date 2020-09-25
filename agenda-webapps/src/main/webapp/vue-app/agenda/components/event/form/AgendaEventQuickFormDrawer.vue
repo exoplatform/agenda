@@ -39,6 +39,34 @@
               class="ml-1 pr-1" />
           </div>
           <div class="d-flex flex-row">
+            <v-flex class="flex-grow-0 pt-4 my-2 mx-3">
+              <i class="uiIconClock text-color uiIcon32x32"></i>
+            </v-flex>
+            <div class="d-flex flex-column flex-grow-1 subtitle-1 pt-3 my-4 mr-3">
+              <div class="d-flex flex-row flex-grow-1">
+                <date-format v-model="event.startDate" class="flex-grow-1" />
+                <div v-if="!event.allDay" class="d-flex flex-row flex-grow-0">
+                  <date-format v-model="event.startDate" :format="timeFormat" />
+                  <template v-if="sameDayDates">
+                    <div class="mx-2">-</div>
+                    <date-format v-model="event.endDate" :format="timeFormat" />
+                  </template>
+                </div>
+              </div>
+              <div v-if="!sameDayDates" class="d-flex flex-row mt-4">
+                <date-format v-model="event.endDate" class="flex-grow-1" />
+                <div v-if="!event.allDay" class="flex-grow-0">
+                  <date-format v-model="event.endDate" :format="timeFormat" />
+                </div>
+              </div>
+              <div class="d-flex flex-row">
+                <v-switch
+                  v-model="event.allDay"
+                  :label="$t('agenda.allDay')" />
+              </div>
+            </div>
+          </div>
+          <div class="d-flex flex-row">
             <i class="uiIconLocation text-color uiIcon32x32 mt-4 mx-3"></i>
             <input
               id="eventLocation"
@@ -84,7 +112,7 @@
         <v-spacer />
         <v-btn
           class="btn ml-2"
-          @click="close">
+          @click="openCompleteEventForm">
           {{ $t('agenda.button.moreDetails') }}
         </v-btn>
         <v-btn
@@ -109,6 +137,10 @@ export default {
   data: () => ({
     event: null,
     saving: false,
+    timeFormat: {
+      hour: '2-digit',
+      minute: '2-digit',
+    },
   }),
   computed: {
     eventTitle() {
@@ -126,6 +158,9 @@ export default {
     disableSaveButton() {
       return this.saving || !this.eventTitleValid || !this.eventOwnerValid;
     },
+    sameDayDates() {
+      return this.event && this.event.startDate && this.event.endDate && this.$agendaUtils.areDatesOnSameDay(this.event.startDate, this.event.endDate);
+    },
   },
   created() {
     this.$root.$on('agenda-event-quick-form-open', event => {
@@ -140,6 +175,10 @@ export default {
     open() {
       this.resetCustomValidity();
       this.$refs.quickAddEventDrawer.open();
+    },
+    openCompleteEventForm() {
+      this.$refs.quickAddEventDrawer.close();
+      this.$root.$emit('agenda-event-form', this.event);
     },
     resetCustomValidity() {
       if (this.$refs.eventTitle) {
