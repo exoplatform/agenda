@@ -607,8 +607,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
     ZoneId zoneId = userTimezone.toZoneId();
     if (event.isAllDay()) {
-      start = start.toLocalDate().atStartOfDay(zoneId);
-      end = end.toLocalDate().atStartOfDay(zoneId).plusDays(1).minusSeconds(1);
+      start = start.toLocalDate().atStartOfDay(ZoneOffset.UTC);
+      end = end.toLocalDate().atStartOfDay(ZoneOffset.UTC).plusDays(1).minusSeconds(1);
     } else {
       start = start.withZoneSameInstant(zoneId);
       end = end.withZoneSameInstant(zoneId);
