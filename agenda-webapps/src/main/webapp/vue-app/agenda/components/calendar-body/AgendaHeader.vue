@@ -19,9 +19,12 @@
       icon
       class="ml-2 primary--text"
       @click="$root.$emit('agenda-calendar-owners-drawer-open')">
-      <i class="uiIcon uiIcon24x24 settingsIcon primary--text"></i>
       <template v-if="ownerIds && ownerIds.length">
+        <i class="uiIcon uiIcon24x24 settingsIcon primary--text"></i>
         ({{ ownerIds.length }})
+      </template>
+      <template v-else>
+        <i class="uiIcon uiIcon24x24 settingsIcon text-color"></i>
       </template>
     </v-btn>
     <v-btn
