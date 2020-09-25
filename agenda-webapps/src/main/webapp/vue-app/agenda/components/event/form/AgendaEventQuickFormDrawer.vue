@@ -26,6 +26,7 @@
               name="title"
               class="ignore-vuetify-classes my-3"
               required
+              autofocus
               @change="resetCustomValidity">
           </div>
           <div class="d-flex flex-row">
@@ -176,6 +177,11 @@ export default {
     open() {
       this.resetCustomValidity();
       this.$refs.quickAddEventDrawer.open();
+      window.setTimeout(() => {
+        if (this.$refs.eventTitle) {
+          this.$refs.eventTitle.focus();
+        }
+      }, 200);
     },
     openCompleteEventForm() {
       this.event.start = this.$agendaUtils.toRFC3339(this.event.startDate);
