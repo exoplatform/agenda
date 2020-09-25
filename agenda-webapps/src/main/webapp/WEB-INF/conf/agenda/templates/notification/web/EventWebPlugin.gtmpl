@@ -2,21 +2,23 @@
 <li class="<%= READ %> clearfix" data-id="<%= NOTIFICATION_ID %>">
     <div class="media agendaWebNotifContent">
         <div class="avatarXSmall pull-left">
-            <img src="<%= eventTitle %>" alt="<%= eventTitle %>" />
+            <img class="spaceAvatar" src="<%= Avatar %>" alt="<%= Avatar %>" />
         </div>
         <div class="media-body">
-            <div class="contentSmall" data-link="<%= detailsURL %>">
+            <div class="contentSmall" data-link="<%= eventURL %>">
                 <div class="status">
                     <%
-                    String senderLink = "<a class=\"user-name text-bold\" href=\"javascript:void(0)\">" + eventTitle + "</a>";
+                    String eventTitle = "<span class=\"user-name text-bold\">"+ eventTitle +"</span>";
+                    String replyUrl = null;
                     String message = null;
                     message = _ctx.appRes("Notification.agenda.event.created", eventTitle);
                     %>
                     <%= message %>
                 </div>
                 <div class="content">
-                    <i class="uiIcon fa fa-shopping-cart uiIconPerkStoreOrder uiIconBlue"></i>
-                    <%= eventTitle %>
+                    <a>
+                      <%= _ctx.appRes("Notification.agenda.event.reply") %>
+                    </a>
                 </div>
                 <div class="lastUpdatedTime"><%= LAST_UPDATED_TIME %></div>
             </div>
