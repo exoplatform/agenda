@@ -17,13 +17,14 @@
     @click:event="showEvent"
     @click:more="viewDay"
     @click:date="viewDay"
-    @mousedown:event="showEvent"
+    @mousedown:event="dragEventStart"
     @mousedown:time="quickAddEventCreate"
     @mousedown:day="quickAddEventCreate"
     @mousemove:time="quickAddEventMove"
     @mousemove:day="quickAddEventMove"
     @mouseup:time="quickAddEventOpenDialog"
     @mouseup:day="quickAddEventOpenDialog"
+    @mouseup:event="dragEventEnd"
     @change="retrievePeriodEvents">
     <template #day-body="day">
       <div
@@ -56,6 +57,7 @@ export default {
   },
   data: () => ({
     quickEvent: null,
+    dragEvent: false,
     selectedDate: '',
     selectedEvent: {},
     selectedElement: null,
@@ -140,7 +142,7 @@ export default {
     showEvent(eventObj) {
       this.cancelCreateEvent();
       const event = eventObj && eventObj.event || eventObj;
-      if (!event.id) {
+      if (!event.id && !event.occurrence) {
         return;
       }
       if (eventObj.nativeEvent) {
@@ -163,25 +165,33 @@ export default {
         this.quickEvent = null;
       }
     },
+    dragEventStart() {
+      this.dragEvent = true;
+    },
+    dragEventEnd() {
+      this.dragEvent = false;
+    },
     quickAddEventCreate(params) {
       if (!params || params.event) {
         return;
       }
       this.cancelCreateEvent();
-      const startDate = this.toDate(params, false);
-      this.quickEvent = {
-        summary: '',
-        startDate: startDate,
-        endDate: startDate,
-        allDay: !params.time,
-        editing: true,
-        calendar: {
-          owner: {},
-        },
-        reminders: [],
-        attachments: [],
-        attendees: [],
-      };
+      if (!this.dragEvent) {
+        const startDate = this.toDate(params, false);
+        this.quickEvent = {
+          summary: '',
+          startDate: startDate,
+          endDate: startDate,
+          allDay: !params.time,
+          editing: true,
+          calendar: {
+            owner: {},
+          },
+          reminders: [],
+          attachments: [],
+          attendees: [],
+        };
+      }
     },
     quickAddEventMove(params) {
       if (this.quickEvent && this.quickEvent.editing) {
