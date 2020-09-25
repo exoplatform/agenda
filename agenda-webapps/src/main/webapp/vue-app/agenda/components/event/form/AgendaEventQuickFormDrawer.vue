@@ -45,19 +45,15 @@
             </v-flex>
             <div class="d-flex flex-column flex-grow-1 subtitle-1 pt-3 my-4 mr-3">
               <div class="d-flex flex-row flex-grow-1">
-                <date-format v-model="event.startDate" class="flex-grow-1" />
+                <date-picker v-model="startDate" class="flex-grow-1" />
                 <div v-if="!event.allDay" class="d-flex flex-row flex-grow-0">
-                  <date-format v-model="event.startDate" :format="timeFormat" />
-                  <template v-if="sameDayDates">
-                    <div class="mx-2">-</div>
-                    <date-format v-model="event.endDate" :format="timeFormat" />
-                  </template>
+                  <time-picker v-model="startTime" />
                 </div>
               </div>
-              <div v-if="!sameDayDates" class="d-flex flex-row mt-4">
-                <date-format v-model="event.endDate" class="flex-grow-1" />
+              <div class="d-flex flex-row mt-4">
+                <date-picker v-model="endDate" class="flex-grow-1" />
                 <div v-if="!event.allDay" class="flex-grow-0">
-                  <date-format v-model="event.endDate" :format="timeFormat" />
+                  <time-picker v-model="endTime" />
                 </div>
               </div>
               <div class="d-flex flex-row">
@@ -137,11 +133,11 @@ export default {
   },
   data: () => ({
     event: null,
+    startDate: null,
+    startTime: null,
+    endDate: null,
+    endTime: null,
     saving: false,
-    timeFormat: {
-      hour: '2-digit',
-      minute: '2-digit',
-    },
   }),
   computed: {
     eventTitle() {
@@ -159,12 +155,53 @@ export default {
     disableSaveButton() {
       return this.saving || !this.eventTitleValid || !this.eventOwnerValid;
     },
-    sameDayDates() {
-      return this.event && this.event.startDate && this.event.endDate && this.$agendaUtils.areDatesOnSameDay(this.event.startDate, this.event.endDate);
+  },
+  watch: {
+    startDate(newVal, oldVal){
+      if (!this.event || !newVal || !oldVal || String(newVal) === String(oldVal)) {
+        return;
+      }
+      const startDate = new Date(this.startDate);
+      const newDate = new Date(this.event.startDate);
+      newDate.setFullYear(startDate.getFullYear());
+      newDate.setMonth(startDate.getMonth());
+      newDate.setDate(startDate.getDate());
+      this.event.startDate = new Date(newDate);
+    },
+    startTime(newVal, oldVal){
+      if (!this.event || !newVal || !oldVal || String(newVal) === String(oldVal)) {
+        return;
+      }
+      this.event.startDate.setHours(this.startTime.getHours());
+      this.event.startDate.setMinutes(this.startTime.getMinutes());
+      this.event.startDate = new Date(this.event.startDate);
+    },
+    endDate(newVal, oldVal){
+      if (!this.event || !newVal || !oldVal || String(newVal) === String(oldVal)) {
+        return;
+      }
+      const endDate = new Date(this.endDate);
+      this.event.endDate.setFullYear(endDate.getFullYear());
+      this.event.endDate.setMonth(endDate.getMonth());
+      this.event.endDate.setDate(endDate.getDate());
+      this.event.endDate = new Date(this.event.endDate);
+    },
+    endTime(newVal, oldVal){
+      if (!this.event || !newVal || !oldVal || String(newVal) === String(oldVal)) {
+        return;
+      }
+      this.event.endDate.setHours(this.endTime.getHours());
+      this.event.endDate.setMinutes(this.endTime.getMinutes());
+      this.event.endDate = new Date(this.event.endDate);
     },
   },
   created() {
     this.$root.$on('agenda-event-quick-form-open', event => {
+      this.event = null;
+      this.startDate = new Date(event.startDate);
+      this.startTime = new Date(event.startDate);
+      this.endDate = new Date(event.endDate);
+      this.endTime = new Date(event.endDate);
       this.event = event;
       this.open();
       this.$nextTick().then(() => this.$root.$emit('agenda-event-form-opened', this.event));
