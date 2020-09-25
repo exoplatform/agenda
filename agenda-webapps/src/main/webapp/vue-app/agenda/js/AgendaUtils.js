@@ -153,10 +153,16 @@ export function getSameTime(dateToChange, dateWithTime) {
 }
 
 export function areDatesOnSameDay(firstDate, secondDate) {
-  if (typeof firstDate === 'string') {
+  if (firstDate === secondDate) {
+    return true;
+  }
+  if (!firstDate || !secondDate) {
+    return true;
+  }
+  if (!(typeof firstDate === 'object')) {
     firstDate = new Date(firstDate);
   }
-  if (typeof secondDate === 'string') {
+  if (!(typeof secondDate === 'object')) {
     secondDate = new Date(secondDate);
   }
   return firstDate.getFullYear() === secondDate.getFullYear() &&
