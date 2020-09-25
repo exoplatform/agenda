@@ -15,7 +15,7 @@
         <v-layout class="ma-5 d-flex flex-column">
           <div class="d-flex flex-column mb-5">
             <label class="switch-label-text mt-1 text-subtitle-1">{{ $t('agenda.settings.drawer.label.DefaultView') }}:</label>
-            <select v-model="settings.agendaDefaultView" class="width-auto my-auto pr-2 subtitle-1 ignore-vuetify-classes d-none d-sm-inline">
+            <select v-model="settingsForm.agendaDefaultView" class="width-auto my-auto pr-2 subtitle-1 ignore-vuetify-classes d-none d-sm-inline">
               <option value="day">{{ $t('agenda.label.viewDay') }}</option>
               <option value="week">{{ $t('agenda.label.viewWeek') }}</option>
               <option value="month">{{ $t('agenda.label.viewMonth') }}</option>
@@ -23,7 +23,7 @@
           </div>
           <div class="d-flex flex-column mb-5">
             <label class="switch-label-text mt-1 text-subtitle-1">{{ $t('agenda.settings.drawer.label.WeekStartOn') }}:</label>
-            <select v-model="settings.agendaWeekStartOn" class="width-auto my-auto pr-2 subtitle-1 ignore-vuetify-classes d-none d-sm-inline">
+            <select v-model="settingsForm.agendaWeekStartOn" class="width-auto my-auto pr-2 subtitle-1 ignore-vuetify-classes d-none d-sm-inline">
               <option
                 v-for="day in DAYS_ABBREVIATIONS"
                 :key="day"
@@ -35,24 +35,24 @@
 
           <div class="d-flex flex-row mt-5">
             <label class="switch-label-text mt-1 text-subtitle-1">{{ $t('agenda.settings.drawer.label.showWorkingTime') }}:</label>
-            <v-switch v-model="settings.showWorkingTime" class="mt-0 ml-4" />
+            <v-switch v-model="settingsForm.showWorkingTime" class="mt-0 ml-4" />
           </div>
           <div class="d-flex flex-row align-baseline">
             <input
               id="workingTimeStart"
-              v-model="settings.workingTimeStart"
+              v-model="settingsForm.workingTimeStart"
               type="time"
               name="workingTimeStart"
-              :disabled="!settings.showWorkingTime">
+              :disabled="!settingsForm.showWorkingTime">
 
-            <label class="switch-label-text mx-5 text-subtitle-1" :class="{'disabled': !settings.showWorkingTime}">{{ $t('agenda.label.to') }}</label>
+            <label class="switch-label-text mx-5 text-subtitle-1" :class="{'disabled': !settingsForm.showWorkingTime}">{{ $t('agenda.label.to') }}</label>
             <input
               id="workingTimeEnd"
-              v-model="settings.workingTimeEnd"
+              v-model="settingsForm.workingTimeEnd"
               type="time"
               name="workingTimeEnd"
-              :min="settings.workingTimeStart"
-              :disabled="!settings.showWorkingTime">
+              :min="settingsForm.workingTimeStart"
+              :disabled="!settingsForm.showWorkingTime">
           </div>
         </v-layout>
       </v-form>
@@ -87,7 +87,8 @@ export default {
   },
   data() {
     return {
-      DAYS_ABBREVIATIONS: ['SU', 'MO','TU','WE','TH','FR', 'SA']
+      DAYS_ABBREVIATIONS: ['SU', 'MO','TU','WE','TH','FR', 'SA'],
+      settingsForm: {},
     };
   },
   computed: {
@@ -108,6 +109,7 @@ export default {
   },
   methods: {
     open() {
+      this.settingsForm = JSON.parse(JSON.stringify(this.settings));
       this.$refs.UserSettingAgendaDrawer.open();
     },
     close() {
@@ -116,7 +118,8 @@ export default {
     save() {
       if(this.validateForm()) {
         this.$refs.UserSettingAgendaDrawer.startLoading();
-        this.$calendarService.saveAgendaSettings(this.settings).then(() => {
+        this.$calendarService.saveAgendaSettings(this.settingsForm).then(() => {
+          Object.assign(this.settings, this.settingsForm);
           this.$refs.UserSettingAgendaDrawer.close();
         })
           .finally(() => {

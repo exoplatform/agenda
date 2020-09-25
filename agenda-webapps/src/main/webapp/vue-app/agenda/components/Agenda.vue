@@ -1,6 +1,6 @@
 <template>
   <v-app class="agenda-application border-box-sizing transparent" flat>
-    <v-main class="pa-5">
+    <v-main v-if="settingsLoaded" class="pa-5">
       <agenda-header
         :calendar-type="calendarType"
         :event-type="eventType"
@@ -45,12 +45,13 @@ export default {
     },
     events: [],
     settings: {
-      agendaDefaultView: '',
-      agendaWeekStartOn: '',
-      showWorkingTime: '',
-      workingTimeStart: '',
-      workingTimeEnd: '',
+      agendaDefaultView: 'week',
+      agendaWeekStartOn: 'MO',
+      showWorkingTime: false,
+      workingTimeStart: '00:00',
+      workingTimeEnd: '23:59',
     },
+    settingsLoaded: false,
   }),
   computed: {
     weekdays () {
@@ -92,14 +93,18 @@ export default {
     this.$root.$on('refresh', this.retrieveEvents);
     this.$root.$on('agenda-event-type-changed', eventType => this.eventType = eventType);
     this.$root.$on('agenda-event-deleted', this.retrieveEvents);
-  },
-  mounted() {
-    document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
     this.spaceId = eXo.env.portal.spaceId;
-    this.$calendarService.getAgendaSettings().then(settings => {
-      this.settings = JSON.parse(settings.value);
-      this.calendarType = this.settings && this.settings.agendaDefaultView;
-    });
+    this.$calendarService.getAgendaSettings()
+      .then(settings => {
+        if (settings && settings.value) {
+          this.settings = JSON.parse(settings.value);
+          this.calendarType = this.settings && this.settings.agendaDefaultView;
+        }
+      })
+      .finally(() => {
+        this.settingsLoaded = true;
+        document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
+      });
   },
   methods: {
     retrieveEvents() {
