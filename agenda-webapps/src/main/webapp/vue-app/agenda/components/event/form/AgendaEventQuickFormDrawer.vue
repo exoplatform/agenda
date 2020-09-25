@@ -166,6 +166,7 @@ export default {
     this.$root.$on('agenda-event-quick-form-open', event => {
       this.event = event;
       this.open();
+      this.$nextTick().then(() => this.$root.$emit('agenda-event-form-opened', this.event));
     });
   },
   methods:{
@@ -177,6 +178,12 @@ export default {
       this.$refs.quickAddEventDrawer.open();
     },
     openCompleteEventForm() {
+      this.event.start = this.$agendaUtils.toRFC3339(this.event.startDate);
+      this.event.end = this.$agendaUtils.toRFC3339(this.event.endDate);
+
+      delete this.event.startDate;
+      delete this.event.endDate;
+
       this.$refs.quickAddEventDrawer.close();
       this.$root.$emit('agenda-event-form', this.event);
     },
