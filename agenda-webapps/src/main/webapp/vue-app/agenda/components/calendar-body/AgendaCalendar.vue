@@ -17,6 +17,7 @@
     @click:event="showEvent"
     @click:more="viewDay"
     @click:date="viewDay"
+    @mousedown:event="showEvent"
     @mousedown:time="quickAddEventCreate"
     @mousedown:day="quickAddEventCreate"
     @mousemove:time="quickAddEventMove"
@@ -136,10 +137,18 @@ export default {
     isEventTimed(event) {
       return event && !event.allDay;
     },
-    showEvent(event) {
+    showEvent(eventObj) {
       this.cancelCreateEvent();
-      event = event && event.event || event;
+      const event = eventObj && eventObj.event || eventObj;
+      if (!event.id) {
+        return;
+      }
+      if (eventObj.nativeEvent) {
+        eventObj.nativeEvent.preventDefault();
+        eventObj.nativeEvent.stopPropagation();
+      }
       this.$root.$emit('agenda-event-details', event);
+      return false;
     },
     viewDay({ date }) {
       this.focus = date;
@@ -197,7 +206,11 @@ export default {
           this.events.push(this.quickEvent);
         }
         delete this.quickEvent.editing;
-        this.$root.$emit('agenda-event-quick-form-open', this.quickEvent);
+        window.setTimeout(() => {
+          if (this.quickEvent) {
+            this.$root.$emit('agenda-event-quick-form-open', this.quickEvent);
+          }
+        }, 200);
       }
     },
     roundTime(minute, down) {
