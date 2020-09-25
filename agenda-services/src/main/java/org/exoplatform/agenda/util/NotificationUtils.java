@@ -29,22 +29,24 @@ public class NotificationUtils {
 
   public static final String                  AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN   = "EventAddedNotificationPlugin";
 
-  private static final String                 TEMPLATE_VARIABLE_NOTIFICATION_URL       = "detailsURL";
+  private static final String                 TEMPLATE_VARIABLE_NOTIFICATION_URL       = "notificationURL";
+
+  private static final String                 TEMPLATE_VARIABLE_EVENT_URL       = "eventURL";
 
   public static final PluginKey               EVENT_ADDED_KEY                          =
                                                               PluginKey.key(AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN);
 
   private static final String                 STORED_PARAMETER_EVENT_TITLE             = "eventTitle";
 
+  private static final String                 STORED_PARAMETER_EVENT_SPACE             = "creatorName";
+
   private static final String                 STORED_PARAMETER_EVENT_ID                = "eventId";
 
   private static final String                 STORED_PARAMETER_EVENT_START_DATE        = "startDate";
 
+  private static final String                 STORED_PARAMETER_EVENT_URL               = "Url";
+
   private static final String                 TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR = "Avatar";
-
-  private static final String                 TEMPLATE_VARIABLE_SUFFIX_IDENTITY_NAME   = "Name";
-
-  private static final String                 TEMPLATE_VARIABLE_SUFFIX_IDENTITY_URL    = "Url";
 
   private static final String                 TEMPLATE_VARIABLE_EVENT_ID               = "eventId";
 
@@ -72,12 +74,14 @@ public class NotificationUtils {
     notification.with("receivers", recipientList.toString());
   }
 
-  public static final void storeEventParameters(NotificationInfo notification, Event event) {
+  public static final void storeEventParameters(NotificationInfo notification, Event event, org.exoplatform.agenda.model.Calendar calendar) {
     if (event.getCreatorId() == 0) {
       throw new IllegalStateException("creator is null");
     }
     notification.with(STORED_PARAMETER_EVENT_ID, String.valueOf(event.getId()))
                 .with(STORED_PARAMETER_EVENT_TITLE, event.getSummary())
+                .with(STORED_PARAMETER_EVENT_SPACE, calendar.getTitle())
+                .with(STORED_PARAMETER_EVENT_URL, getEventURL(event))
                 .with(STORED_PARAMETER_EVENT_START_DATE, String.valueOf(event.getStart()));
   }
 
@@ -114,7 +118,7 @@ public class NotificationUtils {
     setIdentityNameAndAvatar(notification, templateContext, "receiver");
     setEventDetails(templateContext, notification);
 
-    templateContext.put(TEMPLATE_VARIABLE_NOTIFICATION_URL, notificationURL);
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
     return templateContext;
   }
 
@@ -133,25 +137,29 @@ public class NotificationUtils {
     templateContext.put("USER",notification.getTo());
   }
 
+  private static String getEventURL(Event event) {
+    String currentSite = getDefaultSite();
+    String currentDomain = CommonsUtils.getCurrentDomain();
+    if (!currentDomain.endsWith("/")) {
+      currentDomain += "/";
+    }
+    String notificationURL = currentDomain + "portal/" + currentSite + "/agenda?" + event.getId();
+    return notificationURL;
+  }
+
   private static final void setIdentityNameAndAvatar(NotificationInfo notification,
                                                      TemplateContext templateContext,
                                                      String prefix) {
-    String identityId = notification.getValueOwnerParameter(prefix.toUpperCase() + "_ID");
-    if (StringUtils.isBlank(identityId)) {
-      templateContext.put(prefix + TEMPLATE_VARIABLE_SUFFIX_IDENTITY_NAME, "");
-      templateContext.put(prefix + TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR, "");
-      templateContext.put(prefix + TEMPLATE_VARIABLE_SUFFIX_IDENTITY_URL, "");
+    String spaceTitle = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_SPACE);
+    if (StringUtils.isBlank(spaceTitle)) {
+      templateContext.put(TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR, "");
       return;
     }
-    Identity identity = Utils.getIdentityById(identityId);
-    if (identity == null) {
-      throw new IllegalStateException("Identity with id " + identityId + " not found, can't send notification");
+    String spaceUrlAvatar = Utils.getSpaceAvatarByIdSpace(spaceTitle);
+    if (StringUtils.isBlank(spaceTitle)) {
+      throw new IllegalStateException("Space with id " + spaceTitle + " not found, can't send notification");
     }
-    String fullName = identity.getProfile().getFullName();
-    templateContext.put(prefix + TEMPLATE_VARIABLE_SUFFIX_IDENTITY_NAME, fullName);
-    templateContext.put(prefix + TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR, identity.getProfile().getAvatarUrl());
-    templateContext.put(prefix + TEMPLATE_VARIABLE_SUFFIX_IDENTITY_URL, identity.getProfile().getUrl());
-
+    templateContext.put(TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR, spaceUrlAvatar);
   }
 
   private static final void setMessageSubject(MessageInfo messageInfo,

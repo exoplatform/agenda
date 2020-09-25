@@ -317,4 +317,9 @@ public class Utils {
     return identityManager.getIdentity(identityId, true);
   }
 
+  public static String getSpaceAvatarByIdSpace(String spaceName) {
+    SpaceService spaceService = CommonsUtils.getService(SpaceService.class);
+    String avatarUrl = spaceService.getSpaceByPrettyName(spaceName).getAvatarUrl();
+    return avatarUrl;
+  }
 }

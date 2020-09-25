@@ -1,8 +1,10 @@
 package org.exoplatform.agenda.notification.plugin;
 
 import org.apache.commons.lang.StringUtils;
+import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
+import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.agenda.service.AgendaEventAttendeeService;
 import org.exoplatform.agenda.service.AgendaEventService;
 import org.exoplatform.commons.api.notification.NotificationContext;
@@ -21,10 +23,16 @@ public class AgendaNotificationPlugin extends BaseNotificationPlugin {
   private static final Log LOG = ExoLogger.getLogger(AgendaNotificationPlugin.class);
   private AgendaEventService eventService;
   private AgendaEventAttendeeService eventAttendeeService;
-  public AgendaNotificationPlugin(InitParams initParams, AgendaEventService eventService, AgendaEventAttendeeService eventAttendeeService) {
+  private AgendaCalendarService calendarService;
+
+  public AgendaNotificationPlugin(InitParams initParams,
+                                  AgendaEventService eventService,
+                                  AgendaEventAttendeeService eventAttendeeService,
+                                  AgendaCalendarService calendarService) {
     super(initParams);
     this.eventService = eventService;
     this.eventAttendeeService = eventAttendeeService;
+    this.calendarService = calendarService;
     ValueParam notificationIdParam = initParams.getValueParam("notification.id");
     if (notificationIdParam == null || StringUtils.isBlank(notificationIdParam.getValue())) {
       throw new IllegalStateException("'notification.id' parameter is mandatory");
@@ -50,6 +58,7 @@ public class AgendaNotificationPlugin extends BaseNotificationPlugin {
     long eventId = ctx.value(EVENT_ID);
     Event event = eventService.getEventById(eventId);
     List<EventAttendee> eventAttendee= eventAttendeeService.getEventAttendees(eventId);
+    Calendar calendar = calendarService.getCalendarById(event.getCalendarId());
     NotificationInfo notification = NotificationInfo.instance();
     notification.key(getId());
     if (event.getId() > 0) {
@@ -61,7 +70,7 @@ public class AgendaNotificationPlugin extends BaseNotificationPlugin {
       }
       return null;
     } else {
-      storeEventParameters(notification, event);
+      storeEventParameters(notification, event, calendar);
       return notification.end();
     }
   }
