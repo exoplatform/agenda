@@ -177,7 +177,7 @@ export default {
       }
       this.cancelCreateEvent();
       if (!this.dragEvent) {
-        const startDate = this.toDate(params, false);
+        const startDate = this.toDate(params, true);
         this.quickEvent = {
           summary: '',
           startDate: startDate,
