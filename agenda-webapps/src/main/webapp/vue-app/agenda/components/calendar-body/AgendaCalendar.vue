@@ -321,8 +321,13 @@ export default {
             event.parent = this.dragEvent.parent;
             event.occurrence = this.dragEvent.occurrence;
             event.recurrence = null;
-            event.start = this.$agendaUtils.toRFC3339(this.dragEvent.startDate);
-            event.end = this.$agendaUtils.toRFC3339(this.dragEvent.endDate);
+
+            const timezoneDiff =  eXo.env.portal.timezoneOffset + new Date().getTimezoneOffset() * 60000;
+            const start = this.dragEvent.startDate.getTime() + timezoneDiff;
+            const end = this.dragEvent.endDate.getTime() + timezoneDiff;
+
+            event.start = this.$agendaUtils.toRFC3339(new Date(start));
+            event.end = this.$agendaUtils.toRFC3339(new Date(end));
             event.allDay = this.dragEvent.allDay;
 
             this.$root.$emit('agenda-event-save', event);
