@@ -46,7 +46,6 @@
     <div class="d-flex flex-row flex-grow-0 mx-2 mx-md-10 my-2 mb-md-10">
       <v-btn
         v-if="stepper > 1"
-        :disabled="saving"
         class="btn mr-2"
         @click="previousStep">
         <v-icon>mdi-chevron-left</v-icon>
@@ -56,24 +55,18 @@
       </v-btn>
       <div class="ml-auto d-flex flex-row">
         <v-btn
-          :loading="saving"
           :disabled="disableSaveButton"
           class="btn btn-primary"
           @click="nextStep">
           {{ stepButtonLabel }}
         </v-btn>
         <v-btn
-          :disabled="saving"
           class="btn ml-2"
           @click="close">
           {{ $t('agenda.button.cancel') }}
         </v-btn>
       </div>
     </div>
-    <agenda-recurrent-event-save-confirm-dialog
-      ref="recurrentEventConfirm"
-      :event="event"
-      @save-event="save" />
   </v-card>
 </template>
 <script>
@@ -99,7 +92,6 @@ export default {
   data () {
     return {
       stepper: 1,
-      saving: false,
     };
   },
   computed: {
@@ -116,7 +108,7 @@ export default {
       return this.eventOwner && (this.eventOwner.id || this.eventOwner.remoteId && this.eventOwner.providerId);
     },
     disableSaveButton() {
-      return this.saving || !this.eventTitleValid || !this.eventOwnerValid;
+      return !this.eventTitleValid || !this.eventOwnerValid;
     },
     stepButtonLabel() {
       return this.stepper === 2 ? this.$t('agenda.button.save') : this.$t('agenda.button.continue');
@@ -143,22 +135,9 @@ export default {
     previousStep() {
       this.stepper--;
     },
-    save(eventToSave) {
-      this.saving = true;
-      const saveEventMethod = eventToSave.id ? this.$eventService.updateEvent:this.$eventService.createEvent;
-      saveEventMethod(eventToSave)
-        .then(() => this.$emit('saved'))
-        .finally(() => {
-          this.saving = false;
-        });
-    },
     nextStep() {
       if (this.stepper > 1) {
-        if (this.event.occurrence) {
-          this.$refs.recurrentEventConfirm.open();
-        } else {
-          this.save(this.event);
-        }
+        this.$root.$emit('agenda-event-save', this.event);
       } else if (this.stepper === 1) {
         if (this.$refs.eventBasicInformation.validateForm()) {
           this.stepper++;

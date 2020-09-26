@@ -4,6 +4,7 @@ import AgendaBody from './components/calendar-body/AgendaBody.vue';
 import AgendaCalendar from './components/calendar-body/AgendaCalendar.vue';
 import AgendaToolbar from './components/calendar-body/AgendaToolbar.vue';
 import AgendaPreviewEventDialog from './components/calendar-body/AgendaPreviewEventDialog.vue';
+import AgendaEventSave from './components/calendar-body/AgendaEventSave.vue';
 
 import AgendaCreateEventButton from './components/top-toolbar/AgendaCreateEventButton.vue';
 
@@ -53,6 +54,7 @@ const components = {
   'agenda-event-form': AgendaEventForm,
   'agenda-toolbar': AgendaToolbar,
   'agenda-event-preview-dialog': AgendaPreviewEventDialog,
+  'agenda-event-save': AgendaEventSave,
   'agenda-switch-view': AgendaSwitchView,
   'agenda-event-form-basic-information': AgendaEventFormBasicInformation,
   'agenda-event-quick-form-drawer': AgendaEventQuickFormDrawer,
