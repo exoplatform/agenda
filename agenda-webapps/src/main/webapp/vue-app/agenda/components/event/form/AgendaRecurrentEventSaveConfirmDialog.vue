@@ -48,15 +48,8 @@
 
 <script>
 export default {
-  props: {
-    event: {
-      type: Object,
-      default: function() {
-        return null;
-      },
-    },
-  },
   data: () => ({
+    event: null,
     loading: false,
     dialog: false,
   }),
@@ -95,11 +88,9 @@ export default {
         this.$eventService.deleteEvent(this.event.id)
           .then(() => {
             this.$emit('save-event', eventToSave);
-            this.dialog = false;
           });
       } else {
         this.$emit('save-event', eventToSave);
-        this.dialog = false;
       }
     },
     saveOccurrenceEvent(eventObject) {
@@ -108,15 +99,17 @@ export default {
 
       const eventToSave = JSON.parse(JSON.stringify(this.event));
       this.$emit('save-event', eventToSave);
-      this.dialog = false;
     },
     close(event) {
-      event.preventDefault();
-      event.stopPropagation();
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
 
       this.dialog = false;
     },
-    open() {
+    open(event) {
+      this.event = event;
       this.dialog = true;
     },
   },
