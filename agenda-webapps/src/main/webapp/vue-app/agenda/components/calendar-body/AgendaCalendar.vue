@@ -201,12 +201,16 @@ export default {
       this.dragEvent = eventObj && eventObj.event || eventObj;
       if (this.dragEvent) {
         this.originalDragedEvent = JSON.parse(JSON.stringify(this.dragEvent));
+        this.originalDragedEvent.startDate = new Date(this.dragEvent.startDate);
+        this.originalDragedEvent.endDate = new Date(this.dragEvent.endDate);
       }
     },
     eventMouseDown(eventObj) {
       this.dragEvent = eventObj && eventObj.event || this.dragEvent;
       if (this.dragEvent) {
         this.originalDragedEvent = JSON.parse(JSON.stringify(this.dragEvent));
+        this.originalDragedEvent.startDate = new Date(this.dragEvent.startDate);
+        this.originalDragedEvent.endDate = new Date(this.dragEvent.endDate);
       }
     },
     eventMouseUp() {
@@ -341,8 +345,8 @@ export default {
         this.quickEvent = null;
       } else {
         if (this.dragEvent && this.originalDragedEvent && !this.saving) {
-          this.dragEvent.startDate = new Date(this.originalDragedEvent.startDate);
-          this.dragEvent.endDate = new Date(this.originalDragedEvent.endDate);
+          this.dragEvent.startDate = this.originalDragedEvent.startDate;
+          this.dragEvent.endDate = this.originalDragedEvent.endDate;
         }
         this.eventDragged = false;
         this.eventExtended = false;
