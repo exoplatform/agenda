@@ -293,13 +293,14 @@ export default {
     },
     calendarMouseUp() {
       if (this.quickEvent) {
+        if (!this.quickEvent.added) {
+          this.quickEvent.added = true;
+          this.events.push(this.quickEvent);
+        }
+        delete this.quickEvent.editing;
+
         window.setTimeout(() => {
           if (this.quickEvent) {
-            if (!this.quickEvent.added) {
-              this.quickEvent.added = true;
-              this.events.push(this.quickEvent);
-            }
-            delete this.quickEvent.editing;
             this.$root.$emit('agenda-event-quick-form-open', this.quickEvent);
           }
         }, 200);
