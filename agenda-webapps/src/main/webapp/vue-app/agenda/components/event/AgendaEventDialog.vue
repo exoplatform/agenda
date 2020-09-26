@@ -18,8 +18,7 @@
       ref="eventDetails"
       :event="event"
       :weekdays="weekdays"
-      @close="close"
-      @saved="saved" />
+      @close="close" />
   </v-dialog>
 </template>
 
@@ -43,7 +42,7 @@ export default {
     return {
       dialog: false,
       event: null,
-      isForm: false
+      isForm: false,
     };
   },
   watch: {
@@ -78,6 +77,7 @@ export default {
         });
     });
     this.$root.$on('agenda-event-deleted', this.close);
+    this.$root.$on('agenda-event-saved', this.close);
   },
   methods: {
     open(agendaEvent) {
@@ -104,10 +104,6 @@ export default {
     },
     close() {
       this.dialog = false;
-    },
-    saved() {
-      this.$root.$emit('refresh');
-      this.close();
     },
   },
 };
