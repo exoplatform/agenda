@@ -353,16 +353,23 @@ export default {
         }
         this.quickEvent = null;
       } else {
-        if (this.dragEvent && this.originalDragedEvent && !this.saving) {
-          this.dragEvent.startDate = this.originalDragedEvent.startDate;
-          this.dragEvent.endDate = this.originalDragedEvent.endDate;
-        }
-        this.eventDragged = false;
-        this.eventExtended = false;
-        this.dragDelta = null;
-        this.dragEvent = null;
-        this.originalDragedEvent = null;
+        this.cancelEventDrag();
       }
+    },
+    cancelEventDrag() {
+      if (this.saving) {
+        return;
+      }
+
+      if (this.dragEvent && this.originalDragedEvent && !this.saving) {
+        this.dragEvent.startDate = this.originalDragedEvent.startDate;
+        this.dragEvent.endDate = this.originalDragedEvent.endDate;
+      }
+      this.eventDragged = false;
+      this.eventExtended = false;
+      this.dragDelta = null;
+      this.dragEvent = null;
+      this.originalDragedEvent = null;
     },
     roundTime(minute, down) {
       const roundTo = 15; // minutes
