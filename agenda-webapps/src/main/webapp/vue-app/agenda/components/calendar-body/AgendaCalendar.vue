@@ -20,14 +20,14 @@
     @mousedown:event="eventMouseDown"
     @mousemove:event="eventMouseMove"
     @mouseup:event="eventMouseUp"
-    @contextmenu:event="cancelEventModification"
     @mousedown:time="calendarMouseDown"
     @mousemove:time="calendarMouseMove"
     @mouseup:time="calendarMouseUp"
-    @contextmenu:time="cancelEventModification"
     @mousedown:day="calendarMouseDown"
     @mousemove:day="calendarMouseMove"
     @mouseup:day="calendarMouseUp"
+    @contextmenu:event="cancelEventModification"
+    @contextmenu:time="cancelEventModification"
     @contextmenu:day="cancelEventModification"
     @change="retrievePeriodEvents">
     <template #day-body="day">
