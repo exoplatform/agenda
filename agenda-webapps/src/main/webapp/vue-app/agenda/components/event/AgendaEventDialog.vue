@@ -1,6 +1,7 @@
 <template>
   <v-dialog
     v-model="dialog"
+    persistent
     fullscreen
     hide-overlay>
     <agenda-event-form
