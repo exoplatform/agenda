@@ -172,16 +172,17 @@
     .user-suggester {
       max-width: ~"calc(100% - 59px)";
     }
-    .datePickerComponent::after {
-      display: none;
-    }
-    .datePickerText {
-      width: auto;
-      min-width: auto;
-      max-width: 50%;
-      padding: 5px;
-      text-align: center;
-    }
+  }
+
+  .datePickerComponent::after {
+    display: none;
+  }
+  .datePickerText {
+    width: auto;
+    min-width: auto;
+    max-width: 50%;
+    padding: 5px;
+    text-align: center;
   }
 
   .customRecurrentEventDrawer {
@@ -277,6 +278,14 @@
     margin-right: 2px;
     color: @darkGrey !important;
   }
+}
+
+.event-form-dates {
+  position: relative;
+}
+.select-date-pickers {
+  overflow: visible !important;
+  contain: initial !important;
 }
 
 .event-details {

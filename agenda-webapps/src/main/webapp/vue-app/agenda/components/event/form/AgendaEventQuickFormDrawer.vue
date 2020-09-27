@@ -43,25 +43,7 @@
             <v-flex class="flex-grow-0 pt-4 my-2 mx-3">
               <i class="uiIconClock text-color uiIcon32x32"></i>
             </v-flex>
-            <div class="d-flex flex-column flex-grow-1 subtitle-1 pt-3 my-4 mr-3">
-              <div class="d-flex flex-row flex-grow-1">
-                <date-picker v-model="startDate" class="flex-grow-1" />
-                <div v-if="!event.allDay" class="d-flex flex-row flex-grow-0">
-                  <time-picker v-model="startTime" />
-                </div>
-              </div>
-              <div class="d-flex flex-row mt-4">
-                <date-picker v-model="endDate" class="flex-grow-1" />
-                <div v-if="!event.allDay" class="flex-grow-0">
-                  <time-picker v-model="endTime" :min="startTime" />
-                </div>
-              </div>
-              <div class="d-flex flex-row">
-                <v-switch
-                  v-model="event.allDay"
-                  :label="$t('agenda.allDay')" />
-              </div>
-            </div>
+            <agenda-event-form-date-pickers :event="event" />
           </div>
           <div class="d-flex flex-row">
             <i class="uiIconLocation text-color uiIcon32x32 mt-4 mx-3"></i>
@@ -133,11 +115,6 @@ export default {
   },
   data: () => ({
     event: null,
-    startDate: null,
-    startTime: null,
-    endDate: null,
-    endTime: null,
-    duration: null,
     saving: false,
   }),
   computed: {
@@ -157,62 +134,14 @@ export default {
       return this.saving || !this.eventTitleValid || !this.eventOwnerValid;
     },
   },
-  watch: {
-    startDate(newVal, oldVal){
-      if (!this.event || !newVal || !oldVal || String(newVal) === String(oldVal)) {
-        return;
-      }
-      const startDate = new Date(this.startDate);
-      const newDate = new Date(this.event.startDate);
-      newDate.setFullYear(startDate.getFullYear());
-      newDate.setMonth(startDate.getMonth());
-      newDate.setDate(startDate.getDate());
-      this.event.startDate = new Date(newDate);
-      this.endTime = new Date(this.event.startDate.getTime() + this.duration);
-      this.endDate = new Date(this.event.startDate.getTime() + this.duration);
-    },
-    startTime(newVal, oldVal){
-      if (!this.event || !newVal || !oldVal || String(newVal) === String(oldVal)) {
-        return;
-      }
-      this.event.startDate.setHours(this.startTime.getHours());
-      this.event.startDate.setMinutes(this.startTime.getMinutes());
-      this.event.startDate = new Date(this.event.startDate);
-      this.endTime = new Date(this.event.startDate.getTime() + this.duration);
-      this.endDate = new Date(this.event.startDate.getTime() + this.duration);
-    },
-    endDate(newVal, oldVal){
-      if (!this.event || !newVal || !oldVal || String(newVal) === String(oldVal)) {
-        return;
-      }
-      const endDate = new Date(this.endDate);
-      this.event.endDate.setFullYear(endDate.getFullYear());
-      this.event.endDate.setMonth(endDate.getMonth());
-      this.event.endDate.setDate(endDate.getDate());
-      this.event.endDate = new Date(this.event.endDate);
-      this.duration = new Date(this.event.endDate).getTime() - new Date(this.event.startDate).getTime();
-    },
-    endTime(newVal, oldVal){
-      if (!this.event || !newVal || !oldVal || String(newVal) === String(oldVal)) {
-        return;
-      }
-      this.event.endDate.setHours(this.endTime.getHours());
-      this.event.endDate.setMinutes(this.endTime.getMinutes());
-      this.event.endDate = new Date(this.event.endDate);
-      this.duration = new Date(this.event.endDate).getTime() - new Date(this.event.startDate).getTime();
-    },
-  },
   created() {
     this.$root.$on('agenda-event-quick-form-open', event => {
       this.event = null;
-      this.startDate = new Date(event.startDate);
-      this.startTime = new Date(event.startDate);
-      this.endDate = new Date(event.endDate);
-      this.endTime = new Date(event.endDate);
-      this.duration = this.endTime.getTime() - this.startTime.getTime();
-      this.event = event;
-      this.open();
-      this.$nextTick().then(() => this.$root.$emit('agenda-event-form-opened', this.event));
+      this.$nextTick().then(() => {
+        this.event = event;
+        this.open();
+        this.$nextTick().then(() => this.$root.$emit('agenda-event-form-opened', this.event));
+      });
     });
   },
   methods:{
@@ -252,7 +181,7 @@ export default {
 
       if (!this.event.summary) {
         this.$refs.eventTitle.setCustomValidity(this.$t('agenda.message.missingEventTitle'));
-      } else if (this.event.summary.length < 5 || this.event.summary.length > 1024) {
+      } else if (this.event.summary.trim().length < 5 || this.event.summary.trim().length > 1024) {
         this.$refs.eventTitle.setCustomValidity(this.$t('agenda.message.missingLengthEventTitle'));
       }
 

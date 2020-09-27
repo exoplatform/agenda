@@ -1,8 +1,8 @@
 <template>
-  <v-flex>
+  <v-flex class="event-form-dates">
     <v-toolbar flat class="border-color mb-4">
       <v-switch
-        v-model="allDay"
+        v-model="event.allDay"
         :label="$t('agenda.allDay')" />
       <v-row
         align="center"
@@ -27,7 +27,7 @@
     <v-calendar
       ref="calendar"
       v-model="value"
-      :events="events"
+      :events="displayedEvents"
       :event-color="getEventColor"
       :event-timed="isEventTimed"
       :start="dayToDisplay"
@@ -35,35 +35,34 @@
       :first-time="agendaStartTime"
       :interval-count="agendaIntervalCount"
       :event-ripple="false"
+      event-name="summary"
+      event-start="startDate"
+      event-end="endDate"
       color="primary"
       type="week"
-      @mousedown:event="startDrag"
+      @click:event="showEvent"
+      @mousedown:event="showEvent"
       @mousedown:time="startTime"
       @mousemove:time="mouseMove"
       @mouseup:time="endDrag"
-      @mouseleave.native="cancelDrag"
-      @change="retrievePeriod">
-      <template #event="{ event }">
-        <div class="v-event-draggable">
+      @change="retrieveEvents">
+      <template #event="eventObj">
+        <div :id="getEventDomId(eventObj)" class="v-event-draggable">
           <div class="d-flex flex-nowrap v-event-draggable">
-            <strong class="text-truncate">{{ event.summary }}</strong>
-            <template v-if="!event.allDay">
+            <strong class="text-truncate">{{ eventObj.event.summary }}</strong>
+            <template v-if="!eventObj.event.allDay">
               <date-format
-                :value="event.start"
+                :value="eventObj.event.startDate"
                 :format="timeFormat"
                 class="v-event-draggable ml-2" />
               <strong class="mx-2">-</strong>
               <date-format
-                :value="event.end"
+                :value="eventObj.event.endDate"
                 :format="timeFormat"
                 class="v-event-draggable mr-2" />
             </template>
           </div>
         </div>
-        <div
-          v-if="timed"
-          class="v-event-drag-bottom"
-          @mousedown.stop="extendBottom(event)"></div>
       </template>
       <template #day-body="day">
         <div
@@ -72,6 +71,24 @@
           :style="currentTimeStyle"></div>
       </template>
     </v-calendar>
+    <v-menu
+      ref="eventDatesMenu"
+      v-model="selectedOpen"
+      :close-on-content-click="false"
+      :close-on-click="false"
+      :activator="selectedElement"
+      content-class="select-date-pickers agenda-application"
+      offset-x>
+      <v-card min-width="350" flat>
+        <v-card-text>
+          <agenda-event-form-date-pickers
+            v-if="selectedEvent"
+            :event="selectedEvent"
+            date-picker-top
+            @changed="updateCalendarDisplay(selectedEvent)" />
+        </v-card-text>
+      </v-card>
+    </v-menu>
   </v-flex>
 </template>
 
@@ -94,13 +111,15 @@ export default {
   data: () => ({
     value: '',
     periodTitle: '',
-    events: [],
-    allDay: false,
     dragEvent: null,
     dragStart: null,
     createEvent: null,
     createStart: null,
     extendOriginal: null,
+    selectedEvent: null,
+    selectedElement: null,
+    selectedOpen: null,
+    displayedEvents: [],
     dayToDisplay: Date.now(),
     dateTimeFormat: {
       year: 'numeric',
@@ -115,6 +134,7 @@ export default {
     },
     currentTimeTop: null,
     scrollToTimeTop: null,
+    timezoneDiff: null,
   }),
   computed: {
     nowTimeOptions() {
@@ -129,34 +149,41 @@ export default {
     },
     agendaIntervalCount() {
       return this.workingTime.showWorkingTime ? parseInt(this.workingTime.workingTimeEnd) - parseInt(this.workingTime.workingTimeStart) : '24';
-    }
-  },
-  watch: {
-    allDay() {
-      if (this.dragEvent) {
-        this.dragEvent.allDay = this.allDay;
-      }
-      if (this.createEvent) {
-        this.createEvent.allDay = this.allDay;
-      }
-      this.event.allDay = this.allDay;
-
-      if (this.events && this.events.length) {
-        this.events[0].allDay = this.allDay;
-      }
+    },
+    events() {
+      return this.event && [this.event] || [];
+    },
+    domId() {
+      return `eventForm-${this.event.id}-${this.event.startDate.getTime()}`;
     },
   },
+  created() {
+    this.event.startDate = new Date(this.event.start);
+    this.event.endDate = new Date(this.event.end);
+  },
   mounted() {
-    this.currentTimeTop = this.$refs.calendar.timeToY(this.nowTimeOptions);
-    const now = this.event.start ? new Date(this.event.start) : new Date();
-    this.scrollToTimeTop = this.$refs.calendar.timeToY({
-      hour: now.getHours(),
-      minute: now.getMinutes(),
-    });
-    this.scrollToTime();
-    this.resetEvents();
+    this.timezoneDiff =  eXo.env.portal.timezoneOffset + new Date().getTimezoneOffset() * 60000;
+    if (this.$refs.calendar) {
+      this.currentTimeTop = this.$refs.calendar.timeToY(this.nowTimeOptions);
+      this.scrollToEvent(this.event);
+    }
   },
   methods: {
+    updateCalendarDisplay(event) {
+      this.scrollToEvent(event);
+      this.retrieveEvents();
+    },
+    scrollToEvent(event) {
+      const dateTime = new Date(event.startDate);
+      this.scrollToTimeTop = this.$refs.calendar.timeToY({
+        hour: dateTime.getHours(),
+        minute: dateTime.getMinutes(),
+      });
+      this.dayToDisplay = event.startDate.getTime();
+      this.selectedElement = $(`#${this.domId}`)[0];
+      this.$refs.calendar.updateTimes();
+      this.scrollToTime();
+    },
     scrollToTime() {
       this.$nextTick().then(() => {
         const dailyScrollElement = document.querySelector('.v-calendar-daily__scroll-area');
@@ -166,103 +193,47 @@ export default {
         }
       });
     },
-    startDrag({ event, timed }) {
-      if (event && timed) {
-        this.dragEvent = event;
-        this.dragTime = null;
-        this.extendOriginal = null;
+    showEvent({nativeEvent, event}) {
+      if (!nativeEvent) {
+        return;
       }
+      nativeEvent.preventDefault();
+      nativeEvent.stopPropagation();
+      this.newEventStarted = false;
+      this.selectedOpen = false;
+      this.selectedEvent = event;
+
+      let targetElement = nativeEvent.target;
+      if (targetElement && $(targetElement).parents('.v-event-draggable').length) {
+        targetElement = $(targetElement).parents('.v-event-draggable')[0];
+      }
+      this.selectedElement = targetElement;
+
+      window.setTimeout(() => this.selectedOpen = true, 200);
     },
     startTime(tms) {
       const mouse = this.toTime(tms);
-
-      if (this.dragEvent && this.dragTime === null) {
-        const start = this.dragEvent.start;
-
-        this.dragTime = mouse - start;
-      } else {
-        this.createStart = this.roundTime(mouse);
-        this.createEvent = {
-          summary: this.event.summary,
-          color: this.getEventColor(this.event),
-          start: this.createStart,
-          end: this.createStart,
-          allDay: this.allDay,
-        };
-        this.events = [this.createEvent];
-      }
-    },
-    extendBottom(event) {
-      this.createEvent = event;
-      this.createStart = event.start;
-      this.extendOriginal = event.end;
+      this.event.startDate = this.roundTime(mouse);
+      this.event.endDate = new Date(this.event.startDate);
+      this.newEventStarted = true;
     },
     mouseMove(tms) {
-      const mouse = this.toTime(tms);
-
-      if (this.dragEvent && this.dragTime !== null) {
-        const start = this.dragEvent.start;
-        const end = this.dragEvent.end;
-        const duration = end - start;
-        const newStartTime = mouse - this.dragTime;
-        const newStart = this.roundTime(newStartTime);
-        const newEnd = newStart + duration;
-
-        this.dragEvent.start = newStart;
-        this.dragEvent.end = newEnd;
-      } else if (this.createEvent && this.createStart !== null) {
-        const mouseRounded = this.roundTime(mouse, false);
-        const min = Math.min(mouseRounded, this.createStart);
-        const max = Math.max(mouseRounded, this.createStart);
-
-        this.createEvent.start = min;
-        this.createEvent.end = max;
+      if (this.newEventStarted) {
+        const mouse = this.toTime(tms);
+        this.event.endDate = this.roundTime(mouse);
+        this.retrieveEvents();
       }
     },
     endDrag() {
-      const eventToStore = this.dragEvent || this.createEvent;
-      if (eventToStore.start) {
-        const timezoneDiff =  eXo.env.portal.timezoneOffset + new Date().getTimezoneOffset() * 60000;
-        const start = eventToStore.start + timezoneDiff;
-        const end = eventToStore.end + timezoneDiff;
-
-        this.event.start = this.$agendaUtils.toRFC3339(start);
-        this.event.end = this.$agendaUtils.toRFC3339(end);
-        this.event.allDay = eventToStore.allDay;
+      if (this.newEventStarted) {
+        this.newEventStarted = false;
+        this.event.start = this.$agendaUtils.toRFC3339(new Date(this.event.startDate));
+        this.event.end = this.$agendaUtils.toRFC3339(new Date(this.event.endDate));
+        this.retrieveEvents();
       }
-
-      this.dragTime = null;
-      this.dragEvent = null;
-      this.createEvent = null;
-      this.createStart = null;
-      this.extendOriginal = null;
-
-      this.resetEvents();
     },
-    cancelDrag() {
-      if (this.createEvent) {
-        if (this.extendOriginal) {
-          this.createEvent.end = this.extendOriginal;
-        } else {
-          this.resetEvents();
-        }
-      }
-
-      this.createEvent = null;
-      this.createStart = null;
-      this.dragTime = null;
-      this.dragEvent = null;
-    },
-    roundTime(time, down = true) {
-      const roundTo = 15; // minutes
-      const roundDownTime = roundTo * 60 * 1000;
-
-      return down
-        ? time - time % roundDownTime
-        : time + (roundDownTime - time % roundDownTime);
-    },
-    toTime(tms) {
-      return new Date(tms.year, tms.month - 1, tms.day, tms.hour, tms.minute).getTime();
+    getEventDomId(eventObj) {
+      return `eventForm-${eventObj.event.id}-${new Date(eventObj.event.startDate).getTime()}`;
     },
     getEventColor(event) {
       return event && (event.color || event.calendar && event.calendar.color) || '#2196F3';
@@ -276,35 +247,30 @@ export default {
     prevDate() {
       this.$refs.calendar.prev();
     },
-    resetEvents() {
-      if (!this.event.start) {
-        this.event.start = this.$agendaUtils.toRFC3339(new Date());
-        this.event.end = this.$agendaUtils.toRFC3339(new Date());
+    retrieveEvents(range) {
+      this.displayedEvents = this.events.slice();
+      if (range) {
+        this.retrievePeriod(range);
       }
-
-      if (this.event.id || this.event.occurrence) {
-        this.allDay = this.event.allDay;
-      } else {
-        this.event.allDay = this.allDay;
-      }
-
-      const startDate =  new Date(this.event.start);
-      const year = startDate.getYear() + 1900;
-      const month = startDate.getMonth() + 1;
-      const day = startDate.getDate();
-      this.dayToDisplay = `${year}-${month < 10 ? `0${  month}` : month}-${day < 10 ? `0${  day}`:day}`;
-      this.events = [{
-        summary: this.event.summary,
-        color: this.getEventColor(this.event),
-        start: startDate.getTime(),
-        end: new Date(this.event.end).getTime(),
-        allDay: this.event.allDay,
-      }];
+      this.$forceUpdate();
     },
     retrievePeriod(range) {
       const period = this.$agendaUtils.convertVuetifyRangeToPeriod(range, this.$userTimeZone);
-      period.title = this.$refs.calendar.title;
-      this.periodTitle = this.$agendaUtils.generateCalendarTitle('week', new Date(period.start), period.title, this.$t('agenda.header.toolbar.title.week'));
+      if (period) {
+        period.title = this.$refs.calendar.title;
+        this.periodTitle = this.$agendaUtils.generateCalendarTitle('week', new Date(period.start), period.title, this.$t('agenda.header.toolbar.title.week'));
+      }
+    },
+    roundTime(time, down = true) {
+      const roundTo = 15; // minutes
+      const roundDownTime = roundTo * 60 * 1000;
+
+      return down
+        ? time - time % roundDownTime
+        : time + (roundDownTime - time % roundDownTime);
+    },
+    toTime(tms) {
+      return new Date(tms.year, tms.month - 1, tms.day, tms.hour, tms.minute).getTime();
     },
   },
 };
