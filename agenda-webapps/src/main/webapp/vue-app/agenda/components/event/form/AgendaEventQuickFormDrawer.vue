@@ -53,7 +53,7 @@
               <div class="d-flex flex-row mt-4">
                 <date-picker v-model="endDate" class="flex-grow-1" />
                 <div v-if="!event.allDay" class="flex-grow-0">
-                  <time-picker v-model="endTime" />
+                  <time-picker v-model="endTime" :min="startTime" />
                 </div>
               </div>
               <div class="d-flex flex-row">
@@ -137,6 +137,7 @@ export default {
     startTime: null,
     endDate: null,
     endTime: null,
+    duration: null,
     saving: false,
   }),
   computed: {
@@ -167,6 +168,8 @@ export default {
       newDate.setMonth(startDate.getMonth());
       newDate.setDate(startDate.getDate());
       this.event.startDate = new Date(newDate);
+      this.endTime = new Date(this.event.startDate.getTime() + this.duration);
+      this.endDate = new Date(this.event.startDate.getTime() + this.duration);
     },
     startTime(newVal, oldVal){
       if (!this.event || !newVal || !oldVal || String(newVal) === String(oldVal)) {
@@ -175,6 +178,8 @@ export default {
       this.event.startDate.setHours(this.startTime.getHours());
       this.event.startDate.setMinutes(this.startTime.getMinutes());
       this.event.startDate = new Date(this.event.startDate);
+      this.endTime = new Date(this.event.startDate.getTime() + this.duration);
+      this.endDate = new Date(this.event.startDate.getTime() + this.duration);
     },
     endDate(newVal, oldVal){
       if (!this.event || !newVal || !oldVal || String(newVal) === String(oldVal)) {
@@ -185,6 +190,7 @@ export default {
       this.event.endDate.setMonth(endDate.getMonth());
       this.event.endDate.setDate(endDate.getDate());
       this.event.endDate = new Date(this.event.endDate);
+      this.duration = new Date(this.event.endDate).getTime() - new Date(this.event.startDate).getTime();
     },
     endTime(newVal, oldVal){
       if (!this.event || !newVal || !oldVal || String(newVal) === String(oldVal)) {
@@ -193,6 +199,7 @@ export default {
       this.event.endDate.setHours(this.endTime.getHours());
       this.event.endDate.setMinutes(this.endTime.getMinutes());
       this.event.endDate = new Date(this.event.endDate);
+      this.duration = new Date(this.event.endDate).getTime() - new Date(this.event.startDate).getTime();
     },
   },
   created() {
@@ -202,6 +209,7 @@ export default {
       this.startTime = new Date(event.startDate);
       this.endDate = new Date(event.endDate);
       this.endTime = new Date(event.endDate);
+      this.duration = this.endTime.getTime() - this.startTime.getTime();
       this.event = event;
       this.open();
       this.$nextTick().then(() => this.$root.$emit('agenda-event-form-opened', this.event));
