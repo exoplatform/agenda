@@ -11,7 +11,7 @@
         <v-btn
           icon
           @click="prevDate">
-          <i class="uiIconArrowLeft uiIconMedium text-color"></i>
+          <i class="uiIconArrowLeft uiIconMedium darkGreyIcon"></i>
         </v-btn>
         <div class="period-title text-uppercase">
           {{ periodTitle }}
@@ -20,7 +20,7 @@
           icon
           color="grey darken-2"
           @click="nextDate">
-          <i class="uiIconArrowRight uiIconMedium text-color"></i>
+          <i class="uiIconArrowRight uiIconMedium darkGreyIcon"></i>
         </v-btn>
       </v-row>
     </v-toolbar>
