@@ -323,50 +323,33 @@
         flex: 1 0 0;
       }
     }
-
-    .event-attendees {
-      white-space: nowrap;
-      .attendee {
-        .userInfo {
-          flex: 1 0 35%;
-        }
-        .attendee-response {
-          flex: 1 1 65%;
-        }
-        .attendee-response-accepted {
-          &:before {
-            font-family: "PLF-FONT-ICONS";
-            content: '\e9c7';
-            color: #3cb58c;
-          }
-        }
-
-        .attendee-response-declined {
-          &:before {
-            font-family: "PLF-FONT-ICONS";
-            content: '\e75e';
-            color: darkred;
-          }
-        }
-
-        .attendee-response-needs_action {
-          &:before {
-            font-family: "PLF-FONT-ICONS";
-            content: '\ea0b';
-            color: @primaryColor;
-          }
-        }
-
-        .attendee-response-tentative {
-          &:before {
-            font-family: "PLF-FONT-ICONS";
-            content: '\e76b';
-            color: @greyColorLighten1Default;
-          }
-        }
-      }
-    }
   }
+}
+
+.attendee-response-needs_action::before {
+  font-family: "PLF-FONT-ICONS";
+  content: '\e76b';
+  color: @greyColorLighten1Default;
+  font-size: 16px;
+}
+.attendee-response-accepted::before {
+  font-family: "PLF-FONT-ICONS";
+  content: '\e9c7';
+  color: @successColor;
+  font-size: 16px;
+}
+
+.attendee-response-declined::before {
+  font-family: "PLF-FONT-ICONS";
+  content: "\e9d0";
+  color: @errorColor;
+  font-size: 16px;
+}
+
+.attendee-response-tentative::before {
+  font-family: "PLF-FONT-ICONS";
+  content: '\ea0b';
+  color: @infoColor;
 }
 
 .UserSettingAgendaDrawer {

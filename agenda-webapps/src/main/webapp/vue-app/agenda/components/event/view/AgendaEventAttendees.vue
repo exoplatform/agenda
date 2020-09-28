@@ -1,15 +1,15 @@
 <template>
   <v-col>
-    <v-row class="event-attendees-responses align-center d-flex mb-10">
+    <v-row class="event-attendees-responses align-center d-flex">
       <i class="uiIconGroup darkGreyIcon uiIcon32x32 pr-5"></i>
       <span>{{ attendeesResponsesTitle }}</span>
     </v-row>
-    <v-row class="event-attendees ml-10 flex-column">
+    <v-list class="event-attendees ml-5 flex-column" width="250">
       <agenda-event-attendee-item
         v-for="attendee in attendees"
         :key="attendee"
         :attendee="attendee" />
-    </v-row>
+    </v-list>
   </v-col>
 </template>
 
