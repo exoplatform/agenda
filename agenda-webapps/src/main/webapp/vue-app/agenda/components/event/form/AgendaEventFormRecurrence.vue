@@ -60,7 +60,7 @@ export default {
         value: 'WEEKLY'
       },
       {
-        text: this.$t('agenda.monthly',{ 0 : dayNumberInMonth }),
+        text: this.$t('agenda.monthly',{ 0 : localizedDayNamefromDate }),
         value: 'MONTHLY'
       },
       {
@@ -133,7 +133,7 @@ export default {
           } else if (this.recurrenceType === 'WEEKLY') {
             this.event.recurrence.byDay = [this.dayNamefromDate.substring(0,2).toUpperCase()];
           } else if (this.recurrenceType === 'MONTHLY') {
-            this.event.recurrence.byMonthDay = [this.dayNumberInMonth];
+            this.event.recurrence.byDay = [1+this.dayNamefromDate.substring(0,2).toUpperCase()];
           } else if(this.recurrenceType === 'YEARLY') {
             this.event.recurrence.byMonthDay = [this.dayNumberInMonth];
             this.event.recurrence.byMonth = [this.monthNumberFromDate];
