@@ -235,8 +235,8 @@ export default {
           if (!Number.isNaN(newTime)) {
             this.eventDragged = true;
 
-            const start = this.dragEvent.startDate.getTime();
-            const end = this.dragEvent.endDate.getTime();
+            const start = new Date(this.dragEvent.startDate).getTime();
+            const end = new Date(this.dragEvent.endDate).getTime();
             const duration = end - start;
             const newStartTime = newTime - this.dragDelta;
             const newStart = this.roundTime(newStartTime);
@@ -254,7 +254,7 @@ export default {
       if (this.dragEvent) {
 
         if (!this.dragDelta) {
-          this.dragDelta = this.toDate(params).getTime() - this.dragEvent.startDate.getTime();
+          this.dragDelta = this.toDate(params).getTime() - new Date(this.dragEvent.startDate).getTime();
         }
       } else if (!this.eventDragged && !this.eventExtended) {
         this.cancelEventModification();
@@ -282,7 +282,7 @@ export default {
 
       if (this.quickEvent && this.quickEvent.editing) {
         const newDate = this.toDate(params);
-        if (this.quickEvent.startDate.getTime() > newDate.getTime()) {
+        if (new Date(this.quickEvent.startDate).getTime() > newDate.getTime()) {
           this.quickEvent.startDate = this.toDate(params, false);
         } else {
           this.quickEvent.endDate = this.toDate(params, true);
@@ -324,8 +324,8 @@ export default {
             return;
           }
         } else {
-          if (this.dragEvent.startDate.getTime() === this.originalDragedEvent.startDate.getTime()
-              && this.dragEvent.endDate.getTime() === this.originalDragedEvent.endDate.getTime()) {
+          if (new Date(this.dragEvent.startDate).getTime() === new Date(this.originalDragedEvent.startDate).getTime()
+              && new Date(this.dragEvent.endDate).getTime() === new Date(this.originalDragedEvent.endDate).getTime()) {
             this.cancelEventModification();
             return;
           }
@@ -343,8 +343,8 @@ export default {
             event.recurrence = null;
 
             const timezoneDiff =  eXo.env.portal.timezoneOffset + new Date().getTimezoneOffset() * 60000;
-            const start = this.dragEvent.startDate.getTime() + timezoneDiff;
-            const end = this.dragEvent.endDate.getTime() + timezoneDiff;
+            const start = new Date(this.dragEvent.startDate).getTime() + timezoneDiff;
+            const end = new Date(this.dragEvent.endDate).getTime() + timezoneDiff;
 
             event.start = this.$agendaUtils.toRFC3339(new Date(start));
             event.end = this.$agendaUtils.toRFC3339(new Date(end));
