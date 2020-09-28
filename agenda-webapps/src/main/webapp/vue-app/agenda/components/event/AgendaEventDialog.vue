@@ -58,15 +58,17 @@ export default {
   },
   created() {
     const search = document.location.search.substring(1);
-    const parameters = JSON.parse(
-      `{"${decodeURI(search)
-        .replace(/"/g, '\\"')
-        .replace(/&/g, '","')
-        .replace(/=/g, '":"')}"}`
-    );
-    const eventId = parameters.eventId;
-    if (eventId) {
-      this.openEventById(eventId);
+    if(search) {
+      const parameters = JSON.parse(
+        `{"${decodeURI(search)
+          .replace(/"/g, '\\"')
+          .replace(/&/g, '","')
+          .replace(/=/g, '":"')}"}`
+      );
+      const eventId = parameters.eventId;
+      if (eventId) {
+        this.openEventById(eventId);
+      }
     }
     this.$root.$on('agenda-event-form', agendaEvent => {
       this.isForm = true;

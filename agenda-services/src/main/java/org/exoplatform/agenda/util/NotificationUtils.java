@@ -29,9 +29,7 @@ public class NotificationUtils {
 
   public static final String                  AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN   = "EventAddedNotificationPlugin";
 
-  private static final String                 TEMPLATE_VARIABLE_NOTIFICATION_URL       = "notificationURL";
-
-  private static final String                 TEMPLATE_VARIABLE_EVENT_URL       = "eventURL";
+  private static final String                 TEMPLATE_VARIABLE_EVENT_URL              = "eventURL";
 
   public static final PluginKey               EVENT_ADDED_KEY                          =
                                                               PluginKey.key(AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN);
@@ -85,16 +83,6 @@ public class NotificationUtils {
                 .with(STORED_PARAMETER_EVENT_START_DATE, String.valueOf(event.getStart()));
   }
 
-  public static final String getNotificationURL(Event event) {
-    String currentSite = getDefaultSite();
-    String currentDomain = CommonsUtils.getCurrentDomain();
-    if (!currentDomain.endsWith("/")) {
-      currentDomain += "/";
-    }
-    String notificationURL = currentDomain + "portal/" + currentSite + "/agenda?eventId=" + event.getId();
-    return notificationURL;
-  }
-
   public static String getDefaultSite() {
     if (defaultSite != null) {
       return defaultSite;
@@ -105,8 +93,7 @@ public class NotificationUtils {
   }
 
   public static final TemplateContext buildTemplateParameters(TemplateProvider templateProvider,
-                                                              NotificationInfo notification,
-                                                              String notificationURL) {
+                                                              NotificationInfo notification) {
     String language = NotificationPluginUtils.getLanguage(notification.getTo());
     TemplateContext templateContext = getTemplateContext(templateProvider, notification, language);
 
@@ -115,7 +102,7 @@ public class NotificationUtils {
     setNotificationId(notification, templateContext);
     setLasModifiedTime(notification, templateContext, language);
 
-    setIdentityNameAndAvatar(notification, templateContext, "receiver");
+    setIdentityNameAndAvatar(notification, templateContext);
     setEventDetails(templateContext, notification);
 
     templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
@@ -137,19 +124,18 @@ public class NotificationUtils {
     templateContext.put("USER",notification.getTo());
   }
 
-  private static String getEventURL(Event event) {
+  public static String getEventURL(Event event) {
     String currentSite = getDefaultSite();
     String currentDomain = CommonsUtils.getCurrentDomain();
     if (!currentDomain.endsWith("/")) {
       currentDomain += "/";
     }
-    String notificationURL = currentDomain + "portal/" + currentSite + "/agenda?" + event.getId();
+    String notificationURL = currentDomain + "portal/" + currentSite + "/agenda?eventId=" + event.getId();
     return notificationURL;
   }
 
   private static final void setIdentityNameAndAvatar(NotificationInfo notification,
-                                                     TemplateContext templateContext,
-                                                     String prefix) {
+                                                     TemplateContext templateContext) {
     String spaceTitle = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_SPACE);
     if (StringUtils.isBlank(spaceTitle)) {
       templateContext.put(TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR, "");
