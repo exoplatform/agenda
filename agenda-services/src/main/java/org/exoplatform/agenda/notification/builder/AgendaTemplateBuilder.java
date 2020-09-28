@@ -52,10 +52,10 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
     RequestLifeCycle.begin(container);
     try {
       Event event = getEvent(notification);
-      String notificationURL = getNotificationURL(event);
+      String notificationURL = getEventURL(event);
       String pushNotificationURL = isPushNotification ? notificationURL : null;
 
-      TemplateContext templateContext = buildTemplateParameters(templateProvider, notification, notificationURL);
+      TemplateContext templateContext = buildTemplateParameters(templateProvider, notification);
       MessageInfo messageInfo = buildMessageSubjectAndBody(templateContext, notification, pushNotificationURL);
       Throwable exception = templateContext.getException();
       logException(notification, exception);
