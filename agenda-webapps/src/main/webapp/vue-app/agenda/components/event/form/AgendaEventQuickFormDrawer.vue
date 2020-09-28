@@ -31,7 +31,7 @@
           </div>
           <div class="d-flex flex-row">
             <v-flex class="flex-grow-0">
-              <i class="uiIconPLFEventTask text-color uiIcon32x32 mt-4 mx-3"></i>
+              <i class="uiIconPLFEventTask darkGreyIcon uiIcon32x32 mt-4 mx-3"></i>
             </v-flex>
             <agenda-event-form-calendar-owner
               ref="calendarOwner"
@@ -41,12 +41,12 @@
           </div>
           <div class="d-flex flex-row">
             <v-flex class="flex-grow-0 pt-4 my-2 mx-3">
-              <i class="uiIconClock text-color uiIcon32x32"></i>
+              <i class="uiIconClock darkGreyIcon uiIcon32x32"></i>
             </v-flex>
             <agenda-event-form-date-pickers :event="event" />
           </div>
           <div class="d-flex flex-row">
-            <i class="uiIconLocation text-color uiIcon32x32 mt-4 mx-3"></i>
+            <i class="uiIconLocation darkGreyIcon uiIcon32x32 mt-4 mx-3"></i>
             <input
               id="eventLocation"
               ref="eventLocation"
@@ -58,7 +58,7 @@
           </div>
           <div class="d-flex flex-row">
             <v-flex class="flex-grow-0">
-              <i class="uiIconDescription text-color uiIcon32x32 my-3 mx-3"></i>
+              <i class="uiIconDescription darkGreyIcon uiIcon32x32 my-3 mx-3"></i>
             </v-flex>
             <textarea
               id="eventDescription"
@@ -74,7 +74,7 @@
           </div>
           <div class="d-flex flex-row">
             <v-flex class="flex-grow-0">
-              <i class="uiIconGroup text-color uiIcon32x32 mt-4 mx-3"></i>
+              <i class="uiIconGroup darkGreyIcon uiIcon32x32 mt-4 mx-3"></i>
             </v-flex>
             <agenda-event-form-attendees :event="event" class="pr-1" />
           </div>
