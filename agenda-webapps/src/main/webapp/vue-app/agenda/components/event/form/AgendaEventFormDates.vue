@@ -153,7 +153,7 @@ export default {
       return this.event && [this.event] || [];
     },
     domId() {
-      return `eventForm-${this.event.id}-${this.event.startDate.getTime()}`;
+      return `eventForm-${this.event.id}-${new Date(this.event.startDate).getTime()}`;
     },
   },
   watch: {
@@ -166,7 +166,7 @@ export default {
   created() {
     if (!this.event.startDate) {
       this.event.startDate = this.event.start && new Date(this.event.start) || new Date();
-      this.event.startDate = new Date(this.roundTime(this.event.startDate.getTime()));
+      this.event.startDate = new Date(this.roundTime(new Date(this.event.startDate).getTime()));
     }
     if (!this.event.endDate) {
       if (this.event.end) {
@@ -206,7 +206,8 @@ export default {
         hour: dateTime.getHours(),
         minute: dateTime.getMinutes(),
       });
-      this.dayToDisplay = event.startDate.getTime();
+      console.warn('event.startDate', event.startDate);
+      this.dayToDisplay = event.startDate ? new Date(event.startDate).getTime(): new Date(event.start).getTime();
       this.$refs.calendar.updateTimes();
       this.scrollToTime();
     },
