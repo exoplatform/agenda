@@ -1,6 +1,9 @@
 <template>
   <v-card flat class="d-flex flex-column">
-    <v-stepper v-model="stepper" class="d-flex flex-grow-1 flex-column">
+    <v-stepper
+      v-if="event"
+      v-model="stepper"
+      class="d-flex flex-grow-1 flex-column">
       <v-stepper-header class="flex-grow-0 no-box-shadow border-bottom-color border-box-sizing">
         <v-stepper-step step="1">
           <small class="primary--text title">
