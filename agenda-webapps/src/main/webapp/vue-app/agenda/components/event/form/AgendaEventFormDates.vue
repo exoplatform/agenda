@@ -185,6 +185,10 @@ export default {
         this.showEventDatePickers(this.event);
       }, 200);
     }
+    this.$root.$on('agenda-event-save', () => {
+      this.selectedEvent = null;
+      this.selectedOpen = false;
+    });
   },
   methods: {
     updateCalendarDisplay(event) {
@@ -235,15 +239,19 @@ export default {
       this.selectedEvent = event;
 
       window.setTimeout(() => {
-        if (!this.selectedElement) {
+        if (this.selectedEvent) {
           const domId = this.getEventDomId(event);
           $targetElement = $(`#${domId}`);
-          this.selectedElement = $targetElement.length && $targetElement[0];
+          if (!this.selectedElement) {
+            this.selectedElement = $targetElement.length && $targetElement[0];
+          }
+          if ($targetElement && $targetElement.length && $targetElement.offset()) {
+            this.datePickerTop = $targetElement.offset().top > 330;
+          }
+          this.selectedOpen = true;
+        } else {
+          this.selectedOpen = false;
         }
-        if (this.selectedElement) {
-          this.datePickerTop = $(`#${domId}`).offset().top > 330;
-        }
-        this.selectedOpen = true;
       }, waitTimeToDisplay);
     },
     startTime(tms) {

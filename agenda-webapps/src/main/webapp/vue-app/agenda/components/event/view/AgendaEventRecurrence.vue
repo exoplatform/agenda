@@ -1,8 +1,10 @@
 <template>
-  <v-row v-if="recurrenceLabel" class="event-recurrence align-center d-flex pl-1 pb-5">
-    <i class="uiIconRefresh darkGreyIcon uiIcon32x32 pr-5"></i>
-    <span>{{ recurrenceLabel }}</span>
-  </v-row>
+  <span class="d-flex flex-row">
+    {{ recurrenceLabel }}
+    <template v-if="endLabel">
+      ( {{ endLabel }} )
+    </template>
+  </span>
 </template>
 <script>
 export default {
@@ -19,9 +21,23 @@ export default {
     recurrenceFrequency() {
       return this.recurrence && this.recurrence.frequency;
     },
+    endLabel() {
+      if (this.recurrence) {
+        if (this.recurrence.count > 0) {
+          return this.$t('agenda.endsAfterEvents', {0 : this.recurrence.count});
+        } else if (this.recurrence.until) {
+          return this.$t('agenda.endsAt', {0 : this.$dateUtil.formatDateObjectToDisplay(new Date(this.recurrence.until), {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          }, eXo.env.portal.language)});
+        }
+      }
+      return null;
+    },
     recurrenceLabel() {
       if (!this.recurrenceFrequency) {
-        return null;
+        return '';
       }
       switch(this.recurrenceFrequency) {
       case 'DAILY': {
@@ -52,7 +68,7 @@ export default {
       }
       case 'MONTHLY': {
         if (this.recurrence.interval === 1) {
-          const dayNumberInMonth = this.recurrence.byMonthDay[0];
+          const dayNumberInMonth = this.recurrence.byMonthDay && this.recurrence.byMonthDay[0];
           return this.$t('agenda.monthly',{ 0 : dayNumberInMonth });
         } else {
           const dayNumberInMonth = this.recurrence.byMonthDay[0];
@@ -61,9 +77,9 @@ export default {
       }
       case 'YEARLY': {
         if (this.recurrence.interval === 1) {
-          const dayNumberInMonth = this.recurrence.byMonthDay[0];
-          const monthNumber = this.recurrence.byMonth[0];
-          const monthName = this.$agendaUtils.getMonthNameFromMonthNumber(monthNumber - 1);
+          const dayNumberInMonth = this.recurrence.byMonthDay && this.recurrence.byMonthDay[0];
+          const monthNumber = this.recurrence.byMonth && this.recurrence.byMonth[0];
+          const monthName = monthNumber && this.$agendaUtils.getMonthNameFromMonthNumber(monthNumber - 1) || '';
           return this.$t('agenda.yearly',{ 0 : monthName , 1: dayNumberInMonth});
         } else {
           const dayNumberInMonth = this.recurrence.byMonthDay[0];
@@ -73,7 +89,7 @@ export default {
         }
       }
       }
-      return null;
+      return '';
     },
   },
 };

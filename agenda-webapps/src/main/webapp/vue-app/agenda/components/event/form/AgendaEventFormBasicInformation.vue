@@ -47,7 +47,10 @@
         </div>
         <div class="d-flex flex-row">
           <i class="uiIconRecurrence darkGreyIcon uiIcon32x32 my-3 mr-11"></i>
-          <agenda-event-form-recurrence :event="event" />
+          <div class="d-flex flex-column">
+            <agenda-event-form-recurrence :event="event" />
+            <agenda-event-recurrence :event="event" class="d-flex text-truncate mt-2" />
+          </div>
         </div>
         <div class="d-flex flex-row">
           <v-flex class="flex-grow-0">

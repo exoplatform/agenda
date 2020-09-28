@@ -52,14 +52,31 @@ export default {
         $('body').addClass('hide-scroll');
       } else {
         setTimeout(() => $('body').removeClass('hide-scroll'), 200);
+        this.event = null;
       }
     },
   },
   created() {
     this.$root.$on('agenda-event-form', agendaEvent => {
       this.isForm = true;
-      this.open(agendaEvent);
-      this.$nextTick().then(() => this.$root.$emit('agenda-event-form-opened', agendaEvent));
+
+      agendaEvent = JSON.parse(JSON.stringify(agendaEvent));
+      const eventId = agendaEvent.id ? agendaEvent.id : agendaEvent.parent && agendaEvent.parent.id;
+      if (eventId) {
+        this.$eventService.getEventById(eventId, 'all')
+          .then(event => {
+            agendaEvent.attendees = event.attendees;
+            agendaEvent.conferences = event.conferences;
+            agendaEvent.attachments = event.attachments;
+            agendaEvent.reminders = event.reminders;
+
+            this.open(agendaEvent);
+            this.$nextTick().then(() => this.$root.$emit('agenda-event-form-opened', agendaEvent));
+          });
+      } else {
+        this.open(agendaEvent);
+        this.$nextTick().then(() => this.$root.$emit('agenda-event-form-opened', agendaEvent));
+      }
     });
     this.$root.$on('agenda-event-details', agendaEvent => {
       this.isForm = false;
@@ -73,7 +90,6 @@ export default {
           agendaEvent.reminders = event.reminders;
 
           this.open(agendaEvent);
-
           this.$nextTick().then(() => this.$root.$emit('agenda-event-details-opened', agendaEvent));
         });
     });
