@@ -22,6 +22,7 @@
             <input
               v-model="eventRecurrence.interval"
               type="Number"
+              min="1"
               name="recurrenceInterval"
               class="recurrenceInterval ignore-vuetify-classes my-auto recurrence-interval"
               autofocus
@@ -48,7 +49,8 @@
             prev-icon=""
             active-class="primary white--text"
             class="mx-auto"
-            multiple>
+            multiple
+            mandatory>
             <v-chip
               v-for="day in days"
               :key="day.value"
@@ -78,7 +80,9 @@
                           v-model="eventRecurrence.count"
                           :disabled="recurrentEventDate !== 'count'"
                           type="Number"
-                          class="recurrenceCount ignore-vuetify-classes">
+                          class="recurrenceCount ignore-vuetify-classes"
+                          min="1"
+                          required>
                       </v-col>
                       <v-col class="pl-0">
                         {{ $t('agenda.label.events') }}
@@ -142,13 +146,13 @@ export default {
         value: 'MO'
       },{
         text: this.getWeekDayLabel(1),
-        value: 'TH'
+        value: 'TU'
       },{
         text: this.getWeekDayLabel(2),
         value: 'WE'
       },{
         text: this.getWeekDayLabel(3),
-        value: 'TU'
+        value: 'TH'
       },{
         text: this.getWeekDayLabel(4),
         value: 'FR'
@@ -156,6 +160,19 @@ export default {
         text: this.getWeekDayLabel(5),
         value: 'SA'
       }];
+    },
+  },
+  watch: {
+    recurrentEventDate() {
+      if (this.recurrentEventDate === 'date') {
+        this.eventRecurrence.count = '';
+      } else if (this.recurrentEventDate === 'count') {
+        this.eventRecurrence.count = 1;
+        this.eventRecurrence.until = null;
+      } else {
+        this.eventRecurrence.until = null;
+        this.eventRecurrence.count = '';
+      }
     },
   },
   methods: {
@@ -166,6 +183,9 @@ export default {
       return dayName.length > 3 ? dayName.substring(0, 3) : dayName;
     },
     apply() {
+      if (!this.$refs.form.reportValidity()) {
+        return;
+      }
       if (this.recurrentEventDate === 'date') {
         this.eventRecurrence.until = this.$agendaUtils.toRFC3339(this.untilDate);
         this.eventRecurrence.count = '';
@@ -189,6 +209,7 @@ export default {
         this.eventRecurrence.count = null;
       } else if (this.eventRecurrence.count > 0) {
         this.recurrentEventDate = 'count';
+        this.eventRecurrence.count = 1;
         this.eventRecurrence.until = null;
       } else {
         this.recurrentEventDate = 'never';
