@@ -316,6 +316,22 @@ export default {
         return;
       }
 
+      if (this.originalDragedEvent) {
+        if (this.dragEvent.allDay) {
+          if (this.$agendaUtils.areDatesOnSameDay(this.dragEvent.startDate, this.originalDragedEvent.startDate)
+              && this.$agendaUtils.areDatesOnSameDay(this.dragEvent.endDate, this.originalDragedEvent.endDate)) {
+            this.cancelEventModification();
+            return;
+          }
+        } else {
+          if (this.dragEvent.startDate.getTime() === this.originalDragedEvent.startDate.getTime()
+              && this.dragEvent.endDate.getTime() === this.originalDragedEvent.endDate.getTime()) {
+            this.cancelEventModification();
+            return;
+          }
+        }
+      }
+
       if (this.dragEvent) {
         this.saving = true;
         const eventId = this.dragEvent.id || this.dragEvent.parent.id;
@@ -334,7 +350,7 @@ export default {
             event.end = this.$agendaUtils.toRFC3339(new Date(end));
             event.allDay = this.dragEvent.allDay;
 
-            this.$root.$emit('agenda-event-save', event);
+            this.$root.$emit('agenda-event-save', event, event.allDay);
           })
           .finally(() => this.saving = false);
       } else {
