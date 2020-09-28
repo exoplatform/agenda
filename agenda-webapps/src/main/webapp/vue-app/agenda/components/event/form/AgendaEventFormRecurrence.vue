@@ -80,7 +80,7 @@ export default {
       const day = this.event.start;
       return this.$agendaUtils.getMonthFromDate(day, eXo.env.portal.language);
     },
-    dayNamefromDate () {
+    dayNamefromDate() {
       const day = this.event.start;
       return this.$agendaUtils.getDayNameFromDate(day);
     },

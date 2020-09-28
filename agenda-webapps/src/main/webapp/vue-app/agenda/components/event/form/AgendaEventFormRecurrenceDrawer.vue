@@ -168,12 +168,12 @@ export default {
     apply() {
       if (this.recurrentEventDate === 'date') {
         this.eventRecurrence.until = this.$agendaUtils.toRFC3339(this.untilDate);
-        this.eventRecurrence.count = null;
+        this.eventRecurrence.count = '';
       } else if (this.recurrentEventDate === 'count') {
         this.eventRecurrence.until = null;
       } else {
         this.eventRecurrence.until = null;
-        this.eventRecurrence.count = null;
+        this.eventRecurrence.count = '';
       }
       this.$emit('apply', this.eventRecurrence);
       this.$refs.customRecurrentEventDrawer.close();

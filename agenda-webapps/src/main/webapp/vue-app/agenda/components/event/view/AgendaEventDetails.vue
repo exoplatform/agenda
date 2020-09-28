@@ -1,5 +1,8 @@
 <template>
-  <v-card flat class="event-details d-flex flex-column">
+  <v-card
+    v-if="event"
+    flat
+    class="event-details d-flex flex-column">
     <v-toolbar
       flat
       class="event-details-header border-box-sizing flex-grow-0">
@@ -100,7 +103,10 @@
               </template>
             </div>
           </v-row>
-          <agenda-event-recurrence :event="event" />
+          <v-row v-if="hasRecurrence" class="event-recurrence align-center d-flex pl-1 pb-5">
+            <i class="uiIconRefresh darkGreyIcon uiIcon32x32 pr-5"></i>
+            <agenda-event-recurrence :event="event" />
+          </v-row>
           <v-row v-if="event.location" class="event-location align-center d-flex pb-5">
             <i class="uiIconCheckin darkGreyIcon uiIcon32x32 pr-5"></i>
             <span>{{ event.location }}</span>
@@ -181,6 +187,9 @@ export default {
     };
   },
   computed: {
+    hasRecurrence() {
+      return this.event.recurrence || this.event.parent && this.event.parent.recurrence;
+    },
     canEdit() {
       return this.event.acl && this.event.acl.canEdit;
     },
