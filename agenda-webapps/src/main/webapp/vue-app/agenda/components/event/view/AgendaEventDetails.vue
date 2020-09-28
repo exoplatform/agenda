@@ -6,26 +6,28 @@
     <v-toolbar
       flat
       class="event-details-header border-box-sizing flex-grow-0">
-      <v-toolbar-title class="d-flex align-center">
-        <span class="event-title px-2 text-truncate">
+      <v-flex class="d-flex align-center">
+        <div class="event-title title text-truncate">
           {{ event.summary }}
-        </span>
-        <span class="px-4">
+        </div>
+        <div class="pl-3 pt-1">
           {{ $t('agenda.label.in') }}
-        </span>
-        <template v-if="ownerProfile">
+        </div>
+        <div class="d-flex flex-row pl-3">
           <v-avatar
-            height="24"
-            min-height="24"
-            width="24"
-            min-width="24"
-            size="24"
+            height="26"
+            min-height="26"
+            width="26"
+            min-width="26"
+            size="26"
             class="mx-3 spaceAvatar">
             <v-img :src="ownerAvatarUrl" />
           </v-avatar>
-          <a href="#" class="text-truncate">{{ ownerDisplayName }}</a>
-        </template>
-      </v-toolbar-title>
+          <div class="pt-1">
+            <a href="#" class="text-truncate">{{ ownerDisplayName }}</a>
+          </div>
+        </div>
+      </v-flex>
       <v-spacer />
       <v-toolbar-items>
         <v-menu
