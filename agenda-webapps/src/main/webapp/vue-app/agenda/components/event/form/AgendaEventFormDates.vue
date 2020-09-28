@@ -206,7 +206,6 @@ export default {
         hour: dateTime.getHours(),
         minute: dateTime.getMinutes(),
       });
-      console.warn('event.startDate', event.startDate);
       this.dayToDisplay = event.startDate ? new Date(event.startDate).getTime(): new Date(event.start).getTime();
       this.$refs.calendar.updateTimes();
       this.scrollToTime();
