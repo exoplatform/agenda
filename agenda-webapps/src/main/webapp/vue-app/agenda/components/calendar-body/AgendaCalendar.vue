@@ -8,8 +8,6 @@
     :type="calendarType"
     :weekdays="weekdays"
     :interval-style="agendaIntervalStyle"
-    :interval-minutes="agendaIntervalMinutes"
-    :interval-count="agendaIntervalCount"
     event-name="summary"
     event-start="startDate"
     event-end="endDate"
@@ -105,18 +103,6 @@ export default {
     },
     currentTimeStyle() {
       return `top: ${this.currentTimeTop}px;`;
-    },
-    agendaEndTime() {
-      return this.workingTime.showWorkingTime ? this.workingTime.workingTimeEnd : '00:00';
-    },
-    agendaStartTime() {
-      return this.workingTime.showWorkingTime ? this.workingTime.workingTimeStart : '00:00';
-    },
-    agendaIntervalCount() {
-      return this.workingTime.showWorkingTime ? this.$agendaUtils.getIntervalCount(this.agendaIntervalMinutes) : '24';
-    },
-    agendaIntervalMinutes () {
-      return this.workingTime.showWorkingTime ? this.$agendaUtils.getIntervalMinutes(this.workingTime.workingTimeStart, this.workingTime.workingTimeEnd) : '60' ;
     }
   },
   watch: {
@@ -408,8 +394,8 @@ export default {
       if (this.workingTime.showWorkingTime) {
         const inactive = interval.weekday === 0 ||
             interval.weekday === 6 ||
-            interval.time < this.agendaStartTime ||
-            interval.time >= this.agendaEndTime;
+            interval.time < this.workingTime.workingTimeStart ||
+            interval.time >= this.workingTime.workingTimeEnd;
         const startOfHour = interval.minute === 0;
         const dark = this.dark;
         const mid = dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
