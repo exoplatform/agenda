@@ -96,25 +96,6 @@ export default {
     timeFormat: {
       hour: '2-digit',
       minute: '2-digit',
-    },
-    stylings: {
-      default() {
-        return null;
-      },
-      workday(interval) {
-        const inactive = interval.weekday === 0 ||
-            interval.weekday === 6 ||
-            interval.time < this.agendaStartTime ||
-            interval.time >= this.agendaEndTime;
-        const startOfHour = interval.minute === 0;
-        const dark = this.dark;
-        const mid = dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
-
-        return {
-          backgroundColor: inactive ? dark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.05)' : null,
-          borderTop: startOfHour ? null : `1px dashed ${  mid}`,
-        };
-      },
     }
   }),
   computed: {
@@ -133,9 +114,6 @@ export default {
     },
     agendaIntervalCount() {
       return this.workingTime.showWorkingTime ? this.$agendaUtils.getIntervalCount(this.agendaIntervalMinutes) : '24';
-    },
-    agendaIntervalStyle () {
-      return this.workingTime.showWorkingTime ? this.stylings['workday'].bind(this) : this.stylings['default'].bind(this);
     },
     agendaIntervalMinutes () {
       return this.workingTime.showWorkingTime ? this.$agendaUtils.getIntervalMinutes(this.workingTime.workingTimeStart, this.workingTime.workingTimeEnd) : '60' ;
@@ -425,6 +403,24 @@ export default {
     },
     toDate(tms, down = true) {
       return new Date(tms.year, tms.month - 1, tms.day, tms.hour, this.roundTime(tms.minute, down));
+    },
+    agendaIntervalStyle(interval) {
+      if (this.workingTime.showWorkingTime) {
+        const inactive = interval.weekday === 0 ||
+            interval.weekday === 6 ||
+            interval.time < this.agendaStartTime ||
+            interval.time >= this.agendaEndTime;
+        const startOfHour = interval.minute === 0;
+        const dark = this.dark;
+        const mid = dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+
+        return {
+          backgroundColor: inactive ? dark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.05)' : null,
+          borderTop: startOfHour ? null : `1px dashed ${mid}`,
+        };
+      } else {
+        return null;
+      }
     }
   }
 };
