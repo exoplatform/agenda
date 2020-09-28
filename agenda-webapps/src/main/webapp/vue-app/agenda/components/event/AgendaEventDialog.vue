@@ -70,6 +70,9 @@ export default {
             agendaEvent.attachments = event.attachments;
             agendaEvent.reminders = event.reminders;
 
+            agendaEvent.startDate = new Date(agendaEvent.start);
+            agendaEvent.endDate = new Date(agendaEvent.end);
+
             this.open(agendaEvent);
             this.$nextTick().then(() => this.$root.$emit('agenda-event-form-opened', agendaEvent));
           });
