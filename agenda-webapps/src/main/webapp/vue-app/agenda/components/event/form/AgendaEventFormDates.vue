@@ -31,8 +31,7 @@
       :event-timed="isEventTimed"
       :start="dayToDisplay"
       :weekdays="weekdays"
-      :first-time="agendaStartTime"
-      :interval-count="agendaIntervalCount"
+      :interval-style="agendaIntervalStyle"
       :event-ripple="false"
       event-name="summary"
       event-start="startDate"
@@ -142,12 +141,6 @@ export default {
     },
     currentTimeStyle() {
       return `top: ${this.currentTimeTop}px;`;
-    },
-    agendaStartTime() {
-      return this.workingTime.showWorkingTime ? this.workingTime.workingTimeStart : '00:00';
-    },
-    agendaIntervalCount() {
-      return this.workingTime.showWorkingTime ? parseInt(this.workingTime.workingTimeEnd) - parseInt(this.workingTime.workingTimeStart) : '24';
     },
     events() {
       return this.event && [this.event] || [];
@@ -320,6 +313,24 @@ export default {
     toTime(tms) {
       return new Date(tms.year, tms.month - 1, tms.day, tms.hour, tms.minute).getTime();
     },
+    agendaIntervalStyle(interval) {
+      if (this.workingTime.showWorkingTime) {
+        const inactive = interval.weekday === 0 ||
+            interval.weekday === 6 ||
+            interval.time < this.workingTime.workingTimeStart ||
+            interval.time >= this.workingTime.workingTimeEnd;
+        const startOfHour = interval.minute === 0;
+        const dark = this.dark;
+        const mid = dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+
+        return {
+          backgroundColor: inactive ? dark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.05)' : null,
+          borderTop: startOfHour ? null : `1px dashed ${mid}`,
+        };
+      } else {
+        return null;
+      }
+    }
   },
 };
 </script>

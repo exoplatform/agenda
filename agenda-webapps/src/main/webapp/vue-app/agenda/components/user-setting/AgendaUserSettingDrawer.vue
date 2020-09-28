@@ -37,22 +37,14 @@
             <label class="switch-label-text mt-1 text-subtitle-1">{{ $t('agenda.settings.drawer.label.showWorkingTime') }}:</label>
             <v-switch v-model="settingsForm.showWorkingTime" class="mt-0 ml-4" />
           </div>
-          <div class="d-flex flex-row align-baseline">
-            <input
-              id="workingTimeStart"
+          <div v-if="settingsForm.showWorkingTime" class="workingTime d-flex flex-row align-center">
+            <time-picker
               v-model="settingsForm.workingTimeStart"
-              type="time"
-              name="workingTimeStart"
-              :disabled="!settingsForm.showWorkingTime">
-
-            <label class="switch-label-text mx-5 text-subtitle-1" :class="{'disabled': !settingsForm.showWorkingTime}">{{ $t('agenda.label.to') }}</label>
-            <input
-              id="workingTimeEnd"
+              interval-minutes="60" />
+            <label class="switch-label-text mx-5 text-subtitle-1">{{ $t('agenda.label.to') }}</label>
+            <time-picker
               v-model="settingsForm.workingTimeEnd"
-              type="time"
-              name="workingTimeEnd"
-              :min="settingsForm.workingTimeStart"
-              :disabled="!settingsForm.showWorkingTime">
+              interval-minutes="60" />
           </div>
         </v-layout>
       </v-form>
