@@ -1,5 +1,5 @@
 <template>
-  <v-list-item class="d-flex attendee mb-5">
+  <v-list-item class="d-flex attendee">
     <v-list-item-avatar>
       <v-avatar size="32">
         <v-img :src="attendeeProfileAvatarUrl" />
@@ -28,7 +28,12 @@ export default {
       return this.attendee && this.attendee.response && `attendee-response attendee-response-${this.attendee.response.toLowerCase()}`;
     },
     attendeeProfileLink() {
-      return this.attendee.identity.space ? this.attendee.identity.space.url : this.attendee.identity.profile ? this.attendee.identity.profile.urls : '';
+      if (this.attendee.identity.providerId === 'organization') {
+        return `${eXo.env.portal.context}/${eXo.env.portal.portalName}/profile/${this.attendee.identity.remoteId}`;
+      } else if (this.attendee.identity.providerId === 'space') {
+        return `${eXo.env.portal.context}/g/:spaces:${this.attendee.identity.remoteId}/`;
+      }
+      return '';
     },
     attendeeProfileAvatarUrl() {
       return this.attendee.identity.space ? this.attendee.identity.space.avatarUrl : this.attendee.identity.profile ? this.attendee.identity.profile.avatar : '';
