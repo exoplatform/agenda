@@ -17,8 +17,8 @@ export default {
     this.$root.$on('agenda-event-save', this.saveEvent);
   },
   methods: {
-    saveEvent(event) {
-      if (event.occurrence) {
+    saveEvent(event, ignoreRecurrentPopin) {
+      if (event.occurrence && !ignoreRecurrentPopin) {
         this.$refs.recurrentEventConfirm.open(event);
       } else {
         this.save(event);

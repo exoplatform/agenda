@@ -26,7 +26,6 @@
     </v-toolbar>
     <v-calendar
       ref="calendar"
-      v-model="value"
       :events="displayedEvents"
       :event-color="getEventColor"
       :event-timed="isEventTimed"
@@ -47,19 +46,19 @@
       @mouseup:time="endDrag"
       @change="retrieveEvents">
       <template #event="eventObj">
-        <div :id="getEventDomId(eventObj)" class="v-event-draggable">
-          <div class="d-flex flex-nowrap v-event-draggable">
+        <div :id="getEventDomId(eventObj)" class="v-event-draggable v-event-draggable-parent">
+          <div class="d-flex flex-nowrap">
             <strong class="text-truncate">{{ eventObj.event.summary }}</strong>
             <template v-if="!eventObj.event.allDay">
               <date-format
                 :value="eventObj.event.startDate"
                 :format="timeFormat"
-                class="v-event-draggable ml-2" />
+                class="ml-2" />
               <strong class="mx-2">-</strong>
               <date-format
                 :value="eventObj.event.endDate"
                 :format="timeFormat"
-                class="v-event-draggable mr-2" />
+                class="mr-2" />
             </template>
           </div>
         </div>
@@ -75,7 +74,6 @@
       ref="eventDatesMenu"
       v-model="selectedOpen"
       :close-on-content-click="false"
-      :close-on-click="false"
       :activator="selectedElement"
       content-class="select-date-pickers agenda-application"
       offset-x>
@@ -83,8 +81,9 @@
         <v-card-text>
           <agenda-event-form-date-pickers
             v-if="selectedEvent"
+            ref="selectedEventDatePickers"
             :event="selectedEvent"
-            date-picker-top
+            :date-picker-top="datePickerTop"
             @changed="updateCalendarDisplay(selectedEvent)" />
         </v-card-text>
       </v-card>
@@ -109,7 +108,6 @@ export default {
     },
   },
   data: () => ({
-    value: '',
     periodTitle: '',
     dragEvent: null,
     dragStart: null,
@@ -119,6 +117,7 @@ export default {
     selectedEvent: null,
     selectedElement: null,
     selectedOpen: null,
+    datePickerTop: true,
     displayedEvents: [],
     dayToDisplay: Date.now(),
     dateTimeFormat: {
@@ -157,21 +156,45 @@ export default {
       return `eventForm-${this.event.id}-${this.event.startDate.getTime()}`;
     },
   },
+  watch: {
+    selectedOpen() {
+      if (this.selectedOpen && this.$refs.selectedEventDatePickers) {
+        this.$refs.selectedEventDatePickers.reset();
+      }
+    },
+  },
   created() {
-    this.event.startDate = new Date(this.event.start);
-    this.event.endDate = new Date(this.event.end);
+    if (!this.event.startDate) {
+      this.event.startDate = this.event.start && new Date(this.event.start) || new Date();
+      this.event.startDate = new Date(this.roundTime(this.event.startDate.getTime()));
+    }
+    if (!this.event.endDate) {
+      if (this.event.end) {
+        this.event.endDate = new Date(this.event.end);
+      } else {
+        this.event.endDate = this.event.startDate;
+      }
+    }
   },
   mounted() {
     this.timezoneDiff =  eXo.env.portal.timezoneOffset + new Date().getTimezoneOffset() * 60000;
     if (this.$refs.calendar) {
       this.currentTimeTop = this.$refs.calendar.timeToY(this.nowTimeOptions);
       this.scrollToEvent(this.event);
+      window.setTimeout(() => {
+        this.showEventDatePickers(this.event);
+      }, 200);
     }
   },
   methods: {
     updateCalendarDisplay(event) {
+      event.start = this.$agendaUtils.toRFC3339(new Date(this.event.startDate));
+      event.end = this.$agendaUtils.toRFC3339(new Date(this.event.endDate));
       this.scrollToEvent(event);
       this.retrieveEvents();
+      if (this.$refs.eventDatesMenu) {
+        this.showEventDatePickers(event, 200);
+      }
     },
     scrollToEvent(event) {
       const dateTime = new Date(event.startDate);
@@ -180,7 +203,6 @@ export default {
         minute: dateTime.getMinutes(),
       });
       this.dayToDisplay = event.startDate.getTime();
-      this.selectedElement = $(`#${this.domId}`)[0];
       this.$refs.calendar.updateTimes();
       this.scrollToTime();
     },
@@ -199,23 +221,37 @@ export default {
       }
       nativeEvent.preventDefault();
       nativeEvent.stopPropagation();
+
+      this.showEventDatePickers(event);
+    },
+    showEventDatePickers(event, waitTimeToDisplay = 200) {
+      const domId = this.getEventDomId(event);
+      let $targetElement = $(`#${domId}`);
+      const targetElement = $targetElement.length && $targetElement[0];
+
       this.newEventStarted = false;
       this.selectedOpen = false;
+      this.selectedElement = targetElement;
       this.selectedEvent = event;
 
-      let targetElement = nativeEvent.target;
-      if (targetElement && $(targetElement).parents('.v-event-draggable').length) {
-        targetElement = $(targetElement).parents('.v-event-draggable')[0];
-      }
-      this.selectedElement = targetElement;
-
-      window.setTimeout(() => this.selectedOpen = true, 200);
+      window.setTimeout(() => {
+        if (!this.selectedElement) {
+          const domId = this.getEventDomId(event);
+          $targetElement = $(`#${domId}`);
+          this.selectedElement = $targetElement.length && $targetElement[0];
+        }
+        if (this.selectedElement) {
+          this.datePickerTop = $(`#${domId}`).offset().top > 330;
+        }
+        this.selectedOpen = true;
+      }, waitTimeToDisplay);
     },
     startTime(tms) {
       const mouse = this.toTime(tms);
       this.event.startDate = this.roundTime(mouse);
       this.event.endDate = new Date(this.event.startDate);
       this.newEventStarted = true;
+      this.selectedOpen = false;
     },
     mouseMove(tms) {
       if (this.newEventStarted) {
@@ -229,11 +265,15 @@ export default {
         this.newEventStarted = false;
         this.event.start = this.$agendaUtils.toRFC3339(new Date(this.event.startDate));
         this.event.end = this.$agendaUtils.toRFC3339(new Date(this.event.endDate));
+        this.selectedOpen = false;
+        this.selectedEvent = null;
         this.retrieveEvents();
+        this.showEventDatePickers(this.event);
       }
     },
     getEventDomId(eventObj) {
-      return `eventForm-${eventObj.event.id}-${new Date(eventObj.event.startDate).getTime()}`;
+      const event = eventObj && eventObj.event || eventObj;
+      return `eventForm-${event.id}-${new Date(event.startDate).getTime()}`;
     },
     getEventColor(event) {
       return event && (event.color || event.calendar && event.calendar.color) || '#2196F3';
