@@ -174,9 +174,15 @@
     }
   }
 
-  .datePickerComponent::after {
-    display: none;
+  .datePickerComponent {
+    &::after {
+      display: none;
+    }
+    input {
+      margin: auto;
+    }
   }
+
   .datePickerText {
     width: auto;
     min-width: auto;
