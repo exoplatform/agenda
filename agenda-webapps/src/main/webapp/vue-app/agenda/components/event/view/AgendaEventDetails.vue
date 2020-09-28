@@ -15,11 +15,11 @@
         </div>
         <div class="d-flex flex-row pl-3">
           <v-avatar
-            height="26"
-            min-height="26"
-            width="26"
-            min-width="26"
-            size="26"
+            height="32"
+            min-height="32"
+            width="32"
+            min-width="32"
+            size="32"
             class="mx-3 spaceAvatar">
             <v-img :src="ownerAvatarUrl" />
           </v-avatar>
