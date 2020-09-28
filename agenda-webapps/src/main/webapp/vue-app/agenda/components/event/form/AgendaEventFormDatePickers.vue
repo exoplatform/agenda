@@ -5,7 +5,7 @@
         v-if="startDate"
         v-model="startDate"
         :top="datePickerTop"
-        class="flex-grow-1" />
+        class="flex-grow-1 my-auto" />
       <div v-if="!event.allDay" class="d-flex flex-row flex-grow-0">
         <time-picker v-if="startTime" v-model="startTime" />
       </div>
@@ -15,7 +15,7 @@
         v-if="endDate"
         v-model="endDate"
         :top="datePickerTop"
-        class="flex-grow-1" />
+        class="flex-grow-1 my-auto" />
       <div v-if="!event.allDay" class="flex-grow-0">
         <time-picker v-if="endTime" v-model="endTime" />
       </div>
