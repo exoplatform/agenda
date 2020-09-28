@@ -191,3 +191,25 @@ export function getWeekSequenceFromDay(day) {
   }
 }
 
+export function getIntervalMinutes(workingTimeStart, workingTimeEnd) {
+  const workingTimeStartMin = workingTimeStart.split(':')[1];
+  const workingTimeEndMin = workingTimeEnd.split(':')[1];
+  let intervalMinutes = '60';
+  if (workingTimeStartMin === '30' || workingTimeEndMin === '30') {
+    intervalMinutes = '30';
+  }
+  if (workingTimeStartMin === '15' || workingTimeEndMin === '15') {
+    intervalMinutes = '15';
+  }
+  return intervalMinutes;
+}
+
+export function getIntervalCount(agendaIntervalMinutes) {
+  let agendaIntervalCount = '24';
+  if (agendaIntervalMinutes === '15') {
+    agendaIntervalCount = '96';
+  } else if (agendaIntervalMinutes === '30') {
+    agendaIntervalCount = '48';
+  }
+  return agendaIntervalCount;
+}

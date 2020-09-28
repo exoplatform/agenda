@@ -7,7 +7,8 @@
     :event-timed="isEventTimed"
     :type="calendarType"
     :weekdays="weekdays"
-    :first-time="agendaStartTime"
+    :interval-style="agendaIntervalStyle"
+    :interval-minutes="agendaIntervalMinutes"
     :interval-count="agendaIntervalCount"
     event-name="summary"
     event-start="startDate"
@@ -96,6 +97,25 @@ export default {
       hour: '2-digit',
       minute: '2-digit',
     },
+    stylings: {
+      default() {
+        return null;
+      },
+      workday(interval) {
+        const inactive = interval.weekday === 0 ||
+            interval.weekday === 6 ||
+            interval.time < this.agendaStartTime ||
+            interval.time >= this.agendaEndTime;
+        const startOfHour = interval.minute === 0;
+        const dark = this.dark;
+        const mid = dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+
+        return {
+          backgroundColor: inactive ? dark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.05)' : null,
+          borderTop: startOfHour ? null : `1px dashed ${  mid}`,
+        };
+      },
+    }
   }),
   computed: {
     nowTimeOptions() {
@@ -105,11 +125,20 @@ export default {
     currentTimeStyle() {
       return `top: ${this.currentTimeTop}px;`;
     },
+    agendaEndTime() {
+      return this.workingTime.showWorkingTime ? this.workingTime.workingTimeEnd : '00:00';
+    },
     agendaStartTime() {
       return this.workingTime.showWorkingTime ? this.workingTime.workingTimeStart : '00:00';
     },
     agendaIntervalCount() {
-      return this.workingTime.showWorkingTime ? parseInt(this.workingTime.workingTimeEnd) - parseInt(this.workingTime.workingTimeStart) : '24';
+      return this.workingTime.showWorkingTime ? this.$agendaUtils.getIntervalCount(this.agendaIntervalMinutes) : '24';
+    },
+    agendaIntervalStyle () {
+      return this.workingTime.showWorkingTime ? this.stylings['workday'].bind(this) : this.stylings['default'].bind(this);
+    },
+    agendaIntervalMinutes () {
+      return this.workingTime.showWorkingTime ? this.$agendaUtils.getIntervalMinutes(this.workingTime.workingTimeStart, this.workingTime.workingTimeEnd) : '60' ;
     }
   },
   watch: {
@@ -396,7 +425,7 @@ export default {
     },
     toDate(tms, down = true) {
       return new Date(tms.year, tms.month - 1, tms.day, tms.hour, this.roundTime(tms.minute, down));
-    },
+    }
   }
 };
 </script>
