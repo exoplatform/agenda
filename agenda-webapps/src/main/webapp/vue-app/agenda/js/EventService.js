@@ -1,4 +1,4 @@
-import {toRFC3339} from './AgendaUtils.js';
+import {toRFC3339, getDayNameFromDate, getMonthNumberFromDate} from './AgendaUtils.js';
 
 export function getEvents(query, ownerIds, attendeeIdentityId, start, end, expand) {
   if (typeof start === 'object') {
@@ -64,6 +64,32 @@ export function createEvent(event) {
     });
   }
 
+  if (event.recurrence) {
+    const recurrence = event.recurrence;
+    if (recurrence.frequency === 'WEEKLY') {
+      recurrence.byMonthDay = null;
+      recurrence.byMonth = null;
+      if (!recurrence.byDay || !recurrence.byDay.length) {
+        recurrence.byDay = [getDayNameFromDate(event.start).substring(0,2).toUpperCase()];
+      }
+    } else if (recurrence.frequency === 'MONTHLY') {
+      recurrence.byDay = null;
+      recurrence.byMonth = null;
+      const dayNumberInMonth = new Date(event.start).getDate();
+      recurrence.byMonthDay = [dayNumberInMonth];
+    } else if(recurrence.frequency === 'YEARLY') {
+      recurrence.byDay = null;
+      const dayNumberInMonth = new Date(event.start).getDate();
+      recurrence.byMonthDay = [dayNumberInMonth];
+      const monthNumberFromDate = getMonthNumberFromDate(new Date(event.start));
+      recurrence.byMonth = [monthNumberFromDate];
+    } else {
+      recurrence.byMonthDay = null;
+      recurrence.byMonth = null;
+      recurrence.byDay = null;
+    }
+  }
+
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events`, {
     method: 'POST',
     credentials: 'include',
@@ -127,6 +153,32 @@ export function updateEvent(event) {
         remoteId: attendee.identity.remoteId,
       };
     });
+  }
+
+  if (event.recurrence) {
+    const recurrence = event.recurrence;
+    if (recurrence.frequency === 'WEEKLY') {
+      recurrence.byMonthDay = null;
+      recurrence.byMonth = null;
+      if (!recurrence.byDay || !recurrence.byDay.length) {
+        recurrence.byDay = [getDayNameFromDate(event.start).substring(0,2).toUpperCase()];
+      }
+    } else if (recurrence.frequency === 'MONTHLY') {
+      recurrence.byDay = null;
+      recurrence.byMonth = null;
+      const dayNumberInMonth = new Date(event.start).getDate();
+      recurrence.byMonthDay = [dayNumberInMonth];
+    } else if(recurrence.frequency === 'YEARLY') {
+      recurrence.byDay = null;
+      const dayNumberInMonth = new Date(event.start).getDate();
+      recurrence.byMonthDay = [dayNumberInMonth];
+      const monthNumberFromDate = getMonthNumberFromDate(new Date(event.start));
+      recurrence.byMonth = [monthNumberFromDate];
+    } else {
+      recurrence.byMonthDay = null;
+      recurrence.byMonth = null;
+      recurrence.byDay = null;
+    }
   }
 
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events`, {
