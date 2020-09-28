@@ -20,10 +20,10 @@
             width="32"
             min-width="32"
             size="32"
-            class="mx-3 spaceAvatar">
+            class="mx-3 spaceAvatar space-avatar-header">
             <v-img :src="ownerAvatarUrl" />
           </v-avatar>
-          <div class="pt-1">
+          <div class="pt-2">
             <a href="#" class="text-truncate">{{ ownerDisplayName }}</a>
           </div>
         </div>
