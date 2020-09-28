@@ -24,7 +24,7 @@
             <v-img :src="ownerAvatarUrl" />
           </v-avatar>
           <div class="pt-2">
-            <a href="#" class="text-truncate">{{ ownerDisplayName }}</a>
+            <a :href="calendarOwnerLink" class="text-truncate">{{ ownerDisplayName }}</a>
           </div>
         </div>
       </v-flex>
@@ -188,15 +188,27 @@ export default {
     };
   },
   computed: {
+    calendarOwnerLink() {
+      if (this.owner) {
+        if (this.owner.providerId === 'organization') {
+          return `${eXo.env.portal.context}/${eXo.env.portal.portalName}/profile/${this.owner.remoteId}`;
+        } else if (this.owner.providerId === 'space') {
+          return `${eXo.env.portal.context}/g/:spaces:${this.owner.remoteId}/`;
+        }
+      }
+      return '';
+    },
     hasRecurrence() {
       return this.event.recurrence || this.event.parent && this.event.parent.recurrence;
     },
     canEdit() {
       return this.event.acl && this.event.acl.canEdit;
     },
+    owner() {
+      return this.event && this.event.calendar && this.event.calendar.owner;
+    },
     ownerProfile() {
-      const owner = this.event && this.event.calendar && this.event.calendar.owner;
-      return owner && (owner.profile || owner.space);
+      return this.owner && (this.owner.profile || this.owner.space);
     },
     ownerAvatarUrl() {
       return this.ownerProfile && (this.ownerProfile.avatar || this.ownerProfile.avatarUrl);
