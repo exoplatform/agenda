@@ -12,10 +12,8 @@ import org.exoplatform.commons.api.notification.service.template.TemplateContext
 import org.exoplatform.commons.notification.template.TemplateUtils;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.portal.config.UserPortalConfigService;
-import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.notification.plugin.SocialNotificationUtils;
 import org.exoplatform.webui.utils.TimeConvertUtils;
-
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -51,7 +49,6 @@ public class NotificationUtils {
   private static final String                 TEMPLATE_VARIABLE_EVENT_TITLE            = "eventTitle";
 
   private static String                       defaultSite;
-
 
   private NotificationUtils() {
   }
@@ -124,7 +121,7 @@ public class NotificationUtils {
   private static final void setEventDetails(TemplateContext templateContext, NotificationInfo notification) {
     templateContext.put(TEMPLATE_VARIABLE_EVENT_ID, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_ID));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_TITLE, getEventTitle(notification));
-    templateContext.put("USER",notification.getTo());
+    templateContext.put("USER", notification.getTo());
   }
 
   public static String getEventURL(Event event) {
@@ -142,8 +139,7 @@ public class NotificationUtils {
     return notificationURL;
   }
 
-  private static final void setIdentityNameAndAvatar(NotificationInfo notification,
-                                                     TemplateContext templateContext) {
+  private static final void setIdentityNameAndAvatar(NotificationInfo notification, TemplateContext templateContext) {
     String spaceTitle = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_SPACE);
     if (StringUtils.isBlank(spaceTitle)) {
       templateContext.put(TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR, "");
@@ -208,4 +204,5 @@ public class NotificationUtils {
                                                                      new Locale(language),
                                                                      TimeConvertUtils.YEAR));
   }
+  
 }

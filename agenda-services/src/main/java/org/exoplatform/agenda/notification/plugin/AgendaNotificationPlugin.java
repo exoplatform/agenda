@@ -14,16 +14,18 @@ import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.container.xml.ValueParam;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
-
 import java.util.List;
 
 import static org.exoplatform.agenda.util.NotificationUtils.*;
 
 public class AgendaNotificationPlugin extends BaseNotificationPlugin {
-  private static final Log LOG = ExoLogger.getLogger(AgendaNotificationPlugin.class);
-  private AgendaEventService eventService;
+  private static final Log           LOG = ExoLogger.getLogger(AgendaNotificationPlugin.class);
+
+  private AgendaEventService         eventService;
+
   private AgendaEventAttendeeService eventAttendeeService;
-  private AgendaCalendarService calendarService;
+
+  private AgendaCalendarService      calendarService;
 
   public AgendaNotificationPlugin(InitParams initParams,
                                   AgendaEventService eventService,
@@ -57,7 +59,7 @@ public class AgendaNotificationPlugin extends BaseNotificationPlugin {
   protected NotificationInfo makeNotification(NotificationContext ctx) {
     long eventId = ctx.value(EVENT_ID);
     Event event = eventService.getEventById(eventId);
-    List<EventAttendee> eventAttendee= eventAttendeeService.getEventAttendees(eventId);
+    List<EventAttendee> eventAttendee = eventAttendeeService.getEventAttendees(eventId);
     Calendar calendar = calendarService.getCalendarById(event.getCalendarId());
     NotificationInfo notification = NotificationInfo.instance();
     notification.key(getId());
