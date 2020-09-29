@@ -334,24 +334,23 @@
   }
 }
 
-.attendee-response-needs_action::before {
+.attendee-response::before {
   font-family: "PLF-FONT-ICONS";
-  content: '\e76b';
-  color: @greyColorLighten1Default;
-  font-size: 16px;
-}
-.attendee-response-accepted::before {
-  font-family: "PLF-FONT-ICONS";
-  content: '\e9c7';
-  color: @successColor;
   font-size: 16px;
 }
 
+.attendee-response-needs_action::before {
+  content: '\e76b';
+  color: @greyColorLighten1Default;
+}
+.attendee-response-accepted::before {
+  content: '\e9c7';
+  color: @successColor;
+}
+
 .attendee-response-declined::before {
-  font-family: "PLF-FONT-ICONS";
   content: "\e9d0";
   color: @errorColor;
-  font-size: 16px;
 }
 
 .attendee-response-tentative::before {
