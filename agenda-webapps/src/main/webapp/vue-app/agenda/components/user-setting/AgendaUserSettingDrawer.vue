@@ -101,7 +101,14 @@ export default {
   },
   methods: {
     open() {
-      this.settingsForm = JSON.parse(JSON.stringify(this.settings));
+      const settingsForm = JSON.parse(JSON.stringify(this.settings));
+      if (!settingsForm.workingTimeStart) {
+        settingsForm.workingTimeStart = '08:00';
+      }
+      if (!settingsForm.workingTimeEnd) {
+        settingsForm.workingTimeEnd = '18:00';
+      }
+      this.settingsForm = settingsForm;
       this.$refs.UserSettingAgendaDrawer.open();
     },
     close() {
@@ -110,6 +117,10 @@ export default {
     save() {
       if(this.validateForm()) {
         this.$refs.UserSettingAgendaDrawer.startLoading();
+        if (!this.settingsForm.showWorkingTime) {
+          delete this.settingsForm.workingTimeStart;
+          delete this.settingsForm.workingTimeEnd;
+        }
         this.$calendarService.saveAgendaSettings(this.settingsForm).then(() => {
           Object.assign(this.settings, this.settingsForm);
           this.$refs.UserSettingAgendaDrawer.close();
