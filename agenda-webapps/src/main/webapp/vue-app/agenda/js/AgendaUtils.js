@@ -68,9 +68,9 @@ export function toDate(date) {
     if (date.indexOf('T') === 10 && date.length > 19) {
       date = date.substring(0, 19);
     }
-    return toDate(new Date(date));
+    return new Date(date);
   } else if (typeof date === 'object') {
-    return date;
+    return new Date(date);
   }
 }
 
