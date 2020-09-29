@@ -205,7 +205,7 @@ export default {
       this.eventRecurrence = eventRecurrence || {};
       if (this.eventRecurrence.until) {
         this.recurrentEventDate = 'date';
-        this.untilDate = new Date(this.eventRecurrence.until);
+        this.untilDate = this.$agendaUtils.toDate(this.eventRecurrence.until);
         this.eventRecurrence.count = null;
       } else if (this.eventRecurrence.count > 0) {
         this.recurrentEventDate = 'count';

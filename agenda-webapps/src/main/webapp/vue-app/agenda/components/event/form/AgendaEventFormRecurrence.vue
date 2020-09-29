@@ -80,35 +80,24 @@ export default {
       const day = this.event.start;
       return this.$agendaUtils.getMonthFromDate(day, eXo.env.portal.language);
     },
+    startDate() {
+      if (this.event.start) {
+        return this.$agendaUtils.toDate(this.event.start);
+      } else {
+        return new Date();
+      }
+    },
     dayNamefromDate() {
-      const day = this.event.start;
-      return this.$agendaUtils.getDayNameFromDate(day);
+      return this.$agendaUtils.getDayNameFromDate(this.startDate);
     },
     monthFromDate(){
-      const day = this.event.start;
-      return this.$agendaUtils.getMonthFromDate(day);
-    },
-    dayNumberFromDate() {
-      const day = this.event.start;
-      return this.$agendaUtils.getDayNumberFromDate(day);
+      return this.$agendaUtils.getMonthFromDate(this.startDate);
     },
     monthNumberFromDate() {
-      const day = this.event.start;
-      return this.$agendaUtils.getMonthNumberFromDate(day);
+      return this.$agendaUtils.getMonthNumberFromDate(this.startDate);
     },
     dayNumberInMonth() {
-      const date = this.event.start;
-      let d = null;
-      if (date) {
-        d = new Date(date);
-      } else {
-        d = new Date();
-      }
-      return d.getDate();
-    },
-    getDayNumberInYear() {
-      const day = this.event.start;
-      return this.$agendaUtils.getDayOfYear(day);
+      return this.startDate.getDate();
     },
   },
   watch: {
