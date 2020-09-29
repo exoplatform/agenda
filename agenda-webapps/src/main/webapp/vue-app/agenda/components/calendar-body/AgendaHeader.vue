@@ -27,18 +27,12 @@
         <i class="uiIcon uiIcon24x24 settingsIcon text-color"></i>
       </template>
     </v-btn>
-    <v-tooltip bottom>
-      <template v-slot:activator="{ on,attrs }">
-        <v-btn
-          icon
-          v-bind="attrs"
-          v-on="on"
-          @click="$root.$emit('user-settings-agenda-drawer-open')">
-          <v-icon>mdi-settings</v-icon>
-        </v-btn>
-      </template>
-      <span>{{ $t('agenda.settings.drawer.title') }}</span>
-    </v-tooltip>
+    <v-btn
+      icon
+      :title="$t('agenda.settings.drawer.title')"
+      @click="$root.$emit('user-settings-agenda-drawer-open')">
+      <v-icon>mdi-settings</v-icon>
+    </v-btn>
   </v-toolbar>
 </template>
 
