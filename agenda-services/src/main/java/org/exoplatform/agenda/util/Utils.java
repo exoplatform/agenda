@@ -100,9 +100,8 @@ public class Utils {
     }
     @SuppressWarnings("all")
     List<LocalDate> occurrencesIds = (List<LocalDate>) dates.stream()
-                                                            .map(date -> ((DateTime) date).toInstant()
-                                                                                          .atZone(ZoneOffset.systemDefault())
-                                                                                          .toLocalDate())
+                                                            .map(date -> AgendaDateUtils.fromDate((DateTime) date)
+                                                                                        .toLocalDate())
                                                             .collect(Collectors.toList());
 
     PeriodList list = vevent.calculateRecurrenceSet(period);
@@ -118,8 +117,13 @@ public class Utils {
       }
       Event occurrence = event.clone();
       occurrence.setId(0);
-      occurrence.setStart(occurrencePeriod.getStart().toInstant().atZone(timeZone));
-      occurrence.setEnd(occurrencePeriod.getEnd().toInstant().atZone(timeZone));
+      if (event.isAllDay()) {
+        occurrence.setStart(occurrencePeriod.getStart().toInstant().atZone(ZoneOffset.UTC).withZoneSameLocal(timeZone));
+        occurrence.setEnd(occurrencePeriod.getEnd().toInstant().atZone(ZoneOffset.UTC).withZoneSameLocal(timeZone));
+      } else {
+        occurrence.setStart(occurrencePeriod.getStart().toInstant().atZone(timeZone));
+        occurrence.setEnd(occurrencePeriod.getEnd().toInstant().atZone(timeZone));
+      }
       occurrence.setOccurrence(new EventOccurrence(occurrenceId, false));
       occurrence.setParentId(event.getId());
       occurrence.setRecurrence(null);
