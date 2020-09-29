@@ -46,7 +46,7 @@
       @change="retrieveEvents">
       <template #event="eventObj">
         <div :id="getEventDomId(eventObj)" class="v-event-draggable v-event-draggable-parent">
-          <div class="d-flex flex-nowrap">
+          <div class="d-flex">
             <strong class="text-truncate">{{ eventObj.event.summary }}</strong>
             <template v-if="!eventObj.event.allDay">
               <date-format
@@ -132,7 +132,6 @@ export default {
     },
     currentTimeTop: null,
     scrollToTimeTop: null,
-    timezoneDiff: null,
   }),
   computed: {
     nowTimeOptions() {
@@ -158,19 +157,18 @@ export default {
   },
   created() {
     if (!this.event.startDate) {
-      this.event.startDate = this.event.start && new Date(this.event.start) || new Date();
-      this.event.startDate = new Date(this.roundTime(new Date(this.event.startDate).getTime()));
+      this.event.startDate = this.event.start && this.$agendaUtils.toDate(this.event.start) || new Date();
+      this.event.startDate = this.roundTime(new Date(this.event.startDate).getTime());
     }
     if (!this.event.endDate) {
       if (this.event.end) {
-        this.event.endDate = new Date(this.event.end);
+        this.event.endDate = this.$agendaUtils.toDate(this.event.end).getTime();
       } else {
-        this.event.endDate = this.event.startDate;
+        this.event.endDate = new Date(this.event.startDate).getTime();
       }
     }
   },
   mounted() {
-    this.timezoneDiff =  eXo.env.portal.timezoneOffset + new Date().getTimezoneOffset() * 60000;
     if (this.$refs.calendar) {
       this.currentTimeTop = this.$refs.calendar.timeToY(this.nowTimeOptions);
       this.scrollToEvent(this.event);
@@ -185,8 +183,10 @@ export default {
   },
   methods: {
     updateCalendarDisplay(event) {
-      event.start = this.$agendaUtils.toRFC3339(new Date(this.event.startDate));
-      event.end = this.$agendaUtils.toRFC3339(new Date(this.event.endDate));
+      event.startDate = new Date(this.event.startDate);
+      event.endDate = new Date(this.event.endDate);
+      event.start = this.$agendaUtils.toRFC3339(this.event.startDate);
+      event.end = this.$agendaUtils.toRFC3339(this.event.endDate);
       this.scrollToEvent(event);
       this.retrieveEvents();
       if (this.$refs.eventDatesMenu) {
@@ -194,12 +194,12 @@ export default {
       }
     },
     scrollToEvent(event) {
-      const dateTime = new Date(event.startDate);
+      const dateTime = this.$agendaUtils.toDate(event.startDate);
       this.scrollToTimeTop = this.$refs.calendar.timeToY({
         hour: dateTime.getHours(),
         minute: dateTime.getMinutes(),
       });
-      this.dayToDisplay = event.startDate ? new Date(event.startDate).getTime(): new Date(event.start).getTime();
+      this.dayToDisplay = event.startDate ? this.$agendaUtils.toDate(event.startDate).getTime(): this.$agendaUtils.toDate(event.start).getTime();
       this.$refs.calendar.updateTimes();
       this.scrollToTime();
     },
@@ -250,7 +250,7 @@ export default {
     startTime(tms) {
       const mouse = this.toTime(tms);
       this.event.startDate = this.roundTime(mouse);
-      this.event.endDate = new Date(this.event.startDate);
+      this.event.endDate = this.$agendaUtils.toDate(this.event.startDate);
       this.newEventStarted = true;
       this.selectedOpen = false;
     },
@@ -264,8 +264,8 @@ export default {
     endDrag() {
       if (this.newEventStarted) {
         this.newEventStarted = false;
-        this.event.start = this.$agendaUtils.toRFC3339(new Date(this.event.startDate));
-        this.event.end = this.$agendaUtils.toRFC3339(new Date(this.event.endDate));
+        this.event.start = this.$agendaUtils.toRFC3339(this.event.startDate);
+        this.event.end = this.$agendaUtils.toRFC3339(this.event.endDate);
         this.selectedOpen = false;
         this.selectedEvent = null;
         this.retrieveEvents();

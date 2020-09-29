@@ -19,7 +19,6 @@ package org.exoplatform.agenda.util;
 import java.text.ParseException;
 import java.time.*;
 import java.util.*;
-import java.util.TimeZone;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
@@ -69,11 +68,11 @@ public class Utils {
     }
   }
 
-  public static List<Event> getOccurrences(Event event, LocalDate from, LocalDate to, TimeZone timeZone) {
+  public static List<Event> getOccurrences(Event event, LocalDate from, LocalDate to, ZoneId timeZone) {
     long startTime = event.getStart().toEpochSecond() * 1000;
     long endTime = event.getEnd().toEpochSecond() * 1000;
 
-    net.fortuna.ical4j.model.TimeZone ical4jTimezone = ICAL4J_TIME_ZONE_REGISTRY.getTimeZone(timeZone.getID());
+    net.fortuna.ical4j.model.TimeZone ical4jTimezone = ICAL4J_TIME_ZONE_REGISTRY.getTimeZone(timeZone.getId());
 
     DateTime startDateTime = new DateTime(startTime);
     startDateTime.setTimeZone(ical4jTimezone);
@@ -83,9 +82,8 @@ public class Utils {
     Recur recur = getICalendarRecur(event, event.getRecurrence());
     vevent.getProperties().add(new RRule(recur));
 
-    ZoneId userZoneId = timeZone.toZoneId();
-    long fromTime = from.atStartOfDay(userZoneId).toEpochSecond() * 1000;
-    long toTime = to.atStartOfDay(userZoneId).plusDays(1).minusSeconds(1).toEpochSecond() * 1000;
+    long fromTime = from.atStartOfDay(timeZone).toEpochSecond() * 1000;
+    long toTime = to.atStartOfDay(timeZone).plusDays(1).minusSeconds(1).toEpochSecond() * 1000;
     DateTime ical4jFrom = new DateTime(fromTime);
     ical4jFrom.setTimeZone(ical4jTimezone);
     DateTime ical4jTo = new DateTime(toTime);
@@ -116,8 +114,8 @@ public class Utils {
       }
       Event occurrence = event.clone();
       occurrence.setId(0);
-      occurrence.setStart(occurrencePeriod.getStart().toInstant().atZone(userZoneId));
-      occurrence.setEnd(occurrencePeriod.getEnd().toInstant().atZone(userZoneId));
+      occurrence.setStart(occurrencePeriod.getStart().toInstant().atZone(timeZone));
+      occurrence.setEnd(occurrencePeriod.getEnd().toInstant().atZone(timeZone));
       occurrence.setOccurrence(new EventOccurrence(occurrenceId, false));
       occurrence.setParentId(event.getId());
       occurrence.setRecurrence(null);
