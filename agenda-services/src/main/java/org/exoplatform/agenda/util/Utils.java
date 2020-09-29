@@ -69,6 +69,10 @@ public class Utils {
   }
 
   public static List<Event> getOccurrences(Event event, LocalDate from, LocalDate to, ZoneId timeZone) {
+    if (timeZone == null) {
+      timeZone = ZoneId.systemDefault();
+    }
+
     long startTime = event.getStart().toEpochSecond() * 1000;
     long endTime = event.getEnd().toEpochSecond() * 1000;
 
