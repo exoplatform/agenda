@@ -16,6 +16,7 @@
 */
 package org.exoplatform.agenda.service;
 
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
 
@@ -32,10 +33,11 @@ public interface AgendaEventService {
    * 
    * @param start {@link ZonedDateTime} as selected period start datetime
    * @param end {@link ZonedDateTime} as selected period start datetime
+   * @param timeZone used timezone to convert dates
    * @param username User name accessing event
    * @return {@link List} of {@link Event} accessible to user
    */
-  public List<Event> getEvents(ZonedDateTime start, ZonedDateTime end, String username);
+  public List<Event> getEvents(ZonedDateTime start, ZonedDateTime end, ZoneId timeZone, String username);
 
   /**
    * Retrieves the list of events for a designated owner in a selected period of
@@ -44,6 +46,7 @@ public interface AgendaEventService {
    * @param ownerIds {@link Identity} technical identifier of the owners
    * @param start {@link ZonedDateTime} as selected period start datetime
    * @param end {@link ZonedDateTime} as selected period start datetime
+   * @param timeZone used timezone to convert dates
    * @param username User name accessing event
    * @return {@link List} of {@link Event} available in calendars of an owner
    * @throws IllegalAccessException when user is not allowed to access events of
@@ -52,6 +55,7 @@ public interface AgendaEventService {
   public List<Event> getEventsByOwners(List<Long> ownerIds,
                                        ZonedDateTime start,
                                        ZonedDateTime end,
+                                       ZoneId timeZone,
                                        String username) throws IllegalAccessException;
 
   /**
@@ -62,6 +66,7 @@ public interface AgendaEventService {
    * @param attendeeIdentityId user {@link Identity} technical identifier
    * @param startDatetime Period start date
    * @param endDatetime Period end date
+   * @param timeZone used timezone to convert dates
    * @param username current user requesting events
    * @return {@link List} of {@link Event}
    * @throws IllegalAccessException when user is not the same as
@@ -70,6 +75,7 @@ public interface AgendaEventService {
   public List<Event> getEventsByAttendee(long attendeeIdentityId,
                                          ZonedDateTime startDatetime,
                                          ZonedDateTime endDatetime,
+                                         ZoneId timeZone,
                                          String username) throws IllegalAccessException;
 
   /**
@@ -82,6 +88,7 @@ public interface AgendaEventService {
    * @param ownerIds {@link Identity} technical identifier of the owners
    * @param startDatetime Period start date
    * @param endDatetime Period end date
+   * @param timeZone used timezone to convert dates
    * @param username current user requesting events
    * @return {@link List} of {@link Event}
    * @throws IllegalAccessException when user doesn't have access to one of
@@ -91,27 +98,30 @@ public interface AgendaEventService {
                                                   List<Long> ownerIds,
                                                   ZonedDateTime startDatetime,
                                                   ZonedDateTime endDatetime,
+                                                  ZoneId timeZone,
                                                   String username) throws IllegalAccessException;
 
   /**
    * Retrieves an event identified by its technical identifier.
    * 
    * @param eventId technical identifier of event
+   * @param timeZone used timezone to convert dates
    * @param username User name accessing event
    * @return Corresponding {@link Event} or null if not found
    * @throws IllegalAccessException when user is not allowed to access event
    */
-  public Event getEventById(long eventId, String username) throws IllegalAccessException;
+  public Event getEventById(long eventId, ZoneId timeZone, String username) throws IllegalAccessException;
 
   /**
    * Retrieves an event identified by its technical identifier.
    * 
    * @param eventId technical identifier of event
+   * @param timeZone used timezone to convert dates
    * @param identityId {@link Identity} technical identifier
    * @return Corresponding {@link Event} or null if not found
    * @throws IllegalAccessException when user is not allowed to access event
    */
-  Event getEventById(long eventId, long identityId) throws IllegalAccessException;
+  Event getEventById(long eventId, ZoneId timeZone, long identityId) throws IllegalAccessException;
 
   /**
    * Retrieves an event identified by its technical identifier.
