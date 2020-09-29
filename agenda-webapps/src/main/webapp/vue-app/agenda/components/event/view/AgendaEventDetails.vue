@@ -67,79 +67,77 @@
       </v-toolbar-items>
     </v-toolbar>
     <v-divider class="flex-grow-0" />
-    <v-container class="event-details-body flex-grow-1">
-      <v-row class="pa-5">
-        <v-col>
-          <v-row class="event-date align-center d-flex pb-5">
-            <i class="uiIconDatePicker darkGreyIcon uiIcon32x32 pr-5"></i>
-            <div class="d-inline-flex">
+    <div class="event-details-body overflow-auto flex-grow-1 d-flex flex-column flex-md-row px-4 pt-4">
+      <div class="flex-grow-1 flex-shrink-0 event-details-body-left">
+        <div class="event-date align-center d-flex pb-5">
+          <i class="uiIconDatePicker darkGreyIcon uiIcon32x32 pr-5"></i>
+          <div class="d-inline-flex">
+            <date-format
+              :value="event.start"
+              :format="fullDateFormat"
+              class="mr-1" />
+            <template v-if="!sameDayDates">
+              -
+              <date-format
+                :value="event.end"
+                :format="fullDateFormat"
+                class="ml-1" />
+            </template>
+          </div>
+        </div>
+        <div class="event-time align-center d-flex pb-5">
+          <i class="uiIconClock darkGreyIcon uiIcon32x32 pr-5"></i>
+          <div class="d-inline-flex">
+            <template v-if="event.allDay">
+              {{ $t('agenda.allDay') }}
+            </template>
+            <template v-else>
               <date-format
                 :value="event.start"
-                :format="fullDateFormat"
+                :format="dateTimeFormat"
                 class="mr-1" />
-              <template v-if="!sameDayDates">
-                -
-                <date-format
-                  :value="event.end"
-                  :format="fullDateFormat"
-                  class="ml-1" />
-              </template>
+              -
+              <date-format
+                :value="event.end"
+                :format="dateTimeFormat"
+                class="ml-1" />
+            </template>
+          </div>
+        </div>
+        <div v-if="hasRecurrence" class="event-recurrence align-center d-flex pl-1 pb-5 text-truncate">
+          <i class="uiIconRefresh darkGreyIcon uiIcon32x32 pr-5"></i>
+          <agenda-event-recurrence :event="event" class="text-wrap text-left" />
+        </div>
+        <div v-if="event.location" class="event-location align-center d-flex pb-5">
+          <i class="uiIconCheckin darkGreyIcon uiIcon32x32 pr-5"></i>
+          <span>{{ event.location }}</span>
+        </div>
+        <div v-if="event.description" class="event-description d-flex pb-5">
+          <i class="uiIconDescription darkGreyIcon uiIcon32x32 pr-5"></i>
+          <span class="mt-1 text-wrap text-left">{{ event.description }}</span>
+        </div>
+        <div
+          v-if="event.attachments && event.attachments.length !== 0"
+          class="event-attachments align-center d-flex pb-5">
+          <i class="uiIconAttach darkGreyIcon uiIcon32x32 pr-5"></i>
+          <div
+            v-for="attachedFile in event.attachments"
+            :key="attachedFile.name"
+            class="uploadedFilesItem">
+            <div class="showFile"> 
+              <exo-attachment-item :file="attachedFile" />
             </div>
-          </v-row>
-          <v-row class="event-time align-center d-flex pb-5">
-            <i class="uiIconClock darkGreyIcon uiIcon32x32 pr-5"></i>
-            <div class="d-inline-flex">
-              <template v-if="event.allDay">
-                {{ $t('agenda.allDay') }}
-              </template>
-              <template v-else>
-                <date-format
-                  :value="event.start"
-                  :format="dateTimeFormat"
-                  class="mr-1" />
-                -
-                <date-format
-                  :value="event.end"
-                  :format="dateTimeFormat"
-                  class="ml-1" />
-              </template>
-            </div>
-          </v-row>
-          <v-row v-if="hasRecurrence" class="event-recurrence align-center d-flex pl-1 pb-5">
-            <i class="uiIconRefresh darkGreyIcon uiIcon32x32 pr-5"></i>
-            <agenda-event-recurrence :event="event" />
-          </v-row>
-          <v-row v-if="event.location" class="event-location align-center d-flex pb-5">
-            <i class="uiIconCheckin darkGreyIcon uiIcon32x32 pr-5"></i>
-            <span>{{ event.location }}</span>
-          </v-row>
-          <v-row v-if="event.description" class="event-description d-flex pb-5">
-            <i class="uiIconDescription darkGreyIcon uiIcon32x32 pr-5"></i>
-            <span class="mt-1">{{ event.description }}</span>
-          </v-row>
-          <v-row
-            v-if="event.attachments && event.attachments.length !== 0"
-            class="event-attachments align-center d-flex pb-5">
-            <i class="uiIconAttach darkGreyIcon uiIcon32x32 pr-5"></i>
-            <div
-              v-for="attachedFile in event.attachments"
-              :key="attachedFile.name"
-              class="uploadedFilesItem">
-              <div class="showFile"> 
-                <exo-attachment-item :file="attachedFile" />
-              </div>
-            </div>
-          </v-row>
-        </v-col>
-        <v-col class="flex-grow-0">
-          <v-divider vertical />
-        </v-col>
-        <agenda-event-attendees
-          ref="agendaAttendees"
-          :event="event"
-          class="ml-10" />
-      </v-row>
-    </v-container>
+          </div>
+        </div>
+      </div>
+      <div class="flex-grow-0 mx-5 d-none d-md-block">
+        <v-divider vertical />
+      </div>
+      <agenda-event-attendees
+        ref="agendaAttendees"
+        :event="event"
+        class="flex-grow-1 flex-shrink-0 event-details-body-right" />
+    </div>
     <v-divider />
     <div class="d-flex">
       <div class="flex-grow-1"></div>
