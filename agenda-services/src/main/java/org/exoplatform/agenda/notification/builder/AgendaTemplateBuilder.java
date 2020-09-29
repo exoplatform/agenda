@@ -82,48 +82,50 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
 
   @Override
   protected boolean makeDigest(NotificationContext notificationContext, Writer writer) {
-        return false;
+    return false;
   }
-    private final Event getEvent(NotificationInfo notification) {
-      String eventIdString = notification.getValueOwnerParameter("eventId");
-      if (StringUtils.isBlank(eventIdString)) {
-        throw new IllegalStateException("Event id is missing in notification");
-      }
-      long eventId = Long.parseLong(eventIdString);
-      if (eventId == 0) {
-        throw new IllegalStateException("Event id is equal to 0 in notification");
-      }
-      return getEventService().getEventById(eventId);
-    }
 
-    public AgendaEventService getEventService() {
-      if (agendaEventService == null) {
-        agendaEventService = CommonsUtils.getService(AgendaEventService.class);
-      }
-      return agendaEventService;
+  private final Event getEvent(NotificationInfo notification) {
+    String eventIdString = notification.getValueOwnerParameter("eventId");
+    if (StringUtils.isBlank(eventIdString)) {
+      throw new IllegalStateException("Event id is missing in notification");
     }
+    long eventId = Long.parseLong(eventIdString);
+    if (eventId == 0) {
+      throw new IllegalStateException("Event id is equal to 0 in notification");
+    }
+    return getEventService().getEventById(eventId);
+  }
 
-    @Override
-    public Template getTemplateEngine() {
-      String templatePath = null;
+  public AgendaEventService getEventService() {
+    if (agendaEventService == null) {
+      agendaEventService = CommonsUtils.getService(AgendaEventService.class);
+    }
+    return agendaEventService;
+  }
+
+  @Override
+  public Template getTemplateEngine() {
+    String templatePath = null;
+    try {
+      templatePath = templateProvider.getTemplateFilePathConfigs().get(key);
+      String template = TemplateUtils.loadGroovyTemplate(templatePath);
+      if (StringUtils.isBlank(template)) {
+        throw new IllegalStateException("Template with path " + templatePath + " wasn't found");
+      }
+      return new GStringTemplateEngine().createTemplate(template);
+    } catch (Exception e) {
+      LOG.warn("Error while compiling template {}", templatePath, e);
       try {
-        templatePath = templateProvider.getTemplateFilePathConfigs().get(key);
-        String template = TemplateUtils.loadGroovyTemplate(templatePath);
-        if (StringUtils.isBlank(template)) {
-          throw new IllegalStateException("Template with path " + templatePath + " wasn't found");
-        }
-        return new GStringTemplateEngine().createTemplate(template);
-      } catch (Exception e) {
-        LOG.warn("Error while compiling template {}", templatePath, e);
-        try {
-          return new GStringTemplateEngine().createTemplate("");
-        } catch (Exception e1) {
-          return null;
-        }
+        return new GStringTemplateEngine().createTemplate("");
+      } catch (Exception e1) {
+        return null;
       }
     }
+  }
 
-    public TemplateProvider getTemplateProvider() {
-      return templateProvider;
-    }
+  public TemplateProvider getTemplateProvider() {
+    return templateProvider;
+  }
+
 }
