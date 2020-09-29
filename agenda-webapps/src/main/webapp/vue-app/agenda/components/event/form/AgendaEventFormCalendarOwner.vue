@@ -31,6 +31,7 @@ export default {
   computed: {
     calendarSuggesterLabels() {
       return {
+        searchPlaceholder: this.$t('agenda.searchPlaceholder'),
         placeholder: this.$t('agenda.chooseCalendar'),
         noDataLabel: this.$t('agenda.noDataLabel'),
       };
