@@ -79,7 +79,7 @@
       <v-card min-width="350" flat>
         <v-card-text>
           <agenda-event-form-date-pickers
-            v-if="selectedEvent"
+            v-if="selectedOpen"
             ref="selectedEventDatePickers"
             :event="selectedEvent"
             :date-picker-top="datePickerTop"
@@ -268,8 +268,10 @@ export default {
         this.event.end = this.$agendaUtils.toRFC3339(this.event.endDate);
         this.selectedOpen = false;
         this.selectedEvent = null;
-        this.retrieveEvents();
-        this.showEventDatePickers(this.event);
+        this.$nextTick().then(() => {
+          this.retrieveEvents();
+          this.showEventDatePickers(this.event);
+        });
       }
     },
     getEventDomId(eventObj) {

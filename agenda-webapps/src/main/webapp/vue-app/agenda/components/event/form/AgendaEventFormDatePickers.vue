@@ -62,46 +62,43 @@ export default {
       }
     },
     startDate(newVal, oldVal){
-      if (!this.event || !newVal || !oldVal || String(newVal) === String(oldVal)) {
+      if (!this.event || !newVal || !oldVal || new Date(newVal).getTime() === new Date(oldVal).getTime()) {
         return;
       }
-      const startDate = this.$agendaUtils.toDate(this.startDate);
+      const date = this.$agendaUtils.toDate(this.startDate);
       const newDate = this.$agendaUtils.toDate(this.event[this.eventStart]);
-      newDate.setFullYear(startDate.getFullYear());
-      newDate.setMonth(startDate.getMonth());
-      newDate.setDate(startDate.getDate());
+      newDate.setFullYear(date.getFullYear());
+      newDate.setMonth(date.getMonth());
+      newDate.setDate(date.getDate());
       this.event[this.eventStart] = newDate;
-      this.endTime = this.$agendaUtils.toDate(newDate.getTime() + this.duration);
       this.endDate = this.$agendaUtils.toDate(newDate.getTime() + this.duration);
-      this.$emit('changed', this.event);
+      this.endTime = this.$agendaUtils.toDate(newDate.getTime() + this.duration);
     },
     startTime(newVal, oldVal){
-      if (!this.event || !newVal || !oldVal || String(newVal) === String(oldVal)) {
+      if (!this.event || !newVal || !oldVal || new Date(newVal).getTime() === new Date(oldVal).getTime()) {
         return;
       }
       const newDate = this.$agendaUtils.toDate(this.event[this.eventStart]);
       newDate.setHours(this.startTime.getHours());
       newDate.setMinutes(this.startTime.getMinutes());
       this.event[this.eventStart] = newDate;
-      this.endTime = this.$agendaUtils.toDate(newDate.getTime() + this.duration);
       this.endDate = this.$agendaUtils.toDate(newDate.getTime() + this.duration);
-      this.$emit('changed', this.event);
+      this.endTime = this.$agendaUtils.toDate(newDate.getTime() + this.duration);
     },
     endDate(newVal, oldVal){
-      if (!this.event || !newVal || !oldVal || String(newVal) === String(oldVal)) {
+      if (!this.event || !newVal || !oldVal || new Date(newVal).getTime() === new Date(oldVal).getTime()) {
         return;
       }
-      const endDate = this.$agendaUtils.toDate(this.endDate);
+      const date = this.$agendaUtils.toDate(this.endDate);
       const newDate = this.$agendaUtils.toDate(this.event[this.eventEnd]);
-      newDate.setFullYear(endDate.getFullYear());
-      newDate.setMonth(endDate.getMonth());
-      newDate.setDate(endDate.getDate());
+      newDate.setFullYear(date.getFullYear());
+      newDate.setMonth(date.getMonth());
+      newDate.setDate(date.getDate());
       this.event[this.eventEnd] = newDate;
       this.duration = newDate.getTime() - this.$agendaUtils.toDate(this.event[this.eventStart]).getTime();
-      this.$emit('changed', this.event);
     },
     endTime(newVal, oldVal){
-      if (!this.event || !newVal || !oldVal || String(newVal) === String(oldVal)) {
+      if (!this.event || !newVal || !oldVal || new Date(newVal).getTime() === new Date(oldVal).getTime()) {
         return;
       }
       const newDate = this.$agendaUtils.toDate(this.event[this.eventEnd]);
@@ -118,11 +115,18 @@ export default {
   methods:{
     reset() {
       if (this.event) {
-        this.startDate = this.$agendaUtils.toDate(this.event[this.eventStart]);
-        this.startTime = this.$agendaUtils.toDate(this.event[this.eventStart]);
-        this.endDate = this.$agendaUtils.toDate(this.event[this.eventEnd]);
-        this.endTime = this.$agendaUtils.toDate(this.event[this.eventEnd]);
-        this.duration = this.endTime.getTime() - this.startTime.getTime();
+        this.startDate = null;
+        this.startTime = null;
+        this.endDate = null;
+        this.endTime = null;
+
+        this.$nextTick().then(() => {
+          this.startDate = this.$agendaUtils.toDate(this.event[this.eventStart]).getTime();
+          this.startTime = this.$agendaUtils.toDate(this.event[this.eventStart]);
+          this.endDate = this.$agendaUtils.toDate(this.event[this.eventEnd]).getTime();
+          this.endTime = this.$agendaUtils.toDate(this.event[this.eventEnd]);
+          this.duration = this.endTime.getTime() - this.startTime.getTime();
+        });
       }
     },
   }
