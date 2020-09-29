@@ -36,6 +36,7 @@ export default {
   computed: {
     participantSuggesterLabels() {
       return {
+        searchPlaceholder: this.$t('agenda.searchPlaceholder'),
         placeholder: this.$t('agenda.addParticipants'),
         noDataLabel: this.$t('agenda.noDataLabel'),
       };
