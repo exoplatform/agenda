@@ -5,18 +5,17 @@
             <img class="spaceAvatar" src="<%= Avatar %>" alt="<%= Avatar %>" />
         </div>
         <div class="media-body">
-            <div class="contentSmall" data-link="<%= eventURL %>">
+            <div class="contentSmall">
                 <div class="status">
                     <%
                     String eventTitle = "<span class=\"user-name text-bold\">"+ eventTitle +"</span>";
-                    String replyUrl = null;
                     String message = null;
                     message = _ctx.appRes("Notification.agenda.event.created", eventTitle);
                     %>
                     <%= message %>
                 </div>
-                <div class="content">
-                    <a>
+                <div class="content float-right">
+                    <a href="<%= eventURL %>">
                       <%= _ctx.appRes("Notification.agenda.event.reply") %>
                     </a>
                 </div>
