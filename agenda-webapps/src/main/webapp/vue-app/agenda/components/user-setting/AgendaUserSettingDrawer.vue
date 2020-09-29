@@ -54,7 +54,7 @@
         :title="$t('agenda.settings.drawer.confirmCancelChanges.title')"
         :ok-label="$t('agenda.button.confirm')"
         :cancel-label="$t('agenda.button.cancel')"
-        @ok="ConfirmCancelSavingChanges()" />
+        @ok="confirmCancelSavingChanges()" />
     </template>
     <template slot="footer">
       <div class="d-flex">
@@ -151,7 +151,7 @@ export default {
       }
       return true;
     },
-    ConfirmCancelSavingChanges() {
+    confirmCancelSavingChanges() {
       this.$refs.UserSettingAgendaDrawer.close();
     }
   },
