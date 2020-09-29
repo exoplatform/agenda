@@ -335,12 +335,8 @@ export default {
             event.occurrence = this.dragEvent.occurrence;
             event.recurrence = null;
 
-            const timezoneDiff =  eXo.env.portal.timezoneOffset + new Date().getTimezoneOffset() * 60000;
-            const start = new Date(this.dragEvent.startDate).getTime() + timezoneDiff;
-            const end = new Date(this.dragEvent.endDate).getTime() + timezoneDiff;
-
-            event.start = this.$agendaUtils.toRFC3339(new Date(start));
-            event.end = this.$agendaUtils.toRFC3339(new Date(end));
+            event.start = this.$agendaUtils.toRFC3339(this.dragEvent.startDate);
+            event.end = this.$agendaUtils.toRFC3339(this.dragEvent.endDate);
             event.allDay = this.dragEvent.allDay;
 
             this.$root.$emit('agenda-event-save', event, event.allDay);
@@ -371,8 +367,8 @@ export default {
       }
 
       if (this.dragEvent && this.originalDragedEvent && !this.saving) {
-        this.dragEvent.startDate = this.originalDragedEvent.startDate;
-        this.dragEvent.endDate = this.originalDragedEvent.endDate;
+        this.dragEvent.startDate = new Date(this.originalDragedEvent.startDate);
+        this.dragEvent.endDate = new Date(this.originalDragedEvent.endDate);
       }
       this.eventDragged = false;
       this.eventExtended = false;

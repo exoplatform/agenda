@@ -135,8 +135,8 @@ export default {
           }
           events.forEach(event => {
             event.name = event.summary;
-            event.startDate = event.start && new Date(event.start) || null;
-            event.endDate = event.end && new Date(event.end) || null;
+            event.startDate = event.start && this.$agendaUtils.toDate(event.start) || null;
+            event.endDate = event.end && this.$agendaUtils.toDate(event.end) || null;
           });
           this.events = events;
         }).catch(error =>{

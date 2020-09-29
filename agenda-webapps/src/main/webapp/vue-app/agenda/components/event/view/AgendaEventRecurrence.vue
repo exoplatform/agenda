@@ -26,7 +26,7 @@ export default {
         if (this.recurrence.count > 0) {
           return this.$t('agenda.endsAfterEvents', {0 : this.recurrence.count});
         } else if (this.recurrence.until) {
-          return this.$t('agenda.endsAt', {0 : this.$dateUtil.formatDateObjectToDisplay(new Date(this.recurrence.until), {
+          return this.$t('agenda.endsAt', {0 : this.$dateUtil.formatDateObjectToDisplay(this.$agendaUtils.toDate(this.recurrence.until), {
             year: 'numeric',
             month: 'long',
             day: 'numeric',

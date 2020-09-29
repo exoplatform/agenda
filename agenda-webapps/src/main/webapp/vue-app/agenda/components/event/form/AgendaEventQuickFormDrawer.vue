@@ -43,7 +43,7 @@
             <v-flex class="flex-grow-0 pt-4 my-2 mx-3">
               <i class="uiIconClock darkGreyIcon uiIcon32x32"></i>
             </v-flex>
-            <agenda-event-form-date-pickers :event="event" />
+            <agenda-event-form-date-pickers :event="event" @changed="updateEventDates" />
           </div>
           <div class="d-flex flex-row">
             <i class="uiIconLocation darkGreyIcon uiIcon32x32 mt-4 mx-3"></i>
@@ -174,6 +174,11 @@ export default {
       if (this.$refs.calendarOwner) {
         this.$refs.calendarOwner.resetCustomValidity();
       }
+    },
+    updateEventDates(event) {
+      event.startDate = new Date(event.startDate);
+      event.endDate = new Date(event.endDate);
+      this.$forceUpdate();
     },
     validateForm() {
       this.resetCustomValidity();
