@@ -20,6 +20,7 @@ import java.text.ParseException;
 import java.time.*;
 import java.util.*;
 import java.util.TimeZone;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
 
@@ -91,21 +92,32 @@ public class Utils {
     ical4jTo.setTimeZone(ical4jTimezone);
     Period period = new Period(ical4jFrom, ical4jTo);
     period.setTimeZone(ical4jTimezone);
-    PeriodList list = vevent.calculateRecurrenceSet(period);
-    if (list == null || list.isEmpty()) {
+    DateList dates = recur.getDates(startDateTime, period, null);
+    if (dates == null || dates.isEmpty()) {
       return Collections.emptyList();
     }
+    @SuppressWarnings("all")
+    List<LocalDate> occurrencesIds = (List<LocalDate>) dates.stream()
+                                                            .map(date -> ((DateTime) date).toInstant()
+                                                                                          .atZone(ZoneOffset.systemDefault())
+                                                                                          .toLocalDate())
+                                                            .collect(Collectors.toList());
+
+    PeriodList list = vevent.calculateRecurrenceSet(period);
 
     List<Event> occurrences = new ArrayList<>();
 
     Iterator<?> periods = list.iterator();
     while (periods.hasNext()) {
       Period occurrencePeriod = (Period) periods.next();
+      ZonedDateTime occurrenceId = AgendaDateUtils.fromDate(occurrencePeriod.getStart());
+      if (!occurrencesIds.contains(occurrenceId.toLocalDate())) {
+        continue;
+      }
       Event occurrence = event.clone();
       occurrence.setId(0);
       occurrence.setStart(occurrencePeriod.getStart().toInstant().atZone(userZoneId));
       occurrence.setEnd(occurrencePeriod.getEnd().toInstant().atZone(userZoneId));
-      ZonedDateTime occurrenceId = AgendaDateUtils.fromDate(occurrencePeriod.getStart());
       occurrence.setOccurrence(new EventOccurrence(occurrenceId, false));
       occurrence.setParentId(event.getId());
       occurrence.setRecurrence(null);
