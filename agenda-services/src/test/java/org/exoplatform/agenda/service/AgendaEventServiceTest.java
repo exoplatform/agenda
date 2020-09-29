@@ -348,6 +348,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(event.getOccurrence(), createdEvent.getOccurrence());
     assertEquals(event.getStart().withZoneSameLocal(ZoneOffset.UTC), createdEvent.getStart().withZoneSameLocal(ZoneOffset.UTC));
     assertEquals(event.getEnd().withZoneSameLocal(ZoneOffset.UTC), createdEvent.getEnd().withZoneSameLocal(ZoneOffset.UTC));
+    assertEquals(event.getStart().toLocalDate(), createdEvent.getEnd().toLocalDate());
 
     assertNotNull(createdEvent.getCreated());
     assertNull(createdEvent.getUpdated());
