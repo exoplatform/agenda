@@ -143,7 +143,9 @@ export default {
       this.event = agendaEvent;
     },
     close() {
+      const defaultUrl = `${eXo.env.portal.context}/${eXo.env.portal.portalName}/agenda`;
       this.dialog = false;
+      window.history.replaceState('', '', defaultUrl);
     },
   },
 };
