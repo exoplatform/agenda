@@ -1,9 +1,10 @@
 export function getUserTimezone() {
-  let timezoneHours = eXo.env.portal.timezoneOffset / 3600000;
-  let timezoneMinutes = eXo.env.portal.timezoneOffset % 3600000 / 60000;
+  const timeZoneOffset = eXo.env.portal.timezoneDSTSavings + eXo.env.portal.timezoneOffset;
+  let timezoneHours = timeZoneOffset / 3600000;
+  let timezoneMinutes = timeZoneOffset % 3600000 / 60000;
   timezoneHours = timezoneHours < 10 ? `0${timezoneHours}` : timezoneHours;
   timezoneMinutes = timezoneMinutes < 10 ? `0${timezoneMinutes}` : timezoneMinutes;
-  const timezoneSign = eXo.env.portal.timezoneOffset >= 0 ? '+' : '-';
+  const timezoneSign = timeZoneOffset >= 0 ? '+' : '-';
   return `${timezoneSign}${timezoneHours}:${timezoneMinutes}`;
 }
 
@@ -38,7 +39,15 @@ export function toVuetifyDate(date) {
 }
 
 export function toRFC3339(date) {
+  if (!date) {
+    return null;
+  }
   if (typeof date === 'number') {
+    date = new Date(date);
+  } else if (typeof date === 'string') {
+    if (date.indexOf('T') === 10 && date.length > 19) {
+      date = date.substring(0, 19);
+    }
     date = new Date(date);
   }
   return `${date.getFullYear()  }-${ 
@@ -50,12 +59,27 @@ export function toRFC3339(date) {
   }${getUserTimezone()}`;
 }
 
+export function toDate(date) {
+  if (!date) {
+    return null;
+  } else if (typeof date === 'number') {
+    return new Date(date);
+  } else if (typeof date === 'string') {
+    if (date.indexOf('T') === 10 && date.length > 19) {
+      date = date.substring(0, 19);
+    }
+    return toDate(new Date(date));
+  } else if (typeof date === 'object') {
+    return date;
+  }
+}
+
 export function generateCalendarTitle(calendarType, startDate, periodTitle, weekTitle) {
   if(calendarType === 'week') {
     const weekNumber = getWeekNumber(startDate);
     return `${periodTitle} - ${weekTitle} ${weekNumber}`;
   } else if (calendarType === 'day') {
-    const currentDay = startDate.getDate();
+    const currentDay = startDate.getDate() + 1;
     return `${periodTitle} - ${currentDay}`;
   } else if (calendarType === 'month') {
     return periodTitle;
@@ -66,7 +90,7 @@ export function getDayNameFromDate(date, lang) {
   const options = { weekday: 'long' };
   let d = null;
   if (date) {
-    d = new Date(date);
+    d = toDate(date);
   } else {
     d = new Date();
   }

@@ -83,7 +83,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       return null;
     }
     if (canAccessEvent(event, username)) {
-      TimeZone userTimezone = AgendaDateUtils.getUserTimezone(username);
+      ZoneId userTimezone = AgendaDateUtils.getUserTimezone(username);
       adjustEventDatesForRead(event, userTimezone);
       event.setAcl(new Permission(canUpdateEvent(event, username)));
       return event;
@@ -104,7 +104,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
     Identity identity = identityManager.getIdentity(String.valueOf(identityId));
     if (canAccessEvent(event, identityId)) {
-      TimeZone userTimezone = AgendaDateUtils.getUserTimezone(identity);
+      ZoneId userTimezone = AgendaDateUtils.getUserTimezone(identity);
       adjustEventDatesForRead(event, userTimezone);
       event.setAcl(new Permission(canUpdateEvent(event, identity.getRemoteId())));
       return event;
@@ -579,7 +579,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
     List<Event> events = eventIds.stream().map(this::getEventById).collect(Collectors.toList());
 
-    TimeZone userTimezone = AgendaDateUtils.getUserTimezone(userIdentity);
+    ZoneId userTimezone = AgendaDateUtils.getUserTimezone(userIdentity);
     String username = userIdentity.getRemoteId();
 
     // Compute ACL and Dates before Recurrent occurrences computing
@@ -601,17 +601,16 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                  .collect(Collectors.toList());
   }
 
-  private void adjustEventDatesForRead(Event event, TimeZone userTimezone) {
+  private void adjustEventDatesForRead(Event event, ZoneId userTimezone) {
     ZonedDateTime start = event.getStart();
     ZonedDateTime end = event.getEnd();
 
-    ZoneId zoneId = userTimezone.toZoneId();
     if (event.isAllDay()) {
       start = start.toLocalDate().atStartOfDay(ZoneOffset.UTC);
       end = end.toLocalDate().atStartOfDay(ZoneOffset.UTC).plusDays(1).minusSeconds(1);
     } else {
-      start = start.withZoneSameInstant(zoneId);
-      end = end.withZoneSameInstant(zoneId);
+      start = start.withZoneSameInstant(userTimezone);
+      end = end.withZoneSameInstant(userTimezone);
     }
     event.setStart(start);
     event.setEnd(end);
@@ -620,12 +619,12 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (recurrence != null && recurrence.getUntil() != null) {
       ZonedDateTime recurrenceUntil = recurrence.getUntil();
       // end of until day in User TimeZone
-      recurrenceUntil = ZonedDateTime.now(zoneId)
+      recurrenceUntil = ZonedDateTime.now(userTimezone)
                                      .withYear(recurrenceUntil.getYear())
                                      .withMonth(recurrenceUntil.getMonthValue())
                                      .withDayOfMonth(recurrenceUntil.getDayOfMonth())
                                      .toLocalDate()
-                                     .atStartOfDay(zoneId)
+                                     .atStartOfDay(userTimezone)
                                      .plusDays(1)
                                      .minusSeconds(1);
       recurrence.setUntil(recurrenceUntil);
@@ -730,7 +729,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     return Utils.canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), username);
   }
 
-  private List<Event> computeRecurrentEvents(List<Event> events, ZonedDateTime start, ZonedDateTime end, TimeZone userTimezone) {
+  private List<Event> computeRecurrentEvents(List<Event> events, ZonedDateTime start, ZonedDateTime end, ZoneId userTimezone) {
     List<Event> computedEvents = new ArrayList<>();
     for (Event event : events) {
       if (event.getRecurrence() == null) {
