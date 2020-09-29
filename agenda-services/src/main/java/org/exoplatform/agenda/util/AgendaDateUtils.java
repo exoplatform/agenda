@@ -20,15 +20,8 @@ import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.format.ResolverStyle;
 import java.util.Date;
-import java.util.TimeZone;
 
 import org.apache.commons.lang3.StringUtils;
-
-import org.exoplatform.container.ExoContainerContext;
-import org.exoplatform.social.core.identity.model.Identity;
-import org.exoplatform.social.core.identity.model.Profile;
-import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
-import org.exoplatform.social.core.manager.IdentityManager;
 
 public class AgendaDateUtils {
   private static final String           ALL_DAY_FORMAT          = "yyyy-MM-dd";
@@ -102,21 +95,6 @@ public class AgendaDateUtils {
     return zonedDateTime.format(RFC_3339_FORMATTER);
   }
 
-  public static ZoneId getUserTimezone(Identity userIdentity) {
-    if (userIdentity == null || userIdentity.getProfile() == null || userIdentity.getProfile().getTimeZone() == null) {
-      return TimeZone.getDefault().toZoneId();
-    } else {
-      Profile profile = userIdentity.getProfile();
-      String timeZoneId = profile.getTimeZone();
-      TimeZone timeZone = TimeZone.getTimeZone(timeZoneId);
-      int rawOffset = timeZone.getRawOffset() / 1000;
-      if (profile.getTimeZoneDSTSavings() != null && timeZone.useDaylightTime()) {
-        rawOffset += (profile.getTimeZoneDSTSavings() / 1000);
-      }
-      return ZoneOffset.ofTotalSeconds(rawOffset);
-    }
-  }
-
   public static Date toDate(ZonedDateTime datetime) {
     if (datetime == null) {
       return null;
@@ -129,15 +107,6 @@ public class AgendaDateUtils {
       return null;
     }
     return date.toInstant().atZone(ZoneOffset.UTC);
-  }
-
-  public static ZoneId getUserTimezone(String username) {
-    IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
-    Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
-    if (userIdentity == null) {
-      return ZoneOffset.UTC;
-    }
-    return getUserTimezone(userIdentity);
   }
 
   public static String buildOccurrenceId(Date formTime) {

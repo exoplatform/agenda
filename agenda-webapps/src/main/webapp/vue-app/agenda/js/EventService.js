@@ -1,5 +1,7 @@
 import {toRFC3339, getDayNameFromDate, getMonthNumberFromDate, toDate} from './AgendaUtils.js';
 
+const TIME_ZONE_OFFSET_SECONDS = (eXo.env.portal.timezoneDSTSavings + eXo.env.portal.timezoneOffset) / 1000;
+
 export function getEvents(query, ownerIds, attendeeIdentityId, start, end, expand) {
   if (typeof start === 'object') {
     start = toRFC3339(start);
@@ -39,7 +41,7 @@ export function getEvents(query, ownerIds, attendeeIdentityId, start, end, expan
 }
 
 export function getEventById(eventId, expand) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}?expand=${expand || ''}`, {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}?expand=${expand || ''}&timeZoneOffset=${TIME_ZONE_OFFSET_SECONDS}`, {
     method: 'GET',
     credentials: 'include',
   }).then((resp) => {
