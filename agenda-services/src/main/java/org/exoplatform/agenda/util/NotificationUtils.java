@@ -73,6 +73,9 @@ public class NotificationUtils {
   }
 
   public static final void storeEventParameters(NotificationInfo notification, Event event, org.exoplatform.agenda.model.Calendar calendar) {
+    if (event == null) {
+      throw new IllegalStateException("event is null");
+    }
     if (event.getCreatorId() == 0) {
       throw new IllegalStateException("creator is null");
     }
@@ -130,7 +133,12 @@ public class NotificationUtils {
     if (!currentDomain.endsWith("/")) {
       currentDomain += "/";
     }
-    String notificationURL = currentDomain + "portal/" + currentSite + "/agenda?eventId=" + event.getId();
+    String notificationURL = "";
+    if (event != null) {
+      notificationURL = currentDomain + "portal/" + currentSite + "/agenda?eventId=" + event.getId();
+    } else {
+      notificationURL = currentDomain + "portal/" + currentSite + "/agenda";
+    }
     return notificationURL;
   }
 
