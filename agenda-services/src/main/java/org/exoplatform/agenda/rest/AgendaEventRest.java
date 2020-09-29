@@ -16,7 +16,7 @@
 */
 package org.exoplatform.agenda.rest;
 
-import java.time.ZonedDateTime;
+import java.time.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -104,7 +104,7 @@ public class AgendaEventRest implements ResourceContainer {
                        @ApiParam(
                            value = "Attendee identity identifier to filter on events where user is attendee", required = true
                        ) @QueryParam("attendeeIdentityId") long attendeeIdentityId,
-                       @ApiParam(value = "Properties to expand", required = true) @QueryParam(
+                       @ApiParam(value = "Properties to expand", required = false) @QueryParam(
                          "expand"
                        ) String expand,
                        @ApiParam(value = "Start datetime using RFC-3339 representation including timezone", required = true) @QueryParam("start") String start,
@@ -125,21 +125,27 @@ public class AgendaEventRest implements ResourceContainer {
     String currentUser = RestUtils.getCurrentUser();
     try {
       List<Event> events = null;
+      ZoneId userTimeZone = startDatetime.getZone();
       if (attendeeIdentityId > 0) {
         if (ownerIds == null || ownerIds.isEmpty()) {
-          events = agendaEventService.getEventsByAttendee(attendeeIdentityId, startDatetime, endDatetime, currentUser);
+          events = agendaEventService.getEventsByAttendee(attendeeIdentityId,
+                                                          startDatetime,
+                                                          endDatetime,
+                                                          userTimeZone,
+                                                          currentUser);
         } else {
           events = agendaEventService.getEventsByOwnersAndAttendee(attendeeIdentityId,
                                                                    ownerIds,
                                                                    startDatetime,
                                                                    endDatetime,
+                                                                   userTimeZone,
                                                                    currentUser);
         }
       } else {
         if (ownerIds == null || ownerIds.isEmpty()) {
-          events = agendaEventService.getEvents(startDatetime, endDatetime, currentUser);
+          events = agendaEventService.getEvents(startDatetime, endDatetime, userTimeZone, currentUser);
         } else {
-          events = agendaEventService.getEventsByOwners(ownerIds, startDatetime, endDatetime, currentUser);
+          events = agendaEventService.getEventsByOwners(ownerIds, startDatetime, endDatetime, userTimeZone, currentUser);
         }
       }
       Map<Long, List<EventAttendeeEntity>> attendeesByParentEventId = new HashMap<>();
@@ -219,9 +225,12 @@ public class AgendaEventRest implements ResourceContainer {
                                @ApiParam(value = "Event technical identifier", required = true) @PathParam(
                                  "eventId"
                                ) long eventId,
-                               @ApiParam(value = "Properties to expand", required = true) @QueryParam(
+                               @ApiParam(value = "Properties to expand", required = false) @QueryParam(
                                  "expand"
-                               ) String expand) {
+                               ) String expand,
+                               @ApiParam(value = "Time Zone offset in seconds", required = false) @QueryParam(
+                                 "timeZoneOffset"
+                               ) int timeZoneOffsetSeconds) {
     if (eventId <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
     }
@@ -231,8 +240,11 @@ public class AgendaEventRest implements ResourceContainer {
       List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
                                                                   : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
                                                                                                     ","));
-      EventEntity eventEntity =
-                              getEventByIAndUser(eventId, RestUtils.getCurrentUserIdentityId(identityManager), expandProperties);
+      ZoneId userTimeZone = ZoneOffset.ofTotalSeconds(timeZoneOffsetSeconds);
+      EventEntity eventEntity = getEventByIdAndUser(eventId,
+                                                    RestUtils.getCurrentUserIdentityId(identityManager),
+                                                    userTimeZone,
+                                                    expandProperties);
       if (eventEntity == null) {
         return Response.status(Status.NOT_FOUND).build();
       } else {
@@ -438,7 +450,7 @@ public class AgendaEventRest implements ResourceContainer {
     long currentUserIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
     String currentUser = RestUtils.getCurrentUser();
     try {
-      Event event = agendaEventService.getEventById(eventId, currentUser);
+      Event event = agendaEventService.getEventById(eventId, null, currentUser);
       if (event == null) {
         return Response.status(Status.NOT_FOUND).entity("Event with id " + eventId + " is not found").build();
       }
@@ -563,7 +575,7 @@ public class AgendaEventRest implements ResourceContainer {
         occurrenceIdDateTime = AgendaDateUtils.parseRFC3339ToZonedDateTime(occurrenceId);
         Event occurrenceEvent = agendaEventService.getExceptionalOccurrenceEvent(eventId, occurrenceIdDateTime);
         if (occurrenceEvent == null) { // Exceptional occurrence not yet created
-          EventEntity eventEntity = getEventByIAndUser(eventId, identityId, Collections.singletonList("all"));
+          EventEntity eventEntity = getEventByIdAndUser(eventId, identityId, null, Collections.singletonList("all"));
           if (eventEntity == null) {
             throw new ObjectNotFoundException("Parent recurrent event with id " + eventId + " is not found");
           }
@@ -575,7 +587,7 @@ public class AgendaEventRest implements ResourceContainer {
         eventId = occurrenceEvent.getId();
       }
       agendaEventAttendeeService.sendEventResponse(eventId, identityId, response);
-      return getEventById(eventId, "attendees");
+      return getEventById(eventId, "attendees", 0);
     } catch (ObjectNotFoundException e) {
       return Response.status(Status.NOT_FOUND).entity("Event not found").build();
     } catch (IllegalAccessException e) {
@@ -688,10 +700,11 @@ public class AgendaEventRest implements ResourceContainer {
     }
   }
 
-  private EventEntity getEventByIAndUser(long eventId,
-                                         long identityId,
-                                         List<String> expandProperties) throws IllegalAccessException {
-    Event event = agendaEventService.getEventById(eventId, identityId);
+  private EventEntity getEventByIdAndUser(long eventId,
+                                          long identityId,
+                                          ZoneId userTimeZone,
+                                          List<String> expandProperties) throws IllegalAccessException {
+    Event event = agendaEventService.getEventById(eventId, userTimeZone, identityId);
     if (event == null) {
       return null;
     } else {
