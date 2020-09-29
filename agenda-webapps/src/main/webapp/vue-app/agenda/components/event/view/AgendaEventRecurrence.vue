@@ -1,5 +1,5 @@
 <template>
-  <span class="d-flex flex-row">
+  <span>
     {{ recurrenceLabel }}
     <template v-if="endLabel">
       ( {{ endLabel }} )
