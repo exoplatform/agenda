@@ -23,6 +23,7 @@ const config = {
   },
   entry: {
     agenda: './src/main/webapp/vue-app/agenda/main.js',
+    agendaSettings: './src/main/webapp/vue-app/agenda-user-setting/main.js',
   },
   output: {
     path: path.join(__dirname, 'target/agenda/'),
