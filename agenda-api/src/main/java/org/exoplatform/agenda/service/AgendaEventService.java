@@ -34,10 +34,11 @@ public interface AgendaEventService {
    * @param start {@link ZonedDateTime} as selected period start datetime
    * @param end {@link ZonedDateTime} as selected period start datetime
    * @param timeZone used timezone to convert dates
+   * @param limit Limit of events to retrieve
    * @param username User name accessing event
    * @return {@link List} of {@link Event} accessible to user
    */
-  public List<Event> getEvents(ZonedDateTime start, ZonedDateTime end, ZoneId timeZone, String username);
+  public List<Event> getEvents(ZonedDateTime start, ZonedDateTime end, ZoneId timeZone, int limit, String username);
 
   /**
    * Retrieves the list of events for a designated owner in a selected period of
@@ -47,6 +48,7 @@ public interface AgendaEventService {
    * @param start {@link ZonedDateTime} as selected period start datetime
    * @param end {@link ZonedDateTime} as selected period start datetime
    * @param timeZone used timezone to convert dates
+   * @param limit Limit of events to retrieve
    * @param username User name accessing event
    * @return {@link List} of {@link Event} available in calendars of an owner
    * @throws IllegalAccessException when user is not allowed to access events of
@@ -56,6 +58,7 @@ public interface AgendaEventService {
                                        ZonedDateTime start,
                                        ZonedDateTime end,
                                        ZoneId timeZone,
+                                       int limit,
                                        String username) throws IllegalAccessException;
 
   /**
@@ -67,6 +70,7 @@ public interface AgendaEventService {
    * @param startDatetime Period start date
    * @param endDatetime Period end date
    * @param timeZone used timezone to convert dates
+   * @param limit Limit of events to retrieve
    * @param username current user requesting events
    * @return {@link List} of {@link Event}
    * @throws IllegalAccessException when user is not the same as
@@ -76,6 +80,7 @@ public interface AgendaEventService {
                                          ZonedDateTime startDatetime,
                                          ZonedDateTime endDatetime,
                                          ZoneId timeZone,
+                                         int limit,
                                          String username) throws IllegalAccessException;
 
   /**
@@ -89,6 +94,7 @@ public interface AgendaEventService {
    * @param startDatetime Period start date
    * @param endDatetime Period end date
    * @param timeZone used timezone to convert dates
+   * @param limit Limit of events to retrieve
    * @param username current user requesting events
    * @return {@link List} of {@link Event}
    * @throws IllegalAccessException when user doesn't have access to one of
@@ -99,6 +105,7 @@ public interface AgendaEventService {
                                                   ZonedDateTime startDatetime,
                                                   ZonedDateTime endDatetime,
                                                   ZoneId timeZone,
+                                                  int limit,
                                                   String username) throws IllegalAccessException;
 
   /**

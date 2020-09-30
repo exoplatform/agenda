@@ -68,7 +68,7 @@ public class Utils {
     }
   }
 
-  public static List<Event> getOccurrences(Event event, LocalDate from, LocalDate to, ZoneId timeZone) {
+  public static List<Event> getOccurrences(Event event, LocalDate from, LocalDate to, ZoneId timeZone, int limit) {
     if (timeZone == null) {
       timeZone = ZoneId.systemDefault();
     }
@@ -87,14 +87,21 @@ public class Utils {
     vevent.getProperties().add(new RRule(recur));
 
     long fromTime = from.atStartOfDay(timeZone).toEpochSecond() * 1000;
+    if (to == null) {
+      ZonedDateTime overallEnd = event.getRecurrence().getOverallEnd();
+      if (overallEnd == null) {
+        to = from.plusYears(5);
+      } else {
+        to = overallEnd.withZoneSameInstant(ZoneOffset.UTC).toLocalDate();
+      }
+    }
     long toTime = to.atStartOfDay(timeZone).plusDays(1).minusSeconds(1).toEpochSecond() * 1000;
     DateTime ical4jFrom = new DateTime(fromTime);
     ical4jFrom.setTimeZone(ical4jTimezone);
     DateTime ical4jTo = new DateTime(toTime);
     ical4jTo.setTimeZone(ical4jTimezone);
-    Period period = new Period(ical4jFrom, ical4jTo);
-    period.setTimeZone(ical4jTimezone);
-    DateList dates = recur.getDates(startDateTime, period, null);
+    DateList dates = limit > 0 ? recur.getDates(startDateTime, ical4jFrom, ical4jTo, null, limit)
+                               : recur.getDates(startDateTime, ical4jFrom, ical4jTo, null);
     if (dates == null || dates.isEmpty()) {
       return Collections.emptyList();
     }
@@ -104,6 +111,16 @@ public class Utils {
                                                                                         .toLocalDate())
                                                             .collect(Collectors.toList());
 
+    if (limit > 0 && dates.size() >= limit) {
+      // Limit period of dates to retrieve of this recurrence to date where we
+      // have at maximum 'limit' occurrences that will be retrieved
+      ical4jTo = (DateTime) dates.get(limit - 1);
+      long duration = endTime - startTime;
+      ical4jTo = new DateTime(ical4jTo.getTime() + duration + 1000);
+      ical4jTo.setTimeZone(ical4jTimezone);
+    }
+    Period period = new Period(ical4jFrom, ical4jTo);
+    period.setTimeZone(ical4jTimezone);
     PeriodList list = vevent.calculateRecurrenceSet(period);
 
     List<Event> occurrences = new ArrayList<>();
