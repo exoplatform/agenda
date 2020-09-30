@@ -59,9 +59,19 @@ public class NotificationUtils {
   }
 
   public static final void setNotificationRecipients(NotificationInfo notification, List<EventAttendee> eventAttendee) {
-    List<String> recipientList = eventAttendee.stream()
-                                              .map(attendee -> Utils.getIdentityById(attendee.getIdentityId()).getRemoteId())
-                                              .collect(Collectors.toList());
+    List<String> recipientList = new ArrayList<>();
+    List<String> memberSpace = new ArrayList<>();
+    for (EventAttendee attendee : eventAttendee) {
+      if (Utils.getIdentityById(attendee.getIdentityId()).getProviderId().equals("space")) {
+        String spaceName = Utils.getIdentityById(attendee.getIdentityId()).getRemoteId();
+        memberSpace = Utils.getSpaceMembersBySpaceName(spaceName);
+        for (String member : memberSpace) {
+          recipientList.add(member);
+        }
+      } else {
+        recipientList.add(Utils.getIdentityById(attendee.getIdentityId()).getRemoteId());
+      }
+    }
     notification.to(recipientList);
     notification.with("receivers", recipientList.toString());
   }
