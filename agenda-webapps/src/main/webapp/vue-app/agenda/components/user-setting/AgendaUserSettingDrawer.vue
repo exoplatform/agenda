@@ -48,6 +48,13 @@
           </div>
         </v-layout>
       </v-form>
+      <exo-confirm-dialog
+        ref="CancelSavingChangesDialog"
+        :message="$t('agenda.settings.drawer.confirmCancelChanges')"
+        :title="$t('agenda.settings.drawer.confirmCancelChanges.title')"
+        :ok-label="$t('agenda.button.confirm')"
+        :cancel-label="$t('agenda.button.cancel')"
+        @ok="confirmCancelSavingChanges()" />
     </template>
     <template slot="footer">
       <div class="d-flex">
@@ -62,7 +69,7 @@
         <v-btn
           class="btn btn-primary"
           @click="save">
-          {{ $t('agenda.button.save') }}
+          {{ $t('agenda.button.confirm') }}
         </v-btn>
       </div>
     </template>
@@ -112,7 +119,11 @@ export default {
       this.$refs.UserSettingAgendaDrawer.open();
     },
     close() {
-      this.$refs.UserSettingAgendaDrawer.close();
+      if(this.$agendaUtils.compareObjects(this.settingsForm, this.settings)) {
+        this.$refs.UserSettingAgendaDrawer.close();
+      } else {
+        this.$refs.CancelSavingChangesDialog.open();
+      }
     },
     save() {
       if(this.validateForm()) {
@@ -139,6 +150,9 @@ export default {
         return;
       }
       return true;
+    },
+    confirmCancelSavingChanges() {
+      this.$refs.UserSettingAgendaDrawer.close();
     }
   },
 };
