@@ -17,7 +17,7 @@ import java.util.List;
 import static org.exoplatform.agenda.util.NotificationUtils.*;
 
 @Asynchronous
-public class EventNotificationListener extends Listener<Long, Long> {
+public class EventNotificationListener extends Listener<Long, Boolean> {
 
   private ExoContainer       container;
 
@@ -28,7 +28,7 @@ public class EventNotificationListener extends Listener<Long, Long> {
   }
 
   @Override
-  public void onEvent(Event<Long, Long> event) throws Exception {
+  public void onEvent(Event<Long, Boolean> event) throws Exception {
     ExoContainerContext.setCurrentContainer(container);
     RequestLifeCycle.begin(container);
     try {
