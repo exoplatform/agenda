@@ -108,17 +108,27 @@ public class AgendaEventRest implements ResourceContainer {
                          "expand"
                        ) String expand,
                        @ApiParam(value = "Start datetime using RFC-3339 representation including timezone", required = true) @QueryParam("start") String start,
-                       @ApiParam(value = "End datetime using RFC-3339 representation including timezone", required = true) @QueryParam("end") String end) {
+                       @ApiParam(value = "End datetime using RFC-3339 representation including timezone", required = false) @QueryParam("end") String end,
+                       @ApiParam(
+                           value = "Limit of results to return, used only when end date isn't set", required = false,
+                           defaultValue = "10"
+                       ) @QueryParam("limit") int limit) {
+
     if (StringUtils.isBlank(start)) {
       return Response.status(Status.BAD_REQUEST).entity("Start datetime is mandatory").build();
     }
+
+    ZonedDateTime endDatetime = null;
     if (StringUtils.isBlank(end)) {
-      return Response.status(Status.BAD_REQUEST).entity("End datetime is mandatory").build();
+      if (limit <= 0) {
+        limit = 10;
+      }
+    } else {
+      endDatetime = AgendaDateUtils.parseRFC3339ToZonedDateTime(end);
     }
 
     ZonedDateTime startDatetime = AgendaDateUtils.parseRFC3339ToZonedDateTime(start);
-    ZonedDateTime endDatetime = AgendaDateUtils.parseRFC3339ToZonedDateTime(end);
-    if (endDatetime.isBefore(startDatetime) || endDatetime.equals(startDatetime)) {
+    if (endDatetime != null && (endDatetime.isBefore(startDatetime) || endDatetime.equals(startDatetime))) {
       return Response.status(Status.BAD_REQUEST).entity("Start date must be before end date").build();
     }
 
@@ -132,6 +142,7 @@ public class AgendaEventRest implements ResourceContainer {
                                                           startDatetime,
                                                           endDatetime,
                                                           userTimeZone,
+                                                          limit,
                                                           currentUser);
         } else {
           events = agendaEventService.getEventsByOwnersAndAttendee(attendeeIdentityId,
@@ -139,13 +150,14 @@ public class AgendaEventRest implements ResourceContainer {
                                                                    startDatetime,
                                                                    endDatetime,
                                                                    userTimeZone,
+                                                                   limit,
                                                                    currentUser);
         }
       } else {
         if (ownerIds == null || ownerIds.isEmpty()) {
-          events = agendaEventService.getEvents(startDatetime, endDatetime, userTimeZone, currentUser);
+          events = agendaEventService.getEvents(startDatetime, endDatetime, userTimeZone, limit, currentUser);
         } else {
-          events = agendaEventService.getEventsByOwners(ownerIds, startDatetime, endDatetime, userTimeZone, currentUser);
+          events = agendaEventService.getEventsByOwners(ownerIds, startDatetime, endDatetime, userTimeZone, limit, currentUser);
         }
       }
       Map<Long, List<EventAttendeeEntity>> attendeesByParentEventId = new HashMap<>();
@@ -197,6 +209,7 @@ public class AgendaEventRest implements ResourceContainer {
       eventList.setEvents(eventEntities);
       eventList.setStart(start);
       eventList.setEnd(end);
+      eventList.setLimit(limit);
       return Response.ok(eventList).build();
     } catch (IllegalAccessException e) {
       LOG.warn("User '{}' attempts to access not authorized events of owner Id '{}'", currentUser, ownerIds);
