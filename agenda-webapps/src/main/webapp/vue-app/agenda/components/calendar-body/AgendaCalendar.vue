@@ -388,18 +388,20 @@ export default {
     },
     agendaIntervalStyle(interval) {
       if (this.workingTime.showWorkingTime) {
-        const inactive = interval.weekday === 0 ||
-            interval.weekday === 6 ||
-            interval.time < this.workingTime.workingTimeStart ||
-            interval.time >= this.workingTime.workingTimeEnd;
-        const startOfHour = interval.minute === 0;
-        const dark = this.dark;
-        const mid = dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+        if(this.workingTime.workingTimeStart && this.workingTime.workingTimeEnd) {
+          const inactive = interval.weekday === 0 ||
+              interval.weekday === 6 ||
+              interval.time < this.workingTime.workingTimeStart ||
+              interval.time >= this.workingTime.workingTimeEnd;
+          const startOfHour = interval.minute === 0;
+          const dark = this.dark;
+          const mid = dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
 
-        return {
-          backgroundColor: inactive ? dark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.05)' : null,
-          borderTop: startOfHour ? null : `1px dashed ${mid}`,
-        };
+          return {
+            backgroundColor: inactive ? dark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.05)' : null,
+            borderTop: startOfHour ? null : `1px dashed ${mid}`,
+          };
+        }
       } else {
         return null;
       }
