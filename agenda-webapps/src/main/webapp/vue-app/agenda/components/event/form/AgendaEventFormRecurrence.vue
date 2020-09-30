@@ -138,7 +138,7 @@ export default {
   },
   methods:{
     applyCustomEventRecurrence(eventRecurrence) {
-      this.event.recurrence = JSON.parse(JSON.stringify(eventRecurrence));
+      this.$set(this.event, 'recurrence', JSON.parse(JSON.stringify(eventRecurrence)));
       this.event.recurrence.type = 'CUSTOM';
     },
     cancelCustomEventRecurrence() {
