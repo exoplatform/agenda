@@ -40,12 +40,6 @@
             class="ignore-vuetify-classes my-3 location-event-input">
         </div>
         <div class="d-flex flex-row">
-          <v-flex class="flex-grow-0 mt-1">
-            <i class="uiIconReminder darkGreyIcon uiIcon32x32 my-3 mr-11"></i>
-          </v-flex>
-          <agenda-event-form-reminders :event="event" />
-        </div>
-        <div class="d-flex flex-row">
           <i class="uiIconRecurrence darkGreyIcon uiIcon32x32 my-3 mr-11"></i>
           <div class="d-flex flex-column">
             <agenda-event-form-recurrence :event="event" class="mt-2" />
