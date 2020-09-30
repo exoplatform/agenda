@@ -57,15 +57,12 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
   private SpaceService                 spaceService;
 
-  private ListenerService              listenerService;
-
   public AgendaEventServiceImpl(AgendaCalendarService agendaCalendarService,
                                 AgendaEventAttendeeService attendeeService,
                                 AgendaEventAttachmentService attachmentService,
                                 AgendaEventConferenceService conferenceService,
                                 AgendaEventReminderService reminderService,
                                 AgendaEventStorage agendaEventStorage,
-                                ListenerService listenerService,
                                 IdentityManager identityManager,
                                 SpaceService spaceService) {
     this.agendaCalendarService = agendaCalendarService;
@@ -74,7 +71,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     this.conferenceService = conferenceService;
     this.reminderService = reminderService;
     this.agendaEventStorage = agendaEventStorage;
-    this.listenerService = listenerService;
     this.identityManager = identityManager;
     this.spaceService = spaceService;
   }
@@ -244,7 +240,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     reminderService.saveEventReminders(createdEvent, reminders, userIdentityId);
     attendeeService.saveEventAttendees(createdEvent, attendees, userIdentityId, sendInvitation, false);
 
-    Utils.broadcastEvent(listenerService, "exo.agenda.event.added", eventId, sendInvitation);
     return getEventById(createdEvent.getId(), event.getStart().getZone(), username);
   }
 
