@@ -19,11 +19,8 @@ import java.util.stream.Collectors;
 
 public class NotificationUtils {
 
-  public static final ArgumentLiteral<Long>   EVENT_ID                                 =
-                                                       new ArgumentLiteral<>(Long.class, "event_id");
-
-  public static final ArgumentLiteral<String> EVENT_NAME                               =
-                                                         new ArgumentLiteral<>(String.class, "event_name");
+  public static final ArgumentLiteral<Long> EVENT_ID                                 =
+                                                     new ArgumentLiteral<>(Long.class, "event_id");
 
   public static final String                  AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN   = "EventAddedNotificationPlugin";
 
