@@ -36,6 +36,8 @@ import org.exoplatform.commons.api.notification.command.NotificationCommand;
 import org.exoplatform.commons.api.notification.model.PluginKey;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.notification.impl.NotificationContextImpl;
+import org.exoplatform.container.ExoContainer;
+import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.social.core.identity.model.Identity;
@@ -64,19 +66,23 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
   private SpaceService               spaceService;
 
   private CodecInitializer           codecInitializer;
+  
+  private ExoContainer               container;
 
   public AgendaEventAttendeeServiceImpl(AgendaEventAttendeeStorage attendeeStorage,
                                         AgendaEventStorage eventStorage,
                                         ListenerService listenerService,
                                         IdentityManager identityManager,
                                         SpaceService spaceService,
-                                        CodecInitializer codecInitializer) {
+                                        CodecInitializer codecInitializer,
+                                        ExoContainer container) {
     this.attendeeStorage = attendeeStorage;
     this.eventStorage = eventStorage;
     this.codecInitializer = codecInitializer;
     this.identityManager = identityManager;
     this.spaceService = spaceService;
     this.listenerService = listenerService;
+    this.container = container;
   }
 
   /**
@@ -305,10 +311,15 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    */
   @Override
   public void sendInvitations(long eventId) {
-    NotificationContext ctx = NotificationContextImpl.cloneInstance();
-    ctx.append(EVENT_ID, eventId);
-    dispatch(ctx, AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN);
-    RequestLifeCycle.end();
+    ExoContainerContext.setCurrentContainer(container);
+    RequestLifeCycle.begin(container);
+    try {
+      NotificationContext ctx = NotificationContextImpl.cloneInstance();
+      ctx.append(EVENT_ID, eventId);
+      dispatch(ctx, AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN);
+    } finally {
+      RequestLifeCycle.end();
+    }
   }
 
   private void dispatch(NotificationContext ctx, String... pluginId) {
