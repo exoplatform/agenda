@@ -322,4 +322,14 @@ public class Utils {
     String avatarUrl = spaceService.getSpaceByPrettyName(spaceName).getAvatarUrl();
     return avatarUrl;
   }
+
+  public static List<String> getSpaceMembersBySpaceName(String spaceName) {
+    List<String> spaceMembers = new ArrayList<>();
+    SpaceService spaceService = CommonsUtils.getService(SpaceService.class);
+    String[] members = spaceService.getSpaceByPrettyName(spaceName).getMembers();
+    for (String member : members) {
+      spaceMembers.add(member);
+    }
+    return spaceMembers;
+  }
 }
