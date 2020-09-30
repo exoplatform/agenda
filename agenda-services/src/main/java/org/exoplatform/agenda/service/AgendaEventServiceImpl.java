@@ -244,7 +244,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     reminderService.saveEventReminders(createdEvent, reminders, userIdentityId);
     attendeeService.saveEventAttendees(createdEvent, attendees, userIdentityId, sendInvitation, false);
 
-    Utils.broadcastEvent(listenerService, "exo.agenda.event.added", eventId, 0);
+    Utils.broadcastEvent(listenerService, "exo.agenda.event.added", eventId, sendInvitation);
     return getEventById(createdEvent.getId(), event.getStart().getZone(), username);
   }
 
