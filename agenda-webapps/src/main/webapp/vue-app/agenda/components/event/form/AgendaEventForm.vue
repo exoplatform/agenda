@@ -110,8 +110,14 @@ export default {
     eventOwnerValid() {
       return this.eventOwner && (this.eventOwner.id || this.eventOwner.remoteId && this.eventOwner.providerId);
     },
+    eventDescription() {
+      return this.event && this.event.description || '';
+    },
+    eventDescriptionValid() {
+      return this.eventDescription.length <= 1300;
+    },
     disableSaveButton() {
-      return !this.eventTitleValid || !this.eventOwnerValid;
+      return !this.eventTitleValid || !this.eventOwnerValid || !this.eventDescriptionValid;
     },
     stepButtonLabel() {
       return this.stepper === 2 ? this.$t('agenda.button.save') : this.$t('agenda.button.continue');

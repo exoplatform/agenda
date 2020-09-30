@@ -43,24 +43,22 @@
           <i class="uiIconRecurrence darkGreyIcon uiIcon32x32 my-3 mr-11"></i>
           <div class="d-flex flex-column">
             <agenda-event-form-recurrence :event="event" class="mt-2" />
-            <agenda-event-recurrence v-if="event.recurrence" :event="event" class="text-wrap mt-2" />
+            <agenda-event-recurrence
+              v-if="event.recurrence"
+              :event="event"
+              class="text-wrap mt-2" />
           </div>
         </div>
         <div class="d-flex flex-row">
           <v-flex class="flex-grow-0">
             <i class="uiIconDescription darkGreyIcon uiIcon32x32 my-3 mr-11"></i>
           </v-flex>
-          <textarea
+          <extended-textarea
             id="eventDescription"
             ref="eventDescription"
             v-model="event.description"
             :placeholder="$t('agenda.description')"
-            type="text"
-            name="description"
-            rows="20"
-            maxlength="2000"
-            class="ignore-vuetify-classes my-3 description-event-textarea textarea-no-resize">
-          </textarea>
+            :max-length="eventDescriptionTextLength" />
         </div>
       </div>
       <div class="d-none d-md-flex flex-column mx-5 event-form-body-divider ">
@@ -97,6 +95,9 @@ export default {
       default: () => null,
     },
   },
+  data: () => ({
+    eventDescriptionTextLength: 1300
+  }),
   computed: {
     allowAttendeeToUpdate() {
       return this.event.allowAttendeeToUpdate;
