@@ -29,6 +29,7 @@
     </v-btn>
     <v-btn
       icon
+      :title="$t('agenda.settings.drawer.title')"
       @click="$root.$emit('user-settings-agenda-drawer-open')">
       <v-icon>mdi-settings</v-icon>
     </v-btn>
