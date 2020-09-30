@@ -43,10 +43,23 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
               + " AND (ev.endDate IS NULL OR ev.endDate >= :start)"
       ),
       @NamedQuery(
+          name = "AgendaEvent.getEventIdsByStartDateAndOwnerIds", query = "SELECT DISTINCT(ev.id) FROM AgendaEvent ev"
+              + " INNER JOIN ev.attendees att"
+              + " INNER JOIN ev.calendar cal"
+              + " WHERE (att.identityId IN (:ownerIds) OR cal.ownerId IN (:ownerIds))"
+              + " AND (ev.endDate IS NULL OR ev.endDate >= :start)"
+      ),
+      @NamedQuery(
           name = "AgendaEvent.getEventIdsByPeriodAndAttendeeIds", query = "SELECT DISTINCT(ev.id) FROM AgendaEvent ev"
               + " INNER JOIN ev.attendees att"
               + " WHERE att.identityId IN (:attendeeIds)"
               + " AND ev.startDate < :end"
+              + " AND (ev.endDate IS NULL OR ev.endDate >= :start)"
+      ),
+      @NamedQuery(
+          name = "AgendaEvent.getEventIdsByStartDateAndAttendeeIds", query = "SELECT DISTINCT(ev.id) FROM AgendaEvent ev"
+              + " INNER JOIN ev.attendees att"
+              + " WHERE att.identityId IN (:attendeeIds)"
               + " AND (ev.endDate IS NULL OR ev.endDate >= :start)"
       ),
       @NamedQuery(
@@ -56,6 +69,15 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
               + " WHERE att.identityId IN (:attendeeIds)"
               + " AND cal.ownerId IN (:ownerIds)"
               + " AND ev.startDate < :end"
+              + " AND (ev.endDate IS NULL OR ev.endDate >= :start)"
+      ),
+      @NamedQuery(
+          name = "AgendaEvent.getEventIdsByStartDateAndAttendeeIdsAndOwnerIds",
+          query = "SELECT DISTINCT(ev.id) FROM AgendaEvent ev"
+              + " INNER JOIN ev.attendees att"
+              + " INNER JOIN ev.calendar cal"
+              + " WHERE att.identityId IN (:attendeeIds)"
+              + " AND cal.ownerId IN (:ownerIds)"
               + " AND (ev.endDate IS NULL OR ev.endDate >= :start)"
       ),
       @NamedQuery(
