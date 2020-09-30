@@ -53,7 +53,7 @@
           <v-flex class="flex-grow-0">
             <i class="uiIconDescription darkGreyIcon uiIcon32x32 my-3 mr-11"></i>
           </v-flex>
-          <exo-textarea
+          <extended-textarea
             id="eventDescription"
             ref="eventDescription"
             v-model="event.description"
