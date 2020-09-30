@@ -61,6 +61,7 @@ export function getEventById(eventId, expand) {
 }
 
 export function createEvent(event) {
+  event.sendInvitation = true;
   event = formatEventToSave(event);
 
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events`, {

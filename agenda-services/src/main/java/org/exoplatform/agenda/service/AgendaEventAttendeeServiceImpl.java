@@ -16,6 +16,7 @@
 */
 package org.exoplatform.agenda.service;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -30,7 +31,12 @@ import org.exoplatform.agenda.plugin.AgendaExternalUserIdentityProvider;
 import org.exoplatform.agenda.storage.AgendaEventAttendeeStorage;
 import org.exoplatform.agenda.storage.AgendaEventStorage;
 import org.exoplatform.agenda.util.Utils;
+import org.exoplatform.commons.api.notification.NotificationContext;
+import org.exoplatform.commons.api.notification.command.NotificationCommand;
+import org.exoplatform.commons.api.notification.model.PluginKey;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.commons.notification.impl.NotificationContextImpl;
+import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
@@ -40,6 +46,8 @@ import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.web.security.codec.CodecInitializer;
 import org.exoplatform.web.security.security.TokenServiceInitializationException;
+
+import static org.exoplatform.agenda.util.NotificationUtils.*;
 
 public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeService {
 
@@ -297,6 +305,18 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    */
   @Override
   public void sendInvitations(long eventId) {
-    // TODO Auto-generated method stub
+    NotificationContext ctx = NotificationContextImpl.cloneInstance();
+    ctx.append(EVENT_ID, eventId);
+    dispatch(ctx, AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN);
+    RequestLifeCycle.end();
+  }
+
+  private void dispatch(NotificationContext ctx, String... pluginId) {
+    List<NotificationCommand> commands = new ArrayList<>(pluginId.length);
+    for (String p : pluginId) {
+      commands.add(ctx.makeCommand(PluginKey.key(p)));
+    }
+
+    ctx.getNotificationExecutor().with(commands).execute(ctx);
   }
 }
