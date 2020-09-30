@@ -34,4 +34,6 @@ public class EventList implements Serializable {
 
   private String            end;
 
+  private int               limit;
+
 }

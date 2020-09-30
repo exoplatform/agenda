@@ -145,34 +145,67 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     deleteEventsQuery.executeUpdate();
   }
 
-  public List<Long> getEventIdsByPeriodAndOwnerIds(Date startDate, Date endDate, Long... ownerIds) {
-    TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaEvent.getEventIdsByPeriodAndOwnerIds", Long.class);
-    query.setParameter("start", startDate);
-    query.setParameter("end", endDate);
+  public List<Long> getEventIdsByPeriodAndOwnerIds(Date startDate, Date endDate, int limit, Long... ownerIds) {
+    verifyLimit(endDate, limit);
+
+    TypedQuery<Long> query = endDate == null
+                                             ? getEntityManager().createNamedQuery("AgendaEvent.getEventIdsByStartDateAndOwnerIds",
+                                                                                   Long.class)
+                                             : getEntityManager().createNamedQuery("AgendaEvent.getEventIdsByPeriodAndOwnerIds",
+                                                                                   Long.class);
     query.setParameter("ownerIds", Arrays.asList(ownerIds));
+    query.setParameter("start", startDate);
+    if (endDate != null) {
+      query.setParameter("end", endDate);
+    }
+    if (limit > 0) {
+      query.setMaxResults(limit);
+    }
     List<Long> resultList = query.getResultList();
     return resultList == null ? Collections.emptyList() : resultList;
   }
 
   public List<Long> getEventIdsByPeriodAndAttendeeIdsAndOwnerIds(Date startDate,
                                                                  Date endDate,
+                                                                 int limit,
                                                                  List<Long> ownerIds,
                                                                  List<Long> attendeeIds) {
-    TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaEvent.getEventIdsByPeriodAndAttendeeIdsAndOwnerIds",
-                                                                 Long.class);
-    query.setParameter("start", startDate);
-    query.setParameter("end", endDate);
+    verifyLimit(endDate, limit);
+
+    TypedQuery<Long> query = endDate == null
+                                             ? getEntityManager().createNamedQuery("AgendaEvent.getEventIdsByStartDateAndAttendeeIdsAndOwnerIds",
+                                                                                   Long.class)
+                                             : getEntityManager().createNamedQuery("AgendaEvent.getEventIdsByPeriodAndAttendeeIdsAndOwnerIds",
+                                                                                   Long.class);
     query.setParameter("ownerIds", ownerIds);
     query.setParameter("attendeeIds", attendeeIds);
+    query.setParameter("start", startDate);
+    if (endDate != null) {
+      query.setParameter("end", endDate);
+    }
+    if (limit > 0) {
+      query.setMaxResults(limit);
+    }
     List<Long> resultList = query.getResultList();
     return resultList == null ? Collections.emptyList() : resultList;
   }
 
-  public List<Long> getEventIdsByPeriodAndAttendeeIds(Date startDate, Date endDate, List<Long> attendeeIds) {
-    TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaEvent.getEventIdsByPeriodAndAttendeeIds", Long.class);
-    query.setParameter("start", startDate);
-    query.setParameter("end", endDate);
+  public List<Long> getEventIdsByPeriodAndAttendeeIds(Date startDate, Date endDate, int limit, List<Long> attendeeIds) {
+    verifyLimit(endDate, limit);
+
+    TypedQuery<Long> query = endDate == null
+                                             ? getEntityManager().createNamedQuery("AgendaEvent.getEventIdsByStartDateAndAttendeeIds",
+                                                                                   Long.class)
+                                             : getEntityManager().createNamedQuery("AgendaEvent.getEventIdsByPeriodAndAttendeeIds",
+                                                                                   Long.class);
     query.setParameter("attendeeIds", attendeeIds);
+    query.setParameter("start", startDate);
+    if (endDate != null) {
+      query.setParameter("end", endDate);
+    }
+    if (limit > 0) {
+      query.setMaxResults(limit);
+    }
     List<Long> resultList = query.getResultList();
     return resultList == null ? Collections.emptyList() : resultList;
   }
@@ -184,6 +217,12 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     query.setParameter("end", endDate);
     List<Long> resultList = query.getResultList();
     return resultList == null ? Collections.emptyList() : resultList;
+  }
+
+  private void verifyLimit(Date endDate, int limit) {
+    if (limit <= 0 && endDate == null) {
+      throw new IllegalStateException("Limit of events to retrieve is missing, whether us endDate or limit parameters");
+    }
   }
 
 }
