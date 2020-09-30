@@ -48,8 +48,8 @@
         <div class="d-flex flex-row">
           <i class="uiIconRecurrence darkGreyIcon uiIcon32x32 my-3 mr-11"></i>
           <div class="d-flex flex-column">
-            <agenda-event-form-recurrence :event="event" />
-            <agenda-event-recurrence :event="event" class="text-wrap mt-2" />
+            <agenda-event-form-recurrence :event="event" class="mt-2" />
+            <agenda-event-recurrence v-if="event.recurrence" :event="event" class="text-wrap mt-2" />
           </div>
         </div>
         <div class="d-flex flex-row">
