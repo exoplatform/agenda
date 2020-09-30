@@ -1,17 +1,17 @@
 <template>
-  <span>
+  <div>
     {{ recurrenceLabel }}
     <template v-if="endLabel">
       ( {{ endLabel }} )
     </template>
-  </span>
+  </div>
 </template>
 <script>
 export default {
   props: {
     event: {
       type: Object,
-      default: () => ({})
+      default: null,
     },
   },
   computed: {

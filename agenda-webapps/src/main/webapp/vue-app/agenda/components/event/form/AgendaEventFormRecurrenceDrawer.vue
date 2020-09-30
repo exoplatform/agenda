@@ -209,7 +209,9 @@ export default {
         this.eventRecurrence.count = null;
       } else if (this.eventRecurrence.count > 0) {
         this.recurrentEventDate = 'count';
-        this.eventRecurrence.count = 1;
+        if (!this.eventRecurrence.count) {
+          this.eventRecurrence.count = 1;
+        }
         this.eventRecurrence.until = null;
       } else {
         this.recurrentEventDate = 'never';
