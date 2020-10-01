@@ -80,7 +80,10 @@
       :top="menuTopPosition"
       content-class="select-date-pickers agenda-application"
       offset-x>
-      <v-card min-width="350" class="pa-0 pb-4" flat>
+      <v-card
+        min-width="350"
+        class="pa-0 pb-4"
+        flat>
         <v-card-text class="pa-0">
           <div class="d-flex">
             <v-btn
@@ -259,8 +262,8 @@ export default {
           }
           if ($targetElement && $targetElement.length && $targetElement.offset()) {
             this.datePickerTop = $targetElement.offset().top > 330;
-            this.menuTopPosition = (window.innerHeight - $targetElement.offset().top) > (window.innerWidth / 2) < 400;
-            this.menuLeftPosition = $targetElement.offset().left > (window.innerWidth / 2);
+            this.menuTopPosition = window.innerHeight - $targetElement.offset().top < 400;
+            this.menuLeftPosition = $targetElement.offset().left > window.innerWidth / 2;
           }
           this.selectedOpen = true;
         } else {
