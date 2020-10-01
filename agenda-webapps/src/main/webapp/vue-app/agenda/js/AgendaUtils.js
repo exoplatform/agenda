@@ -38,7 +38,7 @@ export function toVuetifyDate(date) {
     pad(date.getMinutes())}`;
 }
 
-export function toRFC3339(date) {
+export function toRFC3339(date, ignoreTime) {
   if (!date) {
     return null;
   }
@@ -50,13 +50,19 @@ export function toRFC3339(date) {
     }
     date = new Date(date);
   }
-  return `${date.getFullYear()  }-${ 
-    pad(date.getMonth() + 1)  }-${ 
-    pad(date.getDate())  }T${ 
-    pad(date.getHours())  }:${ 
-    pad(date.getMinutes())  }:${ 
-    pad(date.getSeconds())  
-  }${getUserTimezone()}`;
+  if (ignoreTime) {
+    return `${date.getFullYear()  }-${
+      pad(date.getMonth() + 1)  }-${ 
+      pad(date.getDate())  }T00:00:00${getUserTimezone()}`;
+  } else {
+    return `${date.getFullYear()  }-${
+      pad(date.getMonth() + 1)  }-${ 
+      pad(date.getDate())  }T${ 
+      pad(date.getHours())  }:${ 
+      pad(date.getMinutes())  }:${ 
+      pad(date.getSeconds())  
+    }${getUserTimezone()}`;
+  }
 }
 
 export function toDate(date) {
@@ -79,7 +85,7 @@ export function generateCalendarTitle(calendarType, startDate, periodTitle, week
     const weekNumber = getWeekNumber(startDate);
     return `${periodTitle} - ${weekTitle} ${weekNumber}`;
   } else if (calendarType === 'day') {
-    const currentDay = startDate.getDate() + 1;
+    const currentDay = startDate.getDate();
     return `${periodTitle} - ${currentDay}`;
   } else if (calendarType === 'month') {
     return periodTitle;

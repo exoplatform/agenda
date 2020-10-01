@@ -35,53 +35,70 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
           name = "AgendaEvent.deleteCalendarEvents", query = "DELETE FROM AgendaEvent ev WHERE ev.calendar.id = :calendarId"
       ),
       @NamedQuery(
-          name = "AgendaEvent.getEventIdsByPeriodAndOwnerIds", query = "SELECT DISTINCT(ev.id) FROM AgendaEvent ev"
+          name = "AgendaEvent.getEventIdsByPeriodAndOwnerIds", query = "SELECT DISTINCT(ev.id), ev.startDate FROM AgendaEvent ev"
               + " INNER JOIN ev.attendees att"
               + " INNER JOIN ev.calendar cal"
-              + " WHERE (att.identityId IN (:ownerIds) OR cal.ownerId IN (:ownerIds))"
+              + " WHERE ev.status = :status"
+              + " AND (att.identityId IN (:ownerIds) OR cal.ownerId IN (:ownerIds))"
               + " AND ev.startDate < :end"
               + " AND (ev.endDate IS NULL OR ev.endDate >= :start)"
+              + " ORDER BY ev.startDate DESC"
       ),
       @NamedQuery(
-          name = "AgendaEvent.getEventIdsByStartDateAndOwnerIds", query = "SELECT DISTINCT(ev.id) FROM AgendaEvent ev"
+          name = "AgendaEvent.getEventIdsByStartDateAndOwnerIds",
+          query = "SELECT DISTINCT(ev.id), ev.startDate FROM AgendaEvent ev"
               + " INNER JOIN ev.attendees att"
               + " INNER JOIN ev.calendar cal"
-              + " WHERE (att.identityId IN (:ownerIds) OR cal.ownerId IN (:ownerIds))"
+              + " WHERE ev.status = :status"
+              + " AND (att.identityId IN (:ownerIds) OR cal.ownerId IN (:ownerIds))"
               + " AND (ev.endDate IS NULL OR ev.endDate >= :start)"
+              + " ORDER BY ev.startDate DESC"
       ),
       @NamedQuery(
-          name = "AgendaEvent.getEventIdsByPeriodAndAttendeeIds", query = "SELECT DISTINCT(ev.id) FROM AgendaEvent ev"
+          name = "AgendaEvent.getEventIdsByPeriodAndAttendeeIds",
+          query = "SELECT DISTINCT(ev.id), ev.startDate FROM AgendaEvent ev"
               + " INNER JOIN ev.attendees att"
-              + " WHERE att.identityId IN (:attendeeIds)"
+              + " WHERE ev.status = :status"
+              + " AND att.identityId IN (:attendeeIds)"
               + " AND ev.startDate < :end"
               + " AND (ev.endDate IS NULL OR ev.endDate >= :start)"
+              + " ORDER BY ev.startDate DESC"
       ),
       @NamedQuery(
-          name = "AgendaEvent.getEventIdsByStartDateAndAttendeeIds", query = "SELECT DISTINCT(ev.id) FROM AgendaEvent ev"
+          name = "AgendaEvent.getEventIdsByStartDateAndAttendeeIds",
+          query = "SELECT DISTINCT(ev.id), ev.startDate FROM AgendaEvent ev"
               + " INNER JOIN ev.attendees att"
-              + " WHERE att.identityId IN (:attendeeIds)"
+              + " WHERE ev.status = :status"
+              + " AND att.identityId IN (:attendeeIds)"
               + " AND (ev.endDate IS NULL OR ev.endDate >= :start)"
+              + " ORDER BY ev.startDate DESC"
       ),
       @NamedQuery(
-          name = "AgendaEvent.getEventIdsByPeriodAndAttendeeIdsAndOwnerIds", query = "SELECT DISTINCT(ev.id) FROM AgendaEvent ev"
+          name = "AgendaEvent.getEventIdsByPeriodAndAttendeeIdsAndOwnerIds",
+          query = "SELECT DISTINCT(ev.id), ev.startDate FROM AgendaEvent ev"
               + " INNER JOIN ev.attendees att"
               + " INNER JOIN ev.calendar cal"
-              + " WHERE att.identityId IN (:attendeeIds)"
+              + " WHERE ev.status = :status"
+              + " AND att.identityId IN (:attendeeIds)"
               + " AND cal.ownerId IN (:ownerIds)"
               + " AND ev.startDate < :end"
               + " AND (ev.endDate IS NULL OR ev.endDate >= :start)"
+              + " ORDER BY ev.startDate DESC"
       ),
       @NamedQuery(
           name = "AgendaEvent.getEventIdsByStartDateAndAttendeeIdsAndOwnerIds",
-          query = "SELECT DISTINCT(ev.id) FROM AgendaEvent ev"
+          query = "SELECT DISTINCT(ev.id), ev.startDate FROM AgendaEvent ev"
               + " INNER JOIN ev.attendees att"
               + " INNER JOIN ev.calendar cal"
-              + " WHERE att.identityId IN (:attendeeIds)"
+              + " WHERE ev.status = :status"
+              + " AND att.identityId IN (:attendeeIds)"
               + " AND cal.ownerId IN (:ownerIds)"
               + " AND (ev.endDate IS NULL OR ev.endDate >= :start)"
+              + " ORDER BY ev.startDate DESC"
       ),
       @NamedQuery(
-          name = "AgendaEvent.getExceptionalOccurenceEventIds", query = "SELECT DISTINCT(ev.id) FROM AgendaEvent ev"
+          name = "AgendaEvent.getExceptionalOccurenceEventIds",
+          query = "SELECT DISTINCT(ev.id) FROM AgendaEvent ev"
               + " WHERE ev.parent.id = :parentEventId"
               + " AND ev.occurrenceId <= :end"
               + " AND ev.occurrenceId >= :start"
