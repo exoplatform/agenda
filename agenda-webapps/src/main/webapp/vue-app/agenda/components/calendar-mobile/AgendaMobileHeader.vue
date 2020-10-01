@@ -1,6 +1,5 @@
 <template>
   <v-flex class="agenda-mobile-header d-flex flex-row pa-2 border-radius border-color">
-    <agenda-create-event-button />
     <date-picker
       v-model="period.start"
       class="d-flex flex-grow-1 ma-auto agenda-header-date-picker" />
