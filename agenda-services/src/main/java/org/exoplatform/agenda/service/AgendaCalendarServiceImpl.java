@@ -138,7 +138,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
       return null;
     }
     boolean canEditCalendar = Utils.checkAclByCalendarOwner(identityManager, spaceService, calendar.getOwnerId(), username, true);
-    calendar.setAcl(new Permission(canEditCalendar));
+    calendar.setAcl(new Permission(canEditCalendar, false));
     fillCalendarTitleByOwnerName(calendar);
     return calendar;
   }
@@ -194,7 +194,15 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
   @Override
   public Calendar createCalendarInstance(long ownerId, String username) throws IllegalAccessException {
     boolean canEditCalendar = Utils.checkAclByCalendarOwner(identityManager, spaceService, ownerId, username, true);
-    return new Calendar(0, ownerId, true, null, null, null, null, getRandomDefaultColor(), new Permission(canEditCalendar));
+    return new Calendar(0,
+                        ownerId,
+                        true,
+                        null,
+                        null,
+                        null,
+                        null,
+                        getRandomDefaultColor(),
+                        new Permission(canEditCalendar, false));
   }
 
   /**
