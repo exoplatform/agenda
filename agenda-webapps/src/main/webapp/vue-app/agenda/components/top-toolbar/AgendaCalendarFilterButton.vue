@@ -1,6 +1,7 @@
 <template>
   <v-btn
     v-if="!currentSpace"
+    :title="$t('agenda.filterAgendaTooltip')"
     icon
     class="primary--text"
     @click="$root.$emit('agenda-calendar-owners-drawer-open')">
