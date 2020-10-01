@@ -60,17 +60,12 @@
             <v-flex class="flex-grow-0">
               <i class="uiIconDescription darkGreyIcon uiIcon32x32 my-3 mx-3"></i>
             </v-flex>
-            <textarea
+            <extended-textarea
               id="eventDescription"
               ref="eventDescription"
               v-model="event.description"
               :placeholder="$t('agenda.description')"
-              type="text"
-              name="description"
-              rows="20"
-              maxlength="2000"
-              class="ignore-vuetify-classes my-3 description-event-textarea textarea-no-resize">
-            </textarea>
+              :max-length="eventDescriptionTextLength" />
           </div>
           <div class="d-flex flex-row">
             <v-flex class="flex-grow-0">
@@ -116,6 +111,7 @@ export default {
   data: () => ({
     event: null,
     saving: false,
+    eventDescriptionTextLength: 1300
   }),
   computed: {
     eventTitle() {
@@ -130,8 +126,14 @@ export default {
     eventOwnerValid() {
       return this.eventOwner && (this.eventOwner.id || this.eventOwner.remoteId && this.eventOwner.providerId);
     },
+    eventDescription() {
+      return this.event && this.event.description || '';
+    },
+    eventDescriptionValid() {
+      return this.eventDescription.length <= 1300;
+    },
     disableSaveButton() {
-      return this.saving || !this.eventTitleValid || !this.eventOwnerValid;
+      return this.saving || !this.eventTitleValid || !this.eventOwnerValid || !this.eventDescriptionValid;
     },
   },
   created() {
