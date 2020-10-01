@@ -58,6 +58,9 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(event.getRemoteProviderId(), createdEvent.getRemoteProviderId());
     assertEquals(event.getAvailability(), createdEvent.getAvailability());
     assertEquals(event.getOccurrence(), createdEvent.getOccurrence());
+    assertNotNull(createdEvent.getAcl());
+    assertTrue(createdEvent.getAcl().isCanEdit());
+    assertFalse(createdEvent.getAcl().isAttendee());
 
     assertNotNull(createdEvent.getCreated());
     assertNull(createdEvent.getUpdated());
@@ -160,6 +163,9 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(event.getOccurrence(), createdEvent.getOccurrence());
     assertEquals(event.getStart().withZoneSameLocal(ZoneOffset.UTC), createdEvent.getStart().withZoneSameLocal(ZoneOffset.UTC));
     assertEquals(event.getEnd().withZoneSameLocal(ZoneOffset.UTC), createdEvent.getEnd().withZoneSameLocal(ZoneOffset.UTC));
+    assertNotNull(createdEvent.getAcl());
+    assertFalse(createdEvent.getAcl().isCanEdit());
+    assertTrue(createdEvent.getAcl().isAttendee());
 
     assertNotNull(createdEvent.getCreated());
     assertNull(createdEvent.getUpdated());

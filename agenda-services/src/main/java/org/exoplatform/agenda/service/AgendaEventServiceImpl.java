@@ -595,7 +595,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
   private List<Event> getEventsByOwners(ZonedDateTime start,
                                         ZonedDateTime end,
-                                        ZoneId zoneId,
+                                        ZoneId timeZone,
                                         int limit,
                                         Identity userIdentity,
                                         Long... calendarOwnerIds) {
@@ -615,8 +615,36 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     ZonedDateTime startMinusADay = start.minusDays(1);
     ZonedDateTime endPlusADay = end == null ? null : end.plusDays(1);
 
-    List<Long> eventIds = this.agendaEventStorage.getEventIdsByOwnerIds(startMinusADay, endPlusADay, limit, calendarOwnerIds);
-    return computeEventsProperties(start, end, zoneId, limit, userIdentity, startMinusADay, endPlusADay, eventIds);
+    if (end == null) {
+      // When searching using limit, we may have issues related to recurrent
+      // events that can't be sorted by startDate, since its startDate and
+      // endDate refers to the whole recurrent event dates. The occurrences of a
+      // recurrent event aren't stored, thus we can't know if an occurrence of a
+      // recurrent event will be part of 10 (=limit) first events starting from
+      // a date. So we should retrieve much more events and then computing in
+      // JVM the 10 first events only.
+
+      // Get the maximum end date that could have an event in the period
+      ZonedDateTime maxEndDate = getMaxEndDate(startMinusADay,
+                                               endPlusADay,
+                                               timeZone,
+                                               limit,
+                                               Arrays.asList(calendarOwnerIds),
+                                               null);
+
+      if (maxEndDate == null) {
+        return Collections.emptyList();
+      } else {
+        // Retrieve all eventIds without a limit that are between both dates
+        List<Long> eventIds = this.agendaEventStorage.getEventIdsByOwnerIds(startMinusADay, endPlusADay, 0, calendarOwnerIds);
+        return computeEventsProperties(start, end, timeZone, limit, userIdentity, startMinusADay, endPlusADay, eventIds);
+      }
+    } else {
+      // When having an end date, we shouldn't retrieve events with a limit from
+      // storage, the limit will be computed in JVM
+      List<Long> eventIds = this.agendaEventStorage.getEventIdsByOwnerIds(startMinusADay, endPlusADay, 0, calendarOwnerIds);
+      return computeEventsProperties(start, end, timeZone, limit, userIdentity, startMinusADay, endPlusADay, eventIds);
+    }
   }
 
   private List<Event> getEventsByAttendees(ZonedDateTime start,
@@ -690,11 +718,15 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     do {
       initialSize = events == null ? 0 : events.size();
       storageLimit *= 5;
-      List<Long> eventIds = this.agendaEventStorage.getEventIdsByAttendeeIds(start,
-                                                                             end,
-                                                                             storageLimit,
-                                                                             calendarOwnerIds,
-                                                                             eventAttendeeIds);
+      List<Long> eventIds = eventAttendeeIds == null ? this.agendaEventStorage.getEventIdsByOwnerIds(start,
+                                                                                                     end,
+                                                                                                     storageLimit,
+                                                                                                     calendarOwnerIds.toArray(new Long[0]))
+                                                     : this.agendaEventStorage.getEventIdsByAttendeeIds(start,
+                                                                                                        end,
+                                                                                                        storageLimit,
+                                                                                                        calendarOwnerIds,
+                                                                                                        eventAttendeeIds);
       events = getEventsList(eventIds, start, end, timeZone, storageLimit);
     } while (events.size() > initialSize && events.size() < limit);
     return getMaxEndDate(events);
@@ -733,16 +765,28 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
     List<Event> events = getEventsList(eventIds, startMinusADay, endPlusADay, timeZone, limit);
     events = filterEvents(events, start, end, limit);
+    computeEventsAcl(events, userIdentity);
+    return events;
+  }
 
+  private void computeEventsAcl(List<Event> events, Identity userIdentity) {
     String username = userIdentity.getRemoteId();
     long userIdentityId = Long.parseLong(userIdentity.getId());
+    Map<Long, Permission> eventPermissionsMap = new HashMap<>();
     events.forEach(event -> {
-      boolean canUpdateEvent = canUpdateEvent(event, username);
-      boolean isEventAttendee = attendeeService.isEventAttendee(event.getId(), userIdentityId);
-      event.setAcl(new Permission(canUpdateEvent, isEventAttendee));
+      long eventId = event.getId();
+      if (eventId == 0) {
+        eventId = event.getParentId();
+      }
+      Permission permission = eventPermissionsMap.get(eventId);
+      if (permission == null) {
+        boolean canUpdateEvent = canUpdateEvent(event, username);
+        boolean isEventAttendee = attendeeService.isEventAttendee(eventId, userIdentityId);
+        permission = new Permission(canUpdateEvent, isEventAttendee);
+        eventPermissionsMap.put(eventId, permission);
+      }
+      event.setAcl(permission);
     });
-
-    return events;
   }
 
   private List<Event> filterEvents(List<Event> events, ZonedDateTime start, ZonedDateTime end, int limit) {

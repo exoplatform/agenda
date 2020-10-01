@@ -8,6 +8,7 @@
           :period="period" />
         <agenda-timeline
           :events="events"
+          :loading="loading"
           class="mt-2" />
         <v-flex v-if="hasMore" class="d-flex py-4 border-box-sizing">
           <v-btn
