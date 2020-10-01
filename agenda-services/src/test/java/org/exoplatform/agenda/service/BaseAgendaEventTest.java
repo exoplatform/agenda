@@ -246,7 +246,7 @@ public abstract class BaseAgendaEventTest {
                      end,
                      allDay,
                      EventAvailability.FREE,
-                     EventStatus.TENTATIVE,
+                     EventStatus.CONFIRMED,
                      recurrence,
                      occurrence,
                      null,

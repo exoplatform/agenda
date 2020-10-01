@@ -2,10 +2,12 @@
   <v-btn
     class="btn btn-primary"
     @click="openNewEventForm">
-    <v-icon dark left>
+    <v-icon dark>
       mdi-plus
     </v-icon>
-    {{ $t('agenda.button.addEvent') }}
+    <span class="ml-2 d-none d-sm-inline">
+      {{ $t('agenda.button.addEvent') }}
+    </span>
   </v-btn>
 </template>
 <script>

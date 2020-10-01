@@ -138,14 +138,16 @@
         :event="event"
         class="flex-grow-1 flex-shrink-0 event-details-body-right" />
     </div>
-    <v-divider />
-    <div class="d-flex">
-      <div class="flex-grow-1"></div>
-      <agenda-event-attendee-buttons
-        ref="eventAttendeeButtons"
-        :event="event"
-        class="flex-grow-0 my-6 mr-10" />
-    </div>
+    <template v-if="isAttendee">
+      <v-divider />
+      <div class="d-flex">
+        <div class="flex-grow-1"></div>
+        <agenda-event-attendee-buttons
+          ref="eventAttendeeButtons"
+          :event="event"
+          class="flex-grow-0 my-6 mr-10" />
+      </div>
+    </template>
     <agenda-recurrent-event-delete-confirm-dialog
       v-if="event.occurrence"
       ref="deleteConfirmDialog"
@@ -201,6 +203,9 @@ export default {
     },
     canEdit() {
       return this.event.acl && this.event.acl.canEdit;
+    },
+    isAttendee() {
+      return this.event.acl && this.event.acl.eventAttendee;
     },
     owner() {
       return this.event && this.event.calendar && this.event.calendar.owner;
