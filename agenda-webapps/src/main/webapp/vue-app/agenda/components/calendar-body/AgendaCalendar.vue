@@ -51,7 +51,7 @@
         </template>
       </div>
       <div
-        v-if="timed"
+        v-if="timed && event.acl && event.acl.canEdit"
         class="v-event-drag-bottom"
         @mousedown.stop="extendEventEndDate(event)"></div>
     </template>
@@ -193,8 +193,12 @@ export default {
       this.$root.$emit('agenda-change-period-type', 'day');
     },
     extendEventEndDate(eventObj) {
+      const dragEvent = eventObj && eventObj.event || eventObj;
+      if (!dragEvent || !dragEvent.acl || !dragEvent.acl.canEdit) {
+        return;
+      }
       this.eventExtended = true;
-      this.dragEvent = eventObj && eventObj.event || eventObj;
+      this.dragEvent = dragEvent;
       if (this.dragEvent) {
         this.originalDragedEvent = JSON.parse(JSON.stringify(this.dragEvent));
         this.originalDragedEvent.startDate = new Date(this.dragEvent.startDate);
@@ -202,7 +206,11 @@ export default {
       }
     },
     eventMouseDown(eventObj) {
-      this.dragEvent = eventObj && eventObj.event || this.dragEvent;
+      const dragEvent = eventObj && eventObj.event || eventObj;
+      if (!dragEvent || !dragEvent.acl || !dragEvent.acl.canEdit) {
+        return;
+      }
+      this.dragEvent = dragEvent;
       if (this.dragEvent) {
         this.originalDragedEvent = JSON.parse(JSON.stringify(this.dragEvent));
         this.originalDragedEvent.startDate = new Date(this.dragEvent.startDate);
