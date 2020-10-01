@@ -2,7 +2,7 @@
 <li class="<%= READ %> clearfix" data-id="<%= NOTIFICATION_ID %>">
     <div class="media agendaWebNotifContent">
         <div class="avatarXSmall pull-left">
-            <img class="spaceAvatar" src="<%= Avatar %>" alt="<%= Avatar %>" />
+            <img class="spaceAvatar" src="<%= avatarUrl %>" alt="<%= avatarUrl %>" />
         </div>
         <div class="media-body">
             <div class="contentSmall">

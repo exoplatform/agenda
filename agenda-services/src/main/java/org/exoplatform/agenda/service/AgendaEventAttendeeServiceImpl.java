@@ -16,9 +16,10 @@
 */
 package org.exoplatform.agenda.service;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import static org.exoplatform.agenda.util.NotificationUtils.AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN;
+import static org.exoplatform.agenda.util.NotificationUtils.EVENT_ID;
+
+import java.util.*;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
@@ -36,9 +37,6 @@ import org.exoplatform.commons.api.notification.command.NotificationCommand;
 import org.exoplatform.commons.api.notification.model.PluginKey;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.notification.impl.NotificationContextImpl;
-import org.exoplatform.container.ExoContainer;
-import org.exoplatform.container.ExoContainerContext;
-import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
@@ -48,8 +46,6 @@ import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.web.security.codec.CodecInitializer;
 import org.exoplatform.web.security.security.TokenServiceInitializationException;
-
-import static org.exoplatform.agenda.util.NotificationUtils.*;
 
 public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeService {
 
@@ -66,23 +62,19 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
   private SpaceService               spaceService;
 
   private CodecInitializer           codecInitializer;
-  
-  private ExoContainer               container;
 
   public AgendaEventAttendeeServiceImpl(AgendaEventAttendeeStorage attendeeStorage,
                                         AgendaEventStorage eventStorage,
                                         ListenerService listenerService,
                                         IdentityManager identityManager,
                                         SpaceService spaceService,
-                                        CodecInitializer codecInitializer,
-                                        ExoContainer container) {
+                                        CodecInitializer codecInitializer) {
     this.attendeeStorage = attendeeStorage;
     this.eventStorage = eventStorage;
     this.codecInitializer = codecInitializer;
     this.identityManager = identityManager;
     this.spaceService = spaceService;
     this.listenerService = listenerService;
-    this.container = container;
   }
 
   /**
@@ -311,15 +303,9 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    */
   @Override
   public void sendInvitations(long eventId) {
-    ExoContainerContext.setCurrentContainer(container);
-    RequestLifeCycle.begin(container);
-    try {
-      NotificationContext ctx = NotificationContextImpl.cloneInstance();
-      ctx.append(EVENT_ID, eventId);
-      dispatch(ctx, AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN);
-    } finally {
-      RequestLifeCycle.end();
-    }
+    NotificationContext ctx = NotificationContextImpl.cloneInstance();
+    ctx.append(EVENT_ID, eventId);
+    dispatch(ctx, AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN);
   }
 
   private void dispatch(NotificationContext ctx, String... pluginId) {

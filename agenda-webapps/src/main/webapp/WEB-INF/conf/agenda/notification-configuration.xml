@@ -2,17 +2,8 @@
 <configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.exoplatform.org/xml/ns/kernel_1_3.xsd http://www.exoplatform.org/xml/ns/kernel_1_3.xsd"
   xmlns="http://www.exoplatform.org/xml/ns/kernel_1_3.xsd">
   <external-component-plugins>
-    <target-component>org.exoplatform.services.listener.ListenerService</target-component>
-    <component-plugin>
-      <name>exo.agenda.event.added</name>
-      <set-method>addListener</set-method>
-      <type>org.exoplatform.agenda.listener.EventNotificationListener</type>
-    </component-plugin>
-  </external-component-plugins>
-
-  <external-component-plugins>
       <target-component>org.exoplatform.commons.api.notification.service.setting.PluginSettingService</target-component>
-      <component-plugin profiles="all">
+      <component-plugin>
         <name>notification.groups</name>
         <set-method>registerGroupConfig</set-method>
         <type>org.exoplatform.commons.api.notification.plugin.GroupProviderPlugin</type>

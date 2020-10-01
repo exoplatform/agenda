@@ -1,6 +1,7 @@
 package org.exoplatform.agenda.util;
 
-import org.apache.commons.lang.StringUtils;
+import java.util.*;
+
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
 import org.exoplatform.commons.api.notification.NotificationContext;
@@ -11,41 +12,44 @@ import org.exoplatform.commons.api.notification.plugin.NotificationPluginUtils;
 import org.exoplatform.commons.api.notification.service.template.TemplateContext;
 import org.exoplatform.commons.notification.template.TemplateUtils;
 import org.exoplatform.commons.utils.CommonsUtils;
+import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.portal.config.UserPortalConfigService;
+import org.exoplatform.social.core.identity.model.Identity;
+import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.notification.plugin.SocialNotificationUtils;
 import org.exoplatform.webui.utils.TimeConvertUtils;
-import java.util.*;
-import java.util.stream.Collectors;
 
 public class NotificationUtils {
 
   public static final ArgumentLiteral<Long> EVENT_ID                                 =
                                                      new ArgumentLiteral<>(Long.class, "event_id");
 
-  public static final String                  AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN   = "EventAddedNotificationPlugin";
+  public static final String                AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN   = "EventAddedNotificationPlugin";
 
-  private static final String                 TEMPLATE_VARIABLE_EVENT_URL              = "eventURL";
+  private static final String               TEMPLATE_VARIABLE_EVENT_URL              = "eventURL";
 
-  public static final PluginKey               EVENT_ADDED_KEY                          =
-                                                              PluginKey.key(AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN);
+  public static final PluginKey             EVENT_ADDED_KEY                          =
+                                                            PluginKey.key(AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN);
 
-  private static final String                 STORED_PARAMETER_EVENT_TITLE             = "eventTitle";
+  private static final String               STORED_PARAMETER_EVENT_TITLE             = "eventTitle";
 
-  private static final String                 STORED_PARAMETER_EVENT_SPACE             = "creatorName";
+  private static final String               STORED_PARAMETER_EVENT_OWNER_ID          = "ownerId";
 
-  private static final String                 STORED_PARAMETER_EVENT_ID                = "eventId";
+  private static final String               STORED_PARAMETER_EVENT_ID                = "eventId";
 
-  private static final String                 STORED_PARAMETER_EVENT_START_DATE        = "startDate";
+  private static final String               STORED_PARAMETER_EVENT_START_DATE        = "startDate";
 
-  private static final String                 STORED_PARAMETER_EVENT_URL               = "Url";
+  private static final String               STORED_PARAMETER_EVENT_END_DATE          = "endDate";
 
-  private static final String                 TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR = "Avatar";
+  private static final String               STORED_PARAMETER_EVENT_URL               = "Url";
 
-  private static final String                 TEMPLATE_VARIABLE_EVENT_ID               = "eventId";
+  private static final String               TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR = "avatarUrl";
 
-  private static final String                 TEMPLATE_VARIABLE_EVENT_TITLE            = "eventTitle";
+  private static final String               TEMPLATE_VARIABLE_EVENT_ID               = "eventId";
 
-  private static String                       defaultSite;
+  private static final String               TEMPLATE_VARIABLE_EVENT_TITLE            = "eventTitle";
+
+  private static String                     defaultSite;
 
   private NotificationUtils() {
   }
@@ -60,11 +64,10 @@ public class NotificationUtils {
 
   public static final void setNotificationRecipients(NotificationInfo notification, List<EventAttendee> eventAttendee) {
     List<String> recipientList = new ArrayList<>();
-    List<String> memberSpace = new ArrayList<>();
     for (EventAttendee attendee : eventAttendee) {
       if (Utils.getIdentityById(attendee.getIdentityId()).getProviderId().equals("space")) {
         String spaceName = Utils.getIdentityById(attendee.getIdentityId()).getRemoteId();
-        memberSpace = Utils.getSpaceMembersBySpaceName(spaceName);
+        List<String> memberSpace = Utils.getSpaceMembersBySpaceName(spaceName);
         for (String member : memberSpace) {
           recipientList.add(member);
         }
@@ -76,7 +79,9 @@ public class NotificationUtils {
     notification.with("receivers", recipientList.toString());
   }
 
-  public static final void storeEventParameters(NotificationInfo notification, Event event, org.exoplatform.agenda.model.Calendar calendar) {
+  public static final void storeEventParameters(NotificationInfo notification,
+                                                Event event,
+                                                org.exoplatform.agenda.model.Calendar calendar) {
     if (event == null) {
       throw new IllegalStateException("event is null");
     }
@@ -85,9 +90,10 @@ public class NotificationUtils {
     }
     notification.with(STORED_PARAMETER_EVENT_ID, String.valueOf(event.getId()))
                 .with(STORED_PARAMETER_EVENT_TITLE, event.getSummary())
-                .with(STORED_PARAMETER_EVENT_SPACE, calendar.getTitle())
+                .with(STORED_PARAMETER_EVENT_OWNER_ID, String.valueOf(calendar.getOwnerId()))
                 .with(STORED_PARAMETER_EVENT_URL, getEventURL(event))
-                .with(STORED_PARAMETER_EVENT_START_DATE, String.valueOf(event.getStart()));
+                .with(STORED_PARAMETER_EVENT_START_DATE, AgendaDateUtils.toRFC3339Date(event.getStart()))
+                .with(STORED_PARAMETER_EVENT_END_DATE, AgendaDateUtils.toRFC3339Date(event.getStart()));
   }
 
   public static String getDefaultSite() {
@@ -147,16 +153,13 @@ public class NotificationUtils {
   }
 
   private static final void setIdentityNameAndAvatar(NotificationInfo notification, TemplateContext templateContext) {
-    String spaceTitle = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_SPACE);
-    if (StringUtils.isBlank(spaceTitle)) {
-      templateContext.put(TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR, "");
-      return;
+    String ownerId = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_OWNER_ID);
+    IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
+    Identity identity = identityManager.getIdentity(ownerId);
+    if (identity != null) {
+      String avatarUrl = identity.getProfile().getAvatarUrl();
+      templateContext.put(TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR, avatarUrl);
     }
-    String spaceUrlAvatar = Utils.getSpaceAvatarByIdSpace(spaceTitle);
-    if (StringUtils.isBlank(spaceTitle)) {
-      throw new IllegalStateException("Space with id " + spaceTitle + " not found, can't send notification");
-    }
-    templateContext.put(TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR, spaceUrlAvatar);
   }
 
   private static final void setMessageSubject(MessageInfo messageInfo,
@@ -193,9 +196,8 @@ public class NotificationUtils {
   }
 
   private static final void setRead(NotificationInfo notification, TemplateContext templateContext) {
-    templateContext.put("READ",
-                        Boolean.valueOf(notification.getValueOwnerParameter(NotificationMessageUtils.READ_PORPERTY.getKey())) ? "read"
-                                                                                                                              : "unread");
+    Boolean isRead = Boolean.valueOf(notification.getValueOwnerParameter(NotificationMessageUtils.READ_PORPERTY.getKey()));
+    templateContext.put("READ", isRead != null && isRead.booleanValue() ? "read" : "unread");
   }
 
   private static final void setNotificationId(NotificationInfo notification, TemplateContext templateContext) {
@@ -211,5 +213,5 @@ public class NotificationUtils {
                                                                      new Locale(language),
                                                                      TimeConvertUtils.YEAR));
   }
-  
+
 }

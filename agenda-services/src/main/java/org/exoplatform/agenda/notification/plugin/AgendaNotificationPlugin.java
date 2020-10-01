@@ -66,10 +66,8 @@ public class AgendaNotificationPlugin extends BaseNotificationPlugin {
     if (event.getId() > 0) {
       setNotificationRecipients(notification, eventAttendee);
     }
-    if ((notification.getSendToUserIds() == null || notification.getSendToUserIds().isEmpty())) {
-      if (LOG.isDebugEnabled()) {
-        LOG.warn("Notification type '{}' doesn't have a recipient", getId());
-      }
+    if (notification.getSendToUserIds() == null || notification.getSendToUserIds().isEmpty()) {
+      LOG.debug("Notification type '{}' doesn't have a recipient", getId());
       return null;
     } else {
       storeEventParameters(notification, event, calendar);

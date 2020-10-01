@@ -314,22 +314,18 @@ public class Utils {
 
   public static Identity getIdentityById(String identityId) {
     IdentityManager identityManager = CommonsUtils.getService(IdentityManager.class);
-    return identityManager.getIdentity(identityId, true);
+    return identityManager.getIdentity(identityId);
   }
 
   public static String getSpaceAvatarByIdSpace(String spaceName) {
     SpaceService spaceService = CommonsUtils.getService(SpaceService.class);
-    String avatarUrl = spaceService.getSpaceByPrettyName(spaceName).getAvatarUrl();
-    return avatarUrl;
+    Space space = spaceService.getSpaceByPrettyName(spaceName);
+    return space.getAvatarUrl();
   }
 
   public static List<String> getSpaceMembersBySpaceName(String spaceName) {
-    List<String> spaceMembers = new ArrayList<>();
     SpaceService spaceService = CommonsUtils.getService(SpaceService.class);
     String[] members = spaceService.getSpaceByPrettyName(spaceName).getMembers();
-    for (String member : members) {
-      spaceMembers.add(member);
-    }
-    return spaceMembers;
+    return Arrays.asList(members);
   }
 }
