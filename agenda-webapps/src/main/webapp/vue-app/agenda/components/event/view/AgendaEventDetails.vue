@@ -5,7 +5,7 @@
     class="event-details d-flex flex-column">
     <v-toolbar
       flat
-      class="event-details-header border-box-sizing flex-grow-0">
+      class="event-details-header border-box-sizing flex-grow-0 d-none d-sm-flex">
       <v-flex class="d-flex align-center">
         <div class="event-title title text-truncate">
           {{ event.summary }}
@@ -66,6 +66,38 @@
         </v-btn>
       </v-toolbar-items>
     </v-toolbar>
+    <div class="d-flex flex-row py-2 d-flex d-sm-none">
+      <v-avatar
+        height="32"
+        min-height="32"
+        width="32"
+        min-width="32"
+        size="32"
+        class="mx-3 my-auto spaceAvatar space-avatar-header">
+        <v-img :src="ownerAvatarUrl" />
+      </v-avatar>
+      <div class="d-flex flex-grow-1 flex-column align-left">
+        <strong class="event-title text-truncate">
+          {{ event.summary }}
+        </strong>
+        <div class="text-truncate d-flex">
+          <span>{{ $t('agenda.label.in') }}</span>
+          <a :href="calendarOwnerLink" class="text-truncate calendar-owner-link pl-1">{{ ownerDisplayName }}</a>
+        </div>
+      </div>
+      <div class="d-flex flex-grow-0">
+        <v-btn
+          class="my-auto mr-2"
+          color="grey"
+          icon
+          @click="closeDialog">
+          <v-icon>
+            mdi-close
+          </v-icon>
+        </v-btn>
+      </div>
+    </div>
+
     <v-divider class="flex-grow-0" />
     <div class="event-details-body overflow-auto flex-grow-1 d-flex flex-column flex-md-row px-4 pt-4">
       <div class="flex-grow-1 flex-shrink-0 event-details-body-left">
