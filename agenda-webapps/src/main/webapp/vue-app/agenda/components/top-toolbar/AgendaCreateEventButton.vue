@@ -12,9 +12,29 @@
 </template>
 <script>
 export default {
+  computed: {
+    isMobile() {
+      return this.$vuetify.breakpoint.name === 'xs';
+    },
+  },
   methods:{
     openNewEventForm(){
-      this.$root.$emit('agenda-event-form', {});
+      if (this.isMobile) {
+        this.$root.$emit('agenda-event-quick-form-open', {
+          summary: '',
+          startDate: new Date(),
+          endDate: new Date(),
+          allDay: false,
+          calendar: {
+            owner: {},
+          },
+          reminders: [],
+          attachments: [],
+          attendees: [],
+        });
+      } else {
+        this.$root.$emit('agenda-event-form', {});
+      }
     },
   }
 };
