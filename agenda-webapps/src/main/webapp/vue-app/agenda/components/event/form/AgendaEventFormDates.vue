@@ -43,6 +43,7 @@
       @mousedown:time="startTime"
       @mousemove:time="mouseMove"
       @mouseup:time="endDrag"
+      @mouseleave:time="endDrag"
       @change="retrieveEvents">
       <template #event="eventObj">
         <div :id="getEventDomId(eventObj)" class="v-event-draggable v-event-draggable-parent">
@@ -74,15 +75,31 @@
       v-model="selectedOpen"
       :close-on-content-click="false"
       :activator="selectedElement"
+      :left="menuLeftPosition"
+      :right="!menuLeftPosition"
+      :top="menuTopPosition"
       content-class="select-date-pickers agenda-application"
       offset-x>
-      <v-card min-width="350" flat>
-        <v-card-text>
+      <v-card min-width="350" class="pa-0 pb-4" flat>
+        <v-card-text class="pa-0">
+          <div class="d-flex">
+            <v-btn
+              class="ml-auto"
+              color="grey"
+              icon
+              dark
+              @click="selectedOpen = false">
+              <v-icon>
+                mdi-close
+              </v-icon>
+            </v-btn>
+          </div>
           <agenda-event-form-date-pickers
             v-if="selectedOpen"
             ref="selectedEventDatePickers"
             :event="selectedEvent"
             :date-picker-top="datePickerTop"
+            class="px-3"
             @changed="updateCalendarDisplay(selectedEvent)" />
         </v-card-text>
       </v-card>
@@ -132,6 +149,8 @@ export default {
     },
     currentTimeTop: null,
     scrollToTimeTop: null,
+    menuLeftPosition: false,
+    menuTopPosition: false,
   }),
   computed: {
     nowTimeOptions() {
@@ -240,6 +259,8 @@ export default {
           }
           if ($targetElement && $targetElement.length && $targetElement.offset()) {
             this.datePickerTop = $targetElement.offset().top > 330;
+            this.menuTopPosition = (window.innerHeight - $targetElement.offset().top) > (window.innerWidth / 2) < 400;
+            this.menuLeftPosition = $targetElement.offset().left > (window.innerWidth / 2);
           }
           this.selectedOpen = true;
         } else {

@@ -43,7 +43,10 @@
             <v-flex class="flex-grow-0 pt-4 my-2 mx-3">
               <i class="uiIconClock darkGreyIcon uiIcon32x32"></i>
             </v-flex>
-            <agenda-event-form-date-pickers :event="event" @changed="updateEventDates" />
+            <agenda-event-form-date-pickers
+              :event="event"
+              class="pt-3 my-4 mr-3"
+              @changed="updateEventDates" />
           </div>
           <div class="d-flex flex-row">
             <i class="uiIconLocation darkGreyIcon uiIcon32x32 mt-4 mx-3"></i>
