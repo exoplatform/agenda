@@ -1,7 +1,7 @@
 <template>
   <v-flex class="agenda-mobile-header d-flex flex-row pa-2 border-radius border-color">
     <date-picker
-      v-model="period.start"
+      v-model="periodStart"
       class="d-flex flex-grow-1 ma-auto agenda-header-date-picker" />
     <agenda-calendar-filter-button
       :current-space="currentSpace"
@@ -23,6 +23,23 @@ export default {
       type: Object,
       default: null,
     },
+  },
+  data: () => ({
+    periodStart: null,
+  }),
+  watch: {
+    periodStart(newVal, oldVal) {
+      if (!oldVal || !newVal) {
+        return;
+      }
+      if (this.$agendaUtils.toRFC3339(oldVal, true) !== this.$agendaUtils.toRFC3339(newVal, true)) {
+        this.period.start = this.periodStart;
+        this.$root.$emit('refresh');
+      }
+    },
+  },
+  created() {
+    this.periodStart = this.period && this.period.start || new Date();
   },
 };
 </script>

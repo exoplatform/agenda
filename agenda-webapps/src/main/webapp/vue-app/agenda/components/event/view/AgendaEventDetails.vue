@@ -3,9 +3,41 @@
     v-if="event"
     flat
     class="event-details d-flex flex-column">
+    <div v-if="isMobile" class="d-flex flex-row py-2">
+      <v-avatar
+        height="32"
+        min-height="32"
+        width="32"
+        min-width="32"
+        size="32"
+        class="mx-3 my-auto spaceAvatar space-avatar-header">
+        <v-img :src="ownerAvatarUrl" />
+      </v-avatar>
+      <div class="d-flex flex-grow-1 flex-column align-left">
+        <strong class="event-header-title text-truncate">
+          {{ event.summary }}
+        </strong>
+        <div class="text-truncate d-flex">
+          <span>{{ $t('agenda.label.in') }}</span>
+          <a :href="calendarOwnerLink" class="text-truncate calendar-owner-link pl-1">{{ ownerDisplayName }}</a>
+        </div>
+      </div>
+      <div class="d-flex flex-grow-0">
+        <v-btn
+          class="my-auto mr-2"
+          color="grey"
+          icon
+          @click="closeDialog">
+          <v-icon>
+            mdi-close
+          </v-icon>
+        </v-btn>
+      </div>
+    </div>
     <v-toolbar
+      v-else
       flat
-      class="event-details-header border-box-sizing flex-grow-0 d-none d-sm-flex">
+      class="event-details-header border-box-sizing flex-grow-0">
       <v-flex class="d-flex align-center">
         <div class="event-title title text-truncate">
           {{ event.summary }}
@@ -31,6 +63,7 @@
       <v-spacer />
       <v-toolbar-items>
         <v-menu
+          v-if="canEdit"
           bottom
           left
           offset-y>
@@ -66,37 +99,6 @@
         </v-btn>
       </v-toolbar-items>
     </v-toolbar>
-    <div class="d-flex flex-row py-2 d-flex d-sm-none">
-      <v-avatar
-        height="32"
-        min-height="32"
-        width="32"
-        min-width="32"
-        size="32"
-        class="mx-3 my-auto spaceAvatar space-avatar-header">
-        <v-img :src="ownerAvatarUrl" />
-      </v-avatar>
-      <div class="d-flex flex-grow-1 flex-column align-left">
-        <strong class="event-title text-truncate">
-          {{ event.summary }}
-        </strong>
-        <div class="text-truncate d-flex">
-          <span>{{ $t('agenda.label.in') }}</span>
-          <a :href="calendarOwnerLink" class="text-truncate calendar-owner-link pl-1">{{ ownerDisplayName }}</a>
-        </div>
-      </div>
-      <div class="d-flex flex-grow-0">
-        <v-btn
-          class="my-auto mr-2"
-          color="grey"
-          icon
-          @click="closeDialog">
-          <v-icon>
-            mdi-close
-          </v-icon>
-        </v-btn>
-      </div>
-    </div>
 
     <v-divider class="flex-grow-0" />
     <div class="event-details-body overflow-auto flex-grow-1 d-flex flex-column flex-md-row px-4 pt-4">
@@ -173,11 +175,11 @@
     <template v-if="isAttendee">
       <v-divider />
       <div class="d-flex">
-        <div class="flex-grow-1"></div>
         <agenda-event-attendee-buttons
           ref="eventAttendeeButtons"
           :event="event"
-          class="flex-grow-0 my-6 mr-10" />
+          :class="isMobile && 'my-2 mx-auto' || 'my-2 ml-auto mr-10'"
+          class="flex-grow-0" />
       </div>
     </template>
     <agenda-recurrent-event-delete-confirm-dialog
@@ -220,6 +222,9 @@ export default {
     };
   },
   computed: {
+    isMobile() {
+      return this.$vuetify.breakpoint.name === 'xs';
+    },
     calendarOwnerLink() {
       if (this.owner) {
         if (this.owner.providerId === 'organization') {
@@ -237,7 +242,7 @@ export default {
       return this.event.acl && this.event.acl.canEdit;
     },
     isAttendee() {
-      return this.event.acl && this.event.acl.eventAttendee;
+      return this.event.acl && this.event.acl.attendee;
     },
     owner() {
       return this.event && this.event.calendar && this.event.calendar.owner;
