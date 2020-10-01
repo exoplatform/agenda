@@ -26,10 +26,10 @@
     </v-toolbar>
     <v-calendar
       ref="calendar"
+      v-model="dayToDisplay"
       :events="displayedEvents"
       :event-color="getEventColor"
       :event-timed="isEventTimed"
-      :start="dayToDisplay"
       :weekdays="weekdays"
       :interval-style="agendaIntervalStyle"
       :event-ripple="false"
