@@ -1,31 +1,52 @@
 <template>
   <v-app class="agenda-application border-box-sizing transparent" flat>
-    <v-main v-if="settingsLoaded" class="pa-5">
-      <agenda-header
-        :calendar-type="calendarType"
-        :event-type="eventType"
-        :current-space="currentSpace"
-        :owner-ids="ownerIds"
-        class="mb-5" />
-      <agenda-body
-        :events="events"
-        :period-title="periodTitle"
-        :calendar-type="calendarType"
-        :weekdays="weekdays"
-        :working-time="workingTime" />
-      <agenda-event-dialog
-        ref="eventFormDialog"
-        :current-space="currentSpace"
-        :weekdays="weekdays"
-        :working-time="workingTime" />
-      <agenda-event-preview-dialog />
-      <agenda-filter-calendar-drawer
-        :owner-ids="ownerIds"
-        @changed="changeDisplayedOwnerIds" />
-      <agenda-user-setting-drawer :settings="settings" />
-      <agenda-event-quick-form-drawer :current-space="currentSpace" />
-      <agenda-event-save />
-    </v-main>
+    <template v-if="settingsLoaded">
+      <v-main v-if="isMobile" class="pt-2 px-1">
+        <agenda-mobile-header
+          :current-space="currentSpace"
+          :owner-ids="ownerIds"
+          :period="period" />
+        <agenda-timeline
+          :events="events"
+          class="mt-2" />
+        <v-flex v-if="hasMore" class="d-flex py-4 border-box-sizing">
+          <v-btn
+            :loading="loading"
+            :disabled="loading"
+            class="btn mx-auto"
+            @click="limit += pageSize">
+            {{ $t('agenda.button.loadMore') }}
+          </v-btn>
+        </v-flex>
+      </v-main>
+      <v-main v-else class="pa-5">
+        <agenda-header
+          :calendar-type="calendarType"
+          :event-type="eventType"
+          :current-space="currentSpace"
+          :owner-ids="ownerIds"
+          class="mb-5" />
+        <agenda-body
+          :events="events"
+          :period-title="periodTitle"
+          :calendar-type="calendarType"
+          :weekdays="weekdays"
+          :working-time="workingTime" />
+      </v-main>
+    </template>
+
+    <agenda-event-dialog
+      ref="eventFormDialog"
+      :current-space="currentSpace"
+      :weekdays="weekdays"
+      :working-time="workingTime" />
+    <agenda-event-preview-dialog />
+    <agenda-filter-calendar-drawer
+      :owner-ids="ownerIds"
+      @changed="changeDisplayedOwnerIds" />
+    <agenda-user-setting-drawer :settings="settings" />
+    <agenda-event-quick-form-drawer :current-space="currentSpace" />
+    <agenda-event-save />
   </v-app>
 </template>
 <script>
@@ -40,8 +61,10 @@ export default {
     eventType: 'myEvents',
     periodTitle: '',
     calendarType: 'week',
+    pageSize: 10,
+    limit: 0,
     period: {
-      start: null,
+      start: new Date(),
       end: null,
     },
     events: [],
@@ -52,13 +75,17 @@ export default {
       workingTimeStart: '00:00',
       workingTimeEnd: '23:59',
     },
+    hasMore: true,
     settingsLoaded: false,
   }),
   computed: {
-    weekdays () {
+    isMobile() {
+      return this.$vuetify.breakpoint.name === 'xs';
+    },
+    weekdays() {
       return this.settings && this.$agendaUtils.getWeekSequenceFromDay(this.settings.agendaWeekStartOn);
     },
-    workingTime () {
+    workingTime() {
       return this.settings && {
         showWorkingTime: this.settings.showWorkingTime,
         workingTimeStart: this.settings.workingTimeStart,
@@ -67,6 +94,9 @@ export default {
     }
   },
   watch: {
+    limit() {
+      this.retrieveEvents();
+    },
     eventType() {
       this.retrieveEvents();
     },
@@ -89,6 +119,7 @@ export default {
       this.period = period;
       this.periodTitle = this.generateCalendarTitle(period);
     });
+    this.$root.$on('agenda-event-limit-increment', () => this.limit += this.pageSize);
     this.$root.$on('agenda-change-period-type', calendarType => this.calendarType = calendarType);
     this.$root.$on('agenda-search', searchTerm => this.searchTerm = searchTerm);
     this.$root.$on('agenda-event-saved', this.retrieveEvents);
@@ -127,7 +158,7 @@ export default {
     retrieveEventsFromStore() {
       this.loading = true;
       const userIdentityId = this.eventType === 'myEvents' && eXo.env.portal.userIdentityId || null;
-      this.$eventService.getEvents(this.searchTerm, this.ownerIds, userIdentityId, this.period.start, this.period.end)
+      this.$eventService.getEvents(this.searchTerm, this.ownerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, true), this.$agendaUtils.toRFC3339(this.period.end), this.limit)
         .then(data => {
           let events = data && data.events || [];
           if (this.filterCanceledEvents) {
@@ -138,6 +169,7 @@ export default {
             event.startDate = event.start && this.$agendaUtils.toDate(event.start) || null;
             event.endDate = event.end && this.$agendaUtils.toDate(event.end) || null;
           });
+          this.hasMore = (this.events && this.events.length || 0) < events.length;
           this.events = events;
         }).catch(error =>{
           console.error('Error retrieving events', error);

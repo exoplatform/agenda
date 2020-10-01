@@ -17,10 +17,11 @@
 package org.exoplatform.agenda.dao;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
-import javax.persistence.Query;
-import javax.persistence.TypedQuery;
+import javax.persistence.*;
 
+import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.entity.EventEntity;
 import org.exoplatform.commons.api.persistence.ExoTransactional;
 import org.exoplatform.commons.persistence.impl.GenericDAOJPAImpl;
@@ -148,21 +149,23 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
   public List<Long> getEventIdsByPeriodAndOwnerIds(Date startDate, Date endDate, int limit, Long... ownerIds) {
     verifyLimit(endDate, limit);
 
-    TypedQuery<Long> query = endDate == null
-                                             ? getEntityManager().createNamedQuery("AgendaEvent.getEventIdsByStartDateAndOwnerIds",
-                                                                                   Long.class)
-                                             : getEntityManager().createNamedQuery("AgendaEvent.getEventIdsByPeriodAndOwnerIds",
-                                                                                   Long.class);
+    TypedQuery<Tuple> query = endDate == null
+                                              ? getEntityManager().createNamedQuery("AgendaEvent.getEventIdsByStartDateAndOwnerIds",
+                                                                                    Tuple.class)
+                                              : getEntityManager().createNamedQuery("AgendaEvent.getEventIdsByPeriodAndOwnerIds",
+                                                                                    Tuple.class);
     query.setParameter("ownerIds", Arrays.asList(ownerIds));
     query.setParameter("start", startDate);
+    query.setParameter("status", EventStatus.CONFIRMED);
     if (endDate != null) {
       query.setParameter("end", endDate);
     }
     if (limit > 0) {
       query.setMaxResults(limit);
     }
-    List<Long> resultList = query.getResultList();
-    return resultList == null ? Collections.emptyList() : resultList;
+    List<Tuple> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList()
+                              : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
   }
 
   public List<Long> getEventIdsByPeriodAndAttendeeIdsAndOwnerIds(Date startDate,
@@ -172,42 +175,46 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
                                                                  List<Long> attendeeIds) {
     verifyLimit(endDate, limit);
 
-    TypedQuery<Long> query = endDate == null
-                                             ? getEntityManager().createNamedQuery("AgendaEvent.getEventIdsByStartDateAndAttendeeIdsAndOwnerIds",
-                                                                                   Long.class)
-                                             : getEntityManager().createNamedQuery("AgendaEvent.getEventIdsByPeriodAndAttendeeIdsAndOwnerIds",
-                                                                                   Long.class);
+    TypedQuery<Tuple> query = endDate == null
+                                              ? getEntityManager().createNamedQuery("AgendaEvent.getEventIdsByStartDateAndAttendeeIdsAndOwnerIds",
+                                                                                    Tuple.class)
+                                              : getEntityManager().createNamedQuery("AgendaEvent.getEventIdsByPeriodAndAttendeeIdsAndOwnerIds",
+                                                                                    Tuple.class);
     query.setParameter("ownerIds", ownerIds);
     query.setParameter("attendeeIds", attendeeIds);
     query.setParameter("start", startDate);
+    query.setParameter("status", EventStatus.CONFIRMED);
     if (endDate != null) {
       query.setParameter("end", endDate);
     }
     if (limit > 0) {
       query.setMaxResults(limit);
     }
-    List<Long> resultList = query.getResultList();
-    return resultList == null ? Collections.emptyList() : resultList;
+    List<Tuple> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList()
+                              : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
   }
 
   public List<Long> getEventIdsByPeriodAndAttendeeIds(Date startDate, Date endDate, int limit, List<Long> attendeeIds) {
     verifyLimit(endDate, limit);
 
-    TypedQuery<Long> query = endDate == null
-                                             ? getEntityManager().createNamedQuery("AgendaEvent.getEventIdsByStartDateAndAttendeeIds",
-                                                                                   Long.class)
-                                             : getEntityManager().createNamedQuery("AgendaEvent.getEventIdsByPeriodAndAttendeeIds",
-                                                                                   Long.class);
+    TypedQuery<Tuple> query = endDate == null
+                                              ? getEntityManager().createNamedQuery("AgendaEvent.getEventIdsByStartDateAndAttendeeIds",
+                                                                                    Tuple.class)
+                                              : getEntityManager().createNamedQuery("AgendaEvent.getEventIdsByPeriodAndAttendeeIds",
+                                                                                    Tuple.class);
     query.setParameter("attendeeIds", attendeeIds);
     query.setParameter("start", startDate);
+    query.setParameter("status", EventStatus.CONFIRMED);
     if (endDate != null) {
       query.setParameter("end", endDate);
     }
     if (limit > 0) {
       query.setMaxResults(limit);
     }
-    List<Long> resultList = query.getResultList();
-    return resultList == null ? Collections.emptyList() : resultList;
+    List<Tuple> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList()
+                              : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
   }
 
   public List<Long> getExceptionalOccurenceEventIds(long parentRecurrentEventId, Date startDate, Date endDate) {

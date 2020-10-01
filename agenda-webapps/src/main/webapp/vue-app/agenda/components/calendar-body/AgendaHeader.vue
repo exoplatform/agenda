@@ -14,19 +14,10 @@
       <option value="myEvents">{{ $t('agenda.myEvent') }}</option>
       <option value="allEvents">{{ $t('agenda.allEvent') }}</option>
     </select>
-    <v-btn
-      v-if="!currentSpace"
-      icon
-      class="ml-2 primary--text"
-      @click="$root.$emit('agenda-calendar-owners-drawer-open')">
-      <template v-if="ownerIds && ownerIds.length">
-        <i class="uiIcon uiIcon24x24 settingsIcon primary--text"></i>
-        ({{ ownerIds.length }})
-      </template>
-      <template v-else>
-        <i class="uiIcon uiIcon24x24 settingsIcon text-color"></i>
-      </template>
-    </v-btn>
+    <agenda-calendar-filter-button
+      :current-space="currentSpace"
+      :owner-ids="ownerIds"
+      class="ml-2" />
     <v-btn
       icon
       :title="$t('agenda.settings.drawer.title')"
@@ -35,8 +26,6 @@
     </v-btn>
   </v-toolbar>
 </template>
-
-
 <script>
 export default {
   props: {
