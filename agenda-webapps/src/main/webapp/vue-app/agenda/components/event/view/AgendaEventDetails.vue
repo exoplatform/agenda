@@ -107,13 +107,13 @@
           <i class="uiIconDatePicker darkGreyIcon uiIcon32x32 pr-5"></i>
           <div class="d-inline-flex">
             <date-format
-              :value="event.start"
+              :value="event.startDate"
               :format="fullDateFormat"
               class="mr-1" />
             <template v-if="!sameDayDates">
               -
               <date-format
-                :value="event.end"
+                :value="event.endDate"
                 :format="fullDateFormat"
                 class="ml-1" />
             </template>
@@ -127,12 +127,12 @@
             </template>
             <template v-else>
               <date-format
-                :value="event.start"
+                :value="event.startDate"
                 :format="dateTimeFormat"
                 class="mr-1" />
               -
               <date-format
-                :value="event.end"
+                :value="event.endDate"
                 :format="dateTimeFormat"
                 class="ml-1" />
             </template>

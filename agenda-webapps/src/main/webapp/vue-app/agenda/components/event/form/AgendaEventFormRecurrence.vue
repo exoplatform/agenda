@@ -81,7 +81,9 @@ export default {
       return this.$agendaUtils.getMonthFromDate(day, eXo.env.portal.language);
     },
     startDate() {
-      if (this.event.start) {
+      if (this.event.startDate) {
+        return new Date(this.event.startDate);
+      } else if (this.event.start) {
         return this.$agendaUtils.toDate(this.event.start);
       } else {
         return new Date();
