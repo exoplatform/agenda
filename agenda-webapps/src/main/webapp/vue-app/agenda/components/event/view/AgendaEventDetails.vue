@@ -34,34 +34,28 @@
         </v-btn>
       </div>
     </div>
-    <v-toolbar
-      v-else
-      flat
-      class="event-details-header border-box-sizing flex-grow-0">
-      <v-flex class="d-flex align-center">
-        <div class="event-title title text-truncate">
-          {{ event.summary }}
-        </div>
-        <div class="pl-3 pt-1">
-          {{ $t('agenda.label.in') }}
-        </div>
-        <div class="d-flex flex-row pl-3">
-          <v-avatar
-            height="32"
-            min-height="32"
-            width="32"
-            min-width="32"
-            size="32"
-            class="mx-3 spaceAvatar space-avatar-header">
-            <v-img :src="ownerAvatarUrl" />
-          </v-avatar>
-          <div class="pt-2">
-            <a :href="calendarOwnerLink" class="text-truncate">{{ ownerDisplayName }}</a>
-          </div>
-        </div>
-      </v-flex>
-      <v-spacer />
-      <v-toolbar-items>
+    <v-row v-else class="event-details-header d-flex align-center flex-nowrap text-left col-12 ma-0">
+      <v-col class="event-title title text-truncate col-auto px-0 mx-2">
+        {{ event.summary }}
+      </v-col>
+      <v-col class="flex-grow-0 flex-shrink-0 px-0 mx-2">
+        {{ $t('agenda.label.in') }}
+      </v-col>
+      <v-col class="flex-grow-0 flex-shrink-0 px-0 mx-2">
+        <v-avatar
+          height="32"
+          min-height="32"
+          width="32"
+          min-width="32"
+          size="32"
+          class="spaceAvatar space-avatar-header">
+          <v-img :src="ownerAvatarUrl" />
+        </v-avatar>
+      </v-col>
+      <v-col class="px-0 col-auto calendar-owner-link-parent">
+        <a :href="calendarOwnerLink" class="text-truncate d-block">{{ ownerDisplayName }}</a>
+      </v-col>
+      <v-col class="px-0 flex-grow-1 flex-shrink-0 text-right mx-2">
         <v-menu
           v-if="canEdit"
           bottom
@@ -88,8 +82,9 @@
             </v-list-item>
           </v-list>
         </v-menu>
+      </v-col>
+      <v-col class="px-0 flex-grow-0 flex-shrink-0 mr-2">
         <v-btn
-          class="my-auto mr-2"
           color="grey"
           icon
           @click="closeDialog">
@@ -97,11 +92,11 @@
             mdi-close
           </v-icon>
         </v-btn>
-      </v-toolbar-items>
-    </v-toolbar>
+      </v-col>
+    </v-row>
 
     <v-divider class="flex-grow-0" />
-    <div class="event-details-body overflow-auto flex-grow-1 d-flex flex-column flex-md-row px-4 pt-4">
+    <div class="event-details-body overflow-auto flex-grow-1 d-flex flex-column flex-md-row pa-4">
       <div class="flex-grow-1 flex-shrink-0 event-details-body-left">
         <div class="event-date align-center d-flex pb-5">
           <i class="uiIconDatePicker darkGreyIcon uiIcon32x32 pr-5"></i>
