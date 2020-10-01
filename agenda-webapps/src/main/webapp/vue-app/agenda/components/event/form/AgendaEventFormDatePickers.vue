@@ -1,5 +1,5 @@
 <template>
-  <div v-if="event" class="d-flex flex-column flex-grow-1 subtitle-1 pt-3 my-4 mr-3">
+  <div v-if="event" class="d-flex flex-column flex-grow-1">
     <div class="d-flex flex-row flex-grow-1">
       <date-picker
         v-if="startDate"
