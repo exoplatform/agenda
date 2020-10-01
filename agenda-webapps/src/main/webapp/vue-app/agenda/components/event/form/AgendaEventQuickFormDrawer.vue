@@ -56,7 +56,7 @@
               name="locationEvent"
               class="ignore-vuetify-classes my-3 location-event-input">
           </div>
-          <div class="d-flex flex-row">
+          <div class="d-flex flex-row pr-3">
             <v-flex class="flex-grow-0">
               <i class="uiIconDescription darkGreyIcon uiIcon32x32 my-3 mx-3"></i>
             </v-flex>
@@ -65,7 +65,8 @@
               ref="eventDescription"
               v-model="event.description"
               :placeholder="$t('agenda.description')"
-              :max-length="eventDescriptionTextLength" />
+              :max-length="eventDescriptionTextLength"
+              class="pt-2" />
           </div>
           <div class="d-flex flex-row">
             <v-flex class="flex-grow-0">
@@ -79,21 +80,26 @@
     <template slot="footer">
       <div class="d-flex">
         <v-btn
-          class="btn ml-2"
+          class="btn ml-2 d-none d-sm-inline"
           @click="close">
           {{ $t('agenda.button.cancel') }}
         </v-btn>
         <v-spacer />
         <v-btn
-          class="btn ml-2"
+          class="btn ml-2 d-none d-sm-inline"
           @click="openCompleteEventForm">
           {{ $t('agenda.button.moreDetails') }}
+        </v-btn>
+        <v-btn
+          class="btn ml-2 d-inline d-sm-none"
+          @click="close">
+          {{ $t('agenda.button.cancel') }}
         </v-btn>
         <v-btn
           :disabled="disableSaveButton"
           class="btn btn-primary ml-2"
           @click="createEvent">
-          {{ $t('agenda.label.create') }}
+          {{ $t('agenda.button.save') }}
         </v-btn>
       </div>
     </template>
@@ -180,7 +186,6 @@ export default {
     updateEventDates(event) {
       event.startDate = new Date(event.startDate);
       event.endDate = new Date(event.endDate);
-      this.$forceUpdate();
     },
     validateForm() {
       this.resetCustomValidity();
