@@ -10,7 +10,7 @@
         {{ attendeeProfileDisplayName }}
       </a>
     </v-list-item-content>
-    <v-list-item-action>
+    <v-list-item-action :title="responseIconTooltip">
       <span :class="responseIconResponse"></span>
     </v-list-item-action>
   </v-list-item>
@@ -26,6 +26,9 @@ export default {
   computed: {
     responseIconResponse() {
       return this.attendee && this.attendee.response && `attendee-response attendee-response-${this.attendee.response.toLowerCase()}`;
+    },
+    responseIconTooltip() {
+      return this.attendee && this.attendee.response && this.$t(`agenda.${this.attendee.response.toLowerCase()}`);
     },
     attendeeProfileLink() {
       if (this.attendee.identity.providerId === 'organization') {
