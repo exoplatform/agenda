@@ -56,7 +56,7 @@ public class AgendaNotificationPlugin extends BaseNotificationPlugin {
   }
 
   @Override
-  protected NotificationInfo makeNotification(NotificationContext ctx) {
+  public NotificationInfo makeNotification(NotificationContext ctx) {
     long eventId = ctx.value(EVENT_ID);
     Event event = eventService.getEventById(eventId);
     List<EventAttendee> eventAttendee = eventAttendeeService.getEventAttendees(eventId);

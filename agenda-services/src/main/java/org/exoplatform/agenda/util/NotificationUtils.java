@@ -31,23 +31,26 @@ public class NotificationUtils {
   public static final PluginKey             EVENT_ADDED_KEY                          =
                                                             PluginKey.key(AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN);
 
-  private static final String               STORED_PARAMETER_EVENT_TITLE             = "eventTitle";
+  public static final String               STORED_PARAMETER_EVENT_TITLE             = "eventTitle";
 
-  private static final String               STORED_PARAMETER_EVENT_OWNER_ID          = "ownerId";
+  public static final String                STORED_PARAMETER_EVENT_OWNER_ID          = "ownerId";
 
   private static final String               STORED_PARAMETER_EVENT_ID                = "eventId";
 
-  private static final String               STORED_PARAMETER_EVENT_START_DATE        = "startDate";
+  public static final String               STORED_PARAMETER_EVENT_START_DATE        = "startDate";
 
-  private static final String               STORED_PARAMETER_EVENT_END_DATE          = "endDate";
+  public static final String               STORED_PARAMETER_EVENT_END_DATE          = "endDate";
 
-  private static final String               STORED_PARAMETER_EVENT_URL               = "Url";
+  public static final String               STORED_PARAMETER_EVENT_URL               = "Url";
+
+  public static final String                STORED_PARAMETER_EVENT_RECEIVERS         = "receivers";
 
   private static final String               TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR = "avatarUrl";
 
-  private static final String               TEMPLATE_VARIABLE_EVENT_ID               = "eventId";
+  public static final String                TEMPLATE_VARIABLE_EVENT_ID               = "eventId";
 
-  private static final String               TEMPLATE_VARIABLE_EVENT_TITLE            = "eventTitle";
+  public static final String                TEMPLATE_VARIABLE_EVENT_TITLE            = "eventTitle";
+  
 
   private static String                     defaultSite;
 
@@ -76,7 +79,7 @@ public class NotificationUtils {
       }
     }
     notification.to(recipientList);
-    notification.with("receivers", recipientList.toString());
+    notification.with(STORED_PARAMETER_EVENT_RECEIVERS, recipientList.toString());
   }
 
   public static final void storeEventParameters(NotificationInfo notification,
@@ -93,7 +96,7 @@ public class NotificationUtils {
                 .with(STORED_PARAMETER_EVENT_OWNER_ID, String.valueOf(calendar.getOwnerId()))
                 .with(STORED_PARAMETER_EVENT_URL, getEventURL(event))
                 .with(STORED_PARAMETER_EVENT_START_DATE, AgendaDateUtils.toRFC3339Date(event.getStart()))
-                .with(STORED_PARAMETER_EVENT_END_DATE, AgendaDateUtils.toRFC3339Date(event.getStart()));
+                .with(STORED_PARAMETER_EVENT_END_DATE, AgendaDateUtils.toRFC3339Date(event.getEnd()));
   }
 
   public static String getDefaultSite() {
