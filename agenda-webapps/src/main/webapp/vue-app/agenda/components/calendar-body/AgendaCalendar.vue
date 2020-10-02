@@ -19,15 +19,12 @@
     @mousedown:event="eventMouseDown"
     @mousemove:event="eventMouseMove"
     @mouseup:event="eventMouseUp"
-    @mouseleave:event="eventMouseUp"
     @mousedown:time="calendarMouseDown"
     @mousemove:time="calendarMouseMove"
     @mouseup:time="calendarMouseUp"
-    @mouseleave:time="calendarMouseUp"
     @mousedown:day="calendarMouseDown"
     @mousemove:day="calendarMouseMove"
     @mouseup:day="calendarMouseUp"
-    @mouseleave:day="calendarMouseUp"
     @contextmenu:event="cancelEventModification"
     @contextmenu:time="cancelEventModification"
     @contextmenu:day="cancelEventModification"
@@ -138,6 +135,9 @@ export default {
     this.$root.$on('agenda-event-save-cancel', this.cancelEventModification);
     this.$root.$on('agenda-event-quick-form-cancel', this.cancelEventModification);
     this.scrollToTime();
+    document.body.onmouseleave = () => {
+      this.cancelEventModification();
+    };
   },
   methods:{
     scrollToTime() {
