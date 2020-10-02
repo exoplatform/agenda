@@ -38,11 +38,19 @@
                     {{ $t('agenda.allDay') }}
                   </div>
                   <div v-else class="d-flex flex-row">
+                    <div v-if="event.startsOnBeginningOfDay">
+                      {{ $t('agenda.beginningOfTheDay') }}
+                    </div>
                     <date-format
+                      v-else
                       :value="event.startDate"
                       :format="timeFormat" />
                     <strong class="mx-2">-</strong>
+                    <div v-if="event.endsOnEndOfDay">
+                      {{ $t('agenda.endOfTheDay') }}
+                    </div>
                     <date-format
+                      v-else
                       :value="event.endDate"
                       :format="timeFormat" />
                   </div>
@@ -64,6 +72,10 @@
 export default {
   props: {
     events: {
+      type: Object,
+      default: null,
+    },
+    periodStartDate: {
       type: Object,
       default: null,
     },
@@ -110,9 +122,34 @@ export default {
       }
       const eventsByDates = {};
       this.events.forEach(event => {
-        this.addEventByDateInMap(event, event.startDate, eventsByDates);
+        const eventStartDate = JSON.parse(JSON.stringify(event));
+        if (new Date(eventStartDate.startDate).getTime() > new Date(this.periodStartDate).getTime()) {
+          this.addEventByDateInMap(eventStartDate, event.startDate, eventsByDates);
+        }
         if (!this.$agendaUtils.areDatesOnSameDay(event.startDate, event.endDate)) {
-          this.addEventByDateInMap(event, event.endDate, eventsByDates);
+          eventStartDate.endsOnEndOfDay = true;
+
+          const startDate = new Date(event.startDate);
+          const endDate = new Date(event.endDate);
+
+          const startOfDayOfNextStartDay = new Date(`${startDate.getFullYear()}-${this.$agendaUtils.pad(startDate.getMonth() + 1)}-${this.$agendaUtils.pad(startDate.getDate()+1)}`);
+          const startOfDayOfNextEndDay = new Date(`${endDate.getFullYear()}-${this.$agendaUtils.pad(endDate.getMonth() + 1)}-${this.$agendaUtils.pad(endDate.getDate()+1)}`);
+
+          const daysNumbers = (startOfDayOfNextEndDay.getTime() - startOfDayOfNextStartDay.getTime()) / 86400000;
+          if (daysNumbers > 1) {
+            for (let i = 1; i < daysNumbers; i++) {
+              const eventAllDay = JSON.parse(JSON.stringify(event));
+              eventAllDay.startDate = new Date(startOfDayOfNextStartDay);
+              eventAllDay.endDate = new Date(startOfDayOfNextStartDay);
+              eventAllDay.allDay = true;
+              this.addEventByDateInMap(eventAllDay, eventAllDay.startDate, eventsByDates);
+              startOfDayOfNextStartDay.setDate(startOfDayOfNextStartDay.getDate() + 1);
+            }
+          }
+
+          const eventEndDate = JSON.parse(JSON.stringify(event));
+          eventEndDate.startsOnBeginningOfDay = true;
+          this.addEventByDateInMap(eventEndDate, event.endDate, eventsByDates);
         }
       });
       return eventsByDates;

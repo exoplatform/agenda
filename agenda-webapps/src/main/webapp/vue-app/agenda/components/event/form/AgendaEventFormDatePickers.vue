@@ -75,11 +75,9 @@ export default {
       if (!this.startDate || !this.endDate || !this.startTime || !this.endTime) {
         return null;
       }
-
       if (this.$agendaUtils.areDatesOnSameDay(this.startDate, this.endDate)) {
         return this.startTime;
       }
-
       return null;
     },
   },
@@ -124,6 +122,9 @@ export default {
       newDate.setDate(date.getDate());
       this.event[this.eventEnd] = newDate;
       this.duration = newDate.getTime() - this.$agendaUtils.toDate(this.event[this.eventStart]).getTime();
+      if (this.endTime) {
+        this.endTime = new Date(newDate);
+      }
     },
     endTime(newVal, oldVal){
       if (!this.event || !newVal || !oldVal || new Date(newVal).getTime() === new Date(oldVal).getTime()) {

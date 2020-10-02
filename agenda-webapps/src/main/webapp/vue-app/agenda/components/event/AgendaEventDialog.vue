@@ -78,15 +78,11 @@ export default {
       if (eventId) {
         this.$eventService.getEventById(eventId, 'all')
           .then(event => {
-            agendaEvent.attendees = event.attendees;
-            agendaEvent.conferences = event.conferences;
-            agendaEvent.attachments = event.attachments;
-            agendaEvent.reminders = event.reminders;
 
-            agendaEvent.startDate = this.$agendaUtils.toDate(agendaEvent.start);
-            agendaEvent.endDate = this.$agendaUtils.toDate(agendaEvent.end);
+            event.startDate = this.$agendaUtils.toDate(agendaEvent.start);
+            event.endDate = this.$agendaUtils.toDate(agendaEvent.end);
 
-            this.open(agendaEvent);
+            this.open(event);
             this.$nextTick().then(() => this.$root.$emit('agenda-event-form-opened', agendaEvent));
           });
       } else {
@@ -95,28 +91,25 @@ export default {
       }
     });
     this.$root.$on('agenda-event-details', agendaEvent => {
-      this.isForm = false;
-
       const eventId = agendaEvent.id ? agendaEvent.id : agendaEvent.parent && agendaEvent.parent.id;
-      this.$eventService.getEventById(eventId, 'all')
-        .then(event => {
-          agendaEvent.attendees = event.attendees;
-          agendaEvent.conferences = event.conferences;
-          agendaEvent.attachments = event.attachments;
-          agendaEvent.reminders = event.reminders;
-
-          this.open(agendaEvent);
-          this.$nextTick().then(() => this.$root.$emit('agenda-event-details-opened', agendaEvent));
-        });
+      const occurrenceEvent = !agendaEvent.id && agendaEvent || null;
+      this.openEventById(eventId, occurrenceEvent);
     });
     this.$root.$on('agenda-event-deleted', this.close);
     this.$root.$on('agenda-event-saved', this.close);
   },
   methods: {
-    openEventById(eventId) {
+    openEventById(eventId, occurrenceEvent) {
       this.isForm = false;
       this.$eventService.getEventById(eventId, 'all')
         .then(event => {
+          if (occurrenceEvent) {
+            event.start = occurrenceEvent.start;
+            event.end = occurrenceEvent.end;
+          }
+          event.startDate = this.$agendaUtils.toDate(event.start);
+          event.endDate = this.$agendaUtils.toDate(event.end);
+
           this.open(event);
           this.$nextTick().then(() => this.$root.$emit('agenda-event-details-opened', event));
         });
@@ -145,7 +138,7 @@ export default {
     },
     close() {
       this.dialog = false;
-      window.location.replace(window.location.pathname);
+      window.history.replaceState('', window.document.title, window.location.pathname);
     },
   },
 };
