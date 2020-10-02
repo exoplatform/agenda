@@ -24,6 +24,7 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang.StringUtils;
 
 import org.exoplatform.agenda.model.*;
+import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
@@ -307,4 +308,24 @@ public class Utils {
     }
   }
 
+  public static Identity getIdentityById(long identityId) {
+    return getIdentityById(String.valueOf(identityId));
+  }
+
+  public static Identity getIdentityById(String identityId) {
+    IdentityManager identityManager = CommonsUtils.getService(IdentityManager.class);
+    return identityManager.getIdentity(identityId);
+  }
+
+  public static String getSpaceAvatarByIdSpace(String spaceName) {
+    SpaceService spaceService = CommonsUtils.getService(SpaceService.class);
+    Space space = spaceService.getSpaceByPrettyName(spaceName);
+    return space.getAvatarUrl();
+  }
+
+  public static List<String> getSpaceMembersBySpaceName(String spaceName) {
+    SpaceService spaceService = CommonsUtils.getService(SpaceService.class);
+    String[] members = spaceService.getSpaceByPrettyName(spaceName).getMembers();
+    return Arrays.asList(members);
+  }
 }

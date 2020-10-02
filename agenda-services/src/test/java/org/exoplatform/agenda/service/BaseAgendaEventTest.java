@@ -187,7 +187,7 @@ public abstract class BaseAgendaEventTest {
                                             (ArrayList<EventConference>) CONFERENCES.clone(),
                                             (ArrayList<EventAttachment>) ATTACHMENTS.clone(),
                                             (ArrayList<EventReminder>) REMINDERS.clone(),
-                                            true,
+                                            false,
                                             username);
     } finally {
       TimeZone.setDefault(TimeZone.getTimeZone("Japan"));
