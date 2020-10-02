@@ -95,6 +95,7 @@ export default {
       }
     });
     this.$root.$on('agenda-event-details', agendaEvent => {
+      this.isForm = false;
 
       const eventId = agendaEvent.id ? agendaEvent.id : agendaEvent.parent && agendaEvent.parent.id;
       this.$eventService.getEventById(eventId, 'all')
