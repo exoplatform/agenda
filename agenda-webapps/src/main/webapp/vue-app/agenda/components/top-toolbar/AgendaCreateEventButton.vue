@@ -20,7 +20,7 @@ export default {
   methods:{
     openNewEventForm(){
       if (this.isMobile) {
-        this.$root.$emit('agenda-event-quick-form-open', {
+        this.$root.$emit('agenda-event-mobile-form-open', {
           summary: '',
           startDate: new Date(),
           endDate: new Date(),

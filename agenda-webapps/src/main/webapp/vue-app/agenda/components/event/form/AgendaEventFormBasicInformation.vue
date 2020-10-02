@@ -57,7 +57,7 @@
             id="eventDescription"
             ref="eventDescription"
             v-model="event.description"
-            :placeholder="$t('agenda.description')"
+            :placeholder="$t('agenda.descriptionPlaceholder')"
             :max-length="eventDescriptionTextLength" />
         </div>
       </div>

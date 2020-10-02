@@ -69,7 +69,7 @@
         <v-btn
           class="btn btn-primary"
           @click="save">
-          {{ $t('agenda.button.confirm') }}
+          {{ $t('agenda.button.save') }}
         </v-btn>
       </div>
     </template>

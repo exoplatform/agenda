@@ -1,5 +1,6 @@
 <template>
   <div v-if="event" class="d-flex flex-column flex-grow-1">
+    <slot name="startDateLabel"></slot>
     <div class="d-flex flex-row flex-grow-1">
       <date-picker
         v-if="startDate"
@@ -7,17 +8,25 @@
         :top="datePickerTop"
         class="flex-grow-1 my-auto" />
       <div v-if="!event.allDay" class="d-flex flex-row flex-grow-0">
-        <time-picker v-if="startTime" v-model="startTime" />
+        <slot name="startDateTime"></slot>
+        <time-picker v-model="startTime" />
       </div>
     </div>
-    <div class="d-flex flex-row mt-4">
+    <slot name="endDateLabel"></slot>
+    <div
+      :class="!$slots.endDateLabel && 'mt-4'"
+      class="d-flex flex-row">
       <date-picker
         v-if="endDate"
         v-model="endDate"
         :top="datePickerTop"
+        :min-value="minimumEndDate"
         class="flex-grow-1 my-auto" />
       <div v-if="!event.allDay" class="flex-grow-0">
-        <time-picker v-if="endTime" v-model="endTime" />
+        <slot name="endTimeLabel"></slot>
+        <time-picker
+          v-model="endTime"
+          :min="minimumEndTime" />
       </div>
     </div>
     <div class="d-flex flex-row">
@@ -55,6 +64,25 @@ export default {
     endTime: null,
     duration: null,
   }),
+  computed: {
+    minimumEndDate() {
+      if (!this.startDate) {
+        return null;
+      }
+      return new Date(this.startDate);
+    },
+    minimumEndTime() {
+      if (!this.startDate || !this.endDate || !this.startTime || !this.endTime) {
+        return null;
+      }
+
+      if (this.$agendaUtils.areDatesOnSameDay(this.startDate, this.endDate)) {
+        return this.startTime;
+      }
+
+      return null;
+    },
+  },
   watch: {
     event(newVal, oldVal){
       if (!oldVal) {

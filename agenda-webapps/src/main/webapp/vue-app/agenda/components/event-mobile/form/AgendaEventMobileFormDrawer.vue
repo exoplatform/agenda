@@ -1,9 +1,9 @@
 <template>
   <exo-drawer
-    ref="quickAddEventDrawer"
+    ref="mobileEventFormDrawer"
     right
     body-classes="hide-scroll"
-    class="quickAddEventDrawer"
+    class="mobileEventFormDrawer"
     @closed="cancelEventCreation">
     <template slot="title">
       {{ $t('agenda.title.addEvent') }}
@@ -12,87 +12,72 @@
       <v-form
         v-if="event"
         ref="agendaEventForm"
-        class="flex event-form quick-add"
+        class="flex event-form-mobile px-3 pb-2"
         flat
         @submit="createEvent">
         <div class="d-flex flex-column flex-grow-1">
-          <div class="d-flex flex-row">
-            <input
-              id="eventTitle"
-              ref="eventTitle"
-              v-model="event.summary"
-              :placeholder="$t('agenda.eventTitle')"
-              type="text"
-              name="title"
-              class="ignore-vuetify-classes my-3"
-              required
-              autofocus
-              @change="resetCustomValidity">
-          </div>
-          <div class="d-flex flex-row">
-            <v-flex class="flex-grow-0">
-              <i class="uiIconPLFEventTask darkGreyIcon uiIcon32x32 mt-4 mx-3"></i>
-            </v-flex>
-            <agenda-event-form-calendar-owner
-              ref="calendarOwner"
-              :event="event"
-              :current-space="currentSpace"
-              class="ml-1 pr-1" />
-          </div>
-          <div class="d-flex flex-row">
-            <v-flex class="flex-grow-0 pt-4 my-2 mx-3">
-              <i class="uiIconClock darkGreyIcon uiIcon32x32"></i>
-            </v-flex>
-            <agenda-event-form-date-pickers
-              :event="event"
-              class="pt-3 my-4 mr-3"
-              @changed="updateEventDates" />
-          </div>
-          <div class="d-flex flex-row">
-            <i class="uiIconLocation darkGreyIcon uiIcon32x32 mt-4 mx-3"></i>
-            <input
-              id="eventLocation"
-              ref="eventLocation"
-              v-model="event.location"
-              :placeholder="$t('agenda.eventLocation')"
-              type="text"
-              name="locationEvent"
-              class="ignore-vuetify-classes my-3 location-event-input">
-          </div>
-          <div class="d-flex flex-row pr-3">
-            <v-flex class="flex-grow-0">
-              <i class="uiIconDescription darkGreyIcon uiIcon32x32 my-3 mx-3"></i>
-            </v-flex>
-            <extended-textarea
-              id="eventDescription"
-              ref="eventDescription"
-              v-model="event.description"
-              :placeholder="$t('agenda.descriptionPlaceholder')"
-              :max-length="eventDescriptionTextLength"
-              class="pt-2" />
-          </div>
-          <div class="d-flex flex-row">
-            <v-flex class="flex-grow-0">
-              <i class="uiIconGroup darkGreyIcon uiIcon32x32 mt-4 mx-3"></i>
-            </v-flex>
-            <agenda-event-form-attendees :event="event" class="pr-1" />
-          </div>
+          <label class="font-weight-bold my-2">
+            {{ $t('agenda.title') }}
+          </label>
+          <input
+            id="eventTitle"
+            ref="eventTitle"
+            v-model="event.summary"
+            :placeholder="$t('agenda.eventTitle')"
+            type="text"
+            name="title"
+            class="ignore-vuetify-classes"
+            required
+            autofocus
+            @change="resetCustomValidity">
+          <label class="font-weight-bold my-2">
+            {{ $t('agenda') }}
+          </label>
+          <agenda-event-form-calendar-owner
+            ref="calendarOwner"
+            :event="event"
+            :current-space="currentSpace" />
+          <agenda-event-form-date-pickers :event="event">
+            <template slot="startDateLabel">
+              <label v-if="event.allDay" class="font-weight-bold my-2">{{ $t('agenda.startDate') }}</label>
+              <label v-else class="font-weight-bold my-2">{{ $t('agenda.startTime') }}</label>
+            </template>
+            <template slot="endDateLabel">
+              <label v-if="event.allDay" class="font-weight-bold my-2">{{ $t('agenda.endDate') }}</label>
+              <label v-else class="font-weight-bold my-2">{{ $t('agenda.endTime') }}</label>
+            </template>
+          </agenda-event-form-date-pickers>
+          <label class="font-weight-bold my-2">
+            {{ $t('agenda.location') }}
+          </label>
+          <input
+            id="eventLocation"
+            ref="eventLocation"
+            v-model="event.location"
+            :placeholder="$t('agenda.eventLocation')"
+            type="text"
+            name="locationEvent"
+            class="ignore-vuetify-classes my-0 location-event-input">
+          <label class="font-weight-bold my-2">
+            {{ $t('agenda.description') }}
+          </label>
+          <extended-textarea
+            id="eventDescription"
+            ref="eventDescription"
+            v-model="event.description"
+            :placeholder="$t('agenda.descriptionPlaceholder')"
+            :max-length="eventDescriptionTextLength"
+            class="py-0 my-0" />
+          <label class="font-weight-bold my-2">
+            {{ $t('agenda.participants') }}
+          </label>
+          <agenda-event-form-attendees :event="event" />
         </div>
       </v-form>
     </template>
     <template slot="footer">
       <div class="d-flex">
-        <v-btn
-          class="btn ml-2 d-none d-sm-inline"
-          @click="close">
-          {{ $t('agenda.button.cancel') }}
-        </v-btn>
         <v-spacer />
-        <v-btn
-          class="btn ml-2 d-none d-sm-inline"
-          @click="openCompleteEventForm">
-          {{ $t('agenda.button.moreDetails') }}
-        </v-btn>
         <v-btn
           class="btn ml-2 d-inline d-sm-none"
           @click="close">
@@ -146,37 +131,27 @@ export default {
     },
   },
   created() {
-    this.$root.$on('agenda-event-quick-form-open', event => {
+    this.$root.$on('agenda-event-mobile-form-open', event => {
       this.event = null;
       this.$nextTick().then(() => {
         this.event = event;
         this.open();
-        this.$nextTick().then(() => this.$root.$emit('agenda-event-form-opened', this.event));
+        this.$nextTick().then(() => this.$root.$emit('agenda-event-mobile-form-opened', this.event));
       });
     });
   },
   methods:{
     close() {
-      this.$refs.quickAddEventDrawer.close();
+      this.$refs.mobileEventFormDrawer.close();
     },
     open() {
       this.resetCustomValidity();
-      this.$refs.quickAddEventDrawer.open();
+      this.$refs.mobileEventFormDrawer.open();
       window.setTimeout(() => {
         if (this.$refs.eventTitle) {
           this.$refs.eventTitle.focus();
         }
       }, 200);
-    },
-    openCompleteEventForm() {
-      this.event.start = this.$agendaUtils.toRFC3339(this.event.startDate);
-      this.event.end = this.$agendaUtils.toRFC3339(this.event.endDate);
-
-      delete this.event.startDate;
-      delete this.event.endDate;
-
-      this.$refs.quickAddEventDrawer.close();
-      this.$root.$emit('agenda-event-form', this.event);
     },
     resetCustomValidity() {
       if (this.$refs.eventTitle) {

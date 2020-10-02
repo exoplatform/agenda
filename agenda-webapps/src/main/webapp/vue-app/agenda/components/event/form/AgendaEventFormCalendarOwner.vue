@@ -1,14 +1,14 @@
 <template>
   <exo-identity-suggester
-    id="calendarOwnerAutocomplete"
     ref="calendarOwnerSuggester"
     v-model="calendarOwner"
     :labels="calendarSuggesterLabels"
     :include-users="false"
     :disabled="currentSpace"
     name="calendarOwnerAutocomplete"
-    class="user-suggester"
-    include-spaces />
+    class="user-suggester calendarOwnerAutocomplete"
+    include-spaces
+    required />
 </template>
 
 <script>
