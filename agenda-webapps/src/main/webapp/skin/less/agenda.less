@@ -155,6 +155,33 @@
     }
   }
 
+  .event-form-mobile {
+    #eventTitle {
+      margin-bottom: 0;
+    }
+
+    .identitySuggester {
+      margin-top: 0 !important;
+      margin-bottom: 0 !important;
+      .v-input__slot {
+        margin: 0 !important;
+      }
+      .v-select__selections {
+        display: flex !important;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        padding: 0 0 0 8px !important;
+      }
+      input {
+        padding: 2px 0 !important;
+      }
+    }
+
+    .datePickerComponent input {
+      padding: 0 !important;
+    }
+  }
+
   .quick-add {
     input, textarea {
       max-width: ~"calc(100% - 64px)";
@@ -348,6 +375,7 @@
   .calendar-owner-link-parent {
     max-width: 35% !important;
   }
+
 }
 
 .agenda-mobile-header {
@@ -355,7 +383,7 @@
 
   .agenda-header-date-picker {
     input {
-      margin: 0;
+      margin: auto;
       padding-right: 0 !important;
       padding-left: 0 !important;
       &:after {

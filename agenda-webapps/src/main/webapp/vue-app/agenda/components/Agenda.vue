@@ -47,6 +47,7 @@
       @changed="changeDisplayedOwnerIds" />
     <agenda-user-setting-drawer :settings="settings" />
     <agenda-event-quick-form-drawer :current-space="currentSpace" />
+    <agenda-event-mobile-form-drawer :current-space="currentSpace" />
     <agenda-event-save />
   </v-app>
 </template>

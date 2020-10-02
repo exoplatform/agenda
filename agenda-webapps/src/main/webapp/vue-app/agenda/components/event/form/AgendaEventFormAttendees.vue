@@ -42,7 +42,7 @@ export default {
       };
     },
     ignoredMembers() {
-      return this.event.attendees.flatMap(attendee => [attendee.id, `${attendee.identity.providerId}:${attendee.identity.remoteId}`]);
+      return this.event.attendees.map(attendee => `${attendee.identity.providerId}:${attendee.identity.remoteId}`);
     },
   },
   watch: {
