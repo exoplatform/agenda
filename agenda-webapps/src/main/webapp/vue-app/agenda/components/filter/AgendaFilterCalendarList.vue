@@ -18,7 +18,7 @@
       <v-list-item-action class="ml-2">
         <select
           v-model="selectionType"
-          class="width-auto my-auto subtitle-1 ignore-vuetify-classes d-none d-sm-inline">
+          class="width-auto my-auto subtitle-1 ignore-vuetify-classes">
           <option value="all">{{ $t('agenda.all') }}</option>
           <option value="selected">{{ $t('agenda.selected') }}</option>
           <option value="nonSelected">{{ $t('agenda.nonSelected') }}</option>
