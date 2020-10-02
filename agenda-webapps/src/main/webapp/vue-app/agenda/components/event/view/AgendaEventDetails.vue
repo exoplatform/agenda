@@ -41,19 +41,20 @@
       <v-col class="flex-grow-0 flex-shrink-0 px-0 mx-2">
         {{ $t('agenda.label.in') }}
       </v-col>
-      <v-col class="flex-grow-0 flex-shrink-0 px-0 mx-2">
-        <v-avatar
-          height="32"
-          min-height="32"
-          width="32"
-          min-width="32"
-          size="32"
-          class="spaceAvatar space-avatar-header">
-          <v-img :src="ownerAvatarUrl" />
-        </v-avatar>
-      </v-col>
-      <v-col class="px-0 col-auto calendar-owner-link-parent">
-        <a :href="calendarOwnerLink" class="text-truncate d-block">{{ ownerDisplayName }}</a>
+      <v-col
+        :id="`agendaOwner${ownerProfile.id}`"
+        class="px-0 col-auto calendar-owner-link-parent">
+        <a :href="calendarOwnerLink" class="text-truncate d-block">
+          <v-avatar
+            height="32"
+            min-height="32"
+            width="32"
+            min-width="32"
+            size="32"
+            class="spaceAvatar space-avatar-header">
+            <v-img :src="ownerAvatarUrl" />
+          </v-avatar>
+          {{ ownerDisplayName }}</a>
       </v-col>
       <v-col class="px-0 flex-grow-1 flex-shrink-0 text-right mx-2">
         <v-menu
@@ -302,6 +303,7 @@ export default {
       if (this.$refs.eventAttendeeButtons) {
         this.$refs.eventAttendeeButtons.reset();
       }
+      this.initPopup();
     },
     closeDialog() {
       this.$emit('close');
@@ -313,6 +315,26 @@ export default {
       this.$eventService.deleteEvent(this.event.id)
         .then(() => this.$root.$emit('agenda-event-deleted'));
     },
+    initPopup() {
+      const thiz = this;
+      $(`#agendaOwner${this.ownerProfile.id}`).find('a').each(function (idx, el) {
+        $(el).spacePopup({
+          userName: eXo.env.portal.userName,
+          spaceID: thiz.ownerProfile.id,
+          restURL: '/portal/rest/v1/social/spaces/{0}',
+          membersRestURL: '/portal/rest/v1/social/spaces/{0}/users?returnSize=true',
+          managerRestUrl: '/portal/rest/v1/social/spaces/{0}/users?role=manager&returnSize=true',
+          membershipRestUrl: '/portal/rest/v1/social/spacesMemberships?space={0}&returnSize=true',
+          defaultAvatarUrl: thiz.ownerAvatarUrl,
+          deleteMembershipRestUrl: '/portal/rest/v1/social/spacesMemberships/{0}:{1}:{2}',
+          labels: this.labels,
+          content: false,
+          keepAlive: true,
+          defaultPosition: 'left',
+          maxWidth: '240px'
+        });
+      });
+    }
   }
 };
 </script>
