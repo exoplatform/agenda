@@ -171,7 +171,7 @@ export default {
             event.startDate = event.start && this.$agendaUtils.toDate(event.start) || null;
             event.endDate = event.end && this.$agendaUtils.toDate(event.end) || null;
           });
-          this.hasMore = (this.events && this.events.length || 0) < events.length;
+          this.hasMore = (this.events && this.events.length || 0) < events.length || events.length >= this.limit;
           this.events = events;
         }).catch(error =>{
           console.error('Error retrieving events', error);
