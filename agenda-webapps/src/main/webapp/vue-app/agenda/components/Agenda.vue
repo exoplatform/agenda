@@ -8,6 +8,7 @@
           :period="period" />
         <agenda-timeline
           :events="events"
+          :period-start-date="period.start"
           :loading="loading"
           class="mt-2" />
         <v-flex v-if="hasMore" class="d-flex py-4 border-box-sizing">
@@ -181,7 +182,7 @@ export default {
         });
     },
     generateCalendarTitle(period) {
-      return this.$agendaUtils.generateCalendarTitle(this.calendarType, new Date(period.start), period.title, this.$t('agenda.header.toolbar.title.week'));
+      return this.$agendaUtils.generateCalendarTitle(this.calendarType, new Date(period.start), period.title, this.$t('agenda.week'));
     },
     changeDisplayedOwnerIds(selectedOwnerIds) {
       this.ownerIds = selectedOwnerIds;

@@ -209,6 +209,7 @@ export default {
       event.endDate = new Date(this.event.endDate);
       event.start = this.$agendaUtils.toRFC3339(this.event.startDate);
       event.end = this.$agendaUtils.toRFC3339(this.event.endDate);
+
       this.scrollToEvent(event);
       this.retrieveEvents();
       if (this.$refs.eventDatesMenu) {
@@ -325,7 +326,7 @@ export default {
       const period = this.$agendaUtils.convertVuetifyRangeToPeriod(range, this.$userTimeZone);
       if (period) {
         period.title = this.$refs.calendar.title;
-        this.periodTitle = this.$agendaUtils.generateCalendarTitle('week', new Date(period.start), period.title, this.$t('agenda.header.toolbar.title.week'));
+        this.periodTitle = this.$agendaUtils.generateCalendarTitle('week', new Date(period.start), period.title, this.$t('agenda.week'));
       }
     },
     roundTime(time, down = true) {
