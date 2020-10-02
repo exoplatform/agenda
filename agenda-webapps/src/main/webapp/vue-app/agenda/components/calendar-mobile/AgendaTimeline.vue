@@ -18,7 +18,9 @@
           v-for="eventDay in eventsDaysByMonth[month]"
           :key="eventDay"
           class="mb-5">
-          <v-list-item-action class="align-self-start center event-timeline-day">
+          <v-list-item-action
+            :class="toDay === eventDay && 'primary--text'"
+            class="align-self-start center event-timeline-day text-uppercase">
             <date-format :value="eventDay" :format="dayFormat" />
           </v-list-item-action>
           <v-list-item-content class="pa-0">
@@ -85,6 +87,10 @@ export default {
     },
   }),
   computed: {
+    toDay() {
+      const toDay = new Date();
+      return String(new Date(toDay.getFullYear(), toDay.getMonth(), toDay.getDate()));
+    },
     eventsMonths() {
       return Object.keys(this.eventsByDates).sort((d1, d2) => new Date(d1).getTime() - new Date(d2).getTime());
     },
