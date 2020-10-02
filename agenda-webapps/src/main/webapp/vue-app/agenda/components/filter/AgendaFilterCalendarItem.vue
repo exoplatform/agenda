@@ -8,7 +8,10 @@
         class="agenda-calendar-settings-color ma-auto"
         @click="changeSelection" />
     </v-list-item-action>
-    <v-list-item-action :id="calendarMenuId" class="calendarSettingActions">
+    <v-list-item-action
+      v-if="!isMobile"
+      :id="calendarMenuId"
+      class="calendarSettingActions">
       <v-menu
         v-if="canEditCalendar"
         ref="menu"
@@ -76,6 +79,9 @@ export default {
     checked: false,
   }),
   computed: {
+    isMobile() {
+      return this.$vuetify.breakpoint.name === 'xs';
+    },
     selected() {
       return this.selectedOwnerIds !== false && (!this.selectedOwnerIds.length || this.selectedOwnerIds.find(ownerId => ownerId === this.calendarOwnerId));
     },
