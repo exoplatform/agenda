@@ -57,6 +57,19 @@ export default {
     },
   },
   created() {
+    const search = document.location.search.substring(1);
+    if(search) {
+      const parameters = JSON.parse(
+        `{"${decodeURI(search)
+          .replace(/"/g, '\\"')
+          .replace(/&/g, '","')
+          .replace(/=/g, '":"')}"}`
+      );
+      const eventId = parameters.eventId;
+      if (eventId) {
+        this.openEventById(eventId);
+      }
+    }
     this.$root.$on('agenda-event-form', agendaEvent => {
       this.isForm = true;
 
@@ -100,6 +113,14 @@ export default {
     this.$root.$on('agenda-event-saved', this.close);
   },
   methods: {
+    openEventById(eventId) {
+      this.isForm = false;
+      this.$eventService.getEventById(eventId, 'all')
+        .then(event => {
+          this.open(event);
+          this.$nextTick().then(() => this.$root.$emit('agenda-event-details-opened', event));
+        });
+    },
     open(agendaEvent) {
       this.dialog = true;
       if (!agendaEvent) {
@@ -124,6 +145,7 @@ export default {
     },
     close() {
       this.dialog = false;
+      window.location.replace(window.location.pathname);
     },
   },
 };

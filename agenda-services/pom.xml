@@ -37,6 +37,11 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
+      <groupId>org.exoplatform.gatein.portal</groupId>
+      <artifactId>exo.portal.component.portal</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
       <groupId>org.exoplatform.social</groupId>
       <artifactId>social-component-core</artifactId>
       <scope>provided</scope>
@@ -71,11 +76,6 @@
     </dependency>
 
     <!-- Test -->
-    <dependency>
-      <groupId>org.exoplatform.gatein.portal</groupId>
-      <artifactId>exo.portal.component.portal</artifactId>
-      <scope>test</scope>
-    </dependency>
     <dependency>
       <groupId>org.exoplatform.gatein.portal</groupId>
       <artifactId>exo.portal.component.identity</artifactId>
@@ -171,6 +171,7 @@
             <gatein.test.tmp.dir>${project.build.directory}</gatein.test.tmp.dir>
             <gatein.test.output.path>${project.build.directory}</gatein.test.output.path>
             <exo.files.storage.dir>${project.build.directory}</exo.files.storage.dir>
+            <gatein.email.domain.url>http://localhost:8080/</gatein.email.domain.url>
           </systemPropertyVariables>
         </configuration>
       </plugin>
