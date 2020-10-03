@@ -5,7 +5,7 @@
     <v-icon dark>
       mdi-plus
     </v-icon>
-    <span class="ml-2 d-none d-sm-inline">
+    <span class="ml-2 d-none d-lg-inline">
       {{ $t('agenda.button.addEvent') }}
     </span>
   </v-btn>
