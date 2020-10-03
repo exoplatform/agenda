@@ -4,16 +4,26 @@
     persistent
     fullscreen
     hide-overlay>
-    <agenda-event-form
-      v-if="isForm"
-      ref="eventForm"
-      :event="event"
-      :weekdays="weekdays"
-      :current-space="currentSpace"
-      :working-time="workingTime"
-      class="fill-height event-form"
-      @close="close"
-      @saved="saved" />
+    <template v-if="isForm">
+      <agenda-event-mobile-form
+        v-if="isMobile"
+        ref="eventForm"
+        :event="event"
+        :current-space="currentSpace"
+        class="fill-height event-form"
+        @close="close"
+        @saved="saved" />
+      <agenda-event-form
+        v-else
+        ref="eventForm"
+        :event="event"
+        :weekdays="weekdays"
+        :current-space="currentSpace"
+        :working-time="workingTime"
+        class="fill-height event-form"
+        @close="close"
+        @saved="saved" />
+    </template>
     <agenda-event-details
       v-else
       ref="eventDetails"
@@ -45,6 +55,11 @@ export default {
       event: null,
       isForm: false,
     };
+  },
+  computed: {
+    isMobile() {
+      return this.$vuetify.breakpoint.name === 'xs';
+    },
   },
   watch: {
     dialog() {
