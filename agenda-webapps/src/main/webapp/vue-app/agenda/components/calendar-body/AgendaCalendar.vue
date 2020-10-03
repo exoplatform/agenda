@@ -11,6 +11,7 @@
     event-name="summary"
     event-start="startDate"
     event-end="endDate"
+    event-ripple="acl.canEdit"
     color="primary"
     show-week
     @click:event="showEvent"
