@@ -378,8 +378,8 @@ export default {
       }
 
       if (this.dragEvent && this.originalDragedEvent && !this.saving) {
-        this.dragEvent.startDate = new Date(this.originalDragedEvent.startDate);
-        this.dragEvent.endDate = new Date(this.originalDragedEvent.endDate);
+        this.dragEvent.startDate = this.$agendaUtils.toDate(this.originalDragedEvent.start);
+        this.dragEvent.endDate = this.$agendaUtils.toDate(this.originalDragedEvent.end);
       }
       this.eventDragged = false;
       this.eventExtended = false;
