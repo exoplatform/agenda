@@ -1,28 +1,33 @@
 <template>
   <v-toolbar flat color="white">
-    <v-btn
-      outlined
-      class="btn mr-4"
-      color="grey darken-2"
-      @click="setToday">
-      {{ $t('agenda.toDay') }}
-    </v-btn>
-    <v-row align="center" justify="center">
-      <v-btn
-        icon
-        color="grey darken-2"
-        @click="prevDate">
-        <i class="uiIconArrowLeft uiIconMedium darkGreyIcon"></i>
-      </v-btn>
-      <div class="period-title text-uppercase">
-        {{ periodTitle }}
-      </div>
-      <v-btn
-        icon
-        color="grey darken-2"
-        @click="nextDate">
-        <i class="uiIconArrowRight uiIconMedium darkGreyIcon"></i>
-      </v-btn>
+    <v-row>
+      <v-col cols="2" class="my-auto">
+        <v-btn
+          outlined
+          class="btn mr-4"
+          color="grey darken-2"
+          @click="setToday">
+          {{ $t('agenda.toDay') }}
+        </v-btn>
+      </v-col>
+      <v-col cols="8" align="center" class="d-flex flex-row align-center justify-center flex-nowrap">
+        <v-btn
+          icon
+          color="grey darken-2"
+          @click="prevDate">
+          <i class="uiIconArrowLeft uiIconMedium darkGreyIcon"></i>
+        </v-btn>
+        <div class="period-title text-uppercase">
+          {{ periodTitle }}
+        </div>
+        <v-btn
+          icon
+          color="grey darken-2"
+          @click="nextDate">
+          <i class="uiIconArrowRight uiIconMedium darkGreyIcon"></i>
+        </v-btn>
+      </v-col>
+      <v-col cols="2"/>
     </v-row>
   </v-toolbar>
 </template>
