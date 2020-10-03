@@ -46,7 +46,8 @@
         </v-stepper-content>
       </v-stepper-items>
     </v-stepper>
-    <div class="d-flex flex-row flex-grow-0 mx-2 mx-md-10 my-2 mb-md-10">
+    <v-divider />
+    <div class="d-flex flex-grow-0 my-2">
       <v-btn
         v-if="stepper > 1"
         class="btn mr-2"
@@ -56,7 +57,7 @@
           {{ $t('agenda.button.previous') }}
         </span>
       </v-btn>
-      <div class="ml-auto d-flex flex-row">
+      <div class="ml-auto mr-10">
         <v-btn
           :disabled="disableSaveButton"
           class="btn btn-primary"

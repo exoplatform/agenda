@@ -1,34 +1,32 @@
 <template>
   <div class="event-attendees-responses d-flex">
-    <v-btn-toggle v-model="eventResponse">
-      <v-btn
-        :loading="savingResponse === 'ACCEPTED'"
-        :disabled="savingResponse"
-        :class="eventResponse === 'ACCEPTED' && 'btn-primary'"
-        value="ACCEPTED"
-        class="btn border-radius"
-        @click="changeResponse('ACCEPTED')">
-        {{ $t('agenda.button.yes') }}
-      </v-btn>
-      <v-btn
-        :loading="savingResponse === 'DECLINED'"
-        :disabled="savingResponse"
-        :class="eventResponse === 'DECLINED' && 'btn-primary'"
-        value="DECLINED"
-        class="btn border-radius mx-4"
-        @click="changeResponse('DECLINED')">
-        {{ $t('agenda.button.no') }}
-      </v-btn>
-      <v-btn
-        :loading="savingResponse === 'TENTATIVE'"
-        :disabled="savingResponse"
-        :class="eventResponse === 'TENTATIVE' && 'btn-primary'"
-        value="TENTATIVE"
-        class="btn border-radius"
-        @click="changeResponse('TENTATIVE')">
-        {{ $t('agenda.button.maybe') }}
-      </v-btn>
-    </v-btn-toggle>
+    <v-btn
+      :loading="savingResponse === 'ACCEPTED'"
+      :disabled="savingResponse"
+      :class="eventResponse === 'ACCEPTED' && 'btn-primary'"
+      value="ACCEPTED"
+      class="btn border-radius"
+      @click="changeResponse('ACCEPTED')">
+      {{ $t('agenda.button.yes') }}
+    </v-btn>
+    <v-btn
+      :loading="savingResponse === 'DECLINED'"
+      :disabled="savingResponse"
+      :class="eventResponse === 'DECLINED' && 'btn-primary'"
+      value="DECLINED"
+      class="btn border-radius mx-2"
+      @click="changeResponse('DECLINED')">
+      {{ $t('agenda.button.no') }}
+    </v-btn>
+    <v-btn
+      :loading="savingResponse === 'TENTATIVE'"
+      :disabled="savingResponse"
+      :class="eventResponse === 'TENTATIVE' && 'btn-primary'"
+      value="TENTATIVE"
+      class="btn border-radius"
+      @click="changeResponse('TENTATIVE')">
+      {{ $t('agenda.button.maybe') }}
+    </v-btn>
     <agenda-recurrent-event-response-confirm-dialog
       v-if="event.occurrence"
       ref="responseConfirmDialog"
