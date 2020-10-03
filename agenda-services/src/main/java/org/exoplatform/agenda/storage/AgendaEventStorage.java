@@ -59,8 +59,8 @@ public class AgendaEventStorage {
       throw new IllegalArgumentException("End date is mandatory");
     }
 
-    Date startDate = new Date(start.toEpochSecond() * 1000);
-    Date endDate = new Date(end.toEpochSecond() * 1000);
+    Date startDate = new Date(start.withSecond(0).withNano(0).toEpochSecond() * 1000);
+    Date endDate = end == null ? null : new Date(end.withSecond(59).withNano(999999999).toEpochSecond() * 1000);
     return eventDAO.getEventIdsByPeriodAndOwnerIds(startDate, endDate, limit, ownerIds);
   }
 
@@ -73,8 +73,8 @@ public class AgendaEventStorage {
       throw new IllegalArgumentException("Start date is mandatory");
     }
 
-    Date startDate = new Date(start.toEpochSecond() * 1000);
-    Date endDate = end == null ? null : new Date(end.toEpochSecond() * 1000);
+    Date startDate = new Date(start.withSecond(0).withNano(0).toEpochSecond() * 1000);
+    Date endDate = end == null ? null : new Date(end.withSecond(59).withNano(999999999).toEpochSecond() * 1000);
     if (ownerIds == null || ownerIds.isEmpty()) {
       return eventDAO.getEventIdsByPeriodAndAttendeeIds(startDate, endDate, limit, attendeeIds);
     } else {

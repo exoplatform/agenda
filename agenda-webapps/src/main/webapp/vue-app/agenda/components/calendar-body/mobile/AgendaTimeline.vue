@@ -123,7 +123,9 @@ export default {
       const eventsByDates = {};
       this.events.forEach(event => {
         const eventStartDate = JSON.parse(JSON.stringify(event));
-        if (new Date(eventStartDate.startDate).getTime() > new Date(this.periodStartDate).getTime()) {
+        let periodStartDate = new Date(this.periodStartDate);
+        periodStartDate = new Date(`${periodStartDate.getFullYear()}-${this.$agendaUtils.pad(periodStartDate.getMonth() + 1)}-${this.$agendaUtils.pad(periodStartDate.getDate())}`);
+        if (new Date(eventStartDate.startDate).getTime() > new Date(periodStartDate).getTime()) {
           this.addEventByDateInMap(eventStartDate, event.startDate, eventsByDates);
         }
         if (!this.$agendaUtils.areDatesOnSameDay(event.startDate, event.endDate)) {

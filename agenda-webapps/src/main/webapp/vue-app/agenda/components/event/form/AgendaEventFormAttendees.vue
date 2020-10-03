@@ -14,6 +14,7 @@
         v-for="attendee in event.attendees"
         :key="attendee.identity.id"
         :attendee="attendee"
+        :creator="event.creator"
         @remove-attendee="removeAttendee" />
     </div>
   </v-flex>

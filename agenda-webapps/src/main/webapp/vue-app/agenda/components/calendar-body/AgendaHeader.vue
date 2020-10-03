@@ -4,13 +4,23 @@
     flat
     dense>
     <v-row>
-      <v-col cols="2" sm="3" class="align-start my-auto">
+      <v-col
+        cols="2"
+        sm="3"
+        class="align-start my-auto">
         <agenda-create-event-button class="mr-2" />
       </v-col>
-      <v-col cols="8" sm="6" align="center" class="d-flex flex-row align-center justify-start flex-nowrap">
+      <v-col
+        cols="8"
+        sm="6"
+        align="center"
+        class="d-flex flex-row align-center justify-start flex-nowrap">
         <agenda-switch-view :calendar-type="calendarType" />
       </v-col>
-      <v-col cols="2" sm="3" class="d-flex flex-row justify-end my-auto flex-nowrap">
+      <v-col
+        cols="2"
+        sm="3"
+        class="d-flex flex-row justify-end my-auto flex-nowrap">
         <select
           v-model="eventType"
           class="width-auto my-auto ml-4 subtitle-1 ignore-vuetify-classes d-none d-sm-inline"

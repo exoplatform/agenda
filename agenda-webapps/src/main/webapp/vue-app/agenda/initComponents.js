@@ -5,11 +5,10 @@ import AgendaCalendar from './components/calendar-body/AgendaCalendar.vue';
 import AgendaToolbar from './components/calendar-body/AgendaToolbar.vue';
 import AgendaPreviewEventDialog from './components/calendar-body/AgendaPreviewEventDialog.vue';
 import AgendaEventSave from './components/calendar-body/AgendaEventSave.vue';
+import AgendaMobileHeader from './components/calendar-body/mobile/AgendaMobileHeader.vue';
+import AgendaTimeline from './components/calendar-body/mobile/AgendaTimeline.vue';
 
-import AgendaMobileHeader from './components/calendar-mobile/AgendaMobileHeader.vue';
-import AgendaTimeline from './components/calendar-mobile/AgendaTimeline.vue';
-
-import AgendaEventMobileFormDrawer from './components/event-mobile/form/AgendaEventMobileFormDrawer.vue';
+import AgendaEventMobileForm from './components/event/form/mobile/AgendaEventMobileForm.vue';
 
 import AgendaCreateEventButton from './components/top-toolbar/AgendaCreateEventButton.vue';
 import AgendaCalendarFilterButton from './components/top-toolbar/AgendaCalendarFilterButton.vue';
@@ -38,6 +37,8 @@ import AgendaEventFormCalendarOwner from './components/event/form/AgendaEventFor
 import AgendaRecurrentEventSaveConfirmDialog from './components/event/form/AgendaRecurrentEventSaveConfirmDialog.vue';
 
 import AgendaEventDetails from './components/event/view/AgendaEventDetails.vue';
+import AgendaEventDetailsToolbar from './components/event/view/AgendaEventDetailsToolbar.vue';
+import AgendaEventDetailsMobileToolbar from './components/event/view/mobile/AgendaEventDetailsMobileToolbar.vue';
 import AgendaEventRecurrence from './components/event/view/AgendaEventRecurrence.vue';
 import AgendaEventAttendeeButtons from './components/event/view/AgendaEventAttendeeButtons.vue';
 import AgendaEventAttendees from './components/event/view/AgendaEventAttendees.vue';
@@ -54,7 +55,7 @@ const components = {
   'agenda-calendar': AgendaCalendar,
   'agenda-mobile-header': AgendaMobileHeader,
   'agenda-timeline': AgendaTimeline,
-  'agenda-event-mobile-form-drawer': AgendaEventMobileFormDrawer,
+  'agenda-event-mobile-form': AgendaEventMobileForm,
   'agenda-filter-calendar-drawer': AgendaFilterCalendarDrawer,
   'agenda-filter-calendar-list': AgendaFilterCalendarList,
   'agenda-filter-calendar-item': AgendaFilterCalendarItem,
@@ -75,6 +76,8 @@ const components = {
   'agenda-event-form-attachments': AgendaEventFormAttachments,
   'agenda-event-form-attachment-item': AgendaEventFormAttachmentItem,
   'agenda-event-details': AgendaEventDetails,
+  'agenda-event-details-toolbar': AgendaEventDetailsToolbar,
+  'agenda-event-details-mobile-toolbar': AgendaEventDetailsMobileToolbar,
   'agenda-event-recurrence': AgendaEventRecurrence,
   'agenda-event-attendees': AgendaEventAttendees,
   'agenda-event-attendee-item': AgendaEventAttendeeItem,
