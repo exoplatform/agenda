@@ -8,6 +8,7 @@
     :type="calendarType"
     :weekdays="weekdays"
     :interval-style="agendaIntervalStyle"
+    :interval-height="40"
     event-name="summary"
     event-start="startDate"
     event-end="endDate"
@@ -221,8 +222,12 @@ export default {
         this.originalDragedEvent.endDate = new Date(this.dragEvent.endDate);
       }
     },
-    eventMouseUp() {
+    eventMouseUp(eventObj) {
       if(this.eventDragged || this.eventExtended) {
+        if (eventObj && eventObj.nativeEvent) {
+          eventObj.nativeEvent.preventDefault();
+          eventObj.nativeEvent.stopPropagation();
+        }
         this.saveDraggedEvent();
       }
     },
@@ -325,13 +330,13 @@ export default {
         if (this.dragEvent.allDay) {
           if (this.$agendaUtils.areDatesOnSameDay(this.dragEvent.startDate, this.originalDragedEvent.startDate)
               && this.$agendaUtils.areDatesOnSameDay(this.dragEvent.endDate, this.originalDragedEvent.endDate)) {
-            this.cancelEventModification();
+            window.setTimeout(this.cancelEventModification, 50);
             return;
           }
         } else {
-          if (new Date(this.dragEvent.startDate).getTime() === new Date(this.originalDragedEvent.startDate).getTime()
-              && new Date(this.dragEvent.endDate).getTime() === new Date(this.originalDragedEvent.endDate).getTime()) {
-            this.cancelEventModification();
+          if (this.$agendaUtils.toRFC3339(this.dragEvent.startDate) === this.$agendaUtils.toRFC3339(this.originalDragedEvent.startDate)
+              && this.$agendaUtils.toRFC3339(this.dragEvent.endDate) === this.$agendaUtils.toRFC3339(this.originalDragedEvent.endDate)) {
+            window.setTimeout(this.cancelEventModification, 50);
             return;
           }
         }

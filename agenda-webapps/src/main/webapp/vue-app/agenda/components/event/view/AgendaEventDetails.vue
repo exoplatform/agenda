@@ -3,97 +3,18 @@
     v-if="event"
     flat
     class="event-details d-flex flex-column">
-    <div v-if="isMobile" class="d-flex flex-row py-2">
-      <v-avatar
-        height="32"
-        min-height="32"
-        width="32"
-        min-width="32"
-        size="32"
-        class="mx-3 my-auto spaceAvatar space-avatar-header">
-        <v-img :src="ownerAvatarUrl" />
-      </v-avatar>
-      <div class="d-flex flex-grow-1 flex-column align-left">
-        <strong class="event-header-title text-truncate">
-          {{ event.summary }}
-        </strong>
-        <div class="text-truncate d-flex">
-          <span>{{ $t('agenda.label.in') }}</span>
-          <a :href="calendarOwnerLink" class="text-truncate calendar-owner-link pl-1">{{ ownerDisplayName }}</a>
-        </div>
-      </div>
-      <div class="d-flex flex-grow-0">
-        <v-btn
-          class="my-auto mr-2"
-          color="grey"
-          icon
-          @click="closeDialog">
-          <v-icon>
-            mdi-close
-          </v-icon>
-        </v-btn>
-      </div>
-    </div>
-    <v-row v-else class="event-details-header d-flex align-center flex-nowrap text-left col-12 ma-0">
-      <v-col class="event-title title text-truncate col-auto px-0 mx-2">
-        {{ event.summary }}
-      </v-col>
-      <v-col class="flex-grow-0 flex-shrink-0 px-0 mx-2">
-        {{ $t('agenda.label.in') }}
-      </v-col>
-      <v-col class="flex-grow-0 flex-shrink-0 px-0 mx-2">
-        <v-avatar
-          height="32"
-          min-height="32"
-          width="32"
-          min-width="32"
-          size="32"
-          class="spaceAvatar space-avatar-header">
-          <v-img :src="ownerAvatarUrl" />
-        </v-avatar>
-      </v-col>
-      <v-col class="px-0 col-auto calendar-owner-link-parent">
-        <a :href="calendarOwnerLink" class="text-truncate d-block">{{ ownerDisplayName }}</a>
-      </v-col>
-      <v-col class="px-0 flex-grow-1 flex-shrink-0 text-right mx-2">
-        <v-menu
-          v-if="canEdit"
-          bottom
-          left
-          offset-y>
-          <template v-slot:activator="{ on, attrs }">
-            <v-btn
-              icon
-              v-bind="attrs"
-              v-on="on">
-              <v-icon>mdi-dots-vertical</v-icon>
-            </v-btn>
-          </template>
-          <v-list>
-            <v-list-item v-if="canEdit" @click="$root.$emit('agenda-event-form', event)">
-              <v-list-item-title>
-                {{ $t('agenda.details.header.menu.edit') }}
-              </v-list-item-title>
-            </v-list-item>
-            <v-list-item v-if="canEdit" @click="deleteConfirmDialog">
-              <v-list-item-title>
-                {{ $t('agenda.details.header.menu.delete') }}
-              </v-list-item-title>
-            </v-list-item>
-          </v-list>
-        </v-menu>
-      </v-col>
-      <v-col class="px-0 flex-grow-0 flex-shrink-0 mr-2">
-        <v-btn
-          color="grey"
-          icon
-          @click="closeDialog">
-          <v-icon>
-            mdi-close
-          </v-icon>
-        </v-btn>
-      </v-col>
-    </v-row>
+    <agenda-event-details-mobile-toolbar
+      v-if="isMobile"
+      :event="event"
+      @close="$emit('close')"
+      @edit="$root.$emit('agenda-event-form', event)"
+      @delete="deleteConfirmDialog" />
+    <agenda-event-details-toolbar
+      v-else
+      :event="event"
+      @close="$emit('close')"
+      @edit="$root.$emit('agenda-event-form', event)"
+      @delete="deleteConfirmDialog" />
 
     <v-divider class="flex-grow-0" />
     <div class="event-details-body overflow-auto flex-grow-1 d-flex flex-column flex-md-row pa-4">
@@ -230,9 +151,6 @@ export default {
     },
     hasRecurrence() {
       return this.event.recurrence || this.event.parent && this.event.parent.recurrence;
-    },
-    canEdit() {
-      return this.event.acl && this.event.acl.canEdit;
     },
     isAttendee() {
       return this.event.acl && this.event.acl.attendee;

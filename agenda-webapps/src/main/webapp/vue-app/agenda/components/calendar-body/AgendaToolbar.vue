@@ -10,7 +10,10 @@
           {{ $t('agenda.toDay') }}
         </v-btn>
       </v-col>
-      <v-col cols="8" align="center" class="d-flex flex-row align-center justify-center flex-nowrap">
+      <v-col
+        cols="8"
+        align="center"
+        class="d-flex flex-row align-center justify-center flex-nowrap">
         <v-btn
           icon
           color="grey darken-2"
@@ -27,7 +30,7 @@
           <i class="uiIconArrowRight uiIconMedium darkGreyIcon"></i>
         </v-btn>
       </v-col>
-      <v-col cols="2"/>
+      <v-col cols="2" />
     </v-row>
   </v-toolbar>
 </template>
