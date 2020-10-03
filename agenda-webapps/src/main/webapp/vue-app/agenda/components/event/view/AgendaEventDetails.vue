@@ -169,13 +169,11 @@
     </div>
     <template v-if="isAttendee">
       <v-divider />
-      <div class="d-flex">
-        <agenda-event-attendee-buttons
-          ref="eventAttendeeButtons"
-          :event="event"
-          :class="isMobile && 'my-2 mx-auto' || 'my-2 ml-auto mr-10'"
-          class="flex-grow-0" />
-      </div>
+      <agenda-event-attendee-buttons
+        ref="eventAttendeeButtons"
+        :event="event"
+        :class="isMobile && 'mr-1' || 'mr-10'"
+        class="flex-grow-0 my-2" />
     </template>
     <agenda-recurrent-event-delete-confirm-dialog
       v-if="event.occurrence"
