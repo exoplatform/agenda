@@ -16,8 +16,8 @@
     color="primary"
     show-week
     @click:event="showEvent"
-    @click:more="viewDay"
-    @click:date="viewDay"
+    @click:more="showDay"
+    @click:date="showDay"
     @mousedown:event="eventMouseDown"
     @mousemove:event="eventMouseMove"
     @mouseup:event="eventMouseUp"
@@ -191,13 +191,13 @@ export default {
       this.$root.$emit('agenda-event-details', event);
       return false;
     },
-    viewDay(eventObj) {
+    showDay(eventObj) {
       if (eventObj.nativeEvent) {
         eventObj.nativeEvent.preventDefault();
         eventObj.nativeEvent.stopPropagation();
       }
       this.cancelEventModification();
-      this.focus = eventObj.date;
+      this.$root.$emit('agenda-display-calendar-atDate', eventObj.date);
       this.$root.$emit('agenda-change-period-type', 'day');
     },
     extendEventEndDate(eventObj) {
