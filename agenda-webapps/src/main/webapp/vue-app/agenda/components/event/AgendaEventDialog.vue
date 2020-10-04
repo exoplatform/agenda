@@ -3,7 +3,8 @@
     v-model="dialog"
     persistent
     fullscreen
-    hide-overlay>
+    hide-overlay
+    @keydown.esc="close">
     <template v-if="event">
       <template v-if="isForm">
         <agenda-event-mobile-form
