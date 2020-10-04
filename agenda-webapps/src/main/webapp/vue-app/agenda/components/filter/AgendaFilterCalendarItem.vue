@@ -1,13 +1,13 @@
 <template>
   <v-list-item class="agenda-calendar-settings px-0">
-    <v-list-item-action class="flex-grow-1">
+    <v-list-item-content :title="calendarDisplayName" class="flex-grow-1 pa-0">
       <v-checkbox
         v-model="checked"
         :color="calendarColor"
         :label="calendarDisplayName"
-        class="agenda-calendar-settings-color ma-auto"
+        class="agenda-calendar-settings-color"
         @click="changeSelection" />
-    </v-list-item-action>
+    </v-list-item-content>
     <v-list-item-action
       v-if="!isMobile"
       :id="calendarMenuId"
@@ -104,12 +104,25 @@ export default {
     },
   },
   watch: {
+    menu() {
+      if (this.menu) {
+        this.$root.$emit('agenda-filter-close-menu', this.calendarOwnerId);
+      }
+    },
     selected() {
       this.checked = this.selected;
     },
   },
   created() {
     this.selectedCalendarColor = this.calendar.color;
+
+    // Close current menu when another menu is opened
+    this.$root.$on('agenda-filter-close-menu', calendarOwnerId => {
+      if (calendarOwnerId !== this.calendarOwnerId) {
+        this.menu = false;
+      }
+    });
+
     // Force to close other DatePicker menus when opening a new one 
     $('.calendarSettingActions button').on('click', (e) => {
       if (e.target && !$(e.target).parents(`#${this.calendarMenuId}`).length) {
