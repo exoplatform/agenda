@@ -17,30 +17,28 @@
       <v-card-text>
         {{ $t('agenda.message.confirmSaveRecurrentEvent') }}
       </v-card-text>
-      <v-card-actions>
-        <v-spacer />
+      <v-card-actions class="d-flex flex-wrap justify-center center">
         <button
           :disabled="loading"
           :loading="loading"
-          class="ignore-vuetify-classes btn mr-2"
+          class="ignore-vuetify-classes btn mr-2 mb-1"
           @click="close">
           {{ $t('agenda.button.cancel') }}
         </button>
         <button
           :disabled="loading"
           :loading="loading"
-          class="ignore-vuetify-classes btn ml-2"
+          class="ignore-vuetify-classes btn ml-2 mb-1"
           @click="confirmRecurrentEvent">
           {{ $t('agenda.button.saveRecurrentEvent') }}
         </button>
         <button
           :disabled="loading"
           :loading="loading"
-          class="ignore-vuetify-classes btn-primary ml-2"
+          class="ignore-vuetify-classes btn-primary ml-2 mb-1"
           @click="confirmOccurrenceEvent">
           {{ $t('agenda.button.saveOccurrenceEvent') }}
         </button>
-        <v-spacer />
       </v-card-actions>
     </v-card>
   </v-dialog>

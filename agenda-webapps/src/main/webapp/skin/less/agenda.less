@@ -164,6 +164,13 @@
       margin-bottom: 0;
     }
 
+    .user-suggester {
+      min-width: 100%;
+      .v-autocomplete {
+        min-width: 100%;
+      }
+    }
+
     .identitySuggester {
       margin-top: 0 !important;
       margin-bottom: 0 !important;
@@ -233,7 +240,7 @@
     }
     input {
       min-height: 40px;
-      max-width: 100%;
+      max-width: 90px;
       border: 1px solid @borderColor !important;
       &[disabled] {
         background-color: @disableBackground !important;

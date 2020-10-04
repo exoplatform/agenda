@@ -143,6 +143,9 @@ export default {
   },
   methods:{
     scrollToTime() {
+      if (this.isMobile) {
+        return;
+      }
       this.$nextTick().then(() => {
         const dailyScrollElement = document.querySelector('.v-calendar-daily__scroll-area');
         if (dailyScrollElement) {

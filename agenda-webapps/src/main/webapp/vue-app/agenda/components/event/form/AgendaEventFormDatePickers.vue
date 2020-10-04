@@ -107,6 +107,7 @@ export default {
       const newDate = this.$agendaUtils.toDate(this.event[this.eventStart]);
       newDate.setHours(this.startTime.getHours());
       newDate.setMinutes(this.startTime.getMinutes());
+      newDate.setSeconds(0);
       this.event[this.eventStart] = newDate;
       this.endDate = this.$agendaUtils.toDate(newDate.getTime() + this.duration);
       this.endTime = this.$agendaUtils.toDate(newDate.getTime() + this.duration);
@@ -123,7 +124,10 @@ export default {
       this.event[this.eventEnd] = newDate;
       this.duration = newDate.getTime() - this.$agendaUtils.toDate(this.event[this.eventStart]).getTime();
       if (this.endTime) {
-        this.endTime = new Date(newDate);
+        this.endTime = new Date(this.endTime);
+        this.endTime.setFullYear(newDate.getFullYear());
+        this.endTime.setMonth(newDate.getMonth());
+        this.endTime.setDate(newDate.getDate());
       }
     },
     endTime(newVal, oldVal){
@@ -133,6 +137,7 @@ export default {
       const newDate = this.$agendaUtils.toDate(this.event[this.eventEnd]);
       newDate.setHours(this.endTime.getHours());
       newDate.setMinutes(this.endTime.getMinutes());
+      newDate.setSeconds(0);
       this.event[this.eventEnd] = newDate;
       this.duration = newDate.getTime() - this.$agendaUtils.toDate(this.event[this.eventStart]).getTime();
       this.$emit('changed', this.event);

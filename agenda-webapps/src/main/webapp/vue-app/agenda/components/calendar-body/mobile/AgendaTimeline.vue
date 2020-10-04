@@ -123,8 +123,11 @@ export default {
       const eventsByDates = {};
       this.events.forEach(event => {
         const eventStartDate = JSON.parse(JSON.stringify(event));
+        eventStartDate.startDate = new Date(event.startDate);
+        eventStartDate.endDate = new Date(event.endDate);
+
         let periodStartDate = new Date(this.periodStartDate);
-        periodStartDate = new Date(`${periodStartDate.getFullYear()}-${this.$agendaUtils.pad(periodStartDate.getMonth() + 1)}-${this.$agendaUtils.pad(periodStartDate.getDate())}`);
+        periodStartDate = new Date(periodStartDate.getFullYear(), periodStartDate.getMonth(), periodStartDate.getDate());
         if (new Date(eventStartDate.startDate).getTime() > new Date(periodStartDate).getTime()) {
           this.addEventByDateInMap(eventStartDate, event.startDate, eventsByDates);
         }
@@ -134,8 +137,8 @@ export default {
           const startDate = new Date(event.startDate);
           const endDate = new Date(event.endDate);
 
-          const startOfDayOfNextStartDay = new Date(`${startDate.getFullYear()}-${this.$agendaUtils.pad(startDate.getMonth() + 1)}-${this.$agendaUtils.pad(startDate.getDate()+1)}`);
-          const startOfDayOfNextEndDay = new Date(`${endDate.getFullYear()}-${this.$agendaUtils.pad(endDate.getMonth() + 1)}-${this.$agendaUtils.pad(endDate.getDate()+1)}`);
+          const startOfDayOfNextStartDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + 1);
+          const startOfDayOfNextEndDay = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate() + 1);
 
           const daysNumbers = (startOfDayOfNextEndDay.getTime() - startOfDayOfNextStartDay.getTime()) / 86400000;
           if (daysNumbers > 1) {
@@ -150,6 +153,8 @@ export default {
           }
 
           const eventEndDate = JSON.parse(JSON.stringify(event));
+          eventEndDate.startDate = new Date(event.startDate);
+          eventEndDate.endDate = new Date(event.endDate);
           eventEndDate.startsOnBeginningOfDay = true;
           this.addEventByDateInMap(eventEndDate, event.endDate, eventsByDates);
         }

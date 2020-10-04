@@ -1,6 +1,6 @@
 <template>
   <v-row class="event-details-header d-flex align-center flex-nowrap text-left col-12">
-    <v-col class="event-title title text-truncate col-auto px-0 mx-2">
+    <v-col class="event-title title text-truncate col-auto pl-4 mx-2">
       {{ event.summary }}
     </v-col>
     <v-col class="flex-grow-0 flex-shrink-0 px-0 mx-2">
