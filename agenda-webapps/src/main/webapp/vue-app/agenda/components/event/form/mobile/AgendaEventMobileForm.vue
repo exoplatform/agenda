@@ -55,6 +55,14 @@
           </template>
         </agenda-event-form-date-pickers>
         <label class="font-weight-bold my-2">
+          {{ $t('agenda.repitition') }}
+        </label>
+        <agenda-event-form-recurrence :event="event" />
+        <agenda-event-recurrence
+          v-if="event.recurrence"
+          :event="event"
+          class="text-wrap mt-2" />
+        <label class="font-weight-bold my-2">
           {{ $t('agenda.location') }}
         </label>
         <input
@@ -79,6 +87,13 @@
           {{ $t('agenda.participants') }}
         </label>
         <agenda-event-form-attendees :event="event" />
+        <div class="d-flex flex-row my-2 align-center">
+          <label class="font-weight-bold">{{ $t('agenda.modifyEventPermission') }}</label>
+          <v-switch v-model="event.allowAttendeeToUpdate" class="pa-0 mt-0 ml-4" />
+        </div>
+        <div class="d-flex flex-row font-weight-regular">
+          {{ $t('agenda.modifyEventPermissionDescription') }}
+        </div>
       </div>
     </v-form>
     <v-divider />
@@ -194,6 +209,9 @@ export default {
       if (!this.validateForm()) {
         return;
       }
+      this.event.start = this.$agendaUtils.toRFC3339(this.event.startDate);
+      this.event.end = this.$agendaUtils.toRFC3339(this.event.endDate);
+
       this.$root.$emit('agenda-event-save', this.event);
     },
   }
