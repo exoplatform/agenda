@@ -57,8 +57,6 @@
 </template>
 
 <script>
-import * as calendarService from '../../../vue-app/agenda/js/CalendarService.js';
-import * as agendaUtils from '../../agenda/js/AgendaUtils';
 export default {
   data: () => ({
     id: `Settings${parseInt(Math.random() * 10000)
@@ -76,7 +74,7 @@ export default {
   }),
   computed: {
     agendaView () {
-      return this.settings && this.settings.agendaDefaultView && `${this.settings.agendaDefaultView} ${this.$t('agenda.settings.label.view')}`;
+      return this.settings && this.settings.agendaDefaultView && `${this.settings.agendaDefaultView} ${this.$t('agenda.view')}`;
     },
     DAY_NAME_BY_ABBREVIATION () {
       return {
@@ -113,7 +111,7 @@ export default {
   },
   methods: {
     refresh() {
-      calendarService.getAgendaSettings().then(settings => {
+      this.$calendarService.getAgendaSettings().then(settings => {
         this.settings = JSON.parse(settings.value);
       })
         .finally(() => {
@@ -125,7 +123,7 @@ export default {
       this.$refs.agendaDrawer.open();
     },
     getDayFromAbbreviation(day) {
-      return agendaUtils.getDayNameFromDayAbbreviation(day, eXo.env.portal.language);
+      return this.$agendaUtils.getDayNameFromDayAbbreviation(day, eXo.env.portal.language);
     },
   }
 };
