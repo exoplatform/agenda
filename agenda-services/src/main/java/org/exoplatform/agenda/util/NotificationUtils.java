@@ -65,7 +65,7 @@ public class NotificationUtils {
     ctx.append(EVENT_ID, eventId);
   }
 
-  public static final void setNotificationRecipients(NotificationInfo notification, List<EventAttendee> eventAttendee) {
+  public static final void setNotificationRecipients(NotificationInfo notification, List<EventAttendee> eventAttendee, Event event) {
     List<String> recipientList = new ArrayList<>();
     for (EventAttendee attendee : eventAttendee) {
       if (Utils.getIdentityById(attendee.getIdentityId()).getProviderId().equals("space")) {
@@ -74,7 +74,7 @@ public class NotificationUtils {
         for (String member : memberSpace) {
           recipientList.add(member);
         }
-      } else {
+      } else if (attendee.getIdentityId() != event.getCreatorId()) {
         recipientList.add(Utils.getIdentityById(attendee.getIdentityId()).getRemoteId());
       }
     }
