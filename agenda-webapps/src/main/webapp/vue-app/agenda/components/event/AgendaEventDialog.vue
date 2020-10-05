@@ -4,8 +4,7 @@
     v-model="dialog"
     persistent
     fullscreen
-    hide-overlay
-    @keydown.esc="close">
+    hide-overlay>
     <template v-if="event">
       <template v-if="isForm">
         <agenda-event-mobile-form
@@ -15,7 +14,8 @@
           :current-space="currentSpace"
           class="fill-height event-form"
           @close="close"
-          @saved="saved" />
+          @saved="saved"
+          @initialized="formInitialized" />
         <agenda-event-form
           v-else
           ref="eventForm"
@@ -25,7 +25,16 @@
           :working-time="workingTime"
           class="fill-height event-form"
           @close="close"
-          @saved="saved" />
+          @saved="saved"
+          @initialized="formInitialized" />
+        <exo-confirm-dialog
+          ref="closeConfirmDialog"
+          :title="confirmCloseLabels.title"
+          :message="confirmCloseLabels.message"
+          :ok-label="confirmCloseLabels.ok"
+          :cancel-label="confirmCloseLabels.cancel"
+          persistent
+          @ok="closeEffectively" />
       </template>
       <agenda-event-details
         v-else
@@ -57,6 +66,7 @@ export default {
     return {
       dialog: false,
       event: null,
+      originalEventString: null,
       isForm: false,
     };
   },
@@ -64,15 +74,23 @@ export default {
     isMobile() {
       return this.$vuetify.breakpoint.name === 'xs';
     },
+    isModified() {
+      return this.isForm && this.event && this.originalEventString && this.originalEventString !== JSON.stringify(this.event);
+    },
+    confirmCloseLabels() {
+      return {
+        title: this.$t('agenda.title.confirmCloseEditingEvent'),
+        message: this.$t('agenda.message.confirmCloseEditingEvent'),
+        ok: this.$t('agenda.button.ok'),
+        cancel: this.$t('agenda.button.cancel'),
+      };
+    },
   },
   watch: {
     dialog() {
       if (this.dialog) {
         if (!this.isMobile) {
           $('body').addClass('hide-scroll');
-          setTimeout(() => {
-            $('.v-dialog--active').find('button').first().focus();
-          }, 200);
         }
       } else {
         if (!this.isMobile) {
@@ -96,6 +114,7 @@ export default {
         this.openEventDetails(eventId);
       }
     }
+    $(document).on('keydown', this.closeByEscape);
     this.$root.$on('agenda-event-form', agendaEvent => {
       const eventId = agendaEvent.id ? agendaEvent.id : agendaEvent.parent && agendaEvent.parent.id;
       if (eventId) {
@@ -116,6 +135,14 @@ export default {
     this.$root.$on('agenda-event-saved', this.close);
   },
   methods: {
+    closeByEscape(event) {
+      if (event.key === 'Escape' && this.dialog) {
+        this.close(event);
+      }
+    },
+    formInitialized() {
+      this.originalEventString = JSON.stringify(this.event);
+    },
     openEventForm(eventId, occurrenceEvent) {
       this.isForm = true;
       this.openEventById(eventId, occurrenceEvent);
@@ -169,7 +196,30 @@ export default {
       }
       this.event = agendaEvent;
     },
-    close() {
+    close(event) {
+      if (this.isModified) {
+        if (this.$refs.closeConfirmDialog) {
+          if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+
+          if (this.$refs.closeConfirmDialog.dialog) {
+            this.$nextTick(this.$refs.closeConfirmDialog.close);
+          } else {
+            this.$nextTick(this.$refs.closeConfirmDialog.open);
+          }
+        }
+      } else {
+        if (event) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+
+        this.closeEffectively();
+      }
+    },
+    closeEffectively() {
       this.dialog = false;
       window.history.replaceState('', window.document.title, window.location.pathname);
     },

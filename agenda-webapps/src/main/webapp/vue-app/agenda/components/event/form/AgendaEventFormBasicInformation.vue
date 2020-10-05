@@ -24,7 +24,8 @@
       <agenda-event-form-calendar-owner
         ref="calendarOwner"
         :event="event"
-        :current-space="currentSpace" />
+        :current-space="currentSpace"
+        @initialized="$emit('initialized')" />
     </div>
     <div class="d-flex flex-column flex-md-row mt-1 event-form-body">
       <div class="d-flex flex-column flex-grow-1 event-form-body-left">
@@ -69,7 +70,10 @@
           <v-flex class="flex-grow-0 mr-2 mt-1">
             <i class="uiIconGroup darkGreyIcon uiIcon32x32 my-3"></i>
           </v-flex>
-          <agenda-event-form-attendees :event="event" class="ml-4" />
+          <agenda-event-form-attendees
+            :event="event"
+            class="ml-4"
+            @initialized="$emit('initialized')" />
         </div>
         <div class="d-flex flex-row">
           <label class="switch-label-text mt-1 text-subtitle-1 font-weight-bold">{{ $t('agenda.modifyEventPermission') }}</label>
