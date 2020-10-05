@@ -104,6 +104,7 @@ export default {
     }
   },
   created() {
+    document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
     this.$root.$on('user-settings-agenda-drawer-open', this.open);
   },
   methods: {
