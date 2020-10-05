@@ -33,7 +33,8 @@
             ref="eventBasicInformation"
             :event="event"
             :current-space="currentSpace"
-            @next-step="nextStep" />
+            @next-step="nextStep"
+            @initialized="$emit('initialized')" />
         </v-stepper-content>
         <v-stepper-content step="2">
           <agenda-event-form-dates

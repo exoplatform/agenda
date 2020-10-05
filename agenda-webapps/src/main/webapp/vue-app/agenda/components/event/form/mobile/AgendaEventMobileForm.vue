@@ -43,7 +43,8 @@
         <agenda-event-form-calendar-owner
           ref="calendarOwner"
           :event="event"
-          :current-space="currentSpace" />
+          :current-space="currentSpace"
+          @initialized="$emit('initialized')" />
         <agenda-event-form-date-pickers :event="event">
           <template slot="startDateLabel">
             <label v-if="event.allDay" class="font-weight-bold my-2">{{ $t('agenda.startDate') }}</label>
@@ -86,7 +87,9 @@
         <label class="font-weight-bold my-2">
           {{ $t('agenda.participants') }}
         </label>
-        <agenda-event-form-attendees :event="event" />
+        <agenda-event-form-attendees
+          :event="event"
+          @initialized="$emit('initialized')" />
         <div class="d-flex flex-row my-2 align-center">
           <label class="font-weight-bold">{{ $t('agenda.modifyEventPermission') }}</label>
           <v-switch v-model="event.allowAttendeeToUpdate" class="pa-0 mt-0 ml-4" />
