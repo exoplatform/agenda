@@ -1,6 +1,8 @@
 <template>
   <exo-drawer
     ref="quickAddEventDrawer"
+    :confirm-close-labels="confirmCloseLabels"
+    :confirm-close="eventChanged"
     right
     body-classes="hide-scroll"
     class="quickAddEventDrawer"
@@ -37,7 +39,8 @@
               ref="calendarOwner"
               :event="event"
               :current-space="currentSpace"
-              class="ml-1 pr-1" />
+              class="ml-1 pr-1"
+              @initialized="formInitialized" />
           </div>
           <div class="d-flex flex-row">
             <v-flex class="flex-grow-0 pt-4 my-2 mx-3">
@@ -46,7 +49,8 @@
             <agenda-event-form-date-pickers
               :event="event"
               class="pt-3 my-4 mr-3"
-              @changed="updateEventDates" />
+              @changed="updateEventDates"
+              @initialized="formInitialized" />
           </div>
           <div class="d-flex flex-row">
             <i class="uiIconLocation darkGreyIcon uiIcon32x32 mt-4 mx-3"></i>
@@ -75,7 +79,10 @@
             <v-flex class="flex-grow-0">
               <i class="uiIconGroup darkGreyIcon uiIcon32x32 mt-4 mx-3"></i>
             </v-flex>
-            <agenda-event-form-attendees :event="event" class="pr-1" />
+            <agenda-event-form-attendees
+              :event="event"
+              class="pr-1"
+              @initialized="formInitialized" />
           </div>
         </div>
       </v-form>
@@ -119,10 +126,22 @@ export default {
   },
   data: () => ({
     event: null,
+    originalEventString: null,
     saving: false,
     eventDescriptionTextLength: 1300
   }),
   computed: {
+    confirmCloseLabels() {
+      return {
+        title: this.$t('agenda.title.confirmCloseEditingEvent'),
+        message: this.$t('agenda.message.confirmCloseEditingEvent'),
+        ok: this.$t('agenda.button.ok'),
+        cancel: this.$t('agenda.button.cancel'),
+      };
+    },
+    eventChanged() {
+      return this.event && this.originalEventString && this.originalEventString !== JSON.stringify(this.event);
+    },
     eventTitle() {
       return this.event && this.event.summary;
     },
@@ -167,6 +186,9 @@ export default {
           this.$refs.eventTitle.focus();
         }
       }, 200);
+    },
+    formInitialized() {
+      this.originalEventString = JSON.stringify(this.event);
     },
     openCompleteEventForm() {
       this.event.start = this.$agendaUtils.toRFC3339(this.event.startDate);
