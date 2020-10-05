@@ -77,8 +77,6 @@
 </template>
 
 <script>
-import * as calendarService from '../../../vue-app/agenda/js/CalendarService.js';
-import * as agendaUtils from '../../../vue-app/agenda/js/AgendaUtils.js';
 export default {
   props: {
     settings: {
@@ -135,7 +133,7 @@ export default {
           delete this.settingsForm.workingTimeStart;
           delete this.settingsForm.workingTimeEnd;
         }
-        calendarService.saveAgendaSettings(this.settingsForm).then(() => {
+        this.$calendarService.saveAgendaSettings(this.settingsForm).then(() => {
           Object.assign(this.settings, this.settingsForm);
           this.$refs.UserSettingAgendaDrawer.close();
         })
@@ -145,7 +143,7 @@ export default {
       }
     },
     getDayFromAbbreviation(day) {
-      return agendaUtils.getDayNameFromDayAbbreviation(day, eXo.env.portal.language);
+      return this.$agendaUtils.getDayNameFromDayAbbreviation(day, eXo.env.portal.language);
     },
     validateForm() {
       if (!this.$refs.agendaSettingsForm.validate() // Vuetify rules

@@ -22,18 +22,26 @@ const vuetify = new Vuetify({
   iconfont: '',
 });
 
-window.Object.defineProperty(Vue.prototype, '$calendarService', {
-  value: calendarService,
-});
-window.Object.defineProperty(Vue.prototype, '$eventService', {
-  value: eventService,
-});
-window.Object.defineProperty(Vue.prototype, '$agendaUtils', {
-  value: agendaUtils,
-});
-window.Object.defineProperty(Vue.prototype, '$userTimeZone', {
-  value: userTimeZone,
-});
+if (!Vue.prototype.$calendarService) {
+  window.Object.defineProperty(Vue.prototype, '$calendarService', {
+    value: calendarService,
+  });
+}
+if (!Vue.prototype.$eventService) {
+  window.Object.defineProperty(Vue.prototype, '$eventService', {
+    value: eventService,
+  });
+}
+if (!Vue.prototype.$agendaUtils) {
+  window.Object.defineProperty(Vue.prototype, '$agendaUtils', {
+    value: agendaUtils,
+  });
+}
+if (!Vue.prototype.$userTimeZone) {
+  window.Object.defineProperty(Vue.prototype, '$userTimeZone', {
+    value: userTimeZone,
+  });
+}
 
 document.dispatchEvent(new CustomEvent('displayTopBarLoading'));
 

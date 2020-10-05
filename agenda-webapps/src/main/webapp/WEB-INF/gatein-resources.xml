@@ -19,9 +19,6 @@
         <module>commonVueComponents</module>
       </depends>
       <depends>
-        <module>AgendaSettings</module>
-      </depends>
-      <depends>
         <module>extensionRegistry</module>
       </depends>
       <depends>
@@ -48,33 +45,6 @@
       </depends>
     </module>
   </portlet>
-
-  <module>
-    <name>AgendaSettings</name>
-    <script>
-      <minify>false</minify>
-      <path>/js/agendaSettings.bundle.js</path>
-    </script>
-    <depends>
-      <module>commonVueComponents</module>
-    </depends>
-    <depends>
-      <module>extensionRegistry</module>
-    </depends>
-    <depends>
-      <module>vue</module>
-    </depends>
-    <depends>
-      <module>vuetify</module>
-    </depends>
-    <depends>
-      <module>eXoVueI18n</module>
-    </depends>
-    <depends>
-      <module>jquery</module>
-      <as>$</as>
-    </depends>
-  </module>
 
   <portlet>
     <name>AgendaSettings</name>
