@@ -1,10 +1,9 @@
 <% eventTitle = _ctx.escapeHTML(eventTitle); %>
 <li class="<%= READ %> clearfix" data-id="<%= NOTIFICATION_ID %>">
     <div class="media agendaWebNotifContent">
-        <div class="avatarXSmall pull-left">
+        <div class="avatarXSmall float-left">
             <img class="spaceAvatar" src="<%= avatarUrl %>" alt="<%= avatarUrl %>" />
         </div>
-        <div class="lastUpdatedTime float-left"><%= LAST_UPDATED_TIME %></div>
         <div class="media-body">
             <div class="contentSmall">
                 <div class="status">
@@ -20,8 +19,8 @@
                         <%= _ctx.appRes("Notification.agenda.event.reply") %>
                     </a>
                 </div>
+                <div class="lastUpdatedTime float-left"><%= LAST_UPDATED_TIME %></div>
             </div>
         </div>
     </div>
-    <span class="remove-item" data-rest=""><i class="uiIconClose uiIconLightGray"></i></span>
 </li>
