@@ -15,6 +15,8 @@ import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.social.core.identity.model.Identity;
+import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
+import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.notification.plugin.SocialNotificationUtils;
 import org.exoplatform.webui.utils.TimeConvertUtils;
@@ -66,20 +68,23 @@ public class NotificationUtils {
   }
 
   public static final void setNotificationRecipients(NotificationInfo notification, List<EventAttendee> eventAttendee, Event event) {
-    List<String> recipientList = new ArrayList<>();
+    Set<String> recipients = new HashSet<>();
     for (EventAttendee attendee : eventAttendee) {
-      if (Utils.getIdentityById(attendee.getIdentityId()).getProviderId().equals("space")) {
-        String spaceName = Utils.getIdentityById(attendee.getIdentityId()).getRemoteId();
+      Identity identity = Utils.getIdentityById(attendee.getIdentityId());
+      if (identity.getProviderId().equals(SpaceIdentityProvider.NAME)) {
+        String spaceName = identity.getRemoteId();
         List<String> memberSpace = Utils.getSpaceMembersBySpaceName(spaceName);
-        for (String member : memberSpace) {
-          recipientList.add(member);
+        if (memberSpace != null) {
+          recipients.addAll(memberSpace);
         }
-      } else if (attendee.getIdentityId() != event.getCreatorId()) {
-        recipientList.add(Utils.getIdentityById(attendee.getIdentityId()).getRemoteId());
+      } else if (identity.getProviderId().equals(OrganizationIdentityProvider.NAME)
+          && attendee.getIdentityId() != event.getCreatorId()) {
+        recipients.add(identity.getRemoteId());
       }
     }
-    notification.to(recipientList);
-    notification.with(STORED_PARAMETER_EVENT_RECEIVERS, recipientList.toString());
+    List<String> listRecipients = new ArrayList<>(recipients);
+    notification.to(listRecipients);
+    notification.with(STORED_PARAMETER_EVENT_RECEIVERS, recipients.toString());
   }
 
   public static final void storeEventParameters(NotificationInfo notification,
