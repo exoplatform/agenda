@@ -6,7 +6,7 @@
           <v-list-item-content>
             <v-list-item-title class="title text-color">
               <div :class="skeleton && 'skeleton-background skeleton-border-radius skeleton-text-width skeleton-text-height my-2'">
-                {{ skeleton && '&nbsp;' || $t('UserSettings.agenda') }}
+                {{ skeleton && '&nbsp;' || $t('agenda') }}
               </div>
             </v-list-item-title>
             <v-list-item-subtitle class="text-sub-title text-capitalize font-italic">
