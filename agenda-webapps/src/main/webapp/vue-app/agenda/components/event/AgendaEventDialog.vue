@@ -65,6 +65,7 @@ export default {
   data () {
     return {
       dialog: false,
+      saving: false,
       event: null,
       originalEventString: null,
       isForm: false,
@@ -75,7 +76,7 @@ export default {
       return this.$vuetify.breakpoint.name === 'xs';
     },
     isModified() {
-      return this.isForm && this.event && this.originalEventString && this.originalEventString !== JSON.stringify(this.event);
+      return !this.saving && this.isForm && this.event && this.originalEventString && this.originalEventString !== JSON.stringify(this.event);
     },
     confirmCloseLabels() {
       return {
@@ -132,6 +133,9 @@ export default {
       this.openEventDetails(eventId, occurrenceEvent);
     });
     this.$root.$on('agenda-event-deleted', this.close);
+    this.$root.$on('agenda-event-save', () => {
+      this.saving = true;
+    });
     this.$root.$on('agenda-event-saved', this.close);
   },
   methods: {
@@ -175,6 +179,7 @@ export default {
       }
     },
     openDialog(agendaEvent) {
+      this.saving = false;
       this.dialog = true;
       if (!agendaEvent) {
         agendaEvent = {};

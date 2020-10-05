@@ -140,7 +140,7 @@ export default {
       };
     },
     eventChanged() {
-      return this.event && this.originalEventString && this.originalEventString !== JSON.stringify(this.event);
+      return !this.saving && this.event && this.originalEventString && this.originalEventString !== JSON.stringify(this.event);
     },
     eventTitle() {
       return this.event && this.event.summary;
