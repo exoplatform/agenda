@@ -43,9 +43,7 @@ import net.fortuna.ical4j.model.property.RRule;
 
 public class Utils {
 
-  private static final TimeZoneRegistry ICAL4J_TIME_ZONE_REGISTRY = TimeZoneRegistryFactory.getInstance().createRegistry();
-
-  private static final Log              LOG                       = ExoLogger.getLogger(Utils.class);
+  private static final Log LOG = ExoLogger.getLogger(Utils.class);
 
   private Utils() {
   }
@@ -74,15 +72,19 @@ public class Utils {
       timeZone = ZoneId.systemDefault();
     }
 
-    long startTime = event.getStart().toEpochSecond() * 1000;
-    long endTime = event.getEnd().toEpochSecond() * 1000;
-
-    net.fortuna.ical4j.model.TimeZone ical4jTimezone = ICAL4J_TIME_ZONE_REGISTRY.getTimeZone(timeZone.getId());
+    long startTime = event.isAllDay() ? event.getStart().toLocalDate().atStartOfDay(ZoneId.systemDefault()).toEpochSecond() * 1000
+                                      : event.getStart().toEpochSecond() * 1000;
+    long endTime = event.isAllDay() ? event.getEnd()
+                                           .toLocalDate()
+                                           .atStartOfDay(ZoneId.systemDefault())
+                                           .plusDays(1)
+                                           .minusSeconds(1)
+                                           .toEpochSecond()
+        * 1000
+                                    : event.getEnd().toEpochSecond() * 1000;
 
     DateTime startDateTime = new DateTime(startTime);
-    startDateTime.setTimeZone(ical4jTimezone);
     DateTime endDateTime = new DateTime(endTime);
-    endDateTime.setTimeZone(ical4jTimezone);
     VEvent vevent = new VEvent(startDateTime, endDateTime, event.getSummary());
     Recur recur = getICalendarRecur(event, event.getRecurrence());
     vevent.getProperties().add(new RRule(recur));
@@ -98,9 +100,7 @@ public class Utils {
     }
     long toTime = to.atStartOfDay(timeZone).plusDays(1).minusSeconds(1).toEpochSecond() * 1000;
     DateTime ical4jFrom = new DateTime(fromTime);
-    ical4jFrom.setTimeZone(ical4jTimezone);
     DateTime ical4jTo = new DateTime(toTime);
-    ical4jTo.setTimeZone(ical4jTimezone);
     DateList dates = limit > 0 ? recur.getDates(startDateTime, ical4jFrom, ical4jTo, null, limit)
                                : recur.getDates(startDateTime, ical4jFrom, ical4jTo, null);
     if (dates == null || dates.isEmpty()) {
@@ -118,10 +118,8 @@ public class Utils {
       ical4jTo = (DateTime) dates.get(limit - 1);
       long duration = endTime - startTime;
       ical4jTo = new DateTime(ical4jTo.getTime() + duration + 1000);
-      ical4jTo.setTimeZone(ical4jTimezone);
     }
     Period period = new Period(ical4jFrom, ical4jTo);
-    period.setTimeZone(ical4jTimezone);
     PeriodList list = vevent.calculateRecurrenceSet(period);
 
     List<Event> occurrences = new ArrayList<>();
@@ -136,8 +134,8 @@ public class Utils {
       Event occurrence = event.clone();
       occurrence.setId(0);
       if (event.isAllDay()) {
-        occurrence.setStart(occurrencePeriod.getStart().toInstant().atZone(ZoneOffset.UTC).withZoneSameLocal(timeZone));
-        occurrence.setEnd(occurrencePeriod.getEnd().toInstant().atZone(ZoneOffset.UTC).withZoneSameLocal(timeZone));
+        occurrence.setStart(occurrencePeriod.getStart().toInstant().atZone(ZoneId.systemDefault()).withZoneSameLocal(timeZone));
+        occurrence.setEnd(occurrencePeriod.getEnd().toInstant().atZone(ZoneId.systemDefault()).withZoneSameLocal(timeZone));
       } else {
         occurrence.setStart(occurrencePeriod.getStart().toInstant().atZone(timeZone));
         occurrence.setEnd(occurrencePeriod.getEnd().toInstant().atZone(timeZone));
