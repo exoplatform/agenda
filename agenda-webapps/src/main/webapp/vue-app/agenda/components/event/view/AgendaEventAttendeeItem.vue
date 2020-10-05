@@ -1,19 +1,27 @@
 <template>
-  <v-list-item class="d-flex attendee">
-    <v-list-item-avatar>
-      <v-avatar size="32">
-        <v-img :src="attendeeProfileAvatarUrl" />
-      </v-avatar>
-    </v-list-item-avatar>
-    <v-list-item-content>
-      <a :href="attendeeProfileLink" class="mr-5 my-auto text-truncate">
-        {{ attendeeProfileDisplayName }}
-      </a>
-    </v-list-item-content>
-    <v-list-item-action :title="responseIconTooltip">
-      <span :class="responseIconResponse"></span>
-    </v-list-item-action>
-  </v-list-item>
+  <exo-user-avatar
+    v-if="isAttendeeUser"
+    :title="attendeeProfileDisplayName"
+    :username="attendeeRemoteId"
+    :fullname="attendeeProfileDisplayName"
+    :url="attendeeProfileLink"
+    :size="32"
+    :avatar-url="attendeeProfileAvatarUrl"
+    :labels="labels"
+    avatar-class="border-color"
+    class="attendee">
+    <template slot="actions">
+      <span :class="responseIconResponse" class="my-auto flex-grow-1 text-right"></span>
+    </template>
+  </exo-user-avatar>
+  <div v-else-if="isAttendeeSpace" class="flex-nowrap d-flex flex-shrink-0 align-center attendee">
+    <exo-space-avatar
+      :space="attendeeSpace"
+      :size="32"
+      :labels="labels"
+      class="flex-grow-1" />
+    <span :class="responseIconResponse" class="my-auto text-right"></span>
+  </div>
 </template>
 <script>
 export default {
@@ -30,20 +38,51 @@ export default {
     responseIconTooltip() {
       return this.attendee && this.attendee.response && this.$t(`agenda.${this.attendee.response.toLowerCase()}`);
     },
+    isAttendeeUser() {
+      return this.attendee && this.attendee.identity && this.attendee.identity.providerId === 'organization';
+    },
+    isAttendeeSpace() {
+      return this.attendee && this.attendee.identity && this.attendee.identity.providerId === 'space';
+    },
+    attendeeSpace() {
+      if (!this.isAttendeeSpace) {
+        return null;
+      }
+      return this.attendee.identity.space;
+    },
     attendeeProfileLink() {
-      if (this.attendee.identity.providerId === 'organization') {
+      if (this.isAttendeeUser) {
         return `${eXo.env.portal.context}/${eXo.env.portal.portalName}/profile/${this.attendee.identity.remoteId}`;
-      } else if (this.attendee.identity.providerId === 'space') {
-        return `${eXo.env.portal.context}/g/:spaces:${this.attendee.identity.remoteId}/`;
+      } else if (this.isAttendeeSpace) {
+        let groupId = this.attendee.identity.space.groupId;
+        if (groupId) {
+          groupId = groupId.replace(/\//g, ':');
+          return `${eXo.env.portal.context}/g/${groupId}/`;
+        }
       }
       return '';
     },
+    attendeeRemoteId() {
+      return this.attendee && this.attendee.identity && this.attendee.identity.remoteId;
+    },
     attendeeProfileAvatarUrl() {
       return this.attendee.identity.space ? this.attendee.identity.space.avatarUrl : this.attendee.identity.profile ? this.attendee.identity.profile.avatar : '';
-
     },
     attendeeProfileDisplayName() {
       return this.attendee.identity.space ? this.attendee.identity.space.displayName : this.attendee.identity.profile ? this.attendee.identity.profile.fullname : '';
+    },
+    labels() {
+      return {
+        CancelRequest: this.$t('profile.CancelRequest'),
+        Confirm: this.$t('profile.Confirm'),
+        Connect: this.$t('profile.Connect'),
+        Ignore: this.$t('profile.Ignore'),
+        RemoveConnection: this.$t('profile.RemoveConnection'),
+        StatusTitle: this.$t('profile.StatusTitle'),
+        join: this.$t('space.join'),
+        leave: this.$t('space.leave'),
+        members: this.$t('space.members'),
+      };
     },
   }
 };

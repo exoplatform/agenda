@@ -4,12 +4,13 @@
       <i class="uiIconGroup darkGreyIcon uiIcon32x32 pr-5"></i>
       <span>{{ attendeesResponsesTitle }}</span>
     </div>
-    <v-list class="event-attendees ml-5 flex-column" width="250">
+    <div class="event-attendees ml-5 mt-2 flex-column">
       <agenda-event-attendee-item
         v-for="attendee in attendees"
         :key="attendee"
-        :attendee="attendee" />
-    </v-list>
+        :attendee="attendee"
+        class="mb-4" />
+    </div>
   </div>
 </template>
 
