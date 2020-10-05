@@ -6,19 +6,12 @@
     <v-col class="flex-grow-0 flex-shrink-0 px-0 mx-2">
       {{ $t('agenda.label.in') }}
     </v-col>
-    <v-col class="flex-grow-0 flex-shrink-0 px-0 mx-2">
-      <v-avatar
-        height="32"
-        min-height="32"
-        width="32"
-        min-width="32"
-        size="32"
-        class="spaceAvatar space-avatar-header">
-        <v-img :src="ownerAvatarUrl" />
-      </v-avatar>
-    </v-col>
-    <v-col class="px-0 col-auto calendar-owner-link-parent">
-      <a :href="calendarOwnerLink" class="text-truncate d-block">{{ ownerDisplayName }}</a>
+    <v-col class="flex-grow-1 flex-shrink-0 px-0 mx-2">
+      <exo-space-avatar
+        :space="ownerProfile"
+        :size="32"
+        :labels="labels"
+        class="flex-grow-1 align-center" />
     </v-col>
     <v-col class="px-0 flex-grow-1 flex-shrink-0 text-right mx-2">
       <v-menu
@@ -93,6 +86,19 @@ export default {
     },
     ownerDisplayName() {
       return this.ownerProfile && (this.ownerProfile.displayName || this.ownerProfile.fullname || this.ownerProfile.fullName);
+    },
+    labels() {
+      return {
+        CancelRequest: this.$t('profile.CancelRequest'),
+        Confirm: this.$t('profile.Confirm'),
+        Connect: this.$t('profile.Connect'),
+        Ignore: this.$t('profile.Ignore'),
+        RemoveConnection: this.$t('profile.RemoveConnection'),
+        StatusTitle: this.$t('profile.StatusTitle'),
+        join: this.$t('space.join'),
+        leave: this.$t('space.leave'),
+        members: this.$t('space.members'),
+      };
     },
   },
 };
