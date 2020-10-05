@@ -1,14 +1,14 @@
 import './initComponents.js';
 
-import * as eventService from './js/EventService.js';
-import * as calendarService from './js/CalendarService.js';
-import * as agendaUtils from './js/AgendaUtils.js';
+import * as eventService from '../agenda/js/EventService.js';
+import * as calendarService from '../agenda/js/CalendarService.js';
+import * as agendaUtils from '../agenda/js/AgendaUtils.js';
 
 const userTimeZone = agendaUtils.getUserTimezone();
 
 // get overrided components if exists
 if (extensionRegistry) {
-  const components = extensionRegistry.loadComponents('Agenda');
+  const components = extensionRegistry.loadComponents('AgendaSettings');
   if (components && components.length > 0) {
     components.forEach(cmp => {
       Vue.component(cmp.componentName, cmp.componentOptions);
@@ -21,6 +21,8 @@ const vuetify = new Vuetify({
   dark: true,
   iconfont: '',
 });
+
+document.dispatchEvent(new CustomEvent('displayTopBarLoading'));
 
 if (!Vue.prototype.$calendarService) {
   window.Object.defineProperty(Vue.prototype, '$calendarService', {
@@ -43,9 +45,7 @@ if (!Vue.prototype.$userTimeZone) {
   });
 }
 
-document.dispatchEvent(new CustomEvent('displayTopBarLoading'));
-
-const appId = 'AgendaApplication';
+const appId = 'AgendaSettingsApplication';
 
 //getting language of the PLF
 const lang = eXo && eXo.env.portal.language || 'en';
@@ -57,7 +57,7 @@ export function init() {
   exoi18n.loadLanguageAsync(lang, url).then(i18n => {
     // init Vue app when locale ressources are ready
     new Vue({
-      template: `<agenda id="${appId}" />`,
+      template: `<agenda-user-settings id="${appId}" />`,
       vuetify,
       i18n
     }).$mount(`#${appId}`);

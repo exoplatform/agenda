@@ -25,4 +25,25 @@
     </portlet-info>
    </portlet>
 
+   <portlet>
+    <portlet-name>AgendaSettings</portlet-name>
+    <display-name xml:lang="EN">Agenda Settings Application</display-name>
+    <portlet-class>org.exoplatform.commons.api.portlet.GenericDispatchedViewPortlet</portlet-class>
+    <init-param>
+    <name>portlet-view-dispatched-file-path</name>
+    <value>/html/agendaSettings.html</value>
+    </init-param>
+    <expiration-cache>-1</expiration-cache>
+    <cache-scope>PUBLIC</cache-scope>
+    <supports>
+    <mime-type>text/html</mime-type>
+    </supports>
+    <supported-locale>en</supported-locale>
+    <resource-bundle>locale.portlet.Agenda</resource-bundle>
+    <portlet-info>
+      <title>Agenda Settings Application</title>
+      <keywords>Agenda Settings Application</keywords>
+    </portlet-info>
+   </portlet>
+
 </portlet-app>
