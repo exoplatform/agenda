@@ -1,5 +1,6 @@
 <template>
   <v-dialog
+    ref="eventDialog"
     v-model="dialog"
     persistent
     fullscreen
@@ -69,6 +70,9 @@ export default {
       if (this.dialog) {
         if (!this.isMobile) {
           $('body').addClass('hide-scroll');
+          setTimeout(() => {
+            $('.v-dialog--active').find('button').first().focus();
+          }, 200);
         }
       } else {
         if (!this.isMobile) {

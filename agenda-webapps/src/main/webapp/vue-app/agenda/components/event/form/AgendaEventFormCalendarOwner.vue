@@ -84,6 +84,7 @@ export default {
           if (this.$refs.calendarOwnerSuggester) {
             this.$refs.calendarOwnerSuggester.items = [this.calendarOwner];
           }
+          this.$emit('initialized');
         }, 200);
       } else { // In case of new event
         if (this.currentSpace) {
@@ -105,6 +106,7 @@ export default {
           }
           this.calendarOwner = {};
         }
+        this.$emit('initialized');
       }
       this.$forceUpdate();
     },

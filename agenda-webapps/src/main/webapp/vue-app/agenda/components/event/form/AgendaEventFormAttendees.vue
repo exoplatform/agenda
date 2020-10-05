@@ -99,6 +99,7 @@ export default {
           this.event.attendees = [];
         }
       }
+      this.$emit('initialized');
     },
     removeAttendee(attendee) {
       const index = this.event.attendees.findIndex(addedAttendee => {
