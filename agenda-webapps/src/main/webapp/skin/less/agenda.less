@@ -349,13 +349,15 @@
     margin-top: 2px;
   }
   .event-details-header {
-    .v-toolbar__content {
-      flex-grow: 1;
+    > * {
+      max-width: 50%;
     }
     .event-title {
       font-weight: bold;
       display: inline-block;
-      max-width: 50%;
+    }
+    .spaceAvatar > * {
+      max-width: 100%;
     }
   }
   .uiIconRefresh.uiIcon32x32:before {
@@ -446,6 +448,30 @@
   }
   .event-timeline-detail-content {
     min-width: 100%;
+  }
+}
+
+.spaceAvatar {
+  flex-grow: 1;
+  p {
+    color: @linkColor !important;
+    padding: 5px 0;
+  }
+}
+.event-attendees {
+  width: 250px;
+  max-width: 250px;
+
+  .attendee {
+    a {
+      flex-grow: 1;
+
+      p {
+        max-width: 192px;
+        color: @linkColor !important;
+        padding: 5px 0;
+      }
+    }
   }
 }
 
