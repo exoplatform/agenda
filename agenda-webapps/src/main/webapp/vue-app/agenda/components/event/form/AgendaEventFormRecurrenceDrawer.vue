@@ -62,14 +62,17 @@
             <div class="control-label text-subtitle-1">{{ $t('agenda.label.endRepeat') }}:</div>
             <div class="controls ml-5">
               <v-radio-group v-model="recurrentEventDate">
-                <v-radio :label="$t('agenda.label.never')" value="never" />
+                <v-radio
+                  :label="$t('agenda.label.never')"
+                  value="never"
+                  class="py-2" />
                 <v-radio value="count">
                   <template slot="label">
-                    <v-row>
-                      <v-col class="flex-grow-0">
+                    <div class="d-flex flex-row align-center">
+                      <div class="flex-grow-0">
                         {{ $t('agenda.label.after') }}
-                      </v-col>
-                      <v-col sm="3" class="pr-0">
+                      </div>
+                      <div class="pl-5 pr-2">
                         <input
                           v-model="eventRecurrence.count"
                           :disabled="recurrentEventDate !== 'count'"
@@ -77,25 +80,25 @@
                           class="recurrenceCount ignore-vuetify-classes"
                           min="1"
                           required>
-                      </v-col>
-                      <v-col class="pl-0">
+                      </div>
+                      <div class="pl-0">
                         {{ $t('agenda.label.events') }}
-                      </v-col>
-                    </v-row>
+                      </div>
+                    </div>
                   </template>
                 </v-radio>
                 <v-radio value="date">
                   <template slot="label">
-                    <v-row>
-                      <v-col class="flex-grow-0">
+                    <div class="d-flex flex-row align-center">
+                      <div class="flex-grow-0">
                         {{ $t('agenda.label.untilDate') }}
-                      </v-col>
-                      <v-col sm="8">
+                      </div>
+                      <div class="pl-5 pr-2">
                         <date-picker
                           v-model="untilDate"
                           :disabled="recurrentEventDate !== 'date'" />
-                      </v-col>
-                    </v-row>
+                      </div>
+                    </div>
                   </template>
                 </v-radio>
               </v-radio-group>
