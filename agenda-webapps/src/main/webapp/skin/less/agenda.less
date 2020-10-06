@@ -345,9 +345,6 @@
     height: 35px;
   }
 
-  .space-avatar-header {
-    margin-top: 2px;
-  }
   .event-details-header {
     > * {
       max-width: 50%;
@@ -398,6 +395,14 @@
     max-width: 35% !important;
   }
 
+  .spaceAvatar {
+    flex-grow: 1;
+    p {
+      color: @linkColor !important;
+      padding: 5px 0;
+    }
+  }
+
 }
 
 .agenda-mobile-header {
@@ -439,11 +444,11 @@
     }
   }
   .event-timeline-day {
-    min-width: 20px;
-    width: 20px;
-    max-width: 20px;
-    margin-top: 7px !important;
-    margin-right: 18px !important;
+    min-width: 32px;
+    width: 32px;
+    max-width: 32px;
+    margin-top: 7px!important;
+    margin-right: 8px!important;
     white-space: pre-line;
   }
   .event-timeline-detail-content {
@@ -451,13 +456,6 @@
   }
 }
 
-.spaceAvatar {
-  flex-grow: 1;
-  p {
-    color: @linkColor !important;
-    padding: 5px 0;
-  }
-}
 .event-attendees {
   width: 250px;
   max-width: 250px;
