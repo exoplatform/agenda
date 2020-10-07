@@ -14,11 +14,11 @@
                     %>
                     <%= message %>
                 </div>
-                <v-btn class="my-4 btn btn-primary">
+                <button class="my-4 btn btn-primary">
                     <span class="d-none d-lg-inline">
                       <%= _ctx.appRes("Notification.agenda.event.reply") %>
                     </span>
-                </v-btn>
+                </button>
                 <div class="lastUpdatedTime"><%= LAST_UPDATED_TIME %></div>
             </div>
         </div>
