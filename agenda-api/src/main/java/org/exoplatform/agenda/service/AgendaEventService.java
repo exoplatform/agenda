@@ -139,6 +139,22 @@ public interface AgendaEventService {
   public Event getEventById(long eventId);
 
   /**
+   * Retrieves Event Occurrence identified by parent recurrence Event identifier
+   * and occurrence date
+   * 
+   * @param parentEventId {@link Event} technical identifier
+   * @param occurrenceId Date of occurrence
+   * @param userTimeZone used user timezone
+   * @param identityId user {@link Identity} identifier requesting event
+   * @return {@link Event} representing occurrence of parent recurrent event
+   * @throws IllegalAccessException when user is accessing not allowed event
+   */
+  public Event getEventOccurrence(long parentEventId,
+                                  ZonedDateTime occurrenceId,
+                                  ZoneId userTimeZone,
+                                  long identityId) throws IllegalAccessException;
+
+  /**
    * Retrieves an event identified by its technical identifier.
    * 
    * @param eventId technical identifier of parent recurrent event

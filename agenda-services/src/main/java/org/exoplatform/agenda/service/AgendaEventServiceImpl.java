@@ -38,23 +38,23 @@ import org.exoplatform.social.core.space.spi.SpaceService;
 
 public class AgendaEventServiceImpl implements AgendaEventService {
 
-  private static final int             DEFAULT_LIMIT = 10;
+  private static final int DEFAULT_LIMIT = 10;
 
-  private AgendaCalendarService        agendaCalendarService;
+  private AgendaCalendarService agendaCalendarService;
 
-  private AgendaEventAttendeeService   attendeeService;
+  private AgendaEventAttendeeService attendeeService;
 
   private AgendaEventAttachmentService attachmentService;
 
   private AgendaEventConferenceService conferenceService;
 
-  private AgendaEventReminderService   reminderService;
+  private AgendaEventReminderService reminderService;
 
-  private AgendaEventStorage           agendaEventStorage;
+  private AgendaEventStorage agendaEventStorage;
 
-  private IdentityManager              identityManager;
+  private IdentityManager identityManager;
 
-  private SpaceService                 spaceService;
+  private SpaceService spaceService;
 
   public AgendaEventServiceImpl(AgendaCalendarService agendaCalendarService,
                                 AgendaEventAttendeeService attendeeService,
@@ -128,6 +128,50 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   @Override
   public Event getEventById(long eventId) {
     return agendaEventStorage.getEventById(eventId);
+  }
+
+  @Override
+  public Event getEventOccurrence(long parentEventId,
+                                  ZonedDateTime occurrenceId,
+                                  ZoneId timeZone,
+                                  long identityId) throws IllegalAccessException {
+    Event recurrentEvent = agendaEventStorage.getEventById(parentEventId);
+    if (recurrentEvent == null) {
+      return null;
+    }
+
+    if (recurrentEvent.getRecurrence() == null) {
+      throw new IllegalStateException("Event with id " + parentEventId + " is not a recurrent event");
+    }
+
+    Event event = null;
+
+    Identity identity = identityManager.getIdentity(String.valueOf(identityId));
+
+    Event exceptionalOccurrenceEvent = agendaEventStorage.getExceptionalOccurrenceEvent(parentEventId, occurrenceId);
+    if (exceptionalOccurrenceEvent != null) {
+      if (!canAccessEvent(exceptionalOccurrenceEvent, identityId)) {
+        throw new IllegalAccessException("");
+      }
+      event = exceptionalOccurrenceEvent;
+    } else {
+      List<Event> occurrences = Utils.getOccurrences(recurrentEvent,
+                                                     occurrenceId.toLocalDate(),
+                                                     occurrenceId.toLocalDate().plusDays(1),
+                                                     timeZone,
+                                                     1);
+      if (occurrences != null && !occurrences.isEmpty()) {
+        event = occurrences.get(0);
+      }
+    }
+
+    if (event != null) {
+      adjustEventDatesForRead(event, timeZone);
+      boolean canUpdateEvent = canUpdateEvent(event, identity.getRemoteId());
+      boolean isEventAttendee = attendeeService.isEventAttendee(event.getId(), identityId);
+      event.setAcl(new Permission(canUpdateEvent, isEventAttendee));
+    }
+    return event;
   }
 
   /**

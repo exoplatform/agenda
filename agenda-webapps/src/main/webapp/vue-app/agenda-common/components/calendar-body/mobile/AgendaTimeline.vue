@@ -1,5 +1,5 @@
 <template>
-  <v-flex class="agenda-timeline mt-2">
+  <v-flex class="agenda-timeline">
     <template v-if="events && events.length">
       <v-list
         v-for="month in eventsMonths"
@@ -7,7 +7,7 @@
         class="agenda-timeline-month pa-0">
         <v-list-item>
           <v-list-item-action class="event-timeline-day" />
-          <v-list-item-action-text class="subtitle-1 mr-2">
+          <v-list-item-action-text class="subtitle-1 mr-2 text-capitalize">
             <date-format :value="month" :format="monthFormat" />
           </v-list-item-action-text>
           <v-list-item-content>
@@ -29,6 +29,7 @@
                 v-for="(event, i) in eventsByDates[month][eventDay]"
                 :key="i"
                 :style="{background: event.color || event.calendar.color}"
+                :href="agendaBaseLink && `${agendaBaseLink}?eventId=${event.id}&occurrenceId=${event.occurrence && event.occurrence.id || ''}&parentId=${event.parent && event.parent.id || ''}`"
                 class="event-timeline-detail d-flex flex-column white--text px-2 py-0 mb-2 border-radius"
                 dark
                 @click="$root.$emit('agenda-event-details', event)">
@@ -82,6 +83,10 @@ export default {
     loading: {
       type: Boolean,
       default: false,
+    },
+    agendaBaseLink: {
+      type: String,
+      default: null,
     },
   },
   data: () => ({

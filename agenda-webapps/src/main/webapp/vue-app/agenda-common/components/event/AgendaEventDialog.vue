@@ -110,27 +110,36 @@ export default {
           .replace(/&/g, '","')
           .replace(/=/g, '":"')}"}`
       );
-      const eventId = parameters.eventId;
+      const eventId = parameters.eventId && Number(parameters.eventId) || 0;
+      const parentId = parameters.parentId && Number(parameters.parentId) || 0;
+      const occurrenceId = parameters.occurrenceId;
       if (eventId) {
         this.openEventDetails(eventId);
+      } else if (parentId && occurrenceId) {
+        this.openEventDetails(parentId, occurrenceId);
       }
     }
     $(document).on('keydown', this.closeByEscape);
     this.$root.$on('agenda-event-form', agendaEvent => {
-      const eventId = agendaEvent.id ? agendaEvent.id : agendaEvent.parent && agendaEvent.parent.id;
-      if (eventId) {
-        const occurrenceEvent = !agendaEvent.id && agendaEvent || null;
-        this.openEventForm(eventId, occurrenceEvent);
-      } else {
+      const isNew = agendaEvent.id ? !agendaEvent.id : !agendaEvent.parent || !agendaEvent.parent.id;
+      if (isNew) {
         this.isForm = true;
         this.openDialog(agendaEvent);
         this.$nextTick().then(() => this.$root.$emit('agenda-event-form-opened', agendaEvent));
+      } else {
+        if (agendaEvent.id) {
+          this.openEventForm(agendaEvent.id);
+        } else if (agendaEvent.occurrence && agendaEvent.occurrence.id) {
+          this.openEventForm(agendaEvent.parent.id, agendaEvent.occurrence.id);
+        }
       }
     });
     this.$root.$on('agenda-event-details', agendaEvent => {
-      const eventId = agendaEvent.id ? agendaEvent.id : agendaEvent.parent && agendaEvent.parent.id;
-      const occurrenceEvent = !agendaEvent.id && agendaEvent || null;
-      this.openEventDetails(eventId, occurrenceEvent);
+      if (agendaEvent.id) {
+        this.openEventDetails(agendaEvent.id);
+      } else if (agendaEvent.occurrence && agendaEvent.occurrence.id) {
+        this.openEventDetails(agendaEvent.parent.id, agendaEvent.occurrence.id);
+      }
     });
     this.$root.$on('agenda-event-deleted', this.close);
     this.$root.$on('agenda-event-save', () => {
@@ -147,35 +156,28 @@ export default {
     formInitialized() {
       this.originalEventString = JSON.stringify(this.event);
     },
-    openEventForm(eventId, occurrenceEvent) {
+    openEventForm(eventId, occurrenceId) {
       this.isForm = true;
-      this.openEventById(eventId, occurrenceEvent);
+      this.openEventById(eventId, occurrenceId);
     },
-    openEventDetails(eventId, occurrenceEvent) {
+    openEventDetails(eventId, occurrenceId) {
       this.isForm = false;
-      this.openEventById(eventId, occurrenceEvent);
+      this.openEventById(eventId, occurrenceId);
     },
-    openEventById(eventId, occurrenceEvent) {
+    openEventById(eventId, occurrenceId) {
       if (eventId) {
-        this.$eventService.getEventById(eventId, 'all')
-          .then(event => {
-            if (occurrenceEvent) {
-              event.id = occurrenceEvent.id;
-              event.start = occurrenceEvent.start;
-              event.end = occurrenceEvent.end;
-              event.occurrence = occurrenceEvent.occurrence;
-              event.parent = occurrenceEvent.parent;
-            }
-            event.startDate = this.$agendaUtils.toDate(event.start);
-            event.endDate = this.$agendaUtils.toDate(event.end);
+        const getEventDetailsPromise = occurrenceId ? this.$eventService.getEventOccurrence(eventId, occurrenceId, 'all') : this.$eventService.getEventById(eventId, 'all');
+        getEventDetailsPromise.then(event => {
+          event.startDate = this.$agendaUtils.toDate(event.start);
+          event.endDate = this.$agendaUtils.toDate(event.end);
   
-            this.openDialog(event);
-            if (this.isForm) {
-              this.$nextTick().then(() => this.$root.$emit('agenda-event-form-opened', event));
-            } else {
-              this.$nextTick().then(() => this.$root.$emit('agenda-event-details-opened', event));
-            }
-          });
+          this.openDialog(event);
+          if (this.isForm) {
+            this.$nextTick().then(() => this.$root.$emit('agenda-event-form-opened', event));
+          } else {
+            this.$nextTick().then(() => this.$root.$emit('agenda-event-details-opened', event));
+          }
+        });
       }
     },
     openDialog(agendaEvent) {
