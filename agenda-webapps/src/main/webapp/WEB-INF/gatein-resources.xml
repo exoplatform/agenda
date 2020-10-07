@@ -16,6 +16,9 @@
         <path>/js/agenda.bundle.js</path>
       </script>
       <depends>
+        <module>AgendaCommon</module>
+      </depends>
+      <depends>
         <module>commonVueComponents</module>
       </depends>
       <depends>
@@ -54,6 +57,9 @@
         <path>/js/agendaSettings.bundle.js</path>
       </script>
       <depends>
+        <module>AgendaCommon</module>
+      </depends>
+      <depends>
         <module>commonVueComponents</module>
       </depends>
       <depends>
@@ -74,5 +80,82 @@
       </depends>
     </module>
   </portlet>
+
+  <portlet>
+    <name>AgendaTimeline</name>
+    <module>
+      <script>
+        <minify>false</minify>
+        <path>/js/agendaTimeline.bundle.js</path>
+      </script>
+      <depends>
+        <module>AgendaCommon</module>
+      </depends>
+      <depends>
+        <module>commonVueComponents</module>
+      </depends>
+      <depends>
+        <module>extensionRegistry</module>
+      </depends>
+      <depends>
+        <module>vue</module>
+      </depends>
+      <depends>
+        <module>vuetify</module>
+      </depends>
+      <depends>
+        <module>eXoVueI18n</module>
+      </depends>
+      <depends>
+        <module>jquery</module>
+        <as>$</as>
+      </depends>
+      <depends>
+        <module>fetchPolyfill</module>
+      </depends>
+      <depends>
+        <module>customEventPolyfill</module>
+      </depends>
+      <depends>
+        <module>iePolyfills</module>
+      </depends>
+    </module>
+  </portlet>
+
+  <module>
+    <name>AgendaCommon</name>
+    <script>
+      <minify>false</minify>
+      <path>/js/agendaCommon.bundle.js</path>
+    </script>
+    <depends>
+      <module>commonVueComponents</module>
+    </depends>
+    <depends>
+      <module>extensionRegistry</module>
+    </depends>
+    <depends>
+      <module>vue</module>
+    </depends>
+    <depends>
+      <module>vuetify</module>
+    </depends>
+    <depends>
+      <module>eXoVueI18n</module>
+    </depends>
+    <depends>
+      <module>jquery</module>
+      <as>$</as>
+    </depends>
+    <depends>
+      <module>fetchPolyfill</module>
+    </depends>
+    <depends>
+      <module>customEventPolyfill</module>
+    </depends>
+    <depends>
+      <module>iePolyfills</module>
+    </depends>
+  </module>
 
 </gatein-resources>
