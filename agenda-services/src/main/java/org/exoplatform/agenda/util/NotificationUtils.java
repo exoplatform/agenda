@@ -45,8 +45,6 @@ public class NotificationUtils {
 
   public static final String               STORED_PARAMETER_EVENT_URL               = "Url";
 
-  public static final String                STORED_PARAMETER_EVENT_RECEIVERS         = "receivers";
-
   private static final String               TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR = "avatarUrl";
 
   public static final String                TEMPLATE_VARIABLE_EVENT_ID               = "eventId";
@@ -84,7 +82,6 @@ public class NotificationUtils {
     }
     List<String> listRecipients = new ArrayList<>(recipients);
     notification.to(listRecipients);
-    notification.with(STORED_PARAMETER_EVENT_RECEIVERS, recipients.toString());
   }
 
   public static final void storeEventParameters(NotificationInfo notification,
