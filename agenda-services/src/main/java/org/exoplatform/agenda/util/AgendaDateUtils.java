@@ -19,21 +19,25 @@ package org.exoplatform.agenda.util;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.format.ResolverStyle;
+import java.time.temporal.TemporalAccessor;
 import java.util.Date;
 
 import org.apache.commons.lang3.StringUtils;
 
 public class AgendaDateUtils {
-  private static final String           ALL_DAY_FORMAT          = "yyyy-MM-dd";
+  private static final String ALL_DAY_FORMAT = "yyyy-MM-dd";
 
-  public static final DateTimeFormatter RFC_3339_FORMATTER      =
+  public static final DateTimeFormatter RFC_3339_FORMATTER =
                                                            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss[.SSS]XXX")
                                                                             .withResolverStyle(ResolverStyle.LENIENT);
 
-  public static final DateTimeFormatter ALL_DAY_FORMATTER       = DateTimeFormatter.ofPattern(ALL_DAY_FORMAT)
-                                                                                   .withResolverStyle(ResolverStyle.LENIENT);
+  public static final DateTimeFormatter ALL_DAY_FORMATTER = DateTimeFormatter.ofPattern(ALL_DAY_FORMAT)
+                                                                             .withResolverStyle(ResolverStyle.LENIENT);
 
   public static final DateTimeFormatter OCCURRENCE_ID_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmssXXX")
+                                                                                   .withResolverStyle(ResolverStyle.LENIENT);
+
+  public static final DateTimeFormatter TIMEZONE_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss")
                                                                                    .withResolverStyle(ResolverStyle.LENIENT);
 
   private AgendaDateUtils() {
@@ -114,6 +118,13 @@ public class AgendaDateUtils {
       return null;
     }
     return OCCURRENCE_ID_FORMATTER.format(formTime.toInstant().atOffset(ZoneOffset.UTC));
+  }
+
+  public static String formatDateTimeWithSeconds(TemporalAccessor dateTime) {
+    if (dateTime == null) {
+      return null;
+    }
+    return TIMEZONE_DATE_FORMATTER.format(dateTime);
   }
 
   public static ZonedDateTime buildOccurrenceDateTime(String occurrenceId) {

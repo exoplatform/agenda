@@ -5,7 +5,8 @@
         <agenda-mobile-header
           :current-space="currentSpace"
           :owner-ids="ownerIds"
-          :period="period" />
+          :period="period"
+          class="mt-2" />
         <agenda-timeline
           :events="events"
           :period-start-date="period.start"

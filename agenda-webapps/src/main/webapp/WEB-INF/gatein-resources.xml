@@ -8,6 +8,13 @@
     <css-path>/skin/css/agenda.css</css-path>
   </portlet-skin>
 
+  <portlet-skin>
+    <application-name>agenda</application-name>
+    <portlet-name>AgendaTimeline</portlet-name>
+    <skin-name>Enterprise</skin-name>
+    <css-path>/skin/css/agenda.css</css-path>
+  </portlet-skin>
+
   <portlet>
     <name>Agenda</name>
     <module>

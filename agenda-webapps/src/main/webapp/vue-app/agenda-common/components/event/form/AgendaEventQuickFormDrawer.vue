@@ -90,18 +90,21 @@
     <template slot="footer">
       <div class="d-flex">
         <v-btn
-          class="btn ml-2 d-none d-sm-inline"
+          v-if="displayMoreDetails"
+          class="btn ml-2"
           @click="close">
           {{ $t('agenda.button.cancel') }}
         </v-btn>
         <v-spacer />
         <v-btn
-          class="btn ml-2 d-none d-sm-inline"
+          v-if="displayMoreDetails"
+          class="btn ml-2"
           @click="openCompleteEventForm">
           {{ $t('agenda.button.moreDetails') }}
         </v-btn>
         <v-btn
-          class="btn ml-2 d-inline d-sm-none"
+          v-else
+          class="btn ml-2"
           @click="close">
           {{ $t('agenda.button.cancel') }}
         </v-btn>
@@ -122,6 +125,10 @@ export default {
     currentSpace: {
       type: Object,
       default: () => null,
+    },
+    displayMoreDetails: {
+      type: Boolean,
+      default: () => true,
     },
   },
   data: () => ({
@@ -165,7 +172,7 @@ export default {
     },
   },
   created() {
-    this.$root.$on('agenda-event-quick-form-open', event => {
+    this.$root.$on('agenda-event-quick-form', event => {
       this.event = null;
       this.$nextTick().then(() => {
         this.event = event;

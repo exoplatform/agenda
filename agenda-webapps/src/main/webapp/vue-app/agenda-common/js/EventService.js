@@ -60,6 +60,19 @@ export function getEventById(eventId, expand) {
   });
 }
 
+export function getEventOccurrence(parentEventId, occurrenceId, expand) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/occurrence/${parentEventId}/${occurrenceId}?expand=${expand || ''}&timeZoneOffset=${TIME_ZONE_OFFSET_SECONDS}`, {
+    method: 'GET',
+    credentials: 'include',
+  }).then((resp) => {
+    if (resp && resp.ok) {
+      return resp.json();
+    } else {
+      throw new Error('Error getting occurrence of event');
+    }
+  });
+}
+
 export function createEvent(event) {
   event.sendInvitation = true;
   event = formatEventToSave(event);
