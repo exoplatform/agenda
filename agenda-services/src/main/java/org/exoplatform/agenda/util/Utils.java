@@ -131,7 +131,7 @@ public class Utils {
       // have at maximum 'limit' occurrences that will be retrieved
       ical4jTo = (DateTime) dates.get(limit - 1);
       long duration = endTime - startTime;
-      ical4jTo = new DateTime(ical4jTo.getTime() + duration);
+      ical4jTo = new DateTime(ical4jTo.getTime() + duration + 1000);
       ical4jTo.setTimeZone(ical4jTimezone);
     }
     Period period = new Period(ical4jFrom, ical4jTo);

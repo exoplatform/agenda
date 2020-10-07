@@ -938,6 +938,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       if (event.getRecurrence() == null) {
         computedEvents.add(event);
       } else {
+        if (userTimezone == null) {
+          userTimezone = ZoneId.systemDefault();
+        }
         List<Event> occurrences = Utils.getOccurrences(event,
                                                        start.toLocalDate(),
                                                        end == null ? null : end.toLocalDate(),
@@ -951,7 +954,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                                 .orElse(null);
             endDateOfOccurrences = eventWithMaxDate.getEnd(); // NOSONAR
           }
-          occurrences = filterExceptionalEvents(event, occurrences, start, endDateOfOccurrences);
+          occurrences = filterExceptionalEvents(event, occurrences, start, endDateOfOccurrences, userTimezone);
           computedEvents.addAll(occurrences);
         }
       }
@@ -966,7 +969,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   private List<Event> filterExceptionalEvents(Event recurrentEvent,
                                               List<Event> occurrences,
                                               ZonedDateTime start,
-                                              ZonedDateTime end) {
+                                              ZonedDateTime end,
+                                              ZoneId zoneId) {
     List<Long> exceptionalOccurenceEventIds = agendaEventStorage.getExceptionalOccurenceEventIds(recurrentEvent.getId(),
                                                                                                  start,
                                                                                                  end);
@@ -979,11 +983,17 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                       .filter(occurrence -> {
                         LocalDate occurrenceDate = occurrence.getOccurrence()
                                                              .getId()
+                                                             .toInstant()
+                                                             .atZone(zoneId)
+                                                             .withZoneSameLocal(ZoneOffset.UTC)
                                                              .toLocalDate();
                         return exceptionalEvents.stream()
                                                 .noneMatch(exceptionalOccurence -> {
                                                   LocalDate exceptionalOccurenceDate = exceptionalOccurence.getOccurrence()
                                                                                                            .getId()
+                                                                                                           .toInstant()
+                                                                                                           .atZone(zoneId)
+                                                                                                           .withZoneSameLocal(ZoneOffset.UTC)
                                                                                                            .toLocalDate();
                                                   return occurrenceDate.isEqual(exceptionalOccurenceDate);
                                                 });
