@@ -5,7 +5,7 @@
             <img class="spaceAvatar" src="<%= avatarUrl %>" alt="<%= avatarUrl %>" />
         </div>
         <div class="media-body">
-            <div class="contentSmall">
+            <div class="contentSmall" data-link="<%= eventURL %>">
                 <div class="status">
                     <%
                     String eventTitle = "<span class=\"user-name text-bold\">"+ eventTitle +"</span>";
@@ -14,11 +14,11 @@
                     %>
                     <%= message %>
                 </div>
-                <div class="content float-right">
-                    <a href="<%= eventURL %>">
+                <v-btn class="my-4 btn btn-primary">
+                    <span class="d-none d-lg-inline">
                       <%= _ctx.appRes("Notification.agenda.event.reply") %>
-                    </a>
-                </div>
+                    </span>
+                </v-btn>
                 <div class="lastUpdatedTime"><%= LAST_UPDATED_TIME %></div>
             </div>
         </div>
