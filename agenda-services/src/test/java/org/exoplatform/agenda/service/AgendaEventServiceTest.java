@@ -516,7 +516,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     ZonedDateTime occurrenceDate = start.plusDays(3).withZoneSameLocal(ZoneId.systemDefault());
     Event eventOccurrence = agendaEventService.getEventOccurrence(event.getId(),
                                                                   occurrenceDate,
-                                                                  ZoneId.systemDefault(),
+                                                                  ZoneId.of("US/Hawaii"),
                                                                   Long.parseLong(testuser1Identity.getId()));
     assertNotNull(eventOccurrence);
     assertNotNull(eventOccurrence.getOccurrence());
