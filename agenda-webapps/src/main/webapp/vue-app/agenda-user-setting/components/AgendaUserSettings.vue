@@ -9,7 +9,7 @@
                 {{ skeleton && '&nbsp;' || $t('agenda') }}
               </div>
             </v-list-item-title>
-            <v-list-item-subtitle class="text-sub-title text-capitalize font-italic">
+            <v-list-item-subtitle class="text-sub-title">
               <div :class="skeleton && 'skeleton-background skeleton-border-radius skeleton-text-width-small skeleton-text-height-fine my-2'">
                 <v-list-item v-if="settings" dense>
                   <v-list-item-content class="pa-0">
@@ -18,7 +18,8 @@
                         <v-chip
                           class="ma-2"
                           color="primary">
-                          {{ agendaView }}
+                          <span class="text-capitalize">{{ settings.agendaDefaultView }}</span>
+                          <span class="pl-1">{{ $t('agenda.view') }}</span>
                         </v-chip>
                         <v-chip
                           class="ma-2"
@@ -63,7 +64,7 @@ export default {
       .toString()
       .toString()}`,
     settings: {
-      agendaDefaultView: '',
+      agendaDefaultView: 'week',
       agendaWeekStartOn: '',
       showWorkingTime: true,
       workingTimeStart: '',
@@ -73,9 +74,6 @@ export default {
     skeleton: true,
   }),
   computed: {
-    agendaView () {
-      return this.settings && this.settings.agendaDefaultView && `${this.settings.agendaDefaultView} ${this.$t('agenda.view')}`;
-    },
     DAY_NAME_BY_ABBREVIATION () {
       return {
         'MO': this.getDayFromAbbreviation('MO'),
