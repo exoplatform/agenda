@@ -5,6 +5,7 @@
       min-height="32"
       width="32"
       min-width="32"
+      max-width="32"
       size="32"
       class="mx-3 my-auto spaceAvatar space-avatar-header">
       <v-img :src="ownerAvatarUrl" />
