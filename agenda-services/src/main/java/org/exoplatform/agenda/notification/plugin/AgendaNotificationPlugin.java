@@ -64,7 +64,7 @@ public class AgendaNotificationPlugin extends BaseNotificationPlugin {
     NotificationInfo notification = NotificationInfo.instance();
     notification.key(getId());
     if (event.getId() > 0) {
-      setNotificationRecipients(notification, eventAttendee);
+      setNotificationRecipients(notification, eventAttendee, event);
     }
     if (notification.getSendToUserIds() == null || notification.getSendToUserIds().isEmpty()) {
       LOG.debug("Notification type '{}' doesn't have a recipient", getId());
