@@ -1,11 +1,5 @@
 import './initComponents.js';
 
-import * as eventService from './js/EventService.js';
-import * as calendarService from './js/CalendarService.js';
-import * as agendaUtils from './js/AgendaUtils.js';
-
-const userTimeZone = agendaUtils.getUserTimezone();
-
 // get overrided components if exists
 if (extensionRegistry) {
   const components = extensionRegistry.loadComponents('Agenda');
@@ -21,27 +15,6 @@ const vuetify = new Vuetify({
   dark: true,
   iconfont: '',
 });
-
-if (!Vue.prototype.$calendarService) {
-  window.Object.defineProperty(Vue.prototype, '$calendarService', {
-    value: calendarService,
-  });
-}
-if (!Vue.prototype.$eventService) {
-  window.Object.defineProperty(Vue.prototype, '$eventService', {
-    value: eventService,
-  });
-}
-if (!Vue.prototype.$agendaUtils) {
-  window.Object.defineProperty(Vue.prototype, '$agendaUtils', {
-    value: agendaUtils,
-  });
-}
-if (!Vue.prototype.$userTimeZone) {
-  window.Object.defineProperty(Vue.prototype, '$userTimeZone', {
-    value: userTimeZone,
-  });
-}
 
 document.dispatchEvent(new CustomEvent('displayTopBarLoading'));
 
