@@ -7,6 +7,7 @@
     </div>
     <v-spacer />
     <v-btn
+      :title="$t('agenda.button.addEvent')"
       icon
       text
       @click="openEventForm">
