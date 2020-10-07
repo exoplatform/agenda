@@ -2,7 +2,7 @@ import './initComponents.js';
 
 // get overrided components if exists
 if (extensionRegistry) {
-  const components = extensionRegistry.loadComponents('AgendaSettings');
+  const components = extensionRegistry.loadComponents('Agenda');
   if (components && components.length > 0) {
     components.forEach(cmp => {
       Vue.component(cmp.componentName, cmp.componentOptions);
@@ -18,7 +18,7 @@ const vuetify = new Vuetify({
 
 document.dispatchEvent(new CustomEvent('displayTopBarLoading'));
 
-const appId = 'AgendaSettingsApplication';
+const appId = 'AgendaTimelineApplication';
 
 //getting language of the PLF
 const lang = eXo && eXo.env.portal.language || 'en';
@@ -28,9 +28,9 @@ const url = `${eXo.env.portal.context}/${eXo.env.portal.rest}/i18n/bundle/locale
 
 export function init() {
   exoi18n.loadLanguageAsync(lang, url).then(i18n => {
-    // init Vue app when locale ressources are ready
+  // init Vue app when locale ressources are ready
     new Vue({
-      template: `<agenda-user-settings id="${appId}" />`,
+      template: `<agenda-timeline-widget id="${appId}" />`,
       vuetify,
       i18n
     }).$mount(`#${appId}`);
