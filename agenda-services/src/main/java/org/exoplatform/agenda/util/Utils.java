@@ -18,6 +18,9 @@ package org.exoplatform.agenda.util;
 
 import java.text.ParseException;
 import java.time.*;
+import java.time.format.TextStyle;
+import java.time.zone.ZoneOffsetTransition;
+import java.time.zone.ZoneRules;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -38,12 +41,15 @@ import org.exoplatform.social.core.space.spi.SpaceService;
 
 import net.fortuna.ical4j.model.*;
 import net.fortuna.ical4j.model.Period;
-import net.fortuna.ical4j.model.component.VEvent;
-import net.fortuna.ical4j.model.property.RRule;
+import net.fortuna.ical4j.model.TimeZone;
+import net.fortuna.ical4j.model.component.*;
+import net.fortuna.ical4j.model.property.*;
 
 public class Utils {
 
   private static final Log LOG = ExoLogger.getLogger(Utils.class);
+
+  private static final TimeZoneRegistry ICAL4J_TIME_ZONE_REGISTRY = TimeZoneRegistryFactory.getInstance().createRegistry();
 
   private Utils() {
   }
@@ -72,11 +78,12 @@ public class Utils {
       timeZone = ZoneId.systemDefault();
     }
 
-    long startTime = event.isAllDay() ? event.getStart().toLocalDate().atStartOfDay(ZoneId.systemDefault()).toEpochSecond() * 1000
+    TimeZone ical4jTimezone = getICalTimeZone(timeZone);
+    long startTime = event.isAllDay() ? event.getStart().toLocalDate().atStartOfDay(timeZone).toEpochSecond() * 1000
                                       : event.getStart().toEpochSecond() * 1000;
     long endTime = event.isAllDay() ? event.getEnd()
                                            .toLocalDate()
-                                           .atStartOfDay(ZoneId.systemDefault())
+                                           .atStartOfDay(timeZone)
                                            .plusDays(1)
                                            .minusSeconds(1)
                                            .toEpochSecond()
@@ -84,7 +91,9 @@ public class Utils {
                                     : event.getEnd().toEpochSecond() * 1000;
 
     DateTime startDateTime = new DateTime(startTime);
+    startDateTime.setTimeZone(ical4jTimezone);
     DateTime endDateTime = new DateTime(endTime);
+    endDateTime.setTimeZone(ical4jTimezone);
     VEvent vevent = new VEvent(startDateTime, endDateTime, event.getSummary());
     Recur recur = getICalendarRecur(event, event.getRecurrence());
     vevent.getProperties().add(new RRule(recur));
@@ -100,16 +109,21 @@ public class Utils {
     }
     long toTime = to.atStartOfDay(timeZone).plusDays(1).minusSeconds(1).toEpochSecond() * 1000;
     DateTime ical4jFrom = new DateTime(fromTime);
+    ical4jFrom.setTimeZone(ical4jTimezone);
     DateTime ical4jTo = new DateTime(toTime);
+    ical4jTo.setTimeZone(ical4jTimezone);
     DateList dates = limit > 0 ? recur.getDates(startDateTime, ical4jFrom, ical4jTo, null, limit)
                                : recur.getDates(startDateTime, ical4jFrom, ical4jTo, null);
     if (dates == null || dates.isEmpty()) {
       return Collections.emptyList();
     }
+    final ZoneId zoneId = timeZone;
     @SuppressWarnings("all")
     List<LocalDate> occurrencesIds = (List<LocalDate>) dates.stream()
-                                                            .map(date -> AgendaDateUtils.fromDate((DateTime) date)
-                                                                                        .toLocalDate())
+                                                            .map(date -> ((DateTime) date).toInstant()
+                                                                                          .atZone(zoneId)
+                                                                                          .withZoneSameLocal(ZoneOffset.UTC)
+                                                                                          .toLocalDate())
                                                             .collect(Collectors.toList());
 
     if (limit > 0 && dates.size() >= limit) {
@@ -117,9 +131,11 @@ public class Utils {
       // have at maximum 'limit' occurrences that will be retrieved
       ical4jTo = (DateTime) dates.get(limit - 1);
       long duration = endTime - startTime;
-      ical4jTo = new DateTime(ical4jTo.getTime() + duration + 1000);
+      ical4jTo = new DateTime(ical4jTo.getTime() + duration);
+      ical4jTo.setTimeZone(ical4jTimezone);
     }
     Period period = new Period(ical4jFrom, ical4jTo);
+    period.setTimeZone(ical4jTimezone);
     PeriodList list = vevent.calculateRecurrenceSet(period);
 
     List<Event> occurrences = new ArrayList<>();
@@ -127,19 +143,14 @@ public class Utils {
     Iterator<?> periods = list.iterator();
     while (periods.hasNext()) {
       Period occurrencePeriod = (Period) periods.next();
-      ZonedDateTime occurrenceId = AgendaDateUtils.fromDate(occurrencePeriod.getStart());
+      ZonedDateTime occurrenceId = occurrencePeriod.getStart().toInstant().atZone(timeZone).withZoneSameLocal(ZoneOffset.UTC);
       if (!occurrencesIds.contains(occurrenceId.toLocalDate())) {
         continue;
       }
       Event occurrence = event.clone();
       occurrence.setId(0);
-      if (event.isAllDay()) {
-        occurrence.setStart(occurrencePeriod.getStart().toInstant().atZone(ZoneId.systemDefault()).withZoneSameLocal(timeZone));
-        occurrence.setEnd(occurrencePeriod.getEnd().toInstant().atZone(ZoneId.systemDefault()).withZoneSameLocal(timeZone));
-      } else {
-        occurrence.setStart(occurrencePeriod.getStart().toInstant().atZone(timeZone));
-        occurrence.setEnd(occurrencePeriod.getEnd().toInstant().atZone(timeZone));
-      }
+      occurrence.setStart(occurrencePeriod.getStart().toInstant().atZone(timeZone));
+      occurrence.setEnd(occurrencePeriod.getEnd().toInstant().atZone(timeZone));
       occurrence.setOccurrence(new EventOccurrence(occurrenceId, false));
       occurrence.setParentId(event.getId());
       occurrence.setRecurrence(null);
@@ -325,5 +336,120 @@ public class Utils {
     SpaceService spaceService = CommonsUtils.getService(SpaceService.class);
     String[] members = spaceService.getSpaceByPrettyName(spaceName).getMembers();
     return Arrays.asList(members);
+  }
+
+  public static TimeZone getICalTimeZone(ZoneId zoneId) {
+    try {
+      TimeZone ical4jTimezone = ICAL4J_TIME_ZONE_REGISTRY.getTimeZone(zoneId.getId());
+      if (ical4jTimezone != null) {
+        return ical4jTimezone;
+      }
+
+      Instant nowInstant = Instant.now();
+
+      ZoneRules zoneIdRules = zoneId.getRules();
+      ZoneOffsetTransition nextTransition = zoneIdRules.nextTransition(nowInstant);
+      boolean useDaylightSavings = nextTransition != null;
+
+      ZonedDateTime now = ZonedDateTime.now();
+      String dtStartValue = AgendaDateUtils.formatDateTimeWithSeconds(now);
+      // Properties for Standard component
+      PropertyList standardTzProps = new PropertyList();
+      TzName standardTzName = new TzName(new ParameterList(), zoneId.getDisplayName(TextStyle.SHORT, Locale.ENGLISH));
+      DtStart standardTzStart = new DtStart();
+
+      ZoneOffset standardOffset = zoneId.getRules().getStandardOffset(nowInstant);
+      long standardOffsetMillis = standardOffset.getTotalSeconds() * 1000l;
+      ZoneOffset dstOffset = zoneId.getRules().getOffset(nowInstant);
+      long dstOffsetMillis = dstOffset.getTotalSeconds() * 1000l;
+
+      if (useDaylightSavings) {
+        LocalDateTime date = getDaylightEnd(zoneId);
+        standardTzStart.setValue(AgendaDateUtils.formatDateTimeWithSeconds(date));
+      } else {
+        standardTzStart.setValue(dtStartValue);
+      }
+
+      TzOffsetTo standardTzOffsetTo = new TzOffsetTo();
+      standardTzOffsetTo.setOffset(new UtcOffset(standardOffsetMillis));
+
+      TzOffsetFrom standardTzOffsetFrom = new TzOffsetFrom();
+      standardTzOffsetFrom.setOffset(new UtcOffset(dstOffsetMillis));
+
+      standardTzProps.add(standardTzName);
+      standardTzProps.add(standardTzStart);
+      standardTzProps.add(standardTzOffsetTo);
+      standardTzProps.add(standardTzOffsetFrom);
+
+      // Standard Component for VTimeZone
+      Standard standardTz = new Standard(standardTzProps);
+
+      // Components for VTimeZone
+      ComponentList tzComponents = new ComponentList();
+      tzComponents.add(standardTz);
+
+      if (useDaylightSavings) {
+        // Properties for DayLight component
+        PropertyList daylightTzProps = new PropertyList();
+
+        TzName daylightTzName = new TzName(zoneId.getDisplayName(TextStyle.SHORT, Locale.ENGLISH));
+
+        LocalDateTime start = getDaylightStart(zoneId);
+        DtStart daylightDtStart = new DtStart();
+        daylightDtStart.setValue(AgendaDateUtils.formatDateTimeWithSeconds(start));
+
+        TzOffsetTo daylightTzOffsetTo = new TzOffsetTo();
+        daylightTzOffsetTo.setOffset(new UtcOffset(dstOffsetMillis));
+
+        TzOffsetFrom daylightTzOffsetFrom = new TzOffsetFrom();
+        daylightTzOffsetFrom.setOffset(new UtcOffset(standardOffset.getTotalSeconds() * 1000l));
+
+        daylightTzProps.add(daylightTzOffsetFrom);
+        daylightTzProps.add(daylightTzOffsetTo);
+        daylightTzProps.add(daylightDtStart);
+        daylightTzProps.add(daylightTzName);
+
+        // Daylight Component for VTimeZone
+        Daylight daylightTz = new Daylight(daylightTzProps);
+        // add daylight component to VTimeZone
+        tzComponents.add(daylightTz);
+      }
+
+      PropertyList tzProps = new PropertyList();
+      TzId tzId = new TzId(null, zoneId.getId());
+      tzProps.add(tzId);
+
+      // Construct the VTimeZone object
+      VTimeZone vTz = new VTimeZone(tzProps, tzComponents);
+      vTz.validate();
+      ical4jTimezone = new TimeZone(vTz);
+      ICAL4J_TIME_ZONE_REGISTRY.register(ical4jTimezone);
+      return ical4jTimezone;
+    } catch (Exception e) {
+      LOG.warn("Error computing timezone with zoneId '{}'", zoneId, e);
+      return null;
+    }
+  }
+
+  public static LocalDateTime getDaylightStart(ZoneId zoneId) {
+    ZonedDateTime zonedDateTime = LocalDate.of(LocalDate.now().getYear(), 1, 1).atStartOfDay(zoneId);
+    ZoneOffsetTransition nextTransition = zoneId.getRules().nextTransition(zonedDateTime.toInstant());
+    if (nextTransition.isGap()) {
+      return nextTransition.getDateTimeAfter();
+    } else {
+      ZoneOffsetTransition previousTransition = zoneId.getRules().nextTransition(zonedDateTime.toInstant());
+      return previousTransition.getDateTimeAfter();
+    }
+  }
+
+  public static LocalDateTime getDaylightEnd(ZoneId zoneId) {
+    ZonedDateTime zonedDateTime = LocalDate.of(LocalDate.now().getYear(), 1, 1).atStartOfDay(zoneId);
+    ZoneOffsetTransition nextTransition = zoneId.getRules().nextTransition(zonedDateTime.toInstant());
+    if (nextTransition.isOverlap()) {
+      return nextTransition.getDateTimeBefore();
+    } else {
+      ZoneOffsetTransition previousTransition = zoneId.getRules().nextTransition(zonedDateTime.toInstant());
+      return previousTransition.getDateTimeBefore();
+    }
   }
 }

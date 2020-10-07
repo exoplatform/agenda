@@ -317,7 +317,7 @@ export default {
 
         window.setTimeout(() => {
           if (this.quickEvent) {
-            this.$root.$emit('agenda-event-quick-form-open', this.quickEvent);
+            this.$root.$emit('agenda-event-quick-form', this.quickEvent);
           }
         }, 200);
       } else if(this.eventDragged || this.eventExtended) {
