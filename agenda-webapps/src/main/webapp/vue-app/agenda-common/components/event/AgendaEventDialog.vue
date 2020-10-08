@@ -227,6 +227,9 @@ export default {
       }
     },
     closeEffectively() {
+      // Workaround to close titptip when closing dialog
+      $('#tiptip_holder').mouseleave();
+
       this.dialog = false;
       window.history.replaceState('', window.document.title, window.location.pathname);
     },
