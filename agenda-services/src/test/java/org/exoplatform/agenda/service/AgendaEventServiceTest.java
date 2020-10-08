@@ -523,6 +523,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertNotNull(eventOccurrence.getOccurrence().getId());
     assertTrue(eventOccurrence.getId() == 0);
     assertEquals(occurrenceDate.toLocalDate(), eventOccurrence.getOccurrence().getId().toLocalDate());
+
+    assertNotNull(eventOccurrence.getAcl());
+    assertTrue(eventOccurrence.getAcl().isCanEdit());
+    assertTrue(eventOccurrence.getAcl().isAttendee());
   }
 
   @Test
@@ -572,6 +576,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                                                   Long.parseLong(testuser1Identity.getId()));
     assertNotNull(eventOccurrence);
     assertEquals(eventOccurrence.getId(), exceptionalOccurrence.getId());
+
+    assertNotNull(eventOccurrence.getAcl());
+    assertTrue(eventOccurrence.getAcl().isCanEdit());
+    assertTrue(eventOccurrence.getAcl().isAttendee());
   }
 
   @Test
