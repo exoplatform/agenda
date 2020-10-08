@@ -90,7 +90,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       long userIdentityId = Long.parseLong(identity.getId());
 
       boolean canUpdateEvent = canUpdateEvent(event, username);
-      boolean isEventAttendee = attendeeService.isEventAttendee(event.getId(), userIdentityId);
+      boolean isEventAttendee = attendeeService.isEventAttendee(getEventIdOrParentId(event), userIdentityId);
 
       event.setAcl(new Permission(canUpdateEvent, isEventAttendee));
       return event;
@@ -113,7 +113,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (canAccessEvent(event, identityId)) {
       adjustEventDatesForRead(event, timeZone);
       boolean canUpdateEvent = canUpdateEvent(event, identity.getRemoteId());
-      boolean isEventAttendee = attendeeService.isEventAttendee(event.getId(), identityId);
+      boolean isEventAttendee = attendeeService.isEventAttendee(getEventIdOrParentId(event), identityId);
       event.setAcl(new Permission(canUpdateEvent, isEventAttendee));
       return event;
     } else {
@@ -168,7 +168,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (event != null) {
       adjustEventDatesForRead(event, timeZone);
       boolean canUpdateEvent = canUpdateEvent(event, identity.getRemoteId());
-      boolean isEventAttendee = attendeeService.isEventAttendee(event.getId(), identityId);
+      boolean isEventAttendee = attendeeService.isEventAttendee(getEventIdOrParentId(event), identityId);
       event.setAcl(new Permission(canUpdateEvent, isEventAttendee));
     }
     return event;
@@ -283,7 +283,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     reminderService.saveEventReminders(createdEvent, reminders, userIdentityId);
     attendeeService.saveEventAttendees(createdEvent, attendees, userIdentityId, sendInvitation, false);
 
-    return getEventById(createdEvent.getId(), event.getStart().getZone(), username);
+    return getEventById(eventId, event.getStart().getZone(), username);
   }
 
   /**
@@ -338,14 +338,14 @@ public class AgendaEventServiceImpl implements AgendaEventService {
         attachment.setId(0);
         attachment.setEventId(exceptionalEventId);
       });
-      attachmentService.saveEventAttachments(exceptionalEvent.getId(), attachments, originalRecurrentEventCreator);
+      attachmentService.saveEventAttachments(exceptionalEventId, attachments, originalRecurrentEventCreator);
     }
     if (conferences != null && !conferences.isEmpty()) {
       conferences.forEach(conference -> {
         conference.setId(0);
         conference.setEventId(exceptionalEventId);
       });
-      conferenceService.saveEventConferences(exceptionalEvent.getId(), conferences);
+      conferenceService.saveEventConferences(exceptionalEventId, conferences);
     }
     if (reminders != null && !reminders.isEmpty()) {
       reminders.forEach(reminder -> reminder.setId(0));
@@ -574,7 +574,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     long userIdentityId = Long.parseLong(identity.getId());
 
     return Utils.canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), username)
-        || attendeeService.isEventAttendee(event.getId(), userIdentityId);
+        || attendeeService.isEventAttendee(getEventIdOrParentId(event), userIdentityId);
   }
 
   @Override
@@ -588,9 +588,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
     if (StringUtils.equals(OrganizationIdentityProvider.NAME, identity.getProviderId())) {
       return Utils.canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), identity.getRemoteId())
-          || attendeeService.isEventAttendee(event.getId(), identityId);
+          || attendeeService.isEventAttendee(getEventIdOrParentId(event), identityId);
     } else {
-      return attendeeService.isEventAttendee(event.getId(), identityId);
+      return attendeeService.isEventAttendee(getEventIdOrParentId(event), identityId);
     }
   }
 
@@ -607,7 +607,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       }
     }
     if (event.isAllowAttendeeToUpdate()
-        && attendeeService.isEventAttendee(event.getId(), userIdentityId)) {
+        && attendeeService.isEventAttendee(getEventIdOrParentId(event), userIdentityId)) {
       return true;
     }
     if (calendar == null) {
@@ -818,10 +818,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     long userIdentityId = Long.parseLong(userIdentity.getId());
     Map<Long, Permission> eventPermissionsMap = new HashMap<>();
     events.forEach(event -> {
-      long eventId = event.getId();
-      if (eventId == 0) {
-        eventId = event.getParentId();
-      }
+      long eventId = getEventIdOrParentId(event);
       Permission permission = eventPermissionsMap.get(eventId);
       if (permission == null) {
         boolean canUpdateEvent = canUpdateEvent(event, username);
@@ -999,6 +996,17 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                                 });
                       })
                       .collect(Collectors.toList());
+  }
+
+  private long getEventIdOrParentId(Event event) {
+    if (event != null) {
+      if (event.getId() > 0) {
+        return event.getId();
+      } else if (event.getParentId() > 0) {
+        return event.getParentId();
+      }
+    }
+    return 0;
   }
 
 }
