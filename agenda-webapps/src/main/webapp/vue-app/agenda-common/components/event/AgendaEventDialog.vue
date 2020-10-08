@@ -142,9 +142,7 @@ export default {
       }
     });
     this.$root.$on('agenda-event-deleted', this.close);
-    this.$root.$on('agenda-event-save', () => {
-      this.saving = true;
-    });
+    this.$root.$on('agenda-event-save', () => this.saving = true);
     this.$root.$on('agenda-event-saved', this.close);
   },
   methods: {
