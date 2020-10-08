@@ -4,7 +4,7 @@
     :confirm-close-labels="confirmCloseLabels"
     :confirm-close="eventChanged"
     right
-    body-classes="hide-scroll"
+    body-classes="hide-scroll decrease-z-index-more"
     class="quickAddEventDrawer"
     @closed="cancelEventCreation">
     <template slot="title">
