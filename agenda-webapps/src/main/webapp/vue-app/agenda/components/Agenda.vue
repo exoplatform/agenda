@@ -11,6 +11,7 @@
           :events="events"
           :period-start-date="period.start"
           :loading="loading"
+          :limit="limit"
           class="mt-2" />
         <v-flex v-if="hasMore" class="d-flex py-4 border-box-sizing">
           <v-btn
