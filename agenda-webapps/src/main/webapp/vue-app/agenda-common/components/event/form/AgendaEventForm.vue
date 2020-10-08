@@ -42,8 +42,7 @@
             ref="eventDates"
             :event="event"
             :weekdays="weekdays"
-            :working-time="workingTime"
-            @next-step="nextStep" />
+            :working-time="workingTime" />
         </v-stepper-content>
       </v-stepper-items>
     </v-stepper>
@@ -148,6 +147,9 @@ export default {
     },
     nextStep() {
       if (this.stepper > 1) {
+        this.event.start = this.$agendaUtils.toRFC3339(this.event.startDate);
+        this.event.end = this.$agendaUtils.toRFC3339(this.event.endDate);
+
         this.$root.$emit('agenda-event-save', this.event);
       } else if (this.stepper === 1) {
         if (this.$refs.eventBasicInformation.validateForm()) {
