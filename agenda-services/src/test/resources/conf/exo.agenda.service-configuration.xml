@@ -98,6 +98,17 @@
         </value-param>
       </init-params>
     </component-plugin>
+    <component-plugin>
+      <name>push.channel.agenda.template</name>
+      <set-method>registerTemplateProvider</set-method>
+      <type>org.exoplatform.agenda.notification.provider.MobilePushTemplateProvider</type>
+      <init-params>
+        <value-param>
+          <name>channel-id</name>
+          <value>PUSH_CHANNEL</value>
+        </value-param>
+      </init-params>
+    </component-plugin>
   </external-component-plugins>
 
 </configuration>
