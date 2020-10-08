@@ -457,6 +457,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     reminderService.saveEventReminders(updatedEvent, reminders, userIdentityId);
     attendeeService.saveEventAttendees(updatedEvent, attendees, userIdentityId, sendInvitation, false, false);
 
+
     return updatedEvent;
   }
 
@@ -906,7 +907,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
   }
 
-  private List<Long> getCalendarOwnersOfUser(Identity userIdentity) {
+  public List<Long> getCalendarOwnersOfUser(Identity userIdentity) {
     List<Long> calendarOwners = new ArrayList<>();
     String userIdentityId = userIdentity.getId();
     calendarOwners.add(Long.parseLong(userIdentityId));

@@ -93,7 +93,7 @@ public class AgendaEventStorage {
   public void deleteEventById(long eventId) {
     EventEntity eventEntity = eventDAO.deleteEvent(eventId);
     if (eventEntity != null) {
-      Utils.broadcastEvent(listenerService, "exo.agenda.event.deleted", EntityMapper.fromEntity(eventEntity), 0);
+      Utils.broadcastEvent(listenerService, "exo.agenda.event.deleted", eventId, 0);
     }
   }
 
@@ -155,7 +155,7 @@ public class AgendaEventStorage {
     event = EntityMapper.fromEntity(eventEntity);
     long creatorId = eventEntity.getCreatorId();
 
-    Utils.broadcastEvent(listenerService, "exo.agenda.event.created", event, creatorId);
+    Utils.broadcastEvent(listenerService, "exo.agenda.event.created", event.getId(), creatorId);
     return event;
   }
 
@@ -188,7 +188,7 @@ public class AgendaEventStorage {
     eventEntity = eventDAO.find(eventEntity.getId());
     event = EntityMapper.fromEntity(eventEntity);
 
-    Utils.broadcastEvent(listenerService, "exo.agenda.event.updated", event, modifierId);
+    Utils.broadcastEvent(listenerService, "exo.agenda.event.updated", event.getId(), modifierId);
 
     return event;
   }

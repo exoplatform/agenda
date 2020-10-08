@@ -27,6 +27,12 @@ import org.exoplatform.social.core.identity.model.Identity;
 
 public interface AgendaEventService {
 
+  String POST_CREATE_AGENDA_EVENT_EVENT = "exo.agenda.event.created";
+
+  String POST_UPDATE_AGENDA_EVENT_EVENT = "exo.agenda.event.updated";
+
+  String POST_DELETE_AGENDA_EVENT_EVENT = "exo.agenda.event.deleted";
+
   /**
    * Retrieves the list of events available for a designated user in a selected
    * period of time.

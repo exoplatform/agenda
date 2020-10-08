@@ -22,9 +22,11 @@ import java.util.stream.Collectors;
 
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.*;
+import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import javax.ws.rs.core.UriInfo;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -34,10 +36,13 @@ import org.exoplatform.agenda.exception.AgendaExceptionType;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.rest.model.*;
+import org.exoplatform.agenda.search.AgendaSearchConnector;
+import org.exoplatform.agenda.search.AgendaSearchFilter;
 import org.exoplatform.agenda.service.*;
 import org.exoplatform.agenda.util.*;
 import org.exoplatform.common.http.HTTPStatus;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.rest.resource.ResourceContainer;
@@ -673,6 +678,64 @@ public class AgendaEventRest implements ResourceContainer {
       LOG.warn("Error retrieving event reminders with id '{}'", eventId, e);
       return Response.serverError().entity(e.getMessage()).build();
     }
+  }
+
+
+  @Path("search")
+  @GET
+  @Produces(MediaType.APPLICATION_JSON)
+  @RolesAllowed("users")
+  @ApiOperation(
+          value = "Search the list of events available with query for an owner of type user or space, identified by its identity technical identifier."
+                  + " If no designated owner, all events available for authenticated user will be retrieved.",
+          httpMethod = "GET", response = Response.class, produces = "application/json"
+  )
+  @ApiResponses(
+          value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+                  @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+                  @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+  )
+  public Response searchEvent(
+          @Context UriInfo uriInfo,
+          @ApiParam(value = "Term to search", required = true) @QueryParam(
+                  "query"
+          ) String query,
+          @ApiParam(value = "Offset", required = false, defaultValue = "0") @QueryParam(
+                  "offset"
+          ) int offset,
+          @ApiParam(value = "Limit", required = false, defaultValue = "20") @QueryParam(
+                  "limit"
+          ) int limit) throws Exception  {
+
+    offset = offset > 0 ? offset : RestUtils.getOffset(uriInfo);
+    limit = limit > 0 ? limit : RestUtils.getLimit(uriInfo);
+
+    /*if (StringUtils.isBlank(query)) {
+      return Response.status(Status.BAD_REQUEST).entity("'query' parameter is mandatory").build();
+    }*/
+
+    String authenticatedUser = RestUtils.getCurrentUser();
+    Identity currentUser = CommonsUtils.getService(IdentityManager.class)
+            .getOrCreateIdentity(OrganizationIdentityProvider.NAME, authenticatedUser);
+
+    AgendaSearchConnector agendaSearchConnector = CommonsUtils.getService(AgendaSearchConnector.class);
+    AgendaSearchFilter filter = new AgendaSearchFilter(query);
+    List<EventSearchResult> searchResults = agendaSearchConnector.search(currentUser, filter, offset, limit);
+    /*List<EventSearchResult> results = searchResults.stream().map(searchResult -> {
+      ActivitySearchResultEntity entity = new ActivitySearchResultEntity(searchResult);
+      entity.setPoster(EntityBuilder.buildEntityIdentity(searchResult.getPoster(), uriInfo.getPath(), "all"));
+      entity.setStreamOwner(EntityBuilder.buildEntityIdentity(searchResult.getStreamOwner(), uriInfo.getPath(), "all"));
+      ActivitySearchResult comment = searchResult.getComment();
+      if (comment != null) {
+        ActivitySearchResultEntity commentEntity = new ActivitySearchResultEntity(comment);
+        commentEntity.setPoster(EntityBuilder.buildEntityIdentity(comment.getPoster(), uriInfo.getPath(), "all"));
+        commentEntity.setStreamOwner(EntityBuilder.buildEntityIdentity(comment.getStreamOwner(), uriInfo.getPath(), "all"));
+        entity.setComment(commentEntity);
+      }
+      return entity;
+    }).collect(Collectors.toList());*/
+
+    return Response.ok(searchResults).build();
   }
 
   private Event createEvent(EventEntity eventEntity, String currentUser) throws AgendaException, IllegalAccessException {
