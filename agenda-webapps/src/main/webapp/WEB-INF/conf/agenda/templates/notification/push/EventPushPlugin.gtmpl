@@ -1,11 +1,7 @@
 <% eventTitle = _ctx.escapeHTML(eventTitle); %>
 <div>
     <div>
-        <%
-        String message = null;
-        message = _ctx.appRes("Notification.agenda.event.created", eventTitle);
-        %>
-        <%= message %>
+        <%= _ctx.appRes("Notification.agenda.event.created", eventTitle) %>
     </div>
     <div>
         <a href="<%= eventURL %>">
