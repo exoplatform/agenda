@@ -1,12 +1,15 @@
 <template>
   <v-app class="agenda-application border-box-sizing" flat>
     <v-main class="white">
-      <agenda-timeline-header :current-space="currentSpace" />
+      <agenda-timeline-header
+        :current-space="currentSpace"
+        :agenda-base-link="agendaBaseLink" />
       <agenda-timeline
         :events="events"
         :period-start-date="periodStart"
         :agenda-base-link="agendaBaseLink"
         :loading="loading"
+        :limit="limit"
         class="mt-2" />
     </v-main>
 
@@ -67,7 +70,7 @@ export default {
             if (space && space.identity && space.identity.id) {
               this.ownerIds = [space.identity.id];
               const spaceGroupUri = this.currentSpace.groupId.replace(/\//g, ':');
-              this.agendaBaseLink = `${eXo.env.portal.context}/${spaceGroupUri}/Agenda`;
+              this.agendaBaseLink = `${eXo.env.portal.context}/g/${spaceGroupUri}/Agenda`;
             } else {
               this.agendaBaseLink = `${eXo.env.portal.context}/${eXo.env.portal.portalName}/agenda`;
             }
