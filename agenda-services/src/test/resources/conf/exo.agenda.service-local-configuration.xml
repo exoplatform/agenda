@@ -29,28 +29,6 @@
     </init-params>
   </component>
 
-  <component>
-     <type>org.exoplatform.download.DownloadService</type>
-     <init-params>
-        <value-param>
-           <name>download.resource.cache.size</name>
-           <description>Maximun number of the download can be in the cache</description>
-           <value>10</value>
-        </value-param>
-     </init-params>
-  </component>
-
-  <component>
-    <type>org.exoplatform.upload.UploadService</type>
-    <init-params>
-      <value-param>
-        <name>upload.limit.size</name>
-        <description>Maximum size of the file to upload in MB</description>
-        <value>10</value>
-      </value-param>
-    </init-params>
-  </component>
-
   <external-component-plugins>
     <target-component>org.exoplatform.services.organization.OrganizationService</target-component>
     <component-plugin>
@@ -226,6 +204,410 @@
                     </field>
                     <field name="groups">
                       <string>member:/platform/users</string>
+                    </field>
+                  </object>
+                </value>
+              </collection>
+            </field>
+          </object>
+        </object-param>
+      </init-params>
+    </component-plugin>
+  </external-component-plugins>
+
+  <external-component-plugins>
+    <target-component>org.exoplatform.social.core.space.spi.SpaceTemplateService</target-component>
+    <component-plugin>
+      <name>Space Template Configuration</name>
+      <set-method>registerSpaceTemplatePlugin</set-method>
+      <type>org.exoplatform.social.core.space.SpaceTemplateConfigPlugin</type>
+      <init-params>
+        <object-param>
+          <name>template</name>
+          <description>Space Template With Agenda App</description>
+          <object type="org.exoplatform.social.core.space.SpaceTemplate">
+            <field name="name">
+              <string>agendaTemplate</string>
+            </field>
+            <field name="visibility">
+              <string>private</string>
+            </field>
+            <field name="registration">
+              <string>open</string>
+            </field>
+            <field name="bannerPath">
+              <string>classpath:/eXo-Social.png</string>
+            </field>
+            <field name="homePageApplication">
+              <object type="org.exoplatform.social.core.space.SpaceApplication">
+                <field name="portletApp">
+                  <string>social-portlet</string>
+                </field>
+                <field name="portletName">
+                  <string>SpaceActivityStreamPortlet</string>
+                </field>
+                <field name="appTitle">
+                  <string>Home</string>
+                </field>
+              </object>
+            </field>
+            <field name="applications">
+              <collection type="java.util.ArrayList">
+                <value>
+                  <object type="org.exoplatform.social.core.space.SpaceApplication">
+                    <field name="portletApp">
+                      <string>agenda</string>
+                    </field>
+                    <field name="portletName">
+                      <string>Agenda</string>
+                    </field>
+                    <field name="appTitle">
+                      <string>Agenda</string>
+                    </field>
+                    <field name="removable">
+                      <boolean>true</boolean>
+                    </field>
+                    <field name="order">
+                      <int>1</int>
+                    </field>
+                    <field name="uri">
+                      <string>Agenda</string>
+                    </field>
+                  </object>
+                </value>
+                <value>
+                  <object type="org.exoplatform.social.core.space.SpaceApplication">
+                    <field name="portletApp">
+                      <string>social-portlet</string>
+                    </field>
+                    <field name="portletName">
+                      <string>SpaceSettingPortlet</string>
+                    </field>
+                    <field name="appTitle">
+                      <string>Space Settings</string>
+                    </field>
+                    <field name="removable">
+                      <boolean>false</boolean>
+                    </field>
+                    <field name="order">
+                      <int>2</int>
+                    </field>
+                    <field name="uri">
+                      <string>settings</string>
+                    </field>
+                  </object>
+                </value>
+                <value>
+                  <object type="org.exoplatform.social.core.space.SpaceApplication">
+                    <field name="portletApp">
+                      <string>social-portlet</string>
+                    </field>
+                    <field name="portletName">
+                      <string>MembersPortlet</string>
+                    </field>
+                    <field name="appTitle">
+                      <string>Members</string>
+                    </field>
+                    <field name="removable">
+                      <boolean>true</boolean>
+                    </field>
+                    <field name="order">
+                      <int>3</int>
+                    </field>
+                    <field name="uri">
+                      <string>members</string>
+                    </field>
+                  </object>
+                </value>
+              </collection>
+            </field>
+          </object>
+        </object-param>
+      </init-params>
+    </component-plugin>
+
+    <component-plugin>
+      <name>Space Template Configuration</name>
+      <set-method>registerSpaceTemplatePlugin</set-method>
+      <type>org.exoplatform.social.core.space.SpaceTemplateConfigPlugin</type>
+      <init-params>
+        <object-param>
+          <name>template</name>
+          <description>Space Template With Agenda Timeline App Only</description>
+          <object type="org.exoplatform.social.core.space.SpaceTemplate">
+            <field name="name">
+              <string>agendaTimelineOnlyTemplate</string>
+            </field>
+            <field name="visibility">
+              <string>private</string>
+            </field>
+            <field name="registration">
+              <string>open</string>
+            </field>
+            <field name="bannerPath">
+              <string>classpath:/eXo-Social.png</string>
+            </field>
+            <field name="homePageApplication">
+              <object type="org.exoplatform.social.core.space.SpaceApplication">
+                <field name="portletApp">
+                  <string>agenda</string>
+                </field>
+                <field name="portletName">
+                  <string>AgendaTimeline</string>
+                </field>
+                <field name="appTitle">
+                  <string>Home</string>
+                </field>
+              </object>
+            </field>
+            <field name="applications">
+              <collection type="java.util.ArrayList">
+                <value>
+                  <object type="org.exoplatform.social.core.space.SpaceApplication">
+                    <field name="portletApp">
+                      <string>social-portlet</string>
+                    </field>
+                    <field name="portletName">
+                      <string>SpaceSettingPortlet</string>
+                    </field>
+                    <field name="appTitle">
+                      <string>Space Settings</string>
+                    </field>
+                    <field name="removable">
+                      <boolean>false</boolean>
+                    </field>
+                    <field name="order">
+                      <int>2</int>
+                    </field>
+                    <field name="uri">
+                      <string>settings</string>
+                    </field>
+                  </object>
+                </value>
+                <value>
+                  <object type="org.exoplatform.social.core.space.SpaceApplication">
+                    <field name="portletApp">
+                      <string>social-portlet</string>
+                    </field>
+                    <field name="portletName">
+                      <string>MembersPortlet</string>
+                    </field>
+                    <field name="appTitle">
+                      <string>Members</string>
+                    </field>
+                    <field name="removable">
+                      <boolean>true</boolean>
+                    </field>
+                    <field name="order">
+                      <int>3</int>
+                    </field>
+                    <field name="uri">
+                      <string>members</string>
+                    </field>
+                  </object>
+                </value>
+              </collection>
+            </field>
+          </object>
+        </object-param>
+      </init-params>
+    </component-plugin>
+
+    <component-plugin>
+      <name>Space Template Configuration</name>
+      <set-method>registerSpaceTemplatePlugin</set-method>
+      <type>org.exoplatform.social.core.space.SpaceTemplateConfigPlugin</type>
+      <init-params>
+        <object-param>
+          <name>template</name>
+          <description>Space Template With Agenda And Timeline Apps</description>
+          <object type="org.exoplatform.social.core.space.SpaceTemplate">
+            <field name="name">
+              <string>agendaAndTimelineTemplate</string>
+            </field>
+            <field name="visibility">
+              <string>private</string>
+            </field>
+            <field name="registration">
+              <string>open</string>
+            </field>
+            <field name="bannerPath">
+              <string>classpath:/eXo-Social.png</string>
+            </field>
+            <field name="homePageApplication">
+              <object type="org.exoplatform.social.core.space.SpaceApplication">
+                <field name="portletApp">
+                  <string>agenda</string>
+                </field>
+                <field name="portletName">
+                  <string>AgendaTimeline</string>
+                </field>
+                <field name="appTitle">
+                  <string>Home</string>
+                </field>
+              </object>
+            </field>
+            <field name="applications">
+              <collection type="java.util.ArrayList">
+                <value>
+                  <object type="org.exoplatform.social.core.space.SpaceApplication">
+                    <field name="portletApp">
+                      <string>agenda</string>
+                    </field>
+                    <field name="portletName">
+                      <string>Agenda</string>
+                    </field>
+                    <field name="appTitle">
+                      <string>Agenda</string>
+                    </field>
+                    <field name="removable">
+                      <boolean>true</boolean>
+                    </field>
+                    <field name="order">
+                      <int>1</int>
+                    </field>
+                    <field name="uri">
+                      <string>Agenda</string>
+                    </field>
+                  </object>
+                </value>
+                <value>
+                  <object type="org.exoplatform.social.core.space.SpaceApplication">
+                    <field name="portletApp">
+                      <string>social-portlet</string>
+                    </field>
+                    <field name="portletName">
+                      <string>SpaceSettingPortlet</string>
+                    </field>
+                    <field name="appTitle">
+                      <string>Space Settings</string>
+                    </field>
+                    <field name="removable">
+                      <boolean>false</boolean>
+                    </field>
+                    <field name="order">
+                      <int>2</int>
+                    </field>
+                    <field name="uri">
+                      <string>settings</string>
+                    </field>
+                  </object>
+                </value>
+                <value>
+                  <object type="org.exoplatform.social.core.space.SpaceApplication">
+                    <field name="portletApp">
+                      <string>social-portlet</string>
+                    </field>
+                    <field name="portletName">
+                      <string>MembersPortlet</string>
+                    </field>
+                    <field name="appTitle">
+                      <string>Members</string>
+                    </field>
+                    <field name="removable">
+                      <boolean>true</boolean>
+                    </field>
+                    <field name="order">
+                      <int>3</int>
+                    </field>
+                    <field name="uri">
+                      <string>members</string>
+                    </field>
+                  </object>
+                </value>
+              </collection>
+            </field>
+          </object>
+        </object-param>
+      </init-params>
+    </component-plugin>
+  </external-component-plugins>
+
+  <external-component-plugins>
+    <target-component>org.exoplatform.application.registry.ApplicationRegistryService</target-component>
+    <component-plugin>
+      <name>new.portal.portlets.registry</name>
+      <set-method>initListener</set-method>
+      <type>org.exoplatform.application.registry.ApplicationCategoriesPlugins</type>
+      <description>this listener init the portlets are registered in PortletRegister</description>
+      <init-params>
+        <object-param>
+          <name>social</name>
+          <description>description</description>
+          <object type="org.exoplatform.application.registry.ApplicationCategory">
+            <field name="name">
+              <string>agenda</string>
+            </field>
+            <field name="displayName">
+              <string>agenda</string>
+            </field>
+            <field name="description">
+              <string>Applications for agenda</string>
+            </field>
+            <field name="accessPermissions">
+              <collection type="java.util.ArrayList" item-type="java.lang.String">
+                <value>
+                  <string>*:/platform/users</string>
+                </value>
+              </collection>
+            </field>
+            <field name="applications">
+              <collection type="java.util.ArrayList">
+                <value>
+                  <object type="org.exoplatform.application.registry.Application">
+                    <field name="applicationName">
+                      <string>Agenda</string>
+                    </field>
+                    <field name="categoryName">
+                      <string>agenda</string>
+                    </field>
+                    <field name="displayName">
+                      <string>Agenda</string>
+                    </field>
+                    <field name="description">
+                      <string>Agenda</string>
+                    </field>
+                    <field name="type">
+                      <string>portlet</string>
+                    </field>
+                    <field name="contentId">
+                      <string>agenda/Agenda</string>
+                    </field>
+                    <field name="accessPermissions">
+                      <collection type="java.util.ArrayList" item-type="java.lang.String">
+                        <value>
+                          <string>*:/platform/users</string>
+                        </value>
+                      </collection>
+                    </field>
+                  </object>
+                </value>
+                <value>
+                  <object type="org.exoplatform.application.registry.Application">
+                    <field name="applicationName">
+                      <string>AgendaTimeline</string>
+                    </field>
+                    <field name="categoryName">
+                      <string>agenda</string>
+                    </field>
+                    <field name="displayName">
+                      <string>Agenda Timeline</string>
+                    </field>
+                    <field name="description">
+                      <string>Agenda Timeline</string>
+                    </field>
+                    <field name="type">
+                      <string>portlet</string>
+                    </field>
+                    <field name="contentId">
+                      <string>agenda/AgendaTimeline</string>
+                    </field>
+                    <field name="accessPermissions">
+                      <collection type="java.util.ArrayList" item-type="java.lang.String">
+                        <value>
+                          <string>*:/platform/users</string>
+                        </value>
+                      </collection>
                     </field>
                   </object>
                 </value>
