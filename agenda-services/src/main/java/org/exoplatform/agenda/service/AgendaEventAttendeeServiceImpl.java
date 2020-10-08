@@ -84,7 +84,8 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
                                  List<EventAttendee> attendees,
                                  long creatorUserId,
                                  boolean sendInvitations,
-                                 boolean resetResponses) {
+                                 boolean resetResponses,
+                                 boolean isNew) {
     long eventId = event.getId();
 
     List<EventAttendee> savedAttendees = getEventAttendees(event.getId());
@@ -139,7 +140,6 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
         }
       }
     }
-    boolean isNew = event.getUpdated() != null ? false : true;
     if (sendInvitations) {
       sendInvitations(eventId, isNew);
     }
@@ -301,7 +301,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    * {@inheritDoc}
    */
   @Override
-  public void sendInvitations(long eventId,boolean isNew) {
+  public void sendInvitations(long eventId, boolean isNew) {
     String agendaNotificationPluginType = null;
     NotificationContext ctx = NotificationContextImpl.cloneInstance();
     ctx.append(EVENT_ID, eventId);

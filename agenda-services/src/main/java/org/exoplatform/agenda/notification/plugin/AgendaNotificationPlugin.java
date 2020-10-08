@@ -73,7 +73,8 @@ public class AgendaNotificationPlugin extends BaseNotificationPlugin {
       LOG.debug("Notification type '{}' doesn't have a recipient", getId());
       return null;
     } else {
-      storeEventParameters(notification, event, calendar);
+      boolean isNew = event.getUpdated() != null ? false : true;
+      storeEventParameters(notification, event, calendar, isNew);
       return notification.end();
     }
   }

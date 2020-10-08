@@ -1053,7 +1053,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(event.getId());
     eventAttendees.add(new EventAttendee(0, Long.parseLong(spaceIdentity.getId()), null));
-    agendaEventAttendeeService.saveEventAttendees(event, eventAttendees, testuser1Id, false, false);
+    agendaEventAttendeeService.saveEventAttendees(event, eventAttendees, testuser1Id, false, false, true);
 
     events = agendaEventService.getEventsByOwnersAndAttendee(Long.parseLong(testuser3Identity.getId()),
                                                              Collections.singletonList(Long.parseLong(spaceIdentity.getId())),
@@ -1152,7 +1152,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(event.getId());
     eventAttendees.add(new EventAttendee(0, Long.parseLong(spaceIdentity.getId()), null));
-    agendaEventAttendeeService.saveEventAttendees(event, eventAttendees, testuser1Id, false, false);
+    agendaEventAttendeeService.saveEventAttendees(event, eventAttendees, testuser1Id, false, false, true);
 
     events = agendaEventService.getEventsByAttendee(Long.parseLong(testuser3Identity.getId()),
                                                     date.plusHours(1),
@@ -1174,7 +1174,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     eventAttendees = agendaEventAttendeeService.getEventAttendees(event.getId());
     eventAttendees.add(new EventAttendee(0, Long.parseLong(testuser4Identity.getId()), null));
-    agendaEventAttendeeService.saveEventAttendees(event, eventAttendees, testuser1Id, false, false);
+    agendaEventAttendeeService.saveEventAttendees(event, eventAttendees, testuser1Id, false, false, true);
 
     events = agendaEventService.getEventsByAttendee(Long.parseLong(testuser4Identity.getId()),
                                                     date.plusHours(1),

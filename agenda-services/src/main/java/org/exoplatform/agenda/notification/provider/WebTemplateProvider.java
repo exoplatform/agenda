@@ -8,7 +8,6 @@ import org.exoplatform.container.ExoContainer;
 import org.exoplatform.container.xml.InitParams;
 
 import static org.exoplatform.agenda.util.NotificationUtils.*;
-import static org.exoplatform.agenda.util.NotificationUtils.EVENT_MODIFIED_KEY;
 
 @TemplateConfigs(templates = {
     @TemplateConfig(pluginId = AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/web/EventWebPlugin.gtmpl"),

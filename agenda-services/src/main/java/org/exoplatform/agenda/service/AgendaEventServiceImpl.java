@@ -278,10 +278,11 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
     Event createdEvent = agendaEventStorage.createEvent(eventToCreate);
     long eventId = createdEvent.getId();
+    boolean isNew = createdEvent.getUpdated() != null ? false : true;
     attachmentService.saveEventAttachments(eventId, attachments, userIdentityId);
     conferenceService.saveEventConferences(eventId, conferences);
     reminderService.saveEventReminders(createdEvent, reminders, userIdentityId);
-    attendeeService.saveEventAttendees(createdEvent, attendees, userIdentityId, sendInvitation, false);
+    attendeeService.saveEventAttendees(createdEvent, attendees, userIdentityId, sendInvitation, false, isNew);
 
     return getEventById(eventId, event.getStart().getZone(), username);
   }
@@ -353,7 +354,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
     if (attendees != null && !attendees.isEmpty()) {
       attendees.forEach(attendee -> attendee.setId(0));
-      attendeeService.saveEventAttendees(exceptionalEvent, attendees, originalRecurrentEventCreator, false, false);
+      boolean isNew = exceptionalEvent.getUpdated() != null ? false : true;
+      attendeeService.saveEventAttendees(exceptionalEvent, attendees, originalRecurrentEventCreator, false, false, isNew);
     }
     return exceptionalEvent;
   }
@@ -452,10 +454,11 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                     allowAttendeeToInvite);
 
     Event updatedEvent = agendaEventStorage.updateEvent(eventToUpdate);
+    boolean isNew = updatedEvent.getUpdated() != null ? false : true;
     attachmentService.saveEventAttachments(eventId, attachments, userIdentityId);
     conferenceService.saveEventConferences(eventId, conferences);
     reminderService.saveEventReminders(updatedEvent, reminders, userIdentityId);
-    attendeeService.saveEventAttendees(updatedEvent, attendees, userIdentityId, sendInvitation, false);
+    attendeeService.saveEventAttendees(updatedEvent, attendees, userIdentityId, sendInvitation, false, isNew);
 
     return updatedEvent;
   }

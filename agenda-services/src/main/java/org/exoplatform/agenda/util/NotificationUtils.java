@@ -95,14 +95,14 @@ public class NotificationUtils {
 
   public static final void storeEventParameters(NotificationInfo notification,
                                                 Event event,
-                                                org.exoplatform.agenda.model.Calendar calendar) {
+                                                org.exoplatform.agenda.model.Calendar calendar,
+                                                boolean isNew) {
     if (event == null) {
       throw new IllegalStateException("event is null");
     }
     if (event.getCreatorId() == 0) {
       throw new IllegalStateException("creator is null");
     }
-    boolean isNew = event.getUpdated() != null ? false : true;
     notification.with(STORED_PARAMETER_EVENT_ID, String.valueOf(event.getId()))
                 .with(STORED_PARAMETER_EVENT_TITLE, event.getSummary())
                 .with(STORED_PARAMETER_EVENT_OWNER_ID, String.valueOf(calendar.getOwnerId()))
