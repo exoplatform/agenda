@@ -40,8 +40,9 @@ public interface AgendaEventAttendeeService {
    * user.
    * 
    * @param eventId technical identifier of the event
+   * @param isNew flag to indicate if event is new or old
    */
-  public void sendInvitations(long eventId);
+  public void sendInvitations(long eventId,boolean isNew);
 
   /**
    * @param event {@link Event} to attach attendees

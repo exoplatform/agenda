@@ -16,9 +16,6 @@
 */
 package org.exoplatform.agenda.service;
 
-import static org.exoplatform.agenda.util.NotificationUtils.AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN;
-import static org.exoplatform.agenda.util.NotificationUtils.EVENT_ID;
-
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -46,6 +43,8 @@ import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.web.security.codec.CodecInitializer;
 import org.exoplatform.web.security.security.TokenServiceInitializationException;
+
+import static org.exoplatform.agenda.util.NotificationUtils.*;
 
 public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeService {
 
@@ -140,9 +139,9 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
         }
       }
     }
-
+    boolean isNew = event.getUpdated() != null ? false : true;
     if (sendInvitations) {
-      sendInvitations(eventId);
+      sendInvitations(eventId, isNew);
     }
 
     Utils.broadcastEvent(listenerService, "exo.agenda.event.attendees.saved", eventId, 0);
@@ -302,10 +301,16 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    * {@inheritDoc}
    */
   @Override
-  public void sendInvitations(long eventId) {
+  public void sendInvitations(long eventId,boolean isNew) {
+    String agendaNotificationPluginType = null;
     NotificationContext ctx = NotificationContextImpl.cloneInstance();
     ctx.append(EVENT_ID, eventId);
-    dispatch(ctx, AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN);
+    if (isNew) {
+      agendaNotificationPluginType = AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN;
+    } else {
+      agendaNotificationPluginType = AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN;
+    }
+    dispatch(ctx, agendaNotificationPluginType);
   }
 
   private void dispatch(NotificationContext ctx, String... pluginId) {

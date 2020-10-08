@@ -21,6 +21,8 @@ import static org.exoplatform.agenda.util.NotificationUtils.*;
 public class AgendaNotificationPlugin extends BaseNotificationPlugin {
   private static final Log           LOG = ExoLogger.getLogger(AgendaNotificationPlugin.class);
 
+  private String                     notificationId;
+
   private AgendaEventService         eventService;
 
   private AgendaEventAttendeeService eventAttendeeService;
@@ -39,11 +41,12 @@ public class AgendaNotificationPlugin extends BaseNotificationPlugin {
     if (notificationIdParam == null || StringUtils.isBlank(notificationIdParam.getValue())) {
       throw new IllegalStateException("'notification.id' parameter is mandatory");
     }
+    this.notificationId = notificationIdParam.getValue();
   }
 
   @Override
   public String getId() {
-    return AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN;
+    return this.notificationId;
   }
 
   @Override

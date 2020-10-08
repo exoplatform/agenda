@@ -28,29 +28,38 @@ public class NotificationUtils {
 
   public static final String                AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN   = "EventAddedNotificationPlugin";
 
+  public static final String                AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN   = "EventModifiedNotificationPlugin";
+
   private static final String               TEMPLATE_VARIABLE_EVENT_URL              = "eventURL";
 
   public static final PluginKey             EVENT_ADDED_KEY                          =
                                                             PluginKey.key(AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN);
 
-  public static final String               STORED_PARAMETER_EVENT_TITLE             = "eventTitle";
+  public static final PluginKey             EVENT_MODIFIED_KEY                        =
+                                                               PluginKey.key(AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN);
 
-  public static final String                STORED_PARAMETER_EVENT_OWNER_ID          = "ownerId";
+  public static final String                STORED_PARAMETER_EVENT_TITLE              = "eventTitle";
 
-  private static final String               STORED_PARAMETER_EVENT_ID                = "eventId";
+  public static final String                STORED_PARAMETER_EVENT_OWNER_ID           = "ownerId";
 
-  public static final String               STORED_PARAMETER_EVENT_START_DATE        = "startDate";
+  private static final String               STORED_PARAMETER_EVENT_ID                 = "eventId";
 
-  public static final String               STORED_PARAMETER_EVENT_END_DATE          = "endDate";
+  public static final String                STORED_PARAMETER_EVENT_START_DATE         = "startDate";
 
-  public static final String               STORED_PARAMETER_EVENT_URL               = "Url";
+  public static final String                STORED_PARAMETER_EVENT_END_DATE           = "endDate";
+
+  public static final String                STORED_PARAMETER_EVENT_URL                = "Url";
+
+  public static final String                STORED_PARAMETER_EVENT_IS_NEW             = "EVENT_IS_NEW";
 
   private static final String               TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR = "avatarUrl";
 
   public static final String                TEMPLATE_VARIABLE_EVENT_ID               = "eventId";
 
   public static final String                TEMPLATE_VARIABLE_EVENT_TITLE            = "eventTitle";
-  
+
+  private static final String               TEMPLATE_VARIABLE_EVENT_IS_NEW          = "isNewEvent";
+
 
   private static String                     defaultSite;
 
@@ -93,12 +102,14 @@ public class NotificationUtils {
     if (event.getCreatorId() == 0) {
       throw new IllegalStateException("creator is null");
     }
+    boolean isNew = event.getUpdated() != null ? false : true;
     notification.with(STORED_PARAMETER_EVENT_ID, String.valueOf(event.getId()))
                 .with(STORED_PARAMETER_EVENT_TITLE, event.getSummary())
                 .with(STORED_PARAMETER_EVENT_OWNER_ID, String.valueOf(calendar.getOwnerId()))
                 .with(STORED_PARAMETER_EVENT_URL, getEventURL(event))
                 .with(STORED_PARAMETER_EVENT_START_DATE, AgendaDateUtils.toRFC3339Date(event.getStart()))
-                .with(STORED_PARAMETER_EVENT_END_DATE, AgendaDateUtils.toRFC3339Date(event.getEnd()));
+                .with(STORED_PARAMETER_EVENT_END_DATE, AgendaDateUtils.toRFC3339Date(event.getEnd()))
+                .with(STORED_PARAMETER_EVENT_IS_NEW, String.valueOf(isNew));
   }
 
   public static String getDefaultSite() {
@@ -122,7 +133,7 @@ public class NotificationUtils {
 
     setIdentityNameAndAvatar(notification, templateContext);
     setEventDetails(templateContext, notification);
-
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_IS_NEW,notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_IS_NEW));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
     return templateContext;
   }
