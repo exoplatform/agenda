@@ -40,11 +40,11 @@
           <div v-if="settingsForm.showWorkingTime" class="workingTime d-flex flex-row align-center">
             <time-picker
               v-model="settingsForm.workingTimeStart"
-              interval-minutes="60" />
+              interval-minutes="30" />
             <label class="switch-label-text mx-5 text-subtitle-1">{{ $t('agenda.label.to') }}</label>
             <time-picker
               v-model="settingsForm.workingTimeEnd"
-              interval-minutes="60" />
+              interval-minutes="30" />
           </div>
         </v-layout>
       </v-form>
@@ -52,7 +52,7 @@
         ref="CancelSavingChangesDialog"
         :message="$t('agenda.settings.drawer.confirmCancelChanges')"
         :title="$t('agenda.settings.drawer.confirmCancelChanges.title')"
-        :ok-label="$t('agenda.button.confirm')"
+        :ok-label="$t('agenda.button.ok')"
         :cancel-label="$t('agenda.button.cancel')"
         @ok="confirmCancelSavingChanges()" />
     </template>
