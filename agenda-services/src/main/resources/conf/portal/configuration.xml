@@ -130,18 +130,11 @@
   </external-component-plugins>
 
   <external-component-plugins>
-    <target-component>org.exoplatform.commons.file.services.NameSpaceService</target-component>
+    <target-component>org.exoplatform.social.core.space.spi.SpaceService</target-component>
     <component-plugin>
-      <name>AgendaNameSpacePlugin</name>
-      <set-method>addNameSpacePlugin</set-method>
-      <type>org.exoplatform.commons.file.services.NameSpacePlugin</type>
-      <init-params>
-        <properties-param>
-          <name>fileNameSpace.params</name>
-          <property name="name" value="agenda" />
-          <property name="description" value="agenda events attachments" />
-        </properties-param>
-      </init-params>
+      <name>AgendaSpaceApplicationListener</name>
+      <set-method>registerSpaceLifeCycleListener</set-method>
+      <type>org.exoplatform.agenda.listener.AgendaSpaceApplicationListener</type>
     </component-plugin>
   </external-component-plugins>
 </configuration>
