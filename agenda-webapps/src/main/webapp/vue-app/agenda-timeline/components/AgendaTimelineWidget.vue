@@ -8,7 +8,7 @@
         :events="events"
         :period-start-date="periodStart"
         :agenda-base-link="agendaBaseLink"
-        :loading="loading"
+        :loading="loading || !initialized"
         :limit="limit" />
     </v-main>
 
@@ -69,14 +69,20 @@ export default {
             if (space && space.identity && space.identity.id) {
               this.ownerIds = [space.identity.id];
               const spaceGroupUri = this.currentSpace.groupId.replace(/\//g, ':');
-              this.agendaBaseLink = `${eXo.env.portal.context}/g/${spaceGroupUri}/Agenda`;
+              this.agendaBaseLink = `${eXo.env.portal.context}/g/${spaceGroupUri}/${this.currentSpace.prettyName}/Agenda`;
             } else {
               this.agendaBaseLink = `${eXo.env.portal.context}/${eXo.env.portal.portalName}/agenda`;
             }
             return this.retrieveEventsFromStore();
+          })
+          .finally(() => {
+            this.initialized = true;
+            this.loading = false;
           });
       } else {
-        this.agendaBaseLink = `${eXo.env.portal.context}/${eXo.env.portal.portalName}/agenda`;
+        if (!eXo.env.portal.spaceId) {
+          this.agendaBaseLink = `${eXo.env.portal.context}/${eXo.env.portal.portalName}/agenda`;
+        }
         return this.retrieveEventsFromStore();
       }
     },
