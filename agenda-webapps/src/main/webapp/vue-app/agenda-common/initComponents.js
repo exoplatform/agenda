@@ -5,6 +5,7 @@ import AgendaToolbar from './components/calendar-body/AgendaToolbar.vue';
 import AgendaPreviewEventDialog from './components/calendar-body/AgendaPreviewEventDialog.vue';
 import AgendaMobileHeader from './components/calendar-body/mobile/AgendaMobileHeader.vue';
 import AgendaTimeline from './components/calendar-body/mobile/AgendaTimeline.vue';
+import AgendaEmptyTimeline from './components/calendar-body/mobile/AgendaEmptyTimeline.vue';
 
 import AgendaEventMobileForm from './components/event/form/mobile/AgendaEventMobileForm.vue';
 
@@ -54,6 +55,7 @@ const components = {
   'agenda-calendar': AgendaCalendar,
   'agenda-mobile-header': AgendaMobileHeader,
   'agenda-timeline': AgendaTimeline,
+  'agenda-empty-timeline': AgendaEmptyTimeline,
   'agenda-event-mobile-form': AgendaEventMobileForm,
   'agenda-filter-calendar-drawer': AgendaFilterCalendarDrawer,
   'agenda-filter-calendar-list': AgendaFilterCalendarList,

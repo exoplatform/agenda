@@ -64,11 +64,7 @@
         </v-list-item>
       </v-list>
     </template>
-    <template v-else-if="!loading">
-      <v-alert type="info">
-        {{ $t('agenda.noEventsYet') }}
-      </v-alert>
-    </template>
+    <agenda-empty-timeline v-else-if="!loading" />
   </v-flex>
 </template>
 <script>

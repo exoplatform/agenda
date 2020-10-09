@@ -512,6 +512,32 @@
   color: @darkGrey !important;
 }
 
+.agenda-empty-timeline {
+  .title {
+    font-size: 22px;
+  }
+  .sub-title-1 {
+    color: #6d7d9821;
+  }
+}
+
+.uiIconCalendarEmpty::before {
+  font-family: "PLF-FONT-ICONS";
+  content: "\e9bd";
+  color: #6d7d9821;
+  font-size: @sizeIcon64x64; 
+  font-style: normal; 
+  font-weight: normal; 
+}
+
+#AgendaContainer {
+  &, .NormalContainerBlock, .VIEW-CONTAINER, .UIIntermediateContainer, .UIRowContainer, .UIRowContainer > div, .PORTLET-FRAGMENT, .VuetifyApp, .v-application, .v-application--wrap, .v-main, .agenda-timeline {
+    display: flex;
+    min-height: 100%;
+    flex: 1 1 auto;
+  }
+}
+
 @media (max-width: @maxMobileWidth) {
   .VuetifyApp {
     .event-details {
