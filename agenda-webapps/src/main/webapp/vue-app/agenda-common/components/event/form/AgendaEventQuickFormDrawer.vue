@@ -254,7 +254,7 @@ export default {
 
       this.$eventService.createEvent(this.event)
         .then(() => {
-          this.$root.$emit('refresh');
+          this.$root.$emit('agenda-refresh');
           this.close();
         })
         .finally(() => this.saving = false);

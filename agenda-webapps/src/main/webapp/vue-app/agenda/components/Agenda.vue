@@ -128,7 +128,7 @@ export default {
     this.$root.$on('agenda-change-period-type', calendarType => this.calendarType = calendarType);
     this.$root.$on('agenda-search', searchTerm => this.searchTerm = searchTerm);
     this.$root.$on('agenda-event-saved', this.retrieveEvents);
-    this.$root.$on('refresh', this.retrieveEvents);
+    this.$root.$on('agenda-refresh', this.retrieveEvents);
     this.$root.$on('agenda-event-type-changed', eventType => this.eventType = eventType);
     this.$root.$on('agenda-event-deleted', this.retrieveEvents);
     this.spaceId = eXo.env.portal.spaceId;

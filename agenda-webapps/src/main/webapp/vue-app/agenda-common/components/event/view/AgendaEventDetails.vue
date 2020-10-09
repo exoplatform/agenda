@@ -208,7 +208,7 @@ export default {
     this.$root.$on('agenda-event-response-sent', event => {
       this.event.attendees = event.attendees;
       if (event.id && !this.event.id) {
-        this.$root.$emit('refresh');
+        this.$root.$emit('agenda-refresh');
       }
       this.reset();
     });

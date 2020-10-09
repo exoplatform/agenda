@@ -104,7 +104,7 @@ export default {
     });
     document.addEventListener('showSettingsApps', () => this.displayed = true);
     this.skeleton = false;
-    this.$root.$on('refresh', this.refresh);
+    this.$root.$on('agenda-refresh', this.refresh);
     this.refresh();
   },
   methods: {

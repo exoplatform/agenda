@@ -35,7 +35,7 @@ export default {
       }
       if (this.$agendaUtils.toRFC3339(oldVal, true) !== this.$agendaUtils.toRFC3339(newVal, true)) {
         this.period.start = this.periodStart;
-        this.$root.$emit('refresh');
+        this.$root.$emit('agenda-refresh');
       }
     },
   },

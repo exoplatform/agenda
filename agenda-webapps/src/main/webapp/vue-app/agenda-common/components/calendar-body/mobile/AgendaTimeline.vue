@@ -4,8 +4,10 @@
       <v-list
         v-for="month in eventsMonths"
         :key="month"
-        class="agenda-timeline-month pa-0">
-        <v-list-item>
+        class="agenda-timeline-month pa-0 ma-0"
+        min-height="auto"
+        dense>
+        <v-list-item class="agenda-timeline-month-title" dense>
           <v-list-item-action class="event-timeline-day" />
           <v-list-item-action-text class="subtitle-1 mr-2 text-capitalize">
             <date-format :value="month" :format="monthFormat" />
@@ -16,7 +18,8 @@
         </v-list-item>
         <v-list-item
           v-for="eventDay in eventsDaysByMonth[month]"
-          :key="eventDay">
+          :key="eventDay"
+          dense>
           <v-list-item-action
             :class="toDay === eventDay && 'primary--text'"
             class="align-self-start center event-timeline-day text-uppercase">
