@@ -9,8 +9,7 @@
         :period-start-date="periodStart"
         :agenda-base-link="agendaBaseLink"
         :loading="loading"
-        :limit="limit"
-        class="mt-2" />
+        :limit="limit" />
     </v-main>
 
     <agenda-event-quick-form-drawer
@@ -57,7 +56,7 @@ export default {
   created() {
     this.retrieveEvents().finally(() => document.dispatchEvent(new CustomEvent('hideTopBarLoading')));
     this.$root.$on('agenda-event-saved', this.retrieveEvents);
-    this.$root.$on('refresh', this.retrieveEvents);
+    this.$root.$on('agenda-refresh', this.retrieveEvents);
     this.spaceId = eXo.env.portal.spaceId;
   },
   methods: {
