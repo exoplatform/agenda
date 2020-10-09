@@ -163,6 +163,13 @@ export default {
     retrieveEventsFromStore() {
       this.loading = true;
       const userIdentityId = this.eventType === 'myEvents' && eXo.env.portal.userIdentityId || null;
+      if (this.ownerIds === false) {
+        this.events = [];
+        this.hasMore = false;
+        this.loading = false;
+        this.initialized = true;
+        return;
+      }
       this.$eventService.getEvents(this.searchTerm, this.ownerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, true), this.$agendaUtils.toRFC3339(this.period.end), this.limit)
         .then(data => {
           let events = data && data.events || [];
