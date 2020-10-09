@@ -5,7 +5,7 @@
       <img class="spaceAvatar" src="<%= calendarOwnerAvatarUrl %>" alt="<%= calendarOwnerAvatarUrl %>" />
     </div>
     <div class="media-body">
-      <div class="contentSmall">
+      <div class="contentSmall" data-link="<%= eventURL %>">
         <div class="status">
           <%
           String eventTitle = "<span class=\"user-name text-bold\">"+ eventTitle +"</span>";
@@ -16,9 +16,8 @@
           <% } %>
         </div>
         <div class="content float-right">
-          <a href="<%= eventURL %>">
+          <a>
             <%
-            String redirection = null;
             if("true".equals(isNewEvent)) { %>
               <%= _ctx.appRes("Notification.agenda.event.reply") %>
             <% } else { %>

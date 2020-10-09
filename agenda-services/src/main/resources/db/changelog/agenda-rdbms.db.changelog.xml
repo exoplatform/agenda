@@ -75,6 +75,9 @@
       <column name="CREATOR_ID" type="BIGINT">
         <constraints nullable="false" />
       </column>
+      <column name="MODIFIER_ID" type="BIGINT">
+        <constraints nullable="false" />
+      </column>
       <column name="CREATED_DATE" type="TIMESTAMP" defaultValueComputed="NULL" />
       <column name="UPDATED_DATE" type="TIMESTAMP" defaultValueComputed="NULL" />
       <column name="START_DATE" type="TIMESTAMP" defaultValueComputed="NULL" />

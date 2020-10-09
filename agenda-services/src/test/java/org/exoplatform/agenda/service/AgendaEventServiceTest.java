@@ -64,7 +64,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     assertNotNull(createdEvent.getCreated());
     assertNull(createdEvent.getUpdated());
-    assertEquals(0, createdEvent.getModifierId());
+    assertEquals(event.getModifierId(), createdEvent.getModifierId());
 
     EventRecurrence createdEventRecurrence = createdEvent.getRecurrence();
     assertNotNull(createdEventRecurrence);

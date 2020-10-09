@@ -258,7 +258,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                     event.getRemoteProviderId(),
                                     calendarId,
                                     userIdentityId,
-                                    userIdentityId,
+                                    0,
                                     ZonedDateTime.now(),
                                     null,
                                     event.getSummary(),
@@ -278,7 +278,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
     Event createdEvent = agendaEventStorage.createEvent(eventToCreate);
     long eventId = createdEvent.getId();
-    boolean isNew = createdEvent.getUpdated() != null ? false : true;
+    boolean isNew = createdEvent.getUpdated() == null;
     attachmentService.saveEventAttachments(eventId, attachments, userIdentityId);
     conferenceService.saveEventConferences(eventId, conferences);
     reminderService.saveEventReminders(createdEvent, reminders, userIdentityId);
@@ -354,7 +354,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
     if (attendees != null && !attendees.isEmpty()) {
       attendees.forEach(attendee -> attendee.setId(0));
-      boolean isNew = exceptionalEvent.getUpdated() != null ? false : true;
+      boolean isNew = exceptionalEvent.getUpdated() == null;
       attendeeService.saveEventAttendees(exceptionalEvent, attendees, originalRecurrentEventCreator, false, false, isNew);
     }
     return exceptionalEvent;
@@ -454,7 +454,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                     allowAttendeeToInvite);
 
     Event updatedEvent = agendaEventStorage.updateEvent(eventToUpdate);
-    boolean isNew = updatedEvent.getUpdated() != null ? false : true;
+    boolean isNew = updatedEvent.getUpdated() == null;
     attachmentService.saveEventAttachments(eventId, attachments, userIdentityId);
     conferenceService.saveEventConferences(eventId, conferences);
     reminderService.saveEventReminders(updatedEvent, reminders, userIdentityId);
