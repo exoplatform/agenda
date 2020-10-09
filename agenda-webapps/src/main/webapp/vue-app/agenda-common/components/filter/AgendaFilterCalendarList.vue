@@ -1,7 +1,7 @@
 <template>
   <v-list>
     <v-list-item class="agenda-calendar-settings px-0">
-      <v-list-item-action class="mr-2">
+      <v-list-item-action class="mr-2 ml-4">
         <v-checkbox
           v-model="selectAll"
           :indeterminate="partiallySelected"

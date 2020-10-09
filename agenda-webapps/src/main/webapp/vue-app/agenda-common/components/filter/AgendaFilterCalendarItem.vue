@@ -5,7 +5,7 @@
         v-model="checked"
         :color="calendarColor"
         :label="calendarDisplayName"
-        class="agenda-calendar-settings-color"
+        class="agenda-calendar-settings-color ml-4"
         @click="changeSelection" />
     </v-list-item-content>
     <v-list-item-action
