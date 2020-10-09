@@ -39,7 +39,7 @@
       <type>org.exoplatform.agenda.notification.plugin.AgendaNotificationPlugin</type>
       <init-params>
         <value-param>
-          <name>notification.id</name>
+          <name>agenda.notification.plugin.key</name>
           <value>EventAddedNotificationPlugin</value>
         </value-param>
         <object-param>

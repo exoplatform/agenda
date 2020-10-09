@@ -305,6 +305,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     String agendaNotificationPluginType = null;
     NotificationContext ctx = NotificationContextImpl.cloneInstance();
     ctx.append(EVENT_ID, eventId);
+    ctx.append(IS_NEW, isNew);
     if (isNew) {
       agendaNotificationPluginType = AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN;
     } else {
