@@ -6,6 +6,7 @@
         :key="month"
         class="agenda-timeline-month pa-0 ma-0"
         min-height="auto"
+        min-width="100%"
         dense>
         <v-list-item class="agenda-timeline-month-title" dense>
           <v-list-item-action class="event-timeline-day" />
@@ -119,7 +120,7 @@ export default {
       }
       const eventsDaysByMonth = {};
       Object.keys(this.eventsByDates).forEach(eventMonth => {
-        eventsDaysByMonth[eventMonth] = Object.keys(this.eventsByDates[eventMonth]);
+        eventsDaysByMonth[eventMonth] = Object.keys(this.eventsByDates[eventMonth]).sort((d1, d2) => new Date(d1).getTime() - new Date(d2).getTime());
       });
       return eventsDaysByMonth;
     },
@@ -139,6 +140,7 @@ export default {
         if (new Date(eventStartDate.startDate).getTime() > new Date(periodStartDate).getTime()) {
           count = this.addEventByDateInMap(eventStartDate, event.startDate, eventsByDates, count);
         }
+
         if (!this.$agendaUtils.areDatesOnSameDay(event.startDate, event.endDate)) {
           eventStartDate.endsOnEndOfDay = true;
 
@@ -155,6 +157,9 @@ export default {
               eventAllDay.startDate = new Date(startOfDayOfNextStartDay);
               eventAllDay.endDate = new Date(startOfDayOfNextStartDay);
               eventAllDay.allDay = true;
+              if (periodStartDate.getTime() > eventAllDay.startDate.getTime()) {
+                continue;
+              }
               count = this.addEventByDateInMap(eventAllDay, eventAllDay.startDate, eventsByDates, count);
               startOfDayOfNextStartDay.setDate(startOfDayOfNextStartDay.getDate() + 1);
             }
