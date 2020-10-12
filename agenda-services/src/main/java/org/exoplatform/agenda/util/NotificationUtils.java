@@ -1,5 +1,6 @@
 package org.exoplatform.agenda.util;
 
+import java.time.ZonedDateTime;
 import java.util.*;
 
 import org.exoplatform.agenda.model.Event;
@@ -51,10 +52,18 @@ public class NotificationUtils {
 
   public static final String                   STORED_PARAMETER_EVENT_END_DATE           = "endDate";
 
+  public static final String                   STORED_PARAMETER_EVENT_UPDATED_DATE       = "updateDate";
+
+  public static final String                   STORED_PARAMETER_EVENT_MODIFIER           = "eventModifier";
+
+  public static final String                   STORED_PARAMETER_EVENT_CREATOR            = "eventCreator";
+
   public static final String                   STORED_PARAMETER_EVENT_URL                = "Url";
 
   public static final String                   STORED_PARAMETER_EVENT_IS_NEW             = "EVENT_IS_NEW";
-
+  
+  public static final String                   STORED_PARAMETER_MODIFIER_IDENTITY_ID     = "MODIFIER_IDENTITY_ID";
+  
   private static final String                  TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR  = "calendarOwnerAvatarUrl";
 
   public static final String                   TEMPLATE_VARIABLE_EVENT_ID                = "eventId";
@@ -62,6 +71,14 @@ public class NotificationUtils {
   public static final String                   TEMPLATE_VARIABLE_EVENT_TITLE             = "eventTitle";
 
   private static final String                  TEMPLATE_VARIABLE_EVENT_IS_NEW            = "isNewEvent";
+  
+  private static final String                  TEMPLATE_VARIABLE_EVENT_CREATOR           = "creatorName";
+
+  private static final String                  TEMPLATE_VARIABLE_EVENT_MODIFIER          = "modifierName";
+  
+  private static final String                  TEMPLATE_VARIABLE_EVENT_UPDATE_DATE       = "updateDate";
+
+  private static final String                  TEMPLATE_VARIABLE_MODIFIER_IDENTITY_URL   = "modifierProfileUrl";
 
   private static String                        defaultSite;
 
@@ -120,7 +137,13 @@ public class NotificationUtils {
                 .with(STORED_PARAMETER_EVENT_URL, getEventURL(event))
                 .with(STORED_PARAMETER_EVENT_START_DATE, AgendaDateUtils.toRFC3339Date(event.getStart()))
                 .with(STORED_PARAMETER_EVENT_END_DATE, AgendaDateUtils.toRFC3339Date(event.getEnd()))
+                .with(STORED_PARAMETER_EVENT_CREATOR, getEventCreatorOrModifierUserName(event.getCreatorId()))
                 .with(STORED_PARAMETER_EVENT_IS_NEW, String.valueOf(isNew));
+    if (event.getModifierId() > 0) {
+      notification.with(STORED_PARAMETER_EVENT_MODIFIER, getEventCreatorOrModifierUserName(event.getModifierId()))
+                  .with(STORED_PARAMETER_MODIFIER_IDENTITY_ID, String.valueOf(event.getModifierId()))
+                  .with(STORED_PARAMETER_EVENT_UPDATED_DATE, AgendaDateUtils.toRFC3339Date(event.getUpdated()));
+    }
   }
 
   public static String getDefaultSite() {
@@ -135,6 +158,9 @@ public class NotificationUtils {
   public static final TemplateContext buildTemplateParameters(TemplateProvider templateProvider,
                                                               NotificationInfo notification) {
     String language = NotificationPluginUtils.getLanguage(notification.getTo());
+    ZonedDateTime date = ZonedDateTime.parse(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_UPDATED_DATE));
+    String dateUpdate = AgendaDateUtils.formatUpdatedDate(date);
+    String identityId = notification.getValueOwnerParameter(STORED_PARAMETER_MODIFIER_IDENTITY_ID);
     TemplateContext templateContext = getTemplateContext(templateProvider, notification, language);
 
     setFooter(notification, templateContext);
@@ -146,6 +172,12 @@ public class NotificationUtils {
     setEventDetails(templateContext, notification);
     templateContext.put(TEMPLATE_VARIABLE_EVENT_IS_NEW, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_IS_NEW));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_CREATOR, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_CREATOR));
+    if (notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_IS_NEW).equals("false")) {
+      templateContext.put(TEMPLATE_VARIABLE_EVENT_MODIFIER, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_MODIFIER));
+      templateContext.put(TEMPLATE_VARIABLE_MODIFIER_IDENTITY_URL, getUserAbsoluteURI(identityId));
+      templateContext.put(TEMPLATE_VARIABLE_EVENT_UPDATE_DATE, dateUpdate);
+    }
     return templateContext;
   }
 
@@ -239,6 +271,21 @@ public class NotificationUtils {
                                                                      "EE, dd yyyy",
                                                                      new Locale(language),
                                                                      TimeConvertUtils.YEAR));
+  }
+
+  private static final String getEventCreatorOrModifierUserName(long idUser) {
+    IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
+    Identity identity = identityManager.getIdentity(String.valueOf(idUser));
+    return identity.getProfile().getFullName();
+  }
+
+  private static String getUserAbsoluteURI(String id) {
+    String currentSite = CommonsUtils.getCurrentSite().getName();
+    String currentDomain = CommonsUtils.getCurrentDomain();
+    if (!currentDomain.endsWith("/")) {
+      currentDomain += "/";
+    }
+    return currentDomain + "portal/" + currentSite + "/profile/" + id;
   }
 
 }
