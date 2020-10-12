@@ -46,7 +46,7 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
 
     InitParams initParams = new InitParams();
     ValueParam value = new ValueParam();
-    value.setName("template.EventAddedNotificationPlugin");
+    value.setName(NotificationUtils.AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN);
     value.setValue("#111111");
     initParams.addParam(value);
     value.setName("agenda.notification.plugin.key");
@@ -113,7 +113,7 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
 
     InitParams initParams = new InitParams();
     ValueParam value = new ValueParam();
-    value.setName("template.EventModifiedNotificationPlugin");
+    value.setName(NotificationUtils.AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN);
     value.setValue("#222222");
     initParams.addParam(value);
     value.setName("agenda.notification.plugin.key");

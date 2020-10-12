@@ -278,11 +278,10 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
     Event createdEvent = agendaEventStorage.createEvent(eventToCreate);
     long eventId = createdEvent.getId();
-    boolean isNew = createdEvent.getUpdated() == null;
     attachmentService.saveEventAttachments(eventId, attachments, userIdentityId);
     conferenceService.saveEventConferences(eventId, conferences);
     reminderService.saveEventReminders(createdEvent, reminders, userIdentityId);
-    attendeeService.saveEventAttendees(createdEvent, attendees, userIdentityId, sendInvitation, false, isNew);
+    attendeeService.saveEventAttendees(createdEvent, attendees, userIdentityId, sendInvitation, false, true);
 
     return getEventById(eventId, event.getStart().getZone(), username);
   }
@@ -354,8 +353,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
     if (attendees != null && !attendees.isEmpty()) {
       attendees.forEach(attendee -> attendee.setId(0));
-      boolean isNew = exceptionalEvent.getUpdated() == null;
-      attendeeService.saveEventAttendees(exceptionalEvent, attendees, originalRecurrentEventCreator, false, false, isNew);
+      attendeeService.saveEventAttendees(exceptionalEvent, attendees, originalRecurrentEventCreator, false, false, true);
     }
     return exceptionalEvent;
   }
@@ -454,11 +452,10 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                     allowAttendeeToInvite);
 
     Event updatedEvent = agendaEventStorage.updateEvent(eventToUpdate);
-    boolean isNew = updatedEvent.getUpdated() == null;
     attachmentService.saveEventAttachments(eventId, attachments, userIdentityId);
     conferenceService.saveEventConferences(eventId, conferences);
     reminderService.saveEventReminders(updatedEvent, reminders, userIdentityId);
-    attendeeService.saveEventAttendees(updatedEvent, attendees, userIdentityId, sendInvitation, false, isNew);
+    attendeeService.saveEventAttendees(updatedEvent, attendees, userIdentityId, sendInvitation, false, false);
 
     return updatedEvent;
   }
