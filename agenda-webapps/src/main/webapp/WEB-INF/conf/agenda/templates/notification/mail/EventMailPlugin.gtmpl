@@ -26,10 +26,11 @@
                                             <td>
                                                 <p style="margin: 10px 0 13px;">
                                                     <%
-                                                    String message = null;
-                                                    message = _ctx.appRes("Notification.agenda.event.created", eventTitle);
-                                                    %>
-                                                    <%= message %>
+                                                    if ("true".equals(isNewEvent)) { %>
+                                                      <%= _ctx.appRes("Notification.agenda.event.created", eventTitle) %>
+                                                    <% } else { %>
+                                                      <%= _ctx.appRes("Notification.agenda.event.updated", eventTitle) %>
+                                                    <% } %>
                                                 </p>
                                                 <br/>
                                                 <p style="margin: 0 0 20px;">
@@ -57,7 +58,14 @@
                                                         box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 1px 2px rgba(0,0,0,.05);
                                                         vertical-align: middle;
                                                         margin-left: 3px;"
-                                                        href="<%= eventURL %>"><%=_ctx.appRes("Notification.agenda.event.reply")%></a>
+                                                        href="<%= eventURL %>">
+                                                        <%
+                                                        if ("true".equals(isNewEvent)) { %>
+                                                          <%= _ctx.appRes("Notification.agenda.event.reply") %>
+                                                        <% } else { %>
+                                                          <%= _ctx.appRes("Notification.agenda.event.view") %>
+                                                        <% } %>
+                                                    </a>
                                                 </p>
                                             </td>
                                         </tr>
