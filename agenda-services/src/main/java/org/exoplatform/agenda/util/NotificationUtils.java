@@ -23,36 +23,47 @@ import org.exoplatform.webui.utils.TimeConvertUtils;
 
 public class NotificationUtils {
 
-  public static final ArgumentLiteral<Long> EVENT_ID                                 =
-                                                     new ArgumentLiteral<>(Long.class, "event_id");
+  public static final ArgumentLiteral<Long>    EVENT_ID                                  =
+                                                        new ArgumentLiteral<>(Long.class, "event_id");
 
-  public static final String                AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN   = "EventAddedNotificationPlugin";
+  public static final ArgumentLiteral<Boolean> IS_NEW                                    =
+                                                      new ArgumentLiteral<>(Boolean.class, "isNew");
 
-  private static final String               TEMPLATE_VARIABLE_EVENT_URL              = "eventURL";
+  public static final String                   AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN    = "EventAddedNotificationPlugin";
 
-  public static final PluginKey             EVENT_ADDED_KEY                          =
-                                                            PluginKey.key(AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN);
+  public static final String                   AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN = "EventModifiedNotificationPlugin";
 
-  public static final String               STORED_PARAMETER_EVENT_TITLE             = "eventTitle";
+  private static final String                  TEMPLATE_VARIABLE_EVENT_URL               = "eventURL";
 
-  public static final String                STORED_PARAMETER_EVENT_OWNER_ID          = "ownerId";
+  public static final PluginKey                EVENT_ADDED_KEY                           =
+                                                               PluginKey.key(AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN);
 
-  private static final String               STORED_PARAMETER_EVENT_ID                = "eventId";
+  public static final PluginKey                EVENT_MODIFIED_KEY                        =
+                                                                  PluginKey.key(AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN);
 
-  public static final String               STORED_PARAMETER_EVENT_START_DATE        = "startDate";
+  public static final String                   STORED_PARAMETER_EVENT_TITLE              = "eventTitle";
 
-  public static final String               STORED_PARAMETER_EVENT_END_DATE          = "endDate";
+  public static final String                   STORED_PARAMETER_EVENT_OWNER_ID           = "ownerId";
 
-  public static final String               STORED_PARAMETER_EVENT_URL               = "Url";
+  private static final String                  STORED_PARAMETER_EVENT_ID                 = "eventId";
 
-  private static final String               TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR = "avatarUrl";
+  public static final String                   STORED_PARAMETER_EVENT_START_DATE         = "startDate";
 
-  public static final String                TEMPLATE_VARIABLE_EVENT_ID               = "eventId";
+  public static final String                   STORED_PARAMETER_EVENT_END_DATE           = "endDate";
 
-  public static final String                TEMPLATE_VARIABLE_EVENT_TITLE            = "eventTitle";
-  
+  public static final String                   STORED_PARAMETER_EVENT_URL                = "Url";
 
-  private static String                     defaultSite;
+  public static final String                   STORED_PARAMETER_EVENT_IS_NEW             = "EVENT_IS_NEW";
+
+  private static final String                  TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR  = "calendarOwnerAvatarUrl";
+
+  public static final String                   TEMPLATE_VARIABLE_EVENT_ID                = "eventId";
+
+  public static final String                   TEMPLATE_VARIABLE_EVENT_TITLE             = "eventTitle";
+
+  private static final String                  TEMPLATE_VARIABLE_EVENT_IS_NEW            = "isNewEvent";
+
+  private static String                        defaultSite;
 
   private NotificationUtils() {
   }
@@ -65,7 +76,11 @@ public class NotificationUtils {
     ctx.append(EVENT_ID, eventId);
   }
 
-  public static final void setNotificationRecipients(NotificationInfo notification, List<EventAttendee> eventAttendee, Event event) {
+  public static final void setNotificationRecipients(IdentityManager identityManager,
+                                                     NotificationInfo notification,
+                                                     List<EventAttendee> eventAttendee,
+                                                     Event event,
+                                                     boolean isNew) {
     Set<String> recipients = new HashSet<>();
     for (EventAttendee attendee : eventAttendee) {
       Identity identity = Utils.getIdentityById(attendee.getIdentityId());
@@ -75,30 +90,37 @@ public class NotificationUtils {
         if (memberSpace != null) {
           recipients.addAll(memberSpace);
         }
-      } else if (identity.getProviderId().equals(OrganizationIdentityProvider.NAME)
-          && attendee.getIdentityId() != event.getCreatorId()) {
+      } else if (identity.getProviderId().equals(OrganizationIdentityProvider.NAME)) {
         recipients.add(identity.getRemoteId());
       }
     }
-    List<String> listRecipients = new ArrayList<>(recipients);
-    notification.to(listRecipients);
+
+    // After computing all usernames, to whom, notifications will be sent,
+    // this deletes the username of modifier/creator user
+    long userIdentityToExclude = isNew ? event.getCreatorId() : event.getModifierId();
+    if (userIdentityToExclude > 0) {
+      Identity identityToExclude = identityManager.getIdentity(String.valueOf(userIdentityToExclude));
+      if (identityToExclude != null) {
+        recipients.remove(identityToExclude.getRemoteId());
+      }
+    }
+    notification.to(new ArrayList<>(recipients));
   }
 
   public static final void storeEventParameters(NotificationInfo notification,
                                                 Event event,
-                                                org.exoplatform.agenda.model.Calendar calendar) {
+                                                org.exoplatform.agenda.model.Calendar calendar,
+                                                boolean isNew) {
     if (event == null) {
-      throw new IllegalStateException("event is null");
-    }
-    if (event.getCreatorId() == 0) {
-      throw new IllegalStateException("creator is null");
+      throw new IllegalArgumentException("event is null");
     }
     notification.with(STORED_PARAMETER_EVENT_ID, String.valueOf(event.getId()))
                 .with(STORED_PARAMETER_EVENT_TITLE, event.getSummary())
                 .with(STORED_PARAMETER_EVENT_OWNER_ID, String.valueOf(calendar.getOwnerId()))
                 .with(STORED_PARAMETER_EVENT_URL, getEventURL(event))
                 .with(STORED_PARAMETER_EVENT_START_DATE, AgendaDateUtils.toRFC3339Date(event.getStart()))
-                .with(STORED_PARAMETER_EVENT_END_DATE, AgendaDateUtils.toRFC3339Date(event.getEnd()));
+                .with(STORED_PARAMETER_EVENT_END_DATE, AgendaDateUtils.toRFC3339Date(event.getEnd()))
+                .with(STORED_PARAMETER_EVENT_IS_NEW, String.valueOf(isNew));
   }
 
   public static String getDefaultSite() {
@@ -122,7 +144,7 @@ public class NotificationUtils {
 
     setIdentityNameAndAvatar(notification, templateContext);
     setEventDetails(templateContext, notification);
-
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_IS_NEW, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_IS_NEW));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
     return templateContext;
   }

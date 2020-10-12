@@ -193,4 +193,10 @@
     </modifySql>
   </changeSet>
 
+  <changeSet author="agenda" id="1.0.0-9">
+    <addColumn tableName="EXO_AGENDA_EVENT">
+      <column name="MODIFIER_ID" type="BIGINT" defaultValueNumeric="0"/>
+    </addColumn>
+  </changeSet>
+
 </databaseChangeLog>
