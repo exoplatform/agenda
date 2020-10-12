@@ -146,6 +146,9 @@ public class EventEntity implements Serializable {
   @Column(name = "CREATOR_ID", nullable = false)
   private long                      creatorId;
 
+  @Column(name = "MODIFIER_ID", nullable = false)
+  private long                      modifierId;
+
   @Column(name = "CREATED_DATE", nullable = false)
   private Date                      createdDate;
 
@@ -247,6 +250,14 @@ public class EventEntity implements Serializable {
 
   public void setCreatorId(long creatorId) {
     this.creatorId = creatorId;
+  }
+
+  public long getModifierId() {
+    return modifierId;
+  }
+
+  public void setModifierId(long modifierId) {
+    this.modifierId = modifierId;
   }
 
   public Date getCreatedDate() {

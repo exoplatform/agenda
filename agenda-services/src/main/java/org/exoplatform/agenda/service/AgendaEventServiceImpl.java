@@ -258,7 +258,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                     event.getRemoteProviderId(),
                                     calendarId,
                                     userIdentityId,
-                                    userIdentityId,
+                                    0,
                                     ZonedDateTime.now(),
                                     null,
                                     event.getSummary(),
@@ -281,7 +281,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     attachmentService.saveEventAttachments(eventId, attachments, userIdentityId);
     conferenceService.saveEventConferences(eventId, conferences);
     reminderService.saveEventReminders(createdEvent, reminders, userIdentityId);
-    attendeeService.saveEventAttendees(createdEvent, attendees, userIdentityId, sendInvitation, false);
+    attendeeService.saveEventAttendees(createdEvent, attendees, userIdentityId, sendInvitation, false, true);
 
     return getEventById(eventId, event.getStart().getZone(), username);
   }
@@ -353,7 +353,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
     if (attendees != null && !attendees.isEmpty()) {
       attendees.forEach(attendee -> attendee.setId(0));
-      attendeeService.saveEventAttendees(exceptionalEvent, attendees, originalRecurrentEventCreator, false, false);
+      attendeeService.saveEventAttendees(exceptionalEvent, attendees, originalRecurrentEventCreator, false, false, true);
     }
     return exceptionalEvent;
   }
@@ -455,7 +455,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     attachmentService.saveEventAttachments(eventId, attachments, userIdentityId);
     conferenceService.saveEventConferences(eventId, conferences);
     reminderService.saveEventReminders(updatedEvent, reminders, userIdentityId);
-    attendeeService.saveEventAttendees(updatedEvent, attendees, userIdentityId, sendInvitation, false);
+    attendeeService.saveEventAttendees(updatedEvent, attendees, userIdentityId, sendInvitation, false, false);
 
     return updatedEvent;
   }

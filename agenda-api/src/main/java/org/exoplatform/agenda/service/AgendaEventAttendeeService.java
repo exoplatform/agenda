@@ -40,8 +40,9 @@ public interface AgendaEventAttendeeService {
    * user.
    * 
    * @param eventId technical identifier of the event
+   * @param isNew flag to indicate if event is new or old
    */
-  public void sendInvitations(long eventId);
+  public void sendInvitations(long eventId, boolean isNew);
 
   /**
    * @param event {@link Event} to attach attendees
@@ -56,7 +57,8 @@ public interface AgendaEventAttendeeService {
                           List<EventAttendee> attendees,
                           long creatorIdentityId,
                           boolean sendInvitations,
-                          boolean resetResponses);
+                          boolean resetResponses,
+                          boolean isNew);
 
   /**
    * Generates a token that will be used to authenticate user when requesting

@@ -125,7 +125,7 @@ public class EntityMapper {
                      remoteProviderId,
                      eventEntity.getCalendar().getId(),
                      eventEntity.getCreatorId(),
-                     0l,
+                     eventEntity.getModifierId(),
                      AgendaDateUtils.fromDate(eventEntity.getCreatedDate()),
                      AgendaDateUtils.fromDate(eventEntity.getUpdatedDate()),
                      eventEntity.getSummary(),
@@ -152,6 +152,7 @@ public class EntityMapper {
     eventEntity.setColor(event.getColor());
     eventEntity.setCreatedDate(AgendaDateUtils.toDate(event.getCreated()));
     eventEntity.setCreatorId(event.getCreatorId());
+    eventEntity.setModifierId(event.getModifierId());
     eventEntity.setDescription(event.getDescription());
     eventEntity.setLocation(event.getLocation());
     eventEntity.setOccurrenceId(event.getOccurrence() == null ? null : AgendaDateUtils.toDate(event.getOccurrence().getId()));
