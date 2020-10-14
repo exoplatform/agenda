@@ -1,8 +1,10 @@
 package org.exoplatform.agenda.util;
 
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.*;
 
+import org.apache.commons.lang.StringUtils;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
 import org.exoplatform.commons.api.notification.NotificationContext;
@@ -155,12 +157,12 @@ public class NotificationUtils {
     return defaultSite;
   }
 
-  public static final TemplateContext buildTemplateParameters(TemplateProvider templateProvider,
-                                                              NotificationInfo notification) {
+  public static final TemplateContext buildTemplateParameters(TemplateProvider templateProvider, NotificationInfo notification) {
     String language = NotificationPluginUtils.getLanguage(notification.getTo());
-    ZonedDateTime date = ZonedDateTime.parse(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_UPDATED_DATE));
-    String dateUpdate = AgendaDateUtils.formatUpdatedDate(date);
     String identityId = notification.getValueOwnerParameter(STORED_PARAMETER_MODIFIER_IDENTITY_ID);
+    ZonedDateTime eventUpdateDate = ZonedDateTime.parse(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_UPDATED_DATE));
+    ZoneId zoneId = getZoneId(identityId);
+    String dateFormatted = AgendaDateUtils.formatUpdatedDate(eventUpdateDate.withZoneSameInstant(zoneId));
     TemplateContext templateContext = getTemplateContext(templateProvider, notification, language);
 
     setFooter(notification, templateContext);
@@ -176,7 +178,7 @@ public class NotificationUtils {
     if (notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_IS_NEW).equals("false")) {
       templateContext.put(TEMPLATE_VARIABLE_EVENT_MODIFIER, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_MODIFIER));
       templateContext.put(TEMPLATE_VARIABLE_MODIFIER_IDENTITY_URL, getUserAbsoluteURI(identityId));
-      templateContext.put(TEMPLATE_VARIABLE_EVENT_UPDATE_DATE, dateUpdate);
+      templateContext.put(TEMPLATE_VARIABLE_EVENT_UPDATE_DATE, dateFormatted);
     }
     return templateContext;
   }
@@ -286,6 +288,19 @@ public class NotificationUtils {
       currentDomain += "/";
     }
     return currentDomain + "portal/" + currentSite + "/profile/" + id;
+  }
+
+  private static ZoneId getZoneId(String idUser) {
+    ZoneId timezoneObject = null;
+    IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
+    Identity identity = identityManager.getIdentity(String.valueOf(idUser));
+    String timeZone = identity.getProfile().getTimeZone();
+    if (StringUtils.isNotBlank(timeZone)) {
+      timezoneObject = TimeZone.getTimeZone(timeZone).toZoneId();
+    } else {
+      timezoneObject = ZoneId.systemDefault();
+    }
+    return timezoneObject;
   }
 
 }
