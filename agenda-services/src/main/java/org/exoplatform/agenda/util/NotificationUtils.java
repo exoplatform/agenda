@@ -50,10 +50,6 @@ public class NotificationUtils {
 
   private static final String                  STORED_PARAMETER_EVENT_ID                 = "eventId";
 
-  public static final String                   STORED_PARAMETER_EVENT_START_DATE         = "startDate";
-
-  public static final String                   STORED_PARAMETER_EVENT_END_DATE           = "endDate";
-
   public static final String                   STORED_PARAMETER_EVENT_UPDATED_DATE       = "updateDate";
 
   public static final String                   STORED_PARAMETER_EVENT_MODIFIER           = "eventModifier";
@@ -137,8 +133,6 @@ public class NotificationUtils {
                 .with(STORED_PARAMETER_EVENT_TITLE, event.getSummary())
                 .with(STORED_PARAMETER_EVENT_OWNER_ID, String.valueOf(calendar.getOwnerId()))
                 .with(STORED_PARAMETER_EVENT_URL, getEventURL(event))
-                .with(STORED_PARAMETER_EVENT_START_DATE, AgendaDateUtils.toRFC3339Date(event.getStart()))
-                .with(STORED_PARAMETER_EVENT_END_DATE, AgendaDateUtils.toRFC3339Date(event.getEnd()))
                 .with(STORED_PARAMETER_EVENT_CREATOR, getEventCreatorOrModifierUserName(event.getCreatorId()))
                 .with(STORED_PARAMETER_EVENT_IS_NEW, String.valueOf(isNew));
     if (event.getModifierId() > 0) {
@@ -159,10 +153,6 @@ public class NotificationUtils {
 
   public static final TemplateContext buildTemplateParameters(TemplateProvider templateProvider, NotificationInfo notification) {
     String language = NotificationPluginUtils.getLanguage(notification.getTo());
-    String identityId = notification.getValueOwnerParameter(STORED_PARAMETER_MODIFIER_IDENTITY_ID);
-    ZonedDateTime eventUpdateDate = ZonedDateTime.parse(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_UPDATED_DATE));
-    ZoneId zoneId = getZoneId(identityId);
-    String dateFormatted = AgendaDateUtils.formatUpdatedDate(eventUpdateDate.withZoneSameInstant(zoneId));
     TemplateContext templateContext = getTemplateContext(templateProvider, notification, language);
 
     setFooter(notification, templateContext);
@@ -176,6 +166,11 @@ public class NotificationUtils {
     templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_CREATOR, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_CREATOR));
     if (notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_IS_NEW).equals("false")) {
+      String identityId = notification.getValueOwnerParameter(STORED_PARAMETER_MODIFIER_IDENTITY_ID);
+      ZonedDateTime eventUpdateDate =
+                                    ZonedDateTime.parse(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_UPDATED_DATE));
+      ZoneId zoneId = getZoneId(identityId);
+      String dateFormatted = AgendaDateUtils.formatUpdatedDate(eventUpdateDate.withZoneSameInstant(zoneId));
       templateContext.put(TEMPLATE_VARIABLE_EVENT_MODIFIER, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_MODIFIER));
       templateContext.put(TEMPLATE_VARIABLE_MODIFIER_IDENTITY_URL, getUserAbsoluteURI(identityId));
       templateContext.put(TEMPLATE_VARIABLE_EVENT_UPDATE_DATE, dateFormatted);

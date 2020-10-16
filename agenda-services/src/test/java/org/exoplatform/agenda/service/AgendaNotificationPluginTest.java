@@ -82,10 +82,6 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
                         notificationInfo.getValueOwnerParameter(NotificationUtils.TEMPLATE_VARIABLE_EVENT_TITLE));
     Assert.assertEquals(String.valueOf(nbAttendee), String.valueOf(notificationInfo.getSendToUserIds().size()));
     Assert.assertEquals(eventUrl, notificationInfo.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_URL));
-    Assert.assertEquals(AgendaDateUtils.toRFC3339Date(createdEvent.getStart()),
-                        notificationInfo.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_START_DATE));
-    Assert.assertEquals(AgendaDateUtils.toRFC3339Date(createdEvent.getEnd()),
-                        notificationInfo.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_END_DATE));
   }
 
   @Test
@@ -151,10 +147,6 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
                         notificationInfo.getValueOwnerParameter(NotificationUtils.TEMPLATE_VARIABLE_EVENT_TITLE));
     Assert.assertEquals(String.valueOf(nbAttendee), String.valueOf(notificationInfo.getSendToUserIds().size()));
     Assert.assertEquals(eventUrl, notificationInfo.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_URL));
-    Assert.assertEquals(AgendaDateUtils.toRFC3339Date(updatedEvent.getStart()),
-                        notificationInfo.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_START_DATE));
-    Assert.assertEquals(AgendaDateUtils.toRFC3339Date(updatedEvent.getEnd()),
-                        notificationInfo.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_END_DATE));
 
   }
 }
