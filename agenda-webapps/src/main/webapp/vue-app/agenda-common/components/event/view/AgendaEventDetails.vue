@@ -60,11 +60,11 @@
         </div>
         <div v-if="event.location" class="event-location align-center d-flex pb-5">
           <i class="uiIconCheckin darkGreyIcon uiIcon32x32 pr-5"></i>
-          <span>{{ event.location }}</span>
+          <span id="location-content">{{ event.location }}</span>
         </div>
         <div v-if="event.description" class="event-description d-flex pb-5">
           <i class="uiIconDescription darkGreyIcon uiIcon32x32 pr-5"></i>
-          <span class="mt-1 text-wrap text-left">{{ event.description }}</span>
+          <span id="description-content" class="mt-1 text-wrap text-left">{{ event.description }}</span>
         </div>
         <div
           v-if="event.attachments && event.attachments.length !== 0"
@@ -74,7 +74,7 @@
             v-for="attachedFile in event.attachments"
             :key="attachedFile.name"
             class="uploadedFilesItem">
-            <div class="showFile"> 
+            <div class="showFile">
               <exo-attachment-item :file="attachedFile" />
             </div>
           </div>
@@ -203,6 +203,10 @@ export default {
       });
     },
   },
+  mounted() {
+    $('#location-content').html(this.linkifyContent(this.event.location));
+    $('#description-content').html(this.linkifyContent(this.event.description));
+  },
   created() {
     this.$root.$on('agenda-event-details-opened', this.reset);
     this.$root.$on('agenda-event-response-sent', event => {
@@ -229,6 +233,11 @@ export default {
       this.$eventService.deleteEvent(this.event.id)
         .then(() => this.$root.$emit('agenda-event-deleted'));
     },
+    linkifyContent(content) {
+      const urlMatcher = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_.~#?&//=]*)/igm;
+      const contentWithLinks = content.replace(urlMatcher, match => ` <a href="${match}">${match}</a> `);
+      return contentWithLinks;
+    }
   }
 };
 </script>
