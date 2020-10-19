@@ -1,0 +1,55 @@
+{
+  "hits" : {
+    "total" : 2,
+    "hits" : [
+      {
+        "_index" : "event_v1",
+        "_type" : "event",
+        "_id" : "6",
+        "_score" : 1.0,
+        "highlight" : {
+          "body": ["term"]
+        },
+        "_source" : {
+          "lastUpdatedDate" : 1592227545759,
+          "location" : "tunis",
+          "occurrenceId" : "1",
+          "attendees" : [
+            "10"
+          ],
+          "startTime" : "1592227545758",
+          "endTime" : "1592227545759",
+          "ownerId" : "5",
+          "id" : "6",
+          "isRecurrent" : "false",
+          "summary" :  "term\r\n",
+          "description" : "this is description"
+        }
+      },
+      {
+        "_index" : "event_v1",
+        "_type" : "event",
+        "_id" : "8",
+        "_score" : 1.0,
+        "highlight" : {
+          "body": ["term"]
+        },
+        "_source" : {
+          "lastUpdatedDate" : 1592227545759,
+          "location" : "tunis",
+          "occurrenceId" : "1",
+          "attendees" : [
+            "10"
+          ],
+          "startTime" : "1592227545758",
+          "endTime" : "1592227545759",
+          "ownerId" : "5",
+          "id" : "7",
+          "isRecurrent" : "false",
+          "summary" :  "term\r\n",
+          "description" : "this is term\r description"
+        }
+      }
+    ]
+  }
+}

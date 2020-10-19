@@ -17,17 +17,18 @@
 package org.exoplatform.agenda.search;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.commons.lang.StringUtils;
 
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
-import org.exoplatform.agenda.rest.model.EventEntity;
+import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.agenda.service.AgendaEventAttendeeService;
 import org.exoplatform.agenda.service.AgendaEventService;
-import org.exoplatform.agenda.util.EntityBuilder;
+import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.commons.search.domain.Document;
 import org.exoplatform.commons.search.index.impl.ElasticIndexingServiceConnector;
 import org.exoplatform.commons.utils.HTMLSanitizer;
@@ -45,11 +46,11 @@ public class AgendaIndexingServiceConnector extends ElasticIndexingServiceConnec
 
   private final AgendaCalendarService agendaCalendarService;
 
+  private final IdentityManager       identityManager;
+
   private final AgendaEventService    agendaEventService;
 
   private AgendaEventAttendeeService  attendeeService;
-
-  private final IdentityManager       identityManager;
 
   public AgendaIndexingServiceConnector(AgendaCalendarService agendaCalendarService,
                                         IdentityManager identityManager,
@@ -106,53 +107,71 @@ public class AgendaIndexingServiceConnector extends ElasticIndexingServiceConnec
     if (event.getParentId() > 0) {
       fields.put("parentId", Long.toString(event.getParentId()));
     }
+
+    Calendar calendar = agendaCalendarService.getCalendarById(event.getCalendarId());
     long ownerIdentityId = 0;
-    if (event.getCalendarId() > 0) {
-      ownerIdentityId = event.getCalendarId();
+    if (calendar != null && calendar.getOwnerId() > 0) {
+      ownerIdentityId = calendar.getOwnerId();
       fields.put("ownerId", Long.toString(ownerIdentityId));
     }
-    Boolean isRecurrent = event.getRecurrence() == null;
+
+    Boolean isRecurrent = event.getRecurrence() != null;
     fields.put("isRecurrent", isRecurrent.toString());
-    List<EventAttendee> eventAttendee = attendeeService.getEventAttendees(event.getId());
-    if (eventAttendee != null) {
-      fields.put("attendee", String.valueOf(eventAttendee));
+
+    Boolean isExceptional = false;
+    if (event.getOccurrence() != null) {
+      isExceptional = event.getOccurrence().isExceptional();
+    }
+    fields.put("isExceptional", isExceptional.toString());
+
+    List<Long> eventAttendees = attendeeService.getEventAttendees(event.getId())
+                                               .stream()
+                                               .map(EventAttendee::getIdentityId)
+                                               .collect(Collectors.toList());
+
+    if (!eventAttendees.isEmpty()) {
+      fields.put("attendee", String.valueOf(eventAttendees));
+    }
+
+    if (event.getOccurrence() != null) {
+      fields.put("occurrenceId", Long.toString(event.getOccurrence().getId().toInstant().getEpochSecond()));
     }
 
     if (event.getStart() != null) {
-      fields.put("startTime", Long.toString(event.getStart().toInstant().getEpochSecond()));
+      long eventStartDateInMS = AgendaDateUtils.toDate(event.getStart()).getTime();
+      fields.put("startTime", Long.toString(eventStartDateInMS));
     }
+
     if (event.getEnd() != null) {
       fields.put("endTime", Long.toString(event.getEnd().toInstant().getEpochSecond()));
     }
+
     if (StringUtils.isNotEmpty(event.getLocation())) {
       fields.put("location", event.getLocation());
     }
 
-    String suammry = null;
+    String summary = null;
     if (StringUtils.isNotBlank(event.getSummary())) {
-      suammry = event.getSummary();
-      fields.put("suammry", suammry);
+      summary = event.getSummary();
+      fields.put("summary", summary);
     }
+
     String description = null;
     if (StringUtils.isNotBlank(event.getDescription())) {
       description = event.getDescription();
       fields.put("description", description);
     }
 
+    Set<Long> eventPermissionIds = Optional.ofNullable(eventAttendees).map(HashSet::new).orElse(null);
+
+    eventPermissionIds.add(ownerIdentityId);
     Document document = new Document(TYPE,
                                      id,
                                      null,
                                      Date.from(event.getCreated().toInstant()),
-                                     Collections.singleton(Long.toString(ownerIdentityId)),
+                                     eventPermissionIds.stream().map(String::valueOf).toArray(String[]::new),
                                      fields);
 
-    /*StringBuilder eventContent = new StringBuilder(document.getFields().get("body"));
-    if (StringUtils.isNotBlank(event.getDescription())) {
-      eventContent.append("\n");
-      eventContent.append(event.getDescription());
-    }
-    document.addField("body", String.valueOf(eventContent));
-*/
     // Ensure to index text only without html tags
     if (StringUtils.isNotEmpty(String.valueOf(description))) {
       description = document.getFields().get("description");

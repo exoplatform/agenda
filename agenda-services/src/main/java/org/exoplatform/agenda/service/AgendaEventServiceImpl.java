@@ -31,6 +31,7 @@ import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.storage.AgendaEventStorage;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
@@ -56,6 +57,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
   private SpaceService spaceService;
 
+  private ListenerService              listenerService;
+
   public AgendaEventServiceImpl(AgendaCalendarService agendaCalendarService,
                                 AgendaEventAttendeeService attendeeService,
                                 AgendaEventAttachmentService attachmentService,
@@ -63,7 +66,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                 AgendaEventReminderService reminderService,
                                 AgendaEventStorage agendaEventStorage,
                                 IdentityManager identityManager,
-                                SpaceService spaceService) {
+                                SpaceService spaceService,
+                                ListenerService listenerService) {
     this.agendaCalendarService = agendaCalendarService;
     this.attendeeService = attendeeService;
     this.attachmentService = attachmentService;
@@ -72,6 +76,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     this.agendaEventStorage = agendaEventStorage;
     this.identityManager = identityManager;
     this.spaceService = spaceService;
+    this.listenerService = listenerService;
   }
 
   /**
@@ -283,6 +288,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     reminderService.saveEventReminders(createdEvent, reminders, userIdentityId);
     attendeeService.saveEventAttendees(createdEvent, attendees, userIdentityId, sendInvitation, false, true);
 
+    Utils.broadcastEvent(listenerService, POST_CREATE_AGENDA_EVENT_EVENT, eventId, 0);
+
     return getEventById(eventId, event.getStart().getZone(), username);
   }
 
@@ -457,6 +464,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     reminderService.saveEventReminders(updatedEvent, reminders, userIdentityId);
     attendeeService.saveEventAttendees(updatedEvent, attendees, userIdentityId, sendInvitation, false, false);
 
+    Utils.broadcastEvent(listenerService, POST_UPDATE_AGENDA_EVENT_EVENT, eventId, 0);
 
     return updatedEvent;
   }
@@ -480,6 +488,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       throw new IllegalAccessException("User " + username + " hasnt enough privileges to delete event with id " + eventId);
     }
     agendaEventStorage.deleteEventById(eventId);
+    Utils.broadcastEvent(listenerService, POST_DELETE_AGENDA_EVENT_EVENT, eventId, 0);
   }
 
   /**

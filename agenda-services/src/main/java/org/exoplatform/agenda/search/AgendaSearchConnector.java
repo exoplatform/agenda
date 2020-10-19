@@ -18,14 +18,15 @@ package org.exoplatform.agenda.search;
 
 import java.io.InputStream;
 import java.text.Normalizer;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
 import org.exoplatform.agenda.model.EventSearchResult;
-import org.exoplatform.agenda.service.AgendaEventService;
 import org.exoplatform.agenda.service.AgendaEventServiceImpl;
-import org.exoplatform.social.core.jpa.search.ActivitySearchProcessor;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -40,18 +41,15 @@ import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.container.xml.PropertiesParam;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
-import org.exoplatform.social.core.activity.filter.ActivitySearchFilter;
-import org.exoplatform.social.core.activity.model.*;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
-import org.exoplatform.social.core.storage.api.ActivityStorage;
 
 public class AgendaSearchConnector {
-  private static final Log              LOG                          = ExoLogger.getLogger(AgendaSearchConnector.class);
+  private static final Log             LOG                          = ExoLogger.getLogger(AgendaSearchConnector.class);
 
-  private static final String           SEARCH_QUERY_FILE_PATH_PARAM = "query.file.path";
+  private static final String          SEARCH_QUERY_FILE_PATH_PARAM = "query.file.path";
 
-  private final ConfigurationManager    configurationManager;
+  private final ConfigurationManager   configurationManager;
 
   private final IdentityManager        identityManager;
 
@@ -59,13 +57,13 @@ public class AgendaSearchConnector {
 
   private final ElasticSearchingClient client;
 
-  private String                        index;
+  private String                       index;
 
-  private String                        searchType;
+  private String                       searchType;
 
-  private String                        searchQueryFilePath;
+  private String                       searchQueryFilePath;
 
-  private String                        searchQuery;
+  private String                       searchQuery;
 
   public AgendaSearchConnector(ConfigurationManager configurationManager,
                                IdentityManager identityManager,
@@ -90,10 +88,7 @@ public class AgendaSearchConnector {
     }
   }
 
-  public List<EventSearchResult> search(Identity viewerIdentity,
-                                           AgendaSearchFilter filter,
-                                           long offset,
-                                           long limit) {
+  public List<EventSearchResult> search(Identity viewerIdentity, AgendaSearchFilter filter, long offset, long limit) {
     if (viewerIdentity == null) {
       throw new IllegalArgumentException("Viewer identity is mandatory");
     }
@@ -110,16 +105,17 @@ public class AgendaSearchConnector {
       throw new IllegalArgumentException("Filter term is mandatory");
     }
 
-    Set<Long> streamFeedOwnerIds = Optional.ofNullable(agendaEventService.getCalendarOwnersOfUser(viewerIdentity)).map(HashSet::new).orElse(null);
-    String esQuery = buildQueryStatement(streamFeedOwnerIds, filter, offset, limit);
+    Set<Long> calendarOwnersOfUser = Optional.ofNullable(agendaEventService.getCalendarOwnersOfUser(viewerIdentity))
+                                             .map(HashSet::new)
+                                             .orElse(null);
+
+    calendarOwnersOfUser.add(Long.valueOf(viewerIdentity.getId()));
+    String esQuery = buildQueryStatement(calendarOwnersOfUser, filter, offset, limit);
     String jsonResponse = this.client.sendRequest(esQuery, this.index, this.searchType);
-    return buildResult(jsonResponse, viewerIdentity, streamFeedOwnerIds);
+    return buildResult(jsonResponse, viewerIdentity, calendarOwnersOfUser);
   }
 
-  private String buildQueryStatement(Set<Long> streamFeedOwnerIds,
-                                     AgendaSearchFilter filter,
-                                     long offset,
-                                     long limit) {
+  private String buildQueryStatement(Set<Long> calendarOwnersOfUser, AgendaSearchFilter filter, long offset, long limit) {
 
     String term = removeSpecialCharacters(filter.getTerm());
     List<String> termsQuery = Arrays.stream(term.split(" ")).filter(StringUtils::isNotBlank).map(word -> {
@@ -132,13 +128,13 @@ public class AgendaSearchConnector {
     String termQuery = StringUtils.join(termsQuery, " AND ");
     return retrieveSearchQuery().replaceAll("@term@", term)
                                 .replaceAll("@term_query@", termQuery)
-                                .replaceAll("@permissions@", StringUtils.join(streamFeedOwnerIds, ","))
+                                .replaceAll("@permissions@", StringUtils.join(calendarOwnersOfUser, ","))
                                 .replaceAll("@offset@", String.valueOf(offset))
                                 .replaceAll("@limit@", String.valueOf(limit));
   }
 
   @SuppressWarnings("rawtypes")
-  private List<EventSearchResult> buildResult(String jsonResponse, Identity viewerIdentity, Set<Long> streamFeedOwnerIds) {
+  private List<EventSearchResult> buildResult(String jsonResponse, Identity viewerIdentity, Set<Long> calendarOwnersOfUser) {
     LOG.debug("Search Query response from ES : {} ", jsonResponse);
 
     List<EventSearchResult> results = new ArrayList<>();
@@ -168,92 +164,71 @@ public class AgendaSearchConnector {
         Long ownerId = parseLong(hitSource, "ownerId");
         Long parentId = parseLong(hitSource, "parentId");
         Boolean isRecurrent = Boolean.parseBoolean((String) hitSource.get("isRecurrent"));
-        /*Long streamOwner = parseLong(hitSource, "streamOwner");
-        if (!streamFeedOwnerIds.contains(streamOwner)) {
-          LOG.warn("Activity '{}' is returned in seach result while it's not permitted to user {}. Ignore it.",
-                   id,
-                   viewerIdentity.getId());
-          continue;
-        }*/
+        Boolean isExceptional = Boolean.parseBoolean((String) hitSource.get("isExceptional"));
+        if (!calendarOwnersOfUser.contains(ownerId)) { LOG.
+        warn("Event '{}' is returned in seach result while it's not permitted to user {}. Ignore it."
+        , id, viewerIdentity.getId());
+        continue; }
+        
         String attendees = (String) hitSource.get("attendee");
-        //String[] attendeesArray = (String[]) attendees.toArray(new String[0]);
         List<String> attendeesList = Arrays.asList(attendees);
         String startTime = (String) hitSource.get("startTime");
         String endTime = (String) hitSource.get("endTime");
         String location = (String) hitSource.get("location");
         String summary = (String) hitSource.get("summary");
         String description = (String) hitSource.get("description");
-        JSONObject hightlightSource = (JSONObject) jsonHitObject.get("highlight");
+        JSONObject highlightSource = (JSONObject) jsonHitObject.get("highlight");
+        if (highlightSource.get("summary") != null) {
+          summary = ((JSONArray) highlightSource.get("summary")).get(0).toString();
+          highlightSource.remove("summary");
+        }
         List<String> excerpts = new ArrayList<>();
-        if (hightlightSource != null) {
-        JSONArray bodyExcepts = (JSONArray) hightlightSource.get("body");
-          String[] bodyExceptsArray = (String[]) bodyExcepts.toArray(new String[0]);
-          excerpts = Arrays.asList(bodyExceptsArray);
+        if (highlightSource != null) {
+          for (Object key : highlightSource.keySet()) {
+            excerpts.add(((JSONArray) highlightSource.get(key)).get(0).toString());
+          }
         }
 
-          // Event
+        // Event
+        if (id != null) {
           eventSearchResult.setId(id);
-          if (startTime != null) {
-            eventSearchResult.setStart(startTime);
-          }
-          if (endTime != null) {
-            eventSearchResult.setEnd(endTime);
-          }
-          if (location != null) {
-            eventSearchResult.setLocation(location);
-          }
-          if (!attendees.isEmpty()) {
-            //Identity streamOwnerIdentity = identityManager.getIdentity(streamOwner.toString());
-            eventSearchResult.setAttendees(attendeesList);
-          }
-          /*if (isRecurrent != null) {
-            Identity posterIdentity = identityManager.getIdentity(posterId.toString());
-            activitySearchResult.setPoster(posterIdentity);
-          }*/
+        }
+        if (ownerId != null) {
+          eventSearchResult.setOwnerId(ownerId);
+        }
+        if (startTime != null) {
+          Instant startTimeInstant = Instant.ofEpochMilli(Long.parseLong(startTime));
+          LocalDateTime startTimeDateTime = LocalDateTime.ofInstant(startTimeInstant, ZoneId.systemDefault());
+          eventSearchResult.setStart(startTimeDateTime.toString());
+        }
+        if (endTime != null) {
+          Instant endTimeInstant = Instant.ofEpochMilli(Long.parseLong(endTime));
+          LocalDateTime endTimeDateTime = LocalDateTime.ofInstant(endTimeInstant, ZoneId.systemDefault());
+          eventSearchResult.setEnd(endTimeDateTime.toString());
+        }
+        if (location != null) {
+          eventSearchResult.setLocation(location);
+        }
+        if (summary != null) {
+          eventSearchResult.setSummary(summary);
+        }
+        if (description != null) {
+          eventSearchResult.setDescription(description);
+        }
 
-          eventSearchResult.setRecurrent(isRecurrent);
-          eventSearchResult.setExcerpts(excerpts);
-
-          results.add(eventSearchResult);
+        eventSearchResult.setRecurrent(isRecurrent);
+        eventSearchResult.setExcerpts(excerpts);
+        eventSearchResult.setAttendees(attendeesList);
+        if (parentId != null && !isExceptional) {
+          continue;
+        }
+        results.add(eventSearchResult);
       } catch (Exception e) {
         LOG.warn("Error processing event search result item, ignore it from results", e);
       }
     }
     return results;
   }
-/*
-  private void transformActivityToResult(ActivitySearchResult activitySearchResult, Long parentId) {
-    ExoSocialActivity activity = activityStorage.getActivity(parentId.toString());
-
-    // Activity
-    activitySearchResult.setType(activity.getType());
-    activitySearchResult.setId(Long.parseLong(activity.getId()));
-    if (activity.getUpdated() != null) {
-      activitySearchResult.setLastUpdatedTime(activity.getUpdated().getTime());
-    }
-
-    if (activity.getPostedTime() != null) {
-      activitySearchResult.setPostedTime(activity.getPostedTime());
-    }
-    ActivityStream activityStream = activity.getActivityStream();
-    if (activityStream != null) {
-      String prettyId = activityStream.getPrettyId();
-      String providerId = activityStream.getType().getProviderId();
-
-      Identity streamOwnerIdentity = identityManager.getOrCreateIdentity(providerId, prettyId);
-      activitySearchResult.setStreamOwner(streamOwnerIdentity);
-    }
-    if (activity.getPosterId() != null) {
-      Identity posterIdentity = identityManager.getIdentity(activity.getPosterId());
-      activitySearchResult.setPoster(posterIdentity);
-    }
-    if (StringUtils.isNotBlank(activity.getTitle())) {
-      activitySearchResult.setBody(activity.getTitle());
-    } else {
-      activitySearchResult.setBody(activity.getBody());
-    }
-    activitySearchProcessor.formatSearchResult(activitySearchResult);
-  }*/
 
   private Long parseLong(JSONObject hitSource, String key) {
     String value = (String) hitSource.get(key);

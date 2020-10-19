@@ -6,14 +6,21 @@
     "ownerId": {
       "type": "long"
     },
+    "occurrenceId": {
+      "type": "date",
+      "format": "epoch_millis"
+    },
     "parentId": {
+      "type": "long"
+    },
+    "attendee": {
       "type": "long"
     },
     "isRecurrent": {
       "type": "boolean"
     },
-    "attendees": {
-      "type": "nested"
+    "isExceptional": {
+      "type": "boolean"
     },
     "startTime": {
       "type": "date",
@@ -24,7 +31,13 @@
       "format": "epoch_millis"
     },
     "location": {
-      "type": "keyword"
+      "type": "text",
+      "index_options": "offsets",
+      "fields": {
+        "raw": {
+          "type": "keyword"
+        }
+      }
     },
     "summary": {
       "type": "text",
@@ -32,10 +45,6 @@
       "fields": {
         "raw": {
           "type": "keyword"
-        },
-        "whitespace": {
-          "type": "text",
-          "analyzer": "whitespace_lowercase_asciifolding"
         }
       }
     },
@@ -45,10 +54,6 @@
       "fields": {
         "raw": {
           "type": "keyword"
-        },
-        "whitespace": {
-          "type": "text",
-          "analyzer": "whitespace_lowercase_asciifolding"
         }
       }
     }

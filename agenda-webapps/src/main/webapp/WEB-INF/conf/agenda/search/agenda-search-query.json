@@ -10,9 +10,9 @@
       },
       "should": {
         "match_phrase": {
-          "description": {
+          "summary": {
             "query": "@term@",
-            "boost": 5
+            "boost": 3
           }
         }
       },

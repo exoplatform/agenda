@@ -6,6 +6,8 @@ public class EventSearchResult {
 
   private long         id;
 
+  private long         ownerId;
+
   private List<String> excerpts;
 
   private String       summary;
@@ -28,6 +30,14 @@ public class EventSearchResult {
 
   public void setId(long id) {
     this.id = id;
+  }
+
+  public long getOwnerId() {
+    return ownerId;
+  }
+
+  public void setOwnerId(long ownerId) {
+    this.ownerId = ownerId;
   }
 
   public List<String> getExcerpts() {
