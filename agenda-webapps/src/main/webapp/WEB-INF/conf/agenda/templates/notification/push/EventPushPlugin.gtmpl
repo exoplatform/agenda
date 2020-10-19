@@ -1,11 +1,21 @@
 <% eventTitle = _ctx.escapeHTML(eventTitle); %>
 <div>
     <div>
-        <%= _ctx.appRes("Notification.agenda.event.created", eventTitle) %>
+        <%
+        if ("true".equals(isNewEvent)) { %>
+          <%= _ctx.appRes("Notification.agenda.event.created", eventTitle) %>
+        <% } else if("true".equals(isDeletedEvent)){ %>
+          <%= _ctx.appRes("Notification.agenda.event.canceled", eventTitle) %>
+        <% } %>
     </div>
     <div>
         <a href="<%= eventURL %>">
-            <%= _ctx.appRes("Notification.agenda.event.reply") %>
+            <%
+            if ("true".equals(isNewEvent)) { %>
+              <%= _ctx.appRes("Notification.agenda.event.reply") %>
+            <% } else if("false".equals(isDeletedEvent)) { %>
+              <%= _ctx.appRes("Notification.agenda.event.view") %>
+            <% } %>
         </a>
     </div>
 </div>

@@ -141,7 +141,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       }
     }
     if (sendInvitations) {
-      sendInvitations(eventId, isNew);
+      sendInvitations(eventId, isNew, false);
     }
 
     Utils.broadcastEvent(listenerService, "exo.agenda.event.attendees.saved", eventId, 0);
@@ -301,13 +301,16 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    * {@inheritDoc}
    */
   @Override
-  public void sendInvitations(long eventId, boolean isNew) {
+  public void sendInvitations(long eventId, boolean isNew, boolean isDeleted) {
     String agendaNotificationPluginType = null;
     NotificationContext ctx = NotificationContextImpl.cloneInstance();
     ctx.append(EVENT_ID, eventId);
     ctx.append(IS_NEW, isNew);
+    ctx.append(IS_DELETED, isDeleted);
     if (isNew) {
       agendaNotificationPluginType = AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN;
+    } else if (isDeleted) {
+      agendaNotificationPluginType = AGENDA_EVENT_CANCELED_NOTIFICATION_PLUGIN;
     } else {
       agendaNotificationPluginType = AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN;
     }

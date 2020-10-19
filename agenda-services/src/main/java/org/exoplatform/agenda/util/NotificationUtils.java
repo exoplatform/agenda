@@ -29,9 +29,14 @@ public class NotificationUtils {
   public static final ArgumentLiteral<Boolean> IS_NEW                                    =
                                                       new ArgumentLiteral<>(Boolean.class, "isNew");
 
+  public static final ArgumentLiteral<Boolean> IS_DELETED                                =
+                                                          new ArgumentLiteral<>(Boolean.class, "isDeleted");
+
   public static final String                   AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN    = "EventAddedNotificationPlugin";
 
   public static final String                   AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN = "EventModifiedNotificationPlugin";
+  
+  public static final String                   AGENDA_EVENT_CANCELED_NOTIFICATION_PLUGIN = "EventCanceledNotificationPlugin";
 
   private static final String                  TEMPLATE_VARIABLE_EVENT_URL               = "eventURL";
 
@@ -40,6 +45,9 @@ public class NotificationUtils {
 
   public static final PluginKey                EVENT_MODIFIED_KEY                        =
                                                                   PluginKey.key(AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN);
+
+  public static final PluginKey                EVENT_CANCELED_KEY                        =
+                                                                  PluginKey.key(AGENDA_EVENT_CANCELED_NOTIFICATION_PLUGIN);
 
   public static final String                   STORED_PARAMETER_EVENT_TITLE              = "eventTitle";
 
@@ -54,6 +62,8 @@ public class NotificationUtils {
   public static final String                   STORED_PARAMETER_EVENT_URL                = "Url";
 
   public static final String                   STORED_PARAMETER_EVENT_IS_NEW             = "EVENT_IS_NEW";
+  
+  public static final String                   STORED_PARAMETER_EVENT_IS_DELETED             = "EVENT_IS_DELETED";
 
   private static final String                  TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR  = "calendarOwnerAvatarUrl";
 
@@ -62,6 +72,8 @@ public class NotificationUtils {
   public static final String                   TEMPLATE_VARIABLE_EVENT_TITLE             = "eventTitle";
 
   private static final String                  TEMPLATE_VARIABLE_EVENT_IS_NEW            = "isNewEvent";
+
+  private static final String                  TEMPLATE_VARIABLE_EVENT_IS_DELETED        = "isDeletedEvent";
 
   private static String                        defaultSite;
 
@@ -110,7 +122,8 @@ public class NotificationUtils {
   public static final void storeEventParameters(NotificationInfo notification,
                                                 Event event,
                                                 org.exoplatform.agenda.model.Calendar calendar,
-                                                boolean isNew) {
+                                                boolean isNew,
+                                                boolean isDeleted) {
     if (event == null) {
       throw new IllegalArgumentException("event is null");
     }
@@ -120,7 +133,8 @@ public class NotificationUtils {
                 .with(STORED_PARAMETER_EVENT_URL, getEventURL(event))
                 .with(STORED_PARAMETER_EVENT_START_DATE, AgendaDateUtils.toRFC3339Date(event.getStart()))
                 .with(STORED_PARAMETER_EVENT_END_DATE, AgendaDateUtils.toRFC3339Date(event.getEnd()))
-                .with(STORED_PARAMETER_EVENT_IS_NEW, String.valueOf(isNew));
+                .with(STORED_PARAMETER_EVENT_IS_NEW, String.valueOf(isNew))
+                .with(STORED_PARAMETER_EVENT_IS_DELETED, String.valueOf(isDeleted));
   }
 
   public static String getDefaultSite() {
@@ -146,6 +160,7 @@ public class NotificationUtils {
     setEventDetails(templateContext, notification);
     templateContext.put(TEMPLATE_VARIABLE_EVENT_IS_NEW, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_IS_NEW));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_IS_DELETED, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_IS_DELETED));
     return templateContext;
   }
 

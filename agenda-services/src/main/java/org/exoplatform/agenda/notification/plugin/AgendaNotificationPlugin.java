@@ -67,9 +67,11 @@ public class AgendaNotificationPlugin extends BaseNotificationPlugin {
   public NotificationInfo makeNotification(NotificationContext ctx) {
     long eventId = ctx.value(EVENT_ID);
     Boolean isNew = ctx.value(IS_NEW);
+    Boolean isDeleted = ctx.value(IS_DELETED);
     // To avoid NPE for previously stored notifications, if IS_NEW parameter
     // doesn't exists, we assume that it's a new one
     isNew = isNew == null || isNew.booleanValue();
+    isDeleted = isDeleted == null || isDeleted.booleanValue();
 
     Event event = eventService.getEventById(eventId);
     List<EventAttendee> eventAttendee = eventAttendeeService.getEventAttendees(eventId);
@@ -83,7 +85,7 @@ public class AgendaNotificationPlugin extends BaseNotificationPlugin {
       LOG.debug("Notification type '{}' doesn't have a recipient", getId());
       return null;
     } else {
-      storeEventParameters(notification, event, calendar, isNew);
+      storeEventParameters(notification, event, calendar, isNew, isDeleted);
       return notification.end();
     }
   }

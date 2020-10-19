@@ -41,8 +41,9 @@ public interface AgendaEventAttendeeService {
    * 
    * @param eventId technical identifier of the event
    * @param isNew flag to indicate if event is new or old
+   * @param isDeleted flag to indicate if event is deleted or not
    */
-  public void sendInvitations(long eventId, boolean isNew);
+  public void sendInvitations(long eventId, boolean isNew, boolean isDeleted);
 
   /**
    * @param event {@link Event} to attach attendees

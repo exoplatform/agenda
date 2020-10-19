@@ -11,7 +11,9 @@
           String eventTitle = "<span class=\"user-name text-bold\">"+ eventTitle +"</span>";
           if ("true".equals(isNewEvent)) { %>
             <%= _ctx.appRes("Notification.agenda.event.created", eventTitle) %>
-          <% } else { %>
+          <% } else if("true".equals(isDeletedEvent)){ %>
+            <%= _ctx.appRes("Notification.agenda.event.canceled", eventTitle) %>
+            <% } else { %>
             <%= _ctx.appRes("Notification.agenda.event.updated", eventTitle) %>
           <% } %>
         </div>
@@ -20,7 +22,7 @@
             <%
             if("true".equals(isNewEvent)) { %>
               <%= _ctx.appRes("Notification.agenda.event.reply") %>
-            <% } else { %>
+            <% } else if("false".equals(isDeletedEvent)) { %>
               <%= _ctx.appRes("Notification.agenda.event.view") %>
             <% } %>
           </a>
