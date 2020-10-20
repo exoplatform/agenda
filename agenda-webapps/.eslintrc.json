@@ -20,7 +20,8 @@
         "exoi18n": true,
         "extensionRegistry": true,
         "CKEDITOR": true,
-        "cCometd": true
+        "cCometd": true,
+        "gapi": true
     },
     "parserOptions": {
         "sourceType": "module",
