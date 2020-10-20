@@ -32,6 +32,9 @@ public class NotificationUtils {
   public static final ArgumentLiteral<Boolean> IS_DELETED                                =
                                                           new ArgumentLiteral<>(Boolean.class, "isDeleted");
 
+  public static final ArgumentLiteral<List>    EVENT_ATTENDEE                            =
+                                                              new ArgumentLiteral<>(List.class, "eventAttendee");
+
   public static final String                   AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN    = "EventAddedNotificationPlugin";
 
   public static final String                   AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN = "EventModifiedNotificationPlugin";
@@ -63,7 +66,7 @@ public class NotificationUtils {
 
   public static final String                   STORED_PARAMETER_EVENT_IS_NEW             = "EVENT_IS_NEW";
   
-  public static final String                   STORED_PARAMETER_EVENT_IS_DELETED             = "EVENT_IS_DELETED";
+  public static final String                   STORED_PARAMETER_EVENT_IS_DELETED         = "EVENT_IS_DELETED";
 
   private static final String                  TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR  = "calendarOwnerAvatarUrl";
 

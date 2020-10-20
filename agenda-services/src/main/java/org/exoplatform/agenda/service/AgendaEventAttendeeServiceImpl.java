@@ -310,6 +310,8 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     if (isNew) {
       agendaNotificationPluginType = AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN;
     } else if (isDeleted) {
+      List<EventAttendee> eventAttendees = getEventAttendees(eventId);
+      ctx.append(EVENT_ATTENDEE, eventAttendees);
       agendaNotificationPluginType = AGENDA_EVENT_CANCELED_NOTIFICATION_PLUGIN;
     } else {
       agendaNotificationPluginType = AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN;

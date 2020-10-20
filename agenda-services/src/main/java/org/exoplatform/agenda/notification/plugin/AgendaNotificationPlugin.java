@@ -78,6 +78,9 @@ public class AgendaNotificationPlugin extends BaseNotificationPlugin {
     Calendar calendar = calendarService.getCalendarById(event.getCalendarId());
     NotificationInfo notification = NotificationInfo.instance();
     notification.key(getId());
+    if (ctx.value(IS_DELETED)) {
+      eventAttendee = ctx.value(EVENT_ATTENDEE);
+    }
     if (event.getId() > 0) {
       setNotificationRecipients(identityManager, notification, eventAttendee, event, isNew);
     }
