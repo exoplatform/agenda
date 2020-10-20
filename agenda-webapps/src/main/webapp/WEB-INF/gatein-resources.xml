@@ -67,6 +67,9 @@
         <module>AgendaCommon</module>
       </depends>
       <depends>
+        <module>agendaConnectors</module>
+      </depends>
+      <depends>
         <module>commonVueComponents</module>
       </depends>
       <depends>
@@ -194,4 +197,16 @@
       <module>extensionRegistry</module>
     </depends>
   </module>
+
+  <module>
+    <name>agendaConnectors</name>
+    <script>
+      <minify>false</minify>
+      <path>/js/agendaConnectors.bundle.js</path>
+    </script>
+    <depends>
+      <module>extensionRegistry</module>
+    </depends>
+  </module>
+
 </gatein-resources>
