@@ -26,6 +26,7 @@ const config = {
     agendaCommon: './src/main/webapp/vue-app/agenda-common/main.js',
     agendaSettings: './src/main/webapp/vue-app/agenda-user-setting/main.js',
     agendaTimeline: './src/main/webapp/vue-app/agenda-timeline/main.js',
+    agendaConnectors: './src/main/webapp/vue-app/agenda-connectors/main.js',
   },
   output: {
     path: path.join(__dirname, 'target/agenda/'),
