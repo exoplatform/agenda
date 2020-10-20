@@ -1,53 +1,61 @@
 {
-  "hits" : {
-    "total" : 2,
-    "hits" : [
+  "hits": {
+    "total": 2,
+    "max_score": 1,
+    "hits": [
       {
-        "_index" : "event_v1",
-        "_type" : "event",
-        "_id" : "6",
-        "_score" : 1.0,
-        "highlight" : {
-          "body": ["term"]
-        },
-        "_source" : {
-          "lastUpdatedDate" : 1592227545759,
-          "location" : "tunis",
-          "occurrenceId" : "1",
-          "attendees" : [
-            "10"
+        "_index": "event_v1",
+        "_type": "event",
+        "_id": "1",
+        "_score": 1,
+        "_source": {
+          "summary": "eventSummary",
+          "isExceptional": "false",
+          "lastUpdatedDate": 1603102578000,
+          "attendee": "[1, 23, 28, 43, 71]",
+          "isRecurrent": "true",
+          "permissions": [
+            "1",
+            "23",
+            "13",
+            "28",
+            "71",
+            "43"
           ],
-          "startTime" : "1592227545758",
-          "endTime" : "1592227545759",
-          "ownerId" : "5",
-          "id" : "6",
-          "isRecurrent" : "false",
-          "summary" :  "term\r\n",
-          "description" : "this is description"
+          "description": "eventDescription",
+          "startTime": "1603065600000",
+          "location": "eventLocation",
+          "id": "1",
+          "endTime": "1603151999000",
+          "ownerId": "1"
         }
       },
       {
-        "_index" : "event_v1",
-        "_type" : "event",
-        "_id" : "8",
-        "_score" : 1.0,
-        "highlight" : {
-          "body": ["term"]
-        },
-        "_source" : {
-          "lastUpdatedDate" : 1592227545759,
-          "location" : "tunis",
-          "occurrenceId" : "1",
-          "attendees" : [
-            "10"
+        "_index": "event_v1",
+        "_type": "event",
+        "_id": "4",
+        "_score": 1,
+        "_source": {
+          "summary": "event title",
+          "isExceptional": "true",
+          "attendee": "[23, 28, 43, 71]",
+          "isRecurrent": "false",
+          "description": "event description",
+          "occurrenceId": "1603274400",
+          "ownerId": "13",
+          "parentId": "2",
+          "lastUpdatedDate": 1603103274000,
+          "permissions": [
+            "23",
+            "13",
+            "28",
+            "71",
+            "43"
           ],
-          "startTime" : "1592227545758",
-          "endTime" : "1592227545759",
-          "ownerId" : "5",
-          "id" : "7",
-          "isRecurrent" : "false",
-          "summary" :  "term\r\n",
-          "description" : "this is term\r description"
+          "startTime": "1603270800000",
+          "location": "Tunis, Tunisia",
+          "id": "4",
+          "endTime": "1603280700"
         }
       }
     ]

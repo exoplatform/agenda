@@ -143,7 +143,8 @@ public class AgendaIndexingServiceConnector extends ElasticIndexingServiceConnec
     }
 
     if (event.getEnd() != null) {
-      fields.put("endTime", Long.toString(event.getEnd().toInstant().getEpochSecond()));
+      long eventEndDateInMS = AgendaDateUtils.toDate(event.getEnd()).getTime();
+      fields.put("endTime", Long.toString(eventEndDateInMS));
     }
 
     if (StringUtils.isNotEmpty(event.getLocation())) {

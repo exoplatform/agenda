@@ -165,6 +165,7 @@ public class AgendaSearchConnector {
         Long parentId = parseLong(hitSource, "parentId");
         Boolean isRecurrent = Boolean.parseBoolean((String) hitSource.get("isRecurrent"));
         Boolean isExceptional = Boolean.parseBoolean((String) hitSource.get("isExceptional"));
+
         if (!calendarOwnersOfUser.contains(ownerId)) { LOG.
         warn("Event '{}' is returned in seach result while it's not permitted to user {}. Ignore it."
         , id, viewerIdentity.getId());
@@ -178,12 +179,12 @@ public class AgendaSearchConnector {
         String summary = (String) hitSource.get("summary");
         String description = (String) hitSource.get("description");
         JSONObject highlightSource = (JSONObject) jsonHitObject.get("highlight");
-        if (highlightSource.get("summary") != null) {
-          summary = ((JSONArray) highlightSource.get("summary")).get(0).toString();
-          highlightSource.remove("summary");
-        }
         List<String> excerpts = new ArrayList<>();
         if (highlightSource != null) {
+          if (highlightSource.get("summary") != null) {
+            summary = ((JSONArray) highlightSource.get("summary")).get(0).toString();
+            highlightSource.remove("summary");
+          }
           for (Object key : highlightSource.keySet()) {
             excerpts.add(((JSONArray) highlightSource.get(key)).get(0).toString());
           }

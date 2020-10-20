@@ -6,6 +6,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.*;
 
@@ -14,6 +18,7 @@ import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventSearchResult;
 import org.exoplatform.agenda.service.AgendaEventServiceImpl;
 import org.exoplatform.agenda.service.BaseAgendaEventTest;
+import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.junit.*;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -59,10 +64,11 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
 
   String                      searchResult     = null;
 
-  boolean                     developpingValue = false;
+  boolean                     developingValue = false;
 
   @Before
-  public void setUp() throws Exception {// NOSONAR
+  public void setUp() throws ObjectNotFoundException, IOException {
+    super.setUp();
     searchResult = IOUtil.getStreamContentAsString(getClass().getClassLoader()
                                                              .getResourceAsStream("agenda-search-result.json"));
 
@@ -72,21 +78,18 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
     } catch (Exception e) {
       throw new IllegalStateException("Error retrieving ES Query content", e);
     }
-    developpingValue = PropertyManager.isDevelopping();
+    developingValue = PropertyManager.isDevelopping();
     PropertyManager.setProperty(PropertyManager.DEVELOPING, "false");
     PropertyManager.refresh();
   }
 
   @After
-  public void tearDown() {
-    PropertyManager.setProperty(PropertyManager.DEVELOPING, String.valueOf(developpingValue));
+  public void tearDown() throws ObjectNotFoundException {
+    super.tearDown();
+    PropertyManager.setProperty(PropertyManager.DEVELOPING, String.valueOf(developingValue));
     PropertyManager.refresh();
   }
-(ConfigurationManager configurationManager,
-  IdentityManager identityManager,
-  AgendaEventServiceImpl agendaEventService,
-  ElasticSearchingClient client,
-  InitParams initParams)
+
   @Test
   public void testSearchArguments() {
     AgendaSearchConnector agendaSearchConnector = new AgendaSearchConnector(configurationManager,
@@ -95,7 +98,8 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
                                                                             client,
                                                                             getParams());
 
-    AgendaSearchFilter filter = new AgendaSearchFilter("term");
+    AgendaSearchFilter filter = new AgendaSearchFilter();
+    filter.setTerm("term");
     try {
       agendaSearchConnector.search(null, filter, 0, 10);
       fail("Should throw IllegalArgumentException: viewer identity is mandatory");
@@ -133,10 +137,9 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
                                                                             getParams());
 
     AgendaSearchFilter filter = new AgendaSearchFilter("term");
-    HashSet<Long> permissions = new HashSet<>(Arrays.asList(10L, 20L, 30L));
+    HashSet<Long> permissions = new HashSet<>(Arrays.asList(1L));
     Identity identity = mock(Identity.class);
     when(identity.getId()).thenReturn("1");
-    //when(activityStorage.getStreamFeedOwnerIds(eq(identity))).thenReturn(permissions);
     String expectedESQuery = FAKE_ES_QUERY.replaceAll("@term@", filter.getTerm())
                                           .replaceAll("@permissions@", StringUtils.join(permissions, ","))
                                           .replaceAll("@offset@", "0")
@@ -157,7 +160,7 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
                                                                             getParams());
 
     AgendaSearchFilter filter = new AgendaSearchFilter("term");
-    HashSet<Long> permissions = new HashSet<>(Arrays.asList(10L, 20L, 30L));
+    HashSet<Long> permissions = new HashSet<>(Arrays.asList(1L));
     Identity identity = mock(Identity.class);
     when(identity.getId()).thenReturn("1");
     //when(activityStorage.getStreamFeedOwnerIds(eq(identity))).thenReturn(permissions);
@@ -173,19 +176,22 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
 
     Event event = newEventInstance(start, start, allDay);
     event = createEvent(event.clone(), creatorUserName, testuser2Identity);
-    when(agendaEventService.getEventById(eq(1))).thenReturn(event);
+    when(agendaEventService.getEventById(eq(1L))).thenReturn(event);
     List<EventSearchResult> result = agendaSearchConnector.search(identity, filter, 0, 10);
     assertNotNull(result);
     assertEquals(1, result.size());
 
     EventSearchResult eventSearchResult = result.iterator().next();
-    /*assertEquals(3L, eventSearchResult.getId());
-    assertEquals("type", eventSearchResult.getType());
-    assertEquals(poster, eventSearchResult.getPoster());
-    assertEquals(1234L, eventSearchResult.getPostedTime());
-    assertEquals(4321L, eventSearchResult.getLastUpdatedTime());
-    assertEquals(streamOwner, eventSearchResult.getStreamOwner());*/
-    assertNull(eventSearchResult.getExcerpts());
+    assertEquals(1L, eventSearchResult.getId());
+    assertEquals(event.getSummary(), eventSearchResult.getSummary());
+    assertEquals(event.getDescription(), eventSearchResult.getDescription());
+    assertEquals(1L, eventSearchResult.getOwnerId());
+    assertEquals(event.getLocation(), eventSearchResult.getLocation());
+    LocalDateTime eventLocalStartTime = LocalDateTime.ofInstant(event.getStart().toInstant(), ZoneId.systemDefault());
+    LocalDateTime eventLocalEndTime = LocalDateTime.ofInstant(event.getEnd().toInstant(), ZoneId.systemDefault());
+    assertEquals(eventLocalStartTime.toString(), eventSearchResult.getStart());
+    assertEquals(eventLocalEndTime.toString(), eventSearchResult.getEnd());
+    assertEquals(0, eventSearchResult.getExcerpts().size());
   }
 
   private InitParams getParams() {

@@ -5,16 +5,20 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.when;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Locale;
 
+import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
 import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.agenda.service.AgendaEventAttendeeService;
 import org.exoplatform.agenda.service.AgendaEventService;
 import org.exoplatform.agenda.service.BaseAgendaEventTest;
+import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -108,31 +112,27 @@ public class AgendaIndexingServiceConnectorTest extends BaseAgendaEventTest {
 
     boolean allDay = true;
     String creatorUserName = testuser1Identity.getRemoteId();
-
+    long eventId = 1;
     Event event = newEventInstance(start, start, allDay);
     event = createEvent(event.clone(), creatorUserName, testuser2Identity);
+    event.setParentId(9L);
 
-    /*
-     * Identity streamOwner = new Identity("streamOwner");
-     * when(identityManager.getOrCreateIdentity(Type.USER.getProviderId(),
-     * "prettyId")).thenReturn(streamOwner);
-     */
-    when(agendaEventService.getEventById(eq(1))).thenReturn(event);
-
+    when(agendaEventService.getEventById(eq(eventId))).thenReturn(event);
     Document document = agendaIndexingServiceConnector.create("1");
+
     assertNotNull(document);
     assertEquals("1", document.getId());
-    assertEquals("2", document.getFields().get("parentId"));
-    assertEquals("3", document.getFields().get("parentCommentId"));
-    assertEquals("type", document.getFields().get("type"));
-    assertEquals(ActivityIndexingServiceConnector.TYPE, document.getType());
-    assertEquals("posterId", document.getFields().get("posterId"));
-    assertEquals("1234", document.getFields().get("postedTime"));
-    assertNotNull(document.getLastUpdatedDate());
-    assertEquals(4321L, document.getLastUpdatedDate().getTime());
-    assertNotNull(document.getPermissions());
-    assertEquals(1, document.getPermissions().size());
-    assertEquals("streamOwner", document.getPermissions().iterator().next());
+    assertEquals("2", document.getFields().get("id"));
+    assertEquals("9", document.getFields().get("parentId"));
+    assertEquals(event.getSummary(), document.getFields().get("summary"));
+    assertEquals(event.getDescription(), document.getFields().get("description"));
+    assertEquals(event.getLocation(), document.getFields().get("location"));
+    long eventStartTimeInMS = AgendaDateUtils.toDate(event.getStart()).getTime();
+    long eventEndTimeInMS = AgendaDateUtils.toDate(event.getEnd()).getTime();
+    assertEquals(Long.toString(eventStartTimeInMS), document.getFields().get("startTime"));
+    assertEquals(Long.toString(eventEndTimeInMS), document.getFields().get("endTime"));
+    assertEquals("false", document.getFields().get("isExceptional"));
+    assertEquals("true", document.getFields().get("isRecurrent"));
   }
 
   @Test
@@ -160,31 +160,25 @@ public class AgendaIndexingServiceConnectorTest extends BaseAgendaEventTest {
 
     boolean allDay = true;
     String creatorUserName = testuser1Identity.getRemoteId();
-
+    long eventId = 3;
     Event event = newEventInstance(start, start, allDay);
     event = createEvent(event.clone(), creatorUserName, testuser2Identity);
 
-    /*
-     * Identity streamOwner = new Identity("streamOwner");
-     * when(identityManager.getOrCreateIdentity(Type.USER.getProviderId(),
-     * "prettyId")).thenReturn(streamOwner);
-     */
-    when(agendaEventService.getEventById(eq(1))).thenReturn(event);
+    when(agendaEventService.getEventById(eq(eventId))).thenReturn(event);
 
-    Document document = agendaIndexingServiceConnector.update("1");
+    Document document = agendaIndexingServiceConnector.update("3");
     assertNotNull(document);
-    assertEquals("1", document.getId());
-    assertEquals("2", document.getFields().get("parentId"));
-    assertEquals("3", document.getFields().get("parentCommentId"));
-    assertEquals("type", document.getFields().get("type"));
-    assertEquals(ActivityIndexingServiceConnector.TYPE, document.getType());
-    assertEquals("posterId", document.getFields().get("posterId"));
-    assertEquals("1234", document.getFields().get("postedTime"));
-    assertNotNull(document.getLastUpdatedDate());
-    assertEquals(4321L, document.getLastUpdatedDate().getTime());
-    assertNotNull(document.getPermissions());
-    assertEquals(1, document.getPermissions().size());
-    assertEquals("streamOwner", document.getPermissions().iterator().next());
+    assertEquals("3", document.getId());
+    assertEquals("3", document.getFields().get("id"));
+    assertEquals(event.getSummary(), document.getFields().get("summary"));
+    assertEquals(event.getDescription(), document.getFields().get("description"));
+    assertEquals(event.getLocation(), document.getFields().get("location"));
+    long eventStartTimeInMS = AgendaDateUtils.toDate(event.getStart()).getTime();
+    long eventEndTimeInMS = AgendaDateUtils.toDate(event.getEnd()).getTime();
+    assertEquals(Long.toString(eventStartTimeInMS), document.getFields().get("startTime"));
+    assertEquals(Long.toString(eventEndTimeInMS), document.getFields().get("endTime"));
+    assertEquals("false", document.getFields().get("isExceptional"));
+    assertEquals("true", document.getFields().get("isRecurrent"));
   }
 
   private InitParams getParams() {
