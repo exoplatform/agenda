@@ -50,13 +50,9 @@ public class AgendaIndexingServiceConnectorTest extends BaseAgendaEventTest {
   @Mock
   AgendaEventAttendeeService     attendeeService;
 
-  @Mock
-  IdentityManager                identityManager;
-
   @Test
   public void testGetAllIds() {
     agendaIndexingServiceConnector = new AgendaIndexingServiceConnector(agendaCalendarService,
-                                                                        identityManager,
                                                                         agendaEventService,
                                                                         attendeeService,
                                                                         getParams());
@@ -71,7 +67,6 @@ public class AgendaIndexingServiceConnectorTest extends BaseAgendaEventTest {
   @Test
   public void testCanReindex() {
     agendaIndexingServiceConnector = new AgendaIndexingServiceConnector(agendaCalendarService,
-                                                                        identityManager,
                                                                         agendaEventService,
                                                                         attendeeService,
                                                                         getParams());
@@ -81,7 +76,6 @@ public class AgendaIndexingServiceConnectorTest extends BaseAgendaEventTest {
   @Test
   public void testGetType() {
     agendaIndexingServiceConnector = new AgendaIndexingServiceConnector(agendaCalendarService,
-                                                                        identityManager,
                                                                         agendaEventService,
                                                                         attendeeService,
                                                                         getParams());
@@ -91,7 +85,6 @@ public class AgendaIndexingServiceConnectorTest extends BaseAgendaEventTest {
   @Test
   public void testCreate() throws Exception { // NOSONAR
     agendaIndexingServiceConnector = new AgendaIndexingServiceConnector(agendaCalendarService,
-                                                                        identityManager,
                                                                         agendaEventService,
                                                                         attendeeService,
                                                                         getParams());
@@ -138,7 +131,6 @@ public class AgendaIndexingServiceConnectorTest extends BaseAgendaEventTest {
   @Test
   public void testUpdate() throws Exception {
     agendaIndexingServiceConnector = new AgendaIndexingServiceConnector(agendaCalendarService,
-                                                                        identityManager,
                                                                         agendaEventService,
                                                                         attendeeService,
                                                                         getParams());

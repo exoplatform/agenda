@@ -1,6 +1,7 @@
 package org.exoplatform.agenda.search;
 
 import static org.junit.Assert.*;
+import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -18,11 +19,18 @@ import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventSearchResult;
 import org.exoplatform.agenda.service.AgendaEventServiceImpl;
 import org.exoplatform.agenda.service.BaseAgendaEventTest;
+import org.exoplatform.agenda.util.AgendaDateUtils;
+import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.commons.utils.ListAccess;
+import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
+import org.exoplatform.social.core.space.model.Space;
+import org.exoplatform.social.core.space.spi.SpaceService;
 import org.junit.*;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
 import org.mockito.runners.MockitoJUnitRunner;
 
 import org.exoplatform.commons.search.es.client.ElasticSearchingClient;
@@ -38,6 +46,7 @@ import org.exoplatform.social.core.jpa.search.ActivitySearchConnector;
 import org.exoplatform.social.core.jpa.search.ActivitySearchProcessor;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.storage.api.ActivityStorage;
+import org.mockito.stubbing.Answer;
 
 @RunWith(MockitoJUnitRunner.class)
 public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
@@ -55,6 +64,9 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
 
   @Mock
   AgendaEventServiceImpl      agendaEventService;
+
+  @Mock
+  SpaceService                spaceService;
 
   @Mock
   ConfigurationManager        configurationManager;
@@ -94,7 +106,7 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
   public void testSearchArguments() {
     AgendaSearchConnector agendaSearchConnector = new AgendaSearchConnector(configurationManager,
                                                                             identityManager,
-                                                                            agendaEventService,
+                                                                            spaceService,
                                                                             client,
                                                                             getParams());
 
@@ -131,7 +143,7 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
   public void testSearchNoResult() {
     AgendaSearchConnector agendaSearchConnector = new AgendaSearchConnector(configurationManager,
                                                                             identityManager,
-                                                                            agendaEventService,
+                                                                            spaceService,
                                                                             client,
                                                                             getParams());
 
@@ -139,11 +151,41 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
     HashSet<Long> permissions = new HashSet<>(Arrays.asList(1L));
     Identity identity = mock(Identity.class);
     when(identity.getId()).thenReturn("1");
+    when(identity.getRemoteId()).thenReturn("testuser1");
     String expectedESQuery = FAKE_ES_QUERY.replaceAll("@term@", term)
                                           .replaceAll("@permissions@", StringUtils.join(permissions, ","))
                                           .replaceAll("@offset@", "0")
                                           .replaceAll("@limit@", "10");
     when(client.sendRequest(eq(expectedESQuery), eq(ES_INDEX), eq(ES_TYPE))).thenReturn("{}");
+    when(spaceService.getMemberSpaces(eq("testuser1"))).thenAnswer(new Answer<ListAccess<Space>>() {
+      @Override
+      public ListAccess<Space> answer(InvocationOnMock invocation) throws Throwable {
+        @SuppressWarnings("unchecked")
+        ListAccess<Space> userSpaces = mock(ListAccess.class);
+        final int spacesCount = 1;
+        when(userSpaces.getSize()).thenReturn(spacesCount);
+        when(userSpaces.load(anyInt(), anyInt())).thenAnswer(new Answer<Space[]>() {
+          @Override
+          public Space[] answer(InvocationOnMock invocation) throws Throwable {
+            Object[] args = invocation.getArguments();
+            int size = Integer.parseInt(args[1].toString());
+            Space[] spaces = new Space[size];
+            spaces[0] = new Space();
+            String prettyName = "testspace1";
+            int spaceIdentityIndex = 1;
+            spaces[0].setId(String.valueOf(spaceIdentityIndex));
+            spaces[0].setPrettyName(prettyName);
+            Identity spaceIdentity = new Identity(String.valueOf(spaceIdentityIndex));
+            spaceIdentity.setProviderId(SpaceIdentityProvider.NAME);
+            spaceIdentity.setRemoteId(prettyName);
+            when(identityManager.getOrCreateIdentity(eq(SpaceIdentityProvider.NAME),
+                    eq(prettyName))).thenReturn(spaceIdentity);
+            return spaces;
+          }
+        });
+        return userSpaces;
+      }
+    });
 
     List<EventSearchResult> result = agendaSearchConnector.search(identity, term, 0, 10);
     assertNotNull(result);
@@ -154,7 +196,7 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
   public void testSearchWithResult() throws Exception {
     AgendaSearchConnector agendaSearchConnector = new AgendaSearchConnector(configurationManager,
                                                                             identityManager,
-                                                                            agendaEventService,
+                                                                            spaceService,
                                                                             client,
                                                                             getParams());
 
@@ -162,6 +204,7 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
     HashSet<Long> permissions = new HashSet<>(Arrays.asList(1L));
     Identity identity = mock(Identity.class);
     when(identity.getId()).thenReturn("1");
+    when(identity.getRemoteId()).thenReturn("testuser1");
     //when(activityStorage.getStreamFeedOwnerIds(eq(identity))).thenReturn(permissions);
     String expectedESQuery = FAKE_ES_QUERY.replaceAll("@term@", term)
                                           .replaceAll("@permissions@", StringUtils.join(permissions, ","))
@@ -181,6 +224,37 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
     Event event = newEventInstance(start, end, allDay);
     event = createEvent(event.clone(), creatorUserName, testuser2Identity);
     when(agendaEventService.getEventById(eq(1L))).thenReturn(event);
+    when(spaceService.getMemberSpaces(eq("testuser1"))).thenAnswer(new Answer<ListAccess<Space>>() {
+      @Override
+      public ListAccess<Space> answer(InvocationOnMock invocation) throws Throwable {
+        @SuppressWarnings("unchecked")
+        ListAccess<Space> userSpaces = mock(ListAccess.class);
+        final int spacesCount = 1;
+        when(userSpaces.getSize()).thenReturn(spacesCount);
+        when(userSpaces.load(anyInt(), anyInt())).thenAnswer(new Answer<Space[]>() {
+          @Override
+          public Space[] answer(InvocationOnMock invocation) throws Throwable {
+            Object[] args = invocation.getArguments();
+            int offset = Integer.parseInt(args[0].toString());
+            int size = Integer.parseInt(args[1].toString());
+            Space[] spaces = new Space[size];
+            spaces[0] = new Space();
+            String prettyName = "testspace1";
+            int spaceIdentityIndex = 1;
+            spaces[0].setId(String.valueOf(spaceIdentityIndex));
+            spaces[0].setPrettyName(prettyName);
+            Identity spaceIdentity = new Identity(String.valueOf(spaceIdentityIndex));
+            spaceIdentity.setProviderId(SpaceIdentityProvider.NAME);
+            spaceIdentity.setRemoteId(prettyName);
+            when(identityManager.getOrCreateIdentity(eq(SpaceIdentityProvider.NAME),
+                    eq(prettyName))).thenReturn(spaceIdentity);
+            return spaces;
+          }
+        });
+        return userSpaces;
+      }
+    });
+
     List<EventSearchResult> result = agendaSearchConnector.search(identity, term, 0, 10);
     assertNotNull(result);
     assertEquals(1, result.size());
@@ -192,10 +266,11 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
     assertEquals(event.getDescription(), eventSearchResult.getDescription());
     assertEquals(1L, eventSearchResult.getOwnerId());
     assertEquals(event.getLocation(), eventSearchResult.getLocation());
-    LocalDateTime eventLocalStartTime = LocalDateTime.ofInstant(event.getStart().toInstant(), ZoneId.systemDefault());
-    LocalDateTime eventLocalEndTime = LocalDateTime.ofInstant(event.getEnd().toInstant(), ZoneId.systemDefault());
-    assertEquals(eventLocalStartTime.toString(), eventSearchResult.getStart());
-    assertEquals(eventLocalEndTime.toString(), eventSearchResult.getEnd());
+
+    long eventStartDateInMS = AgendaDateUtils.toDate(event.getStart()).getTime();
+    long eventEndDateInMS = AgendaDateUtils.toDate(event.getEnd()).getTime();
+    assertEquals(String.valueOf(eventStartDateInMS), eventSearchResult.getStart());
+    assertEquals(String.valueOf(eventEndDateInMS), eventSearchResult.getEnd());
     assertEquals(1, eventSearchResult.getExcerpts().size());
   }
 

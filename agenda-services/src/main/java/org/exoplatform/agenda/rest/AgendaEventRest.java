@@ -696,9 +696,7 @@ public class AgendaEventRest implements ResourceContainer {
     offset = offset > 0 ? offset : RestUtils.getOffset(uriInfo);
     limit = limit > 0 ? limit : RestUtils.getLimit(uriInfo);
 
-    String authenticatedUser = RestUtils.getCurrentUser();
-    Identity currentUser = CommonsUtils.getService(IdentityManager.class)
-                                       .getOrCreateIdentity(OrganizationIdentityProvider.NAME, authenticatedUser);
+    Identity currentUser = RestUtils.getCurrentUserIdentity(identityManager);
 
     List<EventSearchResultEntity> searchResults = agendaEventService.search(currentUser, query, offset, limit);
 

@@ -34,6 +34,7 @@ import org.exoplatform.agenda.storage.AgendaEventStorage;
 import org.exoplatform.agenda.util.EntityBuilder;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
@@ -62,8 +63,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
   private ListenerService              listenerService;
 
-  private AgendaSearchConnector agendaSearchConnector;
-
   public AgendaEventServiceImpl(AgendaCalendarService agendaCalendarService,
                                 AgendaEventAttendeeService attendeeService,
                                 AgendaEventAttachmentService attachmentService,
@@ -72,8 +71,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                 AgendaEventStorage agendaEventStorage,
                                 IdentityManager identityManager,
                                 SpaceService spaceService,
-                                ListenerService listenerService,
-                                AgendaSearchConnector agendaSearchConnector) {
+                                ListenerService listenerService) {
     this.agendaCalendarService = agendaCalendarService;
     this.attendeeService = attendeeService;
     this.attachmentService = attachmentService;
@@ -83,7 +81,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     this.identityManager = identityManager;
     this.spaceService = spaceService;
     this.listenerService = listenerService;
-    this.agendaSearchConnector = agendaSearchConnector;
   }
 
   /**
@@ -662,6 +659,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                               String query,
                                               int offset,
                                               int limit){
+    AgendaSearchConnector agendaSearchConnector = CommonsUtils.getService(AgendaSearchConnector.class);
 
     List<EventSearchResult> searchResults = agendaSearchConnector.search(currentUser, query, offset, limit);
     return searchResults.stream().map(searchResult -> {

@@ -51,14 +51,12 @@ public class AgendaIndexingServiceConnector extends ElasticIndexingServiceConnec
   private AgendaEventAttendeeService  attendeeService;
 
   public AgendaIndexingServiceConnector(AgendaCalendarService agendaCalendarService,
-                                        IdentityManager identityManager,
                                         AgendaEventService agendaEventService,
                                         AgendaEventAttendeeService attendeeService,
                                         InitParams initParams) {
     super(initParams);
 
     this.agendaCalendarService = agendaCalendarService;
-    this.identityManager = identityManager;
     this.agendaEventService = agendaEventService;
     this.attendeeService = attendeeService;
   }

@@ -67,13 +67,11 @@ public class AgendaSearchConnector {
   public AgendaSearchConnector(ConfigurationManager configurationManager,
                                IdentityManager identityManager,
                                SpaceService spaceService,
-                               AgendaEventServiceImpl agendaEventService,
                                ElasticSearchingClient client,
                                InitParams initParams) {
     this.configurationManager = configurationManager;
     this.identityManager = identityManager;
     this.spaceService = spaceService;
-    this.agendaEventService = agendaEventService;
     this.client = client;
 
     PropertiesParam param = initParams.getPropertiesParam("constructor.params");
@@ -169,7 +167,7 @@ public class AgendaSearchConnector {
         , id, viewerIdentity.getId());
         continue; }
         
-        String attendees = (String) hitSource.get("attendee");
+        String attendees = (String) hitSource.get("attendees");
         List<String> attendeesList = Arrays.asList(attendees);
         String startTime = (String) hitSource.get("startTime");
         String endTime = (String) hitSource.get("endTime");
