@@ -3,6 +3,9 @@
     "id": {
       "type": "long"
     },
+    "calendarId": {
+      "type": "long"
+    },
     "ownerId": {
       "type": "long"
     },
@@ -15,12 +18,6 @@
     },
     "attendees": {
       "type": "long"
-    },
-    "isRecurrent": {
-      "type": "boolean"
-    },
-    "isExceptional": {
-      "type": "boolean"
     },
     "startTime": {
       "type": "date",

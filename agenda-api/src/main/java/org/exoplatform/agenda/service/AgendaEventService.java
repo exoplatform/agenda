@@ -306,13 +306,16 @@ public interface AgendaEventService {
 
   /**
    * Search the list of events available with query for the currentUser
-   * @param currentUser current user connected
+   * 
+   * @param userIdentityId user {@link Identity} identifier
+   * @param userTimeZone used user timezone
    * @param query Term to search
    * @param offset offset
    * @param limit Limit of events to retrieve
-   * @return
+   * @return {@link List} of {@link EventSearchResultEntity}
    */
-  List<EventSearchResultEntity> search(Identity currentUser,
+  List<EventSearchResultEntity> search(long userIdentityId,
+                                       ZoneId userTimeZone,
                                        String query,
                                        int offset,
                                        int limit);

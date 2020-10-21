@@ -22,11 +22,8 @@ import java.util.stream.Collectors;
 
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.*;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import javax.ws.rs.core.*;
 import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.core.UriInfo;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -36,12 +33,10 @@ import org.exoplatform.agenda.exception.AgendaExceptionType;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.rest.model.*;
-import org.exoplatform.agenda.search.AgendaSearchConnector;
 import org.exoplatform.agenda.service.*;
 import org.exoplatform.agenda.util.*;
 import org.exoplatform.common.http.HTTPStatus;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
-import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.rest.resource.ResourceContainer;
@@ -56,17 +51,17 @@ import io.swagger.annotations.*;
 @Api(value = "/v1/agenda/events", description = "Manages agenda events associated to users and spaces") // NOSONAR
 public class AgendaEventRest implements ResourceContainer {
 
-  private static final Log LOG = ExoLogger.getLogger(AgendaEventRest.class);
+  private static final Log             LOG = ExoLogger.getLogger(AgendaEventRest.class);
 
-  private IdentityManager identityManager;
+  private IdentityManager              identityManager;
 
-  private AgendaCalendarService agendaCalendarService;
+  private AgendaCalendarService        agendaCalendarService;
 
-  private AgendaEventService agendaEventService;
+  private AgendaEventService           agendaEventService;
 
-  private AgendaEventReminderService agendaEventReminderService;
+  private AgendaEventReminderService   agendaEventReminderService;
 
-  private AgendaEventAttendeeService agendaEventAttendeeService;
+  private AgendaEventAttendeeService   agendaEventAttendeeService;
 
   private AgendaEventAttachmentService agendaEventAttachmentService;
 
@@ -245,7 +240,7 @@ public class AgendaEventRest implements ResourceContainer {
                                @ApiParam(value = "Properties to expand", required = false) @QueryParam(
                                  "expand"
                                ) String expand,
-                               @ApiParam(value = "Time Zone offset in seconds", required = false) @QueryParam(
+                               @ApiParam(value = "Time Zone offset in seconds", required = true) @QueryParam(
                                  "timeZoneOffset"
                                ) int timeZoneOffsetSeconds) {
     if (eventId <= 0) {
@@ -300,9 +295,9 @@ public class AgendaEventRest implements ResourceContainer {
                                      @ApiParam(value = "Properties to expand", required = false) @QueryParam(
                                        "expand"
                                      ) String expand,
-                                     @ApiParam(value = "Time Zone offset in seconds", required = false) @QueryParam(
+                                     @ApiParam(value = "Time Zone offset in seconds", required = true) @QueryParam(
                                        "timeZoneOffset"
-                                     ) int timeZoneOffsetSeconds) {
+                                     ) String timeZoneOffsetSeconds) {
     if (parentEventId <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
     }
@@ -314,7 +309,9 @@ public class AgendaEventRest implements ResourceContainer {
       List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
                                                                   : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
                                                                                                     ","));
-      ZoneId userTimeZone = ZoneOffset.ofTotalSeconds(timeZoneOffsetSeconds);
+      ZoneId userTimeZone =
+                          StringUtils.isBlank(timeZoneOffsetSeconds) ? null
+                                                                     : ZoneOffset.ofTotalSeconds(Integer.parseInt(timeZoneOffsetSeconds));
       long identityId = RestUtils.getCurrentUserIdentityId(identityManager);
       ZonedDateTime occurrenceDate = AgendaDateUtils.parseRFC3339ToZonedDateTime(occurrenceId);
       Event event = agendaEventService.getEventOccurrence(parentEventId, occurrenceDate, userTimeZone, identityId);
@@ -683,23 +680,36 @@ public class AgendaEventRest implements ResourceContainer {
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(value = "Search the list of events available with query for an owner of type user or space, identified by its identity technical identifier."
-      + " If no designated owner, all events available for authenticated user will be retrieved.", httpMethod = "GET", response = Response.class, produces = "application/json")
-  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-      @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-      @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
-  public Response searchEvent(@Context UriInfo uriInfo,
-                              @ApiParam(value = "Term to search", required = true) @QueryParam("query") String query,
-                              @ApiParam(value = "Offset", required = false, defaultValue = "0") @QueryParam("offset") int offset,
-                              @ApiParam(value = "Limit", required = false, defaultValue = "20") @QueryParam("limit") int limit) throws Exception {
+  @ApiOperation(
+      value = "Search the list of events available with query for an owner of type user or space, identified by its identity technical identifier."
+          + " If no designated owner, all events available for authenticated user will be retrieved.",
+      httpMethod = "GET", response = Response.class, produces = "application/json"
+  )
+  @ApiResponses(
+      value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+  )
+  public Response search(@Context UriInfo uriInfo,
+                         @ApiParam(value = "Term to search", required = true) @QueryParam(
+                           "query"
+                         ) String query,
+                         @ApiParam(value = "Time Zone offset in seconds", required = false) @QueryParam(
+                           "timeZoneOffset"
+                         ) int timeZoneOffsetSeconds,
+                         @ApiParam(value = "Offset", required = false, defaultValue = "0") @QueryParam(
+                           "offset"
+                         ) int offset,
+                         @ApiParam(value = "Limit", required = false, defaultValue = "20") @QueryParam(
+                           "limit"
+                         ) int limit) throws Exception { // NOSONAR
 
     offset = offset > 0 ? offset : RestUtils.getOffset(uriInfo);
     limit = limit > 0 ? limit : RestUtils.getLimit(uriInfo);
 
-    Identity currentUser = RestUtils.getCurrentUserIdentity(identityManager);
-
-    List<EventSearchResultEntity> searchResults = agendaEventService.search(currentUser, query, offset, limit);
-
+    long currentUserId = RestUtils.getCurrentUserIdentityId(identityManager);
+    ZoneId userTimeZone = ZoneOffset.ofTotalSeconds(timeZoneOffsetSeconds);
+    List<EventSearchResultEntity> searchResults = agendaEventService.search(currentUserId, userTimeZone, query, offset, limit);
     return Response.ok(searchResults).build();
   }
 

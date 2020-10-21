@@ -34,7 +34,6 @@ import org.exoplatform.agenda.storage.AgendaEventStorage;
 import org.exoplatform.agenda.util.EntityBuilder;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
-import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
@@ -43,23 +42,25 @@ import org.exoplatform.social.core.space.spi.SpaceService;
 
 public class AgendaEventServiceImpl implements AgendaEventService {
 
-  private static final int DEFAULT_LIMIT = 10;
+  private static final int             DEFAULT_LIMIT = 10;
 
-  private AgendaCalendarService agendaCalendarService;
+  private AgendaCalendarService        agendaCalendarService;
 
-  private AgendaEventAttendeeService attendeeService;
+  private AgendaEventAttendeeService   attendeeService;
 
   private AgendaEventAttachmentService attachmentService;
 
   private AgendaEventConferenceService conferenceService;
 
-  private AgendaEventReminderService reminderService;
+  private AgendaEventReminderService   reminderService;
 
-  private AgendaEventStorage agendaEventStorage;
+  private AgendaEventStorage           agendaEventStorage;
 
-  private IdentityManager identityManager;
+  private AgendaSearchConnector        agendaSearchConnector;
 
-  private SpaceService spaceService;
+  private IdentityManager              identityManager;
+
+  private SpaceService                 spaceService;
 
   private ListenerService              listenerService;
 
@@ -68,6 +69,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                 AgendaEventAttachmentService attachmentService,
                                 AgendaEventConferenceService conferenceService,
                                 AgendaEventReminderService reminderService,
+                                AgendaSearchConnector agendaSearchConnector,
                                 AgendaEventStorage agendaEventStorage,
                                 IdentityManager identityManager,
                                 SpaceService spaceService,
@@ -78,6 +80,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     this.conferenceService = conferenceService;
     this.reminderService = reminderService;
     this.agendaEventStorage = agendaEventStorage;
+    this.agendaSearchConnector = agendaSearchConnector;
     this.identityManager = identityManager;
     this.spaceService = spaceService;
     this.listenerService = listenerService;
@@ -655,29 +658,18 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * {@inheritDoc}
    */
   @Override
-  public List<EventSearchResultEntity> search(Identity currentUser,
-                                              String query,
-                                              int offset,
-                                              int limit){
-    AgendaSearchConnector agendaSearchConnector = CommonsUtils.getService(AgendaSearchConnector.class);
+  public List<EventSearchResultEntity> search(long userIdentityId, ZoneId userTimeZone, String query, int offset, int limit) {
+    if (userTimeZone == null) {
+      userTimeZone = Utils.getUserTimezone(identityManager, userIdentityId);
+    }
 
-    List<EventSearchResult> searchResults = agendaSearchConnector.search(currentUser, query, offset, limit);
-    return searchResults.stream().map(searchResult -> {
-
-      //Convert start and end time of event from milliseconds to local date
-      Instant startTimeInstant = Instant.ofEpochMilli(Long.parseLong(searchResult.getStart()));
-      LocalDateTime startTimeDateTime = LocalDateTime.ofInstant(startTimeInstant, ZoneId.systemDefault());
-      searchResult.setStart(startTimeDateTime.toString());
-
-      Instant endTimeInstant = Instant.ofEpochMilli(Long.parseLong(searchResult.getEnd()));
-      LocalDateTime endTimeDateTime = LocalDateTime.ofInstant(endTimeInstant, ZoneId.systemDefault());
-      searchResult.setEnd(endTimeDateTime.toString());
-
-      EventSearchResultEntity entity = new EventSearchResultEntity(searchResult);
-      Calendar calendar = agendaCalendarService.getOrCreateCalendarByOwnerId(searchResult.getOwnerId());
-      entity.setCalendar(EntityBuilder.fromCalendar(identityManager, calendar));
-      return entity;
-    }).collect(Collectors.toList());
+    List<EventSearchResult> searchResults = agendaSearchConnector.search(userIdentityId, userTimeZone, query, offset, limit);
+    return searchResults.stream()
+                        .map(searchResult -> EntityBuilder.fromSearchEvent(agendaCalendarService,
+                                                                           this,
+                                                                           identityManager,
+                                                                           searchResult))
+                        .collect(Collectors.toList());
   }
 
   private List<Event> getEventsByOwners(ZonedDateTime start,

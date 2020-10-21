@@ -18,19 +18,19 @@ package org.exoplatform.agenda.search;
 
 import java.io.InputStream;
 import java.text.Normalizer;
+import java.time.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
-import org.exoplatform.agenda.model.EventSearchResult;
-import org.exoplatform.agenda.service.AgendaEventServiceImpl;
-import org.exoplatform.agenda.util.Utils;
-import org.exoplatform.social.core.space.spi.SpaceService;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
+import org.exoplatform.agenda.model.EventSearchResult;
+import org.exoplatform.agenda.util.AgendaDateUtils;
+import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.search.es.ElasticSearchException;
 import org.exoplatform.commons.search.es.client.ElasticSearchingClient;
 import org.exoplatform.commons.utils.IOUtil;
@@ -42,6 +42,7 @@ import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.social.core.space.spi.SpaceService;
 
 public class AgendaSearchConnector {
   private static final Log             LOG                          = ExoLogger.getLogger(AgendaSearchConnector.class);
@@ -87,10 +88,7 @@ public class AgendaSearchConnector {
     }
   }
 
-  public List<EventSearchResult> search(Identity viewerIdentity, String term, long offset, long limit) {
-    if (viewerIdentity == null) {
-      throw new IllegalArgumentException("Viewer identity is mandatory");
-    }
+  public List<EventSearchResult> search(long userIdentityId, ZoneId userTimeZone, String term, long offset, long limit) {
     if (offset < 0) {
       throw new IllegalArgumentException("Offset must be positive");
     }
@@ -101,18 +99,19 @@ public class AgendaSearchConnector {
       throw new IllegalArgumentException("Filter term is mandatory");
     }
 
-    Set<Long> calendarOwnersOfUser = Optional.ofNullable(Utils.getCalendarOwnersOfUser(spaceService, identityManager, viewerIdentity))
+    Identity userIdentity = Utils.getIdentityById(identityManager, userIdentityId);
+    Set<Long> calendarOwnersOfUser = Optional.ofNullable(Utils.getCalendarOwnersOfUser(spaceService,
+                                                                                       identityManager,
+                                                                                       userIdentity))
                                              .map(HashSet::new)
                                              .orElse(null);
-
-    calendarOwnersOfUser.add(Long.valueOf(viewerIdentity.getId()));
+    calendarOwnersOfUser.add(userIdentityId);
     String esQuery = buildQueryStatement(calendarOwnersOfUser, term, offset, limit);
     String jsonResponse = this.client.sendRequest(esQuery, this.index, this.searchType);
-    return buildResult(jsonResponse, viewerIdentity, calendarOwnersOfUser);
+    return buildResult(jsonResponse, userTimeZone);
   }
 
   private String buildQueryStatement(Set<Long> calendarOwnersOfUser, String term, long offset, long limit) {
-
     term = removeSpecialCharacters(term);
     List<String> termsQuery = Arrays.stream(term.split(" ")).filter(StringUtils::isNotBlank).map(word -> {
       word = word.trim();
@@ -130,7 +129,7 @@ public class AgendaSearchConnector {
   }
 
   @SuppressWarnings("rawtypes")
-  private List<EventSearchResult> buildResult(String jsonResponse, Identity viewerIdentity, Set<Long> calendarOwnersOfUser) {
+  private List<EventSearchResult> buildResult(String jsonResponse, ZoneId userTimeZone) {
     LOG.debug("Search Query response from ES : {} ", jsonResponse);
 
     List<EventSearchResult> results = new ArrayList<>();
@@ -156,23 +155,12 @@ public class AgendaSearchConnector {
 
         JSONObject jsonHitObject = (JSONObject) jsonHit;
         JSONObject hitSource = (JSONObject) jsonHitObject.get("_source");
-        Long id = parseLong(hitSource, "id");
-        Long ownerId = parseLong(hitSource, "ownerId");
-        Long parentId = parseLong(hitSource, "parentId");
-        Boolean isRecurrent = Boolean.parseBoolean((String) hitSource.get("isRecurrent"));
-        Boolean isExceptional = Boolean.parseBoolean((String) hitSource.get("isExceptional"));
-
-        if (!calendarOwnersOfUser.contains(ownerId)) { LOG.
-        warn("Event '{}' is returned in seach result while it's not permitted to user {}. Ignore it."
-        , id, viewerIdentity.getId());
-        continue; }
-        
-        String attendees = (String) hitSource.get("attendees");
-        List<String> attendeesList = Arrays.asList(attendees);
+        long id = parseLong(hitSource, "id");
+        String summary = (String) hitSource.get("summary");
+        Long calendarId = parseLong(hitSource, "calendarId");
         String startTime = (String) hitSource.get("startTime");
         String endTime = (String) hitSource.get("endTime");
         String location = (String) hitSource.get("location");
-        String summary = (String) hitSource.get("summary");
         String description = (String) hitSource.get("description");
         JSONObject highlightSource = (JSONObject) jsonHitObject.get("highlight");
         List<String> excerpts = new ArrayList<>();
@@ -181,44 +169,37 @@ public class AgendaSearchConnector {
             summary = ((JSONArray) highlightSource.get("summary")).get(0).toString();
             highlightSource.remove("summary");
           }
-          for (Object key : highlightSource.keySet()) {
-            excerpts.add(((JSONArray) highlightSource.get(key)).get(0).toString());
+
+          for (Object value : highlightSource.values()) {
+            JSONArray excerptValue = (JSONArray) value;
+            if (excerptValue != null && !excerptValue.isEmpty()) {
+              excerpts.add(excerptValue.get(0).toString());
+            }
           }
         }
 
         // Event
-        if (id != null) {
-          eventSearchResult.setId(id);
-        }
-        if (ownerId != null) {
-          eventSearchResult.setOwnerId(ownerId);
-        }
-        if (startTime != null) {
-          eventSearchResult.setStart(startTime);
-        }
-        if (endTime != null) {eventSearchResult.setEnd(endTime);
-        }
-        if (location != null) {
-          eventSearchResult.setLocation(location);
-        }
-        if (summary != null) {
-          eventSearchResult.setSummary(summary);
-        }
-        if (description != null) {
-          eventSearchResult.setDescription(description);
-        }
-        eventSearchResult.setIsRecurrent(isRecurrent);
+        eventSearchResult.setId(id);
+        eventSearchResult.setCalendarId(calendarId);
+        eventSearchResult.setSummary(summary);
+        eventSearchResult.setStart(toDateTime(startTime, userTimeZone));
+        eventSearchResult.setEnd(toDateTime(endTime, userTimeZone));
+        eventSearchResult.setLocation(location);
+        eventSearchResult.setSummary(summary);
+        eventSearchResult.setDescription(description);
         eventSearchResult.setExcerpts(excerpts);
-        eventSearchResult.setAttendees(attendeesList);
-        if (parentId != null && !isExceptional) {
-          continue;
-        }
         results.add(eventSearchResult);
       } catch (Exception e) {
         LOG.warn("Error processing event search result item, ignore it from results", e);
       }
     }
     return results;
+  }
+
+  private ZonedDateTime toDateTime(String dateTimeString, ZoneId userTimeZone) {
+    long dateTimeMS = Long.parseLong(dateTimeString);
+    ZonedDateTime dateTime = AgendaDateUtils.fromDate(new Date(dateTimeMS));
+    return dateTime.withZoneSameLocal(ZoneOffset.UTC).withZoneSameInstant(userTimeZone);
   }
 
   private Long parseLong(JSONObject hitSource, String key) {

@@ -16,18 +16,18 @@
  */
 package org.exoplatform.agenda.search;
 
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.commons.lang.StringUtils;
 
+import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
-import org.exoplatform.agenda.model.Calendar;
-import org.exoplatform.agenda.service.AgendaCalendarService;
-import org.exoplatform.agenda.service.AgendaEventAttendeeService;
-import org.exoplatform.agenda.service.AgendaEventService;
+import org.exoplatform.agenda.service.*;
 import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.commons.search.domain.Document;
 import org.exoplatform.commons.search.index.impl.ElasticIndexingServiceConnector;
@@ -35,7 +35,6 @@ import org.exoplatform.commons.utils.HTMLSanitizer;
 import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
-import org.exoplatform.social.core.manager.IdentityManager;
 
 public class AgendaIndexingServiceConnector extends ElasticIndexingServiceConnector {
   private static final long           serialVersionUID = 3299213985533395198L;
@@ -44,11 +43,11 @@ public class AgendaIndexingServiceConnector extends ElasticIndexingServiceConnec
 
   private static final Log            LOG              = ExoLogger.getLogger(AgendaIndexingServiceConnector.class);
 
-  private final AgendaCalendarService agendaCalendarService;
+  private final AgendaCalendarService agendaCalendarService;                                                       // NOSONAR
 
-  private final AgendaEventService    agendaEventService;
+  private final AgendaEventService    agendaEventService;                                                          // NOSONAR
 
-  private AgendaEventAttendeeService  attendeeService;
+  private AgendaEventAttendeeService  attendeeService;                                                             // NOSONAR
 
   public AgendaIndexingServiceConnector(AgendaCalendarService agendaCalendarService,
                                         AgendaEventService agendaEventService,
@@ -100,47 +99,38 @@ public class AgendaIndexingServiceConnector extends ElasticIndexingServiceConnec
     Map<String, String> fields = new HashMap<>();
     fields.put("id", Long.toString(event.getId()));
 
-    if (event.getParentId() > 0) {
-      fields.put("parentId", Long.toString(event.getParentId()));
-    }
-
-    Calendar calendar = agendaCalendarService.getCalendarById(event.getCalendarId());
-    long ownerIdentityId = 0;
-    if (calendar != null && calendar.getOwnerId() > 0) {
-      ownerIdentityId = calendar.getOwnerId();
-      fields.put("ownerId", Long.toString(ownerIdentityId));
-    }
-
-    Boolean isRecurrent = event.getRecurrence() != null;
-    fields.put("isRecurrent", isRecurrent.toString());
-
-    Boolean isExceptional = false;
-    if (event.getOccurrence() != null) {
-      isExceptional = event.getOccurrence().isExceptional();
-    }
-    fields.put("isExceptional", isExceptional.toString());
-
     List<Long> eventAttendees = attendeeService.getEventAttendees(event.getId())
                                                .stream()
                                                .map(EventAttendee::getIdentityId)
                                                .collect(Collectors.toList());
-
     if (!eventAttendees.isEmpty()) {
       fields.put("attendee", String.valueOf(eventAttendees));
     }
+
+    if (event.getParentId() > 0) {
+      fields.put("parentId", Long.toString(event.getParentId()));
+    }
+
+    long calendarId = event.getCalendarId();
+    fields.put("calendarId", String.valueOf(calendarId));
+
+    Calendar calendar = agendaCalendarService.getCalendarById(calendarId);
+    long ownerIdentityId = calendar.getOwnerId();
+
+    fields.put("ownerId", String.valueOf(ownerIdentityId));
 
     if (event.getOccurrence() != null) {
       fields.put("occurrenceId", Long.toString(event.getOccurrence().getId().toInstant().getEpochSecond()));
     }
 
-    if (event.getStart() != null) {
-      long eventStartDateInMS = AgendaDateUtils.toDate(event.getStart()).getTime();
-      fields.put("startTime", Long.toString(eventStartDateInMS));
+    ZonedDateTime start = event.getStart();
+    if (start != null) {
+      fields.put("startTime", toMillisecondsString(start));
     }
 
-    if (event.getEnd() != null) {
-      long eventEndDateInMS = AgendaDateUtils.toDate(event.getEnd()).getTime();
-      fields.put("endTime", Long.toString(eventEndDateInMS));
+    ZonedDateTime end = event.getEnd();
+    if (end != null) {
+      fields.put("endTime", toMillisecondsString(end));
     }
 
     if (StringUtils.isNotEmpty(event.getLocation())) {
@@ -159,15 +149,11 @@ public class AgendaIndexingServiceConnector extends ElasticIndexingServiceConnec
       fields.put("description", description);
     }
 
-    Set<Long> eventPermissionIds = Optional.ofNullable(eventAttendees).map(HashSet::new).orElse(null);
+    Set<String> eventPermissionIds = eventAttendees.stream().map(String::valueOf).collect(Collectors.toSet());
+    eventPermissionIds.add(String.valueOf(ownerIdentityId));
 
-    eventPermissionIds.add(ownerIdentityId);
-    Document document = new Document(TYPE,
-                                     id,
-                                     null,
-                                     Date.from(event.getCreated().toInstant()),
-                                     eventPermissionIds.stream().map(String::valueOf).toArray(String[]::new),
-                                     fields);
+    ZonedDateTime lastUpdateDateTime = event.getUpdated() == null ? event.getCreated() : event.getUpdated();
+    Document document = new Document(TYPE, id, null, AgendaDateUtils.toDate(lastUpdateDateTime), eventPermissionIds, fields);
 
     // Ensure to index text only without html tags
     if (StringUtils.isNotEmpty(String.valueOf(description))) {
@@ -184,6 +170,10 @@ public class AgendaIndexingServiceConnector extends ElasticIndexingServiceConnec
       }
     }
     return document;
+  }
+
+  private String toMillisecondsString(ZonedDateTime dateTime) {
+    return String.valueOf(dateTime.withZoneSameInstant(ZoneOffset.UTC).toEpochSecond() * 1000);
   }
 
   private String htmlToText(String source) {
