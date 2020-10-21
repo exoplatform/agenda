@@ -43,7 +43,7 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
   private static final String ES_INDEX        = "event_alias";
 
   public static final String  FAKE_ES_QUERY   =
-                                            "{offset: @offset@, limit: @limit@, term1: @term@, term2: @term@, permissions: @permissions@}";
+          "{offset: @offset@, limit: @limit@, term1: @term@, term2: @term@, permissions: @permissions@}";
 
   @Mock
   IdentityManager             identityManager;                                                                                             // NOSONAR
@@ -72,7 +72,7 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
     super.setUp();
     try {
       searchResult = IOUtil.getStreamContentAsString(getClass().getClassLoader()
-                                                               .getResourceAsStream("agenda-search-result.json"));
+              .getResourceAsStream("agenda-search-result.json"));
 
       Mockito.reset(configurationManager);
       when(configurationManager.getInputStream("FILE_PATH")).thenReturn(new ByteArrayInputStream(FAKE_ES_QUERY.getBytes()));
@@ -84,11 +84,11 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
     PropertyManager.refresh();
 
     agendaSearchConnector = new AgendaSearchConnector(configurationManager,
-                                                      identityManager,
-                                                      spaceService,
-                                                      agendaEventStorage,
-                                                      client,
-                                                      getParams());
+            identityManager,
+            spaceService,
+            agendaEventStorage,
+            client,
+            getParams());
   }
 
   @Override
@@ -140,9 +140,9 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
     when(identity.getRemoteId()).thenReturn("testuser1");
     when(Utils.getIdentityById(identityManager, 1L)).thenReturn(identity);
     String expectedESQuery = FAKE_ES_QUERY.replaceAll("@term@", term)
-                                          .replaceAll("@permissions@", StringUtils.join(permissions, ","))
-                                          .replaceAll("@offset@", "0")
-                                          .replaceAll("@limit@", "10");
+            .replaceAll("@permissions@", StringUtils.join(permissions, ","))
+            .replaceAll("@offset@", "0")
+            .replaceAll("@limit@", "10");
     when(client.sendRequest(eq(expectedESQuery), eq(ES_INDEX), eq(ES_TYPE))).thenReturn("{}");
     when(spaceService.getMemberSpaces(eq("testuser1"))).thenAnswer(new Answer<ListAccess<Space>>() {
       @Override
@@ -166,7 +166,7 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
             spaceIdentity.setProviderId(SpaceIdentityProvider.NAME);
             spaceIdentity.setRemoteId(prettyName);
             when(identityManager.getOrCreateIdentity(eq(SpaceIdentityProvider.NAME),
-                                                     eq(prettyName))).thenReturn(spaceIdentity);
+                    eq(prettyName))).thenReturn(spaceIdentity);
             return spaces;
           }
         });
@@ -175,10 +175,10 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
     });
 
     List<EventSearchResult> result = agendaSearchConnector.search(Long.parseLong(identity.getId()),
-                                                                  ZoneId.of("US/Hawaii"),
-                                                                  term,
-                                                                  0,
-                                                                  10);
+            ZoneId.of("US/Hawaii"),
+            term,
+            0,
+            10);
     assertNotNull(result);
     assertEquals(0, result.size());
   }
@@ -192,16 +192,16 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
     when(identity.getRemoteId()).thenReturn("testuser1");
     when(Utils.getIdentityById(identityManager, 1L)).thenReturn(identity);
     String expectedESQuery = FAKE_ES_QUERY.replaceAll("@term@", term)
-                                          .replaceAll("@permissions@", StringUtils.join(permissions, ","))
-                                          .replaceAll("@offset@", "0")
-                                          .replaceAll("@limit@", "10");
+            .replaceAll("@permissions@", StringUtils.join(permissions, ","))
+            .replaceAll("@offset@", "0")
+            .replaceAll("@limit@", "10");
     when(client.sendRequest(eq(expectedESQuery), eq(ES_INDEX), eq(ES_TYPE))).thenReturn(searchResult);
     long startTime = 1602979200000L;
     long endTime = 1603151999000L;
     ZonedDateTime start = ZonedDateTime.ofInstant(Instant.ofEpochMilli(startTime),
-                                                  ZoneId.systemDefault());
+            ZoneId.systemDefault());
     ZonedDateTime end = ZonedDateTime.ofInstant(Instant.ofEpochMilli(endTime),
-                                                ZoneId.systemDefault());
+            ZoneId.systemDefault());
 
     boolean allDay = true;
     String creatorUserName = testuser1Identity.getRemoteId();
@@ -231,7 +231,7 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
             spaceIdentity.setProviderId(SpaceIdentityProvider.NAME);
             spaceIdentity.setRemoteId(prettyName);
             when(identityManager.getOrCreateIdentity(eq(SpaceIdentityProvider.NAME),
-                                                     eq(prettyName))).thenReturn(spaceIdentity);
+                    eq(prettyName))).thenReturn(spaceIdentity);
             return spaces;
           }
         });
@@ -240,10 +240,10 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
     });
 
     List<EventSearchResult> result = agendaSearchConnector.search(Long.parseLong(identity.getId()),
-                                                                  ZoneId.of("US/Hawaii"),
-                                                                  term,
-                                                                  0,
-                                                                  10);
+            ZoneId.of("US/Hawaii"),
+            term,
+            0,
+            10);
     assertNotNull(result);
     assertEquals(1, result.size());
 

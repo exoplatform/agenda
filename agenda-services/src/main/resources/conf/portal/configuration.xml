@@ -113,6 +113,10 @@
     <type>org.exoplatform.agenda.dao.RemoteProviderDAO</type>
   </component>
 
+  <component>
+    <type>org.exoplatform.agenda.search.listener.AgendaESListener</type>
+  </component>
+
   <external-component-plugins>
     <target-component>org.exoplatform.commons.api.persistence.DataInitializer</target-component>
     <component-plugin>

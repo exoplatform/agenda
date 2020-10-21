@@ -98,9 +98,9 @@ public class AgendaIndexingServiceConnector extends ElasticIndexingServiceConnec
     fields.put("id", Long.toString(event.getId()));
 
     List<Long> eventAttendees = attendeeService.getEventAttendees(event.getId())
-                                               .stream()
-                                               .map(EventAttendee::getIdentityId)
-                                               .collect(Collectors.toList());
+            .stream()
+            .map(EventAttendee::getIdentityId)
+            .collect(Collectors.toList());
 
     if (event.getParentId() > 0) {
       fields.put("parentId", Long.toString(event.getParentId()));

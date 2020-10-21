@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see<http://www.gnu.org/licenses/>.
-*/
+ */
 package org.exoplatform.agenda.service;
 
 import java.time.ZoneId;
@@ -31,7 +31,7 @@ public interface AgendaEventService {
   /**
    * Retrieves the list of events available for a designated user in a selected
    * period of time.
-   * 
+   *
    * @param start {@link ZonedDateTime} as selected period start datetime
    * @param end {@link ZonedDateTime} as selected period start datetime
    * @param timeZone used timezone to convert dates
@@ -44,7 +44,7 @@ public interface AgendaEventService {
   /**
    * Retrieves the list of events for a designated owner in a selected period of
    * time.
-   * 
+   *
    * @param ownerIds {@link Identity} technical identifier of the owners
    * @param start {@link ZonedDateTime} as selected period start datetime
    * @param end {@link ZonedDateTime} as selected period start datetime
@@ -66,7 +66,7 @@ public interface AgendaEventService {
    * Retrieve {@link List} of events where the user is designated as an attendee
    * of the {@link Event}, or the user belongs to a space that is added as
    * attendee of the event.
-   * 
+   *
    * @param attendeeIdentityId user {@link Identity} technical identifier
    * @param startDatetime Period start date
    * @param endDatetime Period end date
@@ -89,7 +89,7 @@ public interface AgendaEventService {
    * of the {@link Event}, or the user belongs to a space that is added as
    * attendee of the event. Additionally, the retrieved events must belongs to a
    * calendar having an owner designated in list of owners to filter.
-   * 
+   *
    * @param attendeeIdentityId user {@link Identity} technical identifier
    * @param ownerIds {@link Identity} technical identifier of the owners
    * @param startDatetime Period start date
@@ -111,7 +111,7 @@ public interface AgendaEventService {
 
   /**
    * Retrieves an event identified by its technical identifier.
-   * 
+   *
    * @param eventId technical identifier of event
    * @param timeZone used timezone to convert dates
    * @param username User name accessing event
@@ -122,7 +122,7 @@ public interface AgendaEventService {
 
   /**
    * Retrieves an event identified by its technical identifier.
-   * 
+   *
    * @param eventId technical identifier of event
    * @param timeZone used timezone to convert dates
    * @param identityId {@link Identity} technical identifier
@@ -133,7 +133,7 @@ public interface AgendaEventService {
 
   /**
    * Retrieves an event identified by its technical identifier.
-   * 
+   *
    * @param eventId technical identifier of event
    * @return Corresponding {@link Event} or null if not found
    */
@@ -142,7 +142,7 @@ public interface AgendaEventService {
   /**
    * Retrieves Event Occurrence identified by parent recurrence Event identifier
    * and occurrence date
-   * 
+   *
    * @param parentEventId {@link Event} technical identifier
    * @param occurrenceId Date of occurrence
    * @param userTimeZone used user timezone
@@ -157,7 +157,7 @@ public interface AgendaEventService {
 
   /**
    * Retrieves an event identified by its technical identifier.
-   * 
+   *
    * @param eventId technical identifier of parent recurrent event
    * @param occurrenceId technical occurrence event identifier
    * @return Exceptional {@link Event} if found, else null
@@ -167,7 +167,7 @@ public interface AgendaEventService {
   /**
    * Creates an event in designated calendar or in user personal calendar if
    * null
-   * 
+   *
    * @param event {@link Event} to create
    * @param attendees event attendees of type {@link EventAttendee}
    * @param conferences event conferences of type {@link EventConference}
@@ -193,7 +193,7 @@ public interface AgendaEventService {
    * Updates an existing event in-place when the user is owner of parent
    * {@link Calendar}, else this will duplicate the event and add it into his
    * personal calendar
-   * 
+   *
    * @param event {@link Event} to create
    * @param attendees event attendees of type {@link EventAttendee}
    * @param conferences event conferences of type {@link EventConference}
@@ -218,7 +218,7 @@ public interface AgendaEventService {
 
   /**
    * Deletes an existing event
-   * 
+   *
    * @param eventId Event technical identifier to delete
    * @param username User name deleting event
    * @throws IllegalAccessException when user is not authorized to delete the
@@ -235,7 +235,7 @@ public interface AgendaEventService {
 
   /**
    * Creates a new events {@link RemoteProvider}
-   * 
+   *
    * @param remoteProvider events remote provider to store
    * @return created {@link RemoteProvider}
    */
@@ -243,7 +243,7 @@ public interface AgendaEventService {
 
   /**
    * Check whether user can access event or not.
-   * 
+   *
    * @param event {@link Event} to check its permission
    * @param username user name wiling to access event
    * @return true if the user is a member of {@link Calendar} owner
@@ -253,7 +253,7 @@ public interface AgendaEventService {
 
   /**
    * Check whether user can access event or not.
-   * 
+   *
    * @param event {@link Event} to check its permission
    * @param identityId {@link Identity} technical identifier
    * @return true if the user is a member of {@link Calendar} owner
@@ -263,7 +263,7 @@ public interface AgendaEventService {
 
   /**
    * Check whether user can update or delete an event or not.
-   * 
+   *
    * @param event {@link Event} to check its permission
    * @param username user name wiling to modify or delete the event
    * @return true if the user is a manager of {@link Calendar} owner
@@ -273,7 +273,7 @@ public interface AgendaEventService {
 
   /**
    * Check whether user can create an event in selected Calendar or not.
-   * 
+   *
    * @param calendar of type {@link Calendar}
    * @param username user name wiling to create an event
    * @return true if the user is a member of {@link Calendar} owner
@@ -283,7 +283,7 @@ public interface AgendaEventService {
 
   /**
    * Create a new exceptional occurrence for a parent recurrent event
-   * 
+   *
    * @param eventId technical identifier of parent recurrent event
    * @param attendees {@link List} of attendees
    * @param conferences {@link List} of conferences
@@ -301,12 +301,12 @@ public interface AgendaEventService {
                                                 List<EventAttachment> attachments,
                                                 List<EventReminder> reminders,
                                                 ZonedDateTime occurrenceId) throws IllegalAccessException,
-                                                                            AgendaException,
-                                                                            ObjectNotFoundException;
+          AgendaException,
+          ObjectNotFoundException;
 
   /**
    * Search the list of events available with query for the currentUser
-   * 
+   *
    * @param userIdentityId user {@link Identity} identifier
    * @param userTimeZone used user timezone
    * @param query Term to search
