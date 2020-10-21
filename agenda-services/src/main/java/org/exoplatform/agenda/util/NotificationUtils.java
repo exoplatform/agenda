@@ -83,7 +83,7 @@ public class NotificationUtils {
                                                      boolean isNew) {
     Set<String> recipients = new HashSet<>();
     for (EventAttendee attendee : eventAttendee) {
-      Identity identity = Utils.getIdentityById(attendee.getIdentityId());
+      Identity identity = Utils.getIdentityById(identityManager, attendee.getIdentityId());
       if (identity.getProviderId().equals(SpaceIdentityProvider.NAME)) {
         String spaceName = identity.getRemoteId();
         List<String> memberSpace = Utils.getSpaceMembersBySpaceName(spaceName);
