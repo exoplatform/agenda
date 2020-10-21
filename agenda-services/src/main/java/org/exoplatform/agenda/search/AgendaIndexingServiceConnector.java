@@ -46,8 +46,6 @@ public class AgendaIndexingServiceConnector extends ElasticIndexingServiceConnec
 
   private final AgendaCalendarService agendaCalendarService;
 
-  private final IdentityManager       identityManager;
-
   private final AgendaEventService    agendaEventService;
 
   private AgendaEventAttendeeService  attendeeService;

@@ -98,10 +98,9 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
                                                                             client,
                                                                             getParams());
 
-    AgendaSearchFilter filter = new AgendaSearchFilter();
-    filter.setTerm("term");
+    String term = "searchTerm";
     try {
-      agendaSearchConnector.search(null, filter, 0, 10);
+      agendaSearchConnector.search(null, term, 0, 10);
       fail("Should throw IllegalArgumentException: viewer identity is mandatory");
     } catch (IllegalArgumentException e) {
       // Expected
@@ -115,13 +114,13 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
       // Expected
     }
     try {
-      agendaSearchConnector.search(identity, filter, -1, 10);
+      agendaSearchConnector.search(identity, term, -1, 10);
       fail("Should throw IllegalArgumentException: offset should be positive");
     } catch (IllegalArgumentException e) {
       // Expected
     }
     try {
-      agendaSearchConnector.search(identity, filter, 0, -1);
+      agendaSearchConnector.search(identity, term, 0, -1);
       fail("Should throw IllegalArgumentException: limit should be positive");
     } catch (IllegalArgumentException e) {
       // Expected
@@ -136,17 +135,17 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
                                                                             client,
                                                                             getParams());
 
-    AgendaSearchFilter filter = new AgendaSearchFilter("term");
+    String term = "searchTerm";
     HashSet<Long> permissions = new HashSet<>(Arrays.asList(1L));
     Identity identity = mock(Identity.class);
     when(identity.getId()).thenReturn("1");
-    String expectedESQuery = FAKE_ES_QUERY.replaceAll("@term@", filter.getTerm())
+    String expectedESQuery = FAKE_ES_QUERY.replaceAll("@term@", term)
                                           .replaceAll("@permissions@", StringUtils.join(permissions, ","))
                                           .replaceAll("@offset@", "0")
                                           .replaceAll("@limit@", "10");
     when(client.sendRequest(eq(expectedESQuery), eq(ES_INDEX), eq(ES_TYPE))).thenReturn("{}");
 
-    List<EventSearchResult> result = agendaSearchConnector.search(identity, filter, 0, 10);
+    List<EventSearchResult> result = agendaSearchConnector.search(identity, term, 0, 10);
     assertNotNull(result);
     assertEquals(0, result.size());
   }
@@ -159,31 +158,37 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
                                                                             client,
                                                                             getParams());
 
-    AgendaSearchFilter filter = new AgendaSearchFilter("term");
+    String term = "searchTerm";
     HashSet<Long> permissions = new HashSet<>(Arrays.asList(1L));
     Identity identity = mock(Identity.class);
     when(identity.getId()).thenReturn("1");
     //when(activityStorage.getStreamFeedOwnerIds(eq(identity))).thenReturn(permissions);
-    String expectedESQuery = FAKE_ES_QUERY.replaceAll("@term@", filter.getTerm())
+    String expectedESQuery = FAKE_ES_QUERY.replaceAll("@term@", term)
                                           .replaceAll("@permissions@", StringUtils.join(permissions, ","))
                                           .replaceAll("@offset@", "0")
                                           .replaceAll("@limit@", "10");
     when(client.sendRequest(eq(expectedESQuery), eq(ES_INDEX), eq(ES_TYPE))).thenReturn(searchResult);
-    ZonedDateTime start = ZonedDateTime.now().withNano(0);
+    long startTime = 1603065600000L;
+    long endTime = 1603151999000L;
+    ZonedDateTime start =  ZonedDateTime.ofInstant(Instant.ofEpochMilli(startTime),
+            ZoneId.systemDefault());
+    ZonedDateTime end =  ZonedDateTime.ofInstant(Instant.ofEpochMilli(endTime),
+            ZoneId.systemDefault());
 
     boolean allDay = true;
     String creatorUserName = testuser1Identity.getRemoteId();
 
-    Event event = newEventInstance(start, start, allDay);
+    Event event = newEventInstance(start, end, allDay);
     event = createEvent(event.clone(), creatorUserName, testuser2Identity);
     when(agendaEventService.getEventById(eq(1L))).thenReturn(event);
-    List<EventSearchResult> result = agendaSearchConnector.search(identity, filter, 0, 10);
+    List<EventSearchResult> result = agendaSearchConnector.search(identity, term, 0, 10);
     assertNotNull(result);
     assertEquals(1, result.size());
 
     EventSearchResult eventSearchResult = result.iterator().next();
     assertEquals(1L, eventSearchResult.getId());
-    assertEquals(event.getSummary(), eventSearchResult.getSummary());
+    assertTrue(eventSearchResult.getSummary().contains("searchMatchExcerpt"));
+    assertTrue(eventSearchResult.getSummary().contains(term));
     assertEquals(event.getDescription(), eventSearchResult.getDescription());
     assertEquals(1L, eventSearchResult.getOwnerId());
     assertEquals(event.getLocation(), eventSearchResult.getLocation());
@@ -191,7 +196,7 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
     LocalDateTime eventLocalEndTime = LocalDateTime.ofInstant(event.getEnd().toInstant(), ZoneId.systemDefault());
     assertEquals(eventLocalStartTime.toString(), eventSearchResult.getStart());
     assertEquals(eventLocalEndTime.toString(), eventSearchResult.getEnd());
-    assertEquals(0, eventSearchResult.getExcerpts().size());
+    assertEquals(1, eventSearchResult.getExcerpts().size());
   }
 
   private InitParams getParams() {

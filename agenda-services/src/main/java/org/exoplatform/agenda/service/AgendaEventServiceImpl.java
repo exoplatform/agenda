@@ -28,7 +28,10 @@ import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.model.Calendar;
+import org.exoplatform.agenda.rest.model.EventSearchResultEntity;
+import org.exoplatform.agenda.search.AgendaSearchConnector;
 import org.exoplatform.agenda.storage.AgendaEventStorage;
+import org.exoplatform.agenda.util.EntityBuilder;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.services.listener.ListenerService;
@@ -59,6 +62,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
   private ListenerService              listenerService;
 
+  private AgendaSearchConnector agendaSearchConnector;
+
   public AgendaEventServiceImpl(AgendaCalendarService agendaCalendarService,
                                 AgendaEventAttendeeService attendeeService,
                                 AgendaEventAttachmentService attachmentService,
@@ -67,7 +72,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                 AgendaEventStorage agendaEventStorage,
                                 IdentityManager identityManager,
                                 SpaceService spaceService,
-                                ListenerService listenerService) {
+                                ListenerService listenerService,
+                                AgendaSearchConnector agendaSearchConnector) {
     this.agendaCalendarService = agendaCalendarService;
     this.attendeeService = attendeeService;
     this.attachmentService = attachmentService;
@@ -77,6 +83,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     this.identityManager = identityManager;
     this.spaceService = spaceService;
     this.listenerService = listenerService;
+    this.agendaSearchConnector = agendaSearchConnector;
   }
 
   /**
@@ -288,7 +295,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     reminderService.saveEventReminders(createdEvent, reminders, userIdentityId);
     attendeeService.saveEventAttendees(createdEvent, attendees, userIdentityId, sendInvitation, false, true);
 
-    Utils.broadcastEvent(listenerService, POST_CREATE_AGENDA_EVENT_EVENT, eventId, 0);
+    Utils.broadcastEvent(listenerService, Utils.POST_CREATE_AGENDA_EVENT_EVENT, eventId, 0);
 
     return getEventById(eventId, event.getStart().getZone(), username);
   }
@@ -464,7 +471,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     reminderService.saveEventReminders(updatedEvent, reminders, userIdentityId);
     attendeeService.saveEventAttendees(updatedEvent, attendees, userIdentityId, sendInvitation, false, false);
 
-    Utils.broadcastEvent(listenerService, POST_UPDATE_AGENDA_EVENT_EVENT, eventId, 0);
+    Utils.broadcastEvent(listenerService, Utils.POST_UPDATE_AGENDA_EVENT_EVENT, eventId, 0);
 
     return updatedEvent;
   }
@@ -488,7 +495,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       throw new IllegalAccessException("User " + username + " hasnt enough privileges to delete event with id " + eventId);
     }
     agendaEventStorage.deleteEventById(eventId);
-    Utils.broadcastEvent(listenerService, POST_DELETE_AGENDA_EVENT_EVENT, eventId, 0);
+    Utils.broadcastEvent(listenerService, Utils.POST_DELETE_AGENDA_EVENT_EVENT, eventId, 0);
   }
 
   /**
@@ -498,7 +505,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   public List<Event> getEvents(ZonedDateTime start, ZonedDateTime end, ZoneId zoneId, int limit, String username) {
     limit = verifyLimit(end, limit);
     Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
-    List<Long> calendarOwnerIds = getCalendarOwnersOfUser(userIdentity);
+    List<Long> calendarOwnerIds = Utils.getCalendarOwnersOfUser(spaceService, identityManager, userIdentity);
     return getEventsByOwners(start, end, zoneId, limit, userIdentity, calendarOwnerIds.toArray(new Long[0]));
   }
 
@@ -542,7 +549,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
 
     // Get spaces ids and user id, to search on them as attendee only
-    List<Long> attendeeIds = getCalendarOwnersOfUser(userIdentity);
+    List<Long> attendeeIds = Utils.getCalendarOwnersOfUser(spaceService, identityManager, userIdentity);
     return getEventsByAttendees(start, end, zoneId, limit, userIdentity, Collections.emptyList(), attendeeIds);
   }
 
@@ -571,7 +578,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
             + ownerIds + "'");
       }
     }
-    List<Long> eventAttendeeIds = getCalendarOwnersOfUser(userIdentity);
+    List<Long> eventAttendeeIds = Utils.getCalendarOwnersOfUser(spaceService, identityManager, userIdentity);
     return getEventsByAttendees(start, end, zoneId, limit, userIdentity, ownerIds, eventAttendeeIds);
   }
 
@@ -645,6 +652,34 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   @Override
   public RemoteProvider saveRemoteProvider(RemoteProvider remoteProvider) {
     return agendaEventStorage.saveRemoteProvider(remoteProvider);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<EventSearchResultEntity> search(Identity currentUser,
+                                              String query,
+                                              int offset,
+                                              int limit){
+
+    List<EventSearchResult> searchResults = agendaSearchConnector.search(currentUser, query, offset, limit);
+    return searchResults.stream().map(searchResult -> {
+
+      //Convert start and end time of event from milliseconds to local date
+      Instant startTimeInstant = Instant.ofEpochMilli(Long.parseLong(searchResult.getStart()));
+      LocalDateTime startTimeDateTime = LocalDateTime.ofInstant(startTimeInstant, ZoneId.systemDefault());
+      searchResult.setStart(startTimeDateTime.toString());
+
+      Instant endTimeInstant = Instant.ofEpochMilli(Long.parseLong(searchResult.getEnd()));
+      LocalDateTime endTimeDateTime = LocalDateTime.ofInstant(endTimeInstant, ZoneId.systemDefault());
+      searchResult.setEnd(endTimeDateTime.toString());
+
+      EventSearchResultEntity entity = new EventSearchResultEntity(searchResult);
+      Calendar calendar = agendaCalendarService.getOrCreateCalendarByOwnerId(searchResult.getOwnerId());
+      entity.setCalendar(EntityBuilder.fromCalendar(identityManager, calendar));
+      return entity;
+    }).collect(Collectors.toList());
   }
 
   private List<Event> getEventsByOwners(ZonedDateTime start,
@@ -914,18 +949,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                      .minusSeconds(1);
       recurrence.setUntil(recurrenceUntil);
     }
-  }
-
-  public List<Long> getCalendarOwnersOfUser(Identity userIdentity) {
-    List<Long> calendarOwners = new ArrayList<>();
-    String userIdentityId = userIdentity.getId();
-    calendarOwners.add(Long.parseLong(userIdentityId));
-    try {
-      Utils.addUserSpacesIdentities(spaceService, identityManager, userIdentity.getRemoteId(), calendarOwners);
-    } catch (Exception e) {
-      throw new IllegalStateException("Error while retrieving spaces of user with id: " + userIdentityId, e);
-    }
-    return calendarOwners;
   }
 
   private int verifyLimit(ZonedDateTime end, int limit) {

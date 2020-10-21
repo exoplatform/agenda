@@ -18,15 +18,14 @@ package org.exoplatform.agenda.search;
 
 import java.io.InputStream;
 import java.text.Normalizer;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
 import org.exoplatform.agenda.model.EventSearchResult;
 import org.exoplatform.agenda.service.AgendaEventServiceImpl;
+import org.exoplatform.agenda.util.Utils;
+import org.exoplatform.social.core.space.spi.SpaceService;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -53,7 +52,7 @@ public class AgendaSearchConnector {
 
   private final IdentityManager        identityManager;
 
-  private final AgendaEventServiceImpl agendaEventService;
+  private final SpaceService           spaceService;
 
   private final ElasticSearchingClient client;
 
@@ -67,11 +66,13 @@ public class AgendaSearchConnector {
 
   public AgendaSearchConnector(ConfigurationManager configurationManager,
                                IdentityManager identityManager,
+                               SpaceService spaceService,
                                AgendaEventServiceImpl agendaEventService,
                                ElasticSearchingClient client,
                                InitParams initParams) {
     this.configurationManager = configurationManager;
     this.identityManager = identityManager;
+    this.spaceService = spaceService;
     this.agendaEventService = agendaEventService;
     this.client = client;
 
@@ -88,7 +89,7 @@ public class AgendaSearchConnector {
     }
   }
 
-  public List<EventSearchResult> search(Identity viewerIdentity, AgendaSearchFilter filter, long offset, long limit) {
+  public List<EventSearchResult> search(Identity viewerIdentity, String term, long offset, long limit) {
     if (viewerIdentity == null) {
       throw new IllegalArgumentException("Viewer identity is mandatory");
     }
@@ -98,26 +99,23 @@ public class AgendaSearchConnector {
     if (limit < 0) {
       throw new IllegalArgumentException("Limit must be positive");
     }
-    if (filter == null) {
-      throw new IllegalArgumentException("Filter is mandatory");
-    }
-    if (StringUtils.isBlank(filter.getTerm())) {
+    if (StringUtils.isBlank(term)) {
       throw new IllegalArgumentException("Filter term is mandatory");
     }
 
-    Set<Long> calendarOwnersOfUser = Optional.ofNullable(agendaEventService.getCalendarOwnersOfUser(viewerIdentity))
+    Set<Long> calendarOwnersOfUser = Optional.ofNullable(Utils.getCalendarOwnersOfUser(spaceService, identityManager, viewerIdentity))
                                              .map(HashSet::new)
                                              .orElse(null);
 
     calendarOwnersOfUser.add(Long.valueOf(viewerIdentity.getId()));
-    String esQuery = buildQueryStatement(calendarOwnersOfUser, filter, offset, limit);
+    String esQuery = buildQueryStatement(calendarOwnersOfUser, term, offset, limit);
     String jsonResponse = this.client.sendRequest(esQuery, this.index, this.searchType);
     return buildResult(jsonResponse, viewerIdentity, calendarOwnersOfUser);
   }
 
-  private String buildQueryStatement(Set<Long> calendarOwnersOfUser, AgendaSearchFilter filter, long offset, long limit) {
+  private String buildQueryStatement(Set<Long> calendarOwnersOfUser, String term, long offset, long limit) {
 
-    String term = removeSpecialCharacters(filter.getTerm());
+    term = removeSpecialCharacters(term);
     List<String> termsQuery = Arrays.stream(term.split(" ")).filter(StringUtils::isNotBlank).map(word -> {
       word = word.trim();
       if (word.length() > 5) {
@@ -198,14 +196,9 @@ public class AgendaSearchConnector {
           eventSearchResult.setOwnerId(ownerId);
         }
         if (startTime != null) {
-          Instant startTimeInstant = Instant.ofEpochMilli(Long.parseLong(startTime));
-          LocalDateTime startTimeDateTime = LocalDateTime.ofInstant(startTimeInstant, ZoneId.systemDefault());
-          eventSearchResult.setStart(startTimeDateTime.toString());
+          eventSearchResult.setStart(startTime);
         }
-        if (endTime != null) {
-          Instant endTimeInstant = Instant.ofEpochMilli(Long.parseLong(endTime));
-          LocalDateTime endTimeDateTime = LocalDateTime.ofInstant(endTimeInstant, ZoneId.systemDefault());
-          eventSearchResult.setEnd(endTimeDateTime.toString());
+        if (endTime != null) {eventSearchResult.setEnd(endTime);
         }
         if (location != null) {
           eventSearchResult.setLocation(location);
@@ -216,8 +209,7 @@ public class AgendaSearchConnector {
         if (description != null) {
           eventSearchResult.setDescription(description);
         }
-
-        eventSearchResult.setRecurrent(isRecurrent);
+        eventSearchResult.setIsRecurrent(isRecurrent);
         eventSearchResult.setExcerpts(excerpts);
         eventSearchResult.setAttendees(attendeesList);
         if (parentId != null && !isExceptional) {

@@ -37,7 +37,6 @@ import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.rest.model.*;
 import org.exoplatform.agenda.search.AgendaSearchConnector;
-import org.exoplatform.agenda.search.AgendaSearchFilter;
 import org.exoplatform.agenda.service.*;
 import org.exoplatform.agenda.util.*;
 import org.exoplatform.common.http.HTTPStatus;
@@ -697,27 +696,13 @@ public class AgendaEventRest implements ResourceContainer {
     offset = offset > 0 ? offset : RestUtils.getOffset(uriInfo);
     limit = limit > 0 ? limit : RestUtils.getLimit(uriInfo);
 
-    /*
-     * if (StringUtils.isBlank(query)) { return
-     * Response.status(Status.BAD_REQUEST).entity("'query' parameter is mandatory").
-     * build(); }
-     */
-
     String authenticatedUser = RestUtils.getCurrentUser();
     Identity currentUser = CommonsUtils.getService(IdentityManager.class)
                                        .getOrCreateIdentity(OrganizationIdentityProvider.NAME, authenticatedUser);
 
-    AgendaSearchConnector agendaSearchConnector = CommonsUtils.getService(AgendaSearchConnector.class);
-    AgendaSearchFilter filter = new AgendaSearchFilter(query);
-    List<EventSearchResult> searchResults = agendaSearchConnector.search(currentUser, filter, offset, limit);
-    List<EventSearchResultEntity> results = searchResults.stream().map(searchResult -> {
-      EventSearchResultEntity entity = new EventSearchResultEntity(searchResult);
-      Calendar calendar = agendaCalendarService.getOrCreateCalendarByOwnerId(searchResult.getOwnerId());
-      entity.setCalendar(EntityBuilder.fromCalendar(identityManager, calendar));
-      return entity;
-    }).collect(Collectors.toList());
+    List<EventSearchResultEntity> searchResults = agendaEventService.search(currentUser, query, offset, limit);
 
-    return Response.ok(results).build();
+    return Response.ok(searchResults).build();
   }
 
   private Event createEvent(EventEntity eventEntity, String currentUser) throws AgendaException, IllegalAccessException {

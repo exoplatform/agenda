@@ -51,7 +51,28 @@ public class Utils {
 
   private static final TimeZoneRegistry ICAL4J_TIME_ZONE_REGISTRY = TimeZoneRegistryFactory.getInstance().createRegistry();
 
+
+  public static final String POST_CREATE_AGENDA_EVENT_EVENT = "exo.agenda.event.created";
+
+  public static final String POST_UPDATE_AGENDA_EVENT_EVENT = "exo.agenda.event.updated";
+
+  public static final String POST_DELETE_AGENDA_EVENT_EVENT = "exo.agenda.event.deleted";
+
   private Utils() {
+  }
+
+  public static List<Long> getCalendarOwnersOfUser(SpaceService spaceService,
+                                            IdentityManager identityManager,
+                                            Identity userIdentity) {
+    List<Long> calendarOwners = new ArrayList<>();
+    String userIdentityId = userIdentity.getId();
+    calendarOwners.add(Long.parseLong(userIdentityId));
+    try {
+      Utils.addUserSpacesIdentities(spaceService, identityManager, userIdentity.getRemoteId(), calendarOwners);
+    } catch (Exception e) {
+      throw new IllegalStateException("Error while retrieving spaces of user with id: " + userIdentityId, e);
+    }
+    return calendarOwners;
   }
 
   public static void addUserSpacesIdentities(SpaceService spaceService,

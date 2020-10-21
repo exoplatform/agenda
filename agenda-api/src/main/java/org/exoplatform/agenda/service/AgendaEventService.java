@@ -22,16 +22,11 @@ import java.util.List;
 
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.model.*;
+import org.exoplatform.agenda.rest.model.EventSearchResultEntity;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.social.core.identity.model.Identity;
 
 public interface AgendaEventService {
-
-  String POST_CREATE_AGENDA_EVENT_EVENT = "exo.agenda.event.created";
-
-  String POST_UPDATE_AGENDA_EVENT_EVENT = "exo.agenda.event.updated";
-
-  String POST_DELETE_AGENDA_EVENT_EVENT = "exo.agenda.event.deleted";
 
   /**
    * Retrieves the list of events available for a designated user in a selected
@@ -309,4 +304,16 @@ public interface AgendaEventService {
                                                                             AgendaException,
                                                                             ObjectNotFoundException;
 
+  /**
+   * Search the list of events available with query for the currentUser
+   * @param currentUser current user connected
+   * @param query Term to search
+   * @param offset offset
+   * @param limit Limit of events to retrieve
+   * @return
+   */
+  List<EventSearchResultEntity> search(Identity currentUser,
+                                       String query,
+                                       int offset,
+                                       int limit);
 }

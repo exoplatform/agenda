@@ -9,10 +9,10 @@
         "_id": "1",
         "_score": 1,
         "_source": {
-          "summary": "eventSummary",
+          "summary": "summary containing searchTerm",
           "isExceptional": "false",
           "lastUpdatedDate": 1603102578000,
-          "attendee": "[1, 23, 28, 43, 71]",
+          "attendees": "[1, 23, 28, 43, 71]",
           "isRecurrent": "true",
           "permissions": [
             "1",
@@ -23,11 +23,19 @@
             "43"
           ],
           "description": "eventDescription",
-          "startTime": "1603065600000",
+          "startTime": "1602979200000",
           "location": "eventLocation",
           "id": "1",
           "endTime": "1603151999000",
           "ownerId": "1"
+        },
+        "highlight" : {
+          "summary": [
+            "summary containing <span class='searchMatchExcerpt'>searchTerm</span>"
+          ],
+          "description": [
+            "description containing <span class='searchMatchExcerpt'>searchTerm</span>"
+          ]
         }
       },
       {
@@ -38,7 +46,7 @@
         "_source": {
           "summary": "event title",
           "isExceptional": "true",
-          "attendee": "[23, 28, 43, 71]",
+          "attendees": "[23, 28, 43, 71]",
           "isRecurrent": "false",
           "description": "event description",
           "occurrenceId": "1603274400",

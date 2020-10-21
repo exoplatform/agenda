@@ -13,7 +13,7 @@
     "parentId": {
       "type": "long"
     },
-    "attendee": {
+    "attendees": {
       "type": "long"
     },
     "isRecurrent": {
