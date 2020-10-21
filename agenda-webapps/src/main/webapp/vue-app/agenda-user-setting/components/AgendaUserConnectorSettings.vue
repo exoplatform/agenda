@@ -6,9 +6,9 @@
           {{ skeleton && '&nbsp;' || $t('agenda.connectYourPersonalAgenda') }}
         </div>
       </v-list-item-title>
-      <v-list-item-subtitle class="text-sub-title">
+      <v-list-item-subtitle class="text-sub-title font-italic">
         <div :class="skeleton && 'skeleton-background skeleton-border-radius skeleton-text-width-small skeleton-text-height-fine my-2'">
-          {{ connectedAccountName || '' }}
+          {{ skeleton && '&nbsp;' || connectedAccountName || $t('agenda.connectYourPersonalAgendaSubTitle') }}
         </div>
       </v-list-item-subtitle>
     </v-list-item-content>
