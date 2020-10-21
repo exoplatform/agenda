@@ -16,6 +16,7 @@ import org.exoplatform.container.xml.ValueParam;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.social.core.space.spi.SpaceService;
 
 public class AgendaNotificationPlugin extends BaseNotificationPlugin {
   private static final String        AGENDA_NOTIFICATION_PLUGIN_NAME = "agenda.notification.plugin.key";
@@ -31,17 +32,21 @@ public class AgendaNotificationPlugin extends BaseNotificationPlugin {
   private AgendaEventAttendeeService eventAttendeeService;
 
   private AgendaCalendarService      calendarService;
+  
+  private SpaceService               spaceService;
 
   public AgendaNotificationPlugin(InitParams initParams,
                                   IdentityManager identityManager,
                                   AgendaEventService eventService,
                                   AgendaEventAttendeeService eventAttendeeService,
-                                  AgendaCalendarService calendarService) {
+                                  AgendaCalendarService calendarService,
+                                  SpaceService spaceService) {
     super(initParams);
     this.identityManager = identityManager;
     this.eventService = eventService;
     this.eventAttendeeService = eventAttendeeService;
     this.calendarService = calendarService;
+    this.spaceService = spaceService;
     ValueParam notificationIdParam = initParams.getValueParam(AGENDA_NOTIFICATION_PLUGIN_NAME);
     if (notificationIdParam == null || StringUtils.isBlank(notificationIdParam.getValue())) {
       throw new IllegalStateException("'agenda.notification.plugin.key' parameter is mandatory");
@@ -77,13 +82,13 @@ public class AgendaNotificationPlugin extends BaseNotificationPlugin {
     NotificationInfo notification = NotificationInfo.instance();
     notification.key(getId());
     if (event.getId() > 0) {
-      setNotificationRecipients(identityManager, notification, eventAttendee, event, isNew);
+      setNotificationRecipients(identityManager, notification, spaceService, eventAttendee, event, isNew);
     }
     if (notification.getSendToUserIds() == null || notification.getSendToUserIds().isEmpty()) {
       LOG.debug("Notification type '{}' doesn't have a recipient", getId());
       return null;
     } else {
-      storeEventParameters(notification, event, calendar, isNew);
+      storeEventParameters(identityManager, notification, event, calendar, isNew);
       return notification.end();
     }
   }

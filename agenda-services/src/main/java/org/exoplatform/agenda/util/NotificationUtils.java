@@ -2,7 +2,6 @@ package org.exoplatform.agenda.util;
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import org.apache.commons.lang.StringUtils;
@@ -16,12 +15,12 @@ import org.exoplatform.commons.api.notification.plugin.NotificationPluginUtils;
 import org.exoplatform.commons.api.notification.service.template.TemplateContext;
 import org.exoplatform.commons.notification.template.TemplateUtils;
 import org.exoplatform.commons.utils.CommonsUtils;
-import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.social.notification.plugin.SocialNotificationUtils;
 import org.exoplatform.webui.utils.TimeConvertUtils;
 
@@ -81,8 +80,6 @@ public class NotificationUtils {
 
   private static String                        defaultSite;
 
-  private static final String                  FORMAT_UPDATED_DATE                       = "hh a";
-
   private NotificationUtils() {
   }
 
@@ -96,6 +93,7 @@ public class NotificationUtils {
 
   public static final void setNotificationRecipients(IdentityManager identityManager,
                                                      NotificationInfo notification,
+                                                     SpaceService spaceService,
                                                      List<EventAttendee> eventAttendee,
                                                      Event event,
                                                      boolean isNew) {
@@ -104,7 +102,7 @@ public class NotificationUtils {
       Identity identity = Utils.getIdentityById(identityManager, attendee.getIdentityId());
       if (identity.getProviderId().equals(SpaceIdentityProvider.NAME)) {
         String spaceName = identity.getRemoteId();
-        List<String> memberSpace = Utils.getSpaceMembersBySpaceName(spaceName);
+        List<String> memberSpace = Utils.getSpaceMembersBySpaceName(spaceName, spaceService);
         if (memberSpace != null) {
           recipients.addAll(memberSpace);
         }
@@ -125,14 +123,15 @@ public class NotificationUtils {
     notification.to(new ArrayList<>(recipients));
   }
 
-  public static final void storeEventParameters(NotificationInfo notification,
+  public static final void storeEventParameters(IdentityManager identityManager,
+                                                NotificationInfo notification,
                                                 Event event,
                                                 org.exoplatform.agenda.model.Calendar calendar,
                                                 boolean isNew) {
     if (event == null) {
       throw new IllegalArgumentException("event is null");
     }
-    Identity identity = Utils.getIdentityById(event.getCreatorId());
+    Identity identity = Utils.getIdentityById(identityManager, event.getCreatorId());
     notification.with(STORED_PARAMETER_EVENT_ID, String.valueOf(event.getId()))
                 .with(STORED_PARAMETER_EVENT_TITLE, event.getSummary())
                 .with(STORED_PARAMETER_EVENT_OWNER_ID, String.valueOf(calendar.getOwnerId()))
@@ -141,7 +140,7 @@ public class NotificationUtils {
                       getEventNotificationCreatorOrModifierUserName(identity))
                 .with(STORED_PARAMETER_EVENT_IS_NEW, String.valueOf(isNew));
     if (event.getModifierId() > 0) {
-      identity = Utils.getIdentityById(event.getModifierId());
+      identity = Utils.getIdentityById(identityManager, event.getModifierId());
       notification.with(STORED_PARAMETER_EVENT_MODIFIER,
                         getEventNotificationCreatorOrModifierUserName(identity))
                   .with(STORED_PARAMETER_MODIFIER_IDENTITY_ID, String.valueOf(event.getModifierId()))
@@ -158,7 +157,7 @@ public class NotificationUtils {
     return defaultSite;
   }
 
-  public static final TemplateContext buildTemplateParameters(TemplateProvider templateProvider, NotificationInfo notification) {
+  public static final TemplateContext buildTemplateParameters(IdentityManager identityManager,TemplateProvider templateProvider, NotificationInfo notification) {
     String language = NotificationPluginUtils.getLanguage(notification.getTo());
     TemplateContext templateContext = getTemplateContext(templateProvider, notification, language);
 
@@ -167,17 +166,17 @@ public class NotificationUtils {
     setNotificationId(notification, templateContext);
     setLasModifiedTime(notification, templateContext, language);
 
-    setIdentityNameAndAvatar(notification, templateContext);
+    setIdentityNameAndAvatar(identityManager, notification, templateContext);
     setEventDetails(templateContext, notification);
     templateContext.put(TEMPLATE_VARIABLE_EVENT_IS_NEW, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_IS_NEW));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_CREATOR, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_CREATOR));
-    if (notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_IS_NEW).equals("false")) {
+    if (StringUtils.equals(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_IS_NEW), "false")) {
       String identityId = notification.getValueOwnerParameter(STORED_PARAMETER_MODIFIER_IDENTITY_ID);
       ZonedDateTime eventUpdateDate =
                                     ZonedDateTime.parse(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_UPDATED_DATE));
-      ZoneId zoneId = getZoneId(identityId);
-      String dateFormatted = formatNotificationUpdatedDate(eventUpdateDate.withZoneSameInstant(zoneId));
+      ZoneId zoneId = Utils.getUserTimezone(identityManager, Long.parseLong(identityId));
+      String dateFormatted = AgendaDateUtils.toHourFormat(eventUpdateDate.withZoneSameInstant(zoneId));
       templateContext.put(TEMPLATE_VARIABLE_EVENT_MODIFIER, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_MODIFIER));
       templateContext.put(TEMPLATE_VARIABLE_MODIFIER_IDENTITY_URL, getUserAbsoluteURI(identityId));
       templateContext.put(TEMPLATE_VARIABLE_EVENT_UPDATE_DATE, dateFormatted);
@@ -215,9 +214,10 @@ public class NotificationUtils {
     return notificationURL;
   }
 
-  private static final void setIdentityNameAndAvatar(NotificationInfo notification, TemplateContext templateContext) {
+  private static final void setIdentityNameAndAvatar(IdentityManager identityManager,
+                                                     NotificationInfo notification,
+                                                     TemplateContext templateContext) {
     String ownerId = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_OWNER_ID);
-    IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
     Identity identity = identityManager.getIdentity(ownerId);
     if (identity != null) {
       String avatarUrl = identity.getProfile().getAvatarUrl();
@@ -289,22 +289,6 @@ public class NotificationUtils {
     }
     return currentDomain + "portal/" + currentSite + "/profile/" + identityId;
   }
-
-  private static ZoneId getZoneId(String idUser) {
-    ZoneId timezoneObject = null;
-    IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
-    Identity identity = identityManager.getIdentity(String.valueOf(idUser));
-    String timeZone = identity.getProfile().getTimeZone();
-    if (StringUtils.isNotBlank(timeZone)) {
-      timezoneObject = TimeZone.getTimeZone(timeZone).toZoneId();
-    } else {
-      timezoneObject = ZoneId.systemDefault();
-    }
-    return timezoneObject;
-  }
-
-  public static String formatNotificationUpdatedDate(ZonedDateTime zonedDateTime) {
-    return DateTimeFormatter.ofPattern(FORMAT_UPDATED_DATE).format(zonedDateTime);
-  }
+  
 
 }

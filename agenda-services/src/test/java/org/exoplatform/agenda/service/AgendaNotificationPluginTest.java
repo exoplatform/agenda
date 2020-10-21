@@ -57,7 +57,8 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
                                                                                      identityManager,
                                                                                      agendaEventService,
                                                                                      agendaEventAttendeeService,
-                                                                                     agendaCalendarService);
+                                                                                     agendaCalendarService,
+                                                                                     spaceService);
     NotificationContext ctx = NotificationContextImpl.cloneInstance()
                                                      .append(NotificationUtils.EVENT_ID, createdEvent.getId())
                                                      .append(EVENT_TITLE, createdEvent.getSummary())
@@ -120,7 +121,8 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
                                                                                      identityManager,
                                                                                      agendaEventService,
                                                                                      agendaEventAttendeeService,
-                                                                                     agendaCalendarService);
+                                                                                     agendaCalendarService,
+                                                                                     spaceService);
     NotificationContext ctx = NotificationContextImpl.cloneInstance()
                                                      .append(NotificationUtils.EVENT_ID, updatedEvent.getId())
                                                      .append(EVENT_TITLE, updatedEvent.getSummary())
