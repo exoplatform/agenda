@@ -178,10 +178,31 @@ public class EntityBuilder {
                                    AgendaDateUtils.toRFC3339Date(eventReminder.getDatetime()));
   }
 
+  public static final EventSearchResultEntity fromSearchEvent(AgendaCalendarService agendaCalendarService,
+                                                              AgendaEventService agendaEventService,
+                                                              IdentityManager identityManager,
+                                                              EventSearchResult eventSearchResult) {
+    EventSearchResultEntity eventSearchResultEntity = (EventSearchResultEntity) fromEvent(agendaCalendarService,
+                                                                                          agendaEventService,
+                                                                                          identityManager,
+                                                                                          eventSearchResult,
+                                                                                          true);
+    eventSearchResultEntity.setExcerpts(eventSearchResult.getExcerpts());
+    return eventSearchResultEntity;
+  }
+
   public static final EventEntity fromEvent(AgendaCalendarService agendaCalendarService,
                                             AgendaEventService agendaEventService,
                                             IdentityManager identityManager,
                                             Event event) {
+    return fromEvent(agendaCalendarService, agendaEventService, identityManager, event, false);
+  }
+
+  private static final EventEntity fromEvent(AgendaCalendarService agendaCalendarService,
+                                             AgendaEventService agendaEventService,
+                                             IdentityManager identityManager,
+                                             Event event,
+                                             boolean isSearch) {
     EventRecurrence recurrence = event.getRecurrence();
     EventRecurrenceEntity recurrenceEntity = null;
     if (recurrence != null) {
@@ -212,33 +233,64 @@ public class EntityBuilder {
       parentEvent = getEventEntity(agendaCalendarService, agendaEventService, identityManager, parentId);
     }
 
-    return new EventEntity(event.getId(),
-                           parentEvent,
-                           event.getRemoteId(),
-                           event.getRemoteProviderId(),
-                           getCalendarEntity(agendaCalendarService, identityManager, event.getCalendarId()),
-                           getIdentityEntity(identityManager, event.getCreatorId()),
-                           AgendaDateUtils.toRFC3339Date(event.getCreated()),
-                           AgendaDateUtils.toRFC3339Date(event.getUpdated()),
-                           event.getSummary(),
-                           event.getDescription(),
-                           event.getLocation(),
-                           event.getColor(),
-                           AgendaDateUtils.toRFC3339Date(event.getStart(), event.isAllDay()),
-                           AgendaDateUtils.toRFC3339Date(event.getEnd(), event.isAllDay()),
-                           event.isAllDay(),
-                           event.getAvailability(),
-                           event.getStatus(),
-                           recurrenceEntity,
-                           occurrenceEntity,
-                           event.getAcl(),
-                           null,
-                           null,
-                           null,
-                           null,
-                           event.isAllowAttendeeToUpdate(),
-                           event.isAllowAttendeeToInvite(),
-                           false);
+    if (isSearch) {
+      return new EventSearchResultEntity(event.getId(),
+                                         parentEvent,
+                                         event.getRemoteId(),
+                                         event.getRemoteProviderId(),
+                                         getCalendarEntity(agendaCalendarService, identityManager, event.getCalendarId()),
+                                         getIdentityEntity(identityManager, event.getCreatorId()),
+                                         AgendaDateUtils.toRFC3339Date(event.getCreated()),
+                                         AgendaDateUtils.toRFC3339Date(event.getUpdated()),
+                                         event.getSummary(),
+                                         event.getDescription(),
+                                         event.getLocation(),
+                                         event.getColor(),
+                                         AgendaDateUtils.toRFC3339Date(event.getStart(), event.isAllDay()),
+                                         AgendaDateUtils.toRFC3339Date(event.getEnd(), event.isAllDay()),
+                                         event.isAllDay(),
+                                         event.getAvailability(),
+                                         event.getStatus(),
+                                         recurrenceEntity,
+                                         occurrenceEntity,
+                                         event.getAcl(),
+                                         null,
+                                         null,
+                                         null,
+                                         null,
+                                         event.isAllowAttendeeToUpdate(),
+                                         event.isAllowAttendeeToInvite(),
+                                         false,
+                                         null);
+    } else {
+      return new EventEntity(event.getId(),
+                             parentEvent,
+                             event.getRemoteId(),
+                             event.getRemoteProviderId(),
+                             getCalendarEntity(agendaCalendarService, identityManager, event.getCalendarId()),
+                             getIdentityEntity(identityManager, event.getCreatorId()),
+                             AgendaDateUtils.toRFC3339Date(event.getCreated()),
+                             AgendaDateUtils.toRFC3339Date(event.getUpdated()),
+                             event.getSummary(),
+                             event.getDescription(),
+                             event.getLocation(),
+                             event.getColor(),
+                             AgendaDateUtils.toRFC3339Date(event.getStart(), event.isAllDay()),
+                             AgendaDateUtils.toRFC3339Date(event.getEnd(), event.isAllDay()),
+                             event.isAllDay(),
+                             event.getAvailability(),
+                             event.getStatus(),
+                             recurrenceEntity,
+                             occurrenceEntity,
+                             event.getAcl(),
+                             null,
+                             null,
+                             null,
+                             null,
+                             event.isAllowAttendeeToUpdate(),
+                             event.isAllowAttendeeToInvite(),
+                             false);
+    }
   }
 
   private static CalendarEntity getCalendarEntity(AgendaCalendarService agendaCalendarService,
