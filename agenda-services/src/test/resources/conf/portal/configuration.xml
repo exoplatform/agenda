@@ -41,6 +41,21 @@
     </init-params>
   </component>
 
+  <component>
+    <type>org.exoplatform.agenda.search.AgendaSearchConnector</type>
+    <init-params>
+      <value-param>
+        <name>query.file.path</name>
+        <value>${exo.agenda.es.query.path:jar:/agenda-search-query.json}</value>
+      </value-param>
+      <properties-param>
+        <name>constructor.params</name>
+        <property name="searchType" value="event" />
+        <property name="index" value="event_alias" />
+      </properties-param>
+    </init-params>
+  </component>
+
   <!-- Commons Services -->
   <component>
     <type>org.exoplatform.commons.persistence.impl.EntityManagerService</type>

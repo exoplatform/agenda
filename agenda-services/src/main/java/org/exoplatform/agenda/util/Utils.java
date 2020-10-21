@@ -22,6 +22,7 @@ import java.time.format.TextStyle;
 import java.time.zone.ZoneOffsetTransition;
 import java.time.zone.ZoneRules;
 import java.util.*;
+import java.util.Date;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
@@ -47,11 +48,31 @@ import net.fortuna.ical4j.model.property.*;
 
 public class Utils {
 
-  private static final Log LOG = ExoLogger.getLogger(Utils.class);
+  private static final Log              LOG                            = ExoLogger.getLogger(Utils.class);
 
-  private static final TimeZoneRegistry ICAL4J_TIME_ZONE_REGISTRY = TimeZoneRegistryFactory.getInstance().createRegistry();
+  private static final TimeZoneRegistry ICAL4J_TIME_ZONE_REGISTRY      = TimeZoneRegistryFactory.getInstance().createRegistry();
+
+  public static final String            POST_CREATE_AGENDA_EVENT_EVENT = "exo.agenda.event.created";
+
+  public static final String            POST_UPDATE_AGENDA_EVENT_EVENT = "exo.agenda.event.updated";
+
+  public static final String            POST_DELETE_AGENDA_EVENT_EVENT = "exo.agenda.event.deleted";
 
   private Utils() {
+  }
+
+  public static List<Long> getCalendarOwnersOfUser(SpaceService spaceService,
+                                                   IdentityManager identityManager,
+                                                   Identity userIdentity) {
+    List<Long> calendarOwners = new ArrayList<>();
+    String userIdentityId = userIdentity.getId();
+    calendarOwners.add(Long.parseLong(userIdentityId));
+    try {
+      Utils.addUserSpacesIdentities(spaceService, identityManager, userIdentity.getRemoteId(), calendarOwners);
+    } catch (Exception e) {
+      throw new IllegalStateException("Error while retrieving spaces of user with id: " + userIdentityId, e);
+    }
+    return calendarOwners;
   }
 
   public static void addUserSpacesIdentities(SpaceService spaceService,
@@ -317,12 +338,11 @@ public class Utils {
     }
   }
 
-  public static Identity getIdentityById(long identityId) {
-    return getIdentityById(String.valueOf(identityId));
+  public static Identity getIdentityById(IdentityManager identityManager, long identityId) {
+    return getIdentityById(identityManager, String.valueOf(identityId));
   }
 
-  public static Identity getIdentityById(String identityId) {
-    IdentityManager identityManager = CommonsUtils.getService(IdentityManager.class);
+  public static Identity getIdentityById(IdentityManager identityManager, String identityId) {
     return identityManager.getIdentity(identityId);
   }
 
@@ -451,5 +471,25 @@ public class Utils {
       ZoneOffsetTransition previousTransition = zoneId.getRules().nextTransition(zonedDateTime.toInstant());
       return previousTransition.getDateTimeBefore();
     }
+  }
+
+  public static ZoneId getUserTimezone(IdentityManager identityManager, long identityId) {
+    Identity userIdentity = identityManager.getIdentity(String.valueOf(identityId));
+    return getUserTimezone(userIdentity);
+  }
+
+  public static ZoneId getUserTimezone(Identity userIdentity) {
+    if (userIdentity == null || userIdentity.getProfile().getTimeZone() == null) {
+      return ZoneId.systemDefault();
+    } else {
+      String timeZoneId = userIdentity.getProfile().getTimeZone();
+      return java.util.TimeZone.getTimeZone(timeZoneId).toZoneId();
+    }
+  }
+
+  public static ZonedDateTime toDateTime(String dateTimeString, ZoneId userTimeZone) {
+    long dateTimeMS = Long.parseLong(dateTimeString);
+    ZonedDateTime dateTime = AgendaDateUtils.fromDate(new Date(dateTimeMS));
+    return dateTime.withZoneSameLocal(ZoneOffset.UTC).withZoneSameInstant(userTimeZone);
   }
 }

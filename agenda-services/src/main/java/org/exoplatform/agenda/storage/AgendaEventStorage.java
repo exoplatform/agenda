@@ -25,7 +25,6 @@ import org.exoplatform.agenda.dao.*;
 import org.exoplatform.agenda.entity.*;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.util.*;
-import org.exoplatform.services.listener.ListenerService;
 
 public class AgendaEventStorage {
 
@@ -37,18 +36,14 @@ public class AgendaEventStorage {
 
   private EventRecurrenceDAO eventRecurrenceDAO;
 
-  private ListenerService    listenerService;
-
   public AgendaEventStorage(RemoteProviderDAO remoteProviderDAO,
                             CalendarDAO calendarDAO,
                             EventDAO eventDAO,
-                            EventRecurrenceDAO eventRecurrenceDAO,
-                            ListenerService listenerService) {
+                            EventRecurrenceDAO eventRecurrenceDAO) {
     this.calendarDAO = calendarDAO;
     this.remoteProviderDAO = remoteProviderDAO;
     this.eventDAO = eventDAO;
     this.eventRecurrenceDAO = eventRecurrenceDAO;
-    this.listenerService = listenerService;
   }
 
   public List<Long> getEventIdsByOwnerIds(ZonedDateTime start, ZonedDateTime end, int limit, Long... ownerIds) {
@@ -92,9 +87,6 @@ public class AgendaEventStorage {
 
   public void deleteEventById(long eventId) {
     EventEntity eventEntity = eventDAO.deleteEvent(eventId);
-    if (eventEntity != null) {
-      Utils.broadcastEvent(listenerService, "exo.agenda.event.deleted", EntityMapper.fromEntity(eventEntity), 0);
-    }
   }
 
   public List<RemoteProvider> getRemoteProviders() {
@@ -154,8 +146,6 @@ public class AgendaEventStorage {
 
     event = EntityMapper.fromEntity(eventEntity);
     long creatorId = eventEntity.getCreatorId();
-
-    Utils.broadcastEvent(listenerService, "exo.agenda.event.created", event, creatorId);
     return event;
   }
 
@@ -187,8 +177,6 @@ public class AgendaEventStorage {
     eventEntity = eventDAO.update(eventEntity);
     eventEntity = eventDAO.find(eventEntity.getId());
     event = EntityMapper.fromEntity(eventEntity);
-
-    Utils.broadcastEvent(listenerService, "exo.agenda.event.updated", event, modifierId);
 
     return event;
   }

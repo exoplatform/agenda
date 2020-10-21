@@ -1,0 +1,43 @@
+{
+  "hits": {
+    "total": 2,
+    "max_score": 1,
+    "hits": [
+      {
+        "_index": "event_v1",
+        "_type": "event",
+        "_id": "1",
+        "_score": 1,
+        "_source": {
+          "summary": "summary containing searchTerm",
+          "isExceptional": "false",
+          "lastUpdatedDate": 1603102578000,
+          "attendees": "[1, 23, 28, 43, 71]",
+          "calendarId": "1",
+          "permissions": [
+            "1",
+            "23",
+            "13",
+            "28",
+            "71",
+            "43"
+          ],
+          "description": "eventDescription",
+          "startTime": "1602979200000",
+          "location": "eventLocation",
+          "id": "1",
+          "endTime": "1603151999000",
+          "ownerId": "1"
+        },
+        "highlight" : {
+          "summary": [
+            "summary containing <span class='searchMatchExcerpt'>searchTerm</span>"
+          ],
+          "description": [
+            "description containing <span class='searchMatchExcerpt'>searchTerm</span>"
+          ]
+        }
+      }
+    ]
+  }
+}
