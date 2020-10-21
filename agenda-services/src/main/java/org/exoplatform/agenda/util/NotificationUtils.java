@@ -2,6 +2,7 @@ package org.exoplatform.agenda.util;
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import org.apache.commons.lang.StringUtils;
@@ -80,6 +81,8 @@ public class NotificationUtils {
 
   private static String                        defaultSite;
 
+  private static final String                  FORMAT_UPDATED_DATE                       = "hh a";
+
   private NotificationUtils() {
   }
 
@@ -129,14 +132,18 @@ public class NotificationUtils {
     if (event == null) {
       throw new IllegalArgumentException("event is null");
     }
+    Identity identity = Utils.getIdentityById(event.getCreatorId());
     notification.with(STORED_PARAMETER_EVENT_ID, String.valueOf(event.getId()))
                 .with(STORED_PARAMETER_EVENT_TITLE, event.getSummary())
                 .with(STORED_PARAMETER_EVENT_OWNER_ID, String.valueOf(calendar.getOwnerId()))
                 .with(STORED_PARAMETER_EVENT_URL, getEventURL(event))
-                .with(STORED_PARAMETER_EVENT_CREATOR, getEventCreatorOrModifierUserName(event.getCreatorId()))
+                .with(STORED_PARAMETER_EVENT_CREATOR,
+                      getEventNotificationCreatorOrModifierUserName(identity))
                 .with(STORED_PARAMETER_EVENT_IS_NEW, String.valueOf(isNew));
     if (event.getModifierId() > 0) {
-      notification.with(STORED_PARAMETER_EVENT_MODIFIER, getEventCreatorOrModifierUserName(event.getModifierId()))
+      identity = Utils.getIdentityById(event.getModifierId());
+      notification.with(STORED_PARAMETER_EVENT_MODIFIER,
+                        getEventNotificationCreatorOrModifierUserName(identity))
                   .with(STORED_PARAMETER_MODIFIER_IDENTITY_ID, String.valueOf(event.getModifierId()))
                   .with(STORED_PARAMETER_EVENT_UPDATED_DATE, AgendaDateUtils.toRFC3339Date(event.getUpdated()));
     }
@@ -170,7 +177,7 @@ public class NotificationUtils {
       ZonedDateTime eventUpdateDate =
                                     ZonedDateTime.parse(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_UPDATED_DATE));
       ZoneId zoneId = getZoneId(identityId);
-      String dateFormatted = AgendaDateUtils.formatUpdatedDate(eventUpdateDate.withZoneSameInstant(zoneId));
+      String dateFormatted = formatNotificationUpdatedDate(eventUpdateDate.withZoneSameInstant(zoneId));
       templateContext.put(TEMPLATE_VARIABLE_EVENT_MODIFIER, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_MODIFIER));
       templateContext.put(TEMPLATE_VARIABLE_MODIFIER_IDENTITY_URL, getUserAbsoluteURI(identityId));
       templateContext.put(TEMPLATE_VARIABLE_EVENT_UPDATE_DATE, dateFormatted);
@@ -270,19 +277,17 @@ public class NotificationUtils {
                                                                      TimeConvertUtils.YEAR));
   }
 
-  private static final String getEventCreatorOrModifierUserName(long idUser) {
-    IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
-    Identity identity = identityManager.getIdentity(String.valueOf(idUser));
+  private static final String getEventNotificationCreatorOrModifierUserName(Identity identity) {
     return identity.getProfile().getFullName();
   }
 
-  private static String getUserAbsoluteURI(String id) {
+  private static String getUserAbsoluteURI(String identityId) {
     String currentSite = CommonsUtils.getCurrentSite().getName();
     String currentDomain = CommonsUtils.getCurrentDomain();
     if (!currentDomain.endsWith("/")) {
       currentDomain += "/";
     }
-    return currentDomain + "portal/" + currentSite + "/profile/" + id;
+    return currentDomain + "portal/" + currentSite + "/profile/" + identityId;
   }
 
   private static ZoneId getZoneId(String idUser) {
@@ -296,6 +301,10 @@ public class NotificationUtils {
       timezoneObject = ZoneId.systemDefault();
     }
     return timezoneObject;
+  }
+
+  public static String formatNotificationUpdatedDate(ZonedDateTime zonedDateTime) {
+    return DateTimeFormatter.ofPattern(FORMAT_UPDATED_DATE).format(zonedDateTime);
   }
 
 }

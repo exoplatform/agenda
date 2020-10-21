@@ -40,7 +40,6 @@ public class AgendaDateUtils {
   public static final DateTimeFormatter TIMEZONE_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss")
                                                                                    .withResolverStyle(ResolverStyle.LENIENT);
 
-  private static final String           DATE_FORMAT             = "hh a";
 
   private AgendaDateUtils() {
   }
@@ -135,9 +134,6 @@ public class AgendaDateUtils {
     }
     return ZonedDateTime.parse(occurrenceId, OCCURRENCE_ID_FORMATTER);
   }
-  
-  public static String formatUpdatedDate(ZonedDateTime zonedDateTime) {
-    return DateTimeFormatter.ofPattern(DATE_FORMAT).format(zonedDateTime);
-  }
+
 
 }
