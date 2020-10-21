@@ -1,19 +1,13 @@
 package org.exoplatform.agenda.search;
 
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.when;
 
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.List;
-import java.util.Locale;
 
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.Event;
-import org.exoplatform.agenda.model.EventAttendee;
 import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.agenda.service.AgendaEventAttendeeService;
 import org.exoplatform.agenda.service.AgendaEventService;
@@ -27,14 +21,6 @@ import org.mockito.runners.MockitoJUnitRunner;
 import org.exoplatform.commons.search.domain.Document;
 import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.container.xml.PropertiesParam;
-import org.exoplatform.social.core.activity.model.*;
-import org.exoplatform.social.core.activity.model.ActivityStream.Type;
-import org.exoplatform.social.core.identity.model.Identity;
-import org.exoplatform.social.core.jpa.search.ActivityIndexingServiceConnector;
-import org.exoplatform.social.core.jpa.search.ActivitySearchProcessor;
-import org.exoplatform.social.core.manager.ActivityManager;
-import org.exoplatform.social.core.manager.IdentityManager;
-import org.exoplatform.social.core.processor.I18NActivityProcessor;
 
 @RunWith(MockitoJUnitRunner.class)
 public class AgendaIndexingServiceConnectorTest extends BaseAgendaEventTest {
@@ -109,7 +95,11 @@ public class AgendaIndexingServiceConnectorTest extends BaseAgendaEventTest {
     Event event = newEventInstance(start, start, allDay);
     event = createEvent(event.clone(), creatorUserName, testuser2Identity);
     event.setParentId(9L);
-
+    long calendarId = 13;
+    Calendar calendar = new Calendar();
+    calendar.setId(calendarId);
+    calendar.setOwnerId(1L);
+    when(agendaCalendarService.getCalendarById(calendarId)).thenReturn(calendar);
     when(agendaEventService.getEventById(eq(eventId))).thenReturn(event);
     Document document = agendaIndexingServiceConnector.create("1");
 
@@ -117,6 +107,8 @@ public class AgendaIndexingServiceConnectorTest extends BaseAgendaEventTest {
     assertEquals("1", document.getId());
     assertEquals("2", document.getFields().get("id"));
     assertEquals("9", document.getFields().get("parentId"));
+    assertEquals("1", document.getFields().get("ownerId"));
+    assertEquals(String.valueOf(calendarId), document.getFields().get("calendarId"));
     assertEquals(event.getSummary(), document.getFields().get("summary"));
     assertEquals(event.getDescription(), document.getFields().get("description"));
     assertEquals(event.getLocation(), document.getFields().get("location"));
@@ -124,8 +116,6 @@ public class AgendaIndexingServiceConnectorTest extends BaseAgendaEventTest {
     long eventEndTimeInMS = AgendaDateUtils.toDate(event.getEnd()).getTime();
     assertEquals(Long.toString(eventStartTimeInMS), document.getFields().get("startTime"));
     assertEquals(Long.toString(eventEndTimeInMS), document.getFields().get("endTime"));
-    assertEquals("false", document.getFields().get("isExceptional"));
-    assertEquals("true", document.getFields().get("isRecurrent"));
   }
 
   @Test
@@ -155,13 +145,19 @@ public class AgendaIndexingServiceConnectorTest extends BaseAgendaEventTest {
     long eventId = 3;
     Event event = newEventInstance(start, start, allDay);
     event = createEvent(event.clone(), creatorUserName, testuser2Identity);
-
+    long calendarId = 15;
+    Calendar calendar = new Calendar();
+    calendar.setId(calendarId);
+    calendar.setOwnerId(1L);
+    when(agendaCalendarService.getCalendarById(calendarId)).thenReturn(calendar);
     when(agendaEventService.getEventById(eq(eventId))).thenReturn(event);
 
     Document document = agendaIndexingServiceConnector.update("3");
     assertNotNull(document);
     assertEquals("3", document.getId());
     assertEquals("3", document.getFields().get("id"));
+    assertEquals("1", document.getFields().get("ownerId"));
+    assertEquals(String.valueOf(calendarId), document.getFields().get("calendarId"));
     assertEquals(event.getSummary(), document.getFields().get("summary"));
     assertEquals(event.getDescription(), document.getFields().get("description"));
     assertEquals(event.getLocation(), document.getFields().get("location"));
@@ -169,8 +165,6 @@ public class AgendaIndexingServiceConnectorTest extends BaseAgendaEventTest {
     long eventEndTimeInMS = AgendaDateUtils.toDate(event.getEnd()).getTime();
     assertEquals(Long.toString(eventStartTimeInMS), document.getFields().get("startTime"));
     assertEquals(Long.toString(eventEndTimeInMS), document.getFields().get("endTime"));
-    assertEquals("false", document.getFields().get("isExceptional"));
-    assertEquals("true", document.getFields().get("isRecurrent"));
   }
 
   private InitParams getParams() {

@@ -13,7 +13,7 @@
           "isExceptional": "false",
           "lastUpdatedDate": 1603102578000,
           "attendees": "[1, 23, 28, 43, 71]",
-          "isRecurrent": "true",
+          "calendarId": "1",
           "permissions": [
             "1",
             "23",
@@ -36,34 +36,6 @@
           "description": [
             "description containing <span class='searchMatchExcerpt'>searchTerm</span>"
           ]
-        }
-      },
-      {
-        "_index": "event_v1",
-        "_type": "event",
-        "_id": "4",
-        "_score": 1,
-        "_source": {
-          "summary": "event title",
-          "isExceptional": "true",
-          "attendees": "[23, 28, 43, 71]",
-          "isRecurrent": "false",
-          "description": "event description",
-          "occurrenceId": "1603274400",
-          "ownerId": "13",
-          "parentId": "2",
-          "lastUpdatedDate": 1603103274000,
-          "permissions": [
-            "23",
-            "13",
-            "28",
-            "71",
-            "43"
-          ],
-          "startTime": "1603270800000",
-          "location": "Tunis, Tunisia",
-          "id": "4",
-          "endTime": "1603280700"
         }
       }
     ]

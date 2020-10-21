@@ -22,6 +22,7 @@ import java.time.format.TextStyle;
 import java.time.zone.ZoneOffsetTransition;
 import java.time.zone.ZoneRules;
 import java.util.*;
+import java.util.Date;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
@@ -484,5 +485,11 @@ public class Utils {
       String timeZoneId = userIdentity.getProfile().getTimeZone();
       return java.util.TimeZone.getTimeZone(timeZoneId).toZoneId();
     }
+  }
+
+  public static ZonedDateTime toDateTime(String dateTimeString, ZoneId userTimeZone) {
+    long dateTimeMS = Long.parseLong(dateTimeString);
+    ZonedDateTime dateTime = AgendaDateUtils.fromDate(new Date(dateTimeMS));
+    return dateTime.withZoneSameLocal(ZoneOffset.UTC).withZoneSameInstant(userTimeZone);
   }
 }

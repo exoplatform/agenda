@@ -8,10 +8,7 @@ import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
+import java.time.*;
 import java.util.*;
 
 import org.apache.commons.lang.StringUtils;
@@ -19,7 +16,6 @@ import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventSearchResult;
 import org.exoplatform.agenda.service.AgendaEventServiceImpl;
 import org.exoplatform.agenda.service.BaseAgendaEventTest;
-import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.ListAccess;
@@ -38,14 +34,8 @@ import org.exoplatform.commons.utils.IOUtil;
 import org.exoplatform.commons.utils.PropertyManager;
 import org.exoplatform.container.configuration.ConfigurationManager;
 import org.exoplatform.container.xml.*;
-import org.exoplatform.social.core.activity.filter.ActivitySearchFilter;
-import org.exoplatform.social.core.activity.model.*;
-import org.exoplatform.social.core.activity.model.ActivityStream.Type;
 import org.exoplatform.social.core.identity.model.Identity;
-import org.exoplatform.social.core.jpa.search.ActivitySearchConnector;
-import org.exoplatform.social.core.jpa.search.ActivitySearchProcessor;
 import org.exoplatform.social.core.manager.IdentityManager;
-import org.exoplatform.social.core.storage.api.ActivityStorage;
 import org.mockito.stubbing.Answer;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -112,27 +102,27 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
 
     String term = "searchTerm";
     try {
-      agendaSearchConnector.search(null, term, 0, 10);
-      fail("Should throw IllegalArgumentException: viewer identity is mandatory");
+      agendaSearchConnector.search(-1, ZoneId.of("US/Hawaii"), term, 0, 10);
+      fail("Should throw IllegalArgumentException: viewer identity id is mandatory");
     } catch (IllegalArgumentException e) {
       // Expected
     }
     Identity identity = mock(Identity.class);
     when(identity.getId()).thenReturn("1");
     try {
-      agendaSearchConnector.search(identity, null, 0, 10);
+      agendaSearchConnector.search(Long.parseLong(identity.getId()), ZoneId.of("US/Hawaii"), null, 0, 10);
       fail("Should throw IllegalArgumentException: filter is mandatory");
     } catch (IllegalArgumentException e) {
       // Expected
     }
     try {
-      agendaSearchConnector.search(identity, term, -1, 10);
+      agendaSearchConnector.search(Long.parseLong(identity.getId()), ZoneId.of("US/Hawaii"), term, -1, 10);
       fail("Should throw IllegalArgumentException: offset should be positive");
     } catch (IllegalArgumentException e) {
       // Expected
     }
     try {
-      agendaSearchConnector.search(identity, term, 0, -1);
+      agendaSearchConnector.search(Long.parseLong(identity.getId()), ZoneId.of("US/Hawaii"), term, 0, -1);
       fail("Should throw IllegalArgumentException: limit should be positive");
     } catch (IllegalArgumentException e) {
       // Expected
@@ -152,6 +142,7 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
     Identity identity = mock(Identity.class);
     when(identity.getId()).thenReturn("1");
     when(identity.getRemoteId()).thenReturn("testuser1");
+    when(Utils.getIdentityById(identityManager, 1L)).thenReturn(identity);
     String expectedESQuery = FAKE_ES_QUERY.replaceAll("@term@", term)
                                           .replaceAll("@permissions@", StringUtils.join(permissions, ","))
                                           .replaceAll("@offset@", "0")
@@ -187,7 +178,7 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
       }
     });
 
-    List<EventSearchResult> result = agendaSearchConnector.search(identity, term, 0, 10);
+    List<EventSearchResult> result = agendaSearchConnector.search(Long.parseLong(identity.getId()), ZoneId.of("US/Hawaii"), term, 0, 10);
     assertNotNull(result);
     assertEquals(0, result.size());
   }
@@ -205,13 +196,13 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
     Identity identity = mock(Identity.class);
     when(identity.getId()).thenReturn("1");
     when(identity.getRemoteId()).thenReturn("testuser1");
-    //when(activityStorage.getStreamFeedOwnerIds(eq(identity))).thenReturn(permissions);
+    when(Utils.getIdentityById(identityManager, 1L)).thenReturn(identity);
     String expectedESQuery = FAKE_ES_QUERY.replaceAll("@term@", term)
                                           .replaceAll("@permissions@", StringUtils.join(permissions, ","))
                                           .replaceAll("@offset@", "0")
                                           .replaceAll("@limit@", "10");
     when(client.sendRequest(eq(expectedESQuery), eq(ES_INDEX), eq(ES_TYPE))).thenReturn(searchResult);
-    long startTime = 1603065600000L;
+    long startTime = 1602979200000L;
     long endTime = 1603151999000L;
     ZonedDateTime start =  ZonedDateTime.ofInstant(Instant.ofEpochMilli(startTime),
             ZoneId.systemDefault());
@@ -255,7 +246,7 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
       }
     });
 
-    List<EventSearchResult> result = agendaSearchConnector.search(identity, term, 0, 10);
+    List<EventSearchResult> result = agendaSearchConnector.search(Long.parseLong(identity.getId()), ZoneId.of("US/Hawaii"), term, 0, 10);
     assertNotNull(result);
     assertEquals(1, result.size());
 
@@ -264,13 +255,13 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
     assertTrue(eventSearchResult.getSummary().contains("searchMatchExcerpt"));
     assertTrue(eventSearchResult.getSummary().contains(term));
     assertEquals(event.getDescription(), eventSearchResult.getDescription());
-    assertEquals(1L, eventSearchResult.getOwnerId());
+    assertEquals(1L, eventSearchResult.getCalendarId());
     assertEquals(event.getLocation(), eventSearchResult.getLocation());
 
-    long eventStartDateInMS = AgendaDateUtils.toDate(event.getStart()).getTime();
-    long eventEndDateInMS = AgendaDateUtils.toDate(event.getEnd()).getTime();
-    assertEquals(String.valueOf(eventStartDateInMS), eventSearchResult.getStart());
-    assertEquals(String.valueOf(eventEndDateInMS), eventSearchResult.getEnd());
+    ZonedDateTime eventStartDateInMS = Utils.toDateTime(String.valueOf(startTime), ZoneId.of("US/Hawaii"));
+    ZonedDateTime eventEndDateInMS = Utils.toDateTime(String.valueOf(endTime), ZoneId.of("US/Hawaii"));
+    assertEquals(eventStartDateInMS, eventSearchResult.getStart());
+    assertEquals(eventEndDateInMS, eventSearchResult.getEnd());
     assertEquals(1, eventSearchResult.getExcerpts().size());
   }
 

@@ -29,7 +29,6 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
 import org.exoplatform.agenda.model.EventSearchResult;
-import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.search.es.ElasticSearchException;
 import org.exoplatform.commons.search.es.client.ElasticSearchingClient;
@@ -98,6 +97,9 @@ public class AgendaSearchConnector {
     if (StringUtils.isBlank(term)) {
       throw new IllegalArgumentException("Filter term is mandatory");
     }
+    if (userIdentityId < 0) {
+      throw new IllegalArgumentException("User identity id must be positive");
+    }
 
     Identity userIdentity = Utils.getIdentityById(identityManager, userIdentityId);
     Set<Long> calendarOwnersOfUser = Optional.ofNullable(Utils.getCalendarOwnersOfUser(spaceService,
@@ -157,7 +159,7 @@ public class AgendaSearchConnector {
         JSONObject hitSource = (JSONObject) jsonHitObject.get("_source");
         long id = parseLong(hitSource, "id");
         String summary = (String) hitSource.get("summary");
-        Long calendarId = parseLong(hitSource, "calendarId");
+        long calendarId = parseLong(hitSource, "calendarId");
         String startTime = (String) hitSource.get("startTime");
         String endTime = (String) hitSource.get("endTime");
         String location = (String) hitSource.get("location");
@@ -182,8 +184,8 @@ public class AgendaSearchConnector {
         eventSearchResult.setId(id);
         eventSearchResult.setCalendarId(calendarId);
         eventSearchResult.setSummary(summary);
-        eventSearchResult.setStart(toDateTime(startTime, userTimeZone));
-        eventSearchResult.setEnd(toDateTime(endTime, userTimeZone));
+        eventSearchResult.setStart(Utils.toDateTime(startTime, userTimeZone));
+        eventSearchResult.setEnd(Utils.toDateTime(endTime, userTimeZone));
         eventSearchResult.setLocation(location);
         eventSearchResult.setSummary(summary);
         eventSearchResult.setDescription(description);
@@ -194,12 +196,6 @@ public class AgendaSearchConnector {
       }
     }
     return results;
-  }
-
-  private ZonedDateTime toDateTime(String dateTimeString, ZoneId userTimeZone) {
-    long dateTimeMS = Long.parseLong(dateTimeString);
-    ZonedDateTime dateTime = AgendaDateUtils.fromDate(new Date(dateTimeMS));
-    return dateTime.withZoneSameLocal(ZoneOffset.UTC).withZoneSameInstant(userTimeZone);
   }
 
   private Long parseLong(JSONObject hitSource, String key) {
