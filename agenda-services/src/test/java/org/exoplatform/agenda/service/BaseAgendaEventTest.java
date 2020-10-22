@@ -1,6 +1,5 @@
 package org.exoplatform.agenda.service;
 
-import java.io.IOException;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.TimeZone;
@@ -74,7 +73,7 @@ public abstract class BaseAgendaEventTest {
   protected Identity                                testuser5Identity;
 
   @Before
-  public void setUp() throws ObjectNotFoundException, IOException {
+  public void setUp() throws ObjectNotFoundException {
     container = PortalContainer.getInstance();
 
     agendaCalendarService = container.getComponentInstanceOfType(AgendaCalendarService.class);

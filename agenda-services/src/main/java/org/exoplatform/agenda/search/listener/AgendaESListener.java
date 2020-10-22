@@ -1,14 +1,12 @@
 package org.exoplatform.agenda.search.listener;
 
 import org.exoplatform.agenda.search.AgendaIndexingServiceConnector;
-import org.exoplatform.agenda.service.AgendaEventService;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.search.index.IndexingService;
-import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.services.listener.Event;
+import org.exoplatform.services.listener.Listener;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
-import org.exoplatform.services.listener.Listener;
 
 public class AgendaESListener extends Listener<Long, Object> {
   private static final Log      LOG = ExoLogger.getExoLogger(AgendaESListener.class);
@@ -34,13 +32,11 @@ public class AgendaESListener extends Listener<Long, Object> {
   }
 
   private void reindexAgendaEvent(String eventId, String cause) {
-    IndexingService indexingService = CommonsUtils.getService(IndexingService.class);
     LOG.debug("Notifying indexing service for event with id={}. Cause: {}", eventId, cause);
     indexingService.reindex(AgendaIndexingServiceConnector.TYPE, eventId);
   }
 
   private void unindexAgendaEvent(String eventId, String cause) {
-    IndexingService indexingService = CommonsUtils.getService(IndexingService.class);
     LOG.debug("Notifying unindexing service for event with id={}. Cause: {}", eventId, cause);
     indexingService.unindex(AgendaIndexingServiceConnector.TYPE, eventId);
   }
