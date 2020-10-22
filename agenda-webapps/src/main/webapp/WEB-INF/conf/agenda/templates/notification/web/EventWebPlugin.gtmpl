@@ -10,7 +10,7 @@
           <%
           String eventTitle = "<span class=\"user-name text-bold\">"+ eventTitle +"</span>";
           if ("true".equals(isNewEvent)) { %>
-            <%= _ctx.appRes("Notification.agenda.event.created", eventTitle) %>
+            <%= _ctx.appRes("Notification.agenda.event.created", eventTitle, creatorName) %>
           <% } else { %>
             <%= _ctx.appRes("Notification.agenda.event.updated", eventTitle) %>
           <% } %>
