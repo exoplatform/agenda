@@ -16,7 +16,6 @@ import org.exoplatform.commons.api.notification.service.template.TemplateContext
 import org.exoplatform.commons.notification.template.TemplateUtils;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.container.ExoContainer;
-import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -80,7 +79,7 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
       Event event = getEvent(notification);
       String notificationURL = getEventURL(event);
       String pushNotificationURL = isPushNotification ? notificationURL : null;
-      IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
+      IdentityManager identityManager = this.container.getComponentInstanceOfType(IdentityManager.class);
 
       TemplateContext templateContext = buildTemplateParameters(identityManager, templateProvider, notification);
       MessageInfo messageInfo = buildMessageSubjectAndBody(templateContext, notification, pushNotificationURL);

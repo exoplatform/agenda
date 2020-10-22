@@ -41,6 +41,9 @@ public class AgendaDateUtils {
   public static final DateTimeFormatter TIMEZONE_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss")
                                                                                    .withResolverStyle(ResolverStyle.LENIENT);
 
+  public static final DateTimeFormatter HOUR_DATE_FORMATTER     = DateTimeFormatter.ofPattern(HOUR_FORMAT)
+                                                                                   .withResolverStyle(ResolverStyle.LENIENT);
+
 
   private AgendaDateUtils() {
   }
@@ -137,7 +140,7 @@ public class AgendaDateUtils {
   }
 
   public static String toHourFormat(ZonedDateTime zonedDateTime) {
-    return DateTimeFormatter.ofPattern(HOUR_FORMAT).format(zonedDateTime);
+    return zonedDateTime.format(HOUR_DATE_FORMATTER);
   }
 
 
