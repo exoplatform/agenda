@@ -60,11 +60,11 @@
         </div>
         <div v-if="event.location" class="event-location align-center d-flex pb-5">
           <i class="uiIconCheckin darkGreyIcon uiIcon32x32 pr-5"></i>
-          <span>{{ event.location }}</span>
+          <span v-linkified="event.location"></span>
         </div>
         <div v-if="event.description" class="event-description d-flex pb-5">
           <i class="uiIconDescription darkGreyIcon uiIcon32x32 pr-5"></i>
-          <span class="mt-1 text-wrap text-left">{{ event.description }}</span>
+          <span v-linkified="event.description" class="mt-1 text-wrap text-left"></span>
         </div>
         <div
           v-if="event.attachments && event.attachments.length !== 0"
