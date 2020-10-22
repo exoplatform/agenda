@@ -4,6 +4,7 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.TimeZone;
 
+import org.exoplatform.agenda.storage.AgendaEventStorage;
 import org.junit.After;
 import org.junit.Before;
 
@@ -52,6 +53,8 @@ public abstract class BaseAgendaEventTest {
 
   protected AgendaEventReminderService              agendaEventReminderService;
 
+  protected AgendaEventStorage                      agendaEventStorage;
+
   protected RemoteProvider                          remoteProvider;
 
   protected Calendar                                calendar;
@@ -84,6 +87,7 @@ public abstract class BaseAgendaEventTest {
     agendaEventReminderService = container.getComponentInstanceOfType(AgendaEventReminderService.class);
     identityManager = container.getComponentInstanceOfType(IdentityManager.class);
     spaceService = container.getComponentInstanceOfType(SpaceService.class);
+    agendaEventStorage = container.getComponentInstanceOfType(AgendaEventStorage.class);
 
     TimeZone.setDefault(TimeZone.getTimeZone("US/Hawaii"));
 

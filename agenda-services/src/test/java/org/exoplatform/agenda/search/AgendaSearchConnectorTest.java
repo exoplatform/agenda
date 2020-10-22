@@ -86,7 +86,7 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
     agendaSearchConnector = new AgendaSearchConnector(configurationManager,
                                                       identityManager,
                                                       spaceService,
-                                                      null,
+                                                      agendaEventStorage,
                                                       client,
                                                       getParams());
   }
