@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see<http://www.gnu.org/licenses/>.
- */
+*/
 package org.exoplatform.agenda.storage;
 
 import java.time.ZoneOffset;
@@ -93,9 +93,9 @@ public class AgendaEventStorage {
   public List<RemoteProvider> getRemoteProviders() {
     List<RemoteProviderEntity> remoteProviders = remoteProviderDAO.findAll();
     return remoteProviders == null ? Collections.emptyList()
-            : remoteProviders.stream()
-            .map(remoteProviderEntity -> EntityMapper.fromEntity(remoteProviderEntity))
-            .collect(Collectors.toList());
+                                   : remoteProviders.stream()
+                                                    .map(remoteProviderEntity -> EntityMapper.fromEntity(remoteProviderEntity))
+                                                    .collect(Collectors.toList());
   }
 
   public RemoteProvider saveRemoteProvider(RemoteProvider remoteProvider) {
@@ -121,8 +121,8 @@ public class AgendaEventStorage {
                                                     ZonedDateTime start,
                                                     ZonedDateTime end) {
     return eventDAO.getExceptionalOccurenceEventIds(parentRecurrentEventId,
-            AgendaDateUtils.toDate(start),
-            AgendaDateUtils.toDate(end));
+                                                    AgendaDateUtils.toDate(start),
+                                                    AgendaDateUtils.toDate(end));
   }
 
   public Event createEvent(Event event) {
@@ -152,13 +152,13 @@ public class AgendaEventStorage {
     ZonedDateTime start = occurrenceId.toLocalDate().atStartOfDay(ZoneOffset.UTC);
     ZonedDateTime end = occurrenceId.toLocalDate().atStartOfDay(ZoneOffset.UTC).plusDays(1).minusSeconds(1);
     List<Long> exceptionalOccurenceEventIds = eventDAO.getExceptionalOccurenceEventIds(parentRecurrentEventId,
-            AgendaDateUtils.toDate(start),
-            AgendaDateUtils.toDate(end));
+                                                                                       AgendaDateUtils.toDate(start),
+                                                                                       AgendaDateUtils.toDate(end));
     if (exceptionalOccurenceEventIds == null || exceptionalOccurenceEventIds.isEmpty()) {
       return null;
     } else if (exceptionalOccurenceEventIds.size() > 1) {
       throw new IllegalStateException("More than one exceptional event on parent event " + parentRecurrentEventId
-              + " is found for occurrence of day" + occurrenceId);
+          + " is found for occurrence of day" + occurrenceId);
     }
     return getEventById(exceptionalOccurenceEventIds.get(0));
   }

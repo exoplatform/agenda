@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see<http://www.gnu.org/licenses/>.
- */
+*/
 package org.exoplatform.agenda.service;
 
 import java.time.ZoneId;
@@ -301,8 +301,8 @@ public interface AgendaEventService {
                                                 List<EventAttachment> attachments,
                                                 List<EventReminder> reminders,
                                                 ZonedDateTime occurrenceId) throws IllegalAccessException,
-          AgendaException,
-          ObjectNotFoundException;
+                                                                            AgendaException,
+                                                                            ObjectNotFoundException;
 
   /**
    * Search the list of events available with query for the currentUser

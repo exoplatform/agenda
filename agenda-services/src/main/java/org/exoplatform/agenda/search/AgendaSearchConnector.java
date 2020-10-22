@@ -108,10 +108,10 @@ public class AgendaSearchConnector {
 
     Identity userIdentity = Utils.getIdentityById(identityManager, userIdentityId);
     Set<Long> calendarOwnersOfUser = Optional.ofNullable(Utils.getCalendarOwnersOfUser(spaceService,
-            identityManager,
-            userIdentity))
-            .map(HashSet::new)
-            .orElse(null);
+                                                                                       identityManager,
+                                                                                       userIdentity))
+                                             .map(HashSet::new)
+                                             .orElse(null);
     calendarOwnersOfUser.add(userIdentityId);
     String esQuery = buildQueryStatement(calendarOwnersOfUser, term, offset, limit);
     String jsonResponse = this.client.sendRequest(esQuery, this.index, this.searchType);
@@ -129,10 +129,10 @@ public class AgendaSearchConnector {
     }).collect(Collectors.toList());
     String termQuery = StringUtils.join(termsQuery, " AND ");
     return retrieveSearchQuery().replaceAll("@term@", term)
-            .replaceAll("@term_query@", termQuery)
-            .replaceAll("@permissions@", StringUtils.join(calendarOwnersOfUser, ","))
-            .replaceAll("@offset@", String.valueOf(offset))
-            .replaceAll("@limit@", String.valueOf(limit));
+                                .replaceAll("@term_query@", termQuery)
+                                .replaceAll("@permissions@", StringUtils.join(calendarOwnersOfUser, ","))
+                                .replaceAll("@offset@", String.valueOf(offset))
+                                .replaceAll("@limit@", String.valueOf(limit));
   }
 
   @SuppressWarnings("rawtypes")

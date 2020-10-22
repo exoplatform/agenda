@@ -28,9 +28,9 @@ public class AgendaIndexingServiceConnectorTest extends BaseAgendaEventTest {
     this.attendeeService = container.getComponentInstanceOfType(AgendaEventAttendeeService.class);
 
     agendaIndexingServiceConnector = new AgendaIndexingServiceConnector(agendaCalendarService,
-            agendaEventService,
-            attendeeService,
-            getParams());
+                                                                        agendaEventService,
+                                                                        attendeeService,
+                                                                        getParams());
   }
 
   @Test
@@ -46,18 +46,18 @@ public class AgendaIndexingServiceConnectorTest extends BaseAgendaEventTest {
   @Test
   public void testCanReindex() {
     agendaIndexingServiceConnector = new AgendaIndexingServiceConnector(agendaCalendarService,
-            agendaEventService,
-            attendeeService,
-            getParams());
+                                                                        agendaEventService,
+                                                                        attendeeService,
+                                                                        getParams());
     assertFalse(agendaIndexingServiceConnector.canReindex());
   }
 
   @Test
   public void testGetType() {
     agendaIndexingServiceConnector = new AgendaIndexingServiceConnector(agendaCalendarService,
-            agendaEventService,
-            attendeeService,
-            getParams());
+                                                                        agendaEventService,
+                                                                        attendeeService,
+                                                                        getParams());
     assertEquals(AgendaIndexingServiceConnector.TYPE, agendaIndexingServiceConnector.getType());
   }
 
@@ -65,9 +65,9 @@ public class AgendaIndexingServiceConnectorTest extends BaseAgendaEventTest {
   public void testCreate() throws Exception {
     // NOSONAR
     agendaIndexingServiceConnector = new AgendaIndexingServiceConnector(agendaCalendarService,
-            agendaEventService,
-            attendeeService,
-            getParams());
+                                                                        agendaEventService,
+                                                                        attendeeService,
+                                                                        getParams());
     try {
       agendaIndexingServiceConnector.create(null);
       fail("IllegalArgumentException should be thrown");
@@ -107,9 +107,9 @@ public class AgendaIndexingServiceConnectorTest extends BaseAgendaEventTest {
   @Test
   public void testUpdate() throws Exception {
     agendaIndexingServiceConnector = new AgendaIndexingServiceConnector(agendaCalendarService,
-            agendaEventService,
-            attendeeService,
-            getParams());
+                                                                        agendaEventService,
+                                                                        attendeeService,
+                                                                        getParams());
     try {
       agendaIndexingServiceConnector.update(null);
       fail("IllegalArgumentException should be thrown");
