@@ -29,6 +29,7 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
 import org.exoplatform.agenda.model.EventSearchResult;
+import org.exoplatform.agenda.storage.AgendaEventStorage;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.search.es.ElasticSearchException;
 import org.exoplatform.commons.search.es.client.ElasticSearchingClient;
@@ -54,6 +55,8 @@ public class AgendaSearchConnector {
 
   private final SpaceService           spaceService;
 
+  private final AgendaEventStorage     agendaEventStorage;
+
   private final ElasticSearchingClient client;
 
   private String                       index;
@@ -67,11 +70,13 @@ public class AgendaSearchConnector {
   public AgendaSearchConnector(ConfigurationManager configurationManager,
                                IdentityManager identityManager,
                                SpaceService spaceService,
+                               AgendaEventStorage agendaEventStorage,
                                ElasticSearchingClient client,
                                InitParams initParams) {
     this.configurationManager = configurationManager;
     this.identityManager = identityManager;
     this.spaceService = spaceService;
+    this.agendaEventStorage = agendaEventStorage;
     this.client = client;
 
     PropertiesParam param = initParams.getPropertiesParam("constructor.params");
@@ -190,6 +195,7 @@ public class AgendaSearchConnector {
         eventSearchResult.setSummary(summary);
         eventSearchResult.setDescription(description);
         eventSearchResult.setExcerpts(excerpts);
+        eventSearchResult.setRecurrent(agendaEventStorage.isRecurrentEvent(id));
         results.add(eventSearchResult);
       } catch (Exception e) {
         LOG.warn("Error processing event search result item, ignore it from results", e);

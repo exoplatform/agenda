@@ -60,6 +60,8 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
   @Mock
   ElasticSearchingClient      client;
 
+  AgendaSearchConnector       agendaSearchConnector;                                                                                       // NOSONAR
+
   String                      searchResult    = null;
 
   boolean                     developingValue = false;
@@ -80,6 +82,13 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
     developingValue = PropertyManager.isDevelopping();
     PropertyManager.setProperty(PropertyManager.DEVELOPING, "false");
     PropertyManager.refresh();
+
+    agendaSearchConnector = new AgendaSearchConnector(configurationManager,
+                                                      identityManager,
+                                                      spaceService,
+                                                      null,
+                                                      client,
+                                                      getParams());
   }
 
   @Override
@@ -92,11 +101,6 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
 
   @Test
   public void testSearchArguments() {
-    AgendaSearchConnector agendaSearchConnector = new AgendaSearchConnector(configurationManager,
-                                                                            identityManager,
-                                                                            spaceService,
-                                                                            client,
-                                                                            getParams());
 
     String term = "searchTerm";
     try {
@@ -129,12 +133,6 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
 
   @Test
   public void testSearchNoResult() {
-    AgendaSearchConnector agendaSearchConnector = new AgendaSearchConnector(configurationManager,
-                                                                            identityManager,
-                                                                            spaceService,
-                                                                            client,
-                                                                            getParams());
-
     String term = "searchTerm";
     HashSet<Long> permissions = new HashSet<>(Arrays.asList(1L));
     Identity identity = mock(Identity.class);
@@ -187,12 +185,6 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
 
   @Test
   public void testSearchWithResult() throws Exception { // NOSONAR
-    AgendaSearchConnector agendaSearchConnector = new AgendaSearchConnector(configurationManager,
-                                                                            identityManager,
-                                                                            spaceService,
-                                                                            client,
-                                                                            getParams());
-
     String term = "searchTerm";
     HashSet<Long> permissions = new HashSet<>(Arrays.asList(1L));
     Identity identity = mock(Identity.class);

@@ -21,6 +21,11 @@
           "fields": ["summary", "description","location"],
           "query": "@term_query@"
         }
+      },
+      "must_not": {
+        "exists": {
+          "field": "parentId"
+        }
       }
     }
   },

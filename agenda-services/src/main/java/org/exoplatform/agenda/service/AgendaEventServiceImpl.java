@@ -664,6 +664,30 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
 
     List<EventSearchResult> searchResults = agendaSearchConnector.search(userIdentityId, userTimeZone, query, offset, limit);
+    final ZoneId timeZone = userTimeZone;
+    searchResults = searchResults.stream().map(event -> {
+      if (event.isRecurrent()) {
+        Event recurrentEvent = agendaEventStorage.getEventById(event.getId());
+        ZonedDateTime today = ZonedDateTime.now().toLocalDate().atStartOfDay(timeZone);
+        List<Event> occurrences = getEventOccurrencesInPeriod(recurrentEvent, today, null, timeZone, 10);
+        if (occurrences == null || occurrences.isEmpty()) {
+          occurrences = getEventOccurrencesInPeriod(recurrentEvent, recurrentEvent.getStart(), today, timeZone, 10);
+          Collections.reverse(occurrences);
+        }
+
+        if (occurrences != null && !occurrences.isEmpty()) {
+          Event occurrenceEvent = occurrences.get(0);
+          if (occurrenceEvent.getOccurrence().isExceptional()) {
+            event.setSummary(occurrenceEvent.getSummary());
+            event.setDescription(occurrenceEvent.getDescription());
+            event.setLocation(occurrenceEvent.getLocation());
+          }
+          event.setStart(occurrenceEvent.getStart());
+          event.setEnd(occurrenceEvent.getEnd());
+        }
+      }
+      return event;
+    }).collect(Collectors.toList());
     return searchResults.stream()
                         .map(searchResult -> EntityBuilder.fromSearchEvent(agendaCalendarService,
                                                                            this,
@@ -961,25 +985,36 @@ public class AgendaEventServiceImpl implements AgendaEventService {
         if (userTimezone == null) {
           userTimezone = ZoneId.systemDefault();
         }
-        List<Event> occurrences = Utils.getOccurrences(event,
-                                                       start.toLocalDate(),
-                                                       end == null ? null : end.toLocalDate(),
-                                                       userTimezone,
-                                                       limit);
+        List<Event> occurrences = getEventOccurrencesInPeriod(event, start, end, userTimezone, limit);
         if (occurrences != null && !occurrences.isEmpty()) {
-          ZonedDateTime endDateOfOccurrences = end;
-          if (endDateOfOccurrences == null) {
-            Event eventWithMaxDate = occurrences.stream()
-                                                .max((event1, event2) -> event1.getEnd().compareTo(event2.getEnd()))
-                                                .orElse(null);
-            endDateOfOccurrences = eventWithMaxDate.getEnd(); // NOSONAR
-          }
-          occurrences = filterExceptionalEvents(event, occurrences, start, endDateOfOccurrences, userTimezone);
           computedEvents.addAll(occurrences);
         }
       }
     }
     return computedEvents;
+  }
+
+  private List<Event> getEventOccurrencesInPeriod(Event recurrentEvent,
+                                                  ZonedDateTime start,
+                                                  ZonedDateTime end,
+                                                  ZoneId userTimezone,
+                                                  int limit) {
+    List<Event> occurrences = Utils.getOccurrences(recurrentEvent,
+                                                   start.toLocalDate(),
+                                                   end == null ? null : end.toLocalDate(),
+                                                   userTimezone,
+                                                   limit);
+    if (occurrences != null && !occurrences.isEmpty()) {
+      ZonedDateTime endDateOfOccurrences = end;
+      if (endDateOfOccurrences == null) {
+        Event eventWithMaxDate = occurrences.stream()
+                                            .max((event1, event2) -> event1.getEnd().compareTo(event2.getEnd()))
+                                            .orElse(null);
+        endDateOfOccurrences = eventWithMaxDate.getEnd(); // NOSONAR
+      }
+      occurrences = filterExceptionalEvents(recurrentEvent, occurrences, start, endDateOfOccurrences, userTimezone);
+    }
+    return occurrences;
   }
 
   private void sortEvents(List<Event> computedEvents) {

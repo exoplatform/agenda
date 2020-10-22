@@ -176,6 +176,14 @@ public class AgendaEventStorage {
     return EntityMapper.fromEntity(eventEntity);
   }
 
+  public boolean isRecurrentEvent(long eventId) {
+    Event event = getEventById(eventId);
+    if (event == null) {
+      return false;
+    }
+    return event.getRecurrence() != null;
+  }
+
   private void updateEventCalendar(Event event, EventEntity eventEntity) {
     CalendarEntity calendarEntity = calendarDAO.find(event.getCalendarId());
     eventEntity.setCalendar(calendarEntity);

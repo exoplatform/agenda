@@ -21,7 +21,6 @@ import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.commons.lang.StringUtils;
 
 import org.exoplatform.agenda.model.Calendar;
@@ -31,7 +30,6 @@ import org.exoplatform.agenda.service.*;
 import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.commons.search.domain.Document;
 import org.exoplatform.commons.search.index.impl.ElasticIndexingServiceConnector;
-import org.exoplatform.commons.utils.HTMLSanitizer;
 import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -103,9 +101,6 @@ public class AgendaIndexingServiceConnector extends ElasticIndexingServiceConnec
                                                .stream()
                                                .map(EventAttendee::getIdentityId)
                                                .collect(Collectors.toList());
-    if (!eventAttendees.isEmpty()) {
-      fields.put("attendee", String.valueOf(eventAttendees));
-    }
 
     if (event.getParentId() > 0) {
       fields.put("parentId", Long.toString(event.getParentId()));
@@ -153,48 +148,11 @@ public class AgendaIndexingServiceConnector extends ElasticIndexingServiceConnec
     eventPermissionIds.add(String.valueOf(ownerIdentityId));
 
     ZonedDateTime lastUpdateDateTime = event.getUpdated() == null ? event.getCreated() : event.getUpdated();
-    Document document = new Document(TYPE, id, null, AgendaDateUtils.toDate(lastUpdateDateTime), eventPermissionIds, fields);
-
-    // Ensure to index text only without html tags
-    if (StringUtils.isNotEmpty(String.valueOf(description))) {
-      description = document.getFields().get("description");
-      if (StringUtils.isNotBlank(description)) {
-        description = StringEscapeUtils.unescapeHtml(description);
-        try {
-          description = HTMLSanitizer.sanitize(description);
-        } catch (Exception e) {
-          LOG.warn("Error sanitizing activity '{}' body", event.getId());
-        }
-        description = htmlToText(description);
-        document.addField("description", description);
-      }
-    }
-    return document;
+    return new Document(TYPE, id, null, AgendaDateUtils.toDate(lastUpdateDateTime), eventPermissionIds, fields);
   }
 
   private String toMillisecondsString(ZonedDateTime dateTime) {
     return String.valueOf(dateTime.withZoneSameInstant(ZoneOffset.UTC).toEpochSecond() * 1000);
-  }
-
-  private String htmlToText(String source) {
-    source = source.replaceAll("<( )*head([^>])*>", "<head>");
-    source = source.replaceAll("(<( )*(/)( )*head( )*>)", "</head>");
-    source = source.replaceAll("(<head>).*(</head>)", "");
-    source = source.replaceAll("<( )*script([^>])*>", "<script>");
-    source = source.replaceAll("(<( )*(/)( )*script( )*>)", "</script>");
-    source = source.replaceAll("(<script>).*(</script>)", "");
-    source = source.replaceAll("javascript:", "");
-    source = source.replaceAll("<( )*style([^>])*>", "<style>");
-    source = source.replaceAll("(<( )*(/)( )*style( )*>)", "</style>");
-    source = source.replaceAll("(<style>).*(</style>)", "");
-    source = source.replaceAll("<( )*td([^>])*>", "\t");
-    source = source.replaceAll("<( )*br( )*(/)*>", "\n");
-    source = source.replaceAll("<( )*li( )*>", "\n");
-    source = source.replaceAll("<( )*div([^>])*>", "\n");
-    source = source.replaceAll("<( )*tr([^>])*>", "\n");
-    source = source.replaceAll("<( )*p([^>])*>", "\n");
-    source = source.replaceAll("<[^>]*>", "");
-    return source;
   }
 
 }

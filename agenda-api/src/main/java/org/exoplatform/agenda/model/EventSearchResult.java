@@ -12,4 +12,6 @@ public class EventSearchResult extends Event {
 
   private List<String> excerpts;
 
+  private boolean      recurrent;
+
 }
