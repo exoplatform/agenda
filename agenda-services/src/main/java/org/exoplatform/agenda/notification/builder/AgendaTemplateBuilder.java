@@ -16,6 +16,7 @@ import org.exoplatform.commons.api.notification.service.template.TemplateContext
 import org.exoplatform.commons.notification.template.TemplateUtils;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.container.ExoContainer;
+import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -23,7 +24,6 @@ import org.exoplatform.social.core.manager.IdentityManager;
 
 import groovy.text.GStringTemplateEngine;
 import groovy.text.Template;
-
 
 
 public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
@@ -36,20 +36,16 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
 
   private ExoContainer       container;
 
-  private IdentityManager    identityManager;
-
   private boolean            isPushNotification;
 
   private PluginKey          key;
 
   public AgendaTemplateBuilder(TemplateProvider templateProvider,
                                ExoContainer container,
-                               IdentityManager identityManager,
                                PluginKey key,
                                boolean pushNotification) {
     this.templateProvider = templateProvider;
     this.container = container;
-    this.identityManager = identityManager;
     this.isPushNotification = pushNotification;
     this.key = key;
   }
@@ -84,6 +80,7 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
       Event event = getEvent(notification);
       String notificationURL = getEventURL(event);
       String pushNotificationURL = isPushNotification ? notificationURL : null;
+      IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
 
       TemplateContext templateContext = buildTemplateParameters(identityManager, templateProvider, notification);
       MessageInfo messageInfo = buildMessageSubjectAndBody(templateContext, notification, pushNotificationURL);
