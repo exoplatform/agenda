@@ -7,56 +7,52 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.time.*;
 import java.util.*;
 
 import org.apache.commons.lang.StringUtils;
-import org.exoplatform.agenda.model.Event;
-import org.exoplatform.agenda.model.EventSearchResult;
-import org.exoplatform.agenda.service.AgendaEventServiceImpl;
-import org.exoplatform.agenda.service.BaseAgendaEventTest;
-import org.exoplatform.agenda.util.Utils;
-import org.exoplatform.commons.exception.ObjectNotFoundException;
-import org.exoplatform.commons.utils.ListAccess;
-import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
-import org.exoplatform.social.core.space.model.Space;
-import org.exoplatform.social.core.space.spi.SpaceService;
 import org.junit.*;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.stubbing.Answer;
 
+import org.exoplatform.agenda.model.Event;
+import org.exoplatform.agenda.model.EventSearchResult;
+import org.exoplatform.agenda.service.AgendaEventServiceImpl;
+import org.exoplatform.agenda.service.BaseAgendaEventTest;
+import org.exoplatform.agenda.util.Utils;
+import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.search.es.client.ElasticSearchingClient;
-import org.exoplatform.commons.utils.IOUtil;
-import org.exoplatform.commons.utils.PropertyManager;
+import org.exoplatform.commons.utils.*;
 import org.exoplatform.container.configuration.ConfigurationManager;
 import org.exoplatform.container.xml.*;
 import org.exoplatform.social.core.identity.model.Identity;
+import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
-import org.mockito.stubbing.Answer;
+import org.exoplatform.social.core.space.model.Space;
+import org.exoplatform.social.core.space.spi.SpaceService;
 
 @RunWith(MockitoJUnitRunner.class)
 public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
 
-  private static final String ES_TYPE          = "event";
+  private static final String ES_TYPE         = "event";
 
-  private static final String ES_INDEX         = "event_alias";
+  private static final String ES_INDEX        = "event_alias";
 
-  public static final String  FAKE_ES_QUERY    =
+  public static final String  FAKE_ES_QUERY   =
                                             "{offset: @offset@, limit: @limit@, term1: @term@, term2: @term@, permissions: @permissions@}";
 
+  @Mock
+  IdentityManager             identityManager;                                                                                             // NOSONAR
 
   @Mock
-  IdentityManager             identityManager;
+  AgendaEventServiceImpl      agendaEventService;                                                                                          // NOSONAR
 
   @Mock
-  AgendaEventServiceImpl      agendaEventService;
-
-  @Mock
-  SpaceService                spaceService;
+  SpaceService                spaceService;                                                                                                // NOSONAR
 
   @Mock
   ConfigurationManager        configurationManager;
@@ -64,17 +60,18 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
   @Mock
   ElasticSearchingClient      client;
 
-  String                      searchResult     = null;
+  String                      searchResult    = null;
 
   boolean                     developingValue = false;
 
+  @Override
   @Before
-  public void setUp() throws ObjectNotFoundException, IOException {
+  public void setUp() throws ObjectNotFoundException {
     super.setUp();
-    searchResult = IOUtil.getStreamContentAsString(getClass().getClassLoader()
-                                                             .getResourceAsStream("agenda-search-result.json"));
-
     try {
+      searchResult = IOUtil.getStreamContentAsString(getClass().getClassLoader()
+                                                               .getResourceAsStream("agenda-search-result.json"));
+
       Mockito.reset(configurationManager);
       when(configurationManager.getInputStream("FILE_PATH")).thenReturn(new ByteArrayInputStream(FAKE_ES_QUERY.getBytes()));
     } catch (Exception e) {
@@ -85,6 +82,7 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
     PropertyManager.refresh();
   }
 
+  @Override
   @After
   public void tearDown() throws ObjectNotFoundException {
     super.tearDown();
@@ -170,7 +168,7 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
             spaceIdentity.setProviderId(SpaceIdentityProvider.NAME);
             spaceIdentity.setRemoteId(prettyName);
             when(identityManager.getOrCreateIdentity(eq(SpaceIdentityProvider.NAME),
-                    eq(prettyName))).thenReturn(spaceIdentity);
+                                                     eq(prettyName))).thenReturn(spaceIdentity);
             return spaces;
           }
         });
@@ -178,13 +176,17 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
       }
     });
 
-    List<EventSearchResult> result = agendaSearchConnector.search(Long.parseLong(identity.getId()), ZoneId.of("US/Hawaii"), term, 0, 10);
+    List<EventSearchResult> result = agendaSearchConnector.search(Long.parseLong(identity.getId()),
+                                                                  ZoneId.of("US/Hawaii"),
+                                                                  term,
+                                                                  0,
+                                                                  10);
     assertNotNull(result);
     assertEquals(0, result.size());
   }
 
   @Test
-  public void testSearchWithResult() throws Exception {
+  public void testSearchWithResult() throws Exception { // NOSONAR
     AgendaSearchConnector agendaSearchConnector = new AgendaSearchConnector(configurationManager,
                                                                             identityManager,
                                                                             spaceService,
@@ -204,10 +206,10 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
     when(client.sendRequest(eq(expectedESQuery), eq(ES_INDEX), eq(ES_TYPE))).thenReturn(searchResult);
     long startTime = 1602979200000L;
     long endTime = 1603151999000L;
-    ZonedDateTime start =  ZonedDateTime.ofInstant(Instant.ofEpochMilli(startTime),
-            ZoneId.systemDefault());
-    ZonedDateTime end =  ZonedDateTime.ofInstant(Instant.ofEpochMilli(endTime),
-            ZoneId.systemDefault());
+    ZonedDateTime start = ZonedDateTime.ofInstant(Instant.ofEpochMilli(startTime),
+                                                  ZoneId.systemDefault());
+    ZonedDateTime end = ZonedDateTime.ofInstant(Instant.ofEpochMilli(endTime),
+                                                ZoneId.systemDefault());
 
     boolean allDay = true;
     String creatorUserName = testuser1Identity.getRemoteId();
@@ -226,7 +228,6 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
           @Override
           public Space[] answer(InvocationOnMock invocation) throws Throwable {
             Object[] args = invocation.getArguments();
-            int offset = Integer.parseInt(args[0].toString());
             int size = Integer.parseInt(args[1].toString());
             Space[] spaces = new Space[size];
             spaces[0] = new Space();
@@ -238,7 +239,7 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
             spaceIdentity.setProviderId(SpaceIdentityProvider.NAME);
             spaceIdentity.setRemoteId(prettyName);
             when(identityManager.getOrCreateIdentity(eq(SpaceIdentityProvider.NAME),
-                    eq(prettyName))).thenReturn(spaceIdentity);
+                                                     eq(prettyName))).thenReturn(spaceIdentity);
             return spaces;
           }
         });
@@ -246,7 +247,11 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
       }
     });
 
-    List<EventSearchResult> result = agendaSearchConnector.search(Long.parseLong(identity.getId()), ZoneId.of("US/Hawaii"), term, 0, 10);
+    List<EventSearchResult> result = agendaSearchConnector.search(Long.parseLong(identity.getId()),
+                                                                  ZoneId.of("US/Hawaii"),
+                                                                  term,
+                                                                  0,
+                                                                  10);
     assertNotNull(result);
     assertEquals(1, result.size());
 

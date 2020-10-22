@@ -24,7 +24,8 @@ import java.util.stream.Collectors;
 import org.exoplatform.agenda.dao.*;
 import org.exoplatform.agenda.entity.*;
 import org.exoplatform.agenda.model.*;
-import org.exoplatform.agenda.util.*;
+import org.exoplatform.agenda.util.AgendaDateUtils;
+import org.exoplatform.agenda.util.EntityMapper;
 
 public class AgendaEventStorage {
 
@@ -55,7 +56,7 @@ public class AgendaEventStorage {
     }
 
     Date startDate = new Date(start.withSecond(0).withNano(0).toEpochSecond() * 1000);
-    Date endDate = end == null ? null : new Date(end.withSecond(59).withNano(999999999).toEpochSecond() * 1000);
+    Date endDate = new Date(end.withSecond(59).withNano(999999999).toEpochSecond() * 1000);
     return eventDAO.getEventIdsByPeriodAndOwnerIds(startDate, endDate, limit, ownerIds);
   }
 
@@ -86,7 +87,7 @@ public class AgendaEventStorage {
   }
 
   public void deleteEventById(long eventId) {
-    EventEntity eventEntity = eventDAO.deleteEvent(eventId);
+    eventDAO.deleteEvent(eventId);
   }
 
   public List<RemoteProvider> getRemoteProviders() {
@@ -144,9 +145,7 @@ public class AgendaEventStorage {
 
     createEventRecurrence(event, eventEntity);
 
-    event = EntityMapper.fromEntity(eventEntity);
-    long creatorId = eventEntity.getCreatorId();
-    return event;
+    return EntityMapper.fromEntity(eventEntity);
   }
 
   public Event getExceptionalOccurrenceEvent(long parentRecurrentEventId, ZonedDateTime occurrenceId) {
@@ -167,8 +166,6 @@ public class AgendaEventStorage {
   public Event updateEvent(Event event) {
     EventEntity eventEntity = EntityMapper.toEntity(event);
 
-    long modifierId = event.getModifierId();
-
     updateEventParent(event, eventEntity);
     updateEventCalendar(event, eventEntity);
     updateEventRemoteProvider(event, eventEntity);
@@ -176,9 +173,7 @@ public class AgendaEventStorage {
 
     eventEntity = eventDAO.update(eventEntity);
     eventEntity = eventDAO.find(eventEntity.getId());
-    event = EntityMapper.fromEntity(eventEntity);
-
-    return event;
+    return EntityMapper.fromEntity(eventEntity);
   }
 
   private void updateEventCalendar(Event event, EventEntity eventEntity) {
