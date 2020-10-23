@@ -658,14 +658,14 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * {@inheritDoc}
    */
   @Override
-  public List<EventSearchResultEntity> search(long userIdentityId, ZoneId userTimeZone, String query, int offset, int limit) {
+  public List<EventSearchResult> search(long userIdentityId, ZoneId userTimeZone, String query, int offset, int limit) {
     if (userTimeZone == null) {
       userTimeZone = Utils.getUserTimezone(identityManager, userIdentityId);
     }
 
     List<EventSearchResult> searchResults = agendaSearchConnector.search(userIdentityId, userTimeZone, query, offset, limit);
     final ZoneId timeZone = userTimeZone;
-    searchResults = searchResults.stream().map(event -> {
+    return searchResults.stream().map(event -> {
       if (event.isRecurrent()) {
         Event recurrentEvent = agendaEventStorage.getEventById(event.getId());
         ZonedDateTime today = ZonedDateTime.now().toLocalDate().atStartOfDay(timeZone);
@@ -688,12 +688,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       }
       return event;
     }).collect(Collectors.toList());
-    return searchResults.stream()
-                        .map(searchResult -> EntityBuilder.fromSearchEvent(agendaCalendarService,
-                                                                           this,
-                                                                           identityManager,
-                                                                           searchResult))
-                        .collect(Collectors.toList());
   }
 
   private List<Event> getEventsByOwners(ZonedDateTime start,

@@ -312,9 +312,9 @@ public interface AgendaEventService {
    * @param query Term to search
    * @param offset offset
    * @param limit Limit of events to retrieve
-   * @return {@link List} of {@link EventSearchResultEntity}
+   * @return {@link List} of {@link EventSearchResult}
    */
-  List<EventSearchResultEntity> search(long userIdentityId,
+  List<EventSearchResult> search(long userIdentityId,
                                        ZoneId userTimeZone,
                                        String query,
                                        int offset,

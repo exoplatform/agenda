@@ -697,6 +697,9 @@ public class AgendaEventRest implements ResourceContainer {
                          @ApiParam(value = "Time Zone offset in seconds", required = false) @QueryParam(
                            "timeZoneOffset"
                          ) int timeZoneOffsetSeconds,
+                         @ApiParam(value = "Properties to expand", required = false) @QueryParam(
+                                 "expand"
+                         ) String expand,
                          @ApiParam(value = "Offset", required = false, defaultValue = "0") @QueryParam(
                            "offset"
                          ) int offset,
@@ -706,11 +709,16 @@ public class AgendaEventRest implements ResourceContainer {
 
     offset = offset > 0 ? offset : RestUtils.getOffset(uriInfo);
     limit = limit > 0 ? limit : RestUtils.getLimit(uriInfo);
-
+    List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
+            : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
+            ","));
     long currentUserId = RestUtils.getCurrentUserIdentityId(identityManager);
     ZoneId userTimeZone = ZoneOffset.ofTotalSeconds(timeZoneOffsetSeconds);
-    List<EventSearchResultEntity> searchResults = agendaEventService.search(currentUserId, userTimeZone, query, offset, limit);
-    return Response.ok(searchResults).build();
+    List<EventSearchResult> searchResults = agendaEventService.search(currentUserId, userTimeZone, query, offset, limit);
+    List<EventSearchResultEntity> results = searchResults.stream()
+                 .map(searchResult -> getEventSearchResultEntity(searchResult, expandProperties))
+                 .collect(Collectors.toList());
+    return Response.ok(results).build();
   }
 
   private Event createEvent(EventEntity eventEntity, String currentUser) throws AgendaException, IllegalAccessException {
@@ -844,6 +852,35 @@ public class AgendaEventRest implements ResourceContainer {
         cleanupAttachedEntitiesIds(eventEntity);
       }
       return eventEntity;
+    }
+  }
+
+  private EventSearchResultEntity getEventSearchResultEntity(EventSearchResult eventSearchResult, List<String> expandProperties) {
+    if (eventSearchResult == null) {
+      return null;
+    } else {
+      EventSearchResultEntity eventSearchResultEntity = EntityBuilder.fromSearchEvent(agendaCalendarService,
+                                                                                      agendaEventService,
+                                                                                      identityManager,
+                                                                                      eventSearchResult);
+
+      long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+      if (expandProperties.contains("all") || expandProperties.contains("attendees")) {
+        fillAttendees(eventSearchResultEntity);
+      }
+      if (expandProperties.contains("all") || expandProperties.contains("attachments")) {
+        fillAttachments(eventSearchResultEntity);
+      }
+      if (expandProperties.contains("all") || expandProperties.contains("conferences")) {
+        fillConferences(eventSearchResultEntity);
+      }
+      if (expandProperties.contains("all") || expandProperties.contains("reminders")) {
+        fillReminders(eventSearchResultEntity, userIdentityId);
+      }
+      if (isComputedOccurrence(eventSearchResultEntity)) {
+        cleanupAttachedEntitiesIds(eventSearchResultEntity);
+      }
+      return eventSearchResultEntity;
     }
   }
 

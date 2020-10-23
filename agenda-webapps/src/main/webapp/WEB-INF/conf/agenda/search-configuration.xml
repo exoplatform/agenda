@@ -29,7 +29,7 @@
     <init-params>
       <value-param>
         <name>query.file.path</name>
-        <value>${exo.agenda.es.query.path:war:/conf/agenda/search/agenda-search-query.json}</value>
+        <value>${exo.agenda.es.query.path:jar:/agenda-search-query.json}</value>
       </value-param>
       <properties-param>
         <name>constructor.params</name>
