@@ -9,8 +9,8 @@
         <div class="status">
           <%
           String eventTitle = "<span class=\"user-name text-bold\">"+ eventTitle +"</span>";
-          if ("true".equals(isNewEvent)) { %>
-            <%= _ctx.appRes("Notification.agenda.event.created", eventTitle) %>
+          if ("ADDED".equals(modificationType)) { %>
+            <%= _ctx.appRes("Notification.agenda.event.created", eventTitle, creatorName) %>
           <% } else { %>
             <%= _ctx.appRes("Notification.agenda.event.updated", eventTitle) %>
           <% } %>
@@ -18,7 +18,7 @@
         <div class="content float-right">
           <a>
             <%
-            if("true".equals(isNewEvent)) { %>
+            if("ADDED".equals(modificationType)) { %>
               <%= _ctx.appRes("Notification.agenda.event.reply") %>
             <% } else { %>
               <%= _ctx.appRes("Notification.agenda.event.view") %>

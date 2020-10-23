@@ -61,7 +61,7 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
     NotificationContext ctx = NotificationContextImpl.cloneInstance()
                                                      .append(NotificationUtils.EVENT_ID, createdEvent.getId())
                                                      .append(EVENT_TITLE, createdEvent.getSummary())
-                                                     .append(NotificationUtils.IS_NEW, true);
+                                                     .append(NotificationUtils.EVENT_MODIFICATION_TYPE, "ADDED");
     String eventUrl = System.getProperty("gatein.email.domain.url")
                             .concat("portal/classic/agenda?eventId=")
                             .concat(String.valueOf(createdEvent.getId()));
@@ -128,7 +128,7 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
     NotificationContext ctx = NotificationContextImpl.cloneInstance()
                                                      .append(NotificationUtils.EVENT_ID, updatedEvent.getId())
                                                      .append(EVENT_TITLE, updatedEvent.getSummary())
-                                                     .append(NotificationUtils.IS_NEW, false);
+                                                     .append(NotificationUtils.EVENT_MODIFICATION_TYPE, "UPDATED");
     String eventUrl = System.getProperty("gatein.email.domain.url")
                             .concat("portal/classic/agenda?eventId=")
                             .concat(String.valueOf(createdEvent.getId()));

@@ -2,8 +2,8 @@
 <div>
     <div>
         <%
-        if("true".equals(isNewEvent)) { %>
-           <%= _ctx.appRes("Notification.agenda.event.push.created", eventTitle) %>
+        if("ADDED".equals(modificationType)) { %>
+           <%= _ctx.appRes("Notification.agenda.event.push.created", eventTitle, creatorName) %>
         <% } else { %>
            <%= _ctx.appRes("Notification.agenda.event.updated", eventTitle) %>
         <% } %>
@@ -12,7 +12,7 @@
         <a href="<%= eventURL %>">
             <a href="<%= eventURL %>">
                 <%
-                if("true".equals(isNewEvent)) { %>
+                if("ADDED".equals(modificationType)) { %>
                   <%= _ctx.appRes("Notification.agenda.event.reply") %>
                 <% } %>
             </a>

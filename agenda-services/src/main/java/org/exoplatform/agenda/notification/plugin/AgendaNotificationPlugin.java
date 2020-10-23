@@ -66,10 +66,7 @@ public class AgendaNotificationPlugin extends BaseNotificationPlugin {
   @Override
   public NotificationInfo makeNotification(NotificationContext ctx) {
     long eventId = ctx.value(EVENT_ID);
-    Boolean isNew = ctx.value(IS_NEW);
-    // To avoid NPE for previously stored notifications, if IS_NEW parameter
-    // doesn't exists, we assume that it's a new one
-    isNew = isNew == null || isNew.booleanValue();
+    String typeModification = ctx.value(EVENT_MODIFICATION_TYPE);
 
     Event event = eventService.getEventById(eventId);
     List<EventAttendee> eventAttendee = eventAttendeeService.getEventAttendees(eventId);
@@ -77,13 +74,13 @@ public class AgendaNotificationPlugin extends BaseNotificationPlugin {
     NotificationInfo notification = NotificationInfo.instance();
     notification.key(getId());
     if (event.getId() > 0) {
-      setNotificationRecipients(identityManager, notification, eventAttendee, event, isNew);
+      setNotificationRecipients(identityManager, notification, spaceService, eventAttendee, event, typeModification);
     }
     if (notification.getSendToUserIds() == null || notification.getSendToUserIds().isEmpty()) {
       LOG.debug("Notification type '{}' doesn't have a recipient", getId());
       return null;
     } else {
-      storeEventParameters(notification, event, calendar, isNew);
+      storeEventParameters(identityManager, notification, event, calendar, typeModification);
       return notification.end();
     }
   }
