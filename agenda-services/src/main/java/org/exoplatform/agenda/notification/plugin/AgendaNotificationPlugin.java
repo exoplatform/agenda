@@ -16,6 +16,7 @@ import org.exoplatform.container.xml.ValueParam;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.social.core.space.spi.SpaceService;
 
 public class AgendaNotificationPlugin extends BaseNotificationPlugin {
   private static final String        AGENDA_NOTIFICATION_PLUGIN_NAME = "agenda.notification.plugin.key";
@@ -32,16 +33,20 @@ public class AgendaNotificationPlugin extends BaseNotificationPlugin {
 
   private AgendaCalendarService      calendarService;
 
+  private SpaceService               spaceService;
+
   public AgendaNotificationPlugin(InitParams initParams,
                                   IdentityManager identityManager,
                                   AgendaEventService eventService,
                                   AgendaEventAttendeeService eventAttendeeService,
-                                  AgendaCalendarService calendarService) {
+                                  AgendaCalendarService calendarService,
+                                  SpaceService spaceService) {
     super(initParams);
     this.identityManager = identityManager;
     this.eventService = eventService;
     this.eventAttendeeService = eventAttendeeService;
     this.calendarService = calendarService;
+    this.spaceService = spaceService;
     ValueParam notificationIdParam = initParams.getValueParam(AGENDA_NOTIFICATION_PLUGIN_NAME);
     if (notificationIdParam == null || StringUtils.isBlank(notificationIdParam.getValue())) {
       throw new IllegalStateException("'agenda.notification.plugin.key' parameter is mandatory");
@@ -65,11 +70,10 @@ public class AgendaNotificationPlugin extends BaseNotificationPlugin {
 
   @Override
   public NotificationInfo makeNotification(NotificationContext ctx) {
-    long eventId = ctx.value(EVENT_ID);
+    List<EventAttendee> eventAttendee = ctx.value(EVENT_ATTENDEE);
+    Event event = ctx.value(EVENT_AGENDA);
     String typeModification = ctx.value(EVENT_MODIFICATION_TYPE);
 
-    Event event = eventService.getEventById(eventId);
-    List<EventAttendee> eventAttendee = eventAttendeeService.getEventAttendees(eventId);
     Calendar calendar = calendarService.getCalendarById(event.getCalendarId());
     NotificationInfo notification = NotificationInfo.instance();
     notification.key(getId());

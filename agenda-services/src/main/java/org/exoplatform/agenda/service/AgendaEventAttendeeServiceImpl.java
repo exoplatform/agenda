@@ -305,13 +305,19 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
   public void sendInvitations(long eventId, EventModificationType eventModificationType) {
     String agendaNotificationPluginType = null;
     NotificationContext ctx = NotificationContextImpl.cloneInstance();
-    ctx.append(EVENT_ID, eventId);
+    Event event = eventStorage.getEventById(eventId);
+    List<EventAttendee> eventAttendees = getEventAttendees(eventId);
+    ctx.append(EVENT_AGENDA, event);
+    ctx.append(EVENT_ATTENDEE, eventAttendees);
     if (eventModificationType.name().equals("ADDED")) {
       agendaNotificationPluginType = AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN;
       ctx.append(EVENT_MODIFICATION_TYPE, "ADDED");
-    } else {
+    } else if(eventModificationType.name().equals("UPDATED")){
       agendaNotificationPluginType = AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN;
       ctx.append(EVENT_MODIFICATION_TYPE, "UPDATED");
+    } else {
+      agendaNotificationPluginType = AGENDA_EVENT_CANCELED_NOTIFICATION_PLUGIN;
+      ctx.append(EVENT_MODIFICATION_TYPE, "DELETED");
     }
     dispatch(ctx, agendaNotificationPluginType);
   }
