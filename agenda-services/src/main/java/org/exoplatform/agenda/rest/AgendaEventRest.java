@@ -22,8 +22,7 @@ import java.util.stream.Collectors;
 
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import javax.ws.rs.core.*;
 import javax.ws.rs.core.Response.Status;
 
 import org.apache.commons.lang3.StringUtils;
@@ -52,17 +51,17 @@ import io.swagger.annotations.*;
 @Api(value = "/v1/agenda/events", description = "Manages agenda events associated to users and spaces") // NOSONAR
 public class AgendaEventRest implements ResourceContainer {
 
-  private static final Log LOG = ExoLogger.getLogger(AgendaEventRest.class);
+  private static final Log             LOG = ExoLogger.getLogger(AgendaEventRest.class);
 
-  private IdentityManager identityManager;
+  private IdentityManager              identityManager;
 
-  private AgendaCalendarService agendaCalendarService;
+  private AgendaCalendarService        agendaCalendarService;
 
-  private AgendaEventService agendaEventService;
+  private AgendaEventService           agendaEventService;
 
-  private AgendaEventReminderService agendaEventReminderService;
+  private AgendaEventReminderService   agendaEventReminderService;
 
-  private AgendaEventAttendeeService agendaEventAttendeeService;
+  private AgendaEventAttendeeService   agendaEventAttendeeService;
 
   private AgendaEventAttachmentService agendaEventAttachmentService;
 
@@ -241,7 +240,7 @@ public class AgendaEventRest implements ResourceContainer {
                                @ApiParam(value = "Properties to expand", required = false) @QueryParam(
                                  "expand"
                                ) String expand,
-                               @ApiParam(value = "Time Zone offset in seconds", required = false) @QueryParam(
+                               @ApiParam(value = "Time Zone offset in seconds", required = true) @QueryParam(
                                  "timeZoneOffset"
                                ) int timeZoneOffsetSeconds) {
     if (eventId <= 0) {
@@ -296,9 +295,9 @@ public class AgendaEventRest implements ResourceContainer {
                                      @ApiParam(value = "Properties to expand", required = false) @QueryParam(
                                        "expand"
                                      ) String expand,
-                                     @ApiParam(value = "Time Zone offset in seconds", required = false) @QueryParam(
+                                     @ApiParam(value = "Time Zone offset in seconds", required = true) @QueryParam(
                                        "timeZoneOffset"
-                                     ) int timeZoneOffsetSeconds) {
+                                     ) String timeZoneOffsetSeconds) {
     if (parentEventId <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
     }
@@ -310,7 +309,9 @@ public class AgendaEventRest implements ResourceContainer {
       List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
                                                                   : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
                                                                                                     ","));
-      ZoneId userTimeZone = ZoneOffset.ofTotalSeconds(timeZoneOffsetSeconds);
+      ZoneId userTimeZone =
+                          StringUtils.isBlank(timeZoneOffsetSeconds) ? null
+                                                                     : ZoneOffset.ofTotalSeconds(Integer.parseInt(timeZoneOffsetSeconds));
       long identityId = RestUtils.getCurrentUserIdentityId(identityManager);
       ZonedDateTime occurrenceDate = AgendaDateUtils.parseRFC3339ToZonedDateTime(occurrenceId);
       Event event = agendaEventService.getEventOccurrence(parentEventId, occurrenceDate, userTimeZone, identityId);
@@ -675,6 +676,51 @@ public class AgendaEventRest implements ResourceContainer {
     }
   }
 
+  @Path("search")
+  @GET
+  @Produces(MediaType.APPLICATION_JSON)
+  @RolesAllowed("users")
+  @ApiOperation(
+      value = "Search the list of events available with query for an owner of type user or space, identified by its identity technical identifier."
+          + " If no designated owner, all events available for authenticated user will be retrieved.",
+      httpMethod = "GET", response = Response.class, produces = "application/json"
+  )
+  @ApiResponses(
+      value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+  )
+  public Response search(@Context UriInfo uriInfo,
+                         @ApiParam(value = "Term to search", required = true) @QueryParam(
+                           "query"
+                         ) String query,
+                         @ApiParam(value = "Time Zone offset in seconds", required = false) @QueryParam(
+                           "timeZoneOffset"
+                         ) int timeZoneOffsetSeconds,
+                         @ApiParam(value = "Properties to expand", required = false) @QueryParam(
+                                 "expand"
+                         ) String expand,
+                         @ApiParam(value = "Offset", required = false, defaultValue = "0") @QueryParam(
+                           "offset"
+                         ) int offset,
+                         @ApiParam(value = "Limit", required = false, defaultValue = "20") @QueryParam(
+                           "limit"
+                         ) int limit) throws Exception { // NOSONAR
+
+    offset = offset > 0 ? offset : RestUtils.getOffset(uriInfo);
+    limit = limit > 0 ? limit : RestUtils.getLimit(uriInfo);
+    List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
+            : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
+            ","));
+    long currentUserId = RestUtils.getCurrentUserIdentityId(identityManager);
+    ZoneId userTimeZone = ZoneOffset.ofTotalSeconds(timeZoneOffsetSeconds);
+    List<EventSearchResult> searchResults = agendaEventService.search(currentUserId, userTimeZone, query, offset, limit);
+    List<EventSearchResultEntity> results = searchResults.stream()
+                 .map(searchResult -> getEventSearchResultEntity(searchResult, expandProperties))
+                 .collect(Collectors.toList());
+    return Response.ok(results).build();
+  }
+
   private Event createEvent(EventEntity eventEntity, String currentUser) throws AgendaException, IllegalAccessException {
     checkCalendar(eventEntity);
 
@@ -806,6 +852,35 @@ public class AgendaEventRest implements ResourceContainer {
         cleanupAttachedEntitiesIds(eventEntity);
       }
       return eventEntity;
+    }
+  }
+
+  private EventSearchResultEntity getEventSearchResultEntity(EventSearchResult eventSearchResult, List<String> expandProperties) {
+    if (eventSearchResult == null) {
+      return null;
+    } else {
+      EventSearchResultEntity eventSearchResultEntity = EntityBuilder.fromSearchEvent(agendaCalendarService,
+                                                                                      agendaEventService,
+                                                                                      identityManager,
+                                                                                      eventSearchResult);
+
+      long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+      if (expandProperties.contains("all") || expandProperties.contains("attendees")) {
+        fillAttendees(eventSearchResultEntity);
+      }
+      if (expandProperties.contains("all") || expandProperties.contains("attachments")) {
+        fillAttachments(eventSearchResultEntity);
+      }
+      if (expandProperties.contains("all") || expandProperties.contains("conferences")) {
+        fillConferences(eventSearchResultEntity);
+      }
+      if (expandProperties.contains("all") || expandProperties.contains("reminders")) {
+        fillReminders(eventSearchResultEntity, userIdentityId);
+      }
+      if (isComputedOccurrence(eventSearchResultEntity)) {
+        cleanupAttachedEntitiesIds(eventSearchResultEntity);
+      }
+      return eventSearchResultEntity;
     }
   }
 

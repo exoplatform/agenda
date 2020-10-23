@@ -137,4 +137,46 @@
       <type>org.exoplatform.agenda.listener.AgendaSpaceApplicationListener</type>
     </component-plugin>
   </external-component-plugins>
+
+  <external-component-plugins>
+    <target-component>org.exoplatform.commons.search.index.IndexingOperationProcessor</target-component>
+    <component-plugin>
+      <name>AgendaIndexingServiceConnector</name>
+      <set-method>addConnector</set-method>
+      <type>org.exoplatform.agenda.search.AgendaIndexingServiceConnector</type>
+      <description>Agenda ElasticSearch Indexing Connector</description>
+      <init-params>
+        <value-param>
+          <name>mapping.file.path</name>
+          <value>${exo.agenda.events.es.mapping.path:jar:/agenda-events-es-mapping.json}</value>
+        </value-param>
+        <properties-param>
+          <name>constructor.params</name>
+          <property name="index_alias" value="event_alias" />
+          <property name="index_previous" value="" />
+          <property name="index_current" value="event_v1" />
+          <property name="type" value="event" />
+        </properties-param>
+      </init-params>
+    </component-plugin>
+  </external-component-plugins>
+
+  <external-component-plugins>
+    <target-component>org.exoplatform.services.listener.ListenerService</target-component>
+    <component-plugin>
+      <name>exo.agenda.event.created</name>
+      <set-method>addListener</set-method>
+      <type>org.exoplatform.agenda.search.listener.AgendaESListener</type>
+    </component-plugin>
+    <component-plugin>
+      <name>exo.agenda.event.updated</name>
+      <set-method>addListener</set-method>
+      <type>org.exoplatform.agenda.search.listener.AgendaESListener</type>
+    </component-plugin>
+    <component-plugin>
+      <name>exo.agenda.event.deleted</name>
+      <set-method>addListener</set-method>
+      <type>org.exoplatform.agenda.search.listener.AgendaESListener</type>
+    </component-plugin>
+  </external-component-plugins>
 </configuration>

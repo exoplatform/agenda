@@ -22,6 +22,7 @@ import java.util.List;
 
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.model.*;
+import org.exoplatform.agenda.rest.model.EventSearchResultEntity;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.social.core.identity.model.Identity;
 
@@ -303,4 +304,19 @@ public interface AgendaEventService {
                                                                             AgendaException,
                                                                             ObjectNotFoundException;
 
+  /**
+   * Search the list of events available with query for the currentUser
+   * 
+   * @param userIdentityId user {@link Identity} identifier
+   * @param userTimeZone used user timezone
+   * @param query Term to search
+   * @param offset offset
+   * @param limit Limit of events to retrieve
+   * @return {@link List} of {@link EventSearchResult}
+   */
+  List<EventSearchResult> search(long userIdentityId,
+                                       ZoneId userTimeZone,
+                                       String query,
+                                       int offset,
+                                       int limit);
 }
