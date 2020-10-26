@@ -73,6 +73,9 @@ public class AgendaNotificationPlugin extends BaseNotificationPlugin {
     List<EventAttendee> eventAttendee = ctx.value(EVENT_ATTENDEE);
     Event event = ctx.value(EVENT_AGENDA);
     String typeModification = ctx.value(EVENT_MODIFICATION_TYPE);
+    // To avoid NPE for previously stored notifications, if EVENT_MODIFICATION_TYPE parameter
+    // doesn't exists, we assume that it's a new one
+    typeModification = StringUtils.isNotBlank(typeModification) ? typeModification : "ADDED";
 
     Calendar calendar = calendarService.getCalendarById(event.getCalendarId());
     NotificationInfo notification = NotificationInfo.instance();

@@ -175,11 +175,11 @@ public class NotificationUtils {
 
     setIdentityNameAndAvatar(notification, templateContext);
     setEventDetails(templateContext, notification);
-    templateContext.put(TEMPLATE_VARIABLE_EVENT_MODIFICATION_TYPE,
-                        notification.getValueOwnerParameter(STORED_EVENT_MODIFICATION_TYPE));
+    String modificationStoredType = notification.getValueOwnerParameter(STORED_EVENT_MODIFICATION_TYPE);
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_MODIFICATION_TYPE, modificationStoredType);
     templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_CREATOR, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_CREATOR));
-    if (StringUtils.equals(notification.getValueOwnerParameter(STORED_EVENT_MODIFICATION_TYPE), "UPDATED")) {
+    if (StringUtils.equals(modificationStoredType, "UPDATED")) {
       String identityId = notification.getValueOwnerParameter(STORED_PARAMETER_MODIFIER_IDENTITY_ID);
       ZonedDateTime eventUpdateDate =
                                     ZonedDateTime.parse(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_UPDATED_DATE));
