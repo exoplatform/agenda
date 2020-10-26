@@ -5,6 +5,7 @@ import java.time.ZonedDateTime;
 import java.util.*;
 
 import org.apache.commons.lang.StringUtils;
+import org.exoplatform.agenda.constant.EventModificationType;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
 import org.exoplatform.commons.api.notification.NotificationContext;
@@ -179,7 +180,7 @@ public class NotificationUtils {
     templateContext.put(TEMPLATE_VARIABLE_EVENT_MODIFICATION_TYPE, modificationStoredType);
     templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_CREATOR, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_CREATOR));
-    if (StringUtils.equals(modificationStoredType, "UPDATED")) {
+    if (StringUtils.equals(modificationStoredType, EventModificationType.UPDATED.name())) {
       String identityId = notification.getValueOwnerParameter(STORED_PARAMETER_MODIFIER_IDENTITY_ID);
       ZonedDateTime eventUpdateDate =
                                     ZonedDateTime.parse(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_UPDATED_DATE));

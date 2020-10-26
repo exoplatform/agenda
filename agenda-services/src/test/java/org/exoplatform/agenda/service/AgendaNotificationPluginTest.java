@@ -3,6 +3,7 @@ package org.exoplatform.agenda.service;
 import java.time.ZonedDateTime;
 import java.util.List;
 
+import org.exoplatform.agenda.constant.EventModificationType;
 import org.exoplatform.agenda.model.EventAttendee;
 import org.junit.Assert;
 import org.junit.Test;
@@ -63,7 +64,8 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
                                                      .append(NotificationUtils.EVENT_ATTENDEE,
                                                              agendaEventAttendeeService.getEventAttendees(createdEvent.getId()))
                                                      .append(EVENT_TITLE, createdEvent.getSummary())
-                                                     .append(NotificationUtils.EVENT_MODIFICATION_TYPE, "ADDED");
+                                                     .append(NotificationUtils.EVENT_MODIFICATION_TYPE,
+                                                             EventModificationType.ADDED.name());
     String eventUrl = System.getProperty("gatein.email.domain.url")
                             .concat("portal/classic/agenda?eventId=")
                             .concat(String.valueOf(createdEvent.getId()));
@@ -132,7 +134,8 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
                                                              agendaEventAttendeeService.getEventAttendees(updatedEvent.getId()))
 
                                                      .append(EVENT_TITLE, updatedEvent.getSummary())
-                                                     .append(NotificationUtils.EVENT_MODIFICATION_TYPE, "UPDATED");
+                                                     .append(NotificationUtils.EVENT_MODIFICATION_TYPE,
+                                                             EventModificationType.UPDATED.name());
     String eventUrl = System.getProperty("gatein.email.domain.url")
                             .concat("portal/classic/agenda?eventId=")
                             .concat(String.valueOf(createdEvent.getId()));

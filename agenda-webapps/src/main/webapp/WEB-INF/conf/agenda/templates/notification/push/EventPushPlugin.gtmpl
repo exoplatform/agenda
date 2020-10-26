@@ -2,7 +2,7 @@
 <div>
     <div>
         <%
-        if("ADDED".equals(modificationType)) { %>
+        if(org.exoplatform.agenda.constant.EventModificationType.ADDED.name().equals(modificationType)) { %>
            <%= _ctx.appRes("Notification.agenda.event.push.created", eventTitle, creatorName) %>
         <% } else { %>
            <%= _ctx.appRes("Notification.agenda.event.updated", eventTitle) %>
@@ -12,7 +12,7 @@
         <a href="<%= eventURL %>">
             <a href="<%= eventURL %>">
                 <%
-                if("ADDED".equals(modificationType)) { %>
+                if(org.exoplatform.agenda.constant.EventModificationType.ADDED.name().equals(modificationType)) { %>
                   <%= _ctx.appRes("Notification.agenda.event.reply") %>
                 <% } %>
             </a>
