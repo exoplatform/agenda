@@ -7,7 +7,7 @@
                         <%
                           if("ADDED".equals(modificationType)){
                             out.write(_ctx.appRes("Notification.title.AgendaInvitationPlugin", eventTitle));
-                          } else {
+                          } else if("UPDATED".equals(modificationType)){
                             out.write(_ctx.appRes("Notification.title.AgendaInvitationPlugin.update", eventTitle));
                         }
                         %>
@@ -34,7 +34,7 @@
                                                     String creatorName = "<span style=\"color: #2f5e92; text-decoration: none; font-family: 'HelveticaNeue Bold', Helvetica, Arial, sans-serif\" >" + _ctx.escapeHTML(creatorName) + "</span>";
                                                     if ("ADDED".equals(modificationType)) { %>
                                                       <%= _ctx.appRes("Notification.agenda.event.created", eventTitle, creatorName) %>
-                                                    <% } else { %>
+                                                    <% } else if("UPDATED".equals(modificationType)){ %>
                                                       <%
                                                         String profileModifierUrl = "<a target=\"_blank\" style=\"color: #2f5e92; font-size: 13px; text-decoration: none; font-family: 'HelveticaNeue Bold', Helvetica, Arial, sans-serif\" href=\""+ modifierProfileUrl + "\">" + _ctx.escapeHTML(modifierName) + "</a>";
                                                       %>
@@ -70,7 +70,7 @@
                                                         <%
                                                         if ("ADDED".equals(modificationType)) { %>
                                                           <%= _ctx.appRes("Notification.agenda.event.reply") %>
-                                                        <% } else { %>
+                                                        <% } else if("UPDATED".equals(modificationType)){ %>
                                                           <%= _ctx.appRes("Notification.agenda.event.view") %>
                                                         <% } %>
                                                     </a>
