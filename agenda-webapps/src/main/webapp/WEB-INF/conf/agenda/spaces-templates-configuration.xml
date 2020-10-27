@@ -54,7 +54,7 @@
                       <int>500</int>
                     </field>
                     <field name="uri">
-                      <string>Agenda</string>
+                      <string>agenda</string>
                     </field>
                   </object>
                 </value>
@@ -96,7 +96,7 @@
                       <int>400</int>
                     </field>
                     <field name="uri">
-                      <string>Agenda</string>
+                      <string>agenda</string>
                     </field>
                   </object>
                 </value>
@@ -138,7 +138,7 @@
                       <int>400</int>
                     </field>
                     <field name="uri">
-                      <string>Agenda</string>
+                      <string>agenda</string>
                     </field>
                   </object>
                 </value>
@@ -180,7 +180,7 @@
                       <int>400</int>
                     </field>
                     <field name="uri">
-                      <string>Agenda</string>
+                      <string>agenda</string>
                     </field>
                   </object>
                 </value>
