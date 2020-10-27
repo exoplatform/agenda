@@ -6,6 +6,7 @@ import java.util.List;
 
 import org.apache.commons.lang.StringUtils;
 
+import org.exoplatform.agenda.constant.EventModificationType;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.service.*;
 import org.exoplatform.commons.api.notification.NotificationContext;
@@ -16,6 +17,7 @@ import org.exoplatform.container.xml.ValueParam;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.social.core.space.spi.SpaceService;
 
 public class AgendaNotificationPlugin extends BaseNotificationPlugin {
   private static final String        AGENDA_NOTIFICATION_PLUGIN_NAME = "agenda.notification.plugin.key";
@@ -32,16 +34,20 @@ public class AgendaNotificationPlugin extends BaseNotificationPlugin {
 
   private AgendaCalendarService      calendarService;
 
+  private SpaceService               spaceService;
+
   public AgendaNotificationPlugin(InitParams initParams,
                                   IdentityManager identityManager,
                                   AgendaEventService eventService,
                                   AgendaEventAttendeeService eventAttendeeService,
-                                  AgendaCalendarService calendarService) {
+                                  AgendaCalendarService calendarService,
+                                  SpaceService spaceService) {
     super(initParams);
     this.identityManager = identityManager;
     this.eventService = eventService;
     this.eventAttendeeService = eventAttendeeService;
     this.calendarService = calendarService;
+    this.spaceService = spaceService;
     ValueParam notificationIdParam = initParams.getValueParam(AGENDA_NOTIFICATION_PLUGIN_NAME);
     if (notificationIdParam == null || StringUtils.isBlank(notificationIdParam.getValue())) {
       throw new IllegalStateException("'agenda.notification.plugin.key' parameter is mandatory");
@@ -65,25 +71,24 @@ public class AgendaNotificationPlugin extends BaseNotificationPlugin {
 
   @Override
   public NotificationInfo makeNotification(NotificationContext ctx) {
-    long eventId = ctx.value(EVENT_ID);
-    Boolean isNew = ctx.value(IS_NEW);
-    // To avoid NPE for previously stored notifications, if IS_NEW parameter
+    List<EventAttendee> eventAttendee = ctx.value(EVENT_ATTENDEE);
+    Event event = ctx.value(EVENT_AGENDA);
+    String typeModification = ctx.value(EVENT_MODIFICATION_TYPE);
+    // To avoid NPE for previously stored notifications, if EVENT_MODIFICATION_TYPE parameter
     // doesn't exists, we assume that it's a new one
-    isNew = isNew == null || isNew.booleanValue();
+    typeModification = StringUtils.isNotBlank(typeModification) ? typeModification : EventModificationType.ADDED.name();
 
-    Event event = eventService.getEventById(eventId);
-    List<EventAttendee> eventAttendee = eventAttendeeService.getEventAttendees(eventId);
     Calendar calendar = calendarService.getCalendarById(event.getCalendarId());
     NotificationInfo notification = NotificationInfo.instance();
     notification.key(getId());
     if (event.getId() > 0) {
-      setNotificationRecipients(identityManager, notification, eventAttendee, event, isNew);
+      setNotificationRecipients(identityManager, notification, spaceService, eventAttendee, event, typeModification);
     }
     if (notification.getSendToUserIds() == null || notification.getSendToUserIds().isEmpty()) {
       LOG.debug("Notification type '{}' doesn't have a recipient", getId());
       return null;
     } else {
-      storeEventParameters(notification, event, calendar, isNew);
+      storeEventParameters(identityManager, notification, event, calendar, typeModification);
       return notification.end();
     }
   }

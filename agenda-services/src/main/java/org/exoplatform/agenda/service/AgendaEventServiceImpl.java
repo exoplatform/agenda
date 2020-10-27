@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.constant.EventAvailability;
+import org.exoplatform.agenda.constant.EventModificationType;
 import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
@@ -293,7 +294,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     attachmentService.saveEventAttachments(eventId, attachments, userIdentityId);
     conferenceService.saveEventConferences(eventId, conferences);
     reminderService.saveEventReminders(createdEvent, reminders, userIdentityId);
-    attendeeService.saveEventAttendees(createdEvent, attendees, userIdentityId, sendInvitation, false, true);
+    attendeeService.saveEventAttendees(createdEvent, attendees, userIdentityId, sendInvitation, false, EventModificationType.ADDED);
 
     Utils.broadcastEvent(listenerService, Utils.POST_CREATE_AGENDA_EVENT_EVENT, eventId, 0);
 
@@ -367,7 +368,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
     if (attendees != null && !attendees.isEmpty()) {
       attendees.forEach(attendee -> attendee.setId(0));
-      attendeeService.saveEventAttendees(exceptionalEvent, attendees, originalRecurrentEventCreator, false, false, true);
+      attendeeService.saveEventAttendees(exceptionalEvent, attendees, originalRecurrentEventCreator, false, false, EventModificationType.ADDED);
     }
     return exceptionalEvent;
   }
@@ -469,7 +470,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     attachmentService.saveEventAttachments(eventId, attachments, userIdentityId);
     conferenceService.saveEventConferences(eventId, conferences);
     reminderService.saveEventReminders(updatedEvent, reminders, userIdentityId);
-    attendeeService.saveEventAttendees(updatedEvent, attendees, userIdentityId, sendInvitation, false, false);
+    attendeeService.saveEventAttendees(updatedEvent, attendees, userIdentityId, sendInvitation, false, EventModificationType.UPDATED);
 
     Utils.broadcastEvent(listenerService, Utils.POST_UPDATE_AGENDA_EVENT_EVENT, eventId, 0);
 
@@ -494,6 +495,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (!canUpdateEvent(event, username)) {
       throw new IllegalAccessException("User " + username + " hasnt enough privileges to delete event with id " + eventId);
     }
+    attendeeService.sendInvitations(eventId, EventModificationType.DELETED);
     agendaEventStorage.deleteEventById(eventId);
     Utils.broadcastEvent(listenerService, Utils.POST_DELETE_AGENDA_EVENT_EVENT, eventId, 0);
   }

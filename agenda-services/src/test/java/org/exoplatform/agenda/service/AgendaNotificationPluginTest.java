@@ -3,13 +3,13 @@ package org.exoplatform.agenda.service;
 import java.time.ZonedDateTime;
 import java.util.List;
 
+import org.exoplatform.agenda.constant.EventModificationType;
 import org.exoplatform.agenda.model.EventAttendee;
 import org.junit.Assert;
 import org.junit.Test;
 
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.notification.plugin.AgendaNotificationPlugin;
-import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.agenda.util.NotificationUtils;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.model.ArgumentLiteral;
@@ -57,11 +57,15 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
                                                                                      identityManager,
                                                                                      agendaEventService,
                                                                                      agendaEventAttendeeService,
-                                                                                     agendaCalendarService);
+                                                                                     agendaCalendarService,
+                                                                                     spaceService);
     NotificationContext ctx = NotificationContextImpl.cloneInstance()
-                                                     .append(NotificationUtils.EVENT_ID, createdEvent.getId())
+                                                     .append(NotificationUtils.EVENT_AGENDA, createdEvent)
+                                                     .append(NotificationUtils.EVENT_ATTENDEE,
+                                                             agendaEventAttendeeService.getEventAttendees(createdEvent.getId()))
                                                      .append(EVENT_TITLE, createdEvent.getSummary())
-                                                     .append(NotificationUtils.IS_NEW, true);
+                                                     .append(NotificationUtils.EVENT_MODIFICATION_TYPE,
+                                                             EventModificationType.ADDED.name());
     String eventUrl = System.getProperty("gatein.email.domain.url")
                             .concat("portal/classic/agenda?eventId=")
                             .concat(String.valueOf(createdEvent.getId()));
@@ -82,10 +86,6 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
                         notificationInfo.getValueOwnerParameter(NotificationUtils.TEMPLATE_VARIABLE_EVENT_TITLE));
     Assert.assertEquals(String.valueOf(nbAttendee), String.valueOf(notificationInfo.getSendToUserIds().size()));
     Assert.assertEquals(eventUrl, notificationInfo.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_URL));
-    Assert.assertEquals(AgendaDateUtils.toRFC3339Date(createdEvent.getStart()),
-                        notificationInfo.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_START_DATE));
-    Assert.assertEquals(AgendaDateUtils.toRFC3339Date(createdEvent.getEnd()),
-                        notificationInfo.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_END_DATE));
   }
 
   @Test
@@ -124,11 +124,18 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
                                                                                      identityManager,
                                                                                      agendaEventService,
                                                                                      agendaEventAttendeeService,
-                                                                                     agendaCalendarService);
+                                                                                     agendaCalendarService,
+                                                                                     spaceService);
+    updatedEvent.setUpdated(start);
+    updatedEvent.setModifierId(Long.parseLong(testuser1Identity.getId()));
     NotificationContext ctx = NotificationContextImpl.cloneInstance()
-                                                     .append(NotificationUtils.EVENT_ID, updatedEvent.getId())
+                                                     .append(NotificationUtils.EVENT_AGENDA, updatedEvent)
+                                                     .append(NotificationUtils.EVENT_ATTENDEE,
+                                                             agendaEventAttendeeService.getEventAttendees(updatedEvent.getId()))
+
                                                      .append(EVENT_TITLE, updatedEvent.getSummary())
-                                                     .append(NotificationUtils.IS_NEW, false);
+                                                     .append(NotificationUtils.EVENT_MODIFICATION_TYPE,
+                                                             EventModificationType.UPDATED.name());
     String eventUrl = System.getProperty("gatein.email.domain.url")
                             .concat("portal/classic/agenda?eventId=")
                             .concat(String.valueOf(createdEvent.getId()));
@@ -151,10 +158,6 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
                         notificationInfo.getValueOwnerParameter(NotificationUtils.TEMPLATE_VARIABLE_EVENT_TITLE));
     Assert.assertEquals(String.valueOf(nbAttendee), String.valueOf(notificationInfo.getSendToUserIds().size()));
     Assert.assertEquals(eventUrl, notificationInfo.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_URL));
-    Assert.assertEquals(AgendaDateUtils.toRFC3339Date(updatedEvent.getStart()),
-                        notificationInfo.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_START_DATE));
-    Assert.assertEquals(AgendaDateUtils.toRFC3339Date(updatedEvent.getEnd()),
-                        notificationInfo.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_END_DATE));
 
   }
 }

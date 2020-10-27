@@ -22,6 +22,7 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
+import org.exoplatform.agenda.constant.EventModificationType;
 import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
@@ -85,7 +86,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
                                  long creatorUserId,
                                  boolean sendInvitations,
                                  boolean resetResponses,
-                                 boolean isNew) {
+                                 EventModificationType eventModificationType) {
     long eventId = event.getId();
 
     List<EventAttendee> savedAttendees = getEventAttendees(event.getId());
@@ -141,7 +142,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       }
     }
     if (sendInvitations) {
-      sendInvitations(eventId, isNew);
+      sendInvitations(eventId, eventModificationType);
     }
 
     Utils.broadcastEvent(listenerService, "exo.agenda.event.attendees.saved", eventId, 0);
@@ -301,15 +302,22 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    * {@inheritDoc}
    */
   @Override
-  public void sendInvitations(long eventId, boolean isNew) {
+  public void sendInvitations(long eventId, EventModificationType eventModificationType) {
     String agendaNotificationPluginType = null;
     NotificationContext ctx = NotificationContextImpl.cloneInstance();
-    ctx.append(EVENT_ID, eventId);
-    ctx.append(IS_NEW, isNew);
-    if (isNew) {
+    Event event = eventStorage.getEventById(eventId);
+    List<EventAttendee> eventAttendees = getEventAttendees(eventId);
+    ctx.append(EVENT_AGENDA, event);
+    ctx.append(EVENT_ATTENDEE, eventAttendees);
+    if (eventModificationType.name().equals("ADDED")) {
       agendaNotificationPluginType = AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN;
-    } else {
+      ctx.append(EVENT_MODIFICATION_TYPE, "ADDED");
+    } else if(eventModificationType.name().equals("UPDATED")){
       agendaNotificationPluginType = AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN;
+      ctx.append(EVENT_MODIFICATION_TYPE, "UPDATED");
+    } else {
+      agendaNotificationPluginType = AGENDA_EVENT_CANCELED_NOTIFICATION_PLUGIN;
+      ctx.append(EVENT_MODIFICATION_TYPE, "DELETED");
     }
     dispatch(ctx, agendaNotificationPluginType);
   }
