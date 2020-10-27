@@ -9,18 +9,20 @@
         <div class="status">
           <%
           String eventTitle = "<span class=\"user-name text-bold\">"+ eventTitle +"</span>";
-          if ("true".equals(isNewEvent)) { %>
-            <%= _ctx.appRes("Notification.agenda.event.created", eventTitle) %>
-          <% } else { %>
+          if (org.exoplatform.agenda.constant.EventModificationType.ADDED.name().equals(modificationType)) { %>
+            <%= _ctx.appRes("Notification.agenda.event.created", eventTitle, creatorName) %>
+          <% } else if(org.exoplatform.agenda.constant.EventModificationType.UPDATED.name().equals(modificationType)){ %>
             <%= _ctx.appRes("Notification.agenda.event.updated", eventTitle) %>
+          <% } else { %>
+            <%= _ctx.appRes("Notification.agenda.event.canceled", eventTitle) %>
           <% } %>
         </div>
         <div class="content float-right">
           <a>
             <%
-            if("true".equals(isNewEvent)) { %>
+            if(org.exoplatform.agenda.constant.EventModificationType.ADDED.name().equals(modificationType)) { %>
               <%= _ctx.appRes("Notification.agenda.event.reply") %>
-            <% } else { %>
+            <% } else if(org.exoplatform.agenda.constant.EventModificationType.UPDATED.name().equals(modificationType)){ %>
               <%= _ctx.appRes("Notification.agenda.event.view") %>
             <% } %>
           </a>

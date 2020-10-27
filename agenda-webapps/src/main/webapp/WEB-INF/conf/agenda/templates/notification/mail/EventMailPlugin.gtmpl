@@ -5,7 +5,11 @@
                 <tr>
                     <td  height="45" valign="middle" style="margin:0;height:45px;font-weight:bold;vertical-align:middle;;background-color: #efefef;font-family: 'HelveticaNeue Bold', Helvetica, Arial, sans-serif;color:#2f5e92;font-size:18px;text-align:center">
                         <%
-                        out.write(_ctx.appRes("Notification.title.AgendaInvitationPlugin", eventTitle));
+                          if(org.exoplatform.agenda.constant.EventModificationType.ADDED.name().equals(modificationType)){
+                            out.write(_ctx.appRes("Notification.title.AgendaInvitationPlugin", eventTitle));
+                          } else if(org.exoplatform.agenda.constant.EventModificationType.UPDATED.name().equals(modificationType)){
+                            out.write(_ctx.appRes("Notification.title.AgendaInvitationPlugin.update", eventTitle));
+                        }
                         %>
                     </td>
                 </tr>
@@ -26,10 +30,16 @@
                                             <td>
                                                 <p style="margin: 10px 0 13px;">
                                                     <%
-                                                    String message = null;
-                                                    message = _ctx.appRes("Notification.agenda.event.created", eventTitle);
-                                                    %>
-                                                    <%= message %>
+                                                    String eventTitle = "<span style=\"color: #2f5e92; text-decoration: none; font-family: 'HelveticaNeue Bold', Helvetica, Arial, sans-serif\" >" + _ctx.escapeHTML(eventTitle) + "</span>";
+                                                    String creatorName = "<span style=\"color: #2f5e92; text-decoration: none; font-family: 'HelveticaNeue Bold', Helvetica, Arial, sans-serif\" >" + _ctx.escapeHTML(creatorName) + "</span>";
+                                                    if (org.exoplatform.agenda.constant.EventModificationType.ADDED.name().equals(modificationType)) { %>
+                                                      <%= _ctx.appRes("Notification.agenda.event.created", eventTitle, creatorName) %>
+                                                    <% } else if(org.exoplatform.agenda.constant.EventModificationType.UPDATED.name().equals(modificationType)){ %>
+                                                      <%
+                                                        String profileModifierUrl = "<a target=\"_blank\" style=\"color: #2f5e92; font-size: 13px; text-decoration: none; font-family: 'HelveticaNeue Bold', Helvetica, Arial, sans-serif\" href=\""+ modifierProfileUrl + "\">" + _ctx.escapeHTML(modifierName) + "</a>";
+                                                      %>
+                                                      <%= _ctx.appRes("Notification.agenda.event.body.updated", eventTitle, profileModifierUrl, updateDate) %>
+                                                    <% } %>
                                                 </p>
                                                 <br/>
                                                 <p style="margin: 0 0 20px;">
@@ -55,9 +65,15 @@
                                                         -webkit-box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 1px 2px rgba(0,0,0,.05);
                                                         -moz-box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 1px 2px rgba(0,0,0,.05);
                                                         box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 1px 2px rgba(0,0,0,.05);
-                                                        vertical-align: middle;
-                                                        margin-left: 3px;"
-                                                        href="<%= eventURL %>"><%=_ctx.appRes("Notification.agenda.event.reply")%></a>
+                                                        vertical-align: middle;"
+                                                        href="<%= eventURL %>">
+                                                        <%
+                                                        if (org.exoplatform.agenda.constant.EventModificationType.ADDED.name().equals(modificationType)) { %>
+                                                          <%= _ctx.appRes("Notification.agenda.event.reply") %>
+                                                        <% } else if(org.exoplatform.agenda.constant.EventModificationType.UPDATED.name().equals(modificationType)){ %>
+                                                          <%= _ctx.appRes("Notification.agenda.event.view") %>
+                                                        <% } %>
+                                                    </a>
                                                 </p>
                                             </td>
                                         </tr>
