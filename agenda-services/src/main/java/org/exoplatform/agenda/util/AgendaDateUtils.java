@@ -27,7 +27,7 @@ import org.apache.commons.lang3.StringUtils;
 public class AgendaDateUtils {
   private static final String ALL_DAY_FORMAT = "yyyy-MM-dd";
 
-  private static final String           HOUR_FORMAT             = "hh";
+  private static final String           HOUR_FORMAT             = "HH";
 
   public static final DateTimeFormatter RFC_3339_FORMATTER =
                                                            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss[.SSS]XXX")
