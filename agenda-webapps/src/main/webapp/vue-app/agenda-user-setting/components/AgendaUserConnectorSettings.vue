@@ -6,9 +6,24 @@
           {{ skeleton && '&nbsp;' || $t('agenda.connectYourPersonalAgenda') }}
         </div>
       </v-list-item-title>
-      <v-list-item-subtitle class="text-sub-title font-italic">
-        <div :class="skeleton && 'skeleton-background skeleton-border-radius skeleton-text-width-small skeleton-text-height-fine my-2'">
-          {{ skeleton && '&nbsp;' || connectedAccountName || $t('agenda.connectYourPersonalAgendaSubTitle') }}
+      <v-list-item-subtitle class="mx-7 my-3 text-sub-title font-italic">
+        <div
+          v-if="connectedAccountName">
+          <v-avatar tile size="24">
+            <img
+              :alt="connectedAccount.name"
+              :src="connectedAccountIconSource">
+          </v-avatar>
+          <a
+            class="mx-2"
+            @click="openDrawer">
+            {{ connectedAccountName }}
+          </a>
+        </div>
+        <div
+          v-else
+          :class="skeleton && 'skeleton-background skeleton-border-radius skeleton-text-width-small skeleton-text-height-fine my-2'">
+          {{ skeleton && '&nbsp;' || $t('agenda.connectYourPersonalAgendaSubTitle') }}
         </div>
       </v-list-item-subtitle>
     </v-list-item-content>
@@ -21,7 +36,7 @@
         <i v-if="!skeleton" class="uiIconEdit uiIconLightBlue pb-2"></i>
       </v-btn>
     </v-list-item-action>
-    <agenda-user-connected-account-drawer />
+    <agenda-user-connected-account-drawer :connected-account="connectedAccount" />
   </v-list-item>
 </template>
 
@@ -34,19 +49,30 @@ export default {
     },
   },
   data: () => ({
-    connectedAccount: null,
+    connectedAccount: {},
   }),
   computed: {
     connectedAccountName() {
-      return this.connectedAccount && this.connectedAccount.name || '';
+      return this.connectedAccount && this.connectedAccount.userId || '';
     },
-    connectedAccountIconClass() {
-      return this.connectedAccount && this.connectedAccount.iconClass || '';
+    connectedAccountIconSource() {
+      return this.connectedAccount && this.connectedAccount.icon || '';
     },
   },
+  created() {
+    this.$root.$on('agenda-refresh', this.refresh);
+    this.refresh();
+  },
   methods: {
+    refresh() {
+      this.$calendarService.getAgendaConnectorsSettings().then(connectorSettings => {
+        if (connectorSettings && connectorSettings.value) {
+          this.connectedAccount = JSON.parse(connectorSettings.value);
+        }
+      });
+    },
     openDrawer() {
-      this.$root.$emit('agenda-connected-account-settings-open', this.connectedAccount);
+      this.$root.$emit('agenda-connected-account-settings-open');
     },
     getDayFromAbbreviation(day) {
       return this.$agendaUtils.getDayNameFromDayAbbreviation(day, eXo.env.portal.language);
