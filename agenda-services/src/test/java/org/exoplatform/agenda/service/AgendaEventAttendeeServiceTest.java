@@ -22,6 +22,7 @@ import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.List;
 
+import org.exoplatform.agenda.constant.EventModificationType;
 import org.junit.Test;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
@@ -161,7 +162,7 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
     eventAttendees.add(eventAttendee);
 
     long userIdentityId = Long.parseLong(testuser5Identity.getId());
-    agendaEventAttendeeService.saveEventAttendees(event, eventAttendees, userIdentityId, true, true, true);
+    agendaEventAttendeeService.saveEventAttendees(event, eventAttendees, userIdentityId, true, true, EventModificationType.ADDED);
     eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId);
     assertNotNull(eventAttendees);
     assertEquals("Same user was added twice, only one attendee object should remain in store", 1, eventAttendees.size());
@@ -171,12 +172,12 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
     eventAttendee.setIdentityId(Long.parseLong(testuser4Identity.getId()));
     eventAttendees.add(eventAttendee);
 
-    agendaEventAttendeeService.saveEventAttendees(event, eventAttendees, userIdentityId, true, true, true);
+    agendaEventAttendeeService.saveEventAttendees(event, eventAttendees, userIdentityId, true, true, EventModificationType.ADDED);
     eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId);
     assertNotNull(eventAttendees);
     assertEquals(2, eventAttendees.size());
 
-    agendaEventAttendeeService.saveEventAttendees(event, Collections.emptyList(), userIdentityId, true, true, true);
+    agendaEventAttendeeService.saveEventAttendees(event, Collections.emptyList(), userIdentityId, true, true, EventModificationType.ADDED);
     eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId);
     assertNotNull(eventAttendees);
     assertEquals(0, eventAttendees.size());

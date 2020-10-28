@@ -345,15 +345,8 @@ public class Utils {
   public static Identity getIdentityById(IdentityManager identityManager, String identityId) {
     return identityManager.getIdentity(identityId);
   }
-
-  public static String getSpaceAvatarByIdSpace(String spaceName) {
-    SpaceService spaceService = CommonsUtils.getService(SpaceService.class);
-    Space space = spaceService.getSpaceByPrettyName(spaceName);
-    return space.getAvatarUrl();
-  }
-
-  public static List<String> getSpaceMembersBySpaceName(String spaceName) {
-    SpaceService spaceService = CommonsUtils.getService(SpaceService.class);
+  
+  public static List<String> getSpaceMembersBySpaceName(String spaceName, SpaceService spaceService) {
     String[] members = spaceService.getSpaceByPrettyName(spaceName).getMembers();
     return Arrays.asList(members);
   }
