@@ -1,7 +1,5 @@
 package org.exoplatform.agenda.util;
 
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.*;
 
 import org.apache.commons.lang.StringUtils;
@@ -60,9 +58,7 @@ public class NotificationUtils {
   public static final String                  STORED_PARAMETER_EVENT_OWNER_ID           = "ownerId";
 
   private static final String                 STORED_PARAMETER_EVENT_ID                 = "eventId";
-
-  public static final String                  STORED_PARAMETER_EVENT_UPDATED_DATE       = "updateDate";
-
+  
   public static final String                  STORED_PARAMETER_EVENT_MODIFIER           = "eventModifier";
 
   public static final String                  STORED_PARAMETER_EVENT_CREATOR            = "eventCreator";
@@ -84,8 +80,6 @@ public class NotificationUtils {
   private static final String                 TEMPLATE_VARIABLE_EVENT_CREATOR           = "creatorName";
 
   private static final String                 TEMPLATE_VARIABLE_EVENT_MODIFIER          = "modifierName";
-
-  private static final String                 TEMPLATE_VARIABLE_EVENT_UPDATE_DATE       = "updateDate";
 
   private static final String                 TEMPLATE_VARIABLE_MODIFIER_IDENTITY_URL   = "modifierProfileUrl";
 
@@ -147,10 +141,8 @@ public class NotificationUtils {
                 .with(STORED_EVENT_MODIFICATION_TYPE, typeModification);
     if (event.getModifierId() > 0) {
       identity = Utils.getIdentityById(identityManager, event.getModifierId());
-      notification.with(STORED_PARAMETER_EVENT_MODIFIER,
-                        getEventNotificationCreatorOrModifierUserName(identity))
-                  .with(STORED_PARAMETER_MODIFIER_IDENTITY_ID, String.valueOf(event.getModifierId()))
-                  .with(STORED_PARAMETER_EVENT_UPDATED_DATE, AgendaDateUtils.toRFC3339Date(event.getUpdated()));
+      notification.with(STORED_PARAMETER_EVENT_MODIFIER, getEventNotificationCreatorOrModifierUserName(identity))
+                  .with(STORED_PARAMETER_MODIFIER_IDENTITY_ID, String.valueOf(event.getModifierId()));
     }
   }
 
@@ -182,13 +174,8 @@ public class NotificationUtils {
     templateContext.put(TEMPLATE_VARIABLE_EVENT_CREATOR, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_CREATOR));
     if (StringUtils.equals(modificationStoredType, EventModificationType.UPDATED.name())) {
       String identityId = notification.getValueOwnerParameter(STORED_PARAMETER_MODIFIER_IDENTITY_ID);
-      ZonedDateTime eventUpdateDate =
-                                    ZonedDateTime.parse(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_UPDATED_DATE));
-      ZoneId zoneId = Utils.getUserTimezone(identityManager, Long.parseLong(identityId));
-      String dateFormatted = AgendaDateUtils.toHourFormat(eventUpdateDate.withZoneSameInstant(zoneId));
       templateContext.put(TEMPLATE_VARIABLE_EVENT_MODIFIER, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_MODIFIER));
       templateContext.put(TEMPLATE_VARIABLE_MODIFIER_IDENTITY_URL, getUserAbsoluteURI(identityId));
-      templateContext.put(TEMPLATE_VARIABLE_EVENT_UPDATE_DATE, dateFormatted);
     }
     return templateContext;
   }
