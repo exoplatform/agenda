@@ -76,7 +76,7 @@ export default {
         return null;
       }
       if (this.$agendaUtils.areDatesOnSameDay(this.startDate, this.endDate)) {
-        return this.startTime;
+        return this.$agendaUtils.toDate(this.startTime.getTime() + 1800000);
       }
       return null;
     },
