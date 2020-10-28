@@ -93,7 +93,7 @@
                       <boolean>true</boolean>
                     </field>
                     <field name="order">
-                      <int>400</int>
+                      <int>500</int>
                     </field>
                     <field name="uri">
                       <string>agenda</string>
@@ -135,7 +135,7 @@
                       <boolean>true</boolean>
                     </field>
                     <field name="order">
-                      <int>400</int>
+                      <int>500</int>
                     </field>
                     <field name="uri">
                       <string>agenda</string>
@@ -177,7 +177,7 @@
                       <boolean>true</boolean>
                     </field>
                     <field name="order">
-                      <int>400</int>
+                      <int>500</int>
                     </field>
                     <field name="uri">
                       <string>agenda</string>
