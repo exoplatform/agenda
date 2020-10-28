@@ -19,6 +19,7 @@ package org.exoplatform.agenda.service;
 import java.util.List;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
+import org.exoplatform.agenda.constant.EventModificationType;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
@@ -36,13 +37,13 @@ public interface AgendaEventAttendeeService {
   public List<EventAttendee> getEventAttendees(long eventId);
 
   /**
-   * Sends an invitation to event attendees of type: user, space or external
-   * user.
+   * Sends an invitation to event attendees of type: user, space or external user.
    * 
    * @param eventId technical identifier of the event
-   * @param isNew flag to indicate if event is new or old
+   * @param eventModificationType flag to indicate if event is added, updated or
+   *          deleted
    */
-  public void sendInvitations(long eventId, boolean isNew);
+  public void sendInvitations(long eventId, EventModificationType eventModificationType);
 
   /**
    * @param event {@link Event} to attach attendees
@@ -52,13 +53,15 @@ public interface AgendaEventAttendeeService {
    * @param sendInvitations whether send invitations to other attendees or not
    * @param resetResponses whether reset attendees responses or not to default
    *          {@link EventAttendeeResponse#NEEDS_ACTION}
+   * @param eventModificationType flag to indicate if event is added, updated or
+   *          deleted
    */
   void saveEventAttendees(Event event,
                           List<EventAttendee> attendees,
                           long creatorIdentityId,
                           boolean sendInvitations,
                           boolean resetResponses,
-                          boolean isNew);
+                          EventModificationType eventModificationType);
 
   /**
    * Generates a token that will be used to authenticate user when requesting
