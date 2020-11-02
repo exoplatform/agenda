@@ -38,7 +38,7 @@
                                                       <%
                                                         String profileModifierUrl = "<a target=\"_blank\" style=\"color: #2f5e92; font-size: 13px; text-decoration: none; font-family: 'HelveticaNeue Bold', Helvetica, Arial, sans-serif\" href=\""+ modifierProfileUrl + "\">" + _ctx.escapeHTML(modifierName) + "</a>";
                                                       %>
-                                                      <%= _ctx.appRes("Notification.agenda.event.body.updated", eventTitle, profileModifierUrl, updateDate) %>
+                                                      <%= _ctx.appRes("Notification.agenda.event.mail.body.updated", eventTitle, profileModifierUrl) %>
                                                     <% } %>
                                                 </p>
                                                 <br/>
