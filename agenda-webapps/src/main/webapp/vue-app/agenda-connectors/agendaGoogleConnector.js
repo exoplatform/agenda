@@ -1,11 +1,12 @@
 export default {
   name: 'agenda.googleCalendar',
   avatar: '/agenda/skin/images/Google.png',
-  CLIENT_ID: '899406858008-inaa3tjhhn3blslb7pvlsi7nvmd08l2f.apps.googleusercontent.com',
+  CLIENT_ID: '694838797844-h0q657all0v8cq66p9nume6mti6cll4o.apps.googleusercontent.com',
   DISCOVERY_DOCS: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
   SCOPES: 'https://www.googleapis.com/auth/calendar.readonly',
   initialized: false,
   isSignedIn: false,
+  currentUser: {},
   init(connectionStatusChangedCallback, loadingCallback) {
     // Already initialized
     if (this.initialized) {
@@ -22,10 +23,10 @@ export default {
       self_.isSignedIn = isSignedIn;
       try {
         if (isSignedIn) {
-          const currentUser = self_.gapi.auth2.getAuthInstance().currentUser.get();
+          self_.currentUser = self_.gapi.auth2.getAuthInstance().currentUser.get();
           connectionStatusChangedCallback(self_, {
-            user: currentUser.getBasicProfile().getEmail(),
-            id: currentUser.getId(),
+            user: self_.currentUser.getBasicProfile().getEmail(),
+            id: self_.currentUser.getId(),
           });
         } else {
           self_.connectionStatusChangedCallback(self_, false);
@@ -62,5 +63,45 @@ export default {
   disconnect() {
     this.loadingCallback(this, true);
     return this.gapi.auth2.getAuthInstance().signOut();
+  },
+  getEvents(periodStartDate, periodEndDate) {
+    const self_ = this;
+    this.loadingCallback(this, true);
+    return this.gapi.client.calendar.events.list({
+      'calendarId': 'primary',
+      'timeMin': periodStartDate,
+      'timeMax': periodEndDate,
+      'singleEvents': true,
+      'orderBy': 'startTime'
+    }).then(events => events.result.items).then(events => {
+      events.forEach(event => {
+        event.calendar = {
+          owner: {
+            profile: {
+              avatarUrl: self_.avatar,
+              displayName: self_.currentUser.getBasicProfile().getEmail(),
+            }
+          }
+        };
+        if(event.attendees) {
+          event.attendees.forEach(attendee => {
+            attendee.response = attendee.responseStatus === 'needsAction' ? 'NEEDS_ACTION' : attendee.responseStatus.toUpperCase();
+            attendee.identity = {
+              providerId: 'organization',
+              profile: {
+                avatar: attendee.avatar ? attendee.avatar : '/portal/rest/v1/social/users/default-image/avatar',
+                fullname: attendee.email,
+              }
+            };
+          });
+        }
+
+        event.start = event.start.dateTime;
+        event.end = event.end.dateTime;
+        event.name = event.summary;
+        event.type = 'remoteEvent';
+      });
+      return events;
+    });
   }
 };

@@ -73,10 +73,7 @@ export default {
     },
     openDrawer() {
       this.$root.$emit('agenda-connected-account-settings-open');
-    },
-    getDayFromAbbreviation(day) {
-      return this.$agendaUtils.getDayNameFromDayAbbreviation(day, eXo.env.portal.language);
-    },
+    }
   }
 };
 </script>

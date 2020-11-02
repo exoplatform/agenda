@@ -49,6 +49,7 @@ import AgendaEventAttendeeItem from './components/event/view/AgendaEventAttendee
 import AgendaRecurrentEventSaveConfirmDialog from './components/event/confirm-dialog/AgendaRecurrentEventSaveConfirmDialog.vue';
 import AgendaRecurrentEventDeleteConfirmDialog from './components/event/confirm-dialog/AgendaRecurrentEventDeleteConfirmDialog.vue';
 import AgendaRecurrentEventResponseConfirmDialog from './components/event/confirm-dialog/AgendaRecurrentEventResponseConfirmDialog.vue';
+import AgendaUpdateEventDialog from './components/calendar-body/AgendaUpdateEventDialog.vue';
 
 const components = {
   'agenda-header': AgendaHeader,
@@ -94,6 +95,7 @@ const components = {
   'agenda-recurrent-event-response-confirm-dialog': AgendaRecurrentEventResponseConfirmDialog,
   'agenda-user-setting-drawer': AgendaUserSettingDrawer,
   'agenda-user-connected-account-drawer': AgendaUserConnectedAccountDrawer,
+  'agenda-update-event-dialog': AgendaUpdateEventDialog,
 };
 
 for (const key in components) {
