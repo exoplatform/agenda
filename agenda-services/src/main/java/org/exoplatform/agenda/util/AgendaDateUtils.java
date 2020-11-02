@@ -27,8 +27,6 @@ import org.apache.commons.lang3.StringUtils;
 public class AgendaDateUtils {
   private static final String ALL_DAY_FORMAT = "yyyy-MM-dd";
 
-  private static final String           HOUR_FORMAT             = "HH";
-
   public static final DateTimeFormatter RFC_3339_FORMATTER =
                                                            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss[.SSS]XXX")
                                                                             .withResolverStyle(ResolverStyle.LENIENT);
@@ -40,9 +38,6 @@ public class AgendaDateUtils {
                                                                                    .withResolverStyle(ResolverStyle.LENIENT);
 
   public static final DateTimeFormatter TIMEZONE_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss")
-                                                                                   .withResolverStyle(ResolverStyle.LENIENT);
-
-  public static final DateTimeFormatter HOUR_DATE_FORMATTER     = DateTimeFormatter.ofPattern(HOUR_FORMAT)
                                                                                    .withResolverStyle(ResolverStyle.LENIENT);
 
   private AgendaDateUtils() {
@@ -137,10 +132,6 @@ public class AgendaDateUtils {
       return null;
     }
     return ZonedDateTime.parse(occurrenceId, OCCURRENCE_ID_FORMATTER);
-  }
-
-  public static String toHourFormat(ZonedDateTime zonedDateTime) {
-    return zonedDateTime.format(HOUR_DATE_FORMATTER);
   }
 
 }
