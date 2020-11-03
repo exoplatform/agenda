@@ -5,6 +5,7 @@ export default {
   DISCOVERY_DOCS: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
   SCOPES: 'https://www.googleapis.com/auth/calendar.readonly',
   initialized: false,
+  isSignedIn: false,
   init(connectionStatusChangedCallback, loadingCallback) {
     // Already initialized
     if (this.initialized) {
@@ -18,6 +19,7 @@ export default {
     // Called when the signed in status changes, to update the UI
     // appropriately. After a sign-in, the API is called.
     function updateSigninStatus(isSignedIn) {
+      self_.isSignedIn = isSignedIn;
       try {
         if (isSignedIn) {
           const currentUser = self_.gapi.auth2.getAuthInstance().currentUser.get();
@@ -55,10 +57,10 @@ export default {
   },
   connect() {
     this.loadingCallback(this, true);
-    this.gapi.auth2.getAuthInstance().signIn();
+    return this.gapi.auth2.getAuthInstance().signIn();
   },
   disconnect() {
     this.loadingCallback(this, true);
-    this.gapi.auth2.getAuthInstance().signOut();
-  },
+    return this.gapi.auth2.getAuthInstance().signOut();
+  }
 };

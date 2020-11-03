@@ -35,14 +35,14 @@
               v-if="connector.user"
               :loading="connector.loading"
               class="btn"
-              @click="connector.disconnect()">
+              @click="disconnect(connector)">
               {{ $t('agenda.disconnect') }}
             </v-btn>
             <v-btn
               v-else
               :loading="connector.loading"
               class="btn"
-              @click="connector.connect()">
+              @click="connect(connector)">
               {{ $t('agenda.connect') }}
             </v-btn>
           </v-list-item-action>
@@ -54,12 +54,17 @@
 
 <script>
 export default {
+  props: {
+    connectedAccount: {
+      type: Object,
+      default: () => ({}),
+    },
+  },
   data: () => ({
     connectors: [],
   }),
   created() {
     this.$root.$on('agenda-connected-account-settings-open', this.open);
-
     // Retrieving list of registered connectors from extensionRegistry
     document.addEventListener('agenda-accounts-connectors-refresh', this.refreshConnectorsList);
     this.refreshConnectorsList();
@@ -81,8 +86,49 @@ export default {
       this.$forceUpdate();
     },
     connectionStatusChanged(connector, currentUser) {
-      connector.user = currentUser && currentUser.user || null;
+      //if user has connected
+      if (this.connectedAccount.userId) {
+        connector.user = this.connectedAccount.userId;
+      //if user disconnected from other browser
+      } else if (!this.connectedAccount.userId && connector.isSignedIn) {
+        this.disconnect(connector);
+      } else {
+        connector.user = currentUser && currentUser.user || null;
+      }
     },
+    connect(connector) {
+      this.$refs.agendaConnectorsDrawer.startLoading();
+      connector.connect().then((connectorDetails) => {
+        Object.assign(this.connectedAccount, {
+          connectorName: connector.name,
+          userId: connectorDetails.getBasicProfile().getEmail(),
+          icon: connector.avatar
+        });
+        this.$calendarService.saveAgendaConnectorsSettings(this.connectedAccount)
+          .finally(() => {
+            this.$refs.agendaConnectorsDrawer.endLoading();
+          });
+      });
+    },
+    disconnect(connector) {
+      if (connector.isSignedIn) {
+        connector.disconnect().then(() => {
+          this.resetConnectedAccount();
+        });
+      }
+      else {
+        this.resetConnectedAccount(connector);
+        this.connectionLoading(connector, true);
+        this.connectionStatusChanged(connector, false);
+      }
+    },
+    resetConnectedAccount(connector) {
+      this.connectedAccount.userId = '';
+      this.$calendarService.saveAgendaConnectorsSettings(this.connectedAccount)
+        .finally(() => {
+          this.connectionLoading(connector, false);
+        });
+    }
   },
 };
 </script>
