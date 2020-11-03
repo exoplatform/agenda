@@ -98,13 +98,13 @@ export default {
     },
     connect(connector) {
       this.$refs.agendaConnectorsDrawer.startLoading();
-      connector.connect().then((connectorDetails) => {
+      return connector.connect().then((connectorDetails) => {
         Object.assign(this.connectedAccount, {
           connectorName: connector.name,
           userId: connectorDetails.getBasicProfile().getEmail(),
           icon: connector.avatar
         });
-        this.$calendarService.saveAgendaConnectorsSettings(this.connectedAccount)
+        return this.$calendarService.saveAgendaConnectorsSettings(this.connectedAccount)
           .finally(() => {
             this.$refs.agendaConnectorsDrawer.endLoading();
           });
@@ -115,8 +115,7 @@ export default {
         connector.disconnect().then(() => {
           this.resetConnectedAccount();
         });
-      }
-      else {
+      } else {
         this.resetConnectedAccount(connector);
         this.connectionLoading(connector, true);
         this.connectionStatusChanged(connector, false);
@@ -124,7 +123,7 @@ export default {
     },
     resetConnectedAccount(connector) {
       this.connectedAccount.userId = '';
-      this.$calendarService.saveAgendaConnectorsSettings(this.connectedAccount)
+      return this.$calendarService.saveAgendaConnectorsSettings(this.connectedAccount)
         .finally(() => {
           this.connectionLoading(connector, false);
         });
