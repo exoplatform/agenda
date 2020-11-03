@@ -47,6 +47,11 @@
             </v-btn>
           </v-list-item-action>
         </v-list-item>
+        <v-card-text v-show="errorMessage" class="errorMessage">
+          <v-alert type="error">
+            {{ errorMessage }}
+          </v-alert>
+        </v-card-text>
       </v-list>
     </template>
   </exo-drawer>
@@ -62,6 +67,7 @@ export default {
   },
   data: () => ({
     connectors: [],
+    errorMessage: ''
   }),
   created() {
     this.$root.$on('agenda-connected-account-settings-open', this.open);
@@ -97,6 +103,7 @@ export default {
       }
     },
     connect(connector) {
+      this.errorMessage = null;
       this.$refs.agendaConnectorsDrawer.startLoading();
       return connector.connect().then((connectorDetails) => {
         Object.assign(this.connectedAccount, {
@@ -108,6 +115,13 @@ export default {
           .finally(() => {
             this.$refs.agendaConnectorsDrawer.endLoading();
           });
+      }).catch(error => {
+        console.error(`Error while connecting to your remote account: ${error.error}`);
+        if(error.error !== 'popup_closed_by_user') {
+          this.errorMessage = this.$t('agenda.connectionFailure');
+        }
+        this.connectionLoading(connector, false);
+        this.$refs.agendaConnectorsDrawer.endLoading();
       });
     },
     disconnect(connector) {
