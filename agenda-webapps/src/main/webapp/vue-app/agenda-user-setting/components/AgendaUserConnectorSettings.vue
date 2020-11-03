@@ -6,7 +6,7 @@
           {{ skeleton && '&nbsp;' || $t('agenda.connectYourPersonalAgenda') }}
         </div>
       </v-list-item-title>
-      <v-list-item-subtitle class="mx-7 my-3 text-sub-title font-italic">
+      <v-list-item-subtitle class="my-3 text-sub-title font-italic">
         <div
           v-if="connectedAccountName">
           <v-avatar tile size="24">
