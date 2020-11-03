@@ -109,7 +109,7 @@ public class AgendaEventRest implements ResourceContainer {
           @ApiParam(value = "Start datetime using RFC-3339 representation including timezone", required = true) @QueryParam("start") String start,
           @ApiParam(value = "End datetime using RFC-3339 representation including timezone", required = false) @QueryParam("end") String end,
           @ApiParam(value = "Limit of results to return, used only when end date isn't set", required = false, defaultValue = "10") @QueryParam("limit") int limit,
-          @ApiParam(value = "Flag to indicate if we get all events or get only accepted events", required = false, defaultValue = "false") @QueryParam("attendeeResponseFilter") boolean attendeeResponseFilter) {
+          @ApiParam(value = "Attendee Response statuses to filter events by attendee response", required = false) @QueryParam("attendeeResponseStatuses") List<String> attendeeResponseStatuses) {
 
     if (StringUtils.isBlank(start)) {
       return Response.status(Status.BAD_REQUEST).entity("Start datetime is mandatory").build();
@@ -202,17 +202,20 @@ public class AgendaEventRest implements ResourceContainer {
         return eventEntity;
       }).collect(Collectors.toList());
       List<EventEntity> eventEntitiesFiltered = new ArrayList<>();
-      if (attendeeResponseFilter) {
+      if (attendeeResponseStatuses.contains(EventAttendeeResponse.ACCEPTED.name())
+          || attendeeResponseStatuses.contains(EventAttendeeResponse.TENTATIVE.name())) {
         long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
         for (EventEntity event : eventEntities) {
           EventAttendeeResponse attendeeResponse = agendaEventAttendeeService.getEventResponse(event.getId(), userIdentityId);
-          if (attendeeResponse.equals(EventAttendeeResponse.ACCEPTED)) {
+          if (attendeeResponse.equals(EventAttendeeResponse.ACCEPTED)
+              || attendeeResponse.equals(EventAttendeeResponse.TENTATIVE)) {
             eventEntitiesFiltered.add(event);
           }
         }
       }
       EventList eventList = new EventList();
-      if (attendeeResponseFilter) {
+      if (attendeeResponseStatuses.contains(EventAttendeeResponse.ACCEPTED.name())
+          || attendeeResponseStatuses.contains(EventAttendeeResponse.TENTATIVE.name())) {
         eventList.setEvents(eventEntitiesFiltered);
       } else {
         eventList.setEvents(eventEntities);
