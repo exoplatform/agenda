@@ -2,7 +2,7 @@ import {toRFC3339, getDayNameFromDate, getMonthNumberFromDate, toDate} from './A
 
 const TIME_ZONE_OFFSET_SECONDS = (eXo.env.portal.timezoneDSTSavings + eXo.env.portal.timezoneOffset) / 1000;
 
-export function getEvents(query, ownerIds, attendeeIdentityId, start, end, limit, expand) {
+export function getEvents(query, ownerIds, attendeeIdentityId, start, end, limit, attendeeResponseFilter, expand) {
   if (typeof start === 'object') {
     start = toRFC3339(start);
   }
@@ -27,6 +27,10 @@ export function getEvents(query, ownerIds, attendeeIdentityId, start, end, limit
 
   if (expand) {
     params.expand = expand;
+  }
+
+  if (attendeeResponseFilter) {
+    params.attendeeResponseFilter = attendeeResponseFilter;
   }
 
   if (attendeeIdentityId) {
