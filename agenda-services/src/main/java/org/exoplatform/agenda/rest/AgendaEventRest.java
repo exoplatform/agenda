@@ -111,7 +111,8 @@ public class AgendaEventRest implements ResourceContainer {
           @ApiParam(
                   value = "Limit of results to return, used only when end date isn't set", required = false,
                   defaultValue = "10"
-          ) @QueryParam("limit") int limit) {
+          ) @QueryParam("limit") int limit,
+          @ApiParam(value = "Attendee Response statuses to filter events by attendee response", required = false) @QueryParam("responseTypes") List<EventAttendeeResponse> attendeeResponses) {
 
     if (StringUtils.isBlank(start)) {
       return Response.status(Status.BAD_REQUEST).entity("Start datetime is mandatory").build();
@@ -133,32 +134,9 @@ public class AgendaEventRest implements ResourceContainer {
 
     String currentUser = RestUtils.getCurrentUser();
     try {
-      List<Event> events = null;
       ZoneId userTimeZone = startDatetime.getZone();
-      if (attendeeIdentityId > 0) {
-        if (ownerIds == null || ownerIds.isEmpty()) {
-          events = agendaEventService.getEventsByAttendee(attendeeIdentityId,
-                  startDatetime,
-                  endDatetime,
-                  userTimeZone,
-                  limit,
-                  currentUser);
-        } else {
-          events = agendaEventService.getEventsByOwnersAndAttendee(attendeeIdentityId,
-                  ownerIds,
-                  startDatetime,
-                  endDatetime,
-                  userTimeZone,
-                  limit,
-                  currentUser);
-        }
-      } else {
-        if (ownerIds == null || ownerIds.isEmpty()) {
-          events = agendaEventService.getEvents(startDatetime, endDatetime, userTimeZone, limit, currentUser);
-        } else {
-          events = agendaEventService.getEventsByOwners(ownerIds, startDatetime, endDatetime, userTimeZone, limit, currentUser);
-        }
-      }
+      EventFilter eventListFilter = new EventFilter(attendeeIdentityId,ownerIds,attendeeResponses,startDatetime,endDatetime);
+      List<Event> events = agendaEventService.getEvents(eventListFilter, userTimeZone, limit, currentUser);
       Map<Long, List<EventAttendeeEntity>> attendeesByParentEventId = new HashMap<>();
       Map<Long, List<EventAttachmentEntity>> attachmentsByParentEventId = new HashMap<>();
       Map<Long, List<EventConference>> conferencesByParentEventId = new HashMap<>();

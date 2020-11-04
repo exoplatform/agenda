@@ -21,6 +21,7 @@ import java.util.stream.Collectors;
 
 import javax.persistence.*;
 
+import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.entity.EventEntity;
 import org.exoplatform.commons.api.persistence.ExoTransactional;
@@ -170,6 +171,7 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
 
   public List<Long> getEventIdsByPeriodAndAttendeeIdsAndOwnerIds(Date startDate,
                                                                  Date endDate,
+                                                                 List<EventAttendeeResponse> responseTypes,
                                                                  int limit,
                                                                  List<Long> ownerIds,
                                                                  List<Long> attendeeIds) {
@@ -187,6 +189,9 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     if (endDate != null) {
       query.setParameter("end", endDate);
     }
+    if (responseTypes != null) {
+      query.setParameter("attendeeResponse", responseTypes);
+    }
     if (limit > 0) {
       query.setMaxResults(limit);
     }
@@ -195,7 +200,7 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
                               : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
   }
 
-  public List<Long> getEventIdsByPeriodAndAttendeeIds(Date startDate, Date endDate, int limit, List<Long> attendeeIds) {
+  public List<Long> getEventIdsByPeriodAndAttendeeIds(Date startDate, Date endDate, List<EventAttendeeResponse> responseTypes, int limit, List<Long> attendeeIds) {
     verifyLimit(endDate, limit);
 
     TypedQuery<Tuple> query = endDate == null
@@ -211,6 +216,9 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     }
     if (limit > 0) {
       query.setMaxResults(limit);
+    }
+    if (responseTypes != null) {
+      query.setParameter("attendeeResponse", responseTypes);
     }
     List<Tuple> resultList = query.getResultList();
     return resultList == null ? Collections.emptyList()

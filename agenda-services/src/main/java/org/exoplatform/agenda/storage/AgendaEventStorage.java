@@ -21,6 +21,7 @@ import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.dao.*;
 import org.exoplatform.agenda.entity.*;
 import org.exoplatform.agenda.model.*;
@@ -62,6 +63,7 @@ public class AgendaEventStorage {
 
   public List<Long> getEventIdsByAttendeeIds(ZonedDateTime start,
                                              ZonedDateTime end,
+                                             List<EventAttendeeResponse> responseTypes,
                                              int limit,
                                              List<Long> ownerIds,
                                              List<Long> attendeeIds) {
@@ -71,10 +73,18 @@ public class AgendaEventStorage {
 
     Date startDate = new Date(start.withSecond(0).withNano(0).toEpochSecond() * 1000);
     Date endDate = end == null ? null : new Date(end.withSecond(59).withNano(999999999).toEpochSecond() * 1000);
-    if (ownerIds == null || ownerIds.isEmpty()) {
-      return eventDAO.getEventIdsByPeriodAndAttendeeIds(startDate, endDate, limit, attendeeIds);
+    if (responseTypes == null || responseTypes.isEmpty()) {
+      if (ownerIds == null || ownerIds.isEmpty()) {
+        return eventDAO.getEventIdsByPeriodAndAttendeeIds(startDate, endDate,responseTypes, limit, attendeeIds);
+      } else {
+        return eventDAO.getEventIdsByPeriodAndAttendeeIdsAndOwnerIds(startDate, endDate,responseTypes, limit, ownerIds, attendeeIds);
+      }
     } else {
-      return eventDAO.getEventIdsByPeriodAndAttendeeIdsAndOwnerIds(startDate, endDate, limit, ownerIds, attendeeIds);
+      if (ownerIds == null || ownerIds.isEmpty()) {
+        return eventDAO.getEventIdsByPeriodAndAttendeeIds(startDate, endDate,responseTypes, limit, attendeeIds);
+      } else {
+        return eventDAO.getEventIdsByPeriodAndAttendeeIdsAndOwnerIds(startDate, endDate,responseTypes, limit, ownerIds, attendeeIds);
+      }
     }
   }
 
