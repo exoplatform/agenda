@@ -75,15 +75,15 @@ public class AgendaEventStorage {
     Date endDate = end == null ? null : new Date(end.withSecond(59).withNano(999999999).toEpochSecond() * 1000);
     if (responseTypes == null || responseTypes.isEmpty()) {
       if (ownerIds == null || ownerIds.isEmpty()) {
-        return eventDAO.getEventIdsByPeriodAndAttendeeIds(startDate, endDate,responseTypes, limit, attendeeIds);
+        return eventDAO.getEventIdsByPeriodAndAttendeeIds(startDate, endDate, limit, attendeeIds);
       } else {
-        return eventDAO.getEventIdsByPeriodAndAttendeeIdsAndOwnerIds(startDate, endDate,responseTypes, limit, ownerIds, attendeeIds);
+        return eventDAO.getEventIdsByPeriodAndAttendeeIdsAndOwnerIds(startDate, endDate, limit, ownerIds, attendeeIds);
       }
     } else {
       if (ownerIds == null || ownerIds.isEmpty()) {
-        return eventDAO.getEventIdsByPeriodAndAttendeeIds(startDate, endDate,responseTypes, limit, attendeeIds);
+        return eventDAO.getEventIdsByPeriodAndAttendeeIdsAndResponseTypes(startDate, endDate,responseTypes, limit, attendeeIds);
       } else {
-        return eventDAO.getEventIdsByPeriodAndAttendeeIdsAndOwnerIds(startDate, endDate,responseTypes, limit, ownerIds, attendeeIds);
+        return eventDAO.getEventIdsByPeriodAndAttendeeIdsAndOwnerIdsAndResponseTypes(startDate, endDate,responseTypes, limit, ownerIds, attendeeIds);
       }
     }
   }

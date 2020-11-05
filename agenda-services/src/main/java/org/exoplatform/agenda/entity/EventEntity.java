@@ -74,12 +74,32 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
               + " ORDER BY ev.startDate DESC"
       ),
       @NamedQuery(
+              name = "AgendaEvent.getEventIdsByPeriodAndAttendeeIdsAndResponseTypes",
+              query = "SELECT DISTINCT(ev.id), ev.startDate FROM AgendaEvent ev"
+                      + " INNER JOIN ev.attendees att"
+                      + " WHERE ev.status = :status"
+                      + " AND att.response IN (:attendeeResponses)"
+                      + " AND att.identityId IN (:attendeeIds)"
+                      + " AND ev.startDate < :end"
+                      + " AND (ev.endDate IS NULL OR ev.endDate >= :start)"
+                      + " ORDER BY ev.startDate DESC"
+      ),
+      @NamedQuery(
+              name = "AgendaEvent.getEventIdsByStartDateAndAttendeeIdsAndResponseTypes",
+              query = "SELECT DISTINCT(ev.id), ev.startDate FROM AgendaEvent ev"
+                      + " INNER JOIN ev.attendees att"
+                      + " WHERE ev.status = :status"
+                      + " AND att.response IN (:attendeeResponses)"
+                      + " AND att.identityId IN (:attendeeIds)"
+                      + " AND (ev.endDate IS NULL OR ev.endDate >= :start)"
+                      + " ORDER BY ev.startDate DESC"
+      ),
+      @NamedQuery(
           name = "AgendaEvent.getEventIdsByPeriodAndAttendeeIdsAndOwnerIds",
           query = "SELECT DISTINCT(ev.id), ev.startDate FROM AgendaEvent ev"
               + " INNER JOIN ev.attendees att"
               + " INNER JOIN ev.calendar cal"
               + " WHERE ev.status = :status"
-              + " AND att.response IN (:attendeeResponse)"
               + " AND att.identityId IN (:attendeeIds)"
               + " AND cal.ownerId IN (:ownerIds)"
               + " AND ev.startDate < :end"
@@ -87,16 +107,40 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
               + " ORDER BY ev.startDate DESC"
       ),
       @NamedQuery(
+              name = "AgendaEvent.getEventIdsByPeriodAndAttendeeIdsAndOwnerIdsAndResponseTypes",
+              query = "SELECT DISTINCT(ev.id), ev.startDate FROM AgendaEvent ev"
+                      + " INNER JOIN ev.attendees att"
+                      + " INNER JOIN ev.calendar cal"
+                      + " WHERE ev.status = :status"
+                      + " AND att.response IN (:attendeeResponses)"
+                      + " AND att.identityId IN (:attendeeIds)"
+                      + " AND cal.ownerId IN (:ownerIds)"
+                      + " AND ev.startDate < :end"
+                      + " AND (ev.endDate IS NULL OR ev.endDate >= :start)"
+                      + " ORDER BY ev.startDate DESC"
+      ),
+      @NamedQuery(
           name = "AgendaEvent.getEventIdsByStartDateAndAttendeeIdsAndOwnerIds",
           query = "SELECT DISTINCT(ev.id), ev.startDate FROM AgendaEvent ev"
               + " INNER JOIN ev.attendees att"
               + " INNER JOIN ev.calendar cal"
               + " WHERE ev.status = :status"
-              + " AND att.response IN (:attendeeResponse)"
               + " AND att.identityId IN (:attendeeIds)"
               + " AND cal.ownerId IN (:ownerIds)"
               + " AND (ev.endDate IS NULL OR ev.endDate >= :start)"
               + " ORDER BY ev.startDate DESC"
+      ),
+      @NamedQuery(
+              name = "AgendaEvent.getEventIdsByStartDateAndAttendeeIdsAndOwnerIdsAndResponseTypes",
+              query = "SELECT DISTINCT(ev.id), ev.startDate FROM AgendaEvent ev"
+                      + " INNER JOIN ev.attendees att"
+                      + " INNER JOIN ev.calendar cal"
+                      + " WHERE ev.status = :status"
+                      + " AND att.response IN (:attendeeResponses)"
+                      + " AND att.identityId IN (:attendeeIds)"
+                      + " AND cal.ownerId IN (:ownerIds)"
+                      + " AND (ev.endDate IS NULL OR ev.endDate >= :start)"
+                      + " ORDER BY ev.startDate DESC"
       ),
       @NamedQuery(
           name = "AgendaEvent.getExceptionalOccurenceEventIds",

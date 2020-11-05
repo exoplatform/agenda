@@ -171,7 +171,6 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
 
   public List<Long> getEventIdsByPeriodAndAttendeeIdsAndOwnerIds(Date startDate,
                                                                  Date endDate,
-                                                                 List<EventAttendeeResponse> responseTypes,
                                                                  int limit,
                                                                  List<Long> ownerIds,
                                                                  List<Long> attendeeIds) {
@@ -189,9 +188,6 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     if (endDate != null) {
       query.setParameter("end", endDate);
     }
-    if (responseTypes != null) {
-      query.setParameter("attendeeResponse", responseTypes);
-    }
     if (limit > 0) {
       query.setMaxResults(limit);
     }
@@ -200,7 +196,36 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
                               : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
   }
 
-  public List<Long> getEventIdsByPeriodAndAttendeeIds(Date startDate, Date endDate, List<EventAttendeeResponse> responseTypes, int limit, List<Long> attendeeIds) {
+  public List<Long> getEventIdsByPeriodAndAttendeeIdsAndOwnerIdsAndResponseTypes(Date startDate,
+                                                                 Date endDate,
+                                                                 List<EventAttendeeResponse> attendeeResponses,
+                                                                 int limit,
+                                                                 List<Long> ownerIds,
+                                                                 List<Long> attendeeIds) {
+    verifyLimit(endDate, limit);
+
+    TypedQuery<Tuple> query = endDate == null
+            ? getEntityManager().createNamedQuery("AgendaEvent.getEventIdsByStartDateAndAttendeeIdsAndOwnerIdsAndResponseTypes",
+            Tuple.class)
+            : getEntityManager().createNamedQuery("AgendaEvent.getEventIdsByPeriodAndAttendeeIdsAndOwnerIdsAndResponseTypes",
+            Tuple.class);
+    query.setParameter("ownerIds", ownerIds);
+    query.setParameter("attendeeIds", attendeeIds);
+    query.setParameter("start", startDate);
+    query.setParameter("status", EventStatus.CONFIRMED);
+    query.setParameter("attendeeResponses", attendeeResponses);
+    if (endDate != null) {
+      query.setParameter("end", endDate);
+    }
+    if (limit > 0) {
+      query.setMaxResults(limit);
+    }
+    List<Tuple> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList()
+            : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
+  }
+
+  public List<Long> getEventIdsByPeriodAndAttendeeIds(Date startDate, Date endDate, int limit, List<Long> attendeeIds) {
     verifyLimit(endDate, limit);
 
     TypedQuery<Tuple> query = endDate == null
@@ -217,12 +242,32 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     if (limit > 0) {
       query.setMaxResults(limit);
     }
-    if (responseTypes != null) {
-      query.setParameter("attendeeResponse", responseTypes);
-    }
     List<Tuple> resultList = query.getResultList();
     return resultList == null ? Collections.emptyList()
                               : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
+  }
+
+  public List<Long> getEventIdsByPeriodAndAttendeeIdsAndResponseTypes(Date startDate, Date endDate, List<EventAttendeeResponse> attendeeResponses, int limit, List<Long> attendeeIds) {
+    verifyLimit(endDate, limit);
+
+    TypedQuery<Tuple> query = endDate == null
+            ? getEntityManager().createNamedQuery("AgendaEvent.getEventIdsByStartDateAndAttendeeIdsAndResponseTypes",
+            Tuple.class)
+            : getEntityManager().createNamedQuery("AgendaEvent.getEventIdsByPeriodAndAttendeeIdsAndResponseTypes",
+            Tuple.class);
+    query.setParameter("attendeeIds", attendeeIds);
+    query.setParameter("start", startDate);
+    query.setParameter("status", EventStatus.CONFIRMED);
+    query.setParameter("attendeeResponses", attendeeResponses);
+    if (endDate != null) {
+      query.setParameter("end", endDate);
+    }
+    if (limit > 0) {
+      query.setMaxResults(limit);
+    }
+    List<Tuple> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList()
+            : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
   }
 
   public List<Long> getExceptionalOccurenceEventIds(long parentRecurrentEventId, Date startDate, Date endDate) {

@@ -851,7 +851,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                int limit,
                                String currentUser) throws IllegalAccessException {
     limit = verifyLimit(eventListFilter.getEndDateTime(), limit);
-    if (eventListFilter.getAttendeeIdentityId() > 0) {
+    if (eventListFilter.getAttendeeIdentityId() != null && eventListFilter.getAttendeeIdentityId() > 0) {
       if (eventListFilter.getOwnerIds() == null || eventListFilter.getOwnerIds().isEmpty()) {
         return getEventsByAttendee(eventListFilter,
                                    userTimeZone,

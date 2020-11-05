@@ -738,11 +738,9 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     Event event = newEventInstance(start, end, allDay);
     event = createEvent(event.clone(), creatorUserName, testuser2Identity);
     Event createdEvent = agendaEventService.getEventById(event.getId(), null, testuser2Identity.getRemoteId());
-    //hassen modification
-    List<EventAttendee> eventAttendee = agendaEventAttendeeService.getEventAttendees(createdEvent.getId());
+
     List<Long> calendarOwnerIds = Utils.getCalendarOwnersOfUser(spaceService, identityManager, testuser2Identity);
-    Long attendeeIdentityId = eventAttendee.get(0).getIdentityId();
-    EventFilter eventListFilter = new EventFilter(attendeeIdentityId,calendarOwnerIds,null,getDate().plusHours(1),getDate().plusMinutes(90));
+    EventFilter eventListFilter = new EventFilter(null,calendarOwnerIds,null,getDate().plusHours(1),getDate().plusMinutes(90));
 
     assertNotNull(createdEvent);
     assertTrue(createdEvent.getId() > 0);
@@ -773,6 +771,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     eventListFilter.setStartDateTime(getDate().plusHours(1));
     eventListFilter.setStartDateTime(getDate().plusMinutes(90));
+    eventListFilter.setAttendeeIdentityId(ATTENDEES.get(0).getIdentityId());
     events = agendaEventService.getEvents(eventListFilter,
                                           null,
                                           0,
@@ -782,6 +781,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     eventListFilter.setStartDateTime(getDate().plusHours(1).plusDays(1));
     eventListFilter.setEndDateTime(getDate().plusMinutes(90).plusDays(1));
+    eventListFilter.setAttendeeIdentityId(null);
     events = agendaEventService.getEvents(eventListFilter,
                                           null,
                                           0,
@@ -825,10 +825,14 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     }
     eventListFilter.setStartDateTime(getDate().plusHours(1));
     eventListFilter.setEndDateTime(getDate().plusMinutes(90));
+    eventListFilter.setAttendeeIdentityId(null);
     List<Event> events = agendaEventService.getEvents(eventListFilter, null, 0, testuser2Identity.getRemoteId());
     assertNotNull(events);
     assertEquals(1, events.size());
 
+    long testuser2Id = Long.parseLong(testuser4Identity.getId());
+    List<Long> ownerIds = Collections.singletonList(testuser2Id);
+    eventListFilter.setOwnerIds(ownerIds);
     events = agendaEventService.getEvents(eventListFilter,
                                           null,
                                           0,
@@ -849,10 +853,9 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     event1 = agendaEventService.getEventById(event1.getId(),
                                              null,
                                              testuser1Identity.getRemoteId());
-    List<EventAttendee> eventAttendee = agendaEventAttendeeService.getEventAttendees(event1.getId());
-    List<Long> calendarOwnerIds = Utils.getCalendarOwnersOfUser(spaceService, identityManager, testuser2Identity);
-    Long attendeeIdentityId = eventAttendee.get(0).getIdentityId();
-    EventFilter eventListFilter = new EventFilter(attendeeIdentityId, calendarOwnerIds, null, start, end);
+    long testuser2Id = Long.parseLong(testuser2Identity.getId());
+    List<Long> ownerIds = Collections.singletonList(testuser2Id);
+    EventFilter eventListFilter = new EventFilter(null, ownerIds, null, start, end);
 
     List<Event> events = agendaEventService.getEvents(eventListFilter, null, 0, testuser2Identity.getRemoteId());
     assertNotNull(events);
@@ -884,9 +887,8 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertNotNull(events);
     assertEquals(4, events.size());
 
-    List<EventAttendee> eventAttendee1 = agendaEventAttendeeService.getEventAttendees(event1.getRecurrence().getId());
     List<Long> calendarOwnerIds1 = Utils.getCalendarOwnersOfUser(spaceService, identityManager, testuser2Identity);
-    Long attendeeIdentityId1 = eventAttendee1.get(0).getIdentityId();
+    Long attendeeIdentityId1 = Long.parseLong(testuser2Identity.getId());
     EventFilter eventListFilter1 = new EventFilter(attendeeIdentityId1, calendarOwnerIds1, null, start, end);
     eventListFilter1.setStartDateTime(event1.getRecurrence()
                                             .getUntil()
