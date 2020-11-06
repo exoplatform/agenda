@@ -38,8 +38,8 @@
         :style="currentTimeStyle"></div>
     </template>
     <template #event="{ event, timed, eventSummary }">
+      <strong class="text-truncate ml-2">{{ event.summary }}</strong>
       <div v-if="event" class="v-event-draggable d-flex flex-row">
-        <strong class="text-truncate">{{ event.summary }}</strong>
         <template v-if="!event.allDay">
           <date-format
             :value="event.startDate"
