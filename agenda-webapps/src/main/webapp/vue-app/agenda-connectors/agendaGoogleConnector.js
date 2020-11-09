@@ -1,7 +1,7 @@
 export default {
   name: 'agenda.googleCalendar',
   avatar: '/agenda/skin/images/Google.png',
-  CLIENT_ID: '694838797844-h0q657all0v8cq66p9nume6mti6cll4o.apps.googleusercontent.com',
+  CLIENT_ID: '899406858008-inaa3tjhhn3blslb7pvlsi7nvmd08l2f.apps.googleusercontent.com',
   DISCOVERY_DOCS: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
   SCOPES: 'https://www.googleapis.com/auth/calendar.readonly',
   initialized: false,
