@@ -61,7 +61,7 @@ export default {
     initialized: false,
     currentSpace: null,
     filterCanceledEvents: true,
-    loading: false,
+    loading: 0,
     ownerIds: [],
     searchTerm: null,
     eventType: 'myEvents',
@@ -73,7 +73,6 @@ export default {
       start: new Date(),
       end: null,
     },
-    events: [],
     settings: {
       agendaDefaultView: 'week',
       agendaWeekStartOn: 'MO',
@@ -101,6 +100,9 @@ export default {
         workingTimeStart: this.settings.workingTimeStart,
         workingTimeEnd: this.settings.workingTimeEnd
       };
+    },
+    events() {
+      return [...this.localEvents, ...this.remoteEvents];
     }
   },
   watch: {
@@ -116,11 +118,15 @@ export default {
     searchTerm() {
       this.retrieveEvents();
     },
-    loading() {
+    loading(newValue, oldValue) {
       if (this.loading) {
-        document.dispatchEvent(new CustomEvent('displayTopBarLoading'));
+        if (!oldValue) {
+          document.dispatchEvent(new CustomEvent('displayTopBarLoading'));
+        }
       } else {
-        document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
+        if (!newValue) {
+          document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
+        }
       }
     },
   },
@@ -164,8 +170,11 @@ export default {
       });
     },
     connectionLoading(connector, loading) {
-      this.loading = loading;
-      this.$forceUpdate();
+      if (loading) {
+        this.loading++;
+      } else if (this.loading) {
+        this.loading--;
+      }
     },
     connectionStatusChanged(connector, connectedAccount) {
       this.connectedConnector = connector;
@@ -173,36 +182,31 @@ export default {
       this.retrieveRemoteEvents(connector);
     },
     retrieveEvents() {
-      try {
-        this.loading = true;
-        if (this.connectedConnector.isSignedIn) {
-          this.retrieveRemoteEvents(this.connectedConnector);
-        }
-        if (!this.initialized && eXo.env.portal.spaceId) {
-          const spaceId = eXo.env.portal.spaceId;
-          this.$spaceService.getSpaceById(spaceId, 'identity')
-            .then((space) => {
-              this.currentSpace = space;
-              if (space && space.identity && space.identity.id) {
-                this.ownerIds = [space.identity.id];
-              }
-              this.retrieveEventsFromStore();
-            });
-        } else {
-          this.retrieveEventsFromStore();
-        }
-      } finally {
-        this.initialized = true;
-        this.loading = false;
+      if (this.connectedConnector.isSignedIn) {
+        this.retrieveRemoteEvents(this.connectedConnector);
+      }
+      if (!this.initialized && eXo.env.portal.spaceId) {
+        const spaceId = eXo.env.portal.spaceId;
+        this.$spaceService.getSpaceById(spaceId, 'identity')
+          .then((space) => {
+            this.currentSpace = space;
+            if (space && space.identity && space.identity.id) {
+              this.ownerIds = [space.identity.id];
+            }
+            this.retrieveEventsFromStore();
+          })
+          .finally(() => this.initialized = true);
+      } else {
+        this.retrieveEventsFromStore();
       }
     },
     retrieveEventsFromStore() {
+      this.loading++;
       const userIdentityId = this.eventType === 'myEvents' && eXo.env.portal.userIdentityId || null;
       if (this.ownerIds === false) {
         this.events = [];
         this.hasMore = false;
-        this.loading = false;
-        this.initialized = true;
+        this.loading--;
         return;
       }
       return this.$eventService.getEvents(this.searchTerm, this.ownerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, true), this.$agendaUtils.toRFC3339(this.period.end), this.limit)
@@ -218,9 +222,10 @@ export default {
           });
           this.hasMore = this.limit > this.pageSize && (this.events && this.events.length || 0) < events.length || events.length >= this.limit;
           this.localEvents = events;
-          this.events = [...this.localEvents, ...this.remoteEvents];
         }).catch(error =>{
           console.error('Error retrieving events', error);
+        }).finally(() => {
+          this.loading--;
         });
     },
     generateCalendarTitle(period) {
@@ -231,16 +236,18 @@ export default {
       this.retrieveEvents();
     },
     retrieveRemoteEvents(connector) {
-      return connector.getEvents(this.$agendaUtils.toRFC3339(this.period.start, false),
+      this.loading++;
+      connector.getEvents(this.$agendaUtils.toRFC3339(this.period.start, false),
         this.$agendaUtils.toRFC3339(this.period.end, false))
         .then(events => {
           events.forEach(event => {
             event.startDate = event.start && this.$agendaUtils.toDate(event.start) || null;
             event.endDate = event.end && this.$agendaUtils.toDate(event.end) || null;
           });
-          this.remoteEvents = events;
-          this.events = [...this.localEvents, ...this.remoteEvents];
-        }).catch(error =>{
+          this.remoteEvents = events || [];
+          this.loading--;
+        }).catch(error => {
+          this.loading--;
           console.error('Error retrieving remote events', error);
         });
     },

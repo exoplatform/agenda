@@ -66,7 +66,6 @@ export default {
   },
   getEvents(periodStartDate, periodEndDate) {
     const self_ = this;
-    this.loadingCallback(this, true);
     return this.gapi.client.calendar.events.list({
       'calendarId': 'primary',
       'timeMin': periodStartDate,
