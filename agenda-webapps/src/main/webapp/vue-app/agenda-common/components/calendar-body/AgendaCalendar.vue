@@ -215,9 +215,6 @@ export default {
     },
     eventMouseDown(eventObj) {
       const dragEvent = eventObj && eventObj.event || eventObj;
-      if (!dragEvent || !dragEvent.acl || !dragEvent.acl.canEdit) {
-        return;
-      }
       this.dragEvent = dragEvent;
       if (this.dragEvent) {
         this.originalDragedEvent = JSON.parse(JSON.stringify(this.dragEvent));
@@ -326,6 +323,10 @@ export default {
     },
     saveDraggedEvent() {
       if (this.saving) {
+        return;
+      }
+      if(!this.dragEvent || !this.dragEvent.acl || !this.dragEvent.acl.canEdit) {
+        this.$root.$emit('agenda-event-cancel-drag-drop');
         return;
       }
 

@@ -26,6 +26,9 @@
         <module>AgendaCommon</module>
       </depends>
       <depends>
+        <module>agendaConnectors</module>
+      </depends>
+      <depends>
         <module>commonVueComponents</module>
       </depends>
       <depends>
@@ -65,9 +68,6 @@
       </script>
       <depends>
         <module>AgendaCommon</module>
-      </depends>
-      <depends>
-        <module>agendaConnectors</module>
       </depends>
       <depends>
         <module>commonVueComponents</module>

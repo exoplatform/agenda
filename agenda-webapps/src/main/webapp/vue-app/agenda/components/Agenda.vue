@@ -52,6 +52,7 @@
     <agenda-event-quick-form-drawer :current-space="currentSpace" />
     <agenda-event-mobile-form-drawer :current-space="currentSpace" />
     <agenda-event-save />
+    <agenda-update-event-dialog />
   </v-app>
 </template>
 <script>
@@ -60,7 +61,7 @@ export default {
     initialized: false,
     currentSpace: null,
     filterCanceledEvents: true,
-    loading: false,
+    loading: 0,
     ownerIds: [],
     searchTerm: null,
     eventType: 'myEvents',
@@ -72,7 +73,6 @@ export default {
       start: new Date(),
       end: null,
     },
-    events: [],
     settings: {
       agendaDefaultView: 'week',
       agendaWeekStartOn: 'MO',
@@ -82,6 +82,10 @@ export default {
     },
     hasMore: false,
     settingsLoaded: false,
+    connectors: [],
+    connectedConnector: {},
+    remoteEvents: [],
+    localEvents: [],
   }),
   computed: {
     isMobile() {
@@ -96,6 +100,9 @@ export default {
         workingTimeStart: this.settings.workingTimeStart,
         workingTimeEnd: this.settings.workingTimeEnd
       };
+    },
+    events() {
+      return [...this.localEvents, ...this.remoteEvents];
     }
   },
   watch: {
@@ -111,11 +118,15 @@ export default {
     searchTerm() {
       this.retrieveEvents();
     },
-    loading() {
+    loading(newValue, oldValue) {
       if (this.loading) {
-        document.dispatchEvent(new CustomEvent('displayTopBarLoading'));
+        if (!oldValue) {
+          document.dispatchEvent(new CustomEvent('displayTopBarLoading'));
+        }
       } else {
-        document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
+        if (!newValue) {
+          document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
+        }
       }
     },
   },
@@ -143,9 +154,37 @@ export default {
         this.settingsLoaded = true;
         document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
       });
+    document.addEventListener('agenda-accounts-connectors-refresh', this.refreshConnectorsList);
+    this.refreshConnectorsList();
   },
   methods: {
+    refreshConnectorsList() {
+      this.connectors = extensionRegistry.loadExtensions('agenda', 'connectors') || [];
+      this.$calendarService.getAgendaConnectorsSettings().then(connectorSettings => {
+        if (connectorSettings && connectorSettings.value) {
+          const connectedConnectorName = JSON.parse(connectorSettings.value).connectorName;
+          this.connectedConnector = this.connectors.find(connector =>
+            connector.name === connectedConnectorName);
+          this.connectedConnector.init(this.connectionStatusChanged, this.connectionLoading);
+        }
+      });
+    },
+    connectionLoading(connector, loading) {
+      if (loading) {
+        this.loading++;
+      } else if (this.loading) {
+        this.loading--;
+      }
+    },
+    connectionStatusChanged(connector, connectedAccount) {
+      this.connectedConnector = connector;
+      this.connectedConnector.user = connectedAccount;
+      this.retrieveRemoteEvents(connector);
+    },
     retrieveEvents() {
+      if (this.connectedConnector.isSignedIn) {
+        this.retrieveRemoteEvents(this.connectedConnector);
+      }
       if (!this.initialized && eXo.env.portal.spaceId) {
         const spaceId = eXo.env.portal.spaceId;
         this.$spaceService.getSpaceById(spaceId, 'identity')
@@ -155,22 +194,22 @@ export default {
               this.ownerIds = [space.identity.id];
             }
             this.retrieveEventsFromStore();
-          });
+          })
+          .finally(() => this.initialized = true);
       } else {
         this.retrieveEventsFromStore();
       }
     },
     retrieveEventsFromStore() {
-      this.loading = true;
+      this.loading++;
       const userIdentityId = this.eventType === 'myEvents' && eXo.env.portal.userIdentityId || null;
       if (this.ownerIds === false) {
         this.events = [];
         this.hasMore = false;
-        this.loading = false;
-        this.initialized = true;
+        this.loading--;
         return;
       }
-      this.$eventService.getEvents(this.searchTerm, this.ownerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, true), this.$agendaUtils.toRFC3339(this.period.end), this.limit)
+      return this.$eventService.getEvents(this.searchTerm, this.ownerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, true), this.$agendaUtils.toRFC3339(this.period.end), this.limit)
         .then(data => {
           let events = data && data.events || [];
           if (this.filterCanceledEvents) {
@@ -182,12 +221,11 @@ export default {
             event.endDate = event.end && this.$agendaUtils.toDate(event.end) || null;
           });
           this.hasMore = this.limit > this.pageSize && (this.events && this.events.length || 0) < events.length || events.length >= this.limit;
-          this.events = events;
+          this.localEvents = events;
         }).catch(error =>{
           console.error('Error retrieving events', error);
         }).finally(() => {
-          this.initialized = true;
-          this.loading = false;
+          this.loading--;
         });
     },
     generateCalendarTitle(period) {
@@ -196,6 +234,22 @@ export default {
     changeDisplayedOwnerIds(selectedOwnerIds) {
       this.ownerIds = selectedOwnerIds;
       this.retrieveEvents();
+    },
+    retrieveRemoteEvents(connector) {
+      this.loading++;
+      connector.getEvents(this.$agendaUtils.toRFC3339(this.period.start, false),
+        this.$agendaUtils.toRFC3339(this.period.end, false))
+        .then(events => {
+          events.forEach(event => {
+            event.startDate = event.start && this.$agendaUtils.toDate(event.start) || null;
+            event.endDate = event.end && this.$agendaUtils.toDate(event.end) || null;
+          });
+          this.remoteEvents = events || [];
+          this.loading--;
+        }).catch(error => {
+          this.loading--;
+          console.error('Error retrieving remote events', error);
+        });
     },
   },
 };
