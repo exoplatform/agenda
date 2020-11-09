@@ -179,7 +179,9 @@ export default {
     connectionStatusChanged(connector, connectedAccount) {
       this.connectedConnector = connector;
       this.connectedConnector.user = connectedAccount;
-      this.retrieveRemoteEvents(connector);
+      if (this.connectedConnector.isSignedIn) {
+        this.retrieveRemoteEvents(connector);
+      }
     },
     retrieveEvents() {
       if (this.connectedConnector.isSignedIn) {
