@@ -136,26 +136,26 @@ export default {
   computed: {
     days() {
       return [{
-        text: this.getWeekDayLabel(6),
-        value: 'SU'
-      },{
-        text: this.getWeekDayLabel(0),
+        text: this.getWeekDayLabel(2),
         value: 'MO'
       },{
-        text: this.getWeekDayLabel(1),
+        text: this.getWeekDayLabel(3),
         value: 'TU'
       },{
-        text: this.getWeekDayLabel(2),
+        text: this.getWeekDayLabel(4),
         value: 'WE'
       },{
-        text: this.getWeekDayLabel(3),
+        text: this.getWeekDayLabel(5),
         value: 'TH'
       },{
-        text: this.getWeekDayLabel(4),
+        text: this.getWeekDayLabel(6),
         value: 'FR'
       },{
-        text: this.getWeekDayLabel(5),
+        text: this.getWeekDayLabel(0),
         value: 'SA'
+      },{
+        text: this.getWeekDayLabel(1),
+        value: 'SU'
       }];
     },
   },
