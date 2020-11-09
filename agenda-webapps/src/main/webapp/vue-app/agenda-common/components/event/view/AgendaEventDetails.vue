@@ -58,11 +58,11 @@
           <i class="uiIconRefresh darkGreyIcon uiIcon32x32 pr-5"></i>
           <agenda-event-recurrence :event="event" class="text-wrap text-left" />
         </div>
-        <div v-if="event.location" class="event-location align-center d-flex pb-5">
+        <div v-if="event.location" class="event-location flex-grow-0 flex-shrink-1 pb-5">
           <i class="uiIconCheckin darkGreyIcon uiIcon32x32 pr-5"></i>
           <span v-autolinker="event.location"></span>
         </div>
-        <div v-if="event.description" class="event-description d-flex pb-5">
+        <div v-if="event.description" class="event-description flex-grow-0 flex-shrink-1 pb-5">
           <i class="uiIconDescription darkGreyIcon uiIcon32x32 pr-5"></i>
           <span v-autolinker="event.description" class="mt-1 text-wrap text-left"></span>
         </div>
