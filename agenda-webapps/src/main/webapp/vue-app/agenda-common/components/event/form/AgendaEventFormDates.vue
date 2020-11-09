@@ -47,8 +47,8 @@
       @change="retrieveEvents">
       <template #event="eventObj">
         <div :id="getEventDomId(eventObj)" class="v-event-draggable v-event-draggable-parent">
+          <strong class="text-truncate ml-2">{{ eventObj.event.summary }}</strong>
           <div class="d-flex">
-            <strong class="text-truncate">{{ eventObj.event.summary }}</strong>
             <template v-if="!eventObj.event.allDay">
               <date-format
                 :value="eventObj.event.startDate"
