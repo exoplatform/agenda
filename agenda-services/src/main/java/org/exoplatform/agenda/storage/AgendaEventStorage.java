@@ -21,6 +21,7 @@ import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.dao.*;
 import org.exoplatform.agenda.entity.*;
 import org.exoplatform.agenda.model.*;
@@ -28,6 +29,8 @@ import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.agenda.util.EntityMapper;
 
 public class AgendaEventStorage {
+
+  private static final int   DEFAULT_LIMIT = 200;
 
   private CalendarDAO        calendarDAO;
 
@@ -47,35 +50,16 @@ public class AgendaEventStorage {
     this.eventRecurrenceDAO = eventRecurrenceDAO;
   }
 
-  public List<Long> getEventIdsByOwnerIds(ZonedDateTime start, ZonedDateTime end, int limit, Long... ownerIds) {
-    if (start == null) {
-      throw new IllegalArgumentException("Start date is mandatory");
-    }
-    if (end == null) {
-      throw new IllegalArgumentException("End date is mandatory");
-    }
-
-    Date startDate = new Date(start.withSecond(0).withNano(0).toEpochSecond() * 1000);
-    Date endDate = new Date(end.withSecond(59).withNano(999999999).toEpochSecond() * 1000);
-    return eventDAO.getEventIdsByPeriodAndOwnerIds(startDate, endDate, limit, ownerIds);
-  }
-
-  public List<Long> getEventIdsByAttendeeIds(ZonedDateTime start,
-                                             ZonedDateTime end,
-                                             int limit,
-                                             List<Long> ownerIds,
-                                             List<Long> attendeeIds) {
-    if (start == null) {
-      throw new IllegalArgumentException("Start date is mandatory");
-    }
-
+  public List<Long> getEventIds(EventFilter eventFilter) {
+    ZonedDateTime start = eventFilter.getStart();
+    ZonedDateTime end = eventFilter.getEnd();
     Date startDate = new Date(start.withSecond(0).withNano(0).toEpochSecond() * 1000);
     Date endDate = end == null ? null : new Date(end.withSecond(59).withNano(999999999).toEpochSecond() * 1000);
-    if (ownerIds == null || ownerIds.isEmpty()) {
-      return eventDAO.getEventIdsByPeriodAndAttendeeIds(startDate, endDate, limit, attendeeIds);
-    } else {
-      return eventDAO.getEventIdsByPeriodAndAttendeeIdsAndOwnerIds(startDate, endDate, limit, ownerIds, attendeeIds);
-    }
+    List<Long> attendeeIds = eventFilter.getAttendeeId() > 0 ? eventFilter.getAttendeeWithSpacesIds() : null;
+    List<Long> ownerIds = eventFilter.getOwnerIds();
+    List<EventAttendeeResponse> responseTypes = eventFilter.getResponseTypes();
+    int limit = eventFilter.getEnd() == null ? DEFAULT_LIMIT : 0;
+    return this.eventDAO.getEventIds(startDate, endDate, ownerIds, attendeeIds, responseTypes, limit);
   }
 
   public Event getEventById(long eventId) {

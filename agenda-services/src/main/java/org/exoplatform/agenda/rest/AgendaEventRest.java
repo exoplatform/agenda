@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see<http://www.gnu.org/licenses/>.
-*/
+ */
 package org.exoplatform.agenda.rest;
 
 import java.time.*;
@@ -111,7 +111,11 @@ public class AgendaEventRest implements ResourceContainer {
                        @ApiParam(
                            value = "Limit of results to return, used only when end date isn't set", required = false,
                            defaultValue = "10"
-                       ) @QueryParam("limit") int limit) {
+                       ) @QueryParam("limit") int limit,
+                       @ApiParam(
+                           value = "Attendee Response statuses to filter events by attendee response",
+                           required = false
+                       ) @QueryParam("responseTypes") List<EventAttendeeResponse> responseTypes) {
 
     if (StringUtils.isBlank(start)) {
       return Response.status(Status.BAD_REQUEST).entity("Start datetime is mandatory").build();
@@ -133,32 +137,15 @@ public class AgendaEventRest implements ResourceContainer {
 
     String currentUser = RestUtils.getCurrentUser();
     try {
-      List<Event> events = null;
       ZoneId userTimeZone = startDatetime.getZone();
-      if (attendeeIdentityId > 0) {
-        if (ownerIds == null || ownerIds.isEmpty()) {
-          events = agendaEventService.getEventsByAttendee(attendeeIdentityId,
-                                                          startDatetime,
-                                                          endDatetime,
-                                                          userTimeZone,
-                                                          limit,
-                                                          currentUser);
-        } else {
-          events = agendaEventService.getEventsByOwnersAndAttendee(attendeeIdentityId,
-                                                                   ownerIds,
-                                                                   startDatetime,
-                                                                   endDatetime,
-                                                                   userTimeZone,
-                                                                   limit,
-                                                                   currentUser);
-        }
-      } else {
-        if (ownerIds == null || ownerIds.isEmpty()) {
-          events = agendaEventService.getEvents(startDatetime, endDatetime, userTimeZone, limit, currentUser);
-        } else {
-          events = agendaEventService.getEventsByOwners(ownerIds, startDatetime, endDatetime, userTimeZone, limit, currentUser);
-        }
-      }
+
+      EventFilter eventFilter = new EventFilter(attendeeIdentityId,
+                                                ownerIds,
+                                                responseTypes,
+                                                startDatetime,
+                                                endDatetime,
+                                                limit);
+      List<Event> events = agendaEventService.getEvents(eventFilter, currentUser, userTimeZone);
       Map<Long, List<EventAttendeeEntity>> attendeesByParentEventId = new HashMap<>();
       Map<Long, List<EventAttachmentEntity>> attachmentsByParentEventId = new HashMap<>();
       Map<Long, List<EventConference>> conferencesByParentEventId = new HashMap<>();
@@ -698,7 +685,7 @@ public class AgendaEventRest implements ResourceContainer {
                            "timeZoneOffset"
                          ) int timeZoneOffsetSeconds,
                          @ApiParam(value = "Properties to expand", required = false) @QueryParam(
-                                 "expand"
+                           "expand"
                          ) String expand,
                          @ApiParam(value = "Offset", required = false, defaultValue = "0") @QueryParam(
                            "offset"
@@ -710,14 +697,15 @@ public class AgendaEventRest implements ResourceContainer {
     offset = offset > 0 ? offset : RestUtils.getOffset(uriInfo);
     limit = limit > 0 ? limit : RestUtils.getLimit(uriInfo);
     List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
-            : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
-            ","));
+                                                                : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
+                                                                                                  ","));
     long currentUserId = RestUtils.getCurrentUserIdentityId(identityManager);
     ZoneId userTimeZone = ZoneOffset.ofTotalSeconds(timeZoneOffsetSeconds);
     List<EventSearchResult> searchResults = agendaEventService.search(currentUserId, userTimeZone, query, offset, limit);
     List<EventSearchResultEntity> results = searchResults.stream()
-                 .map(searchResult -> getEventSearchResultEntity(searchResult, expandProperties))
-                 .collect(Collectors.toList());
+                                                         .map(searchResult -> getEventSearchResultEntity(searchResult,
+                                                                                                         expandProperties))
+                                                         .collect(Collectors.toList());
     return Response.ok(results).build();
   }
 
