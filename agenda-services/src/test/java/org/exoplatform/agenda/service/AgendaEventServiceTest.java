@@ -19,6 +19,7 @@ package org.exoplatform.agenda.service;
 import static org.junit.Assert.*;
 
 import java.time.*;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -1266,6 +1267,59 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                           ZoneId.systemDefault());
     assertNotNull(events);
     assertEquals(1, events.size());
+  }
+  @Test
+  public void testGetEventsByResponseTypes() throws Exception {
+    ZonedDateTime date = getDate();
+
+    ZonedDateTime start = date.withNano(0);
+    ZonedDateTime end = start.plusHours(2);
+
+    Event event = newEventInstance(start, end, false);
+    event = createEvent(event.clone(), testuser1Identity.getRemoteId(), testuser2Identity, testuser3Identity);
+
+    List<EventAttendeeResponse> responseTypes = new ArrayList<>();
+    List<Event> events = new ArrayList<>();
+    agendaEventAttendeeService.sendEventResponse(event.getId(),
+                                                 Long.parseLong(testuser3Identity.getId()),
+                                                 EventAttendeeResponse.TENTATIVE);
+    responseTypes.add(EventAttendeeResponse.TENTATIVE);
+    EventFilter eventFilter = new EventFilter(Long.parseLong(testuser3Identity.getId()), null, responseTypes, start, end, 0);
+    try {
+      events = agendaEventService.getEvents(eventFilter, testuser3Identity.getRemoteId(), ZoneId.systemDefault());
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    assertNotNull(events);
+    assertEquals(1, events.size());
+
+    event = newEventInstance(start, end, false);
+    Event event1 = createEvent(event.clone(), testuser1Identity.getRemoteId(), testuser2Identity, testuser3Identity);
+    agendaEventAttendeeService.sendEventResponse(event1.getId(),
+                                                 Long.parseLong(testuser3Identity.getId()),
+                                                 EventAttendeeResponse.TENTATIVE);
+
+    List<EventAttendeeResponse> responseTypes1 = new ArrayList<>();
+    responseTypes1.add(EventAttendeeResponse.TENTATIVE);
+    EventFilter eventFilter1 = new EventFilter(Long.parseLong(testuser3Identity.getId()), null, responseTypes1, start, end, 0);
+    events = agendaEventService.getEvents(eventFilter1, testuser3Identity.getRemoteId(), ZoneId.systemDefault());
+
+    assertNotNull(events);
+    assertEquals(2, events.size());
+
+    event = newEventInstance(start, end, false);
+    Event event2 = createEvent(event.clone(), testuser1Identity.getRemoteId(), testuser2Identity, testuser3Identity);
+    agendaEventAttendeeService.sendEventResponse(event2.getId(),
+                                                 Long.parseLong(testuser3Identity.getId()),
+                                                 EventAttendeeResponse.ACCEPTED);
+    List<EventAttendeeResponse> responseTypes2 = new ArrayList<>();
+    responseTypes2.add(EventAttendeeResponse.TENTATIVE);
+    responseTypes2.add(EventAttendeeResponse.ACCEPTED);
+    EventFilter eventFilter2 = new EventFilter(Long.parseLong(testuser3Identity.getId()), null, responseTypes2, start, end, 0);
+    events = agendaEventService.getEvents(eventFilter2, testuser3Identity.getRemoteId(), ZoneId.systemDefault());
+    assertNotNull(events);
+    assertEquals(3, events.size());
+
   }
 
   private ZonedDateTime getDate() {
