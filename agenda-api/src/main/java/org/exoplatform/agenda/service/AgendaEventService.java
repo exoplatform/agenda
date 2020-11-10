@@ -22,92 +22,24 @@ import java.util.List;
 
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.model.*;
-import org.exoplatform.agenda.rest.model.EventSearchResultEntity;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.social.core.identity.model.Identity;
 
 public interface AgendaEventService {
 
   /**
-   * Retrieves the list of events available for a designated user in a selected
-   * period of time.
+   * Retrieves the list of events available for a designated user filtered by
+   * criteria defined in a filter.
    * 
-   * @param start {@link ZonedDateTime} as selected period start datetime
-   * @param end {@link ZonedDateTime} as selected period start datetime
-   * @param timeZone used timezone to convert dates
-   * @param limit Limit of events to retrieve
-   * @param username User name accessing event
+   * @param eventFilter a filter used to define criteria to get list of objects
+   * @param username User name requesting events
+   * @param userTimeZone User time zone
    * @return {@link List} of {@link Event} accessible to user
+   * @throws IllegalAccessException when user is not allowed to access events
    */
-  public List<Event> getEvents(ZonedDateTime start, ZonedDateTime end, ZoneId timeZone, int limit, String username);
-
-  /**
-   * Retrieves the list of events for a designated owner in a selected period of
-   * time.
-   * 
-   * @param ownerIds {@link Identity} technical identifier of the owners
-   * @param start {@link ZonedDateTime} as selected period start datetime
-   * @param end {@link ZonedDateTime} as selected period start datetime
-   * @param timeZone used timezone to convert dates
-   * @param limit Limit of events to retrieve
-   * @param username User name accessing event
-   * @return {@link List} of {@link Event} available in calendars of an owner
-   * @throws IllegalAccessException when user is not allowed to access events of
-   *           designated owner
-   */
-  public List<Event> getEventsByOwners(List<Long> ownerIds,
-                                       ZonedDateTime start,
-                                       ZonedDateTime end,
-                                       ZoneId timeZone,
-                                       int limit,
-                                       String username) throws IllegalAccessException;
-
-  /**
-   * Retrieve {@link List} of events where the user is designated as an attendee
-   * of the {@link Event}, or the user belongs to a space that is added as
-   * attendee of the event.
-   * 
-   * @param attendeeIdentityId user {@link Identity} technical identifier
-   * @param startDatetime Period start date
-   * @param endDatetime Period end date
-   * @param timeZone used timezone to convert dates
-   * @param limit Limit of events to retrieve
-   * @param username current user requesting events
-   * @return {@link List} of {@link Event}
-   * @throws IllegalAccessException when user is not the same as
-   *           attendeeIdentityId
-   */
-  public List<Event> getEventsByAttendee(long attendeeIdentityId,
-                                         ZonedDateTime startDatetime,
-                                         ZonedDateTime endDatetime,
-                                         ZoneId timeZone,
-                                         int limit,
-                                         String username) throws IllegalAccessException;
-
-  /**
-   * Retrieve {@link List} of events where the user is designated as an attendee
-   * of the {@link Event}, or the user belongs to a space that is added as
-   * attendee of the event. Additionally, the retrieved events must belongs to a
-   * calendar having an owner designated in list of owners to filter.
-   * 
-   * @param attendeeIdentityId user {@link Identity} technical identifier
-   * @param ownerIds {@link Identity} technical identifier of the owners
-   * @param startDatetime Period start date
-   * @param endDatetime Period end date
-   * @param timeZone used timezone to convert dates
-   * @param limit Limit of events to retrieve
-   * @param username current user requesting events
-   * @return {@link List} of {@link Event}
-   * @throws IllegalAccessException when user doesn't have access to one of
-   *           designated owners or is not the same as attendeeIdentityId
-   */
-  public List<Event> getEventsByOwnersAndAttendee(long attendeeIdentityId,
-                                                  List<Long> ownerIds,
-                                                  ZonedDateTime startDatetime,
-                                                  ZonedDateTime endDatetime,
-                                                  ZoneId timeZone,
-                                                  int limit,
-                                                  String username) throws IllegalAccessException;
+  public List<Event> getEvents(EventFilter eventFilter,
+                               String username,
+                               ZoneId userTimeZone) throws IllegalAccessException;
 
   /**
    * Retrieves an event identified by its technical identifier.
@@ -315,8 +247,9 @@ public interface AgendaEventService {
    * @return {@link List} of {@link EventSearchResult}
    */
   List<EventSearchResult> search(long userIdentityId,
-                                       ZoneId userTimeZone,
-                                       String query,
-                                       int offset,
-                                       int limit);
+                                 ZoneId userTimeZone,
+                                 String query,
+                                 int offset,
+                                 int limit);
+
 }
