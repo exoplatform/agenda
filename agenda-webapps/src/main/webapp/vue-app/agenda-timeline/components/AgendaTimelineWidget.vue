@@ -11,7 +11,11 @@
         :loading="loading || !initialized"
         :limit="limit" />
     </v-main>
-
+    <agenda-event-dialog
+      ref="eventFormDialog"
+      :current-space="currentSpace"
+      :weekdays="weekdays"
+      :working-time="workingTime" />
     <agenda-event-quick-form-drawer
       :current-space="currentSpace"
       :display-more-details="false" />
@@ -32,9 +36,28 @@ export default {
       start: new Date(),
       end: null,
     },
+    settings: {
+      agendaDefaultView: 'week',
+      agendaWeekStartOn: 'MO',
+      showWorkingTime: false,
+      workingTimeStart: '08:00',
+      workingTimeEnd: '18:00',
+    },
     events: [],
     agendaBaseLink: null,
   }),
+  computed: {
+    weekdays() {
+      return this.settings && this.$agendaUtils.getWeekSequenceFromDay(this.settings.agendaWeekStartOn);
+    },
+    workingTime() {
+      return this.settings && {
+        showWorkingTime: this.settings.showWorkingTime,
+        workingTimeStart: this.settings.workingTimeStart,
+        workingTimeEnd: this.settings.workingTimeEnd
+      };
+    },
+  },
   watch: {
     limit() {
       this.retrieveEvents();
