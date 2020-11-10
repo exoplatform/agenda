@@ -87,31 +87,35 @@ public class AgendaEventRest implements ResourceContainer {
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
   @ApiOperation(
-          value = "Retrieves the list of events available for an owner of type user or space, identitifed by its identity technical identifier."
-                  + " If no designated owner, all events available for authenticated user will be retrieved.",
-          httpMethod = "GET", response = Response.class, produces = "application/json"
+      value = "Retrieves the list of events available for an owner of type user or space, identitifed by its identity technical identifier."
+          + " If no designated owner, all events available for authenticated user will be retrieved.",
+      httpMethod = "GET", response = Response.class, produces = "application/json"
   )
   @ApiResponses(
-          value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-                  @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-                  @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+      value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
   )
   public Response list(
-          @ApiParam(value = "Identity technical identifiers of calendar owners", required = false) @QueryParam(
-                  "ownerIds"
-          ) List<Long> ownerIds,
-          @ApiParam(
-                  value = "Attendee identity identifier to filter on events where user is attendee", required = true
-          ) @QueryParam("attendeeIdentityId") long attendeeIdentityId,
-          @ApiParam(value = "Properties to expand", required = false) @QueryParam(
-                  "expand"
-          ) String expand,
-          @ApiParam(value = "Start datetime using RFC-3339 representation including timezone", required = true) @QueryParam("start") String start,
-          @ApiParam(value = "End datetime using RFC-3339 representation including timezone", required = false) @QueryParam("end") String end,
-          @ApiParam(
-                  value = "Limit of results to return, used only when end date isn't set", required = false,
-                  defaultValue = "10"
-          ) @QueryParam("limit") int limit) {
+                       @ApiParam(value = "Identity technical identifiers of calendar owners", required = false) @QueryParam(
+                         "ownerIds"
+                       ) List<Long> ownerIds,
+                       @ApiParam(
+                           value = "Attendee identity identifier to filter on events where user is attendee", required = true
+                       ) @QueryParam("attendeeIdentityId") long attendeeIdentityId,
+                       @ApiParam(value = "Properties to expand", required = false) @QueryParam(
+                         "expand"
+                       ) String expand,
+                       @ApiParam(value = "Start datetime using RFC-3339 representation including timezone", required = true) @QueryParam("start") String start,
+                       @ApiParam(value = "End datetime using RFC-3339 representation including timezone", required = false) @QueryParam("end") String end,
+                       @ApiParam(
+                           value = "Limit of results to return, used only when end date isn't set", required = false,
+                           defaultValue = "10"
+                       ) @QueryParam("limit") int limit,
+                       @ApiParam(
+                           value = "Attendee Response statuses to filter events by attendee response",
+                           required = false
+                       ) @QueryParam("responseTypes") List<EventAttendeeResponse> responseTypes) {
 
     if (StringUtils.isBlank(start)) {
       return Response.status(Status.BAD_REQUEST).entity("Start datetime is mandatory").build();
@@ -133,39 +137,22 @@ public class AgendaEventRest implements ResourceContainer {
 
     String currentUser = RestUtils.getCurrentUser();
     try {
-      List<Event> events = null;
       ZoneId userTimeZone = startDatetime.getZone();
-      if (attendeeIdentityId > 0) {
-        if (ownerIds == null || ownerIds.isEmpty()) {
-          events = agendaEventService.getEventsByAttendee(attendeeIdentityId,
-                  startDatetime,
-                  endDatetime,
-                  userTimeZone,
-                  limit,
-                  currentUser);
-        } else {
-          events = agendaEventService.getEventsByOwnersAndAttendee(attendeeIdentityId,
-                  ownerIds,
-                  startDatetime,
-                  endDatetime,
-                  userTimeZone,
-                  limit,
-                  currentUser);
-        }
-      } else {
-        if (ownerIds == null || ownerIds.isEmpty()) {
-          events = agendaEventService.getEvents(startDatetime, endDatetime, userTimeZone, limit, currentUser);
-        } else {
-          events = agendaEventService.getEventsByOwners(ownerIds, startDatetime, endDatetime, userTimeZone, limit, currentUser);
-        }
-      }
+
+      EventFilter eventFilter = new EventFilter(attendeeIdentityId,
+                                                ownerIds,
+                                                responseTypes,
+                                                startDatetime,
+                                                endDatetime,
+                                                limit);
+      List<Event> events = agendaEventService.getEvents(eventFilter, currentUser, userTimeZone);
       Map<Long, List<EventAttendeeEntity>> attendeesByParentEventId = new HashMap<>();
       Map<Long, List<EventAttachmentEntity>> attachmentsByParentEventId = new HashMap<>();
       Map<Long, List<EventConference>> conferencesByParentEventId = new HashMap<>();
       Map<Long, List<EventReminderEntity>> remindersByParentEventId = new HashMap<>();
       List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
-              : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
-              ","));
+                                                                  : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
+                                                                                                    ","));
       List<EventEntity> eventEntities = events.stream().map(event -> {
         EventEntity eventEntity = EntityBuilder.fromEvent(agendaCalendarService, agendaEventService, identityManager, event);
         long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
@@ -224,25 +211,25 @@ public class AgendaEventRest implements ResourceContainer {
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
   @ApiOperation(
-          value = "Retrieves an event identified by its technical identifier.", httpMethod = "GET", response = Response.class,
-          produces = "application/json"
+      value = "Retrieves an event identified by its technical identifier.", httpMethod = "GET", response = Response.class,
+      produces = "application/json"
   )
   @ApiResponses(
-          value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-                  @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-                  @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-                  @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+      value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
   )
   public Response getEventById(
-          @ApiParam(value = "Event technical identifier", required = true) @PathParam(
-                  "eventId"
-          ) long eventId,
-          @ApiParam(value = "Properties to expand", required = false) @QueryParam(
-                  "expand"
-          ) String expand,
-          @ApiParam(value = "Time Zone offset in seconds", required = true) @QueryParam(
-                  "timeZoneOffset"
-          ) int timeZoneOffsetSeconds) {
+                               @ApiParam(value = "Event technical identifier", required = true) @PathParam(
+                                 "eventId"
+                               ) long eventId,
+                               @ApiParam(value = "Properties to expand", required = false) @QueryParam(
+                                 "expand"
+                               ) String expand,
+                               @ApiParam(value = "Time Zone offset in seconds", required = true) @QueryParam(
+                                 "timeZoneOffset"
+                               ) int timeZoneOffsetSeconds) {
     if (eventId <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
     }
@@ -250,13 +237,13 @@ public class AgendaEventRest implements ResourceContainer {
     String currentUser = RestUtils.getCurrentUser();
     try {
       List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
-              : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
-              ","));
+                                                                  : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
+                                                                                                    ","));
       ZoneId userTimeZone = ZoneOffset.ofTotalSeconds(timeZoneOffsetSeconds);
       EventEntity eventEntity = getEventByIdAndUser(eventId,
-              RestUtils.getCurrentUserIdentityId(identityManager),
-              userTimeZone,
-              expandProperties);
+                                                    RestUtils.getCurrentUserIdentityId(identityManager),
+                                                    userTimeZone,
+                                                    expandProperties);
       if (eventEntity == null) {
         return Response.status(Status.NOT_FOUND).build();
       } else {
@@ -276,28 +263,28 @@ public class AgendaEventRest implements ResourceContainer {
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
   @ApiOperation(
-          value = "Retrieves an event identified by its technical identifier.", httpMethod = "GET", response = Response.class,
-          produces = "application/json"
+      value = "Retrieves an event identified by its technical identifier.", httpMethod = "GET", response = Response.class,
+      produces = "application/json"
   )
   @ApiResponses(
-          value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-                  @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-                  @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-                  @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+      value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
   )
   public Response getEventOccurrence(
-          @ApiParam(value = "Event technical identifier", required = true) @PathParam(
-                  "parentEventId"
-          ) long parentEventId,
-          @ApiParam(value = "Event technical identifier", required = true) @PathParam(
-                  "occurrenceId"
-          ) String occurrenceId,
-          @ApiParam(value = "Properties to expand", required = false) @QueryParam(
-                  "expand"
-          ) String expand,
-          @ApiParam(value = "Time Zone offset in seconds", required = true) @QueryParam(
-                  "timeZoneOffset"
-          ) String timeZoneOffsetSeconds) {
+                                     @ApiParam(value = "Event technical identifier", required = true) @PathParam(
+                                       "parentEventId"
+                                     ) long parentEventId,
+                                     @ApiParam(value = "Event technical identifier", required = true) @PathParam(
+                                       "occurrenceId"
+                                     ) String occurrenceId,
+                                     @ApiParam(value = "Properties to expand", required = false) @QueryParam(
+                                       "expand"
+                                     ) String expand,
+                                     @ApiParam(value = "Time Zone offset in seconds", required = true) @QueryParam(
+                                       "timeZoneOffset"
+                                     ) String timeZoneOffsetSeconds) {
     if (parentEventId <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
     }
@@ -307,11 +294,11 @@ public class AgendaEventRest implements ResourceContainer {
 
     try {
       List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
-              : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
-              ","));
+                                                                  : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
+                                                                                                    ","));
       ZoneId userTimeZone =
-              StringUtils.isBlank(timeZoneOffsetSeconds) ? null
-                      : ZoneOffset.ofTotalSeconds(Integer.parseInt(timeZoneOffsetSeconds));
+                          StringUtils.isBlank(timeZoneOffsetSeconds) ? null
+                                                                     : ZoneOffset.ofTotalSeconds(Integer.parseInt(timeZoneOffsetSeconds));
       long identityId = RestUtils.getCurrentUserIdentityId(identityManager);
       ZonedDateTime occurrenceDate = AgendaDateUtils.parseRFC3339ToZonedDateTime(occurrenceId);
       Event event = agendaEventService.getEventOccurrence(parentEventId, occurrenceDate, userTimeZone, identityId);
@@ -322,16 +309,16 @@ public class AgendaEventRest implements ResourceContainer {
       return Response.ok(eventEntity).build();
     } catch (IllegalAccessException e) {
       LOG.warn("User '{}' attempts to access not authorized event with parentId '{}' and occurrenceId '{}'",
-              RestUtils.getCurrentUser(),
-              parentEventId,
-              occurrenceId);
+               RestUtils.getCurrentUser(),
+               parentEventId,
+               occurrenceId);
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error retrieving event with parentId '{}' and occurrenceId '{}'",
-              RestUtils.getCurrentUser(),
-              parentEventId,
-              occurrenceId,
-              e);
+               RestUtils.getCurrentUser(),
+               parentEventId,
+               occurrenceId,
+               e);
       return Response.serverError().entity(e.getMessage()).build();
     }
   }
@@ -341,11 +328,11 @@ public class AgendaEventRest implements ResourceContainer {
   @RolesAllowed("users")
   @ApiOperation(value = "Create a new event", httpMethod = "POST", response = Response.class, consumes = "application/json")
   @ApiResponses(
-          value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
-                  @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-                  @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-                  @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
-          }
+      value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+      }
   )
   public Response createEvent(@ApiParam(value = "Event object to create", required = true) EventEntity eventEntity) {
     if (eventEntity == null) {
@@ -375,12 +362,12 @@ public class AgendaEventRest implements ResourceContainer {
   @RolesAllowed("users")
   @ApiOperation(value = "Update an existing event", httpMethod = "PUT", response = Response.class, consumes = "application/json")
   @ApiResponses(
-          value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
-                  @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object not found"),
-                  @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-                  @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-                  @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
-          }
+      value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object not found"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+      }
   )
   public Response updateEvent(@ApiParam(value = "Event object to update", required = true) EventEntity eventEntity) {
     if (eventEntity == null) {
@@ -405,24 +392,24 @@ public class AgendaEventRest implements ResourceContainer {
 
       List<EventAttachmentEntity> attachmentEntities = eventEntity.getAttachments();
       List<EventAttachment> attachments = attachmentEntities == null
-              || attachmentEntities.isEmpty() ? null
-              : attachmentEntities.stream()
-              .map(EntityBuilder::toEventAttachment)
-              .collect(Collectors.toList());
+          || attachmentEntities.isEmpty() ? null
+                                          : attachmentEntities.stream()
+                                                              .map(EntityBuilder::toEventAttachment)
+                                                              .collect(Collectors.toList());
 
       Event event = EntityBuilder.toEvent(eventEntity);
       List<EventReminder> reminders = eventEntity.getReminders() == null ? null
-              : eventEntity.getReminders()
-              .stream()
-              .map(EntityBuilder::toEventReminder)
-              .collect(Collectors.toList());
+                                                                         : eventEntity.getReminders()
+                                                                                      .stream()
+                                                                                      .map(EntityBuilder::toEventReminder)
+                                                                                      .collect(Collectors.toList());
       agendaEventService.updateEvent(event,
-              attendees,
-              eventEntity.getConferences(),
-              attachments,
-              reminders,
-              eventEntity.isSendInvitation(),
-              currentUser);
+                                     attendees,
+                                     eventEntity.getConferences(),
+                                     attachments,
+                                     reminders,
+                                     eventEntity.isSendInvitation(),
+                                     currentUser);
       return Response.noContent().build();
     } catch (AgendaException e) {
       return Response.serverError().entity(e.getAgendaExceptionType().getCompleteMessage()).build();
@@ -437,14 +424,14 @@ public class AgendaEventRest implements ResourceContainer {
   @RolesAllowed("users")
   @ApiOperation(value = "Delete an existing event", httpMethod = "DELETE", response = Response.class)
   @ApiResponses(
-          value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
-                  @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object not found"),
-                  @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-                  @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-                  @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+      value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object not found"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
   )
   public Response deleteEvent(@ApiParam(value = "Event technical identifier", required = true) @PathParam(
-          "eventId"
+    "eventId"
   ) long eventId) {
     if (eventId <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Event technical identifier must be positive").build();
@@ -470,17 +457,17 @@ public class AgendaEventRest implements ResourceContainer {
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
   @ApiOperation(
-          value = "Retrieve preferred reminders for currently authenticated user for an event identified by its technical identifier.",
-          httpMethod = "GET", response = Response.class, produces = "application/json"
+      value = "Retrieve preferred reminders for currently authenticated user for an event identified by its technical identifier.",
+      httpMethod = "GET", response = Response.class, produces = "application/json"
   )
   @ApiResponses(
-          value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-                  @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-                  @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-                  @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+      value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
   )
   public Response getEventRemindersById(@ApiParam(value = "Event technical identifier", required = true) @PathParam(
-          "eventId"
+    "eventId"
   ) long eventId) {
     if (eventId <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
@@ -504,21 +491,21 @@ public class AgendaEventRest implements ResourceContainer {
   @Consumes(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
   @ApiOperation(
-          value = "Update the list of preferred reminders for authenticated user on a selected event.", httpMethod = "PUT",
-          response = Response.class, consumes = "application/json"
+      value = "Update the list of preferred reminders for authenticated user on a selected event.", httpMethod = "PUT",
+      response = Response.class, consumes = "application/json"
   )
   @ApiResponses(
-          value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
-                  @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-                  @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-                  @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+      value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
   )
   public Response updateEventReminders(@ApiParam(value = "Event technical identifier", required = true) @PathParam(
-          "eventId"
+    "eventId"
   ) long eventId,
                                        @ApiParam(
-                                               value = "List of reminders to store on event for currently authenticated user",
-                                               required = true
+                                           value = "List of reminders to store on event for currently authenticated user",
+                                           required = true
                                        ) List<EventReminder> reminders) {
     if (eventId <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
@@ -546,18 +533,18 @@ public class AgendaEventRest implements ResourceContainer {
   @GET
   @Produces(MediaType.TEXT_PLAIN)
   @ApiOperation(
-          value = "Retrieves currently authenticated (using token or effectively authenticated) user response to an event.",
-          httpMethod = "GET", response = Response.class, produces = "text/plain"
+      value = "Retrieves currently authenticated (using token or effectively authenticated) user response to an event.",
+      httpMethod = "GET", response = Response.class, produces = "text/plain"
   )
   @ApiResponses(
-          value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-                  @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-                  @ApiResponse(code = HTTPStatus.FORBIDDEN, message = "Forbidden operation"),
-                  @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-                  @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+      value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.FORBIDDEN, message = "Forbidden operation"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
   )
   public Response getEventResponse(@ApiParam(value = "Event technical identifier", required = true) @PathParam(
-          "eventId"
+    "eventId"
   ) long eventId,
                                    @ApiParam(value = "User token to ", required = false) @QueryParam("token") String token) {
     if (eventId <= 0) {
@@ -593,32 +580,32 @@ public class AgendaEventRest implements ResourceContainer {
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   @ApiOperation(
-          value = "Send event invitation response for currently authenticated user (using token or effectively authenticated).",
-          httpMethod = "GET",
-          produces = "application/json",
-          response = Response.class
+      value = "Send event invitation response for currently authenticated user (using token or effectively authenticated).",
+      httpMethod = "GET",
+      produces = "application/json",
+      response = Response.class
   )
   @ApiResponses(
-          value = {
-                  @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-                  @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-                  @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-                  @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+      value = {
+          @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
   )
   public Response sendEventResponse(
-          @ApiParam(value = "Event technical identifier", required = true) @PathParam(
-                  "eventId"
-          ) long eventId,
-          @ApiParam(value = "Event occurrence identifier", required = true) @QueryParam(
-                  "occurrenceId"
-          ) String occurrenceId,
-          @ApiParam(
-                  value = "Response to event invitation. Possible values: ACCEPTED, DECLINED or TENTATIVE.",
-                  required = true
-          ) @QueryParam("response") String responseString,
-          @ApiParam(value = "User token to ", required = false) @QueryParam(
-                  "token"
-          ) String token) {
+                                    @ApiParam(value = "Event technical identifier", required = true) @PathParam(
+                                      "eventId"
+                                    ) long eventId,
+                                    @ApiParam(value = "Event occurrence identifier", required = true) @QueryParam(
+                                      "occurrenceId"
+                                    ) String occurrenceId,
+                                    @ApiParam(
+                                        value = "Response to event invitation. Possible values: ACCEPTED, DECLINED or TENTATIVE.",
+                                        required = true
+                                    ) @QueryParam("response") String responseString,
+                                    @ApiParam(value = "User token to ", required = false) @QueryParam(
+                                      "token"
+                                    ) String token) {
     if (eventId <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
     }
@@ -681,43 +668,44 @@ public class AgendaEventRest implements ResourceContainer {
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
   @ApiOperation(
-          value = "Search the list of events available with query for an owner of type user or space, identified by its identity technical identifier."
-                  + " If no designated owner, all events available for authenticated user will be retrieved.",
-          httpMethod = "GET", response = Response.class, produces = "application/json"
+      value = "Search the list of events available with query for an owner of type user or space, identified by its identity technical identifier."
+          + " If no designated owner, all events available for authenticated user will be retrieved.",
+      httpMethod = "GET", response = Response.class, produces = "application/json"
   )
   @ApiResponses(
-          value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-                  @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-                  @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+      value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
   )
   public Response search(@Context UriInfo uriInfo,
                          @ApiParam(value = "Term to search", required = true) @QueryParam(
-                                 "query"
+                           "query"
                          ) String query,
                          @ApiParam(value = "Time Zone offset in seconds", required = false) @QueryParam(
-                                 "timeZoneOffset"
+                           "timeZoneOffset"
                          ) int timeZoneOffsetSeconds,
                          @ApiParam(value = "Properties to expand", required = false) @QueryParam(
-                                 "expand"
+                           "expand"
                          ) String expand,
                          @ApiParam(value = "Offset", required = false, defaultValue = "0") @QueryParam(
-                                 "offset"
+                           "offset"
                          ) int offset,
                          @ApiParam(value = "Limit", required = false, defaultValue = "20") @QueryParam(
-                                 "limit"
+                           "limit"
                          ) int limit) throws Exception { // NOSONAR
 
     offset = offset > 0 ? offset : RestUtils.getOffset(uriInfo);
     limit = limit > 0 ? limit : RestUtils.getLimit(uriInfo);
     List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
-            : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
-            ","));
+                                                                : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
+                                                                                                  ","));
     long currentUserId = RestUtils.getCurrentUserIdentityId(identityManager);
     ZoneId userTimeZone = ZoneOffset.ofTotalSeconds(timeZoneOffsetSeconds);
     List<EventSearchResult> searchResults = agendaEventService.search(currentUserId, userTimeZone, query, offset, limit);
     List<EventSearchResultEntity> results = searchResults.stream()
-            .map(searchResult -> getEventSearchResultEntity(searchResult, expandProperties))
-            .collect(Collectors.toList());
+                                                         .map(searchResult -> getEventSearchResultEntity(searchResult,
+                                                                                                         expandProperties))
+                                                         .collect(Collectors.toList());
     return Response.ok(results).build();
   }
 
@@ -743,29 +731,29 @@ public class AgendaEventRest implements ResourceContainer {
 
     List<EventAttachmentEntity> attachmentEntities = eventEntity.getAttachments();
     List<EventAttachment> attachments = attachmentEntities == null
-            || attachmentEntities.isEmpty() ? null
-            : attachmentEntities.stream()
-            .map(EntityBuilder::toEventAttachment)
-            .collect(Collectors.toList());
+        || attachmentEntities.isEmpty() ? null
+                                        : attachmentEntities.stream()
+                                                            .map(EntityBuilder::toEventAttachment)
+                                                            .collect(Collectors.toList());
     List<EventReminderEntity> reminderEntities = eventEntity.getReminders();
     List<EventReminder> reminders = reminderEntities == null
-            || reminderEntities.isEmpty() ? null
-            : reminderEntities.stream()
-            .map(EntityBuilder::toEventReminder)
-            .collect(Collectors.toList());
+        || reminderEntities.isEmpty() ? null
+                                      : reminderEntities.stream()
+                                                        .map(EntityBuilder::toEventReminder)
+                                                        .collect(Collectors.toList());
 
     return agendaEventService.createEvent(EntityBuilder.toEvent(eventEntity),
-            attendees,
-            eventEntity.getConferences(),
-            attachments,
-            reminders,
-            eventEntity.isSendInvitation(),
-            currentUser);
+                                          attendees,
+                                          eventEntity.getConferences(),
+                                          attachments,
+                                          reminders,
+                                          eventEntity.isSendInvitation(),
+                                          currentUser);
   }
 
   private Event createEventOccurrence(EventEntity eventEntity, ZonedDateTime occurrenceId) throws AgendaException,
-          IllegalAccessException,
-          ObjectNotFoundException {
+                                                                                           IllegalAccessException,
+                                                                                           ObjectNotFoundException {
     cleanupAttachedEntitiesIds(eventEntity);
 
     List<EventAttendeeEntity> attendeeEntities = eventEntity.getAttendees();
@@ -785,23 +773,23 @@ public class AgendaEventRest implements ResourceContainer {
 
     List<EventAttachmentEntity> attachmentEntities = eventEntity.getAttachments();
     List<EventAttachment> attachments = attachmentEntities == null
-            || attachmentEntities.isEmpty() ? null
-            : attachmentEntities.stream()
-            .map(EntityBuilder::toEventAttachment)
-            .collect(Collectors.toList());
+        || attachmentEntities.isEmpty() ? null
+                                        : attachmentEntities.stream()
+                                                            .map(EntityBuilder::toEventAttachment)
+                                                            .collect(Collectors.toList());
     List<EventReminderEntity> reminderEntities = eventEntity.getReminders();
     List<EventReminder> reminders = reminderEntities == null
-            || reminderEntities.isEmpty() ? null
-            : reminderEntities.stream()
-            .map(EntityBuilder::toEventReminder)
-            .collect(Collectors.toList());
+        || reminderEntities.isEmpty() ? null
+                                      : reminderEntities.stream()
+                                                        .map(EntityBuilder::toEventReminder)
+                                                        .collect(Collectors.toList());
 
     return agendaEventService.createEventExceptionalOccurrence(eventEntity.getId(),
-            attendees,
-            eventEntity.getConferences(),
-            attachments,
-            reminders,
-            occurrenceId);
+                                                               attendees,
+                                                               eventEntity.getConferences(),
+                                                               attachments,
+                                                               reminders,
+                                                               occurrenceId);
   }
 
   private void checkCalendar(EventEntity eventEntity) throws AgendaException {
@@ -860,9 +848,9 @@ public class AgendaEventRest implements ResourceContainer {
       return null;
     } else {
       EventSearchResultEntity eventSearchResultEntity = EntityBuilder.fromSearchEvent(agendaCalendarService,
-              agendaEventService,
-              identityManager,
-              eventSearchResult);
+                                                                                      agendaEventService,
+                                                                                      identityManager,
+                                                                                      eventSearchResult);
 
       long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
       if (expandProperties.contains("all") || expandProperties.contains("attendees")) {
@@ -887,7 +875,7 @@ public class AgendaEventRest implements ResourceContainer {
   private void fillAttendees(EventEntity eventEntity, Map<Long, List<EventAttendeeEntity>> attendeesByParentEventId) {
     boolean computedOccurrence = isComputedOccurrence(eventEntity);
     long eventId = computedOccurrence ? eventEntity.getParent().getId()
-            : eventEntity.getId();
+                                      : eventEntity.getId();
     if (attendeesByParentEventId.containsKey(eventId)) {
       eventEntity.setAttendees(attendeesByParentEventId.get(eventId));
     } else {
@@ -899,19 +887,19 @@ public class AgendaEventRest implements ResourceContainer {
   private void fillAttendees(EventEntity eventEntity) {
     boolean computedOccurrence = isComputedOccurrence(eventEntity);
     long eventId = computedOccurrence ? eventEntity.getParent().getId()
-            : eventEntity.getId();
+                                      : eventEntity.getId();
     List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId);
     List<EventAttendeeEntity> eventAttendeeEntities = eventAttendees == null ? null
-            : eventAttendees.stream()
-            .map(eventAttendee -> EntityBuilder.fromEventAttendee(identityManager,
-                    eventAttendee))
-            .collect(Collectors.toList());
+                                                                             : eventAttendees.stream()
+                                                                                             .map(eventAttendee -> EntityBuilder.fromEventAttendee(identityManager,
+                                                                                                                                                   eventAttendee))
+                                                                                             .collect(Collectors.toList());
     eventEntity.setAttendees(eventAttendeeEntities);
   }
 
   private void fillAttachments(EventEntity eventEntity, Map<Long, List<EventAttachmentEntity>> attachmentsByParentEventId) {
     long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParent().getId()
-            : eventEntity.getId();
+                                                     : eventEntity.getId();
     if (attachmentsByParentEventId.containsKey(eventId)) {
       eventEntity.setAttachments(attachmentsByParentEventId.get(eventId));
     } else {
@@ -922,18 +910,18 @@ public class AgendaEventRest implements ResourceContainer {
 
   private void fillAttachments(EventEntity eventEntity) {
     long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParent().getId()
-            : eventEntity.getId();
+                                                     : eventEntity.getId();
     List<EventAttachment> eventAttachments = agendaEventAttachmentService.getEventAttachments(eventId);
     List<EventAttachmentEntity> eventAttachmentEntities = eventAttachments == null ? null
-            : eventAttachments.stream()
-            .map(EntityBuilder::fromEventAttachment)
-            .collect(Collectors.toList());
+                                                                                   : eventAttachments.stream()
+                                                                                                     .map(EntityBuilder::fromEventAttachment)
+                                                                                                     .collect(Collectors.toList());
     eventEntity.setAttachments(eventAttachmentEntities);
   }
 
   private void fillConferences(EventEntity eventEntity, Map<Long, List<EventConference>> conferencesByParentEventId) {
     long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParent().getId()
-            : eventEntity.getId();
+                                                     : eventEntity.getId();
     if (conferencesByParentEventId.containsKey(eventId)) {
       eventEntity.setConferences(conferencesByParentEventId.get(eventId));
     } else {
@@ -944,7 +932,7 @@ public class AgendaEventRest implements ResourceContainer {
 
   private void fillConferences(EventEntity eventEntity) {
     long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParent().getId()
-            : eventEntity.getId();
+                                                     : eventEntity.getId();
     List<EventConference> eventConferences = agendaEventConferenceService.getEventConferences(eventId);
     eventEntity.setConferences(eventConferences);
   }
@@ -953,7 +941,7 @@ public class AgendaEventRest implements ResourceContainer {
                              long userIdentityId,
                              Map<Long, List<EventReminderEntity>> remindersByParentEventId) {
     long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParent().getId()
-            : eventEntity.getId();
+                                                     : eventEntity.getId();
     if (remindersByParentEventId.containsKey(eventId)) {
       eventEntity.setReminders(remindersByParentEventId.get(eventId));
     } else {
@@ -964,12 +952,12 @@ public class AgendaEventRest implements ResourceContainer {
 
   private void fillReminders(EventEntity eventEntity, long userIdentityId) {
     long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParent().getId()
-            : eventEntity.getId();
+                                                     : eventEntity.getId();
     List<EventReminder> eventReminders = agendaEventReminderService.getEventReminders(eventId, userIdentityId);
     List<EventReminderEntity> eventReminderEntities = eventReminders == null ? null
-            : eventReminders.stream()
-            .map(EntityBuilder::fromEventReminder)
-            .collect(Collectors.toList());
+                                                                             : eventReminders.stream()
+                                                                                             .map(EntityBuilder::fromEventReminder)
+                                                                                             .collect(Collectors.toList());
     eventEntity.setReminders(eventReminderEntities);
   }
 
