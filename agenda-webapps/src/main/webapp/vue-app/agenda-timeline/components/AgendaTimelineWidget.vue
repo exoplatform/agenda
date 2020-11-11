@@ -30,6 +30,7 @@ export default {
     loading: false,
     ownerIds: [],
     eventType: 'myEvents',
+    calendarType: 'week',
     periodStart: new Date(),
     limit: 10,
     period: {
@@ -81,6 +82,13 @@ export default {
     this.$root.$on('agenda-event-saved', this.retrieveEvents);
     this.$root.$on('agenda-refresh', this.retrieveEvents);
     this.spaceId = eXo.env.portal.spaceId;
+    this.$calendarService.getAgendaSettings()
+      .then(settings => {
+        if (settings && settings.value) {
+          this.settings = JSON.parse(settings.value);
+          this.calendarType = this.settings && this.settings.agendaDefaultView;
+        }
+      });
   },
   methods: {
     retrieveEvents() {
