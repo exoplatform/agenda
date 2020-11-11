@@ -32,7 +32,6 @@
                 v-for="(event, i) in eventsByDates[month][eventDay]"
                 :key="i"
                 :style="{background: event.color || event.calendar.color}"
-                :href="agendaBaseLink && `${agendaBaseLink}?eventId=${event.id}&occurrenceId=${event.occurrence && event.occurrence.id || ''}&parentId=${event.parent && event.parent.id || ''}`"
                 class="event-timeline-detail d-flex flex-column white--text px-2 py-0 mb-2 border-radius"
                 dark
                 @click="$root.$emit('agenda-event-details', event)">
