@@ -235,3 +235,19 @@ export function compareObjects(object1, object2) {
   return true;
 }
 
+export function refreshConnectorStatus(connector, connectedAccount, currentUser) {
+  //if user has connected
+  if (connectedAccount.userId) {
+    connector.user = connectedAccount.userId;
+    //if user connected with different account from other browser
+    if (currentUser.user && currentUser.user !== connectedAccount.userId) {
+      connector.disconnect();
+    }
+    //if user disconnected from other browser
+  } else if (!connectedAccount.userId && connector.isSignedIn) {
+    connector.disconnect();
+  } else {
+    connector.user = currentUser && currentUser.user || null;
+  }
+}
+

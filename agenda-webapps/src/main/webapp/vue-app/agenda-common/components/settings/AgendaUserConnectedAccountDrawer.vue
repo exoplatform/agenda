@@ -92,15 +92,7 @@ export default {
       this.$forceUpdate();
     },
     connectionStatusChanged(connector, currentUser) {
-      //if user has connected
-      if (this.connectedAccount.userId) {
-        connector.user = this.connectedAccount.userId;
-      //if user disconnected from other browser
-      } else if (!this.connectedAccount.userId && connector.isSignedIn) {
-        this.disconnect(connector);
-      } else {
-        connector.user = currentUser && currentUser.user || null;
-      }
+      this.$agendaUtils.refreshConnectorStatus(connector,this.connectedAccount, currentUser);
     },
     connect(connector) {
       this.errorMessage = null;
@@ -125,13 +117,14 @@ export default {
       });
     },
     disconnect(connector) {
+      //disconnect from connected browser
       if (connector.isSignedIn) {
         connector.disconnect().then(() => {
-          this.resetConnectedAccount();
+          this.resetConnectedAccount(connector);
         });
-      } else {
-        this.resetConnectedAccount(connector);
+      } else {//disconnect from other browser
         this.connectionLoading(connector, true);
+        this.resetConnectedAccount(connector);
         this.connectionStatusChanged(connector, false);
       }
     },
