@@ -11,7 +11,11 @@
         :loading="loading || !initialized"
         :limit="limit" />
     </v-main>
-
+    <agenda-event-dialog
+      ref="eventFormDialog"
+      :current-space="currentSpace"
+      :weekdays="weekdays"
+      :working-time="workingTime" />
     <agenda-event-quick-form-drawer
       :current-space="currentSpace"
       :display-more-details="false" />
@@ -26,15 +30,35 @@ export default {
     loading: false,
     ownerIds: [],
     eventType: 'myEvents',
+    calendarType: 'week',
     periodStart: new Date(),
     limit: 10,
     period: {
       start: new Date(),
       end: null,
     },
+    settings: {
+      agendaDefaultView: 'week',
+      agendaWeekStartOn: 'MO',
+      showWorkingTime: false,
+      workingTimeStart: '08:00',
+      workingTimeEnd: '18:00',
+    },
     events: [],
     agendaBaseLink: null,
   }),
+  computed: {
+    weekdays() {
+      return this.settings && this.$agendaUtils.getWeekSequenceFromDay(this.settings.agendaWeekStartOn);
+    },
+    workingTime() {
+      return this.settings && {
+        showWorkingTime: this.settings.showWorkingTime,
+        workingTimeStart: this.settings.workingTimeStart,
+        workingTimeEnd: this.settings.workingTimeEnd
+      };
+    },
+  },
   watch: {
     limit() {
       this.retrieveEvents();
@@ -57,7 +81,15 @@ export default {
     this.retrieveEvents().finally(() => document.dispatchEvent(new CustomEvent('hideTopBarLoading')));
     this.$root.$on('agenda-event-saved', this.retrieveEvents);
     this.$root.$on('agenda-refresh', this.retrieveEvents);
+    this.$root.$on('agenda-event-deleted', this.retrieveEvents);
     this.spaceId = eXo.env.portal.spaceId;
+    this.$calendarService.getAgendaSettings()
+      .then(settings => {
+        if (settings && settings.value) {
+          this.settings = JSON.parse(settings.value);
+          this.calendarType = this.settings && this.settings.agendaDefaultView;
+        }
+      });
   },
   methods: {
     retrieveEvents() {
