@@ -228,6 +228,7 @@ export default {
     deleteEvent() {
       this.$eventService.deleteEvent(this.event.id)
         .then(() => this.$root.$emit('agenda-event-deleted'));
+      this.$root.$emit('agenda-refresh');
     },
   }
 };
