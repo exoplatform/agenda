@@ -15,7 +15,7 @@
                   <v-chip
                     class="ma-2"
                     color="primary">
-                    <span class="text-capitalize">{{ settings.agendaDefaultView }}</span>
+                    <span class="text-capitalize">{{ agendaSelectedView }}</span>
                     <span class="pl-1">{{ $t('agenda.view') }}</span>
                   </v-chip>
                   <v-chip
@@ -82,6 +82,15 @@ export default {
         'SA': this.getDayFromAbbreviation('SA'),
         'SU': this.getDayFromAbbreviation('SU'),
       };
+    },
+    agendaSelectedView () {
+      if (this.settings.agendaDefaultView === 'day') {
+        return this.$t('agenda.label.viewDay');
+      } else if (this.settings.agendaDefaultView === 'week') {
+        return this.$t('agenda.label.viewWeek');
+      } else {
+        return this.$t('agenda.label.viewMonth');
+      }
     },
     agendaWeekStartOnLabel () {
       return this.DAY_NAME_BY_ABBREVIATION && this.$t('agenda.settings.label.weekStartsOn',
