@@ -53,6 +53,7 @@
     <agenda-event-mobile-form-drawer :current-space="currentSpace" />
     <agenda-event-save />
     <agenda-update-event-dialog />
+    <agenda-connector :connected-connector="connectedConnector" />
   </v-app>
 </template>
 <script>
@@ -154,39 +155,12 @@ export default {
         this.settingsLoaded = true;
         document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
       });
-    document.addEventListener('agenda-accounts-connectors-refresh', this.refreshConnectorsList);
-    this.refreshConnectorsList();
+    this.$root.$emit('agenda-init-connectors');
+    this.$root.$on('agenda-connector-loaded', connectors => {
+      this.connectors = connectors;
+    });
   },
   methods: {
-    refreshConnectorsList() {
-      this.connectors = extensionRegistry.loadExtensions('agenda', 'connectors') || [];
-      this.retrieveConnectorSettings().then(() => {
-        this.connectedConnector = this.connectors.find(connector =>
-          connector.name === this.connectedAccount.connectorName);
-        this.connectedConnector.init(this.connectionStatusChanged, this.connectionLoading);
-      });
-    },
-    retrieveConnectorSettings() {
-      return this.$calendarService.getAgendaConnectorsSettings().then(connectorSettings => {
-        if (connectorSettings && connectorSettings.value) {
-          this.connectedAccount = JSON.parse(connectorSettings.value);
-        }
-      });
-    },
-    connectionLoading(connector, loading) {
-      if (loading) {
-        this.loading++;
-      } else if (this.loading) {
-        this.loading--;
-      }
-    },
-    connectionStatusChanged(connector, currentUser) {
-      this.retrieveConnectorSettings().then(() => {
-        this.$agendaUtils.refreshConnectorStatus(connector, this.connectedAccount, currentUser);
-        this.connectedConnector = connector;
-        this.connectedConnector.user = currentUser;
-      });
-    },
     retrieveEvents() {
       if (!this.initialized && eXo.env.portal.spaceId) {
         const spaceId = eXo.env.portal.spaceId;
@@ -237,6 +211,22 @@ export default {
     changeDisplayedOwnerIds(selectedOwnerIds) {
       this.ownerIds = selectedOwnerIds;
       this.retrieveEvents();
+    },
+    retrieveRemoteEvents(connector) {
+      this.loading++;
+      connector.getEvents(this.$agendaUtils.toRFC3339(this.period.start, false),
+        this.$agendaUtils.toRFC3339(this.period.end, false))
+        .then(events => {
+          events.forEach(event => {
+            event.startDate = event.start && this.$agendaUtils.toDate(event.start) || null;
+            event.endDate = event.end && this.$agendaUtils.toDate(event.end) || null;
+          });
+          this.remoteEvents = events || [];
+          this.loading--;
+        }).catch(error => {
+          this.loading--;
+          console.error('Error retrieving remote events', error);
+        });
     },
   },
 };
