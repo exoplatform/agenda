@@ -31,7 +31,6 @@
               <v-list-item
                 v-for="(event, i) in eventsByDates[month][eventDay]"
                 :key="i"
-                :title="event.summary"
                 :style="{background: event.color || event.calendar.color}"
                 class="event-timeline-detail d-flex flex-column white--text px-2 py-0 mb-2 border-radius"
                 dark
