@@ -78,6 +78,9 @@ export default {
     },
   },
   created() {
+    if (eXo.env.portal.spaceId) {
+      this.limit = 5;
+    }
     this.retrieveEvents().finally(() => document.dispatchEvent(new CustomEvent('hideTopBarLoading')));
     this.$root.$on('agenda-event-saved', this.retrieveEvents);
     this.$root.$on('agenda-refresh', this.retrieveEvents);
@@ -122,9 +125,6 @@ export default {
       this.loading = true;
       const userIdentityId = this.eventType === 'myEvents' && eXo.env.portal.userIdentityId || null;
       const responseTypes = ['ACCEPTED','TENTATIVE'];
-      if (eXo.env.portal.spaceId) {
-        this.limit = 5;
-      }
       return this.$eventService.getEvents(this.searchTerm, this.ownerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, true), this.$agendaUtils.toRFC3339(this.period.end), this.limit, responseTypes)
         .then(data => {
           const events = data && data.events || [];
