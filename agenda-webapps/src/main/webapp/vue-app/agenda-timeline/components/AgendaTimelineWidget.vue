@@ -1,6 +1,6 @@
 <template>
   <v-app class="agenda-application border-box-sizing" flat>
-    <v-main class="white">
+    <v-main class="white agenda-widget-container">
       <agenda-timeline-header
         :current-space="currentSpace"
         :agenda-base-link="agendaBaseLink" />
