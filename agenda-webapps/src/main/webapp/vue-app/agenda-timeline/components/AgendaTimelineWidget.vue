@@ -78,6 +78,9 @@ export default {
     },
   },
   created() {
+    if (eXo.env.portal.spaceId) {
+      this.limit = 5;
+    }
     this.retrieveEvents().finally(() => document.dispatchEvent(new CustomEvent('hideTopBarLoading')));
     this.$root.$on('agenda-event-saved', this.retrieveEvents);
     this.$root.$on('agenda-refresh', this.retrieveEvents);
