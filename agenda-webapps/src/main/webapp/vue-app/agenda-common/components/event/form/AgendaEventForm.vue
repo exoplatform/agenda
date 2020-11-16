@@ -42,7 +42,8 @@
             ref="eventDates"
             :event="event"
             :weekdays="weekdays"
-            :working-time="workingTime" />
+            :working-time="workingTime"
+            :connectors="connectors" />
         </v-stepper-content>
       </v-stepper-items>
     </v-stepper>
@@ -59,7 +60,7 @@
       </v-btn>
       <div class="ml-auto mr-10">
         <v-btn
-          :disabled="disableSaveButton"
+
           class="btn btn-primary"
           @click="nextStep">
           {{ stepButtonLabel }}
@@ -90,6 +91,10 @@ export default {
     },
     currentSpace: {
       type: Object,
+      default: () => null
+    },
+    connectors: {
+      type: Array,
       default: () => null
     },
   },
@@ -152,9 +157,9 @@ export default {
 
         this.$root.$emit('agenda-event-save', this.event);
       } else if (this.stepper === 1) {
-        if (this.$refs.eventBasicInformation.validateForm()) {
-          this.stepper++;
-        }
+        /*if (this.$refs.eventBasicInformation.validateForm()) {
+        }*/
+        this.stepper++;
       } else {
         this.stepper = 1;
       }
