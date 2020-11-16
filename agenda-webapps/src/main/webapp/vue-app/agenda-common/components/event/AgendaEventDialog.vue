@@ -23,6 +23,7 @@
           :weekdays="weekdays"
           :current-space="currentSpace"
           :working-time="workingTime"
+          :connectors="connectors"
           class="fill-height event-form"
           @close="close"
           @saved="saved"
@@ -59,6 +60,10 @@ export default {
     },
     currentSpace: {
       type: Object,
+      default: () => null
+    },
+    connectors: {
+      type: Array,
       default: () => null
     },
   },
