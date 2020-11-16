@@ -1,9 +1,26 @@
 <template>
   <v-flex class="event-form-dates">
     <v-toolbar flat class="border-color mb-4">
-      <v-switch
-        v-model="event.allDay"
-        :label="$t('agenda.allDay')" />
+      <div
+        v-if="connectedAccountName">
+        <v-avatar tile size="24">
+          <img
+            :alt="connectedAccount.name"
+            :src="connectedAccountIconSource">
+        </v-avatar>
+        <a
+          class="mx-2"
+          @click="openPersonalCalendarDrawer">
+          {{ connectedAccountName }}
+        </a>
+      </div>
+      <v-btn
+        v-else
+        class="btn "
+        @click="openPersonalCalendarDrawer">
+        <i class="uiIconHyperlink darkGreyIcon" />
+        {{ $t('agenda.connectYourPersonalAgenda') }}
+      </v-btn>
       <v-row
         align="center"
         justify="center"
@@ -107,6 +124,9 @@
         </v-card-text>
       </v-card>
     </v-menu>
+    <agenda-user-connected-account-drawer
+      :connected-account="connectedAccount"
+      :connectors="connectors" />
   </v-flex>
 </template>
 
@@ -123,6 +143,10 @@ export default {
     },
     workingTime: {
       type: Object,
+      default: () => null
+    },
+    connectors: {
+      type: Array,
       default: () => null
     },
   },
@@ -154,6 +178,7 @@ export default {
     scrollToTimeTop: null,
     menuLeftPosition: false,
     menuTopPosition: false,
+    connectedAccount: {},
   }),
   computed: {
     nowTimeOptions() {
@@ -168,6 +193,12 @@ export default {
     },
     domId() {
       return `eventForm-${this.event.id}-${new Date(this.event.startDate).getTime()}`;
+    },
+    connectedAccountName() {
+      return this.connectedAccount && this.connectedAccount.userId || '';
+    },
+    connectedAccountIconSource() {
+      return this.connectedAccount && this.connectedAccount.icon || '';
     },
   },
   watch: {
@@ -189,6 +220,11 @@ export default {
         this.event.endDate = new Date(this.event.startDate).getTime();
       }
     }
+    this.$calendarService.getAgendaConnectorsSettings().then(connectorSettings => {
+      if (connectorSettings && connectorSettings.value) {
+        this.connectedAccount = JSON.parse(connectorSettings.value);
+      }
+    });
   },
   mounted() {
     if (this.$refs.calendar) {
@@ -357,6 +393,9 @@ export default {
       } else {
         return null;
       }
+    },
+    openPersonalCalendarDrawer() {
+      this.$root.$emit('agenda-connected-account-settings-open');
     }
   },
 };

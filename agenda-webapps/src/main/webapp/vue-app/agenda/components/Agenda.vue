@@ -43,7 +43,8 @@
       ref="eventFormDialog"
       :current-space="currentSpace"
       :weekdays="weekdays"
-      :working-time="workingTime" />
+      :working-time="workingTime"
+      :connectors="connectors" />
     <agenda-event-preview-dialog />
     <agenda-filter-calendar-drawer
       :owner-ids="ownerIds"
