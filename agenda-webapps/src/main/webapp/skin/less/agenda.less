@@ -294,6 +294,14 @@
       .v-event-timed, .v-event {
         user-select: none;
         -webkit-user-select: none;
+        height: fit-content !important;
+        .remote-event {
+          border: 1px solid @primaryColor !important;
+          &.all-day {
+            display: flex;
+            justify-content: space-between;
+          }
+        }
       }
       .v-event-drag-bottom {
         position: absolute;
