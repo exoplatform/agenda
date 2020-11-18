@@ -5,7 +5,7 @@
     :title="$t('agenda.actionProhibited')"
     :ok-label="$t('agenda.button.ok')"
     @ok="closeDialog"
-    @closed="closeDialog"/>
+    @closed="closeDialog" />
 </template>
 
 <script>

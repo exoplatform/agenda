@@ -53,6 +53,7 @@
     <agenda-event-mobile-form-drawer :current-space="currentSpace" />
     <agenda-event-save />
     <agenda-update-event-dialog />
+    <agenda-connector :connected-connector="connectedConnector" />
   </v-app>
 </template>
 <script>
@@ -154,39 +155,13 @@ export default {
         this.settingsLoaded = true;
         document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
       });
-    document.addEventListener('agenda-accounts-connectors-refresh', this.refreshConnectorsList);
-    this.refreshConnectorsList();
+    this.$root.$emit('agenda-init-connectors');
+    this.$root.$on('agenda-connector-loaded', connectors => {
+      this.connectors = connectors;
+    });
   },
   methods: {
-    refreshConnectorsList() {
-      this.connectors = extensionRegistry.loadExtensions('agenda', 'connectors') || [];
-      this.$calendarService.getAgendaConnectorsSettings().then(connectorSettings => {
-        if (connectorSettings && connectorSettings.value) {
-          const connectedConnectorName = JSON.parse(connectorSettings.value).connectorName;
-          this.connectedConnector = this.connectors.find(connector =>
-            connector.name === connectedConnectorName);
-          this.connectedConnector.init(this.connectionStatusChanged, this.connectionLoading);
-        }
-      });
-    },
-    connectionLoading(connector, loading) {
-      if (loading) {
-        this.loading++;
-      } else if (this.loading) {
-        this.loading--;
-      }
-    },
-    connectionStatusChanged(connector, connectedAccount) {
-      this.connectedConnector = connector;
-      this.connectedConnector.user = connectedAccount;
-      if (this.connectedConnector.isSignedIn) {
-        this.retrieveRemoteEvents(connector);
-      }
-    },
     retrieveEvents() {
-      if (this.connectedConnector.isSignedIn) {
-        this.retrieveRemoteEvents(this.connectedConnector);
-      }
       if (!this.initialized && eXo.env.portal.spaceId) {
         const spaceId = eXo.env.portal.spaceId;
         this.$spaceService.getSpaceById(spaceId, 'identity')
