@@ -16,9 +16,9 @@
       </div>
       <v-btn
         v-else
-        class="btn "
+        class="btn"
         @click="openPersonalCalendarDrawer">
-        <i class="uiIconHyperlink darkGreyIcon" />
+        <i class="uiIconHyperlink mr-2 darkGreyIcon"></i>
         {{ $t('agenda.connectYourPersonalAgenda') }}
       </v-btn>
       <v-row
@@ -63,8 +63,13 @@
       @mouseleave:time="endDrag"
       @change="retrieveEvents">
       <template #event="eventObj">
-        <div :id="getEventDomId(eventObj)" class="v-event-draggable v-event-draggable-parent">
-          <strong class="text-truncate ml-2">{{ eventObj.event.summary }}</strong>
+        <div
+          v-if="eventObj.event.type !== 'remoteEvent'"
+          :id="getEventDomId(eventObj)"
+          class="v-event-draggable v-event-draggable-parent">
+          <p class="text-truncate my-0 caption font-weight-bold">
+            {{ eventObj.event.summary }}
+          </p>
           <div class="d-flex">
             <template v-if="!eventObj.event.allDay">
               <date-format
@@ -77,6 +82,44 @@
                 :format="timeFormat"
                 class="mr-2" />
             </template>
+          </div>
+        </div>
+        <div
+          v-else
+          :id="getEventDomId(eventObj)"
+          :class="{'all-day' : eventObj.event.allDay}"
+          class="v-event-draggable remote-event v-event-draggable-parent">
+          <p class="text-truncate my-0 ml-2 caption font-weight-bold primary--text">
+            {{ eventObj.event.summary }}
+          </p>
+          <template v-if="eventObj.event.allDay">
+            <v-avatar
+              class="mr-1 my-auto"
+              tile
+              size="16">
+              <img
+                :alt="connectedAccount.name"
+                :src="connectedAccountIconSource">
+            </v-avatar>
+          </template>
+          <div v-if="!eventObj.event.allDay" class="d-flex">
+            <date-format
+              :value="eventObj.event.startDate"
+              :format="timeFormat"
+              class="v-event-draggable ml-2 primary--text" />
+            <strong class="mx-1 primary--text">-</strong>
+            <date-format
+              :value="eventObj.event.endDate"
+              :format="timeFormat"
+              class="v-event-draggable mr-2 primary--text" />
+            <v-avatar
+              tile
+              class="ml-1"
+              size="16">
+              <img
+                :alt="connectedAccount.name"
+                :src="connectedAccountIconSource">
+            </v-avatar>
           </div>
         </div>
       </template>
@@ -161,7 +204,6 @@ export default {
     selectedElement: null,
     selectedOpen: null,
     datePickerTop: true,
-    displayedEvents: [],
     dayToDisplay: Date.now(),
     dateTimeFormat: {
       year: 'numeric',
@@ -179,6 +221,8 @@ export default {
     menuLeftPosition: false,
     menuTopPosition: false,
     connectedAccount: {},
+    period: {},
+    remoteEvents: [],
   }),
   computed: {
     nowTimeOptions() {
@@ -200,6 +244,9 @@ export default {
     connectedAccountIconSource() {
       return this.connectedAccount && this.connectedAccount.icon || '';
     },
+    displayedEvents() {
+      return [...this.events.slice(), ...this.remoteEvents];
+    }
   },
   watch: {
     selectedOpen() {
@@ -220,10 +267,19 @@ export default {
         this.event.endDate = new Date(this.event.startDate).getTime();
       }
     }
+    this.$root.$emit('agenda-init-connectors');
     this.$calendarService.getAgendaConnectorsSettings().then(connectorSettings => {
       if (connectorSettings && connectorSettings.value) {
         this.connectedAccount = JSON.parse(connectorSettings.value);
       }
+    });
+    this.$root.$on('agenda-connector-initialized', connectors => {
+      this.connectors = connectors;
+      this.connectors.forEach(connector => {
+        if (connector.isSignedIn && connector.initialized) {
+          this.retrieveRemoteEvents(connector);
+        }
+      });
     });
   },
   mounted() {
@@ -245,7 +301,6 @@ export default {
       event.endDate = new Date(this.event.endDate);
       event.start = this.$agendaUtils.toRFC3339(this.event.startDate);
       event.end = this.$agendaUtils.toRFC3339(this.event.endDate);
-
       this.scrollToEvent(event);
       this.retrieveEvents();
       if (this.$refs.eventDatesMenu) {
@@ -278,7 +333,9 @@ export default {
       nativeEvent.preventDefault();
       nativeEvent.stopPropagation();
 
-      this.showEventDatePickers(event);
+      if (event.type !== 'remoteEvent') {
+        this.showEventDatePickers(event);
+      }
     },
     showEventDatePickers(event, waitTimeToDisplay = 200) {
       const domId = this.getEventDomId(event);
@@ -352,17 +409,28 @@ export default {
       this.$refs.calendar.prev();
     },
     retrieveEvents(range) {
-      this.displayedEvents = this.events.slice();
       if (range) {
         this.retrievePeriod(range);
+        this.connectors.forEach(connector => {
+          if (connector.isSignedIn && connector.initialized) {
+            this.retrieveRemoteEvents(connector);
+          }
+        });
       }
       this.$forceUpdate();
     },
     retrievePeriod(range) {
-      const period = this.$agendaUtils.convertVuetifyRangeToPeriod(range, this.$userTimeZone);
-      if (period) {
-        period.title = this.$refs.calendar.title;
-        this.periodTitle = this.$agendaUtils.generateCalendarTitle('week', new Date(period.start), period.title, this.$t('agenda.week'));
+      range.end = JSON.parse(JSON.stringify(range.end));
+      // End of the day of end date
+      range.end.hour = 23;
+      range.end.minute = 59;
+      // Start of the day of start date
+      range.start.hour = 0;
+      range.start.minute = 0;
+      this.period = this.$agendaUtils.convertVuetifyRangeToPeriod(range, this.$userTimeZone);
+      if (this.period) {
+        this.period.title = this.$refs.calendar.title;
+        this.periodTitle = this.$agendaUtils.generateCalendarTitle('week', new Date(this.period.start), this.period.title, this.$t('agenda.week'));
       }
     },
     roundTime(time, down = true) {
@@ -396,7 +464,20 @@ export default {
     },
     openPersonalCalendarDrawer() {
       this.$root.$emit('agenda-connected-account-settings-open');
-    }
+    },
+    retrieveRemoteEvents(connector) {
+      connector.getEvents(this.$agendaUtils.toRFC3339(this.period.start, false),
+        this.$agendaUtils.toRFC3339(this.period.end, false))
+        .then(events => {
+          events.forEach(event => {
+            event.startDate = event.start && this.$agendaUtils.toDate(event.start) || null;
+            event.endDate = event.end && this.$agendaUtils.toDate(event.end) || null;
+          });
+          this.remoteEvents = events;
+        }).catch(error => {
+          console.error('Error retrieving remote events', error);
+        });
+    },
   },
 };
 </script>

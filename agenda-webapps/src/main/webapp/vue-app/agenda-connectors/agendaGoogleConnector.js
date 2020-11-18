@@ -62,5 +62,50 @@ export default {
   disconnect() {
     this.loadingCallback(this, true);
     return this.gapi.auth2.getAuthInstance().signOut();
+  },
+  getEvents(periodStartDate, periodEndDate) {
+    this.loadingCallback(this, true);
+    const self_ = this;
+    return this.gapi.client.calendar.events.list({
+      'calendarId': 'primary',
+      'timeMin': periodStartDate,
+      'timeMax': periodEndDate,
+      'singleEvents': true,
+      'orderBy': 'startTime'
+    }).then(events => events.result.items).then(events => {
+      events.forEach(event => {
+        event.calendar = {
+          owner: {
+            profile: {
+              avatarUrl: self_.avatar,
+              displayName: self_.currentUser.getBasicProfile().getEmail(),
+            }
+          }
+        };
+        if(event.attendees) {
+          event.attendees.forEach(attendee => {
+            attendee.response = attendee.responseStatus === 'needsAction' ? 'NEEDS_ACTION' : attendee.responseStatus.toUpperCase();
+            attendee.identity = {
+              providerId: 'organization',
+              profile: {
+                avatar: attendee.avatar ? attendee.avatar : '/portal/rest/v1/social/users/default-image/avatar',
+                fullname: attendee.email,
+              }
+            };
+          });
+        }
+        event.allDay = !!event.start.date;
+        event.start = event.start.dateTime || event.start.date;
+        //Google api returns all day event with one day added for end date.
+        const endDate = new Date(event.end.date);
+        endDate.setDate(endDate.getDate()-1);
+        event.end = event.allDay ? endDate : event.end.dateTime;
+        event.name = event.summary;
+        event.type = 'remoteEvent';
+        event.color = '#FFFFFF';
+      });
+      this.loadingCallback(this, false);
+      return events;
+    });
   }
 };
