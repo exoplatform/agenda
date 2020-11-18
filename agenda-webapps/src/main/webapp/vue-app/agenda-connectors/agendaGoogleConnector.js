@@ -65,6 +65,7 @@ export default {
     return this.gapi.auth2.getAuthInstance().signOut();
   },
   getEvents(periodStartDate, periodEndDate) {
+    this.loadingCallback(this, true);
     const self_ = this;
     return this.gapi.client.calendar.events.list({
       'calendarId': 'primary',
@@ -94,12 +95,17 @@ export default {
             };
           });
         }
-
-        event.start = event.start.dateTime;
-        event.end = event.end.dateTime;
+        event.allDay = !!event.start.date;
+        event.start = event.start.dateTime || event.start.date;
+        //Google api returns all day event with one day added for end date.
+        const endDate = new Date(event.end.date);
+        endDate.setDate(endDate.getDate()-1);
+        event.end = event.allDay ? endDate : event.end.dateTime;
         event.name = event.summary;
         event.type = 'remoteEvent';
+        event.color = '#FFFFFF';
       });
+      this.loadingCallback(this, false);
       return events;
     });
   }

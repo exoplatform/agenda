@@ -156,7 +156,6 @@ export default {
         this.settingsLoaded = true;
         document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
       });
-    this.$root.$emit('agenda-init-connectors');
     this.$root.$on('agenda-connector-loaded', connectors => {
       this.connectors = connectors;
     });
