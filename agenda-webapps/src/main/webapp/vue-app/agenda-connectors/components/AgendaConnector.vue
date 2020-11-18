@@ -14,11 +14,11 @@ export default {
     loading(newValue, oldValue) {
       if (this.loading) {
         if (!oldValue) {
-          document.dispatchEvent(new CustomEvent('displayTopBarLoading'));
+          document.dispatchEvent(new CustomEvent('displayRemoteEventLoading'));
         }
       } else {
         if (!newValue) {
-          document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
+          document.dispatchEvent(new CustomEvent('hideRemoteEventLoading'));
         }
       }
     }
@@ -71,7 +71,6 @@ export default {
       //if user has connected
       if (this.connectedAccount.userId) {
         this.$set(connector, 'user', this.connectedAccount.userId);
-        //connector.user = this.connectedAccount.userId;
         //if user connected with different account from other browser
         if (currentUser.user && currentUser.user !== this.connectedAccount.userId) {
           connector.disconnect();
@@ -80,9 +79,9 @@ export default {
       } else if (!this.connectedAccount.userId && connector.isSignedIn) {
         connector.disconnect();
       } else {
-        //connector.user = currentUser && currentUser.user || null;
         this.$set(connector, 'user', currentUser && currentUser.user || null);
       }
+      this.$root.$emit('agenda-connector-initialized', this.connectors);
     },
   },
 };

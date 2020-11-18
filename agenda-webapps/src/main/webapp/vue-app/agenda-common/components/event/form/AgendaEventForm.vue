@@ -27,6 +27,7 @@
           </v-icon>
         </v-btn>
       </v-stepper-header>
+      <v-progress-linear :active="loading" indeterminate></v-progress-linear>
       <v-stepper-items class="flex-grow-1">
         <v-stepper-content step="1">
           <agenda-event-form-basic-information
@@ -60,7 +61,7 @@
       </v-btn>
       <div class="ml-auto mr-10">
         <v-btn
-
+          :disabled="disableSaveButton"
           class="btn btn-primary"
           @click="nextStep">
           {{ stepButtonLabel }}
@@ -101,6 +102,7 @@ export default {
   data () {
     return {
       stepper: 1,
+      loading: false,
     };
   },
   computed: {
@@ -133,6 +135,12 @@ export default {
     this.$root.$on('agenda-event-form', () => {
       this.reset();
     });
+    document.addEventListener('displayRemoteEventLoading', () => {
+      this.loading= true;
+    });
+    document.addEventListener('hideRemoteEventLoading', () => {
+      this.loading= false;
+    });
   },
   mounted() {
     this.reset();
@@ -157,9 +165,9 @@ export default {
 
         this.$root.$emit('agenda-event-save', this.event);
       } else if (this.stepper === 1) {
-        /*if (this.$refs.eventBasicInformation.validateForm()) {
-        }*/
-        this.stepper++;
+        if (this.$refs.eventBasicInformation.validateForm()) {
+          this.stepper++;
+        }
       } else {
         this.stepper = 1;
       }
