@@ -234,4 +234,3 @@ export function compareObjects(object1, object2) {
   }
   return true;
 }
-

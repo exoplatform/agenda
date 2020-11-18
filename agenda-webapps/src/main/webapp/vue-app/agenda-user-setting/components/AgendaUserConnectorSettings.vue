@@ -36,7 +36,10 @@
         <i v-if="!skeleton" class="uiIconEdit uiIconLightBlue pb-2"></i>
       </v-btn>
     </v-list-item-action>
-    <agenda-user-connected-account-drawer :connected-account="connectedAccount" />
+    <agenda-user-connected-account-drawer
+      :connected-account="connectedAccount"
+      :connectors="connectors" />
+    <agenda-connector :connectors="connectors" />
   </v-list-item>
 </template>
 
@@ -50,6 +53,7 @@ export default {
   },
   data: () => ({
     connectedAccount: {},
+    connectors: [],
   }),
   computed: {
     connectedAccountName() {
@@ -62,6 +66,9 @@ export default {
   created() {
     this.$root.$on('agenda-refresh', this.refresh);
     this.refresh();
+    this.$root.$on('agenda-connector-loaded', connectors => {
+      this.connectors = connectors;
+    });
   },
   methods: {
     refresh() {
