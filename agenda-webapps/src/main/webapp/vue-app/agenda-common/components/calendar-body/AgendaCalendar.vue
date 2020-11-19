@@ -38,19 +38,17 @@
         :style="currentTimeStyle"></div>
     </template>
     <template #event="{ event, timed, eventSummary }">
-      <strong class="text-truncate ml-2">{{ event.summary }}</strong>
-      <div v-if="event" class="v-event-draggable d-flex flex-row">
-        <template v-if="!event.allDay">
-          <date-format
-            :value="event.startDate"
-            :format="timeFormat"
-            class="v-event-draggable ml-2" />
-          <strong class="mx-2">-</strong>
-          <date-format
-            :value="event.endDate"
-            :format="timeFormat"
-            class="v-event-draggable mr-2" />
-        </template>
+      <strong class="text-truncate my-auto ml-2">{{ event.summary }}</strong>
+      <div v-if="event && !event.allDay && !isShortEvent(event)" class="v-event-draggable d-flex flex-row">
+        <date-format
+          :value="event.startDate"
+          :format="timeFormat"
+          class="v-event-draggable ml-2" />
+        <strong class="mx-2">-</strong>
+        <date-format
+          :value="event.endDate"
+          :format="timeFormat"
+          class="v-event-draggable mr-2" />
       </div>
       <div
         v-if="timed && event.acl && event.acl.canEdit"
@@ -425,7 +423,10 @@ export default {
       } else {
         return null;
       }
-    }
+    },
+    isShortEvent(event) {
+      return this.$agendaUtils.isShortEvent(event);
+    },
   }
 };
 </script>
