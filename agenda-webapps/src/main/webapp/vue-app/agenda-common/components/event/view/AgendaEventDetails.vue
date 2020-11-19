@@ -17,6 +17,8 @@
       @delete="deleteConfirmDialog" />
 
     <v-divider class="flex-grow-0" />
+    <v-progress-linear :active="loading" indeterminate />
+
     <div class="event-details-body overflow-auto flex-grow-1 d-flex flex-column flex-md-row pa-4">
       <div class="flex-grow-1 flex-shrink-0 event-details-body-left">
         <div class="event-date align-center d-flex pb-5">
@@ -83,10 +85,15 @@
       <div class="flex-grow-0 mx-5 d-none d-md-block">
         <v-divider vertical />
       </div>
-      <agenda-event-attendees
-        ref="agendaAttendees"
-        :event="event"
-        class="flex-grow-1 flex-shrink-0 event-details-body-right" />
+      <div class="flex-grow-1 flex-shrink-0 event-details-body-right">
+        <agenda-event-attendees
+          ref="agendaAttendees"
+          :event="event" />
+        <agenda-connector-contemporary-events
+          :event="event"
+          :connectors="connectors"
+          class="mt-5" />
+      </div>
     </div>
     <template v-if="isAttendee">
       <v-divider />
@@ -117,6 +124,10 @@ export default {
       type: Object,
       default: () => ({})
     },
+    connectors: {
+      type: Object,
+      default: () => ({})
+    },
   },
   data() {
     return {
@@ -132,7 +143,8 @@ export default {
       dateTimeFormat: {
         hour: '2-digit',
         minute: '2-digit',
-      }
+      },
+      loading: false,
     };
   },
   computed: {
@@ -211,6 +223,12 @@ export default {
         this.$root.$emit('agenda-refresh');
       }
       this.reset();
+    });
+    this.$root.$on('displayRemoteEventLoading', () => {
+      this.loading= true;
+    });
+    this.$root.$on('hideRemoteEventLoading', () => {
+      this.loading= false;
     });
   },
   methods: {

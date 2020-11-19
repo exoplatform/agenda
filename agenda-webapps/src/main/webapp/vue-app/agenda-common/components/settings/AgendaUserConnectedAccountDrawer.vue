@@ -89,6 +89,7 @@ export default {
           userId: connectorDetails.getBasicProfile().getEmail(),
           icon: connector.avatar
         });
+        this.$refs.agendaConnectorsDrawer.close();
         this.$calendarService.saveAgendaConnectorsSettings(this.connectedAccount)
           .finally(() => {
             this.$refs.agendaConnectorsDrawer.endLoading();
