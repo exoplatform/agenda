@@ -52,6 +52,7 @@
     <agenda-event-quick-form-drawer :current-space="currentSpace" />
     <agenda-event-mobile-form-drawer :current-space="currentSpace" />
     <agenda-event-save />
+    <agenda-connector :connected-connector="connectedConnector" />
   </v-app>
 </template>
 <script>
@@ -143,6 +144,10 @@ export default {
         this.settingsLoaded = true;
         document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
       });
+    this.$root.$emit('agenda-init-connectors');
+    this.$root.$on('agenda-connector-loaded', connectors => {
+      this.connectors = connectors;
+    });
   },
   methods: {
     retrieveEvents() {

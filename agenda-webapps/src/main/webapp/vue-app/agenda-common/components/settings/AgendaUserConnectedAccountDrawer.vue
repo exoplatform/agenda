@@ -64,54 +64,32 @@ export default {
       type: Object,
       default: () => ({}),
     },
+    connectors: {
+      type: Array,
+      default: () => [],
+    },
   },
   data: () => ({
-    connectors: [],
     errorMessage: ''
   }),
   created() {
     this.$root.$on('agenda-connected-account-settings-open', this.open);
-    // Retrieving list of registered connectors from extensionRegistry
-    document.addEventListener('agenda-accounts-connectors-refresh', this.refreshConnectorsList);
-    this.refreshConnectorsList();
   },
   methods: {
-    refreshConnectorsList() {
-      this.connectors = extensionRegistry.loadExtensions('agenda', 'connectors') || [];
-    },
     open() {
-      this.connectors.forEach(connector => {
-        if (connector.init) {
-          connector.init(this.connectionStatusChanged, this.connectionLoading);
-        }
-      });
+      this.$root.$emit('agenda-init-connectors');
       this.$refs.agendaConnectorsDrawer.open();
-    },
-    connectionLoading(connector, loading) {
-      this.$set(connector, 'loading', loading);
-      this.$forceUpdate();
-    },
-    connectionStatusChanged(connector, currentUser) {
-      //if user has connected
-      if (this.connectedAccount.userId) {
-        connector.user = this.connectedAccount.userId;
-      //if user disconnected from other browser
-      } else if (!this.connectedAccount.userId && connector.isSignedIn) {
-        this.disconnect(connector);
-      } else {
-        connector.user = currentUser && currentUser.user || null;
-      }
     },
     connect(connector) {
       this.errorMessage = null;
       this.$refs.agendaConnectorsDrawer.startLoading();
-      return connector.connect().then((connectorDetails) => {
+      connector.connect().then((connectorDetails) => {
         Object.assign(this.connectedAccount, {
           connectorName: connector.name,
           userId: connectorDetails.getBasicProfile().getEmail(),
           icon: connector.avatar
         });
-        return this.$calendarService.saveAgendaConnectorsSettings(this.connectedAccount)
+        this.$calendarService.saveAgendaConnectorsSettings(this.connectedAccount)
           .finally(() => {
             this.$refs.agendaConnectorsDrawer.endLoading();
           });
@@ -120,26 +98,27 @@ export default {
         if(error.error !== 'popup_closed_by_user') {
           this.errorMessage = this.$t('agenda.connectionFailure');
         }
-        this.connectionLoading(connector, false);
+        this.$set(connector, 'loading', false);
         this.$refs.agendaConnectorsDrawer.endLoading();
       });
     },
     disconnect(connector) {
+      //disconnect from connected browser
       if (connector.isSignedIn) {
         connector.disconnect().then(() => {
-          this.resetConnectedAccount();
+          this.resetConnectedAccount(connector);
         });
-      } else {
+      } else {//disconnect from other browser
+        this.$set(connector, 'loading', true);
         this.resetConnectedAccount(connector);
-        this.connectionLoading(connector, true);
-        this.connectionStatusChanged(connector, false);
+        this.$root.$emit('agenda-synchronize-current-connector', connector, false);
       }
     },
     resetConnectedAccount(connector) {
       this.connectedAccount.userId = '';
       return this.$calendarService.saveAgendaConnectorsSettings(this.connectedAccount)
         .finally(() => {
-          this.connectionLoading(connector, false);
+          this.$set(connector, 'loading', false);
         });
     }
   },
