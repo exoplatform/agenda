@@ -239,3 +239,7 @@ export function compareObjects(object1, object2) {
   }
   return true;
 }
+
+export function isShortEvent(event) {
+  return Math.floor(event.endDate.getTime() / 60000) - Math.floor(event.startDate.getTime() / 60000) < 60;
+}
