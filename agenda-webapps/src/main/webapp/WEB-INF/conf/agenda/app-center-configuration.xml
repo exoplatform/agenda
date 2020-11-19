@@ -48,7 +48,7 @@
             <field name="description">
               <string>Agenda application</string>
             </field>
-			<field name="permissions">
+            <field name="permissions">
               <collection type="java.util.ArrayList" item-type="java.lang.String">
                 <value>
                   <string>*:/platform/users</string>
@@ -57,7 +57,7 @@
                   <string>*:/platform/externals</string>
                 </value>
               </collection>
-			</field>
+            </field>
             <field name="active">
               <boolean>true</boolean>
             </field>
