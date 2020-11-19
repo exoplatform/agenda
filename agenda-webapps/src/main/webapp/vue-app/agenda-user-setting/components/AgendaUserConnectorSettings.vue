@@ -7,16 +7,15 @@
         </div>
       </v-list-item-title>
       <v-list-item-subtitle class="my-3 text-sub-title font-italic">
-        <agenda-connector-details-button
-          :connected-account="connectedAccount"
-          :connectors="connectors">
+        <agenda-connector-status
+          :connected-account="connectedAccount">
           <template slot="connectButton">
             <div
               :class="skeleton && 'skeleton-background skeleton-border-radius skeleton-text-width-small skeleton-text-height-fine my-2'">
               {{ skeleton && '&nbsp;' || $t('agenda.connectYourPersonalAgendaSubTitle') }}
             </div>
           </template>
-        </agenda-connector-details-button>
+        </agenda-connector-status>
       </v-list-item-subtitle>
     </v-list-item-content>
     <v-list-item-action>

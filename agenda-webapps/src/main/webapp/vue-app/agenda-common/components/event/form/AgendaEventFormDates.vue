@@ -1,16 +1,15 @@
 <template>
   <v-flex class="event-form-dates">
     <v-toolbar flat class="border-color mb-4">
-      <agenda-connector-details-button
-        :connected-account="connectedAccount"
-        :connectors="connectors">
+      <agenda-connector-status
+        :connected-account="connectedAccount">
         <template slot="connectButton">
           <v-btn class="btn">
             <i class="uiIconHyperlink mr-2 darkGreyIcon"></i>
             {{ $t('agenda.connectYourPersonalAgenda') }}
           </v-btn>
         </template>
-      </agenda-connector-details-button>
+      </agenda-connector-status>
       <v-row
         align="center"
         justify="center"
@@ -54,50 +53,30 @@
       @change="retrieveEvents">
       <template #event="eventObj">
         <div
+          v-if="eventObj.event.type !== 'remoteEvent'"
           :id="getEventDomId(eventObj)"
-          :class="{'all-day' : eventObj.event.allDay,
-                   'remote-event': eventObj.event.type === 'remoteEvent'}"
-          class="v-event-draggable remote-event v-event-draggable-parent">
+          class="v-event-draggable v-event-draggable-parent">
           <p
-            :class="{'primary--text' : eventObj.event.type === 'remoteEvent'}"
             class="text-truncate my-0 ml-2 caption font-weight-bold">
             {{ eventObj.event.summary }}
           </p>
-          <template v-if="eventObj.event.allDay && eventObj.event.type === 'remoteEvent'">
-            <v-avatar
-              class="mr-1 my-auto"
-              tile
-              size="16">
-              <img
-                :alt="connectedAccount.name"
-                :src="connectedAccountIconSource">
-            </v-avatar>
-          </template>
           <div v-if="!eventObj.event.allDay" class="d-flex">
             <date-format
               :value="eventObj.event.startDate"
               :format="timeFormat"
-              :class="{'primary--text' : eventObj.event.type === 'remoteEvent'}"
               class="v-event-draggable ml-2" />
             <strong
-              :class="{'primary--text' : eventObj.event.type === 'remoteEvent'}"
               class="mx-1">-</strong>
             <date-format
               :value="eventObj.event.endDate"
               :format="timeFormat"
-              :class="{'primary--text' : eventObj.event.type === 'remoteEvent'}"
               class="v-event-draggable mr-2" />
-            <v-avatar
-              v-if="eventObj.event.type === 'remoteEvent'"
-              tile
-              class="ml-1"
-              size="16">
-              <img
-                :alt="connectedAccount.name"
-                :src="connectedAccountIconSource">
-            </v-avatar>
           </div>
         </div>
+        <agenda-connector-remote-event-item
+          v-else
+          :remote-event="eventObj.event"
+          :connected-account-icon-source="connectedAccountIconSource" />
       </template>
       <template #day-body="day">
         <div
@@ -223,6 +202,9 @@ export default {
     },
     displayedEvents() {
       return [...this.events, ...this.remoteEvents];
+    },
+    connectedConnector() {
+      return this.connectors.find(connector => connector.isSignedIn);
     }
   },
   watch: {
@@ -244,7 +226,6 @@ export default {
         this.event.endDate = new Date(this.event.startDate).getTime();
       }
     }
-    this.$root.$emit('agenda-init-connectors');
     this.$calendarService.getAgendaConnectorsSettings().then(connectorSettings => {
       if (connectorSettings && connectorSettings.value) {
         this.connectedAccount = JSON.parse(connectorSettings.value);
@@ -252,12 +233,9 @@ export default {
     });
     this.$root.$on('agenda-connector-initialized', connectors => {
       this.connectors = connectors;
-      this.connectors.forEach(connector => {
-        if (connector.isSignedIn && connector.initialized) {
-          this.retrieveRemoteEvents(connector);
-        }
-      });
+      this.retrieveRemoteEvents();
     });
+    this.$root.$emit('agenda-init-connectors');
   },
   mounted() {
     if (this.$refs.calendar) {
@@ -389,11 +367,7 @@ export default {
       if (range) {
         this.retrievePeriod(range);
         this.retrieveEventsFromStore();
-        this.connectors.forEach(connector => {
-          if (connector.isSignedIn) {
-            this.retrieveRemoteEvents(connector);
-          }
-        });
+        this.retrieveRemoteEvents();
       }
       this.$forceUpdate();
     },
@@ -440,17 +414,19 @@ export default {
         return null;
       }
     },
-    retrieveRemoteEvents(connector) {
-      connector.getEvents(this.$agendaUtils.toRFC3339(this.period.start, false),
-        this.$agendaUtils.toRFC3339(this.period.end, false))
-        .then(events => {
-          events.forEach(event => {
-            this.$agendaUtils.convertDates(event);
+    retrieveRemoteEvents() {
+      if(this.connectedConnector) {
+        this.connectedConnector.getEvents(this.$agendaUtils.toRFC3339(this.period.start, false),
+          this.$agendaUtils.toRFC3339(this.period.end, false))
+          .then(events => {
+            events.forEach(event => {
+              this.$agendaUtils.convertDates(event);
+            });
+            this.remoteEvents = events;
+          }).catch(error => {
+            console.error('Error retrieving remote events', error);
           });
-          this.remoteEvents = events;
-        }).catch(error => {
-          console.error('Error retrieving remote events', error);
-        });
+      }
     },
     retrieveEventsFromStore() {
       const userIdentityId = this.eventType === 'myEvents' && eXo.env.portal.userIdentityId || null;
