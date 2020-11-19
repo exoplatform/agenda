@@ -75,6 +75,7 @@ export default {
       start: new Date(),
       end: null,
     },
+    events: [],
     settings: {
       agendaDefaultView: 'week',
       agendaWeekStartOn: 'MO',
@@ -86,8 +87,6 @@ export default {
     settingsLoaded: false,
     connectors: [],
     connectedConnector: {},
-    remoteEvents: [],
-    localEvents: [],
   }),
   computed: {
     isMobile() {
@@ -103,9 +102,6 @@ export default {
         workingTimeEnd: this.settings.workingTimeEnd
       };
     },
-    events() {
-      return [...this.localEvents, ...this.remoteEvents];
-    }
   },
   watch: {
     limit() {
@@ -198,7 +194,7 @@ export default {
             event.endDate = event.end && this.$agendaUtils.toDate(event.end) || null;
           });
           this.hasMore = this.limit > this.pageSize && (this.events && this.events.length || 0) < events.length || events.length >= this.limit;
-          this.localEvents = events;
+          this.events = events;
         }).catch(error =>{
           console.error('Error retrieving events', error);
         }).finally(() => {
@@ -211,22 +207,6 @@ export default {
     changeDisplayedOwnerIds(selectedOwnerIds) {
       this.ownerIds = selectedOwnerIds;
       this.retrieveEvents();
-    },
-    retrieveRemoteEvents(connector) {
-      this.loading++;
-      connector.getEvents(this.$agendaUtils.toRFC3339(this.period.start, false),
-        this.$agendaUtils.toRFC3339(this.period.end, false))
-        .then(events => {
-          events.forEach(event => {
-            event.startDate = event.start && this.$agendaUtils.toDate(event.start) || null;
-            event.endDate = event.end && this.$agendaUtils.toDate(event.end) || null;
-          });
-          this.remoteEvents = events || [];
-          this.loading--;
-        }).catch(error => {
-          this.loading--;
-          console.error('Error retrieving remote events', error);
-        });
     },
   },
 };

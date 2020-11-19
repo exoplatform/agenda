@@ -223,6 +223,7 @@ export default {
     connectedAccount: {},
     period: {},
     remoteEvents: [],
+    spaceEvents: [],
   }),
   computed: {
     nowTimeOptions() {
@@ -233,7 +234,7 @@ export default {
       return `top: ${this.currentTimeTop}px;`;
     },
     events() {
-      return this.event && [this.event] || [];
+      return [this.event, ...this.spaceEvents] || [];
     },
     domId() {
       return `eventForm-${this.event.id}-${new Date(this.event.startDate).getTime()}`;
@@ -245,7 +246,7 @@ export default {
       return this.connectedAccount && this.connectedAccount.icon || '';
     },
     displayedEvents() {
-      return [...this.events.slice(), ...this.remoteEvents];
+      return [...this.events, ...this.remoteEvents];
     }
   },
   watch: {
@@ -333,7 +334,7 @@ export default {
       nativeEvent.preventDefault();
       nativeEvent.stopPropagation();
 
-      if (event.type !== 'remoteEvent') {
+      if (!event.created) {
         this.showEventDatePickers(event);
       }
     },
@@ -411,8 +412,9 @@ export default {
     retrieveEvents(range) {
       if (range) {
         this.retrievePeriod(range);
+        this.retrieveEventsFromStore();
         this.connectors.forEach(connector => {
-          if (connector.isSignedIn && connector.initialized) {
+          if (connector.isSignedIn) {
             this.retrieveRemoteEvents(connector);
           }
         });
@@ -478,6 +480,21 @@ export default {
           console.error('Error retrieving remote events', error);
         });
     },
+    retrieveEventsFromStore() {
+      const userIdentityId = this.eventType === 'myEvents' && eXo.env.portal.userIdentityId || null;
+      this.$eventService.getEvents(null, [], userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, true), this.$agendaUtils.toRFC3339(this.period.end), this.limit, null)
+        .then(data => {
+          const events = data && data.events || [];
+          events.forEach(event => {
+            event.name = event.summary;
+            event.startDate = event.start && this.$agendaUtils.toDate(event.start) || null;
+            event.endDate = event.end && this.$agendaUtils.toDate(event.end) || null;
+          });
+          this.spaceEvents = events;
+        }).catch(error =>{
+          console.error('Error retrieving events', error);
+        });
+    }
   },
 };
 </script>
