@@ -79,6 +79,11 @@ export function toDate(date) {
     return new Date(date);
   }
 }
+export function convertDates(event) {
+  event.startDate = event.start && this.toDate(event.start) || null;
+  event.endDate = event.end && this.toDate(event.end) || null;
+  return event;
+}
 
 export function generateCalendarTitle(calendarType, startDate, periodTitle, weekTitle) {
   if(calendarType === 'week') {
