@@ -1,7 +1,9 @@
 import AgendaConnector from './components/AgendaConnector.vue';
+import AgendaConnectorDetailsButton from './components/AgendaConnectorDetailsButton.vue';
 
 const components = {
   'agenda-connector': AgendaConnector,
+  'agenda-connector-details-button': AgendaConnectorDetailsButton,
 };
 
 for (const key in components) {

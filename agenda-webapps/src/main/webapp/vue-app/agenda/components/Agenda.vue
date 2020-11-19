@@ -84,6 +84,8 @@ export default {
     },
     hasMore: false,
     settingsLoaded: false,
+    connectors: [],
+    connectedConnector: {},
   }),
   computed: {
     isMobile() {
@@ -98,7 +100,7 @@ export default {
         workingTimeStart: this.settings.workingTimeStart,
         workingTimeEnd: this.settings.workingTimeEnd
       };
-    }
+    },
   },
   watch: {
     limit() {
