@@ -1,6 +1,6 @@
 <template>
-  <div class="">
-    <div v-if="connectedAccountName">
+  <div class="connector-status">
+    <div v-if="connectedAccountName" class="connector-connected">
       <v-avatar tile size="24">
         <img
           :alt="connectedAccount.name"
@@ -14,7 +14,7 @@
     </div>
     <div
       v-else
-      class="connectButton"
+      class="connect-button"
       @click="openPersonalCalendarDrawer">
       <slot
         name="connectButton">
@@ -25,10 +25,6 @@
 <script>
 export default {
   props: {
-    connectors: {
-      type: Array,
-      default: () => []
-    },
     connectedAccount: {
       type: Array,
       default: () => []

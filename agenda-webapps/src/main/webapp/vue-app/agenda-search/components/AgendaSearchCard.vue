@@ -18,6 +18,7 @@
             class="mx-auto" />
         </v-avatar>
         <div v-if="eventTitle" class="d-flex flex-column text-truncate pull-left ml-2">
+          <!-- eslint-disable vue/no-v-html -->
           <a
             v-if="eventTitle"
             :href="eventUrl"
