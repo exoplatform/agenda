@@ -1,9 +1,13 @@
-import AgendaConnector from './components/AgendaConnector.vue';
-import AgendaConnectorDetailsButton from './components/AgendaConnectorDetailsButton.vue';
+import AgendaConnector from './components/connector/AgendaConnector.vue';
+import AgendaConnectorStatus from './components/connector/AgendaConnectorStatus.vue';
+import AgendaConnectorContemporaryEvents from './components/remote-event/AgendaConnectorContemporaryEvents.vue';
+import AgendaConnectorRemoteEventItem from './components/remote-event/AgendaConnectorRemoteEventItem.vue';
 
 const components = {
   'agenda-connector': AgendaConnector,
-  'agenda-connector-details-button': AgendaConnectorDetailsButton,
+  'agenda-connector-status': AgendaConnectorStatus,
+  'agenda-connector-contemporary-events': AgendaConnectorContemporaryEvents,
+  'agenda-connector-remote-event-item': AgendaConnectorRemoteEventItem,
 };
 
 for (const key in components) {

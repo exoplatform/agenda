@@ -42,6 +42,7 @@
         ref="eventDetails"
         :event="event"
         :weekdays="weekdays"
+        :connectors="connectors"
         @close="close" />
     </template>
   </v-dialog>
