@@ -510,40 +510,15 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   }
 
   @Override
-  public List<Event> getEvents(EventFilter eventFilter,
-                               String username,
-                               ZoneId userTimeZone) throws IllegalAccessException {
+  public List<Event> getEvents(EventFilter eventFilter) throws IllegalAccessException {
     if (eventFilter == null) {
       throw new IllegalArgumentException("eventFilter is mandatory");
     }
-
-    Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
-    if (userIdentity == null) {
-      throw new IllegalAccessException("User with name " + username + " doesn't exist");
-    }
-
-    List<Long> ownerIds = eventFilter.getOwnerIds();
-    if (ownerIds != null) {
-      for (Long ownerId : ownerIds) {
-        if (!Utils.canAccessCalendar(identityManager, spaceService, ownerId, username)) {
-          throw new IllegalAccessException("User '" + userIdentity.getId() + "' is not allowed to access calendar of identity '"
-              + ownerIds + "'");
-        }
-      }
-    }
-
-    long attendeeId = eventFilter.getAttendeeId();
-    if (attendeeId > 0) {
-      if (!String.valueOf(attendeeId).contentEquals(userIdentity.getId())) {
-        throw new IllegalAccessException("User '" + userIdentity.getId() + "' is not allowed to access calendar of identity '"
-            + attendeeId + "'");
-      }
-      List<Long> attendeeSpaceIds = Utils.getCalendarOwnersOfUser(spaceService, identityManager, userIdentity);
-      eventFilter.setAttendeeWithSpacesIds(attendeeSpaceIds);
-    } else if (ownerIds == null) {
-      // If no attendee is selected, and no owners, filter events by use
-      // spaceIds
-      ownerIds = Utils.getCalendarOwnersOfUser(spaceService, identityManager, userIdentity);
+    String username = eventFilter.getUsername();
+    Identity userIdentity = null;
+    ZoneId userTimeZone = eventFilter.getUserTimeZone();
+    if (username != null) {
+      userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
     }
 
     // Retrieve events minus a day and plus a day to include all day events
@@ -566,7 +541,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     int limit = eventFilter.getLimit();
     if (limit > 0) {
       EventFilter maxEndDateFilter = eventFilter.clone();
-      maxEndDateFilter.setOwnerIds(ownerIds);
       maxEndDateFilter.setStart(startMinusADay);
       maxEndDateFilter.setEnd(endPlusADay);
       ZonedDateTime maxEndDate = getMaxEndDate(maxEndDateFilter, userTimeZone);
@@ -577,11 +551,40 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
 
     EventFilter requestEventFilter = eventFilter.clone();
-    requestEventFilter.setOwnerIds(ownerIds);
     requestEventFilter.setStart(startMinusADay);
     requestEventFilter.setEnd(endPlusADay);
-    List<Long> eventIds = this.agendaEventStorage.getEventIds(requestEventFilter);
-    return computeEventsProperties(eventIds, start, end, userTimeZone, limit, userIdentity, startMinusADay, endPlusADay);
+    if (userIdentity != null) {
+      List<Long> ownerIds = eventFilter.getOwnerIds();
+      if (ownerIds != null) {
+        for (Long ownerId : ownerIds) {
+          if (!Utils.canAccessCalendar(identityManager, spaceService, ownerId, username)) {
+            throw new IllegalAccessException("User '" + userIdentity.getId() + "' is not allowed to access calendar of identity '"
+                + ownerIds + "'");
+          }
+        }
+      }
+
+      long attendeeId = eventFilter.getAttendeeId();
+      if (attendeeId > 0) {
+        if (!String.valueOf(attendeeId).contentEquals(userIdentity.getId())) {
+          throw new IllegalAccessException("User '" + userIdentity.getId() + "' is not allowed to access calendar of identity '"
+              + attendeeId + "'");
+        }
+        List<Long> attendeeSpaceIds = Utils.getCalendarOwnersOfUser(spaceService, identityManager, userIdentity);
+        eventFilter.setAttendeeWithSpacesIds(attendeeSpaceIds);
+      } else if (ownerIds == null) {
+        // If no attendee is selected, and no owners, filter events by use
+        // spaceIds
+        ownerIds = Utils.getCalendarOwnersOfUser(spaceService, identityManager, userIdentity);
+      }
+      // TODO
+      requestEventFilter.setOwnerIds(ownerIds);
+      List<Long> eventIds = this.agendaEventStorage.getEventIds(requestEventFilter);
+      return computeEventsProperties(eventIds, start, end, userTimeZone, limit, userIdentity, startMinusADay, endPlusADay);
+    } else {
+      List<Long> eventIds = this.agendaEventStorage.getEventIds(requestEventFilter);
+      return computeEventsProperties(eventIds, start, end, userTimeZone, limit, userIdentity, startMinusADay, endPlusADay);
+    }
   }
 
   @Override
@@ -738,7 +741,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
     List<Event> events = getEventsList(eventIds, startMinusADay, endPlusADay, timeZone, limit);
     events = filterEvents(events, start, end, limit);
-    computeEventsAcl(events, userIdentity);
+    if(userIdentity != null) {
+      computeEventsAcl(events, userIdentity);
+    }
     return events;
   }
 

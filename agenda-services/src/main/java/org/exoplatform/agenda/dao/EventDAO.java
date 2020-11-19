@@ -170,7 +170,7 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     if (endDate != null) {
       jpql.append(" AND ev.startDate < :end");
     }
-    if (ownerIds != null) {
+    if (filterOwners) {
       jpql.append(" AND cal.ownerId IN (:ownerIds)");
     }
     if (filterAttendees) {

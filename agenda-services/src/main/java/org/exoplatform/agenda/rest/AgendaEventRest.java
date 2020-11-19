@@ -144,8 +144,10 @@ public class AgendaEventRest implements ResourceContainer {
                                                 responseTypes,
                                                 startDatetime,
                                                 endDatetime,
+                                                currentUser,
+                                                userTimeZone,
                                                 limit);
-      List<Event> events = agendaEventService.getEvents(eventFilter, currentUser, userTimeZone);
+      List<Event> events = agendaEventService.getEvents(eventFilter);
       Map<Long, List<EventAttendeeEntity>> attendeesByParentEventId = new HashMap<>();
       Map<Long, List<EventAttachmentEntity>> attachmentsByParentEventId = new HashMap<>();
       Map<Long, List<EventConference>> conferencesByParentEventId = new HashMap<>();

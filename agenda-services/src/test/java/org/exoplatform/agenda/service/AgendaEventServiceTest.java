@@ -744,8 +744,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                               null,
                                               getDate().plusHours(1),
                                               getDate().plusMinutes(90),
+                                              testuser2Identity.getRemoteId(),
+                                              ZoneId.systemDefault(),
                                               0);
-    List<Event> events = agendaEventService.getEvents(eventFilter, testuser2Identity.getRemoteId(), ZoneId.systemDefault());
+    List<Event> events = agendaEventService.getEvents(eventFilter);
 
     assertNotNull(events);
     assertEquals(1, events.size());
@@ -759,8 +761,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                   null,
                                   getDate().plusHours(1),
                                   getDate().plusMinutes(90),
+                                  testuser2Identity.getRemoteId(),
+                                  ZoneId.systemDefault(),
                                   0);
-    events = agendaEventService.getEvents(eventFilter, testuser2Identity.getRemoteId(), ZoneId.systemDefault());
+    events = agendaEventService.getEvents(eventFilter);
 
     assertNotNull(events);
     assertEquals(1, events.size());
@@ -772,8 +776,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                   null,
                                   getDate().plusHours(1).plusDays(1),
                                   getDate().plusMinutes(90).plusDays(1),
+                                  testuser2Identity.getRemoteId(),
+                                  ZoneId.systemDefault(),
                                   0);
-    events = agendaEventService.getEvents(eventFilter, testuser2Identity.getRemoteId(), ZoneId.systemDefault());
+    events = agendaEventService.getEvents(eventFilter);
 
     assertNotNull(events);
     assertEquals(1, events.size());
@@ -788,8 +794,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                   null,
                                   getDate().plusHours(1),
                                   getDate().plusMinutes(90),
+                                  testuser2Identity.getRemoteId(),
+                                  ZoneId.systemDefault(),
                                   0);
-    events = agendaEventService.getEvents(eventFilter, testuser2Identity.getRemoteId(), ZoneId.systemDefault());
+    events = agendaEventService.getEvents(eventFilter);
     assertNotNull(events);
     assertEquals(0, events.size());
 
@@ -798,8 +806,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                   null,
                                   getDate().plusHours(1).plusDays(1),
                                   getDate().plusMinutes(90).plusDays(1),
+                                  testuser2Identity.getRemoteId(),
+                                  ZoneId.systemDefault(),
                                   0);
-    events = agendaEventService.getEvents(eventFilter, testuser2Identity.getRemoteId(), ZoneId.systemDefault());
+    events = agendaEventService.getEvents(eventFilter);
     assertNotNull(events);
     assertEquals(2, events.size());
     assertTrue(events.stream().noneMatch(occurrenceEvent -> occurrenceEvent.getOccurrence() == null));
@@ -839,8 +849,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                               null,
                                               getDate().plusHours(1),
                                               getDate().plusMinutes(90),
+                                              testuser2Identity.getRemoteId(),
+                                              ZoneId.systemDefault(),
                                               0);
-    List<Event> events = agendaEventService.getEvents(eventFilter, testuser2Identity.getRemoteId(), ZoneId.systemDefault());
+    List<Event> events = agendaEventService.getEvents(eventFilter);
     assertNotNull(events);
     assertEquals(1, events.size());
 
@@ -849,8 +861,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                   null,
                                   getDate().plusHours(1),
                                   getDate().plusMinutes(90),
+                                  testuser4Identity.getRemoteId(),
+                                  ZoneId.systemDefault(),
                                   0);
-    events = agendaEventService.getEvents(eventFilter, testuser4Identity.getRemoteId(), ZoneId.systemDefault());
+    events = agendaEventService.getEvents(eventFilter);
     assertNotNull(events);
     assertEquals(0, events.size());
   }
@@ -874,8 +888,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                               null,
                                               start,
                                               end,
+                                              testuser2Identity.getRemoteId(),
+                                              ZoneId.systemDefault(),
                                               0);
-    List<Event> events = agendaEventService.getEvents(eventFilter, testuser2Identity.getRemoteId(), ZoneId.systemDefault());
+    List<Event> events = agendaEventService.getEvents(eventFilter);
     assertNotNull(events);
     assertEquals(1, events.size());
 
@@ -888,10 +904,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                   null,
                                   date.plusHours(1),
                                   date.plusMinutes(90),
+                                  testuser2Identity.getRemoteId(),
+                                  ZoneId.systemDefault(),
                                   0);
-    events = agendaEventService.getEvents(eventFilter,
-                                          testuser2Identity.getRemoteId(),
-                                          ZoneId.systemDefault());
+    events = agendaEventService.getEvents(eventFilter);
     assertNotNull(events);
     assertEquals(1, events.size());
 
@@ -906,10 +922,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                   null,
                                   date.plusHours(1),
                                   date.plusMinutes(90),
+                                  testuser2Identity.getRemoteId(),
+                                  ZoneId.systemDefault(),
                                   0);
-    events = agendaEventService.getEvents(eventFilter,
-                                          testuser2Identity.getRemoteId(),
-                                          ZoneId.systemDefault());
+    events = agendaEventService.getEvents(eventFilter);
     assertNotNull(events);
     assertEquals(2, events.size());
 
@@ -918,26 +934,23 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                   null,
                                   date.plusHours(1),
                                   date.plusMinutes(90).plusDays(1),
+                                  testuser2Identity.getRemoteId(),
+                                  ZoneId.systemDefault(),
                                   0);
-    events = agendaEventService.getEvents(eventFilter,
-                                          testuser2Identity.getRemoteId(),
-                                          ZoneId.systemDefault());
+    events = agendaEventService.getEvents(eventFilter);
     assertNotNull(events);
     assertEquals(4, events.size());
 
-    eventFilter = new EventFilter(Long.parseLong(testuser2Identity.getId()),
-                                  null,
-                                  null,
-                                  event1.getRecurrence()
-                                        .getUntil()
-                                        .plusDays(2)
-                                        .toLocalDate()
-                                        .atStartOfDay(ZoneId.systemDefault()),
-                                  event1.getRecurrence().getUntil().plusDays(3),
-                                  0);
-    events = agendaEventService.getEvents(eventFilter,
-                                          testuser2Identity.getRemoteId(),
-                                          ZoneId.systemDefault());
+    eventFilter =
+                new EventFilter(Long.parseLong(testuser2Identity.getId()),
+                                null,
+                                null,
+                                event1.getRecurrence().getUntil().plusDays(2).toLocalDate().atStartOfDay(ZoneId.systemDefault()),
+                                event1.getRecurrence().getUntil().plusDays(3),
+                                testuser2Identity.getRemoteId(),
+                                ZoneId.systemDefault(),
+                                0);
+    events = agendaEventService.getEvents(eventFilter);
     assertNotNull(events);
     assertEquals(0, events.size());
   }
@@ -956,10 +969,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                                 null,
                                                 date.plusHours(1),
                                                 date.plusMinutes(90),
+                                                testuser2Identity.getRemoteId(),
+                                                ZoneId.systemDefault(),
                                                 0);
-      agendaEventService.getEvents(eventFilter,
-                                   testuser2Identity.getRemoteId(),
-                                   ZoneId.systemDefault());
+      agendaEventService.getEvents(eventFilter);
       fail("User 'testuser2' shouldn't be able to access calendar of user 'testuser1'");
     } catch (IllegalAccessException e) {
       // Expected
@@ -976,10 +989,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                               null,
                                               date.plusHours(1),
                                               date.plusMinutes(90),
+                                              testuser1Identity.getRemoteId(),
+                                              ZoneId.systemDefault(),
                                               0);
-    List<Event> events = agendaEventService.getEvents(eventFilter,
-                                                      testuser1Identity.getRemoteId(),
-                                                      ZoneId.systemDefault());
+    List<Event> events = agendaEventService.getEvents(eventFilter);
     assertNotNull(events);
     assertEquals(1, events.size());
 
@@ -992,10 +1005,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                   null,
                                   date.plusHours(1),
                                   date.plusMinutes(90),
+                                  testuser1Identity.getRemoteId(),
+                                  ZoneId.systemDefault(),
                                   0);
-    events = agendaEventService.getEvents(eventFilter,
-                                          testuser1Identity.getRemoteId(),
-                                          ZoneId.systemDefault());
+    events = agendaEventService.getEvents(eventFilter);
     assertNotNull(events);
     assertEquals(1, events.size());
 
@@ -1010,10 +1023,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                   null,
                                   date.plusHours(1),
                                   date.plusMinutes(90),
+                                  testuser1Identity.getRemoteId(),
+                                  ZoneId.systemDefault(),
                                   0);
-    events = agendaEventService.getEvents(eventFilter,
-                                          testuser1Identity.getRemoteId(),
-                                          ZoneId.systemDefault());
+    events = agendaEventService.getEvents(eventFilter);
     assertNotNull(events);
     assertEquals(2, events.size());
 
@@ -1022,10 +1035,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                   null,
                                   date.plusHours(1),
                                   date.plusMinutes(90).plusDays(1),
+                                  testuser1Identity.getRemoteId(),
+                                  ZoneId.systemDefault(),
                                   0);
-    events = agendaEventService.getEvents(eventFilter,
-                                          testuser1Identity.getRemoteId(),
-                                          ZoneId.systemDefault());
+    events = agendaEventService.getEvents(eventFilter);
     assertNotNull(events);
     assertEquals(4, events.size());
   }
@@ -1044,10 +1057,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                                 null,
                                                 date.plusHours(1),
                                                 date.plusMinutes(90),
+                                                testuser2Identity.getRemoteId(),
+                                                ZoneId.systemDefault(),
                                                 0);
-      agendaEventService.getEvents(eventFilter,
-                                   testuser2Identity.getRemoteId(),
-                                   ZoneId.systemDefault());
+      agendaEventService.getEvents(eventFilter);
       fail("User 'testuser2' shouldn't be able to access calendar of user 'testuser1'");
     } catch (IllegalAccessException e) {
       // Expected
@@ -1059,10 +1072,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                                 null,
                                                 date.plusHours(1),
                                                 date.plusMinutes(90),
+                                                testuser5Identity.getRemoteId(),
+                                                ZoneId.systemDefault(),
                                                 0);
-      agendaEventService.getEvents(eventFilter,
-                                   testuser5Identity.getRemoteId(),
-                                   ZoneId.systemDefault());
+      agendaEventService.getEvents(eventFilter);
       fail("User 'testuser2' shouldn't be able to access calendar of user 'testuser1'");
     } catch (IllegalAccessException e) {
       // Expected
@@ -1080,10 +1093,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                               null,
                                               date.plusHours(1),
                                               date.plusMinutes(90),
+                                              testuser2Identity.getRemoteId(),
+                                              ZoneId.systemDefault(),
                                               0);
-    List<Event> events = agendaEventService.getEvents(eventFilter,
-                                                      testuser2Identity.getRemoteId(),
-                                                      ZoneId.systemDefault());
+    List<Event> events = agendaEventService.getEvents(eventFilter);
 
     assertNotNull(events);
     assertEquals(1, events.size());
@@ -1093,10 +1106,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                   null,
                                   date.plusHours(1),
                                   date.plusMinutes(90),
+                                  testuser2Identity.getRemoteId(),
+                                  ZoneId.systemDefault(),
                                   0);
-    events = agendaEventService.getEvents(eventFilter,
-                                          testuser2Identity.getRemoteId(),
-                                          ZoneId.systemDefault());
+    events = agendaEventService.getEvents(eventFilter);
     assertNotNull(events);
     assertEquals(0, events.size());
 
@@ -1105,10 +1118,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                   null,
                                   date.plusHours(1),
                                   date.plusMinutes(90),
+                                  testuser3Identity.getRemoteId(),
+                                  ZoneId.systemDefault(),
                                   0);
-    events = agendaEventService.getEvents(eventFilter,
-                                          testuser3Identity.getRemoteId(),
-                                          ZoneId.systemDefault());
+    events = agendaEventService.getEvents(eventFilter);
     assertNotNull(events);
     assertEquals(0, events.size());
 
@@ -1121,10 +1134,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                   null,
                                   date.plusHours(1),
                                   date.plusMinutes(90),
+                                  testuser3Identity.getRemoteId(),
+                                  ZoneId.systemDefault(),
                                   0);
-    events = agendaEventService.getEvents(eventFilter,
-                                          testuser3Identity.getRemoteId(),
-                                          ZoneId.systemDefault());
+    events = agendaEventService.getEvents(eventFilter);
     assertNotNull(events);
     assertEquals(1, events.size());
   }
@@ -1161,10 +1174,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                               null,
                                               date.plusHours(1),
                                               null,
+                                              testuser2Identity.getRemoteId(),
+                                              ZoneId.systemDefault(),
                                               10);
-    List<Event> events = agendaEventService.getEvents(eventFilter,
-                                                      testuser2Identity.getRemoteId(),
-                                                      ZoneId.systemDefault());
+    List<Event> events = agendaEventService.getEvents(eventFilter);
 
     assertNotNull(events);
     assertEquals(10, events.size());
@@ -1184,10 +1197,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                                 null,
                                                 date.plusHours(1),
                                                 date.plusMinutes(90),
+                                                testuser2Identity.getRemoteId(),
+                                                ZoneId.systemDefault(),
                                                 0);
-      agendaEventService.getEvents(eventFilter,
-                                   testuser2Identity.getRemoteId(),
-                                   ZoneId.systemDefault());
+      agendaEventService.getEvents(eventFilter);
       fail("User 'testuser2' shouldn't be able to access calendar of user 'testuser1'");
     } catch (IllegalAccessException e) {
       // Expected
@@ -1205,10 +1218,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                               null,
                                               date.plusHours(1),
                                               date.plusMinutes(90),
+                                              testuser2Identity.getRemoteId(),
+                                              ZoneId.systemDefault(),
                                               0);
-    List<Event> events = agendaEventService.getEvents(eventFilter,
-                                                      testuser2Identity.getRemoteId(),
-                                                      ZoneId.systemDefault());
+    List<Event> events = agendaEventService.getEvents(eventFilter);
     assertNotNull(events);
     assertEquals(1, events.size());
 
@@ -1217,10 +1230,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                   null,
                                   date.plusHours(1),
                                   date.plusMinutes(90),
+                                  testuser3Identity.getRemoteId(),
+                                  ZoneId.systemDefault(),
                                   0);
-    events = agendaEventService.getEvents(eventFilter,
-                                          testuser3Identity.getRemoteId(),
-                                          ZoneId.systemDefault());
+    events = agendaEventService.getEvents(eventFilter);
     assertNotNull(events);
     assertEquals(0, events.size());
 
@@ -1233,10 +1246,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                   null,
                                   date.plusHours(1),
                                   date.plusMinutes(90),
+                                  testuser3Identity.getRemoteId(),
+                                  ZoneId.systemDefault(),
                                   0);
-    events = agendaEventService.getEvents(eventFilter,
-                                          testuser3Identity.getRemoteId(),
-                                          ZoneId.systemDefault());
+    events = agendaEventService.getEvents(eventFilter);
     assertNotNull(events);
     assertEquals(1, events.size());
 
@@ -1245,10 +1258,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                   null,
                                   date.plusHours(1),
                                   date.plusMinutes(90),
+                                  testuser4Identity.getRemoteId(),
+                                  ZoneId.systemDefault(),
                                   0);
-    events = agendaEventService.getEvents(eventFilter,
-                                          testuser4Identity.getRemoteId(),
-                                          ZoneId.systemDefault());
+    events = agendaEventService.getEvents(eventFilter);
     assertNotNull(events);
     assertEquals(0, events.size());
 
@@ -1261,10 +1274,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                   null,
                                   date.plusHours(1),
                                   date.plusMinutes(90),
+                                  testuser4Identity.getRemoteId(),
+                                  ZoneId.systemDefault(),
                                   0);
-    events = agendaEventService.getEvents(eventFilter,
-                                          testuser4Identity.getRemoteId(),
-                                          ZoneId.systemDefault());
+    events = agendaEventService.getEvents(eventFilter);
     assertNotNull(events);
     assertEquals(1, events.size());
   }
@@ -1284,9 +1297,16 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                                  Long.parseLong(testuser3Identity.getId()),
                                                  EventAttendeeResponse.TENTATIVE);
     responseTypes.add(EventAttendeeResponse.TENTATIVE);
-    EventFilter eventFilter = new EventFilter(Long.parseLong(testuser3Identity.getId()), null, responseTypes, start, end, 0);
+    EventFilter eventFilter = new EventFilter(Long.parseLong(testuser3Identity.getId()),
+                                              null,
+                                              responseTypes,
+                                              start,
+                                              end,
+                                              testuser3Identity.getRemoteId(),
+                                              ZoneId.systemDefault(),
+                                              0);
     try {
-      events = agendaEventService.getEvents(eventFilter, testuser3Identity.getRemoteId(), ZoneId.systemDefault());
+      events = agendaEventService.getEvents(eventFilter);
     } catch (IllegalAccessException e) {
       // Expected
     }
@@ -1301,8 +1321,15 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     List<EventAttendeeResponse> responseTypes1 = new ArrayList<>();
     responseTypes1.add(EventAttendeeResponse.TENTATIVE);
-    EventFilter eventFilter1 = new EventFilter(Long.parseLong(testuser3Identity.getId()), null, responseTypes1, start, end, 0);
-    events = agendaEventService.getEvents(eventFilter1, testuser3Identity.getRemoteId(), ZoneId.systemDefault());
+    EventFilter eventFilter1 = new EventFilter(Long.parseLong(testuser3Identity.getId()),
+                                               null,
+                                               responseTypes1,
+                                               start,
+                                               end,
+                                               testuser3Identity.getRemoteId(),
+                                               ZoneId.systemDefault(),
+                                               0);
+    events = agendaEventService.getEvents(eventFilter1);
 
     assertNotNull(events);
     assertEquals(2, events.size());
@@ -1315,8 +1342,15 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     List<EventAttendeeResponse> responseTypes2 = new ArrayList<>();
     responseTypes2.add(EventAttendeeResponse.TENTATIVE);
     responseTypes2.add(EventAttendeeResponse.ACCEPTED);
-    EventFilter eventFilter2 = new EventFilter(Long.parseLong(testuser3Identity.getId()), null, responseTypes2, start, end, 0);
-    events = agendaEventService.getEvents(eventFilter2, testuser3Identity.getRemoteId(), ZoneId.systemDefault());
+    EventFilter eventFilter2 = new EventFilter(Long.parseLong(testuser3Identity.getId()),
+                                               null,
+                                               responseTypes2,
+                                               start,
+                                               end,
+                                               testuser3Identity.getRemoteId(),
+                                               ZoneId.systemDefault(),
+                                               0);
+    events = agendaEventService.getEvents(eventFilter2);
     assertNotNull(events);
     assertEquals(3, events.size());
 

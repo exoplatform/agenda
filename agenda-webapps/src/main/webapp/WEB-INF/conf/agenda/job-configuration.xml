@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.exoplaform.org/xml/ns/kernel_1_2.xsd http://www.exoplaform.org/xml/ns/kernel_1_2.xsd"
+  xmlns="http://www.exoplaform.org/xml/ns/kernel_1_2.xsd">
+
+  <external-component-plugins>
+    <target-component>org.exoplatform.services.scheduler.JobSchedulerService</target-component>
+    <component-plugin>
+      <name>PeriodJob Plugin</name>
+      <set-method>addPeriodJob</set-method>
+      <type>org.exoplatform.agenda.job.ReminderPeriodJob</type>
+      <description>add web reminder job to the JobSchedulerService</description>
+      <init-params>
+        <properties-param>
+          <name>job.info</name>
+          <description>details of the execution of the web reminder job</description>
+          <property name="jobName" value="WebReminderJob"/>
+          <property name="groupName" value="CollaborationSuite"/>
+          <property name="job" value="org.exoplatform.agenda.job.WebReminderJob"/>
+          <property name="repeatCount" value="0"/>
+          <property name="period" value="60000"/><!-- 1/4 minute - 15s -->
+          <property name="startTime" value="+60000"/><!-- start after 1 minute delay -->
+          <property name="endTime" value=""/>
+          </properties-param>
+      </init-params>
+    </component-plugin>
+  </external-component-plugins>
+</configuration>
