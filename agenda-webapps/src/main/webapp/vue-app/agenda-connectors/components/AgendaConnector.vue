@@ -14,11 +14,11 @@ export default {
     loading(newValue, oldValue) {
       if (this.loading) {
         if (!oldValue) {
-          document.dispatchEvent(new CustomEvent('displayRemoteEventLoading'));
+          this.$root.$emit('displayRemoteEventLoading');
         }
       } else {
         if (!newValue) {
-          document.dispatchEvent(new CustomEvent('hideRemoteEventLoading'));
+          this.$root.$emit('hideRemoteEventLoading');
         }
       }
     }
