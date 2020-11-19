@@ -7,24 +7,16 @@
         </div>
       </v-list-item-title>
       <v-list-item-subtitle class="my-3 text-sub-title font-italic">
-        <div
-          v-if="connectedAccountName">
-          <v-avatar tile size="24">
-            <img
-              :alt="connectedAccount.name"
-              :src="connectedAccountIconSource">
-          </v-avatar>
-          <a
-            class="mx-2"
-            @click="openDrawer">
-            {{ connectedAccountName }}
-          </a>
-        </div>
-        <div
-          v-else
-          :class="skeleton && 'skeleton-background skeleton-border-radius skeleton-text-width-small skeleton-text-height-fine my-2'">
-          {{ skeleton && '&nbsp;' || $t('agenda.connectYourPersonalAgendaSubTitle') }}
-        </div>
+        <agenda-connector-details-button
+          :connected-account="connectedAccount"
+          :connectors="connectors">
+          <template slot="connectButton">
+            <div
+              :class="skeleton && 'skeleton-background skeleton-border-radius skeleton-text-width-small skeleton-text-height-fine my-2'">
+              {{ skeleton && '&nbsp;' || $t('agenda.connectYourPersonalAgendaSubTitle') }}
+            </div>
+          </template>
+        </agenda-connector-details-button>
       </v-list-item-subtitle>
     </v-list-item-content>
     <v-list-item-action>
