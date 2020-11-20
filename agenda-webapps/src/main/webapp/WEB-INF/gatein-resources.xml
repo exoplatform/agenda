@@ -169,6 +169,9 @@
     <depends>
       <module>iePolyfills</module>
     </depends>
+    <depends>
+      <module>agendaConnectors</module>
+    </depends>
   </module>
 
   <module>
