@@ -32,10 +32,14 @@ public interface AgendaEventService {
    * criteria defined in a filter.
    * 
    * @param eventFilter a filter used to define criteria to get list of objects
+   * @param username User name requesting events
+   * @param userTimeZone User time zone
    * @return {@link List} of {@link Event} accessible to user
    * @throws IllegalAccessException when user is not allowed to access events
    */
-  public List<Event> getEvents(EventFilter eventFilter) throws IllegalAccessException;
+  public List<Event> getEvents(EventFilter eventFilter,
+                               String username,
+                               ZoneId userTimeZone) throws IllegalAccessException;
 
   /**
    * Retrieves an event identified by its technical identifier.

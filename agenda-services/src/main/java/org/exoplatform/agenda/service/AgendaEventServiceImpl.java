@@ -510,65 +510,28 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   }
 
   @Override
-  public List<Event> getEvents(EventFilter eventFilter) throws IllegalAccessException {
+  public List<Event> getEvents(EventFilter eventFilter,
+                               String username,
+                               ZoneId userTimeZone) throws IllegalAccessException {
     if (eventFilter == null) {
       throw new IllegalArgumentException("eventFilter is mandatory");
     }
-    String username = eventFilter.getUsername();
-    Identity userIdentity = null;
-    ZoneId userTimeZone = eventFilter.getUserTimeZone();
-    if (username != null) {
-      userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
-    }
-
-    // Retrieve events minus a day and plus a day to include all day events
-    // That could transit due to timezone of user. Then filter resulted events
-    // at the end to get only events that are between orginal start and end
-    // dates. Example: given:
-    // - an all day event of 2020-09-02 is stored in UTC in DB with information
-    // (start = 2020-09-02T00:00:00Z, end = 2020-09-02T23:59:59Z )
-    // - the user has a timezone +03:00
-    // - the search is made on events between 2020-09-02T00:00:00+03:00, end =
-    // 2020-09-02T02:00:00+03:00
-    // The event isn't retrieved with the query dates because in DB, the start
-    // and end dates are different, using user timezone (start =
-    // 2020-09-02T03:00:00+03:00, end = 2020-09-03T02:59:59+03:00 ). Thus the
-    // event will not be retrieved
-    ZonedDateTime start = eventFilter.getStart();
-    ZonedDateTime end = eventFilter.getEnd();
-    ZonedDateTime startMinusADay = start.minusDays(1);
-    ZonedDateTime endPlusADay = end == null ? null : end.plusDays(1);
-    int limit = eventFilter.getLimit();
-    if (limit > 0) {
-      EventFilter maxEndDateFilter = eventFilter.clone();
-      maxEndDateFilter.setStart(startMinusADay);
-      maxEndDateFilter.setEnd(endPlusADay);
-      ZonedDateTime maxEndDate = getMaxEndDate(maxEndDateFilter, userTimeZone);
-      if (maxEndDate == null) {
-        return Collections.emptyList();
-      }
-      endPlusADay = maxEndDate.plusDays(1);
-    }
-
-    EventFilter requestEventFilter = eventFilter.clone();
-    requestEventFilter.setStart(startMinusADay);
-    requestEventFilter.setEnd(endPlusADay);
-    if (userIdentity != null) {
-      List<Long> ownerIds = eventFilter.getOwnerIds();
-      if (ownerIds != null) {
-        for (Long ownerId : ownerIds) {
-          if (!Utils.canAccessCalendar(identityManager, spaceService, ownerId, username)) {
-            throw new IllegalAccessException("User '" + userIdentity.getId() + "' is not allowed to access calendar of identity '"
-                + ownerIds + "'");
-          }
+    Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+    List<Long> ownerIds = eventFilter.getOwnerIds();
+    if (ownerIds != null) {
+      for (Long ownerId : ownerIds) {
+        if (!Utils.canAccessCalendar(identityManager, spaceService, ownerId, username)) {
+          throw new IllegalAccessException("User '" + userIdentity.getId() + "' is not allowed to access calendar of identity '"
+                  + ownerIds + "'");
         }
       }
-
+    }
+    if (userIdentity != null) {
       long attendeeId = eventFilter.getAttendeeId();
       if (attendeeId > 0) {
         if (!String.valueOf(attendeeId).contentEquals(userIdentity.getId())) {
           throw new IllegalAccessException("User '" + userIdentity.getId() + "' is not allowed to access calendar of identity '"
-              + attendeeId + "'");
+                  + attendeeId + "'");
         }
         List<Long> attendeeSpaceIds = Utils.getCalendarOwnersOfUser(spaceService, identityManager, userIdentity);
         eventFilter.setAttendeeWithSpacesIds(attendeeSpaceIds);
@@ -577,11 +540,65 @@ public class AgendaEventServiceImpl implements AgendaEventService {
         // spaceIds
         ownerIds = Utils.getCalendarOwnersOfUser(spaceService, identityManager, userIdentity);
       }
-      // TODO
+
+      // Retrieve events minus a day and plus a day to include all day events
+      // That could transit due to timezone of user. Then filter resulted events
+      // at the end to get only events that are between orginal start and end
+      // dates. Example: given:
+      // - an all day event of 2020-09-02 is stored in UTC in DB with information
+      // (start = 2020-09-02T00:00:00Z, end = 2020-09-02T23:59:59Z )
+      // - the user has a timezone +03:00
+      // - the search is made on events between 2020-09-02T00:00:00+03:00, end =
+      // 2020-09-02T02:00:00+03:00
+      // The event isn't retrieved with the query dates because in DB, the start
+      // and end dates are different, using user timezone (start =
+      // 2020-09-02T03:00:00+03:00, end = 2020-09-03T02:59:59+03:00 ). Thus the
+      // event will not be retrieved
+      ZonedDateTime start = eventFilter.getStart();
+      ZonedDateTime end = eventFilter.getEnd();
+      ZonedDateTime startMinusADay = start.minusDays(1);
+      ZonedDateTime endPlusADay = end == null ? null : end.plusDays(1);
+      int limit = eventFilter.getLimit();
+      if (limit > 0) {
+        EventFilter maxEndDateFilter = eventFilter.clone();
+        maxEndDateFilter.setOwnerIds(ownerIds);
+        maxEndDateFilter.setStart(startMinusADay);
+        maxEndDateFilter.setEnd(endPlusADay);
+        ZonedDateTime maxEndDate = getMaxEndDate(maxEndDateFilter, userTimeZone);
+        if (maxEndDate == null) {
+          return Collections.emptyList();
+        }
+        endPlusADay = maxEndDate.plusDays(1);
+      }
+
+      EventFilter requestEventFilter = eventFilter.clone();
       requestEventFilter.setOwnerIds(ownerIds);
+      requestEventFilter.setStart(startMinusADay);
+      requestEventFilter.setEnd(endPlusADay);
       List<Long> eventIds = this.agendaEventStorage.getEventIds(requestEventFilter);
       return computeEventsProperties(eventIds, start, end, userTimeZone, limit, userIdentity, startMinusADay, endPlusADay);
     } else {
+      ZonedDateTime start = eventFilter.getStart();
+      ZonedDateTime end = eventFilter.getEnd();
+      ZonedDateTime startMinusADay = start.minusDays(1);
+      ZonedDateTime endPlusADay = end == null ? null : end.plusDays(1);
+      int limit = eventFilter.getLimit();
+      if (limit > 0) {
+        EventFilter maxEndDateFilter = eventFilter.clone();
+        maxEndDateFilter.setOwnerIds(ownerIds);
+        maxEndDateFilter.setStart(startMinusADay);
+        maxEndDateFilter.setEnd(endPlusADay);
+        ZonedDateTime maxEndDate = getMaxEndDate(maxEndDateFilter, userTimeZone);
+        if (maxEndDate == null) {
+          return Collections.emptyList();
+        }
+        endPlusADay = maxEndDate.plusDays(1);
+      }
+
+      EventFilter requestEventFilter = eventFilter.clone();
+      requestEventFilter.setOwnerIds(ownerIds);
+      requestEventFilter.setStart(startMinusADay);
+      requestEventFilter.setEnd(endPlusADay);
       List<Long> eventIds = this.agendaEventStorage.getEventIds(requestEventFilter);
       return computeEventsProperties(eventIds, start, end, userTimeZone, limit, userIdentity, startMinusADay, endPlusADay);
     }

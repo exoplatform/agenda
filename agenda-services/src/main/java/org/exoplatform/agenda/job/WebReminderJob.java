@@ -4,10 +4,8 @@ import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventFilter;
 import org.exoplatform.agenda.model.EventReminder;
-import org.exoplatform.agenda.service.AgendaEventAttendeeService;
 import org.exoplatform.agenda.service.AgendaEventReminderService;
 import org.exoplatform.agenda.service.AgendaEventService;
-import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -49,26 +47,68 @@ public class WebReminderJob implements Job {
     attendeeResponses.add(EventAttendeeResponse.TENTATIVE);
     attendeeResponses.add(EventAttendeeResponse.ACCEPTED);
     ZoneId userTimeZone = start.getZone();
-    EventFilter eventFilter = new EventFilter(0, ownerIds, attendeeResponses, start, end, null, userTimeZone, 0);
+    List<Event> events = new ArrayList<>();
+    List<EventReminder> eventReminders = new ArrayList<>();
+    EventFilter eventFilter = new EventFilter(0, ownerIds, attendeeResponses, start, end, 0);
     try {
-      List<Event> events = eventService.getEvents(eventFilter);
-      List<Event> simpleEvents = new ArrayList<>();
-      for (Event event : events) {
-        if (event.getParentId() == 0) {
-          simpleEvents.add(event);
-        }
-      }
-      List<EventReminder> eventReminders = new ArrayList<>();
-      for (Event simpleEvent : simpleEvents) {
-        eventReminders = agendaEventReminderService.getEventReminders(simpleEvent.getId(), simpleEvent.getCreatorId());
-      }
-      for (EventReminder eventReminder : eventReminders) {
-        if (eventReminder.getDatetime() == now) {
-          LOG.info("/********************** List events ******************************/", events.toString());
-        }
-      }
+      events = eventService.getEvents(eventFilter, null, userTimeZone);
     } catch (IllegalAccessException e) {
       LOG.error("/********************** No events ******************************/", e);
     }
+    List<Event> simpleEvents =new ArrayList<>();
+    if(events == null || events.isEmpty()) {
+      return;
+    } else {
+      simpleEvents = filterEvents(events);
+    }
+    if (simpleEvents == null || simpleEvents.isEmpty()) {
+      return ;
+    } else {
+      for (Event simpleEvent : simpleEvents) {
+        eventReminders = agendaEventReminderService.getEventReminders(simpleEvent.getId(), simpleEvent.getCreatorId());
+        LOG.info("/********************** Remainder events ******************************/");
+      }
+    }
+
+    if (eventReminders == null || eventReminders.isEmpty()) {
+      return;
+    } else {
+      ZonedDateTime currentTime = ZonedDateTime.now(ZoneOffset.UTC);
+      ZonedDateTime current = ZonedDateTime.of(currentTime.getYear(),
+              currentTime.getMonthValue(),
+              currentTime.getDayOfMonth(),
+              currentTime.getHour(),
+              currentTime.getMinute(),
+              0,
+              0,
+              ZoneOffset.UTC);
+      for (EventReminder eventReminder : eventReminders) {
+        if (isTimeToRemind(eventReminder.getDatetime(), current)) {
+          LOG.info("/********************** notification ******************************/", events.toString());
+        }
+      }
+    }
+  }
+  private List<Event> filterEvents(List<Event> events) {
+    List<Event> eventsFiltered = new ArrayList<>();
+    if (events == null && events.isEmpty()) {
+      return null;
+    } else {
+      for (Event event : events) {
+        if (event.getParentId() == 0) {
+          eventsFiltered.add(event);
+        } else {
+          eventsFiltered.add(event);
+        }
+      }
+    }
+    return eventsFiltered;
+  }
+  private boolean isTimeToRemind(ZonedDateTime eventReminder, ZonedDateTime now) {
+    long delta = 15000;
+    long currentTime = eventReminder.toInstant().toEpochMilli();
+    long remindTime = now.toInstant().toEpochMilli();
+    long diff = currentTime - remindTime;
+    return diff <= delta && currentTime >= remindTime;
   }
 }
