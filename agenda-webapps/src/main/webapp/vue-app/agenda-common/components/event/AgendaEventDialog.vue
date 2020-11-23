@@ -140,9 +140,7 @@ export default {
       }
     });
     this.$root.$on('agenda-event-details', agendaEvent => {
-      if (agendaEvent.type === 'remoteEvent') {
-        this.openRemoteEventDetails(agendaEvent);
-      } else if (agendaEvent.id) {
+      if (agendaEvent.id) {
         this.openEventDetails(agendaEvent.id);
       } else if (agendaEvent.occurrence && agendaEvent.occurrence.id) {
         this.openEventDetails(agendaEvent.parent.id, agendaEvent.occurrence.id);
@@ -184,11 +182,6 @@ export default {
           }
         });
       }
-    },
-    openRemoteEventDetails(remoteEvent) {
-      this.isForm = false;
-      this.openDialog(remoteEvent);
-      this.$nextTick().then(() => this.$root.$emit('agenda-event-details-opened', remoteEvent));
     },
     openDialog(agendaEvent) {
       this.saving = false;
