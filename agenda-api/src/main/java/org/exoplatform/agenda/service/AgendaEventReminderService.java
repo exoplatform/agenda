@@ -50,4 +50,17 @@ public interface AgendaEventReminderService {
    */
   void saveEventReminders(Event event, List<EventReminder> reminders, long userIdentityId) throws IllegalAccessException,
                                                                                            AgendaException;
+
+  /**
+   *
+   * @param event
+   * @param reminders
+   * @param usersIdentityId
+   * @return
+   * @throws IllegalAccessException
+   * @throws AgendaException
+   */
+  List<EventReminder> computeUpdatedTriggerDate(Event event,
+                                                List<EventReminder> reminders,
+                                                List<Long> usersIdentityId) throws IllegalAccessException, AgendaException;
 }

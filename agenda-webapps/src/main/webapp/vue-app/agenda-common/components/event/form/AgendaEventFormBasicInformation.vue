@@ -52,6 +52,12 @@
         </div>
         <div class="d-flex flex-row">
           <v-flex class="flex-grow-0">
+            <i class="uiIconReminder darkGreyIcon uiIcon32x32 my-3 mr-11"></i>
+          </v-flex>
+          <agenda-event-form-reminders :event="event"/>
+        </div>
+        <div class="d-flex flex-row">
+          <v-flex class="flex-grow-0">
             <i class="uiIconDescription darkGreyIcon uiIcon32x32 my-3 mr-11"></i>
           </v-flex>
           <extended-textarea

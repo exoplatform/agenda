@@ -73,6 +73,12 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
     Utils.broadcastEvent(listenerService, "exo.agenda.event.reminders.saved", event.getId(), 0);
   }
 
+  @Override
+  public List<EventReminder> computeUpdatedTriggerDate(Event event, List<EventReminder> reminders, List<Long> usersIdentityId) throws IllegalAccessException, AgendaException {
+    // TODO
+    return null;
+  }
+
   private ZonedDateTime computeReminderDateTime(Event event, EventReminder eventReminder) throws AgendaException {
     ZonedDateTime eventStartDate = event.getStart();
     if (eventReminder.getBefore() <= 0 || eventReminder.getBeforePeriodType() == null) {
