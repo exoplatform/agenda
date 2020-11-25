@@ -72,4 +72,14 @@ public class AgendaEventReminderStorage {
                                 .collect(Collectors.toList());
   }
 
+  public List<EventReminder> getEventReminders(long eventId) {
+    List<EventReminderEntity> eventReminderEntities = eventReminderDAO.getEventReminders(eventId);
+    if (eventReminderEntities == null) {
+      return Collections.emptyList();
+    }
+    return eventReminderEntities.stream()
+                                .map(eventReminderEntity -> EntityMapper.fromEntity(eventReminderEntity))
+                                .collect(Collectors.toList());
+  }
+
 }

@@ -45,6 +45,12 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
           name = "AgendaEvent.getChildEvents", query = "SELECT DISTINCT(ev.id) FROM AgendaEvent ev"
               + " WHERE ev.parent.id = :parentEventId"
       ),
+      @NamedQuery(
+          name = "AgendaEvent.getParentRecurrentEventIds", query = "SELECT * FROM AgendaEvent ev"
+              + " WHERE ev.status = :status"
+              + " AND ev.startDate < :end"
+              + " AND (ev.endDate IS NULL OR ev.endDate >= :start)"
+      ),
   }
 )
 public class EventEntity implements Serializable {

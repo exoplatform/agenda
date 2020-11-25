@@ -639,14 +639,7 @@ public class AgendaEventRest implements ResourceContainer {
         occurrenceIdDateTime = AgendaDateUtils.parseRFC3339ToZonedDateTime(occurrenceId);
         Event occurrenceEvent = agendaEventService.getExceptionalOccurrenceEvent(eventId, occurrenceIdDateTime);
         if (occurrenceEvent == null) { // Exceptional occurrence not yet created
-          EventEntity eventEntity = getEventByIdAndUser(eventId, identityId, null, Collections.singletonList("all"));
-          if (eventEntity == null) {
-            throw new ObjectNotFoundException("Parent recurrent event with id " + eventId + " is not found");
-          }
-          if (eventEntity.getRecurrence() == null) {
-            throw new IllegalStateException("Event with id " + eventId + " is not a recurrent event");
-          }
-          occurrenceEvent = createEventOccurrence(eventEntity, occurrenceIdDateTime);
+          occurrenceEvent = agendaEventService.createEventExceptionalOccurrence(eventId, occurrenceIdDateTime);
         }
         eventId = occurrenceEvent.getId();
       }
@@ -749,47 +742,6 @@ public class AgendaEventRest implements ResourceContainer {
                                           reminders,
                                           eventEntity.isSendInvitation(),
                                           currentUser);
-  }
-
-  private Event createEventOccurrence(EventEntity eventEntity, ZonedDateTime occurrenceId) throws AgendaException,
-                                                                                           IllegalAccessException,
-                                                                                           ObjectNotFoundException {
-    cleanupAttachedEntitiesIds(eventEntity);
-
-    List<EventAttendeeEntity> attendeeEntities = eventEntity.getAttendees();
-    List<EventAttendee> attendees = null;
-    if (attendeeEntities != null && !attendeeEntities.isEmpty()) {
-      attendees = new ArrayList<>();
-      for (EventAttendeeEntity attendeeEntity : attendeeEntities) {
-        IdentityEntity attendeeIdentity = attendeeEntity.getIdentity();
-        String attendeeIdString = RestUtils.getIdentityId(attendeeIdentity, identityManager);
-        if (StringUtils.isBlank(attendeeIdString)) {
-          throw new AgendaException(AgendaExceptionType.ATTENDEE_IDENTITY_NOT_FOUND);
-        }
-        attendeeIdentity.setId(attendeeIdString);
-        attendees.add(EntityBuilder.toEventAttendee(identityManager, attendeeEntity));
-      }
-    }
-
-    List<EventAttachmentEntity> attachmentEntities = eventEntity.getAttachments();
-    List<EventAttachment> attachments = attachmentEntities == null
-        || attachmentEntities.isEmpty() ? null
-                                        : attachmentEntities.stream()
-                                                            .map(EntityBuilder::toEventAttachment)
-                                                            .collect(Collectors.toList());
-    List<EventReminderEntity> reminderEntities = eventEntity.getReminders();
-    List<EventReminder> reminders = reminderEntities == null
-        || reminderEntities.isEmpty() ? null
-                                      : reminderEntities.stream()
-                                                        .map(EntityBuilder::toEventReminder)
-                                                        .collect(Collectors.toList());
-
-    return agendaEventService.createEventExceptionalOccurrence(eventEntity.getId(),
-                                                               attendees,
-                                                               eventEntity.getConferences(),
-                                                               attachments,
-                                                               reminders,
-                                                               occurrenceId);
   }
 
   private void checkCalendar(EventEntity eventEntity) throws AgendaException {

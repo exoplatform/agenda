@@ -26,9 +26,9 @@ import org.exoplatform.social.core.identity.model.Identity;
 public interface AgendaEventReminderService {
 
   /**
-   * Retrieve list of reminders for a user. If there is no specific reminder,
-   * the default user reminders will be used. (Combined between User Settings
-   * and default values)
+   * Retrieves list of reminders of an event for a user. If there is no specific
+   * reminder, the default user reminders will be used. (Combined between User
+   * Settings and default values)
    * 
    * @param eventId {@link Event} technical identifier
    * @param userIdentityId User technical identifier ({@link Identity#getId()})
@@ -36,6 +36,16 @@ public interface AgendaEventReminderService {
    *         preferences.
    */
   List<EventReminder> getEventReminders(long eventId, long userIdentityId);
+
+  /**
+   * Retrieves list of reminders of an event. If there is no specific reminder,
+   * the default user reminders will be used. (Combined between User Settings
+   * and default values)
+   * 
+   * @param eventId {@link Event} technical identifier
+   * @return {@link List} of {@link EventReminder}.
+   */
+  List<EventReminder> getEventReminders(long eventId);
 
   /**
    * Updates the list of {@link EventReminder} associated to a user on a
@@ -50,4 +60,30 @@ public interface AgendaEventReminderService {
    */
   void saveEventReminders(Event event, List<EventReminder> reminders, long userIdentityId) throws IllegalAccessException,
                                                                                            AgendaException;
+
+  /**
+   * Saves the {@link List} of {@link EventReminder} of a chosen {@link Event}
+   * 
+   * @param event {@link Event} for which saving reminders
+   * @param reminders {@link List} of {@link EventReminder}
+   * @throws AgendaException when an error occurs while saving reminders
+   */
+  void saveEventReminders(Event event, List<EventReminder> reminders) throws AgendaException;
+
+  /**
+   * @return period used to compute reminder of occurrences of a recurrent event
+   */
+  long getReminderComputingPeriod();
+
+  /**
+   * @param reminderComputingPeriod value of period used to compute reminder of
+   *          occurrences of a recurrent event
+   */
+  void setReminderComputingPeriod(long reminderComputingPeriod);
+
+  /**
+   * @return {@link List} of {@link EventReminder} that will be used for users
+   *         who didn't changed default settings about preferred reminders
+   */
+  List<EventReminder> getDefaultReminders();
 }

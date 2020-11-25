@@ -62,6 +62,13 @@ public class AgendaEventStorage {
     return this.eventDAO.getEventIds(startDate, endDate, ownerIds, attendeeIds, responseTypes, limit);
   }
 
+  public List<Event> getParentRecurrentEventIds(ZonedDateTime start, ZonedDateTime end) {
+    Date startDate = new Date(start.withSecond(0).withNano(0).toEpochSecond() * 1000);
+    Date endDate = new Date(end.withSecond(59).withNano(999999999).toEpochSecond() * 1000);
+    List<EventEntity> events = this.eventDAO.getParentRecurrentEventIds(startDate, endDate);
+    return events.stream().map(EntityMapper::fromEntity).collect(Collectors.toList());
+  }
+
   public Event getEventById(long eventId) {
     EventEntity eventEntity = eventDAO.find(eventId);
     if (eventEntity == null) {

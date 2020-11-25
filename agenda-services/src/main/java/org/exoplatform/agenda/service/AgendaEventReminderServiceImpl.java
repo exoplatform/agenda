@@ -17,16 +17,16 @@
 package org.exoplatform.agenda.service;
 
 import java.time.ZonedDateTime;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
+import org.exoplatform.agenda.constant.ReminderPeriodType;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
-import org.exoplatform.agenda.model.Event;
-import org.exoplatform.agenda.model.EventReminder;
+import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.storage.AgendaEventReminderStorage;
 import org.exoplatform.agenda.util.Utils;
+import org.exoplatform.container.xml.*;
 import org.exoplatform.services.listener.ListenerService;
 
 public class AgendaEventReminderServiceImpl implements AgendaEventReminderService {
@@ -35,14 +35,70 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
 
   private ListenerService            listenerService;
 
-  public AgendaEventReminderServiceImpl(AgendaEventReminderStorage reminderStorage, ListenerService listenerService) {
+  private List<EventReminder>        defaultReminders        = new ArrayList<>();
+
+  private long                       reminderComputingPeriod = 120;
+
+  public AgendaEventReminderServiceImpl(AgendaEventReminderStorage reminderStorage,
+                                        ListenerService listenerService,
+                                        InitParams initParams) {
     this.reminderStorage = reminderStorage;
     this.listenerService = listenerService;
+
+    Iterator<ObjectParameter> objectParamIterator = initParams.getObjectParamIterator();
+    if (objectParamIterator != null) {
+      while (objectParamIterator.hasNext()) {
+        ObjectParameter objectParameter = objectParamIterator.next();
+        Object objectParam = objectParameter.getObject();
+        if (objectParam instanceof EventReminderParameter) {
+          EventReminder eventReminder = new EventReminder();
+          EventReminderParameter eventReminderParameter = (EventReminderParameter) objectParam;
+          eventReminder.setBefore(eventReminderParameter.getBefore());
+          eventReminder.setBeforePeriodType(ReminderPeriodType.valueOf(eventReminderParameter.getPeriodType().toUpperCase()));
+          defaultReminders.add(eventReminder);
+        }
+      }
+    }
+
+    ValueParam reminderComputingPeriodParam = initParams.getValueParam("period.computing.minutes");
+    if (reminderComputingPeriodParam != null && reminderComputingPeriodParam.getValue() != null) {
+      this.reminderComputingPeriod = Long.parseLong(reminderComputingPeriodParam.getValue());
+    }
   }
 
   @Override
   public List<EventReminder> getEventReminders(long eventId, long userIdentityId) {
     return this.reminderStorage.getEventReminders(eventId, userIdentityId);
+  }
+
+  @Override
+  public List<EventReminder> getEventReminders(long eventId) {
+    return this.reminderStorage.getEventReminders(eventId);
+  }
+
+  @Override
+  public void saveEventReminders(Event event, List<EventReminder> reminders) throws AgendaException {
+    long eventId = event.getId();
+    List<EventReminder> savedReminders = getEventReminders(eventId);
+    List<EventReminder> newReminders = reminders == null ? Collections.emptyList() : reminders;
+    List<EventReminder> remindersToDelete = savedReminders.stream()
+                                                          .filter(reminder -> newReminders.stream()
+                                                                                          .noneMatch(newReminder -> newReminder.getId() == reminder.getId()))
+                                                          .collect(Collectors.toList());
+
+    // Delete Reminders
+    for (EventReminder eventReminder : remindersToDelete) {
+      reminderStorage.removeEventReminder(eventReminder.getId());
+    }
+
+    // Create new Reminders
+    for (EventReminder eventReminder : newReminders) {
+      ZonedDateTime reminderDate = computeReminderDateTime(event, eventReminder);
+      eventReminder.setDatetime(reminderDate);
+      reminderStorage.saveEventReminder(eventId, eventReminder);
+    }
+
+    Utils.broadcastEvent(listenerService, "exo.agenda.event.reminders.saved", eventId, 0);
   }
 
   @Override
@@ -70,7 +126,22 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
       reminderStorage.saveEventReminder(event.getId(), eventReminder);
     }
 
-    Utils.broadcastEvent(listenerService, "exo.agenda.event.reminders.saved", event.getId(), 0);
+    Utils.broadcastEvent(listenerService, "exo.agenda.event.reminders.saved", event.getId(), userId);
+  }
+
+  @Override
+  public long getReminderComputingPeriod() {
+    return reminderComputingPeriod;
+  }
+
+  @Override
+  public void setReminderComputingPeriod(long reminderComputingPeriod) {
+    this.reminderComputingPeriod = reminderComputingPeriod;
+  }
+
+  @Override
+  public List<EventReminder> getDefaultReminders() {
+    return defaultReminders;
   }
 
   private ZonedDateTime computeReminderDateTime(Event event, EventReminder eventReminder) throws AgendaException {
@@ -81,18 +152,18 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
     ZonedDateTime reminderDate = null;
     if (eventReminder.getBefore() != 0) {
       switch (eventReminder.getBeforePeriodType()) {
-      case MINUTE:
-        reminderDate = eventStartDate.minusMinutes(eventReminder.getBefore());
-        break;
-      case HOUR:
-        reminderDate = eventStartDate.minusHours(eventReminder.getBefore());
-        break;
-      case DAY:
-        reminderDate = eventStartDate.minusDays(eventReminder.getBefore());
-        break;
-      case WEEK:
-        reminderDate = eventStartDate.minusWeeks(eventReminder.getBefore());
-        break;
+        case MINUTE:
+          reminderDate = eventStartDate.minusMinutes(eventReminder.getBefore());
+          break;
+        case HOUR:
+          reminderDate = eventStartDate.minusHours(eventReminder.getBefore());
+          break;
+        case DAY:
+          reminderDate = eventStartDate.minusDays(eventReminder.getBefore());
+          break;
+        case WEEK:
+          reminderDate = eventStartDate.minusWeeks(eventReminder.getBefore());
+          break;
       }
     } else {
       reminderDate = eventStartDate;

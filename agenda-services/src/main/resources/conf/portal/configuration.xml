@@ -34,6 +34,36 @@
 
   <component>
     <type>org.exoplatform.agenda.storage.AgendaEventReminderStorage</type>
+    <init-params>
+      <value-param>
+        <name>period.computing.minutes</name>
+        <description>Reminders of occurent events are computed periodically to store its exact date of notification.
+        This is the period, in minutes, of next upcoming events to compute using a Job.</description>
+        <value>${exo.agenda.reminder.computing.period:120}</value>
+      </value-param>
+      <object-param>
+        <name>Default reminder 1 - Before 10 minutes</name>
+        <object type="org.exoplatform.agenda.model.EventReminderParameter">
+          <field name="before">
+            <int>10</int>
+          </field>
+          <field name="periodType">
+            <string>MINUTE</string>
+          </field>
+        </object>
+      </object-param>
+      <object-param>
+        <name>Default reminder 2 - Before 0 minutes</name>
+        <object type="org.exoplatform.agenda.model.EventReminderParameter">
+          <field name="before">
+            <int>0</int>
+          </field>
+          <field name="periodType">
+            <string>MINUTE</string>
+          </field>
+        </object>
+      </object-param>
+    </init-params>
   </component>
 
   <component>
