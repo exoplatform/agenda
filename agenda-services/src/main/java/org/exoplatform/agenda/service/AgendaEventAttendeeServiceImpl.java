@@ -16,14 +16,14 @@
 */
 package org.exoplatform.agenda.service;
 
+import static org.exoplatform.agenda.util.NotificationUtils.*;
+
 import java.util.*;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 
-import org.exoplatform.agenda.constant.EventAttendeeResponse;
-import org.exoplatform.agenda.constant.EventModificationType;
-import org.exoplatform.agenda.constant.EventStatus;
+import org.exoplatform.agenda.constant.*;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
 import org.exoplatform.agenda.plugin.AgendaExternalUserIdentityProvider;
@@ -36,6 +36,8 @@ import org.exoplatform.commons.api.notification.model.PluginKey;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.notification.impl.NotificationContextImpl;
 import org.exoplatform.services.listener.ListenerService;
+import org.exoplatform.services.log.ExoLogger;
+import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
@@ -45,9 +47,9 @@ import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.web.security.codec.CodecInitializer;
 import org.exoplatform.web.security.security.TokenServiceInitializationException;
 
-import static org.exoplatform.agenda.util.NotificationUtils.*;
-
 public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeService {
+
+  private static final Log           LOG       = ExoLogger.getLogger(AgendaEventAttendeeServiceImpl.class);
 
   private static final String        SEPARATOR = "|";
 
@@ -110,21 +112,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
 
     // Create new attendees
     for (EventAttendee eventAttendee : attendeesToCreate) {
-      long identityId = eventAttendee.getIdentityId();
-
-      EventAttendeeResponse response = null;
-      if (identityId == creatorUserId) {
-        if (event.getStatus() == EventStatus.CONFIRMED) {
-          response = EventAttendeeResponse.ACCEPTED;
-        } else if (event.getStatus() == EventStatus.TENTATIVE) {
-          response = EventAttendeeResponse.TENTATIVE;
-        } else if (event.getStatus() == EventStatus.CANCELED) {
-          response = EventAttendeeResponse.DECLINED;
-        }
-      } else {
-        response = EventAttendeeResponse.NEEDS_ACTION;
-      }
-      eventAttendee.setResponse(response);
+      eventAttendee.setResponse(EventAttendeeResponse.NEEDS_ACTION);
       attendeeStorage.saveEventAttendee(eventAttendee, eventId);
     }
 
@@ -135,12 +123,28 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
                                                                                           .anyMatch(newAttendee -> newAttendee.getIdentityId() == attendee.getIdentityId()))
                                                           .collect(Collectors.toList());
       for (EventAttendee eventAttendee : attendeesToUpdate) {
-        if (eventAttendee.getIdentityId() != creatorUserId) {
-          eventAttendee.setResponse(EventAttendeeResponse.NEEDS_ACTION);
-          attendeeStorage.saveEventAttendee(eventAttendee, eventId);
+        try {
+          sendEventResponse(eventId, eventAttendee.getIdentityId(), EventAttendeeResponse.NEEDS_ACTION);
+        } catch (Exception e) {
+          LOG.warn("Error initializing default reminders of event {} for user with id {}", eventId, creatorUserId, e);
         }
       }
     }
+
+    try {
+      if (creatorUserId > 0 && isEventAttendee(eventId, creatorUserId)) {
+        if (event.getStatus() == EventStatus.CONFIRMED) {
+          sendEventResponse(eventId, creatorUserId, EventAttendeeResponse.ACCEPTED);
+        } else if (event.getStatus() == EventStatus.TENTATIVE) {
+          sendEventResponse(eventId, creatorUserId, EventAttendeeResponse.TENTATIVE);
+        } else if (event.getStatus() == EventStatus.CANCELED) {
+          sendEventResponse(eventId, creatorUserId, EventAttendeeResponse.DECLINED);
+        }
+      }
+    } catch (Exception e) {
+      LOG.warn("Error initializing default reminders of event {} for creator with id {}", eventId, creatorUserId, e);
+    }
+
     if (sendInvitations) {
       sendInvitations(eventId, eventModificationType);
     }
@@ -201,12 +205,16 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     }
 
     EventAttendee attendee = attendeeStorage.getEventAttendee(eventId, identityId);
+    EventAttendee oldAttendee = null;
     if (attendee == null) {
-      attendee = new EventAttendee(0, identityId, response);
+      attendee = new EventAttendee(0, eventId, identityId, response);
     } else {
+      oldAttendee = attendee.clone();
       attendee.setResponse(response);
     }
     attendeeStorage.saveEventAttendee(attendee, eventId);
+
+    Utils.broadcastEvent(listenerService, Utils.POST_EVENT_RESPONSE_SENT, oldAttendee, attendee);
   }
 
   /**
@@ -277,6 +285,9 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
   @Override
   public boolean isEventAttendee(long eventId, long identityId) {
     Identity userIdentity = identityManager.getIdentity(String.valueOf(identityId));
+    if (userIdentity == null) {
+      return false;
+    }
 
     List<EventAttendee> eventAttendees = getEventAttendees(eventId);
     return eventAttendees != null
@@ -312,7 +323,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     if (eventModificationType.name().equals("ADDED")) {
       agendaNotificationPluginType = AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN;
       ctx.append(EVENT_MODIFICATION_TYPE, "ADDED");
-    } else if(eventModificationType.name().equals("UPDATED")){
+    } else if (eventModificationType.name().equals("UPDATED")) {
       agendaNotificationPluginType = AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN;
       ctx.append(EVENT_MODIFICATION_TYPE, "UPDATED");
     } else {

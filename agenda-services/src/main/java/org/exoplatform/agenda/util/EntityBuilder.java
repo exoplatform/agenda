@@ -142,6 +142,7 @@ public class EntityBuilder {
   }
 
   public static EventAttendee toEventAttendee(IdentityManager identityManager,
+                                              long eventId,
                                               EventAttendeeEntity attendeeEntity) throws AgendaException {
     long identityId = 0;
     IdentityEntity attendeeIdentityEntity = attendeeEntity.getIdentity();
@@ -155,7 +156,7 @@ public class EntityBuilder {
     } else {
       throw new AgendaException(AgendaExceptionType.WRONG_EVENT_ATTENDEE_ID);
     }
-    return new EventAttendee(attendeeEntity.getId(), identityId, attendeeEntity.getResponse());
+    return new EventAttendee(attendeeEntity.getId(), eventId, identityId, attendeeEntity.getResponse());
   }
 
   public static final EventAttendeeEntity fromEventAttendee(IdentityManager identityManager, EventAttendee eventAttendee) {

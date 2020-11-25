@@ -19,16 +19,15 @@ package org.exoplatform.agenda.service;
 import java.util.List;
 
 import org.exoplatform.agenda.exception.AgendaException;
-import org.exoplatform.agenda.model.Event;
-import org.exoplatform.agenda.model.EventReminder;
+import org.exoplatform.agenda.model.*;
 import org.exoplatform.social.core.identity.model.Identity;
 
 public interface AgendaEventReminderService {
 
   /**
-   * Retrieve list of reminders for a user. If there is no specific reminder,
-   * the default user reminders will be used. (Combined between User Settings
-   * and default values)
+   * Retrieves list of reminders of an event for a user. If there is no specific
+   * reminder, the default user reminders will be used. (Combined between User
+   * Settings and default values)
    * 
    * @param eventId {@link Event} technical identifier
    * @param userIdentityId User technical identifier ({@link Identity#getId()})
@@ -36,6 +35,16 @@ public interface AgendaEventReminderService {
    *         preferences.
    */
   List<EventReminder> getEventReminders(long eventId, long userIdentityId);
+
+  /**
+   * Retrieves list of reminders of an event. If there is no specific reminder,
+   * the default user reminders will be used. (Combined between User Settings
+   * and default values)
+   * 
+   * @param eventId {@link Event} technical identifier
+   * @return {@link List} of {@link EventReminder}.
+   */
+  List<EventReminder> getEventReminders(long eventId);
 
   /**
    * Updates the list of {@link EventReminder} associated to a user on a
@@ -50,4 +59,79 @@ public interface AgendaEventReminderService {
    */
   void saveEventReminders(Event event, List<EventReminder> reminders, long userIdentityId) throws IllegalAccessException,
                                                                                            AgendaException;
+
+  /**
+   * Saves the {@link List} of {@link EventReminder} of a chosen {@link Event}
+   * 
+   * @param event {@link Event} for which saving reminders
+   * @param reminders {@link List} of {@link EventReminder}
+   * @throws AgendaException when an error occurs while saving reminders
+   */
+  void saveEventReminders(Event event, List<EventReminder> reminders) throws AgendaException;
+
+  /**
+   * @return period used to compute reminder of occurrences of a recurrent event
+   *         in days
+   */
+  long getReminderComputingPeriod();
+
+  /**
+   * @param reminderComputingPeriod value of period used to compute reminder of
+   *          occurrences of a recurrent event in days
+   */
+  void setReminderComputingPeriod(long reminderComputingPeriod);
+
+  /**
+   * @return {@link List} of {@link EventReminderParameter} that will be used
+   *         for users who didn't changed default settings about preferred
+   *         reminders
+   */
+  List<EventReminderParameter> getDefaultReminders();
+
+  /**
+   * Deletes all reminders of a user on a given event identified by its
+   * identifier.
+   * 
+   * @param eventId technical identifier of {@link Event}
+   * @param identityId technical identifier of {@link Identity}
+   */
+  void removeUserReminders(long eventId, long identityId);
+
+  /**
+   * Stores the list of default user reminders in a given {@link Event}.
+   * 
+   * @param event {@link Event} to save reminders on it
+   * @param identityId technical identifier of {@link Identity}
+   * @throws AgendaException when an error occurs while saving event reminder
+   */
+  void saveUserDefaultReminders(Event event, long identityId) throws AgendaException;
+
+  /**
+   * Save user reminders to use in events by default
+   * 
+   * @param identityId technical identifier of {@link Identity}
+   * @param eventReminderParameters {@link List} of
+   *          {@link EventReminderParameter}
+   */
+  void saveUserDefaultRemindersSetting(long identityId, List<EventReminderParameter> eventReminderParameters);
+
+  /**
+   * Get list of reminders to use in events by default
+   * 
+   * @param identityId technical identifier of {@link Identity}
+   * @return {@link List} of {@link EventReminderParameter}
+   */
+  List<EventReminderParameter> getUserDefaultRemindersSettings(long identityId);
+
+  /**
+   * Removes all reminders of a given {@link Event}
+   * 
+   * @param eventId technical identifier of {@link Event}
+   */
+  void removeEventReminders(long eventId);
+
+  /**
+   * Send reminders of upcoming events of next minute
+   */
+  void sendReminders();
 }

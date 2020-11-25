@@ -57,6 +57,8 @@ public class Utils {
 
   public static final String            POST_DELETE_AGENDA_EVENT_EVENT = "exo.agenda.event.deleted";
 
+  public static final String            POST_EVENT_RESPONSE_SENT       = "exo.agenda.event.responseSent";
+
   private Utils() {
   }
 
@@ -344,7 +346,7 @@ public class Utils {
   public static Identity getIdentityById(IdentityManager identityManager, String identityId) {
     return identityManager.getIdentity(identityId);
   }
-  
+
   public static List<String> getSpaceMembersBySpaceName(String spaceName, SpaceService spaceService) {
     String[] members = spaceService.getSpaceByPrettyName(spaceName).getMembers();
     return Arrays.asList(members);

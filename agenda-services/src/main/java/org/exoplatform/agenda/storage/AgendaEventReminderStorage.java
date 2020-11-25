@@ -1,7 +1,7 @@
 package org.exoplatform.agenda.storage;
 
-import java.util.Collections;
-import java.util.List;
+import java.time.ZonedDateTime;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import org.exoplatform.agenda.dao.EventDAO;
@@ -70,6 +70,40 @@ public class AgendaEventReminderStorage {
     return eventReminderEntities.stream()
                                 .map(eventReminderEntity -> EntityMapper.fromEntity(eventReminderEntity))
                                 .collect(Collectors.toList());
+  }
+
+  public List<EventReminder> getEventReminders(long eventId) {
+    List<EventReminderEntity> eventReminderEntities = eventReminderDAO.getEventReminders(eventId);
+    if (eventReminderEntities == null) {
+      return Collections.emptyList();
+    }
+    return eventReminderEntities.stream()
+                                .map(eventReminderEntity -> EntityMapper.fromEntity(eventReminderEntity))
+                                .collect(Collectors.toList());
+  }
+
+  public void removeEventReminders(long eventId, long identityId) {
+    List<EventReminderEntity> eventReminderEntities = eventReminderDAO.getEventReminders(eventId, identityId);
+    if (eventReminderEntities != null) {
+      eventReminderDAO.deleteAll(eventReminderEntities);
+    }
+  }
+
+  public void removeEventReminders(long eventId) {
+    List<EventReminderEntity> eventReminderEntities = eventReminderDAO.getEventReminders(eventId);
+    if (eventReminderEntities != null) {
+      eventReminderDAO.deleteAll(eventReminderEntities);
+    }
+  }
+
+  public List<EventReminder> getEventReminders(ZonedDateTime start, ZonedDateTime end) {
+    Date startDate = new Date(start.toEpochSecond() * 1000);
+    Date endDate = new Date(end.toEpochSecond() * 1000);
+
+    List<EventReminderEntity> reminderEntities = eventReminderDAO.getEventReminders(startDate, endDate);
+    return reminderEntities.stream()
+                           .map(eventReminderEntity -> EntityMapper.fromEntity(eventReminderEntity))
+                           .collect(Collectors.toList());
   }
 
 }
