@@ -388,6 +388,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                            List<EventReminder> reminders,
                            boolean sendInvitation,
                            String username) throws AgendaException, IllegalAccessException {
+    ZonedDateTime startDateBeforeUpdate = event.getStart();
     if (StringUtils.isBlank(username)) {
       throw new IllegalArgumentException("username is null");
     }
@@ -470,6 +471,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                     allowAttendeeToUpdate,
                                     allowAttendeeToInvite);
 
+    ZonedDateTime startDateAfterUpdate = eventToUpdate.getStart();
     Event updatedEvent = agendaEventStorage.updateEvent(eventToUpdate);
     attachmentService.saveEventAttachments(eventId, attachments, userIdentityId);
     conferenceService.saveEventConferences(eventId, conferences);
@@ -482,6 +484,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                        EventModificationType.UPDATED);
 
     Utils.broadcastEvent(listenerService, Utils.POST_UPDATE_AGENDA_EVENT_EVENT, eventId, 0);
+    if (!startDateBeforeUpdate.equals(startDateAfterUpdate)) {
+      Utils.broadcastEvent(listenerService, Utils.POST_UPDATE_AGENDA_STARTDATE_EVENT, eventId, 0);
+    }
 
     return updatedEvent;
   }

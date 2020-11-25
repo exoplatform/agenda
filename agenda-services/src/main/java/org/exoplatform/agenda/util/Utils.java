@@ -57,6 +57,8 @@ public class Utils {
 
   public static final String            POST_DELETE_AGENDA_EVENT_EVENT = "exo.agenda.event.deleted";
 
+  public static final String            POST_UPDATE_AGENDA_STARTDATE_EVENT = "exo.agenda.event.startDate.updated";
+
   private Utils() {
   }
 

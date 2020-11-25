@@ -65,8 +65,10 @@ public class ComputingReminderJob implements Job {
           }
         }
       }
-    } catch (IllegalAccessException | AgendaException e) {
+    } catch (IllegalAccessException e) {
       LOG.error("User '{}' attempts to access not authorized events of owner Id '{}'", e);
+    } catch (AgendaException e) {
+      LOG.error("Error retrieving list of events", e);
     }
   }
 }

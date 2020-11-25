@@ -178,5 +178,10 @@
       <set-method>addListener</set-method>
       <type>org.exoplatform.agenda.search.listener.AgendaESListener</type>
     </component-plugin>
+    <component-plugin>
+      <name>exo.agenda.event.startDate.updated</name>
+      <set-method>addListener</set-method>
+      <type>org.exoplatform.agenda.listener.ReminderListener</type>
+    </component-plugin>
   </external-component-plugins>
 </configuration>

@@ -76,11 +76,16 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
   @Override
   public void computeUpdatedTriggerDate(Event event, long userId) throws AgendaException {
     List<EventReminder> reminders = getEventReminders(event.getId(), userId);
-    for (EventReminder eventReminder : reminders) {
-      ZonedDateTime reminderDate = computeReminderDateTime(event, eventReminder);
-      eventReminder.setDatetime(reminderDate);
-      eventReminder.setReceiverId(userId);
-      reminderStorage.saveEventReminder(event.getId(), eventReminder);
+    boolean hasReminders = reminders != null && !reminders.isEmpty();
+    if (hasReminders) {
+      for (EventReminder eventReminder : reminders) {
+        if(event.getEnd()!=null) {
+          ZonedDateTime reminderDate = computeReminderDateTime(event, eventReminder);
+          eventReminder.setDatetime(reminderDate);
+          eventReminder.setReceiverId(eventReminder.getReceiverId());
+          reminderStorage.saveEventReminder(event.getId(), eventReminder);
+        }
+      }
     }
   }
 

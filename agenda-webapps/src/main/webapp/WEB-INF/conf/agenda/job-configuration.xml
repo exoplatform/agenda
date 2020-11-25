@@ -17,7 +17,7 @@
            <property name="jobName" value="ComputingReminderJob"/>
            <property name="groupName" value="CollaborationSuite"/>
            <property name="job" value="org.exoplatform.agenda.job.ComputingReminderJob"/>
-           <property name="expression" value="0 17/1 17 ? * * *"/>
+           <property name="expression" value="0 20/1 10 ? * * *"/>
          </properties-param>
        </init-params>
      </component-plugin>
