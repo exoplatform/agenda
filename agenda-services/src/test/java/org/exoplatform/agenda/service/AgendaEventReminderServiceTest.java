@@ -20,13 +20,12 @@ import static org.junit.Assert.*;
 
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 import org.junit.Test;
 
-import org.exoplatform.agenda.model.Event;
-import org.exoplatform.agenda.model.EventReminder;
+import org.exoplatform.agenda.constant.ReminderPeriodType;
+import org.exoplatform.agenda.model.*;
 
 public class AgendaEventReminderServiceTest extends BaseAgendaEventTest {
 
@@ -91,6 +90,70 @@ public class AgendaEventReminderServiceTest extends BaseAgendaEventTest {
     assertNotNull(eventReminder.getDatetime());
     assertEquals(event.getStart().minusMinutes(eventReminder.getBefore()).withZoneSameInstant(ZoneOffset.UTC),
                  eventReminder.getDatetime().withZoneSameInstant(ZoneOffset.UTC));
+  }
+
+  @Test
+  public void testGetDefaultReminders() throws Exception { // NOSONAR
+    List<EventReminderParameter> defaultReminders = agendaEventReminderService.getDefaultReminders();
+    assertNotNull(defaultReminders);
+    assertFalse(defaultReminders.isEmpty());
+
+    try {
+      defaultReminders.add(new EventReminderParameter());
+      fail("Shouldn't allow list modification");
+    } catch (Exception e) {
+      // Expected
+    }
+  }
+
+  @Test
+  public void testSaveUserReminders() throws Exception { // NOSONAR
+    ZonedDateTime start = ZonedDateTime.now().withNano(0);
+
+    boolean allDay = false;
+    String creatorUserName = testuser1Identity.getRemoteId();
+
+    Event event = newEventInstance(start, start, allDay);
+    event = createEvent(event.clone(), creatorUserName, testuser4Identity, testuser5Identity);
+
+    long eventId = event.getId();
+    long userIdentityId = Long.parseLong(testuser1Identity.getId());
+    List<EventReminder> eventReminders = agendaEventReminderService.getEventReminders(eventId, userIdentityId);
+    assertNotNull(eventReminders);
+    assertEquals(1, eventReminders.size());
+
+    long user4IdentityId = Long.parseLong(testuser4Identity.getId());
+
+    eventReminders = Collections.singletonList(new EventReminder(user4IdentityId, 2, ReminderPeriodType.DAY));
+    agendaEventReminderService.saveEventReminders(event, eventReminders, user4IdentityId);
+
+    eventReminders = agendaEventReminderService.getEventReminders(eventId, user4IdentityId);
+    assertEquals(1, eventReminders.size());
+
+    eventReminders = agendaEventReminderService.getEventReminders(eventId);
+    assertEquals(2, eventReminders.size());
+
+    agendaEventReminderService.removeUserReminders(eventId, user4IdentityId);
+    eventReminders = agendaEventReminderService.getEventReminders(eventId);
+    assertEquals(1, eventReminders.size());
+
+    eventReminders = agendaEventReminderService.getEventReminders(eventId, user4IdentityId);
+    assertEquals(0, eventReminders.size());
+  }
+
+  @Test
+  public void testSaveUserDefaultRemindersSetting() {
+    long identityId = 520l;
+    assertEquals(agendaEventReminderService.getDefaultReminders(),
+                 agendaEventReminderService.getUserDefaultRemindersSettings(identityId));
+
+    agendaEventReminderService.saveUserDefaultRemindersSetting(identityId, Collections.emptyList());
+    assertEquals(Collections.emptyList(), agendaEventReminderService.getUserDefaultRemindersSettings(identityId));
+
+    List<EventReminderParameter> userDefaultRemindersSettings = Collections.singletonList(new EventReminderParameter(2, "DAY"));
+    agendaEventReminderService.saveUserDefaultRemindersSetting(identityId, userDefaultRemindersSettings);
+    assertEquals(userDefaultRemindersSettings, agendaEventReminderService.getUserDefaultRemindersSettings(identityId));
+
   }
 
 }

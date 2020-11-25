@@ -4,16 +4,17 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.TimeZone;
 
-import org.exoplatform.agenda.storage.AgendaEventStorage;
 import org.junit.After;
 import org.junit.Before;
 
 import org.exoplatform.agenda.constant.*;
 import org.exoplatform.agenda.model.*;
+import org.exoplatform.agenda.storage.AgendaEventStorage;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
+import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
@@ -53,6 +54,8 @@ public abstract class BaseAgendaEventTest {
 
   protected AgendaEventReminderService              agendaEventReminderService;
 
+  protected ListenerService                         listenerService;
+
   protected AgendaEventStorage                      agendaEventStorage;
 
   protected RemoteProvider                          remoteProvider;
@@ -87,6 +90,7 @@ public abstract class BaseAgendaEventTest {
     agendaEventReminderService = container.getComponentInstanceOfType(AgendaEventReminderService.class);
     identityManager = container.getComponentInstanceOfType(IdentityManager.class);
     spaceService = container.getComponentInstanceOfType(SpaceService.class);
+    listenerService = container.getComponentInstanceOfType(ListenerService.class);
     agendaEventStorage = container.getComponentInstanceOfType(AgendaEventStorage.class);
 
     TimeZone.setDefault(TimeZone.getTimeZone("US/Hawaii"));
@@ -169,7 +173,7 @@ public abstract class BaseAgendaEventTest {
     try { // NOSONAR
       ATTENDEES.clear();
       for (Identity attendeeIdentity : attendeesArray) {
-        EventAttendee userAttendee = new EventAttendee(0, Long.parseLong(attendeeIdentity.getId()), null);
+        EventAttendee userAttendee = new EventAttendee(0, 0, Long.parseLong(attendeeIdentity.getId()), null);
         ATTENDEES.add(userAttendee);
       }
 

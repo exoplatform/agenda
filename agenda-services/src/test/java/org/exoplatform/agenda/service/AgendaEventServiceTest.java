@@ -19,15 +19,13 @@ package org.exoplatform.agenda.service;
 import static org.junit.Assert.*;
 
 import java.time.*;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 import org.junit.Test;
 
 import org.exoplatform.agenda.constant.*;
+import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.model.*;
-import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 
@@ -35,6 +33,231 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
   @Test
   public void testCreateEvent() throws Exception { // NOSONAR
+
+    try {
+      Event event = new Event();
+      event.setId(0);
+      agendaEventService.createEvent(event,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     true,
+                                     null);
+      fail();
+    } catch (IllegalArgumentException e) {
+      // Expected
+    }
+
+    try {
+      agendaEventService.createEvent(null,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     true,
+                                     testuser1Identity.getRemoteId());
+      fail();
+    } catch (IllegalArgumentException e) {
+      // Expected
+    }
+
+    try {
+      Event event = new Event();
+      event.setId(2);
+      agendaEventService.createEvent(event,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     true,
+                                     testuser1Identity.getRemoteId());
+      fail();
+    } catch (IllegalArgumentException e) {
+      // Expected
+    }
+
+    try {
+      Event event = new Event();
+      event.setId(0);
+      agendaEventService.createEvent(event,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     true,
+                                     testuser1Identity.getRemoteId());
+      fail();
+    } catch (IllegalArgumentException e) {
+      // Expected
+    }
+
+    try {
+      Event event = new Event();
+      event.setCalendarId(spaceCalendar.getId());
+      agendaEventService.createEvent(event,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     true,
+                                     testuser1Identity.getRemoteId());
+      fail();
+    } catch (AgendaException e) {
+      // Expected
+    }
+
+    try {
+      Event event = new Event();
+      event.setCalendarId(spaceCalendar.getId());
+      event.setStart(ZonedDateTime.now());
+      agendaEventService.createEvent(event,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     true,
+                                     testuser1Identity.getRemoteId());
+      fail();
+    } catch (AgendaException e) {
+      // Expected
+    }
+
+    try {
+      Event event = new Event();
+      event.setCalendarId(spaceCalendar.getId());
+      event.setStart(ZonedDateTime.now().plusDays(1));
+      event.setEnd(ZonedDateTime.now());
+      agendaEventService.createEvent(event,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     true,
+                                     testuser1Identity.getRemoteId());
+      fail();
+    } catch (AgendaException e) {
+      // Expected
+    }
+
+    try {
+      Event event = new Event();
+      event.setCalendarId(spaceCalendar.getId());
+      event.setStart(ZonedDateTime.now());
+      event.setEnd(ZonedDateTime.now());
+      agendaEventService.createEvent(event,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     true,
+                                     "notExistingUser");
+      fail();
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+
+    try {
+      Event event = new Event();
+      event.setCalendarId(spaceCalendar.getId());
+      event.setStart(ZonedDateTime.now());
+      event.setEnd(ZonedDateTime.now());
+      EventRecurrence recurrence = new EventRecurrence();
+      event.setRecurrence(recurrence);
+      agendaEventService.createEvent(event,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     true,
+                                     testuser1Identity.getRemoteId());
+      fail();
+    } catch (AgendaException e) {
+      // Expected
+    }
+
+    try {
+      Event event = new Event();
+      event.setCalendarId(spaceCalendar.getId());
+      event.setStart(ZonedDateTime.now());
+      event.setEnd(ZonedDateTime.now());
+      EventRecurrence recurrence = new EventRecurrence();
+      event.setRecurrence(recurrence);
+      recurrence.setFrequency(EventRecurrenceFrequency.DAILY);
+      agendaEventService.createEvent(event,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     true,
+                                     testuser1Identity.getRemoteId());
+      fail();
+    } catch (AgendaException e) {
+      // Expected
+    }
+
+    try {
+      Event event = new Event();
+      event.setCalendarId(12);
+      event.setStart(ZonedDateTime.now());
+      event.setEnd(ZonedDateTime.now());
+      EventRecurrence recurrence = new EventRecurrence();
+      event.setRecurrence(recurrence);
+      recurrence.setFrequency(EventRecurrenceFrequency.DAILY);
+      recurrence.setInterval(1);
+      agendaEventService.createEvent(event,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     true,
+                                     testuser1Identity.getRemoteId());
+      fail();
+    } catch (AgendaException e) {
+      // Expected
+    }
+
+    try {
+      Event event = new Event();
+      event.setCalendarId(spaceCalendar.getId());
+      event.setStart(ZonedDateTime.now());
+      event.setEnd(ZonedDateTime.now());
+      EventRecurrence recurrence = new EventRecurrence();
+      event.setRecurrence(recurrence);
+      recurrence.setFrequency(EventRecurrenceFrequency.DAILY);
+      recurrence.setInterval(1);
+      agendaEventService.createEvent(event,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     true,
+                                     testuser4Identity.getRemoteId());
+      fail();
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+
+    try {
+      Event event = new Event();
+      event.setCalendarId(spaceCalendar.getId());
+      event.setStart(ZonedDateTime.now());
+      event.setEnd(ZonedDateTime.now());
+      EventRecurrence recurrence = new EventRecurrence();
+      event.setRecurrence(recurrence);
+      recurrence.setFrequency(EventRecurrenceFrequency.DAILY);
+      recurrence.setInterval(1);
+      agendaEventService.createEvent(event,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     true,
+                                     testuser1Identity.getRemoteId());
+    } catch (AgendaException e) {
+      fail(e.getMessage());
+    }
+
     ZonedDateTime start = getDate().withNano(0);
 
     boolean allDay = true;
@@ -427,7 +650,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                                           ATTACHMENTS,
                                                           REMINDERS,
                                                           start.plusDays(2));
-    } catch (ObjectNotFoundException e) {
+    } catch (AgendaException e) {
       // Expected, not existing id
     }
 
@@ -589,20 +812,302 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     boolean allDay = true;
     String creatorUserName = testuser1Identity.getRemoteId();
 
-    Event event = newEventInstance(start, start, allDay);
-    event = createEvent(event.clone(), creatorUserName, testuser2Identity);
+    Event createdEvent = newEventInstance(start, start, allDay);
+    createdEvent = createEvent(createdEvent.clone(), creatorUserName, testuser2Identity);
 
-    long eventId = event.getId();
-    Event createdEvent = agendaEventService.getEventById(eventId, null, testuser2Identity.getRemoteId());
+    long eventId = createdEvent.getId();
+    Event storedEvent = agendaEventService.getEventById(eventId, null, testuser2Identity.getRemoteId());
 
-    assertNotNull(createdEvent);
-    assertTrue(createdEvent.getId() > 0);
-    assertNotNull(createdEvent.getRecurrence());
+    assertNotNull(storedEvent);
+    assertTrue(storedEvent.getId() > 0);
+    assertNotNull(storedEvent.getRecurrence());
 
-    createdEvent.setRecurrence(null);
-    createdEvent.setRemoteProviderId(0);
+    try {
+      Event event = new Event();
+      event.setId(eventId);
+      agendaEventService.updateEvent(event,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     true,
+                                     null);
+      fail();
+    } catch (IllegalArgumentException e) {
+      // Expected
+    }
 
-    agendaEventService.updateEvent(createdEvent, null, null, null, null, false, testuser1Identity.getRemoteId());
+    try {
+      agendaEventService.updateEvent(null,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     true,
+                                     testuser1Identity.getRemoteId());
+      fail();
+    } catch (IllegalArgumentException e) {
+      // Expected
+    }
+
+    try {
+      Event event = new Event();
+      event.setId(0);
+      agendaEventService.updateEvent(event,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     true,
+                                     testuser1Identity.getRemoteId());
+      fail();
+    } catch (IllegalArgumentException e) {
+      // Expected
+    }
+
+    try {
+      Event event = new Event();
+      event.setId(eventId);
+      agendaEventService.updateEvent(event,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     true,
+                                     testuser1Identity.getRemoteId());
+      fail();
+    } catch (IllegalArgumentException e) {
+      // Expected
+    }
+
+    try {
+      Event event = new Event();
+      event.setId(eventId);
+      event.setCalendarId(spaceCalendar.getId());
+      agendaEventService.updateEvent(event,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     true,
+                                     testuser1Identity.getRemoteId());
+      fail();
+    } catch (AgendaException e) {
+      // Expected
+    }
+
+    try {
+      Event event = new Event();
+      event.setId(eventId);
+      event.setCalendarId(spaceCalendar.getId());
+      event.setStart(ZonedDateTime.now());
+      agendaEventService.updateEvent(event,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     true,
+                                     testuser1Identity.getRemoteId());
+      fail();
+    } catch (AgendaException e) {
+      // Expected
+    }
+
+    try {
+      Event event = new Event();
+      event.setId(eventId);
+      event.setCalendarId(spaceCalendar.getId());
+      event.setStart(ZonedDateTime.now());
+      event.setEnd(ZonedDateTime.now());
+      event.setParentId(eventId);
+      agendaEventService.updateEvent(event,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     true,
+                                     testuser1Identity.getRemoteId());
+      fail();
+    } catch (AgendaException e) {
+      // Expected
+    }
+
+    try {
+      Event event = new Event();
+      event.setId(eventId);
+      event.setCalendarId(spaceCalendar.getId());
+      event.setStart(ZonedDateTime.now().plusDays(1));
+      event.setEnd(ZonedDateTime.now());
+      agendaEventService.updateEvent(event,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     true,
+                                     testuser1Identity.getRemoteId());
+      fail();
+    } catch (AgendaException e) {
+      // Expected
+    }
+
+    try {
+      Event event = new Event();
+      event.setId(eventId);
+      event.setCalendarId(spaceCalendar.getId());
+      event.setStart(ZonedDateTime.now());
+      event.setEnd(ZonedDateTime.now());
+      agendaEventService.updateEvent(event,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     true,
+                                     "notExistingUser");
+      fail();
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+
+    try {
+      Event event = new Event();
+      event.setId(eventId);
+      event.setCalendarId(spaceCalendar.getId());
+      event.setStart(ZonedDateTime.now());
+      event.setEnd(ZonedDateTime.now());
+      event.setRecurrence(new EventRecurrence());
+      agendaEventService.updateEvent(event,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     true,
+                                     "notExistingUser");
+      fail();
+    } catch (AgendaException e) {
+      // Expected
+    }
+
+    try {
+      Event event = new Event();
+      event.setId(eventId);
+      event.setCalendarId(spaceCalendar.getId());
+      event.setStart(ZonedDateTime.now());
+      event.setEnd(ZonedDateTime.now());
+      EventRecurrence recurrence = new EventRecurrence();
+      event.setRecurrence(recurrence);
+      recurrence.setFrequency(EventRecurrenceFrequency.DAILY);
+      agendaEventService.updateEvent(event,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     true,
+                                     testuser1Identity.getRemoteId());
+      fail();
+    } catch (AgendaException e) {
+      // Expected
+    }
+
+    try {
+      Event event = new Event();
+      event.setId(eventId);
+      event.setCalendarId(12);
+      event.setStart(ZonedDateTime.now());
+      event.setEnd(ZonedDateTime.now());
+      EventRecurrence recurrence = new EventRecurrence();
+      event.setRecurrence(recurrence);
+      recurrence.setFrequency(EventRecurrenceFrequency.DAILY);
+      recurrence.setInterval(1);
+      agendaEventService.updateEvent(event,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     true,
+                                     testuser1Identity.getRemoteId());
+      fail();
+    } catch (AgendaException e) {
+      // Expected
+    }
+
+    try {
+      Event event = new Event();
+      event.setId(eventId);
+      event.setCalendarId(spaceCalendar.getId());
+      event.setStart(ZonedDateTime.now());
+      event.setEnd(ZonedDateTime.now());
+      EventRecurrence recurrence = new EventRecurrence();
+      event.setRecurrence(recurrence);
+      recurrence.setFrequency(EventRecurrenceFrequency.DAILY);
+      recurrence.setInterval(1);
+      agendaEventService.updateEvent(event,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     true,
+                                     testuser4Identity.getRemoteId());
+      fail();
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+
+    try {
+      Event event = new Event();
+      event.setId(15000);
+      event.setCalendarId(spaceCalendar.getId());
+      event.setStart(ZonedDateTime.now());
+      event.setEnd(ZonedDateTime.now());
+      EventRecurrence recurrence = new EventRecurrence();
+      event.setRecurrence(recurrence);
+      recurrence.setFrequency(EventRecurrenceFrequency.DAILY);
+      recurrence.setInterval(1);
+      agendaEventService.updateEvent(event,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     true,
+                                     testuser1Identity.getRemoteId());
+      fail();
+    } catch (AgendaException e) {
+      // Expected
+    }
+
+    try {
+      Event event = new Event();
+      event.setId(eventId);
+      event.setCalendarId(spaceCalendar.getId());
+      event.setStart(ZonedDateTime.now());
+      event.setEnd(ZonedDateTime.now());
+      EventRecurrence recurrence = new EventRecurrence();
+      event.setRecurrence(recurrence);
+      recurrence.setFrequency(EventRecurrenceFrequency.DAILY);
+      recurrence.setInterval(1);
+      agendaEventService.updateEvent(event,
+                                     Collections.singletonList(new EventAttendee(0,
+                                                                                 storedEvent.getCreatorId(),
+                                                                                 EventAttendeeResponse.ACCEPTED)),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     true,
+                                     testuser2Identity.getRemoteId());
+      fail();
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+
+    createdEvent = newEventInstance(start, start, allDay);
+    createdEvent = createEvent(createdEvent.clone(), creatorUserName, testuser2Identity);
+
+    eventId = createdEvent.getId();
+    storedEvent = agendaEventService.getEventById(eventId, null, testuser2Identity.getRemoteId());
+
+    storedEvent.setRecurrence(null);
+    storedEvent.setRemoteProviderId(0);
+
+    agendaEventService.updateEvent(storedEvent, null, null, null, null, false, testuser1Identity.getRemoteId());
 
     Event updatedEvent = agendaEventService.getEventById(eventId, null, testuser1Identity.getRemoteId());
     assertNotNull(updatedEvent);
@@ -620,7 +1125,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     updatedEvent.setAllowAttendeeToUpdate(true);
     updatedEvent.setAllowAttendeeToInvite(false);
 
-    EventAttendee eventAttendee = new EventAttendee(0, Long.parseLong(testuser2Identity.getId()), null);
+    EventAttendee eventAttendee = new EventAttendee(0, updatedEvent.getId(), Long.parseLong(testuser2Identity.getId()), null);
     updatedEvent = agendaEventService.updateEvent(updatedEvent,
                                                   Collections.singletonList(eventAttendee),
                                                   null,
@@ -1113,7 +1618,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(0, events.size());
 
     List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(event.getId());
-    eventAttendees.add(new EventAttendee(0, Long.parseLong(spaceIdentity.getId()), null));
+    eventAttendees.add(new EventAttendee(0, event.getId(), Long.parseLong(spaceIdentity.getId()), null));
     agendaEventAttendeeService.saveEventAttendees(event, eventAttendees, testuser1Id, false, false, EventModificationType.ADDED);
 
     eventFilter = new EventFilter(Long.parseLong(testuser3Identity.getId()),
@@ -1225,7 +1730,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(0, events.size());
 
     List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(event.getId());
-    eventAttendees.add(new EventAttendee(0, Long.parseLong(spaceIdentity.getId()), null));
+    eventAttendees.add(new EventAttendee(0, event.getId(), Long.parseLong(spaceIdentity.getId()), null));
     agendaEventAttendeeService.saveEventAttendees(event, eventAttendees, testuser1Id, false, false, EventModificationType.ADDED);
 
     eventFilter = new EventFilter(Long.parseLong(testuser3Identity.getId()),
@@ -1253,7 +1758,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(0, events.size());
 
     eventAttendees = agendaEventAttendeeService.getEventAttendees(event.getId());
-    eventAttendees.add(new EventAttendee(0, Long.parseLong(testuser4Identity.getId()), null));
+    eventAttendees.add(new EventAttendee(0, event.getId(), Long.parseLong(testuser4Identity.getId()), null));
     agendaEventAttendeeService.saveEventAttendees(event, eventAttendees, testuser1Id, false, false, EventModificationType.ADDED);
 
     eventFilter = new EventFilter(Long.parseLong(testuser4Identity.getId()),
@@ -1268,6 +1773,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertNotNull(events);
     assertEquals(1, events.size());
   }
+
   @Test
   public void testGetEventsByResponseTypes() throws Exception {
     ZonedDateTime date = getDate();

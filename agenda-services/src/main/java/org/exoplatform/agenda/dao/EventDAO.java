@@ -170,7 +170,7 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     if (endDate != null) {
       jpql.append(" AND ev.startDate < :end");
     }
-    if (ownerIds != null) {
+    if (filterOwners) {
       jpql.append(" AND cal.ownerId IN (:ownerIds)");
     }
     if (filterAttendees) {
@@ -202,6 +202,17 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     List<Tuple> resultList = query.getResultList();
     return resultList == null ? Collections.emptyList()
                               : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
+  }
+
+  public List<EventEntity> getParentRecurrentEventIds(Date startDate, Date endDate) {
+    TypedQuery<EventEntity> query = getEntityManager().createNamedQuery("AgendaEvent.getParentRecurrentEventIds",
+                                                                        EventEntity.class);
+    query.setParameter("start", startDate);
+    query.setParameter("end", endDate);
+    query.setParameter("status", EventStatus.CONFIRMED);
+    List<EventEntity> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList()
+                              : resultList;
   }
 
   public List<Long> getExceptionalOccurenceEventIds(long parentRecurrentEventId, Date startDate, Date endDate) {

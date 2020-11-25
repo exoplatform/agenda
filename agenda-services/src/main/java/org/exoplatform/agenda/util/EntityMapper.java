@@ -194,20 +194,20 @@ public class EntityMapper {
         untilDateTime = end.withHour(23).withMinute(59).withSecond(59);
         int countIntervals = recurrence.getInterval() * recurrence.getCount();
         switch (recurrence.getFrequency()) {
-        case YEARLY:
-          untilDateTime = untilDateTime.plusYears(countIntervals);
-          break;
-        case MONTHLY:
-          untilDateTime = untilDateTime.plusMonths(countIntervals);
-          break;
-        case WEEKLY:
-          untilDateTime = untilDateTime.plusWeeks(countIntervals);
-          break;
-        case DAILY:
-          untilDateTime = untilDateTime.plusDays(countIntervals);
-          break;
-        default:
-          break;
+          case YEARLY:
+            untilDateTime = untilDateTime.plusYears(countIntervals);
+            break;
+          case MONTHLY:
+            untilDateTime = untilDateTime.plusMonths(countIntervals);
+            break;
+          case WEEKLY:
+            untilDateTime = untilDateTime.plusWeeks(countIntervals);
+            break;
+          case DAILY:
+            untilDateTime = untilDateTime.plusDays(countIntervals);
+            break;
+          default:
+            break;
         }
       } else {
         neverEnds = true;
@@ -315,8 +315,11 @@ public class EntityMapper {
     return eventRecurrenceEntity;
   }
 
-  public static EventAttendee fromEntity(EventAttendeeEntity eventAttendeeEntity) {
-    return new EventAttendee(eventAttendeeEntity.getId(), eventAttendeeEntity.getIdentityId(), eventAttendeeEntity.getResponse());
+  public static EventAttendee fromEntity(EventAttendeeEntity eventAttendeeEntity, long eventId) {
+    return new EventAttendee(eventAttendeeEntity.getId(),
+                             eventId,
+                             eventAttendeeEntity.getIdentityId(),
+                             eventAttendeeEntity.getResponse());
   }
 
   public static EventAttendeeEntity toEntity(EventAttendee eventAttendee) {

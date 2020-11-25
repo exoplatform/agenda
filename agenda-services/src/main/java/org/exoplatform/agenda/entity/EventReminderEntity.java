@@ -45,6 +45,10 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
           name = "AgendaEventReminder.getEventRemindersByEventId",
           query = "SELECT a FROM AgendaEventReminder a WHERE a.event.id = :eventId"
       ),
+      @NamedQuery(
+          name = "AgendaEventReminder.getEventRemindersByPeriod",
+          query = "SELECT a FROM AgendaEventReminder a WHERE a.triggerDate >= :start AND a.triggerDate < :end"
+      ),
   }
 )
 public class EventReminderEntity implements Serializable {
