@@ -37,9 +37,19 @@ public interface AgendaEventService {
    * @return {@link List} of {@link Event} accessible to user
    * @throws IllegalAccessException when user is not allowed to access events
    */
-  public List<Event> getEvents(EventFilter eventFilter,
-                               String username,
-                               ZoneId userTimeZone) throws IllegalAccessException;
+  List<Event> getEvents(EventFilter eventFilter,
+                        String username,
+                        ZoneId userTimeZone) throws IllegalAccessException;
+
+  /**
+   * Retrieve parent recurrent events switch event filter.
+   * 
+   * @param start start of period of events to retrieve
+   * @param end end of period of events to retrieve
+   * @param timeZone used time zone to compute dates
+   * @return {@link List} of {@link Event}
+   */
+  List<Event> getParentRecurrentEvents(ZonedDateTime start, ZonedDateTime end, ZoneId timeZone);
 
   /**
    * Retrieves an event identified by its technical identifier.
@@ -50,7 +60,7 @@ public interface AgendaEventService {
    * @return Corresponding {@link Event} or null if not found
    * @throws IllegalAccessException when user is not allowed to access event
    */
-  public Event getEventById(long eventId, ZoneId timeZone, String username) throws IllegalAccessException;
+  Event getEventById(long eventId, ZoneId timeZone, String username) throws IllegalAccessException;
 
   /**
    * Retrieves an event identified by its technical identifier.
@@ -69,7 +79,7 @@ public interface AgendaEventService {
    * @param eventId technical identifier of event
    * @return Corresponding {@link Event} or null if not found
    */
-  public Event getEventById(long eventId);
+  Event getEventById(long eventId);
 
   /**
    * Retrieves Event Occurrence identified by parent recurrence Event identifier
@@ -82,10 +92,10 @@ public interface AgendaEventService {
    * @return {@link Event} representing occurrence of parent recurrent event
    * @throws IllegalAccessException when user is accessing not allowed event
    */
-  public Event getEventOccurrence(long parentEventId,
-                                  ZonedDateTime occurrenceId,
-                                  ZoneId userTimeZone,
-                                  long identityId) throws IllegalAccessException;
+  Event getEventOccurrence(long parentEventId,
+                           ZonedDateTime occurrenceId,
+                           ZoneId userTimeZone,
+                           long identityId) throws IllegalAccessException;
 
   /**
    * Retrieves an event identified by its technical identifier.
@@ -94,7 +104,7 @@ public interface AgendaEventService {
    * @param occurrenceId technical occurrence event identifier
    * @return Exceptional {@link Event} if found, else null
    */
-  public Event getExceptionalOccurrenceEvent(long eventId, ZonedDateTime occurrenceId);
+  Event getExceptionalOccurrenceEvent(long eventId, ZonedDateTime occurrenceId);
 
   /**
    * Creates an event in designated calendar or in user personal calendar if
@@ -113,13 +123,23 @@ public interface AgendaEventService {
    *           calendar
    * @throws AgendaException when the event attributes aren't valid
    */
-  public Event createEvent(Event event,
-                           List<EventAttendee> attendees,
-                           List<EventConference> conferences,
-                           List<EventAttachment> attachments,
-                           List<EventReminder> reminders,
-                           boolean sendInvitation,
-                           String username) throws IllegalAccessException, AgendaException;
+  Event createEvent(Event event,
+                    List<EventAttendee> attendees,
+                    List<EventConference> conferences,
+                    List<EventAttachment> attachments,
+                    List<EventReminder> reminders,
+                    boolean sendInvitation,
+                    String username) throws IllegalAccessException, AgendaException;
+
+  /**
+   * Creates an exceptional occurrence for a recurrent event and occurrence ID
+   * 
+   * @param eventId parent recurrent event identifier
+   * @param occurrenceId Occurrence identifier
+   * @return created {@link Event}
+   * @throws AgendaException when an error occurs hile creating event
+   */
+  Event createEventExceptionalOccurrence(long eventId, ZonedDateTime occurrenceId) throws AgendaException;
 
   /**
    * Updates an existing event in-place when the user is owner of parent
@@ -140,13 +160,13 @@ public interface AgendaEventService {
    *           identifier is not found
    * @throws AgendaException when the event attributes aren't valid
    */
-  public Event updateEvent(Event event,
-                           List<EventAttendee> attendees,
-                           List<EventConference> conferences,
-                           List<EventAttachment> attachments,
-                           List<EventReminder> reminders,
-                           boolean sendInvitation,
-                           String username) throws IllegalAccessException, ObjectNotFoundException, AgendaException;
+  Event updateEvent(Event event,
+                    List<EventAttendee> attendees,
+                    List<EventConference> conferences,
+                    List<EventAttachment> attachments,
+                    List<EventReminder> reminders,
+                    boolean sendInvitation,
+                    String username) throws IllegalAccessException, ObjectNotFoundException, AgendaException;
 
   /**
    * Deletes an existing event
@@ -224,17 +244,13 @@ public interface AgendaEventService {
    * @param occurrenceId event occurent identifier
    * @return newly created {@link Event}
    * @throws AgendaException when the event attributes aren't valid
-   * @throws IllegalAccessException when user is not authorized to create event
-   * @throws ObjectNotFoundException when event with id wasn't found
    */
-  public Event createEventExceptionalOccurrence(long eventId,
-                                                List<EventAttendee> attendees,
-                                                List<EventConference> conferences,
-                                                List<EventAttachment> attachments,
-                                                List<EventReminder> reminders,
-                                                ZonedDateTime occurrenceId) throws IllegalAccessException,
-                                                                            AgendaException,
-                                                                            ObjectNotFoundException;
+  Event createEventExceptionalOccurrence(long eventId,
+                                         List<EventAttendee> attendees,
+                                         List<EventConference> conferences,
+                                         List<EventAttachment> attachments,
+                                         List<EventReminder> reminders,
+                                         ZonedDateTime occurrenceId) throws AgendaException;
 
   /**
    * Search the list of events available with query for the currentUser
@@ -251,5 +267,23 @@ public interface AgendaEventService {
                                  String query,
                                  int offset,
                                  int limit);
+
+  /**
+   * Retrieves occurrences, without exceptional, of a recurrent event in a given
+   * period of time.
+   * 
+   * @param recurrentEvent {@link Event} of type recurrence
+   * @param start Period start date
+   * @param end Period end date
+   * @param timezone used timezone to compute events
+   * @param limit maximum number of occurrences to retrieve
+   * @return {@link List} of {@link Event} of type Occurrence (not Exceptional
+   *         occurrences)
+   */
+  List<Event> getEventOccurrencesInPeriod(Event recurrentEvent,
+                                          ZonedDateTime start,
+                                          ZonedDateTime end,
+                                          ZoneId timezone,
+                                          int limit);
 
 }

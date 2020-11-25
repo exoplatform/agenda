@@ -41,6 +41,19 @@ public class EventReminder implements Cloneable {
    */
   private ZonedDateTime      datetime;
 
+  public EventReminder(long receiverId, int before, ReminderPeriodType beforePeriodType) {
+    this.receiverId = receiverId;
+    this.before = before;
+    this.beforePeriodType = beforePeriodType;
+  }
+
+  public EventReminder(long id, long receiverId, int before, ReminderPeriodType beforePeriodType) {
+    this.id = id;
+    this.receiverId = receiverId;
+    this.before = before;
+    this.beforePeriodType = beforePeriodType;
+  }
+
   @Override
   public EventReminder clone() { // NOSONAR
     return new EventReminder(id, receiverId, before, beforePeriodType, datetime);

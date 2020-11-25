@@ -61,7 +61,7 @@ public class AgendaEventAttendeeStorage {
       return Collections.emptyList();
     }
     return eventAttendeeEntities.stream()
-                                .map(eventAttendeeEntity -> EntityMapper.fromEntity(eventAttendeeEntity))
+                                .map(eventAttendeeEntity -> EntityMapper.fromEntity(eventAttendeeEntity, eventId))
                                 .collect(Collectors.toList());
   }
 
@@ -82,7 +82,7 @@ public class AgendaEventAttendeeStorage {
     if (attendeeEntity == null) {
       return null;
     }
-    return EntityMapper.fromEntity(attendeeEntity);
+    return EntityMapper.fromEntity(attendeeEntity, eventId);
   }
 
 }
