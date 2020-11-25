@@ -74,9 +74,14 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
   }
 
   @Override
-  public List<EventReminder> computeUpdatedTriggerDate(Event event, List<EventReminder> reminders, List<Long> usersIdentityId) throws IllegalAccessException, AgendaException {
-    // TODO
-    return null;
+  public void computeUpdatedTriggerDate(Event event, long userId) throws AgendaException {
+    List<EventReminder> reminders = getEventReminders(event.getId(), userId);
+    for (EventReminder eventReminder : reminders) {
+      ZonedDateTime reminderDate = computeReminderDateTime(event, eventReminder);
+      eventReminder.setDatetime(reminderDate);
+      eventReminder.setReceiverId(userId);
+      reminderStorage.saveEventReminder(event.getId(), eventReminder);
+    }
   }
 
   private ZonedDateTime computeReminderDateTime(Event event, EventReminder eventReminder) throws AgendaException {
