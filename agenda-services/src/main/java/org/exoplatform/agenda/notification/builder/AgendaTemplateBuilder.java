@@ -22,7 +22,6 @@ import org.exoplatform.services.log.Log;
 
 import groovy.text.GStringTemplateEngine;
 import groovy.text.Template;
-import org.exoplatform.social.core.manager.IdentityManager;
 
 public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
 
@@ -78,9 +77,8 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
       Event event = getEvent(notification);
       String notificationURL = getEventURL(event);
       String pushNotificationURL = isPushNotification ? notificationURL : null;
-      IdentityManager identityManager = this.container.getComponentInstanceOfType(IdentityManager.class);
 
-      TemplateContext templateContext = buildTemplateParameters(identityManager, templateProvider, notification);
+      TemplateContext templateContext = buildTemplateParameters(templateProvider, notification);
       MessageInfo messageInfo = buildMessageSubjectAndBody(templateContext, notification, pushNotificationURL);
       Throwable exception = templateContext.getException();
       logException(notification, exception);

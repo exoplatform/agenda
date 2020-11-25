@@ -1,11 +1,12 @@
 package org.exoplatform.agenda.util;
 
 import java.util.*;
+import java.util.Calendar;
 
 import org.apache.commons.lang.StringUtils;
+
 import org.exoplatform.agenda.constant.EventModificationType;
-import org.exoplatform.agenda.model.Event;
-import org.exoplatform.agenda.model.EventAttendee;
+import org.exoplatform.agenda.model.*;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.NotificationMessageUtils;
 import org.exoplatform.commons.api.notification.channel.template.TemplateProvider;
@@ -25,65 +26,75 @@ import org.exoplatform.social.notification.plugin.SocialNotificationUtils;
 import org.exoplatform.webui.utils.TimeConvertUtils;
 
 public class NotificationUtils {
-  
-  public static final ArgumentLiteral<Event>  EVENT_AGENDA                              =
-                                                           new ArgumentLiteral<>(Event.class, "event_agenda");
 
-  public static final ArgumentLiteral<List>   EVENT_ATTENDEE                            =
-                                                             new ArgumentLiteral<>(List.class, "eventAttendee");
+  public static final ArgumentLiteral<Event>         EVENT_AGENDA                              =
+                                                                  new ArgumentLiteral<>(Event.class, "event_agenda");
 
-  public static final ArgumentLiteral<String> EVENT_MODIFICATION_TYPE                   =
-                                                                      new ArgumentLiteral<>(String.class,
-                                                                                            "modificationEventType");
+  @SuppressWarnings("rawtypes")
+  public static final ArgumentLiteral<List>          EVENT_ATTENDEE                            =
+                                                                    new ArgumentLiteral<>(List.class, "eventAttendee");
 
-  public static final String                  AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN    = "EventAddedNotificationPlugin";
+  public static final ArgumentLiteral<String>        EVENT_MODIFICATION_TYPE                   =
+                                                                             new ArgumentLiteral<>(String.class,
+                                                                                                   "modificationEventType");
 
-  public static final String                  AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN = "EventModifiedNotificationPlugin";
+  public static final ArgumentLiteral<EventReminder> EVENT_AGENDA_REMINDER                     =
+                                                                           new ArgumentLiteral<>(EventReminder.class,
+                                                                                                 "event_agenda_reminder");
 
-  public static final String                  AGENDA_EVENT_CANCELED_NOTIFICATION_PLUGIN = "EventCanceledNotificationPlugin";
+  public static final String                         AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN    = "EventAddedNotificationPlugin";
 
-  private static final String                 TEMPLATE_VARIABLE_EVENT_URL               = "eventURL";
+  public static final String                         AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN =
+                                                                                               "EventModifiedNotificationPlugin";
 
-  public static final PluginKey               EVENT_ADDED_KEY                           =
-                                                              PluginKey.key(AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN);
+  public static final String                         AGENDA_EVENT_CANCELED_NOTIFICATION_PLUGIN =
+                                                                                               "EventCanceledNotificationPlugin";
 
-  public static final PluginKey               EVENT_MODIFIED_KEY                        =
-                                                                 PluginKey.key(AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN);
+  public static final String                         AGENDA_REMINDER_NOTIFICATION_PLUGIN       =
+                                                                                         "EventReminderNotificationPlugin";
 
-  public static final PluginKey               EVENT_CANCELED_KEY                        =
-                                                                 PluginKey.key(AGENDA_EVENT_CANCELED_NOTIFICATION_PLUGIN);
+  private static final String                        TEMPLATE_VARIABLE_EVENT_URL               = "eventURL";
 
-  public static final String                  STORED_PARAMETER_EVENT_TITLE              = "eventTitle";
+  public static final PluginKey                      EVENT_ADDED_KEY                           =
+                                                                     PluginKey.key(AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN);
 
-  public static final String                  STORED_PARAMETER_EVENT_OWNER_ID           = "ownerId";
+  public static final PluginKey                      EVENT_MODIFIED_KEY                        =
+                                                                        PluginKey.key(AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN);
 
-  private static final String                 STORED_PARAMETER_EVENT_ID                 = "eventId";
-  
-  public static final String                  STORED_PARAMETER_EVENT_MODIFIER           = "eventModifier";
+  public static final PluginKey                      EVENT_CANCELED_KEY                        =
+                                                                        PluginKey.key(AGENDA_EVENT_CANCELED_NOTIFICATION_PLUGIN);
 
-  public static final String                  STORED_PARAMETER_EVENT_CREATOR            = "eventCreator";
+  public static final String                         STORED_PARAMETER_EVENT_TITLE              = "eventTitle";
 
-  public static final String                  STORED_PARAMETER_EVENT_URL                = "Url";
+  public static final String                         STORED_PARAMETER_EVENT_OWNER_ID           = "ownerId";
 
-  public static final String                  STORED_EVENT_MODIFICATION_TYPE            = "EVENT_MODIFICATION_TYPE";
+  private static final String                        STORED_PARAMETER_EVENT_ID                 = "eventId";
 
-  public static final String                  STORED_PARAMETER_MODIFIER_IDENTITY_ID     = "MODIFIER_IDENTITY_ID";
+  public static final String                         STORED_PARAMETER_EVENT_MODIFIER           = "eventModifier";
 
-  private static final String                 TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR  = "calendarOwnerAvatarUrl";
+  public static final String                         STORED_PARAMETER_EVENT_CREATOR            = "eventCreator";
 
-  public static final String                  TEMPLATE_VARIABLE_EVENT_ID                = "eventId";
+  public static final String                         STORED_PARAMETER_EVENT_URL                = "Url";
 
-  public static final String                  TEMPLATE_VARIABLE_EVENT_TITLE             = "eventTitle";
+  public static final String                         STORED_EVENT_MODIFICATION_TYPE            = "EVENT_MODIFICATION_TYPE";
 
-  private static final String                 TEMPLATE_VARIABLE_EVENT_MODIFICATION_TYPE = "modificationType";
+  public static final String                         STORED_PARAMETER_MODIFIER_IDENTITY_ID     = "MODIFIER_IDENTITY_ID";
 
-  private static final String                 TEMPLATE_VARIABLE_EVENT_CREATOR           = "creatorName";
+  private static final String                        TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR  = "calendarOwnerAvatarUrl";
 
-  private static final String                 TEMPLATE_VARIABLE_EVENT_MODIFIER          = "modifierName";
+  public static final String                         TEMPLATE_VARIABLE_EVENT_ID                = "eventId";
 
-  private static final String                 TEMPLATE_VARIABLE_MODIFIER_IDENTITY_URL   = "modifierProfileUrl";
+  public static final String                         TEMPLATE_VARIABLE_EVENT_TITLE             = "eventTitle";
 
-  private static String                       defaultSite;
+  private static final String                        TEMPLATE_VARIABLE_EVENT_MODIFICATION_TYPE = "modificationType";
+
+  private static final String                        TEMPLATE_VARIABLE_EVENT_CREATOR           = "creatorName";
+
+  private static final String                        TEMPLATE_VARIABLE_EVENT_MODIFIER          = "modifierName";
+
+  private static final String                        TEMPLATE_VARIABLE_MODIFIER_IDENTITY_URL   = "modifierProfileUrl";
+
+  private static String                              defaultSite;
 
   private NotificationUtils() {
   }
@@ -114,7 +125,7 @@ public class NotificationUtils {
 
     // After computing all usernames, to whom, notifications will be sent,
     // this deletes the username of modifier/creator user
-    long userIdentityToExclude = StringUtils.equals(typeModification,"ADDED") ? event.getCreatorId() : event.getModifierId();
+    long userIdentityToExclude = StringUtils.equals(typeModification, "ADDED") ? event.getCreatorId() : event.getModifierId();
     if (userIdentityToExclude > 0) {
       Identity identityToExclude = identityManager.getIdentity(String.valueOf(userIdentityToExclude));
       if (identityToExclude != null) {
@@ -155,8 +166,7 @@ public class NotificationUtils {
     return defaultSite;
   }
 
-  public static final TemplateContext buildTemplateParameters(IdentityManager identityManager,
-                                                              TemplateProvider templateProvider,
+  public static final TemplateContext buildTemplateParameters(TemplateProvider templateProvider,
                                                               NotificationInfo notification) {
     String language = NotificationPluginUtils.getLanguage(notification.getTo());
     TemplateContext templateContext = getTemplateContext(templateProvider, notification, language);

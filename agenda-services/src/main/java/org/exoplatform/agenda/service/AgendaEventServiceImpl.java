@@ -209,6 +209,10 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (event.getId() > 0) {
       throw new IllegalArgumentException("Event id must be null");
     }
+    long calendarId = event.getCalendarId();
+    if (calendarId <= 0) {
+      throw new IllegalArgumentException("Event calendar must be positive");
+    }
     if (event.getStart() == null) {
       throw new AgendaException(AgendaExceptionType.EVENT_START_DATE_MANDATORY);
     }
@@ -234,8 +238,12 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       }
     }
 
-    long calendarId = event.getCalendarId();
-    Calendar calendar = agendaCalendarService.getCalendarById(calendarId, username);
+    Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+    if (userIdentity == null) {
+      throw new IllegalAccessException("User '" + username + "' doesn't exist");
+    }
+
+    Calendar calendar = agendaCalendarService.getCalendarById(calendarId);
     if (calendar == null) {
       throw new AgendaException(AgendaExceptionType.CALENDAR_NOT_FOUND);
     }
@@ -245,10 +253,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       throw new IllegalAccessException("User '" + username + "' can't create an event in calendar " + calendar.getTitle());
     }
 
-    Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
-    if (userIdentity == null) {
-      throw new IllegalAccessException("User '" + username + "' doesn't exist");
-    }
     long userIdentityId = Long.parseLong(userIdentity.getId());
 
     EventOccurrence occurrence = event.getOccurrence();
@@ -300,6 +304,25 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     return getEventById(eventId, event.getStart().getZone(), username);
   }
 
+  @Override
+  public Event createEventExceptionalOccurrence(long eventId, ZonedDateTime occurrenceId) throws AgendaException {
+    List<EventAttendee> attendees = attendeeService.getEventAttendees(eventId);
+    cleanupAttendeeIds(attendees);
+    List<EventAttachment> attachments = attachmentService.getEventAttachments(eventId);
+    cleanupAttachmentIds(attachments);
+    List<EventConference> conferences = conferenceService.getEventConferences(eventId);
+    cleanupConferenceIds(conferences);
+    List<EventReminder> reminders = reminderService.getEventReminders(eventId);
+    cleanupReminderIds(reminders);
+
+    return createEventExceptionalOccurrence(eventId,
+                                            attendees,
+                                            conferences,
+                                            attachments,
+                                            reminders,
+                                            occurrenceId);
+  }
+
   /**
    * {@inheritDoc}
    */
@@ -309,12 +332,10 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                                 List<EventConference> conferences,
                                                 List<EventAttachment> attachments,
                                                 List<EventReminder> reminders,
-                                                ZonedDateTime occurrenceId) throws IllegalAccessException,
-                                                                            AgendaException,
-                                                                            ObjectNotFoundException {
+                                                ZonedDateTime occurrenceId) throws AgendaException {
     Event parentEvent = getEventById(eventId);
     if (parentEvent == null) {
-      throw new ObjectNotFoundException("Event with id " + eventId + " wasn't found");
+      throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
     }
     if (parentEvent.getRecurrence() == null) {
       throw new IllegalStateException("Event with id " + eventId + " isn't a recurrent event");
@@ -363,16 +384,16 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
     if (reminders != null && !reminders.isEmpty()) {
       reminders.forEach(reminder -> reminder.setId(0));
-      reminderService.saveEventReminders(exceptionalEvent, reminders, originalRecurrentEventCreator);
+      reminderService.saveEventReminders(exceptionalEvent, reminders);
     }
     if (attendees != null && !attendees.isEmpty()) {
       attendees.forEach(attendee -> attendee.setId(0));
       attendeeService.saveEventAttendees(exceptionalEvent,
                                          attendees,
-                                         originalRecurrentEventCreator,
+                                         0,
                                          false,
                                          false,
-                                         EventModificationType.ADDED);
+                                         null);
     }
     return exceptionalEvent;
   }
@@ -397,6 +418,10 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (event.getId() <= 0) {
       throw new IllegalArgumentException("Event id must not be null");
     }
+    long calendarId = event.getCalendarId();
+    if (calendarId <= 0) {
+      throw new IllegalArgumentException("Event calendar must be positive");
+    }
     if (event.getStart() == null) {
       throw new AgendaException(AgendaExceptionType.EVENT_START_DATE_MANDATORY);
     }
@@ -416,10 +441,26 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       event.setStatus(EventStatus.CONFIRMED);
     }
 
+    EventRecurrence recurrence = event.getRecurrence();
+    if (recurrence != null) {
+      if (recurrence.getFrequency() == null) {
+        throw new AgendaException(AgendaExceptionType.EVENT_RECURRENCE_FREQUENCY_MANDATORY);
+      }
+      if (recurrence.getInterval() <= 0) {
+        throw new AgendaException(AgendaExceptionType.EVENT_RECURRENCE_INTERVAL_MANDATORY);
+      }
+    }
+
     Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
     if (userIdentity == null) {
       throw new IllegalAccessException("User '" + username + "' doesn't exist");
     }
+
+    Calendar calendar = agendaCalendarService.getCalendarById(calendarId);
+    if (calendar == null) {
+      throw new AgendaException(AgendaExceptionType.CALENDAR_NOT_FOUND);
+    }
+
     long userIdentityId = Long.parseLong(userIdentity.getId());
     long eventId = event.getId();
     Event storedEvent = getEventById(eventId);
@@ -431,7 +472,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       throw new IllegalAccessException("User '" + username + "' can't update event " + eventId);
     }
 
-    EventRecurrence recurrence = event.getRecurrence();
     EventOccurrence occurrence = event.getOccurrence();
     if (occurrence != null && occurrence.getId() != null) {
       recurrence = null;
@@ -585,6 +625,13 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   }
 
   @Override
+  public List<Event> getParentRecurrentEvents(ZonedDateTime start, ZonedDateTime end, ZoneId timeZone) {
+    List<Event> events = this.agendaEventStorage.getParentRecurrentEventIds(start, end);
+    events.forEach(event -> adjustEventDatesForRead(event, timeZone));
+    return events;
+  }
+
+  @Override
   public boolean canAccessEvent(Event event, String username) {
     long calendarId = event.getCalendarId();
     Calendar calendar = agendaCalendarService.getCalendarById(calendarId);
@@ -690,6 +737,43 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       }
       return event;
     }).collect(Collectors.toList());
+  }
+
+  @Override
+  public List<Event> getEventOccurrencesInPeriod(Event recurrentEvent,
+                                                 ZonedDateTime start,
+                                                 ZonedDateTime end,
+                                                 ZoneId timezone,
+                                                 int limit) {
+    if (recurrentEvent == null) {
+      throw new IllegalArgumentException("recurrentEvent is mandatory");
+    }
+    if (start == null) {
+      throw new IllegalArgumentException("start is mandatory");
+    }
+    if (timezone == null) {
+      throw new IllegalArgumentException("timezone is mandatory");
+    }
+    if (end == null && limit == 0) {
+      throw new IllegalArgumentException("whether use end or limit");
+    }
+
+    List<Event> occurrences = Utils.getOccurrences(recurrentEvent,
+                                                   start.toLocalDate(),
+                                                   end == null ? null : end.toLocalDate(),
+                                                   timezone,
+                                                   limit);
+    if (occurrences != null && !occurrences.isEmpty()) {
+      ZonedDateTime endDateOfOccurrences = end;
+      if (endDateOfOccurrences == null) {
+        Event eventWithMaxDate = occurrences.stream()
+                                            .max((event1, event2) -> event1.getEnd().compareTo(event2.getEnd()))
+                                            .orElse(null);
+        endDateOfOccurrences = eventWithMaxDate.getEnd(); // NOSONAR
+      }
+      occurrences = filterExceptionalEvents(recurrentEvent, occurrences, start, endDateOfOccurrences, timezone);
+    }
+    return occurrences;
   }
 
   private ZonedDateTime getMaxEndDate(EventFilter eventFilter, ZoneId userTimeZone) {
@@ -857,29 +941,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     return computedEvents;
   }
 
-  private List<Event> getEventOccurrencesInPeriod(Event recurrentEvent,
-                                                  ZonedDateTime start,
-                                                  ZonedDateTime end,
-                                                  ZoneId userTimezone,
-                                                  int limit) {
-    List<Event> occurrences = Utils.getOccurrences(recurrentEvent,
-                                                   start.toLocalDate(),
-                                                   end == null ? null : end.toLocalDate(),
-                                                   userTimezone,
-                                                   limit);
-    if (occurrences != null && !occurrences.isEmpty()) {
-      ZonedDateTime endDateOfOccurrences = end;
-      if (endDateOfOccurrences == null) {
-        Event eventWithMaxDate = occurrences.stream()
-                                            .max((event1, event2) -> event1.getEnd().compareTo(event2.getEnd()))
-                                            .orElse(null);
-        endDateOfOccurrences = eventWithMaxDate.getEnd(); // NOSONAR
-      }
-      occurrences = filterExceptionalEvents(recurrentEvent, occurrences, start, endDateOfOccurrences, userTimezone);
-    }
-    return occurrences;
-  }
-
   private void sortEvents(List<Event> computedEvents) {
     computedEvents.sort((event1, event2) -> event1.getStart().compareTo(event2.getStart()));
   }
@@ -928,6 +989,50 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       }
     }
     return 0;
+  }
+
+  private List<EventAttendee> cleanupAttendeeIds(List<EventAttendee> attendees) {
+    if (attendees != null && !attendees.isEmpty()) {
+      return attendees.stream().map(attendee -> {
+        attendee = attendee.clone();
+        attendee.setId(0);
+        return attendee;
+      }).collect(Collectors.toList());
+    }
+    return Collections.emptyList();
+  }
+
+  private List<EventAttachment> cleanupAttachmentIds(List<EventAttachment> attachments) {
+    if (attachments != null && !attachments.isEmpty()) {
+      return attachments.stream().map(attachment -> {
+        attachment = attachment.clone();
+        attachment.setId(0);
+        return attachment;
+      }).collect(Collectors.toList());
+    }
+    return Collections.emptyList();
+  }
+
+  private List<EventConference> cleanupConferenceIds(List<EventConference> conferences) {
+    if (conferences != null && !conferences.isEmpty()) {
+      return conferences.stream().map(conference -> {
+        conference = conference.clone();
+        conference.setId(0);
+        return conference;
+      }).collect(Collectors.toList());
+    }
+    return Collections.emptyList();
+  }
+
+  private List<EventReminder> cleanupReminderIds(List<EventReminder> reminders) {
+    if (reminders != null && !reminders.isEmpty()) {
+      return reminders.stream().map(reminder -> {
+        reminder = reminder.clone();
+        reminder.setId(0);
+        return reminder;
+      }).collect(Collectors.toList());
+    }
+    return Collections.emptyList();
   }
 
 }

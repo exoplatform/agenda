@@ -16,8 +16,7 @@
 */
 package org.exoplatform.agenda.dao;
 
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 import javax.persistence.Query;
 import javax.persistence.TypedQuery;
@@ -57,6 +56,15 @@ public class EventReminderDAO extends GenericDAOJPAImpl<EventReminderEntity, Lon
                                           getEntityManager().createNamedQuery("AgendaEventReminder.getEventRemindersByEventId",
                                                                               EventReminderEntity.class);
     query.setParameter("eventId", eventId);
+    List<EventReminderEntity> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList() : resultList;
+  }
+
+  public List<EventReminderEntity> getEventReminders(Date start, Date end) {
+    TypedQuery<EventReminderEntity> query = getEntityManager().createNamedQuery("AgendaEventReminder.getEventRemindersByPeriod",
+                                                                                EventReminderEntity.class);
+    query.setParameter("start", start);
+    query.setParameter("end", end);
     List<EventReminderEntity> resultList = query.getResultList();
     return resultList == null ? Collections.emptyList() : resultList;
   }

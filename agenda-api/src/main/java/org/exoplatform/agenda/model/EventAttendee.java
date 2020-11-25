@@ -27,12 +27,20 @@ public class EventAttendee implements Cloneable {
 
   private long                  id;
 
+  private long                  eventId;
+
   private long                  identityId;
 
   private EventAttendeeResponse response;
 
+  public EventAttendee(long id, long identityId, EventAttendeeResponse response) {
+    this.id = id;
+    this.identityId = identityId;
+    this.response = response;
+  }
+
   @Override
   public EventAttendee clone() { // NOSONAR
-    return new EventAttendee(id, identityId, response);
+    return new EventAttendee(id, eventId, identityId, response);
   }
 }
