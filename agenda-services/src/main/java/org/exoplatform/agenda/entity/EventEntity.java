@@ -46,7 +46,7 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
               + " WHERE ev.parent.id = :parentEventId"
       ),
       @NamedQuery(
-          name = "AgendaEvent.getParentRecurrentEventIds", query = "SELECT * FROM AgendaEvent ev"
+          name = "AgendaEvent.getParentRecurrentEventIds", query = "SELECT ev FROM AgendaEvent ev"
               + " WHERE ev.status = :status"
               + " AND ev.startDate < :end"
               + " AND (ev.endDate IS NULL OR ev.endDate >= :start)"

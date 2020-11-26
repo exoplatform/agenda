@@ -80,7 +80,7 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
   public void saveEventReminders(Event event, List<EventReminder> reminders) throws AgendaException {
     long eventId = event.getId();
     List<EventReminder> savedReminders = getEventReminders(eventId);
-    List<EventReminder> newReminders = reminders == null ? Collections.emptyList() : reminders;
+    List<EventReminder> newReminders = reminders == null ? defaultReminders : reminders;
     List<EventReminder> remindersToDelete = savedReminders.stream()
                                                           .filter(reminder -> newReminders.stream()
                                                                                           .noneMatch(newReminder -> newReminder.getId() == reminder.getId()))
@@ -106,7 +106,7 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
                                  List<EventReminder> reminders,
                                  long userId) throws AgendaException {
     List<EventReminder> savedReminders = getEventReminders(event.getId(), userId);
-    List<EventReminder> newReminders = reminders == null ? Collections.emptyList() : reminders;
+    List<EventReminder> newReminders = reminders == null ? defaultReminders : reminders;
     List<EventReminder> remindersToDelete =
                                           savedReminders.stream()
                                                         .filter(reminder -> newReminders.stream()
@@ -146,7 +146,7 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
 
   private ZonedDateTime computeReminderDateTime(Event event, EventReminder eventReminder) throws AgendaException {
     ZonedDateTime eventStartDate = event.getStart();
-    if (eventReminder.getBefore() <= 0 || eventReminder.getBeforePeriodType() == null) {
+    if (eventReminder.getBefore() < 0 || eventReminder.getBeforePeriodType() == null) {
       throw new AgendaException(AgendaExceptionType.REMINDER_DATE_CANT_COMPUTE);
     }
     ZonedDateTime reminderDate = null;

@@ -420,16 +420,12 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     event = createEvent(event.clone(), creatorUserName, testuser1Identity, testuser2Identity);
 
-    try {
-      agendaEventService.createEventExceptionalOccurrence(5500l,
-                                                          ATTENDEES,
-                                                          CONFERENCES,
-                                                          ATTACHMENTS,
-                                                          REMINDERS,
-                                                          start.plusDays(2));
-    } catch (ObjectNotFoundException e) {
-      // Expected, not existing id
-    }
+    agendaEventService.createEventExceptionalOccurrence(5500l,
+                                                        ATTENDEES,
+                                                        CONFERENCES,
+                                                        ATTACHMENTS,
+                                                        REMINDERS,
+                                                        start.plusDays(2));
 
     try {
       agendaEventService.createEventExceptionalOccurrence(event.getId(),
