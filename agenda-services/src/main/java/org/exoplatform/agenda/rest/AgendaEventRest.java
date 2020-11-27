@@ -398,11 +398,15 @@ public class AgendaEventRest implements ResourceContainer {
                                                               .collect(Collectors.toList());
 
       Event event = EntityBuilder.toEvent(eventEntity);
-      List<EventReminder> reminders = eventEntity.getReminders() == null ? null
-                                                                         : eventEntity.getReminders()
-                                                                                      .stream()
-                                                                                      .map(EntityBuilder::toEventReminder)
-                                                                                      .collect(Collectors.toList());
+      List<EventReminderEntity> reminderEntities = eventEntity.getReminders();
+      List<EventReminder> reminders = null;
+      if (reminderEntities != null && !reminderEntities.isEmpty()) {
+        reminders = new ArrayList<>();
+        for (EventReminderEntity reminderEntity : reminderEntities) {
+          reminders.add(EntityBuilder.toEventReminder(eventEntity.getId(), reminderEntity));
+        }
+      }
+
       agendaEventService.updateEvent(event,
                                      attendees,
                                      eventEntity.getConferences(),
@@ -779,11 +783,13 @@ public class AgendaEventRest implements ResourceContainer {
                                                             .map(EntityBuilder::toEventAttachment)
                                                             .collect(Collectors.toList());
     List<EventReminderEntity> reminderEntities = eventEntity.getReminders();
-    List<EventReminder> reminders = reminderEntities == null
-        || reminderEntities.isEmpty() ? null
-                                      : reminderEntities.stream()
-                                                        .map(EntityBuilder::toEventReminder)
-                                                        .collect(Collectors.toList());
+    List<EventReminder> reminders = null;
+    if (reminderEntities != null && !reminderEntities.isEmpty()) {
+      reminders = new ArrayList<>();
+      for (EventReminderEntity reminderEntity : reminderEntities) {
+        reminders.add(EntityBuilder.toEventReminder(eventEntity.getId(), reminderEntity));
+      }
+    }
 
     return agendaEventService.createEvent(EntityBuilder.toEvent(eventEntity),
                                           attendees,

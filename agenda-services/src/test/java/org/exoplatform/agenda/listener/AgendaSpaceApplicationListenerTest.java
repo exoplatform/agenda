@@ -72,6 +72,7 @@ public class AgendaSpaceApplicationListenerTest {
         spaceService.deleteSpace(space);
       }
     }
+    ConversationState.setCurrent(null);
     end();
   }
 
