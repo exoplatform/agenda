@@ -67,4 +67,25 @@
     </portlet-info>
    </portlet>
 
+  <portlet>
+    <portlet-name>agendaAdminSettings</portlet-name>
+    <display-name xml:lang="EN">Agenda Admin Settings</display-name>
+    <portlet-class>org.exoplatform.commons.api.portlet.GenericDispatchedViewPortlet</portlet-class>
+    <init-param>
+      <name>portlet-view-dispatched-file-path</name>
+      <value>/html/agenda-admin-settings.html</value>
+    </init-param>
+    <expiration-cache>-1</expiration-cache>
+    <cache-scope>PUBLIC</cache-scope>
+    <supports>
+      <mime-type>text/html</mime-type>
+    </supports>
+    <supported-locale>en</supported-locale>
+    <resource-bundle>locale.portlet.Agenda</resource-bundle>
+    <portlet-info>
+      <title>Agenda Admin Settings</title>
+      <keywords>Agenda Admin Settings</keywords>
+    </portlet-info>
+  </portlet>
+
 </portlet-app>
