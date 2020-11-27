@@ -190,7 +190,7 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
                                        userRemindersSettings.stream()
                                                             .map(reminderParameter -> new EventReminder(identityId,
                                                                                                         reminderParameter.getBefore(),
-                                                                                                        reminderParameter.getPeriodTypeEnum()))
+                                                                                                        reminderParameter.toPeriodTypeEnum()))
                                                             .collect(Collectors.toList());
 
     saveEventReminders(event, eventReminders, identityId);
