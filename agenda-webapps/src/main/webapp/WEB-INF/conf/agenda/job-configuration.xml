@@ -19,13 +19,16 @@
     02110-1301 USA, or see the FSF site: http://www.fsf.org.
 
 -->
-<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.exoplaform.org/xml/ns/kernel_1_3.xsd http://www.exoplaform.org/xml/ns/kernel_1_3.xsd" xmlns="http://www.exoplaform.org/xml/ns/kernel_1_3.xsd">
+
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:schemaLocation="http://www.exoplatform.org/xml/ns/kernel_1_3.xsd http://www.exoplatform.org/xml/ns/kernel_1_3.xsd"
+   xmlns="http://www.exoplatform.org/xml/ns/kernel_1_3.xsd">
 
   <external-component-plugins>
     <target-component>org.exoplatform.services.scheduler.JobSchedulerService</target-component>
     <component-plugin>
-      <name>AddCronJob</name>
-      <set-method>addCronJob</set-method>
+      <name>Reminder PeriodJob Plugin</name>
+      <set-method>addPeriodJob</set-method>
       <type>org.exoplatform.services.scheduler.PeriodJob</type>
       <description>A cron job to daily store exact reminder date of upcoming events of next two days</description>
       <init-params>
@@ -52,8 +55,8 @@
       </init-params>
     </component-plugin>
     <component-plugin>
-      <name>AddCronJob</name>
-      <set-method>addCronJob</set-method>
+      <name>Reminder Notification Job</name>
+      <set-method>addPeriodJob</set-method>
       <type>org.exoplatform.services.scheduler.PeriodJob</type>
       <description>A cron job to send reminders of next minute</description>
       <init-params>
