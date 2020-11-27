@@ -16,9 +16,6 @@
 */
 package org.exoplatform.agenda.service;
 
-import static org.exoplatform.agenda.util.NotificationUtils.AGENDA_REMINDER_NOTIFICATION_PLUGIN;
-import static org.exoplatform.agenda.util.NotificationUtils.EVENT_AGENDA_REMINDER;
-
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.*;
@@ -41,6 +38,8 @@ import org.exoplatform.commons.api.settings.data.Scope;
 import org.exoplatform.commons.notification.impl.NotificationContextImpl;
 import org.exoplatform.container.xml.*;
 import org.exoplatform.services.listener.ListenerService;
+
+import static org.exoplatform.agenda.util.NotificationUtils.*;
 
 public class AgendaEventReminderServiceImpl implements AgendaEventReminderService {
 

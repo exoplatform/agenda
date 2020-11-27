@@ -122,13 +122,14 @@ public class EntityBuilder {
                      eventEntity.isAllowAttendeeToInvite());
   }
 
-  public static EventReminder toEventReminder(EventReminderEntity eventReminderEntity) {
+  public static EventReminder toEventReminder(long eventId, EventReminderEntity eventReminderEntity) {
     String beforePeriodTypeName = eventReminderEntity.getBeforePeriodType();
     ReminderPeriodType beforePeriodType = null;
     if (StringUtils.isNotBlank(beforePeriodTypeName)) {
       beforePeriodType = ReminderPeriodType.valueOf(beforePeriodTypeName.toUpperCase());
     }
     return new EventReminder(eventReminderEntity.getId(),
+                             eventId,
                              eventReminderEntity.getReceiverId(),
                              eventReminderEntity.getBefore(),
                              beforePeriodType,

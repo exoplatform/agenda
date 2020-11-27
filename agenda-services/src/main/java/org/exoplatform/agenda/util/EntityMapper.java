@@ -78,6 +78,7 @@ public class EntityMapper {
 
   public static EventReminder fromEntity(EventReminderEntity eventReminderEntity) {
     return new EventReminder(eventReminderEntity.getId(),
+                             eventReminderEntity.getEvent().getId(),
                              eventReminderEntity.getReceiverId(),
                              eventReminderEntity.getBefore(),
                              eventReminderEntity.getBeforeType(),

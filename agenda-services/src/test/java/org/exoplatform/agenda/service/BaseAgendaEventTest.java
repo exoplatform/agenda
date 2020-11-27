@@ -192,7 +192,7 @@ public abstract class BaseAgendaEventTest {
       ATTACHMENTS.add(eventAttachment);
 
       REMINDERS.clear();
-      REMINDERS.add(new EventReminder(0, 1l, 1, ReminderPeriodType.MINUTE, null));
+      REMINDERS.add(new EventReminder(0, 0, 1l, 1, ReminderPeriodType.MINUTE, null));
 
       return agendaEventService.createEvent(event.clone(),
                                             (ArrayList<EventAttendee>) ATTENDEES.clone(),
