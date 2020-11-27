@@ -16,7 +16,8 @@
 */
 package org.exoplatform.agenda.listener;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -34,7 +35,7 @@ public class AgendaEventReminderComputingListenerTest extends BaseAgendaEventTes
 
   @Test
   public void testComputeEventReminders() throws Exception { // NOSONAR
-    ZonedDateTime start = ZonedDateTime.now().withNano(0);
+    ZonedDateTime start = ZonedDateTime.now();
 
     boolean allDay = false;
     String creatorUserName = testuser1Identity.getRemoteId();
@@ -56,10 +57,9 @@ public class AgendaEventReminderComputingListenerTest extends BaseAgendaEventTes
       executeListener.set(false);
     }
 
-    ZonedDateTime now = ZonedDateTime.now();
     List<Event> events = agendaEventService.getEventOccurrencesInPeriod(event,
-                                                                        now,
-                                                                        now.plusDays(2),
+                                                                        start,
+                                                                        start.plusDays(2),
                                                                         ZoneOffset.UTC,
                                                                         0);
     assertNotNull(events);

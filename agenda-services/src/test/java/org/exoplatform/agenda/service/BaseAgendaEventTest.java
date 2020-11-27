@@ -1,6 +1,6 @@
 package org.exoplatform.agenda.service;
 
-import java.time.ZonedDateTime;
+import java.time.*;
 import java.util.ArrayList;
 import java.util.TimeZone;
 
@@ -103,6 +103,10 @@ public abstract class BaseAgendaEventTest {
   public void tearDown() throws ObjectNotFoundException {
     purgeData();
     end();
+  }
+
+  protected ZonedDateTime getDate() {
+    return ZonedDateTime.of(LocalDate.now(), LocalTime.of(10, 0), ZoneOffset.UTC);
   }
 
   protected void injectData() throws ObjectNotFoundException {
