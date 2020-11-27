@@ -1828,8 +1828,4 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
   }
 
-  private ZonedDateTime getDate() {
-    return ZonedDateTime.of(LocalDate.now(), LocalTime.of(10, 0), ZoneOffset.UTC);
-  }
-
 }

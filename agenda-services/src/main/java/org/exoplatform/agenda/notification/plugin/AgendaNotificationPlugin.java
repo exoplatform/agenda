@@ -8,7 +8,7 @@ import org.apache.commons.lang.StringUtils;
 
 import org.exoplatform.agenda.constant.EventModificationType;
 import org.exoplatform.agenda.model.*;
-import org.exoplatform.agenda.service.*;
+import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.model.NotificationInfo;
 import org.exoplatform.commons.api.notification.plugin.BaseNotificationPlugin;
@@ -20,32 +20,24 @@ import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.spi.SpaceService;
 
 public class AgendaNotificationPlugin extends BaseNotificationPlugin {
-  private static final String        AGENDA_NOTIFICATION_PLUGIN_NAME = "agenda.notification.plugin.key";
+  private static final String   AGENDA_NOTIFICATION_PLUGIN_NAME = "agenda.notification.plugin.key";
 
-  private static final Log           LOG                             = ExoLogger.getLogger(AgendaNotificationPlugin.class);
+  private static final Log      LOG                             = ExoLogger.getLogger(AgendaNotificationPlugin.class);
 
-  private String                     notificationId;
+  private String                notificationId;
 
-  private IdentityManager            identityManager;
+  private IdentityManager       identityManager;
 
-  private AgendaEventService         eventService;
+  private AgendaCalendarService calendarService;
 
-  private AgendaEventAttendeeService eventAttendeeService;
-
-  private AgendaCalendarService      calendarService;
-
-  private SpaceService               spaceService;
+  private SpaceService          spaceService;
 
   public AgendaNotificationPlugin(InitParams initParams,
                                   IdentityManager identityManager,
-                                  AgendaEventService eventService,
-                                  AgendaEventAttendeeService eventAttendeeService,
                                   AgendaCalendarService calendarService,
                                   SpaceService spaceService) {
     super(initParams);
     this.identityManager = identityManager;
-    this.eventService = eventService;
-    this.eventAttendeeService = eventAttendeeService;
     this.calendarService = calendarService;
     this.spaceService = spaceService;
     ValueParam notificationIdParam = initParams.getValueParam(AGENDA_NOTIFICATION_PLUGIN_NAME);
@@ -71,10 +63,12 @@ public class AgendaNotificationPlugin extends BaseNotificationPlugin {
 
   @Override
   public NotificationInfo makeNotification(NotificationContext ctx) {
+    @SuppressWarnings("unchecked")
     List<EventAttendee> eventAttendee = ctx.value(EVENT_ATTENDEE);
     Event event = ctx.value(EVENT_AGENDA);
     String typeModification = ctx.value(EVENT_MODIFICATION_TYPE);
-    // To avoid NPE for previously stored notifications, if EVENT_MODIFICATION_TYPE parameter
+    // To avoid NPE for previously stored notifications, if
+    // EVENT_MODIFICATION_TYPE parameter
     // doesn't exists, we assume that it's a new one
     typeModification = StringUtils.isNotBlank(typeModification) ? typeModification : EventModificationType.ADDED.name();
 
