@@ -129,6 +129,37 @@ export function sendEventResponse(eventId, occurrenceId, response) {
   });
 }
 
+export function getUserReminderSettings() {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/reminderSettings`, {
+    method: 'GET',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+  }).then((resp) => {
+    if (resp && resp.ok) {
+      return resp.json();
+    } else {
+      throw new Error('Error retrieving response from server');
+    }
+  });
+}
+
+export function saveUserReminderSettings(reminders) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/reminderSettings`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(reminders),
+  }).then((resp) => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error retrieving response from server');
+    }
+  });
+}
+
 export function deleteEvent(eventId) {
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}`, {
     method: 'DELETE',

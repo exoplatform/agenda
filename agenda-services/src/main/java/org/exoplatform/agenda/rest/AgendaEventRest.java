@@ -606,7 +606,7 @@ public class AgendaEventRest implements ResourceContainer {
   }
 
   @Path("reminderSettings")
-  @POST
+  @PUT
   @Consumes(MediaType.APPLICATION_JSON)
   @ApiOperation(
       value = "Saves default settings of event reminders for authenticated user",

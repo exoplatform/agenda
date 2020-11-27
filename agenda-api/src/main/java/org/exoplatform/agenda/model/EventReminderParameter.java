@@ -37,7 +37,7 @@ public class EventReminderParameter {
   @Setter
   private String              periodType;
 
-  public ReminderPeriodType getPeriodTypeEnum() {
+  public ReminderPeriodType toPeriodTypeEnum() {
     return StringUtils.isBlank(periodType) ? null : ReminderPeriodType.valueOf(periodType.toUpperCase());
   }
 
