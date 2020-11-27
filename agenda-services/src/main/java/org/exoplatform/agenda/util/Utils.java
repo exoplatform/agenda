@@ -139,12 +139,11 @@ public class Utils {
     if (dates == null || dates.isEmpty()) {
       return Collections.emptyList();
     }
-    final ZoneId zoneId = timeZone;
     @SuppressWarnings("all")
     List<LocalDate> occurrencesIds = (List<LocalDate>) dates.stream()
                                                             .map(date -> ((DateTime) date).toInstant()
-                                                                                          .atZone(zoneId)
-                                                                                          .withZoneSameLocal(ZoneOffset.UTC)
+                                                                                          .atZone(ZoneId.systemDefault())
+                                                                                          .withZoneSameInstant(ZoneOffset.UTC)
                                                                                           .toLocalDate())
                                                             .collect(Collectors.toList());
 
@@ -165,7 +164,10 @@ public class Utils {
     Iterator<?> periods = list.iterator();
     while (periods.hasNext()) {
       Period occurrencePeriod = (Period) periods.next();
-      ZonedDateTime occurrenceId = occurrencePeriod.getStart().toInstant().atZone(timeZone).withZoneSameLocal(ZoneOffset.UTC);
+      ZonedDateTime occurrenceId = occurrencePeriod.getStart()
+                                                   .toInstant()
+                                                   .atZone(ZoneId.systemDefault())
+                                                   .withZoneSameInstant(ZoneOffset.UTC);
       if (!occurrencesIds.contains(occurrenceId.toLocalDate())) {
         continue;
       }
