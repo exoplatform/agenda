@@ -340,11 +340,19 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (parentEvent.getRecurrence() == null) {
       throw new IllegalStateException("Event with id " + eventId + " isn't a recurrent event");
     }
-    if (parentEvent.getRecurrence().getOverallStart().toLocalDate().isAfter(occurrenceId.toLocalDate())) {
-      throw new IllegalStateException("Event with id " + eventId + " doesn't have an occurrence with id " + occurrenceId);
+    LocalDate overallStartUTC = parentEvent.getRecurrence()
+                                           .getOverallStart()
+                                           .withZoneSameInstant(ZoneOffset.UTC)
+                                           .toLocalDate();
+    LocalDate occurrenceIdUTC = occurrenceId.withZoneSameInstant(ZoneOffset.UTC).toLocalDate();
+    if (overallStartUTC.isAfter(occurrenceIdUTC)) {
+      throw new IllegalStateException("Event with id " + eventId + " doesn't have an occurrence with id " + occurrenceIdUTC
+          + ". Recurrent Event overall start equals to " + overallStartUTC);
     }
-    if (parentEvent.getRecurrence().getOverallEnd() != null
-        && parentEvent.getRecurrence().getOverallEnd().toLocalDate().isBefore(occurrenceId.toLocalDate())) {
+    ZonedDateTime overallEnd = parentEvent.getRecurrence().getOverallEnd();
+    if (overallEnd != null && overallEnd.withZoneSameInstant(ZoneOffset.UTC)
+                                        .toLocalDate()
+                                        .isBefore(occurrenceIdUTC)) {
       throw new IllegalStateException("Event with id " + eventId + " doesn't have an occurrence with id " + occurrenceId);
     }
     occurrenceId = occurrenceId.withZoneSameInstant(ZoneOffset.UTC);
@@ -759,8 +767,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
 
     List<Event> occurrences = Utils.getOccurrences(recurrentEvent,
-                                                   start.toLocalDate(),
-                                                   end == null ? null : end.toLocalDate(),
+                                                   start.withZoneSameInstant(timezone).toLocalDate(),
+                                                   end == null ? null : end.withZoneSameInstant(timezone).toLocalDate(),
                                                    timezone,
                                                    limit);
     if (occurrences != null && !occurrences.isEmpty()) {

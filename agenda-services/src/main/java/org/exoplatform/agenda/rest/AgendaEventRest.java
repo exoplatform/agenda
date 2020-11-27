@@ -571,7 +571,57 @@ public class AgendaEventRest implements ResourceContainer {
       LOG.warn("User '{}' attempts to access invitation response for a not authorized event with Id '{}'", currentUser, eventId);
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
-      LOG.warn("Error retrieving event reminders with id '{}'", eventId, e);
+      LOG.warn("Error retrieving event response with id '{}'", eventId, e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
+  @Path("reminderSettings")
+  @GET
+  @Produces(MediaType.APPLICATION_JSON)
+  @ApiOperation(
+      value = "Retrieves default settings of events reminders for authenticated user",
+      httpMethod = "GET", response = Response.class, produces = "application/json"
+  )
+  @ApiResponses(
+      value = {
+          @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+      }
+  )
+  public Response getReminderSettings() {
+    long identityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    try {
+      List<EventReminderParameter> remindersSettings = agendaEventReminderService.getUserDefaultRemindersSettings(identityId);
+      return Response.ok(remindersSettings).build();
+    } catch (Exception e) {
+      LOG.warn("Error retrieving event reminders settings for user with id '{}'", identityId, e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
+  @Path("reminderSettings")
+  @POST
+  @Consumes(MediaType.APPLICATION_JSON)
+  @ApiOperation(
+      value = "Saves default settings of event reminders for authenticated user",
+      httpMethod = "POST", response = Response.class, consumes = "application/json"
+  )
+  @ApiResponses(
+      value = {
+          @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+      }
+  )
+  public Response saveReminderSettings(List<EventReminderParameter> remindersSettings) {
+    long identityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    try {
+      agendaEventReminderService.saveUserDefaultRemindersSetting(identityId, remindersSettings);
+      return Response.noContent().build();
+    } catch (Exception e) {
+      LOG.warn("Error retrieving event reminders settings for user with id '{}'", identityId, e);
       return Response.serverError().entity(e.getMessage()).build();
     }
   }
@@ -651,7 +701,7 @@ public class AgendaEventRest implements ResourceContainer {
       LOG.warn("User '{}' attempts to send invitation response for a not authorized event with Id '{}'", currentUser, eventId);
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
-      LOG.warn("Error retrieving event reminders with id '{}'", eventId, e);
+      LOG.warn("Error sending event invitation response for event with id '{}'", eventId, e);
       return Response.serverError().entity(e.getMessage()).build();
     }
   }
