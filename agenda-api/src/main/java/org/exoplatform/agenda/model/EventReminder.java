@@ -29,6 +29,8 @@ public class EventReminder implements Cloneable {
 
   private long               id;
 
+  private long               eventId;
+
   private long               receiverId;
 
   private int                before;
@@ -47,8 +49,9 @@ public class EventReminder implements Cloneable {
     this.beforePeriodType = beforePeriodType;
   }
 
-  public EventReminder(long id, long receiverId, int before, ReminderPeriodType beforePeriodType) {
+  public EventReminder(long id, long eventId, long receiverId, int before, ReminderPeriodType beforePeriodType) {
     this.id = id;
+    this.eventId = eventId;
     this.receiverId = receiverId;
     this.before = before;
     this.beforePeriodType = beforePeriodType;
@@ -56,7 +59,7 @@ public class EventReminder implements Cloneable {
 
   @Override
   public EventReminder clone() { // NOSONAR
-    return new EventReminder(id, receiverId, before, beforePeriodType, datetime);
+    return new EventReminder(id, eventId, receiverId, before, beforePeriodType, datetime);
   }
 
 }

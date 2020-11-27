@@ -1,15 +1,16 @@
-package org.exoplatform.agenda.service;
+package org.exoplatform.agenda.service.notification.plugin;
 
 import java.time.ZonedDateTime;
 import java.util.List;
 
-import org.exoplatform.agenda.constant.EventModificationType;
-import org.exoplatform.agenda.model.EventAttendee;
 import org.junit.Assert;
 import org.junit.Test;
 
+import org.exoplatform.agenda.constant.EventModificationType;
 import org.exoplatform.agenda.model.Event;
+import org.exoplatform.agenda.model.EventAttendee;
 import org.exoplatform.agenda.notification.plugin.AgendaNotificationPlugin;
+import org.exoplatform.agenda.service.BaseAgendaEventTest;
 import org.exoplatform.agenda.util.NotificationUtils;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.model.ArgumentLiteral;
@@ -25,20 +26,12 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
   public static final ArgumentLiteral<String> EVENT_TITLE = new ArgumentLiteral<>(String.class, "eventTitle");
 
   @Test
-  public void testMakeNotificationWhenCreateEvent() throws Exception {
+  public void testMakeNotificationWhenR() throws Exception {
     // Given
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
-
-    boolean allDay = true;
-    String creatorUserName = testuser1Identity.getRemoteId();
-
-    Event event = newEventInstance(start, start, allDay);
-
-    Space space = createSpace("Test space notifications", testuser4Identity.getRemoteId());
-    Identity spaceIdentity = identityManager.getOrCreateIdentity(SpaceIdentityProvider.NAME, space.getPrettyName());
-
+    Event event = newEventInstance(start, start, false);
     Event createdEvent = createEvent(event.clone(),
-                                     creatorUserName,
+                                     testuser1Identity.getRemoteId(),
                                      testuser1Identity,
                                      testuser2Identity,
                                      testuser3Identity,
@@ -82,7 +75,7 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
                         notificationInfo.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_OWNER_ID));
     Assert.assertEquals(createdEvent.getSummary(),
                         notificationInfo.getValueOwnerParameter(NotificationUtils.TEMPLATE_VARIABLE_EVENT_TITLE));
-    Assert.assertEquals(String.valueOf(nbAttendee), String.valueOf(notificationInfo.getSendToUserIds().size()));
+    Assert.assertEquals(nbAttendee - 1, notificationInfo.getSendToUserIds().size());
     Assert.assertEquals(eventUrl, notificationInfo.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_URL));
   }
 

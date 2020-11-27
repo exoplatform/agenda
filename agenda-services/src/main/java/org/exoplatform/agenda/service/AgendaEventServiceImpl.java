@@ -291,7 +291,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     long eventId = createdEvent.getId();
     attachmentService.saveEventAttachments(eventId, attachments, userIdentityId);
     conferenceService.saveEventConferences(eventId, conferences);
-    reminderService.saveEventReminders(createdEvent, reminders, userIdentityId);
+    if (reminders != null) {
+      reminderService.saveEventReminders(createdEvent, reminders, userIdentityId);
+    }
     attendeeService.saveEventAttendees(createdEvent,
                                        attendees,
                                        userIdentityId,

@@ -51,7 +51,7 @@ public class NotificationUtils {
                                                                                                "EventCanceledNotificationPlugin";
 
   public static final String                         AGENDA_REMINDER_NOTIFICATION_PLUGIN       =
-                                                                                         "EventReminderNotificationPlugin";
+                                                                                               "EventReminderNotificationPlugin";
 
   private static final String                        TEMPLATE_VARIABLE_EVENT_URL               = "eventURL";
 
@@ -63,6 +63,9 @@ public class NotificationUtils {
 
   public static final PluginKey                      EVENT_CANCELED_KEY                        =
                                                                         PluginKey.key(AGENDA_EVENT_CANCELED_NOTIFICATION_PLUGIN);
+
+  public static final PluginKey                      EVENT_REMINDER_KEY                        =
+                                                                        PluginKey.key(AGENDA_REMINDER_NOTIFICATION_PLUGIN);
 
   public static final String                         STORED_PARAMETER_EVENT_TITLE              = "eventTitle";
 
@@ -79,6 +82,14 @@ public class NotificationUtils {
   public static final String                         STORED_EVENT_MODIFICATION_TYPE            = "EVENT_MODIFICATION_TYPE";
 
   public static final String                         STORED_PARAMETER_MODIFIER_IDENTITY_ID     = "MODIFIER_IDENTITY_ID";
+
+  public static final String                         STORED_PARAMETER_EVENT_START_DATE         = "startDate";
+
+  public static final String                         STORED_PARAMETER_EVENT_END_DATE           = "endDate";
+
+  private static final String                        TEMPLATE_VARIABLE_EVENT_START_DATE        = "startDate";
+
+  private static final String                        TEMPLATE_VARIABLE_EVENT_END_DATE          = "endDate";
 
   private static final String                        TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR  = "calendarOwnerAvatarUrl";
 
@@ -101,6 +112,10 @@ public class NotificationUtils {
 
   public static final long getEventId(NotificationContext ctx) {
     return ctx.value(EVENT_AGENDA).getId();
+  }
+
+  public static final long getEventReminderId(NotificationContext ctx) {
+    return ctx.value(EVENT_AGENDA_REMINDER).getId();
   }
 
   public static final void setNotificationRecipients(IdentityManager identityManager,
@@ -135,6 +150,13 @@ public class NotificationUtils {
     notification.to(new ArrayList<>(recipients));
   }
 
+  public static final void setEventReminderNotificationRecipients(IdentityManager identityManager,
+                                                                  NotificationInfo notification,
+                                                                  Long receiverId) {
+    Identity identity = Utils.getIdentityById(identityManager, receiverId);
+    notification.to(String.valueOf(identity.getRemoteId()));
+  }
+
   public static final void storeEventParameters(IdentityManager identityManager,
                                                 NotificationInfo notification,
                                                 Event event,
@@ -155,6 +177,18 @@ public class NotificationUtils {
       notification.with(STORED_PARAMETER_EVENT_MODIFIER, getEventNotificationCreatorOrModifierUserName(identity))
                   .with(STORED_PARAMETER_MODIFIER_IDENTITY_ID, String.valueOf(event.getModifierId()));
     }
+  }
+
+  public static final void storeEventReminderParameters(NotificationInfo notification,
+                                                        Event event,
+                                                        org.exoplatform.agenda.model.Calendar calendar) {
+
+    notification.with(STORED_PARAMETER_EVENT_ID, String.valueOf(event.getId()))
+                .with(STORED_PARAMETER_EVENT_TITLE, event.getSummary())
+                .with(STORED_PARAMETER_EVENT_OWNER_ID, String.valueOf(calendar.getOwnerId()))
+                .with(STORED_PARAMETER_EVENT_URL, getEventURL(event))
+                .with(STORED_PARAMETER_EVENT_START_DATE, AgendaDateUtils.toRFC3339Date(event.getStart()))
+                .with(STORED_PARAMETER_EVENT_END_DATE, AgendaDateUtils.toRFC3339Date((event.getEnd())));
   }
 
   public static String getDefaultSite() {
@@ -190,6 +224,22 @@ public class NotificationUtils {
     return templateContext;
   }
 
+  public static final TemplateContext buildTemplateReminderParameters(TemplateProvider templateProvider,
+                                                              NotificationInfo notification) {
+    String language = NotificationPluginUtils.getLanguage(notification.getTo());
+    TemplateContext templateContext = getTemplateContext(templateProvider, notification, language);
+
+    setFooter(notification, templateContext);
+    setRead(notification, templateContext);
+    setNotificationId(notification, templateContext);
+    setLasModifiedTime(notification, templateContext, language);
+
+    setIdentityNameAndAvatar(notification, templateContext);
+    setEventDetails(templateContext, notification);
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
+    return templateContext;
+  }
+
   public static final MessageInfo buildMessageSubjectAndBody(TemplateContext templateContext,
                                                              NotificationInfo notification,
                                                              String pushNotificationURL) {
@@ -202,6 +252,9 @@ public class NotificationUtils {
   private static final void setEventDetails(TemplateContext templateContext, NotificationInfo notification) {
     templateContext.put(TEMPLATE_VARIABLE_EVENT_ID, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_ID));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_TITLE, getEventTitle(notification));
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_START_DATE,
+                        notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_START_DATE));
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_END_DATE, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_END_DATE));
     templateContext.put("USER", notification.getTo());
   }
 
