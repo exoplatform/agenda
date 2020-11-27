@@ -105,7 +105,7 @@
           <description></description>
           <object type="org.exoplatform.commons.addons.PortletModel">
             <field name="contentId">
-              <string>agenda-user-setting/AgendaSettings</string>
+              <string>agenda/AgendaSettings</string>
             </field>
             <field name="permissions">
               <collection type="java.util.ArrayList">

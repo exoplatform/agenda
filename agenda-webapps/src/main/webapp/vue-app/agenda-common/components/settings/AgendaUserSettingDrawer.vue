@@ -15,7 +15,7 @@
         <v-layout class="ma-5 d-flex flex-column">
           <div class="d-flex flex-column mb-5">
             <label class="switch-label-text mt-1 text-subtitle-1">{{ $t('agenda.settings.drawer.label.DefaultView') }}:</label>
-            <select v-model="settingsForm.agendaDefaultView" class="width-auto my-auto pr-2 subtitle-1 ignore-vuetify-classes d-none d-sm-inline">
+            <select v-model="settingsForm.agendaDefaultView" class="width-auto my-auto pr-2 ignore-vuetify-classes d-none d-sm-inline">
               <option value="day">{{ $t('agenda.label.viewDay') }}</option>
               <option value="week">{{ $t('agenda.label.viewWeek') }}</option>
               <option value="month">{{ $t('agenda.label.viewMonth') }}</option>
@@ -23,7 +23,7 @@
           </div>
           <div class="d-flex flex-column mb-5">
             <label class="switch-label-text mt-1 text-subtitle-1">{{ $t('agenda.settings.drawer.label.WeekStartOn') }}:</label>
-            <select v-model="settingsForm.agendaWeekStartOn" class="width-auto my-auto pr-2 subtitle-1 ignore-vuetify-classes d-none d-sm-inline">
+            <select v-model="settingsForm.agendaWeekStartOn" class="width-auto my-auto pr-2 ignore-vuetify-classes d-none d-sm-inline">
               <option
                 v-for="day in DAYS_ABBREVIATIONS"
                 :key="day"
@@ -33,11 +33,11 @@
             </select>
           </div>
 
-          <div class="d-flex flex-row mt-5">
+          <div class="d-flex flex-row mb-5">
             <label class="switch-label-text mt-1 text-subtitle-1">{{ $t('agenda.settings.drawer.label.showWorkingTime') }}:</label>
             <v-switch v-model="settingsForm.showWorkingTime" class="mt-0 ml-4" />
           </div>
-          <div v-if="settingsForm.showWorkingTime" class="workingTime d-flex flex-row align-center">
+          <div v-if="settingsForm.showWorkingTime" class="workingTime d-flex flex-row align-center mb-5">
             <time-picker
               v-model="settingsForm.workingTimeStart"
               interval-minutes="30" />
@@ -46,6 +46,7 @@
               v-model="settingsForm.workingTimeEnd"
               interval-minutes="30" />
           </div>
+          <agenda-reminder-user-settings ref="reminders" />
         </v-layout>
       </v-form>
       <exo-confirm-dialog
@@ -117,6 +118,9 @@ export default {
         settingsForm.workingTimeEnd = '18:00';
       }
       this.settingsForm = settingsForm;
+      if (this.$refs.reminders) {
+        this.$refs.reminders.init();
+      }
       this.$refs.UserSettingAgendaDrawer.open();
     },
     close() {
@@ -133,10 +137,14 @@ export default {
           delete this.settingsForm.workingTimeStart;
           delete this.settingsForm.workingTimeEnd;
         }
-        this.$calendarService.saveAgendaSettings(this.settingsForm).then(() => {
-          Object.assign(this.settings, this.settingsForm);
-          this.$refs.UserSettingAgendaDrawer.close();
-        })
+        this.$calendarService.saveAgendaSettings(this.settingsForm)
+          .then(() => {
+            Object.assign(this.settings, this.settingsForm);
+            return this.$refs.reminders.save();
+          })
+          .then(() => {
+            this.$refs.UserSettingAgendaDrawer.close();
+          })
           .finally(() => {
             this.$refs.UserSettingAgendaDrawer.endLoading();
           });
@@ -158,4 +166,3 @@ export default {
   },
 };
 </script>
-
