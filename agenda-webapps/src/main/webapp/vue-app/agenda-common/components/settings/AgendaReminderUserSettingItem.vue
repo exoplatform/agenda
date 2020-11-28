@@ -2,7 +2,7 @@
   <v-list-item class="pl-0 reminder-list-item" dense>
     <input
       ref="beforeInput"
-      v-model="reminder.before"
+      v-model.number="reminder.before"
       type="number"
       class="reminder-time ignore-vuetify-classes my-auto"
       min="0"
@@ -10,7 +10,7 @@
       numeric>
     <select
       ref="periodTypeInput"
-      v-model="reminder.periodType"
+      v-model="reminder.beforePeriodType"
       class="reminder-period-type width-auto my-auto ml-4 pr-2 ignore-vuetify-classes"
       required>
       <option value="MINUTE">{{ $t('agenda.option.minutes') }}</option>
@@ -49,7 +49,7 @@ export default {
       return this.reminder && this.reminder.before;
     },
     periodType() {
-      return this.reminder && this.reminder.periodType;
+      return this.reminder && this.reminder.beforePeriodType;
     },
   },
   watch: {

@@ -40,9 +40,7 @@ import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
-import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
-import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.web.security.codec.CodecInitializer;
 import org.exoplatform.web.security.security.TokenServiceInitializationException;
@@ -112,7 +110,9 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
 
     // Create new attendees
     for (EventAttendee eventAttendee : attendeesToCreate) {
-      eventAttendee.setResponse(EventAttendeeResponse.NEEDS_ACTION);
+      if (resetResponses || eventAttendee.getResponse() == null) {
+        eventAttendee.setResponse(EventAttendeeResponse.NEEDS_ACTION);
+      }
       attendeeStorage.saveEventAttendee(eventAttendee, eventId);
     }
 
@@ -126,7 +126,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
         try {
           sendEventResponse(eventId, eventAttendee.getIdentityId(), EventAttendeeResponse.NEEDS_ACTION);
         } catch (Exception e) {
-          LOG.warn("Error initializing default reminders of event {} for user with id {}", eventId, creatorUserId, e);
+          LOG.warn("Error initializing default reminders of event {} for user with id {}", eventId, eventAttendee.getIdentityId(), e);
         }
       }
     }
@@ -198,23 +198,22 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     if (userIdentity == null) {
       throw new ObjectNotFoundException("Identity with id " + identityId + " wasn't found");
     }
-    String username = userIdentity.getRemoteId();
 
     if (!isEventAttendee(eventId, identityId)) {
-      throw new IllegalAccessException("User " + username + " isn't attendee of event with id " + eventId);
+      throw new IllegalAccessException("User with identity id " + identityId + " isn't attendee of event with id " + eventId);
     }
 
-    EventAttendee attendee = attendeeStorage.getEventAttendee(eventId, identityId);
-    EventAttendee oldAttendee = null;
-    if (attendee == null) {
-      attendee = new EventAttendee(0, eventId, identityId, response);
-    } else {
-      oldAttendee = attendee.clone();
-      attendee.setResponse(response);
-    }
-    attendeeStorage.saveEventAttendee(attendee, eventId);
+    saveEventAttendee(eventId, identityId, response);
 
-    Utils.broadcastEvent(listenerService, Utils.POST_EVENT_RESPONSE_SENT, oldAttendee, attendee);
+    // Apply modification on exceptional occurrences as well
+    if (eventStorage.isRecurrentEvent(eventId)) {
+      List<Long> exceptionalOccurenceEventIds = eventStorage.getExceptionalOccurenceEventIds(eventId);
+      for (long exceptionalOccurenceEventId : exceptionalOccurenceEventIds) {
+        if (isEventAttendee(exceptionalOccurenceEventId, identityId)) {
+          saveEventAttendee(exceptionalOccurenceEventId, identityId, response);
+        }
+      }
+    }
   }
 
   /**
@@ -284,29 +283,8 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    */
   @Override
   public boolean isEventAttendee(long eventId, long identityId) {
-    Identity userIdentity = identityManager.getIdentity(String.valueOf(identityId));
-    if (userIdentity == null) {
-      return false;
-    }
-
     List<EventAttendee> eventAttendees = getEventAttendees(eventId);
-    return eventAttendees != null
-        && eventAttendees.stream().anyMatch(eventAttendee -> {
-          if (identityId == eventAttendee.getIdentityId()) {
-            return true;
-          } else if (StringUtils.equals(userIdentity.getProviderId(), OrganizationIdentityProvider.NAME)) {
-            Identity identity = identityManager.getIdentity(String.valueOf(eventAttendee.getIdentityId()));
-            if (StringUtils.equals(identity.getProviderId(), SpaceIdentityProvider.NAME)) {
-              if (spaceService.isSuperManager(userIdentity.getRemoteId())) {
-                return true;
-              } else {
-                Space space = spaceService.getSpaceByPrettyName(identity.getRemoteId());
-                return spaceService.isMember(space, userIdentity.getRemoteId());
-              }
-            }
-          }
-          return false;
-        });
+    return Utils.isEventAttendee(identityManager, spaceService, identityId, eventAttendees);
   }
 
   /**
@@ -333,12 +311,30 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     dispatch(ctx, agendaNotificationPluginType);
   }
 
+  private void saveEventAttendee(long eventId, long identityId, EventAttendeeResponse response) {
+    EventAttendee attendee = attendeeStorage.getEventAttendee(eventId, identityId);
+    EventAttendee oldAttendee = null;
+    if (attendee == null) {
+      attendee = new EventAttendee(0, eventId, identityId, response);
+    } else {
+      oldAttendee = attendee.clone();
+      attendee.setResponse(response);
+    }
+    attendeeStorage.saveEventAttendee(attendee, eventId);
+
+    Utils.broadcastEvent(listenerService, Utils.POST_EVENT_RESPONSE_SENT, oldAttendee, attendee);
+  }
+
   private void dispatch(NotificationContext ctx, String... pluginId) {
     List<NotificationCommand> commands = new ArrayList<>(pluginId.length);
     for (String p : pluginId) {
       commands.add(ctx.makeCommand(PluginKey.key(p)));
     }
 
-    ctx.getNotificationExecutor().with(commands).execute(ctx);
+    try {
+      ctx.getNotificationExecutor().with(commands).execute(ctx);
+    } catch (Exception e) {
+      LOG.warn("Error sending invitation notifications", e);
+    }
   }
 }

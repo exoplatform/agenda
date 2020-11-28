@@ -26,6 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.Test;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
+import org.exoplatform.agenda.constant.ReminderPeriodType;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.service.BaseAgendaEventTest;
 import org.exoplatform.agenda.util.Utils;
@@ -83,7 +84,7 @@ public class AgendaEventReminderListenerTest extends BaseAgendaEventTest {
     eventReminders = agendaEventReminderService.getEventReminders(eventId, user5IdentityId);
     assertTrue(eventReminders.isEmpty());
 
-    List<EventReminderParameter> userDefaultRemindersSettings = Collections.singletonList(new EventReminderParameter(2, "DAY"));
+    List<EventReminderParameter> userDefaultRemindersSettings = Collections.singletonList(new EventReminderParameter(2, ReminderPeriodType.DAY));
     agendaEventReminderService.saveUserDefaultRemindersSetting(user5IdentityId, userDefaultRemindersSettings);
 
     executeListener.set(true);

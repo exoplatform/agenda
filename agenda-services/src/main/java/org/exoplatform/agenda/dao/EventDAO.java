@@ -124,11 +124,6 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
   }
 
   @Override
-  public void deleteAll(List<EventEntity> entities) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
   public void updateAll(List<EventEntity> entities) {
     throw new UnsupportedOperationException();
   }
@@ -222,6 +217,21 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     query.setParameter("end", endDate);
     List<Long> resultList = query.getResultList();
     return resultList == null ? Collections.emptyList() : resultList;
+  }
+
+  public List<EventEntity> getExceptionalOccurences(long parentRecurrentEventId) {
+    TypedQuery<EventEntity> query =
+                                  getEntityManager().createNamedQuery("AgendaEvent.getExceptionalOccurences", EventEntity.class);
+    query.setParameter("parentEventId", parentRecurrentEventId);
+    List<EventEntity> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList() : resultList;
+  }
+
+  public void deleteExceptionalOccurences(long parentRecurrentEventId) {
+    List<EventEntity> result = getExceptionalOccurences(parentRecurrentEventId);
+    for (EventEntity eventEntity : result) {
+      delete(eventEntity);
+    }
   }
 
   private void verifyLimit(Date endDate, int limit) {
