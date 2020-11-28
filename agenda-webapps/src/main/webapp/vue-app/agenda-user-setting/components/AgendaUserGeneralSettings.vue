@@ -2,67 +2,71 @@
   <v-list-item>
     <v-list-item-content>
       <v-list-item-title class="title text-color">
-        <div :class="skeleton && 'skeleton-background skeleton-border-radius skeleton-text-width skeleton-text-height my-2'">
-          {{ skeleton && '&nbsp;' || $t('agenda') }}
-        </div>
+        {{ $t('agenda') }}
       </v-list-item-title>
       <v-list-item-subtitle class="text-sub-title">
-        <div :class="skeleton && 'skeleton-background skeleton-border-radius skeleton-text-width-small skeleton-text-height-fine my-2'">
-          <v-list-item v-if="settings" dense>
-            <v-list-item-content class="pa-0">
-              <v-list-item-title class="text-wrap">
-                <template>
-                  <v-chip
-                    class="ma-2"
-                    color="primary">
-                    <span class="text-capitalize">{{ agendaSelectedView }}</span>
-                    <span class="pl-1">{{ $t('agenda.view') }}</span>
-                  </v-chip>
-                  <v-chip
-                    class="ma-2"
-                    color="primary">
-                    {{ agendaWeekStartOnLabel }}
-                  </v-chip>
-                  <v-chip
-                    v-if="agendaWorkingTime"
-                    class="ma-2"
-                    color="primary">
-                    {{ agendaWorkingTime }}
-                  </v-chip>
-                </template>
-              </v-list-item-title>
-            </v-list-item-content>
-          </v-list-item>
-        </div>
+        <v-list-item v-if="settings" dense>
+          <v-list-item-content class="pa-0">
+            <v-list-item-title class="text-wrap">
+              <template>
+                <v-chip
+                  class="ma-2"
+                  color="primary">
+                  <span class="text-capitalize">{{ agendaSelectedView }}</span>
+                  <span class="pl-1">{{ $t('agenda.view') }}</span>
+                </v-chip>
+                <v-chip
+                  class="ma-2"
+                  color="primary">
+                  {{ agendaWeekStartOnLabel }}
+                </v-chip>
+                <v-chip
+                  v-if="agendaWorkingTime"
+                  class="ma-2"
+                  color="primary">
+                  {{ agendaWorkingTime }}
+                </v-chip>
+                <v-chip
+                  v-for="(reminder, index) in reminders"
+                  :key="index"
+                  class="ma-2"
+                  color="primary">
+                  <template v-if="reminder.before">
+                    {{ $t('agenda.label.notifyMeBefore', {0: reminder.before, 1: $t(`agenda.option.${reminder.beforePeriodType.toLowerCase()}s`).toLowerCase()}) }}
+                  </template>
+                  <template v-else>
+                    {{ $t('agenda.label.notifyMeWhenEventStarts') }}
+                  </template>
+                </v-chip>
+              </template>
+            </v-list-item-title>
+          </v-list-item-content>
+        </v-list-item>
       </v-list-item-subtitle>
     </v-list-item-content>
     <v-list-item-action>
       <v-btn
-        :class="skeleton && 'skeleton-background'"
         small
         icon
         @click="openDrawer">
-        <i v-if="!skeleton" class="uiIconEdit uiIconLightBlue pb-2"></i>
+        <i class="uiIconEdit uiIconLightBlue pb-2"></i>
       </v-btn>
     </v-list-item-action>
     <agenda-user-setting-drawer
       ref="agendaDrawer"
-      :settings="settings" />
+      :settings="settings"
+      :reminders="reminders"
+      @saved="updateSettings" />
   </v-list-item>
 </template>
 
 <script>
 export default {
-  props: {
-    skeleton: {
-      type: Boolean,
-      default: true,
-    },
-  },
   data: () => ({
     id: `Settings${parseInt(Math.random() * 10000)
       .toString()
       .toString()}`,
+    reminders: [],
     settings: {
       agendaDefaultView: 'week',
       agendaWeekStartOn: 'MO',
@@ -108,17 +112,24 @@ export default {
   },
   methods: {
     refresh() {
-      this.$calendarService.getAgendaSettings().then(settings => {
-        if (settings && settings.value) {
-          this.settings = JSON.parse(settings.value);
-        }
-      });
+      this.$calendarService.getAgendaSettings()
+        .then(settings => {
+          if (settings && settings.value) {
+            this.settings = JSON.parse(settings.value);
+          }
+          return this.$eventService.getUserReminderSettings();
+        })
+        .then(reminders => this.reminders = reminders || []);
     },
     openDrawer(){
       this.$refs.agendaDrawer.open();
     },
     getDayFromAbbreviation(day) {
       return this.$agendaUtils.getDayNameFromDayAbbreviation(day, eXo.env.portal.language);
+    },
+    updateSettings(settings, reminders) {
+      this.settings = settings;
+      this.reminders = reminders;
     },
   }
 };

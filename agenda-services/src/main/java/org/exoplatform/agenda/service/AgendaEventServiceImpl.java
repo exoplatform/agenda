@@ -393,11 +393,17 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       conferenceService.saveEventConferences(exceptionalEventId, conferences);
     }
     if (reminders != null && !reminders.isEmpty()) {
-      reminders.forEach(reminder -> reminder.setId(0));
+      reminders.forEach(reminder -> {
+        reminder.setId(0);
+        reminder.setEventId(exceptionalEventId);
+      });
       reminderService.saveEventReminders(exceptionalEvent, reminders);
     }
     if (attendees != null && !attendees.isEmpty()) {
-      attendees.forEach(attendee -> attendee.setId(0));
+      attendees.forEach(attendee -> {
+        attendee.setId(0);
+        attendee.setEventId(exceptionalEventId);
+      });
       attendeeService.saveEventAttendees(exceptionalEvent,
                                          attendees,
                                          0,
@@ -520,7 +526,13 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                     allowAttendeeToUpdate,
                                     allowAttendeeToInvite);
 
+    // Delete exceptional occurrences when updating the whole recurrent event
+    if (eventToUpdate.getRecurrence() != null) {
+      agendaEventStorage.deleteExceptionalOccurences(eventToUpdate.getId());
+    }
+
     Event updatedEvent = agendaEventStorage.updateEvent(eventToUpdate);
+
     attachmentService.saveEventAttachments(eventId, attachments, userIdentityId);
     conferenceService.saveEventConferences(eventId, conferences);
     reminderService.saveEventReminders(updatedEvent, reminders, userIdentityId);

@@ -47,10 +47,12 @@ import AgendaEventRecurrence from './components/event/view/AgendaEventRecurrence
 import AgendaEventAttendeeButtons from './components/event/view/AgendaEventAttendeeButtons.vue';
 import AgendaEventAttendees from './components/event/view/AgendaEventAttendees.vue';
 import AgendaEventAttendeeItem from './components/event/view/AgendaEventAttendeeItem.vue';
+import AgendaEventRemindersDrawer from './components/event/view/AgendaEventRemindersDrawer.vue';
 
 import AgendaRecurrentEventSaveConfirmDialog from './components/event/confirm-dialog/AgendaRecurrentEventSaveConfirmDialog.vue';
 import AgendaRecurrentEventDeleteConfirmDialog from './components/event/confirm-dialog/AgendaRecurrentEventDeleteConfirmDialog.vue';
 import AgendaRecurrentEventResponseConfirmDialog from './components/event/confirm-dialog/AgendaRecurrentEventResponseConfirmDialog.vue';
+import AgendaRecurrentEventReminderConfirmDialog from './components/event/confirm-dialog/AgendaRecurrentEventReminderConfirmDialog.vue';
 
 const components = {
   'agenda-header': AgendaHeader,
@@ -86,6 +88,7 @@ const components = {
   'agenda-event-attendees': AgendaEventAttendees,
   'agenda-event-attendee-item': AgendaEventAttendeeItem,
   'agenda-event-attendee-buttons': AgendaEventAttendeeButtons,
+  'agenda-event-reminder-drawer': AgendaEventRemindersDrawer,
   'agenda-recurrent-event-delete-confirm-dialog': AgendaRecurrentEventDeleteConfirmDialog,
   'agenda-event-form-recurrence': AgendaEventFormRecurrence,
   'agenda-event-form-recurrence-drawer': AgendaEventFormRecurrenceDrawer,
@@ -94,6 +97,7 @@ const components = {
   'agenda-event-form-calendar-owner': AgendaEventFormCalendarOwner,
   'agenda-recurrent-event-save-confirm-dialog': AgendaRecurrentEventSaveConfirmDialog,
   'agenda-recurrent-event-response-confirm-dialog': AgendaRecurrentEventResponseConfirmDialog,
+  'agenda-recurrent-event-reminders-confirm-dialog': AgendaRecurrentEventReminderConfirmDialog,
   'agenda-user-setting-drawer': AgendaUserSettingDrawer,
   'agenda-user-connected-account-drawer': AgendaUserConnectedAccountDrawer,
   'agenda-reminder-user-settings': AgendaReminderUserSettings,

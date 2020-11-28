@@ -29,14 +29,14 @@
           :disabled="loading"
           :loading="loading"
           class="ignore-vuetify-classes btn ml-2 mb-1"
-          @click="saveRecurrentEvent">
+          @click="confirmRecurrentEvent">
           {{ $t('agenda.button.saveRecurrentEvent') }}
         </button>
         <button
           :disabled="loading"
           :loading="loading"
           class="ignore-vuetify-classes btn-primary ml-2 mb-1"
-          @click="saveOccurrenceEvent">
+          @click="confirmOccurrenceEvent">
           {{ $t('agenda.button.saveOccurrenceEvent') }}
         </button>
       </v-card-actions>
@@ -46,10 +46,18 @@
 
 <script>
 export default {
+  props: {
+    event: {
+      type: Object,
+      default: function() {
+        return null;
+      },
+    },
+  },
   data: () => ({
-    event: null,
     loading: false,
     dialog: false,
+    reminders: null,
   }),
   watch: {
     dialog() {
@@ -68,38 +76,37 @@ export default {
     });
   },
   methods: {
-    saveRecurrentEvent(eventObject) {
+    confirmRecurrentEvent(eventObject) {
       eventObject.preventDefault();
       eventObject.stopPropagation();
 
-      const eventToSave = JSON.parse(JSON.stringify(this.event));
-      eventToSave.id = this.event.parent.id;
-      eventToSave.recurrence = this.event.recurrence || this.event.parent.recurrence;
-      eventToSave.occurrence = null;
-      eventToSave.parent = null;
-      // Keep same original recurrent event dates, and change only time
-      eventToSave.start = this.$agendaUtils.getSameTime(this.event.parent.start, this.event.start);
-      eventToSave.end = this.$agendaUtils.getSameTime(this.event.parent.end, this.event.end);
-
-      this.$emit('save-event', eventToSave);
+      this.loading = true;
+      this.$eventService.saveEventReminders(this.event.parent.id, null, this.reminders)
+        .then(() => {
+          this.$root.$emit('agenda-event-reminders-saved', this.event, null, this.reminders);
+          this.dialog = false;
+        })
+        .finally(() => this.loading = false);
     },
-    saveOccurrenceEvent(eventObject) {
+    confirmOccurrenceEvent(eventObject) {
       eventObject.preventDefault();
       eventObject.stopPropagation();
 
-      const eventToSave = JSON.parse(JSON.stringify(this.event));
-      this.$emit('save-event', eventToSave);
+      this.loading = true;
+      this.$eventService.saveEventReminders(this.event.parent.id, this.event.occurrence.id, this.reminders)
+        .then(() => {
+          this.$root.$emit('agenda-event-reminders-saved', this.event, this.event.occurrence.id, this.reminders);
+          this.dialog = false;
+        })
+        .finally(() => this.loading = false);
     },
     close(event) {
-      if (event) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-
+      event.preventDefault();
+      event.stopPropagation();
       this.dialog = false;
     },
-    open(event) {
-      this.event = event;
+    open(reminders) {
+      this.reminders = reminders;
       this.dialog = true;
     },
   },

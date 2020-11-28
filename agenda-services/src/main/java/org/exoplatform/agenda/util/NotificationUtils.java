@@ -51,7 +51,7 @@ public class NotificationUtils {
                                                                                                "EventCanceledNotificationPlugin";
 
   public static final String                         AGENDA_REMINDER_NOTIFICATION_PLUGIN       =
-                                                                                               "EventReminderNotificationPlugin";
+                                                                                         "EventReminderNotificationPlugin";
 
   private static final String                        TEMPLATE_VARIABLE_EVENT_URL               = "eventURL";
 
@@ -171,7 +171,10 @@ public class NotificationUtils {
                 .with(STORED_PARAMETER_EVENT_OWNER_ID, String.valueOf(calendar.getOwnerId()))
                 .with(STORED_PARAMETER_EVENT_URL, getEventURL(event))
                 .with(STORED_PARAMETER_EVENT_CREATOR, getEventNotificationCreatorOrModifierUserName(identity))
-                .with(STORED_EVENT_MODIFICATION_TYPE, typeModification);
+                .with(STORED_EVENT_MODIFICATION_TYPE, typeModification)
+                .with(STORED_PARAMETER_EVENT_START_DATE, AgendaDateUtils.toRFC3339Date(event.getStart()))
+                .with(STORED_PARAMETER_EVENT_END_DATE, AgendaDateUtils.toRFC3339Date((event.getEnd())));
+
     if (event.getModifierId() > 0) {
       identity = Utils.getIdentityById(identityManager, event.getModifierId());
       notification.with(STORED_PARAMETER_EVENT_MODIFIER, getEventNotificationCreatorOrModifierUserName(identity))
@@ -179,9 +182,9 @@ public class NotificationUtils {
     }
   }
 
-  public static final void storeEventReminderParameters(NotificationInfo notification,
-                                                        Event event,
-                                                        org.exoplatform.agenda.model.Calendar calendar) {
+  public static final void storeEventParameters(NotificationInfo notification,
+                                                Event event,
+                                                org.exoplatform.agenda.model.Calendar calendar) {
 
     notification.with(STORED_PARAMETER_EVENT_ID, String.valueOf(event.getId()))
                 .with(STORED_PARAMETER_EVENT_TITLE, event.getSummary())
@@ -225,7 +228,7 @@ public class NotificationUtils {
   }
 
   public static final TemplateContext buildTemplateReminderParameters(TemplateProvider templateProvider,
-                                                              NotificationInfo notification) {
+                                                                      NotificationInfo notification) {
     String language = NotificationPluginUtils.getLanguage(notification.getTo());
     TemplateContext templateContext = getTemplateContext(templateProvider, notification, language);
 

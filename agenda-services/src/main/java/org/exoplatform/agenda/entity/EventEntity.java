@@ -32,23 +32,33 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
 @NamedQueries(
   {
       @NamedQuery(
-          name = "AgendaEvent.deleteCalendarEvents", query = "DELETE FROM AgendaEvent ev WHERE ev.calendar.id = :calendarId"
+          name = "AgendaEvent.deleteCalendarEvents",
+          query = "DELETE FROM AgendaEvent ev WHERE ev.calendar.id = :calendarId"
       ),
       @NamedQuery(
           name = "AgendaEvent.getExceptionalOccurenceEventIds",
-          query = "SELECT DISTINCT(ev.id) FROM AgendaEvent ev"
+          query = "SELECT ev.id FROM AgendaEvent ev"
               + " WHERE ev.parent.id = :parentEventId"
               + " AND ev.occurrenceId <= :end"
               + " AND ev.occurrenceId >= :start"
       ),
       @NamedQuery(
-          name = "AgendaEvent.getChildEvents", query = "SELECT DISTINCT(ev.id) FROM AgendaEvent ev"
+          name = "AgendaEvent.getExceptionalOccurences",
+          query = "SELECT ev FROM AgendaEvent ev"
+              + " WHERE ev.parent.id = :parentEventId"
+              + " AND ev.occurrenceId IS NOT NULL"
+      ),
+      @NamedQuery(
+          name = "AgendaEvent.getChildEvents",
+          query = "SELECT ev.id FROM AgendaEvent ev"
               + " WHERE ev.parent.id = :parentEventId"
       ),
       @NamedQuery(
-          name = "AgendaEvent.getParentRecurrentEventIds", query = "SELECT ev FROM AgendaEvent ev"
+          name = "AgendaEvent.getParentRecurrentEventIds",
+          query = "SELECT ev FROM AgendaEvent ev"
               + " WHERE ev.status = :status"
-              + " AND ev.recurrence IS NOT NULL"
+              + " AND ev.recurrence.id > 0"
+              + " AND ev.occurrenceId IS NULL"
               + " AND ev.startDate < :end"
               + " AND (ev.endDate IS NULL OR ev.endDate >= :start)"
       ),
