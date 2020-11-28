@@ -1,18 +1,17 @@
 package org.exoplatform.agenda.notification.builder;
 
-import groovy.text.GStringTemplateEngine;
-import groovy.text.Template;
+import static org.exoplatform.agenda.util.NotificationUtils.*;
+
+import java.io.Writer;
+
 import org.apache.commons.lang.StringUtils;
+
 import org.exoplatform.agenda.model.Event;
-import org.exoplatform.agenda.model.EventReminder;
-import org.exoplatform.agenda.service.AgendaEventReminderService;
 import org.exoplatform.agenda.service.AgendaEventService;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.channel.template.AbstractTemplateBuilder;
 import org.exoplatform.commons.api.notification.channel.template.TemplateProvider;
-import org.exoplatform.commons.api.notification.model.MessageInfo;
-import org.exoplatform.commons.api.notification.model.NotificationInfo;
-import org.exoplatform.commons.api.notification.model.PluginKey;
+import org.exoplatform.commons.api.notification.model.*;
 import org.exoplatform.commons.api.notification.service.template.TemplateContext;
 import org.exoplatform.commons.notification.template.TemplateUtils;
 import org.exoplatform.commons.utils.CommonsUtils;
@@ -21,9 +20,8 @@ import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 
-import java.io.Writer;
-
-import static org.exoplatform.agenda.util.NotificationUtils.*;
+import groovy.text.GStringTemplateEngine;
+import groovy.text.Template;
 
 public class ReminderTemplateBuilder extends AbstractTemplateBuilder {
   private static final Log LOG = ExoLogger.getLogger(ReminderTemplateBuilder.class);

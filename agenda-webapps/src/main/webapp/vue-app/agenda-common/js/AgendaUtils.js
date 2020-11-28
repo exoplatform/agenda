@@ -243,5 +243,5 @@ export function areSameObjects(object1, object2) {
 }
 
 export function isShortEvent(event) {
-  return Math.floor(event.endDate.getTime() / 60000) - Math.floor(event.startDate.getTime() / 60000) < 60;
+  return Math.floor(toDate(event.endDate).getTime() / 60000) - Math.floor(toDate(event.startDate).getTime() / 60000) < 60;
 }
