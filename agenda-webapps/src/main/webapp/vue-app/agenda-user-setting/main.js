@@ -27,12 +27,18 @@ const lang = eXo && eXo.env.portal.language || 'en';
 const url = `${eXo.env.portal.context}/${eXo.env.portal.rest}/i18n/bundle/locale.portlet.Agenda-${lang}.json`;
 
 export function init() {
+  const appElement = document.createElement('div');
+  appElement.id = appId;
+
   exoi18n.loadLanguageAsync(lang, url).then(i18n => {
     // init Vue app when locale ressources are ready
     new Vue({
-      template: `<agenda-user-settings id="${appId}" />`,
+      mounted() {
+        document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
+      },
+      template: `<agenda-user-settings v-cacheable id="${appId}" />`,
       vuetify,
       i18n
-    }).$mount(`#${appId}`);
+    }).$mount(appElement);
   });
 }

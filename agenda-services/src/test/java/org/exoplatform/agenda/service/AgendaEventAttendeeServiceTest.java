@@ -168,7 +168,7 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
     event = createEvent(event.clone(), creatorUserName, testuser1Identity, testuser2Identity);
 
     long eventId = event.getId();
-    Event exceptionalOccurrence = agendaEventService.createEventExceptionalOccurrence(eventId, start.plusDays(1));
+    Event exceptionalOccurrence = agendaEventService.saveEventExceptionalOccurrence(eventId, start.plusDays(1));
 
     assertNotNull(exceptionalOccurrence);
     long exceptionalOccurrenceId = exceptionalOccurrence.getId();

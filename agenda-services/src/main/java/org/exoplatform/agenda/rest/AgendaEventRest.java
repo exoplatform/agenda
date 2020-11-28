@@ -537,7 +537,7 @@ public class AgendaEventRest implements ResourceContainer {
         occurrenceIdDateTime = AgendaDateUtils.parseRFC3339ToZonedDateTime(occurrenceId);
         Event occurrenceEvent = agendaEventService.getExceptionalOccurrenceEvent(eventId, occurrenceIdDateTime);
         if (occurrenceEvent == null) { // Exceptional occurrence not yet created
-          occurrenceEvent = agendaEventService.createEventExceptionalOccurrence(eventId, occurrenceIdDateTime);
+          occurrenceEvent = agendaEventService.saveEventExceptionalOccurrence(eventId, occurrenceIdDateTime);
         }
         agendaEventReminderService.saveEventReminders(occurrenceEvent, reminders, currentUserIdentityId);
       }
@@ -712,7 +712,7 @@ public class AgendaEventRest implements ResourceContainer {
         occurrenceIdDateTime = AgendaDateUtils.parseRFC3339ToZonedDateTime(occurrenceId);
         Event occurrenceEvent = agendaEventService.getExceptionalOccurrenceEvent(eventId, occurrenceIdDateTime);
         if (occurrenceEvent == null) { // Exceptional occurrence not yet created
-          occurrenceEvent = agendaEventService.createEventExceptionalOccurrence(eventId, occurrenceIdDateTime);
+          occurrenceEvent = agendaEventService.saveEventExceptionalOccurrence(eventId, occurrenceIdDateTime);
         }
         eventId = occurrenceEvent.getId();
       }

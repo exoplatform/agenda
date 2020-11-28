@@ -1,9 +1,9 @@
 <template>
-  <v-app>
+  <v-app v-if="displayed">
     <v-card class="ma-4 border-radius" flat>
       <v-list two-line>
-        <agenda-user-general-settings :skeleton="skeleton" />
-        <agenda-user-connector-settings :skeleton="skeleton" />
+        <agenda-user-general-settings />
+        <agenda-user-connector-settings />
       </v-list>
     </v-card>
   </v-app>
@@ -12,11 +12,15 @@
 <script>
 export default {
   data: () => ({
-    skeleton: true,
+    displayed: true,
   }),
   mounted() {
-    document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
-    this.skeleton = false;
+    document.addEventListener('hideSettingsApps', (event) => {
+      if (event && event.detail && this.id !== event.detail) {
+        this.displayed = false;
+      }
+    });
+    document.addEventListener('showSettingsApps', () => this.displayed = true);
   },
 };
 </script>

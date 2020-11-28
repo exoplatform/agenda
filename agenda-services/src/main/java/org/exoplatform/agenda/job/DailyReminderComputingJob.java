@@ -72,7 +72,7 @@ public class DailyReminderComputingJob implements Job {
                                                                                       timeZone,
                                                                                       0);
         for (Event occurrence : occurrences) {
-          getAgendaEventService().createEventExceptionalOccurrence(recurrentEvent.getId(), occurrence.getOccurrence().getId());
+          getAgendaEventService().saveEventExceptionalOccurrence(recurrentEvent.getId(), occurrence.getOccurrence().getId());
         }
       }
     } catch (Exception e) {

@@ -1,5 +1,8 @@
 <div class="VuetifyApp">
-  <div id="AgendaSettingsApplication">
+  <div data-app="true"
+    class="v-application v-application--is-ltr"
+    id="AgendaSettingsApplication">
+    <v-cacheable-dom-app cache-id="AgendaSettingsApplication"></v-cacheable-dom-app>
     <script type="text/javascript">
       require(['PORTLET/agenda/AgendaSettings'], app => app.init());
     </script>
