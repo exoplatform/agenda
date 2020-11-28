@@ -139,7 +139,7 @@ public interface AgendaEventService {
    * @return created {@link Event}
    * @throws AgendaException when an error occurs hile creating event
    */
-  Event createEventExceptionalOccurrence(long eventId, ZonedDateTime occurrenceId) throws AgendaException;
+  Event saveEventExceptionalOccurrence(long eventId, ZonedDateTime occurrenceId) throws AgendaException;
 
   /**
    * Updates an existing event in-place when the user is owner of parent

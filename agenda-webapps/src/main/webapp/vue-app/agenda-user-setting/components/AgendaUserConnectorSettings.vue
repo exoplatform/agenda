@@ -2,29 +2,25 @@
   <v-list-item>
     <v-list-item-content>
       <v-list-item-title class="title text-color">
-        <div :class="skeleton && 'skeleton-background skeleton-border-radius skeleton-text-width skeleton-text-height my-2'">
-          {{ skeleton && '&nbsp;' || $t('agenda.connectYourPersonalAgenda') }}
+        <div>
+          {{ $t('agenda.connectYourPersonalAgenda') }}
         </div>
       </v-list-item-title>
       <v-list-item-subtitle class="my-3 text-sub-title font-italic">
         <agenda-connector-status
           :connected-account="connectedAccount">
           <template slot="connectButton">
-            <div
-              :class="skeleton && 'skeleton-background skeleton-border-radius skeleton-text-width-small skeleton-text-height-fine my-2'">
-              {{ skeleton && '&nbsp;' || $t('agenda.connectYourPersonalAgendaSubTitle') }}
-            </div>
+            {{ $t('agenda.connectYourPersonalAgendaSubTitle') }}
           </template>
         </agenda-connector-status>
       </v-list-item-subtitle>
     </v-list-item-content>
     <v-list-item-action>
       <v-btn
-        :class="skeleton && 'skeleton-background'"
         small
         icon
         @click="openDrawer">
-        <i v-if="!skeleton" class="uiIconEdit uiIconLightBlue pb-2"></i>
+        <i class="uiIconEdit uiIconLightBlue pb-2"></i>
       </v-btn>
     </v-list-item-action>
     <agenda-user-connected-account-drawer
@@ -36,12 +32,6 @@
 
 <script>
 export default {
-  props: {
-    skeleton: {
-      type: Boolean,
-      default: true,
-    },
-  },
   data: () => ({
     connectedAccount: {},
     connectors: [],
@@ -67,6 +57,7 @@ export default {
         if (connectorSettings && connectorSettings.value) {
           this.connectedAccount = JSON.parse(connectorSettings.value);
         }
+        this.$nextTick().then(() => this.$root.$emit('application-loaded'));
       });
     },
     openDrawer() {

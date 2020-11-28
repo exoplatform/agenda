@@ -42,7 +42,7 @@ public class AgendaEventReminderComputingListener extends Listener<Long, Object>
                                                                                                                  0);
       for (org.exoplatform.agenda.model.Event occurrence : occurrences) {
         ZonedDateTime occurrenceId = occurrence.getOccurrence().getId();
-        getAgendaEventService().createEventExceptionalOccurrence(eventId, occurrenceId);
+        getAgendaEventService().saveEventExceptionalOccurrence(eventId, occurrenceId);
       }
     }
   }

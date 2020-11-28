@@ -119,7 +119,8 @@ export default {
           }
           return this.$eventService.getUserReminderSettings();
         })
-        .then(reminders => this.reminders = reminders || []);
+        .then(reminders => this.reminders = reminders || [])
+        .finally(() => this.$nextTick().then(() => this.$root.$emit('application-loaded')));
     },
     openDrawer(){
       this.$refs.agendaDrawer.open();

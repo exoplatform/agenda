@@ -307,7 +307,12 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   }
 
   @Override
-  public Event createEventExceptionalOccurrence(long eventId, ZonedDateTime occurrenceId) throws AgendaException {
+  public Event saveEventExceptionalOccurrence(long eventId, ZonedDateTime occurrenceId) throws AgendaException {
+    Event exceptionalOccurrenceEvent = getExceptionalOccurrenceEvent(eventId, occurrenceId);
+    if (exceptionalOccurrenceEvent != null) {
+      return exceptionalOccurrenceEvent;
+    }
+
     List<EventAttendee> attendees = attendeeService.getEventAttendees(eventId);
     cleanupAttendeeIds(attendees);
     List<EventAttachment> attachments = attachmentService.getEventAttachments(eventId);
