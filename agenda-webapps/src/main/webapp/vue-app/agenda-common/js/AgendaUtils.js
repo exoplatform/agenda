@@ -226,14 +226,16 @@ export function getWeekSequenceFromDay(day) {
   }
 }
 
-export function compareObjects(object1, object2) {
+export function areSameObjects(object1, object2) {
   const keys1 = Object.keys(object1);
   const keys2 = Object.keys(object2);
   if (keys1.length !== keys2.length) {
     return false;
   }
   for (const key of keys1) {
-    if (object1[key] !== object2[key]) {
+    const val1 = object1[key] && typeof object1[key] === 'object' ? JSON.stringify(object1[key]) : object1[key];
+    const val2 = object2[key] && typeof object2[key] === 'object' ? JSON.stringify(object2[key]) : object2[key];
+    if (val1 !== val2) {
       return false;
     }
   }

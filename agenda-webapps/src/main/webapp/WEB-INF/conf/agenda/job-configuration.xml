@@ -53,24 +53,17 @@
     </component-plugin>
     <component-plugin>
       <name>ReminderSendingJob</name>
-      <set-method>addPeriodJob</set-method>
-      <type>org.exoplatform.services.scheduler.PeriodJob</type>
+      <set-method>addCronJob</set-method>
+      <type>org.exoplatform.services.scheduler.CronJob</type>
       <description>A cron job to send reminders of next minute</description>
       <init-params>
         <properties-param>
-          <name>job.info</name>
-          <description>Queue Task Job</description>
+          <name>cronjob.info</name>
           <property name="jobName" value="ReminderSendingJob" />
           <property name="groupName" value="Agenda" />
           <property name="job" value="org.exoplatform.agenda.job.AgendaEventReminderJob" />
-          <!-- REPEAT_INDEFINITELY -->
-          <property name="repeatCount" value="0" />
-          <!-- Period: each minute scan for reminders to send. -->
-          <property name="period" value="60000" />
-          <!-- Start exceution: a minute after server startup -->
-          <property name="startTime" value="+60000" />
-          <!-- REPEAT_INDEFINITELY -->
-          <property name="endTime" value="" />
+          <!-- Period: each minute scan for reminders to send. This shouldn't be modified. -->
+          <property name="expression" value="0 0/1 * * * ?" />
         </properties-param>
       </init-params>
     </component-plugin>

@@ -199,4 +199,8 @@
     </addColumn>
   </changeSet>
 
+  <changeSet author="agenda" id="1.0.0-10">
+    <addUniqueConstraint tableName="EXO_AGENDA_EVENT" columnNames="EVENT_ID, OCCURRENCE_ID"/>
+  </changeSet>
+
 </databaseChangeLog>

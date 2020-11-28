@@ -23,43 +23,55 @@ import org.exoplatform.agenda.constant.ReminderPeriodType;
 import lombok.*;
 
 @Data
-@AllArgsConstructor
+@EqualsAndHashCode(callSuper = true)
 @NoArgsConstructor
-public class EventReminder implements Cloneable {
+public class EventReminder extends EventReminderParameter implements Cloneable {
 
-  private long               id;
+  private static final long      serialVersionUID = -7068947528529938343L;
 
-  private long               eventId;
+  private long                   id;
 
-  private long               receiverId;
+  private long                   eventId;
 
-  private int                before;
-
-  private ReminderPeriodType beforePeriodType;
+  private long                   receiverId;
 
   /**
    * Date and time converted to user timezone (Timestamp representation using
    * RFC-3339). This is the computed datetime to send reminder.
    */
-  private ZonedDateTime      datetime;
+  private volatile ZonedDateTime datetime;
 
-  public EventReminder(long receiverId, int before, ReminderPeriodType beforePeriodType) {
+  public EventReminder(long id,
+                       long eventId,
+                       long receiverId,
+                       int before,
+                       ReminderPeriodType beforePeriodType,
+                       ZonedDateTime datetime) {
+    this.id = id;
+    this.eventId = eventId;
     this.receiverId = receiverId;
-    this.before = before;
-    this.beforePeriodType = beforePeriodType;
+    this.datetime = datetime;
+    this.setBefore(before);
+    this.setBeforePeriodType(beforePeriodType);
   }
 
   public EventReminder(long id, long eventId, long receiverId, int before, ReminderPeriodType beforePeriodType) {
     this.id = id;
     this.eventId = eventId;
     this.receiverId = receiverId;
-    this.before = before;
-    this.beforePeriodType = beforePeriodType;
+    this.setBefore(before);
+    this.setBeforePeriodType(beforePeriodType);
+  }
+
+  public EventReminder(long receiverId, int before, ReminderPeriodType beforePeriodType) {
+    this.receiverId = receiverId;
+    this.setBefore(before);
+    this.setBeforePeriodType(beforePeriodType);
   }
 
   @Override
   public EventReminder clone() { // NOSONAR
-    return new EventReminder(id, eventId, receiverId, before, beforePeriodType, datetime);
+    return new EventReminder(id, eventId, receiverId, this.getBefore(), this.getBeforePeriodType(), datetime);
   }
 
 }

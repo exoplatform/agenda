@@ -1,5 +1,6 @@
 package org.exoplatform.agenda.storage;
 
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -97,8 +98,8 @@ public class AgendaEventReminderStorage {
   }
 
   public List<EventReminder> getEventReminders(ZonedDateTime start, ZonedDateTime end) {
-    Date startDate = new Date(start.toEpochSecond() * 1000);
-    Date endDate = new Date(end.toEpochSecond() * 1000);
+    Date startDate = new Date(start.withZoneSameInstant(ZoneOffset.UTC).toEpochSecond() * 1000);
+    Date endDate = new Date(end.withZoneSameInstant(ZoneOffset.UTC).toEpochSecond() * 1000);
 
     List<EventReminderEntity> reminderEntities = eventReminderDAO.getEventReminders(startDate, endDate);
     return reminderEntities.stream()

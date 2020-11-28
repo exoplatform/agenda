@@ -73,7 +73,7 @@ public class EventReminderNotificationPlugin extends BaseNotificationPlugin {
       LOG.debug("Notification type '{}' doesn't have a recipient", getId());
       return null;
     } else {
-      storeEventReminderParameters(notification, event, calendar);
+      storeEventParameters(notification, event, calendar);
       return notification.end();
     }
   }

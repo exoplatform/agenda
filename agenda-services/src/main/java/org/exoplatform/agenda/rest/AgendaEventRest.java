@@ -504,13 +504,17 @@ public class AgendaEventRest implements ResourceContainer {
           @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
           @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
   )
-  public Response updateEventReminders(@ApiParam(value = "Event technical identifier", required = true) @PathParam(
-    "eventId"
-  ) long eventId,
-                                       @ApiParam(
-                                           value = "List of reminders to store on event for currently authenticated user",
-                                           required = true
-                                       ) List<EventReminder> reminders) {
+  public Response saveEventReminders(
+                                     @ApiParam(value = "Event technical identifier", required = true) @PathParam(
+                                       "eventId"
+                                     ) long eventId,
+                                     @ApiParam(value = "Event occurrence identifier", required = true) @QueryParam(
+                                       "occurrenceId"
+                                     ) String occurrenceId,
+                                     @ApiParam(
+                                         value = "List of reminders to store on event for currently authenticated user",
+                                         required = true
+                                     ) List<EventReminder> reminders) {
     if (eventId <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
     }
@@ -522,7 +526,22 @@ public class AgendaEventRest implements ResourceContainer {
       if (event == null) {
         return Response.status(Status.NOT_FOUND).entity("Event with id " + eventId + " is not found").build();
       }
-      agendaEventReminderService.saveEventReminders(event, reminders, currentUserIdentityId);
+
+      ZonedDateTime occurrenceIdDateTime = null;
+      if (StringUtils.isBlank(occurrenceId)) {
+        agendaEventReminderService.saveEventReminders(event, reminders, currentUserIdentityId);
+      } else {
+        if (event.getRecurrence() == null) {
+          return Response.status(Status.BAD_REQUEST).entity("Event is not recurrent, no occurrenceId is needed").build();
+        }
+        occurrenceIdDateTime = AgendaDateUtils.parseRFC3339ToZonedDateTime(occurrenceId);
+        Event occurrenceEvent = agendaEventService.getExceptionalOccurrenceEvent(eventId, occurrenceIdDateTime);
+        if (occurrenceEvent == null) { // Exceptional occurrence not yet created
+          occurrenceEvent = agendaEventService.createEventExceptionalOccurrence(eventId, occurrenceIdDateTime);
+        }
+        agendaEventReminderService.saveEventReminders(occurrenceEvent, reminders, currentUserIdentityId);
+      }
+
       return Response.noContent().build();
     } catch (IllegalAccessException e) {
       LOG.warn("User '{}' attempts to access reminders for a not authorized event with Id '{}'", currentUserIdentityId, eventId);
