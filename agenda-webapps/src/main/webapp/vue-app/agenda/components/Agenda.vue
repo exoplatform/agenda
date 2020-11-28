@@ -49,7 +49,10 @@
     <agenda-filter-calendar-drawer
       :owner-ids="ownerIds"
       @changed="changeDisplayedOwnerIds" />
-    <agenda-user-setting-drawer :settings="settings" />
+    <agenda-user-setting-drawer
+      :settings="settings"
+      :reminders="reminders"
+      @saved="updateSettings" />
     <agenda-event-quick-form-drawer :current-space="currentSpace" />
     <agenda-event-mobile-form-drawer :current-space="currentSpace" />
     <agenda-event-save />
@@ -75,6 +78,7 @@ export default {
       end: null,
     },
     events: [],
+    reminders: [],
     settings: {
       agendaDefaultView: 'week',
       agendaWeekStartOn: 'MO',
@@ -142,7 +146,9 @@ export default {
           this.settings = JSON.parse(settings.value);
           this.calendarType = this.settings && this.settings.agendaDefaultView;
         }
+        return this.$eventService.getUserReminderSettings();
       })
+      .then(reminders => this.reminders = reminders || [])
       .finally(() => {
         this.settingsLoaded = true;
         document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
@@ -203,6 +209,10 @@ export default {
     changeDisplayedOwnerIds(selectedOwnerIds) {
       this.ownerIds = selectedOwnerIds;
       this.retrieveEvents();
+    },
+    updateSettings(settings, reminders) {
+      this.settings = settings;
+      this.reminders = reminders;
     },
   },
 };

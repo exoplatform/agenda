@@ -21,14 +21,20 @@ import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang.StringUtils;
+
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.dao.*;
 import org.exoplatform.agenda.entity.*;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.agenda.util.EntityMapper;
+import org.exoplatform.services.log.ExoLogger;
+import org.exoplatform.services.log.Log;
 
 public class AgendaEventStorage {
+
+  private static final Log   LOG           = ExoLogger.getLogger(AgendaEventStorage.class);
 
   private static final int   DEFAULT_LIMIT = 200;
 
@@ -64,7 +70,7 @@ public class AgendaEventStorage {
 
   public List<Event> getParentRecurrentEventIds(ZonedDateTime start, ZonedDateTime end) {
     Date startDate = new Date(start.withSecond(0).withNano(0).toEpochSecond() * 1000);
-    Date endDate = new Date(end.withSecond(59).withNano(999999999).toEpochSecond() * 1000);
+    Date endDate = new Date(end.withSecond(59).toEpochSecond() * 1000);
     List<EventEntity> events = this.eventDAO.getParentRecurrentEventIds(startDate, endDate);
     return events.stream().map(EntityMapper::fromEntity).collect(Collectors.toList());
   }
@@ -102,9 +108,23 @@ public class AgendaEventStorage {
   /**
    * @param parentRecurrentEventId a parent recurrent {@link Event} technical
    *          identifier
+   * @return {@link List} of Event identifiers corresponding to exceptional
+   *         occurences events Identifiers of a parent recurrent event for a
+   *         selected period of time
+   */
+  public List<Long> getExceptionalOccurenceEventIds(long parentRecurrentEventId) {
+    return eventDAO.getExceptionalOccurences(parentRecurrentEventId)
+                   .stream()
+                   .map(EventEntity::getId)
+                   .collect(Collectors.toList());
+  }
+
+  /**
+   * @param parentRecurrentEventId a parent recurrent {@link Event} technical
+   *          identifier
    * @param start start DateTime of period to search on
    * @param end end DateTime of period to search on
-   * @return {@link List} of {@link ZonedDateTime} corresponding to exceptional
+   * @return {@link List} of Event identifiers corresponding to exceptional
    *         occurences events Identifiers of a parent recurrent event for a
    *         selected period of time
    */
@@ -139,6 +159,10 @@ public class AgendaEventStorage {
     return EntityMapper.fromEntity(eventEntity);
   }
 
+  public void deleteExceptionalOccurences(long parentRecurrentEventId) {
+    this.eventDAO.deleteExceptionalOccurences(parentRecurrentEventId);
+  }
+
   public Event getExceptionalOccurrenceEvent(long parentRecurrentEventId, ZonedDateTime occurrenceId) {
     ZonedDateTime start = occurrenceId.toLocalDate().atStartOfDay(ZoneOffset.UTC);
     ZonedDateTime end = occurrenceId.toLocalDate().atStartOfDay(ZoneOffset.UTC).plusDays(1).minusSeconds(1);
@@ -148,8 +172,10 @@ public class AgendaEventStorage {
     if (exceptionalOccurenceEventIds == null || exceptionalOccurenceEventIds.isEmpty()) {
       return null;
     } else if (exceptionalOccurenceEventIds.size() > 1) {
-      throw new IllegalStateException("More than one exceptional event on parent event " + parentRecurrentEventId
-          + " is found for occurrence of day" + occurrenceId);
+      LOG.warn("More than one exceptional event on parent event {} is found for occurrence of day {}. Occurrence ids found: {}",
+               parentRecurrentEventId,
+               occurrenceId,
+               StringUtils.join(exceptionalOccurenceEventIds, ","));
     }
     return getEventById(exceptionalOccurenceEventIds.get(0));
   }

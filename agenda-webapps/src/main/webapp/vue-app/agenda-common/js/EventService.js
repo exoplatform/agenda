@@ -61,6 +61,10 @@ export function getEventById(eventId, expand) {
     } else {
       throw new Error('Error getting event');
     }
+  }).then((event) => {
+    event.startDate = toDate(event.start);
+    event.endDate = toDate(event.end);
+    return event;
   });
 }
 
@@ -74,6 +78,10 @@ export function getEventOccurrence(parentEventId, occurrenceId, expand) {
     } else {
       throw new Error('Error getting occurrence of event');
     }
+  }).then((event) => {
+    event.startDate = toDate(event.start);
+    event.endDate = toDate(event.end);
+    return event;
   });
 }
 
@@ -108,7 +116,7 @@ export function updateEvent(event) {
     body: JSON.stringify(event),
   }).then((resp) => {
     if (!resp || !resp.ok) {
-      throw new Error('Error creating event');
+      throw new Error('Error updating event');
     }
   });
 }
@@ -140,7 +148,7 @@ export function getUserReminderSettings() {
     if (resp && resp.ok) {
       return resp.json();
     } else {
-      throw new Error('Error retrieving response from server');
+      throw new Error('Error retrieving reminders settings');
     }
   });
 }
@@ -155,7 +163,25 @@ export function saveUserReminderSettings(reminders) {
     body: JSON.stringify(reminders),
   }).then((resp) => {
     if (!resp || !resp.ok) {
-      throw new Error('Error retrieving response from server');
+      throw new Error('Error sending default reminders settings');
+    }
+  });
+}
+
+export function saveEventReminders(eventId, occurrenceId, reminders) {
+  const remindersToSave = reminders && JSON.parse(JSON.stringify(reminders)) || [];
+  remindersToSave.forEach(reminder => delete reminder.datetime);
+
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}/reminders?occurrenceId=${occurrenceId ||''}`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(remindersToSave),
+  }).then((resp) => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error sending event reminders');
     }
   });
 }

@@ -22,13 +22,10 @@ import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.List;
 
-import org.exoplatform.agenda.constant.EventModificationType;
 import org.junit.Test;
 
-import org.exoplatform.agenda.constant.EventAttendeeResponse;
-import org.exoplatform.agenda.constant.EventStatus;
-import org.exoplatform.agenda.model.Event;
-import org.exoplatform.agenda.model.EventAttendee;
+import org.exoplatform.agenda.constant.*;
+import org.exoplatform.agenda.model.*;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 
 public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
@@ -142,6 +139,82 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
   }
 
   @Test
+  public void testSaveRecurrentEventAttendees() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+
+    boolean allDay = true;
+    String creatorUserName = testuser1Identity.getRemoteId();
+
+    Event event = newEventInstance(start, start, allDay);
+    EventRecurrence recurrence = new EventRecurrence(0,
+                                                     start.plusDays(2),
+                                                     0,
+                                                     EventRecurrenceType.DAILY,
+                                                     EventRecurrenceFrequency.DAILY,
+                                                     1,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null);
+    event.setRecurrence(recurrence);
+
+    event = createEvent(event.clone(), creatorUserName, testuser1Identity, testuser2Identity);
+
+    long eventId = event.getId();
+    Event exceptionalOccurrence = agendaEventService.createEventExceptionalOccurrence(eventId, start.plusDays(1));
+
+    assertNotNull(exceptionalOccurrence);
+    long exceptionalOccurrenceId = exceptionalOccurrence.getId();
+    long userIdentityId = Long.parseLong(testuser1Identity.getId());
+
+    EventAttendeeResponse eventResponse = agendaEventAttendeeService.getEventResponse(eventId, userIdentityId);
+    assertNotNull(eventResponse);
+    assertEquals(EventAttendeeResponse.ACCEPTED, eventResponse);
+
+    EventAttendeeResponse exceptionalOccurrenceResponse = agendaEventAttendeeService.getEventResponse(exceptionalOccurrenceId,
+                                                                                                      userIdentityId);
+    assertNotNull(exceptionalOccurrenceResponse);
+    assertEquals(EventAttendeeResponse.ACCEPTED, exceptionalOccurrenceResponse);
+
+    agendaEventAttendeeService.sendEventResponse(eventId, userIdentityId, EventAttendeeResponse.DECLINED);
+
+    eventResponse = agendaEventAttendeeService.getEventResponse(eventId, userIdentityId);
+    assertNotNull(eventResponse);
+    assertEquals(EventAttendeeResponse.DECLINED, eventResponse);
+    exceptionalOccurrenceResponse = agendaEventAttendeeService.getEventResponse(exceptionalOccurrenceId,
+                                                                                userIdentityId);
+    assertNotNull(exceptionalOccurrenceResponse);
+    assertEquals(EventAttendeeResponse.DECLINED, exceptionalOccurrenceResponse);
+
+    agendaEventAttendeeService.sendEventResponse(exceptionalOccurrenceId, userIdentityId, EventAttendeeResponse.TENTATIVE);
+
+    eventResponse = agendaEventAttendeeService.getEventResponse(eventId, userIdentityId);
+    assertNotNull(eventResponse);
+    assertEquals(EventAttendeeResponse.DECLINED, eventResponse);
+    exceptionalOccurrenceResponse = agendaEventAttendeeService.getEventResponse(exceptionalOccurrenceId,
+                                                                                userIdentityId);
+    assertNotNull(exceptionalOccurrenceResponse);
+    assertEquals(EventAttendeeResponse.TENTATIVE, exceptionalOccurrenceResponse);
+
+    agendaEventAttendeeService.sendEventResponse(eventId, userIdentityId, EventAttendeeResponse.ACCEPTED);
+
+    eventResponse = agendaEventAttendeeService.getEventResponse(eventId, userIdentityId);
+    assertNotNull(eventResponse);
+    assertEquals(EventAttendeeResponse.ACCEPTED, eventResponse);
+    exceptionalOccurrenceResponse = agendaEventAttendeeService.getEventResponse(exceptionalOccurrenceId,
+                                                                                userIdentityId);
+    assertNotNull(exceptionalOccurrenceResponse);
+    assertEquals(EventAttendeeResponse.ACCEPTED, exceptionalOccurrenceResponse);
+  }
+
+  @Test
   public void testSaveEventAttendees() throws Exception { // NOSONAR
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
 
@@ -177,7 +250,12 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
     assertNotNull(eventAttendees);
     assertEquals(2, eventAttendees.size());
 
-    agendaEventAttendeeService.saveEventAttendees(event, Collections.emptyList(), userIdentityId, true, true, EventModificationType.ADDED);
+    agendaEventAttendeeService.saveEventAttendees(event,
+                                                  Collections.emptyList(),
+                                                  userIdentityId,
+                                                  true,
+                                                  true,
+                                                  EventModificationType.ADDED);
     eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId);
     assertNotNull(eventAttendees);
     assertEquals(0, eventAttendees.size());

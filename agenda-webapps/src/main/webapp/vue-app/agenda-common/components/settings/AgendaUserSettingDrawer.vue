@@ -1,6 +1,8 @@
 <template>
   <exo-drawer
     ref="UserSettingAgendaDrawer"
+    :confirm-close="confirmClose"
+    :confirm-close-labels="confirmCloseLabels"
     class="UserSettingAgendaDrawer"
     body-classes="hide-scroll decrease-z-index-more"
     right>
@@ -33,11 +35,11 @@
             </select>
           </div>
 
-          <div class="d-flex flex-row mb-5">
+          <div class="d-flex flex-row">
             <label class="switch-label-text mt-1 text-subtitle-1">{{ $t('agenda.settings.drawer.label.showWorkingTime') }}:</label>
             <v-switch v-model="settingsForm.showWorkingTime" class="mt-0 ml-4" />
           </div>
-          <div v-if="settingsForm.showWorkingTime" class="workingTime d-flex flex-row align-center mb-5">
+          <div v-if="settingsForm.showWorkingTime" class="workingTime d-flex flex-row align-center">
             <time-picker
               v-model="settingsForm.workingTimeStart"
               interval-minutes="30" />
@@ -46,7 +48,10 @@
               v-model="settingsForm.workingTimeEnd"
               interval-minutes="30" />
           </div>
-          <agenda-reminder-user-settings ref="reminders" />
+          <label class="subtitle-1 float-left mt-5 mr-4">
+            {{ $t('agenda.label.defaultReminders') }}
+          </label>
+          <agenda-reminder-user-settings ref="reminders" :reminders="remindersForm" />
         </v-layout>
       </v-form>
       <exo-confirm-dialog
@@ -84,11 +89,17 @@ export default {
       type: Object,
       default: () => ({}),
     },
+    reminders: {
+      type: Array,
+      default: () => [],
+    },
   },
   data() {
     return {
       DAYS_ABBREVIATIONS: ['SU', 'MO','TU','WE','TH','FR', 'SA'],
       settingsForm: {},
+      remindersForm: {},
+      saved: false,
     };
   },
   computed: {
@@ -102,7 +113,33 @@ export default {
         'SA': this.getDayFromAbbreviation('SA'),
         'SU': this.getDayFromAbbreviation('SU'),
       };
-    }
+    },
+    confirmCloseLabels() {
+      return {
+        title: this.$t('agenda.settings.drawer.confirmCancelChanges.title'),
+        message: this.$t('agenda.settings.drawer.confirmCancelChanges'),
+        ok: this.$t('agenda.button.yes'),
+        cancel: this.$t('agenda.button.no'),
+      };
+    },
+    confirmClose() {
+      return !this.saved && (!this.$agendaUtils.areSameObjects(this.settingsForm, this.settings)
+        || !this.$agendaUtils.areSameObjects(this.remindersForm, this.reminders));
+    },
+    showWorkingTime() {
+      return this.remindersForm && this.settingsForm.showWorkingTime;
+    },
+  },
+  watch: {
+    showWorkingTime(newVal, oldVal) {
+      if (newVal && !oldVal) {
+        this.settingsForm.workingTimeStart = this.settings.workingTimeStart || '09:00';
+        this.settingsForm.workingTimeEnd = this.settings.workingTimeEnd || '18:00';
+      } else {
+        delete this.settingsForm.workingTimeStart;
+        delete this.settingsForm.workingTimeEnd;
+      }
+    },
   },
   created() {
     document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
@@ -110,39 +147,29 @@ export default {
   },
   methods: {
     open() {
-      const settingsForm = JSON.parse(JSON.stringify(this.settings));
-      if (!settingsForm.workingTimeStart) {
-        settingsForm.workingTimeStart = '08:00';
-      }
-      if (!settingsForm.workingTimeEnd) {
-        settingsForm.workingTimeEnd = '18:00';
-      }
-      this.settingsForm = settingsForm;
-      if (this.$refs.reminders) {
-        this.$refs.reminders.init();
-      }
+      this.settingsForm = this.settings && JSON.parse(JSON.stringify(this.settings)) || {};
+      this.remindersForm = this.reminders && JSON.parse(JSON.stringify(this.reminders)) || [];
+
+      this.saved = false;
+
       this.$refs.UserSettingAgendaDrawer.open();
     },
     close() {
-      if(this.$agendaUtils.compareObjects(this.settingsForm, this.settings)) {
-        this.$refs.UserSettingAgendaDrawer.close();
-      } else {
-        this.$refs.CancelSavingChangesDialog.open();
-      }
+      this.$refs.UserSettingAgendaDrawer.close();
     },
     save() {
       if(this.validateForm()) {
         this.$refs.UserSettingAgendaDrawer.startLoading();
-        if (!this.settingsForm.showWorkingTime) {
-          delete this.settingsForm.workingTimeStart;
-          delete this.settingsForm.workingTimeEnd;
-        }
         this.$calendarService.saveAgendaSettings(this.settingsForm)
           .then(() => {
-            Object.assign(this.settings, this.settingsForm);
-            return this.$refs.reminders.save();
+            return this.$eventService.saveUserReminderSettings(this.remindersForm);
           })
           .then(() => {
+            this.saved = true;
+            return this.$nextTick();
+          })
+          .then(() => {
+            this.$emit('saved', this.settingsForm, this.remindersForm);
             this.$refs.UserSettingAgendaDrawer.close();
           })
           .finally(() => {

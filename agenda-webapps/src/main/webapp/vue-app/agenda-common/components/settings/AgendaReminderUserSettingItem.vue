@@ -1,8 +1,8 @@
 <template>
-  <v-list-item class="pl-0 reminder-list-item" dense>
+  <v-list-item class="px-0 reminder-list-item" dense>
     <input
       ref="beforeInput"
-      v-model="reminder.before"
+      v-model.number="reminder.before"
       type="number"
       class="reminder-time ignore-vuetify-classes my-auto"
       min="0"
@@ -10,20 +10,21 @@
       numeric>
     <select
       ref="periodTypeInput"
-      v-model="reminder.periodType"
+      v-model="reminder.beforePeriodType"
       class="reminder-period-type width-auto my-auto ml-4 pr-2 ignore-vuetify-classes"
       required>
       <option value="MINUTE">{{ $t('agenda.option.minutes') }}</option>
       <option value="HOUR">{{ $t('agenda.option.hours') }}</option>
       <option value="DAY">{{ $t('agenda.option.days') }}</option>
     </select>
-    <span class="subtitle-1 ml-4">
+    <span class="ml-4">
       {{ $t('agenda.label.beforeStart') }}
     </span>
     <v-btn
       color="grey"
       icon
       dark
+      class="ml-auto"
       @click="$emit('remove')">
       <v-icon>
         mdi-close
@@ -49,7 +50,7 @@ export default {
       return this.reminder && this.reminder.before;
     },
     periodType() {
-      return this.reminder && this.reminder.periodType;
+      return this.reminder && this.reminder.beforePeriodType;
     },
   },
   watch: {

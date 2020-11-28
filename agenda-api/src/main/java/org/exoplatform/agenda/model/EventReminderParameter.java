@@ -16,6 +16,8 @@
 */
 package org.exoplatform.agenda.model;
 
+import java.io.Serializable;
+
 import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.constant.ReminderPeriodType;
@@ -24,8 +26,9 @@ import lombok.*;
 
 @EqualsAndHashCode
 @NoArgsConstructor
-@AllArgsConstructor
-public class EventReminderParameter {
+public class EventReminderParameter implements Serializable {
+
+  private static final long serialVersionUID = -2033232204026792697L;
 
   private static final String SEPARATOR = " ";
 
@@ -33,17 +36,31 @@ public class EventReminderParameter {
   @Setter
   private int                 before;
 
-  @Getter
+  @Setter
+  private ReminderPeriodType  beforePeriodType;
+
+  /**
+   * A field added to be able to inject Object by kernel configuration. ( No
+   * supported enum type )
+   */
   @Setter
   private String              periodType;
 
-  public ReminderPeriodType toPeriodTypeEnum() {
-    return StringUtils.isBlank(periodType) ? null : ReminderPeriodType.valueOf(periodType.toUpperCase());
+  public EventReminderParameter(int before, ReminderPeriodType beforePeriodType) {
+    this.before = before;
+    this.beforePeriodType = beforePeriodType;
+  }
+
+  public ReminderPeriodType getBeforePeriodType() {
+    if (this.beforePeriodType == null && StringUtils.isNotBlank(periodType)) {
+      this.beforePeriodType = ReminderPeriodType.valueOf(periodType);
+    }
+    return beforePeriodType;
   }
 
   @Override
   public String toString() {
-    return before + SEPARATOR + periodType;
+    return before + SEPARATOR + beforePeriodType;
   }
 
   public static EventReminderParameter fromString(String value) {
@@ -53,7 +70,7 @@ public class EventReminderParameter {
     String[] values = value.split(SEPARATOR);
     EventReminderParameter reminderParameter = new EventReminderParameter();
     reminderParameter.setBefore(Integer.parseInt(values[0]));
-    reminderParameter.setPeriodType(values[1]);
+    reminderParameter.setBeforePeriodType(ReminderPeriodType.valueOf(values[1]));
     return reminderParameter;
   }
 }

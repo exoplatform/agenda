@@ -26,12 +26,16 @@ import org.exoplatform.agenda.constant.EventRecurrenceFrequency;
 import org.exoplatform.agenda.entity.*;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.model.Calendar;
+import org.exoplatform.services.log.ExoLogger;
+import org.exoplatform.services.log.Log;
 
 import net.fortuna.ical4j.model.*;
 import net.fortuna.ical4j.model.component.VEvent;
 import net.fortuna.ical4j.model.property.RRule;
 
 public class EntityMapper {
+
+  private static final Log LOG = ExoLogger.getLogger(EntityMapper.class);
 
   private EntityMapper() {
   }
@@ -168,6 +172,11 @@ public class EntityMapper {
     ZonedDateTime end = event.getEnd();
 
     EventRecurrence recurrence = event.getRecurrence();
+    if (event.getOccurrence() != null && recurrence != null) {
+      LOG.warn("Occurrence with id " + event.getOccurrence().getId() + " shouldn't have a recurrence");
+      recurrence = null;
+    }
+
     if (recurrence == null) {
       eventEntity.setStartDate(AgendaDateUtils.toDate(start));
       eventEntity.setEndDate(AgendaDateUtils.toDate(end));

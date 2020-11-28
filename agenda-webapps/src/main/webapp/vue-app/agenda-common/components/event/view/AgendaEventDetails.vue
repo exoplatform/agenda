@@ -60,6 +60,40 @@
           <i class="uiIconRefresh darkGreyIcon uiIcon32x32 pr-5"></i>
           <agenda-event-recurrence :event="event" class="text-wrap text-left" />
         </div>
+        <div v-if="isAttendee || (event.reminders && event.reminders.length)" class="event-reminders align-center d-flex pb-5 text-truncate">
+          <i class="uiIcon32x32 notifIcon darkGreyIcon pr-5 mt-1 mb-auto"></i>
+          <v-list
+            v-if="event.reminders && event.reminders.length"
+            class="py-0"
+            dense>
+            <v-list-item
+              v-for="(reminder, index) in event.reminders"
+              :key="index"
+              class="pl-0"
+              dense>
+              <v-chip
+                class="ma-2"
+                color="primary"
+                outlined>
+                <span class="text--primary">
+                  <template v-if="reminder.before">
+                    {{ $t('agenda.label.notifyMeBefore', {0: reminder.before, 1: $t(`agenda.option.${reminder.beforePeriodType.toLowerCase()}s`).toLowerCase()}) }}
+                  </template>
+                  <template v-else>
+                    {{ $t('agenda.label.notifyMeWhenEventStarts') }}
+                  </template>
+                </span>
+              </v-chip>
+            </v-list-item>
+          </v-list>
+          <v-btn
+            icon
+            transparent
+            class="mb-auto"
+            @click="$refs.reminders.open()">
+            <i class="uiIconEditInfo uiIcon16x16 darkGreyIcon pt-3"></i>
+          </v-btn>
+        </div>
         <div v-if="event.location" class="event-location d-flex flex-grow-0 flex-shrink-1 pb-5">
           <i class="uiIconCheckin darkGreyIcon uiIcon32x32 pr-5"></i>
           <span v-autolinker="event.location" class="align-self-center"></span>
@@ -115,6 +149,10 @@
       :ok-label="$t('agenda.button.ok')"
       :cancel-label="$t('agenda.button.cancel')"
       @ok="deleteEvent" />
+    <agenda-event-reminder-drawer
+      v-if="isAttendee"
+      ref="reminders"
+      :event="event" />
   </v-card>
 </template>
 <script>
@@ -219,6 +257,15 @@ export default {
     this.$root.$on('agenda-event-details-opened', this.reset);
     this.$root.$on('agenda-event-response-sent', event => {
       this.event.attendees = event.attendees;
+      const getEventDetailsPromise = event.occurrence && event.occurrence.id ? this.$eventService.getEventOccurrence(event.parent.id, event.occurrence.id, 'all') : this.$eventService.getEventById(event.id, 'all');
+      getEventDetailsPromise.then(event => this.event = event);
+      if (event.id && !this.event.id) {
+        this.$root.$emit('agenda-refresh');
+      }
+      this.reset();
+    });
+    this.$root.$on('agenda-event-reminders-saved', (event, occurrenceId, reminders) => {
+      this.event.reminders = reminders;
       if (event.id && !this.event.id) {
         this.$root.$emit('agenda-refresh');
       }
