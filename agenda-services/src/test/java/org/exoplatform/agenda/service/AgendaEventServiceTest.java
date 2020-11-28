@@ -708,6 +708,55 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
   }
 
   @Test
+  public void testGetParentRecurrentEvents() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+
+    boolean allDay = true;
+    String creatorUserName = testuser1Identity.getRemoteId();
+
+    Event event = newEventInstance(start, start, allDay);
+    EventRecurrence recurrence = new EventRecurrence(0,
+                                                     start.plusDays(2),
+                                                     0,
+                                                     EventRecurrenceType.DAILY,
+                                                     EventRecurrenceFrequency.DAILY,
+                                                     1,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null);
+    event.setRecurrence(recurrence);
+
+    event = createEvent(event.clone(), creatorUserName, testuser1Identity, testuser2Identity);
+    List<Event> parentRecurrentEvents = agendaEventService.getParentRecurrentEvents(start,
+                                                                                    start.plusDays(2),
+                                                                                    ZoneId.systemDefault());
+    assertNotNull(parentRecurrentEvents);
+    assertEquals(1, parentRecurrentEvents.size());
+
+    Event exceptionalOccurrence = agendaEventService.createEventExceptionalOccurrence(event.getId(),
+                                                                                      ATTENDEES,
+                                                                                      CONFERENCES,
+                                                                                      ATTACHMENTS,
+                                                                                      REMINDERS,
+                                                                                      start.plusDays(1));
+
+    assertNotNull(exceptionalOccurrence);
+    parentRecurrentEvents = agendaEventService.getParentRecurrentEvents(start,
+                                                                        start.plusDays(2),
+                                                                        ZoneId.systemDefault());
+    assertNotNull(parentRecurrentEvents);
+    assertEquals(1, parentRecurrentEvents.size());
+  }
+
+  @Test
   public void testGetOccurrenceEvent() throws Exception { // NOSONAR
     ZonedDateTime start = getDate().withNano(0);
 

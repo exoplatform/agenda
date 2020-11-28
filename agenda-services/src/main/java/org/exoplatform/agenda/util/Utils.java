@@ -354,6 +354,34 @@ public class Utils {
     return Arrays.asList(members);
   }
 
+  public static boolean isEventAttendee(IdentityManager identityManager,
+                                        SpaceService spaceService,
+                                        long identityId,
+                                        List<EventAttendee> eventAttendees) {
+    Identity userIdentity = identityManager.getIdentity(String.valueOf(identityId));
+    if (userIdentity == null) {
+      return false;
+    }
+
+    return eventAttendees != null
+        && eventAttendees.stream().anyMatch(eventAttendee -> {
+          if (identityId == eventAttendee.getIdentityId()) {
+            return true;
+          } else if (StringUtils.equals(userIdentity.getProviderId(), OrganizationIdentityProvider.NAME)) {
+            Identity identity = identityManager.getIdentity(String.valueOf(eventAttendee.getIdentityId()));
+            if (StringUtils.equals(identity.getProviderId(), SpaceIdentityProvider.NAME)) {
+              if (spaceService.isSuperManager(userIdentity.getRemoteId())) {
+                return true;
+              } else {
+                Space space = spaceService.getSpaceByPrettyName(identity.getRemoteId());
+                return spaceService.isMember(space, userIdentity.getRemoteId());
+              }
+            }
+          }
+          return false;
+        });
+  }
+
   public static TimeZone getICalTimeZone(ZoneId zoneId) {
     try {
       TimeZone ical4jTimezone = ICAL4J_TIME_ZONE_REGISTRY.getTimeZone(zoneId.getId());

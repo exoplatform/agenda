@@ -30,7 +30,7 @@
     <div class="d-flex flex-column flex-md-row mt-1 event-form-body">
       <div class="d-flex flex-column flex-grow-1 event-form-body-left">
         <div class="d-flex flex-row">
-          <i class="uiIconLocation darkGreyIcon uiIcon32x32 my-3 mr-11"></i>
+          <i class="uiIconLocation darkGreyIcon uiIcon32x32 mt-4 mr-11"></i>
           <input
             id="eventLocation"
             ref="eventLocation"
@@ -43,7 +43,7 @@
         <div class="d-flex flex-row">
           <i class="uiIconRecurrence darkGreyIcon uiIcon32x32 my-3 mr-11"></i>
           <div class="d-flex flex-column">
-            <agenda-event-form-recurrence :event="event" class="mt-2" />
+            <agenda-event-form-recurrence :event="event" class="my-auto" />
             <agenda-event-recurrence
               v-if="event.recurrence"
               :event="event"
@@ -59,7 +59,8 @@
             ref="eventDescription"
             v-model="event.description"
             :placeholder="$t('agenda.descriptionPlaceholder')"
-            :max-length="eventDescriptionTextLength" />
+            :max-length="eventDescriptionTextLength"
+            class="pt-2" />
         </div>
       </div>
       <div class="d-none d-md-flex flex-column mx-5 event-form-body-divider ">

@@ -206,6 +206,14 @@ export default {
         agendaEvent.attendees = [];
       }
       this.event = agendaEvent;
+
+      let eventDetailsPath = `${window.location.pathname}`;
+      if (this.event.id) {
+        eventDetailsPath = `${eventDetailsPath}?eventId=${this.event.id}`;
+      } else if (this.event.parent && this.event.parent.id && this.event.occurrence && this.event.occurrence.id) {
+        eventDetailsPath = `${eventDetailsPath}?parentId=${this.event.parent.id}&occurrenceId=${this.event.occurrence.id}`;
+      }
+      window.history.replaceState('', window.document.title, eventDetailsPath);
     },
     close(event) {
       if (this.isModified) {
