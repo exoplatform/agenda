@@ -106,8 +106,15 @@ public class AgendaEventRest implements ResourceContainer {
                        @ApiParam(value = "Properties to expand", required = false) @QueryParam(
                          "expand"
                        ) String expand,
-                       @ApiParam(value = "Start datetime using RFC-3339 representation including timezone", required = true) @QueryParam("start") String start,
-                       @ApiParam(value = "End datetime using RFC-3339 representation including timezone", required = false) @QueryParam("end") String end,
+                       @ApiParam(value = "Start datetime using RFC-3339 representation", required = true) @QueryParam(
+                         "start"
+                       ) String start,
+                       @ApiParam(value = "End datetime using RFC-3339 representation", required = false) @QueryParam(
+                         "end"
+                       ) String end,
+                       @ApiParam(value = "IANA Time zone identitifer", required = false) @QueryParam(
+                         "timeZoneId"
+                       ) String timeZoneId,
                        @ApiParam(
                            value = "Limit of results to return, used only when end date isn't set", required = false,
                            defaultValue = "10"
@@ -120,6 +127,11 @@ public class AgendaEventRest implements ResourceContainer {
     if (StringUtils.isBlank(start)) {
       return Response.status(Status.BAD_REQUEST).entity("Start datetime is mandatory").build();
     }
+    if (StringUtils.isBlank(timeZoneId)) {
+      return Response.status(Status.BAD_REQUEST).entity("Time zone is mandatory").build();
+    }
+
+    ZoneId userTimeZone = ZoneId.of(timeZoneId);
 
     ZonedDateTime endDatetime = null;
     if (StringUtils.isBlank(end)) {
@@ -127,18 +139,16 @@ public class AgendaEventRest implements ResourceContainer {
         limit = 10;
       }
     } else {
-      endDatetime = AgendaDateUtils.parseRFC3339ToZonedDateTime(end);
+      endDatetime = AgendaDateUtils.parseRFC3339ToZonedDateTime(end, userTimeZone);
     }
 
-    ZonedDateTime startDatetime = AgendaDateUtils.parseRFC3339ToZonedDateTime(start);
+    ZonedDateTime startDatetime = AgendaDateUtils.parseRFC3339ToZonedDateTime(start, userTimeZone);
     if (endDatetime != null && (endDatetime.isBefore(startDatetime) || endDatetime.equals(startDatetime))) {
       return Response.status(Status.BAD_REQUEST).entity("Start date must be before end date").build();
     }
 
     String currentUser = RestUtils.getCurrentUser();
     try {
-      ZoneId userTimeZone = startDatetime.getZone();
-
       EventFilter eventFilter = new EventFilter(attendeeIdentityId,
                                                 ownerIds,
                                                 responseTypes,
@@ -227,9 +237,9 @@ public class AgendaEventRest implements ResourceContainer {
                                @ApiParam(value = "Properties to expand", required = false) @QueryParam(
                                  "expand"
                                ) String expand,
-                               @ApiParam(value = "Time Zone offset in seconds", required = true) @QueryParam(
-                                 "timeZoneOffset"
-                               ) int timeZoneOffsetSeconds) {
+                               @ApiParam(value = "IANA Time zone identitifer", required = false) @QueryParam(
+                                 "timeZoneId"
+                               ) String timeZoneId) {
     if (eventId <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
     }
@@ -239,7 +249,7 @@ public class AgendaEventRest implements ResourceContainer {
       List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
                                                                   : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
                                                                                                     ","));
-      ZoneId userTimeZone = ZoneOffset.ofTotalSeconds(timeZoneOffsetSeconds);
+      ZoneId userTimeZone = ZoneId.of(timeZoneId);
       EventEntity eventEntity = getEventByIdAndUser(eventId,
                                                     RestUtils.getCurrentUserIdentityId(identityManager),
                                                     userTimeZone,
@@ -282,9 +292,9 @@ public class AgendaEventRest implements ResourceContainer {
                                      @ApiParam(value = "Properties to expand", required = false) @QueryParam(
                                        "expand"
                                      ) String expand,
-                                     @ApiParam(value = "Time Zone offset in seconds", required = true) @QueryParam(
-                                       "timeZoneOffset"
-                                     ) String timeZoneOffsetSeconds) {
+                                     @ApiParam(value = "IANA Time zone identitifer", required = false) @QueryParam(
+                                       "timeZoneId"
+                                     ) String timeZoneId) {
     if (parentEventId <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
     }
@@ -296,11 +306,9 @@ public class AgendaEventRest implements ResourceContainer {
       List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
                                                                   : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
                                                                                                     ","));
-      ZoneId userTimeZone =
-                          StringUtils.isBlank(timeZoneOffsetSeconds) ? null
-                                                                     : ZoneOffset.ofTotalSeconds(Integer.parseInt(timeZoneOffsetSeconds));
+      ZoneId userTimeZone = ZoneId.of(timeZoneId);
       long identityId = RestUtils.getCurrentUserIdentityId(identityManager);
-      ZonedDateTime occurrenceDate = AgendaDateUtils.parseRFC3339ToZonedDateTime(occurrenceId);
+      ZonedDateTime occurrenceDate = AgendaDateUtils.parseRFC3339ToZonedDateTime(occurrenceId, userTimeZone);
       Event event = agendaEventService.getEventOccurrence(parentEventId, occurrenceDate, userTimeZone, identityId);
       if (event == null) {
         return Response.status(Status.NOT_FOUND).build();
@@ -534,7 +542,7 @@ public class AgendaEventRest implements ResourceContainer {
         if (event.getRecurrence() == null) {
           return Response.status(Status.BAD_REQUEST).entity("Event is not recurrent, no occurrenceId is needed").build();
         }
-        occurrenceIdDateTime = AgendaDateUtils.parseRFC3339ToZonedDateTime(occurrenceId);
+        occurrenceIdDateTime = AgendaDateUtils.parseRFC3339ToZonedDateTime(occurrenceId, ZoneOffset.UTC);
         Event occurrenceEvent = agendaEventService.getExceptionalOccurrenceEvent(eventId, occurrenceIdDateTime);
         if (occurrenceEvent == null) { // Exceptional occurrence not yet created
           occurrenceEvent = agendaEventService.saveEventExceptionalOccurrence(eventId, occurrenceIdDateTime);
@@ -651,16 +659,14 @@ public class AgendaEventRest implements ResourceContainer {
 
   @Path("{eventId}/response/send")
   @GET
-  @Produces(MediaType.APPLICATION_JSON)
   @ApiOperation(
       value = "Send event invitation response for currently authenticated user (using token or effectively authenticated).",
       httpMethod = "GET",
-      produces = "application/json",
       response = Response.class
   )
   @ApiResponses(
       value = {
-          @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
           @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
           @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
           @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
@@ -709,7 +715,7 @@ public class AgendaEventRest implements ResourceContainer {
 
       ZonedDateTime occurrenceIdDateTime = null;
       if (StringUtils.isNotBlank(occurrenceId)) {
-        occurrenceIdDateTime = AgendaDateUtils.parseRFC3339ToZonedDateTime(occurrenceId);
+        occurrenceIdDateTime = AgendaDateUtils.parseRFC3339ToZonedDateTime(occurrenceId, ZoneOffset.UTC);
         Event occurrenceEvent = agendaEventService.getExceptionalOccurrenceEvent(eventId, occurrenceIdDateTime);
         if (occurrenceEvent == null) { // Exceptional occurrence not yet created
           occurrenceEvent = agendaEventService.saveEventExceptionalOccurrence(eventId, occurrenceIdDateTime);
@@ -717,7 +723,7 @@ public class AgendaEventRest implements ResourceContainer {
         eventId = occurrenceEvent.getId();
       }
       agendaEventAttendeeService.sendEventResponse(eventId, identityId, response);
-      return getEventById(eventId, "attendees", 0);
+      return Response.noContent().build();
     } catch (ObjectNotFoundException e) {
       return Response.status(Status.NOT_FOUND).entity("Event not found").build();
     } catch (IllegalAccessException e) {
@@ -747,9 +753,9 @@ public class AgendaEventRest implements ResourceContainer {
                          @ApiParam(value = "Term to search", required = true) @QueryParam(
                            "query"
                          ) String query,
-                         @ApiParam(value = "Time Zone offset in seconds", required = false) @QueryParam(
-                           "timeZoneOffset"
-                         ) int timeZoneOffsetSeconds,
+                         @ApiParam(value = "IANA Time zone identitifer", required = false) @QueryParam(
+                           "timeZoneId"
+                         ) String timeZoneId,
                          @ApiParam(value = "Properties to expand", required = false) @QueryParam(
                            "expand"
                          ) String expand,
@@ -766,7 +772,7 @@ public class AgendaEventRest implements ResourceContainer {
                                                                 : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
                                                                                                   ","));
     long currentUserId = RestUtils.getCurrentUserIdentityId(identityManager);
-    ZoneId userTimeZone = ZoneOffset.ofTotalSeconds(timeZoneOffsetSeconds);
+    ZoneId userTimeZone = ZoneId.of(timeZoneId);
     List<EventSearchResult> searchResults = agendaEventService.search(currentUserId, userTimeZone, query, offset, limit);
     List<EventSearchResultEntity> results = searchResults.stream()
                                                          .map(searchResult -> getEventSearchResultEntity(searchResult,

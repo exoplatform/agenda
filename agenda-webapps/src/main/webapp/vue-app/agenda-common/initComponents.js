@@ -113,7 +113,7 @@ import * as calendarService from './js/CalendarService.js';
 import * as settingsService from './js/SettingsService.js';
 import * as agendaUtils from './js/AgendaUtils.js';
 
-const userTimeZone = agendaUtils.getUserTimezone();
+const userTimeZoneId = agendaUtils.USER_TIMEZONE_ID;
 
 if (!Vue.prototype.$calendarService) {
   window.Object.defineProperty(Vue.prototype, '$calendarService', {
@@ -135,8 +135,8 @@ if (!Vue.prototype.$agendaUtils) {
     value: agendaUtils,
   });
 }
-if (!Vue.prototype.$userTimeZone) {
-  window.Object.defineProperty(Vue.prototype, '$userTimeZone', {
-    value: userTimeZone,
+if (!Vue.prototype.$userTimeZoneId) {
+  window.Object.defineProperty(Vue.prototype, '$userTimeZoneId', {
+    value: userTimeZoneId,
   });
 }

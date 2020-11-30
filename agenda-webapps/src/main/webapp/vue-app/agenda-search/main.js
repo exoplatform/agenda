@@ -1,12 +1,12 @@
 import './initComponents.js';
 
-const TIME_ZONE_OFFSET_SECONDS = (eXo.env.portal.timezoneDSTSavings + eXo.env.portal.timezoneOffset) / 1000;
+export const USER_TIMEZONE_ID = new window.Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 export function formatSearchResult(results) {
   return results || [];
 }
 
 export function fetchSearchResult(uri, options) {
-  uri = `${uri}&timeZoneOffset=${TIME_ZONE_OFFSET_SECONDS}`;
+  uri = `${uri}&timeZoneId=${USER_TIMEZONE_ID}`;
   return fetch(uri, options);
 }

@@ -16,8 +16,7 @@
 */
 package org.exoplatform.agenda.job;
 
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
+import java.time.*;
 import java.util.List;
 
 import org.quartz.*;
@@ -62,14 +61,13 @@ public class DailyReminderComputingJob implements Job {
     try {
       ZonedDateTime start = ZonedDateTime.now();
       ZonedDateTime end = start.plusDays(getAgendaEventReminderService().getReminderComputingPeriod());
-      ZoneId timeZone = start.getZone();
 
-      List<Event> events = getAgendaEventService().getParentRecurrentEvents(start, end, timeZone);
+      List<Event> events = getAgendaEventService().getParentRecurrentEvents(start, end, ZoneOffset.UTC);
       for (Event recurrentEvent : events) {
         List<Event> occurrences = getAgendaEventService().getEventOccurrencesInPeriod(recurrentEvent,
                                                                                       start,
                                                                                       end,
-                                                                                      timeZone,
+                                                                                      ZoneOffset.UTC,
                                                                                       0);
         for (Event occurrence : occurrences) {
           getAgendaEventService().saveEventExceptionalOccurrence(recurrentEvent.getId(), occurrence.getOccurrence().getId());

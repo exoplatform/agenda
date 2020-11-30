@@ -33,12 +33,11 @@ public class AgendaEventReminderComputingListener extends Listener<Long, Object>
     if (agendaEvent != null && agendaEvent.getRecurrence() != null) {
       ZonedDateTime start = ZonedDateTime.now();
       ZonedDateTime end = start.plusDays(getAgendaEventReminderService().getReminderComputingPeriod());
-      ZoneId timeZone = start.getZone();
 
       List<org.exoplatform.agenda.model.Event> occurrences = getAgendaEventService().getEventOccurrencesInPeriod(agendaEvent,
                                                                                                                  start,
                                                                                                                  end,
-                                                                                                                 timeZone,
+                                                                                                                 ZoneId.systemDefault(),
                                                                                                                  0);
       for (org.exoplatform.agenda.model.Event occurrence : occurrences) {
         ZonedDateTime occurrenceId = occurrence.getOccurrence().getId();

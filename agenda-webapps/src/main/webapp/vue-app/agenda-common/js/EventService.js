@@ -1,6 +1,4 @@
-import {toRFC3339, getDayNameFromDate, getMonthNumberFromDate, toDate} from './AgendaUtils.js';
-
-const TIME_ZONE_OFFSET_SECONDS = (eXo.env.portal.timezoneDSTSavings + eXo.env.portal.timezoneOffset) / 1000;
+import {toRFC3339, getDayNameFromDate, getMonthNumberFromDate, toDate, USER_TIMEZONE_ID} from './AgendaUtils.js';
 
 export function getEvents(query, ownerIds, attendeeIdentityId, start, end, limit, responseTypes, expand) {
   if (typeof start === 'object') {
@@ -10,6 +8,7 @@ export function getEvents(query, ownerIds, attendeeIdentityId, start, end, limit
   let params = {
     query: query || '',
     start: start,
+    timeZoneId: USER_TIMEZONE_ID,
   };
 
   if (ownerIds && ownerIds.length) {
@@ -52,7 +51,7 @@ export function getEvents(query, ownerIds, attendeeIdentityId, start, end, limit
 }
 
 export function getEventById(eventId, expand) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}?expand=${expand || ''}&timeZoneOffset=${TIME_ZONE_OFFSET_SECONDS}`, {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}?expand=${expand || ''}&timeZoneId=${USER_TIMEZONE_ID}`, {
     method: 'GET',
     credentials: 'include',
   }).then((resp) => {
@@ -69,7 +68,7 @@ export function getEventById(eventId, expand) {
 }
 
 export function getEventOccurrence(parentEventId, occurrenceId, expand) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/occurrence/${parentEventId}/${occurrenceId}?expand=${expand || ''}&timeZoneOffset=${TIME_ZONE_OFFSET_SECONDS}`, {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/occurrence/${parentEventId}/${occurrenceId}?expand=${expand || ''}&timeZoneId=${USER_TIMEZONE_ID}`, {
     method: 'GET',
     credentials: 'include',
   }).then((resp) => {
@@ -227,11 +226,17 @@ function formatRecurrenceObject(event) {
 }
 
 function formatEventToSave(event) {
+  event = Object.assign({}, event);
+  event.timeZoneId = USER_TIMEZONE_ID;
+  event.start = toRFC3339(event.start);
+  event.end = toRFC3339(event.end);
+
   event = JSON.parse(JSON.stringify(event));
   formatEventCalendar(event);
   formatEventParent(event);
   formatEventAttendees(event);
   formatRecurrenceObject(event);
+
   delete event.creator;
   return event;
 }

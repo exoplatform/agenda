@@ -165,7 +165,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       List<Event> occurrences = Utils.getOccurrences(recurrentEvent,
                                                      occurrenceId.toLocalDate(),
                                                      occurrenceId.toLocalDate().plusDays(1),
-                                                     timeZone,
                                                      1);
       if (occurrences != null && !occurrences.isEmpty()) {
         event = occurrences.get(0);
@@ -276,6 +275,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                     event.getDescription(),
                                     event.getLocation(),
                                     event.getColor(),
+                                    event.getTimeZoneId(),
                                     event.getStart(),
                                     event.getEnd(),
                                     event.isAllDay(),
@@ -289,6 +289,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
     Event createdEvent = agendaEventStorage.createEvent(eventToCreate);
     long eventId = createdEvent.getId();
+    createdEvent = getEventById(eventId, event.getTimeZoneId(), username);
+
     attachmentService.saveEventAttachments(eventId, attachments, userIdentityId);
     conferenceService.saveEventConferences(eventId, conferences);
     if (reminders != null) {
@@ -303,7 +305,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
     Utils.broadcastEvent(listenerService, Utils.POST_CREATE_AGENDA_EVENT_EVENT, eventId, 0);
 
-    return getEventById(eventId, event.getStart().getZone(), username);
+    return createdEvent;
   }
 
   @Override
@@ -340,29 +342,35 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                                 List<EventAttachment> attachments,
                                                 List<EventReminder> reminders,
                                                 ZonedDateTime occurrenceId) throws AgendaException {
-    Event parentEvent = getEventById(eventId);
+    Event parentEvent = agendaEventStorage.getEventById(eventId);
     if (parentEvent == null) {
       throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
     }
     if (parentEvent.getRecurrence() == null) {
       throw new IllegalStateException("Event with id " + eventId + " isn't a recurrent event");
     }
-    LocalDate overallStartUTC = parentEvent.getRecurrence()
-                                           .getOverallStart()
-                                           .withZoneSameInstant(ZoneOffset.UTC)
-                                           .toLocalDate();
-    LocalDate occurrenceIdUTC = occurrenceId.withZoneSameInstant(ZoneOffset.UTC).toLocalDate();
-    if (overallStartUTC.isAfter(occurrenceIdUTC)) {
+
+    if (parentEvent.isAllDay()) {
+      occurrenceId = occurrenceId.withZoneSameLocal(ZoneOffset.UTC);
+    } else {
+      occurrenceId = occurrenceId.withZoneSameInstant(ZoneOffset.UTC);
+    }
+    LocalDate occurrenceIdUTC = occurrenceId.toLocalDate();
+    LocalDate overallStartDate = parentEvent.getRecurrence()
+                                            .getOverallStart()
+                                            .withZoneSameInstant(ZoneOffset.UTC)
+                                            .toLocalDate();
+    if (overallStartDate.minusDays(1).isAfter(occurrenceIdUTC)) {
       throw new IllegalStateException("Event with id " + eventId + " doesn't have an occurrence with id " + occurrenceIdUTC
-          + ". Recurrent Event overall start equals to " + overallStartUTC);
+          + ". Recurrent Event overall start equals to " + overallStartDate);
     }
     ZonedDateTime overallEnd = parentEvent.getRecurrence().getOverallEnd();
-    if (overallEnd != null && overallEnd.withZoneSameInstant(ZoneOffset.UTC)
-                                        .toLocalDate()
-                                        .isBefore(occurrenceIdUTC)) {
+    LocalDate overAllEndDate = overallEnd == null ? null
+                                                  : overallEnd.withZoneSameInstant(ZoneOffset.UTC)
+                                                              .toLocalDate();
+    if (overAllEndDate != null && overAllEndDate.plusDays(1).isBefore(occurrenceIdUTC)) {
       throw new IllegalStateException("Event with id " + eventId + " doesn't have an occurrence with id " + occurrenceId);
     }
-    occurrenceId = occurrenceId.withZoneSameInstant(ZoneOffset.UTC);
 
     Event exceptionalEvent = parentEvent.clone();
     exceptionalEvent.setId(0);
@@ -370,15 +378,14 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     exceptionalEvent.setRecurrence(null);
     exceptionalEvent.setOccurrence(new EventOccurrence(occurrenceId, true));
     exceptionalEvent.setStart(exceptionalEvent.getStart()
-                                              .withZoneSameInstant(ZoneOffset.UTC)
                                               .withYear(occurrenceId.getYear())
                                               .withMonth(occurrenceId.getMonthValue())
                                               .withDayOfMonth(occurrenceId.getDayOfMonth()));
     exceptionalEvent.setEnd(exceptionalEvent.getEnd()
-                                            .withZoneSameInstant(ZoneOffset.UTC)
                                             .withYear(occurrenceId.getYear())
                                             .withMonth(occurrenceId.getMonthValue())
                                             .withDayOfMonth(occurrenceId.getDayOfMonth()));
+    adjustEventDatesForWrite(exceptionalEvent);
     exceptionalEvent = agendaEventStorage.createEvent(exceptionalEvent);
     long originalRecurrentEventCreator = parentEvent.getCreatorId();
     long exceptionalEventId = exceptionalEvent.getId();
@@ -520,6 +527,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                     event.getDescription(),
                                     event.getLocation(),
                                     event.getColor(),
+                                    event.getTimeZoneId(),
                                     event.getStart(),
                                     event.getEnd(),
                                     event.isAllDay(),
@@ -785,22 +793,31 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       throw new IllegalArgumentException("whether use end or limit");
     }
 
+    LocalDate startDate = start.minusDays(1).withZoneSameInstant(timezone).toLocalDate();
+    LocalDate endDate = end == null ? null : end.withZoneSameInstant(timezone).plusDays(1).toLocalDate();
+
     List<Event> occurrences = Utils.getOccurrences(recurrentEvent,
-                                                   start.withZoneSameInstant(timezone).toLocalDate(),
-                                                   end == null ? null : end.withZoneSameInstant(timezone).toLocalDate(),
-                                                   timezone,
+                                                   startDate,
+                                                   endDate,
                                                    limit);
-    if (occurrences != null && !occurrences.isEmpty()) {
-      ZonedDateTime endDateOfOccurrences = end;
+    if (!occurrences.isEmpty()) {
+      ZonedDateTime endDateOfOccurrences = endDate == null ? null : endDate.atStartOfDay(ZoneOffset.UTC);
       if (endDateOfOccurrences == null) {
         Event eventWithMaxDate = occurrences.stream()
                                             .max((event1, event2) -> event1.getEnd().compareTo(event2.getEnd()))
                                             .orElse(null);
         endDateOfOccurrences = eventWithMaxDate.getEnd(); // NOSONAR
+        endDateOfOccurrences = endDateOfOccurrences.withZoneSameInstant(timezone)
+                                                   .toLocalDate()
+                                                   .atStartOfDay(ZoneOffset.UTC)
+                                                   .plusDays(1);
       }
-      occurrences = filterExceptionalEvents(recurrentEvent, occurrences, start, endDateOfOccurrences, timezone);
+      ZonedDateTime startOfDay = startDate.atStartOfDay(ZoneOffset.UTC);
+      ZonedDateTime endOfDay = endDateOfOccurrences;
+      occurrences = filterExceptionalEvents(recurrentEvent, occurrences, startOfDay, endOfDay.plusDays(1));
     }
-    return occurrences;
+    occurrences.forEach(occurrence -> adjustEventDatesForRead(occurrence, timezone));
+    return limit > 0 && occurrences.size() > limit ? occurrences.subList(0, limit) : occurrences;
   }
 
   private ZonedDateTime getMaxEndDate(EventFilter eventFilter, ZoneId userTimeZone) {
@@ -832,7 +849,16 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                     ZoneId timeZone,
                                     int limit) {
     List<Event> events = eventIds.stream().map(this::getEventById).collect(Collectors.toList());
-    events.forEach(event -> adjustEventDatesForRead(event, timeZone));
+    events.forEach(event -> {
+      if (event.getRecurrence() == null || event.getTimeZoneId() == null) {
+        // Adjust event for recurrent events after computing
+        // List of occurrences
+        adjustEventDatesForRead(event, timeZone);
+      } else {
+        // Adjust recurrent event date with original timeZone
+        adjustEventDatesForRead(event, event.getTimeZoneId());
+      }
+    });
     return computeRecurrentEvents(events, startMinusADay, endPlusADay, timeZone, limit);
   }
 
@@ -887,12 +913,22 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     ZonedDateTime end = event.getEnd();
 
     if (timeZone == null) {
-      timeZone = ZoneId.systemDefault();
+      if (event.getTimeZoneId() == null) {
+        timeZone = ZoneOffset.UTC;
+      } else {
+        timeZone = event.getTimeZoneId();
+      }
     }
 
     if (event.isAllDay()) {
-      start = start.toLocalDate().atStartOfDay(timeZone);
-      end = end.toLocalDate().atStartOfDay(timeZone).plusDays(1).minusSeconds(1);
+      start = start.withZoneSameLocal(ZoneOffset.UTC)
+                   .toLocalDate()
+                   .atStartOfDay(timeZone);
+      end = end.withZoneSameLocal(ZoneOffset.UTC)
+               .toLocalDate()
+               .atStartOfDay(timeZone)
+               .plusDays(1)
+               .minusSeconds(1);
     } else {
       start = start.withZoneSameInstant(timeZone);
       end = end.withZoneSameInstant(timeZone);
@@ -901,18 +937,34 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     event.setEnd(end);
 
     EventRecurrence recurrence = event.getRecurrence();
-    if (recurrence != null && recurrence.getUntil() != null) {
-      ZonedDateTime recurrenceUntil = recurrence.getUntil();
-      // end of until day in User TimeZone
-      recurrenceUntil = ZonedDateTime.now(timeZone)
-                                     .withYear(recurrenceUntil.getYear())
-                                     .withMonth(recurrenceUntil.getMonthValue())
-                                     .withDayOfMonth(recurrenceUntil.getDayOfMonth())
-                                     .toLocalDate()
-                                     .atStartOfDay(timeZone)
-                                     .plusDays(1)
-                                     .minusSeconds(1);
-      recurrence.setUntil(recurrenceUntil);
+    if (recurrence != null) {
+      if (recurrence.getUntil() != null) {
+        ZonedDateTime recurrenceUntil = recurrence.getUntil();
+        // end of until day in User TimeZone
+        recurrenceUntil =
+                        LocalDate.of(recurrenceUntil.getYear(), recurrenceUntil.getMonthValue(), recurrenceUntil.getDayOfMonth())
+                                 .atStartOfDay(timeZone)
+                                 .plusDays(1)
+                                 .minusSeconds(1);
+        recurrence.setUntil(recurrenceUntil);
+      }
+      ZonedDateTime overallStart = recurrence.getOverallStart();
+      ZonedDateTime overallEnd = recurrence.getOverallEnd();
+      if (event.isAllDay()) {
+        overallStart = overallStart.toLocalDate()
+                                   .atStartOfDay(timeZone);
+        overallEnd = overallEnd == null ? null
+                                        : overallEnd.toLocalDate()
+                                                    .atStartOfDay(timeZone)
+                                                    .plusDays(1)
+                                                    .minusSeconds(1);
+      } else {
+        overallStart = overallStart.withZoneSameInstant(timeZone);
+        overallEnd = overallEnd == null ? null
+                                        : overallEnd.withZoneSameInstant(timeZone);
+      }
+      recurrence.setOverallStart(overallStart);
+      recurrence.setOverallEnd(overallEnd);
     }
   }
 
@@ -957,7 +1009,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
         computedEvents.add(event);
       } else {
         if (userTimezone == null) {
-          userTimezone = ZoneId.systemDefault();
+          userTimezone = ZoneOffset.UTC;
         }
         List<Event> occurrences = getEventOccurrencesInPeriod(event, start, end, userTimezone, limit);
         if (occurrences != null && !occurrences.isEmpty()) {
@@ -975,8 +1027,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   private List<Event> filterExceptionalEvents(Event recurrentEvent,
                                               List<Event> occurrences,
                                               ZonedDateTime start,
-                                              ZonedDateTime end,
-                                              ZoneId zoneId) {
+                                              ZonedDateTime end) {
     List<Long> exceptionalOccurenceEventIds = agendaEventStorage.getExceptionalOccurenceEventIds(recurrentEvent.getId(),
                                                                                                  start,
                                                                                                  end);
@@ -989,17 +1040,13 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                       .filter(occurrence -> {
                         LocalDate occurrenceDate = occurrence.getOccurrence()
                                                              .getId()
-                                                             .toInstant()
-                                                             .atZone(zoneId)
-                                                             .withZoneSameLocal(ZoneOffset.UTC)
+                                                             .withZoneSameInstant(ZoneOffset.UTC)
                                                              .toLocalDate();
                         return exceptionalEvents.stream()
                                                 .noneMatch(exceptionalOccurence -> {
                                                   LocalDate exceptionalOccurenceDate = exceptionalOccurence.getOccurrence()
                                                                                                            .getId()
-                                                                                                           .toInstant()
-                                                                                                           .atZone(zoneId)
-                                                                                                           .withZoneSameLocal(ZoneOffset.UTC)
+                                                                                                           .withZoneSameInstant(ZoneOffset.UTC)
                                                                                                            .toLocalDate();
                                                   return occurrenceDate.isEqual(exceptionalOccurenceDate);
                                                 });

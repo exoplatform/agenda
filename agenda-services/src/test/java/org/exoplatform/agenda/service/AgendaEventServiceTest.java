@@ -417,8 +417,8 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(eventRecurrence.getByYearDay(), createdEventRecurrence.getByYearDay());
 
     assertNotNull(createdEventRecurrence.getOverallStart());
-    assertEquals(start.toLocalDate().atStartOfDay(ZoneOffset.UTC),
-                 createdEventRecurrence.getOverallStart());
+    assertEquals(start.toLocalDate(),
+                 createdEventRecurrence.getOverallStart().toLocalDate());
 
     assertNotNull(createdEventRecurrence.getOverallEnd());
     assertEquals(start.plusDays(2).toLocalDate(),
@@ -484,17 +484,17 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(eventRecurrence.getByYearDay(), createdEventRecurrence.getByYearDay());
 
     assertNotNull(createdEventRecurrence.getOverallStart());
-    assertEquals(start.withZoneSameInstant(ZoneOffset.UTC),
-                 createdEventRecurrence.getOverallStart());
+    assertEquals(start.toLocalDate(),
+                 createdEventRecurrence.getOverallStart().toLocalDate());
 
     assertNotNull(createdEventRecurrence.getOverallEnd());
-    assertEquals(end.withZoneSameLocal(ZoneOffset.UTC).plusDays(2).toLocalDate(),
+    assertEquals(end.plusDays(2).toLocalDate(),
                  createdEventRecurrence.getOverallEnd().toLocalDate());
-    assertEquals(end.withZoneSameInstant(ZoneOffset.UTC).plusDays(2).getHour(),
+    assertEquals(end.plusDays(2).getHour(),
                  createdEventRecurrence.getOverallEnd().getHour());
-    assertEquals(end.withZoneSameInstant(ZoneOffset.UTC).plusDays(2).getMinute(),
+    assertEquals(end.plusDays(2).getMinute(),
                  createdEventRecurrence.getOverallEnd().getMinute());
-    assertEquals(end.withZoneSameInstant(ZoneOffset.UTC).plusDays(2).getSecond(),
+    assertEquals(end.plusDays(2).getSecond(),
                  createdEventRecurrence.getOverallEnd().getSecond());
   }
 
@@ -606,8 +606,8 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(eventRecurrence.getByYearDay(), createdEventRecurrence.getByYearDay());
 
     assertNotNull(createdEventRecurrence.getOverallStart());
-    assertEquals(start.toLocalDate().atStartOfDay(ZoneOffset.UTC),
-                 createdEventRecurrence.getOverallStart());
+    assertEquals(start.toLocalDate(),
+                 createdEventRecurrence.getOverallStart().toLocalDate());
 
     assertNotNull(createdEventRecurrence.getOverallEnd());
     assertEquals(start.plusDays(2).toLocalDate(),

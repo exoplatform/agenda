@@ -163,7 +163,7 @@ export default {
       range.end.hour = 23;
       range.end.minute = 59;
 
-      const period = this.$agendaUtils.convertVuetifyRangeToPeriod(range, this.$userTimeZone);
+      const period = this.$agendaUtils.convertVuetifyRangeToPeriod(range);
       period.title = this.$refs.calendar.title;
       this.$root.$emit('agenda-change-period', period);
     },
