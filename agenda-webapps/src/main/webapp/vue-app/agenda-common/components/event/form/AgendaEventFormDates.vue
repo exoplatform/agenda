@@ -389,7 +389,7 @@ export default {
       // Start of the day of start date
       range.start.hour = 0;
       range.start.minute = 0;
-      this.period = this.$agendaUtils.convertVuetifyRangeToPeriod(range, this.$userTimeZone);
+      this.period = this.$agendaUtils.convertVuetifyRangeToPeriod(range);
       if (this.period) {
         this.period.title = this.$refs.calendar.title;
         this.periodTitle = this.$agendaUtils.generateCalendarTitle('week', new Date(this.period.start), this.period.title, this.$t('agenda.week'));

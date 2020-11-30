@@ -84,6 +84,15 @@ public class EventEntity implements Serializable, Cloneable {
   private String                      color;
 
   /**
+   * time zone of the event
+   * <ul>
+   * <li>It's the time zone of user
+   * </li>
+   * </ul>
+   */
+  private String                      timeZoneId;
+
+  /**
    * Start date of the event.
    * <ul>
    * <li>It's of type datetime converted to user timezone if not "all-day"
@@ -154,6 +163,7 @@ public class EventEntity implements Serializable, Cloneable {
                            description,
                            location,
                            color,
+                           timeZoneId,
                            start,
                            end,
                            allDay,

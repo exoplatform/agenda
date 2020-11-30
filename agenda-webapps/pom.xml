@@ -61,7 +61,7 @@
         <artifactId>lesscss-maven-plugin</artifactId>
         <executions>
           <execution>
-            <id>app-center</id>
+            <id>agenda</id>
             <configuration>
               <sourceDirectory>${project.build.directory}/src/main/webapp/skin/less</sourceDirectory>
               <outputDirectory>${project.build.directory}/${project.build.finalName}/skin/css</outputDirectory>

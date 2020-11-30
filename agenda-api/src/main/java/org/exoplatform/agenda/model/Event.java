@@ -16,6 +16,7 @@
 */
 package org.exoplatform.agenda.model;
 
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
 import org.exoplatform.agenda.constant.EventAvailability;
@@ -80,6 +81,8 @@ public class Event implements Cloneable {
    */
   private String            color;
 
+  private ZoneId            timeZoneId;
+
   private ZonedDateTime     start;
 
   private ZonedDateTime     end;
@@ -121,6 +124,7 @@ public class Event implements Cloneable {
                      description,
                      location,
                      color,
+                     timeZoneId,
                      start,
                      end,
                      allDay,

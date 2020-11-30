@@ -104,6 +104,9 @@ public class EventEntity implements Serializable {
   @Column(name = "MODIFIER_ID", nullable = false)
   private long                      modifierId;
 
+  @Column(name = "TIMEZONE_ID")
+  private String                    timeZoneId;
+
   @Column(name = "CREATED_DATE", nullable = false)
   private Date                      createdDate;
 
@@ -237,6 +240,14 @@ public class EventEntity implements Serializable {
 
   public void setAllDay(boolean allDay) {
     this.allDay = allDay;
+  }
+
+  public String getTimeZoneId() {
+    return timeZoneId;
+  }
+
+  public void setTimeZoneId(String timeZoneId) {
+    this.timeZoneId = timeZoneId;
   }
 
   public Date getStartDate() {
