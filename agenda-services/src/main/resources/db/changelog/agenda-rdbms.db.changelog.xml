@@ -203,4 +203,10 @@
     <addUniqueConstraint tableName="EXO_AGENDA_EVENT" columnNames="EVENT_ID, OCCURRENCE_ID"/>
   </changeSet>
 
+  <changeSet author="agenda" id="1.0.0-11">
+    <addColumn tableName="EXO_AGENDA_EVENT">
+      <column name="TIMEZONE_ID" type="VARCHAR(50)" defaultValueComputed="NULL" />
+    </addColumn>
+  </changeSet>
+
 </databaseChangeLog>

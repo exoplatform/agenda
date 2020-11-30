@@ -35,14 +35,8 @@ public class EventReminderEntity implements Serializable, Cloneable {
 
   private String            beforePeriodType;
 
-  /**
-   * Date and time converted to user timezone (Timestamp representation using
-   * RFC-3339). This is the computed datetime to send reminder.
-   */
-  private String            datetime;
-
   @Override
   public EventReminderEntity clone() {// NOSONAR
-    return new EventReminderEntity(id, receiverId, before, beforePeriodType, datetime);
+    return new EventReminderEntity(id, receiverId, before, beforePeriodType);
   }
 }

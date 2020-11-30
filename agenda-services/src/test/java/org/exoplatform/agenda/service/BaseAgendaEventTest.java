@@ -106,7 +106,7 @@ public abstract class BaseAgendaEventTest {
   }
 
   protected ZonedDateTime getDate() {
-    return ZonedDateTime.of(LocalDate.now(), LocalTime.of(10, 0), ZoneOffset.UTC);
+    return ZonedDateTime.of(LocalDate.now(), LocalTime.of(10, 0), ZoneOffset.UTC).withZoneSameInstant(ZoneId.systemDefault());
   }
 
   protected void injectData() throws ObjectNotFoundException {
@@ -254,6 +254,7 @@ public abstract class BaseAgendaEventTest {
                      description,
                      location,
                      color,
+                     ZoneId.systemDefault(),
                      start,
                      end,
                      allDay,
@@ -273,6 +274,25 @@ public abstract class BaseAgendaEventTest {
 
   protected void end() {
     RequestLifeCycle.end();
+  }
+
+  protected void restartTransaction() {
+    int i = 0;
+    // Close transactions until no encapsulated transaction
+    boolean success = true;
+    do {
+      try {
+        end();
+        i++;
+      } catch (IllegalStateException e) {
+        success = false;
+      }
+    } while (success);
+
+    // Restart transactions with the same number of encapsulations
+    for (int j = 0; j < i; j++) {
+      begin();
+    }
   }
 
   protected Space createSpace(String displayName, String... members) {
