@@ -1,21 +1,13 @@
-export function getUserTimezone() {
-  const timeZoneOffset = eXo.env.portal.timezoneDSTSavings + eXo.env.portal.timezoneOffset;
-  let timezoneHours = timeZoneOffset / 3600000;
-  let timezoneMinutes = timeZoneOffset % 3600000 / 60000;
-  timezoneHours = timezoneHours < 10 ? `0${timezoneHours}` : timezoneHours;
-  timezoneMinutes = timezoneMinutes < 10 ? `0${timezoneMinutes}` : timezoneMinutes;
-  const timezoneSign = timeZoneOffset >= 0 ? '+' : '-';
-  return `${timezoneSign}${timezoneHours}:${timezoneMinutes}`;
-}
+export const USER_TIMEZONE_ID = new window.Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-export function convertVuetifyRangeToPeriod(range, userTimezone) {
+export function convertVuetifyRangeToPeriod(range) {
   const rangeStartHour = range.start.hour < 10 ? `0${range.start.hour}` : range.start.hour;
   const rangeStartMinute = range.start.minute < 10 ? `0${range.start.minute}` : range.start.minute;
   const rangeEndHour = range.end.hour < 10 ? `0${range.end.hour}` : range.end.hour;
   const rangeEndMinute = range.end.minute < 10 ? `0${range.end.minute}` : range.end.minute;
   return {
-    start: `${range.start.date}T${rangeStartHour}:${rangeStartMinute}:00.000${userTimezone}`,
-    end: `${range.end.date}T${rangeEndHour}:${rangeEndMinute}:00.000${userTimezone}`,
+    start: `${range.start.date}T${rangeStartHour}:${rangeStartMinute}:00.000`,
+    end: `${range.end.date}T${rangeEndHour}:${rangeEndMinute}:00.000`,
   };
 }
 
@@ -53,7 +45,7 @@ export function toRFC3339(date, ignoreTime) {
   if (ignoreTime) {
     return `${date.getFullYear()  }-${
       pad(date.getMonth() + 1)  }-${ 
-      pad(date.getDate())  }T00:00:00${getUserTimezone()}`;
+      pad(date.getDate())  }T00:00:00`;
   } else {
     return `${date.getFullYear()  }-${
       pad(date.getMonth() + 1)  }-${ 
@@ -61,7 +53,7 @@ export function toRFC3339(date, ignoreTime) {
       pad(date.getHours())  }:${ 
       pad(date.getMinutes())  }:${ 
       pad(date.getSeconds())  
-    }${getUserTimezone()}`;
+    }`;
   }
 }
 

@@ -19,8 +19,7 @@ package org.exoplatform.agenda.listener;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
+import java.time.*;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -60,7 +59,7 @@ public class AgendaEventReminderComputingListenerTest extends BaseAgendaEventTes
     List<Event> events = agendaEventService.getEventOccurrencesInPeriod(event,
                                                                         start,
                                                                         start.plusDays(2),
-                                                                        ZoneOffset.UTC,
+                                                                        start.getZone(),
                                                                         0);
     assertNotNull(events);
     assertEquals(0, events.size());

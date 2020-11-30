@@ -25,14 +25,14 @@ import java.util.Date;
 import org.apache.commons.lang3.StringUtils;
 
 public class AgendaDateUtils {
-  private static final String ALL_DAY_FORMAT = "yyyy-MM-dd";
+  private static final String           ALL_DAY_FORMAT          = "yyyy-MM-dd";
 
-  public static final DateTimeFormatter RFC_3339_FORMATTER =
-                                                           DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss[.SSS]XXX")
+  public static final DateTimeFormatter RFC_3339_FORMATTER      =
+                                                           DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss[.SSS][XXX]")
                                                                             .withResolverStyle(ResolverStyle.LENIENT);
 
-  public static final DateTimeFormatter ALL_DAY_FORMATTER = DateTimeFormatter.ofPattern(ALL_DAY_FORMAT)
-                                                                             .withResolverStyle(ResolverStyle.LENIENT);
+  public static final DateTimeFormatter ALL_DAY_FORMATTER       = DateTimeFormatter.ofPattern(ALL_DAY_FORMAT)
+                                                                                   .withResolverStyle(ResolverStyle.LENIENT);
 
   public static final DateTimeFormatter OCCURRENCE_ID_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmssXXX")
                                                                                    .withResolverStyle(ResolverStyle.LENIENT);
@@ -51,11 +51,19 @@ public class AgendaDateUtils {
                     .atStartOfDay(ZoneOffset.UTC);
   }
 
-  public static ZonedDateTime parseRFC3339ToZonedDateTime(String dateString) {
+  public static ZonedDateTime parseRFC3339ToZonedDateTime(String dateString, ZoneId zoneId) {
+    return parseRFC3339ToZonedDateTime(dateString, zoneId, true);
+  }
+
+  public static ZonedDateTime parseRFC3339ToZonedDateTime(String dateString, ZoneId zoneId, boolean parseTimeZone) {
     if (StringUtils.isBlank(dateString)) {
       return null;
     }
-    return ZonedDateTime.parse(dateString, RFC_3339_FORMATTER);
+    if (parseTimeZone) {
+      return LocalDateTime.parse(dateString, RFC_3339_FORMATTER).atZone(zoneId);
+    } else {
+      return LocalDateTime.parse(dateString, RFC_3339_FORMATTER).atZone(ZoneId.systemDefault()).withZoneSameLocal(zoneId);
+    }
   }
 
   public static String toRFC3339Date(ZonedDateTime zonedDateTime) {
@@ -103,7 +111,7 @@ public class AgendaDateUtils {
     if (datetime == null) {
       return null;
     }
-    return new Date(datetime.toEpochSecond() * 1000);
+    return Date.from(datetime.toInstant());
   }
 
   public static ZonedDateTime fromDate(Date date) {

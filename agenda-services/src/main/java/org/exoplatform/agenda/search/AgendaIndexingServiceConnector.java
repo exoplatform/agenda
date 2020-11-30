@@ -115,17 +115,17 @@ public class AgendaIndexingServiceConnector extends ElasticIndexingServiceConnec
     fields.put("ownerId", String.valueOf(ownerIdentityId));
 
     if (event.getOccurrence() != null) {
-      fields.put("occurrenceId", Long.toString(event.getOccurrence().getId().toInstant().getEpochSecond()));
+      fields.put("occurrenceId", toMilliSecondsString(event.getOccurrence().getId()));
     }
 
     ZonedDateTime start = event.getStart();
     if (start != null) {
-      fields.put("startTime", toMillisecondsString(start));
+      fields.put("startTime", toMilliSecondsString(start));
     }
 
     ZonedDateTime end = event.getEnd();
     if (end != null) {
-      fields.put("endTime", toMillisecondsString(end));
+      fields.put("endTime", toMilliSecondsString(end));
     }
 
     if (StringUtils.isNotEmpty(event.getLocation())) {
@@ -151,8 +151,8 @@ public class AgendaIndexingServiceConnector extends ElasticIndexingServiceConnec
     return new Document(TYPE, id, null, AgendaDateUtils.toDate(lastUpdateDateTime), eventPermissionIds, fields);
   }
 
-  private String toMillisecondsString(ZonedDateTime dateTime) {
-    return String.valueOf(dateTime.withZoneSameInstant(ZoneOffset.UTC).toEpochSecond() * 1000);
+  private String toMilliSecondsString(ZonedDateTime dateTime) {
+    return String.valueOf(dateTime.withZoneSameInstant(ZoneOffset.UTC).toInstant().toEpochMilli());
   }
 
 }

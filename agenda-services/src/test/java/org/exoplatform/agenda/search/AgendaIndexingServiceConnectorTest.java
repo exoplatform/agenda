@@ -2,6 +2,7 @@ package org.exoplatform.agenda.search;
 
 import static org.junit.Assert.*;
 
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 
 import org.junit.Test;
@@ -9,7 +10,6 @@ import org.junit.Test;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.service.AgendaEventAttendeeService;
 import org.exoplatform.agenda.service.BaseAgendaEventTest;
-import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.search.domain.Document;
 import org.exoplatform.container.xml.InitParams;
@@ -83,9 +83,8 @@ public class AgendaIndexingServiceConnectorTest extends BaseAgendaEventTest {
     }
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
 
-    boolean allDay = true;
     String creatorUserName = testuser1Identity.getRemoteId();
-    Event event = newEventInstance(start, start, allDay);
+    Event event = newEventInstance(start, start, false);
     event = createEvent(event.clone(), creatorUserName, testuser2Identity);
     Document document = agendaIndexingServiceConnector.create(String.valueOf(event.getId()));
 
@@ -98,8 +97,8 @@ public class AgendaIndexingServiceConnectorTest extends BaseAgendaEventTest {
     assertEquals(event.getDescription(), document.getFields().get("description"));
     assertEquals(event.getLocation(), document.getFields().get("location"));
 
-    long eventStartTimeInMS = AgendaDateUtils.toDate(event.getStart()).getTime();
-    long eventEndTimeInMS = AgendaDateUtils.toDate(event.getEnd()).getTime();
+    long eventStartTimeInMS = event.getStart().toInstant().toEpochMilli();
+    long eventEndTimeInMS = event.getEnd().toInstant().toEpochMilli();
     assertEquals(Long.toString(eventStartTimeInMS), document.getFields().get("startTime"));
     assertEquals(Long.toString(eventEndTimeInMS), document.getFields().get("endTime"));
   }
@@ -126,9 +125,8 @@ public class AgendaIndexingServiceConnectorTest extends BaseAgendaEventTest {
 
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
 
-    boolean allDay = true;
     String creatorUserName = testuser1Identity.getRemoteId();
-    Event event = newEventInstance(start, start, allDay);
+    Event event = newEventInstance(start, start, false);
     event = createEvent(event.clone(), creatorUserName, testuser2Identity);
 
     Document document = agendaIndexingServiceConnector.update(String.valueOf(event.getId()));
@@ -140,8 +138,8 @@ public class AgendaIndexingServiceConnectorTest extends BaseAgendaEventTest {
     assertEquals(event.getSummary(), document.getFields().get("summary"));
     assertEquals(event.getDescription(), document.getFields().get("description"));
     assertEquals(event.getLocation(), document.getFields().get("location"));
-    long eventStartTimeInMS = AgendaDateUtils.toDate(event.getStart()).getTime();
-    long eventEndTimeInMS = AgendaDateUtils.toDate(event.getEnd()).getTime();
+    long eventStartTimeInMS = event.getStart().withZoneSameInstant(ZoneOffset.UTC).toInstant().toEpochMilli();
+    long eventEndTimeInMS = event.getEnd().withZoneSameInstant(ZoneOffset.UTC).toInstant().toEpochMilli();
     assertEquals(Long.toString(eventStartTimeInMS), document.getFields().get("startTime"));
     assertEquals(Long.toString(eventEndTimeInMS), document.getFields().get("endTime"));
   }
