@@ -92,6 +92,7 @@ export default {
       .then(connectorSettings => {
         if (connectorSettings && connectorSettings.value) {
           this.connectedAccount = JSON.parse(connectorSettings.value);
+          this.$root.$emit('agenda-init-connectors');
         }
       });
     this.$root.$on('agenda-connector-initialized', connectors => {
@@ -101,7 +102,6 @@ export default {
     this.$root.$on('agenda-event-details-opened', () => {
       this.retrieveRemoteEvents();
     });
-    this.$root.$emit('agenda-init-connectors');
   },
   methods: {
     openPersonalCalendarDrawer() {
