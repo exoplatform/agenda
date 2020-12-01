@@ -95,7 +95,7 @@ public class AgendaEventReminderServiceTest extends BaseAgendaEventTest {
 
     long eventId = event.getId();
     Event exceptionalOccurrence = agendaEventService.saveEventExceptionalOccurrence(eventId,
-                                                                                      start.plusDays(1));
+                                                                                    start.plusDays(1));
 
     assertNotNull(exceptionalOccurrence);
     long exceptionalOccurrenceId = exceptionalOccurrence.getId();
@@ -221,23 +221,6 @@ public class AgendaEventReminderServiceTest extends BaseAgendaEventTest {
 
     eventReminders = agendaEventReminderService.getEventReminders(eventId, user4IdentityId);
     assertEquals(0, eventReminders.size());
-  }
-
-  @Test
-  public void testSaveUserDefaultRemindersSetting() {
-    long identityId = 520l;
-    assertEquals(agendaEventReminderService.getDefaultReminders(),
-                 agendaEventReminderService.getUserDefaultRemindersSettings(identityId));
-
-    agendaEventReminderService.saveUserDefaultRemindersSetting(identityId, Collections.emptyList());
-    assertEquals(Collections.emptyList(), agendaEventReminderService.getUserDefaultRemindersSettings(identityId));
-
-    List<EventReminderParameter> userDefaultRemindersSettings =
-                                                              Collections.singletonList(new EventReminderParameter(2,
-                                                                                                                   ReminderPeriodType.DAY));
-    agendaEventReminderService.saveUserDefaultRemindersSetting(identityId, userDefaultRemindersSettings);
-    assertEquals(userDefaultRemindersSettings, agendaEventReminderService.getUserDefaultRemindersSettings(identityId));
-
   }
 
 }

@@ -607,56 +607,6 @@ public class AgendaEventRest implements ResourceContainer {
     }
   }
 
-  @Path("reminderSettings")
-  @GET
-  @Produces(MediaType.APPLICATION_JSON)
-  @ApiOperation(
-      value = "Retrieves default settings of events reminders for authenticated user",
-      httpMethod = "GET", response = Response.class, produces = "application/json"
-  )
-  @ApiResponses(
-      value = {
-          @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
-      }
-  )
-  public Response getReminderSettings() {
-    long identityId = RestUtils.getCurrentUserIdentityId(identityManager);
-    try {
-      List<EventReminderParameter> remindersSettings = agendaEventReminderService.getUserDefaultRemindersSettings(identityId);
-      return Response.ok(remindersSettings).build();
-    } catch (Exception e) {
-      LOG.warn("Error retrieving event reminders settings for user with id '{}'", identityId, e);
-      return Response.serverError().entity(e.getMessage()).build();
-    }
-  }
-
-  @Path("reminderSettings")
-  @PUT
-  @Consumes(MediaType.APPLICATION_JSON)
-  @ApiOperation(
-      value = "Saves default settings of event reminders for authenticated user",
-      httpMethod = "POST", response = Response.class, consumes = "application/json"
-  )
-  @ApiResponses(
-      value = {
-          @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
-      }
-  )
-  public Response saveReminderSettings(List<EventReminderParameter> remindersSettings) {
-    long identityId = RestUtils.getCurrentUserIdentityId(identityManager);
-    try {
-      agendaEventReminderService.saveUserDefaultRemindersSetting(identityId, remindersSettings);
-      return Response.noContent().build();
-    } catch (Exception e) {
-      LOG.warn("Error retrieving event reminders settings for user with id '{}'", identityId, e);
-      return Response.serverError().entity(e.getMessage()).build();
-    }
-  }
-
   @Path("{eventId}/response/send")
   @GET
   @ApiOperation(

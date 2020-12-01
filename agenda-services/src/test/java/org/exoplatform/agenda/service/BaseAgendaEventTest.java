@@ -44,6 +44,8 @@ public abstract class BaseAgendaEventTest {
 
   protected AgendaCalendarService                   agendaCalendarService;
 
+  protected AgendaUserSettingsService               agendaUserSettingsService;
+
   protected AgendaEventService                      agendaEventService;
 
   protected AgendaEventConferenceService            agendaEventConferenceService;
@@ -84,6 +86,7 @@ public abstract class BaseAgendaEventTest {
 
     agendaCalendarService = container.getComponentInstanceOfType(AgendaCalendarService.class);
     agendaEventService = container.getComponentInstanceOfType(AgendaEventService.class);
+    agendaUserSettingsService = container.getComponentInstanceOfType(AgendaUserSettingsService.class);
     agendaEventConferenceService = container.getComponentInstanceOfType(AgendaEventConferenceService.class);
     agendaEventAttachmentService = container.getComponentInstanceOfType(AgendaEventAttachmentService.class);
     agendaEventAttendeeService = container.getComponentInstanceOfType(AgendaEventAttendeeService.class);

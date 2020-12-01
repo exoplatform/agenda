@@ -98,32 +98,6 @@ public interface AgendaEventReminderService {
   void removeUserReminders(long eventId, long identityId);
 
   /**
-   * Stores the list of default user reminders in a given {@link Event}.
-   * 
-   * @param event {@link Event} to save reminders on it
-   * @param identityId technical identifier of {@link Identity}
-   * @throws AgendaException when an error occurs while saving event reminder
-   */
-  void saveUserDefaultReminders(Event event, long identityId) throws AgendaException;
-
-  /**
-   * Save user reminders to use in events by default
-   * 
-   * @param identityId technical identifier of {@link Identity}
-   * @param eventReminderParameters {@link List} of
-   *          {@link EventReminderParameter}
-   */
-  void saveUserDefaultRemindersSetting(long identityId, List<EventReminderParameter> eventReminderParameters);
-
-  /**
-   * Get list of reminders to use in events by default
-   * 
-   * @param identityId technical identifier of {@link Identity}
-   * @return {@link List} of {@link EventReminderParameter}
-   */
-  List<EventReminderParameter> getUserDefaultRemindersSettings(long identityId);
-
-  /**
    * Removes all reminders of a given {@link Event}
    * 
    * @param eventId technical identifier of {@link Event}

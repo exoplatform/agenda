@@ -1,77 +1,73 @@
 package org.exoplatform.agenda.service;
 
-import org.apache.commons.lang3.StringUtils;
-import org.exoplatform.agenda.model.AgendaUserSettings;
+import java.util.List;
 
+import org.apache.commons.lang3.StringUtils;
+
+import org.exoplatform.agenda.model.AgendaUserSettings;
+import org.exoplatform.agenda.model.EventReminderParameter;
 import org.exoplatform.commons.api.settings.SettingService;
 import org.exoplatform.commons.api.settings.SettingValue;
 import org.exoplatform.commons.api.settings.data.Context;
 import org.exoplatform.commons.api.settings.data.Scope;
 import org.exoplatform.container.xml.InitParams;
-import org.exoplatform.container.xml.ObjectParameter;
-
-import java.util.*;
-import java.util.stream.Collectors;
 
 public class AgendaUserSettingsServiceImpl implements AgendaUserSettingsService {
 
-  private static final String      AGENDA_USER_SETTING_SEPARATOR = "@@";
+  private static final String        AGENDA_USER_SETTINGS_PARAM_KEY = "agenda.user.settings";
 
-  private static final String      AGENDA_USER_SETTING_KEY       = "Reminders";
+  private static final Scope         AGENDA_USER_SETTING_SCOPE      = Scope.APPLICATION.id("Agenda");
 
-  private static final Scope       AGENDA_USER_SETTING_SCOPE     = Scope.GLOBAL;
+  private static final String        AGENDA_USER_SETTING_KEY        = "AgendaSettings";
 
-  private SettingService           settingService;
+  private AgendaEventReminderService agendaEventReminderService;
 
-  private List<AgendaUserSettings> defaultUserSettings           = new ArrayList<>();
+  private SettingService             settingService;
 
-  public AgendaUserSettingsServiceImpl(SettingService settingService, InitParams initParams) {
+  private AgendaUserSettings         defaultUserSettings            = null;
+
+  public AgendaUserSettingsServiceImpl(AgendaEventReminderService agendaEventReminderService,
+                                       SettingService settingService,
+                                       InitParams initParams) {
+    this.agendaEventReminderService = agendaEventReminderService;
     this.settingService = settingService;
 
-    Iterator<ObjectParameter> objectParamIterator = initParams.getObjectParamIterator();
-    if (objectParamIterator != null) {
-      while (objectParamIterator.hasNext()) {
-        ObjectParameter objectParameter = objectParamIterator.next();
-        Object objectParam = objectParameter.getObject();
-        if (objectParam instanceof AgendaUserSettings) {
-          AgendaUserSettings agendaUserSettings = (AgendaUserSettings) objectParam;
-          defaultUserSettings.add(agendaUserSettings);
-        }
-      }
+    if (initParams.containsKey(AGENDA_USER_SETTINGS_PARAM_KEY)) {
+      defaultUserSettings = (AgendaUserSettings) initParams.getObjectParam(AGENDA_USER_SETTINGS_PARAM_KEY).getObject();
+    }
+    if (defaultUserSettings == null) {
+      defaultUserSettings = new AgendaUserSettings();
     }
   }
 
   @Override
-  public void saveAgendaUserSettings(long identityId, AgendaUserSettings agendaUserSettings) {
+  public void saveAgendaUserSettings(long userIdentityId, AgendaUserSettings agendaUserSettings) {
+    if (userIdentityId <= 0) {
+      throw new IllegalArgumentException("User identity id is mandatory");
+    }
     if (agendaUserSettings == null) {
-      this.settingService.set(Context.USER.id(String.valueOf(identityId)),
-                              AGENDA_USER_SETTING_SCOPE,
-                              AGENDA_USER_SETTING_KEY,
-                              SettingValue.create(""));
-    } else {
-      String userSettingString = StringUtils.join(agendaUserSettings, AGENDA_USER_SETTING_SEPARATOR);
-      this.settingService.set(Context.USER.id(String.valueOf(identityId)),
-                              AGENDA_USER_SETTING_SCOPE,
-                              AGENDA_USER_SETTING_KEY,
-                              SettingValue.create(userSettingString));
-
+      throw new IllegalArgumentException("Agenda settings are empty");
     }
+
+    this.settingService.set(Context.USER.id(String.valueOf(userIdentityId)),
+                            AGENDA_USER_SETTING_SCOPE,
+                            AGENDA_USER_SETTING_KEY,
+                            SettingValue.create(agendaUserSettings.toString()));
   }
 
   @Override
-  public List<AgendaUserSettings> getDefaultAgendaUserSettings(long identityId) {
-    SettingValue<?> settingValue = this.settingService.get(Context.USER.id(String.valueOf(identityId)),
+  public AgendaUserSettings getAgendaUserSettings(long userIdentityId) {
+    SettingValue<?> settingValue = this.settingService.get(Context.USER.id(String.valueOf(userIdentityId)),
                                                            AGENDA_USER_SETTING_SCOPE,
                                                            AGENDA_USER_SETTING_KEY);
 
-    if (settingValue == null) {
-      return Collections.unmodifiableList(defaultUserSettings);
-    } else if (settingValue.getValue() == null || StringUtils.isBlank(settingValue.getValue().toString())) {
-      return Collections.emptyList();
+    if (settingValue == null || settingValue.getValue() == null || StringUtils.isBlank(settingValue.getValue().toString())) {
+      AgendaUserSettings agendaUserSettings = defaultUserSettings.clone();
+      List<EventReminderParameter> defaultReminders = agendaEventReminderService.getDefaultReminders();
+      agendaUserSettings.setReminders(defaultReminders);
+      return agendaUserSettings;
     } else {
-      String remindersSettingString = settingValue.getValue().toString();
-      String[] values = StringUtils.split(remindersSettingString, AGENDA_USER_SETTING_SEPARATOR);
-      return Arrays.stream(values).map(AgendaUserSettings::fromString).collect(Collectors.toList());
+      return AgendaUserSettings.fromString(settingValue.getValue().toString());
     }
   }
 }

@@ -1,9 +1,11 @@
 package org.exoplatform.agenda.listener;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
-import org.exoplatform.agenda.model.EventAttendee;
-import org.exoplatform.agenda.service.AgendaEventReminderService;
-import org.exoplatform.agenda.service.AgendaEventService;
+import org.exoplatform.agenda.model.*;
+import org.exoplatform.agenda.service.*;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.services.listener.Event;
 import org.exoplatform.services.listener.Listener;
@@ -23,6 +25,8 @@ public class AgendaEventReminderListener extends Listener<EventAttendee, EventAt
 
   private AgendaEventReminderService agendaEventReminderService;
 
+  private AgendaUserSettingsService  agendaUserSettingsService;
+
   private AgendaEventService         agendaEventService;
 
   @Override
@@ -37,13 +41,28 @@ public class AgendaEventReminderListener extends Listener<EventAttendee, EventAt
 
     if (oldResponseNoReminders != newResponseNoReminders) {
       long eventId = newAttendee.getEventId();
+      long identityId = newAttendee.getIdentityId();
       if (newResponseNoReminders) {
-        getAgendaEventReminderService().removeUserReminders(eventId, newAttendee.getIdentityId());
+        getAgendaEventReminderService().removeUserReminders(eventId, identityId);
       } else {
         org.exoplatform.agenda.model.Event agendaEvent = getAgendaEventService().getEventById(eventId);
-        getAgendaEventReminderService().saveUserDefaultReminders(agendaEvent, newAttendee.getIdentityId());
+        AgendaUserSettings agendaUserSettings = getAgendaUserSettingsService().getAgendaUserSettings(identityId);
+        List<EventReminderParameter> reminderParameters = agendaUserSettings.getReminders();
+        if (reminderParameters != null && !reminderParameters.isEmpty()) {
+          List<EventReminder> reminders = reminderParameters.stream().map(reminderParameter -> {
+            return new EventReminder(identityId, reminderParameter.getBefore(), reminderParameter.getBeforePeriodType());
+          }).collect(Collectors.toList());
+          getAgendaEventReminderService().saveEventReminders(agendaEvent, reminders, identityId);
+        }
       }
     }
+  }
+
+  public AgendaUserSettingsService getAgendaUserSettingsService() {
+    if (agendaUserSettingsService == null) {
+      agendaUserSettingsService = ExoContainerContext.getService(AgendaUserSettingsService.class);
+    }
+    return agendaUserSettingsService;
   }
 
   public AgendaEventReminderService getAgendaEventReminderService() {
