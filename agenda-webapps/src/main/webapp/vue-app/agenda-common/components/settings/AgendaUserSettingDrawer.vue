@@ -160,7 +160,7 @@ export default {
     save() {
       if(this.validateForm()) {
         this.$refs.UserSettingAgendaDrawer.startLoading();
-        this.$calendarService.saveAgendaSettings(this.settingsForm)
+        this.$settingsService.setSettingsValue('USER',eXo.env.portal.userName,'APPLICATION','Agenda','agendaUserSettings',this.settingsForm)
           .then(() => {
             return this.$eventService.saveUserReminderSettings(this.remindersForm);
           })

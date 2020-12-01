@@ -245,6 +245,9 @@
       <depends>
         <module>agendaConnectors</module>
       </depends>
+      <depends>
+        <module>AgendaCommon</module>
+      </depends>
     </module>
   </portlet>
 

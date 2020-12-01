@@ -8,7 +8,8 @@
       </v-list-item-title>
       <v-list-item-subtitle class="my-3 text-sub-title font-italic">
         <agenda-connector-status
-          :connected-account="connectedAccount">
+          :connected-account="connectedAccount"
+          :is-connected-connector-enabled="isConnectedConnectorEnabled">
           <template slot="connectButton">
             {{ $t('agenda.connectYourPersonalAgendaSubTitle') }}
           </template>
@@ -43,6 +44,12 @@ export default {
     connectedAccountIconSource() {
       return this.connectedAccount && this.connectedAccount.icon || '';
     },
+    connectedConnector() {
+      return this.connectors.find(connector => connector.name === this.connectedAccount.connectorName);
+    },
+    isConnectedConnectorEnabled() {
+      return this.connectedConnector && this.connectedConnector.enabled;
+    }
   },
   created() {
     this.$root.$on('agenda-refresh', this.refresh);
@@ -53,12 +60,12 @@ export default {
   },
   methods: {
     refresh() {
-      this.$calendarService.getAgendaConnectorsSettings().then(connectorSettings => {
-        if (connectorSettings && connectorSettings.value) {
-          this.connectedAccount = JSON.parse(connectorSettings.value);
-        }
-        this.$nextTick().then(() => this.$root.$emit('application-loaded'));
-      });
+      this.$settingsService.getSettingsValue('USER',eXo.env.portal.userName,'APPLICATION','Agenda','agendaConnectorsSettings')
+        .then(connectorSettings => {
+          if (connectorSettings && connectorSettings.value) {
+            this.connectedAccount = JSON.parse(connectorSettings.value);
+          }
+        });
     },
     openDrawer() {
       this.$root.$emit('agenda-connected-account-settings-open');

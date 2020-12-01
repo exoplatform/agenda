@@ -112,7 +112,7 @@ export default {
   },
   methods: {
     refresh() {
-      this.$calendarService.getAgendaSettings()
+      this.$settingsService.getSettingsValue('USER', eXo.env.portal.userName, 'APPLICATION', 'Agenda', 'agendaUserSettings')
         .then(settings => {
           if (settings && settings.value) {
             this.settings = JSON.parse(settings.value);
