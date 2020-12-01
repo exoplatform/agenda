@@ -1,9 +1,6 @@
 package org.exoplatform.agenda.rest;
 
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
+import io.swagger.annotations.*;
 import org.exoplatform.agenda.model.AgendaUserSettings;
 import org.exoplatform.agenda.service.AgendaUserSettingsService;
 import org.exoplatform.agenda.util.RestUtils;
@@ -36,11 +33,11 @@ public class AgendaUserSettingsRest implements ResourceContainer {
   @Path("agendaSettings")
   @PUT
   @Consumes(MediaType.APPLICATION_JSON)
-  @ApiOperation(value = "Saves default settings for authenticated user", httpMethod = "POST", response = Response.class, consumes = "application/json")
+  @ApiOperation(value = "Saves default settings for authenticated user", httpMethod = "PUT", response = Response.class, consumes = "application/json")
   @ApiResponses(value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
       @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
       @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
-  public Response saveReminderSettings(AgendaUserSettings agendaUserSettings) {
+  public Response saveUserSettings(@ApiParam(value = "AgendaUserSettings to update", required = true) AgendaUserSettings agendaUserSettings) {
     long identityId = RestUtils.getCurrentUserIdentityId(identityManager);
     try {
       agendaUserSettingsService.saveAgendaUserSettings(identityId, agendaUserSettings);
