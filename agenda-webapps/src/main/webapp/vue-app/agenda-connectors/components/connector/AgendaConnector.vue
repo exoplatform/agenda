@@ -36,22 +36,35 @@ export default {
   },
   methods: {
     refreshConnectorsList() {
-      this.connectors = extensionRegistry.loadExtensions('agenda', 'connectors') || [];
-      this.$root.$emit('agenda-connector-loaded', this.connectors);
+      const connectors = extensionRegistry.loadExtensions('agenda', 'connectors') || [];
+      this.$settingsService.getSettingsValue('GLOBAL','GLOBAL','APPLICATION','Agenda', 'agendaConnectorsAdminSettings')
+        .then(connectorsSettings => {
+          if (connectorsSettings && connectorsSettings.value) {
+            const connectorsStatusSettings = JSON.parse(connectorsSettings.value);
+            //in case of a new connector is added.
+            connectors.forEach(connector => {
+              const connectorObj = connectorsStatusSettings.find(connectorSettings => connectorSettings.name === connector.name);
+              connector.enabled = connectorObj ? connectorObj.enabled : true;
+            });
+            this.connectors = connectors;
+          }
+          this.$root.$emit('agenda-connector-loaded', this.connectors);
+        });
     },
     initConnectors() {
       this.connectors.forEach(connector => {
-        if (connector.init && !connector.initialized) {
+        if (connector.init && !connector.initialized && connector.enabled) {
           connector.init(this.connectionStatusChanged, this.connectionLoading);
         }
       });
     },
     retrieveConnectedConnectorSettings() {
-      return this.$calendarService.getAgendaConnectorsSettings().then(connectorSettings => {
-        if (connectorSettings && connectorSettings.value) {
-          this.connectedAccount = JSON.parse(connectorSettings.value);
-        }
-      });
+      return this.$settingsService.getSettingsValue('USER',eXo.env.portal.userName,'APPLICATION','Agenda','agendaConnectorsSettings')
+        .then(connectorSettings => {
+          if (connectorSettings && connectorSettings.value) {
+            this.connectedAccount = JSON.parse(connectorSettings.value);
+          }
+        });
     },
     connectionLoading(connector, loading) {
       this.$set(connector, 'loading', loading);

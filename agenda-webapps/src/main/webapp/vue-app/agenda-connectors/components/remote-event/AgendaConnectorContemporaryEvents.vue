@@ -2,7 +2,7 @@
   <div>
     <div class="d-flex">
       <v-avatar
-        v-if="connectedAccountName"
+        v-if="connectedAccountName && isConnectedConnectorEnabled"
         tile
         class="mr-2 pt-1"
         size="32">
@@ -22,7 +22,7 @@
           {{ ' ) ' }}
         </div>
         <a
-          v-if="connectedAccountName"
+          v-if="connectedAccountName && isConnectedConnectorEnabled"
           @click="openPersonalCalendarDrawer">
           {{ connectedAccountName }}
         </a>
@@ -82,14 +82,18 @@ export default {
     },
     connectedConnector() {
       return this.connectors.find(connector => connector.isSignedIn);
+    },
+    isConnectedConnectorEnabled() {
+      return this.connectedConnector && this.connectedConnector.enabled;
     }
   },
   created() {
-    this.$calendarService.getAgendaConnectorsSettings().then(connectorSettings => {
-      if (connectorSettings && connectorSettings.value) {
-        this.connectedAccount = JSON.parse(connectorSettings.value);
-      }
-    });
+    this.$settingsService.getSettingsValue('USER',eXo.env.portal.userName,'APPLICATION','Agenda','agendaConnectorsSettings')
+      .then(connectorSettings => {
+        if (connectorSettings && connectorSettings.value) {
+          this.connectedAccount = JSON.parse(connectorSettings.value);
+        }
+      });
     this.$root.$on('agenda-connector-initialized', connectors => {
       this.connectors = connectors;
       this.retrieveRemoteEvents();

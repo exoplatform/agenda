@@ -8,8 +8,10 @@
       {{ $t('agenda.connectYourPersonalAgenda') }}
     </template>
     <template slot="content">
-      <v-list two-line>
-        <v-list-item v-for="connector in connectors" :key="connector.name">
+      <v-list
+        v-if="enabledConnectors && enabledConnectors.length !== 0"
+        two-line>
+        <v-list-item v-for="connector in enabledConnectors" :key="connector.name">
           <v-list-item-avatar>
             <v-avatar tile size="40">
               <img :alt="connector.name" :src="connector.avatar">
@@ -53,6 +55,12 @@
           </v-alert>
         </v-card-text>
       </v-list>
+      <div
+        v-else
+        class="noEnabledConnectors d-flex flex-column align-center">
+        <i class="uiIconCalRemoteCalendar darkGreyIcon ma-5"></i>
+        <p>{{ $t('agenda.disabled.connectors') }}</p>
+      </div>
     </template>
   </exo-drawer>
 </template>
@@ -72,6 +80,11 @@ export default {
   data: () => ({
     errorMessage: ''
   }),
+  computed: {
+    enabledConnectors() {
+      return this.connectors.slice().filter(connector => connector.enabled);
+    }
+  },
   created() {
     this.$root.$on('agenda-connected-account-settings-open', this.open);
   },
@@ -90,7 +103,7 @@ export default {
           icon: connector.avatar
         });
         this.$refs.agendaConnectorsDrawer.close();
-        this.$calendarService.saveAgendaConnectorsSettings(this.connectedAccount)
+        this.$settingsService.setSettingsValue('USER',eXo.env.portal.userName,'APPLICATION','Agenda','agendaConnectorsSettings',this.connectedAccount)
           .finally(() => {
             this.$refs.agendaConnectorsDrawer.endLoading();
           });
@@ -117,7 +130,7 @@ export default {
     },
     resetConnectedAccount(connector) {
       this.connectedAccount.userId = '';
-      return this.$calendarService.saveAgendaConnectorsSettings(this.connectedAccount)
+      return this.$settingsService.setSettingsValue('USER', eXo.env.portal.userName, 'APPLICATION', 'Agenda', 'agendaConnectorsSettings', this.connectedAccount)
         .finally(() => {
           this.$set(connector, 'loading', false);
         });

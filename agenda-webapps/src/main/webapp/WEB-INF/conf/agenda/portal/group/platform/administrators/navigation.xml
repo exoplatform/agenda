@@ -29,7 +29,7 @@
   <page-nodes>
     <node>
       <name>agendaAdminSettings</name>
-      <label>#{Agenda.label.name}</label>
+      <label>#{agenda}</label>
       <page-reference>group::/platform/administrators::agendaAdminSettings</page-reference>
     </node>
   </page-nodes>

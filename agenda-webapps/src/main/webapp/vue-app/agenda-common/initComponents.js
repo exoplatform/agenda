@@ -110,6 +110,7 @@ for (const key in components) {
 
 import * as eventService from './js/EventService.js';
 import * as calendarService from './js/CalendarService.js';
+import * as settingsService from './js/SettingsService.js';
 import * as agendaUtils from './js/AgendaUtils.js';
 
 const userTimeZone = agendaUtils.getUserTimezone();
@@ -122,6 +123,11 @@ if (!Vue.prototype.$calendarService) {
 if (!Vue.prototype.$eventService) {
   window.Object.defineProperty(Vue.prototype, '$eventService', {
     value: eventService,
+  });
+}
+if (!Vue.prototype.$settingsService) {
+  window.Object.defineProperty(Vue.prototype, '$settingsService', {
+    value: settingsService,
   });
 }
 if (!Vue.prototype.$agendaUtils) {
