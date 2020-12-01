@@ -12,6 +12,10 @@
   </component>
 
   <component>
+    <type>org.exoplatform.agenda.rest.AgendaUserSettingsRest</type>
+  </component>
+
+  <component>
     <key>org.exoplatform.agenda.storage.AgendaCalendarStorage</key>
     <type>org.exoplatform.agenda.storage.cached.CachedAgendaCalendarStorage</type>
   </component>
@@ -109,6 +113,34 @@
   <component>
     <key>org.exoplatform.agenda.service.AgendaEventAttendeeService</key>
     <type>org.exoplatform.agenda.service.AgendaEventAttendeeServiceImpl</type>
+  </component>
+  
+  <component>
+    <key>org.exoplatform.agenda.service.AgendaUserSettingsService</key>
+    <type>org.exoplatform.agenda.service.AgendaUserSettingsServiceImpl</type>
+    <init-params>
+      <object-param>
+        <name>Default User Settings</name>
+        <object type="org.exoplatform.agenda.model.AgendaUserSettings">
+          <field name="agendaDefaultView">
+            <string>Week</string>
+          </field>
+          <field name="agendaWeekStartOn">
+            <string>Monday</string>
+          </field>
+          <field name="showWorkingTime">
+            <string>false</string>
+          </field>
+          <field name="timeZoneId">
+            <string>false</string>
+          </field>
+          <field name="reminderParameters">
+            <object type="org.exoplatform.agenda.model.EventReminderParameter">
+            </object>
+          </field>
+        </object>
+      </object-param>
+    </init-params>
   </component>
 
   <component>

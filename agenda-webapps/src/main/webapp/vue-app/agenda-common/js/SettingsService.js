@@ -1,5 +1,5 @@
-export function setSettingsValue(contextKey, contextValue, scopeKey, scopeValue, key, value) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/settings/${contextKey},${contextValue}/${scopeKey},${scopeValue}/${key}`, {
+export function saveAgendaSettings(value) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/settings/agendaSettings`, {
     method: 'PUT',
     credentials: 'include',
     headers: {
