@@ -1,6 +1,6 @@
 <template>
   <div class="connector-status">
-    <div v-if="connectedAccountName" class="connector-connected d-flex">
+    <div v-if="connectedAccountName && isConnectedConnectorEnabled" class="connector-connected d-flex">
       <v-avatar tile size="24">
         <img
           :alt="connectedAccount.name"
@@ -28,6 +28,10 @@ export default {
     connectedAccount: {
       type: Array,
       default: () => []
+    },
+    isConnectedConnectorEnabled: {
+      type: Boolean,
+      default: true
     }
   },
   computed: {

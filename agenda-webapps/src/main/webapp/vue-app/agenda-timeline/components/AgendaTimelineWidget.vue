@@ -86,7 +86,7 @@ export default {
     this.$root.$on('agenda-refresh', this.retrieveEvents);
     this.$root.$on('agenda-event-deleted', this.retrieveEvents);
     this.spaceId = eXo.env.portal.spaceId;
-    this.$calendarService.getAgendaSettings()
+    this.$settingsService.getSettingsValue('USER',eXo.env.portal.userName,'APPLICATION','Agenda','agendaUserSettings')
       .then(settings => {
         if (settings && settings.value) {
           this.settings = JSON.parse(settings.value);

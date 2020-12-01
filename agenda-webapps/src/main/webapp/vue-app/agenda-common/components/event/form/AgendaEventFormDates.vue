@@ -3,7 +3,8 @@
     <v-toolbar flat class="border-color mb-4">
       <agenda-connector-status
         class="align-start my-auto col-sm-3 col-2"
-        :connected-account="connectedAccount">
+        :connected-account="connectedAccount"
+        :is-connected-connector-enabled="isConnectedConnectorEnabled">
         <template slot="connectButton">
           <v-btn class="btn">
             <i class="uiIconHyperlink mr-2 darkGreyIcon"></i>
@@ -206,6 +207,9 @@ export default {
     },
     connectedConnector() {
       return this.connectors.find(connector => connector.isSignedIn);
+    },
+    isConnectedConnectorEnabled() {
+      return this.connectedConnector && this.connectedConnector.enabled;
     }
   },
   watch: {
@@ -227,11 +231,12 @@ export default {
         this.event.endDate = new Date(this.event.startDate).getTime();
       }
     }
-    this.$calendarService.getAgendaConnectorsSettings().then(connectorSettings => {
-      if (connectorSettings && connectorSettings.value) {
-        this.connectedAccount = JSON.parse(connectorSettings.value);
-      }
-    });
+    this.$settingsService.getSettingsValue('USER',eXo.env.portal.userName,'APPLICATION','Agenda','agendaConnectorsSettings')
+      .then(connectorSettings => {
+        if (connectorSettings && connectorSettings.value) {
+          this.connectedAccount = JSON.parse(connectorSettings.value);
+        }
+      });
     this.$root.$on('agenda-connector-initialized', connectors => {
       this.connectors = connectors;
       this.retrieveRemoteEvents();
