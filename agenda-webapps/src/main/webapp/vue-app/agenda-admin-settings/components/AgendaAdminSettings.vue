@@ -1,65 +1,57 @@
 <template>
-  <v-app id="agenda-admin" class="VuetifyApp">
-    <v-main fluid class="px-8 pt-3">
-      <v-row>
-        <v-col
-          xs12
-          px-3
-          class="d-flex align-center">
-          <h4 class="pr-3">
-            {{ $t("agenda.connectors.label") }}
-          </h4>
-          <v-divider />
-        </v-col>
-      </v-row>
-      <v-row>
-        <v-col xs12>
-          <v-simple-table :dense="true" class="v-data-table uiGrid table table-hover v-data-table--dense theme--light">
-            <template v-slot:default>
-              <thead>
-                <tr class="providersTableRow">
-                  <th class="text-left" style="width: 5%">{{ $t("agenda.avatar") }}</th>
-                  <th class="text-left">{{ $t("agenda.connectors.calendar") }}</th>
-                  <th class="text-left">{{ $t("agenda.description") }}</th>
-                  <th class="text-left" style="width: 5%">{{ $t("agenda.active") }}</th>
-                </tr>
-              </thead>
-              <tbody v-if="connectors.length > 0">
-                <tr
-                  v-for="connector in connectors"
-                  :key="connector.name">
-                  <td>
-                    <div>
-                      <v-avatar tile size="40">
-                        <img :alt="connector.name" :src="connector.avatar">
-                      </v-avatar>
-                    </div>
-                  </td>
-                  <td>
-                    <div>
-                      {{ $t(`${connector.name}`) }}
-                    </div>
-                  </td>
-                  <td>
-                    <div>
-                      {{ $t(`${connector.description}`) }}
-                    </div>
-                  </td>
-                  <td>
-                    <div>
-                      <v-switch
-                        :ripple="false"
-                        color="#568dc9"
-                        class="connectorSwitcher"
-                        @change="changeActive(connector)" />
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </template>
-          </v-simple-table>
-        </v-col>
-      </v-row>
+  <v-app class="connectorsAdminSettings">
+    <v-main class="white rounded-lg ma-5 pl-7">
+      <div v-if="loading">
+        <v-skeleton-loader
+          class="mx-auto"
+          type="table-heading,table-tbody" />
+      </div>
+      <div v-else>
+        <h4 class="py-5 font-weight-bold">
+          {{ $t("agenda.connectors.label") }}
+        </h4>
+        <v-divider />
+        <v-data-table
+          :headers="headers"
+          :items="connectors"
+          :footer-props="{
+            itemsPerPageText: `${$t('agenda.table.footer.label')}:`,
+          }"
+          :no-data-text="$t('appCenter.adminSetupForm.noApp')"
+          disable-sort>
+          <template slot="item" slot-scope="props">
+            <tr>
+              <td>
+                <div class="align-center">
+                  <v-avatar tile size="40">
+                    <img :alt=" props.item.name" :src=" props.item.avatar">
+                  </v-avatar>
+                </div>
+              </td>
+              <td>
+                <div class="align-center">
+                  {{ $t(`${props.item.name}`) }}
+                </div>
+              </td>
+              <td>
+                <div class="align-center">
+                  {{ $t(`${props.item.description}`) }}
+                </div>
+              </td>
+              <td>
+                <div class="d-flex flex-column align-center">
+                  <v-switch
+                    v-model=" props.item.enabled"
+                    :ripple="false"
+                    color="#568dc9"
+                    class="connectorSwitcher"
+                    @change="enableDisableConnector( props.item)" />
+                </div>
+              </td>
+            </tr>
+          </template>
+        </v-data-table>
+      </div>
     </v-main>
   </v-app>
 </template>
@@ -67,24 +59,57 @@
 <script>
 export default {
   data: () => ({
-    skeleton: true,
+    loading: true,
     connectors: [],
+    headers: [],
   }),
+  computed: {
+    connectorsStatusSettings() {
+      return this.connectors.slice().map(connector => {
+        return {
+          name: connector.name,
+          enabled: connector.enabled
+        };
+      });
+    }
+  },
   mounted() {
     document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
     this.skeleton = false;
   },
   created() {
+    this.headers = [
+      { text: this.$t('agenda.avatar'), align: 'center' },
+      { text: this.$t('agenda.connectors.calendar'), align: 'center' },
+      { text: this.$t('agenda.description'), align: 'center' },
+      { text: this.$t('agenda.active'), align: 'center' }
+    ];
     // Retrieving list of registered connectors from extensionRegistry
     document.addEventListener('agenda-accounts-connectors-refresh', this.refreshConnectorsList);
     this.refreshConnectorsList();
   },
   methods: {
     refreshConnectorsList() {
-      this.connectors = extensionRegistry.loadExtensions('agenda', 'connectors') || [];
+      const connectors = extensionRegistry.loadExtensions('agenda', 'connectors') || [];
+      this.$settingsService.getSettingsValue('GLOBAL','GLOBAL','APPLICATION','Agenda', 'agendaConnectorsAdminSettings')
+        .then(connectorsStatusSettings => {
+          if (connectorsStatusSettings && connectorsStatusSettings.value) {
+            Object.assign(this.connectorsStatusSettings,JSON.parse(connectorsStatusSettings.value));
+            //in case of a new connector is added.
+            connectors.forEach(connector => {
+              const connectorObj = this.connectorsStatusSettings.find(connectorSettings => connectorSettings.name === connector.name);
+              connector.enabled = connectorObj ? connectorObj.enabled : true;
+            });
+            this.connectors = connectors;
+          } else {
+            this.connectors = connectors;
+          }
+        }).finally(() => {
+          this.loading = false;
+        });
     },
-    changeActive(connector) {
-      this.
+    enableDisableConnector() {
+      this.$settingsService.setSettingsValue('GLOBAL','GLOBAL','APPLICATION','Agenda', 'agendaConnectorsAdminSettings', this.connectorsStatusSettings);
     }
   }
 };
