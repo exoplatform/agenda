@@ -47,6 +47,11 @@ export default {
               connector.enabled = connectorObj ? connectorObj.enabled : true;
             });
             this.connectors = connectors;
+          } else {
+            connectors.forEach(connector => {
+              connector.enabled = true;
+            });
+            this.connectors = connectors;
           }
           this.$root.$emit('agenda-connector-loaded', this.connectors);
         });
