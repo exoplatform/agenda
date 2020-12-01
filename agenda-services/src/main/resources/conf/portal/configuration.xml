@@ -79,10 +79,10 @@
         <name>Default reminder 1 - Before 10 minutes</name>
         <object type="org.exoplatform.agenda.model.EventReminderParameter">
           <field name="before">
-            <int>10</int>
+            <int>${exo.agenda.reminder.setting1.before:10}</int>
           </field>
           <field name="periodType">
-            <string>MINUTE</string>
+            <string>${exo.agenda.reminder.setting1.periodType:MINUTE}</string>
           </field>
         </object>
       </object-param>
@@ -90,10 +90,10 @@
         <name>Default reminder 2 - Before 0 minutes</name>
         <object type="org.exoplatform.agenda.model.EventReminderParameter">
           <field name="before">
-            <int>0</int>
+            <int>${exo.agenda.reminder.setting2.before:0}</int>
           </field>
           <field name="periodType">
-            <string>MINUTE</string>
+            <string>${exo.agenda.reminder.setting2.periodType:MINUTE}</string>
           </field>
         </object>
       </object-param>
@@ -114,29 +114,28 @@
     <key>org.exoplatform.agenda.service.AgendaEventAttendeeService</key>
     <type>org.exoplatform.agenda.service.AgendaEventAttendeeServiceImpl</type>
   </component>
-  
+
   <component>
     <key>org.exoplatform.agenda.service.AgendaUserSettingsService</key>
     <type>org.exoplatform.agenda.service.AgendaUserSettingsServiceImpl</type>
     <init-params>
       <object-param>
-        <name>Default User Settings</name>
+        <name>agenda.user.settings</name>
         <object type="org.exoplatform.agenda.model.AgendaUserSettings">
           <field name="agendaDefaultView">
-            <string>Week</string>
+            <string>${exo.agenda.settings.agendaDefaultView:Week}</string>
           </field>
           <field name="agendaWeekStartOn">
-            <string>Monday</string>
+            <string>${exo.agenda.settings.agendaWeekStartOn:Monday}</string>
           </field>
           <field name="showWorkingTime">
-            <string>false</string>
+            <boolean>${exo.agenda.settings.showWorkingTime:false}</boolean>
           </field>
-          <field name="timeZoneId">
-            <string>false</string>
+          <field name="workingTimeStart">
+            <string>${exo.agenda.settings.workingTimeStart:09:00}</string>
           </field>
-          <field name="reminderParameters">
-            <object type="org.exoplatform.agenda.model.EventReminderParameter">
-            </object>
+          <field name="workingTimeEnd">
+            <string>${exo.agenda.settings.workingTimeEnd:18:00}</string>
           </field>
         </object>
       </object-param>

@@ -24,8 +24,6 @@ import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang.StringUtils;
-
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
 import org.exoplatform.agenda.model.*;
@@ -34,10 +32,6 @@ import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.command.NotificationCommand;
 import org.exoplatform.commons.api.notification.model.PluginKey;
-import org.exoplatform.commons.api.settings.SettingService;
-import org.exoplatform.commons.api.settings.SettingValue;
-import org.exoplatform.commons.api.settings.data.Context;
-import org.exoplatform.commons.api.settings.data.Scope;
 import org.exoplatform.commons.notification.impl.NotificationContextImpl;
 import org.exoplatform.container.xml.*;
 import org.exoplatform.services.listener.ListenerService;
@@ -46,19 +40,11 @@ import org.exoplatform.social.core.space.spi.SpaceService;
 
 public class AgendaEventReminderServiceImpl implements AgendaEventReminderService {
 
-  private static final String          AGENDA_USER_REMINDER_SETTING_SEPARATOR = "@@";
-
-  private static final String          AGENDA_USER_REMINDER_SETTING_KEY       = "Reminders";
-
-  private static final Scope           AGENDA_USER_REMINDER_SETTING_SCOPE     = Scope.APPLICATION.id("Agenda");
-
   private AgendaEventReminderStorage   reminderStorage;
 
   private AgendaEventStorage           eventStorage;
 
   private AgendaEventAttendeeStorage   attendeeStorage;
-
-  private SettingService               settingService;
 
   private IdentityManager              identityManager;
 
@@ -66,14 +52,13 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
 
   private ListenerService              listenerService;
 
-  private List<EventReminderParameter> defaultReminders                       = new ArrayList<>();
+  private List<EventReminderParameter> defaultReminders        = new ArrayList<>();
 
-  private long                         reminderComputingPeriod                = 2;
+  private long                         reminderComputingPeriod = 2;
 
   public AgendaEventReminderServiceImpl(AgendaEventReminderStorage reminderStorage,
                                         AgendaEventStorage eventStorage,
                                         AgendaEventAttendeeStorage attendeeStorage,
-                                        SettingService settingService,
                                         IdentityManager identityManager,
                                         SpaceService spaceService,
                                         ListenerService listenerService,
@@ -81,7 +66,6 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
     this.reminderStorage = reminderStorage;
     this.eventStorage = eventStorage;
     this.attendeeStorage = attendeeStorage;
-    this.settingService = settingService;
     this.listenerService = listenerService;
     this.identityManager = identityManager;
     this.spaceService = spaceService;
@@ -189,52 +173,6 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
         }
       }
     }
-  }
-
-  @Override
-  public void saveUserDefaultRemindersSetting(long identityId, List<EventReminderParameter> eventReminderParameters) {
-    if (eventReminderParameters == null || eventReminderParameters.isEmpty()) {
-      this.settingService.set(Context.USER.id(String.valueOf(identityId)),
-                              AGENDA_USER_REMINDER_SETTING_SCOPE,
-                              AGENDA_USER_REMINDER_SETTING_KEY,
-                              SettingValue.create(""));
-    } else {
-      String remindersSettingString = StringUtils.join(eventReminderParameters, AGENDA_USER_REMINDER_SETTING_SEPARATOR);
-      this.settingService.set(Context.USER.id(String.valueOf(identityId)),
-                              AGENDA_USER_REMINDER_SETTING_SCOPE,
-                              AGENDA_USER_REMINDER_SETTING_KEY,
-                              SettingValue.create(remindersSettingString));
-    }
-  }
-
-  @Override
-  public List<EventReminderParameter> getUserDefaultRemindersSettings(long identityId) {
-    SettingValue<?> settingValue = this.settingService.get(Context.USER.id(String.valueOf(identityId)),
-                                                           AGENDA_USER_REMINDER_SETTING_SCOPE,
-                                                           AGENDA_USER_REMINDER_SETTING_KEY);
-
-    if (settingValue == null) {
-      return getDefaultReminders();
-    } else if (settingValue.getValue() == null || StringUtils.isBlank(settingValue.getValue().toString())) {
-      return Collections.emptyList();
-    } else {
-      String remindersSettingString = settingValue.getValue().toString();
-      String[] values = StringUtils.split(remindersSettingString, AGENDA_USER_REMINDER_SETTING_SEPARATOR);
-      return Arrays.stream(values).map(EventReminderParameter::fromString).collect(Collectors.toList());
-    }
-  }
-
-  @Override
-  public void saveUserDefaultReminders(Event event, long identityId) throws AgendaException {
-    List<EventReminderParameter> userRemindersSettings = getUserDefaultRemindersSettings(identityId);
-    List<EventReminder> eventReminders =
-                                       userRemindersSettings.stream()
-                                                            .map(reminderParameter -> new EventReminder(identityId,
-                                                                                                        reminderParameter.getBefore(),
-                                                                                                        reminderParameter.getBeforePeriodType()))
-                                                            .collect(Collectors.toList());
-
-    saveEventReminders(event, eventReminders, identityId);
   }
 
   @Override

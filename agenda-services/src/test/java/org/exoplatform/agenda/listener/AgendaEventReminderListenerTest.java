@@ -84,8 +84,13 @@ public class AgendaEventReminderListenerTest extends BaseAgendaEventTest {
     eventReminders = agendaEventReminderService.getEventReminders(eventId, user5IdentityId);
     assertTrue(eventReminders.isEmpty());
 
-    List<EventReminderParameter> userDefaultRemindersSettings = Collections.singletonList(new EventReminderParameter(2, ReminderPeriodType.DAY));
-    agendaEventReminderService.saveUserDefaultRemindersSetting(user5IdentityId, userDefaultRemindersSettings);
+    List<EventReminderParameter> userDefaultRemindersSettings =
+                                                              Collections.singletonList(new EventReminderParameter(2,
+                                                                                                                   ReminderPeriodType.DAY));
+
+    AgendaUserSettings agendaUserSettings = agendaUserSettingsService.getAgendaUserSettings(user5IdentityId);
+    agendaUserSettings.setReminders(userDefaultRemindersSettings);
+    agendaUserSettingsService.saveAgendaUserSettings(user5IdentityId, agendaUserSettings);
 
     executeListener.set(true);
     try {

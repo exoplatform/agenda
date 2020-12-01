@@ -1,18 +1,19 @@
 package org.exoplatform.agenda.model;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+import java.io.ByteArrayInputStream;
+import java.util.List;
+
 import org.apache.commons.lang3.StringUtils;
 
-import java.util.List;
+import org.exoplatform.ws.frameworks.json.impl.*;
+
+import lombok.*;
 
 @Data
 @EqualsAndHashCode
 @NoArgsConstructor
-public class AgendaUserSettings {
-
-  private static final String          SEPARATOR = " ";
+@AllArgsConstructor
+public class AgendaUserSettings implements Cloneable {
 
   private String                       agendaDefaultView;
 
@@ -20,47 +21,68 @@ public class AgendaUserSettings {
 
   private boolean                      showWorkingTime;
 
+  private String                       workingTimeStart;
+
+  private String                       workingTimeEnd;
+
+  private String                       connectedRemoteProvider;
+
+  private String                       connectedRemoteUserId;
+
   private String                       timeZoneId;
 
-  private List<EventReminderParameter> reminderParameters;
+  private List<EventReminderParameter> reminders;
 
   public AgendaUserSettings(String agendaDefaultView,
                             String agendaWeekStartOn,
                             boolean showWorkingTime,
-                            String timeZoneId,
-                            List<EventReminderParameter> reminderParameters) {
+                            String workingTimeStart,
+                            String workingTimeEnd,
+                            String connectedRemoteProvider,
+                            String connectedRemoteUserId,
+                            String timeZoneId) {
     this.agendaDefaultView = agendaDefaultView;
     this.agendaWeekStartOn = agendaWeekStartOn;
     this.showWorkingTime = showWorkingTime;
+    this.workingTimeStart = workingTimeStart;
+    this.workingTimeEnd = workingTimeEnd;
+    this.connectedRemoteProvider = connectedRemoteProvider;
+    this.connectedRemoteUserId = connectedRemoteUserId;
     this.timeZoneId = timeZoneId;
-    this.reminderParameters = reminderParameters;
   }
 
-    @Override
-    public String toString() {
-        return "AgendaUserSettings{" +
-                "agendaDefaultView='" + agendaDefaultView + '\'' +
-                ", agendaWeekStartOn='" + agendaWeekStartOn + '\'' +
-                ", timeZoneId='" + timeZoneId + '\'' +
-                ", showWorkingTime=" + showWorkingTime +
-                ", reminders=" + reminderParameters +
-                '}';
+  @Override
+  public String toString() {
+    try {
+      return new JsonGeneratorImpl().createJsonObject(this).toString();
+    } catch (JsonException e) {
+      throw new IllegalStateException("Error parsing current global object to string");
     }
+  }
 
-    public static AgendaUserSettings fromString(String value) {
+  public static AgendaUserSettings fromString(String value) {
     if (StringUtils.isBlank(value)) {
       return null;
     }
-    String[] values = value.split(SEPARATOR);
-    // String[] reminderParameters = values[3].split(SEPARATOR);
-    AgendaUserSettings agendaUserSettings = new AgendaUserSettings();
-    agendaUserSettings.setAgendaDefaultView(values[0]);
-    agendaUserSettings.setAgendaWeekStartOn(values[1]);
-    agendaUserSettings.setShowWorkingTime(Boolean.parseBoolean(values[2]));
-    agendaUserSettings.setTimeZoneId(values[3]);
-    agendaUserSettings.setReminderParameters(null);
-
-    return agendaUserSettings;
-
+    try {
+      JsonDefaultHandler jsonDefaultHandler = new JsonDefaultHandler();
+      new JsonParserImpl().parse(new ByteArrayInputStream(value.getBytes()), jsonDefaultHandler);
+      return ObjectBuilder.createObject(AgendaUserSettings.class, jsonDefaultHandler.getJsonObject());
+    } catch (JsonException e) {
+      throw new IllegalStateException("Error creating object from string : " + value, e);
+    }
   }
+
+  @Override
+  public AgendaUserSettings clone() { // NOSONAR
+    return new AgendaUserSettings(agendaDefaultView,
+                                  agendaWeekStartOn,
+                                  showWorkingTime,
+                                  workingTimeStart,
+                                  workingTimeEnd,
+                                  connectedRemoteProvider,
+                                  connectedRemoteUserId,
+                                  timeZoneId);
+  }
+
 }
