@@ -235,13 +235,13 @@ export default {
       .then(connectorSettings => {
         if (connectorSettings && connectorSettings.value) {
           this.connectedAccount = JSON.parse(connectorSettings.value);
+          this.$root.$emit('agenda-init-connectors');
         }
       });
     this.$root.$on('agenda-connector-initialized', connectors => {
       this.connectors = connectors;
       this.retrieveRemoteEvents();
     });
-    this.$root.$emit('agenda-init-connectors');
   },
   mounted() {
     if (this.$refs.calendar) {

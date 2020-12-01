@@ -102,6 +102,9 @@ export default {
             });
             this.connectors = connectors;
           } else {
+            connectors.forEach(connector => {
+              connector.enabled = true;
+            });
             this.connectors = connectors;
           }
         }).finally(() => {
