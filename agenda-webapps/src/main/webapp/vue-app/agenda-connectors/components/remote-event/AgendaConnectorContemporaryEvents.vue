@@ -99,6 +99,10 @@ export default {
     this.$root.$emit('agenda-init-connectors');
     this.$root.$on('agenda-connector-initialized', connectors => {
       this.connectors = connectors;
+      const connectorObj = this.connectors && this.connectors.find(connector => connector.name === this.connectedAccount.connectorName);
+      if (connectorObj) {
+        this.connectedAccount.icon = connectorObj.avatar;
+      }
       this.retrieveRemoteEvents();
     });
     this.$root.$on('agenda-event-details-opened', () => {
@@ -128,6 +132,8 @@ export default {
             });
             this.remoteEvents = events;
           }).catch(error => {
+            this.$root.$emit('hideRemoteEventLoading');
+            this.remoteEvents = [];
             console.error('Error retrieving remote events', error);
           });
       } else {

@@ -86,6 +86,9 @@ export default {
       });
       this.loadingCallback(this, false);
       return events;
+    }).catch(e => {
+      this.loadingCallback(this, false);
+      throw new Error(e);
     });
   }
 };

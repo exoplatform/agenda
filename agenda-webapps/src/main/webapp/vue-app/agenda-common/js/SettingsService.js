@@ -53,6 +53,25 @@ export function saveTimeZone(timeZoneId) {
   });
 }
 
+export function saveUserConnector(connectorName, connectorUserId) {
+  const formData = new FormData();
+  formData.append('connectorName', connectorName);
+  formData.append('connectorUserId', connectorUserId);
+  
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/settings/connector`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams(formData).toString(),
+  }).then(resp => {
+    if (!resp || !resp.ok) {
+      throw new Error('Response code indicates a server error', resp);
+    }
+  });
+}
+
 export function getUserSettings() {
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/settings`, {
     method: 'GET',

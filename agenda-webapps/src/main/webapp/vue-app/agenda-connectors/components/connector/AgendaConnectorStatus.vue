@@ -7,7 +7,7 @@
           :src="connectedAccountIconSource">
       </v-avatar>
       <a
-        class="mx-2"
+        class="mx-2 my-auto"
         @click="openPersonalCalendarDrawer">
         {{ connectedAccountName }}
       </a>

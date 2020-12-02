@@ -44,6 +44,9 @@ export default {
     connectors: [],
   }),
   computed: {
+    remoteProviders() {
+      return this.settings && this.settings.remoteProviders;
+    },
     connectedAccountName() {
       return this.connectedAccount && this.connectedAccount.userId || '';
     },
@@ -57,12 +60,19 @@ export default {
       return this.connectedConnector && this.connectedConnector.enabled;
     }
   },
+  watch: {
+    remoteProviders() {
+      if (this.remoteProviders) {
+        this.refresh();
+      }
+    },
+  },
   created() {
     this.$root.$on('agenda-refresh', this.refresh);
     this.$root.$on('agenda-connector-loaded', connectors => {
       this.connectors = connectors;
+      this.refresh();
     });
-    this.refresh();
   },
   methods: {
     refresh() {
@@ -70,6 +80,10 @@ export default {
         connectorName: this.settings && this.settings.connectedRemoteProvider,
         userId: this.settings && this.settings.connectedRemoteUserId,
       };
+      const connectorObj = this.connectors && this.connectors.find(connector => connector.name === this.connectedAccount.connectorName);
+      if (connectorObj) {
+        this.connectedAccount.icon = connectorObj.avatar;
+      }
     },
     openDrawer() {
       this.$root.$emit('agenda-connected-account-settings-open');

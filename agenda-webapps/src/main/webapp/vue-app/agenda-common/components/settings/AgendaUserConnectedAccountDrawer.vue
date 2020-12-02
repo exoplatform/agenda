@@ -103,7 +103,7 @@ export default {
           icon: connector.avatar
         });
         this.$refs.agendaConnectorsDrawer.close();
-        this.$settingsService.setSettingsValue('USER',eXo.env.portal.userName,'APPLICATION','Agenda','agendaConnectorsSettings',this.connectedAccount)
+        this.$settingsService.saveUserConnector(this.connectedAccount.connectorName, this.connectedAccount.userId)
           .finally(() => {
             this.$refs.agendaConnectorsDrawer.endLoading();
           });
