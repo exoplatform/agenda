@@ -19,7 +19,7 @@ export function getWeekNumber(date) {
   if (date.getDay() !== 4) {
     date.setMonth(0, 1 + (4 - date.getDay() + 7) % 7);
   }
-  return Math.ceil((firstThursday - date.valueOf()) / 604800000);
+  return Math.ceil((firstThursday - date.valueOf()) / 604800000) + 1;
 }
 
 export function toVuetifyDate(date) {

@@ -3,39 +3,48 @@ package org.exoplatform.agenda.notification.builder;
 import static org.exoplatform.agenda.util.NotificationUtils.*;
 
 import java.io.Writer;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 
 import org.apache.commons.lang.StringUtils;
 
+import org.exoplatform.agenda.model.AgendaUserSettings;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.service.AgendaEventService;
+import org.exoplatform.agenda.service.AgendaUserSettingsService;
+import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.channel.template.AbstractTemplateBuilder;
 import org.exoplatform.commons.api.notification.channel.template.TemplateProvider;
 import org.exoplatform.commons.api.notification.model.*;
 import org.exoplatform.commons.api.notification.service.template.TemplateContext;
 import org.exoplatform.commons.notification.template.TemplateUtils;
-import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.container.ExoContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
+import org.exoplatform.social.core.manager.IdentityManager;
 
 import groovy.text.GStringTemplateEngine;
 import groovy.text.Template;
 
 public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
 
-  private static final Log   LOG = ExoLogger.getLogger(AgendaTemplateBuilder.class);
+  private static final Log          LOG = ExoLogger.getLogger(AgendaTemplateBuilder.class);
 
-  private AgendaEventService agendaEventService;
+  private AgendaEventService        agendaEventService;
 
-  private TemplateProvider   templateProvider;
+  private AgendaUserSettingsService agendaUserSettingsService;
 
-  private ExoContainer       container;
+  private IdentityManager           identityManager;
 
-  private boolean            isPushNotification;
+  private TemplateProvider          templateProvider;
 
-  private PluginKey          key;
+  private ExoContainer              container;
+
+  private boolean                   isPushNotification;
+
+  private PluginKey                 key;
 
   public AgendaTemplateBuilder(TemplateProvider templateProvider,
                                ExoContainer container,
@@ -78,7 +87,13 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
       String notificationURL = getEventURL(event);
       String pushNotificationURL = isPushNotification ? notificationURL : null;
 
-      TemplateContext templateContext = buildTemplateParameters(templateProvider, notification);
+      String username = notification.getTo();
+      long identityId = Utils.getIdentityIdByUsername(getIdentityManager(), username);
+      AgendaUserSettings agendaUserSettings = getAgendaUserSettingsService().getAgendaUserSettings(identityId);
+      ZoneId timeZone = agendaUserSettings == null
+          || agendaUserSettings.getTimeZoneId() == null ? ZoneOffset.UTC : ZoneId.of(agendaUserSettings.getTimeZoneId());
+
+      TemplateContext templateContext = buildTemplateParameters(templateProvider, notification, timeZone);
       MessageInfo messageInfo = buildMessageSubjectAndBody(templateContext, notification, pushNotificationURL);
       Throwable exception = templateContext.getException();
       logException(notification, exception);
@@ -122,9 +137,22 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
 
   private AgendaEventService getEventService() {
     if (agendaEventService == null) {
-      agendaEventService = CommonsUtils.getService(AgendaEventService.class);
+      agendaEventService = this.container.getComponentInstanceOfType(AgendaEventService.class);
     }
     return agendaEventService;
   }
 
+  private AgendaUserSettingsService getAgendaUserSettingsService() {
+    if (agendaUserSettingsService == null) {
+      agendaUserSettingsService = this.container.getComponentInstanceOfType(AgendaUserSettingsService.class);
+    }
+    return agendaUserSettingsService;
+  }
+
+  private IdentityManager getIdentityManager() {
+    if (identityManager == null) {
+      identityManager = this.container.getComponentInstanceOfType(IdentityManager.class);
+    }
+    return identityManager;
+  }
 }

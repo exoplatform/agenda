@@ -207,7 +207,14 @@ export default {
       return this.connectedAccount && this.connectedAccount.icon || '';
     },
     displayedEvents() {
-      return [...this.events, ...this.remoteEvents];
+      const eventsToDisplay = this.events.slice();
+      if (this.event && this.event.id) {
+        const index = eventsToDisplay.findIndex(event => this.event.id === event.id);
+        if (index >= 0) {
+          eventsToDisplay.splice(index, 1);
+        }
+      }
+      return [...eventsToDisplay, ...this.remoteEvents];
     },
     connectedConnector() {
       return this.connectors.find(connector => connector.isSignedIn);

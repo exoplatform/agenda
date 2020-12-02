@@ -770,7 +770,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   @Override
   public List<EventSearchResult> search(long userIdentityId, ZoneId userTimeZone, String query, int offset, int limit) {
     if (userTimeZone == null) {
-      userTimeZone = Utils.getUserTimezone(identityManager, userIdentityId);
+      userTimeZone = ZoneOffset.UTC;
     }
 
     List<EventSearchResult> searchResults = agendaSearchConnector.search(userIdentityId, userTimeZone, query, offset, limit);
