@@ -33,6 +33,8 @@ public class AgendaUserSettings implements Cloneable {
 
   private List<EventReminderParameter> reminders;
 
+  private List<RemoteProvider>         remoteProviders;
+
   public AgendaUserSettings(String agendaDefaultView,
                             String agendaWeekStartOn,
                             boolean showWorkingTime,

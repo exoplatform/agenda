@@ -20,4 +20,14 @@ public interface AgendaUserSettingsService {
    * @return {@link AgendaUserSettings}
    */
   AgendaUserSettings getAgendaUserSettings(long identityId);
+
+  /**
+   * Saves the new connected user settings on remote events provider
+   * 
+   * @param connectorName connector identifier
+   * @param connectorUserId user identifier on remote provider
+   * @param userIdentityId user social identifier
+   */
+  void saveUserConnector(String connectorName, String connectorUserId, long userIdentityId);
+
 }

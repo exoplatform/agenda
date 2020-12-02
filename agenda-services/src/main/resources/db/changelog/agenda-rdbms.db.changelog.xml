@@ -209,4 +209,11 @@
     </addColumn>
   </changeSet>
 
+  <changeSet author="agenda" id="1.0.0-12">
+    <addColumn tableName="EXO_AGENDA_REMOTE_PROVIDER">
+      <column name="ENABLED" type="BOOLEAN" defaultValueBoolean="true" />
+    </addColumn>
+    <addUniqueConstraint tableName="EXO_AGENDA_REMOTE_PROVIDER" columnNames="NAME" />
+  </changeSet>
+
 </databaseChangeLog>

@@ -25,6 +25,14 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
 @Entity(name = "AgendaRemoteProvider")
 @ExoEntity
 @Table(name = "EXO_AGENDA_REMOTE_PROVIDER")
+@NamedQueries(
+  {
+      @NamedQuery(
+          name = "AgendaRemoteProvider.findByName",
+          query = "SELECT rc FROM AgendaRemoteProvider rc WHERE rc.name :name"
+      ),
+  }
+)
 public class RemoteProviderEntity implements Serializable {
 
   private static final long serialVersionUID = -5031970577705728288L;
@@ -37,6 +45,9 @@ public class RemoteProviderEntity implements Serializable {
 
   @Column(name = "NAME", nullable = false)
   private String            name;
+
+  @Column(name = "ENABLED")
+  private boolean           enabled;
 
   public Long getId() {
     return id;
@@ -54,4 +65,11 @@ public class RemoteProviderEntity implements Serializable {
     this.name = name;
   }
 
+  public boolean isEnabled() {
+    return enabled;
+  }
+
+  public void setEnabled(boolean enabled) {
+    this.enabled = enabled;
+  }
 }

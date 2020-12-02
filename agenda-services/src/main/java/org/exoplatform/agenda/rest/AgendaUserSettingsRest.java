@@ -1,5 +1,6 @@
 package org.exoplatform.agenda.rest;
 
+import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -8,6 +9,7 @@ import javax.ws.rs.core.Response.Status;
 import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.model.AgendaUserSettings;
+import org.exoplatform.agenda.service.AgendaEventService;
 import org.exoplatform.agenda.service.AgendaUserSettingsService;
 import org.exoplatform.agenda.util.RestUtils;
 import org.exoplatform.common.http.HTTPStatus;
@@ -26,15 +28,21 @@ public class AgendaUserSettingsRest implements ResourceContainer {
 
   private AgendaUserSettingsService agendaUserSettingsService;
 
+  private AgendaEventService        agendaEventService;
+
   private IdentityManager           identityManager;
 
-  public AgendaUserSettingsRest(AgendaUserSettingsService agendaUserSettingsService, IdentityManager identityManager) {
+  public AgendaUserSettingsRest(AgendaUserSettingsService agendaUserSettingsService,
+                                AgendaEventService agendaEventService,
+                                IdentityManager identityManager) {
     this.agendaUserSettingsService = agendaUserSettingsService;
+    this.agendaEventService = agendaEventService;
     this.identityManager = identityManager;
   }
 
   @GET
   @Produces(MediaType.APPLICATION_JSON)
+  @RolesAllowed("users")
   @ApiOperation(
       value = "Get User agenda settings",
       httpMethod = "GET",
@@ -61,6 +69,7 @@ public class AgendaUserSettingsRest implements ResourceContainer {
 
   @PUT
   @Consumes(MediaType.APPLICATION_JSON)
+  @RolesAllowed("users")
   @ApiOperation(
       value = "Saves agenda settings for authenticated user",
       httpMethod = "PUT",
@@ -95,6 +104,7 @@ public class AgendaUserSettingsRest implements ResourceContainer {
 
   @Path("timeZone")
   @PATCH
+  @RolesAllowed("users")
   @ApiOperation(
       value = "Saves agenda time zone setting for authenticated user",
       httpMethod = "PUT",
@@ -129,8 +139,43 @@ public class AgendaUserSettingsRest implements ResourceContainer {
     }
   }
 
+  @Path("connector/status")
+  @POST
+  @RolesAllowed("administrators")
+  @ApiOperation(
+      value = "Saves agenda connector status whether enabled or disabled for all users",
+      httpMethod = "POST",
+      response = Response.class
+  )
+  @ApiResponses(
+      value = {
+          @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Bad request"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+      }
+  )
+  public Response saveRemoteProviderStatus(
+                                      @ApiParam(
+                                          value = "Remote connector name",
+                                          required = true
+                                      ) @FormParam("enabled") String connectorName,
+                                      @ApiParam(
+                                          value = "Remote connector status",
+                                          required = true
+                                      ) @FormParam("enabled") boolean enabled) {
+    try {
+      agendaEventService.saveRemoteProviderStatus(connectorName, enabled);
+      return Response.noContent().build();
+    } catch (Exception e) {
+      LOG.warn("Error saving connector '{}' status", connectorName, e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
   @Path("connector")
   @PATCH
+  @RolesAllowed("users")
   @ApiOperation(
       value = "Saves agenda connector settings for authenticated user",
       httpMethod = "PUT",
@@ -162,10 +207,7 @@ public class AgendaUserSettingsRest implements ResourceContainer {
 
     long identityId = RestUtils.getCurrentUserIdentityId(identityManager);
     try {
-      AgendaUserSettings agendaUserSettings = agendaUserSettingsService.getAgendaUserSettings(identityId);
-      agendaUserSettings.setConnectedRemoteUserId(connectorUserId);
-      agendaUserSettings.setConnectedRemoteProvider(connectorName);
-      agendaUserSettingsService.saveAgendaUserSettings(identityId, agendaUserSettings);
+      agendaUserSettingsService.saveUserConnector(connectorName, connectorUserId, identityId);
       return Response.noContent().build();
     } catch (Exception e) {
       LOG.warn("Error saving agenda settings for user with id '{}'", identityId, e);
@@ -175,6 +217,7 @@ public class AgendaUserSettingsRest implements ResourceContainer {
 
   @Path("connector")
   @DELETE
+  @RolesAllowed("users")
   @ApiOperation(
       value = "Deletes agenda connector settings for authenticated user",
       httpMethod = "DELETE",

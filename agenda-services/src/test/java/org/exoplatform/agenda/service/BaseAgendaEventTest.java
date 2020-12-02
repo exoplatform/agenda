@@ -160,7 +160,7 @@ public abstract class BaseAgendaEventTest {
                                                                       CALENDAR_COLOR,
                                                                       null));
     if (remoteProvider == null) {
-      remoteProvider = agendaEventService.saveRemoteProvider(new RemoteProvider(0, "newRemoteProvider"));
+      remoteProvider = agendaEventService.saveRemoteProvider(new RemoteProvider(0, "newRemoteProvider", true));
     }
   }
 

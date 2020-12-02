@@ -7,7 +7,9 @@ import lombok.*;
 @NoArgsConstructor
 public class RemoteProvider {
 
-  private long   id;
+  private long    id;
 
-  private String name;
+  private String  name;
+
+  private boolean enabled;
 }

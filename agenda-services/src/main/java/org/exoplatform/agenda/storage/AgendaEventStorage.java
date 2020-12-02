@@ -105,6 +105,23 @@ public class AgendaEventStorage {
     return EntityMapper.fromEntity(remoteProviderEntity);
   }
 
+  public RemoteProvider getConnectorByName(String connectorName) {
+    RemoteProviderEntity remoteProviderEntity = remoteProviderDAO.findByName(connectorName);
+    if (remoteProviderEntity == null) {
+      return null;
+    }
+    return EntityMapper.fromEntity(remoteProviderEntity);
+  }
+
+  public void saveRemoteProviderStatus(String connectorName, boolean enabled) {
+    RemoteProviderEntity remoteProviderEntity = remoteProviderDAO.findByName(connectorName);
+    if (remoteProviderEntity == null) {
+      throw new IllegalStateException("Remote calendar not found with name " + remoteProviderEntity);
+    }
+    remoteProviderEntity.setEnabled(enabled);
+    remoteProviderDAO.update(remoteProviderEntity);
+  }
+
   /**
    * @param parentRecurrentEventId a parent recurrent {@link Event} technical
    *          identifier

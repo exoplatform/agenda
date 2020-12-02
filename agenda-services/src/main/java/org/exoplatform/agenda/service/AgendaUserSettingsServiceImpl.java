@@ -4,8 +4,7 @@ import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
 
-import org.exoplatform.agenda.model.AgendaUserSettings;
-import org.exoplatform.agenda.model.EventReminderParameter;
+import org.exoplatform.agenda.model.*;
 import org.exoplatform.commons.api.settings.SettingService;
 import org.exoplatform.commons.api.settings.SettingValue;
 import org.exoplatform.commons.api.settings.data.Context;
@@ -20,6 +19,8 @@ public class AgendaUserSettingsServiceImpl implements AgendaUserSettingsService 
 
   private static final String        AGENDA_USER_SETTING_KEY        = "AgendaSettings";
 
+  private AgendaEventService         agendaEventService;
+
   private AgendaEventReminderService agendaEventReminderService;
 
   private SettingService             settingService;
@@ -27,9 +28,11 @@ public class AgendaUserSettingsServiceImpl implements AgendaUserSettingsService 
   private AgendaUserSettings         defaultUserSettings            = null;
 
   public AgendaUserSettingsServiceImpl(AgendaEventReminderService agendaEventReminderService,
+                                       AgendaEventService agendaEventService,
                                        SettingService settingService,
                                        InitParams initParams) {
     this.agendaEventReminderService = agendaEventReminderService;
+    this.agendaEventService = agendaEventService;
     this.settingService = settingService;
 
     if (initParams.containsKey(AGENDA_USER_SETTINGS_PARAM_KEY)) {
@@ -61,13 +64,46 @@ public class AgendaUserSettingsServiceImpl implements AgendaUserSettingsService 
                                                            AGENDA_USER_SETTING_SCOPE,
                                                            AGENDA_USER_SETTING_KEY);
 
+    List<RemoteProvider> remoteProviders = agendaEventService.getRemoteProviders();
     if (settingValue == null || settingValue.getValue() == null || StringUtils.isBlank(settingValue.getValue().toString())) {
       AgendaUserSettings agendaUserSettings = defaultUserSettings.clone();
       List<EventReminderParameter> defaultReminders = agendaEventReminderService.getDefaultReminders();
       agendaUserSettings.setReminders(defaultReminders);
       return agendaUserSettings;
     } else {
-      return AgendaUserSettings.fromString(settingValue.getValue().toString());
+      AgendaUserSettings agendaUserSettings = AgendaUserSettings.fromString(settingValue.getValue().toString());
+      agendaUserSettings.setRemoteProviders(remoteProviders);
+      return agendaUserSettings;
     }
   }
+
+  @Override
+  public void saveUserConnector(String connectorName, String connectorUserId, long userIdentityId) {
+    if (StringUtils.isBlank(connectorName)) {
+      throw new IllegalArgumentException("connectorName parameter is mandatory");
+    }
+    if (StringUtils.isBlank(connectorUserId)) {
+      throw new IllegalArgumentException("connectorUserId parameter is mandatory");
+    }
+    if (userIdentityId <= 0) {
+      throw new IllegalArgumentException("userIdentityId parameter is mandatory");
+    }
+
+    AgendaUserSettings agendaUserSettings = getAgendaUserSettings(userIdentityId);
+
+    List<RemoteProvider> remoteProviders = agendaUserSettings.getRemoteProviders();
+    boolean enabledRemoteProvider = remoteProviders.stream()
+                                                   .anyMatch(remoteProvider -> StringUtils.equals(remoteProvider.getName(),
+                                                                                                  connectorName)
+                                                       && remoteProvider.isEnabled());
+
+    if (!enabledRemoteProvider) {
+      throw new IllegalStateException("Connector " + connectorName + " is not enabled");
+    }
+
+    agendaUserSettings.setConnectedRemoteUserId(connectorUserId);
+    agendaUserSettings.setConnectedRemoteProvider(connectorName);
+    saveAgendaUserSettings(userIdentityId, agendaUserSettings);
+  }
+
 }
