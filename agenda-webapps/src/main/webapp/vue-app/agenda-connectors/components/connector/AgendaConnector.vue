@@ -11,7 +11,17 @@ export default {
     connectors: [],
     connectedAccount: {},
   }),
+  computed: {
+    remoteProviders() {
+      return this.settings && this.settings.remoteProviders;
+    },
+  },
   watch: {
+    remoteProviders() {
+      if (this.remoteProviders) {
+        this.refreshConnectorsList();
+      }
+    },
     loading(newValue, oldValue) {
       if (this.loading) {
         if (!oldValue) {
@@ -27,7 +37,6 @@ export default {
   mounted() {
     // Retrieving list of registered connectors from extensionRegistry
     document.addEventListener('agenda-accounts-connectors-refresh', this.refreshConnectorsList);
-    this.refreshConnectorsList();
     this.$root.$on('agenda-init-connectors', this.initConnectors);
     this.$root.$on('agenda-synchronize-current-connector',
       (connector,currentUser) => {
@@ -39,9 +48,9 @@ export default {
       const connectors = extensionRegistry.loadExtensions('agenda', 'connectors') || [];
 
       // Check connectors status from store
-      if (this.settings.connectors) {
+      if (this.remoteProviders) {
         connectors.forEach(connector => {
-          const connectorObj = this.settings.connectors.find(connectorSettings => connectorSettings.name === connector.name);
+          const connectorObj = this.remoteProviders.find(connectorSettings => connectorSettings.name === connector.name);
           connector.enabled = connectorObj && connectorObj.enabled || false;
         });
       } else {
@@ -67,6 +76,10 @@ export default {
             connectorName: settings && settings.connectedRemoteProvider,
             userId: settings && settings.connectedRemoteUserId,
           };
+          const connectorObj = this.connectors && this.connectors.find(connector => connector.name === this.connectedAccount.connectorName);
+          if (connectorObj) {
+            this.connectedAccount.icon = connectorObj.avatar;
+          }
         });
     },
     connectionLoading(connector, loading) {
