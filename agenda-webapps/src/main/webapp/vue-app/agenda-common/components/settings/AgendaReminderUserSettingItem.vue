@@ -34,7 +34,7 @@
 </template>
 
 <script>
-const MAX_DAYS = 2;
+const MAX_DAYS = 1;
 const MAX_HOURS = MAX_DAYS * 24;
 const MAX_MINUTES = MAX_HOURS * 60;
 
