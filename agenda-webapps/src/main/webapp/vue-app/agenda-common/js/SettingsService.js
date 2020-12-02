@@ -72,6 +72,17 @@ export function saveUserConnector(connectorName, connectorUserId) {
   });
 }
 
+export function resetUserConnector() {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/settings/connector`, {
+    method: 'DELETE',
+    credentials: 'include',
+  }).then(resp => {
+    if (!resp || !resp.ok) {
+      throw new Error('Response code indicates a server error', resp);
+    }
+  });
+}
+
 export function getUserSettings() {
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/settings`, {
     method: 'GET',

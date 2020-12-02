@@ -33,6 +33,7 @@ export default {
       }
     });
     document.addEventListener('showSettingsApps', () => this.displayed = true);
+    this.$root.$on('agenda-settings-refresh', this.initSettings);
   },
   methods: {
     initSettings(userSettings) {

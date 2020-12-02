@@ -106,6 +106,7 @@ export default {
         this.$settingsService.saveUserConnector(this.connectedAccount.connectorName, this.connectedAccount.userId)
           .finally(() => {
             this.$refs.agendaConnectorsDrawer.endLoading();
+            this.$root.$emit('agenda-settings-refresh');
           });
       }).catch(error => {
         console.error(`Error while connecting to your remote account: ${error.error}`);
@@ -129,10 +130,11 @@ export default {
       }
     },
     resetConnectedAccount(connector) {
-      this.connectedAccount.userId = '';
-      return this.$settingsService.setSettingsValue('USER', eXo.env.portal.userName, 'APPLICATION', 'Agenda', 'agendaConnectorsSettings', this.connectedAccount)
+      this.connectedAccount = {};
+      return this.$settingsService.resetUserConnector()
         .finally(() => {
           this.$set(connector, 'loading', false);
+          this.$root.$emit('agenda-settings-refresh');
         });
     }
   },
