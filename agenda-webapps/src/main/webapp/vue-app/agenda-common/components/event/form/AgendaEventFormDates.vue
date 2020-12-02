@@ -133,6 +133,10 @@
 <script>
 export default {
   props: {
+    settings: {
+      type: Object,
+      default: () => null
+    },
     event: {
       type: Object,
       default: () => ({}),
@@ -191,7 +195,7 @@ export default {
       return `top: ${this.currentTimeTop}px;`;
     },
     events() {
-      return [this.event, ...this.spaceEvents] || [];
+      return [this.event, ...this.spaceEvents];
     },
     domId() {
       return `eventForm-${this.event.id}-${new Date(this.event.startDate).getTime()}`;
@@ -231,17 +235,16 @@ export default {
         this.event.endDate = new Date(this.event.startDate).getTime();
       }
     }
-    this.$settingsService.getSettingsValue('USER',eXo.env.portal.userName,'APPLICATION','Agenda','agendaConnectorsSettings')
-      .then(connectorSettings => {
-        if (connectorSettings && connectorSettings.value) {
-          this.connectedAccount = JSON.parse(connectorSettings.value);
-          this.$root.$emit('agenda-init-connectors');
-        }
-      });
+
+    this.connectedAccount = {
+      connectorName: this.settings && this.settings.connectedRemoteProvider,
+      userId: this.settings && this.settings.connectedRemoteUserId,
+    };
     this.$root.$on('agenda-connector-initialized', connectors => {
       this.connectors = connectors;
       this.retrieveRemoteEvents();
     });
+    this.$root.$emit('agenda-init-connectors');
   },
   mounted() {
     if (this.$refs.calendar) {

@@ -69,6 +69,7 @@ public class AgendaUserSettingsServiceImpl implements AgendaUserSettingsService 
       AgendaUserSettings agendaUserSettings = defaultUserSettings.clone();
       List<EventReminderParameter> defaultReminders = agendaEventReminderService.getDefaultReminders();
       agendaUserSettings.setReminders(defaultReminders);
+      agendaUserSettings.setRemoteProviders(remoteProviders);
       return agendaUserSettings;
     } else {
       AgendaUserSettings agendaUserSettings = AgendaUserSettings.fromString(settingValue.getValue().toString());

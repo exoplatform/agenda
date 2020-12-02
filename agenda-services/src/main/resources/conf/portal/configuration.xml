@@ -123,10 +123,10 @@
         <name>agenda.user.settings</name>
         <object type="org.exoplatform.agenda.model.AgendaUserSettings">
           <field name="agendaDefaultView">
-            <string>${exo.agenda.settings.agendaDefaultView:Week}</string>
+            <string>${exo.agenda.settings.agendaDefaultView:week}</string>
           </field>
           <field name="agendaWeekStartOn">
-            <string>${exo.agenda.settings.agendaWeekStartOn:Monday}</string>
+            <string>${exo.agenda.settings.agendaWeekStartOn:MO}</string>
           </field>
           <field name="showWorkingTime">
             <boolean>${exo.agenda.settings.showWorkingTime:false}</boolean>

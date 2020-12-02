@@ -159,7 +159,7 @@ public class AgendaUserSettingsRest implements ResourceContainer {
                                       @ApiParam(
                                           value = "Remote connector name",
                                           required = true
-                                      ) @FormParam("enabled") String connectorName,
+                                      ) @FormParam("connectorName") String connectorName,
                                       @ApiParam(
                                           value = "Remote connector status",
                                           required = true

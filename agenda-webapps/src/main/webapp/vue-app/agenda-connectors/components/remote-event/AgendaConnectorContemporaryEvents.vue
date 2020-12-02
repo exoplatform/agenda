@@ -49,6 +49,10 @@
 <script>
 export default {
   props: {
+    settings: {
+      type: Object,
+      default: () => null
+    },
     event: {
       type: Object,
       default: () => ({})
@@ -88,13 +92,11 @@ export default {
     }
   },
   created() {
-    this.$settingsService.getSettingsValue('USER',eXo.env.portal.userName,'APPLICATION','Agenda','agendaConnectorsSettings')
-      .then(connectorSettings => {
-        if (connectorSettings && connectorSettings.value) {
-          this.connectedAccount = JSON.parse(connectorSettings.value);
-          this.$root.$emit('agenda-init-connectors');
-        }
-      });
+    this.connectedAccount = {
+      connectorName: this.settings && this.settings.connectedRemoteProvider,
+      userId: this.settings && this.settings.connectedRemoteUserId,
+    };
+    this.$root.$emit('agenda-init-connectors');
     this.$root.$on('agenda-connector-initialized', connectors => {
       this.connectors = connectors;
       this.retrieveRemoteEvents();

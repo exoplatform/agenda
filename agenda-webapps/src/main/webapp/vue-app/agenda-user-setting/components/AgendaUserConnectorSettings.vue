@@ -27,12 +27,18 @@
     <agenda-user-connected-account-drawer
       :connected-account="connectedAccount"
       :connectors="connectors" />
-    <agenda-connector :connectors="connectors" />
+    <agenda-connector :settings="settings" />
   </v-list-item>
 </template>
 
 <script>
 export default {
+  props: {
+    settings: {
+      type: Object,
+      default: () => null,
+    },
+  },
   data: () => ({
     connectedAccount: {},
     connectors: [],
@@ -53,19 +59,17 @@ export default {
   },
   created() {
     this.$root.$on('agenda-refresh', this.refresh);
-    this.refresh();
     this.$root.$on('agenda-connector-loaded', connectors => {
       this.connectors = connectors;
     });
+    this.refresh();
   },
   methods: {
     refresh() {
-      this.$settingsService.getSettingsValue('USER',eXo.env.portal.userName,'APPLICATION','Agenda','agendaConnectorsSettings')
-        .then(connectorSettings => {
-          if (connectorSettings && connectorSettings.value) {
-            this.connectedAccount = JSON.parse(connectorSettings.value);
-          }
-        });
+      this.connectedAccount = {
+        connectorName: this.settings && this.settings.connectedRemoteProvider,
+        userId: this.settings && this.settings.connectedRemoteUserId,
+      };
     },
     openDrawer() {
       this.$root.$emit('agenda-connected-account-settings-open');

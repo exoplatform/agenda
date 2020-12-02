@@ -41,6 +41,7 @@
           <agenda-event-form-dates
             v-if="stepper === 2"
             ref="eventDates"
+            :settings="settings"
             :event="event"
             :weekdays="weekdays"
             :working-time="workingTime"
@@ -78,6 +79,10 @@
 <script>
 export default {
   props: {
+    settings: {
+      type: Object,
+      default: () => null,
+    },
     event: {
       type: Object,
       default: () => ({}),

@@ -280,7 +280,6 @@ export default {
           calendar: {
             owner: {},
           },
-          reminders: [],
           attachments: [],
           attendees: [],
         };

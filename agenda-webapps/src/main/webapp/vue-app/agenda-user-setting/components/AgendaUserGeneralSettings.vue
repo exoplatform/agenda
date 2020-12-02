@@ -26,18 +26,20 @@
                   color="primary">
                   {{ agendaWorkingTime }}
                 </v-chip>
-                <v-chip
-                  v-for="(reminder, index) in reminders"
-                  :key="index"
-                  class="ma-2"
-                  color="primary">
-                  <template v-if="reminder.before">
-                    {{ $t('agenda.label.notifyMeBefore', {0: reminder.before, 1: $t(`agenda.option.${reminder.beforePeriodType.toLowerCase()}s`).toLowerCase()}) }}
-                  </template>
-                  <template v-else>
-                    {{ $t('agenda.label.notifyMeWhenEventStarts') }}
-                  </template>
-                </v-chip>
+                <template v-if="settings.reminders">
+                  <v-chip
+                    v-for="(reminder, index) in settings.reminders"
+                    :key="index"
+                    class="ma-2"
+                    color="primary">
+                    <template v-if="reminder.before">
+                      {{ $t('agenda.label.notifyMeBefore', {0: reminder.before, 1: $t(`agenda.option.${reminder.beforePeriodType.toLowerCase()}s`).toLowerCase()}) }}
+                    </template>
+                    <template v-else>
+                      {{ $t('agenda.label.notifyMeWhenEventStarts') }}
+                    </template>
+                  </v-chip>
+                </template>
               </template>
             </v-list-item-title>
           </v-list-item-content>
@@ -52,28 +54,22 @@
         <i class="uiIconEdit uiIconLightBlue pb-2"></i>
       </v-btn>
     </v-list-item-action>
-    <agenda-user-setting-drawer
-      ref="agendaDrawer"
-      :settings="settings"
-      :reminders="reminders"
-      @saved="updateSettings" />
+    <agenda-user-setting-drawer ref="agendaDrawer" :settings="settings" />
   </v-list-item>
 </template>
 
 <script>
 export default {
+  props: {
+    settings: {
+      type: Object,
+      default: () => null,
+    },
+  },
   data: () => ({
     id: `Settings${parseInt(Math.random() * 10000)
       .toString()
       .toString()}`,
-    reminders: [],
-    settings: {
-      agendaDefaultView: 'week',
-      agendaWeekStartOn: 'MO',
-      showWorkingTime: false,
-      workingTimeStart: '08:00',
-      workingTimeEnd: '18:00',
-    },
   }),
   computed: {
     DAY_NAME_BY_ABBREVIATION () {
@@ -106,31 +102,15 @@ export default {
               {0: this.settings.workingTimeStart, 1: this.settings.workingTimeEnd});
     }
   },
-  created() {
-    this.$root.$on('agenda-refresh', this.refresh);
-    this.refresh();
-  },
   methods: {
-    refresh() {
-      this.$settingsService.getSettingsValue('USER', eXo.env.portal.userName, 'APPLICATION', 'Agenda', 'agendaUserSettings')
-        .then(settings => {
-          if (settings && settings.value) {
-            this.settings = JSON.parse(settings.value);
-          }
-          return this.$eventService.getUserReminderSettings();
-        })
-        .then(reminders => this.reminders = reminders || [])
-        .finally(() => this.$nextTick().then(() => this.$root.$emit('application-loaded')));
-    },
     openDrawer(){
       this.$refs.agendaDrawer.open();
     },
     getDayFromAbbreviation(day) {
       return this.$agendaUtils.getDayNameFromDayAbbreviation(day, eXo.env.portal.language);
     },
-    updateSettings(settings, reminders) {
+    updateSettings(settings) {
       this.settings = settings;
-      this.reminders = reminders;
     },
   }
 };

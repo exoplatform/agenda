@@ -19,6 +19,7 @@
         <agenda-event-form
           v-else
           ref="eventForm"
+          :settings="settings"
           :event="event"
           :weekdays="weekdays"
           :current-space="currentSpace"
@@ -40,6 +41,7 @@
       <agenda-event-details
         v-else
         ref="eventDetails"
+        :settings="settings"
         :event="event"
         :weekdays="weekdays"
         :connectors="connectors"
@@ -51,6 +53,10 @@
 <script>
 export default {
   props: {
+    settings: {
+      type: Object,
+      default: () => null
+    },
     weekdays: {
       type: Array,
       default: () => null
