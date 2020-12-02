@@ -45,7 +45,7 @@
                     :ripple="false"
                     color="#568dc9"
                     class="connectorSwitcher"
-                    @change="enableDisableConnector( props.item)" />
+                    @change="enableDisableConnector(props.item)" />
                 </div>
               </td>
             </tr>
@@ -91,10 +91,10 @@ export default {
   methods: {
     refreshConnectorsList() {
       const connectors = extensionRegistry.loadExtensions('agenda', 'connectors') || [];
-      this.$settingsService.getSettingsValue('GLOBAL','GLOBAL','APPLICATION','Agenda', 'agendaConnectorsAdminSettings')
+      this.$settingsService.getSettingsValue()
         .then(connectorsStatusSettings => {
-          if (connectorsStatusSettings && connectorsStatusSettings.value) {
-            Object.assign(this.connectorsStatusSettings,JSON.parse(connectorsStatusSettings.value));
+          if (connectorsStatusSettings && connectorsStatusSettings && connectorsStatusSettings.remoteProviders) {
+            Object.assign(this.connectorsStatusSettings,connectorsStatusSettings.remoteProviders);
             //in case of a new connector is added.
             connectors.forEach(connector => {
               const connectorObj = this.connectorsStatusSettings.find(connectorSettings => connectorSettings.name === connector.name);
@@ -111,8 +111,8 @@ export default {
           this.loading = false;
         });
     },
-    enableDisableConnector() {
-      this.$settingsService.setSettingsValue('GLOBAL','GLOBAL','APPLICATION','Agenda', 'agendaConnectorsAdminSettings', this.connectorsStatusSettings);
+    enableDisableConnector(connector) {
+      this.$settingsService.saveRemoteProviderStatus(connector.name, connector.enabled);
     }
   }
 };
