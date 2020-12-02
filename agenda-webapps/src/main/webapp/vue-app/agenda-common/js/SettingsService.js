@@ -1,4 +1,4 @@
-export function saveAgendaSettings(value) {
+export function saveUserSettings(settings) {
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/settings`, {
     method: 'PUT',
     credentials: 'include',
@@ -6,7 +6,7 @@ export function saveAgendaSettings(value) {
       Accept: 'application/json',
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(value),
+    body: JSON.stringify(settings),
   }).then(resp => {
     if (!resp || !resp.ok) {
       throw new Error('Response code indicates a server error', resp);
@@ -14,8 +14,7 @@ export function saveAgendaSettings(value) {
   });
 }
 
-
-export function getSettingsValue() {
+export function getUserSettings() {
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/settings`, {
     method: 'GET',
     credentials: 'include',
@@ -26,8 +25,6 @@ export function getSettingsValue() {
   }).then((resp) => {
     if (resp && resp.ok) {
       return resp.json();
-    } else if (resp && resp.status === 404) {
-      return null;
     } else {
       throw new Error('Error getting settings', resp);
     }

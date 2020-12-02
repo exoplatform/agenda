@@ -1,14 +1,15 @@
 <script>
 export default {
   props: {
-    connectors: {
-      type: Array,
-      default: () => []
+    settings: {
+      type: Object,
+      default: () => null,
     }
   },
   data: () => ({
     loading: false,
-    connectedAccount: {}
+    connectors: [],
+    connectedAccount: {},
   }),
   watch: {
     loading(newValue, oldValue) {
@@ -27,7 +28,6 @@ export default {
     // Retrieving list of registered connectors from extensionRegistry
     document.addEventListener('agenda-accounts-connectors-refresh', this.refreshConnectorsList);
     this.refreshConnectorsList();
-    this.retrieveConnectedConnectorSettings();
     this.$root.$on('agenda-init-connectors', this.initConnectors);
     this.$root.$on('agenda-synchronize-current-connector',
       (connector,currentUser) => {
@@ -37,24 +37,21 @@ export default {
   methods: {
     refreshConnectorsList() {
       const connectors = extensionRegistry.loadExtensions('agenda', 'connectors') || [];
-      this.$settingsService.getSettingsValue('GLOBAL','GLOBAL','APPLICATION','Agenda', 'agendaConnectorsAdminSettings')
-        .then(connectorsSettings => {
-          if (connectorsSettings && connectorsSettings.value) {
-            const connectorsStatusSettings = JSON.parse(connectorsSettings.value);
-            //in case of a new connector is added.
-            connectors.forEach(connector => {
-              const connectorObj = connectorsStatusSettings.find(connectorSettings => connectorSettings.name === connector.name);
-              connector.enabled = connectorObj ? connectorObj.enabled : true;
-            });
-            this.connectors = connectors;
-          } else {
-            connectors.forEach(connector => {
-              connector.enabled = true;
-            });
-            this.connectors = connectors;
-          }
-          this.$root.$emit('agenda-connector-loaded', this.connectors);
+
+      // Check connectors status from store
+      if (this.settings.connectors) {
+        connectors.forEach(connector => {
+          const connectorObj = this.settings.connectors.find(connectorSettings => connectorSettings.name === connector.name);
+          connector.enabled = connectorObj && connectorObj.enabled || false;
         });
+      } else {
+        connectors.forEach(connector => {
+          connector.enabled = false;
+        });
+      }
+
+      this.connectors = connectors;
+      this.$root.$emit('agenda-connector-loaded', this.connectors);
     },
     initConnectors() {
       this.connectors.forEach(connector => {
@@ -64,11 +61,12 @@ export default {
       });
     },
     retrieveConnectedConnectorSettings() {
-      return this.$settingsService.getSettingsValue('USER',eXo.env.portal.userName,'APPLICATION','Agenda','agendaConnectorsSettings')
-        .then(connectorSettings => {
-          if (connectorSettings && connectorSettings.value) {
-            this.connectedAccount = JSON.parse(connectorSettings.value);
-          }
+      return this.$settingsService.getUserSettings()
+        .then(settings => {
+          this.connectedAccount = {
+            connectorName: settings && settings.connectedRemoteProvider,
+            userId: settings && settings.connectedRemoteUserId,
+          };
         });
     },
     connectionLoading(connector, loading) {

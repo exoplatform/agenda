@@ -98,7 +98,13 @@ public class AgendaEventStorage {
   public RemoteProvider saveRemoteProvider(RemoteProvider remoteProvider) {
     RemoteProviderEntity remoteProviderEntity = EntityMapper.toEntity(remoteProvider);
     if (remoteProviderEntity.getId() == null) {
-      remoteProviderEntity = remoteProviderDAO.create(remoteProviderEntity);
+      RemoteProviderEntity existingRemoteProviderEntity = remoteProviderDAO.findByName(remoteProvider.getName());
+      if (existingRemoteProviderEntity == null) {
+        remoteProviderEntity = remoteProviderDAO.create(remoteProviderEntity);
+      } else {
+        remoteProviderEntity.setId(existingRemoteProviderEntity.getId());
+        remoteProviderEntity = remoteProviderDAO.update(remoteProviderEntity);
+      }
     } else {
       remoteProviderEntity = remoteProviderDAO.update(remoteProviderEntity);
     }

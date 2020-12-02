@@ -124,6 +124,7 @@
           ref="agendaAttendees"
           :event="event" />
         <agenda-connector-contemporary-events
+          :settings="settings"
           :event="event"
           :connectors="connectors"
           class="mt-5" />
@@ -158,6 +159,10 @@
 <script>
 export default {
   props: {
+    settings: {
+      type: Object,
+      default: () => null
+    },
     event: {
       type: Object,
       default: () => ({})

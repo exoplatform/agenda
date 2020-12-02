@@ -51,7 +51,7 @@
           <label class="subtitle-1 float-left mt-5 mr-4">
             {{ $t('agenda.label.defaultReminders') }}
           </label>
-          <agenda-reminder-user-settings ref="reminders" :reminders="remindersForm" />
+          <agenda-reminder-user-settings ref="reminders" :reminders="userSettingsForm.reminders" />
         </v-layout>
       </v-form>
       <exo-confirm-dialog
@@ -89,16 +89,11 @@ export default {
       type: Object,
       default: () => ({}),
     },
-    reminders: {
-      type: Array,
-      default: () => [],
-    },
   },
   data() {
     return {
       DAYS_ABBREVIATIONS: ['SU', 'MO','TU','WE','TH','FR', 'SA'],
       userSettingsForm: {},
-      remindersForm: {},
       saved: false,
     };
   },
@@ -123,26 +118,17 @@ export default {
       };
     },
     confirmClose() {
-      return !this.saved && (!this.$agendaUtils.areSameObjects(this.userSettingsForm, this.settings)
-        || !this.$agendaUtils.areSameObjects(this.remindersForm, this.reminders));
+      return !this.saved && !this.$agendaUtils.areSameObjects(this.userSettingsForm, this.settings);
     },
     showWorkingTime() {
-      return this.remindersForm && this.userSettingsForm.showWorkingTime;
+      return this.userSettingsForm.showWorkingTime;
     },
-    settingsForm() {
-      const settingsForm = this.userSettingsForm;
-      settingsForm['reminders'] = this.remindersForm;
-      return settingsForm;
-    }
   },
   watch: {
     showWorkingTime(newVal, oldVal) {
       if (newVal && !oldVal) {
         this.userSettingsForm.workingTimeStart = this.settings.workingTimeStart || '09:00';
         this.userSettingsForm.workingTimeEnd = this.settings.workingTimeEnd || '18:00';
-      } else {
-        delete this.userSettingsForm.workingTimeStart;
-        delete this.userSettingsForm.workingTimeEnd;
       }
     },
   },
@@ -153,10 +139,7 @@ export default {
   methods: {
     open() {
       this.userSettingsForm = this.settings && JSON.parse(JSON.stringify(this.settings)) || {};
-      this.remindersForm = this.reminders && JSON.parse(JSON.stringify(this.reminders)) || [];
-
       this.saved = false;
-
       this.$refs.UserSettingAgendaDrawer.open();
     },
     close() {
@@ -165,13 +148,13 @@ export default {
     save() {
       if(this.validateForm()) {
         this.$refs.UserSettingAgendaDrawer.startLoading();
-        this.$settingsService.saveAgendaSettings(this.settingsForm)
+        this.$settingsService.saveUserSettings(this.userSettingsForm)
           .then(() => {
             this.saved = true;
             return this.$nextTick();
           })
           .then(() => {
-            this.$emit('saved', this.settingsForm);
+            this.$root.$emit('agenda-settings-refresh', this.userSettingsForm);
             this.$refs.UserSettingAgendaDrawer.close();
           })
           .finally(() => {

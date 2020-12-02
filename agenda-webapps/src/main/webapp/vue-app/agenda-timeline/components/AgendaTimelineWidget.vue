@@ -14,6 +14,7 @@
     <agenda-event-dialog
       ref="eventFormDialog"
       :current-space="currentSpace"
+      :settings="settings"
       :weekdays="weekdays"
       :working-time="workingTime" />
     <agenda-event-quick-form-drawer
@@ -30,7 +31,6 @@ export default {
     loading: false,
     ownerIds: [],
     eventType: 'myEvents',
-    calendarType: 'week',
     periodStart: new Date(),
     limit: 10,
     period: {
@@ -86,15 +86,27 @@ export default {
     this.$root.$on('agenda-refresh', this.retrieveEvents);
     this.$root.$on('agenda-event-deleted', this.retrieveEvents);
     this.spaceId = eXo.env.portal.spaceId;
-    this.$settingsService.getSettingsValue('USER',eXo.env.portal.userName,'APPLICATION','Agenda','agendaUserSettings')
-      .then(settings => {
-        if (settings && settings.value) {
-          this.settings = JSON.parse(settings.value);
-          this.calendarType = this.settings && this.settings.agendaDefaultView;
-        }
-      });
+
+    // Asynchronously load settings to use it in dialogs,
+    // not needed for main screen display
+    this.initSettings();
   },
   methods: {
+    initSettings(userSettings) {
+      if (userSettings) {
+        this.settings = userSettings;
+      } else {
+        return this.$settingsService.getUserSettings()
+          .then(settings => {
+            if (settings) {
+              this.settings = settings;
+            }
+          })
+          .finally(() => {
+            this.settingsLoaded = true;
+          });
+      }
+    },
     retrieveEvents() {
       if (!this.initialized && eXo.env.portal.spaceId) {
         const spaceId = eXo.env.portal.spaceId;

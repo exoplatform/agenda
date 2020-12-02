@@ -42,6 +42,7 @@
     <agenda-event-dialog
       ref="eventFormDialog"
       :current-space="currentSpace"
+      :settings="settings"
       :weekdays="weekdays"
       :working-time="workingTime"
       :connectors="connectors" />
@@ -49,14 +50,11 @@
     <agenda-filter-calendar-drawer
       :owner-ids="ownerIds"
       @changed="changeDisplayedOwnerIds" />
-    <agenda-user-setting-drawer
-      :settings="settings"
-      :reminders="reminders"
-      @saved="updateSettings" />
+    <agenda-user-setting-drawer :settings="settings" />
     <agenda-event-quick-form-drawer :current-space="currentSpace" />
     <agenda-event-mobile-form-drawer :current-space="currentSpace" />
     <agenda-event-save />
-    <agenda-connector :connected-connector="connectedConnector" />
+    <agenda-connector :settings="settings" />
   </v-app>
 </template>
 <script>
@@ -78,7 +76,6 @@ export default {
       end: null,
     },
     events: [],
-    reminders: [],
     settings: {
       agendaDefaultView: 'week',
       agendaWeekStartOn: 'MO',
@@ -89,7 +86,6 @@ export default {
     hasMore: false,
     settingsLoaded: false,
     connectors: [],
-    connectedConnector: {},
   }),
   computed: {
     isMobile() {
@@ -140,23 +136,29 @@ export default {
     this.$root.$on('agenda-event-type-changed', eventType => this.eventType = eventType);
     this.$root.$on('agenda-event-deleted', this.retrieveEvents);
     this.spaceId = eXo.env.portal.spaceId;
-    this.$settingsService.getSettingsValue()
-      .then(settings => {
-        if (settings) {
-          this.settings = settings;
-          this.calendarType = this.settings && this.settings.agendaDefaultView;
-          this.reminders = settings.reminders || [];
-        }
-      })
-      .finally(() => {
-        this.settingsLoaded = true;
-        document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
-      });
     this.$root.$on('agenda-connector-loaded', connectors => {
       this.connectors = connectors;
     });
+    this.$root.$on('agenda-settings-refresh', this.initSettings);
+    this.initSettings();
   },
   methods: {
+    initSettings(userSettings) {
+      if (userSettings) {
+        this.settings = userSettings;
+      } else {
+        return this.$settingsService.getUserSettings()
+          .then(settings => {
+            if (settings) {
+              this.settings = settings;
+              this.calendarType = this.settings && this.settings.agendaDefaultView;
+            }
+          })
+          .finally(() => {
+            this.settingsLoaded = true;
+          });
+      }
+    },
     retrieveEvents() {
       if (!this.initialized && eXo.env.portal.spaceId) {
         const spaceId = eXo.env.portal.spaceId;
@@ -209,9 +211,8 @@ export default {
       this.ownerIds = selectedOwnerIds;
       this.retrieveEvents();
     },
-    updateSettings(settings, reminders) {
+    updateSettings(settings) {
       this.settings = settings;
-      this.reminders = reminders;
     },
   },
 };
