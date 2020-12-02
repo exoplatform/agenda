@@ -1,5 +1,6 @@
 package org.exoplatform.agenda.util;
 
+import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.Calendar;
 
@@ -239,6 +240,7 @@ public class NotificationUtils {
 
     setIdentityNameAndAvatar(notification, templateContext);
     setEventDetails(templateContext, notification);
+
     templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
     return templateContext;
   }
@@ -255,9 +257,12 @@ public class NotificationUtils {
   private static final void setEventDetails(TemplateContext templateContext, NotificationInfo notification) {
     templateContext.put(TEMPLATE_VARIABLE_EVENT_ID, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_ID));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_TITLE, getEventTitle(notification));
-    templateContext.put(TEMPLATE_VARIABLE_EVENT_START_DATE,
-                        notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_START_DATE));
-    templateContext.put(TEMPLATE_VARIABLE_EVENT_END_DATE, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_END_DATE));
+    ZonedDateTime eventStartDate = ZonedDateTime.parse(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_START_DATE));
+    ZonedDateTime eventEndDate = ZonedDateTime.parse(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_END_DATE));
+    String startDateFormatted = AgendaDateUtils.formatWithHoursAndMinutes(eventStartDate);
+    String endDateFormatted = AgendaDateUtils.formatWithHoursAndMinutes(eventEndDate);
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_START_DATE, startDateFormatted);
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_END_DATE, endDateFormatted);
     templateContext.put("USER", notification.getTo());
   }
 
