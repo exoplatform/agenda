@@ -140,15 +140,14 @@ export default {
     this.$root.$on('agenda-event-type-changed', eventType => this.eventType = eventType);
     this.$root.$on('agenda-event-deleted', this.retrieveEvents);
     this.spaceId = eXo.env.portal.spaceId;
-    this.$settingsService.getSettingsValue('USER',eXo.env.portal.userName,'APPLICATION','Agenda','agendaUserSettings')
+    this.$settingsService.getSettingsValue()
       .then(settings => {
-        if (settings && settings.value) {
-          this.settings = JSON.parse(settings.value);
+        if (settings) {
+          this.settings = settings;
           this.calendarType = this.settings && this.settings.agendaDefaultView;
+          this.reminders = settings.reminders || [];
         }
-        return this.$eventService.getUserReminderSettings();
       })
-      .then(reminders => this.reminders = reminders || [])
       .finally(() => {
         this.settingsLoaded = true;
         document.dispatchEvent(new CustomEvent('hideTopBarLoading'));

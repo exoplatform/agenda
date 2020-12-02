@@ -130,10 +130,9 @@ export default {
       return this.remindersForm && this.userSettingsForm.showWorkingTime;
     },
     settingsForm() {
-      return {
-        'userSettings': this.userSettingsForm,
-        'reminderSettings': this.remindersForm
-      };
+      const settingsForm = this.userSettingsForm;
+      settingsForm['reminders'] = this.remindersForm;
+      return settingsForm;
     }
   },
   watch: {

@@ -137,7 +137,7 @@ export function sendEventResponse(eventId, occurrenceId, response) {
 }
 
 export function getUserReminderSettings() {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/reminderSettings`, {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/settings`, {
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -153,7 +153,7 @@ export function getUserReminderSettings() {
 }
 
 export function saveUserReminderSettings(reminders) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/reminderSettings`, {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/settings`, {
     method: 'PUT',
     credentials: 'include',
     headers: {
