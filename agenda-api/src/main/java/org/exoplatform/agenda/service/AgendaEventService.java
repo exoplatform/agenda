@@ -286,4 +286,12 @@ public interface AgendaEventService {
                                           ZoneId timezone,
                                           int limit);
 
+  /**
+   * Save connector status
+   * 
+   * @param connectorName Remote connector name
+   * @param enabled status
+   */
+  void saveRemoteProviderStatus(String connectorName, boolean enabled);
+
 }

@@ -18,6 +18,7 @@ package org.exoplatform.agenda.service;
 
 import java.time.*;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
@@ -27,10 +28,14 @@ import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.model.Calendar;
+import org.exoplatform.agenda.plugin.RemoteProviderDefinitionPlugin;
 import org.exoplatform.agenda.search.AgendaSearchConnector;
 import org.exoplatform.agenda.storage.AgendaEventStorage;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.container.ExoContainerContext;
+import org.exoplatform.container.PortalContainer;
+import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
@@ -79,6 +84,27 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     this.identityManager = identityManager;
     this.spaceService = spaceService;
     this.listenerService = listenerService;
+  }
+
+  public void addRemoteProvider(RemoteProviderDefinitionPlugin plugin) {
+    if (plugin == null) {
+      throw new IllegalArgumentException("plugin is mandatory");
+    }
+    PortalContainer container = PortalContainer.getInstance();
+
+    CompletableFuture.runAsync(() -> {
+      ExoContainerContext.setCurrentContainer(container);
+      RequestLifeCycle.begin(container);
+      try {
+        RemoteProvider remoteProvider = agendaEventStorage.getConnectorByName(plugin.getConnectorName());
+        if (remoteProvider == null) {
+          remoteProvider = new RemoteProvider(0, plugin.getConnectorName(), plugin.isEnabled());
+        }
+        saveRemoteProvider(remoteProvider);
+      } finally {
+        RequestLifeCycle.end();
+      }
+    });
   }
 
   /**
@@ -818,6 +844,14 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
     occurrences.forEach(occurrence -> adjustEventDatesForRead(occurrence, timezone));
     return limit > 0 && occurrences.size() > limit ? occurrences.subList(0, limit) : occurrences;
+  }
+
+  @Override
+  public void saveRemoteProviderStatus(String connectorName, boolean enabled) {
+    if (StringUtils.isBlank(connectorName)) {
+      throw new IllegalStateException("connectorName is mandatory");
+    }
+    agendaEventStorage.saveRemoteProviderStatus(connectorName, enabled);
   }
 
   private ZonedDateTime getMaxEndDate(EventFilter eventFilter, ZoneId userTimeZone) {
