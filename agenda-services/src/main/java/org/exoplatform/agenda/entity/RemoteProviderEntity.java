@@ -29,7 +29,7 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
   {
       @NamedQuery(
           name = "AgendaRemoteProvider.findByName",
-          query = "SELECT rc FROM AgendaRemoteProvider rc WHERE rc.name :name"
+          query = "SELECT rc FROM AgendaRemoteProvider rc WHERE rc.name = :name"
       ),
   }
 )
