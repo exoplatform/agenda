@@ -1,3 +1,5 @@
+import {USER_TIMEZONE_ID} from './AgendaUtils.js';
+
 export function saveUserSettings(settings) {
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/settings`, {
     method: 'PUT',
@@ -14,18 +16,16 @@ export function saveUserSettings(settings) {
   });
 }
 
-
-export function saveRemoteProviderStatus(ConnectorName, ConnectorStatus) {
+export function saveRemoteProviderStatus(connectorName, connectorStatus) {
   const formData = new FormData();
-  formData.append('connectorName', ConnectorName);
-  formData.append('enabled', ConnectorStatus);
+  formData.append('connectorName', connectorName);
+  formData.append('enabled', !!connectorStatus);
 
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/settings/connector/status`, {
     method: 'POST',
     credentials: 'include',
     headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: new URLSearchParams(formData).toString(),
   }).then(resp => {
@@ -35,7 +35,25 @@ export function saveRemoteProviderStatus(ConnectorName, ConnectorStatus) {
   });
 }
 
-export function getSettingsValue() {
+export function saveTimeZone(timeZoneId) {
+  const formData = new FormData();
+  formData.append('timeZoneId', timeZoneId);
+
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/settings/timeZone`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams(formData).toString(),
+  }).then(resp => {
+    if (!resp || !resp.ok) {
+      throw new Error('Response code indicates a server error', resp);
+    }
+  });
+}
+
+export function getUserSettings() {
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/settings`, {
     method: 'GET',
     credentials: 'include',
@@ -49,6 +67,12 @@ export function getSettingsValue() {
     } else {
       throw new Error('Error getting settings', resp);
     }
+  }).then(settings => {
+    if (settings && (!settings.timeZoneId || settings.timeZoneId !== USER_TIMEZONE_ID)) {
+      settings.timeZoneId = USER_TIMEZONE_ID;
+      saveTimeZone(USER_TIMEZONE_ID);
+    }
+    return settings;
   }).then(resp => {
     return resp;
   });

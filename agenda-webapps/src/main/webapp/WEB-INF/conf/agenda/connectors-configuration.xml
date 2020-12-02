@@ -30,7 +30,7 @@
       <init-params>
         <value-param>
           <name>connectorName</name>
-          <value>Google calendar</value>
+          <value>agenda.googleCalendar</value>
         </value-param>
         <value-param>
           <name>connectorEnabled</name>

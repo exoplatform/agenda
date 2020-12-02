@@ -1,5 +1,6 @@
 package org.exoplatform.agenda.util;
 
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.Calendar;
@@ -205,7 +206,8 @@ public class NotificationUtils {
   }
 
   public static final TemplateContext buildTemplateParameters(TemplateProvider templateProvider,
-                                                              NotificationInfo notification) {
+                                                              NotificationInfo notification,
+                                                              ZoneId timeZone) {
     String language = NotificationPluginUtils.getLanguage(notification.getTo());
     TemplateContext templateContext = getTemplateContext(templateProvider, notification, language);
 
@@ -215,7 +217,7 @@ public class NotificationUtils {
     setLasModifiedTime(notification, templateContext, language);
 
     setIdentityNameAndAvatar(notification, templateContext);
-    setEventDetails(templateContext, notification);
+    setEventDetails(templateContext, notification, timeZone);
     String modificationStoredType = notification.getValueOwnerParameter(STORED_EVENT_MODIFICATION_TYPE);
     templateContext.put(TEMPLATE_VARIABLE_EVENT_MODIFICATION_TYPE, modificationStoredType);
     templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
@@ -229,7 +231,8 @@ public class NotificationUtils {
   }
 
   public static final TemplateContext buildTemplateReminderParameters(TemplateProvider templateProvider,
-                                                                      NotificationInfo notification) {
+                                                                      NotificationInfo notification,
+                                                                      ZoneId timeZone) {
     String language = NotificationPluginUtils.getLanguage(notification.getTo());
     TemplateContext templateContext = getTemplateContext(templateProvider, notification, language);
 
@@ -239,7 +242,7 @@ public class NotificationUtils {
     setLasModifiedTime(notification, templateContext, language);
 
     setIdentityNameAndAvatar(notification, templateContext);
-    setEventDetails(templateContext, notification);
+    setEventDetails(templateContext, notification, timeZone);
 
     templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
     return templateContext;
@@ -254,13 +257,19 @@ public class NotificationUtils {
     return messageInfo.end();
   }
 
-  private static final void setEventDetails(TemplateContext templateContext, NotificationInfo notification) {
+  private static final void setEventDetails(TemplateContext templateContext, NotificationInfo notification, ZoneId timeZone) {
     templateContext.put(TEMPLATE_VARIABLE_EVENT_ID, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_ID));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_TITLE, getEventTitle(notification));
-    ZonedDateTime eventStartDate = ZonedDateTime.parse(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_START_DATE));
-    ZonedDateTime eventEndDate = ZonedDateTime.parse(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_END_DATE));
-    String startDateFormatted = AgendaDateUtils.formatWithHoursAndMinutes(eventStartDate);
-    String endDateFormatted = AgendaDateUtils.formatWithHoursAndMinutes(eventEndDate);
+
+    String startDateRFC3339 = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_START_DATE);
+    String endDateRFC3339 = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_END_DATE);
+
+    ZonedDateTime startDate = ZonedDateTime.parse(startDateRFC3339).withZoneSameInstant(timeZone);
+    ZonedDateTime endDate = ZonedDateTime.parse(endDateRFC3339).withZoneSameInstant(timeZone);
+
+    String startDateFormatted = AgendaDateUtils.formatWithHoursAndMinutes(startDate);
+    String endDateFormatted = AgendaDateUtils.formatWithHoursAndMinutes(endDate);
+
     templateContext.put(TEMPLATE_VARIABLE_EVENT_START_DATE, startDateFormatted);
     templateContext.put(TEMPLATE_VARIABLE_EVENT_END_DATE, endDateFormatted);
     templateContext.put("USER", notification.getTo());

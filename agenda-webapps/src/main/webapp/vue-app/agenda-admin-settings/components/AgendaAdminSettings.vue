@@ -63,16 +63,6 @@ export default {
     connectors: [],
     headers: [],
   }),
-  computed: {
-    connectorsStatusSettings() {
-      return this.connectors.slice().map(connector => {
-        return {
-          name: connector.name,
-          enabled: connector.enabled
-        };
-      });
-    }
-  },
   mounted() {
     document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
     this.skeleton = false;
@@ -91,22 +81,21 @@ export default {
   methods: {
     refreshConnectorsList() {
       const connectors = extensionRegistry.loadExtensions('agenda', 'connectors') || [];
-      this.$settingsService.getSettingsValue()
-        .then(connectorsStatusSettings => {
-          if (connectorsStatusSettings && connectorsStatusSettings && connectorsStatusSettings.remoteProviders) {
-            Object.assign(this.connectorsStatusSettings,connectorsStatusSettings.remoteProviders);
+      this.$settingsService.getUserSettings()
+        .then(settings => {
+          if (settings && settings.remoteProviders) {
             //in case of a new connector is added.
             connectors.forEach(connector => {
-              const connectorObj = this.connectorsStatusSettings.find(connectorSettings => connectorSettings.name === connector.name);
-              connector.enabled = connectorObj ? connectorObj.enabled : true;
+              const connectorObj = settings.remoteProviders.find(connectorSettings => connectorSettings.name === connector.name);
+              connector.enabled = connectorObj && connectorObj.enabled || false;
             });
-            this.connectors = connectors;
           } else {
             connectors.forEach(connector => {
-              connector.enabled = true;
+              connector.enabled = false;
             });
-            this.connectors = connectors;
           }
+
+          this.connectors = connectors;
         }).finally(() => {
           this.loading = false;
         });

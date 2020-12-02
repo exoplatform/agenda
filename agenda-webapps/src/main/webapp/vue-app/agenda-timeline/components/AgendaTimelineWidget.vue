@@ -16,11 +16,13 @@
       :current-space="currentSpace"
       :settings="settings"
       :weekdays="weekdays"
-      :working-time="workingTime" />
+      :working-time="workingTime"
+      :connectors="connectors" />
     <agenda-event-quick-form-drawer
       :current-space="currentSpace"
       :display-more-details="false" />
     <agenda-event-save />
+    <agenda-connector :settings="settings" />
   </v-app>
 </template>
 <script>
@@ -30,6 +32,7 @@ export default {
     currentSpace: null,
     loading: false,
     ownerIds: [],
+    connectors: [],
     eventType: 'myEvents',
     periodStart: new Date(),
     limit: 10,
@@ -85,6 +88,10 @@ export default {
     this.$root.$on('agenda-event-saved', this.retrieveEvents);
     this.$root.$on('agenda-refresh', this.retrieveEvents);
     this.$root.$on('agenda-event-deleted', this.retrieveEvents);
+    this.$root.$on('agenda-connector-loaded', connectors => {
+      this.connectors = connectors;
+    });
+
     this.spaceId = eXo.env.portal.spaceId;
 
     // Asynchronously load settings to use it in dialogs,

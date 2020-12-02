@@ -347,6 +347,15 @@ public class Utils {
     return identityManager.getIdentity(identityId);
   }
 
+  public static long getIdentityIdByUsername(IdentityManager identityManager, String username) {
+    Identity identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+    if (identity == null) {
+      return 0;
+    } else {
+      return Long.parseLong(identity.getId());
+    }
+  }
+
   public static List<String> getSpaceMembersBySpaceName(String spaceName, SpaceService spaceService) {
     String[] members = spaceService.getSpaceByPrettyName(spaceName).getMembers();
     return Arrays.asList(members);
@@ -557,20 +566,6 @@ public class Utils {
     } else {
       ZoneOffsetTransition previousTransition = zoneId.getRules().nextTransition(zonedDateTime.toInstant());
       return previousTransition.getDateTimeBefore();
-    }
-  }
-
-  public static ZoneId getUserTimezone(IdentityManager identityManager, long identityId) {
-    Identity userIdentity = identityManager.getIdentity(String.valueOf(identityId));
-    return getUserTimezone(userIdentity);
-  }
-
-  public static ZoneId getUserTimezone(Identity userIdentity) {
-    if (userIdentity == null || userIdentity.getProfile().getTimeZone() == null) {
-      return ZoneId.systemDefault();
-    } else {
-      String timeZoneId = userIdentity.getProfile().getTimeZone();
-      return java.util.TimeZone.getTimeZone(timeZoneId).toZoneId();
     }
   }
 
