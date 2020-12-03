@@ -149,6 +149,10 @@ export default {
       type: Object,
       default: () => null
     },
+    connectedAccount: {
+      type: Object,
+      default: () => null
+    },
     connectors: {
       type: Array,
       default: () => null
@@ -181,7 +185,6 @@ export default {
     scrollToTimeTop: null,
     menuLeftPosition: false,
     menuTopPosition: false,
-    connectedAccount: {},
     period: {},
     remoteEvents: [],
     spaceEvents: [],
@@ -243,18 +246,10 @@ export default {
       }
     }
 
-    this.connectedAccount = {
-      connectorName: this.settings && this.settings.connectedRemoteProvider,
-      userId: this.settings && this.settings.connectedRemoteUserId,
-    };
-    this.$root.$on('agenda-connector-initialized', connectors => {
-      this.connectors = connectors;
-      const connectorObj = this.connectors && this.connectors.find(connector => connector.name === this.connectedAccount.connectorName);
-      if (connectorObj) {
-        this.connectedAccount.icon = connectorObj.avatar;
-      }
+    this.$root.$on('agenda-connector-initialized', () => {
       this.retrieveRemoteEvents();
     });
+
     this.$root.$emit('agenda-init-connectors');
   },
   mounted() {
@@ -440,8 +435,8 @@ export default {
     },
     retrieveRemoteEvents() {
       if(this.connectedConnector) {
-        this.connectedConnector.getEvents(this.$agendaUtils.toRFC3339(this.period.start, false),
-          this.$agendaUtils.toRFC3339(this.period.end, false))
+        this.connectedConnector.getEvents(this.$agendaUtils.toRFC3339(this.period.start, false, true),
+          this.$agendaUtils.toRFC3339(this.period.end, false, true))
           .then(events => {
             events.forEach(event => {
               this.$agendaUtils.convertDates(event);

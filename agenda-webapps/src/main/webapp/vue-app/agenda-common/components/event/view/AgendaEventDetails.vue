@@ -127,6 +127,7 @@
           :settings="settings"
           :event="event"
           :connectors="connectors"
+          :connected-account="connectedAccount"
           class="mt-5" />
       </div>
     </div>
@@ -168,8 +169,12 @@ export default {
       default: () => ({})
     },
     connectors: {
+      type: Array,
+      default: () => []
+    },
+    connectedAccount: {
       type: Object,
-      default: () => ({})
+      default: () => null
     },
   },
   data() {
