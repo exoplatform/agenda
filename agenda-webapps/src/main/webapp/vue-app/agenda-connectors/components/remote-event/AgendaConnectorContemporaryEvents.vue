@@ -58,8 +58,8 @@ export default {
       default: () => ({})
     },
     connectors: {
-      type: Object,
-      default: () => ({})
+      type: Array,
+      default: () => []
     },
   },
   data() {
@@ -92,22 +92,30 @@ export default {
     }
   },
   created() {
-    this.connectedAccount = {
-      connectorName: this.settings && this.settings.connectedRemoteProvider,
-      userId: this.settings && this.settings.connectedRemoteUserId,
-    };
-    this.$root.$emit('agenda-init-connectors');
-    this.$root.$on('agenda-connector-initialized', connectors => {
+    this.$root.$on('agenda-connector-loaded', connectors => {
       this.connectors = connectors;
-      const connectorObj = this.connectors && this.connectors.find(connector => connector.name === this.connectedAccount.connectorName);
+      const connectedProvider = this.settings && this.settings.connectedRemoteProvider;
+      const connectorObj = this.connectors && this.connectors.find(connector => connector.name === connectedProvider);
       if (connectorObj) {
-        this.connectedAccount.icon = connectorObj.avatar;
+        this.connectedAccount = {
+          connectorName: this.settings && this.settings.connectedRemoteProvider,
+          userId: this.settings && this.settings.connectedRemoteUserId,
+          icon: connectorObj.avatar
+        };
+      } else {
+        this.connectedAccount = {
+          connectorName: this.settings && this.settings.connectedRemoteProvider,
+          userId: this.settings && this.settings.connectedRemoteUserId,
+        };
       }
+    });
+    this.$root.$on('agenda-connector-initialized', () => {
       this.retrieveRemoteEvents();
     });
     this.$root.$on('agenda-event-details-opened', () => {
       this.retrieveRemoteEvents();
     });
+    this.$root.$emit('agenda-init-connectors');
   },
   methods: {
     openPersonalCalendarDrawer() {
@@ -123,8 +131,8 @@ export default {
       eventEndDay.setHours(23);
       eventEndDay.setMinutes(59);
       if(this.connectedConnector) {
-        this.connectedConnector.getEvents(this.$agendaUtils.toRFC3339(eventStartDay, false),
-          this.$agendaUtils.toRFC3339(eventEndDay, false))
+        this.connectedConnector.getEvents(this.$agendaUtils.toRFC3339(eventStartDay, false, true),
+          this.$agendaUtils.toRFC3339(eventEndDay, false, true))
           .then(events => {
             events.forEach(event => {
               event.startDate = event.start && this.$agendaUtils.toDate(event.start) || null;
