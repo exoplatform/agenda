@@ -4,7 +4,7 @@ export default {
     settings: {
       type: Object,
       default: () => null,
-    }
+    },
   },
   data: () => ({
     loading: false,
@@ -72,13 +72,18 @@ export default {
     retrieveConnectedConnectorSettings() {
       return this.$settingsService.getUserSettings()
         .then(settings => {
-          this.connectedAccount = {
-            connectorName: settings && settings.connectedRemoteProvider,
-            userId: settings && settings.connectedRemoteUserId,
-          };
           const connectorObj = this.connectors && this.connectors.find(connector => connector.name === this.connectedAccount.connectorName);
           if (connectorObj) {
-            this.connectedAccount.icon = connectorObj.avatar;
+            this.connectedAccount = {
+              connectorName: settings && settings.connectedRemoteProvider,
+              userId: settings && settings.connectedRemoteUserId,
+              icon: connectorObj.avatar
+            };
+          } else {
+            this.connectedAccount = {
+              connectorName: settings && settings.connectedRemoteProvider,
+              userId: settings && settings.connectedRemoteUserId,
+            };
           }
         });
     },
