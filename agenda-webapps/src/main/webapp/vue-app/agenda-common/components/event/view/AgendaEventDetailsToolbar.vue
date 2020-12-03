@@ -13,7 +13,14 @@
         :labels="labels"
         class="align-center flex-grow-0 flex" />
     </v-col>
-    <v-col class="px-0 flex-grow-1 flex-shrink-0 text-right mx-2">
+    <v-col class="px-0 flex-grow-1 flex-shrink-0 mx-2">
+      <template v-if="isAttendee">
+        <agenda-event-attendee-buttons
+          ref="eventAttendeeButtons"
+          :event="event" />
+      </template>
+    </v-col>
+    <v-col class="px-0 flex-grow-0 flex-shrink-0 text-right mx-2">
       <v-menu
         v-if="canEdit"
         bottom
@@ -71,6 +78,9 @@ export default {
         }
       }
       return '';
+    },
+    isAttendee() {
+      return this.event.acl && this.event.acl.attendee;
     },
     canEdit() {
       return this.event.acl && this.event.acl.canEdit;
