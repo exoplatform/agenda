@@ -76,13 +76,18 @@ export default {
   },
   methods: {
     refresh() {
-      this.connectedAccount = {
-        connectorName: this.settings && this.settings.connectedRemoteProvider,
-        userId: this.settings && this.settings.connectedRemoteUserId,
-      };
       const connectorObj = this.connectors && this.connectors.find(connector => connector.name === this.connectedAccount.connectorName);
       if (connectorObj) {
-        this.connectedAccount.icon = connectorObj.avatar;
+        this.connectedAccount = {
+          connectorName: this.settings && this.settings.connectedRemoteProvider,
+          userId: this.settings && this.settings.connectedRemoteUserId,
+          icon: connectorObj.avatar
+        };
+      } else {
+        this.connectedAccount = {
+          connectorName: this.settings && this.settings.connectedRemoteProvider,
+          userId: this.settings && this.settings.connectedRemoteUserId,
+        };
       }
     },
     openDrawer() {
