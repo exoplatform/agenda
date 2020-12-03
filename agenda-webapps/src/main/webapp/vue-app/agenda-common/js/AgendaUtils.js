@@ -1,5 +1,15 @@
 export const USER_TIMEZONE_ID = new window.Intl.DateTimeFormat().resolvedOptions().timeZone;
 
+export function getUserTimezone() {
+  const timeZoneOffset = - (new Date().getTimezoneOffset());
+  let timezoneHours = timeZoneOffset / 60;
+  let timezoneMinutes = timeZoneOffset % 60;
+  timezoneHours = timezoneHours < 10 ? `0${timezoneHours}` : timezoneHours;
+  timezoneMinutes = timezoneMinutes < 10 ? `0${timezoneMinutes}` : timezoneMinutes;
+  const timezoneSign = timeZoneOffset >= 0 ? '+' : '-';
+  return `${timezoneSign}${timezoneHours}:${timezoneMinutes}`;
+}
+
 export function convertVuetifyRangeToPeriod(range) {
   const rangeStartHour = range.start.hour < 10 ? `0${range.start.hour}` : range.start.hour;
   const rangeStartMinute = range.start.minute < 10 ? `0${range.start.minute}` : range.start.minute;
@@ -30,7 +40,7 @@ export function toVuetifyDate(date) {
     pad(date.getMinutes())}`;
 }
 
-export function toRFC3339(date, ignoreTime) {
+export function toRFC3339(date, ignoreTime, useTimeZone) {
   if (!date) {
     return null;
   }
@@ -42,12 +52,13 @@ export function toRFC3339(date, ignoreTime) {
     }
     date = new Date(date);
   }
+  let formattedDate; 
   if (ignoreTime) {
-    return `${date.getFullYear()  }-${
+    formattedDate = `${date.getFullYear()  }-${
       pad(date.getMonth() + 1)  }-${ 
       pad(date.getDate())  }T00:00:00`;
   } else {
-    return `${date.getFullYear()  }-${
+    formattedDate = `${date.getFullYear()  }-${
       pad(date.getMonth() + 1)  }-${ 
       pad(date.getDate())  }T${ 
       pad(date.getHours())  }:${ 
@@ -55,6 +66,10 @@ export function toRFC3339(date, ignoreTime) {
       pad(date.getSeconds())  
     }`;
   }
+  if (useTimeZone) {
+    return `${formattedDate}${getUserTimezone()}`;
+  }
+  return formattedDate;
 }
 
 export function toDate(date) {

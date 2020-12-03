@@ -44,8 +44,7 @@
       :current-space="currentSpace"
       :settings="settings"
       :weekdays="weekdays"
-      :working-time="workingTime"
-      :connectors="connectors" />
+      :working-time="workingTime" />
     <agenda-event-preview-dialog />
     <agenda-filter-calendar-drawer
       :owner-ids="ownerIds"
@@ -85,7 +84,6 @@ export default {
     },
     hasMore: false,
     settingsLoaded: false,
-    connectors: [],
   }),
   computed: {
     isMobile() {
@@ -136,9 +134,6 @@ export default {
     this.$root.$on('agenda-event-type-changed', eventType => this.eventType = eventType);
     this.$root.$on('agenda-event-deleted', this.retrieveEvents);
     this.spaceId = eXo.env.portal.spaceId;
-    this.$root.$on('agenda-connector-loaded', connectors => {
-      this.connectors = connectors;
-    });
     this.$root.$on('agenda-settings-refresh', this.initSettings);
     this.initSettings();
   },

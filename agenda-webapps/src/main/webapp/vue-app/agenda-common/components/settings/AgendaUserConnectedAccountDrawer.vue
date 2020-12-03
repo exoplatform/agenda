@@ -14,7 +14,7 @@
         <v-list-item v-for="connector in enabledConnectors" :key="connector.name">
           <v-list-item-avatar>
             <v-avatar tile size="40">
-              <img :alt="connector.name" :src="connector.avatar">
+              <img :alt="connector.name" :src="connector.avatar || connector.icon">
             </v-avatar>
           </v-list-item-avatar>
           <v-list-item-content>
@@ -91,7 +91,9 @@ export default {
   methods: {
     open() {
       this.$root.$emit('agenda-init-connectors');
-      this.$refs.agendaConnectorsDrawer.open();
+      if (this.$refs.agendaConnectorsDrawer) {
+        this.$refs.agendaConnectorsDrawer.open();
+      }
     },
     connect(connector) {
       this.errorMessage = null;
