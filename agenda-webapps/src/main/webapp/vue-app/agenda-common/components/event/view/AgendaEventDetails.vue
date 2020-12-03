@@ -259,15 +259,18 @@ export default {
     },
   },
   created() {
-    this.$root.$on('agenda-event-details-opened', this.reset);
-    this.$root.$on('agenda-event-response-sent', event => {
-      this.event.attendees = event.attendees;
-      const getEventDetailsPromise = event.occurrence && event.occurrence.id ? this.$eventService.getEventOccurrence(event.parent.id, event.occurrence.id, 'all') : this.$eventService.getEventById(event.id, 'all');
-      getEventDetailsPromise.then(event => this.event = event);
-      if (event.id && !this.event.id) {
-        this.$root.$emit('agenda-refresh');
+    this.$root.$on('agenda-event-response-sent', () => {
+      if (!this.event) {
+        return;
       }
-      this.reset();
+      const retrieveEventDetailsPromise = this.event.occurrence && this.event.occurrence.id ? this.$eventService.getEventOccurrence(this.event.parent.id, this.event.occurrence.id, 'all') : this.$eventService.getEventById(this.event.id, 'all');
+      this.loading= true;
+      retrieveEventDetailsPromise
+        .then(event => this.event = event)
+        .finally(() => {
+          this.$root.$emit('agenda-event-response-updated');
+          this.loading= false;
+        });
     });
     this.$root.$on('agenda-event-reminders-saved', (event, occurrenceId, reminders) => {
       this.event.reminders = reminders;
@@ -284,11 +287,6 @@ export default {
     });
   },
   methods: {
-    reset() {
-      if (this.$refs.eventAttendeeButtons) {
-        this.$refs.eventAttendeeButtons.reset();
-      }
-    },
     closeDialog() {
       this.$emit('close');
     },
