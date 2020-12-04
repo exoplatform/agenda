@@ -149,10 +149,6 @@ export default {
       type: Object,
       default: () => null
     },
-    connectedAccount: {
-      type: Object,
-      default: () => null
-    },
     connectors: {
       type: Array,
       default: () => null
@@ -185,6 +181,7 @@ export default {
     scrollToTimeTop: null,
     menuLeftPosition: false,
     menuTopPosition: false,
+    connectedAccount: {},
     period: {},
     remoteEvents: [],
     spaceEvents: [],
@@ -246,10 +243,19 @@ export default {
       }
     }
 
-    this.$root.$on('agenda-connector-initialized', () => {
+    this.connectedAccount = {
+      connectorName: this.settings && this.settings.connectedRemoteProvider,
+      userId: this.settings && this.settings.connectedRemoteUserId,
+      icon: this.connectedConnector && this.connectedConnector.avatar
+    };
+    this.$root.$on('agenda-connector-initialized', connectors => {
+      this.connectors = connectors;
+      const connectorObj = this.connectors && this.connectors.find(connector => connector.name === this.connectedAccount.connectorName);
+      if (connectorObj) {
+        this.connectedAccount.icon = connectorObj.avatar;
+      }
       this.retrieveRemoteEvents();
     });
-
     this.$root.$emit('agenda-init-connectors');
   },
   mounted() {
@@ -445,6 +451,8 @@ export default {
           }).catch(error => {
             console.error('Error retrieving remote events', error);
           });
+      } else {
+        this.remoteEvents = [];
       }
     },
     retrieveEventsFromStore() {
