@@ -14,7 +14,7 @@
         class="align-center flex-grow-0 flex" />
     </v-col>
     <v-col class="px-0 flex-grow-1 flex-shrink-0 mx-2">
-      <template v-if="isAttendee">
+      <template v-if="isAttendee && !isMobile">
         <agenda-event-attendee-buttons
           ref="eventAttendeeButtons"
           :event="event" />
@@ -69,6 +69,9 @@ export default {
     },
   },
   computed: {
+    isMobile() {
+      return this.$vuetify.breakpoint.name === 'xs';
+    },
     calendarOwnerLink() {
       if (this.owner) {
         if (this.owner.providerId === 'organization') {
