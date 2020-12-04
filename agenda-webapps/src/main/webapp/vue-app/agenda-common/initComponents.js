@@ -34,6 +34,7 @@ import AgendaEventFormRecurrenceDrawer from './components/event/form/AgendaEvent
 import AgendaEventFormAttendees from './components/event/form/AgendaEventFormAttendees.vue';
 import AgendaEventFormAttendeeItem from './components/event/form/AgendaEventFormAttendeeItem.vue';
 import AgendaEventFormCalendarOwner from './components/event/form/AgendaEventFormCalendarOwner.vue';
+import AgendaEventFormJitsiCall from './components/event/form/AgendaEventFormJitsiCall.vue';
 
 import AgendaUserSettingDrawer from './components/settings/AgendaUserSettingDrawer.vue';
 import AgendaUserConnectedAccountDrawer from './components/settings/AgendaUserConnectedAccountDrawer.vue';
@@ -95,6 +96,7 @@ const components = {
   'agenda-event-form-attendees': AgendaEventFormAttendees,
   'agenda-event-form-attendee-item': AgendaEventFormAttendeeItem,
   'agenda-event-form-calendar-owner': AgendaEventFormCalendarOwner,
+  'agenda-event-form-jitsi-owner':AgendaEventFormJitsiCall,
   'agenda-recurrent-event-save-confirm-dialog': AgendaRecurrentEventSaveConfirmDialog,
   'agenda-recurrent-event-response-confirm-dialog': AgendaRecurrentEventResponseConfirmDialog,
   'agenda-recurrent-event-reminders-confirm-dialog': AgendaRecurrentEventReminderConfirmDialog,
