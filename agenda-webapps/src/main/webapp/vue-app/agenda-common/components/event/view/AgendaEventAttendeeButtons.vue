@@ -34,8 +34,7 @@
       <agenda-recurrent-event-response-confirm-dialog
         v-if="event.occurrence"
         ref="responseConfirmDialog"
-        :event="event"
-        @dialog-closed="resetEventResponse" />
+        :event="event" />
     </div>
   </div>
 </template>
@@ -49,28 +48,20 @@ export default {
     },
   },
   data: () => ({
-    eventResponse: 'NEEDS_ACTION',
     savingResponse: false,
   }),
   computed: {
-    attendees() {
-      return this.event && this.event.attendees;
-    },
     userAttendee() {
-      if (this.attendees && this.attendees.length) {
-        return this.attendees.find(attendee => attendee.identity && Number(attendee.identity.id) === Number(eXo.env.portal.userIdentityId));
+      if (this.event && this.event.attendees && this.event.attendees.length) {
+        return this.event.attendees.find(attendee => attendee.identity && Number(attendee.identity.id) === Number(eXo.env.portal.userIdentityId));
       }
       return null;
     },
+    eventResponse() {
+      return this.userAttendee && this.userAttendee.response || 'NEEDS_ACTION';
+    },
   },
   methods: {
-    reset() {
-      this.resetEventResponse();
-    },
-    resetEventResponse() {
-      this.eventResponse = this.userAttendee && this.userAttendee.response || 'NEEDS_ACTION';
-      this.savingResponse = false;
-    },
     changeResponse(response) {
       if (this.event.occurrence) {
         this.$refs.responseConfirmDialog.open(response);
