@@ -128,9 +128,7 @@ export function sendEventResponse(eventId, occurrenceId, response) {
       'Content-Type': 'application/json'
     },
   }).then((resp) => {
-    if (resp && resp.ok) {
-      return resp.json();
-    } else {
+    if (!resp || !resp.ok) {
       throw new Error('Error sending event response');
     }
   });
