@@ -26,7 +26,8 @@
     </v-list-item-action>
     <agenda-user-connected-account-drawer
       :connected-account="connectedAccount"
-      :connectors="connectors" />
+      :connectors="connectors"
+      @updated="connectedAccount = $event" />
     <agenda-connector :settings="settings" />
   </v-list-item>
 </template>
@@ -61,6 +62,11 @@ export default {
     }
   },
   watch: {
+    settings() {
+      if (this.remoteProviders) {
+        this.refresh();
+      }
+    },
     remoteProviders() {
       if (this.remoteProviders) {
         this.refresh();
@@ -77,9 +83,11 @@ export default {
       this.connectors = connectors;
       const connectorObj = this.connectors && this.connectors.find(connector => connector.name === this.connectedAccount.connectorName);
       if (connectorObj) {
-        this.connectedAccount.icon = connectorObj.avatar;
-        this.connectedAccount.connectorName = connectorObj.name;
-        this.connectedAccount.userId = connectorObj.user;
+        this.connectedAccount = {
+          connectorName: connectorObj.name,
+          userId: connectorObj.user,
+          icon: connectorObj.avatar
+        };
       } else {
         this.connectedAccount = {};
       }
@@ -88,12 +96,13 @@ export default {
   },
   methods: {
     refresh() {
-      const connectorObj = this.connectors && this.connectors.find(connector => connector.name === this.connectedAccount.connectorName);
+      const connectorName = (this.connectedAccount && this.connectedAccount.connectorName) || (this.settings && this.settings.connectedRemoteProvider);
+      const connectorObj = this.connectors && this.connectors.find(connector => connector.name === connectorName);
       if (connectorObj) {
         this.connectedAccount = {
-          connectorName: this.settings && this.settings.connectedRemoteProvider,
-          userId: this.settings && this.settings.connectedRemoteUserId,
-          icon: connectorObj.avatar
+          connectorName: connectorObj.name,
+          userId: connectorObj.user || (this.settings && this.settings.connectedRemoteUserId),
+          icon: connectorObj.avatar,
         };
       } else {
         this.connectedAccount = {
