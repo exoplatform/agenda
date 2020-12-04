@@ -73,7 +73,6 @@ export default {
   data () {
     return {
       connectors: [],
-      connectedAccount: {},
       dialog: false,
       saving: false,
       event: null,
@@ -159,22 +158,6 @@ export default {
     });
   },
   methods: {
-    refreshConnectedAccount() {
-      const connectedProvider = this.settings && this.settings.connectedRemoteProvider;
-      const connectorObj = this.connectors && this.connectors.find(connector => connector.name === connectedProvider);
-      if (connectorObj) {
-        this.connectedAccount = {
-          connectorName: this.settings && this.settings.connectedRemoteProvider,
-          userId: this.settings && this.settings.connectedRemoteUserId,
-          icon: connectorObj.avatar
-        };
-      } else {
-        this.connectedAccount = {
-          connectorName: this.settings && this.settings.connectedRemoteProvider,
-          userId: this.settings && this.settings.connectedRemoteUserId,
-        };
-      }
-    },
     closeByEscape(event) {
       if (event.key === 'Escape' && this.dialog) {
         this.close(event);
@@ -208,7 +191,6 @@ export default {
       }
     },
     openDialog(agendaEvent) {
-      this.refreshConnectedAccount();
       this.saving = false;
       if (!agendaEvent) {
         agendaEvent = {};

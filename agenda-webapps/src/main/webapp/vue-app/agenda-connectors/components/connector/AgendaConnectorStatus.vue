@@ -31,7 +31,7 @@ export default {
     },
     isConnectedConnectorEnabled: {
       type: Boolean,
-      default: true
+      default: false
     }
   },
   computed: {
