@@ -73,6 +73,18 @@ export default {
       this.connectors = connectors;
       this.refresh();
     });
+    this.$root.$on('agenda-connector-initialized', connectors => {
+      this.connectors = connectors;
+      const connectorObj = this.connectors && this.connectors.find(connector => connector.name === this.connectedAccount.connectorName);
+      if (connectorObj) {
+        this.connectedAccount.icon = connectorObj.avatar;
+        this.connectedAccount.connectorName = connectorObj.name;
+        this.connectedAccount.userId = connectorObj.user;
+      } else {
+        this.connectedAccount = {};
+      }
+    });
+    this.$root.$emit('agenda-init-connectors');
   },
   methods: {
     refresh() {
