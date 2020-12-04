@@ -87,6 +87,7 @@
             </v-list-item>
           </v-list>
           <v-btn
+            v-if="refusedResponsesCount === 0"
             icon
             transparent
             class="mb-auto"
