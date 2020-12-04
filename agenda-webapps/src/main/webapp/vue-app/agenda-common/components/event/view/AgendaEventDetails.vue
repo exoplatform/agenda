@@ -60,41 +60,39 @@
           <i class="uiIconRefresh darkGreyIcon uiIcon32x32 pr-5"></i>
           <agenda-event-recurrence :event="event" class="text-wrap text-left" />
         </div>
-        <div v-if="isAttendee || (event.reminders && event.reminders.length)" class="event-reminders align-center d-flex pb-5 text-truncate">
-          <template v-if="!isRefusedResponses">
-            <i class="uiIcon32x32 notifIcon darkGreyIcon pr-5 mt-1 mb-auto"></i>
-            <v-list
-              v-if="event.reminders && event.reminders.length"
-              class="py-0"
+        <div v-if="canAddReminders" class="event-reminders align-center d-flex pb-5 text-truncate">
+          <i class="uiIcon32x32 notifIcon darkGreyIcon pr-5 mt-1 mb-auto"></i>
+          <v-list
+            v-if="event.reminders && event.reminders.length"
+            class="py-0"
+            dense>
+            <v-list-item
+              v-for="(reminder, index) in event.reminders"
+              :key="index"
+              class="pl-0"
               dense>
-              <v-list-item
-                v-for="(reminder, index) in event.reminders"
-                :key="index"
-                class="pl-0"
-                dense>
-                <v-chip
-                  class="ma-2"
-                  color="primary"
-                  outlined>
-                  <span class="text--primary">
-                    <template v-if="reminder.before">
-                      {{ $t('agenda.label.notifyMeBefore', {0: reminder.before, 1: $t(`agenda.option.${reminder.beforePeriodType.toLowerCase()}s`).toLowerCase()}) }}
-                    </template>
-                    <template v-else>
-                      {{ $t('agenda.label.notifyMeWhenEventStarts') }}
-                    </template>
-                  </span>
-                </v-chip>
-              </v-list-item>
-            </v-list>
-            <v-btn
-              icon
-              transparent
-              class="mb-auto"
-              @click="$refs.reminders.open()">
-              <i class="uiIconEditInfo uiIcon16x16 darkGreyIcon pt-3"></i>
-            </v-btn>
-          </template>
+              <v-chip
+                class="ma-2"
+                color="primary"
+                outlined>
+                <span class="text--primary">
+                  <template v-if="reminder.before">
+                    {{ $t('agenda.label.notifyMeBefore', {0: reminder.before, 1: $t(`agenda.option.${reminder.beforePeriodType.toLowerCase()}s`).toLowerCase()}) }}
+                  </template>
+                  <template v-else>
+                    {{ $t('agenda.label.notifyMeWhenEventStarts') }}
+                  </template>
+                </span>
+              </v-chip>
+            </v-list-item>
+          </v-list>
+          <v-btn
+            icon
+            transparent
+            class="mb-auto"
+            @click="$refs.reminders.open()">
+            <i class="uiIconEditInfo uiIcon16x16 darkGreyIcon pt-3"></i>
+          </v-btn>
         </div>
         <div v-if="event.location" class="event-location d-flex flex-grow-0 flex-shrink-1 pb-5">
           <i class="uiIconCheckin darkGreyIcon uiIcon32x32 pr-5"></i>
@@ -227,15 +225,12 @@ export default {
     sameDayDates() {
       return this.event.startDate && this.event.endDate && this.$agendaUtils.areDatesOnSameDay(this.event.startDate, this.event.endDate);
     },
-    isRefusedResponses() {
-      if (!this.event || !this.event.attendees || !this.event.attendees.length) {
+    canAddReminders() {
+      if (!this.isAttendee) {
         return false;
       }
-      const currentUserResponse = this.event.attendees.filter(attendee => attendee && attendee.identity.remoteId ===  eXo.env.portal.userName);
-      if(currentUserResponse[0].response === 'DECLINED') {
-        return true;
-      }
-      return false;
+      const currentUserResponse = this.event.attendees.find(attendee => attendee && attendee.identity.remoteId ===  eXo.env.portal.userName);
+      return currentUserResponse && (currentUserResponse.response === 'ACCEPTED' || currentUserResponse.response === 'TENTATIVE');
     },
     acceptedResponsesCount() {
       if (!this.event || !this.event.attendees || !this.event.attendees.length) {
