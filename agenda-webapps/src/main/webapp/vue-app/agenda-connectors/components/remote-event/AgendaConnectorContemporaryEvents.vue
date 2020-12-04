@@ -42,7 +42,8 @@
     </div>
     <agenda-user-connected-account-drawer
       :connected-account="connectedAccount"
-      :connectors="connectors" />
+      :connectors="connectors"
+      @updated="connectedAccount = $event" />
   </div>
 </template>
 
@@ -64,6 +65,7 @@ export default {
   },
   data() {
     return {
+      initialized: false,
       remoteEvents: [],
       connectedAccount: {},
       fullDateFormat: {
@@ -85,32 +87,48 @@ export default {
       return this.connectedAccount && this.connectedAccount.icon || '';
     },
     connectedConnector() {
-      return this.connectors.find(connector => connector.isSignedIn);
+      return this.connectedAccount && this.connectors.find(connector => connector.user === this.connectedAccount.userId);
     },
     isConnectedConnectorEnabled() {
       return this.connectedConnector && this.connectedConnector.enabled;
     }
   },
+  watch: {
+    settings() {
+      this.refresh();
+    },
+  },
   created() {
-    this.connectedAccount = {
-      connectorName: this.settings && this.settings.connectedRemoteProvider,
-      userId: this.settings && this.settings.connectedRemoteUserId,
-      icon: this.connectedConnector && this.connectedConnector.avatar
-    };
     this.$root.$on('agenda-connector-initialized', connectors => {
       this.connectors = connectors;
-      const connectorObj = this.connectors && this.connectors.find(connector => connector.name === this.connectedAccount.connectorName);
-      if (connectorObj) {
-        this.connectedAccount.icon = connectorObj.avatar;
-      }
+      this.refresh();
+      this.initialized = true;
       this.retrieveRemoteEvents();
     });
     this.$root.$on('agenda-event-details-opened', () => {
-      this.retrieveRemoteEvents();
+      if (this.initialized) {
+        this.retrieveRemoteEvents();
+      }
     });
     this.$root.$emit('agenda-init-connectors');
   },
   methods: {
+    refresh() {
+      const connectorName = (this.connectedAccount && this.connectedAccount.connectorName) || (this.settings && this.settings.connectedRemoteProvider);
+      const connectorObj = this.connectors && this.connectors.find(connector => connector.name === connectorName);
+      if (connectorObj) {
+        this.connectedAccount = {
+          connectorName: connectorObj.name,
+          userId: connectorObj.user || (this.settings && this.settings.connectedRemoteUserId),
+          icon: connectorObj.avatar,
+        };
+      } else {
+        this.connectedAccount = {
+          connectorName: this.settings && this.settings.connectedRemoteProvider,
+          userId: this.settings && this.settings.connectedRemoteUserId,
+        };
+      }
+    },
     openPersonalCalendarDrawer() {
       this.$root.$emit('agenda-connected-account-settings-open');
     },
@@ -123,7 +141,7 @@ export default {
       // End of the day of end date
       eventEndDay.setHours(23);
       eventEndDay.setMinutes(59);
-      if(this.connectedConnector) {
+      if(this.connectedConnector && this.connectedConnector.user) {
         this.connectedConnector.getEvents(this.$agendaUtils.toRFC3339(eventStartDay, false, true),
           this.$agendaUtils.toRFC3339(eventEndDay, false, true))
           .then(events => {
