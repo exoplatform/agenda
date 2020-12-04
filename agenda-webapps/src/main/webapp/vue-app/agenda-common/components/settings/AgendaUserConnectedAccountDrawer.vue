@@ -14,16 +14,16 @@
         <v-list-item v-for="connector in enabledConnectors" :key="connector.name">
           <v-list-item-avatar>
             <v-avatar tile size="40">
-              <img :alt="connector.name" :src="connector.avatar">
+              <img :src="connector.avatar">
             </v-avatar>
           </v-list-item-avatar>
           <v-list-item-content>
-            <template v-if="connector.user">
+            <template v-if="connector.name === connectedAccount.connectorName">
               <v-list-item-title>
                 {{ $t('agenda.connectedAccountWith') }}:
               </v-list-item-title>
               <v-list-item-subtitle>
-                {{ connector.user }}
+                {{ connectedAccount.userId }}
               </v-list-item-subtitle>
             </template>
             <template v-else>
@@ -34,7 +34,7 @@
           </v-list-item-content>
           <v-list-item-action>
             <v-btn
-              v-if="connector.user"
+              v-if="connectedAccount.userId"
               :loading="connector.loading"
               class="btn"
               @click="disconnect(connector)">
@@ -99,13 +99,14 @@ export default {
       this.errorMessage = null;
       this.$refs.agendaConnectorsDrawer.startLoading();
       connector.connect().then((connectorDetails) => {
-        Object.assign(this.connectedAccount, {
+        const newAccount = {
           connectorName: connector.name,
           userId: connectorDetails.getBasicProfile().getEmail(),
           icon: connector.avatar
-        });
+        };
+        this.$emit('updated', newAccount);
         this.$refs.agendaConnectorsDrawer.close();
-        this.$settingsService.saveUserConnector(this.connectedAccount.connectorName, this.connectedAccount.userId)
+        this.$settingsService.saveUserConnector(newAccount.connectorName, newAccount.userId)
           .finally(() => {
             this.$refs.agendaConnectorsDrawer.endLoading();
             this.$root.$emit('agenda-settings-refresh');
@@ -132,7 +133,7 @@ export default {
       }
     },
     resetConnectedAccount(connector) {
-      this.connectedAccount = {};
+      this.$emit('updated', {});
       return this.$settingsService.resetUserConnector()
         .finally(() => {
           this.$set(connector, 'loading', false);
