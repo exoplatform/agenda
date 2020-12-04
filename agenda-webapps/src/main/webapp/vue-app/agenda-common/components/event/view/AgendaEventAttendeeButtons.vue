@@ -11,7 +11,7 @@
         value="ACCEPTED"
         class="btn border-radius"
         @click="changeResponse('ACCEPTED')">
-        <v-icon size="20" class="mr-4 responseColorYes">fas fa-check-circle</v-icon>
+        <v-icon size="20" class="mr-4">fas fa-check-circle</v-icon>
         {{ $t('agenda.button.yes') }}
       </v-btn>
       <v-btn
@@ -21,7 +21,7 @@
         value="DECLINED"
         class="btn border-radius mx-2"
         @click="changeResponse('DECLINED')">
-        <v-icon size="20" class="mr-4 responseColorNo">fas fa-times-circle</v-icon>
+        <v-icon size="20" class="mr-4">fas fa-times-circle</v-icon>
         {{ $t('agenda.button.no') }}
       </v-btn>
       <v-btn
@@ -31,7 +31,7 @@
         value="TENTATIVE"
         class="btn border-radius"
         @click="changeResponse('TENTATIVE')">
-        <v-icon size="20" class="mr-4 responseColorMaybe">fas fa-info-circle</v-icon>
+        <v-icon size="20" class="mr-4">fas fa-info-circle</v-icon>
         {{ $t('agenda.button.maybe') }}
       </v-btn>
       <agenda-recurrent-event-response-confirm-dialog
