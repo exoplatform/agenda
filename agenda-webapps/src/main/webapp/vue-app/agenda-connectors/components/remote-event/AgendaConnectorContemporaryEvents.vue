@@ -65,7 +65,6 @@ export default {
   },
   data() {
     return {
-      initialized: false,
       remoteEvents: [],
       connectedAccount: {},
       fullDateFormat: {
@@ -102,13 +101,11 @@ export default {
     this.$root.$on('agenda-connector-initialized', connectors => {
       this.connectors = connectors;
       this.refresh();
-      this.initialized = true;
       this.retrieveRemoteEvents();
     });
     this.$root.$on('agenda-event-details-opened', () => {
-      if (this.initialized) {
-        this.retrieveRemoteEvents();
-      }
+      this.refresh();
+      this.retrieveRemoteEvents();
     });
     this.$root.$emit('agenda-init-connectors');
   },
