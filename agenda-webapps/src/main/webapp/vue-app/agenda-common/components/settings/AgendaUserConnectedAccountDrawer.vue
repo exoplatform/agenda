@@ -14,7 +14,7 @@
         <v-list-item v-for="connector in enabledConnectors" :key="connector.name">
           <v-list-item-avatar>
             <v-avatar tile size="40">
-              <img :alt="connector.name" :src="connector.avatar || connector.icon">
+              <img :alt="connector.name" :src="connector.avatar">
             </v-avatar>
           </v-list-item-avatar>
           <v-list-item-content>

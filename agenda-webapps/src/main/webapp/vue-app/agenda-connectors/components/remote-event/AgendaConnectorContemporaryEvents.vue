@@ -92,24 +92,17 @@ export default {
     }
   },
   created() {
-    this.$root.$on('agenda-connector-loaded', connectors => {
+    this.connectedAccount = {
+      connectorName: this.settings && this.settings.connectedRemoteProvider,
+      userId: this.settings && this.settings.connectedRemoteUserId,
+      icon: this.connectedConnector && this.connectedConnector.avatar
+    };
+    this.$root.$on('agenda-connector-initialized', connectors => {
       this.connectors = connectors;
-      const connectedProvider = this.settings && this.settings.connectedRemoteProvider;
-      const connectorObj = this.connectors && this.connectors.find(connector => connector.name === connectedProvider);
+      const connectorObj = this.connectors && this.connectors.find(connector => connector.name === this.connectedAccount.connectorName);
       if (connectorObj) {
-        this.connectedAccount = {
-          connectorName: this.settings && this.settings.connectedRemoteProvider,
-          userId: this.settings && this.settings.connectedRemoteUserId,
-          icon: connectorObj.avatar
-        };
-      } else {
-        this.connectedAccount = {
-          connectorName: this.settings && this.settings.connectedRemoteProvider,
-          userId: this.settings && this.settings.connectedRemoteUserId,
-        };
+        this.connectedAccount.icon = connectorObj.avatar;
       }
-    });
-    this.$root.$on('agenda-connector-initialized', () => {
       this.retrieveRemoteEvents();
     });
     this.$root.$on('agenda-event-details-opened', () => {
