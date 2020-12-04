@@ -126,7 +126,8 @@
     </v-menu>
     <agenda-user-connected-account-drawer
       :connected-account="connectedAccount"
-      :connectors="connectors" />
+      :connectors="connectors"
+      @updated="connectedAccount = $event" />
   </v-flex>
 </template>
 
