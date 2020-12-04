@@ -60,7 +60,7 @@
           <i class="uiIconRefresh darkGreyIcon uiIcon32x32 pr-5"></i>
           <agenda-event-recurrence :event="event" class="text-wrap text-left" />
         </div>
-        <div v-if="isAttendee || (event.reminders && event.reminders.length)" class="event-reminders align-center d-flex pb-5 text-truncate">
+        <div v-if="canAddReminders" class="event-reminders align-center d-flex pb-5 text-truncate">
           <i class="uiIcon32x32 notifIcon darkGreyIcon pr-5 mt-1 mb-auto"></i>
           <v-list
             v-if="event.reminders && event.reminders.length"
@@ -224,6 +224,13 @@ export default {
     },
     sameDayDates() {
       return this.event.startDate && this.event.endDate && this.$agendaUtils.areDatesOnSameDay(this.event.startDate, this.event.endDate);
+    },
+    canAddReminders() {
+      if (!this.isAttendee) {
+        return false;
+      }
+      const currentUserResponse = this.event.attendees.find(attendee => attendee && attendee.identity.remoteId ===  eXo.env.portal.userName);
+      return currentUserResponse && (currentUserResponse.response === 'ACCEPTED' || currentUserResponse.response === 'TENTATIVE');
     },
     acceptedResponsesCount() {
       if (!this.event || !this.event.attendees || !this.event.attendees.length) {
