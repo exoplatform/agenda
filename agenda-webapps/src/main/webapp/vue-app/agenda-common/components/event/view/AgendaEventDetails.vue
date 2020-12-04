@@ -130,7 +130,7 @@
           class="mt-5" />
       </div>
     </div>
-    <template v-if="isAttendee">
+    <template v-if="isAttendee && isMobile">
       <v-divider />
       <agenda-event-attendee-buttons
         ref="eventAttendeeButtons"
