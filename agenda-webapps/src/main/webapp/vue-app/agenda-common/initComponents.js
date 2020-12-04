@@ -55,6 +55,11 @@ import AgendaRecurrentEventDeleteConfirmDialog from './components/event/confirm-
 import AgendaRecurrentEventResponseConfirmDialog from './components/event/confirm-dialog/AgendaRecurrentEventResponseConfirmDialog.vue';
 import AgendaRecurrentEventReminderConfirmDialog from './components/event/confirm-dialog/AgendaRecurrentEventReminderConfirmDialog.vue';
 
+import AgendaConnector from './components/connector/AgendaConnector.vue';
+import AgendaConnectorStatus from './components/connector/AgendaConnectorStatus.vue';
+import AgendaConnectorContemporaryEvents from './components/remote-event/AgendaConnectorContemporaryEvents.vue';
+import AgendaConnectorRemoteEventItem from './components/remote-event/AgendaConnectorRemoteEventItem.vue';
+
 const components = {
   'agenda-header': AgendaHeader,
   'agenda-body': AgendaBody,
@@ -104,6 +109,10 @@ const components = {
   'agenda-user-connected-account-drawer': AgendaUserConnectedAccountDrawer,
   'agenda-reminder-user-settings': AgendaReminderUserSettings,
   'agenda-reminder-user-setting-item': AgendaReminderUserSettingItem,
+  'agenda-connector': AgendaConnector,
+  'agenda-connector-status': AgendaConnectorStatus,
+  'agenda-connector-contemporary-events': AgendaConnectorContemporaryEvents,
+  'agenda-connector-remote-event-item': AgendaConnectorRemoteEventItem,
 };
 
 for (const key in components) {
