@@ -42,16 +42,26 @@
               :remote-event="remoteEvent"
               :avatar="connectedConnectorAvatar" />
           </template>
-          <template v-else-if="connectedConnectorSignedOut">
-            <v-alert type="info">
+          <v-chip
+            v-else-if="connectedConnectorSignedOut"
+            color="primary"
+            class="border-radius my-2"
+            outlined>
+            <v-icon size="20" class="mr-4" color="primary" depressed>fa-info-circle</v-icon>
+            <span class="text--primary text-wrap">
               {{ $t('agenda.signedOutConnector') }}
-            </v-alert>
-          </template>
-          <template v-else-if="!connectedConnector.loading && !loading">
-            <v-alert type="info">
+            </span>
+          </v-chip>
+          <v-chip
+            v-else-if="!connectedConnector.loading && !loading"
+            color="primary"
+            class="border-radius my-2"
+            outlined>
+            <v-icon size="20" class="mr-4" color="primary" depressed>fa-info-circle</v-icon>
+            <span class="text--primary text-wrap">
               {{ $t('agenda.noRemoteEvents') }}
-            </v-alert>
-          </template>
+            </span>
+          </v-chip>
         </template>
       </div>
     </div>
