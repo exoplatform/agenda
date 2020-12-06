@@ -7,9 +7,7 @@
         </div>
       </v-list-item-title>
       <v-list-item-subtitle class="my-3 text-sub-title font-italic">
-        <agenda-connector-status
-          :connected-account="connectedAccount"
-          :is-connected-connector-enabled="isConnectedConnectorEnabled">
+        <agenda-connector-status :connectors="connectors">
           <template slot="connectButton">
             {{ $t('agenda.connectYourPersonalAgendaSubTitle') }}
           </template>
@@ -24,11 +22,12 @@
         <i class="uiIconEdit uiIconLightBlue pb-2"></i>
       </v-btn>
     </v-list-item-action>
-    <agenda-user-connected-account-drawer
-      :connected-account="connectedAccount"
+    <agenda-connectors-drawer :connectors="enabledConnectors" />
+    <agenda-connector
+      :settings="settings"
       :connectors="connectors"
-      @updated="connectedAccount = $event" />
-    <agenda-connector :settings="settings" />
+      auto-connect
+      @connectors-loaded="connectors = $event" />
   </v-list-item>
 </template>
 
@@ -41,78 +40,16 @@ export default {
     },
   },
   data: () => ({
-    connectedAccount: {},
     connectors: [],
   }),
   computed: {
-    remoteProviders() {
-      return this.settings && this.settings.remoteProviders;
+    enabledConnectors() {
+      return this.connectors && this.connectors.filter(connector => connector.enabled) || [];
     },
-    connectedAccountName() {
-      return this.connectedAccount && this.connectedAccount.userId || '';
-    },
-    connectedAccountIconSource() {
-      return this.connectedAccount && this.connectedAccount.icon || '';
-    },
-    connectedConnector() {
-      return this.connectors.find(connector => connector.name === this.connectedAccount.connectorName);
-    },
-    isConnectedConnectorEnabled() {
-      return this.connectedConnector && this.connectedConnector.enabled;
-    }
-  },
-  watch: {
-    settings() {
-      if (this.remoteProviders) {
-        this.refresh();
-      }
-    },
-    remoteProviders() {
-      if (this.remoteProviders) {
-        this.refresh();
-      }
-    },
-  },
-  created() {
-    this.$root.$on('agenda-refresh', this.refresh);
-    this.$root.$on('agenda-connector-loaded', connectors => {
-      this.connectors = connectors;
-      this.refresh();
-    });
-    this.$root.$on('agenda-connector-initialized', connectors => {
-      this.connectors = connectors;
-      const connectorObj = this.connectors && this.connectors.find(connector => connector.name === this.connectedAccount.connectorName);
-      if (connectorObj) {
-        this.connectedAccount = {
-          connectorName: connectorObj.name,
-          userId: connectorObj.user,
-          icon: connectorObj.avatar
-        };
-      } else {
-        this.connectedAccount = {};
-      }
-    });
-    this.$root.$emit('agenda-init-connectors');
   },
   methods: {
-    refresh() {
-      const connectorName = (this.connectedAccount && this.connectedAccount.connectorName) || (this.settings && this.settings.connectedRemoteProvider);
-      const connectorObj = this.connectors && this.connectors.find(connector => connector.name === connectorName);
-      if (connectorObj) {
-        this.connectedAccount = {
-          connectorName: connectorObj.name,
-          userId: connectorObj.user || (this.settings && this.settings.connectedRemoteUserId),
-          icon: connectorObj.avatar,
-        };
-      } else {
-        this.connectedAccount = {
-          connectorName: this.settings && this.settings.connectedRemoteProvider,
-          userId: this.settings && this.settings.connectedRemoteUserId,
-        };
-      }
-    },
     openDrawer() {
-      this.$root.$emit('agenda-connected-account-settings-open');
+      this.$root.$emit('agenda-connectors-drawer-open');
     },
     getDayFromAbbreviation(day) {
       return this.$agendaUtils.getDayNameFromDayAbbreviation(day, eXo.env.portal.language);

@@ -15,14 +15,17 @@
       ref="eventFormDialog"
       :current-space="currentSpace"
       :settings="settings"
+      :connectors="enabledConnectors"
       :weekdays="weekdays"
-      :working-time="workingTime"
-      :connectors="connectors" />
+      :working-time="workingTime" />
     <agenda-event-quick-form-drawer
       :current-space="currentSpace"
       :display-more-details="false" />
     <agenda-event-save />
-    <agenda-connector :settings="settings" />
+    <agenda-connector
+      :settings="settings"
+      :connectors="connectors"
+      @connectors-loaded="connectors = $event" />
   </v-app>
 </template>
 <script>
@@ -61,6 +64,9 @@ export default {
         workingTimeEnd: this.settings.workingTimeEnd
       };
     },
+    enabledConnectors() {
+      return this.connectors && this.connectors.filter(connector => connector.initialized && connector.enabled) || [];
+    },
   },
   watch: {
     limit() {
@@ -85,12 +91,10 @@ export default {
       this.limit = 5;
     }
     this.retrieveEvents().finally(() => document.dispatchEvent(new CustomEvent('hideTopBarLoading')));
-    this.$root.$on('agenda-event-saved', this.retrieveEvents);
+    this.$root.$on('agenda-settings-refresh', this.initSettings);
     this.$root.$on('agenda-refresh', this.retrieveEvents);
+    this.$root.$on('agenda-event-saved', this.retrieveEvents);
     this.$root.$on('agenda-event-deleted', this.retrieveEvents);
-    this.$root.$on('agenda-connector-loaded', connectors => {
-      this.connectors = connectors;
-    });
 
     this.spaceId = eXo.env.portal.spaceId;
 

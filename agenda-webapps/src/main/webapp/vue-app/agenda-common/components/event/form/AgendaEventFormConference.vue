@@ -28,6 +28,8 @@
 export default {
   data: () => ({
     callUrl: 'https://community.exoplatform.com/jitsi/meet/g_agenda_ft_test',
+    conferenceProviders: null,
+    loading: false,
     showCallUrl: false,
   }),
   methods:{

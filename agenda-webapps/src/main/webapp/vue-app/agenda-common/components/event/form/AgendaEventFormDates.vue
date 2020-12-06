@@ -3,8 +3,7 @@
     <v-toolbar flat class="border-color mb-4">
       <agenda-connector-status
         class="align-start my-auto col-sm-3 col-2"
-        :connected-account="connectedAccount"
-        :is-connected-connector-enabled="isConnectedConnectorEnabled">
+        :connectors="connectors">
         <template slot="connectButton">
           <v-btn class="btn">
             <i class="uiIconHyperlink mr-2 darkGreyIcon"></i>
@@ -78,7 +77,7 @@
         <agenda-connector-remote-event-item
           v-else
           :remote-event="eventObj.event"
-          :connected-account-icon-source="connectedAccountIconSource" />
+          :avatar="connectedConnectorAvatar" />
       </template>
       <template #day-body="day">
         <div
@@ -124,10 +123,7 @@
         </v-card-text>
       </v-card>
     </v-menu>
-    <agenda-user-connected-account-drawer
-      :connected-account="connectedAccount"
-      :connectors="connectors"
-      @updated="connectedAccount = $event" />
+    <agenda-connectors-drawer :connectors="connectors" />
   </v-flex>
 </template>
 
@@ -182,7 +178,6 @@ export default {
     scrollToTimeTop: null,
     menuLeftPosition: false,
     menuTopPosition: false,
-    connectedAccount: {},
     period: {},
     remoteEvents: [],
     spaceEvents: [],
@@ -201,11 +196,11 @@ export default {
     domId() {
       return `eventForm-${this.event.id}-${new Date(this.event.startDate).getTime()}`;
     },
-    connectedAccountName() {
-      return this.connectedAccount && this.connectedAccount.userId || '';
+    connectedConnector() {
+      return this.connectors.find(connector => connector.isSignedIn);
     },
-    connectedAccountIconSource() {
-      return this.connectedAccount && this.connectedAccount.icon || '';
+    connectedConnectorAvatar() {
+      return this.connectedConnector && this.connectedConnector.avatar || '';
     },
     displayedEvents() {
       const eventsToDisplay = this.events.slice();
@@ -217,12 +212,6 @@ export default {
       }
       return [...eventsToDisplay, ...this.remoteEvents];
     },
-    connectedConnector() {
-      return this.connectors.find(connector => connector.isSignedIn);
-    },
-    isConnectedConnectorEnabled() {
-      return this.connectedConnector && this.connectedConnector.enabled;
-    }
   },
   watch: {
     selectedOpen() {
@@ -236,6 +225,7 @@ export default {
       this.event.startDate = this.event.start && this.$agendaUtils.toDate(this.event.start) || new Date();
       this.event.startDate = this.roundTime(new Date(this.event.startDate).getTime());
     }
+
     if (!this.event.endDate) {
       if (this.event.end) {
         this.event.endDate = this.$agendaUtils.toDate(this.event.end).getTime();
@@ -243,21 +233,6 @@ export default {
         this.event.endDate = new Date(this.event.startDate).getTime();
       }
     }
-
-    this.connectedAccount = {
-      connectorName: this.settings && this.settings.connectedRemoteProvider,
-      userId: this.settings && this.settings.connectedRemoteUserId,
-      icon: this.connectedConnector && this.connectedConnector.avatar
-    };
-    this.$root.$on('agenda-connector-initialized', connectors => {
-      this.connectors = connectors;
-      const connectorObj = this.connectors && this.connectors.find(connector => connector.name === this.connectedAccount.connectorName);
-      if (connectorObj) {
-        this.connectedAccount.icon = connectorObj.avatar;
-      }
-      this.retrieveRemoteEvents();
-    });
-    this.$root.$emit('agenda-init-connectors');
   },
   mounted() {
     if (this.$refs.calendar) {
