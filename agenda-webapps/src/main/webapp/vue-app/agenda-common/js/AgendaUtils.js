@@ -252,3 +252,15 @@ export function areSameObjects(object1, object2) {
 export function isShortEvent(event) {
   return Math.floor(toDate(event.endDate).getTime() / 60000) - Math.floor(toDate(event.startDate).getTime() / 60000) < 60;
 }
+
+export function addOpacity(hexColor, opacity) {
+  hexColor = hexColor.replace('#', '');
+  const duplicate = hexColor.length < 6;
+  const rHex = duplicate && `${hexColor[0]}${hexColor[0]}` || `${hexColor[0]}${hexColor[1]}`;
+  const gHex = duplicate && `${hexColor[1]}${hexColor[1]}` || `${hexColor[2]}${hexColor[3]}`;
+  const bHex = duplicate && `${hexColor[2]}${hexColor[2]}` || `${hexColor[4]}${hexColor[5]}`;
+  const r = parseInt(rHex, 16);
+  const g = parseInt(gHex, 16);
+  const b = parseInt(bHex, 16);
+  return `rgba(${r},${g},${b},${opacity / 100})`;
+}

@@ -29,6 +29,9 @@
           @click="openPersonalCalendarDrawer">
           {{ $t('agenda.connectYourPersonalAgendaSubTitle') }}
         </a>
+        <template v-if="loading || (connectedConnector && connectedConnector.loading)">
+          <v-progress-linear indeterminate />
+        </template>
         <template v-if="connectedConnector">
           <template v-if="remoteEvents && remoteEvents.length">
             <agenda-connector-remote-event-item
@@ -99,15 +102,6 @@ export default {
     },
     connectedConnectorSignedOut() {
       return this.connectedConnector && !this.connectedConnector.isSignedIn && !this.connectedConnector.loading && !this.loading;
-    },
-  },
-  watch: {
-    loading() {
-      if (this.loading) {
-        this.$root.$emit('displayRemoteEventLoading');
-      } else {
-        this.$root.$emit('hideRemoteEventLoading');
-      }
     },
   },
   created() {

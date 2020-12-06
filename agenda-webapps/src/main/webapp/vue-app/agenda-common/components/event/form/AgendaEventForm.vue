@@ -160,9 +160,6 @@ export default {
   methods:{
     close() {
       this.$emit('close');
-      window.setTimeout(() => {
-        this.stepper = 1;
-      }, 200);
     },
     reset() {
       this.stepper = 1;
