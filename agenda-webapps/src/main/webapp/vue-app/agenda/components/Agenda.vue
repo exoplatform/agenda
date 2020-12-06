@@ -43,6 +43,8 @@
       ref="eventFormDialog"
       :current-space="currentSpace"
       :settings="settings"
+      :connectors="enabledConnectors"
+      :conference-providers="conferenceProviders"
       :weekdays="weekdays"
       :working-time="workingTime" />
     <agenda-event-preview-dialog />
@@ -53,7 +55,10 @@
     <agenda-event-quick-form-drawer :current-space="currentSpace" />
     <agenda-event-mobile-form-drawer :current-space="currentSpace" />
     <agenda-event-save />
-    <agenda-connector :settings="settings" />
+    <agenda-connector
+      :settings="settings"
+      :connectors="connectors"
+      @connectors-loaded="connectors = $event" />
   </v-app>
 </template>
 <script>
@@ -63,6 +68,8 @@ export default {
     currentSpace: null,
     filterCanceledEvents: true,
     loading: false,
+    conferenceProviders: null,
+    connectors: [],
     ownerIds: [],
     searchTerm: null,
     eventType: 'myEvents',
@@ -88,6 +95,9 @@ export default {
   computed: {
     isMobile() {
       return this.$vuetify.breakpoint.name === 'xs';
+    },
+    enabledConnectors() {
+      return this.connectors && this.connectors.filter(connector => connector.initialized && connector.enabled) || [];
     },
     weekdays() {
       return this.settings && this.$agendaUtils.getWeekSequenceFromDay(this.settings.agendaWeekStartOn);
@@ -135,6 +145,9 @@ export default {
     this.$root.$on('agenda-event-deleted', this.retrieveEvents);
     this.spaceId = eXo.env.portal.spaceId;
     this.$root.$on('agenda-settings-refresh', this.initSettings);
+    this.$root.$on('agenda-conference-providers-loaded', conferenceProviders => {
+      this.conferenceProviders = conferenceProviders;
+    });
     this.initSettings();
   },
   methods: {
@@ -148,6 +161,7 @@ export default {
               this.settings = settings;
               this.calendarType = this.settings && this.settings.agendaDefaultView;
             }
+            return this.$nextTick();
           })
           .finally(() => {
             this.settingsLoaded = true;

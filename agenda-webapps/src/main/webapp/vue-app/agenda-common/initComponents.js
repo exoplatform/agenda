@@ -34,10 +34,9 @@ import AgendaEventFormRecurrenceDrawer from './components/event/form/AgendaEvent
 import AgendaEventFormAttendees from './components/event/form/AgendaEventFormAttendees.vue';
 import AgendaEventFormAttendeeItem from './components/event/form/AgendaEventFormAttendeeItem.vue';
 import AgendaEventFormCalendarOwner from './components/event/form/AgendaEventFormCalendarOwner.vue';
-import AgendaEventFormJitsiCall from './components/event/form/AgendaEventFormJitsiCall.vue';
+import AgendaEventFormConference from './components/event/form/AgendaEventFormConference.vue';
 
 import AgendaUserSettingDrawer from './components/settings/AgendaUserSettingDrawer.vue';
-import AgendaUserConnectedAccountDrawer from './components/settings/AgendaUserConnectedAccountDrawer.vue';
 import AgendaReminderUserSettings from './components/settings/AgendaReminderUserSettings.vue';
 import AgendaReminderUserSettingItem from './components/settings/AgendaReminderUserSettingItem.vue';
 
@@ -59,6 +58,7 @@ import AgendaConnector from './components/connector/AgendaConnector.vue';
 import AgendaConnectorStatus from './components/connector/AgendaConnectorStatus.vue';
 import AgendaConnectorContemporaryEvents from './components/remote-event/AgendaConnectorContemporaryEvents.vue';
 import AgendaConnectorRemoteEventItem from './components/remote-event/AgendaConnectorRemoteEventItem.vue';
+import AgendaConnectorsDrawer from './components/remote-event/AgendaConnectorsDrawer.vue';
 
 const components = {
   'agenda-header': AgendaHeader,
@@ -101,12 +101,12 @@ const components = {
   'agenda-event-form-attendees': AgendaEventFormAttendees,
   'agenda-event-form-attendee-item': AgendaEventFormAttendeeItem,
   'agenda-event-form-calendar-owner': AgendaEventFormCalendarOwner,
-  'agenda-event-form-jitsi-owner':AgendaEventFormJitsiCall,
+  'agenda-event-form-conference':AgendaEventFormConference,
   'agenda-recurrent-event-save-confirm-dialog': AgendaRecurrentEventSaveConfirmDialog,
   'agenda-recurrent-event-response-confirm-dialog': AgendaRecurrentEventResponseConfirmDialog,
   'agenda-recurrent-event-reminders-confirm-dialog': AgendaRecurrentEventReminderConfirmDialog,
   'agenda-user-setting-drawer': AgendaUserSettingDrawer,
-  'agenda-user-connected-account-drawer': AgendaUserConnectedAccountDrawer,
+  'agenda-connectors-drawer': AgendaConnectorsDrawer,
   'agenda-reminder-user-settings': AgendaReminderUserSettings,
   'agenda-reminder-user-setting-item': AgendaReminderUserSettingItem,
   'agenda-connector': AgendaConnector,

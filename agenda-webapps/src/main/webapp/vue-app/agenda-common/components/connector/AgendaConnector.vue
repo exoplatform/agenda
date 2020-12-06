@@ -5,15 +5,23 @@ export default {
       type: Object,
       default: () => null,
     },
+    connectors: {
+      type: Object,
+      default: () => null,
+    },
   },
   data: () => ({
     loading: false,
-    connectors: [],
-    connectedAccount: {},
   }),
   computed: {
     remoteProviders() {
       return this.settings && this.settings.remoteProviders;
+    },
+    connectedConnectorUser() {
+      return this.connectedConnector && this.connectedConnector.user;
+    },
+    connectedConnector() {
+      return this.connectors && this.connectors.find(connector => connector.connected);
     },
   },
   watch: {
@@ -22,100 +30,103 @@ export default {
         this.refreshConnectorsList();
       }
     },
-    loading(newValue, oldValue) {
-      if (this.loading) {
-        if (!oldValue) {
-          this.$root.$emit('displayRemoteEventLoading');
-        }
-      } else {
-        if (!newValue) {
-          this.$root.$emit('hideRemoteEventLoading');
-        }
-      }
-    }
   },
-  mounted() {
+  created() {
     // Retrieving list of registered connectors from extensionRegistry
-    document.addEventListener('agenda-accounts-connectors-refresh', this.refreshConnectorsList);
-    this.$root.$on('agenda-init-connectors', this.initConnectors);
-    this.$root.$on('agenda-synchronize-current-connector',
-      (connector,currentUser) => {
-        this.connectionStatusChanged(connector, currentUser);
-      });
+    document.addEventListener('agenda-connectors-refresh', this.refreshConnectorsList);
+    this.$root.$on('agenda-connectors-init', this.initConnectors);
+    this.$root.$on('agenda-connector-connect', this.connect);
+    this.$root.$on('agenda-connector-disconnect', this.disconnect);
   },
   methods: {
     refreshConnectorsList() {
+      // Get list of connectors from extensionRegistry
       const connectors = extensionRegistry.loadExtensions('agenda', 'connectors') || [];
 
-      // Check connectors status from store
-      if (this.remoteProviders) {
-        connectors.forEach(connector => {
-          const connectorObj = this.remoteProviders.find(connectorSettings => connectorSettings.name === connector.name);
-          connector.enabled = connectorObj && connectorObj.enabled || false;
-        });
+      // Check connectors 'enablement' status from store
+      if (this.remoteProviders && this.remoteProviders.length) {
+        connectors
+          .forEach(connector => {
+            const connectorObj = this.remoteProviders.find(connectorSettings => connectorSettings.name === connector.name);
+            connector.enabled = connectorObj && connectorObj.enabled || false;
+            connector.connected = connector.enabled && this.settings.connectedRemoteProvider === connectorObj.name;
+            connector.user = connector.connected && this.settings.connectedRemoteUserId || '';
+          });
       } else {
-        connectors.forEach(connector => {
-          connector.enabled = false;
-        });
+        connectors.forEach(connector => connector.enabled = false);
       }
 
-      this.connectors = connectors;
-      this.$root.$emit('agenda-connector-loaded', this.connectors);
+      this.$emit('connectors-loaded', connectors);
     },
     initConnectors() {
-      this.connectors.forEach(connector => {
-        if (connector.init && !connector.initialized && connector.enabled) {
-          connector.init(this.connectionStatusChanged, this.connectionLoading);
-        }
-      });
-    },
-    retrieveConnectedConnectorSettings() {
-      return this.$settingsService.getUserSettings()
-        .then(settings => {
-          const connectorObj = this.connectors && this.connectors.find(connector => connector.name === this.connectedAccount.connectorName);
-          if (connectorObj) {
-            this.connectedAccount = {
-              connectorName: settings && settings.connectedRemoteProvider,
-              userId: settings && settings.connectedRemoteUserId,
-              icon: connectorObj.avatar
-            };
-          } else {
-            this.connectedAccount = {
-              connectorName: settings && settings.connectedRemoteProvider,
-              userId: settings && settings.connectedRemoteUserId,
-            };
+      this.connectors
+        .forEach(connector => {
+          if (connector.init && !connector.initialized && connector.enabled) {
+            connector.init(this.connectionStatusChanged, this.connectionLoading);
           }
+        });
+    },
+    connect(connector) {
+      this.errorMessage = null;
+      this.$set(connector, 'loading', true);
+      return connector.connect()
+        .then((userId) => this.$settingsService.saveUserConnector(connector.name, userId))
+        .then(() => {
+          this.$set(connector, 'loading', false);
+          this.$root.$emit('agenda-settings-refresh');
+        })
+        .catch(error => {
+          this.$set(connector, 'loading', false);
+          console.error(`Error while connecting to your remote account: ${error.error}`);
+          if(error.error !== 'popup_closed_by_user') {
+            this.errorMessage = this.$t('agenda.connectionFailure');
+          }
+        });
+    },
+    disconnect(connector) {
+      //disconnect from connected browser
+      if (connector.isSignedIn) {
+        return connector.disconnect().then(() => this.resetConnector(connector));
+      } else {//disconnect from other browser
+        return this.resetConnector(connector);
+      }
+    },
+    resetConnector(connector) {
+      this.$set(connector, 'loading', true);
+      return this.$settingsService.resetUserConnector()
+        .then(() => this.$root.$emit('agenda-settings-refresh'))
+        .finally(() => {
+          this.$set(connector, 'loading', false);
         });
     },
     connectionLoading(connector, loading) {
       this.$set(connector, 'loading', loading);
+
       if (loading) {
         this.loading++;
       } else if (this.loading) {
         this.loading--;
       }
     },
-    connectionStatusChanged(connector, currentUser) {
-      this.retrieveConnectedConnectorSettings().then(() => {
-        this.refreshConnectorStatus(connector, currentUser);
-        this.connectedConnector = connector;
-      });
+    connectionStatusChanged(connector, connectedUser) {
+      if (connectedUser) {
+        this.$root.$emit('agenda-connector-connected', connector);
+      } else {
+        this.cleanConnectorStatus(connector, connectedUser);
+      }
     },
-    refreshConnectorStatus(connector, currentUser) {
-      //if user has connected
-      if (this.connectedAccount.userId) {
-        this.$set(connector, 'user', this.connectedAccount.userId);
-        //if user connected with different account from other browser
-        if (currentUser.user && currentUser.user !== this.connectedAccount.userId) {
+    cleanConnectorStatus(connector, connectedUser) {
+      if (this.connectedConnectorUser) {
+        //if user is connected with different account from other browser
+        if (connectedUser && connectedUser.user !== this.connectedConnectorUser) {
           connector.disconnect();
         }
+      } else if (connector && connector.isSignedIn) {
         //if user disconnected from other browser
-      } else if (!this.connectedAccount.userId && connector.isSignedIn) {
         connector.disconnect();
-      } else {
-        this.$set(connector, 'user', currentUser && currentUser.user || null);
       }
-      this.$root.$emit('agenda-connector-initialized', this.connectors);
+
+      this.refreshConnectorsList();
     },
   },
 };

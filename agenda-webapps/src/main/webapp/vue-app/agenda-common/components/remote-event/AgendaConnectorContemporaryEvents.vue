@@ -2,13 +2,11 @@
   <div>
     <div class="d-flex">
       <v-avatar
-        v-if="connectedAccountName && isConnectedConnectorEnabled"
+        v-if="connectedConnector"
         tile
         class="mr-2 pt-1"
         size="32">
-        <img
-          :alt="connectedAccount.name"
-          :src="connectedAccountIconSource">
+        <img :src="connectedConnectorAvatar">
       </v-avatar>
       <i v-else class="uiIconCalRemoteCalendar darkGreyIcon uiIcon24x24 pr-2 pt-2"></i>
       <div class="d-flex flex-column">
@@ -22,28 +20,39 @@
           {{ ' ) ' }}
         </div>
         <a
-          v-if="connectedAccountName && isConnectedConnectorEnabled"
+          v-if="connectedConnector"
           @click="openPersonalCalendarDrawer">
-          {{ connectedAccountName }}
+          {{ connectedConnectorUser }}
         </a>
         <a
           v-else
           @click="openPersonalCalendarDrawer">
           {{ $t('agenda.connectYourPersonalAgendaSubTitle') }}
         </a>
-        <agenda-connector-remote-event-item
-          v-for="remoteEvent in remoteEvents"
-          :key="remoteEvent"
-          class="mt-5"
-          is-events-list
-          :remote-event="remoteEvent"
-          :connected-account-icon-source="connectedAccountIconSource" />
+        <template v-if="connectedConnector">
+          <template v-if="remoteEvents && remoteEvents.length">
+            <agenda-connector-remote-event-item
+              v-for="remoteEvent in remoteEvents"
+              :key="remoteEvent"
+              class="mt-5"
+              is-events-list
+              :remote-event="remoteEvent"
+              :avatar="connectedConnectorAvatar" />
+          </template>
+          <template v-else-if="connectedConnectorSignedOut">
+            <v-alert type="info">
+              {{ $t('agenda.signedOutConnector') }}
+            </v-alert>
+          </template>
+          <template v-else-if="!connectedConnector.loading && !loading">
+            <v-alert type="info">
+              {{ $t('agenda.noRemoteEvents') }}
+            </v-alert>
+          </template>
+        </template>
       </div>
     </div>
-    <agenda-user-connected-account-drawer
-      :connected-account="connectedAccount"
-      :connectors="connectors"
-      @updated="connectedAccount = $event" />
+    <agenda-connectors-drawer :connectors="connectors" />
   </div>
 </template>
 
@@ -54,19 +63,19 @@ export default {
       type: Object,
       default: () => null
     },
+    connectors: {
+      type: Array,
+      default: () => null
+    },
     event: {
       type: Object,
       default: () => ({})
     },
-    connectors: {
-      type: Array,
-      default: () => []
-    },
   },
   data() {
     return {
+      loading: false,
       remoteEvents: [],
-      connectedAccount: {},
       fullDateFormat: {
         year: 'numeric',
         month: 'long',
@@ -79,77 +88,72 @@ export default {
     };
   },
   computed: {
-    connectedAccountName() {
-      return this.connectedAccount && this.connectedAccount.userId || '';
-    },
-    connectedAccountIconSource() {
-      return this.connectedAccount && this.connectedAccount.icon || '';
-    },
     connectedConnector() {
-      return this.connectedAccount && this.connectors.find(connector => connector.user === this.connectedAccount.userId);
+      return this.connectors && this.connectors.find(connector => connector.connected);
     },
-    isConnectedConnectorEnabled() {
-      return this.connectedConnector && this.connectedConnector.enabled;
-    }
+    connectedConnectorUser() {
+      return this.connectedConnector && this.connectedConnector.user || '';
+    },
+    connectedConnectorAvatar() {
+      return this.connectedConnector && this.connectedConnector.avatar || '';
+    },
+    connectedConnectorSignedOut() {
+      return this.connectedConnector && !this.connectedConnector.isSignedIn && !this.connectedConnector.loading && !this.loading;
+    },
   },
   watch: {
-    settings() {
-      this.refresh();
+    loading() {
+      if (this.loading) {
+        this.$root.$emit('displayRemoteEventLoading');
+      } else {
+        this.$root.$emit('hideRemoteEventLoading');
+      }
     },
   },
   created() {
-    this.$root.$on('agenda-connector-initialized', connectors => {
-      this.connectors = connectors;
-      this.refresh();
-      this.retrieveRemoteEvents();
-    });
     this.$root.$on('agenda-event-details-opened', () => {
-      this.refresh();
-      this.retrieveRemoteEvents();
+      this.$root.$emit('agenda-connectors-init');
+      this.refreshRemoteEvents();
     });
-    this.$root.$emit('agenda-init-connectors');
+    this.$root.$on('agenda-connector-connected', this.retrieveRemoteEvents);
   },
   methods: {
-    refresh() {
-      const connectorName = (this.connectedAccount && this.connectedAccount.connectorName) || (this.settings && this.settings.connectedRemoteProvider);
-      const connectorObj = this.connectors && this.connectors.find(connector => connector.name === connectorName);
-      if (connectorObj) {
-        this.connectedAccount = {
-          connectorName: connectorObj.name,
-          userId: connectorObj.user || (this.settings && this.settings.connectedRemoteUserId),
-          icon: connectorObj.avatar,
-        };
-      } else {
-        this.connectedAccount = {
-          connectorName: this.settings && this.settings.connectedRemoteProvider,
-          userId: this.settings && this.settings.connectedRemoteUserId,
-        };
-      }
-    },
     openPersonalCalendarDrawer() {
-      this.$root.$emit('agenda-connected-account-settings-open');
+      this.$root.$emit('agenda-connectors-drawer-open');
     },
-    retrieveRemoteEvents() {
-      const eventStartDay = this.event.startDate;
-      const eventEndDay = this.event.endDate;
-      // Start of the day of start date
-      eventStartDay.setHours(0);
-      eventStartDay.setMinutes(0);
-      // End of the day of end date
-      eventEndDay.setHours(23);
-      eventEndDay.setMinutes(59);
-      if(this.connectedConnector && this.connectedConnector.user) {
-        this.connectedConnector.getEvents(this.$agendaUtils.toRFC3339(eventStartDay, false, true),
-          this.$agendaUtils.toRFC3339(eventEndDay, false, true))
+    refreshRemoteEvents() {
+      this.retrieveRemoteEvents(this.connectedConnector);
+    },
+    retrieveRemoteEvents(connector) {
+      if(connector) {
+        const eventStartDay = this.event.startDate;
+        const eventEndDay = this.event.endDate;
+
+        // Start of the day of start date
+        eventStartDay.setHours(0);
+        eventStartDay.setMinutes(0);
+
+        // End of the day of end date
+        eventEndDay.setHours(23);
+        eventEndDay.setMinutes(59);
+
+        const startDateRFC3359 = this.$agendaUtils.toRFC3339(eventStartDay, false, true);
+        const endDateRFC3359 = this.$agendaUtils.toRFC3339(eventEndDay, false, true);
+
+        this.loading = true;
+        connector.getEvents(startDateRFC3359, endDateRFC3359)
           .then(events => {
-            events.forEach(event => {
-              event.startDate = event.start && this.$agendaUtils.toDate(event.start) || null;
-              event.endDate = event.end && this.$agendaUtils.toDate(event.end) || null;
-            });
-            this.remoteEvents = events;
+            if (events) {
+              events.forEach(event => {
+                event.startDate = event.start && this.$agendaUtils.toDate(event.start) || null;
+                event.endDate = event.end && this.$agendaUtils.toDate(event.end) || null;
+              });
+            }
+            this.remoteEvents = events || [];
+            this.loading = false;
           }).catch(error => {
-            this.$root.$emit('hideRemoteEventLoading');
             this.remoteEvents = [];
+            this.loading = false;
             console.error('Error retrieving remote events', error);
           });
       } else {

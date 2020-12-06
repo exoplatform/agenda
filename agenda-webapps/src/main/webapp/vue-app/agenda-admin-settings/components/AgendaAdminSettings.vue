@@ -75,7 +75,7 @@ export default {
       { text: this.$t('agenda.active'), align: 'center' }
     ];
     // Retrieving list of registered connectors from extensionRegistry
-    document.addEventListener('agenda-accounts-connectors-refresh', this.refreshConnectorsList);
+    document.addEventListener('agenda-connectors-refresh', this.refreshConnectorsList);
     this.refreshConnectorsList();
   },
   methods: {
