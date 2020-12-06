@@ -1,15 +1,13 @@
 <template>
   <div class="connector-status">
-    <div v-if="connectedAccountName && isConnectedConnectorEnabled" class="connector-connected d-flex">
+    <div v-if="connectedConnectorUser" class="connector-connected d-flex">
       <v-avatar tile size="24">
-        <img
-          :alt="connectedAccount.name"
-          :src="connectedAccountIconSource">
+        <img :src="connectedConnectorAvatar">
       </v-avatar>
       <a
         class="mx-2 my-auto"
         @click="openPersonalCalendarDrawer">
-        {{ connectedAccountName }}
+        {{ connectedConnectorUser }}
       </a>
     </div>
     <div
@@ -25,26 +23,28 @@
 <script>
 export default {
   props: {
-    connectedAccount: {
+    connectors: {
       type: Array,
-      default: () => []
+      default: () => null
     },
-    isConnectedConnectorEnabled: {
-      type: Boolean,
-      default: false
-    }
   },
   computed: {
-    connectedAccountName() {
-      return this.connectedAccount && this.connectedAccount.userId || '';
+    connectedConnector() {
+      return this.connectors.find(connector => connector.user);
     },
-    connectedAccountIconSource() {
-      return this.connectedAccount && this.connectedAccount.icon || '';
+    connectedConnectorName() {
+      return this.connectedConnector && this.connectedConnector.name || '';
+    },
+    connectedConnectorUser() {
+      return this.connectedConnector && this.connectedConnector.user || '';
+    },
+    connectedConnectorAvatar() {
+      return this.connectedConnector && this.connectedConnector.avatar || '';
     },
   },
   methods: {
     openPersonalCalendarDrawer() {
-      this.$root.$emit('agenda-connected-account-settings-open');
+      this.$root.$emit('agenda-connectors-drawer-open');
     },
   }
 };

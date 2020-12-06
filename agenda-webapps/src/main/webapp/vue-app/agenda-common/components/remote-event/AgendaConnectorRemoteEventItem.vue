@@ -10,7 +10,7 @@
         class="mr-1 my-auto"
         tile
         size="16">
-        <img :src="connectedAccountIconSource">
+        <img :src="avatar">
       </v-avatar>
     </template>
     <div v-if="displayEventDate" class="d-flex">
@@ -27,7 +27,7 @@
         tile
         class="ml-auto mr-1"
         size="16">
-        <img :src="connectedAccountIconSource">
+        <img :src="avatar">
       </v-avatar>
     </div>
   </div>
@@ -40,7 +40,7 @@ export default {
       type: Object,
       default: () => ({})
     },
-    connectedAccountIconSource: {
+    avatar: {
       type: String,
       default: ''
     },

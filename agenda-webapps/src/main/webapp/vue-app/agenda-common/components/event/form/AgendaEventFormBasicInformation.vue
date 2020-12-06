@@ -50,10 +50,12 @@
               class="text-wrap mt-2" />
           </div>
         </div>
-        <div class="d-flex flex-row">
+        <div v-show="conferenceProviders" class="d-flex flex-row">
           <i class="uiIconVideo darkGreyIcon uiIcon32x32 my-3 mr-11"></i>
           <div class="d-flex flex-column">
-            <agenda-event-form-jitsi-owner :event="event" class="my-auto" />
+            <agenda-event-form-conference
+              :event="event"
+              class="my-auto" />
           </div>
         </div>
         <div class="d-flex flex-row">
@@ -105,9 +107,13 @@ export default {
       type: Object,
       default: () => null,
     },
+    conferenceProviders: {
+      type: Array,
+      default: () => null,
+    },
   },
   data: () => ({
-    eventDescriptionTextLength: 1300
+    eventDescriptionTextLength: 1300,
   }),
   computed: {
     allowAttendeeToUpdate() {
