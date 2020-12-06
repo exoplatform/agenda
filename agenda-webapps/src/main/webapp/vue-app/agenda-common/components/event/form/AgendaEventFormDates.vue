@@ -134,6 +134,10 @@ export default {
       type: Object,
       default: () => null
     },
+    connectors: {
+      type: Array,
+      default: () => null
+    },
     event: {
       type: Object,
       default: () => ({}),
@@ -146,13 +150,10 @@ export default {
       type: Object,
       default: () => null
     },
-    connectors: {
-      type: Array,
-      default: () => null
-    },
   },
   data: () => ({
     periodTitle: '',
+    loading: false,
     dragEvent: null,
     dragStart: null,
     createEvent: null,
@@ -191,7 +192,7 @@ export default {
       return `top: ${this.currentTimeTop}px;`;
     },
     events() {
-      return [this.event, ...this.spaceEvents];
+      return [...this.spaceEvents, this.event];
     },
     domId() {
       return `eventForm-${this.event.id}-${new Date(this.event.startDate).getTime()}`;
@@ -203,20 +204,44 @@ export default {
       return this.connectedConnector && this.connectedConnector.avatar || '';
     },
     displayedEvents() {
-      const eventsToDisplay = this.events.slice();
-      if (this.event && this.event.id) {
-        const index = eventsToDisplay.findIndex(event => this.event.id === event.id);
+      const eventsToDisplay = this.events && this.events.slice() || [];
+      // Avoid to have same event that we are changing twice
+      if (this.event && (this.event.id || this.event.parent)) {
+        const index = eventsToDisplay.findIndex(event => this.isSameEvent(event, this.event));
         if (index >= 0) {
           eventsToDisplay.splice(index, 1);
         }
       }
-      return [...eventsToDisplay, ...this.remoteEvents];
+      const remoteEventsToDisplay = this.remoteEvents && this.remoteEvents.slice() || [];
+      // Avoid to have same event from remote and local store (pushed events from local store)
+      if (eventsToDisplay.length && remoteEventsToDisplay.length) {
+        eventsToDisplay.forEach(event => {
+          const index = remoteEventsToDisplay.findIndex(remoteEvent => remoteEvent.id && remoteEvent.id === event.remoteId);
+          if (index >= 0) {
+            remoteEventsToDisplay.splice(index, 1);
+          }
+        });
+      }
+      return [...eventsToDisplay, ...remoteEventsToDisplay];
     },
   },
   watch: {
+    displayedEvents() {
+      if (this.displayedEvents && this.displayedEvents.length) {
+        this.selectedOpen = false;
+        this.$nextTick(() => this.showEventDatePickers(this.event));
+      }
+    },
     selectedOpen() {
       if (this.selectedOpen && this.$refs.selectedEventDatePickers) {
         this.$refs.selectedEventDatePickers.reset();
+      }
+    },
+    loading() {
+      if (this.loading) {
+        this.$root.$emit('displayRemoteEventLoading');
+      } else {
+        this.$root.$emit('hideRemoteEventLoading');
       }
     },
   },
@@ -310,8 +335,8 @@ export default {
             this.datePickerTop = $targetElement.offset().top > 330;
             this.menuTopPosition = window.innerHeight - $targetElement.offset().top < 400;
             this.menuLeftPosition = $targetElement.offset().left > window.innerWidth / 2;
+            this.selectedOpen = true;
           }
-          this.selectedOpen = true;
         } else {
           this.selectedOpen = false;
         }
@@ -346,14 +371,24 @@ export default {
     },
     getEventDomId(eventObj) {
       const event = eventObj && eventObj.event || eventObj;
-      return `eventForm-${event.id}-${new Date(event.startDate).getTime()}`;
+      return `eventForm-${event.id || (event.parent && event.parent.id) || ''}-${new Date(event.startDate).getTime()}`;
     },
     isShortEvent(eventObj) {
       const event = eventObj && eventObj.event || eventObj;
       return this.$agendaUtils.isShortEvent(event);
     },
+    isSameEvent(event1, event2) {
+      return (event1.id && event1.id === event2.id)
+      || (event1.parent && event2.parent && event1.parent.id === event2.parent.id
+          && event1.occurrence && event2.occurrence && event1.occurrence.id === event2.occurrence.id);
+    },
     getEventColor(event) {
-      return event && (event.color || event.calendar && event.calendar.color) || '#2196F3';
+      const eventColor = event && (event.color || event.calendar && event.calendar.color) || '#2196F3';
+      if (this.isSameEvent(event, this.event)){
+        return eventColor;
+      } else {
+        return this.$agendaUtils.addOpacity(eventColor, 40);
+      }
     },
     isEventTimed(event) {
       return event && !event.allDay;
@@ -417,15 +452,20 @@ export default {
     },
     retrieveRemoteEvents() {
       if(this.connectedConnector) {
-        this.connectedConnector.getEvents(this.$agendaUtils.toRFC3339(this.period.start, false, true),
-          this.$agendaUtils.toRFC3339(this.period.end, false, true))
+        const startEventRFC3359 = this.$agendaUtils.toRFC3339(this.period.start, false, true);
+        const endEventRFC3359 = this.$agendaUtils.toRFC3339(this.period.end, false, true);
+
+        this.loading = true;
+        this.connectedConnector.getEvents(startEventRFC3359, endEventRFC3359)
           .then(events => {
             events.forEach(event => {
               this.$agendaUtils.convertDates(event);
             });
             this.remoteEvents = events;
+            this.loading = false;
           }).catch(error => {
             console.error('Error retrieving remote events', error);
+            this.loading = false;
           });
       } else {
         this.remoteEvents = [];
