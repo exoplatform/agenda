@@ -25,6 +25,7 @@
           :current-space="currentSpace"
           :working-time="workingTime"
           :connectors="connectors"
+          :conference-providers="conferenceProviders"
           class="fill-height event-form"
           @close="close"
           @saved="saved"
@@ -69,10 +70,17 @@ export default {
       type: Object,
       default: () => null
     },
+    connectors: {
+      type: Array,
+      default: () => null,
+    },
+    conferenceProviders: {
+      type: Array,
+      default: () => null,
+    },
   },
   data () {
     return {
-      connectors: [],
       dialog: false,
       saving: false,
       event: null,
@@ -153,9 +161,6 @@ export default {
     this.$root.$on('agenda-event-deleted', this.close);
     this.$root.$on('agenda-event-save', () => this.saving = true);
     this.$root.$on('agenda-event-saved', this.close);
-    this.$root.$on('agenda-connector-loaded', connectors => {
-      this.connectors = connectors;
-    });
   },
   methods: {
     closeByEscape(event) {

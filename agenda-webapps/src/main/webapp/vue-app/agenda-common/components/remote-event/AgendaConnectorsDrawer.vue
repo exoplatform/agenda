@@ -11,19 +11,21 @@
       <v-list
         v-if="enabledConnectors && enabledConnectors.length !== 0"
         two-line>
-        <v-list-item v-for="connector in enabledConnectors" :key="connector.name">
+        <v-list-item
+          v-for="connector in enabledConnectors"
+          :key="connector.name">
           <v-list-item-avatar>
             <v-avatar tile size="40">
               <img :src="connector.avatar">
             </v-avatar>
           </v-list-item-avatar>
           <v-list-item-content>
-            <template v-if="connector.name === connectedAccount.connectorName">
+            <template v-if="connector.connected">
               <v-list-item-title>
                 {{ $t('agenda.connectedAccountWith') }}:
               </v-list-item-title>
               <v-list-item-subtitle>
-                {{ connectedAccount.userId }}
+                {{ connector.user }}
               </v-list-item-subtitle>
             </template>
             <template v-else>
@@ -34,7 +36,7 @@
           </v-list-item-content>
           <v-list-item-action>
             <v-btn
-              v-if="connectedAccount.userId"
+              v-if="connector.isSignedIn && connector.user"
               :loading="connector.loading"
               class="btn"
               @click="disconnect(connector)">
@@ -68,78 +70,52 @@
 <script>
 export default {
   props: {
-    connectedAccount: {
-      type: Object,
-      default: () => ({}),
-    },
     connectors: {
       type: Array,
       default: () => [],
     },
   },
   data: () => ({
-    errorMessage: ''
+    connectionInProgress: false,
+    errorMessage: '',
   }),
   computed: {
     enabledConnectors() {
-      return this.connectors.slice().filter(connector => connector.enabled);
+      return this.connectors && this.connectors.slice().filter(connector => connector.enabled) || [];
     }
   },
   created() {
-    this.$root.$on('agenda-connected-account-settings-open', this.open);
+    this.$root.$on('agenda-connectors-drawer-open', this.open);
+    this.$root.$on('agenda-connector-connected', () => {
+      // Avoiding closing the drawer automatically
+      // when the user didn't pressed the connect button
+      if (this.connectionInProgress) {
+        this.close();
+      }
+    });
   },
   methods: {
     open() {
-      this.$root.$emit('agenda-init-connectors');
+      this.connectionInProgress = false;
+      this.$root.$emit('agenda-connectors-init');
+
       if (this.$refs.agendaConnectorsDrawer) {
         this.$refs.agendaConnectorsDrawer.open();
       }
     },
-    connect(connector) {
-      this.errorMessage = null;
-      this.$refs.agendaConnectorsDrawer.startLoading();
-      connector.connect().then((connectorDetails) => {
-        const newAccount = {
-          connectorName: connector.name,
-          userId: connectorDetails.getBasicProfile().getEmail(),
-          icon: connector.avatar
-        };
-        this.$emit('updated', newAccount);
+    close() {
+      if (this.$refs.agendaConnectorsDrawer) {
         this.$refs.agendaConnectorsDrawer.close();
-        this.$settingsService.saveUserConnector(newAccount.connectorName, newAccount.userId)
-          .finally(() => {
-            this.$refs.agendaConnectorsDrawer.endLoading();
-            this.$root.$emit('agenda-settings-refresh');
-          });
-      }).catch(error => {
-        console.error(`Error while connecting to your remote account: ${error.error}`);
-        if(error.error !== 'popup_closed_by_user') {
-          this.errorMessage = this.$t('agenda.connectionFailure');
-        }
-        this.$set(connector, 'loading', false);
-        this.$refs.agendaConnectorsDrawer.endLoading();
-      });
-    },
-    disconnect(connector) {
-      //disconnect from connected browser
-      if (connector.isSignedIn) {
-        connector.disconnect().then(() => {
-          this.resetConnectedAccount(connector);
-        });
-      } else {//disconnect from other browser
-        this.$set(connector, 'loading', true);
-        this.resetConnectedAccount(connector);
-        this.$root.$emit('agenda-synchronize-current-connector', connector, false);
       }
     },
-    resetConnectedAccount(connector) {
-      this.$emit('updated', {});
-      return this.$settingsService.resetUserConnector()
-        .finally(() => {
-          this.$set(connector, 'loading', false);
-          this.$root.$emit('agenda-settings-refresh');
-        });
-    }
+    connect(connector) {
+      this.connectionInProgress = true;
+      this.$root.$emit('agenda-connector-connect', connector);
+    },
+    disconnect(connector) {
+      this.connectionInProgress = true;
+      this.$root.$emit('agenda-connector-disconnect', connector);
+    },
   },
 };
 </script>

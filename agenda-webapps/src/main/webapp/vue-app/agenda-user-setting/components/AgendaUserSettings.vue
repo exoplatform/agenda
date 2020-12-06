@@ -22,7 +22,6 @@ export default {
     },
   }),
   created() {
-    this.$root.$on('agenda-refresh', this.refresh);
     this.$root.$on('agenda-settings-refresh', this.initSettings);
     this.initSettings();
   },

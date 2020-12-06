@@ -33,6 +33,8 @@
           <agenda-event-form-basic-information
             ref="eventBasicInformation"
             :event="event"
+            :connectors="connectors"
+            :conference-providers="conferenceProviders"
             :current-space="currentSpace"
             @next-step="nextStep"
             @initialized="$emit('initialized')" />
@@ -43,9 +45,10 @@
             ref="eventDates"
             :settings="settings"
             :event="event"
+            :connectors="connectors"
+            :conference-providers="conferenceProviders"
             :weekdays="weekdays"
-            :working-time="workingTime"
-            :connectors="connectors" />
+            :working-time="workingTime" />
         </v-stepper-content>
       </v-stepper-items>
     </v-stepper>
@@ -102,6 +105,10 @@ export default {
     connectors: {
       type: Array,
       default: () => null
+    },
+    conferenceProviders: {
+      type: Array,
+      default: () => null,
     },
   },
   data () {

@@ -58,37 +58,43 @@ export default {
   },
   connect() {
     this.loadingCallback(this, true);
-    return this.gapi.auth2.getAuthInstance().signIn();
+    // Return a Promise with connected username
+    return this.gapi.auth2.getAuthInstance().signIn()
+      .then(connectedUser => connectedUser.getBasicProfile().getEmail());
   },
   disconnect() {
     this.loadingCallback(this, true);
     return this.gapi.auth2.getAuthInstance().signOut();
   },
   getEvents(periodStartDate, periodEndDate) {
-    this.loadingCallback(this, true);
-    return this.gapi.client.calendar.events.list({
-      'calendarId': 'primary',
-      'timeMin': periodStartDate,
-      'timeMax': periodEndDate,
-      'singleEvents': true,
-      'orderBy': 'startTime'
-    }).then(events => events.result.items).then(events => {
-      events.forEach(event => {
-        event.allDay = !!event.start.date;
-        event.start = event.start.dateTime || event.start.date;
-        //Google api returns all day event with one day added for end date.
-        const endDate = new Date(event.end.date);
-        endDate.setDate(endDate.getDate()-1);
-        event.end = event.allDay ? endDate : event.end.dateTime;
-        event.name = event.summary;
-        event.type = 'remoteEvent';
-        event.color = '#FFFFFF';
+    if (this.gapi && this.gapi.client && this.gapi.client.calendar) {
+      this.loadingCallback(this, true);
+      return this.gapi.client.calendar.events.list({
+        'calendarId': 'primary',
+        'timeMin': periodStartDate,
+        'timeMax': periodEndDate,
+        'singleEvents': true,
+        'orderBy': 'startTime'
+      }).then(events => events.result.items).then(events => {
+        events.forEach(event => {
+          event.allDay = !!event.start.date;
+          event.start = event.start.dateTime || event.start.date;
+          //Google api returns all day event with one day added for end date.
+          const endDate = new Date(event.end.date);
+          endDate.setDate(endDate.getDate()-1);
+          event.end = event.allDay ? endDate : event.end.dateTime;
+          event.name = event.summary;
+          event.type = 'remoteEvent';
+          event.color = '#FFFFFF';
+        });
+        this.loadingCallback(this, false);
+        return events;
+      }).catch(e => {
+        this.loadingCallback(this, false);
+        throw new Error(e);
       });
-      this.loadingCallback(this, false);
-      return events;
-    }).catch(e => {
-      this.loadingCallback(this, false);
-      throw new Error(e);
-    });
+    } else {
+      return Promise.resolve(null);
+    }
   }
 };
