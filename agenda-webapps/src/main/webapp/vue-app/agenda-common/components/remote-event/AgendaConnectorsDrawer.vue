@@ -61,7 +61,7 @@
         v-else
         class="noEnabledConnectors d-flex flex-column align-center">
         <i class="uiIconCalRemoteCalendar darkGreyIcon ma-5"></i>
-        <p>{{ $t('agenda.disabled.connectors') }}</p>
+        <p>{{ $t('agenda.noActiveConnectors') }}</p>
       </div>
     </template>
   </exo-drawer>

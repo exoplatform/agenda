@@ -1,23 +1,49 @@
 package org.exoplatform.agenda.service;
 
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
+
+import org.apache.commons.lang.StringUtils;
 
 import org.exoplatform.agenda.model.EventConference;
 import org.exoplatform.agenda.storage.AgendaEventConferenceStorage;
 import org.exoplatform.agenda.util.Utils;
+import org.exoplatform.commons.api.settings.SettingService;
+import org.exoplatform.commons.api.settings.SettingValue;
+import org.exoplatform.commons.api.settings.data.Context;
+import org.exoplatform.commons.api.settings.data.Scope;
+import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.services.listener.ListenerService;
 
 public class AgendaEventConferenceServiceImpl implements AgendaEventConferenceService {
+
+  private static final String          WEB_CONFERENCING_ENABLED_TYPE_PARAM = "webConferencing.default";
+
+  private static final String          AGENDA_WEB_CONFERENCING_KEY         = "AgendaWebConference";
+
+  private static final Scope           AGENDA_SCOPE                        = Scope.APPLICATION.id("Agenda");
+
+  private static final Context         AGENDA_CONTEXT                      = Context.GLOBAL.id("Agenda");
+
   private AgendaEventConferenceStorage conferenceStorage;
+
+  private SettingService               settingService;
 
   private ListenerService              listenerService;
 
+  private List<String>                 defaultEnabledWebConferences;
+
   public AgendaEventConferenceServiceImpl(AgendaEventConferenceStorage conferenceStorage,
-                                          ListenerService listenerService) {
+                                          ListenerService listenerService,
+                                          SettingService settingService,
+                                          InitParams params) {
     this.conferenceStorage = conferenceStorage;
     this.listenerService = listenerService;
+    this.settingService = settingService;
+
+    if (params != null && params.containsKey(WEB_CONFERENCING_ENABLED_TYPE_PARAM)) {
+      this.defaultEnabledWebConferences = Arrays.asList(params.getValueParam(WEB_CONFERENCING_ENABLED_TYPE_PARAM).getValue());
+    }
   }
 
   @Override
@@ -47,6 +73,21 @@ public class AgendaEventConferenceServiceImpl implements AgendaEventConferenceSe
   @Override
   public List<EventConference> getEventConferences(long eventId) {
     return conferenceStorage.getEventConferences(eventId);
+  }
+
+  @Override
+  public void saveEnabledWebConferenceProviders(List<String> enabledProviders) {
+    SettingValue<?> webConferencingSetting = SettingValue.create(StringUtils.join(enabledProviders, ","));
+    this.settingService.set(AGENDA_CONTEXT, AGENDA_SCOPE, AGENDA_WEB_CONFERENCING_KEY, webConferencingSetting);
+  }
+
+  @Override
+  public List<String> getEnabledWebConferenceProviders() {
+    SettingValue<?> webConferencingSetting = this.settingService.get(AGENDA_CONTEXT, AGENDA_SCOPE, AGENDA_WEB_CONFERENCING_KEY);
+    if (webConferencingSetting == null || webConferencingSetting.getValue() == null) {
+      return defaultEnabledWebConferences;
+    }
+    return Arrays.asList(StringUtils.split(webConferencingSetting.getValue().toString(), ","));
   }
 
 }

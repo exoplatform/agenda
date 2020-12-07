@@ -35,6 +35,24 @@ export function saveRemoteProviderStatus(connectorName, connectorStatus) {
   });
 }
 
+export function saveEnabledWebConferencingProvider(providerName) {
+  const formData = new FormData();
+  formData.append('providerName', providerName);
+  
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/settings/webConferencing`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams(formData).toString(),
+  }).then(resp => {
+    if (!resp || !resp.ok) {
+      throw new Error('Response code indicates a server error', resp);
+    }
+  });
+}
+
 export function saveTimeZone(timeZoneId) {
   const formData = new FormData();
   formData.append('timeZoneId', timeZoneId);

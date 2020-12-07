@@ -13,25 +13,29 @@ import org.exoplatform.container.xml.InitParams;
 
 public class AgendaUserSettingsServiceImpl implements AgendaUserSettingsService {
 
-  private static final String        AGENDA_USER_SETTINGS_PARAM_KEY = "agenda.user.settings";
+  private static final String          AGENDA_USER_SETTINGS_PARAM_KEY = "agenda.user.settings";
 
-  private static final Scope         AGENDA_USER_SETTING_SCOPE      = Scope.APPLICATION.id("Agenda");
+  private static final Scope           AGENDA_USER_SETTING_SCOPE      = Scope.APPLICATION.id("Agenda");
 
-  private static final String        AGENDA_USER_SETTING_KEY        = "AgendaSettings";
+  private static final String          AGENDA_USER_SETTING_KEY        = "AgendaSettings";
 
-  private AgendaEventService         agendaEventService;
+  private AgendaEventService           agendaEventService;
 
-  private AgendaEventReminderService agendaEventReminderService;
+  private AgendaEventConferenceService agendaEventConferenceService;
 
-  private SettingService             settingService;
+  private AgendaEventReminderService   agendaEventReminderService;
 
-  private AgendaUserSettings         defaultUserSettings            = null;
+  private SettingService               settingService;
+
+  private AgendaUserSettings           defaultUserSettings            = null;
 
   public AgendaUserSettingsServiceImpl(AgendaEventReminderService agendaEventReminderService,
+                                       AgendaEventConferenceService agendaEventConferenceService,
                                        AgendaEventService agendaEventService,
                                        SettingService settingService,
                                        InitParams initParams) {
     this.agendaEventReminderService = agendaEventReminderService;
+    this.agendaEventConferenceService = agendaEventConferenceService;
     this.agendaEventService = agendaEventService;
     this.settingService = settingService;
 
@@ -65,17 +69,20 @@ public class AgendaUserSettingsServiceImpl implements AgendaUserSettingsService 
                                                            AGENDA_USER_SETTING_KEY);
 
     List<RemoteProvider> remoteProviders = agendaEventService.getRemoteProviders();
+    AgendaUserSettings agendaUserSettings = null;
     if (settingValue == null || settingValue.getValue() == null || StringUtils.isBlank(settingValue.getValue().toString())) {
-      AgendaUserSettings agendaUserSettings = defaultUserSettings.clone();
+      agendaUserSettings = defaultUserSettings.clone();
       List<EventReminderParameter> defaultReminders = agendaEventReminderService.getDefaultReminders();
       agendaUserSettings.setReminders(defaultReminders);
       agendaUserSettings.setRemoteProviders(remoteProviders);
-      return agendaUserSettings;
     } else {
-      AgendaUserSettings agendaUserSettings = AgendaUserSettings.fromString(settingValue.getValue().toString());
+      agendaUserSettings = AgendaUserSettings.fromString(settingValue.getValue().toString());
       agendaUserSettings.setRemoteProviders(remoteProviders);
-      return agendaUserSettings;
     }
+
+    List<String> enabledWebConferenceProviders = agendaEventConferenceService.getEnabledWebConferenceProviders();
+    agendaUserSettings.setWebConferenceProviders(enabledWebConferenceProviders);
+    return agendaUserSettings;
   }
 
   @Override

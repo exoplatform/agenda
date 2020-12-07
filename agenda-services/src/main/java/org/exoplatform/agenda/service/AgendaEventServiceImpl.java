@@ -847,7 +847,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   }
 
   @Override
-  public void saveRemoteProviderStatus(String connectorName, boolean enabled) {
+  public void saveConnectorStatus(String connectorName, boolean enabled) {
     if (StringUtils.isBlank(connectorName)) {
       throw new IllegalStateException("connectorName is mandatory");
     }

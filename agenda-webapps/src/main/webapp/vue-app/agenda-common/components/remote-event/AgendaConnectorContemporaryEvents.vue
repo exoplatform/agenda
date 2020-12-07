@@ -47,7 +47,13 @@
             color="primary"
             class="border-radius my-2"
             outlined>
-            <v-icon size="20" class="mr-4" color="primary" depressed>fa-info-circle</v-icon>
+            <v-icon
+              size="20"
+              class="mr-4"
+              color="primary"
+              depressed>
+              fa-info-circle
+            </v-icon>
             <span class="text--primary text-wrap">
               {{ $t('agenda.signedOutConnector') }}
             </span>
@@ -57,7 +63,13 @@
             color="primary"
             class="border-radius my-2"
             outlined>
-            <v-icon size="20" class="mr-4" color="primary" depressed>fa-info-circle</v-icon>
+            <v-icon
+              size="20"
+              class="mr-4"
+              color="primary"
+              depressed>
+              fa-info-circle
+            </v-icon>
             <span class="text--primary text-wrap">
               {{ $t('agenda.noRemoteEvents') }}
             </span>

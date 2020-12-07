@@ -292,6 +292,6 @@ public interface AgendaEventService {
    * @param connectorName Remote connector name
    * @param enabled status
    */
-  void saveRemoteProviderStatus(String connectorName, boolean enabled);
+  void saveConnectorStatus(String connectorName, boolean enabled);
 
 }
