@@ -145,9 +145,10 @@ export default {
     this.$root.$on('agenda-event-deleted', this.retrieveEvents);
     this.spaceId = eXo.env.portal.spaceId;
     this.$root.$on('agenda-settings-refresh', this.initSettings);
-    this.$root.$on('agenda-conference-providers-loaded', conferenceProviders => {
-      this.conferenceProviders = conferenceProviders;
+    document.addEventListener('extensionRegistry-webConferencing-webconferencing-updated', () => {
+      this.conferenceProviders = extensionRegistry.loadExtensions('webConferencing', 'webconferencing');
     });
+    this.conferenceProviders = extensionRegistry.loadExtensions('webConferencing', 'webconferencing');
     this.initSettings();
   },
   methods: {

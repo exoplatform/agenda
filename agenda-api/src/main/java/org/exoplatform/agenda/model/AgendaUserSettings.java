@@ -35,6 +35,8 @@ public class AgendaUserSettings implements Cloneable {
 
   private List<RemoteProvider>         remoteProviders;
 
+  private List<String>                 webConferenceProviders;
+
   public AgendaUserSettings(String agendaDefaultView,
                             String agendaWeekStartOn,
                             boolean showWorkingTime,

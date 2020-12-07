@@ -1,0 +1,106 @@
+<template>
+  <div class="white rounded-lg pb-5">
+    <h4 class="py-5 font-weight-bold">
+      {{ $t('agenda.agendaConferences') }}
+    </h4>
+    <div class="d-flex flex-row">
+      <select
+        v-model="selectedProviderType"
+        class="subtitle-1 ignore-vuetify-classes my-4 mr-2"
+        @change="saveSelectedProvider">
+        <option
+          v-for="conferenceProvider in webConferenceProviderChoices"
+          :key="conferenceProvider.type"
+          :value="conferenceProvider.type">
+          {{ $t(conferenceProvider.title) }}
+        </option>
+      </select>
+      <v-progress-circular
+        v-if="loading"
+        indeterminate
+        color="primary"
+        size="20"
+        class="ml-3 my-auto" />
+      <v-alert
+        v-model="saved"
+        type="success"
+        class="my-auto"
+        dismissible>
+        {{ $t('agenda.webConferencingProviderSaved') }}
+      </v-alert>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  props: {
+    settings: {
+      type: Object,
+      default: () => null,
+    },
+  },
+  data: () => ({
+    loading: false,
+    saved: false,
+    emptyConferenceProvider: {
+      type: '',
+      title: 'agenda.emptyWebConferenceProvider',
+    },
+    conferenceProviders: [],
+  }),
+  computed: {
+    webConferenceProviderChoices() {
+      return [this.emptyConferenceProvider, ...this.conferenceProviders];
+    },
+  },
+  watch: {
+    settings() {
+      this.refreshConferencesList();
+    },
+  },
+  methods: {
+    refreshConferencesList() {
+      if (!eXo.webConferencing || !eXo.webConferencing.getAllProviders) {
+        return;
+      }
+      return eXo.webConferencing.getAllProviders().then(providers => {
+        this.conferenceProviders = [];
+        if (providers && providers.length) {
+          providers.forEach(provider => {
+            const conferenceProvider = {
+              title: provider.getTitle(),
+              type: provider.getType(),
+              enabled: false,
+            };
+            if (this.settings && this.settings.webConferenceProviders && this.settings.webConferenceProviders.length) {
+              conferenceProvider.enabled = this.settings.webConferenceProviders.find(webConferenceProviderName => webConferenceProviderName === conferenceProvider.type);
+              if (conferenceProvider.enabled) {
+                this.selectedProviderType = conferenceProvider.type;
+              }
+            }
+            this.conferenceProviders.push(conferenceProvider);
+          });
+        }
+        if (!this.selectedProviderType) {
+          this.selectedProviderType = '';
+        }
+      });
+    },
+    saveSelectedProvider() {
+      this.saved = false;
+      this.loading = true;
+      this.$settingsService.saveEnabledWebConferencingProvider(this.selectedProviderType)
+        .then(() => this.settings.webConferenceProviders = [this.selectedProviderType])
+        .then(this.refreshConferencesList)
+        .finally(() => {
+          window.setTimeout(() => {
+            this.loading = false;
+            this.saved = true;
+            window.setTimeout(() => this.saved = false, 5000);
+          },200);
+        });
+    }
+  }
+};
+</script>
