@@ -48,6 +48,7 @@ export default {
         connectors
           .forEach(connector => {
             const connectorObj = this.remoteProviders.find(connectorSettings => connectorSettings.name === connector.name);
+            connector.technicalId = connectorObj && connectorObj.id;
             connector.enabled = connectorObj && connectorObj.enabled || false;
             connector.connected = connector.enabled && this.settings.connectedRemoteProvider === connectorObj.name;
             connector.user = connector.connected && this.settings.connectedRemoteUserId || '';

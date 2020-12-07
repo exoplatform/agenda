@@ -43,6 +43,7 @@
         v-else
         ref="eventDetails"
         :settings="settings"
+        :conference-providers="conferenceProviders"
         :event="event"
         :weekdays="weekdays"
         :connectors="connectors"

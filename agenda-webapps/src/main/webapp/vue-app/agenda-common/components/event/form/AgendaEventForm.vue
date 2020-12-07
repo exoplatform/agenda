@@ -46,7 +46,6 @@
             :settings="settings"
             :event="event"
             :connectors="connectors"
-            :conference-providers="conferenceProviders"
             :weekdays="weekdays"
             :working-time="workingTime" />
         </v-stepper-content>

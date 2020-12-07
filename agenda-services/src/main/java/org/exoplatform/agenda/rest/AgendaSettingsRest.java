@@ -1,5 +1,7 @@
 package org.exoplatform.agenda.rest;
 
+import java.util.Collections;
+
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
@@ -9,8 +11,7 @@ import javax.ws.rs.core.Response.Status;
 import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.model.AgendaUserSettings;
-import org.exoplatform.agenda.service.AgendaEventService;
-import org.exoplatform.agenda.service.AgendaUserSettingsService;
+import org.exoplatform.agenda.service.*;
 import org.exoplatform.agenda.util.RestUtils;
 import org.exoplatform.common.http.HTTPStatus;
 import org.exoplatform.services.log.ExoLogger;
@@ -23,19 +24,23 @@ import io.swagger.jaxrs.PATCH;
 
 @Path("/v1/agenda/settings")
 @Api(value = "/v1/agenda/settings", description = "Manages agenda settings associated to users") // NOSONAR
-public class AgendaUserSettingsRest implements ResourceContainer {
-  private static final Log          LOG = ExoLogger.getLogger(AgendaUserSettingsRest.class);
+public class AgendaSettingsRest implements ResourceContainer {
+  private static final Log             LOG = ExoLogger.getLogger(AgendaSettingsRest.class);
 
-  private AgendaUserSettingsService agendaUserSettingsService;
+  private AgendaUserSettingsService    agendaUserSettingsService;
 
-  private AgendaEventService        agendaEventService;
+  private AgendaEventConferenceService agendaEventConferenceService;
 
-  private IdentityManager           identityManager;
+  private AgendaEventService           agendaEventService;
 
-  public AgendaUserSettingsRest(AgendaUserSettingsService agendaUserSettingsService,
-                                AgendaEventService agendaEventService,
-                                IdentityManager identityManager) {
+  private IdentityManager              identityManager;
+
+  public AgendaSettingsRest(AgendaUserSettingsService agendaUserSettingsService,
+                            AgendaEventConferenceService agendaEventConferenceService,
+                            AgendaEventService agendaEventService,
+                            IdentityManager identityManager) {
     this.agendaUserSettingsService = agendaUserSettingsService;
+    this.agendaEventConferenceService = agendaEventConferenceService;
     this.agendaEventService = agendaEventService;
     this.identityManager = identityManager;
   }
@@ -155,7 +160,7 @@ public class AgendaUserSettingsRest implements ResourceContainer {
           @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
       }
   )
-  public Response saveRemoteProviderStatus(
+  public Response saveConnectorStatus(
                                       @ApiParam(
                                           value = "Remote connector name",
                                           required = true
@@ -165,10 +170,44 @@ public class AgendaUserSettingsRest implements ResourceContainer {
                                           required = true
                                       ) @FormParam("enabled") boolean enabled) {
     try {
-      agendaEventService.saveRemoteProviderStatus(connectorName, enabled);
+      agendaEventService.saveConnectorStatus(connectorName, enabled);
       return Response.noContent().build();
     } catch (Exception e) {
       LOG.warn("Error saving connector '{}' status", connectorName, e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
+  @Path("webConferencing")
+  @POST
+  @RolesAllowed("administrators")
+  @ApiOperation(
+      value = "Saves enabled web conferencing provider to use for all users",
+      httpMethod = "PUT",
+      response = Response.class
+  )
+  @ApiResponses(
+      value = {
+          @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+      }
+  )
+  public Response saveEnabledWebConferencing(
+                                             @ApiParam(
+                                                 value = "Web conferencing provider name",
+                                                 required = true
+                                             ) @FormParam("providerName") String providerName) {
+    try {
+      if (providerName == null) {
+        providerName = "";
+      } else {
+        providerName = providerName.trim();
+      }
+      agendaEventConferenceService.saveEnabledWebConferenceProviders(Collections.singletonList(providerName));
+      return Response.noContent().build();
+    } catch (Exception e) {
+      LOG.warn("Error saving enabled web conferencing provider '{}' status", providerName, e);
       return Response.serverError().entity(e.getMessage()).build();
     }
   }
