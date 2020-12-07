@@ -50,14 +50,10 @@
               class="text-wrap mt-2" />
           </div>
         </div>
-        <div v-show="conferenceProviders" class="d-flex flex-row">
-          <i class="uiIconVideo darkGreyIcon uiIcon32x32 my-3 mr-11"></i>
-          <div class="d-flex flex-column">
-            <agenda-event-form-conference
-              :event="event"
-              class="my-auto" />
-          </div>
-        </div>
+        <agenda-event-form-conference
+          :event="event"
+          :conference-providers="conferenceProviders"
+          class="my-auto" />
         <div class="d-flex flex-row">
           <v-flex class="flex-grow-0">
             <i class="uiIconDescription darkGreyIcon uiIcon32x32 my-3 mr-11"></i>
