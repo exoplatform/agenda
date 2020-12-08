@@ -36,11 +36,16 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
           query = "DELETE FROM AgendaEvent ev WHERE ev.calendar.id = :calendarId"
       ),
       @NamedQuery(
-          name = "AgendaEvent.getExceptionalOccurenceEventIds",
+          name = "AgendaEvent.getExceptionalOccurenceEventIdsByPeriod",
           query = "SELECT ev.id FROM AgendaEvent ev"
               + " WHERE ev.parent.id = :parentEventId"
               + " AND ev.occurrenceId <= :end"
               + " AND ev.occurrenceId >= :start"
+      ),
+      @NamedQuery(
+          name = "AgendaEvent.getExceptionalOccurenceEvents",
+          query = "SELECT ev FROM AgendaEvent ev"
+              + " WHERE ev.parent.id = :parentEventId"
       ),
       @NamedQuery(
           name = "AgendaEvent.getExceptionalOccurences",

@@ -331,6 +331,84 @@ public class AgendaEventRest implements ResourceContainer {
     }
   }
 
+  @Path("{eventId}/exceptionalOccurrences")
+  @GET
+  @Produces(MediaType.APPLICATION_JSON)
+  @RolesAllowed("users")
+  @ApiOperation(
+          value = "Retrieves the list of exceptional occurrences of an event.",
+          httpMethod = "GET", response = Response.class, produces = "application/json"
+  )
+  @ApiResponses(
+          value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+                  @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+                  @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+  )
+  public Response getEventExceptionalOccurrences(
+          @ApiParam(value = "Event technical identifier", required = true) @PathParam(
+                  "eventId"
+          ) long eventId,
+          @ApiParam(value = "Properties to expand", required = false) @QueryParam(
+                  "expand"
+          ) String expand) {
+
+    long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    try {
+
+      List<Event> events = agendaEventService.getEventExceptionalOccurrences(eventId, userIdentityId);
+      Map<Long, List<EventAttendeeEntity>> attendeesByParentEventId = new HashMap<>();
+      Map<Long, List<EventAttachmentEntity>> attachmentsByParentEventId = new HashMap<>();
+      Map<Long, List<EventConference>> conferencesByParentEventId = new HashMap<>();
+      Map<Long, List<EventReminderEntity>> remindersByParentEventId = new HashMap<>();
+      List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
+              : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
+              ","));
+      List<EventEntity> eventEntities = events.stream().map(event -> {
+        EventEntity eventEntity = EntityBuilder.fromEvent(agendaCalendarService, agendaEventService, identityManager, event);
+
+        if (expandProperties.contains("all") || expandProperties.contains("attendees")) {
+          try {
+            fillAttendees(eventEntity, attendeesByParentEventId);
+          } catch (Exception e) {
+            LOG.warn("Error retrieving event reminders, retrieve event without it", e);
+          }
+        }
+        if (expandProperties.contains("all") || expandProperties.contains("attachments")) {
+          try {
+            fillAttachments(eventEntity, attachmentsByParentEventId);
+          } catch (Exception e) {
+            LOG.warn("Error retrieving event reminders, retrieve event without it", e);
+          }
+        }
+        if (expandProperties.contains("all") || expandProperties.contains("conferences")) {
+          try {
+            fillConferences(eventEntity, conferencesByParentEventId);
+          } catch (Exception e) {
+            LOG.warn("Error retrieving event conferences, retrieve event without it", e);
+          }
+        }
+        if (expandProperties.contains("all") || expandProperties.contains("reminders")) {
+          try {
+            fillReminders(eventEntity, userIdentityId, remindersByParentEventId);
+          } catch (Exception e) {
+            LOG.warn("Error retrieving event reminders, retrieve event without it", e);
+          }
+        }
+        if (isComputedOccurrence(eventEntity)) {
+          cleanupAttachedEntitiesIds(eventEntity);
+        }
+        return eventEntity;
+      }).collect(Collectors.toList());
+      return Response.ok(eventEntities).build();
+    } catch (IllegalAccessException e) {
+      LOG.warn("User '{}' attempts to access not authorized events", RestUtils.getCurrentUser());
+      return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
+    } catch (Exception e) {
+      LOG.warn("Error retrieving list of events", e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")

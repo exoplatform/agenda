@@ -211,7 +211,8 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
   }
 
   public List<Long> getExceptionalOccurenceEventIds(long parentRecurrentEventId, Date startDate, Date endDate) {
-    TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaEvent.getExceptionalOccurenceEventIds", Long.class);
+    TypedQuery<Long> query =
+                           getEntityManager().createNamedQuery("AgendaEvent.getExceptionalOccurenceEventIdsByPeriod", Long.class);
     query.setParameter("parentEventId", parentRecurrentEventId);
     query.setParameter("start", startDate);
     query.setParameter("end", endDate);

@@ -45,6 +45,11 @@
               {{ $t('agenda.details.header.menu.delete') }}
             </v-list-item-title>
           </v-list-item>
+          <v-list-item @click="$emit('synchronize')">
+            <v-list-item-title :title="$t('agenda.tooltip.synchronizeEvent')">
+              {{ $t('agenda.details.header.menu.synchronize') }}
+            </v-list-item-title>
+          </v-list-item>
         </v-list>
       </v-menu>
     </v-col>
