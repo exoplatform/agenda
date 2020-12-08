@@ -71,6 +71,10 @@ public class NotificationUtils {
 
   public static final String                         STORED_PARAMETER_EVENT_TITLE              = "eventTitle";
 
+  public static final String                         STORED_PARAMETER_EVENT_DESCRIPTION        = "eventDescription";
+
+  public static final String                         STORED_PARAMETER_EVENT_LOCATION           = "eventLocation";
+
   public static final String                         STORED_PARAMETER_EVENT_OWNER_ID           = "ownerId";
 
   private static final String                        STORED_PARAMETER_EVENT_ID                 = "eventId";
@@ -89,9 +93,21 @@ public class NotificationUtils {
 
   public static final String                         STORED_PARAMETER_EVENT_END_DATE           = "endDate";
 
+  public static final String                         STORED_PARAMETER_EVENT_RESPONSE_ACCEPTED  = "urlAcceptedResponse";
+
+  public static final String                         STORED_PARAMETER_EVENT_RESPONSE_DECLINED  = "urlAcceptedDeclined";
+
+  public static final String                         STORED_PARAMETER_EVENT_RESPONSE_TENTATIVE = "urlAcceptedTentative";
+  
+  public static final String                         STORED_PARAMETER_EVENT_ATTENDEES          = "attendees";
+  
   private static final String                        TEMPLATE_VARIABLE_EVENT_START_DATE        = "startDate";
 
   private static final String                        TEMPLATE_VARIABLE_EVENT_END_DATE          = "endDate";
+  
+  private static final String                        TEMPLATE_VARIABLE_EVENT_MONTH_YEAR_DATE   = "monthYearDate";
+  
+  private static final String                        TEMPLATE_VARIABLE_AGENDA_NAME             = "agendaName";
 
   private static final String                        TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR  = "calendarOwnerAvatarUrl";
 
@@ -99,12 +115,24 @@ public class NotificationUtils {
 
   public static final String                         TEMPLATE_VARIABLE_EVENT_TITLE             = "eventTitle";
 
+  public static final String                         TEMPLATE_VARIABLE_EVENT_LOCATION          = "eventLocation";
+
+  public static final String                         TEMPLATE_VARIABLE_EVENT_DESCRIPTION       = "eventDescription";
+  
   private static final String                        TEMPLATE_VARIABLE_EVENT_MODIFICATION_TYPE = "modificationType";
 
   private static final String                        TEMPLATE_VARIABLE_EVENT_CREATOR           = "creatorName";
+  
+  private static final String                        TEMPLATE_VARIABLE_EVENT_ATTENDEES         = "attendees";
+  
+  private static final String                        TEMPLATE_VARIABLE_RESPONSE_ACCEPTED       = "acceptedResponseURL";
+
+  private static final String                        TEMPLATE_VARIABLE_RESPONSE_DECLINED       = "declinedResponseURL";
+
+  private static final String                        TEMPLATE_VARIABLE_RESPONSE_TENTATIVE      = "tentativeResponseURL";
 
   private static final String                        TEMPLATE_VARIABLE_EVENT_MODIFIER          = "modifierName";
-
+  
   private static final String                        TEMPLATE_VARIABLE_MODIFIER_IDENTITY_URL   = "modifierProfileUrl";
 
   private static String                              defaultSite;
@@ -139,6 +167,7 @@ public class NotificationUtils {
         recipients.add(identity.getRemoteId());
       }
     }
+    notification.with(STORED_PARAMETER_EVENT_ATTENDEES, String.join(",", recipients));
 
     // After computing all usernames, to whom, notifications will be sent,
     // this deletes the username of modifier/creator user
@@ -175,8 +204,17 @@ public class NotificationUtils {
                 .with(STORED_PARAMETER_EVENT_CREATOR, getEventNotificationCreatorOrModifierUserName(identity))
                 .with(STORED_EVENT_MODIFICATION_TYPE, typeModification)
                 .with(STORED_PARAMETER_EVENT_START_DATE, AgendaDateUtils.toRFC3339Date(event.getStart()))
-                .with(STORED_PARAMETER_EVENT_END_DATE, AgendaDateUtils.toRFC3339Date((event.getEnd())));
-
+                .with(STORED_PARAMETER_EVENT_END_DATE, AgendaDateUtils.toRFC3339Date((event.getEnd())))
+                .with(STORED_PARAMETER_EVENT_RESPONSE_ACCEPTED, getAcceptedResponseURL(event))
+                .with(STORED_PARAMETER_EVENT_RESPONSE_DECLINED, getDeclinedResponseURL(event))
+                .with(STORED_PARAMETER_EVENT_RESPONSE_TENTATIVE, getTentativeResponseURL(event));
+    
+    if (StringUtils.isNotBlank(event.getDescription())) {
+      notification.with(STORED_PARAMETER_EVENT_DESCRIPTION, event.getDescription());
+    }
+    if (StringUtils.isNotBlank(event.getLocation())) {
+      notification.with(STORED_PARAMETER_EVENT_LOCATION, event.getLocation());
+    }
     if (event.getModifierId() > 0) {
       identity = Utils.getIdentityById(identityManager, event.getModifierId());
       notification.with(STORED_PARAMETER_EVENT_MODIFIER, getEventNotificationCreatorOrModifierUserName(identity))
@@ -217,11 +255,19 @@ public class NotificationUtils {
     setLasModifiedTime(notification, templateContext, language);
 
     setIdentityNameAndAvatar(notification, templateContext);
+    setSpaceName(notification,templateContext);
     setEventDetails(templateContext, notification, timeZone);
     String modificationStoredType = notification.getValueOwnerParameter(STORED_EVENT_MODIFICATION_TYPE);
     templateContext.put(TEMPLATE_VARIABLE_EVENT_MODIFICATION_TYPE, modificationStoredType);
     templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_CREATOR, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_CREATOR));
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_ATTENDEES, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_ATTENDEES));
+    templateContext.put(TEMPLATE_VARIABLE_RESPONSE_ACCEPTED,
+                        notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_RESPONSE_ACCEPTED));
+    templateContext.put(TEMPLATE_VARIABLE_RESPONSE_DECLINED,
+                        notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_RESPONSE_DECLINED));
+    templateContext.put(TEMPLATE_VARIABLE_RESPONSE_TENTATIVE,
+                        notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_RESPONSE_TENTATIVE));
     if (StringUtils.equals(modificationStoredType, EventModificationType.UPDATED.name())) {
       String identityId = notification.getValueOwnerParameter(STORED_PARAMETER_MODIFIER_IDENTITY_ID);
       templateContext.put(TEMPLATE_VARIABLE_EVENT_MODIFIER, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_MODIFIER));
@@ -260,18 +306,22 @@ public class NotificationUtils {
   private static final void setEventDetails(TemplateContext templateContext, NotificationInfo notification, ZoneId timeZone) {
     templateContext.put(TEMPLATE_VARIABLE_EVENT_ID, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_ID));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_TITLE, getEventTitle(notification));
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_LOCATION, getEventLocation(notification));
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_DESCRIPTION, getEventDescription(notification));
 
     String startDateRFC3339 = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_START_DATE);
     String endDateRFC3339 = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_END_DATE);
 
     ZonedDateTime startDate = ZonedDateTime.parse(startDateRFC3339).withZoneSameInstant(timeZone);
     ZonedDateTime endDate = ZonedDateTime.parse(endDateRFC3339).withZoneSameInstant(timeZone);
-
+    
+    String dateFormatted = AgendaDateUtils.formatWithYearAndMonth(startDate);
     String startDateFormatted = AgendaDateUtils.formatWithHoursAndMinutes(startDate);
     String endDateFormatted = AgendaDateUtils.formatWithHoursAndMinutes(endDate);
 
     templateContext.put(TEMPLATE_VARIABLE_EVENT_START_DATE, startDateFormatted);
     templateContext.put(TEMPLATE_VARIABLE_EVENT_END_DATE, endDateFormatted);
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_MONTH_YEAR_DATE, dateFormatted);
     templateContext.put("USER", notification.getTo());
   }
 
@@ -290,6 +340,45 @@ public class NotificationUtils {
     return notificationURL;
   }
 
+  public static String getDeclinedResponseURL(Event event) {
+    String currentDomain = CommonsUtils.getCurrentDomain();
+    if (!currentDomain.endsWith("/")) {
+      currentDomain += "/";
+    }
+    String notificationURL = "";
+    if (event != null) {
+      notificationURL = currentDomain + "portal/rest/v1/agenda/events/" + event.getId()
+          + "/response/send?response=DECLINED&occurrenceId= ";
+    }
+    return notificationURL;
+  }
+
+  public static String getAcceptedResponseURL(Event event) {
+    String currentDomain = CommonsUtils.getCurrentDomain();
+    if (!currentDomain.endsWith("/")) {
+      currentDomain += "/";
+    }
+    String notificationURL = "";
+    if (event != null) {
+      notificationURL = currentDomain + "portal/rest/v1/agenda/events/" + event.getId()
+          + "/response/send?response=ACCEPTED&occurrenceId= ";
+    }
+    return notificationURL;
+  }
+
+  public static String getTentativeResponseURL(Event event) {
+    String currentDomain = CommonsUtils.getCurrentDomain();
+    if (!currentDomain.endsWith("/")) {
+      currentDomain += "/";
+    }
+    String notificationURL = "";
+    if (event != null) {
+      notificationURL = currentDomain + "portal/rest/v1/agenda/events/" + event.getId()
+          + "/response/send?response=TENTATIVE&occurrenceId= ";
+    }
+    return notificationURL;
+  }
+
   private static final void setIdentityNameAndAvatar(NotificationInfo notification, TemplateContext templateContext) {
     String ownerId = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_OWNER_ID);
     IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
@@ -297,6 +386,16 @@ public class NotificationUtils {
     if (identity != null) {
       String avatarUrl = identity.getProfile().getAvatarUrl();
       templateContext.put(TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR, avatarUrl);
+    }
+  }
+  
+  private static final void setSpaceName(NotificationInfo notification, TemplateContext templateContext) {
+    String ownerId = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_OWNER_ID);
+    IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
+    Identity identity = identityManager.getIdentity(ownerId);
+    if (identity != null) {
+      String spaceName = identity.getRemoteId();
+      templateContext.put(TEMPLATE_VARIABLE_AGENDA_NAME, spaceName);
     }
   }
 
@@ -313,6 +412,24 @@ public class NotificationUtils {
 
   private static String getEventTitle(NotificationInfo notification) {
     return notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_TITLE);
+  }
+
+  private static String getEventLocation(NotificationInfo notification) {
+    String eventLocation = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_LOCATION);
+    if (StringUtils.isNotBlank(eventLocation)) {
+      return eventLocation;
+    } else {
+      return "";
+    }
+  }
+
+  private static String getEventDescription(NotificationInfo notification) {
+    String eventDescription = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_DESCRIPTION);
+    if (StringUtils.isNotBlank(eventDescription)) {
+      return eventDescription;
+    } else {
+      return "";
+    }
   }
 
   private static final TemplateContext getTemplateContext(TemplateProvider templateProvider,
@@ -354,6 +471,14 @@ public class NotificationUtils {
 
   private static final String getEventNotificationCreatorOrModifierUserName(Identity identity) {
     return identity.getProfile().getFullName();
+  }
+
+  private static final String getOccurrenceId(Event event) {
+    if (event.getOccurrence() != null) {
+      return AgendaDateUtils.toRFC3339Date((event.getOccurrence().getId()));
+    } else {
+      return null;
+    }
   }
 
   private static String getUserAbsoluteURI(String identityId) {

@@ -44,6 +44,9 @@ public class AgendaDateUtils {
   public static final DateTimeFormatter TIME_FORMATTER          = DateTimeFormatter.ofPattern(TIME_FORMAT)
                                                                                    .withResolverStyle(ResolverStyle.LENIENT);
 
+  public static final DateTimeFormatter FULL_TIME_FORMATTER     = DateTimeFormatter.ofPattern("EEE MMM dd, yyyy")
+                                                                                   .withResolverStyle(ResolverStyle.LENIENT);
+
   private AgendaDateUtils() {
   }
 
@@ -148,6 +151,10 @@ public class AgendaDateUtils {
   
   public static String formatWithHoursAndMinutes(ZonedDateTime zonedDateTime) {
     return zonedDateTime.format(TIME_FORMATTER);
+  }
+
+  public static String formatWithYearAndMonth(ZonedDateTime zonedDateTime) {
+    return zonedDateTime.format(FULL_TIME_FORMATTER);
   }
 
 }
