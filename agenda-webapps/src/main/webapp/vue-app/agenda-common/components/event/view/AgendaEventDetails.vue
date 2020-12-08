@@ -72,7 +72,7 @@
               class="pl-0"
               dense>
               <v-chip
-                class="ma-2"
+                class="my-2 mr-2"
                 color="primary"
                 outlined>
                 <span class="text--primary">
@@ -93,6 +93,15 @@
             @click="$refs.reminders.open()">
             <i class="uiIconEditInfo uiIcon16x16 darkGreyIcon pt-3"></i>
           </v-btn>
+        </div>
+        <div v-if="event.conferences && event.conferences.length" class="event-conferences d-flex flex-grow-0 flex-shrink-1 pb-5">
+          <i class="uiIconVideo darkGreyIcon uiIcon32x32 pr-5"></i>
+          <div class="align-self-center">
+            <span
+              v-for="conference in event.conferences"
+              :key="conference.id"
+              v-autolinker="conference.url"></span>
+          </div>
         </div>
         <div v-if="event.location" class="event-location d-flex flex-grow-0 flex-shrink-1 pb-5">
           <i class="uiIconCheckin darkGreyIcon uiIcon32x32 pr-5"></i>

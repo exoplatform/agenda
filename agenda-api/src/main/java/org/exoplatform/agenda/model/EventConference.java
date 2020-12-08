@@ -36,7 +36,7 @@ public class EventConference implements Cloneable, Serializable {
 
   private String            type;
 
-  private String            uri;
+  private String            url;
 
   private String            phone;
 
@@ -46,6 +46,6 @@ public class EventConference implements Cloneable, Serializable {
 
   @Override
   public EventConference clone() { // NOSONAR
-    return new EventConference(id, eventId, type, uri, phone, accessCode, description);
+    return new EventConference(id, eventId, type, url, phone, accessCode, description);
   }
 }

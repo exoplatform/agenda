@@ -1,16 +1,21 @@
 <template>
   <div v-if="conferenceProvider" class="d-flex flex-row">
-    <i class="uiIconVideo darkGreyIcon uiIcon32x32 my-3 mr-11"></i>
-    <div class="d-flex flex-column">
+    <i class="uiIconVideo darkGreyIcon uiIcon32x32 my-auto mr-11"></i>
+    <div class="d-flex flex-row my-auto">
       <template v-if="eventConference">
         <div
-          v-if="eventConferenceId"
-          v-autolinker="eventConferenceUrl"></div>
-        <v-alert
+          v-if="eventConferenceUrl"
+          v-autolinker="eventConferenceUrl"
+          class="my-auto"></div>
+        <v-chip
           v-else
-          type="info">
-          {{ $t('agenda.webConferenceScheduled') }}
-        </v-alert>
+          color="primary"
+          class="my-auto"
+          outlined>
+          <span class="primary--text">
+            {{ $t('agenda.webConferenceScheduled') }}
+          </span>
+        </v-chip>
         <v-btn
           :loading="loading"
           :title="$t('agenda.deleteEventConference')"
@@ -25,9 +30,9 @@
         </v-btn>
       </template>
       <v-btn
-        v-else-if="eventConferenceId"
+        v-else
         :loading="loading"
-        class="btn btn-primary border-radius"
+        class="btn btn-primary border-radius my-auto"
         @click="createCallUrl">
         {{ $t('agenda.createEventConference') }}
       </v-btn>
@@ -41,6 +46,10 @@ export default {
     event: {
       type: Object,
       default: () => ({}),
+    },
+    settings: {
+      type: Object,
+      default: () => null,
     },
     currentSpace: {
       type: Object,
@@ -77,22 +86,22 @@ export default {
       return this.eventConference && this.eventConference.type;
     },
     eventConferenceUrl() {
-      return this.eventConference && this.eventConference.uri;
+      return this.eventConference && this.eventConference.url;
     },
   },
   mounted() {
     if (eXo && eXo.webConferencing) {
       eXo.webConferencing.getAllProviders().then(providers => {
-        this.conferenceProviders = providers && providers.find(provider => provider.isInitialized);
+        // Filter web conferencing providers to allow using
+        // only those that supports URL generation
+        this.conferenceProviders = providers && providers.filter(provider => provider.isInitialized && provider.getCallId);
       });
     }
   },
   methods:{
     createCallUrl() {
-      const callId = parseInt(Math.random() * 100000000);
       this.event.conferences = [{
         type: this.enabledConferenceProviderName,
-        uri: callId,
       }];
     },
     deleteCallURL() {

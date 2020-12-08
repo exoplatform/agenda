@@ -55,7 +55,7 @@ public class AgendaEventConferenceServiceTest extends BaseAgendaEventTest {
     assertEquals(eventConferenceToStore.getEventId(), eventConference.getEventId());
     assertEquals(eventConferenceToStore.getPhone(), eventConference.getPhone());
     assertEquals(eventConferenceToStore.getType(), eventConference.getType());
-    assertEquals(eventConferenceToStore.getUri(), eventConference.getUri());
+    assertEquals(eventConferenceToStore.getUrl(), eventConference.getUrl());
 
     eventConference = new EventConference(0, 0, "type", "uri", "phone", "accessCode", "description");
     eventConferences.add(eventConference);
@@ -95,7 +95,7 @@ public class AgendaEventConferenceServiceTest extends BaseAgendaEventTest {
     assertEquals(eventConferenceToStore.getEventId(), eventConference.getEventId());
     assertEquals(eventConferenceToStore.getPhone(), eventConference.getPhone());
     assertEquals(eventConferenceToStore.getType(), eventConference.getType());
-    assertEquals(eventConferenceToStore.getUri(), eventConference.getUri());
+    assertEquals(eventConferenceToStore.getUrl(), eventConference.getUrl());
   }
 
 }

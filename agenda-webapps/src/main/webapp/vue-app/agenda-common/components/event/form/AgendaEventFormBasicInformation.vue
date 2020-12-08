@@ -52,7 +52,8 @@
         </div>
         <agenda-event-form-conference
           :event="event"
-          :conference-providers="conferenceProviders"
+          :settings="settings"
+          :current-space="currentSpace"
           class="my-auto" />
         <div class="d-flex flex-row">
           <v-flex class="flex-grow-0">
@@ -103,8 +104,8 @@ export default {
       type: Object,
       default: () => null,
     },
-    conferenceProviders: {
-      type: Array,
+    settings: {
+      type: Object,
       default: () => null,
     },
   },

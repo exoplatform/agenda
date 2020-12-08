@@ -33,8 +33,8 @@
           <agenda-event-form-basic-information
             ref="eventBasicInformation"
             :event="event"
+            :settings="settings"
             :connectors="connectors"
-            :conference-providers="conferenceProviders"
             :current-space="currentSpace"
             @next-step="nextStep"
             @initialized="$emit('initialized')" />
@@ -104,10 +104,6 @@ export default {
     connectors: {
       type: Array,
       default: () => null
-    },
-    conferenceProviders: {
-      type: Array,
-      default: () => null,
     },
   },
   data () {
