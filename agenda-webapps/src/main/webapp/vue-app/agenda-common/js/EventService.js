@@ -1,4 +1,5 @@
 import {toRFC3339, getDayNameFromDate, getMonthNumberFromDate, toDate, USER_TIMEZONE_ID} from './AgendaUtils.js';
+import {deleteEventWebConferencing, saveEventWebConferencing} from './EventWebConferencingService.js';
 
 export function getEvents(query, ownerIds, attendeeIdentityId, start, end, limit, responseTypes, expand) {
   if (typeof start === 'object') {
@@ -88,36 +89,49 @@ export function createEvent(event) {
   event.sendInvitation = true;
   event = formatEventToSave(event);
 
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(event),
-  }).then((resp) => {
-    if (!resp || !resp.ok) {
-      throw new Error('Error creating event');
-    }
-  });
+  const saveWebConferencePromises = getSaveAllWebConferencesPromises(event);
+
+  return Promise.all(saveWebConferencePromises)
+    .then(conferences => {
+      event.conferences = conferences;
+      return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(event),
+      });
+    })
+    .then((resp) => {
+      if (!resp || !resp.ok) {
+        throw new Error('Error creating event');
+      }
+    });
 }
 
 export function updateEvent(event) {
   event.sendInvitation = true;
   event = formatEventToSave(event);
 
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events`, {
-    method: 'PUT',
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(event),
-  }).then((resp) => {
-    if (!resp || !resp.ok) {
-      throw new Error('Error updating event');
-    }
-  });
+  const saveWebConferencePromises = getSaveAllWebConferencesPromises(event);
+
+  return Promise.all(saveWebConferencePromises)
+    .then(conferences => {
+      event.conferences = conferences;
+      return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(event),
+      });
+    }).then((resp) => {
+      if (!resp || !resp.ok) {
+        throw new Error('Error updating event');
+      }
+    });
 }
 
 export function sendEventResponse(eventId, occurrenceId, response) {
@@ -184,14 +198,19 @@ export function saveEventReminders(eventId, occurrenceId, reminders) {
 }
 
 export function deleteEvent(eventId) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}`, {
-    method: 'DELETE',
-    credentials: 'include',
-  }).then((resp) => {
-    if (!resp || !resp.ok) {
-      throw new Error('Error deleting event');
-    }
-  });
+  const deleteAllWebConferencesPromises = getDeleteAllWebConferencesPromises(event);
+
+  return Promise.all(deleteAllWebConferencesPromises)
+    .then(() =>
+      fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+    ).then((resp) => {
+      if (!resp || !resp.ok) {
+        throw new Error('Error deleting event');
+      }
+    });
 }
 
 function formatRecurrenceObject(event) {
@@ -267,4 +286,26 @@ function formatEventAttendees(event) {
       };
     });
   }
+}
+
+function getDeleteAllWebConferencesPromises(event) {
+  const deleteWebConferencePromises = [];
+  if (event.conferences && event.conferences.length) {
+    event.conferences.forEach(conference => {
+      const deleteWebConferencePromise = deleteEventWebConferencing(event, conference);
+      deleteWebConferencePromises.push(deleteWebConferencePromise);
+    });
+  }
+  return deleteWebConferencePromises;
+}
+
+function getSaveAllWebConferencesPromises(event) {
+  const saveWebConferencePromises = [];
+  if (event.conferences && event.conferences.length) {
+    event.conferences.forEach(conference => {
+      const saveWebConferencePromise = saveEventWebConferencing(event, conference);
+      saveWebConferencePromises.push(saveWebConferencePromise);
+    });
+  }
+  return saveWebConferencePromises;
 }

@@ -216,4 +216,8 @@
     <addUniqueConstraint tableName="EXO_AGENDA_REMOTE_PROVIDER" columnNames="NAME" />
   </changeSet>
 
+  <changeSet author="agenda" id="1.0.0-13">
+    <renameColumn tableName="EXO_AGENDA_CONFERENCE" oldColumnName="URI" newColumnName="URL" columnDataType="VARCHAR(500)" />
+  </changeSet>
+
 </databaseChangeLog>
