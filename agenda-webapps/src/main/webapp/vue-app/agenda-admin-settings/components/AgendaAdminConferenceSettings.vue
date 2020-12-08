@@ -68,6 +68,13 @@ export default {
         this.conferenceProviders = [];
         if (providers && providers.length) {
           providers.forEach(provider => {
+            // Filter web conferencing providers to allow using
+            // only those that supports URL generation
+            // and that  are enabled
+            if (!provider.isInitialized || !provider.getCallId) {
+              return;
+            }
+
             const conferenceProvider = {
               title: provider.getTitle(),
               type: provider.getType(),

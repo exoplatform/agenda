@@ -368,7 +368,7 @@ public class EntityMapper {
     return new EventConference(eventConferenceEntity.getId(),
                                eventConferenceEntity.getEvent().getId(),
                                eventConferenceEntity.getType(),
-                               eventConferenceEntity.getUri(),
+                               eventConferenceEntity.getUrl(),
                                eventConferenceEntity.getPhone(),
                                eventConferenceEntity.getAccessCode(),
                                eventConferenceEntity.getDescription());
@@ -381,7 +381,7 @@ public class EntityMapper {
     eventConferenceEntity.setDescription(eventConference.getDescription());
     eventConferenceEntity.setPhone(eventConference.getPhone());
     eventConferenceEntity.setType(eventConference.getType());
-    eventConferenceEntity.setUri(eventConference.getUri());
+    eventConferenceEntity.setUrl(eventConference.getUrl());
     return eventConferenceEntity;
   }
 

@@ -25,11 +25,22 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
 @Entity(name = "AgendaEventConference")
 @ExoEntity
 @Table(name = "EXO_AGENDA_CONFERENCE")
-@NamedQueries({
-  @NamedQuery(name = "AgendaEventConference.deleteCalendarConferences", query = "DELETE FROM AgendaEventConference a WHERE a.event.id IN (SELECT evt.id FROM AgendaEvent evt WHERE evt.calendar.id = :calendarId)"),
-  @NamedQuery(name = "AgendaEventConference.deleteEventConferences", query = "DELETE FROM AgendaEventConference a WHERE a.event.id = :eventId"),
-  @NamedQuery(name = "AgendaEventConference.getEventConferencesByEventId", query = "SELECT a FROM AgendaEventConference a WHERE a.event.id = :eventId"),
-})
+@NamedQueries(
+  {
+      @NamedQuery(
+          name = "AgendaEventConference.deleteCalendarConferences",
+          query = "DELETE FROM AgendaEventConference a WHERE a.event.id IN (SELECT evt.id FROM AgendaEvent evt WHERE evt.calendar.id = :calendarId)"
+      ),
+      @NamedQuery(
+          name = "AgendaEventConference.deleteEventConferences",
+          query = "DELETE FROM AgendaEventConference a WHERE a.event.id = :eventId"
+      ),
+      @NamedQuery(
+          name = "AgendaEventConference.getEventConferencesByEventId",
+          query = "SELECT a FROM AgendaEventConference a WHERE a.event.id = :eventId"
+      ),
+  }
+)
 public class EventConferenceEntity implements Serializable {
 
   private static final long serialVersionUID = -2825448569914546772L;
@@ -47,8 +58,8 @@ public class EventConferenceEntity implements Serializable {
   @Column(name = "TYPE")
   private String            type;
 
-  @Column(name = "URI")
-  private String            uri;
+  @Column(name = "URL")
+  private String            url;
 
   @Column(name = "PHONE")
   private String            phone;
@@ -83,12 +94,12 @@ public class EventConferenceEntity implements Serializable {
     this.type = type;
   }
 
-  public String getUri() {
-    return uri;
+  public String getUrl() {
+    return url;
   }
 
-  public void setUri(String uri) {
-    this.uri = uri;
+  public void setUrl(String url) {
+    this.url = url;
   }
 
   public String getPhone() {
