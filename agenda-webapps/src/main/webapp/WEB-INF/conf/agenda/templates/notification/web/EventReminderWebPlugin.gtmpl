@@ -2,7 +2,7 @@
 <li class="<%= READ %> clearfix" data-id="<%= NOTIFICATION_ID %>">
     <div class="media agendaWebNotifContent">
         <div class="avatarXSmall pull-left">
-            <img class="spaceAvatar" src="<%= calendarOwnerAvatarUrl %>" alt="<%= calendarOwnerAvatarUrl %>" />
+            <img class="spaceAvatar" src="<%= calendarOwnerAvatarUrl %>"/>
         </div>
         <div class="media-body">
             <div class="contentSmall" data-link="<%= eventURL %>">
