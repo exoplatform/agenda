@@ -37,6 +37,7 @@ export default {
     this.$root.$on('agenda-connectors-init', this.initConnectors);
     this.$root.$on('agenda-connector-connect', this.connect);
     this.$root.$on('agenda-connector-disconnect', this.disconnect);
+    this.$root.$on('agenda-connector-synchronize-event', this.synchronizeEvent);
   },
   methods: {
     refreshConnectorsList() {
@@ -91,6 +92,32 @@ export default {
       } else {//disconnect from other browser
         return this.resetConnector(connector);
       }
+    },
+    synchronizeEvent(connector, event, allRecurrentEvent) {
+      this.errorMessage = null;
+      this.$set(connector, 'loading', true);
+      return connector.synchronizeEvent(event)
+        .then((synchronizedEvent) => {
+          if(synchronizedEvent && synchronizedEvent.id) {
+            if (allRecurrentEvent) {
+              this.$eventService.getEventExceptionalOccurrences(event.id).then(exceptionalOcuurences => {
+                exceptionalOcuurences.forEach(expOccurrence => {
+                  expOccurrence.recurringEventId = synchronizedEvent.id;
+                  return connector.synchronizeEvent(expOccurrence);
+                });
+              });
+              this.$set(connector, 'loading', false);
+              this.$root.$emit('agenda-remote-event-synchronized', synchronizedEvent);
+            } else {
+              this.$set(connector, 'loading', false);
+              this.$root.$emit('agenda-remote-event-synchronized', synchronizedEvent);
+            }
+          }
+        })
+        .catch(error => {
+          this.$set(connector, 'loading', false);
+          console.error(`Error while synchronizing the event to your remote calendar: ${error.error}`);
+        });
     },
     resetConnector(connector) {
       this.$set(connector, 'loading', true);

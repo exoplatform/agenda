@@ -222,6 +222,7 @@ public class EntityBuilder {
                                                    recurrence.getType(),
                                                    recurrence.getFrequency(),
                                                    recurrence.getInterval(),
+                                                   recurrence.getRrule(),
                                                    recurrence.getBySecond(),
                                                    recurrence.getByMinute(),
                                                    recurrence.getByHour(),

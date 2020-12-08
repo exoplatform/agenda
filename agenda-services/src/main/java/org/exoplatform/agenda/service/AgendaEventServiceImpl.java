@@ -206,6 +206,18 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     return event;
   }
 
+  @Override
+  public List<Event> getEventExceptionalOccurrences(long eventId, long userIdentityId) throws IllegalAccessException {
+    Event event = agendaEventStorage.getEventById(eventId);
+    if (event == null) {
+      return null;
+    }
+    if (!canAccessEvent(event, userIdentityId)) {
+      throw new IllegalAccessException("");
+    }
+    return agendaEventStorage.getEventExceptionalOccurrences(eventId);
+  }
+
   /**
    * {@inheritDoc}
    */

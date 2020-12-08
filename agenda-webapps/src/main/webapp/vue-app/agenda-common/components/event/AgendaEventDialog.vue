@@ -182,6 +182,9 @@ export default {
         this.$root.$emit('agenda-refresh');
       }
     });
+    this.$root.$on('agenda-remote-event-synchronized', (synchronizedEvent) => {
+      this.updateEvent(synchronizedEvent);
+    });
   },
   methods: {
     closeByEscape(event) {
@@ -276,6 +279,20 @@ export default {
 
       this.dialog = false;
       window.history.replaceState('', window.document.title, window.location.pathname);
+    },
+    updateEvent(synchronizedEvent) {
+      if(synchronizedEvent && synchronizedEvent.id) {
+        const eventToUpdate = synchronizedEvent.recurrence ? this.event.parent : this.event;
+        const saveEventMethod = eventToUpdate.id ? this.$eventService.updateEvent : this.$eventService.createEvent;
+        if(synchronizedEvent.recurrence) {
+          eventToUpdate.start = this.$agendaUtils.getSameTime(this.event.parent.start, this.event.start);
+          eventToUpdate.end = this.$agendaUtils.getSameTime(this.event.parent.end, this.event.end);
+          eventToUpdate.attendees = this.event.attendees;
+        }
+        eventToUpdate.remoteId =  synchronizedEvent.id;
+        eventToUpdate.remoteProviderId = this.connectedConnector.technicalId;
+        saveEventMethod(eventToUpdate);
+      }
     },
   },
 };

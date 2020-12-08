@@ -98,8 +98,17 @@ public interface AgendaEventService {
                            long identityId) throws IllegalAccessException;
 
   /**
-   * Retrieves an event identified by its technical identifier.
+   * Retrieves the list of exceptional occurrences of an event identified by its technical identifier.
    * 
+   * @param eventId technical identifier of parent recurrent event
+   * @param userIdentityId
+   * @return list of Exceptional {@link Event}s if found, else null
+   */
+  List<Event> getEventExceptionalOccurrences(long eventId, long userIdentityId) throws IllegalAccessException;
+
+  /**
+   * Retrieves an event identified by its technical identifier.
+   *
    * @param eventId technical identifier of parent recurrent event
    * @param occurrenceId technical occurrence event identifier
    * @return Exceptional {@link Event} if found, else null

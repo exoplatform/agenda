@@ -103,5 +103,58 @@ export default {
     } else {
       return Promise.resolve(null);
     }
+  },
+  synchronizeEvent(event) {
+    if (this.gapi && this.gapi.client && this.gapi.client.calendar) {
+      this.loadingCallback(this, true);
+      if (event && event.start || event.end) {
+        const eventToSynchronize = this.formatEventToSynchronize(event);
+        return this.gapi.client.calendar.events.insert({
+          'calendarId': 'primary',
+          'resource': eventToSynchronize
+        }).then(resp => {
+          if (resp && resp.result) {
+            const synchronizedEvent = resp.result;
+            synchronizedEvent.agendaId = event.id;
+            return synchronizedEvent;
+          }
+        }).catch(e => {
+          this.loadingCallback(this, false);
+          throw new Error(e);
+        });
+      } else {
+        return Promise.resolve(null);
+      }
+    }
+  },
+  formatEventToSynchronize(event) {
+    const eventToSynchronize = {};
+    if (event.recurrence) {
+      eventToSynchronize.recurrence = [`RRULE:${event.recurrence.rrule}`];
+    }
+    if(event.recurringEventId) {
+      eventToSynchronize.recurringEventId = event.recurringEventId;
+      eventToSynchronize.originalStartTime = {
+        dateTime: event.occurrence.id,
+        timeZone: event.timeZoneId
+      };
+    }
+    eventToSynchronize.start = {
+      dateTime: event.start,
+      timeZone: event.timeZoneId
+    };
+    eventToSynchronize.end = {
+      dateTime: event.end,
+      timeZone: event.timeZoneId
+    };
+    const eventDetailsPath = `${window.location.origin}${window.location.pathname}`;
+    eventToSynchronize.source = {
+      title: this.user,
+      url: eventDetailsPath
+    };
+    eventToSynchronize.description = event.description;
+    eventToSynchronize.summary = event.summary;
+    eventToSynchronize.location = event.location;
+    return eventToSynchronize;
   }
 };

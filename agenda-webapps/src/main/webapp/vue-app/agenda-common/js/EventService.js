@@ -84,6 +84,18 @@ export function getEventOccurrence(parentEventId, occurrenceId, expand) {
     return event;
   });
 }
+export function getEventExceptionalOccurrences(eventId, expand) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}/exceptionalOccurrences?expand=${expand || ''}`, {
+    method: 'GET',
+    credentials: 'include',
+  }).then((resp) => {
+    if (resp && resp.ok) {
+      return resp.json();
+    } else {
+      throw new Error('Error getting occurrence of event');
+    }
+  });
+}
 
 export function createEvent(event) {
   event.sendInvitation = true;

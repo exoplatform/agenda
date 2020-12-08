@@ -203,6 +203,15 @@ public class AgendaEventStorage {
     return getEventById(exceptionalOccurenceEventIds.get(0));
   }
 
+  public List<Event> getEventExceptionalOccurrences(long parentRecurrentEventId) {
+    List<EventEntity> eventExceptionalOccurrences = eventDAO.getExceptionalOccurences(parentRecurrentEventId);
+
+    if (eventExceptionalOccurrences == null || eventExceptionalOccurrences.isEmpty()) {
+      return null;
+    }
+    return eventExceptionalOccurrences.stream().map(EntityMapper::fromEntity).collect(Collectors.toList());
+  }
+
   public Event updateEvent(Event event) {
     EventEntity eventEntity = EntityMapper.toEntity(event);
 

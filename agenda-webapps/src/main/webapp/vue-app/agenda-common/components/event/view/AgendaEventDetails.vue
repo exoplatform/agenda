@@ -8,13 +8,15 @@
       :event="event"
       @close="$emit('close')"
       @edit="$root.$emit('agenda-event-form', event)"
-      @delete="deleteConfirmDialog" />
+      @delete="deleteConfirmDialog"
+      @synchronize="synchronizeEvent" />
     <agenda-event-details-toolbar
       v-else
       :event="event"
       @close="$emit('close')"
       @edit="$root.$emit('agenda-event-form', event)"
-      @delete="deleteConfirmDialog" />
+      @delete="deleteConfirmDialog"
+      @synchronize="synchronizeConfirmDialog" />
 
     <v-divider class="flex-grow-0" />
 
@@ -164,6 +166,19 @@
       v-if="isAttendee"
       ref="reminders"
       :event="event" />
+    <agenda-recurrent-remote-event-synchronize-confirm-dialog
+      v-if="event.occurrence"
+      ref="synchronizeConfirmDialog"
+      :event="event"
+      :connected-connector="connectedConnector" />
+    <exo-confirm-dialog
+      v-else
+      ref="synchronizeConfirmDialog"
+      :message="$t('agenda.message.confirmsynchronizeEvent')"
+      :title="$t('agenda.title.confirmsynchronizeEvent')"
+      :ok-label="$t('agenda.button.ok')"
+      :cancel-label="$t('agenda.button.cancel')"
+      @ok="synchronizeEvent" />
   </v-card>
 </template>
 <script>
@@ -204,6 +219,9 @@ export default {
     };
   },
   computed: {
+    connectedConnector() {
+      return this.connectors && this.connectors.find(connector => connector.connected);
+    },
     isMobile() {
       return this.$vuetify.breakpoint.name === 'xs';
     },
@@ -306,6 +324,12 @@ export default {
     deleteEvent() {
       this.$eventService.deleteEvent(this.event.id)
         .then(() => this.$root.$emit('agenda-event-deleted'));
+    },
+    synchronizeConfirmDialog() {
+      this.$refs.synchronizeConfirmDialog.open();
+    },
+    synchronizeEvent() {
+      this.$root.$emit('agenda-connector-synchronize-event', this.connectedConnector, this.event);
     },
   }
 };

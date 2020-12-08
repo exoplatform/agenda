@@ -278,9 +278,11 @@ public class EntityMapper {
     recurrence.setType(recurrenceEntity.getType());
     recurrence.setOverallStart(AgendaDateUtils.fromDate(eventEntity.getStartDate()));
     recurrence.setOverallEnd(AgendaDateUtils.fromDate(eventEntity.getEndDate()));
+    recurrence.setRrule(recurrenceEntity.getRrule());
+
     Recur recur;
     try {
-      recur = new Recur(recurrenceEntity.getRrule());
+      recur = new Recur(recurrence.getRrule());
     } catch (ParseException e) {
       throw new IllegalStateException("Error parsing RRULE of recurrence of event " + eventEntity.getId(), e);
     }

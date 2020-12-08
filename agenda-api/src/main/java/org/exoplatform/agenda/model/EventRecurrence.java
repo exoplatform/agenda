@@ -45,6 +45,8 @@ public class EventRecurrence implements Cloneable, Serializable {
 
   private int                      interval;
 
+  private String                   rrule;
+
   private List<String>             bySecond;
 
   private List<String>             byMinute;
@@ -77,6 +79,42 @@ public class EventRecurrence implements Cloneable, Serializable {
    */
   private transient ZonedDateTime  overallEnd;
 
+  public EventRecurrence(long id,
+                         ZonedDateTime until,
+                         int count,
+                         EventRecurrenceType type,
+                         EventRecurrenceFrequency frequency,
+                         int interval,
+                         List<String> bySecond,
+                         List<String> byMinute,
+                         List<String> byHour,
+                         List<String> byDay,
+                         List<String> byMonthDay,
+                         List<String> byYearDay,
+                         List<String> byWeekNo,
+                         List<String> byMonth,
+                         List<String> bySetPos,
+                         ZonedDateTime overallStart,
+                         ZonedDateTime overallEnd) {
+    this.id = id;
+    this.until = until;
+    this.count = count;
+    this.type = type;
+    this.frequency = frequency;
+    this.interval = interval;
+    this.bySecond = bySecond;
+    this.byMinute = byMinute;
+    this.byHour = byHour;
+    this.byDay = byDay;
+    this.byMonthDay = byMonthDay;
+    this.byYearDay = byYearDay;
+    this.byWeekNo = byWeekNo;
+    this.byMonth = byMonth;
+    this.bySetPos = bySetPos;
+    this.overallStart = overallStart;
+    this.overallEnd = overallEnd;
+  }
+
   @Override
   public EventRecurrence clone() { // NOSONAR
     return new EventRecurrence(id,
@@ -85,6 +123,7 @@ public class EventRecurrence implements Cloneable, Serializable {
                                type,
                                frequency,
                                interval,
+                               rrule,
                                bySecond == null ? null : new ArrayList<>(bySecond),
                                byMinute == null ? null : new ArrayList<>(byMinute),
                                byHour == null ? null : new ArrayList<>(byHour),
@@ -97,4 +136,5 @@ public class EventRecurrence implements Cloneable, Serializable {
                                overallStart,
                                overallEnd);
   }
+
 }
