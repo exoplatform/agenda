@@ -78,7 +78,7 @@ export default {
         })
         .catch(error => {
           this.$set(connector, 'loading', false);
-          console.error(`Error while connecting to your remote account: ${error.error}`);
+          console.error('Error while connecting to remote account: ', error);
           if(error.error !== 'popup_closed_by_user') {
             this.errorMessage = this.$t('agenda.connectionFailure');
           }
@@ -94,6 +94,7 @@ export default {
     },
     resetConnector(connector) {
       this.$set(connector, 'loading', true);
+      this.$set(connector, 'error', '');
       return this.$settingsService.resetUserConnector()
         .then(() => this.$root.$emit('agenda-settings-refresh'))
         .finally(() => {
@@ -104,19 +105,26 @@ export default {
       this.$set(connector, 'loading', loading);
 
       if (loading) {
+        this.$set(connector, 'error', '');
         this.loading++;
       } else if (this.loading) {
         this.loading--;
       }
     },
-    connectionStatusChanged(connector, connectedUser) {
+    connectionStatusChanged(connector, connectedUser, error) {
       if (connectedUser) {
+        this.$set(connector, 'error', '');
         this.$root.$emit('agenda-connector-connected', connector);
+      } else if (error) {
+        const errorMessage = error.details || error.error || error.message || String(error);
+        this.$set(connector, 'error', errorMessage);
       } else {
         this.cleanConnectorStatus(connector, connectedUser);
       }
     },
     cleanConnectorStatus(connector, connectedUser) {
+      this.$set(connector, 'error', '');
+
       if (this.connectedConnectorUser) {
         //if user is connected with different account from other browser
         if (connectedUser && connectedUser.user !== this.connectedConnectorUser) {

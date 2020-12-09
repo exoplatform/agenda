@@ -20,7 +20,13 @@
             </v-avatar>
           </v-list-item-avatar>
           <v-list-item-content>
-            <template v-if="connector.connected">
+            <v-alert
+              v-if="!connector.canConnect"
+              type="error"
+              class="my-auto">
+              {{ $t('agenda.connectoInitializationFailed') }}
+            </v-alert>
+            <template v-else-if="connector.connected">
               <v-list-item-title>
                 {{ $t('agenda.connectedAccountWith') }}:
               </v-list-item-title>
@@ -34,7 +40,7 @@
               </v-list-item-title>
             </template>
           </v-list-item-content>
-          <v-list-item-action>
+          <v-list-item-action v-if="connector.canConnect">
             <v-btn
               v-if="connector.isSignedIn && connector.user"
               :loading="connector.loading"
