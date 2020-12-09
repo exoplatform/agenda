@@ -226,6 +226,9 @@ export default {
     },
   },
   watch: {
+    connectedConnector() {
+      this.retrieveRemoteEvents();
+    },
     displayedEvents() {
       if (this.displayedEvents && this.displayedEvents.length) {
         this.selectedOpen = false;
@@ -258,6 +261,8 @@ export default {
         this.event.endDate = new Date(this.event.startDate).getTime();
       }
     }
+
+    this.$root.$emit('agenda-connectors-init');
   },
   mounted() {
     if (this.$refs.calendar) {
