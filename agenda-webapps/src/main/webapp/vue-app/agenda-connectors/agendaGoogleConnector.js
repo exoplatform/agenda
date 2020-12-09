@@ -5,6 +5,7 @@ export default {
   CLIENT_ID: '694838797844-h0q657all0v8cq66p9nume6mti6cll4o.apps.googleusercontent.com',
   DISCOVERY_DOCS: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
   SCOPES: 'https://www.googleapis.com/auth/calendar.readonly',
+  canConnect: true,
   initialized: false,
   isSignedIn: false,
   init(connectionStatusChangedCallback, loadingCallback) {
@@ -45,15 +46,21 @@ export default {
           discoveryDocs: self_.DISCOVERY_DOCS,
           scope: self_.SCOPES,
         }).then(function () {
+
           // Listen for sign-in state changes.
           gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
 
           // Handle the initial sign-in state.
           updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
         }, function(error) {
-          console.error(error);
+          self_.loadingCallback(self_, false);
+          self_.connectionStatusChangedCallback(self_, false, error);
         });
       });
+    }, (error) => {
+      self_.canConnect = false;
+      self_.loadingCallback(self_, false);
+      console.error('Error retrieving Google API Javascript', error);
     });
   },
   connect() {
