@@ -35,6 +35,7 @@
             :event="event"
             :settings="settings"
             :connectors="connectors"
+            :conference-provider="conferenceProvider"
             :current-space="currentSpace"
             @next-step="nextStep"
             @initialized="$emit('initialized')" />
@@ -103,6 +104,10 @@ export default {
     },
     connectors: {
       type: Array,
+      default: () => null
+    },
+    conferenceProvider: {
+      type: Object,
       default: () => null
     },
   },

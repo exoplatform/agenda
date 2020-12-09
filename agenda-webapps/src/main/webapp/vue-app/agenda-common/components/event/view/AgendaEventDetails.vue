@@ -94,14 +94,9 @@
             <i class="uiIconEditInfo uiIcon16x16 darkGreyIcon pt-3"></i>
           </v-btn>
         </div>
-        <div v-if="event.conferences && event.conferences.length" class="event-conferences d-flex flex-grow-0 flex-shrink-1 pb-5">
+        <div v-if="isConferenceEnabled" class="event-conference d-flex flex-grow-0 flex-shrink-1 pb-5">
           <i class="uiIconVideo darkGreyIcon uiIcon32x32 pr-5"></i>
-          <div class="align-self-center">
-            <span
-              v-for="conference in event.conferences"
-              :key="conference.id"
-              v-autolinker="conference.url"></span>
-          </div>
+          <span v-autolinker="eventConferenceUrl" class="align-self-center"></span>
         </div>
         <div v-if="event.location" class="event-location d-flex flex-grow-0 flex-shrink-1 pb-5">
           <i class="uiIconCheckin darkGreyIcon uiIcon32x32 pr-5"></i>
@@ -180,6 +175,10 @@ export default {
       type: Array,
       default: () => []
     },
+    conferenceProvider: {
+      type: Object,
+      default: () => null
+    },
   },
   data() {
     return {
@@ -202,6 +201,24 @@ export default {
   computed: {
     isMobile() {
       return this.$vuetify.breakpoint.name === 'xs';
+    },
+    isConferenceEnabled() {
+      return this.conferenceProvider && this.eventConferenceType && this.conferenceProvider.getType() === this.eventConferenceType;
+    },
+    eventConferences() {
+      return this.event && this.event.conferences;
+    },
+    eventConference() {
+      // For now, use only one web conference per event
+      return this.eventConferences
+          && this.eventConferences.length
+          && this.eventConferences[0];
+    },
+    eventConferenceType() {
+      return this.eventConference && this.eventConference.type;
+    },
+    eventConferenceUrl() {
+      return this.eventConference && this.eventConference.url;
     },
     calendarOwnerLink() {
       if (this.owner) {

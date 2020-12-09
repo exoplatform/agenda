@@ -40,7 +40,7 @@
                 :loading="loading"
                 :ripple="false"
                 color="primary"
-                class="connectorSwitcher"
+                class="connectorSwitcher my-auto"
                 @change="enableDisableConnector(props.item)" />
             </div>
           </td>
