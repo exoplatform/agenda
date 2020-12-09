@@ -1,4 +1,7 @@
+import TIMEZONE_IDS from '../json/timezones.json';
+
 export const USER_TIMEZONE_ID = new window.Intl.DateTimeFormat().resolvedOptions().timeZone;
+export const TIMEZONES = [];
 
 export function getUserTimezone() {
   const timeZoneOffset = - (new Date().getTimezoneOffset());
@@ -8,6 +11,26 @@ export function getUserTimezone() {
   timezoneMinutes = timezoneMinutes < 10 ? `0${timezoneMinutes}` : timezoneMinutes;
   const timezoneSign = timeZoneOffset >= 0 ? '+' : '-';
   return `${timezoneSign}${timezoneHours}:${timezoneMinutes}`;
+}
+
+export function getTimeZones() {
+  if (TIMEZONES.length) {
+    return TIMEZONES;
+  }
+  const dateObj = new Date(0);
+  TIMEZONE_IDS.forEach((timeZone) => {
+    const dateFormat = new Intl.DateTimeFormat(eXo.env.portal.language, {
+      timeZoneName: 'long',
+      second: 'numeric',
+      timeZone: timeZone,
+    });
+    const timeZoneName = dateFormat.format(dateObj);
+    TIMEZONES.push({
+      value: timeZone,
+      text: timeZoneName.charAt(2).toUpperCase() + timeZoneName.substring(3, timeZoneName.length),
+    });
+  });
+  return TIMEZONES;
 }
 
 export function convertVuetifyRangeToPeriod(range) {

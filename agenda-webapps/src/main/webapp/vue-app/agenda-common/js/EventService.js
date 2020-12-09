@@ -250,7 +250,6 @@ function formatRecurrenceObject(event) {
 
 function formatEventToSave(event) {
   event = Object.assign({}, event);
-  event.timeZoneId = USER_TIMEZONE_ID;
   event.start = toRFC3339(event.start);
   event.end = toRFC3339(event.end);
 
