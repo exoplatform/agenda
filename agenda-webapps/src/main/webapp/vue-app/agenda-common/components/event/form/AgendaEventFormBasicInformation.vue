@@ -54,6 +54,7 @@
           :event="event"
           :settings="settings"
           :current-space="currentSpace"
+          :conference-provider="conferenceProvider"
           class="my-auto" />
         <div class="d-flex flex-row">
           <v-flex class="flex-grow-0">
@@ -107,6 +108,10 @@ export default {
     settings: {
       type: Object,
       default: () => null,
+    },
+    conferenceProvider: {
+      type: Object,
+      default: () => null
     },
   },
   data: () => ({

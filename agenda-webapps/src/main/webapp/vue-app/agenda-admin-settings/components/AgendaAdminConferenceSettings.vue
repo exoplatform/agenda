@@ -1,5 +1,5 @@
 <template>
-  <div class="white rounded-lg pb-5">
+  <div v-if="isWebConferencingEnabled" class="white rounded-lg pb-5">
     <h4 class="py-5 font-weight-bold">
       {{ $t('agenda.agendaConferences') }}
     </h4>
@@ -43,6 +43,7 @@ export default {
   data: () => ({
     loading: false,
     saved: false,
+    isWebConferencingEnabled: false,
     emptyConferenceProvider: {
       type: '',
       title: 'agenda.emptyWebConferenceProvider',
@@ -59,19 +60,19 @@ export default {
       this.refreshConferencesList();
     },
   },
+  mounted() {
+    this.isWebConferencingEnabled = this.$webConferencingService.isWebConferencingEnabled();
+  },
   methods: {
     refreshConferencesList() {
-      if (!eXo.webConferencing || !eXo.webConferencing.getAllProviders) {
-        return;
-      }
-      return eXo.webConferencing.getAllProviders().then(providers => {
+      return this.$webConferencingService.getAllProviders().then(providers => {
         this.conferenceProviders = [];
         if (providers && providers.length) {
           providers.forEach(provider => {
             // Filter web conferencing providers to allow using
             // only those that supports URL generation
             // and that  are enabled
-            if (!provider.isInitialized || !provider.getCallId) {
+            if (!provider.isInitialized || !provider.linkSupported && !provider.groupSupported) {
               return;
             }
 

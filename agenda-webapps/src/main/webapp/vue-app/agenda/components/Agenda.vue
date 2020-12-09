@@ -44,7 +44,7 @@
       :current-space="currentSpace"
       :settings="settings"
       :connectors="enabledConnectors"
-      :conference-providers="conferenceProviders"
+      :conference-provider="conferenceProvider"
       :weekdays="weekdays"
       :working-time="workingTime" />
     <agenda-event-preview-dialog />
@@ -93,6 +93,15 @@ export default {
     settingsLoaded: false,
   }),
   computed: {
+    enabledConferenceProviderName() {
+      return this.settings
+          && this.settings.webConferenceProviders
+          && this.settings.webConferenceProviders.length
+          && this.settings.webConferenceProviders[0];
+    },
+    conferenceProvider() {
+      return this.conferenceProviders && this.enabledConferenceProviderName && this.conferenceProviders.find(provider => provider.isInitialized && provider.linkSupported && provider.groupSupported && this.enabledConferenceProviderName === provider.getType());
+    },
     isMobile() {
       return this.$vuetify.breakpoint.name === 'xs';
     },
@@ -145,10 +154,6 @@ export default {
     this.$root.$on('agenda-event-deleted', this.retrieveEvents);
     this.spaceId = eXo.env.portal.spaceId;
     this.$root.$on('agenda-settings-refresh', this.initSettings);
-    document.addEventListener('extensionRegistry-webConferencing-webconferencing-updated', () => {
-      this.conferenceProviders = extensionRegistry.loadExtensions('webConferencing', 'webconferencing');
-    });
-    this.conferenceProviders = extensionRegistry.loadExtensions('webConferencing', 'webconferencing');
     this.initSettings();
   },
   methods: {
@@ -162,6 +167,10 @@ export default {
               this.settings = settings;
               this.calendarType = this.settings && this.settings.agendaDefaultView;
             }
+            return this.$webConferencingService.getAllProviders();
+          })
+          .then(providers => {
+            this.conferenceProviders = providers;
             return this.$nextTick();
           })
           .finally(() => {

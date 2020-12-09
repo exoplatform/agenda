@@ -123,6 +123,7 @@ import * as eventService from './js/EventService.js';
 import * as calendarService from './js/CalendarService.js';
 import * as settingsService from './js/SettingsService.js';
 import * as agendaUtils from './js/AgendaUtils.js';
+import * as webConferencingService from './js/EventWebConferencingService.js';
 
 const userTimeZoneId = agendaUtils.USER_TIMEZONE_ID;
 
@@ -149,5 +150,10 @@ if (!Vue.prototype.$agendaUtils) {
 if (!Vue.prototype.$userTimeZoneId) {
   window.Object.defineProperty(Vue.prototype, '$userTimeZoneId', {
     value: userTimeZoneId,
+  });
+}
+if (!Vue.prototype.$webConferencingService) {
+  window.Object.defineProperty(Vue.prototype, '$webConferencingService', {
+    value: webConferencingService,
   });
 }

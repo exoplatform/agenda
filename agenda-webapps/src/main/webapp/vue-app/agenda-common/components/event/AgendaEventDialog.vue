@@ -25,7 +25,7 @@
           :current-space="currentSpace"
           :working-time="workingTime"
           :connectors="connectors"
-          :conference-providers="conferenceProviders"
+          :conference-provider="conferenceProvider"
           class="fill-height event-form"
           @close="close"
           @saved="saved"
@@ -43,7 +43,7 @@
         v-else
         ref="eventDetails"
         :settings="settings"
-        :conference-providers="conferenceProviders"
+        :conference-provider="conferenceProvider"
         :event="event"
         :weekdays="weekdays"
         :connectors="connectors"
@@ -75,9 +75,9 @@ export default {
       type: Array,
       default: () => null,
     },
-    conferenceProviders: {
-      type: Array,
-      default: () => null,
+    conferenceProvider: {
+      type: Object,
+      default: () => null
     },
   },
   data () {
