@@ -30,6 +30,9 @@
           <i class="uiIconArrowRight uiIconMedium darkGreyIcon"></i>
         </v-btn>
       </v-row>
+      <agenda-time-zone-select-box
+        :timezones="timeZones"
+        class="align-start my-auto col-sm-3 col-2" />
     </v-toolbar>
     <v-calendar
       ref="calendar"
@@ -128,6 +131,7 @@
 </template>
 
 <script>
+
 export default {
   props: {
     settings: {
@@ -182,6 +186,7 @@ export default {
     period: {},
     remoteEvents: [],
     spaceEvents: [],
+    timeZones: [],
   }),
   computed: {
     nowTimeOptions() {
@@ -246,6 +251,8 @@ export default {
     },
   },
   created() {
+    const timezones = this.$timeZoneName.initTimeZones();
+    this.timeZones = timezones;
     if (!this.event.startDate) {
       this.event.startDate = this.event.start && this.$agendaUtils.toDate(this.event.start) || new Date();
       this.event.startDate = this.roundTime(new Date(this.event.startDate).getTime());

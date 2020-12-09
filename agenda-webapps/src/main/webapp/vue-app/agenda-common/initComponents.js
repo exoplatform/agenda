@@ -3,6 +3,7 @@ import AgendaBody from './components/calendar-body/AgendaBody.vue';
 import AgendaCalendar from './components/calendar-body/AgendaCalendar.vue';
 import AgendaToolbar from './components/calendar-body/AgendaToolbar.vue';
 import AgendaPreviewEventDialog from './components/calendar-body/AgendaPreviewEventDialog.vue';
+import AgendaTimeZoneSelectBox from './components/calendar-body/AgendaTimeZoneSelectBox.vue';
 import AgendaMobileHeader from './components/calendar-body/mobile/AgendaMobileHeader.vue';
 import AgendaTimeline from './components/calendar-body/mobile/AgendaTimeline.vue';
 import AgendaEmptyTimeline from './components/calendar-body/mobile/AgendaEmptyTimeline.vue';
@@ -113,6 +114,7 @@ const components = {
   'agenda-connector-status': AgendaConnectorStatus,
   'agenda-connector-contemporary-events': AgendaConnectorContemporaryEvents,
   'agenda-connector-remote-event-item': AgendaConnectorRemoteEventItem,
+  'agenda-time-zone-select-box': AgendaTimeZoneSelectBox,
 };
 
 for (const key in components) {
@@ -124,6 +126,7 @@ import * as calendarService from './js/CalendarService.js';
 import * as settingsService from './js/SettingsService.js';
 import * as agendaUtils from './js/AgendaUtils.js';
 import * as webConferencingService from './js/EventWebConferencingService.js';
+import * as timeZoneName from './js/initTimeZone.js';
 
 const userTimeZoneId = agendaUtils.USER_TIMEZONE_ID;
 
@@ -155,5 +158,10 @@ if (!Vue.prototype.$userTimeZoneId) {
 if (!Vue.prototype.$webConferencingService) {
   window.Object.defineProperty(Vue.prototype, '$webConferencingService', {
     value: webConferencingService,
+  });
+}
+if (!Vue.prototype.$timeZoneName) {
+  window.Object.defineProperty(Vue.prototype, '$timeZoneName', {
+    value: timeZoneName,
   });
 }

@@ -9,12 +9,16 @@
 export default {
   data () {
     return {
+      selectedTimeZone: null,
       event: null,
       saving: false,
     };
   },
   created() {
     this.$root.$on('agenda-event-save', this.saveEvent);
+    this.$root.$on('send-timezone',(data) => {
+      this.selectedTimeZone = data;
+    });
   },
   methods: {
     saveEvent(event, ignoreRecurrentPopin) {
@@ -26,6 +30,7 @@ export default {
     },
     save(eventToSave) {
       this.saving = true;
+      eventToSave.timeZoneId = this.selectedTimeZone;
       const saveEventMethod = eventToSave.id ? this.$eventService.updateEvent:this.$eventService.createEvent;
       saveEventMethod(eventToSave)
         .then(event => this.saved(event))
