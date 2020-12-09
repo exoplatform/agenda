@@ -21,7 +21,8 @@
         "extensionRegistry": true,
         "CKEDITOR": true,
         "cCometd": true,
-        "gapi": true
+        "gapi": true,
+        "webConferencing": false
     },
     "parserOptions": {
         "sourceType": "module",

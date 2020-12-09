@@ -92,8 +92,11 @@ export function createEvent(event) {
   const saveWebConferencePromises = getSaveAllWebConferencesPromises(event);
 
   return Promise.all(saveWebConferencePromises)
+    .catch(e => {
+      console.error('Error saving web conferencing, delete them', e);
+    })
     .then(conferences => {
-      event.conferences = conferences;
+      event.conferences = conferences && conferences.filter(conference => !!conference);
       return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events`, {
         method: 'POST',
         credentials: 'include',
@@ -117,8 +120,11 @@ export function updateEvent(event) {
   const saveWebConferencePromises = getSaveAllWebConferencesPromises(event);
 
   return Promise.all(saveWebConferencePromises)
+    .catch(e => {
+      console.error('Error updating web conferencing, delete them', e);
+    })
     .then(conferences => {
-      event.conferences = conferences;
+      event.conferences = conferences && conferences.filter(conference => !!conference);
       return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events`, {
         method: 'PUT',
         credentials: 'include',

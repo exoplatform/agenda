@@ -1,74 +1,127 @@
+let webConferencing = null;
+
+export function isWebConferencingEnabled() {
+  return !!webConferencing;
+}
+
+export function getAllProviders() {
+  if (isWebConferencingEnabled()) {
+    return webConferencing.getAllProviders();
+  }
+  return Promise.resolve(null);
+}
+
 export function deleteEventWebConferencing(conference) {
   const providerType = conference && conference.type;
-  if (!providerType || !eXo.webConferencing || !conference.url) {
+  if (!providerType || !webConferencing || !webConferencing.deleteCall || !conference.url) {
     return Promise.resolve(null);
   }
-  return eXo.webConferencing.getAllProviders()
-    .then(providers => {
-      const provider = providers && providers.find(confProvider => confProvider && confProvider.getType() === providerType && confProvider.isInitialized && confProvider.getCallId);
-      if (provider) {
-        return deleteConference(provider, conference.url);
-      }
-    });
+  return deleteConference(conference.url);
 }
 
 export function saveEventWebConferencing(event, conference) {
   const providerType = conference && conference.type;
-  if (!providerType || !eXo.webConferencing) {
+  if (!providerType || !webConferencing) {
     return Promise.resolve(null);
   }
-  return eXo.webConferencing.getAllProviders()
-    .then(providers => {
-      const provider = providers && providers.find(confProvider => confProvider && confProvider.getType() === providerType && confProvider.isInitialized && confProvider.getCallId);
-      if (!provider) {
-        return null;
-      }
-      if (conference.url) {
+  if (conference.url) {
+    if (webConferencing.updateCall) {
       // Update existing conference
-        return updateConference(provider, event, conference);
-      } else {
+      return updateConference(event, conference);
+    } else {
+      return Promise.resolve(null);
+    }
+  } else {
+    if (webConferencing.addCall) {
       // Create new conference
-        return createConference(provider, event, conference);
-      }
-    });
+      return createConference(event, conference);
+    } else {
+      return Promise.resolve(null);
+    }
+  }
 }
 
 function deleteConference(provider, url) {
-  return provider.getCallId(url)
+  return webConferencing.getCallId(url)
     .then(callId => {
       if (!callId) {
-        // The call is already deleted an inexistant
+        // The call is already deleted or inexistant
         return;
       }
-      return provider.deleteCall(callId);
+      return webConferencing.deleteCall(callId);
     });
 }
 
-function createConference(provider, event, conference) {
-  const identityIds = event.attendees.map(attendee => attendee.id);
-  const startDate = new Date(event.startDate);
-  const endDate = event.endDate && new Date(event.endDate) || event.recurrence && event.recurrence.until && new Date(event.recurrence.until) || null;
-  return provider.addCall(event.title, identityIds, startDate, endDate)
-    .then(callDetails => {
-      conference.url = callDetails.url;
-      return conference;
-    });
-}
-
-function updateConference(provider, event, conference) {
-  return provider.getCallId(conference.url)
-    .then(callId => {
-      if (!callId) {
-        throw new Error(`Conference with url ${conference.url} doesn't exist. Creating new one.`);
-      }
-      const identityIds = event.attendees.map(attendee => attendee.id);
+function createConference(event, conference) {
+  // FIXME : Web conferencing uses userName for users and Space Identity id for spaces
+  return getAllIdentities(event.attendees)
+    .then(identities => {
+      const participants = identities.filter(identity => identity && identity.providerId === 'organization').map(identity => identity.remoteId);
+      const spaces = identities.filter(identity => identity && identity.providerId === 'space').map(identity => identity.id);
       const startDate = new Date(event.startDate);
       const endDate = event.endDate && new Date(event.endDate) || event.recurrence && event.recurrence.until && new Date(event.recurrence.until) || null;
-      return provider.updateCall(callId, event.title, identityIds, startDate, endDate);
+      return webConferencing.addCall({
+        title: event.title,
+        owner: event.calendar.owner.remoteId,
+        ownerType: event.calendar.owner.providerId,
+        provider: conference.type,
+        participants: participants.join(';'),
+        spaces: spaces.join(';'),
+        startDate,
+        endDate,
+      });
+    })
+    .then(callDetails => {
+      conference.url = callDetails.url;
+      return conference;
+    });
+}
+
+function updateConference(event, conference) {
+  let callId = null;
+  return webConferencing.findCallId(conference.url)
+    .then(data => {
+      if (!data) {
+        throw new Error(`Conference with url ${conference.url} doesn't exist. Creating new one.`);
+      }
+      callId = data;
+      return getAllIdentities(event.attendees);
+    })
+    .then(identities => {
+      // FIXME : Web conferencing uses userName for users and Space Identity id for spaces
+      const participants = identities.filter(identity => identity && identity.providerId === 'organization').map(identity => identity.remoteId);
+      const spaces = identities.filter(identity => identity && identity.providerId === 'space').map(identity => identity.id);
+      const startDate = new Date(event.startDate);
+      const endDate = event.endDate && new Date(event.endDate) || event.recurrence && event.recurrence.until && new Date(event.recurrence.until) || null;
+      return webConferencing.updateCall(callId, {
+        title: event.title,
+        owner: event.calendar.owner.remoteId,
+        ownerType: event.calendar.owner.providerId,
+        provider: conference.type,
+        participants: participants.join(';'),
+        spaces: spaces.join(';'),
+        startDate,
+        endDate,
+      });
     })
     .then(callDetails => {
       conference.url = callDetails.url;
       return conference;
     })
-    .catch(() => createConference(provider, event, conference));
+    .catch(() => createConference(event, conference));
+}
+
+function getAllIdentities(attendees) {
+  const promises = [];
+  attendees.forEach(attendee => {
+    promises.push(Vue.prototype.$identityService.getIdentityByProviderIdAndRemoteId(attendee.identity.providerId, attendee.identity.remoteId));
+  });
+  return Promise.all(promises);
+}
+
+// Load lazily webconferencing API
+if (window.require.defined('SHARED/webConferencing')) {
+  window.require(['SHARED/webConferencing'], webConferencingAPI => {
+    webConferencing = webConferencingAPI;
+  });
 }

@@ -1,5 +1,5 @@
 <template>
-  <div v-if="conferenceProvider" class="d-flex flex-row">
+  <div v-if="isConferenceEnabled" class="d-flex flex-row">
     <i class="uiIconVideo darkGreyIcon uiIcon32x32 my-auto mr-11"></i>
     <div class="d-flex flex-row my-auto">
       <template v-if="eventConference">
@@ -55,20 +55,17 @@ export default {
       type: Object,
       default: () => null,
     },
+    conferenceProvider: {
+      type: Object,
+      default: () => null
+    },
   },
   data: () => ({
     loading: false,
-    conferenceProviders: null,
   }),
   computed:{
-    enabledConferenceProviderName() {
-      return this.settings
-          && this.settings.webConferenceProviders
-          && this.settings.webConferenceProviders.length
-          && this.settings.webConferenceProviders[0];
-    },
-    conferenceProvider() {
-      return this.conferenceProviders && this.conferenceProviders.find(provider => provider.getType() === this.enabledConferenceProviderName);
+    isConferenceEnabled() {
+      return this.conferenceProvider && (!this.eventConferenceType || this.conferenceProvider.getType() === this.eventConferenceType);
     },
     eventConferences() {
       return this.event && this.event.conferences;
@@ -89,23 +86,14 @@ export default {
       return this.eventConference && this.eventConference.url;
     },
   },
-  mounted() {
-    if (eXo && eXo.webConferencing) {
-      eXo.webConferencing.getAllProviders().then(providers => {
-        // Filter web conferencing providers to allow using
-        // only those that supports URL generation
-        this.conferenceProviders = providers && providers.filter(provider => provider.isInitialized && provider.getCallId);
-      });
-    }
-  },
   methods:{
     createCallUrl() {
-      this.event.conferences = [{
-        type: this.enabledConferenceProviderName,
-      }];
+      this.$set(this.event, 'conferences', [{
+        type: this.conferenceProvider.getType(),
+      }]);
     },
     deleteCallURL() {
-      this.event.conferences = null;
+      this.$set(this.event, 'conferences', null);
     },
   }
 };

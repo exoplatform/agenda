@@ -378,7 +378,7 @@ export default {
       return this.$agendaUtils.isShortEvent(event);
     },
     isSameEvent(event1, event2) {
-      return (event1.id && event1.id === event2.id)
+      return event1 === event2 || (event1.id && event1.id === event2.id)
       || (event1.parent && event2.parent && event1.parent.id === event2.parent.id
           && event1.occurrence && event2.occurrence && event1.occurrence.id === event2.occurrence.id);
     },
