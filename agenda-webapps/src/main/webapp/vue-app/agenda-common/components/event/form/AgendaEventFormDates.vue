@@ -32,6 +32,7 @@
       </v-row>
       <agenda-time-zone-select-box
         :timezones="timeZones"
+        :event="event"
         class="align-start my-auto col-sm-3 col-2" />
     </v-toolbar>
     <v-calendar

@@ -2,12 +2,13 @@
   <div id="AgendaTimeZone" class="d-flex">
     <select
       v-model="selectedTimeZone"
-      class="subtitle-1 ignore-vuetify-classes">
+      class="subtitle-1 ignore-vuetify-classes timeZoneSelectBox"
+      @change="$root.$emit('send-timezone',selectedTimeZone)">
       <option
         v-for="timeZone in timezones"
         :key="timeZone.value"
         :value="timeZone.value">
-        {{ timeZone.text }}
+        {{ timeZone.value }}
       </option>
     </select>
   </div>
@@ -20,20 +21,19 @@ export default {
       type: Array,
       default: () => null,
     },
+    event: {
+      type: Object,
+      default: () => ({}),
+    },
   },
   data() {
     return {
-      selectedTimeZone: this.$agendaUtils.USER_TIMEZONE_ID,
+      selectedTimeZone: null,
       timeZoneChoices: [],
     };
   },
   created() {
-    this.$root.$emit('send-timezone',this.selectedTimeZone);
-  },
-  methods:{
-    changeTimeZone(value){
-      this.selectedTimeZone = value;
-    }
+    this.selectedTimeZone = this.event.timeZoneId;
   }
 };
 </script>
