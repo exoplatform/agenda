@@ -62,35 +62,41 @@
         <div v-if="canAddReminders" class="event-reminders align-center d-flex pb-5 text-truncate">
           <i class="uiIcon32x32 notifIcon darkGreyIcon pr-5 mt-1 mb-auto"></i>
           <v-list
-            v-if="event.reminders && event.reminders.length"
             class="py-0"
             dense>
-            <v-list-item
-              v-for="(reminder, index) in event.reminders"
-              :key="index"
-              class="pl-0"
-              dense>
-              <v-chip
-                class="my-2 mr-2"
-                color="primary"
-                outlined>
-                <span class="text--primary">
-                  <template v-if="reminder.before">
-                    {{ $t('agenda.label.notifyMeBefore', {0: reminder.before, 1: $t(`agenda.option.${reminder.beforePeriodType.toLowerCase()}s`).toLowerCase()}) }}
-                  </template>
-                  <template v-else>
-                    {{ $t('agenda.label.notifyMeWhenEventStarts') }}
-                  </template>
-                </span>
-              </v-chip>
+            <v-list-item v-if="!event.reminders || !event.reminders.length">
+              <label class="text-sub-title font-italic mx-auto">
+                {{ $t('agenda.noRemindersYet') }}
+              </label>
             </v-list-item>
+            <template v-else>
+              <v-list-item
+                v-for="(reminder, index) in event.reminders"
+                :key="index"
+                class="pl-0"
+                dense>
+                <v-chip
+                  class="mt-1 mb-2 mr-2"
+                  color="primary"
+                  outlined>
+                  <span class="text--primary">
+                    <template v-if="reminder.before">
+                      {{ $t('agenda.label.notifyMeBefore', {0: reminder.before, 1: $t(`agenda.option.${reminder.beforePeriodType.toLowerCase()}s`).toLowerCase()}) }}
+                    </template>
+                    <template v-else>
+                      {{ $t('agenda.label.notifyMeWhenEventStarts') }}
+                    </template>
+                  </span>
+                </v-chip>
+              </v-list-item>
+            </template>
           </v-list>
           <v-btn
             icon
             transparent
-            class="mb-auto"
+            class="mb-auto border-box-sizing"
             @click="$refs.reminders.open()">
-            <i class="uiIconEditInfo uiIcon16x16 darkGreyIcon pt-3"></i>
+            <i class="uiIconEditInfo uiIcon16x16 darkGreyIcon pt-2"></i>
           </v-btn>
         </div>
         <div v-if="isConferenceEnabled" class="event-conference d-flex flex-grow-0 flex-shrink-1 pb-5">
