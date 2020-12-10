@@ -15,6 +15,11 @@
         class="flex"
         flat>
         <v-layout class="ma-5 d-flex flex-column">
+          <label
+            v-if="!event.reminders || !event.reminders.length"
+            class="subtitle-1 float-left mr-4">
+            {{ $t('agenda.noRemindersYet') }}
+          </label>
           <agenda-reminder-user-settings ref="reminders" :reminders="eventReminders" />
         </v-layout>
       </v-form>

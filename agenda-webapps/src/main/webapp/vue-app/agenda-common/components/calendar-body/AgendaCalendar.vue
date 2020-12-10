@@ -354,6 +354,7 @@ export default {
 
             event.start = this.$agendaUtils.toRFC3339(this.dragEvent.startDate);
             event.end = this.$agendaUtils.toRFC3339(this.dragEvent.endDate);
+            event.timeZoneId = this.$agendaUtils.USER_TIMEZONE_ID;
             event.allDay = this.dragEvent.allDay;
 
             this.$root.$emit('agenda-event-save', event, event.allDay);
