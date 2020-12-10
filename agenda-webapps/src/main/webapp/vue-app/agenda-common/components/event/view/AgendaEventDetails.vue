@@ -17,7 +17,6 @@
       @delete="deleteConfirmDialog" />
 
     <v-divider class="flex-grow-0" />
-    <v-progress-linear :active="loading" indeterminate />
 
     <div class="event-details-body overflow-auto flex-grow-1 d-flex flex-column flex-md-row pa-4">
       <div class="flex-grow-1 flex-shrink-0 event-details-body-left">
@@ -196,7 +195,6 @@ export default {
         hour: '2-digit',
         minute: '2-digit',
       },
-      loading: false,
     };
   },
   computed: {
@@ -298,12 +296,10 @@ export default {
         return;
       }
       const retrieveEventDetailsPromise = this.event.occurrence && this.event.occurrence.id ? this.$eventService.getEventOccurrence(this.event.parent.id, this.event.occurrence.id, 'all') : this.$eventService.getEventById(this.event.id, 'all');
-      this.loading= true;
       retrieveEventDetailsPromise
         .then(event => this.event = event)
         .finally(() => {
           this.$root.$emit('agenda-event-response-updated');
-          this.loading= false;
         });
     });
     this.$root.$on('agenda-event-reminders-saved', (event, occurrenceId, reminders) => {
@@ -312,12 +308,6 @@ export default {
         this.$root.$emit('agenda-refresh');
       }
       this.reset();
-    });
-    this.$root.$on('displayRemoteEventLoading', () => {
-      this.loading= true;
-    });
-    this.$root.$on('hideRemoteEventLoading', () => {
-      this.loading= false;
     });
   },
   methods: {
