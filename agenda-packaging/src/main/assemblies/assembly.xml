@@ -22,7 +22,8 @@
       <outputDirectory>/</outputDirectory>
       <includes>
         <include>${project.groupId}:*:jar</include>
-        <include>ical4j:ical4j:jar</include>
+        <include>backport-util-concurrent:backport-util-concurrent:jar</include>
+        <include>org.mnode.ical4j:ical4j:jar</include>
       </includes>
       <scope>provided</scope>
       <outputFileNameMapping>${artifact.build.finalName}.jar</outputFileNameMapping>

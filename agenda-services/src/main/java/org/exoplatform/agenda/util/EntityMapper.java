@@ -18,6 +18,7 @@ package org.exoplatform.agenda.util;
 
 import java.text.ParseException;
 import java.time.*;
+import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -156,6 +157,7 @@ public class EntityMapper {
                      eventEntity.isAllowAttendeeToInvite());
   }
 
+  @SuppressWarnings("unchecked")
   public static EventEntity toEntity(Event event) {
     ZoneId eventZoneId = event.getTimeZoneId() == null ? ZoneOffset.UTC : event.getTimeZoneId();
 
@@ -191,11 +193,8 @@ public class EntityMapper {
       eventEntity.setStartDate(AgendaDateUtils.toDate(start));
       eventEntity.setEndDate(AgendaDateUtils.toDate(end));
     } else {
-      long startTime = start.toEpochSecond() * 1000;
-      long endTime = end.toEpochSecond() * 1000;
-
-      DateTime startDateTime = new DateTime(startTime);
-      DateTime endDateTime = new DateTime(endTime);
+      DateTime startDateTime = new DateTime(Date.from(start.toInstant()));
+      DateTime endDateTime = new DateTime(Date.from(end.toInstant()));
 
       VEvent vevent = new VEvent(startDateTime, endDateTime, event.getSummary());
       Recur recur = Utils.getICalendarRecur(event, recurrence);
@@ -239,9 +238,16 @@ public class EntityMapper {
       Period period = new Period(ical4jFrom, ical4jTo);
       PeriodList list = vevent.calculateRecurrenceSet(period);
 
-      Period firstOccurrencePeriod = (Period) list.first();
+      Period firstOccurrencePeriod =
+                                   list.isEmpty() ? null
+                                                  : (Period) list.stream()
+                                                                 .min((period1,
+                                                                       period2) -> ((Period) period1).getStart()
+                                                                                                     .compareTo(((Period) period2).getStart()))
+                                                                 .orElse(null);
 
-      DateTime firstOccurrenceOverallStart = firstOccurrencePeriod.getStart();
+      DateTime firstOccurrenceOverallStart = firstOccurrencePeriod == null ? startDateTime
+                                                                           : firstOccurrencePeriod.getStart();
       ZonedDateTime overallStart = firstOccurrenceOverallStart.toInstant().atZone(eventZoneId);
       if (event.isAllDay()) {
         overallStart = overallStart.withZoneSameInstant(ZoneOffset.UTC);
@@ -249,9 +255,17 @@ public class EntityMapper {
       eventEntity.setStartDate(AgendaDateUtils.toDate(overallStart));
 
       if (!neverEnds) {
-        Period lastOccurrencePeriod = (Period) list.last();
-        ZonedDateTime overallEnd = lastOccurrencePeriod.getEnd().toInstant().atZone(ZoneOffset.UTC);
-        eventEntity.setEndDate(AgendaDateUtils.toDate(overallEnd));
+        Period lastOccurrencePeriod = list.isEmpty() ? null
+                                                     : (Period) list.stream()
+                                                                    .max((period1,
+                                                                          period2) -> ((Period) period1).getStart()
+                                                                                                        .compareTo(((Period) period2).getStart()))
+                                                                    .orElse(null);
+        ZonedDateTime overallEnd =
+                                 lastOccurrencePeriod == null ? null
+                                                              : lastOccurrencePeriod.getEnd().toInstant().atZone(ZoneOffset.UTC);
+        Date lastOccurrenceDate = overallEnd == null ? ical4jTo : AgendaDateUtils.toDate(overallEnd);
+        eventEntity.setEndDate(lastOccurrenceDate);
       }
     }
     return eventEntity;
