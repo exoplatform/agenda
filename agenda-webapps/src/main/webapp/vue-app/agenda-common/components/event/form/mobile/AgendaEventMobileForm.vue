@@ -214,6 +214,7 @@ export default {
       }
       this.event.start = this.$agendaUtils.toRFC3339(this.event.startDate);
       this.event.end = this.$agendaUtils.toRFC3339(this.event.endDate);
+      this.event.timeZoneId = this.$agendaUtils.USER_TIMEZONE_ID;
 
       this.$root.$emit('agenda-event-save', this.event);
     },

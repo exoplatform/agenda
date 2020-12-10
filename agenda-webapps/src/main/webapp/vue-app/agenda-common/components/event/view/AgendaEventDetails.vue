@@ -307,7 +307,6 @@ export default {
       if (event.id && !this.event.id) {
         this.$root.$emit('agenda-refresh');
       }
-      this.reset();
     });
   },
   methods: {
