@@ -42,8 +42,9 @@ public interface AgendaEventAttendeeService {
    * @param eventId technical identifier of the event
    * @param eventModificationType flag to indicate if event is added, updated or
    *          deleted
+   * @param identityId technical identifier if {@link Identity}
    */
-  public void sendInvitations(long eventId, EventModificationType eventModificationType);
+  public void sendInvitations(long eventId, EventModificationType eventModificationType, long identityId);
 
   /**
    * @param event {@link Event} to attach attendees

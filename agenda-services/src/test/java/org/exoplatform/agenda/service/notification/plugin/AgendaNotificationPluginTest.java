@@ -26,7 +26,7 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
   public static final ArgumentLiteral<String> EVENT_TITLE = new ArgumentLiteral<>(String.class, "eventTitle");
 
   @Test
-  public void testMakeNotificationWhenR() throws Exception {
+  public void testMakeNotificationWhenCreateEvent() throws Exception {
     // Given
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
     Event event = newEventInstance(start, start, false);
@@ -56,7 +56,8 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
                                                              agendaEventAttendeeService.getEventAttendees(createdEvent.getId()))
                                                      .append(EVENT_TITLE, createdEvent.getSummary())
                                                      .append(NotificationUtils.EVENT_MODIFICATION_TYPE,
-                                                             EventModificationType.ADDED.name());
+                                                             EventModificationType.ADDED.name())
+                                                     .append(NotificationUtils.EVENT_REMOVER_IDENTITY_ID, createdEvent.getParentId());
     String eventUrl = System.getProperty("gatein.email.domain.url")
                             .concat("portal/classic/agenda?eventId=")
                             .concat(String.valueOf(createdEvent.getId()));
@@ -124,7 +125,8 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
 
                                                      .append(EVENT_TITLE, updatedEvent.getSummary())
                                                      .append(NotificationUtils.EVENT_MODIFICATION_TYPE,
-                                                             EventModificationType.UPDATED.name());
+                                                             EventModificationType.UPDATED.name())
+                                                     .append(NotificationUtils.EVENT_REMOVER_IDENTITY_ID, createdEvent.getParentId());
     String eventUrl = System.getProperty("gatein.email.domain.url")
                             .concat("portal/classic/agenda?eventId=")
                             .concat(String.valueOf(createdEvent.getId()));

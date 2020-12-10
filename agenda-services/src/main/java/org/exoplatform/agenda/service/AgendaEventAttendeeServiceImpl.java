@@ -146,7 +146,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     }
 
     if (sendInvitations) {
-      sendInvitations(eventId, eventModificationType);
+      sendInvitations(eventId, eventModificationType, 0);
     }
 
     Utils.broadcastEvent(listenerService, "exo.agenda.event.attendees.saved", eventId, 0);
@@ -291,13 +291,14 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    * {@inheritDoc}
    */
   @Override
-  public void sendInvitations(long eventId, EventModificationType eventModificationType) {
+  public void sendInvitations(long eventId, EventModificationType eventModificationType, long identityId) {
     String agendaNotificationPluginType = null;
     NotificationContext ctx = NotificationContextImpl.cloneInstance();
     Event event = eventStorage.getEventById(eventId);
     List<EventAttendee> eventAttendees = getEventAttendees(eventId);
     ctx.append(EVENT_AGENDA, event);
     ctx.append(EVENT_ATTENDEE, eventAttendees);
+    ctx.append(EVENT_REMOVER_IDENTITY_ID, identityId);
     if (eventModificationType.name().equals("ADDED")) {
       agendaNotificationPluginType = AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN;
       ctx.append(EVENT_MODIFICATION_TYPE, "ADDED");

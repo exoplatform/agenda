@@ -40,6 +40,10 @@ public class NotificationUtils {
                                                                              new ArgumentLiteral<>(String.class,
                                                                                                    "modificationEventType");
 
+  public static final ArgumentLiteral<Long>          EVENT_REMOVER_IDENTITY_ID                 =
+                                                                               new ArgumentLiteral<>(Long.class,
+                                                                                                     "removerIdentityId");
+
   public static final ArgumentLiteral<EventReminder> EVENT_AGENDA_REMINDER                     =
                                                                            new ArgumentLiteral<>(EventReminder.class,
                                                                                                  "event_agenda_reminder");
@@ -125,7 +129,8 @@ public class NotificationUtils {
                                                      SpaceService spaceService,
                                                      List<EventAttendee> eventAttendee,
                                                      Event event,
-                                                     String typeModification) {
+                                                     String typeModification,
+                                                     long removerIdentityId) {
     Set<String> recipients = new HashSet<>();
     for (EventAttendee attendee : eventAttendee) {
       Identity identity = Utils.getIdentityById(identityManager, attendee.getIdentityId());
@@ -143,6 +148,9 @@ public class NotificationUtils {
     // After computing all usernames, to whom, notifications will be sent,
     // this deletes the username of modifier/creator user
     long userIdentityToExclude = StringUtils.equals(typeModification, "ADDED") ? event.getCreatorId() : event.getModifierId();
+    if (StringUtils.equals(typeModification, "DELETED") && removerIdentityId > 0) {
+      userIdentityToExclude = removerIdentityId;
+    }
     if (userIdentityToExclude > 0) {
       Identity identityToExclude = identityManager.getIdentity(String.valueOf(userIdentityToExclude));
       if (identityToExclude != null) {

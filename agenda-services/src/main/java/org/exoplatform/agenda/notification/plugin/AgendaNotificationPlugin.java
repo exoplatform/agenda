@@ -66,6 +66,7 @@ public class AgendaNotificationPlugin extends BaseNotificationPlugin {
     @SuppressWarnings("unchecked")
     List<EventAttendee> eventAttendee = ctx.value(EVENT_ATTENDEE);
     Event event = ctx.value(EVENT_AGENDA);
+    long removerIdentityId = ctx.value(EVENT_REMOVER_IDENTITY_ID);
     String typeModification = ctx.value(EVENT_MODIFICATION_TYPE);
     // To avoid NPE for previously stored notifications, if
     // EVENT_MODIFICATION_TYPE parameter
@@ -76,7 +77,7 @@ public class AgendaNotificationPlugin extends BaseNotificationPlugin {
     NotificationInfo notification = NotificationInfo.instance();
     notification.key(getId());
     if (event.getId() > 0) {
-      setNotificationRecipients(identityManager, notification, spaceService, eventAttendee, event, typeModification);
+      setNotificationRecipients(identityManager, notification, spaceService, eventAttendee, event, typeModification, removerIdentityId);
     }
     if (notification.getSendToUserIds() == null || notification.getSendToUserIds().isEmpty()) {
       LOG.debug("Notification type '{}' doesn't have a recipient", getId());
