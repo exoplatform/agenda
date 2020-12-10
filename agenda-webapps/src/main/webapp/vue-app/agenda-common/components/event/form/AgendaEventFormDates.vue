@@ -1,16 +1,24 @@
 <template>
   <v-flex class="event-form-dates">
     <v-toolbar flat class="border-color mb-4">
-      <agenda-connector-status
-        class="align-start my-auto col-sm-3 col-2"
-        :connectors="connectors">
-        <template slot="connectButton">
-          <v-btn class="btn">
-            <i class="uiIconHyperlink mr-2 darkGreyIcon"></i>
-            {{ $t('agenda.connectYourPersonalAgenda') }}
-          </v-btn>
-        </template>
-      </agenda-connector-status>
+      <div class="d-flex flex-row align-start col-sm-3 col-2">
+        <agenda-connector-status
+          class="my-auto"
+          :connectors="connectors">
+          <template slot="connectButton">
+            <v-btn class="btn">
+              <i class="uiIconHyperlink mr-2 darkGreyIcon"></i>
+              {{ $t('agenda.connectYourPersonalAgenda') }}
+            </v-btn>
+          </template>
+        </agenda-connector-status>
+        <v-progress-circular
+          v-if="loading"
+          indeterminate
+          color="primary"
+          size="20"
+          class="ml-3 my-auto" />
+      </div>
       <v-row
         align="center"
         justify="center"
@@ -238,13 +246,6 @@ export default {
     selectedOpen() {
       if (this.selectedOpen && this.$refs.selectedEventDatePickers) {
         this.$refs.selectedEventDatePickers.reset();
-      }
-    },
-    loading() {
-      if (this.loading) {
-        this.$root.$emit('displayRemoteEventLoading');
-      } else {
-        this.$root.$emit('hideRemoteEventLoading');
       }
     },
   },
