@@ -1,6 +1,13 @@
 <template>
   <v-list class="flex-grow-1 d-flex flex-column pa-0">
     <v-list-item
+      v-if="!event.reminders || !event.reminders.length"
+      class="pl-0">
+      <label class="subtitle-1 float-left mr-4">
+        {{ $t('agenda.noRemindersYet') }}
+      </label>
+    </v-list-item>
+    <v-list-item
       v-for="(reminder, index) in event.reminders"
       :key="index"
       class="pl-0">
