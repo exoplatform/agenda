@@ -85,6 +85,7 @@
               </v-chip>
             </v-list-item>
           </v-list>
+          <span v-else class="font-italic text--disabled mr-4">{{ $t('agenda.noReminderYet') }}</span>
           <v-btn
             icon
             transparent
