@@ -270,6 +270,7 @@ export default {
       }
     }
 
+    this.$forceUpdate();
     this.$root.$emit('agenda-connectors-init');
   },
   mounted() {
@@ -361,6 +362,8 @@ export default {
       this.event.endDate = this.$agendaUtils.toDate(this.event.startDate);
       this.newEventStarted = true;
       this.selectedOpen = false;
+
+      this.$forceUpdate();
     },
     mouseMove(tms) {
       if (this.newEventStarted) {
