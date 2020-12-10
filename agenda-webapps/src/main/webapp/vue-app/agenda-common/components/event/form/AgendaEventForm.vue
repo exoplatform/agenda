@@ -27,7 +27,6 @@
           </v-icon>
         </v-btn>
       </v-stepper-header>
-      <v-progress-linear :active="loading" indeterminate />
       <v-stepper-items class="flex-grow-1">
         <v-stepper-content step="1">
           <agenda-event-form-basic-information
@@ -114,7 +113,6 @@ export default {
   data () {
     return {
       stepper: 1,
-      loading: false,
     };
   },
   computed: {
@@ -146,12 +144,6 @@ export default {
   created() {
     this.$root.$on('agenda-event-form', () => {
       this.reset();
-    });
-    this.$root.$on('displayRemoteEventLoading', () => {
-      this.loading= true;
-    });
-    this.$root.$on('hideRemoteEventLoading', () => {
-      this.loading= false;
     });
   },
   mounted() {
