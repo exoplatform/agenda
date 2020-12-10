@@ -17,11 +17,8 @@
 package org.exoplatform.agenda.util;
 
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.time.*;
-import java.time.zone.ZoneOffsetTransition;
 import java.util.*;
-import java.util.Calendar;
 import java.util.Date;
 import java.util.stream.Collectors;
 
@@ -42,8 +39,8 @@ import org.exoplatform.social.core.space.spi.SpaceService;
 import net.fortuna.ical4j.model.*;
 import net.fortuna.ical4j.model.Period;
 import net.fortuna.ical4j.model.TimeZone;
-import net.fortuna.ical4j.model.component.*;
-import net.fortuna.ical4j.model.property.*;
+import net.fortuna.ical4j.model.component.VEvent;
+import net.fortuna.ical4j.model.property.RRule;
 
 public class Utils {
 
@@ -390,183 +387,7 @@ public class Utils {
   }
 
   public static net.fortuna.ical4j.model.TimeZone getICalTimeZone(ZoneId zoneId) {
-    TimeZone ical4jTimezone = ICAL4J_TIME_ZONE_REGISTRY.getTimeZone(zoneId.getId());
-    if (ical4jTimezone != null) {
-      return ical4jTimezone;
-    }
-    try {
-      java.util.TimeZone timeZone = java.util.TimeZone.getTimeZone(zoneId.getId());
-
-      SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd'T'HHmmss");
-      Calendar calendar = Calendar.getInstance();
-      String dtStartValue = dateFormat.format(calendar.getTime());
-      // Properties for Standard component
-      PropertyList standardTzProps = new PropertyList();
-
-      TzName standardTzName = new TzName(new ParameterList(), timeZone.getDisplayName(false, java.util.TimeZone.SHORT));
-
-      DtStart standardTzStart = new DtStart();
-      if (timeZone.useDaylightTime()) {
-        Date date = getDaylightEnd(timeZone);
-        standardTzStart.setValue(dateFormat.format(date));
-      } else {
-        standardTzStart.setValue(dtStartValue);
-      }
-
-      TzOffsetTo standardTzOffsetTo = new TzOffsetTo();
-      standardTzOffsetTo.setOffset(new UtcOffset(timeZone.getRawOffset()));
-
-      TzOffsetFrom standardTzOffsetFrom = new net.fortuna.ical4j.model.property.TzOffsetFrom();
-      standardTzOffsetFrom.setOffset(new UtcOffset(timeZone.getRawOffset() + ((long) timeZone.getDSTSavings())));
-
-      standardTzProps.add(standardTzName);
-      standardTzProps.add(standardTzStart);
-      standardTzProps.add(standardTzOffsetTo);
-      standardTzProps.add(standardTzOffsetFrom);
-
-      // Standard Component for VTimeZone
-      Standard standardTz = new Standard(standardTzProps);
-
-      // Components for VTimeZone
-      ComponentList tzComponents = new ComponentList();
-      tzComponents.add(standardTz);
-
-      if (timeZone.useDaylightTime()) {
-        // Properties for DayLight component
-        PropertyList daylightTzProps = new PropertyList();
-
-        TzName daylightTzName = new TzName(timeZone.getDisplayName(true, java.util.TimeZone.SHORT));
-
-        Date start = getDaylightStart(timeZone);
-        DtStart daylightDtStart = new DtStart();
-        daylightDtStart.setValue(dateFormat.format(start));
-
-        TzOffsetTo daylightTzOffsetTo = new TzOffsetTo();
-        daylightTzOffsetTo.setOffset(new UtcOffset(timeZone.getRawOffset() + ((long) timeZone.getDSTSavings())));
-
-        TzOffsetFrom daylightTzOffsetFrom = new TzOffsetFrom();
-        daylightTzOffsetFrom.setOffset(new UtcOffset(timeZone.getRawOffset()));
-
-        daylightTzProps.add(daylightTzOffsetFrom);
-        daylightTzProps.add(daylightTzOffsetTo);
-        daylightTzProps.add(daylightDtStart);
-        daylightTzProps.add(daylightTzName);
-
-        // Daylight Component for VTimeZone
-        Daylight daylightTz = new Daylight(daylightTzProps);
-        // add daylight component to VTimeZone
-        tzComponents.add(daylightTz);
-      }
-
-      PropertyList tzProps = new PropertyList();
-      TzId tzId = new TzId(null, timeZone.getID());
-      tzProps.add(tzId);
-
-      // Construct the VTimeZone object
-      VTimeZone vTz = new VTimeZone(tzProps, tzComponents);
-      vTz.validate();
-      ical4jTimezone = new TimeZone(vTz);
-      ICAL4J_TIME_ZONE_REGISTRY.register(ical4jTimezone);
-      return ical4jTimezone;
-    } catch (Exception e) {
-      throw new IllegalStateException("Error generating ical4j TimeZone for timezone " + zoneId);
-    }
-  }
-
-  /**
-   * Determines the first start date of daylight savings for the specified
-   * timezone since January 1, 1970.
-   *
-   * @param timezone a timezone to determine the start of daylight savings for
-   * @return a date
-   */
-  public static Date getDaylightStart(final java.util.TimeZone timezone) {
-    Calendar calendar = Calendar.getInstance(timezone);
-    calendar.set(Calendar.DAY_OF_YEAR, 0);
-    calendar.set(Calendar.HOUR_OF_DAY, 0);
-    calendar.set(Calendar.MINUTE, 0);
-    calendar.set(Calendar.SECOND, 0);
-    // first find the start of standard time..
-    while (timezone.inDaylightTime(calendar.getTime())) {
-      calendar.set(Calendar.DAY_OF_YEAR,
-                   calendar
-                           .get(Calendar.DAY_OF_YEAR)
-                       + 1);
-    }
-    // then find the first daylight time after that..
-    while (!timezone.inDaylightTime(calendar.getTime())) {
-      calendar.set(Calendar.DAY_OF_YEAR,
-                   calendar
-                           .get(Calendar.DAY_OF_YEAR)
-                       + 1);
-    }
-
-    // Find hour
-    while (timezone.inDaylightTime(calendar.getTime())) {
-      calendar.add(Calendar.HOUR_OF_DAY, -1);
-    }
-    calendar.add(Calendar.HOUR_OF_DAY, 1);
-
-    return calendar.getTime();
-  }
-
-  /**
-   * Determines the first end date of daylight savings for the specified
-   * timezone since January 1, 1970.
-   *
-   * @param timezone a timezone to determine the end of daylight savings for
-   * @return a date
-   */
-  public static Date getDaylightEnd(final java.util.TimeZone timezone) {
-    Calendar calendar = Calendar.getInstance(timezone);
-    calendar.set(Calendar.DAY_OF_YEAR, 0);
-    calendar.set(Calendar.HOUR_OF_DAY, 0);
-    calendar.set(Calendar.MINUTE, 0);
-    calendar.set(Calendar.SECOND, 0);
-    // first find the start of daylight time..
-    while (!timezone.inDaylightTime(calendar.getTime())) {
-      calendar.set(Calendar.DAY_OF_YEAR,
-                   calendar
-                           .get(Calendar.DAY_OF_YEAR)
-                       + 1);
-    }
-    // then find the first standard time after that..
-    while (timezone.inDaylightTime(calendar.getTime())) {
-      calendar.set(Calendar.DAY_OF_YEAR,
-                   calendar
-                           .get(Calendar.DAY_OF_YEAR)
-                       + 1);
-    }
-
-    // Find hour
-    while (!timezone.inDaylightTime(calendar.getTime())) {
-      calendar.add(Calendar.HOUR_OF_DAY, -1);
-    }
-    calendar.add(Calendar.HOUR_OF_DAY, 1);
-
-    return calendar.getTime();
-  }
-
-  public static LocalDateTime getDaylightStart(ZoneId zoneId) {
-    ZonedDateTime zonedDateTime = LocalDate.of(LocalDate.now().getYear(), 1, 1).atStartOfDay(zoneId);
-    ZoneOffsetTransition nextTransition = zoneId.getRules().nextTransition(zonedDateTime.toInstant());
-    if (nextTransition.isGap()) {
-      return nextTransition.getDateTimeAfter();
-    } else {
-      ZoneOffsetTransition previousTransition = zoneId.getRules().nextTransition(zonedDateTime.toInstant());
-      return previousTransition.getDateTimeAfter();
-    }
-  }
-
-  public static LocalDateTime getDaylightEnd(ZoneId zoneId) {
-    ZonedDateTime zonedDateTime = LocalDate.of(LocalDate.now().getYear(), 1, 1).atStartOfDay(zoneId);
-    ZoneOffsetTransition nextTransition = zoneId.getRules().nextTransition(zonedDateTime.toInstant());
-    if (nextTransition.isOverlap()) {
-      return nextTransition.getDateTimeBefore();
-    } else {
-      ZoneOffsetTransition previousTransition = zoneId.getRules().nextTransition(zonedDateTime.toInstant());
-      return previousTransition.getDateTimeBefore();
-    }
+    return ICAL4J_TIME_ZONE_REGISTRY.getTimeZone(zoneId.getId());
   }
 
   public static ZonedDateTime toDateTime(String dateTimeString, ZoneId userTimeZone) {

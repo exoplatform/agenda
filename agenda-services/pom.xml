@@ -57,7 +57,7 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>ical4j</groupId>
+      <groupId>org.mnode.ical4j</groupId>
       <artifactId>ical4j</artifactId>
       <exclusions>
         <exclusion>
