@@ -95,29 +95,50 @@ export default {
     },
     synchronizeEvent(connector, event, allRecurrentEvent) {
       this.errorMessage = null;
+      event = allRecurrentEvent && event.recurrence && event.parent ? event.parent : event;
+
       this.$set(connector, 'loading', true);
+      let gEvent = null;
       return connector.synchronizeEvent(event)
-        .then((synchronizedEvent) => {
-          if(synchronizedEvent && synchronizedEvent.id) {
-            if (allRecurrentEvent) {
-              this.$eventService.getEventExceptionalOccurrences(event.id).then(exceptionalOcuurences => {
-                exceptionalOcuurences.forEach(expOccurrence => {
-                  expOccurrence.recurringEventId = synchronizedEvent.id;
-                  return connector.synchronizeEvent(expOccurrence);
-                });
+        .then((gParentEvent) => {
+          gEvent = gParentEvent;
+          this.updateEventRemoteInformation(event, gEvent);
+        })
+        .then(event => {
+          if(allRecurrentEvent && event.recurrence) {
+            return this.$eventService.getEventExceptionalOccurrences(event.id)
+              .then(exceptionalOcuurences => {
+                if (exceptionalOcuurences && exceptionalOcuurences.length) {
+                  const promises = [];
+                  exceptionalOcuurences.forEach(exceptionalOccurrence => {
+                    const exceptionalOccurrenceRemoteIdUpdate = connector.synchronizeEvent(exceptionalOccurrence, gEvent.id)
+                      .then((gExceptionalEvent) => this.updateEventRemoteInformation(exceptionalOccurrence, gExceptionalEvent));
+                    promises.push(exceptionalOccurrenceRemoteIdUpdate);
+                  });
+                  return Promise.all(promises);
+                }
               });
-              this.$set(connector, 'loading', false);
-              this.$root.$emit('agenda-remote-event-synchronized', synchronizedEvent);
-            } else {
-              this.$set(connector, 'loading', false);
-              this.$root.$emit('agenda-remote-event-synchronized', synchronizedEvent);
-            }
           }
         })
-        .catch(error => {
-          this.$set(connector, 'loading', false);
-          console.error(`Error while synchronizing the event to your remote calendar: ${error.error}`);
-        });
+        .then(() => this.$root.$emit('agenda-remote-event-synchronized', event))
+        .catch(error => this.$root.$emit('agenda-remote-event-synchronize-error', event, error))
+        .finally(() => this.$set(connector, 'loading', false));
+    },
+    updateEventRemoteInformation(event, gEvent) {
+      if(event && event.id) {
+        return this.$eventService.updateEventField(event, 'remoteId', gEvent.id)
+          .then(() => this.$eventService.updateEventField(event, 'remoteProviderId', this.connectedConnector.technicalId))
+          .then(() => {
+            event.remoteId = gEvent.id;
+            event.remoteProviderId = this.connectedConnector.technicalId;
+            return event;
+          });
+      } else {
+        const newExceptionalEvent = Object.assign({}, event);
+        newExceptionalEvent.remoteId =  gEvent.id;
+        newExceptionalEvent.remoteProviderId = this.connectedConnector.technicalId;
+        return this.$eventService.createEvent(newExceptionalEvent);
+      }
     },
     resetConnector(connector) {
       this.$set(connector, 'loading', true);

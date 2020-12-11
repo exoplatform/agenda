@@ -152,34 +152,25 @@ export function updateEvent(event) {
     });
 }
 
-export function updateEventField(event, fieldName, fieldValue, updateAllOccurrences) {
-  event.sendInvitation = true;
+export function updateEventField(event, fieldName, fieldValue, updateAllOccurrences, sendInvitations) {
   const formData = new FormData();
   formData.append('fieldName', fieldName);
   formData.append('fieldValue', fieldValue);
-  formData.append('updateAllOccurrences', updateAllOccurrences);
+  formData.append('updateAllOccurrences', !!updateAllOccurrences);
+  formData.append('sendInvitations', !!sendInvitations);
 
-  const saveWebConferencePromises = getSaveAllWebConferencesPromises(event);
-
-  return Promise.all(saveWebConferencePromises)
-    .catch(e => {
-      console.error('Error updating web conferencing, delete them', e);
-    })
-    .then(conferences => {
-      event.conferences = conferences && conferences.filter(conference => !!conference);
-      return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${event.id}`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: new URLSearchParams(formData).toString(),
-      });
-    }).then((resp) => {
-      if (!resp || !resp.ok) {
-        throw new Error('Error updating event');
-      }
-    });
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${event.id}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams(formData).toString(),
+  }).then((resp) => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error updating event');
+    }
+  });
 }
 
 export function sendEventResponse(eventId, occurrenceId, response) {

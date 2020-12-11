@@ -337,21 +337,21 @@ public class AgendaEventRest implements ResourceContainer {
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
   @ApiOperation(
-          value = "Retrieves the list of exceptional occurrences of an event.",
-          httpMethod = "GET", response = Response.class, produces = "application/json"
+      value = "Retrieves the list of exceptional occurrences of an event.",
+      httpMethod = "GET", response = Response.class, produces = "application/json"
   )
   @ApiResponses(
-          value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-                  @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-                  @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+      value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
   )
   public Response getEventExceptionalOccurrences(
-          @ApiParam(value = "Event technical identifier", required = true) @PathParam(
-                  "eventId"
-          ) long eventId,
-          @ApiParam(value = "Properties to expand", required = false) @QueryParam(
-                  "expand"
-          ) String expand) {
+                                                 @ApiParam(value = "Event technical identifier", required = true) @PathParam(
+                                                   "eventId"
+                                                 ) long eventId,
+                                                 @ApiParam(value = "Properties to expand", required = false) @QueryParam(
+                                                   "expand"
+                                                 ) String expand) {
 
     long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
     try {
@@ -362,8 +362,8 @@ public class AgendaEventRest implements ResourceContainer {
       Map<Long, List<EventConference>> conferencesByParentEventId = new HashMap<>();
       Map<Long, List<EventReminderEntity>> remindersByParentEventId = new HashMap<>();
       List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
-              : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
-              ","));
+                                                                  : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
+                                                                                                    ","));
       List<EventEntity> eventEntities = events.stream().map(event -> {
         EventEntity eventEntity = EntityBuilder.fromEvent(agendaCalendarService, agendaEventService, identityManager, event);
 
@@ -548,7 +548,7 @@ public class AgendaEventRest implements ResourceContainer {
                                        value = "Whether notify attendees about the modification or not",
                                        required = false,
                                        defaultValue = "false"
-                                   ) @FormParam("sendInvitation") boolean sendInvitation) {
+                                   ) @FormParam("sendInvitations") boolean sendInvitations) {
     if (StringUtils.isBlank(fieldName)) {
       return Response.status(Status.BAD_REQUEST)
                      .entity(AgendaExceptionType.EVENT_FIELD_NAME_MANDATORY.getCompleteMessage())
@@ -561,7 +561,7 @@ public class AgendaEventRest implements ResourceContainer {
                                           fieldName,
                                           fieldValue,
                                           updateAllOccurrences,
-                                          sendInvitation,
+                                          sendInvitations,
                                           currentUser);
       return Response.noContent().build();
     } catch (AgendaException e) {
