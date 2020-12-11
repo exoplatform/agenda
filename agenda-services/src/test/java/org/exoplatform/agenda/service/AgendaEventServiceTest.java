@@ -26,6 +26,7 @@ import org.junit.Test;
 import org.exoplatform.agenda.constant.*;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.model.*;
+import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 
@@ -1209,6 +1210,374 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertTrue("Attendees shouldn't be able to modify allowAttendeeToInvite and allowAttendeeToUpdate",
                updatedEvent.isAllowAttendeeToUpdate());
     assertTrue(updatedEvent.isAllowAttendeeToInvite());
+  }
+
+  @Test
+  public void testUpdateEventField() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+
+    boolean allDay = true;
+    String creatorUserName = testuser1Identity.getRemoteId();
+
+    Event createdEvent = newEventInstance(start, start, allDay);
+    createdEvent = createEvent(createdEvent.clone(), creatorUserName, testuser2Identity);
+
+    long eventId = createdEvent.getId();
+    Event storedEvent = agendaEventService.getEventById(eventId, null, testuser2Identity.getRemoteId());
+
+    assertNotNull(storedEvent);
+    assertTrue(storedEvent.getId() > 0);
+    assertNotNull(storedEvent.getRecurrence());
+
+    try {
+      Event event = new Event();
+      event.setId(eventId);
+      agendaEventService.updateEvent(event,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     true,
+                                     null);
+      fail();
+    } catch (IllegalArgumentException e) {
+      // Expected
+    }
+
+    try {
+      agendaEventService.updateEventField(0,
+                                          "summary",
+                                          "fieldValue",
+                                          true,
+                                          true,
+                                          testuser1Identity.getRemoteId());
+      fail();
+    } catch (IllegalArgumentException e) {
+      // Expected
+    }
+
+    try {
+      agendaEventService.updateEventField(eventId,
+                                          "summary",
+                                          "fieldValue",
+                                          true,
+                                          true,
+                                          null);
+      fail();
+    } catch (IllegalArgumentException e) {
+      // Expected
+    }
+
+    try {
+      agendaEventService.updateEventField(eventId,
+                                          "summary",
+                                          "fieldValue",
+                                          true,
+                                          true,
+                                          "inexistantUser");
+      fail();
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+
+    try {
+      agendaEventService.updateEventField(eventId,
+                                          "summary",
+                                          "fieldValue",
+                                          true,
+                                          true,
+                                          testuser5Identity.getRemoteId());
+      fail();
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+
+    try {
+      agendaEventService.updateEventField(eventId,
+                                          "calendarId",
+                                          "-1",
+                                          true,
+                                          true,
+                                          testuser1Identity.getRemoteId());
+      fail();
+    } catch (IllegalArgumentException e) {
+      // Expected
+    }
+
+    try {
+      agendaEventService.updateEventField(eventId,
+                                          "calendarId",
+                                          "500000",
+                                          true,
+                                          true,
+                                          testuser1Identity.getRemoteId());
+      fail();
+    } catch (IllegalArgumentException e) {
+      // Expected
+    }
+
+    try {
+      agendaEventService.updateEventField(eventId,
+                                          "remoteProviderId",
+                                          "-1",
+                                          true,
+                                          true,
+                                          testuser1Identity.getRemoteId());
+      fail();
+    } catch (IllegalArgumentException e) {
+      // Expected
+    }
+
+    try {
+      agendaEventService.updateEventField(eventId,
+                                          "remoteProviderId",
+                                          "50000",
+                                          true,
+                                          true,
+                                          testuser1Identity.getRemoteId());
+      fail();
+    } catch (IllegalArgumentException e) {
+      // Expected
+    }
+
+    try {
+      agendaEventService.updateEventField(eventId,
+                                          "timeZoneId",
+                                          null,
+                                          true,
+                                          true,
+                                          testuser1Identity.getRemoteId());
+      fail();
+    } catch (IllegalArgumentException e) {
+      // Expected
+    }
+
+    try {
+      agendaEventService.updateEventField(eventId,
+                                          "timeZoneId",
+                                          "Not existant",
+                                          true,
+                                          true,
+                                          testuser1Identity.getRemoteId());
+      fail();
+    } catch (Exception e) {
+      // Expected
+    }
+
+    try {
+      agendaEventService.updateEventField(eventId,
+                                          "start",
+                                          null,
+                                          true,
+                                          true,
+                                          testuser1Identity.getRemoteId());
+      fail();
+    } catch (AgendaException e) {
+      // Expected
+    }
+
+    try {
+      agendaEventService.updateEventField(eventId,
+                                          "end",
+                                          null,
+                                          true,
+                                          true,
+                                          testuser1Identity.getRemoteId());
+      fail();
+    } catch (AgendaException e) {
+      // Expected
+    }
+
+    try {
+      agendaEventService.updateEventField(eventId,
+                                          "start",
+                                          "2080-10-10",
+                                          true,
+                                          true,
+                                          testuser1Identity.getRemoteId());
+      fail();
+    } catch (AgendaException e) {
+      // Expected
+    }
+
+    try {
+      agendaEventService.updateEventField(eventId,
+                                          "end",
+                                          "2010-10-10",
+                                          true,
+                                          true,
+                                          testuser1Identity.getRemoteId());
+      fail();
+    } catch (AgendaException e) {
+      // Expected
+    }
+
+    try {
+      agendaEventService.updateEventField(eventId,
+                                          "recurrence",
+                                          null,
+                                          true,
+                                          true,
+                                          testuser1Identity.getRemoteId());
+      fail();
+    } catch (UnsupportedOperationException e) {
+      // Expected
+    }
+
+    try {
+      agendaEventService.updateEventField(eventId,
+                                          "id",
+                                          "2553",
+                                          true,
+                                          true,
+                                          testuser1Identity.getRemoteId());
+      fail();
+    } catch (UnsupportedOperationException e) {
+      // Expected
+    }
+
+    try {
+      agendaEventService.updateEventField(eventId,
+                                          "parentId",
+                                          "2553",
+                                          true,
+                                          true,
+                                          testuser1Identity.getRemoteId());
+      fail();
+    } catch (UnsupportedOperationException e) {
+      // Expected
+    }
+
+    try {
+      agendaEventService.updateEventField(eventId,
+                                          "created",
+                                          "2020-10-10",
+                                          true,
+                                          true,
+                                          testuser1Identity.getRemoteId());
+      fail();
+    } catch (UnsupportedOperationException e) {
+      // Expected
+    }
+
+    try {
+      agendaEventService.updateEventField(eventId,
+                                          "occurrence",
+                                          "2020-10-10",
+                                          true,
+                                          true,
+                                          testuser1Identity.getRemoteId());
+      fail();
+    } catch (UnsupportedOperationException e) {
+      // Expected
+    }
+
+    try {
+      agendaEventService.updateEventField(eventId,
+                                          "acl",
+                                          null,
+                                          true,
+                                          true,
+                                          testuser1Identity.getRemoteId());
+      fail();
+    } catch (UnsupportedOperationException e) {
+      // Expected
+    }
+
+    createdEvent = newEventInstance(start, start, allDay);
+    createdEvent = createEvent(createdEvent.clone(), creatorUserName, testuser1Identity, testuser2Identity, testuser3Identity);
+    eventId = createdEvent.getId();
+
+    String fieldName = "calendarId";
+    String fieldValue = String.valueOf(spaceCalendar.getId());
+    agendaEventService.updateEventField(eventId, fieldName, fieldValue, true, true, testuser1Identity.getRemoteId());
+    Event event = agendaEventService.getEventById(eventId);
+    assertEquals(fieldValue, String.valueOf(event.getCalendarId()));
+
+    fieldName = "remoteId";
+    fieldValue = "remoteIdValue";
+    agendaEventService.updateEventField(eventId, fieldName, fieldValue, true, true, testuser1Identity.getRemoteId());
+    event = agendaEventService.getEventById(eventId);
+    assertEquals(fieldValue, String.valueOf(event.getRemoteId()));
+
+    fieldName = "remoteProviderId";
+    RemoteProvider remoteProvider = agendaEventService.saveRemoteProvider(new RemoteProvider(0, "newRemoteProvider2", true));
+    fieldValue = String.valueOf(remoteProvider.getId());
+    agendaEventService.updateEventField(eventId, fieldName, fieldValue, true, true, testuser1Identity.getRemoteId());
+    event = agendaEventService.getEventById(eventId);
+    assertEquals(fieldValue, String.valueOf(event.getRemoteProviderId()));
+
+    fieldName = "summary";
+    fieldValue = "summaryValue";
+    agendaEventService.updateEventField(eventId, fieldName, fieldValue, true, true, testuser1Identity.getRemoteId());
+    event = agendaEventService.getEventById(eventId);
+    assertEquals(fieldValue, String.valueOf(event.getSummary()));
+
+    fieldName = "description";
+    fieldValue = "descriptionValue";
+    agendaEventService.updateEventField(eventId, fieldName, fieldValue, true, true, testuser1Identity.getRemoteId());
+    event = agendaEventService.getEventById(eventId);
+    assertEquals(fieldValue, String.valueOf(event.getDescription()));
+
+    fieldName = "location";
+    fieldValue = "locationValue";
+    agendaEventService.updateEventField(eventId, fieldName, fieldValue, true, true, testuser1Identity.getRemoteId());
+    event = agendaEventService.getEventById(eventId);
+    assertEquals(fieldValue, String.valueOf(event.getLocation()));
+
+    fieldName = "color";
+    fieldValue = "colorValue";
+    agendaEventService.updateEventField(eventId, fieldName, fieldValue, true, true, testuser1Identity.getRemoteId());
+    event = agendaEventService.getEventById(eventId);
+    assertEquals(fieldValue, String.valueOf(event.getColor()));
+
+    fieldName = "timeZoneId";
+    fieldValue = "Europe/Paris";
+    agendaEventService.updateEventField(eventId, fieldName, fieldValue, true, true, testuser1Identity.getRemoteId());
+    event = agendaEventService.getEventById(eventId);
+    assertEquals(fieldValue, event.getTimeZoneId().getId());
+
+    fieldName = "start";
+    fieldValue = AgendaDateUtils.toRFC3339Date(start.minusDays(1), allDay);
+    agendaEventService.updateEventField(eventId, fieldName, fieldValue, true, true, testuser1Identity.getRemoteId());
+    event = agendaEventService.getEventById(eventId);
+    assertEquals(fieldValue, AgendaDateUtils.toRFC3339Date(event.getStart(), allDay));
+
+    fieldName = "end";
+    fieldValue = AgendaDateUtils.toRFC3339Date(start.plusDays(2), allDay);
+    agendaEventService.updateEventField(eventId, fieldName, fieldValue, true, true, testuser1Identity.getRemoteId());
+    event = agendaEventService.getEventById(eventId);
+    assertEquals(fieldValue, AgendaDateUtils.toRFC3339Date(event.getEnd(), allDay));
+
+    fieldName = "allDay";
+    fieldValue = String.valueOf(!allDay);
+    agendaEventService.updateEventField(eventId, fieldName, fieldValue, true, true, testuser1Identity.getRemoteId());
+    event = agendaEventService.getEventById(eventId);
+    assertEquals(fieldValue, String.valueOf(event.isAllDay()));
+
+    fieldName = "availability";
+    fieldValue = EventAvailability.BUSY.name();
+    agendaEventService.updateEventField(eventId, fieldName, fieldValue, true, true, testuser1Identity.getRemoteId());
+    event = agendaEventService.getEventById(eventId);
+    assertEquals(fieldValue, event.getAvailability().name());
+
+    fieldName = "status";
+    fieldValue = EventStatus.TENTATIVE.name();
+    agendaEventService.updateEventField(eventId, fieldName, fieldValue, true, true, testuser1Identity.getRemoteId());
+    event = agendaEventService.getEventById(eventId);
+    assertEquals(fieldValue, event.getStatus().name());
+
+    fieldName = "allowAttendeeToUpdate";
+    fieldValue = String.valueOf(event.isAllowAttendeeToUpdate());
+    agendaEventService.updateEventField(eventId, fieldName, fieldValue, true, true, testuser1Identity.getRemoteId());
+    event = agendaEventService.getEventById(eventId);
+    assertEquals(fieldValue, String.valueOf(event.isAllowAttendeeToUpdate()));
+
+    fieldName = "allowAttendeeToInvite";
+    fieldValue = String.valueOf(event.isAllowAttendeeToInvite());
+    agendaEventService.updateEventField(eventId, fieldName, fieldValue, true, true, testuser1Identity.getRemoteId());
+    event = agendaEventService.getEventById(eventId);
+    assertEquals(fieldValue, String.valueOf(event.isAllowAttendeeToInvite()));
   }
 
   @Test

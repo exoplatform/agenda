@@ -46,6 +46,7 @@ import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.rest.entity.IdentityEntity;
 
 import io.swagger.annotations.*;
+import io.swagger.jaxrs.PATCH;
 
 @Path("/v1/agenda/events")
 @Api(value = "/v1/agenda/events", description = "Manages agenda events associated to users and spaces") // NOSONAR
@@ -503,6 +504,71 @@ public class AgendaEventRest implements ResourceContainer {
       return Response.noContent().build();
     } catch (AgendaException e) {
       return Response.serverError().entity(e.getAgendaExceptionType().getCompleteMessage()).build();
+    } catch (IllegalAccessException e) {
+      LOG.error("User '{}' attempts to update a non authorized event", currentUser);
+      return Response.status(Status.UNAUTHORIZED).build();
+    } catch (Exception e) {
+      LOG.warn("Error updating an event", e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
+  @Path("{eventId}")
+  @PATCH
+  @RolesAllowed("users")
+  @ApiOperation(value = "Update an attribute of an existing event", httpMethod = "PATCH", response = Response.class)
+  @ApiResponses(
+      value = {
+          @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object not found"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+      }
+  )
+  public Response updateEventField(
+                                   @ApiParam(
+                                       value = "Event technical identifier",
+                                       required = true
+                                   ) @PathParam("eventId") long eventId,
+                                   @ApiParam(
+                                       value = "Event field name to update",
+                                       required = true
+                                   ) @FormParam("fieldName") String fieldName,
+                                   @ApiParam(
+                                       value = "Event field value",
+                                       required = false
+                                   ) @FormParam("fieldValue") String fieldValue,
+                                   @ApiParam(
+                                       value = "Update all event occurrences or only parent occurrence",
+                                       required = false,
+                                       defaultValue = "false"
+                                   ) @FormParam("updateAllOccurrences") boolean updateAllOccurrences,
+                                   @ApiParam(
+                                       value = "Whether notify attendees about the modification or not",
+                                       required = false,
+                                       defaultValue = "false"
+                                   ) @FormParam("sendInvitation") boolean sendInvitation) {
+    if (StringUtils.isBlank(fieldName)) {
+      return Response.status(Status.BAD_REQUEST)
+                     .entity(AgendaExceptionType.EVENT_FIELD_NAME_MANDATORY.getCompleteMessage())
+                     .build();
+    }
+
+    String currentUser = RestUtils.getCurrentUser();
+    try {
+      agendaEventService.updateEventField(eventId,
+                                          fieldName,
+                                          fieldValue,
+                                          updateAllOccurrences,
+                                          sendInvitation,
+                                          currentUser);
+      return Response.noContent().build();
+    } catch (AgendaException e) {
+      return Response.serverError().entity(e.getAgendaExceptionType().getCompleteMessage()).build();
+    } catch (IllegalAccessException e) {
+      LOG.error("User '{}' attempts to update a non authorized event", currentUser);
+      return Response.status(Status.UNAUTHORIZED).build();
     } catch (Exception e) {
       LOG.warn("Error updating an event", e);
       return Response.serverError().entity(e.getMessage()).build();

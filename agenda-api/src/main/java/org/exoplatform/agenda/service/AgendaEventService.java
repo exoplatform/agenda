@@ -178,6 +178,31 @@ public interface AgendaEventService {
                     String username) throws IllegalAccessException, ObjectNotFoundException, AgendaException;
 
   /**
+   * Updates a single field for a given {@link Event} identified by its
+   * technical identifier. When the event is of type 'recurrent', if parameter
+   * updateAllOccurrences is set to true, it will update the event field for all
+   * exceptional occurrences as well.
+   * 
+   * @param eventId Event technical identifier to update
+   * @param fieldName {@link Event} field name
+   * @param fieldValue field value that can be null
+   * @param updateAllOccurrences whether apply modification on all exceptional
+   *          occurrences as well or not
+   * @param sendInvitation whether re-send invitation to attendees or not
+   * @param username User name deleting event
+   * @throws IllegalAccessException when user is not allowed to update event
+   * @throws ObjectNotFoundException when the event identified by its technical
+   *           identifier is not found
+   * @throws AgendaException when the event attribute isn't valid
+   */
+  void updateEventField(long eventId,
+                        String fieldName,
+                        String fieldValue,
+                        boolean updateAllOccurrences,
+                        boolean sendInvitation,
+                        String username) throws IllegalAccessException, ObjectNotFoundException, AgendaException;
+
+  /**
    * Deletes an existing event
    * 
    * @param eventId Event technical identifier to delete

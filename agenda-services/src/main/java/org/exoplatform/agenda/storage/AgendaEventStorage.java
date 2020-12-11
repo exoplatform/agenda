@@ -95,6 +95,14 @@ public class AgendaEventStorage {
                                                     .collect(Collectors.toList());
   }
 
+  public RemoteProvider getRemoteProviderById(long remoteProviderId) {
+    RemoteProviderEntity remoteProviderEntity = remoteProviderDAO.find(remoteProviderId);
+    if (remoteProviderEntity == null) {
+      return null;
+    }
+    return EntityMapper.fromEntity(remoteProviderEntity);
+  }
+
   public RemoteProvider saveRemoteProvider(RemoteProvider remoteProvider) {
     RemoteProviderEntity remoteProviderEntity = EntityMapper.toEntity(remoteProvider);
     if (remoteProviderEntity.getId() == null) {
