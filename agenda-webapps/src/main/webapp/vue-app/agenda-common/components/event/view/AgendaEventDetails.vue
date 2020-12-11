@@ -13,6 +13,7 @@
     <agenda-event-details-toolbar
       v-else
       :event="event"
+      :connected-connector="connectedConnector"
       @close="$emit('close')"
       @edit="$root.$emit('agenda-event-form', event)"
       @delete="deleteConfirmDialog"

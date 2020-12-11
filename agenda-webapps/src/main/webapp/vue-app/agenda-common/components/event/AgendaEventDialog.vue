@@ -283,15 +283,14 @@ export default {
     updateEvent(synchronizedEvent) {
       if(synchronizedEvent && synchronizedEvent.id) {
         const eventToUpdate = synchronizedEvent.recurrence ? this.event.parent : this.event;
-        const saveEventMethod = eventToUpdate.id ? this.$eventService.updateEvent : this.$eventService.createEvent;
-        if(synchronizedEvent.recurrence) {
-          eventToUpdate.start = this.$agendaUtils.getSameTime(this.event.parent.start, this.event.start);
-          eventToUpdate.end = this.$agendaUtils.getSameTime(this.event.parent.end, this.event.end);
-          eventToUpdate.attendees = this.event.attendees;
+        if (eventToUpdate.id) {
+          this.$eventService.updateEventField(eventToUpdate, 'remoteId', synchronizedEvent.id, false);
+          this.$eventService.updateEventField(eventToUpdate, 'remoteProviderId', synchronizedEvent.id, false);
+        } else {
+          eventToUpdate.remoteId =  synchronizedEvent.id;
+          eventToUpdate.remoteProviderId = this.connectedConnector.technicalId;
+          this.$eventService.createEvent(eventToUpdate);
         }
-        eventToUpdate.remoteId =  synchronizedEvent.id;
-        eventToUpdate.remoteProviderId = this.connectedConnector.technicalId;
-        saveEventMethod(eventToUpdate);
       }
     },
   },
