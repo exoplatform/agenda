@@ -16,7 +16,6 @@
 */
 package org.exoplatform.agenda.util;
 
-import java.text.ParseException;
 import java.time.*;
 import java.util.*;
 import java.util.Date;
@@ -38,6 +37,7 @@ import org.exoplatform.social.core.space.spi.SpaceService;
 
 import net.fortuna.ical4j.model.*;
 import net.fortuna.ical4j.model.Period;
+import net.fortuna.ical4j.model.Recur.Frequency;
 import net.fortuna.ical4j.model.TimeZone;
 import net.fortuna.ical4j.model.component.VEvent;
 import net.fortuna.ical4j.model.property.RRule;
@@ -112,7 +112,7 @@ public class Utils {
     DateTime endDateTime = new DateTime(endTime);
     endDateTime.setTimeZone(ical4jTimezone);
     VEvent vevent = new VEvent(startDateTime, endDateTime, event.getSummary());
-    Recur recur = getICalendarRecur(event, event.getRecurrence());
+    Recur recur = getICalendarRecur(event.getRecurrence());
     vevent.getProperties().add(new RRule(recur));
 
     long fromTime = from.atStartOfDay(timeZone).toInstant().toEpochMilli();
@@ -178,47 +178,62 @@ public class Utils {
     return occurrences;
   }
 
-  public static Recur getICalendarRecur(Event event, EventRecurrence recurrence) {
-    try {
-      Recur recur = new Recur("FREQ=" + recurrence.getFrequency().name());
-      recur.setCount(recurrence.getCount() > 0 ? recurrence.getCount() : 0);
-      recur.setInterval(recurrence.getInterval());
-      if (recurrence.getUntil() != null) {
-        DateTime dateTime = new DateTime(AgendaDateUtils.toDate(recurrence.getUntil()));
-        dateTime.setUtc(true);
-        recur.setUntil(dateTime);
-      }
-      if (recurrence.getBySecond() != null && !recurrence.getBySecond().isEmpty()) {
-        recurrence.getBySecond().forEach(second -> recur.getSecondList().add(Integer.parseInt(second)));
-      }
-      if (recurrence.getByMinute() != null && !recurrence.getByMinute().isEmpty()) {
-        recurrence.getByMinute().forEach(minute -> recur.getMinuteList().add(Integer.parseInt(minute)));
-      }
-      if (recurrence.getByHour() != null && !recurrence.getByHour().isEmpty()) {
-        recurrence.getByHour().forEach(hour -> recur.getHourList().add(Integer.parseInt(hour)));
-      }
-      if (recurrence.getByDay() != null && !recurrence.getByDay().isEmpty()) {
-        recurrence.getByDay().forEach(day -> recur.getDayList().add(new WeekDay(day.toUpperCase())));
-      }
-      if (recurrence.getByMonthDay() != null && !recurrence.getByMonthDay().isEmpty()) {
-        recurrence.getByMonthDay().forEach(monthDay -> recur.getMonthDayList().add(Integer.parseInt(monthDay)));
-      }
-      if (recurrence.getByYearDay() != null && !recurrence.getByYearDay().isEmpty()) {
-        recurrence.getByYearDay().forEach(yearDay -> recur.getYearDayList().add(Integer.parseInt(yearDay)));
-      }
-      if (recurrence.getByWeekNo() != null && !recurrence.getByWeekNo().isEmpty()) {
-        recurrence.getByWeekNo().forEach(weekNo -> recur.getWeekNoList().add(Integer.parseInt(weekNo)));
-      }
-      if (recurrence.getByMonth() != null && !recurrence.getByMonth().isEmpty()) {
-        recurrence.getByMonth().forEach(month -> recur.getMonthList().add(Integer.parseInt(month)));
-      }
-      if (recurrence.getBySetPos() != null && !recurrence.getBySetPos().isEmpty()) {
-        recurrence.getBySetPos().forEach(setPos -> recur.getSetPosList().add(Integer.parseInt(setPos)));
-      }
-      return recur;
-    } catch (ParseException e) {
-      throw new IllegalStateException("Error computing recurrence for event with id " + event.getId(), e);
+  public static Recur getICalendarRecur(EventRecurrence recurrence) {
+    Recur.Builder recurBuilder = new Recur.Builder();
+    recurBuilder.frequency(Frequency.valueOf(recurrence.getFrequency().name()));
+    recurBuilder.count(recurrence.getCount() > 0 ? recurrence.getCount() : 0);
+    recurBuilder.interval(recurrence.getInterval());
+    if (recurrence.getUntil() != null) {
+      DateTime dateTime = new DateTime(AgendaDateUtils.toDate(recurrence.getUntil()));
+      dateTime.setUtc(true);
+      recurBuilder.until(dateTime);
     }
+    if (recurrence.getBySecond() != null && !recurrence.getBySecond().isEmpty()) {
+      NumberList list = new NumberList();
+      recurrence.getBySecond().forEach(second -> list.add(Integer.parseInt(second)));
+      recurBuilder.secondList(list);
+    }
+    if (recurrence.getByMinute() != null && !recurrence.getByMinute().isEmpty()) {
+      NumberList list = new NumberList();
+      recurrence.getByMinute().forEach(minute -> list.add(Integer.parseInt(minute)));
+      recurBuilder.minuteList(list);
+    }
+    if (recurrence.getByHour() != null && !recurrence.getByHour().isEmpty()) {
+      NumberList list = new NumberList();
+      recurrence.getByHour().forEach(hour -> list.add(Integer.parseInt(hour)));
+      recurBuilder.hourList(list);
+    }
+    if (recurrence.getByDay() != null && !recurrence.getByDay().isEmpty()) {
+      WeekDayList list = new WeekDayList();
+      recurrence.getByDay().forEach(day -> list.add(new WeekDay(day.toUpperCase())));
+      recurBuilder.dayList(list);
+    }
+    if (recurrence.getByMonthDay() != null && !recurrence.getByMonthDay().isEmpty()) {
+      NumberList list = new NumberList();
+      recurrence.getByMonthDay().forEach(monthDay -> list.add(Integer.parseInt(monthDay)));
+      recurBuilder.monthDayList(list);
+    }
+    if (recurrence.getByYearDay() != null && !recurrence.getByYearDay().isEmpty()) {
+      NumberList list = new NumberList();
+      recurrence.getByYearDay().forEach(yearDay -> list.add(Integer.parseInt(yearDay)));
+      recurBuilder.yearDayList(list);
+    }
+    if (recurrence.getByWeekNo() != null && !recurrence.getByWeekNo().isEmpty()) {
+      NumberList list = new NumberList();
+      recurrence.getByWeekNo().forEach(weekNo -> list.add(Integer.parseInt(weekNo)));
+      recurBuilder.weekNoList(list);
+    }
+    if (recurrence.getByMonth() != null && !recurrence.getByMonth().isEmpty()) {
+      NumberList list = new NumberList();
+      recurrence.getByMonth().forEach(month -> list.add(Integer.parseInt(month)));
+      recurBuilder.monthList(list);
+    }
+    if (recurrence.getBySetPos() != null && !recurrence.getBySetPos().isEmpty()) {
+      NumberList list = new NumberList();
+      recurrence.getBySetPos().forEach(setPos -> list.add(Integer.parseInt(setPos)));
+      recurBuilder.setPosList(list);
+    }
+    return recurBuilder.build();
   }
 
   /**
