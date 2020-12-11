@@ -136,6 +136,9 @@ export default {
     connectedConnectorSignedOut() {
       return this.connectedConnector && !this.connectedConnector.isSignedIn && !this.connectedConnector.loading && !this.loading;
     },
+    connectedConnectorHasSynchronizedEvent() {
+      return this.connectedConnector && this.connectedConnector.hasSynchronizedEvent;
+    },
     displayedRemoteEvents() {
       const remoteEventsToDisplay = this.remoteEvents && this.remoteEvents.slice();
       // Avoid to have same event from remote and local store (pushed events from local store)
@@ -151,7 +154,12 @@ export default {
   watch: {
     connectorStatus() {
       this.refreshRemoteEvents();
-    }
+    },
+    connectedConnectorHasSynchronizedEvent(newVal, oldVal) {
+      if (!oldVal && newVal) {
+        this.refreshRemoteEvents();
+      }
+    },
   },
   created() {
     this.$root.$emit('agenda-connectors-init');

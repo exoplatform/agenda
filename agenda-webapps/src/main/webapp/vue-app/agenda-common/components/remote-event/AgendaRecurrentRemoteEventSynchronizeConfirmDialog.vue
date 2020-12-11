@@ -60,7 +60,6 @@ export default {
   data: () => ({
     loading: false,
     dialog: false,
-    allRecurrentEvent: false,
   }),
   watch: {
     dialog() {
@@ -83,19 +82,14 @@ export default {
       eventObject.preventDefault();
       eventObject.stopPropagation();
 
-      const eventToSynchronize =  this.event.parent;
-      this.allRecurrentEvent = true;
-      this.$root.$emit('agenda-connector-synchronize-event', this.connectedConnector, eventToSynchronize, this.allRecurrentEvent);
+      this.$root.$emit('agenda-connector-synchronize-event', this.connectedConnector, this.event, true);
       this.dialog = false;
     },
     synchronizeOccurrenceEvent(eventObject) {
       eventObject.preventDefault();
       eventObject.stopPropagation();
 
-      const eventToSynchronize = Object. assign({}, this.event);
-      this.allRecurrentEvent = false;
-      delete eventToSynchronize.parent;
-      this.$root.$emit('agenda-connector-synchronize-event', this.connectedConnector, eventToSynchronize, this.allRecurrentEvent);
+      this.$root.$emit('agenda-connector-synchronize-event', this.connectedConnector, this.event, false);
       this.dialog = false;
     },
     close(event) {

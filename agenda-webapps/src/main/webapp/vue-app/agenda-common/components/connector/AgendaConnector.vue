@@ -98,11 +98,11 @@ export default {
       event = allRecurrentEvent && event.recurrence && event.parent ? event.parent : event;
 
       this.$set(connector, 'loading', true);
-      let gEvent = null;
+      let connectorEvent = null;
       return connector.synchronizeEvent(event)
         .then((gParentEvent) => {
-          gEvent = gParentEvent;
-          this.updateEventRemoteInformation(event, gEvent);
+          connectorEvent = gParentEvent;
+          this.updateEventRemoteInformation(event, connectorEvent);
         })
         .then(event => {
           if(allRecurrentEvent && event.recurrence) {
@@ -111,8 +111,8 @@ export default {
                 if (exceptionalOcuurences && exceptionalOcuurences.length) {
                   const promises = [];
                   exceptionalOcuurences.forEach(exceptionalOccurrence => {
-                    const exceptionalOccurrenceRemoteIdUpdate = connector.synchronizeEvent(exceptionalOccurrence, gEvent.id)
-                      .then((gExceptionalEvent) => this.updateEventRemoteInformation(exceptionalOccurrence, gExceptionalEvent));
+                    const exceptionalOccurrenceRemoteIdUpdate = connector.synchronizeEvent(exceptionalOccurrence, connectorEvent.id)
+                      .then((connectorExceptionalEvent) => this.updateEventRemoteInformation(exceptionalOccurrence, connectorExceptionalEvent));
                     promises.push(exceptionalOccurrenceRemoteIdUpdate);
                   });
                   return Promise.all(promises);
@@ -124,18 +124,18 @@ export default {
         .catch(error => this.$root.$emit('agenda-remote-event-synchronize-error', event, error))
         .finally(() => this.$set(connector, 'loading', false));
     },
-    updateEventRemoteInformation(event, gEvent) {
+    updateEventRemoteInformation(event, connectorEvent) {
       if(event && event.id) {
-        return this.$eventService.updateEventField(event, 'remoteId', gEvent.id)
+        return this.$eventService.updateEventField(event, 'remoteId', connectorEvent.id)
           .then(() => this.$eventService.updateEventField(event, 'remoteProviderId', this.connectedConnector.technicalId))
           .then(() => {
-            event.remoteId = gEvent.id;
+            event.remoteId = connectorEvent.id;
             event.remoteProviderId = this.connectedConnector.technicalId;
             return event;
           });
       } else {
         const newExceptionalEvent = Object.assign({}, event);
-        newExceptionalEvent.remoteId =  gEvent.id;
+        newExceptionalEvent.remoteId =  connectorEvent.id;
         newExceptionalEvent.remoteProviderId = this.connectedConnector.technicalId;
         return this.$eventService.createEvent(newExceptionalEvent);
       }

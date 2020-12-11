@@ -6,11 +6,12 @@ export default {
   avatar: '/agenda/skin/images/Google.png',
   CLIENT_ID: '694838797844-h0q657all0v8cq66p9nume6mti6cll4o.apps.googleusercontent.com',
   DISCOVERY_DOCS: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
-  SCOPE_READONLY: 'https://www.googleapis.com/auth/calendar.readonly',
-  SCOPE_WRITE: 'https://www.googleapis.com/auth/calendar',
+  SCOPE_READONLY: 'https://www.googleapis.com/auth/calendar.events.readonly',
+  SCOPE_WRITE: 'https://www.googleapis.com/auth/calendar.events',
   canConnect: true,
   initialized: false,
   isSignedIn: false,
+  hasSynchronizedEvent: false,
   init(connectionStatusChangedCallback, loadingCallback) {
     // Already initialized
     if (this.initialized) {
@@ -67,27 +68,27 @@ export default {
     if (this.gapi && this.gapi.auth2.getAuthInstance()) {
       const currentUser = this.gapi.auth2.getAuthInstance().currentUser.get();
 
-      this.loadingCallback(this, true);
+      this.hasSynchronizedEvent = false;
       return new Promise((resolve, reject) => {
         return currentUser.grant({
           scope: this.SCOPE_WRITE
         }).then(
           () => pushEventToGoogle(this, event, connectorRecurringEventId)
             .then(gEvent => {
-              this.loadingCallback(this, false);
+              this.hasSynchronizedEvent = true;
               resolve(gEvent);
             })
             .catch(error => {
-              this.loadingCallback(this, false);
+              this.hasSynchronizedEvent = false;
               reject(error);
             })
           ,
           (error) => {
-            this.loadingCallback(this, false);
+            this.hasSynchronizedEvent = false;
             reject(error);
           })
           .catch(error => {
-            this.loadingCallback(this, false);
+            this.hasSynchronizedEvent = false;
             reject(error);
           });
       });
@@ -164,21 +165,40 @@ function initGoogleConnector(connector) {
  */
 function pushEventToGoogle(connector, event, connectorRecurringEventId) {
   const eventToSynchronize = buildEventToSynchronize(event, connectorRecurringEventId);
-  const pushMethod = event.remoteId && event.remoteProviderId === connector.technicalId ?
-    connector.gapi.client.calendar.events.update:
-    connector.gapi.client.calendar.events.insert;
-  return pushMethod({
-    'calendarId': 'primary',
-    'resource': eventToSynchronize
-  }).then(resp => {
-    if (resp && resp.result) {
-      const synchronizedEvent = resp.result;
-      synchronizedEvent.agendaId = event.id;
-      return synchronizedEvent;
-    }
-  }).catch(e => {
-    throw new Error(e);
-  });
+  let retrievingEventPromise = null;
+  if (event.remoteId && event.remoteProviderId === connector.technicalId) {
+    retrievingEventPromise = connector.gapi.client.calendar.events.get({
+      'calendarId': 'primary',
+      'eventId': event.remoteId,
+    });
+  } else {
+    retrievingEventPromise = Promise.resolve(null);
+  }
+  return retrievingEventPromise
+    .then(remoteEvent => {
+      const updateRemoteEvent = remoteEvent && remoteEvent.result && remoteEvent.result.status;
+      const pushMethod = updateRemoteEvent ?
+        connector.gapi.client.calendar.events.update:
+        connector.gapi.client.calendar.events.insert;
+
+      const options = {
+        'calendarId': 'primary',
+        'resource': eventToSynchronize
+      };
+
+      if (updateRemoteEvent) {
+        options.eventId = event.remoteId;
+      }
+
+      return pushMethod(options);
+    })
+    .then(resp => {
+      if (resp && resp.result) {
+        const synchronizedEvent = resp.result;
+        synchronizedEvent.agendaId = event.id;
+        return synchronizedEvent;
+      }
+    });
 }
 
 /**

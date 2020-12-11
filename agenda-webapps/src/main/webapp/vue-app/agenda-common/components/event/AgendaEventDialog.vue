@@ -312,10 +312,7 @@ export default {
       this.message = message;
       this.hasMessage = true;
 
-      window.setTimeout(() => {
-        this.message = null;
-        this.messageType = null;
-      }, 3000);
+      window.setTimeout(() => this.hasMessage = false, 5000);
     }
   },
 };
