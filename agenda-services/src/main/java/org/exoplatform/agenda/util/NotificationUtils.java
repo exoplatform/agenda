@@ -1,5 +1,7 @@
 package org.exoplatform.agenda.util;
 
+import java.time.DayOfWeek;
+import java.time.Month;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.*;
@@ -98,15 +100,17 @@ public class NotificationUtils {
   public static final String                         STORED_PARAMETER_EVENT_RESPONSE_DECLINED  = "urlAcceptedDeclined";
 
   public static final String                         STORED_PARAMETER_EVENT_RESPONSE_TENTATIVE = "urlAcceptedTentative";
-  
+
   public static final String                         STORED_PARAMETER_EVENT_ATTENDEES          = "attendees";
-  
+
+  public static final String                         STORED_PARAMETER_EVENT_RECURRENT_DETAILS  = "recurrenceDetails";
+
   private static final String                        TEMPLATE_VARIABLE_EVENT_START_DATE        = "startDate";
 
   private static final String                        TEMPLATE_VARIABLE_EVENT_END_DATE          = "endDate";
-  
+
   private static final String                        TEMPLATE_VARIABLE_EVENT_MONTH_YEAR_DATE   = "monthYearDate";
-  
+
   private static final String                        TEMPLATE_VARIABLE_AGENDA_NAME             = "agendaName";
 
   private static final String                        TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR  = "calendarOwnerAvatarUrl";
@@ -119,12 +123,14 @@ public class NotificationUtils {
 
   public static final String                         TEMPLATE_VARIABLE_EVENT_DESCRIPTION       = "eventDescription";
   
+  public static final String                         TEMPLATE_VARIABLE_EVENT_RECURRENT_DETAILS = "recurrenceDetails";
+
   private static final String                        TEMPLATE_VARIABLE_EVENT_MODIFICATION_TYPE = "modificationType";
 
   private static final String                        TEMPLATE_VARIABLE_EVENT_CREATOR           = "creatorName";
-  
+
   private static final String                        TEMPLATE_VARIABLE_EVENT_ATTENDEES         = "attendees";
-  
+
   private static final String                        TEMPLATE_VARIABLE_RESPONSE_ACCEPTED       = "acceptedResponseURL";
 
   private static final String                        TEMPLATE_VARIABLE_RESPONSE_DECLINED       = "declinedResponseURL";
@@ -132,7 +138,7 @@ public class NotificationUtils {
   private static final String                        TEMPLATE_VARIABLE_RESPONSE_TENTATIVE      = "tentativeResponseURL";
 
   private static final String                        TEMPLATE_VARIABLE_EVENT_MODIFIER          = "modifierName";
-  
+
   private static final String                        TEMPLATE_VARIABLE_MODIFIER_IDENTITY_URL   = "modifierProfileUrl";
 
   private static String                              defaultSite;
@@ -207,8 +213,10 @@ public class NotificationUtils {
                 .with(STORED_PARAMETER_EVENT_END_DATE, AgendaDateUtils.toRFC3339Date((event.getEnd())))
                 .with(STORED_PARAMETER_EVENT_RESPONSE_ACCEPTED, getAcceptedResponseURL(event))
                 .with(STORED_PARAMETER_EVENT_RESPONSE_DECLINED, getDeclinedResponseURL(event))
-                .with(STORED_PARAMETER_EVENT_RESPONSE_TENTATIVE, getTentativeResponseURL(event));
-    
+                .with(STORED_PARAMETER_EVENT_RESPONSE_TENTATIVE, getTentativeResponseURL(event))
+                .with(STORED_PARAMETER_EVENT_RECURRENT_DETAILS, getRecurrenceDetails(event));
+
+
     if (StringUtils.isNotBlank(event.getDescription())) {
       notification.with(STORED_PARAMETER_EVENT_DESCRIPTION, event.getDescription());
     }
@@ -308,13 +316,14 @@ public class NotificationUtils {
     templateContext.put(TEMPLATE_VARIABLE_EVENT_TITLE, getEventTitle(notification));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_LOCATION, getEventLocation(notification));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_DESCRIPTION, getEventDescription(notification));
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_RECURRENT_DETAILS, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_RECURRENT_DETAILS));
 
     String startDateRFC3339 = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_START_DATE);
     String endDateRFC3339 = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_END_DATE);
 
     ZonedDateTime startDate = ZonedDateTime.parse(startDateRFC3339).withZoneSameInstant(timeZone);
     ZonedDateTime endDate = ZonedDateTime.parse(endDateRFC3339).withZoneSameInstant(timeZone);
-    
+
     String dateFormatted = AgendaDateUtils.formatWithYearAndMonth(startDate);
     String startDateFormatted = AgendaDateUtils.formatWithHoursAndMinutes(startDate);
     String endDateFormatted = AgendaDateUtils.formatWithHoursAndMinutes(endDate);
@@ -379,6 +388,62 @@ public class NotificationUtils {
     return notificationURL;
   }
 
+  public static String getRecurrenceDetails(Event event) {
+    EventRecurrence eventRecurrence = event.getRecurrence();
+    if (eventRecurrence != null && eventRecurrence.getFrequency() != null) {
+      switch (eventRecurrence.getFrequency().name()) {
+      case "DAILY":
+        if (eventRecurrence.getInterval() == 1) {
+          return "daily";
+        } else {
+          return "Each " + eventRecurrence.getInterval() + "days";
+        }
+      case "WEEKLY":
+        if (eventRecurrence.getInterval() == 1 && event.getRecurrence().getByDay().size() == 1) {
+          String dayNumber = eventRecurrence.getByDay().get(0);
+          DayOfWeek dayName = DayOfWeek.of(Integer.parseInt(dayNumber));
+          return "Weekly on " + StringUtils.lowerCase(String.valueOf(dayName)) + "";
+        } else if (eventRecurrence.getInterval() == 1 && eventRecurrence.getByDay().size() > 1) {
+          List<String> dayNamesAbbreviations = eventRecurrence.getByDay();
+          return "Weekly on " + AgendaDateUtils.getDayNameFromDayAbbreviation(dayNamesAbbreviations);
+        } else if (eventRecurrence.getByDay().size() == 1) {
+          String dayNumber = eventRecurrence.getByDay().get(0);
+          DayOfWeek dayName = DayOfWeek.of(Integer.parseInt(dayNumber));
+          return "Each Week " + eventRecurrence.getInterval() + " on " + StringUtils.lowerCase(String.valueOf(dayName));
+        } else {
+          List<String> dayNamesAbbreviations = eventRecurrence.getByDay();
+          return "Each Week " + eventRecurrence.getInterval() + " on "
+              + AgendaDateUtils.getDayNameFromDayAbbreviation(dayNamesAbbreviations);
+        }
+      case "MONTHLY":
+        if (eventRecurrence.getInterval() == 1) {
+          String dayNumberMonth = eventRecurrence.getByMonthDay().get(0);
+          return " Monthly on " + dayNumberMonth;
+        } else {
+          String dayNumberMonth = eventRecurrence.getByMonthDay().get(0);
+          return " Each " + eventRecurrence.getInterval() + " month on " + dayNumberMonth;
+        }
+      case "YEARLY":
+        if (eventRecurrence.getInterval() == 1) {
+          String dayNumberInMonth = eventRecurrence.getByMonthDay().get(0);
+          String monthNumber = eventRecurrence.getByMonth().get(0);
+          Month monthName = Month.of(Integer.parseInt(monthNumber));
+          return " Yearly on " + StringUtils.lowerCase(String.valueOf(monthName)) + dayNumberInMonth;
+        } else {
+          String dayNumberInMonth = eventRecurrence.getByMonthDay().get(0);
+          String monthNumber = eventRecurrence.getByMonth().get(0);
+          Month monthName = Month.of(Integer.parseInt(monthNumber));
+          return " Each " + eventRecurrence.getInterval() + " years on " + StringUtils.lowerCase(String.valueOf(monthName)) + " "
+              + dayNumberInMonth;
+        }
+      default:
+        return "";
+      }
+    } else {
+      return "";
+    }
+  }
+
   private static final void setIdentityNameAndAvatar(NotificationInfo notification, TemplateContext templateContext) {
     String ownerId = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_OWNER_ID);
     IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
@@ -388,7 +453,7 @@ public class NotificationUtils {
       templateContext.put(TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR, avatarUrl);
     }
   }
-  
+
   private static final void setSpaceName(NotificationInfo notification, TemplateContext templateContext) {
     String ownerId = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_OWNER_ID);
     IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);

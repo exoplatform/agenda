@@ -137,24 +137,79 @@
                                     <table border="0" cellpadding="0" cellspacing="0" width="100%"  align="left">
                                         <tbody>
                                         <tr>
-                                            <td style="color:#999999; font-size:13px;font-family:HelveticaNeue,arial,tahoma,serif"><%=_ctx.appRes("Notification.agenda.event.space.name")%></td>
+                                            <td style="color:#999999; font-size:13px;font-family:HelveticaNeue,arial,tahoma,serif; font-weight:bold"><%=_ctx.appRes("Notification.agenda.event.space.name")%></td>
                                             <td align="left"><%= agendaName %></td>
                                         </tr>
                                         <tr>
-                                            <td style="color:#999999; font-size:13px;font-family:HelveticaNeue,arial,tahoma,serif"><%=_ctx.appRes("Notification.agenda.event.date")%></td>
+                                            <td style="color:#999999; font-size:13px;font-family:HelveticaNeue,arial,tahoma,serif; font-weight:bold"><%=_ctx.appRes("Notification.agenda.event.date")%></td>
                                             <td align="left" ><%= _ctx.appRes("Notification.agenda.event.mail.body.date", monthYearDate, startDate, endDate) %></td>
                                         </tr>
                                         <tr>
-                                            <td style="color:#999999; font-size:13px;font-family:HelveticaNeue,arial,tahoma,serif"><%=_ctx.appRes("Notification.agenda.event.location")%></td>
+                                            <td style="color:#999999; font-size:13px;font-family:HelveticaNeue,arial,tahoma,serif; font-weight:bold"></td>
+                                            <td align="left" style="color:#999999; font-size:11px;font-family:HelveticaNeue,arial,tahoma,serif" ><%= recurrenceDetails %></td>
+                                        </tr>
+                                        <tr>
+                                            <td style="color:#999999; font-size:13px;font-family:HelveticaNeue,arial,tahoma,serif; font-weight:bold"><%=_ctx.appRes("Notification.agenda.event.location")%></td>
                                             <td align="left"><%= eventLocation %></td>
                                         </tr>
                                         <tr>
-                                            <td style="color:#999999; font-size:13px;font-family:HelveticaNeue,arial,tahoma,serif"><%=_ctx.appRes("Notification.agenda.event.description")%></td>
+                                            <td style="color:#999999; font-size:13px;font-family:HelveticaNeue,arial,tahoma,serif;font-weight:bold"><%=_ctx.appRes("Notification.agenda.event.description")%></td>
                                             <td align="left"><%= eventDescription %></td>
                                         </tr>
                                         <tr>
-                                            <td style="color:#999999; font-size:13px;font-family:HelveticaNeue,arial,tahoma,serif"><%=_ctx.appRes("Notification.agenda.event.attendees")%></td>
+                                            <td style="color:#999999; font-size:13px;font-family:HelveticaNeue,arial,tahoma,serif; font-weight:bold"><%=_ctx.appRes("Notification.agenda.event.attendees")%></td>
                                             <td align="left"><%= attendees %></td>
+                                        </tr>
+                                        <tr>
+                                            <td style="color:#999999; font-size:13px;font-family:HelveticaNeue,arial,tahoma,serif; font-weight:bold">
+                                                <%
+                                                if (org.apache.commons.lang.StringUtils.isNotBlank(recurrenceDetails)) { %>
+                                                   <%=_ctx.appRes("Notification.agenda.event.participate.recurrentEvent")%>
+                                                <% } %>
+                                            </td>
+                                            <td align="left">
+                                                <a target="_blank" style="
+                                                    display: inline-block;
+                                                    text-decoration: none;
+                                                    font-size: 11px;
+                                                    font-family:HelveticaNeue,arial,tahoma,serif;
+                                                    color: #333333;
+                                                    padding: 5px 8px;
+                                                    line-height: 100%;
+                                                    text-align: center;
+                                                    vertical-align: middle;"
+                                                   href="<%= acceptedResponseURL %>">
+                                                    <%= _ctx.appRes("Notification.agenda.event.accepted") %>
+                                                </a>
+
+                                                <a target="_blank" style="
+                                                    display: inline-block;
+                                                    text-decoration: none;
+                                                    font-size: 11px;
+                                                    font-family:HelveticaNeue,arial,tahoma,serif;
+                                                    color: #333333;
+                                                    padding: 5px 8px;
+                                                    line-height: 100%;
+                                                    text-align: center;
+                                                    vertical-align: middle;"
+                                                   href="<%= declinedResponseURL %>">
+                                                    <%= _ctx.appRes("Notification.agenda.event.declined") %>
+                                                </a>
+
+                                                <a target="_blank" style="
+                                                    display: inline-block;
+                                                    text-decoration: none;
+                                                    font-size: 11px;
+                                                    font-family:HelveticaNeue,arial,tahoma,serif;
+                                                    color: #333333;
+                                                    padding: 5px 8px;
+                                                    line-height: 100%;
+                                                    text-align: center;
+                                                    vertical-align: middle;"
+                                                   href="<%= tentativeResponseURL %>">
+                                                    <%= _ctx.appRes("Notification.agenda.event.tentative") %>
+                                                </a>
+                                            </td>
                                         </tr>
                                         </tbody>
                                     </table>
