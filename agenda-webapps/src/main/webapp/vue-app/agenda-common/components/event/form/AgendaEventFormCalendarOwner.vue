@@ -58,7 +58,7 @@ export default {
     },
   },
   mounted() {
-    this.$root.$on('agenda-event-form-opened', () => {
+    this.$root.$once('agenda-event-form-opened', () => {
       this.$nextTick().then(() => this.reset());
     });
   },

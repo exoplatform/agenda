@@ -125,13 +125,26 @@ export default {
     connectedConnectorSignedOut() {
       return this.connectedConnector && !this.connectedConnector.isSignedIn && !this.connectedConnector.loading && !this.loading;
     },
+    connectorStatus() {
+      if (this.connectedConnector) {
+        if (this.connectedConnector.isSignedIn) {
+          return 1;
+        } else {
+          return 2;
+        }
+      } else {
+        return 0;
+      }
+    },
+  },
+  watch: {
+    connectorStatus() {
+      this.refreshRemoteEvents();
+    }
   },
   created() {
-    this.$root.$on('agenda-event-details-opened', () => {
-      this.$root.$emit('agenda-connectors-init');
-      this.refreshRemoteEvents();
-    });
-    this.$root.$on('agenda-connector-connected', this.retrieveRemoteEvents);
+    this.$root.$emit('agenda-connectors-init');
+    this.refreshRemoteEvents();
   },
   methods: {
     openPersonalCalendarDrawer() {

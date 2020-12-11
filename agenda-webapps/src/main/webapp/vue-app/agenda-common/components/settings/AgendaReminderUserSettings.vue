@@ -2,7 +2,10 @@
   <v-list
     class="flex-grow-1 d-flex flex-column pa-0"
     dense>
-    <v-list-item v-if="!reminders || !reminders.length" class="px-0 reminder-list-item" dense>
+    <v-list-item
+      v-if="!reminders || !reminders.length"
+      class="px-0 reminder-list-item"
+      dense>
       <label class="text-sub-title font-italic mx-auto">
         {{ $t('agenda.noRemindersYet') }}
       </label>
@@ -12,7 +15,10 @@
       :key="index"
       :reminder="reminder"
       @remove="removeReminder(reminder)" />
-    <v-list-item v-if="canAddReminder" class="pl-0 my-auto reminder-list-item" dense>
+    <v-list-item
+      v-if="canAddReminder"
+      class="pl-0 my-auto reminder-list-item"
+      dense>
       <a class="text-subtitle-1 font-weight-regular add-notification-link" @click="addReminder">
         {{ $t('agenda.addReminder') }}
       </a>
