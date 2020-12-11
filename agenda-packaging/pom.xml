@@ -37,6 +37,11 @@
       <artifactId>ical4j</artifactId>
       <scope>provided</scope>
     </dependency>
+    <dependency>
+      <groupId>javax.cache</groupId>
+      <artifactId>cache-api</artifactId>
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
   <build>
     <finalName>agenda-addon</finalName>
