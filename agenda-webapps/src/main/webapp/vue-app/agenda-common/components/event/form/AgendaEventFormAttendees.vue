@@ -71,12 +71,8 @@ export default {
       this.invitedAttendee = null;
     },
   },
-  created() {
-    this.$root.$on('agenda-event-form-opened', () => {
-      this.reset();
-    });
-  },
   mounted(){
+    this.reset();
     this.$userService.getUser(eXo.env.portal.userName).then(user => {
       this.currentUser = user;
     });

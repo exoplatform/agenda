@@ -141,11 +141,6 @@ export default {
       return this.stepper === 2 ? this.$t('agenda.button.save') : this.$t('agenda.button.continue');
     },
   },
-  created() {
-    this.$root.$on('agenda-event-form', () => {
-      this.reset();
-    });
-  },
   mounted() {
     this.reset();
   },
