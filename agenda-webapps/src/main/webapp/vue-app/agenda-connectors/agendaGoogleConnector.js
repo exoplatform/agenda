@@ -1,3 +1,5 @@
+import {pad} from '../agenda-common/js/AgendaUtils';
+
 export default {
   name: 'agenda.googleCalendar',
   description: 'agenda.googleCalendar.description',
@@ -139,19 +141,31 @@ export default {
         timeZone: event.timeZoneId
       };
     }
-    eventToSynchronize.start = {
-      dateTime: event.start,
-      timeZone: event.timeZoneId
-    };
-    eventToSynchronize.end = {
-      dateTime: event.end,
-      timeZone: event.timeZoneId
-    };
-    const eventDetailsPath = `${window.location.origin}${window.location.pathname}`;
-    eventToSynchronize.source = {
-      title: this.user,
-      url: eventDetailsPath
-    };
+    if(event.allDay) {
+      eventToSynchronize.start = {
+        date: event.start,
+      };
+    } else {
+      eventToSynchronize.start = {
+        dateTime: event.start,
+        timeZone: event.timeZoneId
+      };
+    }
+    if(event.allDay) {
+      const endDate = new Date(event.end);
+      endDate.setDate(endDate.getDate() +1);
+      const formattedEndDate = `${endDate.getFullYear()  }-${
+        pad(endDate.getMonth() + 1)  }-${
+        pad(endDate.getDate())}`;
+      eventToSynchronize.end = {
+        date: formattedEndDate
+      };
+    } else {
+      eventToSynchronize.end = {
+        dateTime: event.end,
+        timeZone: event.timeZoneId
+      };
+    }
     eventToSynchronize.description = event.description;
     eventToSynchronize.summary = event.summary;
     eventToSynchronize.location = event.location;
