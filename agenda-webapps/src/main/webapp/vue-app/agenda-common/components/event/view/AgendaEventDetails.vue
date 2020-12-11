@@ -6,10 +6,11 @@
     <agenda-event-details-mobile-toolbar
       v-if="isMobile"
       :event="event"
+      :connected-connector="connectedConnector"
       @close="$emit('close')"
       @edit="$root.$emit('agenda-event-form', event)"
       @delete="deleteConfirmDialog"
-      @synchronize="synchronizeEvent" />
+      @synchronize="synchronizeConfirmDialog" />
     <agenda-event-details-toolbar
       v-else
       :event="event"
@@ -18,6 +19,8 @@
       @edit="$root.$emit('agenda-event-form', event)"
       @delete="deleteConfirmDialog"
       @synchronize="synchronizeConfirmDialog" />
+
+    <slot name="top-bar-message"></slot>
 
     <v-divider class="flex-grow-0" />
 

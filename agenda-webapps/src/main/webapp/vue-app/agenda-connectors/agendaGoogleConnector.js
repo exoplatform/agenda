@@ -6,7 +6,8 @@ export default {
   avatar: '/agenda/skin/images/Google.png',
   CLIENT_ID: '694838797844-h0q657all0v8cq66p9nume6mti6cll4o.apps.googleusercontent.com',
   DISCOVERY_DOCS: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
-  SCOPES: 'https://www.googleapis.com/auth/calendar.readonly',
+  SCOPE_READONLY: 'https://www.googleapis.com/auth/calendar.readonly',
+  SCOPE_WRITE: 'https://www.googleapis.com/auth/calendar',
   canConnect: true,
   initialized: false,
   isSignedIn: false,
@@ -19,51 +20,7 @@ export default {
     this.connectionStatusChangedCallback = connectionStatusChangedCallback;
     this.loadingCallback = loadingCallback;
 
-    const self_ = this;
-    // Called when the signed in status changes, to update the UI
-    // appropriately. After a sign-in, the API is called.
-    function updateSigninStatus(isSignedIn) {
-      self_.isSignedIn = isSignedIn;
-      try {
-        if (isSignedIn) {
-          const currentUser = self_.gapi.auth2.getAuthInstance().currentUser.get();
-          connectionStatusChangedCallback(self_, {
-            user: currentUser.getBasicProfile().getEmail(),
-            id: currentUser.getId(),
-          });
-        } else {
-          self_.connectionStatusChangedCallback(self_, false);
-        }
-      } finally {
-        self_.loadingCallback(self_, false);
-      }
-    }
-
-    this.loadingCallback(this, true);
-    window.require(['https://apis.google.com/js/api.js'], () => {
-      this.gapi = gapi;
-      this.gapi.load('client:auth2', function() {
-        gapi.client.init({
-          clientId: self_.CLIENT_ID,
-          discoveryDocs: self_.DISCOVERY_DOCS,
-          scope: self_.SCOPES,
-        }).then(function () {
-
-          // Listen for sign-in state changes.
-          gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
-
-          // Handle the initial sign-in state.
-          updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
-        }, function(error) {
-          self_.loadingCallback(self_, false);
-          self_.connectionStatusChangedCallback(self_, false, error);
-        });
-      });
-    }, (error) => {
-      self_.canConnect = false;
-      self_.loadingCallback(self_, false);
-      console.error('Error retrieving Google API Javascript', error);
-    });
+    initGoogleConnector(this);
   },
   connect() {
     this.loadingCallback(this, true);
@@ -88,7 +45,7 @@ export default {
         events.forEach(event => {
           event.allDay = !!event.start.date;
           event.start = event.start.dateTime || event.start.date;
-          //Google api returns all day event with one day added for end date.
+          // Google api returns all day event with one day added for end date.
           const endDate = new Date(event.end.date);
           endDate.setDate(endDate.getDate()-1);
           event.end = event.allDay ? endDate : event.end.dateTime;
@@ -106,69 +63,173 @@ export default {
       return Promise.resolve(null);
     }
   },
-  synchronizeEvent(event) {
-    if (this.gapi && this.gapi.client && this.gapi.client.calendar) {
+  synchronizeEvent(event, connectorRecurringEventId) {
+    if (this.gapi && this.gapi.auth2.getAuthInstance()) {
+      const currentUser = this.gapi.auth2.getAuthInstance().currentUser.get();
+
       this.loadingCallback(this, true);
-      if (event && event.start || event.end) {
-        const eventToSynchronize = this.formatEventToSynchronize(event);
-        return this.gapi.client.calendar.events.insert({
-          'calendarId': 'primary',
-          'resource': eventToSynchronize
-        }).then(resp => {
-          if (resp && resp.result) {
-            const synchronizedEvent = resp.result;
-            synchronizedEvent.agendaId = event.id;
-            return synchronizedEvent;
-          }
-        }).catch(e => {
-          this.loadingCallback(this, false);
-          throw new Error(e);
+      return new Promise((resolve, reject) => {
+        return currentUser.grant({
+          scope: this.SCOPE_WRITE
+        }).then(
+          () => pushEventToGoogle(this, event, connectorRecurringEventId)
+            .then(gEvent => {
+              this.loadingCallback(this, false);
+              resolve(gEvent);
+            })
+            .catch(error => {
+              this.loadingCallback(this, false);
+              reject(error);
+            })
+          ,
+          (error) => {
+            this.loadingCallback(this, false);
+            reject(error);
+          })
+          .catch(error => {
+            this.loadingCallback(this, false);
+            reject(error);
+          });
+      });
+    }
+    return Promise.reject(new Error('Not connected'));
+  },
+};
+
+/**
+ * Load Google Connector API javascript and prepare user authentication and
+ * authorization process
+ * 
+ * @param {Object}
+ *          connector Google Connector SPI
+ * @returns {void}
+ */
+function initGoogleConnector(connector) {
+  // Called when the signed in status changes, to update the UI
+  // appropriately. After a sign-in, the API is called.
+  function updateSigninStatus(isSignedIn) {
+    connector.isSignedIn = isSignedIn;
+    try {
+      if (isSignedIn) {
+        const currentUser = connector.gapi.auth2.getAuthInstance().currentUser.get();
+        connector.connectionStatusChangedCallback(connector, {
+          user: currentUser.getBasicProfile().getEmail(),
+          id: currentUser.getId(),
         });
       } else {
-        return Promise.resolve(null);
+        connector.connectionStatusChangedCallback(connector, false);
       }
+    } finally {
+      connector.loadingCallback(connector, false);
     }
-  },
-  formatEventToSynchronize(event) {
-    const eventToSynchronize = {};
-    if (event.recurrence) {
-      eventToSynchronize.recurrence = [`RRULE:${event.recurrence.rrule}`];
-    }
-    if(event.recurringEventId) {
-      eventToSynchronize.recurringEventId = event.recurringEventId;
-      eventToSynchronize.originalStartTime = {
-        dateTime: event.occurrence.id,
-        timeZone: event.timeZoneId
-      };
-    }
-    if(event.allDay) {
-      eventToSynchronize.start = {
-        date: event.start,
-      };
-    } else {
-      eventToSynchronize.start = {
-        dateTime: event.start,
-        timeZone: event.timeZoneId
-      };
-    }
-    if(event.allDay) {
-      const endDate = new Date(event.end);
-      endDate.setDate(endDate.getDate() +1);
-      const formattedEndDate = `${endDate.getFullYear()  }-${
-        pad(endDate.getMonth() + 1)  }-${
-        pad(endDate.getDate())}`;
-      eventToSynchronize.end = {
-        date: formattedEndDate
-      };
-    } else {
-      eventToSynchronize.end = {
-        dateTime: event.end,
-        timeZone: event.timeZoneId
-      };
-    }
-    eventToSynchronize.description = event.description;
-    eventToSynchronize.summary = event.summary;
-    eventToSynchronize.location = event.location;
-    return eventToSynchronize;
   }
-};
+
+  connector.loadingCallback(connector, true);
+  window.require(['https://apis.google.com/js/api.js'], () => {
+    connector.gapi = gapi;
+    connector.gapi.load('client:auth2', function() {
+      gapi.client.init({
+        clientId: connector.CLIENT_ID,
+        discoveryDocs: connector.DISCOVERY_DOCS,
+        scope: connector.SCOPE_READONLY,
+      }).then(function () {
+        // Listen for sign-in state changes.
+        gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
+
+        // Handle the initial sign-in state.
+        updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
+      }, function(error) {
+        connector.loadingCallback(connector, false);
+        connector.connectionStatusChangedCallback(connector, false, error);
+      });
+    });
+  }, (error) => {
+    connector.canConnect = false;
+    connector.loadingCallback(connector, false);
+    console.error('Error retrieving Google API Javascript', error);
+  });
+}
+
+/**
+ * Push event into Google account
+ * 
+ * @param {Object}
+ *          connector Google Connector SPI
+ * @param {Object}
+ *          event Agenda event
+ * @param {String}
+ *          connectorRecurringEventId Connector parent recurrent event
+ *          Identifier
+ * @returns {void}
+ */
+function pushEventToGoogle(connector, event, connectorRecurringEventId) {
+  const eventToSynchronize = buildEventToSynchronize(event, connectorRecurringEventId);
+  const pushMethod = event.remoteId && event.remoteProviderId === connector.technicalId ?
+    connector.gapi.client.calendar.events.update:
+    connector.gapi.client.calendar.events.insert;
+  return pushMethod({
+    'calendarId': 'primary',
+    'resource': eventToSynchronize
+  }).then(resp => {
+    if (resp && resp.result) {
+      const synchronizedEvent = resp.result;
+      synchronizedEvent.agendaId = event.id;
+      return synchronizedEvent;
+    }
+  }).catch(e => {
+    throw new Error(e);
+  });
+}
+
+/**
+ * Build event to push into Google
+ * 
+ * @param {Object}
+ *          event Agenda Event object
+ * @param {String}
+ *          connectorRecurringEventId Connector parent recurrent event
+ *          Identifier
+ * @returns {void}
+ */
+function buildEventToSynchronize(event, connectorRecurringEventId) {
+  const eventToSynchronize = {};
+  if (event.recurrence) {
+    eventToSynchronize.recurrence = [`RRULE:${event.recurrence.rrule}`];
+  }
+  if(connectorRecurringEventId) {
+    eventToSynchronize.recurringEventId = connectorRecurringEventId;
+    eventToSynchronize.originalStartTime = {
+      dateTime: event.occurrence.id,
+      timeZone: event.timeZoneId
+    };
+  }
+  if(event.allDay) {
+    eventToSynchronize.start = {
+      date: event.start,
+    };
+  } else {
+    eventToSynchronize.start = {
+      dateTime: event.start,
+      timeZone: event.timeZoneId
+    };
+  }
+  if(event.allDay) {
+    const endDate = new Date(event.end);
+    endDate.setDate(endDate.getDate() +1);
+    const formattedEndDate = `${endDate.getFullYear()  }-${
+      pad(endDate.getMonth() + 1)  }-${
+      pad(endDate.getDate())}`;
+    eventToSynchronize.end = {
+      date: formattedEndDate
+    };
+  } else {
+    eventToSynchronize.end = {
+      dateTime: event.end,
+      timeZone: event.timeZoneId
+    };
+  }
+  eventToSynchronize.description = event.description;
+  eventToSynchronize.summary = event.summary;
+  eventToSynchronize.location = event.location;
+  return eventToSynchronize;
+}

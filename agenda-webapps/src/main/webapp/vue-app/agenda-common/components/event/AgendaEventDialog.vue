@@ -47,7 +47,17 @@
         :event="event"
         :weekdays="weekdays"
         :connectors="connectors"
-        @close="close" />
+        @close="close">
+        <template slot="top-bar-message">
+          <v-alert
+            v-model="hasMessage"
+            :type="messageType"
+            class="mb-0"
+            dismissible>
+            {{ message }}
+          </v-alert>
+        </template>
+      </agenda-event-details>
     </template>
   </v-dialog>
 </template>
@@ -85,6 +95,9 @@ export default {
       dialog: false,
       saving: false,
       event: null,
+      hasMessage: null,
+      message: null,
+      messageType: null,
       originalEventString: null,
       isForm: false,
     };
@@ -182,8 +195,22 @@ export default {
         this.$root.$emit('agenda-refresh');
       }
     });
-    this.$root.$on('agenda-remote-event-synchronized', (synchronizedEvent) => {
-      this.updateEvent(synchronizedEvent);
+    this.$root.$on('agenda-remote-event-synchronized', () => {
+      this.displayMessage('success', this.$t('agenda.eventSynchronizationSuccess'));
+      if (this.event) {
+        const eventId = this.event.id;
+        const parentId = this.event.parent && this.event.parent.id || 0;
+        const occurrenceId = this.event.occurrence && this.event.occurrence.id;
+        if (eventId) {
+          this.openEventDetails(eventId);
+        } else if (parentId && occurrenceId) {
+          this.openEventDetails(parentId, occurrenceId);
+        }
+      }
+    });
+    this.$root.$on('agenda-remote-event-synchronize-error', (event, error) => {
+      console.error('Error synchronizing event', error);
+      this.displayMessage('error', this.$t('agenda.errorSynchronizingEvent'));
     });
   },
   methods: {
@@ -280,19 +307,16 @@ export default {
       this.dialog = false;
       window.history.replaceState('', window.document.title, window.location.pathname);
     },
-    updateEvent(synchronizedEvent) {
-      if(synchronizedEvent && synchronizedEvent.id) {
-        const eventToUpdate = synchronizedEvent.recurrence ? this.event.parent : this.event;
-        if (eventToUpdate.id) {
-          this.$eventService.updateEventField(eventToUpdate, 'remoteId', synchronizedEvent.id, false);
-          this.$eventService.updateEventField(eventToUpdate, 'remoteProviderId', synchronizedEvent.id, false);
-        } else {
-          eventToUpdate.remoteId =  synchronizedEvent.id;
-          eventToUpdate.remoteProviderId = this.connectedConnector.technicalId;
-          this.$eventService.createEvent(eventToUpdate);
-        }
-      }
-    },
+    displayMessage(type, message) {
+      this.messageType = type;
+      this.message = message;
+      this.hasMessage = true;
+
+      window.setTimeout(() => {
+        this.message = null;
+        this.messageType = null;
+      }, 3000);
+    }
   },
 };
 </script>
