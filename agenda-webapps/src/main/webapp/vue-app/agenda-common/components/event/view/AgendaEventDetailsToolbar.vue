@@ -45,7 +45,7 @@
               {{ $t('agenda.details.header.menu.delete') }}
             </v-list-item-title>
           </v-list-item>
-          <v-list-item @click="$emit('synchronize')">
+          <v-list-item v-if="connectedConnector" @click="$emit('synchronize')">
             <v-list-item-title :title="$t('agenda.tooltip.synchronizeEvent')">
               {{ $t('agenda.details.header.menu.synchronize') }}
             </v-list-item-title>
@@ -71,6 +71,10 @@ export default {
     event: {
       type: Object,
       default: () => ({})
+    },
+    connectedConnector: {
+      type: Object,
+      default: () => null
     },
   },
   computed: {
