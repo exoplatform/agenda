@@ -31,6 +31,7 @@ import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.plugin.RemoteProviderDefinitionPlugin;
 import org.exoplatform.agenda.search.AgendaSearchConnector;
 import org.exoplatform.agenda.storage.AgendaEventStorage;
+import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.container.ExoContainerContext;
@@ -248,7 +249,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
     long calendarId = event.getCalendarId();
     if (calendarId <= 0) {
-      throw new IllegalArgumentException("Event calendar must be positive");
+      throw new IllegalArgumentException("Event calendar id must be positive");
     }
     if (event.getStart() == null) {
       throw new AgendaException(AgendaExceptionType.EVENT_START_DATE_MANDATORY);
@@ -486,7 +487,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
     long calendarId = event.getCalendarId();
     if (calendarId <= 0) {
-      throw new IllegalArgumentException("Event calendar must be positive");
+      throw new IllegalArgumentException("Event calendar id must be positive");
     }
     if (event.getStart() == null) {
       throw new AgendaException(AgendaExceptionType.EVENT_START_DATE_MANDATORY);
@@ -597,6 +598,156 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     Utils.broadcastEvent(listenerService, Utils.POST_UPDATE_AGENDA_EVENT_EVENT, eventId, 0);
 
     return updatedEvent;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void updateEventField(long eventId,
+                               String fieldName,
+                               String fieldValue,
+                               boolean updateAllOccurrences,
+                               boolean sendInvitations,
+                               String username) throws IllegalAccessException, ObjectNotFoundException, AgendaException {
+    if (StringUtils.isBlank(username)) {
+      throw new IllegalArgumentException("username is null");
+    }
+    if (StringUtils.isBlank(fieldName)) {
+      throw new IllegalArgumentException("fieldName is null");
+    }
+    if (eventId <= 0) {
+      throw new IllegalArgumentException("Event id must not be null");
+    }
+    Event event = getEventById(eventId);
+    if (event == null) {
+      throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
+    }
+
+    Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+    if (userIdentity == null) {
+      throw new IllegalAccessException("User '" + username + "' doesn't exist");
+    }
+
+    if (!canUpdateEvent(event, username)) {
+      throw new IllegalAccessException("User '" + username + "' can't update event " + eventId);
+    }
+
+    switch (fieldName) {
+      case "calendarId":
+        long calendarId = Long.parseLong(fieldValue);
+        if (calendarId <= 0) {
+          throw new IllegalArgumentException("Event calendar id must be positive");
+        }
+        Calendar calendar = agendaCalendarService.getCalendarById(calendarId);
+        if (calendar == null) {
+          throw new IllegalArgumentException("Event calendar with id " + calendarId + " wasn't found");
+        }
+        event.setCalendarId(calendarId);
+        break;
+      case "remoteId":
+        event.setRemoteId(fieldValue);
+        break;
+      case "remoteProviderId":
+        if (StringUtils.isBlank(fieldValue)) {
+          event.setRemoteProviderId(0);
+        } else {
+          long remoteProviderId = Long.parseLong(fieldValue);
+          if (remoteProviderId < 0) {
+            throw new IllegalArgumentException("Remote Event provider id must be positive");
+          }
+          RemoteProvider remoteProvider = agendaEventStorage.getRemoteProviderById(remoteProviderId);
+          if (remoteProvider == null) {
+            throw new IllegalArgumentException("Remote Event provider with id " + remoteProviderId + "  wasn't found");
+          }
+          event.setRemoteProviderId(remoteProviderId);
+        }
+        break;
+      case "summary":
+        event.setSummary(fieldValue);
+        break;
+      case "description":
+        event.setDescription(fieldValue);
+        break;
+      case "location":
+        event.setLocation(fieldValue);
+        break;
+      case "color":
+        event.setColor(fieldValue);
+        break;
+      case "timeZoneId":
+        if (StringUtils.isBlank(fieldValue)) {
+          throw new IllegalArgumentException("Event timeZoneId is mandatory");
+        }
+        event.setTimeZoneId(ZoneId.of(fieldValue));
+        break;
+      case "start":
+        if (StringUtils.isBlank(fieldValue)) {
+          throw new AgendaException(AgendaExceptionType.EVENT_START_DATE_MANDATORY);
+        }
+        ZonedDateTime startDate = event.isAllDay() ? AgendaDateUtils.parseAllDayDateToZonedDateTime(fieldValue)
+                                                   : AgendaDateUtils.parseRFC3339ToZonedDateTime(fieldValue,
+                                                                                                 event.getTimeZoneId(),
+                                                                                                 false);
+        event.setStart(startDate);
+        if (event.getStart().isAfter(event.getEnd())) {
+          throw new AgendaException(AgendaExceptionType.EVENT_START_DATE_BEFORE_END_DATE);
+        }
+        break;
+      case "end":
+        if (StringUtils.isBlank(fieldValue)) {
+          throw new AgendaException(AgendaExceptionType.EVENT_END_DATE_MANDATORY);
+        }
+        ZonedDateTime endDate = event.isAllDay() ? AgendaDateUtils.parseAllDayDateToZonedDateTime(fieldValue)
+                                                 : AgendaDateUtils.parseRFC3339ToZonedDateTime(fieldValue,
+                                                                                               event.getTimeZoneId(),
+                                                                                               false);
+        event.setEnd(endDate);
+        if (event.getStart().isAfter(event.getEnd())) {
+          throw new AgendaException(AgendaExceptionType.EVENT_START_DATE_BEFORE_END_DATE);
+        }
+        break;
+      case "allDay":
+        boolean allDay = Boolean.parseBoolean(fieldValue);
+        event.setAllDay(allDay);
+        break;
+      case "availability":
+        if (StringUtils.isBlank(fieldValue)) {
+          event.setAvailability(EventAvailability.DEFAULT);
+        } else {
+          event.setAvailability(EventAvailability.valueOf(fieldValue.toUpperCase()));
+        }
+        break;
+      case "status":
+        if (StringUtils.isBlank(fieldValue)) {
+          event.setStatus(EventStatus.CONFIRMED);
+        } else {
+          event.setStatus(EventStatus.valueOf(fieldValue.toUpperCase()));
+        }
+        break;
+      case "allowAttendeeToUpdate":
+        event.setAllowAttendeeToUpdate(Boolean.parseBoolean(fieldValue));
+        break;
+      case "allowAttendeeToInvite":
+        event.setAllowAttendeeToInvite(Boolean.parseBoolean(fieldValue));
+        break;
+      default:
+        throw new UnsupportedOperationException();
+    }
+
+    // Delete exceptional occurrences when updating the whole recurrent event
+    if (updateAllOccurrences && event.getRecurrence() != null) {
+      agendaEventStorage.deleteExceptionalOccurences(event.getId());
+    }
+
+    event.setModifierId(Long.parseLong(userIdentity.getId()));
+    agendaEventStorage.updateEvent(event);
+
+    if (sendInvitations) {
+      attendeeService.sendInvitations(eventId, EventModificationType.UPDATED);
+    }
+
+    Utils.broadcastEvent(listenerService, Utils.POST_UPDATE_AGENDA_EVENT_EVENT, eventId, 0);
   }
 
   /**
