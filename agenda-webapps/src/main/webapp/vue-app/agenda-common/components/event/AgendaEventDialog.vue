@@ -5,7 +5,7 @@
     persistent
     fullscreen
     hide-overlay>
-    <template v-if="event">
+    <template v-if="event && dialog">
       <template v-if="isForm">
         <agenda-event-mobile-form
           v-if="isMobile"
@@ -104,6 +104,9 @@ export default {
         cancel: this.$t('agenda.button.cancel'),
       };
     },
+    connectedConnector() {
+      return this.connectors && this.connectors.find(connector => connector.connected);
+    },
   },
   watch: {
     dialog() {
@@ -162,6 +165,23 @@ export default {
     this.$root.$on('agenda-event-deleted', this.close);
     this.$root.$on('agenda-event-save', () => this.saving = true);
     this.$root.$on('agenda-event-saved', this.close);
+    this.$root.$on('agenda-event-response-sent', () => {
+      if (!this.event) {
+        return;
+      }
+      const retrieveEventDetailsPromise = this.event.occurrence && this.event.occurrence.id ? this.$eventService.getEventOccurrence(this.event.parent.id, this.event.occurrence.id, 'all') : this.$eventService.getEventById(this.event.id, 'all');
+      retrieveEventDetailsPromise
+        .then(event => this.event = event)
+        .finally(() => {
+          this.$root.$emit('agenda-event-response-updated');
+        });
+    });
+    this.$root.$on('agenda-event-reminders-saved', (event, occurrenceId, reminders) => {
+      this.event.reminders = reminders;
+      if (event.id && !this.event.id) {
+        this.$root.$emit('agenda-refresh');
+      }
+    });
   },
   methods: {
     closeByEscape(event) {
