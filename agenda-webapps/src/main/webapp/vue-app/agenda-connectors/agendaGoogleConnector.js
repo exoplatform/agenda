@@ -9,7 +9,7 @@ export default {
   canConnect: true,
   initialized: false,
   isSignedIn: false,
-  hasSynchronizedEvent: false,
+  synchronizing: false,
   init(connectionStatusChangedCallback, loadingCallback) {
     // Already initialized
     if (this.initialized) {
@@ -66,12 +66,11 @@ export default {
     if (this.gapi && this.gapi.auth2.getAuthInstance()) {
       const currentUser = this.gapi.auth2.getAuthInstance().currentUser.get();
 
-      this.hasSynchronizedEvent = false;
+      this.synchronizing = true;
       return new Promise((resolve, reject) => {
         if (currentUser.hasGrantedScopes(this.SCOPE_WRITE)) {
           pushEventToGoogle(this, event, connectorRecurringEventId)
             .then(gEvent => {
-              this.hasSynchronizedEvent = true;
               resolve(gEvent);
             })
             .catch(error => reject(error));
@@ -81,7 +80,6 @@ export default {
           }).then(
             () => pushEventToGoogle(this, event, connectorRecurringEventId)
               .then(gEvent => {
-                this.hasSynchronizedEvent = true;
                 resolve(gEvent);
               })
               .catch(error => reject(error))
@@ -89,7 +87,12 @@ export default {
             (error) => reject(error)
           ).catch(error => reject(error));
         }
-      });
+      })
+        .then(() => this.synchronizing = false)
+        .catch(e => {
+          this.synchronizing = false;
+          throw e;
+        });
     }
     return Promise.reject(new Error('Not connected'));
   },
@@ -221,10 +224,12 @@ function pushEventToGoogle(connector, event, connectorRecurringEventId) {
     .then(data => {
       const remoteConnectorEventResult = data && data.result;
       let remoteConnectorEvent = null;
-      if (remoteConnectorEventResult.items) {
-        remoteConnectorEvent = remoteConnectorEventResult.items.length && remoteConnectorEventResult.items[0];
-      } else if (remoteConnectorEventResult.id) {
-        remoteConnectorEvent = remoteConnectorEventResult;
+      if (remoteConnectorEventResult) {
+        if (remoteConnectorEventResult.items) {
+          remoteConnectorEvent = remoteConnectorEventResult.items.length && remoteConnectorEventResult.items[0];
+        } else if (remoteConnectorEventResult.id) {
+          remoteConnectorEvent = remoteConnectorEventResult;
+        }
       }
       const pushMethod = isDeleteEvent ?
         connector.gapi.client.calendar.events.delete
@@ -316,7 +321,7 @@ function buildConnectorEvent(event, connectorRecurringEventId) {
   }
   connectorEvent.description = event.description;
   connectorEvent.summary = event.summary;
-  connectorEvent.location = event.location;
+  connectorEvent.location = event.location || (event.conferences && event.conferences.length && event.conferences[0].url) || '';
   return connectorEvent;
 }
 
