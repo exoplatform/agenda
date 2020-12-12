@@ -29,11 +29,11 @@
           @click="openPersonalCalendarDrawer">
           {{ $t('agenda.connectYourPersonalAgendaSubTitle') }}
         </a>
-        <template v-if="loading || (connectedConnector && connectedConnector.loading)">
+        <template v-if="loading || connectedConnectorLoading">
           <v-progress-linear indeterminate />
         </template>
         <template v-if="connectedConnector">
-          <template v-if="remoteEvents && remoteEvents.length">
+          <template v-if="hasRemoteEvents">
             <agenda-connector-remote-event-item
               v-for="remoteEvent in displayedRemoteEvents"
               :key="remoteEvent"
@@ -133,11 +133,14 @@ export default {
     connectedConnectorAvatar() {
       return this.connectedConnector && this.connectedConnector.avatar || '';
     },
-    connectedConnectorSignedOut() {
-      return this.connectedConnector && !this.connectedConnector.isSignedIn && !this.connectedConnector.loading && !this.loading;
+    connectedConnectorLoading() {
+      return this.connectedConnector && this.connectedConnector.loading;
     },
-    connectedConnectorHasSynchronizedEvent() {
-      return this.connectedConnector && this.connectedConnector.hasSynchronizedEvent;
+    connectedConnectorSignedOut() {
+      return this.connectedConnector && !this.connectedConnector.isSignedIn && !this.connectedConnectorLoading && !this.loading;
+    },
+    hasRemoteEvents() {
+      return this.displayedRemoteEvents && this.displayedRemoteEvents.length;
     },
     displayedRemoteEvents() {
       const remoteEventsToDisplay = this.remoteEvents && this.remoteEvents.slice();
@@ -155,11 +158,6 @@ export default {
     connectorStatus() {
       this.refreshRemoteEvents();
     },
-    connectedConnectorHasSynchronizedEvent(newVal, oldVal) {
-      if (!oldVal && newVal) {
-        this.refreshRemoteEvents();
-      }
-    },
   },
   created() {
     this.$root.$emit('agenda-connectors-init');
@@ -173,7 +171,7 @@ export default {
       this.retrieveRemoteEvents(this.connectedConnector);
     },
     retrieveRemoteEvents(connector) {
-      if(connector) {
+      if(this.connectorStatus === 1) {
         const eventStartDay = this.event.startDate;
         const eventEndDay = this.event.endDate;
 
