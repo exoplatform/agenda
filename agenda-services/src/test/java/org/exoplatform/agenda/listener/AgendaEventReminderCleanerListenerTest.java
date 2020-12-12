@@ -61,7 +61,7 @@ public class AgendaEventReminderCleanerListenerTest extends BaseAgendaEventTest 
     });
 
     try {
-      event.setStatus(EventStatus.CANCELED);
+      event.setStatus(EventStatus.CANCELLED);
       agendaEventService.updateEvent(event,
                                      Collections.emptyList(),
                                      Collections.emptyList(),

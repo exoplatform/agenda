@@ -9,7 +9,7 @@ import org.exoplatform.services.listener.Listener;
 
 /**
  * A listener that will be triggered when updating or creating an agenda event.
- * It will delete all attached reminders of a canceled event.
+ * It will delete all attached reminders of a cancelled event.
  */
 public class AgendaEventReminderCleanerListener extends Listener<Long, Object> {
 
@@ -22,7 +22,7 @@ public class AgendaEventReminderCleanerListener extends Listener<Long, Object> {
     Long eventId = event.getSource();
     org.exoplatform.agenda.model.Event agendaEvent = getAgendaEventService().getEventById(eventId);
 
-    if (agendaEvent != null && agendaEvent.getStatus() == EventStatus.CANCELED) {
+    if (agendaEvent != null && agendaEvent.getStatus() == EventStatus.CANCELLED) {
       getAgendaEventReminderService().removeEventReminders(eventId);
     }
   }

@@ -1,5 +1,3 @@
-import {pad} from '../agenda-common/js/AgendaUtils';
-
 export default {
   name: 'agenda.googleCalendar',
   description: 'agenda.googleCalendar.description',
@@ -35,30 +33,30 @@ export default {
   },
   getEvents(periodStartDate, periodEndDate) {
     if (this.gapi && this.gapi.client && this.gapi.client.calendar) {
+      const currentUser = this.gapi.auth2.getAuthInstance().currentUser.get();
+
       this.loadingCallback(this, true);
-      return this.gapi.client.calendar.events.list({
-        'calendarId': 'primary',
-        'timeMin': periodStartDate,
-        'timeMax': periodEndDate,
-        'singleEvents': true,
-        'orderBy': 'startTime'
-      }).then(events => events.result.items).then(events => {
-        events.forEach(event => {
-          event.allDay = !!event.start.date;
-          event.start = event.start.dateTime || event.start.date;
-          // Google api returns all day event with one day added for end date.
-          const endDate = new Date(event.end.date);
-          endDate.setDate(endDate.getDate()-1);
-          event.end = event.allDay ? endDate : event.end.dateTime;
-          event.name = event.summary;
-          event.type = 'remoteEvent';
-          event.color = '#FFFFFF';
-        });
-        this.loadingCallback(this, false);
-        return events;
-      }).catch(e => {
-        this.loadingCallback(this, false);
-        throw new Error(e);
+      return new Promise((resolve, reject) => {
+        if (currentUser.hasGrantedScopes(this.SCOPE_READ)) {
+          retrieveEvents(this, periodStartDate, periodEndDate)
+            .then(gEvents => resolve(gEvents))
+            .catch(e => {
+              this.loadingCallback(this, false);
+              reject(e);
+            });
+        } else {
+          currentUser.grant({
+            scope: this.SCOPE_READ
+          }).then(
+            () => retrieveEvents(this, periodStartDate, periodEndDate)
+              .then(gEvents => resolve(gEvents))
+              .catch(e => {
+                this.loadingCallback(this, false);
+                reject(e);
+              })
+            ,(error) => reject(error)
+          );
+        }
       });
     } else {
       return Promise.resolve(null);
@@ -70,32 +68,65 @@ export default {
 
       this.hasSynchronizedEvent = false;
       return new Promise((resolve, reject) => {
-        return currentUser.grant({
-          scope: this.SCOPE_WRITE
-        }).then(
-          () => pushEventToGoogle(this, event, connectorRecurringEventId)
+        if (currentUser.hasGrantedScopes(this.SCOPE_WRITE)) {
+          pushEventToGoogle(this, event, connectorRecurringEventId)
             .then(gEvent => {
               this.hasSynchronizedEvent = true;
               resolve(gEvent);
             })
-            .catch(error => {
-              this.hasSynchronizedEvent = false;
-              reject(error);
-            })
-          ,
-          (error) => {
-            this.hasSynchronizedEvent = false;
-            reject(error);
-          })
-          .catch(error => {
-            this.hasSynchronizedEvent = false;
-            reject(error);
-          });
+            .catch(error => reject(error));
+        } else {
+          currentUser.grant({
+            scope: this.SCOPE_WRITE
+          }).then(
+            () => pushEventToGoogle(this, event, connectorRecurringEventId)
+              .then(gEvent => {
+                this.hasSynchronizedEvent = true;
+                resolve(gEvent);
+              })
+              .catch(error => reject(error))
+            ,
+            (error) => reject(error)
+          ).catch(error => reject(error));
+        }
       });
     }
     return Promise.reject(new Error('Not connected'));
   },
 };
+
+/**
+ * @param {Object}
+ *          connector Google Connector SPI
+ * @param {Date}
+ *          periodStartDate Start date of period of events to retrieve
+ * @param {Date}
+ *          periodEndDate End date of period of events to retrieve
+ * @returns {Promise} a promise with list of Google events
+ */
+function retrieveEvents(connector, periodStartDate, periodEndDate) {
+  return connector.gapi.client.calendar.events.list({
+    'calendarId': 'primary',
+    'timeMin': periodStartDate,
+    'timeMax': periodEndDate,
+    'singleEvents': true,
+    'orderBy': 'startTime'
+  }).then(events => events.result.items).then(events => {
+    events.forEach(event => {
+      event.allDay = !!event.start.date;
+      event.start = event.start.dateTime || event.start.date;
+      // Google api returns all day event with one day added for end date.
+      const endDate = new Date(event.end.date);
+      endDate.setDate(endDate.getDate()-1);
+      event.end = event.allDay ? endDate : event.end.dateTime;
+      event.name = event.summary;
+      event.type = 'remoteEvent';
+      event.color = '#FFFFFF';
+    });
+    connector.loadingCallback(connector, false);
+    return events;
+  });
+}
 
 /**
  * Load Google Connector API javascript and prepare user authentication and
@@ -164,41 +195,67 @@ function initGoogleConnector(connector) {
  * @returns {void}
  */
 function pushEventToGoogle(connector, event, connectorRecurringEventId) {
-  const eventToSynchronize = buildEventToSynchronize(event, connectorRecurringEventId);
+  const connectorEvent = buildConnectorEvent(event, connectorRecurringEventId);
   let retrievingEventPromise = null;
-  if (event.remoteId && event.remoteProviderId === connector.technicalId) {
-    retrievingEventPromise = connector.gapi.client.calendar.events.get({
+  const isExceptionalOccurrence = connectorRecurringEventId && event.occurrence && event.occurrence.id;
+  const isRemoteEvent = event.remoteId && event.remoteProviderId === connector.technicalId;
+  const isDeleteEvent = event.status.toLowerCase() === 'cancelled';
+
+  if (isExceptionalOccurrence || isRemoteEvent) {
+    const options = {
       'calendarId': 'primary',
-      'eventId': event.remoteId,
-    });
+      'showDeleted': true,
+    };
+    if (isExceptionalOccurrence) {
+      options.eventId = connectorRecurringEventId;
+      options.originalStart = event.occurrence.id;
+      retrievingEventPromise = connector.gapi.client.calendar.events.instances(options);
+    } else {
+      options.eventId = event.remoteId;
+      retrievingEventPromise = connector.gapi.client.calendar.events.get(options);
+    }
   } else {
     retrievingEventPromise = Promise.resolve(null);
   }
   return retrievingEventPromise
-    .then(remoteEvent => {
-      const updateRemoteEvent = remoteEvent && remoteEvent.result && remoteEvent.result.status;
-      const pushMethod = updateRemoteEvent ?
-        connector.gapi.client.calendar.events.update:
-        connector.gapi.client.calendar.events.insert;
+    .then(data => {
+      const remoteConnectorEventResult = data && data.result;
+      let remoteConnectorEvent = null;
+      if (remoteConnectorEventResult.items) {
+        remoteConnectorEvent = remoteConnectorEventResult.items.length && remoteConnectorEventResult.items[0];
+      } else if (remoteConnectorEventResult.id) {
+        remoteConnectorEvent = remoteConnectorEventResult;
+      }
+      const pushMethod = isDeleteEvent ?
+        connector.gapi.client.calendar.events.delete
+        :remoteConnectorEvent ?
+          connector.gapi.client.calendar.events.patch:
+          connector.gapi.client.calendar.events.insert;
 
       const options = {
-        'calendarId': 'primary',
-        'resource': eventToSynchronize
+        calendarId: 'primary',
       };
 
-      if (updateRemoteEvent) {
-        options.eventId = event.remoteId;
+      if (isDeleteEvent) {
+        if (!remoteConnectorEvent || remoteConnectorEvent.status === 'cancelled') {
+          return null;
+        }
+        options.eventId = remoteConnectorEvent.id;
+      } else {
+        if (remoteConnectorEvent) {
+          options.eventId = remoteConnectorEvent.id;
+          connectorEvent.id = options.eventId;
+          if (isExceptionalOccurrence) {
+            connectorEvent.originalStartTime = remoteConnectorEvent.originalStartTime;
+            connectorEvent.recurringEventId = remoteConnectorEvent.recurringEventId;
+          }
+        }
+        options.resource = connectorEvent;
       }
 
       return pushMethod(options);
     })
-    .then(resp => {
-      if (resp && resp.result) {
-        const synchronizedEvent = resp.result;
-        synchronizedEvent.agendaId = event.id;
-        return synchronizedEvent;
-      }
-    });
+    .then(resp => resp && resp.result);
 }
 
 /**
@@ -211,24 +268,33 @@ function pushEventToGoogle(connector, event, connectorRecurringEventId) {
  *          Identifier
  * @returns {void}
  */
-function buildEventToSynchronize(event, connectorRecurringEventId) {
-  const eventToSynchronize = {};
+function buildConnectorEvent(event, connectorRecurringEventId) {
+  const connectorEvent = {};
   if (event.recurrence) {
-    eventToSynchronize.recurrence = [`RRULE:${event.recurrence.rrule}`];
+    connectorEvent.recurrence = [`RRULE:${event.recurrence.rrule}`];
   }
   if(connectorRecurringEventId) {
-    eventToSynchronize.recurringEventId = connectorRecurringEventId;
-    eventToSynchronize.originalStartTime = {
-      dateTime: event.occurrence.id,
-      timeZone: event.timeZoneId
-    };
+    connectorEvent.recurringEventId = connectorRecurringEventId;
+    if(event.allDay) {
+      connectorEvent.originalStartTime = {
+        date: event.occurrence.id,
+        timeZone: event.timeZoneId
+      };
+    } else {
+      connectorEvent.originalStartTime = {
+        dateTime: event.occurrence.id,
+        timeZone: event.timeZoneId
+      };
+    }
   }
+  connectorEvent.status = event.status.toLowerCase();
+
   if(event.allDay) {
-    eventToSynchronize.start = {
+    connectorEvent.start = {
       date: event.start,
     };
   } else {
-    eventToSynchronize.start = {
+    connectorEvent.start = {
       dateTime: event.start,
       timeZone: event.timeZoneId
     };
@@ -239,17 +305,21 @@ function buildEventToSynchronize(event, connectorRecurringEventId) {
     const formattedEndDate = `${endDate.getFullYear()  }-${
       pad(endDate.getMonth() + 1)  }-${
       pad(endDate.getDate())}`;
-    eventToSynchronize.end = {
+    connectorEvent.end = {
       date: formattedEndDate
     };
   } else {
-    eventToSynchronize.end = {
+    connectorEvent.end = {
       dateTime: event.end,
-      timeZone: event.timeZoneId
+      timeZone: event.timeZoneId,
     };
   }
-  eventToSynchronize.description = event.description;
-  eventToSynchronize.summary = event.summary;
-  eventToSynchronize.location = event.location;
-  return eventToSynchronize;
+  connectorEvent.description = event.description;
+  connectorEvent.summary = event.summary;
+  connectorEvent.location = event.location;
+  return connectorEvent;
+}
+
+function pad(n) {
+  return n < 10 && `0${n}` || n;
 }

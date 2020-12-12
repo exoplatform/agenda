@@ -38,12 +38,16 @@ import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.listener.ListenerService;
+import org.exoplatform.services.log.ExoLogger;
+import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.spi.SpaceService;
 
 public class AgendaEventServiceImpl implements AgendaEventService {
+
+  private static final Log             LOG = ExoLogger.getLogger(AgendaEventServiceImpl.class);
 
   private AgendaCalendarService        agendaCalendarService;
 
@@ -208,15 +212,31 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   }
 
   @Override
-  public List<Event> getEventExceptionalOccurrences(long eventId, long userIdentityId) throws IllegalAccessException {
-    Event event = agendaEventStorage.getEventById(eventId);
-    if (event == null) {
-      return null;
+  public List<Event> getExceptionalOccurrenceEvents(long parentEventId,
+                                                    ZoneId timeZone,
+                                                    long userIdentityId) throws IllegalAccessException {
+    Event parentEvent = agendaEventStorage.getEventById(parentEventId);
+    if (parentEvent == null) {
+      return Collections.emptyList();
     }
-    if (!canAccessEvent(event, userIdentityId)) {
-      throw new IllegalAccessException("");
+    if (!canAccessEvent(parentEvent, userIdentityId)) {
+      throw new IllegalAccessException("User " + userIdentityId + "is not allowed to access event with id " + parentEventId);
     }
-    return agendaEventStorage.getEventExceptionalOccurrences(eventId);
+    List<Long> exceptionalOccurenceIds = agendaEventStorage.getExceptionalOccurenceIds(parentEventId);
+    return exceptionalOccurenceIds.stream()
+                                  .map(eventId -> {
+                                    try {
+                                      return this.getEventById(eventId, timeZone, userIdentityId);
+                                    } catch (IllegalAccessException e) {
+                                      // Allow to user to access other
+                                      // exceptional events
+                                      LOG.debug("User is not allowed to access exceptional event {}. Ignore retrieving this exceptional event",
+                                                eventId);
+                                      return null;
+                                    }
+                                  })
+                                  .filter(event -> event != null)
+                                  .collect(Collectors.toList());
   }
 
   /**
@@ -656,11 +676,15 @@ public class AgendaEventServiceImpl implements AgendaEventService {
           if (remoteProviderId < 0) {
             throw new IllegalArgumentException("Remote Event provider id must be positive");
           }
-          RemoteProvider remoteProvider = agendaEventStorage.getRemoteProviderById(remoteProviderId);
-          if (remoteProvider == null) {
-            throw new IllegalArgumentException("Remote Event provider with id " + remoteProviderId + "  wasn't found");
+          if (remoteProviderId == 0) {
+            event.setRemoteProviderId(remoteProviderId);
+          } else {
+            RemoteProvider remoteProvider = agendaEventStorage.getRemoteProviderById(remoteProviderId);
+            if (remoteProvider == null) {
+              throw new IllegalArgumentException("Remote Event provider with id " + remoteProviderId + "  wasn't found");
+            }
+            event.setRemoteProviderId(remoteProviderId);
           }
-          event.setRemoteProviderId(remoteProviderId);
         }
         break;
       case "summary":
@@ -1225,9 +1249,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                               List<Event> occurrences,
                                               ZonedDateTime start,
                                               ZonedDateTime end) {
-    List<Long> exceptionalOccurenceEventIds = agendaEventStorage.getExceptionalOccurenceEventIds(recurrentEvent.getId(),
-                                                                                                 start,
-                                                                                                 end);
+    List<Long> exceptionalOccurenceEventIds = agendaEventStorage.getExceptionalOccurenceIdsByPeriod(recurrentEvent.getId(),
+                                                                                                    start,
+                                                                                                    end);
     List<Event> exceptionalEvents = exceptionalOccurenceEventIds == null
         || exceptionalOccurenceEventIds.isEmpty() ? Collections.emptyList()
                                                   : exceptionalOccurenceEventIds.stream()

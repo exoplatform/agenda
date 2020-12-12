@@ -49,7 +49,7 @@ public class NotificationUtils {
   public static final String                         AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN =
                                                                                                "EventModifiedNotificationPlugin";
 
-  public static final String                         AGENDA_EVENT_CANCELED_NOTIFICATION_PLUGIN =
+  public static final String                         AGENDA_EVENT_CANCELLED_NOTIFICATION_PLUGIN =
                                                                                                "EventCanceledNotificationPlugin";
 
   public static final String                         AGENDA_REMINDER_NOTIFICATION_PLUGIN       =
@@ -63,8 +63,8 @@ public class NotificationUtils {
   public static final PluginKey                      EVENT_MODIFIED_KEY                        =
                                                                         PluginKey.key(AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN);
 
-  public static final PluginKey                      EVENT_CANCELED_KEY                        =
-                                                                        PluginKey.key(AGENDA_EVENT_CANCELED_NOTIFICATION_PLUGIN);
+  public static final PluginKey                      EVENT_CANCELLED_KEY                        =
+                                                                        PluginKey.key(AGENDA_EVENT_CANCELLED_NOTIFICATION_PLUGIN);
 
   public static final PluginKey                      EVENT_REMINDER_KEY                        =
                                                                         PluginKey.key(AGENDA_REMINDER_NOTIFICATION_PLUGIN);

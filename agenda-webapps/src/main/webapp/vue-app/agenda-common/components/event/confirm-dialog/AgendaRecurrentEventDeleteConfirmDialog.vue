@@ -99,7 +99,7 @@ export default {
       }
       const eventToDelete = JSON.parse(JSON.stringify(this.event));
       delete eventToDelete.recurrence;
-      eventToDelete.status = 'CANCELED';
+      eventToDelete.status = 'CANCELLED';
 
       this.loading = true;
       saveEventMethod(eventToDelete)

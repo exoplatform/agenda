@@ -95,14 +95,14 @@ export default {
     },
     synchronizeEvent(connector, event, allRecurrentEvent) {
       this.errorMessage = null;
-      event = allRecurrentEvent && event.recurrence && event.parent ? event.parent : event;
+      event = allRecurrentEvent && event.parent ? event.parent : event;
 
       this.$set(connector, 'loading', true);
       let connectorEvent = null;
       return connector.synchronizeEvent(event)
         .then((gParentEvent) => {
           connectorEvent = gParentEvent;
-          this.updateEventRemoteInformation(event, connectorEvent);
+          return this.updateEventRemoteInformation(event, connectorEvent);
         })
         .then(event => {
           if(allRecurrentEvent && event.recurrence) {
@@ -112,7 +112,13 @@ export default {
                   const promises = [];
                   exceptionalOcuurences.forEach(exceptionalOccurrence => {
                     const exceptionalOccurrenceRemoteIdUpdate = connector.synchronizeEvent(exceptionalOccurrence, connectorEvent.id)
-                      .then((connectorExceptionalEvent) => this.updateEventRemoteInformation(exceptionalOccurrence, connectorExceptionalEvent));
+                      .then((connectorExceptionalOccurrence) => {
+                        // Avoid deleting remote connector event information if it's definitely
+                        // remotely deleted
+                        if (connectorExceptionalOccurrence) {
+                          return this.updateEventRemoteInformation(exceptionalOccurrence, connectorExceptionalOccurrence);
+                        }
+                      });
                     promises.push(exceptionalOccurrenceRemoteIdUpdate);
                   });
                   return Promise.all(promises);
@@ -126,11 +132,13 @@ export default {
     },
     updateEventRemoteInformation(event, connectorEvent) {
       if(event && event.id) {
-        return this.$eventService.updateEventField(event, 'remoteId', connectorEvent.id)
-          .then(() => this.$eventService.updateEventField(event, 'remoteProviderId', this.connectedConnector.technicalId))
+        const remoteId = connectorEvent && connectorEvent.id || '';
+        const remoteProviderId = connectorEvent && this.connectedConnector.technicalId || 0;
+        return this.$eventService.updateEventField(event, 'remoteId', remoteId)
+          .then(() => this.$eventService.updateEventField(event, 'remoteProviderId', remoteProviderId))
           .then(() => {
-            event.remoteId = connectorEvent.id;
-            event.remoteProviderId = this.connectedConnector.technicalId;
+            event.remoteId = remoteId;
+            event.remoteProviderId = remoteProviderId;
             return event;
           });
       } else {

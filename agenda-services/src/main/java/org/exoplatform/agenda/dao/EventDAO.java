@@ -128,13 +128,6 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     throw new UnsupportedOperationException();
   }
 
-  public List<Long> getChildEvents(long eventId) {
-    TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaEvent.getChildEvents", Long.class);
-    query.setParameter("parentEventId", eventId);
-    List<Long> resultList = query.getResultList();
-    return resultList == null ? Collections.emptyList() : resultList;
-  }
-
   @ExoTransactional
   public void executeDeleteCalendarEventsQuery(long calendarId) {
     Query deleteEventsQuery = getEntityManager().createNamedQuery("AgendaEvent.deleteCalendarEvents");
@@ -210,9 +203,8 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
                               : resultList;
   }
 
-  public List<Long> getExceptionalOccurenceEventIds(long parentRecurrentEventId, Date startDate, Date endDate) {
-    TypedQuery<Long> query =
-                           getEntityManager().createNamedQuery("AgendaEvent.getExceptionalOccurenceEventIdsByPeriod", Long.class);
+  public List<Long> getExceptionalOccurenceIdsByPeriod(long parentRecurrentEventId, Date startDate, Date endDate) {
+    TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaEvent.getExceptionalOccurenceIdsByPeriod", Long.class);
     query.setParameter("parentEventId", parentRecurrentEventId);
     query.setParameter("start", startDate);
     query.setParameter("end", endDate);
@@ -220,19 +212,26 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     return resultList == null ? Collections.emptyList() : resultList;
   }
 
-  public List<EventEntity> getExceptionalOccurences(long parentRecurrentEventId) {
-    TypedQuery<EventEntity> query =
-                                  getEntityManager().createNamedQuery("AgendaEvent.getExceptionalOccurences", EventEntity.class);
+  public List<Long> getExceptionalOccurenceIds(long parentRecurrentEventId) {
+    TypedQuery<Tuple> query = getEntityManager().createNamedQuery("AgendaEvent.getExceptionalOccurenceIds", Tuple.class);
     query.setParameter("parentEventId", parentRecurrentEventId);
-    List<EventEntity> resultList = query.getResultList();
-    return resultList == null ? Collections.emptyList() : resultList;
+    List<Tuple> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList()
+                              : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
   }
 
   public void deleteExceptionalOccurences(long parentRecurrentEventId) {
-    List<EventEntity> result = getExceptionalOccurences(parentRecurrentEventId);
-    for (EventEntity eventEntity : result) {
-      delete(eventEntity);
+    List<Long> result = getExceptionalOccurenceIds(parentRecurrentEventId);
+    for (Long id : result) {
+      deleteEvent(id);
     }
+  }
+
+  private List<Long> getChildEvents(long eventId) {
+    TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaEvent.getChildEvents", Long.class);
+    query.setParameter("parentEventId", eventId);
+    List<Long> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList() : resultList;
   }
 
   private void verifyLimit(Date endDate, int limit) {
