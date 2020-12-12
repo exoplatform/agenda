@@ -143,11 +143,8 @@ public class AgendaEventStorage {
    *         occurences events Identifiers of a parent recurrent event for a
    *         selected period of time
    */
-  public List<Long> getExceptionalOccurenceEventIds(long parentRecurrentEventId) {
-    return eventDAO.getExceptionalOccurences(parentRecurrentEventId)
-                   .stream()
-                   .map(EventEntity::getId)
-                   .collect(Collectors.toList());
+  public List<Long> getExceptionalOccurenceIds(long parentRecurrentEventId) {
+    return eventDAO.getExceptionalOccurenceIds(parentRecurrentEventId);
   }
 
   /**
@@ -159,12 +156,12 @@ public class AgendaEventStorage {
    *         occurences events Identifiers of a parent recurrent event for a
    *         selected period of time
    */
-  public List<Long> getExceptionalOccurenceEventIds(long parentRecurrentEventId,
-                                                    ZonedDateTime start,
-                                                    ZonedDateTime end) {
-    return eventDAO.getExceptionalOccurenceEventIds(parentRecurrentEventId,
-                                                    AgendaDateUtils.toDate(start),
-                                                    AgendaDateUtils.toDate(end));
+  public List<Long> getExceptionalOccurenceIdsByPeriod(long parentRecurrentEventId,
+                                                       ZonedDateTime start,
+                                                       ZonedDateTime end) {
+    return eventDAO.getExceptionalOccurenceIdsByPeriod(parentRecurrentEventId,
+                                                       AgendaDateUtils.toDate(start),
+                                                       AgendaDateUtils.toDate(end));
   }
 
   public Event createEvent(Event event) {
@@ -197,9 +194,9 @@ public class AgendaEventStorage {
   public Event getExceptionalOccurrenceEvent(long parentRecurrentEventId, ZonedDateTime occurrenceId) {
     ZonedDateTime start = occurrenceId.toLocalDate().atStartOfDay(ZoneOffset.UTC);
     ZonedDateTime end = occurrenceId.toLocalDate().atStartOfDay(ZoneOffset.UTC).plusDays(1).minusSeconds(1);
-    List<Long> exceptionalOccurenceEventIds = eventDAO.getExceptionalOccurenceEventIds(parentRecurrentEventId,
-                                                                                       AgendaDateUtils.toDate(start),
-                                                                                       AgendaDateUtils.toDate(end));
+    List<Long> exceptionalOccurenceEventIds = eventDAO.getExceptionalOccurenceIdsByPeriod(parentRecurrentEventId,
+                                                                                          AgendaDateUtils.toDate(start),
+                                                                                          AgendaDateUtils.toDate(end));
     if (exceptionalOccurenceEventIds == null || exceptionalOccurenceEventIds.isEmpty()) {
       return null;
     } else if (exceptionalOccurenceEventIds.size() > 1) {
@@ -209,15 +206,6 @@ public class AgendaEventStorage {
                StringUtils.join(exceptionalOccurenceEventIds, ","));
     }
     return getEventById(exceptionalOccurenceEventIds.get(0));
-  }
-
-  public List<Event> getEventExceptionalOccurrences(long parentRecurrentEventId) {
-    List<EventEntity> eventExceptionalOccurrences = eventDAO.getExceptionalOccurences(parentRecurrentEventId);
-
-    if (eventExceptionalOccurrences == null || eventExceptionalOccurrences.isEmpty()) {
-      return null;
-    }
-    return eventExceptionalOccurrences.stream().map(EntityMapper::fromEntity).collect(Collectors.toList());
   }
 
   public Event updateEvent(Event event) {

@@ -159,7 +159,7 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
 
     // Apply modification on exceptional occurrences as well
     if (eventStorage.isRecurrentEvent(eventId)) {
-      List<Long> exceptionalOccurenceEventIds = eventStorage.getExceptionalOccurenceEventIds(eventId);
+      List<Long> exceptionalOccurenceEventIds = eventStorage.getExceptionalOccurenceIds(eventId);
       for (long exceptionalOccurenceEventId : exceptionalOccurenceEventIds) {
         List<EventAttendee> eventAttendees = attendeeStorage.getEventAttendees(exceptionalOccurenceEventId);
         if (Utils.isEventAttendee(identityManager, spaceService, identityId, eventAttendees)) {
