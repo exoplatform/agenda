@@ -146,7 +146,7 @@ export default {
       const remoteEventsToDisplay = this.remoteEvents && this.remoteEvents.slice();
       // Avoid to have same event from remote and local store (pushed events from local store)
       if (remoteEventsToDisplay && remoteEventsToDisplay.length) {
-        const index = remoteEventsToDisplay.findIndex(remoteEvent => remoteEvent.id && remoteEvent.id === this.event.remoteId || remoteEvent.recurringEventId === this.event.remoteId);
+        const index = remoteEventsToDisplay.findIndex(remoteEvent => remoteEvent.id && remoteEvent.id === this.event.remoteId || remoteEvent.recurringEventId === this.event.remoteId || (this.event.parent && remoteEvent.recurringEventId === this.event.parent.remoteId));
         if (index >= 0) {
           remoteEventsToDisplay.splice(index, 1);
         }

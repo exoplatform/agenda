@@ -83,7 +83,7 @@ public class EntityMapper {
 
   public static EventReminder fromEntity(EventReminderEntity eventReminderEntity) {
     return new EventReminder(eventReminderEntity.getId(),
-                             eventReminderEntity.getEvent().getId(),
+                             eventReminderEntity.getEventId(),
                              eventReminderEntity.getReceiverId(),
                              eventReminderEntity.getBefore(),
                              eventReminderEntity.getBeforeType(),
@@ -96,13 +96,13 @@ public class EntityMapper {
     eventReminderEntity.setBefore(eventReminder.getBefore());
     eventReminderEntity.setBeforeType(eventReminder.getBeforePeriodType());
     eventReminderEntity.setReceiverId(eventReminder.getReceiverId());
+    eventReminderEntity.setEventId(eventReminder.getEventId());
     eventReminderEntity.setTriggerDate(AgendaDateUtils.toDate(eventReminder.getDatetime()));
     return eventReminderEntity;
   }
 
   public static Event fromEntity(EventEntity eventEntity) {
     long parentId = eventEntity.getParent() == null ? 0l : eventEntity.getParent().getId();
-    long remoteProviderId = eventEntity.getRemoteProvider() == null ? 0l : eventEntity.getRemoteProvider().getId();
 
     ZonedDateTime startDate = null;
     ZonedDateTime endDate = null;
@@ -133,8 +133,6 @@ public class EntityMapper {
 
     return new Event(eventEntity.getId(),
                      parentId,
-                     eventEntity.getRemoteId(),
-                     remoteProviderId,
                      eventEntity.getCalendar().getId(),
                      eventEntity.getCreatorId(),
                      eventEntity.getModifierId(),
@@ -172,7 +170,6 @@ public class EntityMapper {
     eventEntity.setDescription(event.getDescription());
     eventEntity.setLocation(event.getLocation());
     eventEntity.setOccurrenceId(event.getOccurrence() == null ? null : AgendaDateUtils.toDate(event.getOccurrence().getId()));
-    eventEntity.setRemoteId(event.getRemoteId());
     eventEntity.setStatus(event.getStatus());
     eventEntity.setSummary(event.getSummary());
     eventEntity.setUpdatedDate(AgendaDateUtils.toDate(event.getUpdated()));
@@ -411,6 +408,28 @@ public class EntityMapper {
     remoteProviderEntity.setName(remoteProvider.getName());
     remoteProviderEntity.setEnabled(remoteProvider.isEnabled());
     return remoteProviderEntity;
+  }
+
+  public static RemoteEventEntity toEntity(RemoteEvent remoteEvent) {
+    RemoteEventEntity remoteEventEntity = new RemoteEventEntity();
+    remoteEventEntity.setId(remoteEvent.getId() == 0 ? null : remoteEvent.getId());
+    remoteEventEntity.setIdentityId(remoteEvent.getIdentityId());
+    remoteEventEntity.setEventId(remoteEvent.getEventId());
+    remoteEventEntity.setRemoteId(remoteEvent.getRemoteId());
+    remoteEventEntity.setRemoteProviderId(remoteEvent.getRemoteProviderId());
+    return remoteEventEntity;
+  }
+
+  public static RemoteEvent fromEntity(RemoteEventEntity remoteEventEntity, RemoteProviderEntity remoteProviderEntity) {
+    if (remoteEventEntity == null) {
+      return null;
+    }
+    return new RemoteEvent(remoteEventEntity.getId(),
+                           remoteEventEntity.getEventId(),
+                           remoteEventEntity.getIdentityId(),
+                           remoteEventEntity.getRemoteId(),
+                           remoteEventEntity.getRemoteProviderId(),
+                           remoteProviderEntity == null ? null : remoteProviderEntity.getName());
   }
 
 }

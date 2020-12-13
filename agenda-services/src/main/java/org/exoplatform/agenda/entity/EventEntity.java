@@ -89,15 +89,8 @@ public class EventEntity implements Serializable {
   @JoinColumn(name = "CALENDAR_ID", referencedColumnName = "CALENDAR_ID")
   private CalendarEntity            calendar;
 
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "REMOTE_PROVIDER_ID", referencedColumnName = "AGENDA_PROVIDER_ID")
-  private RemoteProviderEntity      remoteProvider;
-
   @OneToMany(mappedBy = "event", fetch = FetchType.LAZY)
   private List<EventAttendeeEntity> attendees;
-
-  @Column(name = "REMOTE_ID")
-  private String                    remoteId;
 
   @OneToOne(mappedBy = "event", fetch = FetchType.EAGER)
   private EventRecurrenceEntity     recurrence;
@@ -175,22 +168,6 @@ public class EventEntity implements Serializable {
 
   public void setCalendar(CalendarEntity calendar) {
     this.calendar = calendar;
-  }
-
-  public RemoteProviderEntity getRemoteProvider() {
-    return remoteProvider;
-  }
-
-  public void setRemoteProvider(RemoteProviderEntity remoteProvider) {
-    this.remoteProvider = remoteProvider;
-  }
-
-  public String getRemoteId() {
-    return remoteId;
-  }
-
-  public void setRemoteId(String remoteId) {
-    this.remoteId = remoteId;
   }
 
   public EventRecurrenceEntity getRecurrence() {

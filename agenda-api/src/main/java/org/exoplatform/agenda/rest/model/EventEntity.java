@@ -56,9 +56,14 @@ public class EventEntity implements Serializable, Cloneable {
   private String                      remoteId;
 
   /**
-   * Configured Identifier of Remote Calendar provider.
+   * Remote Calendar provider Identifier used by current user
    */
   private long                        remoteProviderId;
+
+  /**
+   * Remote Calendar provider name used by current user
+   */
+  private String                      remoteProviderName;
 
   private CalendarEntity              calendar;
 
@@ -86,8 +91,7 @@ public class EventEntity implements Serializable, Cloneable {
   /**
    * time zone of the event
    * <ul>
-   * <li>It's the time zone of user
-   * </li>
+   * <li>It's the time zone of user</li>
    * </ul>
    */
   private String                      timeZoneId;
@@ -155,6 +159,7 @@ public class EventEntity implements Serializable, Cloneable {
                            parent,
                            remoteId,
                            remoteProviderId,
+                           remoteProviderName,
                            calendar,
                            creator,
                            created,

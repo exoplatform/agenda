@@ -7,9 +7,10 @@ export default {
   SCOPE_READONLY: 'https://www.googleapis.com/auth/calendar.events.readonly',
   SCOPE_WRITE: 'https://www.googleapis.com/auth/calendar.events',
   canConnect: true,
+  canPush: false,
   initialized: false,
   isSignedIn: false,
-  synchronizing: false,
+  pushing: false,
   init(connectionStatusChangedCallback, loadingCallback) {
     // Already initialized
     if (this.initialized) {
@@ -21,11 +22,35 @@ export default {
 
     initGoogleConnector(this);
   },
-  connect() {
+  connect(askWriteAccess) {
+    const googleScope = askWriteAccess && this.SCOPE_WRITE || this.SCOPE_READ;
+
     this.loadingCallback(this, true);
+    let userEmail = null;
     // Return a Promise with connected username
-    return this.gapi.auth2.getAuthInstance().signIn()
-      .then(connectedUser => connectedUser.getBasicProfile().getEmail());
+    return this.gapi.auth2.getAuthInstance().signIn({
+      scope: askWriteAccess ? this.SCOPE_WRITE : this.SCOPE_READONLY,
+    })
+      .then(currentUser => {
+        userEmail = currentUser.getBasicProfile().getEmail();
+        if (askWriteAccess && !this.canPush) {
+          return new Promise((resolve, reject) => {
+            currentUser.grant({
+              scope: googleScope,
+            }).then(
+              () => {
+                this.canPush = true;
+                resolve(userEmail);
+              }
+              ,(error) => {
+                this.canPush = false;
+                reject(error);
+              }
+              , this
+            );
+          });
+        }
+      }).then(() => userEmail);
   },
   disconnect() {
     this.loadingCallback(this, true);
@@ -62,14 +87,20 @@ export default {
       return Promise.resolve(null);
     }
   },
-  synchronizeEvent(event, connectorRecurringEventId) {
+  deleteEvent(event, connectorRecurringEventId) {
+    return this.saveEvent(event, connectorRecurringEventId, true);
+  },
+  pushEvent(event, connectorRecurringEventId) {
+    return this.saveEvent(event, connectorRecurringEventId, false);
+  },
+  saveEvent(event, connectorRecurringEventId, deleteEvent) {
     if (this.gapi && this.gapi.auth2.getAuthInstance()) {
       const currentUser = this.gapi.auth2.getAuthInstance().currentUser.get();
 
-      this.synchronizing = true;
+      this.pushing = true;
       return new Promise((resolve, reject) => {
         if (currentUser.hasGrantedScopes(this.SCOPE_WRITE)) {
-          pushEventToGoogle(this, event, connectorRecurringEventId)
+          pushEventToGoogle(this, event, connectorRecurringEventId, deleteEvent)
             .then(gEvent => {
               resolve(gEvent);
             })
@@ -78,7 +109,7 @@ export default {
           currentUser.grant({
             scope: this.SCOPE_WRITE
           }).then(
-            () => pushEventToGoogle(this, event, connectorRecurringEventId)
+            () => pushEventToGoogle(this, event, connectorRecurringEventId, deleteEvent)
               .then(gEvent => {
                 resolve(gEvent);
               })
@@ -87,12 +118,7 @@ export default {
             (error) => reject(error)
           ).catch(error => reject(error));
         }
-      })
-        .then(() => this.synchronizing = false)
-        .catch(e => {
-          this.synchronizing = false;
-          throw e;
-        });
+      }).finally(() => this.pushing = false);
     }
     return Promise.reject(new Error('Not connected'));
   },
@@ -147,11 +173,13 @@ function initGoogleConnector(connector) {
     try {
       if (isSignedIn) {
         const currentUser = connector.gapi.auth2.getAuthInstance().currentUser.get();
+        connector.canPush = currentUser.hasGrantedScopes(connector.SCOPE_WRITE);
         connector.connectionStatusChangedCallback(connector, {
           user: currentUser.getBasicProfile().getEmail(),
           id: currentUser.getId(),
         });
       } else {
+        connector.canPush = false;
         connector.connectionStatusChangedCallback(connector, false);
       }
     } finally {
@@ -195,31 +223,37 @@ function initGoogleConnector(connector) {
  * @param {String}
  *          connectorRecurringEventId Connector parent recurrent event
  *          Identifier
+ * @param {Boolean}
+ *          deleteEvent whether to delete or save event status
  * @returns {void}
  */
-function pushEventToGoogle(connector, event, connectorRecurringEventId) {
+function pushEventToGoogle(connector, event, connectorRecurringEventId, deleteEvent) {
   const connectorEvent = buildConnectorEvent(event, connectorRecurringEventId);
   let retrievingEventPromise = null;
   const isExceptionalOccurrence = connectorRecurringEventId && event.occurrence && event.occurrence.id;
-  const isRemoteEvent = event.remoteId && event.remoteProviderId === connector.technicalId;
-  const isDeleteEvent = event.status.toLowerCase() === 'cancelled';
+  const isRemoteEvent = event.remoteId && event.remoteProviderName === connector.name;
+  const isDeleteEvent = deleteEvent || event.status.toLowerCase() === 'cancelled';
 
-  if (isExceptionalOccurrence || isRemoteEvent) {
+  if (isExceptionalOccurrence || isRemoteEvent || isDeleteEvent) {
     const options = {
       'calendarId': 'primary',
       'showDeleted': true,
     };
     if (isExceptionalOccurrence) {
       options.eventId = connectorRecurringEventId;
+      options.recurringEventId = connectorRecurringEventId;
       options.originalStart = event.occurrence.id;
       retrievingEventPromise = connector.gapi.client.calendar.events.instances(options);
-    } else {
+    } else if (isRemoteEvent) {
       options.eventId = event.remoteId;
       retrievingEventPromise = connector.gapi.client.calendar.events.get(options);
+    } else {
+      retrievingEventPromise = Promise.resolve(null);
     }
   } else {
     retrievingEventPromise = Promise.resolve(null);
   }
+
   return retrievingEventPromise
     .then(data => {
       const remoteConnectorEventResult = data && data.result;

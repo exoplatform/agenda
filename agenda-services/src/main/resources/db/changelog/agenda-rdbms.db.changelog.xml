@@ -220,4 +220,32 @@
     <renameColumn tableName="EXO_AGENDA_CONFERENCE" oldColumnName="URI" newColumnName="URL" columnDataType="VARCHAR(500)" />
   </changeSet>
 
+  <changeSet author="agenda" id="1.0.0-14" dbms="oracle,postgresql">
+    <createSequence sequenceName="SEQ_AGENDA_REMOTE_EVENT_ID" startValue="1" />
+  </changeSet>
+
+  <changeSet author="agenda" id="1.0.0-15">
+    <dropForeignKeyConstraint baseTableName="EXO_AGENDA_EVENT" constraintName="FK_AGENDA_REMOTE_PROVIDER"/>
+    <dropColumn tableName="EXO_AGENDA_EVENT" columnName="REMOTE_PROVIDER_ID" />
+    <dropColumn tableName="EXO_AGENDA_EVENT" columnName="REMOTE_ID" />
+    <createTable tableName="EXO_AGENDA_REMOTE_EVENT">
+      <column name="REMOTE_EVENT_ID" type="BIGINT" autoIncrement="${autoIncrement}" startWith="1">
+        <constraints nullable="false" primaryKey="true" primaryKeyName="PK_AGENDA_REMOTE_EVENT" />
+      </column>
+      <column name="REMOTE_PROVIDER_ID" type="BIGINT">
+        <constraints foreignKeyName="FK_AGENDA_REMOTE_EVENT_REMOTE_PROVIDER" references="EXO_AGENDA_REMOTE_PROVIDER(AGENDA_PROVIDER_ID)" />
+      </column>
+      <column name="EVENT_ID" type="BIGINT">
+        <constraints foreignKeyName="FK_AGENDA_EVENT_REMOTE_EVENT" references="EXO_AGENDA_EVENT(EVENT_ID)" />
+      </column>
+      <column name="IDENTITY_ID" type="BIGINT">
+        <constraints nullable="false" />
+      </column>
+      <column name="REMOTE_ID" type="VARCHAR(500)">
+        <constraints nullable="false" />
+      </column>
+    </createTable>
+    <addUniqueConstraint tableName="EXO_AGENDA_REMOTE_EVENT" columnNames="EVENT_ID,IDENTITY_ID" />
+  </changeSet>
+
 </databaseChangeLog>

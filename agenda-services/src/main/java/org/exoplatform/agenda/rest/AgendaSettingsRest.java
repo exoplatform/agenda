@@ -31,17 +31,17 @@ public class AgendaSettingsRest implements ResourceContainer {
 
   private AgendaEventConferenceService agendaEventConferenceService;
 
-  private AgendaEventService           agendaEventService;
+  private AgendaRemoteEventService     agendaRemoteEventService;
 
   private IdentityManager              identityManager;
 
   public AgendaSettingsRest(AgendaUserSettingsService agendaUserSettingsService,
                             AgendaEventConferenceService agendaEventConferenceService,
-                            AgendaEventService agendaEventService,
+                            AgendaRemoteEventService agendaRemoteEventService,
                             IdentityManager identityManager) {
     this.agendaUserSettingsService = agendaUserSettingsService;
     this.agendaEventConferenceService = agendaEventConferenceService;
-    this.agendaEventService = agendaEventService;
+    this.agendaRemoteEventService = agendaRemoteEventService;
     this.identityManager = identityManager;
   }
 
@@ -170,7 +170,7 @@ public class AgendaSettingsRest implements ResourceContainer {
                                           required = true
                                       ) @FormParam("enabled") boolean enabled) {
     try {
-      agendaEventService.saveConnectorStatus(connectorName, enabled);
+      agendaRemoteEventService.saveRemoteProviderStatus(connectorName, enabled);
       return Response.noContent().build();
     } catch (Exception e) {
       LOG.warn("Error saving connector '{}' status", connectorName, e);

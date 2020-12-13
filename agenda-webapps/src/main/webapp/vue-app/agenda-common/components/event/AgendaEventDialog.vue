@@ -95,6 +95,7 @@ export default {
       dialog: false,
       saving: false,
       event: null,
+      loadingMessage: false,
       hasMessage: null,
       message: null,
       messageType: null,
@@ -175,10 +176,10 @@ export default {
         this.openEventDetails(agendaEvent.parent.id, agendaEvent.occurrence.id);
       }
     });
-    this.$root.$on('agenda-event-deleted', this.close);
+    this.$root.$on('agenda-event-deleted', () => this.close());
     this.$root.$on('agenda-event-save', () => this.saving = true);
-    this.$root.$on('agenda-event-saved', this.close);
-    this.$root.$on('agenda-event-response-sent', () => {
+    this.$root.$on('agenda-event-saved', () => this.close());
+    this.$root.$on('agenda-event-response-sent', (event, occurrenceId, eventResponse) => {
       if (!this.event) {
         return;
       }
@@ -186,7 +187,8 @@ export default {
       retrieveEventDetailsPromise
         .then(event => this.event = event)
         .finally(() => {
-          this.$root.$emit('agenda-event-response-updated');
+          const updatedEvent = event.recurrence ? this.event.parent : this.event;
+          this.$root.$emit('agenda-event-response-updated', updatedEvent, occurrenceId, eventResponse);
         });
     });
     this.$root.$on('agenda-event-reminders-saved', (event, occurrenceId, reminders) => {
@@ -195,8 +197,8 @@ export default {
         this.$root.$emit('agenda-refresh');
       }
     });
-    this.$root.$on('agenda-remote-event-synchronized', () => {
-      this.displayMessage('success', this.$t('agenda.eventSynchronizationSuccess'));
+    this.$root.$on('agenda-remote-event-pushed', () => {
+      this.displayMessage('success', this.$t('agenda.eventPushedSuccess'));
       if (this.event) {
         const eventId = this.event.id;
         const parentId = this.event.parent && this.event.parent.id || 0;
@@ -208,9 +210,9 @@ export default {
         }
       }
     });
-    this.$root.$on('agenda-remote-event-synchronize-error', (event, error) => {
-      console.error('Error synchronizing event', error);
-      this.displayMessage('error', this.$t('agenda.errorSynchronizingEvent'));
+    this.$root.$on('agenda-remote-event-push-error', (event, error) => {
+      console.error('Error pushing event', error);
+      this.displayMessage('error', this.$t('agenda.errorPushingEvent'));
     });
   },
   methods: {

@@ -39,16 +39,20 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
 
   private EventRecurrenceDAO eventRecurrenceDAO;
 
+  private RemoteEventDAO     remoteEventDAO;
+
   public EventDAO(EventConferenceDAO eventConferenceDAO,
                   EventAttendeeDAO eventAttendeeDAO,
                   EventAttachmentDAO eventAttachmentDAO,
                   EventReminderDAO eventReminderDAO,
-                  EventRecurrenceDAO eventRecurrenceDAO) {
+                  EventRecurrenceDAO eventRecurrenceDAO,
+                  RemoteEventDAO remoteEventDAO) {
     this.eventConferenceDAO = eventConferenceDAO;
     this.eventAttendeeDAO = eventAttendeeDAO;
     this.eventAttachmentDAO = eventAttachmentDAO;
     this.eventReminderDAO = eventReminderDAO;
     this.eventRecurrenceDAO = eventRecurrenceDAO;
+    this.remoteEventDAO = remoteEventDAO;
   }
 
   @Override
@@ -65,6 +69,7 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     this.eventAttachmentDAO.deleteEventAttachments(entity.getId());
     this.eventReminderDAO.deleteEventReminders(entity.getId());
     this.eventRecurrenceDAO.deleteEventRecurrences(entity.getId());
+    this.remoteEventDAO.deleteRemoteEvents(entity.getId());
 
     super.delete(entity);
   }
@@ -75,6 +80,7 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     this.eventAttachmentDAO.deleteCalendarAttachments(calendarId);
     this.eventReminderDAO.deleteCalendarReminders(calendarId);
     this.eventRecurrenceDAO.deleteCalendarRecurrences(calendarId);
+    this.remoteEventDAO.deleteCalendarRemoteEvents(calendarId);
 
     executeDeleteCalendarEventsQuery(calendarId);
   }
@@ -94,6 +100,7 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     this.eventAttendeeDAO.deleteEventAttendees(eventId);
     this.eventAttachmentDAO.deleteEventAttachments(eventId);
     this.eventReminderDAO.deleteEventReminders(eventId);
+    this.remoteEventDAO.deleteRemoteEvents(eventId);
 
     if (eventEntity.getRecurrence() != null) {
       this.eventRecurrenceDAO.delete(eventEntity.getRecurrence());

@@ -119,7 +119,7 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
         ZonedDateTime reminderDate = computeReminderDateTime(event, eventReminder);
         eventReminder.setDatetime(reminderDate);
         eventReminder.setEventId(eventId);
-        reminderStorage.saveEventReminder(eventId, eventReminder);
+        reminderStorage.saveEventReminder(eventReminder);
       }
     }
 
@@ -151,7 +151,7 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
         eventReminder.setDatetime(reminderDate);
         eventReminder.setReceiverId(identityId);
         eventReminder.setEventId(eventId);
-        reminderStorage.saveEventReminder(eventId, eventReminder);
+        reminderStorage.saveEventReminder(eventReminder);
       }
     }
 

@@ -39,13 +39,13 @@ public class AgendaEventReminderCleanerListenerTest extends BaseAgendaEventTest 
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
 
     boolean allDay = false;
-    String creatorUserName = testuser1Identity.getRemoteId();
+
+    long userIdentityId = Long.parseLong(testuser1Identity.getId());
 
     Event event = newEventInstance(start, start, allDay);
-    event = createEvent(event.clone(), creatorUserName, testuser4Identity, testuser5Identity);
+    event = createEvent(event.clone(), userIdentityId, testuser4Identity, testuser5Identity);
 
     long eventId = event.getId();
-    long userIdentityId = Long.parseLong(testuser1Identity.getId());
     List<EventReminder> eventReminders = agendaEventReminderService.getEventReminders(eventId, userIdentityId);
     assertNotNull(eventReminders);
     assertEquals(1, eventReminders.size());
@@ -67,8 +67,9 @@ public class AgendaEventReminderCleanerListenerTest extends BaseAgendaEventTest 
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      eventReminders,
+                                     null,
                                      false,
-                                     creatorUserName);
+                                     userIdentityId);
     } finally {
       executeListener.set(false);
     }

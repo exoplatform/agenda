@@ -35,10 +35,9 @@ public class AgendaEventReminderServiceTest extends BaseAgendaEventTest {
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
 
     boolean allDay = false;
-    String creatorUserName = testuser1Identity.getRemoteId();
 
     Event event = newEventInstance(start, start, allDay);
-    event = createEvent(event.clone(), creatorUserName, testuser5Identity);
+    event = createEvent(event.clone(), Long.parseLong(testuser1Identity.getId()), testuser5Identity);
 
     long eventId = event.getId();
     long userIdentityId = Long.parseLong(testuser1Identity.getId());
@@ -69,7 +68,6 @@ public class AgendaEventReminderServiceTest extends BaseAgendaEventTest {
     ZonedDateTime start = getDate().withNano(0);
 
     boolean allDay = true;
-    String creatorUserName = testuser1Identity.getRemoteId();
 
     Event event = newEventInstance(start, start, allDay);
     EventRecurrence recurrence = new EventRecurrence(0,
@@ -91,7 +89,7 @@ public class AgendaEventReminderServiceTest extends BaseAgendaEventTest {
                                                      null);
     event.setRecurrence(recurrence);
 
-    event = createEvent(event.clone(), creatorUserName, testuser1Identity, testuser2Identity);
+    event = createEvent(event.clone(), Long.parseLong(testuser1Identity.getId()), testuser1Identity, testuser2Identity);
 
     long eventId = event.getId();
     Event exceptionalOccurrence = agendaEventService.saveEventExceptionalOccurrence(eventId,
@@ -150,10 +148,9 @@ public class AgendaEventReminderServiceTest extends BaseAgendaEventTest {
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
 
     boolean allDay = false;
-    String creatorUserName = testuser1Identity.getRemoteId();
 
     Event event = newEventInstance(start, start, allDay);
-    event = createEvent(event.clone(), creatorUserName, testuser5Identity);
+    event = createEvent(event.clone(), Long.parseLong(testuser1Identity.getId()), testuser5Identity);
 
     long eventId = event.getId();
     long userIdentityId = Long.parseLong(testuser1Identity.getId());
@@ -193,10 +190,9 @@ public class AgendaEventReminderServiceTest extends BaseAgendaEventTest {
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
 
     boolean allDay = false;
-    String creatorUserName = testuser1Identity.getRemoteId();
 
     Event event = newEventInstance(start, start, allDay);
-    event = createEvent(event.clone(), creatorUserName, testuser4Identity, testuser5Identity);
+    event = createEvent(event.clone(), Long.parseLong(testuser1Identity.getId()), testuser4Identity, testuser5Identity);
 
     long eventId = event.getId();
     long userIdentityId = Long.parseLong(testuser1Identity.getId());

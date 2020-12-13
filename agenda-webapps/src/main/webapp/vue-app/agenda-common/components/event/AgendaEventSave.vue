@@ -17,21 +17,33 @@ export default {
     this.$root.$on('agenda-event-save', this.saveEvent);
   },
   methods: {
-    saveEvent(event, ignoreRecurrentPopin) {
+    saveEvent(event, ignoreRecurrentPopin, changeDatesOnly) {
       if (event.occurrence && !ignoreRecurrentPopin) {
-        this.$refs.recurrentEventConfirm.open(event);
+        this.$refs.recurrentEventConfirm.open(event, changeDatesOnly);
       } else {
-        this.save(event);
+        this.save(event, changeDatesOnly);
       }
     },
-    save(eventToSave) {
+    save(eventToSave, changeDatesOnly) {
       this.saving = true;
-      const saveEventMethod = eventToSave.id ? this.$eventService.updateEvent:this.$eventService.createEvent;
-      saveEventMethod(eventToSave)
-        .then(event => this.saved(event))
-        .finally(() => {
-          this.saving = false;
-        });
+      if (eventToSave.id && changeDatesOnly) {
+        this.$eventService.updateEventFields(eventToSave.id, {
+          start: this.$agendaUtils.toRFC3339(eventToSave.start, false, true),
+          end: this.$agendaUtils.toRFC3339(eventToSave.end, false, true),
+          timeZoneId: this.$agendaUtils.USER_TIMEZONE_ID,
+        })
+          .then(event => this.saved(event || eventToSave))
+          .finally(() => {
+            this.saving = false;
+          });
+      } else {
+        const saveEventMethod = eventToSave.id ? this.$eventService.updateEvent : this.$eventService.createEvent;
+        saveEventMethod(eventToSave)
+          .then(event => this.saved(event || eventToSave))
+          .finally(() => {
+            this.saving = false;
+          });
+      }
     },
     saved(event) {
       this.$refs.recurrentEventConfirm.close();

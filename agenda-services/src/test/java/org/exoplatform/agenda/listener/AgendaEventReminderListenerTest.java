@@ -39,10 +39,9 @@ public class AgendaEventReminderListenerTest extends BaseAgendaEventTest {
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
 
     boolean allDay = false;
-    String creatorUserName = testuser1Identity.getRemoteId();
 
     Event event = newEventInstance(start, start, allDay);
-    event = createEvent(event.clone(), creatorUserName, testuser4Identity, testuser5Identity);
+    event = createEvent(event.clone(), Long.parseLong(testuser1Identity.getId()), testuser4Identity, testuser5Identity);
 
     long eventId = event.getId();
     long userIdentityId = Long.parseLong(testuser1Identity.getId());

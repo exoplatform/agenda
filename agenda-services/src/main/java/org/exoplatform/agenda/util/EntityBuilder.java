@@ -108,8 +108,6 @@ public class EntityBuilder {
                                                                                                  false);
     return new Event(eventEntity.getId(),
                      eventEntity.getParent() == null ? 0l : eventEntity.getParent().getId(),
-                     eventEntity.getRemoteId(),
-                     eventEntity.getRemoteProviderId(),
                      eventEntity.getCalendar() == null ? 0l : eventEntity.getCalendar().getId(),
                      eventEntity.getCreator() == null ? 0l : Long.parseLong(eventEntity.getCreator().getId()),
                      0l,
@@ -247,8 +245,9 @@ public class EntityBuilder {
     if (isSearch) {
       return new EventSearchResultEntity(event.getId(),
                                          parentEvent,
-                                         event.getRemoteId(),
-                                         event.getRemoteProviderId(),
+                                         null,
+                                         0l,
+                                         null,
                                          getCalendarEntity(agendaCalendarService, identityManager, event.getCalendarId()),
                                          getIdentityEntity(identityManager, event.getCreatorId()),
                                          AgendaDateUtils.toRFC3339Date(event.getCreated()),
@@ -278,8 +277,9 @@ public class EntityBuilder {
       ZoneId timeZoneId = event.getTimeZoneId() == null ? ZoneOffset.UTC : event.getTimeZoneId();
       return new EventEntity(event.getId(),
                              parentEvent,
-                             event.getRemoteId(),
-                             event.getRemoteProviderId(),
+                             null,
+                             0l,
+                             null,
                              getCalendarEntity(agendaCalendarService, identityManager, event.getCalendarId()),
                              getIdentityEntity(identityManager, event.getCreatorId()),
                              AgendaDateUtils.toRFC3339Date(event.getCreated()),

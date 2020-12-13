@@ -60,7 +60,6 @@ import AgendaConnectorStatus from './components/connector/AgendaConnectorStatus.
 import AgendaConnectorContemporaryEvents from './components/remote-event/AgendaConnectorContemporaryEvents.vue';
 import AgendaConnectorRemoteEventItem from './components/remote-event/AgendaConnectorRemoteEventItem.vue';
 import AgendaConnectorsDrawer from './components/remote-event/AgendaConnectorsDrawer.vue';
-import AgendaRecurrentRemoteEventSynchronizeConfirmDialog from './components/remote-event/AgendaRecurrentRemoteEventSynchronizeConfirmDialog.vue';
 
 const components = {
   'agenda-header': AgendaHeader,
@@ -109,7 +108,6 @@ const components = {
   'agenda-recurrent-event-reminders-confirm-dialog': AgendaRecurrentEventReminderConfirmDialog,
   'agenda-user-setting-drawer': AgendaUserSettingDrawer,
   'agenda-connectors-drawer': AgendaConnectorsDrawer,
-  'agenda-recurrent-remote-event-synchronize-confirm-dialog': AgendaRecurrentRemoteEventSynchronizeConfirmDialog,
   'agenda-reminder-user-settings': AgendaReminderUserSettings,
   'agenda-reminder-user-setting-item': AgendaReminderUserSettingItem,
   'agenda-connector': AgendaConnector,
@@ -128,6 +126,7 @@ import * as calendarService from './js/CalendarService.js';
 import * as settingsService from './js/SettingsService.js';
 import * as agendaUtils from './js/AgendaUtils.js';
 import * as webConferencingService from './js/EventWebConferencingService.js';
+import * as remoteEventConnector from './js/RemoteEventConnector.js';
 
 const userTimeZoneId = agendaUtils.USER_TIMEZONE_ID;
 
@@ -159,5 +158,10 @@ if (!Vue.prototype.$userTimeZoneId) {
 if (!Vue.prototype.$webConferencingService) {
   window.Object.defineProperty(Vue.prototype, '$webConferencingService', {
     value: webConferencingService,
+  });
+}
+if (!Vue.prototype.$remoteEventConnector) {
+  window.Object.defineProperty(Vue.prototype, '$remoteEventConnector', {
+    value: remoteEventConnector,
   });
 }

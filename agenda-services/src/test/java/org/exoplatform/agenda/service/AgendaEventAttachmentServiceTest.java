@@ -34,10 +34,9 @@ public class AgendaEventAttachmentServiceTest extends BaseAgendaEventTest {
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
 
     boolean allDay = true;
-    String creatorUserName = testuser1Identity.getRemoteId();
 
     Event event = newEventInstance(start, start, allDay);
-    event = createEvent(event.clone(), creatorUserName, testuser2Identity);
+    event = createEvent(event.clone(), Long.parseLong(testuser1Identity.getId()), testuser2Identity);
 
     long eventId = event.getId();
     List<EventAttachment> eventAttachments = agendaEventAttachmentService.getEventAttachments(eventId);
@@ -84,10 +83,9 @@ public class AgendaEventAttachmentServiceTest extends BaseAgendaEventTest {
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
 
     boolean allDay = true;
-    String creatorUserName = testuser1Identity.getRemoteId();
 
     Event event = newEventInstance(start, start, allDay);
-    event = createEvent(event.clone(), creatorUserName, testuser2Identity);
+    event = createEvent(event.clone(), Long.parseLong(testuser1Identity.getId()), testuser2Identity);
 
     long eventId = event.getId();
     List<EventAttachment> eventAttachments = agendaEventAttachmentService.getEventAttachments(eventId);

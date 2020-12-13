@@ -48,6 +48,7 @@
 export default {
   data: () => ({
     event: null,
+    changeDatesOnly: false,
     loading: false,
     dialog: false,
   }),
@@ -74,6 +75,8 @@ export default {
 
       const eventToSave = JSON.parse(JSON.stringify(this.event));
       eventToSave.id = this.event.parent.id;
+      eventToSave.remoteId = eventToSave.parent && eventToSave.parent.remoteId || '';
+      eventToSave.remoteProviderId = eventToSave.parent && eventToSave.parent.remoteProviderId || 0;
       eventToSave.recurrence = this.event.recurrence || this.event.parent.recurrence;
       eventToSave.occurrence = null;
       eventToSave.parent = null;
@@ -81,14 +84,14 @@ export default {
       eventToSave.start = this.$agendaUtils.getSameTime(this.event.parent.start, this.event.start);
       eventToSave.end = this.$agendaUtils.getSameTime(this.event.parent.end, this.event.end);
 
-      this.$emit('save-event', eventToSave);
+      this.$emit('save-event', eventToSave, this.changeDatesOnly);
     },
     saveOccurrenceEvent(eventObject) {
       eventObject.preventDefault();
       eventObject.stopPropagation();
 
       const eventToSave = JSON.parse(JSON.stringify(this.event));
-      this.$emit('save-event', eventToSave);
+      this.$emit('save-event', eventToSave, this.changeDatesOnly);
     },
     close(event) {
       if (event) {
@@ -98,8 +101,9 @@ export default {
 
       this.dialog = false;
     },
-    open(event) {
+    open(event, changeDatesOnly) {
       this.event = event;
+      this.changeDatesOnly = changeDatesOnly;
       this.dialog = true;
     },
   },

@@ -45,11 +45,6 @@
               {{ $t('agenda.details.header.menu.delete') }}
             </v-list-item-title>
           </v-list-item>
-          <v-list-item v-if="connectedConnector" @click="$emit('synchronize')">
-            <v-list-item-title :title="$t('agenda.tooltip.synchronizeEvent')">
-              {{ $t('agenda.details.header.menu.synchronize') }}
-            </v-list-item-title>
-          </v-list-item>
         </v-list>
       </v-menu>
     </v-col>
@@ -76,6 +71,10 @@ export default {
       type: Object,
       default: () => null
     },
+    isAttendee: {
+      type: Boolean,
+      default: false
+    },
   },
   computed: {
     isMobile() {
@@ -90,9 +89,6 @@ export default {
         }
       }
       return '';
-    },
-    isAttendee() {
-      return this.event.acl && this.event.acl.attendee;
     },
     canEdit() {
       return this.event.acl && this.event.acl.canEdit;

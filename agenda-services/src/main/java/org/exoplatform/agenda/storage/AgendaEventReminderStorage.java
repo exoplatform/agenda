@@ -5,9 +5,7 @@ import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import org.exoplatform.agenda.dao.EventDAO;
 import org.exoplatform.agenda.dao.EventReminderDAO;
-import org.exoplatform.agenda.entity.EventEntity;
 import org.exoplatform.agenda.entity.EventReminderEntity;
 import org.exoplatform.agenda.model.EventReminder;
 import org.exoplatform.agenda.util.EntityMapper;
@@ -16,38 +14,31 @@ import org.exoplatform.services.listener.ListenerService;
 
 public class AgendaEventReminderStorage {
 
-  private EventDAO         eventDAO;
-
   private EventReminderDAO eventReminderDAO;
 
   private ListenerService  listenerService;
 
-  public AgendaEventReminderStorage(EventDAO eventDAO,
-                                    EventReminderDAO eventReminderDAO,
+  public AgendaEventReminderStorage(EventReminderDAO eventReminderDAO,
                                     ListenerService listenerService) {
-    this.eventDAO = eventDAO;
     this.eventReminderDAO = eventReminderDAO;
     this.listenerService = listenerService;
   }
 
-  public void saveEventReminder(long eventId, EventReminder eventReminder) {
+  public void saveEventReminder(EventReminder eventReminder) {
     EventReminderEntity eventReminderEntity = EntityMapper.toEntity(eventReminder);
-
-    EventEntity eventEntity = eventDAO.find(eventId);
-    eventReminderEntity.setEvent(eventEntity);
 
     if (eventReminder.getId() == 0) {
       eventReminderEntity.setId(null);
       eventReminderEntity = eventReminderDAO.create(eventReminderEntity);
       Utils.broadcastEvent(listenerService,
                            "exo.agenda.event.reminder.created",
-                           eventReminderEntity.getEvent().getId(),
+                           eventReminderEntity.getEventId(),
                            eventReminderEntity.getId());
     } else {
       eventReminderDAO.update(eventReminderEntity);
       Utils.broadcastEvent(listenerService,
                            "exo.agenda.event.reminder.updated",
-                           eventReminderEntity.getEvent().getId(),
+                           eventReminderEntity.getEventId(),
                            eventReminderEntity.getId());
     }
   }
@@ -58,7 +49,7 @@ public class AgendaEventReminderStorage {
       eventReminderDAO.delete(eventReminderEntity);
       Utils.broadcastEvent(listenerService,
                            "exo.agenda.event.reminder.deleted",
-                           eventReminderEntity.getEvent().getId(),
+                           eventReminderEntity.getEventId(),
                            eventReminderId);
     }
   }

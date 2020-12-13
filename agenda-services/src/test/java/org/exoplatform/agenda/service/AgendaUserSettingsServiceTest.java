@@ -76,7 +76,7 @@ public class AgendaUserSettingsServiceTest extends BaseAgendaEventTest {
     long identityId = 2223l;
 
     RemoteProvider remoteProvider = new RemoteProvider(0, "connectorName", true);
-    remoteProvider = agendaEventService.saveRemoteProvider(remoteProvider);
+    remoteProvider = agendaRemoteEventService.saveRemoteProvider(remoteProvider);
     assertNotNull(remoteProvider);
 
     agendaUserSettingsService.saveUserConnector("connectorName", "connectorUserId", identityId);
@@ -86,7 +86,7 @@ public class AgendaUserSettingsServiceTest extends BaseAgendaEventTest {
     assertEquals("connectorUserId", agendaUserSettings.getConnectedRemoteUserId());
 
     remoteProvider.setEnabled(false);
-    agendaEventService.saveRemoteProvider(remoteProvider);
+    agendaRemoteEventService.saveRemoteProvider(remoteProvider);
     try {
       agendaUserSettingsService.saveUserConnector("connectorName", "connectorUserId", identityId);
       fail();

@@ -31,7 +31,7 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
     Event event = newEventInstance(start, start, false);
     Event createdEvent = createEvent(event.clone(),
-                                     testuser1Identity.getRemoteId(),
+                                     Long.parseLong(testuser1Identity.getId()),
                                      testuser1Identity,
                                      testuser2Identity,
                                      testuser3Identity,
@@ -85,7 +85,6 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
 
     boolean allDay = true;
-    String creatorUserName = testuser1Identity.getRemoteId();
 
     Event event = newEventInstance(start, start, allDay);
 
@@ -93,14 +92,21 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
     Identity spaceIdentity = identityManager.getOrCreateIdentity(SpaceIdentityProvider.NAME, space.getPrettyName());
 
     Event createdEvent = createEvent(event.clone(),
-                                     creatorUserName,
+                                     Long.parseLong(testuser1Identity.getId()),
                                      testuser1Identity,
                                      testuser2Identity,
                                      testuser3Identity,
                                      spaceIdentity);
-    Event updatedEvent = agendaEventService.getEventById(createdEvent.getId(), null, testuser1Identity.getRemoteId());
+    Event updatedEvent = agendaEventService.getEventById(createdEvent.getId(), null, Long.parseLong(testuser1Identity.getId()));
     List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(updatedEvent.getId());
-    agendaEventService.updateEvent(updatedEvent, eventAttendees, null, null, null, true, testuser1Identity.getRemoteId());
+    agendaEventService.updateEvent(updatedEvent,
+                                   eventAttendees,
+                                   null,
+                                   null,
+                                   null,
+                                   null,
+                                   true,
+                                   Long.parseLong(testuser1Identity.getId()));
 
     InitParams initParams = new InitParams();
     ValueParam value = new ValueParam();

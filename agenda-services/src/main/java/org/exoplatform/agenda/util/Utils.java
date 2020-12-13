@@ -272,26 +272,31 @@ public class Utils {
    * @param identityManager {@link IdentityManager} service instance
    * @param spaceService {@link SpaceService} service instance
    * @param ownerId calendar owner {@link Identity} technical identifier
-   * @param username name of user accessing calendar data
+   * @param userIdentityId {@link Identity} identifier of user accessing
+   *          calendar data
    * @return true if user can modify calendar or its events, else return false
    */
   public static boolean canEditCalendar(IdentityManager identityManager,
                                         SpaceService spaceService,
                                         long ownerId,
-                                        String username) {
+                                        long userIdentityId) {
     Identity requestedOwner = identityManager.getIdentity(String.valueOf(ownerId));
     if (requestedOwner == null) {
       throw new IllegalStateException("Calendar owner with id " + ownerId + " wasn't found");
     }
+    Identity userIdentity = identityManager.getIdentity(String.valueOf(userIdentityId));
+    if (userIdentity == null) {
+      throw new IllegalStateException("User with id " + userIdentity + " wasn't found");
+    }
 
     if (StringUtils.equals(OrganizationIdentityProvider.NAME, requestedOwner.getProviderId())) {
-      return StringUtils.equals(requestedOwner.getRemoteId(), username);
+      return userIdentityId == Long.parseLong(requestedOwner.getId());
     } else if (StringUtils.equals(SpaceIdentityProvider.NAME, requestedOwner.getProviderId())) {
-      if (spaceService.isSuperManager(username)) {
+      if (spaceService.isSuperManager(userIdentity.getRemoteId())) {
         return true;
       } else {
         Space space = spaceService.getSpaceByPrettyName(requestedOwner.getRemoteId());
-        return spaceService.isManager(space, username);
+        return space != null && spaceService.isManager(space, userIdentity.getRemoteId());
       }
     } else {
       return false;
@@ -302,26 +307,32 @@ public class Utils {
    * @param identityManager {@link IdentityManager} service instance
    * @param spaceService {@link SpaceService} service instance
    * @param ownerId calendar owner {@link Identity} technical identifier
-   * @param username name of user accessing calendar data
+   * @param userIdentityId {@link Identity} identifier of user accessing
+   *          calendar data
    * @return true if user can access calendar or its events, else return false
    */
   public static boolean canAccessCalendar(IdentityManager identityManager,
                                           SpaceService spaceService,
                                           long ownerId,
-                                          String username) {
+                                          long userIdentityId) {
     Identity requestedOwner = identityManager.getIdentity(String.valueOf(ownerId));
     if (requestedOwner == null) {
       throw new IllegalStateException("Calendar owner with id " + ownerId + " wasn't found");
     }
 
+    Identity userIdentity = identityManager.getIdentity(String.valueOf(userIdentityId));
+    if (userIdentity == null) {
+      throw new IllegalStateException("User with id " + userIdentity + " wasn't found");
+    }
+
     if (StringUtils.equals(OrganizationIdentityProvider.NAME, requestedOwner.getProviderId())) {
-      return StringUtils.equals(requestedOwner.getRemoteId(), username);
+      return userIdentityId == Long.parseLong(requestedOwner.getId());
     } else if (StringUtils.equals(SpaceIdentityProvider.NAME, requestedOwner.getProviderId())) {
-      if (spaceService.isSuperManager(username)) {
+      if (spaceService.isSuperManager(userIdentity.getRemoteId())) {
         return true;
       } else {
         Space space = spaceService.getSpaceByPrettyName(requestedOwner.getRemoteId());
-        return spaceService.isMember(space, username);
+        return space != null && spaceService.isMember(space, userIdentity.getRemoteId());
       }
     } else {
       return false;

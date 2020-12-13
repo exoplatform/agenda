@@ -82,8 +82,8 @@ export default {
 
       this.loading = true;
       this.$eventService.sendEventResponse(this.event.parent.id, null, this.eventResponse)
-        .then((event) => {
-          this.$root.$emit('agenda-event-response-sent', event, null, this.eventResponse);
+        .then(() => {
+          this.$root.$emit('agenda-event-response-sent', this.event.parent, null, this.eventResponse);
           this.dialog = false;
         })
         .finally(() => this.loading = false);
@@ -94,8 +94,8 @@ export default {
 
       this.loading = true;
       this.$eventService.sendEventResponse(this.event.parent.id, this.event.occurrence.id, this.eventResponse)
-        .then(event => {
-          this.$root.$emit('agenda-event-response-sent', event, this.event.occurrence.id, this.eventResponse);
+        .then(() => {
+          this.$root.$emit('agenda-event-response-sent', this.event, this.event.occurrence.id, this.eventResponse);
           this.dialog = false;
         })
         .finally(() => this.loading = false);
