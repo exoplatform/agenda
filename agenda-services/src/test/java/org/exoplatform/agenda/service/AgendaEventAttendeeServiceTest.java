@@ -35,10 +35,9 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
 
     boolean allDay = true;
-    String creatorUserName = testuser1Identity.getRemoteId();
 
     Event event = newEventInstance(start, start, allDay);
-    event = createEvent(event.clone(), creatorUserName, testuser5Identity);
+    event = createEvent(event.clone(), Long.parseLong(testuser1Identity.getId()), testuser5Identity);
 
     long eventId = event.getId();
     List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId);
@@ -59,11 +58,10 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
 
     boolean allDay = true;
-    String creatorUserName = testuser1Identity.getRemoteId();
 
     Event event = newEventInstance(start, start, allDay);
     event.setStatus(EventStatus.CONFIRMED);
-    event = createEvent(event.clone(), creatorUserName, testuser1Identity, testuser5Identity);
+    event = createEvent(event.clone(), Long.parseLong(testuser1Identity.getId()), testuser1Identity, testuser5Identity);
     long eventId = event.getId();
 
     try {
@@ -98,11 +96,10 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
 
     boolean allDay = true;
-    String creatorUserName = testuser1Identity.getRemoteId();
 
     Event event = newEventInstance(start, start, allDay);
     event.setStatus(EventStatus.CONFIRMED);
-    event = createEvent(event.clone(), creatorUserName, testuser1Identity, testuser5Identity);
+    event = createEvent(event.clone(), Long.parseLong(testuser1Identity.getId()), testuser1Identity, testuser5Identity);
     long eventId = event.getId();
 
     try {
@@ -143,7 +140,6 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
     ZonedDateTime start = getDate().withNano(0);
 
     boolean allDay = true;
-    String creatorUserName = testuser1Identity.getRemoteId();
 
     Event event = newEventInstance(start, start, allDay);
     EventRecurrence recurrence = new EventRecurrence(0,
@@ -165,7 +161,7 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
                                                      null);
     event.setRecurrence(recurrence);
 
-    event = createEvent(event.clone(), creatorUserName, testuser1Identity, testuser2Identity);
+    event = createEvent(event.clone(), Long.parseLong(testuser1Identity.getId()), testuser1Identity, testuser2Identity);
 
     long eventId = event.getId();
     Event exceptionalOccurrence = agendaEventService.saveEventExceptionalOccurrence(eventId, start.plusDays(1));
@@ -219,10 +215,9 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
 
     boolean allDay = true;
-    String creatorUserName = testuser1Identity.getRemoteId();
 
     Event event = newEventInstance(start, start, allDay);
-    event = createEvent(event.clone(), creatorUserName, testuser5Identity);
+    event = createEvent(event.clone(), Long.parseLong(testuser1Identity.getId()), testuser5Identity);
 
     long eventId = event.getId();
     List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId);

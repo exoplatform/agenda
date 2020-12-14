@@ -84,6 +84,18 @@ export function getEventOccurrence(parentEventId, occurrenceId, expand) {
     return event;
   });
 }
+export function getEventExceptionalOccurrences(eventId, expand) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}/exceptionalOccurrences?expand=${expand || ''}&timeZoneId=${USER_TIMEZONE_ID}`, {
+    method: 'GET',
+    credentials: 'include',
+  }).then((resp) => {
+    if (resp && resp.ok) {
+      return resp.json();
+    } else {
+      throw new Error('Error getting occurrence of event');
+    }
+  });
+}
 
 export function createEvent(event) {
   event.sendInvitation = true;
@@ -107,7 +119,9 @@ export function createEvent(event) {
       });
     })
     .then((resp) => {
-      if (!resp || !resp.ok) {
+      if (resp && resp.ok) {
+        return resp.json();
+      } else {
         throw new Error('Error creating event');
       }
     });
@@ -134,10 +148,37 @@ export function updateEvent(event) {
         body: JSON.stringify(event),
       });
     }).then((resp) => {
-      if (!resp || !resp.ok) {
+      if (resp && resp.ok) {
+        return resp.json();
+      } else {
         throw new Error('Error updating event');
       }
     });
+}
+
+export function updateEventFields(eventId, eventFields, updateAllOccurrences, sendInvitations) {
+  eventFields = formatEventToSave(eventFields);
+
+  const formData = new FormData();
+  Object.keys(eventFields).forEach(fieldName => {
+    formData.append(fieldName, eventFields[fieldName]);
+  });
+
+  updateAllOccurrences = !!updateAllOccurrences;
+  sendInvitations = !!sendInvitations;
+
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}?updateAllOccurrences=${updateAllOccurrences}&sendInvitations=${sendInvitations}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams(formData).toString(),
+  }).then((resp) => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error patching event');
+    }
+  });
 }
 
 export function sendEventResponse(eventId, occurrenceId, response) {
@@ -213,7 +254,9 @@ export function deleteEvent(eventId) {
         credentials: 'include',
       })
     ).then((resp) => {
-      if (!resp || !resp.ok) {
+      if (resp && resp.ok) {
+        return resp.json();
+      } else {
         throw new Error('Error deleting event');
       }
     });
@@ -250,16 +293,30 @@ function formatRecurrenceObject(event) {
 
 function formatEventToSave(event) {
   event = Object.assign({}, event);
-  event.start = toRFC3339(event.start);
-  event.end = toRFC3339(event.end);
+  if (event.start) {
+    event.start = toRFC3339(event.start);
+  }
+  if (event.end) {
+    event.end = toRFC3339(event.end);
+  }
 
   event = JSON.parse(JSON.stringify(event));
-  formatEventCalendar(event);
-  formatEventParent(event);
-  formatEventAttendees(event);
-  formatRecurrenceObject(event);
+  if (event.calendar) {
+    formatEventCalendar(event);
+  }
+  if (event.parent) {
+    formatEventParent(event);
+  }
+  if (event.attendees) {
+    formatEventAttendees(event);
+  }
+  if (event.recurrence) {
+    formatRecurrenceObject(event);
+  }
 
-  delete event.creator;
+  if (event.creator) {
+    delete event.creator;
+  }
   return event;
 }
 

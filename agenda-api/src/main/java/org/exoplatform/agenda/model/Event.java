@@ -43,19 +43,6 @@ public class Event implements Cloneable {
    */
   private long              parentId;
 
-  /**
-   * External Event technical identifier if imported from external Store. This
-   * can be used to identify calendar event if re-importing events from remote
-   * provider.
-   */
-  private String            remoteId;
-
-  /**
-   * Configured Identifier of Remote Calendar identifier, for example: "google"
-   * for Google Calendar and "office365" for Office 365 Calendar.
-   */
-  private long              remoteProviderId;
-
   private long              calendarId;
 
   private long              creatorId;
@@ -113,8 +100,6 @@ public class Event implements Cloneable {
   public Event clone() { // NOSONAR
     return new Event(id,
                      parentId,
-                     remoteId,
-                     remoteProviderId,
                      calendarId,
                      creatorId,
                      modifierId,

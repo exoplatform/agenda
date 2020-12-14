@@ -19,7 +19,7 @@ package org.exoplatform.agenda.listener;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import java.time.*;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -37,7 +37,6 @@ public class AgendaEventReminderComputingListenerTest extends BaseAgendaEventTes
     ZonedDateTime start = ZonedDateTime.now();
 
     boolean allDay = false;
-    String creatorUserName = testuser1Identity.getRemoteId();
 
     AtomicBoolean executeListener = new AtomicBoolean(true);
     listenerService.addListener(Utils.POST_CREATE_AGENDA_EVENT_EVENT, new Listener<Long, Object>() {
@@ -51,7 +50,7 @@ public class AgendaEventReminderComputingListenerTest extends BaseAgendaEventTes
 
     Event event = newEventInstance(start, start, allDay);
     try {
-      event = createEvent(event, creatorUserName, testuser4Identity, testuser5Identity);
+      event = createEvent(event, Long.parseLong(testuser1Identity.getId()), testuser4Identity, testuser5Identity);
     } finally {
       executeListener.set(false);
     }

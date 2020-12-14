@@ -15,27 +15,29 @@ import lombok.*;
 @AllArgsConstructor
 public class AgendaUserSettings implements Cloneable {
 
-  private String                       agendaDefaultView;
+  private String                       agendaDefaultView       = null;
 
-  private String                       agendaWeekStartOn;
+  private String                       agendaWeekStartOn       = null;
 
-  private boolean                      showWorkingTime;
+  private boolean                      showWorkingTime         = false;
 
-  private String                       workingTimeStart;
+  private String                       workingTimeStart        = null;
 
-  private String                       workingTimeEnd;
+  private String                       workingTimeEnd          = null;
 
-  private String                       connectedRemoteProvider;
+  private String                       connectedRemoteProvider = null;
 
-  private String                       connectedRemoteUserId;
+  private String                       connectedRemoteUserId   = null;
 
-  private String                       timeZoneId;
+  private boolean                      automaticPushEvents     = true;
 
-  private List<EventReminderParameter> reminders;
+  private String                       timeZoneId              = null;
 
-  private List<RemoteProvider>         remoteProviders;
+  private List<EventReminderParameter> reminders               = null;
 
-  private List<String>                 webConferenceProviders;
+  private List<RemoteProvider>         remoteProviders         = null;
+
+  private List<String>                 webConferenceProviders  = null;
 
   public AgendaUserSettings(String agendaDefaultView,
                             String agendaWeekStartOn,
@@ -44,6 +46,7 @@ public class AgendaUserSettings implements Cloneable {
                             String workingTimeEnd,
                             String connectedRemoteProvider,
                             String connectedRemoteUserId,
+                            boolean automaticPushEvents,
                             String timeZoneId) {
     this.agendaDefaultView = agendaDefaultView;
     this.agendaWeekStartOn = agendaWeekStartOn;
@@ -52,6 +55,7 @@ public class AgendaUserSettings implements Cloneable {
     this.workingTimeEnd = workingTimeEnd;
     this.connectedRemoteProvider = connectedRemoteProvider;
     this.connectedRemoteUserId = connectedRemoteUserId;
+    this.automaticPushEvents = automaticPushEvents;
     this.timeZoneId = timeZoneId;
   }
 
@@ -86,6 +90,7 @@ public class AgendaUserSettings implements Cloneable {
                                   workingTimeEnd,
                                   connectedRemoteProvider,
                                   connectedRemoteUserId,
+                                  automaticPushEvents,
                                   timeZoneId);
   }
 

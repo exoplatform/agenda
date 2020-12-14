@@ -46,6 +46,7 @@ import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.rest.entity.IdentityEntity;
 
 import io.swagger.annotations.*;
+import io.swagger.jaxrs.PATCH;
 
 @Path("/v1/agenda/events")
 @Api(value = "/v1/agenda/events", description = "Manages agenda events associated to users and spaces") // NOSONAR
@@ -67,10 +68,13 @@ public class AgendaEventRest implements ResourceContainer {
 
   private AgendaEventConferenceService agendaEventConferenceService;
 
+  private AgendaRemoteEventService     agendaRemoteEventService;
+
   public AgendaEventRest(IdentityManager identityManager,
                          AgendaCalendarService agendaCalendarService,
                          AgendaEventService agendaEventService,
                          AgendaEventConferenceService agendaEventConferenceService,
+                         AgendaRemoteEventService agendaRemoteEventService,
                          AgendaEventAttachmentService agendaEventAttachmentService,
                          AgendaEventReminderService agendaEventReminderService,
                          AgendaEventAttendeeService agendaEventAttendeeService) {
@@ -81,6 +85,7 @@ public class AgendaEventRest implements ResourceContainer {
     this.agendaEventAttendeeService = agendaEventAttendeeService;
     this.agendaEventAttachmentService = agendaEventAttachmentService;
     this.agendaEventConferenceService = agendaEventConferenceService;
+    this.agendaRemoteEventService = agendaRemoteEventService;
   }
 
   @GET
@@ -131,7 +136,7 @@ public class AgendaEventRest implements ResourceContainer {
       return Response.status(Status.BAD_REQUEST).entity("Time zone is mandatory").build();
     }
 
-    ZoneId userTimeZone = ZoneId.of(timeZoneId);
+    ZoneId userTimeZone = StringUtils.isBlank(timeZoneId) ? ZoneOffset.UTC : ZoneId.of(timeZoneId);
 
     ZonedDateTime endDatetime = null;
     if (StringUtils.isBlank(end)) {
@@ -147,7 +152,7 @@ public class AgendaEventRest implements ResourceContainer {
       return Response.status(Status.BAD_REQUEST).entity("Start date must be before end date").build();
     }
 
-    String currentUser = RestUtils.getCurrentUser();
+    long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
     try {
       EventFilter eventFilter = new EventFilter(attendeeIdentityId,
                                                 ownerIds,
@@ -155,18 +160,17 @@ public class AgendaEventRest implements ResourceContainer {
                                                 startDatetime,
                                                 endDatetime,
                                                 limit);
-      List<Event> events = agendaEventService.getEvents(eventFilter, currentUser, userTimeZone);
+      List<Event> events = agendaEventService.getEvents(eventFilter, userTimeZone, userIdentityId);
       Map<Long, List<EventAttendeeEntity>> attendeesByParentEventId = new HashMap<>();
       Map<Long, List<EventAttachmentEntity>> attachmentsByParentEventId = new HashMap<>();
       Map<Long, List<EventConference>> conferencesByParentEventId = new HashMap<>();
       Map<Long, List<EventReminderEntity>> remindersByParentEventId = new HashMap<>();
+      Map<Long, RemoteEvent> remoteEventByParentEventId = new HashMap<>();
       List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
                                                                   : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
                                                                                                     ","));
       List<EventEntity> eventEntities = events.stream().map(event -> {
         EventEntity eventEntity = EntityBuilder.fromEvent(agendaCalendarService, agendaEventService, identityManager, event);
-        long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
-
         if (expandProperties.contains("all") || expandProperties.contains("attendees")) {
           try {
             fillAttendees(eventEntity, attendeesByParentEventId);
@@ -195,6 +199,10 @@ public class AgendaEventRest implements ResourceContainer {
             LOG.warn("Error retrieving event reminders, retrieve event without it", e);
           }
         }
+        fillRemoteEvent(eventEntity, userIdentityId);
+        if (eventEntity.getParent() != null) {
+          fillRemoteEvent(eventEntity.getParent(), userIdentityId, remoteEventByParentEventId);
+        }
         if (isComputedOccurrence(eventEntity)) {
           cleanupAttachedEntitiesIds(eventEntity);
         }
@@ -208,7 +216,7 @@ public class AgendaEventRest implements ResourceContainer {
       eventList.setLimit(limit);
       return Response.ok(eventList).build();
     } catch (IllegalAccessException e) {
-      LOG.warn("User '{}' attempts to access not authorized events of owner Id '{}'", currentUser, ownerIds);
+      LOG.warn("User '{}' attempts to access not authorized events of owner Id '{}'", RestUtils.getCurrentUser(), ownerIds);
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error retrieving list of events", e);
@@ -249,7 +257,7 @@ public class AgendaEventRest implements ResourceContainer {
       List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
                                                                   : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
                                                                                                     ","));
-      ZoneId userTimeZone = ZoneId.of(timeZoneId);
+      ZoneId userTimeZone = StringUtils.isBlank(timeZoneId) ? ZoneOffset.UTC : ZoneId.of(timeZoneId);
       EventEntity eventEntity = getEventByIdAndUser(eventId,
                                                     RestUtils.getCurrentUserIdentityId(identityManager),
                                                     userTimeZone,
@@ -306,7 +314,7 @@ public class AgendaEventRest implements ResourceContainer {
       List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
                                                                   : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
                                                                                                     ","));
-      ZoneId userTimeZone = ZoneId.of(timeZoneId);
+      ZoneId userTimeZone = StringUtils.isBlank(timeZoneId) ? ZoneOffset.UTC : ZoneId.of(timeZoneId);
       long identityId = RestUtils.getCurrentUserIdentityId(identityManager);
       ZonedDateTime occurrenceDate = AgendaDateUtils.parseRFC3339ToZonedDateTime(occurrenceId, userTimeZone);
       Event event = agendaEventService.getEventOccurrence(parentEventId, occurrenceDate, userTimeZone, identityId);
@@ -331,8 +339,52 @@ public class AgendaEventRest implements ResourceContainer {
     }
   }
 
+  @Path("{eventId}/exceptionalOccurrences")
+  @GET
+  @Produces(MediaType.APPLICATION_JSON)
+  @RolesAllowed("users")
+  @ApiOperation(
+      value = "Retrieves the list of exceptional occurrences of an event.",
+      httpMethod = "GET", response = Response.class, produces = "application/json"
+  )
+  @ApiResponses(
+      value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+  )
+  public Response getEventExceptionalOccurrences(
+                                                 @ApiParam(value = "Event technical identifier", required = true) @PathParam(
+                                                   "eventId"
+                                                 ) long parentEventId,
+                                                 @ApiParam(value = "Properties to expand", required = false) @QueryParam(
+                                                   "expand"
+                                                 ) String expand,
+                                                 @ApiParam(value = "IANA Time zone identitifer", required = false) @QueryParam(
+                                                   "timeZoneId"
+                                                 ) String timeZoneId) {
+    List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
+                                                                : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
+                                                                                                  ","));
+    long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    try {
+      ZoneId userTimeZone = StringUtils.isBlank(timeZoneId) ? ZoneOffset.UTC : ZoneId.of(timeZoneId);
+      List<Event> events = agendaEventService.getExceptionalOccurrenceEvents(parentEventId, userTimeZone, userIdentityId);
+      List<EventEntity> eventEntities = events.stream()
+                                              .map(event -> getEventEntity(event, expandProperties))
+                                              .collect(Collectors.toList());
+      return Response.ok(eventEntities).build();
+    } catch (IllegalAccessException e) {
+      LOG.warn("User '{}' attempts to access not authorized events", RestUtils.getCurrentUser());
+      return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
+    } catch (Exception e) {
+      LOG.warn("Error retrieving list of events", e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
+  @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
   @ApiOperation(value = "Create a new event", httpMethod = "POST", response = Response.class, consumes = "application/json")
   @ApiResponses(
@@ -342,7 +394,11 @@ public class AgendaEventRest implements ResourceContainer {
           @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
       }
   )
-  public Response createEvent(@ApiParam(value = "Event object to create", required = true) EventEntity eventEntity) {
+  public Response createEvent(
+                              @ApiParam(value = "IANA Time zone identitifer", required = false) @QueryParam(
+                                "timeZoneId"
+                              ) String timeZoneId,
+                              @ApiParam(value = "Event object to create", required = true) EventEntity eventEntity) {
     if (eventEntity == null) {
       return Response.status(Status.BAD_REQUEST).entity(AgendaExceptionType.EVENT_MANDATORY.getCompleteMessage()).build();
     }
@@ -350,12 +406,12 @@ public class AgendaEventRest implements ResourceContainer {
       return Response.status(Status.BAD_REQUEST).entity(AgendaExceptionType.CALENDAR_OWNER_NOT_FOUND).build();
     }
 
-    String currentUser = RestUtils.getCurrentUser();
+    long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
     try {
-      createEvent(eventEntity, currentUser);
-      return Response.noContent().build();
+      Event event = createEvent(eventEntity, userIdentityId);
+      return getEventById(event.getId(), "all", timeZoneId == null ? event.getTimeZoneId().getId() : timeZoneId);
     } catch (IllegalAccessException e) {
-      LOG.warn("User '{}' attempts to create an event in calendar '{}'", currentUser, eventEntity.getCalendar());
+      LOG.warn("User '{}' attempts to create an event in calendar '{}'", RestUtils.getCurrentUser(), eventEntity.getCalendar());
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (AgendaException e) {
       return Response.serverError().entity(e.getAgendaExceptionType().getCompleteMessage()).build();
@@ -367,6 +423,7 @@ public class AgendaEventRest implements ResourceContainer {
 
   @PUT
   @Consumes(MediaType.APPLICATION_JSON)
+  @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
   @ApiOperation(value = "Update an existing event", httpMethod = "PUT", response = Response.class, consumes = "application/json")
   @ApiResponses(
@@ -377,7 +434,11 @@ public class AgendaEventRest implements ResourceContainer {
           @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
       }
   )
-  public Response updateEvent(@ApiParam(value = "Event object to update", required = true) EventEntity eventEntity) {
+  public Response updateEvent(
+                              @ApiParam(value = "Event object to update", required = true) EventEntity eventEntity,
+                              @ApiParam(value = "IANA Time zone identitifer", required = false) @QueryParam(
+                                "timeZoneId"
+                              ) String timeZoneId) {
     if (eventEntity == null) {
       return Response.status(Status.BAD_REQUEST).entity(AgendaExceptionType.EVENT_MANDATORY.getCompleteMessage()).build();
     }
@@ -385,7 +446,7 @@ public class AgendaEventRest implements ResourceContainer {
       return Response.status(Status.BAD_REQUEST).entity(AgendaExceptionType.EVENT_ID_MANDATORY.getCompleteMessage()).build();
     }
 
-    String currentUser = RestUtils.getCurrentUser();
+    long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
     try {
       checkCalendar(eventEntity);
 
@@ -415,16 +476,113 @@ public class AgendaEventRest implements ResourceContainer {
         }
       }
 
+      RemoteEvent remoteEvent = getRemoteEvent(eventEntity, userIdentityId);
+
       agendaEventService.updateEvent(event,
                                      attendees,
                                      eventEntity.getConferences(),
                                      attachments,
                                      reminders,
+                                     remoteEvent,
                                      eventEntity.isSendInvitation(),
-                                     currentUser);
+                                     userIdentityId);
+      return getEventById(event.getId(), "all", timeZoneId == null ? event.getTimeZoneId().getId() : timeZoneId);
+    } catch (AgendaException e) {
+      return Response.serverError().entity(e.getAgendaExceptionType().getCompleteMessage()).build();
+    } catch (IllegalAccessException e) {
+      LOG.error("User '{}' attempts to update a non authorized event", RestUtils.getCurrentUser());
+      return Response.status(Status.UNAUTHORIZED).build();
+    } catch (Exception e) {
+      LOG.warn("Error updating an event", e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
+  @Path("{eventId}")
+  @PATCH
+  @Consumes("application/x-www-form-urlencoded")
+  @RolesAllowed("users")
+  @ApiOperation(value = "Update an attribute of an existing event", httpMethod = "PATCH", response = Response.class)
+  @ApiResponses(
+      value = {
+          @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object not found"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+      }
+  )
+  public Response updateEventFields(
+                                    @ApiParam(
+                                        value = "Event technical identifier",
+                                        required = true
+                                    ) @PathParam("eventId") long eventId,
+                                    @ApiParam(
+                                        value = "Update all event occurrences or only parent occurrence",
+                                        required = false,
+                                        defaultValue = "false"
+                                    ) @QueryParam("updateAllOccurrences") boolean updateAllOccurrences,
+                                    @ApiParam(
+                                        value = "Whether notify attendees about the modification or not",
+                                        required = false,
+                                        defaultValue = "false"
+                                    ) @QueryParam("sendInvitations") boolean sendInvitations,
+                                    @ApiParam(
+                                        value = "Event fields to patch",
+                                        required = true
+                                    ) MultivaluedMap<String, String> eventFields) {
+    if (eventId <= 0) {
+      return Response.status(Status.BAD_REQUEST)
+                     .entity(AgendaExceptionType.EVENT_ID_MANDATORY.getCompleteMessage())
+                     .build();
+    }
+
+    if (eventFields == null || eventFields.isEmpty()) {
+      return Response.status(Status.BAD_REQUEST)
+                     .entity(AgendaExceptionType.EVENT_FIELDS_MANDATORY.getCompleteMessage())
+                     .build();
+    }
+
+    long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    try {
+      Event event = agendaEventService.getEventById(eventId, ZoneOffset.UTC, userIdentityId);
+      if (event == null) {
+        return Response.status(Status.NOT_FOUND).entity("Event not found").build();
+      }
+
+      if (eventFields.containsKey("remoteId") || eventFields.containsKey("remoteProviderId")
+          || eventFields.containsKey("remoteProviderName")) {
+        String remoteId = eventFields.containsKey("remoteId") ? eventFields.get("remoteId").get(0) : null;
+        String remoteProviderId = eventFields.containsKey("remoteProviderId") ? eventFields.get("remoteProviderId").get(0) : null;
+        String remoteProviderName = eventFields.containsKey("remoteProviderName") ? eventFields.get("remoteProviderName").get(0)
+                                                                                  : null;
+
+        RemoteEvent remoteEvent = new RemoteEvent(0,
+                                                  eventId,
+                                                  userIdentityId,
+                                                  remoteId,
+                                                  remoteProviderId == null ? 0 : Long.parseLong(remoteProviderId),
+                                                  remoteProviderName);
+        agendaRemoteEventService.saveRemoteEvent(eventId, remoteEvent, userIdentityId);
+      }
+
+      eventFields.remove("remoteId");
+      eventFields.remove("remoteProviderId");
+      eventFields.remove("remoteProviderName");
+
+      if (!eventFields.isEmpty()) {
+        agendaEventService.updateEventFields(eventId,
+                                             eventFields,
+                                             updateAllOccurrences,
+                                             sendInvitations,
+                                             userIdentityId);
+      }
       return Response.noContent().build();
     } catch (AgendaException e) {
       return Response.serverError().entity(e.getAgendaExceptionType().getCompleteMessage()).build();
+    } catch (IllegalAccessException e) {
+      LOG.error("User '{}' attempts to update a non authorized event", RestUtils.getCurrentUser());
+      return Response.status(Status.UNAUTHORIZED).build();
     } catch (Exception e) {
       LOG.warn("Error updating an event", e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -433,6 +591,7 @@ public class AgendaEventRest implements ResourceContainer {
 
   @DELETE
   @Path("{eventId}")
+  @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
   @ApiOperation(value = "Delete an existing event", httpMethod = "DELETE", response = Response.class)
   @ApiResponses(
@@ -449,14 +608,19 @@ public class AgendaEventRest implements ResourceContainer {
       return Response.status(Status.BAD_REQUEST).entity("Event technical identifier must be positive").build();
     }
 
-    String currentUser = RestUtils.getCurrentUser();
+    long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
     try {
-      agendaEventService.deleteEventById(eventId, currentUser);
-      return Response.noContent().build();
-    } catch (ObjectNotFoundException e) {
-      return Response.status(Status.NOT_FOUND).entity("Event not found").build();
+      EventEntity eventEntity = getEventByIdAndUser(eventId,
+                                                    userIdentityId,
+                                                    null,
+                                                    Collections.singletonList("all"));
+      if (eventEntity == null) {
+        return Response.status(Status.NOT_FOUND).entity("Event not found").build();
+      }
+      agendaEventService.deleteEventById(eventId, userIdentityId);
+      return Response.ok(eventEntity).build();
     } catch (IllegalAccessException e) {
-      LOG.error("User '{}' attempts to delete a non authorized event", currentUser);
+      LOG.error("User '{}' attempts to delete a non authorized event", RestUtils.getCurrentUser());
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error deleting an event", e);
@@ -527,17 +691,16 @@ public class AgendaEventRest implements ResourceContainer {
       return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
     }
 
-    long currentUserIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
-    String currentUser = RestUtils.getCurrentUser();
+    long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
     try {
-      Event event = agendaEventService.getEventById(eventId, null, currentUser);
+      Event event = agendaEventService.getEventById(eventId, null, userIdentityId);
       if (event == null) {
         return Response.status(Status.NOT_FOUND).entity("Event with id " + eventId + " is not found").build();
       }
 
       ZonedDateTime occurrenceIdDateTime = null;
       if (StringUtils.isBlank(occurrenceId)) {
-        agendaEventReminderService.saveEventReminders(event, reminders, currentUserIdentityId);
+        agendaEventReminderService.saveEventReminders(event, reminders, userIdentityId);
       } else {
         if (event.getRecurrence() == null) {
           return Response.status(Status.BAD_REQUEST).entity("Event is not recurrent, no occurrenceId is needed").build();
@@ -547,12 +710,12 @@ public class AgendaEventRest implements ResourceContainer {
         if (occurrenceEvent == null) { // Exceptional occurrence not yet created
           occurrenceEvent = agendaEventService.saveEventExceptionalOccurrence(eventId, occurrenceIdDateTime);
         }
-        agendaEventReminderService.saveEventReminders(occurrenceEvent, reminders, currentUserIdentityId);
+        agendaEventReminderService.saveEventReminders(occurrenceEvent, reminders, userIdentityId);
       }
 
       return Response.noContent().build();
     } catch (IllegalAccessException e) {
-      LOG.warn("User '{}' attempts to access reminders for a not authorized event with Id '{}'", currentUserIdentityId, eventId);
+      LOG.warn("User '{}' attempts to access reminders for a not authorized event with Id '{}'", userIdentityId, eventId);
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error updating event reminders with id '{}'", eventId, e);
@@ -582,13 +745,12 @@ public class AgendaEventRest implements ResourceContainer {
       return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
     }
 
-    String currentUser = RestUtils.getCurrentUser();
     try {
       Identity identity = null;
       if (StringUtils.isNotBlank(token)) {
         identity = agendaEventAttendeeService.decryptUserIdentity(eventId, token, null);
-      } else if (StringUtils.isNotBlank(currentUser)) {
-        identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, currentUser);
+      } else {
+        identity = RestUtils.getCurrentUserIdentity(identityManager);
       }
       if (identity == null) {
         return Response.status(Status.FORBIDDEN).build();
@@ -599,7 +761,9 @@ public class AgendaEventRest implements ResourceContainer {
     } catch (ObjectNotFoundException e) {
       return Response.status(Status.NOT_FOUND).entity("Event not found").build();
     } catch (IllegalAccessException e) {
-      LOG.warn("User '{}' attempts to access invitation response for a not authorized event with Id '{}'", currentUser, eventId);
+      LOG.warn("User '{}' attempts to access invitation response for a not authorized event with Id '{}'",
+               RestUtils.getCurrentUser(),
+               eventId);
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error retrieving event response with id '{}'", eventId, e);
@@ -722,7 +886,7 @@ public class AgendaEventRest implements ResourceContainer {
                                                                 : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
                                                                                                   ","));
     long currentUserId = RestUtils.getCurrentUserIdentityId(identityManager);
-    ZoneId userTimeZone = ZoneId.of(timeZoneId);
+    ZoneId userTimeZone = StringUtils.isBlank(timeZoneId) ? ZoneOffset.UTC : ZoneId.of(timeZoneId);
     List<EventSearchResult> searchResults = agendaEventService.search(currentUserId, userTimeZone, query, offset, limit);
     List<EventSearchResultEntity> results = searchResults.stream()
                                                          .map(searchResult -> getEventSearchResultEntity(searchResult,
@@ -731,7 +895,7 @@ public class AgendaEventRest implements ResourceContainer {
     return Response.ok(results).build();
   }
 
-  private Event createEvent(EventEntity eventEntity, String currentUser) throws AgendaException, IllegalAccessException {
+  private Event createEvent(EventEntity eventEntity, long userIdentityId) throws AgendaException, IllegalAccessException {
     checkCalendar(eventEntity);
 
     cleanupAttachedEntitiesIds(eventEntity);
@@ -766,13 +930,16 @@ public class AgendaEventRest implements ResourceContainer {
       }
     }
 
+    RemoteEvent remoteEvent = getRemoteEvent(eventEntity, userIdentityId);
+
     return agendaEventService.createEvent(EntityBuilder.toEvent(eventEntity),
                                           attendees,
                                           eventEntity.getConferences(),
                                           attachments,
                                           reminders,
+                                          remoteEvent,
                                           eventEntity.isSendInvitation(),
-                                          currentUser);
+                                          userIdentityId);
   }
 
   private void checkCalendar(EventEntity eventEntity) throws AgendaException {
@@ -819,6 +986,10 @@ public class AgendaEventRest implements ResourceContainer {
       if (expandProperties.contains("all") || expandProperties.contains("reminders")) {
         fillReminders(eventEntity, userIdentityId);
       }
+      fillRemoteEvent(eventEntity, userIdentityId);
+      if (eventEntity.getParent() != null) {
+        fillRemoteEvent(eventEntity.getParent(), userIdentityId);
+      }
       if (isComputedOccurrence(eventEntity)) {
         cleanupAttachedEntitiesIds(eventEntity);
       }
@@ -847,6 +1018,10 @@ public class AgendaEventRest implements ResourceContainer {
       }
       if (expandProperties.contains("all") || expandProperties.contains("reminders")) {
         fillReminders(eventSearchResultEntity, userIdentityId);
+      }
+      fillRemoteEvent(eventSearchResultEntity, userIdentityId);
+      if (eventSearchResultEntity.getParent() != null) {
+        fillRemoteEvent(eventSearchResultEntity.getParent(), userIdentityId);
       }
       if (isComputedOccurrence(eventSearchResultEntity)) {
         cleanupAttachedEntitiesIds(eventSearchResultEntity);
@@ -931,6 +1106,51 @@ public class AgendaEventRest implements ResourceContainer {
       fillReminders(eventEntity, userIdentityId);
       remindersByParentEventId.put(eventId, eventEntity.getReminders());
     }
+  }
+
+  private void fillRemoteEvent(EventEntity eventEntity,
+                               long userIdentityId) {
+    if (isComputedOccurrence(eventEntity)) {
+      return;
+    }
+
+    long eventId = eventEntity.getId();
+    RemoteEvent remoteEvent = agendaRemoteEventService.findRemoteEvent(eventId, userIdentityId);
+    if (remoteEvent != null) {
+      eventEntity.setRemoteId(remoteEvent.getRemoteId());
+      eventEntity.setRemoteProviderId(remoteEvent.getRemoteProviderId());
+      eventEntity.setRemoteProviderName(remoteEvent.getRemoteProviderName());
+    }
+  }
+
+  private void fillRemoteEvent(EventEntity eventEntity, long userIdentityId, Map<Long, RemoteEvent> remoteEventByParentEventId) {
+    if (isComputedOccurrence(eventEntity)) {
+      return;
+    }
+
+    long eventId = eventEntity.getId();
+    RemoteEvent remoteEvent = null;
+    if (remoteEventByParentEventId.containsKey(eventId)) {
+      remoteEvent = remoteEventByParentEventId.get(eventId);
+    } else {
+      remoteEvent = agendaRemoteEventService.findRemoteEvent(eventId, userIdentityId);
+      remoteEventByParentEventId.put(eventId, remoteEvent);
+    }
+    if (remoteEvent != null) {
+      eventEntity.setRemoteId(remoteEvent.getRemoteId());
+      eventEntity.setRemoteProviderId(remoteEvent.getRemoteProviderId());
+      eventEntity.setRemoteProviderName(remoteEvent.getRemoteProviderName());
+    }
+  }
+
+  private RemoteEvent getRemoteEvent(EventEntity eventEntity, long userIdentityId) {
+    return new RemoteEvent(0l,
+                           eventEntity.getId(),
+                           userIdentityId,
+                           eventEntity.getRemoteId(),
+                           eventEntity.getRemoteProviderId(),
+                           eventEntity.getRemoteProviderName());
+
   }
 
   private void fillReminders(EventEntity eventEntity, long userIdentityId) {

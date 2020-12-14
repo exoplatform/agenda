@@ -19,11 +19,11 @@ public class AgendaUserSettingsServiceImpl implements AgendaUserSettingsService 
 
   private static final String          AGENDA_USER_SETTING_KEY        = "AgendaSettings";
 
-  private AgendaEventService           agendaEventService;
-
   private AgendaEventConferenceService agendaEventConferenceService;
 
   private AgendaEventReminderService   agendaEventReminderService;
+
+  private AgendaRemoteEventService     agendaRemoteEventService;
 
   private SettingService               settingService;
 
@@ -31,12 +31,12 @@ public class AgendaUserSettingsServiceImpl implements AgendaUserSettingsService 
 
   public AgendaUserSettingsServiceImpl(AgendaEventReminderService agendaEventReminderService,
                                        AgendaEventConferenceService agendaEventConferenceService,
-                                       AgendaEventService agendaEventService,
+                                       AgendaRemoteEventService agendaRemoteEventService,
                                        SettingService settingService,
                                        InitParams initParams) {
     this.agendaEventReminderService = agendaEventReminderService;
     this.agendaEventConferenceService = agendaEventConferenceService;
-    this.agendaEventService = agendaEventService;
+    this.agendaRemoteEventService = agendaRemoteEventService;
     this.settingService = settingService;
 
     if (initParams.containsKey(AGENDA_USER_SETTINGS_PARAM_KEY)) {
@@ -67,8 +67,7 @@ public class AgendaUserSettingsServiceImpl implements AgendaUserSettingsService 
     SettingValue<?> settingValue = this.settingService.get(Context.USER.id(String.valueOf(userIdentityId)),
                                                            AGENDA_USER_SETTING_SCOPE,
                                                            AGENDA_USER_SETTING_KEY);
-
-    List<RemoteProvider> remoteProviders = agendaEventService.getRemoteProviders();
+    List<RemoteProvider> remoteProviders = agendaRemoteEventService.getRemoteProviders();
     AgendaUserSettings agendaUserSettings = null;
     if (settingValue == null || settingValue.getValue() == null || StringUtils.isBlank(settingValue.getValue().toString())) {
       agendaUserSettings = defaultUserSettings.clone();

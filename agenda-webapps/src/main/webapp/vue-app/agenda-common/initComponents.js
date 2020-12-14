@@ -126,6 +126,7 @@ import * as calendarService from './js/CalendarService.js';
 import * as settingsService from './js/SettingsService.js';
 import * as agendaUtils from './js/AgendaUtils.js';
 import * as webConferencingService from './js/EventWebConferencingService.js';
+import * as remoteEventConnector from './js/RemoteEventConnector.js';
 
 const userTimeZoneId = agendaUtils.USER_TIMEZONE_ID;
 
@@ -157,5 +158,10 @@ if (!Vue.prototype.$userTimeZoneId) {
 if (!Vue.prototype.$webConferencingService) {
   window.Object.defineProperty(Vue.prototype, '$webConferencingService', {
     value: webConferencingService,
+  });
+}
+if (!Vue.prototype.$remoteEventConnector) {
+  window.Object.defineProperty(Vue.prototype, '$remoteEventConnector', {
+    value: remoteEventConnector,
   });
 }

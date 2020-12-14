@@ -68,6 +68,10 @@ export default {
       type: Object,
       default: () => ({})
     },
+    connectedConnector: {
+      type: Object,
+      default: () => null
+    },
   },
   computed: {
     calendarOwnerLink() {

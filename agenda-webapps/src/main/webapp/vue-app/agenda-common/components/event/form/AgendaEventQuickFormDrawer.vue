@@ -254,8 +254,8 @@ export default {
       delete this.event.endDate;
 
       this.$eventService.createEvent(this.event)
-        .then(() => {
-          this.$root.$emit('agenda-refresh');
+        .then(event => {
+          this.$root.$emit('agenda-event-saved', event);
           this.close();
         })
         .finally(() => this.saving = false);

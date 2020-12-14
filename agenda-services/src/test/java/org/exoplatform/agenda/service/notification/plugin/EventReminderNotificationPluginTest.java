@@ -33,7 +33,6 @@ public class EventReminderNotificationPluginTest extends BaseAgendaEventTest {
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
 
     boolean allDay = true;
-    String creatorUserName = testuser1Identity.getRemoteId();
 
     Event event = newEventInstance(start, start, allDay);
 
@@ -41,7 +40,7 @@ public class EventReminderNotificationPluginTest extends BaseAgendaEventTest {
     Identity spaceIdentity = identityManager.getOrCreateIdentity(SpaceIdentityProvider.NAME, space.getPrettyName());
 
     Event createdEvent = createEvent(event.clone(),
-                                     creatorUserName,
+                                     Long.parseLong(testuser1Identity.getId()),
                                      testuser1Identity,
                                      testuser2Identity,
                                      testuser3Identity,

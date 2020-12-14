@@ -137,7 +137,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
           sendEventResponse(eventId, creatorUserId, EventAttendeeResponse.ACCEPTED);
         } else if (event.getStatus() == EventStatus.TENTATIVE) {
           sendEventResponse(eventId, creatorUserId, EventAttendeeResponse.TENTATIVE);
-        } else if (event.getStatus() == EventStatus.CANCELED) {
+        } else if (event.getStatus() == EventStatus.CANCELLED) {
           sendEventResponse(eventId, creatorUserId, EventAttendeeResponse.DECLINED);
         }
       }
@@ -207,7 +207,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
 
     // Apply modification on exceptional occurrences as well
     if (eventStorage.isRecurrentEvent(eventId)) {
-      List<Long> exceptionalOccurenceEventIds = eventStorage.getExceptionalOccurenceEventIds(eventId);
+      List<Long> exceptionalOccurenceEventIds = eventStorage.getExceptionalOccurenceIds(eventId);
       for (long exceptionalOccurenceEventId : exceptionalOccurenceEventIds) {
         if (isEventAttendee(exceptionalOccurenceEventId, identityId)) {
           saveEventAttendee(exceptionalOccurenceEventId, identityId, response);
@@ -305,7 +305,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       agendaNotificationPluginType = AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN;
       ctx.append(EVENT_MODIFICATION_TYPE, "UPDATED");
     } else {
-      agendaNotificationPluginType = AGENDA_EVENT_CANCELED_NOTIFICATION_PLUGIN;
+      agendaNotificationPluginType = AGENDA_EVENT_CANCELLED_NOTIFICATION_PLUGIN;
       ctx.append(EVENT_MODIFICATION_TYPE, "DELETED");
     }
     dispatch(ctx, agendaNotificationPluginType);

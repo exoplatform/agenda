@@ -82,7 +82,7 @@ export default {
       this.loading = true;
       this.$eventService.deleteEvent(this.event.parent.id)
         .then(() => {
-          this.$root.$emit('agenda-event-deleted');
+          this.$root.$emit('agenda-event-deleted', this.event.parent);
           this.dialog = false;
         })
         .finally(() => this.loading = false);
@@ -99,12 +99,12 @@ export default {
       }
       const eventToDelete = JSON.parse(JSON.stringify(this.event));
       delete eventToDelete.recurrence;
-      eventToDelete.status = 'CANCELED';
+      eventToDelete.status = 'CANCELLED';
 
       this.loading = true;
       saveEventMethod(eventToDelete)
-        .then(() => {
-          this.$root.$emit('agenda-event-deleted');
+        .then(event => {
+          this.$root.$emit('agenda-event-deleted', event);
           this.dialog = false;
         })
         .finally(() => this.loading = false);

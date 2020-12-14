@@ -134,32 +134,38 @@ export default {
     };
   },
   computed: {
+    eventRecurrenceByDay() {
+      return this.eventRecurrence && this.eventRecurrence.byDay;
+    },
     days() {
       return [{
-        text: this.getWeekDayLabel(2),
-        value: 'MO'
-      },{
-        text: this.getWeekDayLabel(3),
-        value: 'TU'
-      },{
-        text: this.getWeekDayLabel(4),
-        value: 'WE'
-      },{
-        text: this.getWeekDayLabel(5),
-        value: 'TH'
-      },{
-        text: this.getWeekDayLabel(6),
-        value: 'FR'
-      },{
         text: this.getWeekDayLabel(0),
-        value: 'SA'
+        value: 'SU'
       },{
         text: this.getWeekDayLabel(1),
-        value: 'SU'
+        value: 'MO'
+      },{
+        text: this.getWeekDayLabel(2),
+        value: 'TU'
+      },{
+        text: this.getWeekDayLabel(3),
+        value: 'WE'
+      },{
+        text: this.getWeekDayLabel(4),
+        value: 'TH'
+      },{
+        text: this.getWeekDayLabel(5),
+        value: 'FR'
+      },{
+        text: this.getWeekDayLabel(6),
+        value: 'SA'
       }];
     },
   },
   watch: {
+    eventRecurrenceByDay() {
+      this.$root.$forceUpdate();
+    },
     recurrentEventDate() {
       if (this.recurrentEventDate === 'date') {
         this.eventRecurrence.count = '';
@@ -174,8 +180,7 @@ export default {
   },
   methods: {
     getWeekDayLabel(weekDayNumber) {
-      const date = new Date();
-      date.setDate(weekDayNumber);
+      const date = new Date(`2020-11-0${weekDayNumber + 1}`);
       const dayName = date.toLocaleDateString(eXo.env.portal.language, { weekday: 'short' });
       return dayName.length > 3 ? dayName.substring(0, 3) : dayName;
     },

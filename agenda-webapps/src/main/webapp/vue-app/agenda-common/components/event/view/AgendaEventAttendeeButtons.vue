@@ -71,7 +71,7 @@ export default {
       } else {
         this.savingResponse = response;
         this.$eventService.sendEventResponse(this.event.id, null, response)
-          .then(event => this.$root.$emit('agenda-event-response-sent', event, null, response))
+          .then(() => this.$root.$emit('agenda-event-response-sent', this.event, null, response))
           .finally(() => this.savingResponse = false);
       }
     },

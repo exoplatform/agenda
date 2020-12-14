@@ -36,6 +36,8 @@ public abstract class BaseAgendaEventTest {
 
   protected static final ArrayList<EventReminder>   REMINDERS            = new ArrayList<>();
 
+  protected static final RemoteEvent                REMOTE_EVENT         = null;
+
   protected PortalContainer                         container;
 
   protected IdentityManager                         identityManager;
@@ -55,6 +57,8 @@ public abstract class BaseAgendaEventTest {
   protected AgendaEventAttendeeService              agendaEventAttendeeService;
 
   protected AgendaEventReminderService              agendaEventReminderService;
+
+  protected AgendaRemoteEventService                agendaRemoteEventService;
 
   protected ListenerService                         listenerService;
 
@@ -91,6 +95,7 @@ public abstract class BaseAgendaEventTest {
     agendaEventAttachmentService = container.getComponentInstanceOfType(AgendaEventAttachmentService.class);
     agendaEventAttendeeService = container.getComponentInstanceOfType(AgendaEventAttendeeService.class);
     agendaEventReminderService = container.getComponentInstanceOfType(AgendaEventReminderService.class);
+    agendaRemoteEventService = container.getComponentInstanceOfType(AgendaRemoteEventService.class);
     identityManager = container.getComponentInstanceOfType(IdentityManager.class);
     spaceService = container.getComponentInstanceOfType(SpaceService.class);
     listenerService = container.getComponentInstanceOfType(ListenerService.class);
@@ -160,7 +165,7 @@ public abstract class BaseAgendaEventTest {
                                                                       CALENDAR_COLOR,
                                                                       null));
     if (remoteProvider == null) {
-      remoteProvider = agendaEventService.saveRemoteProvider(new RemoteProvider(0, "newRemoteProvider", true));
+      remoteProvider = agendaRemoteEventService.saveRemoteProvider(new RemoteProvider(0, "newRemoteProvider", true));
     }
   }
 
@@ -176,7 +181,7 @@ public abstract class BaseAgendaEventTest {
   }
 
   @SuppressWarnings("unchecked")
-  protected Event createEvent(Event event, String username, Identity... attendeesArray) throws Exception { // NOSONAR
+  protected Event createEvent(Event event, long userIdentityId, Identity... attendeesArray) throws Exception { // NOSONAR
     try { // NOSONAR
       ATTENDEES.clear();
       for (Identity attendeeIdentity : attendeesArray) {
@@ -202,16 +207,15 @@ public abstract class BaseAgendaEventTest {
                                             (ArrayList<EventConference>) CONFERENCES.clone(),
                                             (ArrayList<EventAttachment>) ATTACHMENTS.clone(),
                                             (ArrayList<EventReminder>) REMINDERS.clone(),
+                                            REMOTE_EVENT,
                                             true,
-                                            username);
+                                            userIdentityId);
     } finally {
       TimeZone.setDefault(TimeZone.getTimeZone("Japan"));
     }
   }
 
   protected Event newEventInstance(ZonedDateTime start, ZonedDateTime end, boolean allDay) {
-    String remoteId = "5";
-    long remoteProviderId = remoteProvider.getId();
     long calendarId = calendar.getId();
     long modifierId = 0;
 
@@ -246,8 +250,6 @@ public abstract class BaseAgendaEventTest {
     EventOccurrence occurrence = null;
     return new Event(0l,
                      0l,
-                     remoteId,
-                     remoteProviderId,
                      calendarId,
                      0l,
                      modifierId,

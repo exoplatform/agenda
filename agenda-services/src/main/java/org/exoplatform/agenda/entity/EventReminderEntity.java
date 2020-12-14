@@ -31,19 +31,19 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
   {
       @NamedQuery(
           name = "AgendaEventReminder.deleteCalendarReminders",
-          query = "DELETE FROM AgendaEventReminder a WHERE a.event.id IN (SELECT evt.id FROM AgendaEvent evt WHERE evt.calendar.id = :calendarId)"
+          query = "DELETE FROM AgendaEventReminder a WHERE a.eventId IN (SELECT evt.id FROM AgendaEvent evt WHERE evt.calendar.id = :calendarId)"
       ),
       @NamedQuery(
           name = "AgendaEventReminder.deleteEventReminders",
-          query = "DELETE FROM AgendaEventReminder a WHERE a.event.id = :eventId"
+          query = "DELETE FROM AgendaEventReminder a WHERE a.eventId = :eventId"
       ),
       @NamedQuery(
           name = "AgendaEventReminder.getEventRemindersByEventIdAndUserId",
-          query = "SELECT a FROM AgendaEventReminder a WHERE a.event.id = :eventId AND a.receiverId = :userId"
+          query = "SELECT a FROM AgendaEventReminder a WHERE a.eventId = :eventId AND a.receiverId = :userId"
       ),
       @NamedQuery(
           name = "AgendaEventReminder.getEventRemindersByEventId",
-          query = "SELECT a FROM AgendaEventReminder a WHERE a.event.id = :eventId"
+          query = "SELECT a FROM AgendaEventReminder a WHERE a.eventId = :eventId"
       ),
       @NamedQuery(
           name = "AgendaEventReminder.getEventRemindersByPeriod",
@@ -61,9 +61,12 @@ public class EventReminderEntity implements Serializable {
   @Column(name = "EVENT_REMINDER_ID")
   private Long               id;
 
-  @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "EVENT_ID", referencedColumnName = "EVENT_ID")
-  private EventEntity        event;
+  /*
+   * This column is joined in DB but no need to add a join annotaion here to
+   * avoid extra DB queries when updating or creating entities
+   */
+  @Column(name = "EVENT_ID", nullable = false)
+  private Long               eventId;
 
   @Column(name = "RECEIVER_ID", nullable = false)
   private long               receiverId;
@@ -85,12 +88,12 @@ public class EventReminderEntity implements Serializable {
     this.id = id;
   }
 
-  public EventEntity getEvent() {
-    return event;
+  public Long getEventId() {
+    return eventId;
   }
 
-  public void setEvent(EventEntity event) {
-    this.event = event;
+  public void setEventId(Long eventId) {
+    this.eventId = eventId;
   }
 
   public int getBefore() {

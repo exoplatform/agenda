@@ -163,7 +163,7 @@ export default {
     this.$root.$on('agenda-event-form', () => {
       this.reset();
     });
-    this.$root.$on('agenda-event-saved', this.close);
+    this.$root.$on('agenda-event-saved', () => this.close());
   },
   mounted() {
     this.reset();

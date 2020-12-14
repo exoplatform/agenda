@@ -18,7 +18,8 @@ package org.exoplatform.agenda.storage;
 
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
-import java.util.*;
+import java.util.Date;
+import java.util.List;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
@@ -40,18 +41,14 @@ public class AgendaEventStorage {
 
   private CalendarDAO        calendarDAO;
 
-  private RemoteProviderDAO  remoteProviderDAO;
-
   private EventDAO           eventDAO;
 
   private EventRecurrenceDAO eventRecurrenceDAO;
 
-  public AgendaEventStorage(RemoteProviderDAO remoteProviderDAO,
-                            CalendarDAO calendarDAO,
+  public AgendaEventStorage(CalendarDAO calendarDAO,
                             EventDAO eventDAO,
                             EventRecurrenceDAO eventRecurrenceDAO) {
     this.calendarDAO = calendarDAO;
-    this.remoteProviderDAO = remoteProviderDAO;
     this.eventDAO = eventDAO;
     this.eventRecurrenceDAO = eventRecurrenceDAO;
   }
@@ -87,47 +84,6 @@ public class AgendaEventStorage {
     eventDAO.deleteEvent(eventId);
   }
 
-  public List<RemoteProvider> getRemoteProviders() {
-    List<RemoteProviderEntity> remoteProviders = remoteProviderDAO.findAll();
-    return remoteProviders == null ? Collections.emptyList()
-                                   : remoteProviders.stream()
-                                                    .map(remoteProviderEntity -> EntityMapper.fromEntity(remoteProviderEntity))
-                                                    .collect(Collectors.toList());
-  }
-
-  public RemoteProvider saveRemoteProvider(RemoteProvider remoteProvider) {
-    RemoteProviderEntity remoteProviderEntity = EntityMapper.toEntity(remoteProvider);
-    if (remoteProviderEntity.getId() == null) {
-      RemoteProviderEntity existingRemoteProviderEntity = remoteProviderDAO.findByName(remoteProvider.getName());
-      if (existingRemoteProviderEntity == null) {
-        remoteProviderEntity = remoteProviderDAO.create(remoteProviderEntity);
-      } else {
-        remoteProviderEntity.setId(existingRemoteProviderEntity.getId());
-        remoteProviderEntity = remoteProviderDAO.update(remoteProviderEntity);
-      }
-    } else {
-      remoteProviderEntity = remoteProviderDAO.update(remoteProviderEntity);
-    }
-    return EntityMapper.fromEntity(remoteProviderEntity);
-  }
-
-  public RemoteProvider getConnectorByName(String connectorName) {
-    RemoteProviderEntity remoteProviderEntity = remoteProviderDAO.findByName(connectorName);
-    if (remoteProviderEntity == null) {
-      return null;
-    }
-    return EntityMapper.fromEntity(remoteProviderEntity);
-  }
-
-  public void saveRemoteProviderStatus(String connectorName, boolean enabled) {
-    RemoteProviderEntity remoteProviderEntity = remoteProviderDAO.findByName(connectorName);
-    if (remoteProviderEntity == null) {
-      throw new IllegalStateException("Remote calendar not found with name " + remoteProviderEntity);
-    }
-    remoteProviderEntity.setEnabled(enabled);
-    remoteProviderDAO.update(remoteProviderEntity);
-  }
-
   /**
    * @param parentRecurrentEventId a parent recurrent {@link Event} technical
    *          identifier
@@ -135,11 +91,8 @@ public class AgendaEventStorage {
    *         occurences events Identifiers of a parent recurrent event for a
    *         selected period of time
    */
-  public List<Long> getExceptionalOccurenceEventIds(long parentRecurrentEventId) {
-    return eventDAO.getExceptionalOccurences(parentRecurrentEventId)
-                   .stream()
-                   .map(EventEntity::getId)
-                   .collect(Collectors.toList());
+  public List<Long> getExceptionalOccurenceIds(long parentRecurrentEventId) {
+    return eventDAO.getExceptionalOccurenceIds(parentRecurrentEventId);
   }
 
   /**
@@ -151,12 +104,12 @@ public class AgendaEventStorage {
    *         occurences events Identifiers of a parent recurrent event for a
    *         selected period of time
    */
-  public List<Long> getExceptionalOccurenceEventIds(long parentRecurrentEventId,
-                                                    ZonedDateTime start,
-                                                    ZonedDateTime end) {
-    return eventDAO.getExceptionalOccurenceEventIds(parentRecurrentEventId,
-                                                    AgendaDateUtils.toDate(start),
-                                                    AgendaDateUtils.toDate(end));
+  public List<Long> getExceptionalOccurenceIdsByPeriod(long parentRecurrentEventId,
+                                                       ZonedDateTime start,
+                                                       ZonedDateTime end) {
+    return eventDAO.getExceptionalOccurenceIdsByPeriod(parentRecurrentEventId,
+                                                       AgendaDateUtils.toDate(start),
+                                                       AgendaDateUtils.toDate(end));
   }
 
   public Event createEvent(Event event) {
@@ -169,12 +122,6 @@ public class AgendaEventStorage {
     }
 
     updateEventCalendar(event, eventEntity);
-
-    if (event.getRemoteProviderId() > 0) {
-      RemoteProviderEntity remoteProviderEntity = remoteProviderDAO.find(event.getRemoteProviderId());
-      eventEntity.setRemoteProvider(remoteProviderEntity);
-    }
-
     eventEntity = eventDAO.create(eventEntity);
 
     createEventRecurrence(event, eventEntity);
@@ -189,9 +136,9 @@ public class AgendaEventStorage {
   public Event getExceptionalOccurrenceEvent(long parentRecurrentEventId, ZonedDateTime occurrenceId) {
     ZonedDateTime start = occurrenceId.toLocalDate().atStartOfDay(ZoneOffset.UTC);
     ZonedDateTime end = occurrenceId.toLocalDate().atStartOfDay(ZoneOffset.UTC).plusDays(1).minusSeconds(1);
-    List<Long> exceptionalOccurenceEventIds = eventDAO.getExceptionalOccurenceEventIds(parentRecurrentEventId,
-                                                                                       AgendaDateUtils.toDate(start),
-                                                                                       AgendaDateUtils.toDate(end));
+    List<Long> exceptionalOccurenceEventIds = eventDAO.getExceptionalOccurenceIdsByPeriod(parentRecurrentEventId,
+                                                                                          AgendaDateUtils.toDate(start),
+                                                                                          AgendaDateUtils.toDate(end));
     if (exceptionalOccurenceEventIds == null || exceptionalOccurenceEventIds.isEmpty()) {
       return null;
     } else if (exceptionalOccurenceEventIds.size() > 1) {
@@ -208,7 +155,6 @@ public class AgendaEventStorage {
 
     updateEventParent(event, eventEntity);
     updateEventCalendar(event, eventEntity);
-    updateEventRemoteProvider(event, eventEntity);
     updateEventRecurrence(event, eventEntity);
 
     eventEntity = eventDAO.update(eventEntity);
@@ -236,16 +182,6 @@ public class AgendaEventStorage {
         throw new IllegalStateException("Can't find parent event with id " + event.getParentId());
       }
       eventEntity.setParent(parentEvent);
-    }
-  }
-
-  private void updateEventRemoteProvider(Event event, EventEntity eventEntity) {
-    if (event.getRemoteProviderId() > 0) {
-      RemoteProviderEntity remoteProviderEntity = remoteProviderDAO.find(event.getRemoteProviderId());
-      if (remoteProviderEntity == null) {
-        throw new IllegalStateException("Can't find remote calendar provider with id " + event.getRemoteProviderId());
-      }
-      eventEntity.setRemoteProvider(remoteProviderEntity);
     }
   }
 

@@ -6,15 +6,21 @@
     <agenda-event-details-mobile-toolbar
       v-if="isMobile"
       :event="event"
+      :connected-connector="connectedConnector"
+      :is-attendee="isAttendee"
       @close="$emit('close')"
       @edit="$root.$emit('agenda-event-form', event)"
       @delete="deleteConfirmDialog" />
     <agenda-event-details-toolbar
       v-else
       :event="event"
+      :connected-connector="connectedConnector"
+      :is-attendee="isAttendee"
       @close="$emit('close')"
       @edit="$root.$emit('agenda-event-form', event)"
       @delete="deleteConfirmDialog" />
+
+    <slot name="top-bar-message"></slot>
 
     <v-divider class="flex-grow-0" />
 
@@ -204,6 +210,9 @@ export default {
     };
   },
   computed: {
+    connectedConnector() {
+      return this.connectors && this.connectors.find(connector => connector.connected);
+    },
     isMobile() {
       return this.$vuetify.breakpoint.name === 'xs';
     },
@@ -305,7 +314,7 @@ export default {
     },
     deleteEvent() {
       this.$eventService.deleteEvent(this.event.id)
-        .then(() => this.$root.$emit('agenda-event-deleted'));
+        .then(() => this.$root.$emit('agenda-event-deleted', this.event));
     },
   }
 };

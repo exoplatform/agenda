@@ -19,5 +19,5 @@ package org.exoplatform.agenda.constant;
 public enum EventStatus {
   CONFIRMED,
   TENTATIVE,
-  CANCELED;
+  CANCELLED;
 }

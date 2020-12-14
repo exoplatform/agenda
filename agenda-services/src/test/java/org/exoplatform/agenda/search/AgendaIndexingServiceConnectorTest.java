@@ -83,9 +83,8 @@ public class AgendaIndexingServiceConnectorTest extends BaseAgendaEventTest {
     }
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
 
-    String creatorUserName = testuser1Identity.getRemoteId();
     Event event = newEventInstance(start, start, false);
-    event = createEvent(event.clone(), creatorUserName, testuser2Identity);
+    event = createEvent(event.clone(), Long.parseLong(testuser1Identity.getId()), testuser2Identity);
     Document document = agendaIndexingServiceConnector.create(String.valueOf(event.getId()));
 
     assertNotNull(document);
@@ -125,9 +124,8 @@ public class AgendaIndexingServiceConnectorTest extends BaseAgendaEventTest {
 
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
 
-    String creatorUserName = testuser1Identity.getRemoteId();
     Event event = newEventInstance(start, start, false);
-    event = createEvent(event.clone(), creatorUserName, testuser2Identity);
+    event = createEvent(event.clone(), Long.parseLong(testuser1Identity.getId()), testuser2Identity);
 
     Document document = agendaIndexingServiceConnector.update(String.valueOf(event.getId()));
     assertNotNull(document);

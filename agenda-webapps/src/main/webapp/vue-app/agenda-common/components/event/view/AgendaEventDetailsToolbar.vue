@@ -67,6 +67,14 @@ export default {
       type: Object,
       default: () => ({})
     },
+    connectedConnector: {
+      type: Object,
+      default: () => null
+    },
+    isAttendee: {
+      type: Boolean,
+      default: false
+    },
   },
   computed: {
     isMobile() {
@@ -81,9 +89,6 @@ export default {
         }
       }
       return '';
-    },
-    isAttendee() {
-      return this.event.acl && this.event.acl.attendee;
     },
     canEdit() {
       return this.event.acl && this.event.acl.canEdit;

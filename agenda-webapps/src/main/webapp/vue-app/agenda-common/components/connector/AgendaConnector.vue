@@ -37,6 +37,12 @@ export default {
     this.$root.$on('agenda-connectors-init', this.initConnectors);
     this.$root.$on('agenda-connector-connect', this.connect);
     this.$root.$on('agenda-connector-disconnect', this.disconnect);
+    this.$root.$on('agenda-event-saved', this.pushEvent);
+    this.$root.$on('agenda-event-deleted', this.deleteEvent);
+    this.$root.$on('agenda-event-response-updated', this.pushEventResponse);
+  },
+  mounted() {
+    this.refreshConnectorsList();
   },
   methods: {
     refreshConnectorsList() {
@@ -48,7 +54,6 @@ export default {
         connectors
           .forEach(connector => {
             const connectorObj = this.remoteProviders.find(connectorSettings => connectorSettings.name === connector.name);
-            connector.technicalId = connectorObj && connectorObj.id;
             connector.enabled = connectorObj && connectorObj.enabled || false;
             connector.connected = connector.enabled && this.settings.connectedRemoteProvider === connectorObj.name;
             connector.user = connector.connected && this.settings.connectedRemoteUserId || '';
@@ -56,6 +61,8 @@ export default {
       } else {
         connectors.forEach(connector => connector.enabled = false);
       }
+
+      this.initConnectors();
 
       this.$emit('connectors-loaded', connectors);
     },
@@ -70,7 +77,7 @@ export default {
     connect(connector) {
       this.errorMessage = null;
       this.$set(connector, 'loading', true);
-      return connector.connect()
+      return connector.connect(this.settings && this.settings.automaticPushEvents)
         .then((userId) => this.$settingsService.saveUserConnector(connector.name, userId))
         .then(() => {
           this.$set(connector, 'loading', false);
@@ -78,8 +85,8 @@ export default {
         })
         .catch(error => {
           this.$set(connector, 'loading', false);
-          console.error('Error while connecting to remote account: ', error);
           if(error.error !== 'popup_closed_by_user') {
+            console.error('Error while connecting to remote account: ', error);
             this.errorMessage = this.$t('agenda.connectionFailure');
           }
         });
@@ -136,6 +143,29 @@ export default {
       }
 
       this.refreshConnectorsList();
+    },
+    deleteEvent(event) {
+      if (this.settings && this.settings.automaticPushEvents && this.connectedConnector && this.connectedConnector.canPush) {
+        return this.$remoteEventConnector.removeEventFromConnector(this.connectedConnector, event, !!event.recurrence)
+          .finally(() => this.$root.$emit('agenda-refresh'));
+      }
+    },
+    pushEvent(event) {
+      if (event && event.acl && event.acl.attendee) {
+        const userAttendee = event.attendees.find(user => user.identity && user.identity.id === eXo.env.portal.userIdentityId);
+        this.pushEventResponse(event, null, userAttendee && userAttendee.response);
+      }
+    },
+    pushEventResponse(event, occurrenceId, eventResponse) {
+      if (eventResponse && this.settings && this.settings.automaticPushEvents && this.connectedConnector && this.connectedConnector.canPush) {
+        if (eventResponse.toLowerCase()  === 'accepted') {
+          return this.$remoteEventConnector.pushEventToConnector(this.connectedConnector, event, !!event.recurrence)
+            .finally(() => this.$root.$emit('agenda-refresh'));
+        } else {
+          return this.$remoteEventConnector.removeEventFromConnector(this.connectedConnector, event, !!event.recurrence)
+            .finally(() => this.$root.$emit('agenda-refresh'));
+        }
+      }
     },
   },
 };

@@ -18,7 +18,7 @@ package org.exoplatform.agenda.service;
 
 import java.time.*;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
+import java.util.Map.Entry;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
@@ -28,21 +28,22 @@ import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.model.Calendar;
-import org.exoplatform.agenda.plugin.RemoteProviderDefinitionPlugin;
 import org.exoplatform.agenda.search.AgendaSearchConnector;
 import org.exoplatform.agenda.storage.AgendaEventStorage;
+import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
-import org.exoplatform.container.ExoContainerContext;
-import org.exoplatform.container.PortalContainer;
-import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.listener.ListenerService;
+import org.exoplatform.services.log.ExoLogger;
+import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.spi.SpaceService;
 
 public class AgendaEventServiceImpl implements AgendaEventService {
+
+  private static final Log             LOG = ExoLogger.getLogger(AgendaEventServiceImpl.class);
 
   private AgendaCalendarService        agendaCalendarService;
 
@@ -53,6 +54,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   private AgendaEventConferenceService conferenceService;
 
   private AgendaEventReminderService   reminderService;
+
+  private AgendaRemoteEventService     remoteEventService;
 
   private AgendaEventStorage           agendaEventStorage;
 
@@ -69,6 +72,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                 AgendaEventAttachmentService attachmentService,
                                 AgendaEventConferenceService conferenceService,
                                 AgendaEventReminderService reminderService,
+                                AgendaRemoteEventService remoteEventService,
                                 AgendaSearchConnector agendaSearchConnector,
                                 AgendaEventStorage agendaEventStorage,
                                 IdentityManager identityManager,
@@ -79,6 +83,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     this.attachmentService = attachmentService;
     this.conferenceService = conferenceService;
     this.reminderService = reminderService;
+    this.remoteEventService = remoteEventService;
     this.agendaEventStorage = agendaEventStorage;
     this.agendaSearchConnector = agendaSearchConnector;
     this.identityManager = identityManager;
@@ -86,71 +91,24 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     this.listenerService = listenerService;
   }
 
-  public void addRemoteProvider(RemoteProviderDefinitionPlugin plugin) {
-    if (plugin == null) {
-      throw new IllegalArgumentException("plugin is mandatory");
-    }
-    PortalContainer container = PortalContainer.getInstance();
-
-    CompletableFuture.runAsync(() -> {
-      ExoContainerContext.setCurrentContainer(container);
-      RequestLifeCycle.begin(container);
-      try {
-        RemoteProvider remoteProvider = agendaEventStorage.getConnectorByName(plugin.getConnectorName());
-        if (remoteProvider == null) {
-          remoteProvider = new RemoteProvider(0, plugin.getConnectorName(), plugin.isEnabled());
-        }
-        saveRemoteProvider(remoteProvider);
-      } finally {
-        RequestLifeCycle.end();
-      }
-    });
-  }
-
   /**
    * {@inheritDoc}
    */
   @Override
-  public Event getEventById(long eventId, ZoneId timeZone, String username) throws IllegalAccessException {
+  public Event getEventById(long eventId, ZoneId timeZone, long userIdentityId) throws IllegalAccessException {
     Event event = agendaEventStorage.getEventById(eventId);
     if (event == null) {
       return null;
     }
-    if (canAccessEvent(event, username)) {
+
+    if (canAccessEvent(event, userIdentityId)) {
       adjustEventDatesForRead(event, timeZone);
-
-      Identity identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
-      long userIdentityId = Long.parseLong(identity.getId());
-
-      boolean canUpdateEvent = canUpdateEvent(event, username);
+      boolean canUpdateEvent = canUpdateEvent(event, userIdentityId);
       boolean isEventAttendee = attendeeService.isEventAttendee(getEventIdOrParentId(event), userIdentityId);
-
       event.setAcl(new Permission(canUpdateEvent, isEventAttendee));
       return event;
     } else {
-      throw new IllegalAccessException("User " + username + "is not allowed to access event with id " + eventId);
-    }
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public Event getEventById(long eventId, ZoneId timeZone, long identityId) throws IllegalAccessException {
-    Event event = agendaEventStorage.getEventById(eventId);
-    if (event == null) {
-      return null;
-    }
-
-    Identity identity = identityManager.getIdentity(String.valueOf(identityId));
-    if (canAccessEvent(event, identityId)) {
-      adjustEventDatesForRead(event, timeZone);
-      boolean canUpdateEvent = canUpdateEvent(event, identity.getRemoteId());
-      boolean isEventAttendee = attendeeService.isEventAttendee(getEventIdOrParentId(event), identityId);
-      event.setAcl(new Permission(canUpdateEvent, isEventAttendee));
-      return event;
-    } else {
-      throw new IllegalAccessException("User with identity id " + identityId + "is not allowed to access event with id "
+      throw new IllegalAccessException("User with identity id " + userIdentityId + "is not allowed to access event with id "
           + eventId);
     }
   }
@@ -163,11 +121,14 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     return agendaEventStorage.getEventById(eventId);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public Event getEventOccurrence(long parentEventId,
                                   ZonedDateTime occurrenceId,
                                   ZoneId timeZone,
-                                  long identityId) throws IllegalAccessException {
+                                  long userIdentityId) throws IllegalAccessException {
     Event recurrentEvent = agendaEventStorage.getEventById(parentEventId);
     if (recurrentEvent == null) {
       return null;
@@ -179,11 +140,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
     Event event = null;
 
-    Identity identity = identityManager.getIdentity(String.valueOf(identityId));
-
     Event exceptionalOccurrenceEvent = agendaEventStorage.getExceptionalOccurrenceEvent(parentEventId, occurrenceId);
     if (exceptionalOccurrenceEvent != null) {
-      if (!canAccessEvent(exceptionalOccurrenceEvent, identityId)) {
+      if (!canAccessEvent(exceptionalOccurrenceEvent, userIdentityId)) {
         throw new IllegalAccessException("");
       }
       event = exceptionalOccurrenceEvent;
@@ -199,11 +158,42 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
     if (event != null) {
       adjustEventDatesForRead(event, timeZone);
-      boolean canUpdateEvent = canUpdateEvent(event, identity.getRemoteId());
-      boolean isEventAttendee = attendeeService.isEventAttendee(getEventIdOrParentId(event), identityId);
+      boolean canUpdateEvent = canUpdateEvent(event, userIdentityId);
+      boolean isEventAttendee = attendeeService.isEventAttendee(getEventIdOrParentId(event), userIdentityId);
       event.setAcl(new Permission(canUpdateEvent, isEventAttendee));
     }
     return event;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<Event> getExceptionalOccurrenceEvents(long parentEventId,
+                                                    ZoneId timeZone,
+                                                    long userIdentityId) throws IllegalAccessException {
+    Event parentEvent = agendaEventStorage.getEventById(parentEventId);
+    if (parentEvent == null) {
+      return Collections.emptyList();
+    }
+    if (!canAccessEvent(parentEvent, userIdentityId)) {
+      throw new IllegalAccessException("User " + userIdentityId + "is not allowed to access event with id " + parentEventId);
+    }
+    List<Long> exceptionalOccurenceIds = agendaEventStorage.getExceptionalOccurenceIds(parentEventId);
+    return exceptionalOccurenceIds.stream()
+                                  .map(eventId -> {
+                                    try {
+                                      return this.getEventById(eventId, timeZone, userIdentityId);
+                                    } catch (IllegalAccessException e) {
+                                      // Allow to user to access other
+                                      // exceptional events
+                                      LOG.debug("User is not allowed to access exceptional event {}. Ignore retrieving this exceptional event",
+                                                eventId);
+                                      return null;
+                                    }
+                                  })
+                                  .filter(event -> event != null)
+                                  .collect(Collectors.toList());
   }
 
   /**
@@ -223,20 +213,21 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                            List<EventConference> conferences,
                            List<EventAttachment> attachments,
                            List<EventReminder> reminders,
+                           RemoteEvent remoteEvent,
                            boolean sendInvitation,
-                           String username) throws IllegalAccessException, AgendaException {
-    if (StringUtils.isBlank(username)) {
-      throw new IllegalArgumentException("username is null");
+                           long userIdentityId) throws IllegalAccessException, AgendaException {
+    if (userIdentityId <= 0) {
+      throw new IllegalArgumentException("userIdentityId is mandatory");
     }
     if (event == null) {
-      throw new IllegalArgumentException("Event is null");
+      throw new IllegalArgumentException("Event is mandatory");
     }
     if (event.getId() > 0) {
       throw new IllegalArgumentException("Event id must be null");
     }
     long calendarId = event.getCalendarId();
     if (calendarId <= 0) {
-      throw new IllegalArgumentException("Event calendar must be positive");
+      throw new IllegalArgumentException("Event calendar id must be positive");
     }
     if (event.getStart() == null) {
       throw new AgendaException(AgendaExceptionType.EVENT_START_DATE_MANDATORY);
@@ -263,9 +254,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       }
     }
 
-    Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+    Identity userIdentity = identityManager.getIdentity(String.valueOf(userIdentityId));
     if (userIdentity == null) {
-      throw new IllegalAccessException("User '" + username + "' doesn't exist");
+      throw new IllegalAccessException("User '" + userIdentityId + "' doesn't exist");
     }
 
     Calendar calendar = agendaCalendarService.getCalendarById(calendarId);
@@ -273,12 +264,10 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       throw new AgendaException(AgendaExceptionType.CALENDAR_NOT_FOUND);
     }
 
-    boolean canCreateCalendarEvents = canCreateEvent(calendar, username);
+    boolean canCreateCalendarEvents = canCreateEvent(calendar, userIdentityId);
     if (!canCreateCalendarEvents) {
-      throw new IllegalAccessException("User '" + username + "' can't create an event in calendar " + calendar.getTitle());
+      throw new IllegalAccessException("User '" + userIdentityId + "' can't create an event in calendar " + calendar.getTitle());
     }
-
-    long userIdentityId = Long.parseLong(userIdentity.getId());
 
     EventOccurrence occurrence = event.getOccurrence();
     if (occurrence != null && occurrence.getId() != null) {
@@ -290,8 +279,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
     Event eventToCreate = new Event(0,
                                     event.getParentId(),
-                                    event.getRemoteId(),
-                                    event.getRemoteProviderId(),
                                     calendarId,
                                     userIdentityId,
                                     0,
@@ -315,25 +302,39 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
     Event createdEvent = agendaEventStorage.createEvent(eventToCreate);
     long eventId = createdEvent.getId();
-    createdEvent = getEventById(eventId, event.getTimeZoneId(), username);
+    createdEvent = getEventById(eventId, event.getTimeZoneId(), userIdentityId);
 
-    attachmentService.saveEventAttachments(eventId, attachments, userIdentityId);
-    conferenceService.saveEventConferences(eventId, conferences);
+    if (attachments != null && !attachments.isEmpty()) {
+      attachmentService.saveEventAttachments(eventId, attachments, userIdentityId);
+    }
+    if (conferences != null && !conferences.isEmpty()) {
+      conferenceService.saveEventConferences(eventId, conferences);
+    }
     if (reminders != null) {
       reminderService.saveEventReminders(createdEvent, reminders, userIdentityId);
     }
-    attendeeService.saveEventAttendees(createdEvent,
-                                       attendees,
-                                       userIdentityId,
-                                       sendInvitation,
-                                       false,
-                                       EventModificationType.ADDED);
+    if (attendees != null && !attendees.isEmpty()) {
+      attendeeService.saveEventAttendees(createdEvent,
+                                         attendees,
+                                         userIdentityId,
+                                         sendInvitation,
+                                         false,
+                                         EventModificationType.ADDED);
+    }
+    if (remoteEvent != null) {
+      remoteEvent.setIdentityId(userIdentityId);
+      remoteEvent.setEventId(createdEvent.getId());
+      remoteEventService.saveRemoteEvent(remoteEvent);
+    }
 
     Utils.broadcastEvent(listenerService, Utils.POST_CREATE_AGENDA_EVENT_EVENT, eventId, 0);
 
     return createdEvent;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public Event saveEventExceptionalOccurrence(long eventId, ZonedDateTime occurrenceId) throws AgendaException {
     Event exceptionalOccurrenceEvent = getExceptionalOccurrenceEvent(eventId, occurrenceId);
@@ -461,10 +462,11 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                            List<EventConference> conferences,
                            List<EventAttachment> attachments,
                            List<EventReminder> reminders,
+                           RemoteEvent remoteEvent,
                            boolean sendInvitation,
-                           String username) throws AgendaException, IllegalAccessException {
-    if (StringUtils.isBlank(username)) {
-      throw new IllegalArgumentException("username is null");
+                           long userIdentityId) throws AgendaException, IllegalAccessException {
+    if (userIdentityId <= 0) {
+      throw new IllegalArgumentException("userIdentityId is mandatory");
     }
     if (event == null) {
       throw new IllegalArgumentException("Event is null");
@@ -474,7 +476,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
     long calendarId = event.getCalendarId();
     if (calendarId <= 0) {
-      throw new IllegalArgumentException("Event calendar must be positive");
+      throw new IllegalArgumentException("Event calendar id must be positive");
     }
     if (event.getStart() == null) {
       throw new AgendaException(AgendaExceptionType.EVENT_START_DATE_MANDATORY);
@@ -505,9 +507,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       }
     }
 
-    Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+    Identity userIdentity = identityManager.getIdentity(String.valueOf(userIdentityId));
     if (userIdentity == null) {
-      throw new IllegalAccessException("User '" + username + "' doesn't exist");
+      throw new IllegalAccessException("User '" + userIdentityId + "' doesn't exist");
     }
 
     Calendar calendar = agendaCalendarService.getCalendarById(calendarId);
@@ -515,15 +517,14 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       throw new AgendaException(AgendaExceptionType.CALENDAR_NOT_FOUND);
     }
 
-    long userIdentityId = Long.parseLong(userIdentity.getId());
     long eventId = event.getId();
     Event storedEvent = getEventById(eventId);
     if (storedEvent == null) {
       throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
     }
 
-    if (!canUpdateEvent(storedEvent, username)) {
-      throw new IllegalAccessException("User '" + username + "' can't update event " + eventId);
+    if (!canUpdateEvent(storedEvent, userIdentityId)) {
+      throw new IllegalAccessException("User '" + userIdentityId + "' can't update event " + eventId);
     }
 
     EventOccurrence occurrence = event.getOccurrence();
@@ -542,8 +543,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
     Event eventToUpdate = new Event(event.getId(),
                                     event.getParentId(),
-                                    event.getRemoteId(),
-                                    event.getRemoteProviderId(),
                                     event.getCalendarId(),
                                     storedEvent.getCreatorId(),
                                     userIdentityId,
@@ -574,6 +573,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
     attachmentService.saveEventAttachments(eventId, attachments, userIdentityId);
     conferenceService.saveEventConferences(eventId, conferences);
+    remoteEventService.saveRemoteEvent(eventId, remoteEvent, userIdentityId);
     reminderService.saveEventReminders(updatedEvent, reminders, userIdentityId);
     attendeeService.saveEventAttendees(updatedEvent,
                                        attendees,
@@ -591,9 +591,75 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * {@inheritDoc}
    */
   @Override
-  public void deleteEventById(long eventId, String username) throws IllegalAccessException, ObjectNotFoundException {
-    if (StringUtils.isBlank(username)) {
-      throw new IllegalArgumentException("username is null");
+  public void updateEventFields(long eventId,
+                                Map<String, List<String>> fields,
+                                boolean updateAllOccurrences,
+                                boolean sendInvitations,
+                                long userIdentityId) throws IllegalAccessException, ObjectNotFoundException, AgendaException {
+    if (userIdentityId <= 0) {
+      throw new IllegalArgumentException("userIdentityId is mandatory");
+    }
+    if (fields == null || fields.isEmpty()) {
+      throw new IllegalArgumentException("fields is mandatory");
+    }
+    if (eventId <= 0) {
+      throw new IllegalArgumentException("Event id must not be null");
+    }
+    Event event = getEventById(eventId);
+    if (event == null) {
+      throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
+    }
+
+    Identity userIdentity = identityManager.getIdentity(String.valueOf(userIdentityId));
+    if (userIdentity == null) {
+      throw new IllegalAccessException("User '" + userIdentityId + "' doesn't exist");
+    }
+
+    if (!canUpdateEvent(event, userIdentityId)) {
+      throw new IllegalAccessException("User '" + userIdentityId + "' can't update event " + eventId);
+    }
+
+    Set<Entry<String, List<String>>> fieldsEntrySet = fields.entrySet();
+    for (Entry<String, List<String>> entry : fieldsEntrySet) {
+      String fieldName = entry.getKey();
+      String fieldValue = null;
+      List<String> fieldValues = entry.getValue();
+      if (fieldValues != null) {
+        if (fieldValues.size() > 1) {
+          throw new AgendaException(AgendaExceptionType.EVENT_FIELD_VALUE_NOT_MULTIVALUED);
+        } else if (!fieldValues.isEmpty()) {
+          fieldValue = fieldValues.get(0);
+        }
+      }
+      updateEventField(event, fieldName, fieldValue);
+    }
+
+    if (event.getStart().isAfter(event.getEnd())) {
+      throw new AgendaException(AgendaExceptionType.EVENT_START_DATE_BEFORE_END_DATE);
+    }
+
+    // Delete exceptional occurrences when updating the whole recurrent event
+    if (updateAllOccurrences && event.getRecurrence() != null) {
+      agendaEventStorage.deleteExceptionalOccurences(event.getId());
+    }
+
+    event.setModifierId(Long.parseLong(userIdentity.getId()));
+    agendaEventStorage.updateEvent(event);
+
+    if (sendInvitations) {
+      attendeeService.sendInvitations(eventId, EventModificationType.UPDATED);
+    }
+
+    Utils.broadcastEvent(listenerService, Utils.POST_UPDATE_AGENDA_EVENT_EVENT, eventId, 0);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Event deleteEventById(long eventId, long userIdentityId) throws IllegalAccessException, ObjectNotFoundException {
+    if (userIdentityId <= 0) {
+      throw new IllegalArgumentException("userIdentityId is mandatory");
     }
     if (eventId <= 0) {
       throw new IllegalArgumentException("eventId must be positive");
@@ -602,31 +668,36 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (event == null) {
       throw new ObjectNotFoundException("Event with id " + eventId + " is not found");
     }
-    if (!canUpdateEvent(event, username)) {
-      throw new IllegalAccessException("User " + username + " hasnt enough privileges to delete event with id " + eventId);
+    if (!canUpdateEvent(event, userIdentityId)) {
+      throw new IllegalAccessException("User " + userIdentityId + " hasn't enough privileges to delete event with id " + eventId);
     }
     attendeeService.sendInvitations(eventId, EventModificationType.DELETED);
     agendaEventStorage.deleteEventById(eventId);
+
     Utils.broadcastEvent(listenerService, Utils.POST_DELETE_AGENDA_EVENT_EVENT, eventId, 0);
+    return event;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public List<Event> getEvents(EventFilter eventFilter,
-                               String username,
-                               ZoneId userTimeZone) throws IllegalAccessException {
+                               ZoneId userTimeZone,
+                               long userIdentityId) throws IllegalAccessException {
     if (eventFilter == null) {
       throw new IllegalArgumentException("eventFilter is mandatory");
     }
 
-    Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+    Identity userIdentity = identityManager.getIdentity(String.valueOf(userIdentityId));
     if (userIdentity == null) {
-      throw new IllegalAccessException("User with name " + username + " doesn't exist");
+      throw new IllegalAccessException("User with name " + userIdentityId + " doesn't exist");
     }
 
     List<Long> ownerIds = eventFilter.getOwnerIds();
     if (ownerIds != null) {
       for (Long ownerId : ownerIds) {
-        if (!Utils.canAccessCalendar(identityManager, spaceService, ownerId, username)) {
+        if (!Utils.canAccessCalendar(identityManager, spaceService, ownerId, userIdentityId)) {
           throw new IllegalAccessException("User '" + userIdentity.getId() + "' is not allowed to access calendar of identity '"
               + ownerIds + "'");
         }
@@ -685,6 +756,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     return computeEventsProperties(eventIds, start, end, userTimeZone, limit, userIdentity, startMinusADay, endPlusADay);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public List<Event> getParentRecurrentEvents(ZonedDateTime start, ZonedDateTime end, ZoneId timeZone) {
     List<Event> events = this.agendaEventStorage.getParentRecurrentEventIds(start, end);
@@ -692,18 +766,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     return events;
   }
 
-  @Override
-  public boolean canAccessEvent(Event event, String username) {
-    long calendarId = event.getCalendarId();
-    Calendar calendar = agendaCalendarService.getCalendarById(calendarId);
-
-    Identity identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
-    long userIdentityId = Long.parseLong(identity.getId());
-
-    return Utils.canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), username)
-        || attendeeService.isEventAttendee(getEventIdOrParentId(event), userIdentityId);
-  }
-
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public boolean canAccessEvent(Event event, long identityId) {
     long calendarId = event.getCalendarId();
@@ -714,22 +779,23 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       return false;
     }
     if (StringUtils.equals(OrganizationIdentityProvider.NAME, identity.getProviderId())) {
-      return Utils.canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), identity.getRemoteId())
+      return Utils.canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), identityId)
           || attendeeService.isEventAttendee(getEventIdOrParentId(event), identityId);
     } else {
       return attendeeService.isEventAttendee(getEventIdOrParentId(event), identityId);
     }
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
-  public boolean canUpdateEvent(Event event, String username) {
-    Identity identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
-    long userIdentityId = Long.parseLong(identity.getId());
+  public boolean canUpdateEvent(Event event, long userIdentityId) {
     Calendar calendar = null;
     if (userIdentityId == event.getCreatorId()) {
       // Check if creator can always access to calendar or not
       calendar = agendaCalendarService.getCalendarById(event.getCalendarId());
-      if (Utils.canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), username)) {
+      if (Utils.canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), userIdentityId)) {
         return true;
       }
     }
@@ -740,28 +806,15 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (calendar == null) {
       calendar = agendaCalendarService.getCalendarById(event.getCalendarId());
     }
-    return Utils.canEditCalendar(identityManager, spaceService, calendar.getOwnerId(), username);
-  }
-
-  @Override
-  public boolean canCreateEvent(Calendar calendar, String username) {
-    return Utils.canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), username);
+    return Utils.canEditCalendar(identityManager, spaceService, calendar.getOwnerId(), userIdentityId);
   }
 
   /**
    * {@inheritDoc}
    */
   @Override
-  public List<RemoteProvider> getRemoteProviders() {
-    return agendaEventStorage.getRemoteProviders();
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public RemoteProvider saveRemoteProvider(RemoteProvider remoteProvider) {
-    return agendaEventStorage.saveRemoteProvider(remoteProvider);
+  public boolean canCreateEvent(Calendar calendar, long userIdentityId) {
+    return Utils.canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), userIdentityId);
   }
 
   /**
@@ -800,6 +853,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }).collect(Collectors.toList());
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public List<Event> getEventOccurrencesInPeriod(Event recurrentEvent,
                                                  ZonedDateTime start,
@@ -844,14 +900,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
     occurrences.forEach(occurrence -> adjustEventDatesForRead(occurrence, timezone));
     return limit > 0 && occurrences.size() > limit ? occurrences.subList(0, limit) : occurrences;
-  }
-
-  @Override
-  public void saveConnectorStatus(String connectorName, boolean enabled) {
-    if (StringUtils.isBlank(connectorName)) {
-      throw new IllegalStateException("connectorName is mandatory");
-    }
-    agendaEventStorage.saveRemoteProviderStatus(connectorName, enabled);
   }
 
   private ZonedDateTime getMaxEndDate(EventFilter eventFilter, ZoneId userTimeZone) {
@@ -914,14 +962,13 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   }
 
   private void computeEventsAcl(List<Event> events, Identity userIdentity) {
-    String username = userIdentity.getRemoteId();
     long userIdentityId = Long.parseLong(userIdentity.getId());
     Map<Long, Permission> eventPermissionsMap = new HashMap<>();
     events.forEach(event -> {
       long eventId = getEventIdOrParentId(event);
       Permission permission = eventPermissionsMap.get(eventId);
       if (permission == null) {
-        boolean canUpdateEvent = canUpdateEvent(event, username);
+        boolean canUpdateEvent = canUpdateEvent(event, userIdentityId);
         boolean isEventAttendee = attendeeService.isEventAttendee(eventId, userIdentityId);
         permission = new Permission(canUpdateEvent, isEventAttendee);
         eventPermissionsMap.put(eventId, permission);
@@ -940,6 +987,86 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       events = events.subList(0, limit);
     }
     return events;
+  }
+
+  private void updateEventField(Event event, String fieldName, String fieldValue) throws AgendaException {
+    switch (fieldName) {
+      case "calendarId":
+        long calendarId = Long.parseLong(fieldValue);
+        if (calendarId <= 0) {
+          throw new IllegalArgumentException("Event calendar id must be positive");
+        }
+        Calendar calendar = agendaCalendarService.getCalendarById(calendarId);
+        if (calendar == null) {
+          throw new IllegalArgumentException("Event calendar with id " + calendarId + " wasn't found");
+        }
+        event.setCalendarId(calendarId);
+        break;
+      case "summary":
+        event.setSummary(fieldValue);
+        break;
+      case "description":
+        event.setDescription(fieldValue);
+        break;
+      case "location":
+        event.setLocation(fieldValue);
+        break;
+      case "color":
+        event.setColor(fieldValue);
+        break;
+      case "timeZoneId":
+        if (StringUtils.isBlank(fieldValue)) {
+          throw new IllegalArgumentException("Event timeZoneId is mandatory");
+        }
+        event.setTimeZoneId(ZoneId.of(fieldValue));
+        break;
+      case "start":
+        if (StringUtils.isBlank(fieldValue)) {
+          throw new AgendaException(AgendaExceptionType.EVENT_START_DATE_MANDATORY);
+        }
+        ZonedDateTime startDate = event.isAllDay() ? AgendaDateUtils.parseAllDayDateToZonedDateTime(fieldValue)
+                                                   : AgendaDateUtils.parseRFC3339ToZonedDateTime(fieldValue,
+                                                                                                 event.getTimeZoneId(),
+                                                                                                 false);
+        event.setStart(startDate);
+        break;
+      case "end":
+        if (StringUtils.isBlank(fieldValue)) {
+          throw new AgendaException(AgendaExceptionType.EVENT_END_DATE_MANDATORY);
+        }
+        ZonedDateTime endDate = event.isAllDay() ? AgendaDateUtils.parseAllDayDateToZonedDateTime(fieldValue)
+                                                 : AgendaDateUtils.parseRFC3339ToZonedDateTime(fieldValue,
+                                                                                               event.getTimeZoneId(),
+                                                                                               false);
+        event.setEnd(endDate);
+        break;
+      case "allDay":
+        boolean allDay = Boolean.parseBoolean(fieldValue);
+        event.setAllDay(allDay);
+        break;
+      case "availability":
+        if (StringUtils.isBlank(fieldValue)) {
+          event.setAvailability(EventAvailability.DEFAULT);
+        } else {
+          event.setAvailability(EventAvailability.valueOf(fieldValue.toUpperCase()));
+        }
+        break;
+      case "status":
+        if (StringUtils.isBlank(fieldValue)) {
+          event.setStatus(EventStatus.CONFIRMED);
+        } else {
+          event.setStatus(EventStatus.valueOf(fieldValue.toUpperCase()));
+        }
+        break;
+      case "allowAttendeeToUpdate":
+        event.setAllowAttendeeToUpdate(Boolean.parseBoolean(fieldValue));
+        break;
+      case "allowAttendeeToInvite":
+        event.setAllowAttendeeToInvite(Boolean.parseBoolean(fieldValue));
+        break;
+      default:
+        throw new UnsupportedOperationException();
+    }
   }
 
   private void adjustEventDatesForRead(Event event, ZoneId timeZone) {
@@ -1062,9 +1189,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                               List<Event> occurrences,
                                               ZonedDateTime start,
                                               ZonedDateTime end) {
-    List<Long> exceptionalOccurenceEventIds = agendaEventStorage.getExceptionalOccurenceEventIds(recurrentEvent.getId(),
-                                                                                                 start,
-                                                                                                 end);
+    List<Long> exceptionalOccurenceEventIds = agendaEventStorage.getExceptionalOccurenceIdsByPeriod(recurrentEvent.getId(),
+                                                                                                    start,
+                                                                                                    end);
     List<Event> exceptionalEvents = exceptionalOccurenceEventIds == null
         || exceptionalOccurenceEventIds.isEmpty() ? Collections.emptyList()
                                                   : exceptionalOccurenceEventIds.stream()

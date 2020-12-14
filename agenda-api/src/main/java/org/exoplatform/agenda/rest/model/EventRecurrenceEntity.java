@@ -44,6 +44,8 @@ public class EventRecurrenceEntity implements Cloneable, Serializable {
 
   private int                      interval;
 
+  private String                   rrule;
+
   private List<String>             bySecond;
 
   private List<String>             byMinute;
@@ -70,6 +72,7 @@ public class EventRecurrenceEntity implements Cloneable, Serializable {
                                      type,
                                      frequency,
                                      interval,
+                                     rrule,
                                      bySecond == null ? null : new ArrayList<>(bySecond),
                                      byMinute == null ? null : new ArrayList<>(byMinute),
                                      byHour == null ? null : new ArrayList<>(byHour),

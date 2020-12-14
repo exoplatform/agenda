@@ -29,13 +29,13 @@
           @click="openPersonalCalendarDrawer">
           {{ $t('agenda.connectYourPersonalAgendaSubTitle') }}
         </a>
-        <template v-if="loading || (connectedConnector && connectedConnector.loading)">
+        <template v-if="loading || connectedConnectorLoading">
           <v-progress-linear indeterminate />
         </template>
         <template v-if="connectedConnector">
-          <template v-if="remoteEvents && remoteEvents.length">
+          <template v-if="hasRemoteEvents">
             <agenda-connector-remote-event-item
-              v-for="remoteEvent in remoteEvents"
+              v-for="remoteEvent in displayedRemoteEvents"
               :key="remoteEvent"
               class="mt-5"
               is-events-list
@@ -116,15 +116,6 @@ export default {
     connectedConnector() {
       return this.connectors && this.connectors.find(connector => connector.connected);
     },
-    connectedConnectorUser() {
-      return this.connectedConnector && this.connectedConnector.user || '';
-    },
-    connectedConnectorAvatar() {
-      return this.connectedConnector && this.connectedConnector.avatar || '';
-    },
-    connectedConnectorSignedOut() {
-      return this.connectedConnector && !this.connectedConnector.isSignedIn && !this.connectedConnector.loading && !this.loading;
-    },
     connectorStatus() {
       if (this.connectedConnector) {
         if (this.connectedConnector.isSignedIn) {
@@ -136,11 +127,37 @@ export default {
         return 0;
       }
     },
+    connectedConnectorUser() {
+      return this.connectedConnector && this.connectedConnector.user || '';
+    },
+    connectedConnectorAvatar() {
+      return this.connectedConnector && this.connectedConnector.avatar || '';
+    },
+    connectedConnectorLoading() {
+      return this.connectedConnector && this.connectedConnector.loading;
+    },
+    connectedConnectorSignedOut() {
+      return this.connectedConnector && !this.connectedConnector.isSignedIn && !this.connectedConnectorLoading && !this.loading;
+    },
+    hasRemoteEvents() {
+      return this.displayedRemoteEvents && this.displayedRemoteEvents.length;
+    },
+    displayedRemoteEvents() {
+      const remoteEventsToDisplay = this.remoteEvents && this.remoteEvents.slice();
+      // Avoid to have same event from remote and local store (pushed events from local store)
+      if (remoteEventsToDisplay && remoteEventsToDisplay.length) {
+        const index = remoteEventsToDisplay.findIndex(remoteEvent => remoteEvent.id && remoteEvent.id === this.event.remoteId || remoteEvent.recurringEventId === this.event.remoteId || (this.event.parent && remoteEvent.recurringEventId === this.event.parent.remoteId));
+        if (index >= 0) {
+          remoteEventsToDisplay.splice(index, 1);
+        }
+      }
+      return remoteEventsToDisplay;
+    },
   },
   watch: {
     connectorStatus() {
       this.refreshRemoteEvents();
-    }
+    },
   },
   created() {
     this.$root.$emit('agenda-connectors-init');
@@ -154,7 +171,7 @@ export default {
       this.retrieveRemoteEvents(this.connectedConnector);
     },
     retrieveRemoteEvents(connector) {
-      if(connector) {
+      if(this.connectorStatus === 1) {
         const eventStartDay = this.event.startDate;
         const eventEndDay = this.event.endDate;
 

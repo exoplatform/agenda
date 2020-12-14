@@ -1,4 +1,4 @@
-<template>
++<template>
   <v-calendar
     ref="calendar"
     v-model="selectedDate"
@@ -357,7 +357,12 @@ export default {
             event.timeZoneId = this.$agendaUtils.USER_TIMEZONE_ID;
             event.allDay = this.dragEvent.allDay;
 
-            this.$root.$emit('agenda-event-save', event, event.allDay);
+            // when this is about a recurrent event
+            // and the event is an all day event,
+            // when moving event, it shouldn't
+            const ignoreRecurrentPopin = event.allDay;
+            const changeDatesOnly = true;
+            this.$root.$emit('agenda-event-save', event, ignoreRecurrentPopin, changeDatesOnly);
           })
           .finally(() => this.saving = false);
       } else {

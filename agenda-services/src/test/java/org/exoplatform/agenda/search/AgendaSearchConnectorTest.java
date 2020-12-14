@@ -204,10 +204,9 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
                                                 ZoneId.systemDefault());
 
     boolean allDay = true;
-    String creatorUserName = testuser1Identity.getRemoteId();
 
     Event event = newEventInstance(start, end, allDay);
-    event = createEvent(event.clone(), creatorUserName, testuser2Identity);
+    event = createEvent(event.clone(), Long.parseLong(testuser1Identity.getId()), testuser2Identity);
     when(agendaEventService.getEventById(eq(1L))).thenReturn(event);
     when(spaceService.getMemberSpaces(eq("testuser1"))).thenAnswer(new Answer<ListAccess<Space>>() {
       @Override

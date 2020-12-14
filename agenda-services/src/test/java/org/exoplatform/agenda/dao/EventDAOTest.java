@@ -44,8 +44,6 @@ public class EventDAOTest extends TestCase {
 
   private Date              occurrenceId = new Date();
 
-  private String            remoteId     = "RemoteId";
-
   private EventStatus       status       = EventStatus.TENTATIVE;
 
   private long              creatorId    = 2;
@@ -95,7 +93,6 @@ public class EventDAOTest extends TestCase {
       assertEquals(description, eventEntity.getDescription());
       assertEquals(summary, eventEntity.getSummary());
       assertEquals(occurrenceId, eventEntity.getOccurrenceId());
-      assertEquals(remoteId, eventEntity.getRemoteId());
       assertEquals(status, eventEntity.getStatus());
       assertEquals(creatorId, eventEntity.getCreatorId());
       assertEquals(startDate, eventEntity.getStartDate());
@@ -119,7 +116,6 @@ public class EventDAOTest extends TestCase {
   }
 
   private EventEntity newEvent(CalendarEntity calendarEntity) {
-
     return newEvent(calendarEntity,
                     availability,
                     allDay,
@@ -128,7 +124,6 @@ public class EventDAOTest extends TestCase {
                     description,
                     summary,
                     occurrenceId,
-                    remoteId,
                     status,
                     creatorId,
                     startDate,
@@ -143,7 +138,6 @@ public class EventDAOTest extends TestCase {
                                String description,
                                String summary,
                                Date occurrenceId,
-                               String remoteId,
                                EventStatus status,
                                long creatorId,
                                Date startDate,
@@ -159,7 +153,6 @@ public class EventDAOTest extends TestCase {
     eventEntity.setStartDate(startDate);
     eventEntity.setLocation(location);
     eventEntity.setOccurrenceId(occurrenceId);
-    eventEntity.setRemoteId(remoteId);
     eventEntity.setStatus(status);
     eventEntity.setSummary(summary);
 

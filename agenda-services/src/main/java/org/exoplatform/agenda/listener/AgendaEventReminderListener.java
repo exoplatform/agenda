@@ -49,9 +49,12 @@ public class AgendaEventReminderListener extends Listener<EventAttendee, EventAt
         AgendaUserSettings agendaUserSettings = getAgendaUserSettingsService().getAgendaUserSettings(identityId);
         List<EventReminderParameter> reminderParameters = agendaUserSettings.getReminders();
         if (reminderParameters != null && !reminderParameters.isEmpty()) {
-          List<EventReminder> reminders = reminderParameters.stream().map(reminderParameter -> {
-            return new EventReminder(identityId, reminderParameter.getBefore(), reminderParameter.getBeforePeriodType());
-          }).collect(Collectors.toList());
+          List<EventReminder> reminders =
+                                        reminderParameters.stream()
+                                                          .map(reminderParameter -> new EventReminder(identityId,
+                                                                                                      reminderParameter.getBefore(),
+                                                                                                      reminderParameter.getBeforePeriodType()))
+                                                          .collect(Collectors.toList());
           getAgendaEventReminderService().saveEventReminders(agendaEvent, reminders, identityId);
         }
       }

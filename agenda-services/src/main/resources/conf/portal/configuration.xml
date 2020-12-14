@@ -41,6 +41,10 @@
   </component>
 
   <component>
+    <type>org.exoplatform.agenda.storage.AgendaRemoteEventStorage</type>
+  </component>
+
+  <component>
     <key>org.exoplatform.agenda.service.AgendaCalendarService</key>
     <type>org.exoplatform.agenda.service.AgendaCalendarServiceImpl</type>
     <init-params>
@@ -117,6 +121,11 @@
   </component>
 
   <component>
+    <key>org.exoplatform.agenda.service.AgendaRemoteEventService</key>
+    <type>org.exoplatform.agenda.service.AgendaRemoteEventServiceImpl</type>
+  </component>
+
+  <component>
     <key>org.exoplatform.agenda.service.AgendaEventAttendeeService</key>
     <type>org.exoplatform.agenda.service.AgendaEventAttendeeServiceImpl</type>
   </component>
@@ -142,6 +151,9 @@
           </field>
           <field name="workingTimeEnd">
             <string>${exo.agenda.settings.workingTimeEnd:18:00}</string>
+          </field>
+          <field name="automaticPushEvents">
+            <boolean>${exo.agenda.settings.automaticPushEvents:true}</boolean>
           </field>
         </object>
       </object-param>
@@ -178,6 +190,10 @@
 
   <component>
     <type>org.exoplatform.agenda.dao.RemoteProviderDAO</type>
+  </component>
+
+  <component>
+    <type>org.exoplatform.agenda.dao.RemoteEventDAO</type>
   </component>
 
   <external-component-plugins>
