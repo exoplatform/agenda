@@ -37,13 +37,15 @@ public interface AgendaEventAttendeeService {
   public List<EventAttendee> getEventAttendees(long eventId);
 
   /**
-   * Sends an invitation to event attendees of type: user, space or external user.
+   * Sends an invitation to event attendees of type: user, space or external
+   * user.
    * 
-   * @param eventId technical identifier of the event
+   * @param event {@link Event}
+   * @param eventAttendees {@link List} of {@link EventAttendee} of the event
    * @param eventModificationType flag to indicate if event is added, updated or
    *          deleted
    */
-  public void sendInvitations(long eventId, EventModificationType eventModificationType);
+  public void sendInvitations(Event event, List<EventAttendee> eventAttendees, EventModificationType eventModificationType);
 
   /**
    * @param event {@link Event} to attach attendees
