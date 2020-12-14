@@ -4,11 +4,16 @@
       ref="invitedAttendeeAutoComplete"
       v-model="invitedAttendee"
       :labels="participantSuggesterLabels"
+      :title="suggesterStatus"
+      :disabled="disableAttendeeSuggester"
       :search-options="{currentUser: ''}"
       :ignore-items="ignoredMembers"
       name="inviteAttendee"
       include-users
       include-spaces />
+    <span v-if="disableAttendeeSuggester" class="error--text">
+      {{ $t('agenda.suggesterRequired') }}
+    </span>
     <div v-if="event.attendees" class="identitySuggester no-border mt-0">
       <agenda-event-form-attendee-item
         v-for="attendee in event.attendees"
@@ -45,6 +50,20 @@ export default {
     ignoredMembers() {
       return this.event.attendees.map(attendee => `${attendee.identity.providerId}:${attendee.identity.remoteId}`);
     },
+    disableAttendeeSuggester() {
+      if(!this.event.calendar || !this.event.calendar.owner || !this.event.calendar.owner.remoteId) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+    suggesterStatus(){
+      if(this.disableAttendeeSuggester) {
+        return this.$t('agenda.suggesterRequired.tooltip');
+      } else {
+        return '';
+      }
+    }
   },
   watch: {
     currentUser() {
