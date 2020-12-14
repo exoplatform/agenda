@@ -647,7 +647,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     agendaEventStorage.updateEvent(event);
 
     if (sendInvitations) {
-      attendeeService.sendInvitations(eventId, EventModificationType.UPDATED);
+      List<EventAttendee> eventAttendees = attendeeService.getEventAttendees(eventId);
+      attendeeService.sendInvitations(event, eventAttendees, EventModificationType.UPDATED);
     }
 
     Utils.broadcastEvent(listenerService, Utils.POST_UPDATE_AGENDA_EVENT_EVENT, eventId, 0);
@@ -671,10 +672,14 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (!canUpdateEvent(event, userIdentityId)) {
       throw new IllegalAccessException("User " + userIdentityId + " hasn't enough privileges to delete event with id " + eventId);
     }
-    attendeeService.sendInvitations(eventId, EventModificationType.DELETED);
+    List<EventAttendee> eventAttendees = attendeeService.getEventAttendees(event.getId());
+
     agendaEventStorage.deleteEventById(eventId);
 
-    Utils.broadcastEvent(listenerService, Utils.POST_DELETE_AGENDA_EVENT_EVENT, eventId, 0);
+    event.setModifierId(userIdentityId);
+    attendeeService.sendInvitations(event, eventAttendees, EventModificationType.DELETED);
+
+    Utils.broadcastEvent(listenerService, Utils.POST_DELETE_AGENDA_EVENT_EVENT, eventId, event);
     return event;
   }
 
