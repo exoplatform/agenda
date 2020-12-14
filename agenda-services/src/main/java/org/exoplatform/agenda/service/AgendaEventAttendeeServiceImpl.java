@@ -126,7 +126,10 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
         try {
           sendEventResponse(eventId, eventAttendee.getIdentityId(), EventAttendeeResponse.NEEDS_ACTION);
         } catch (Exception e) {
-          LOG.warn("Error initializing default reminders of event {} for user with id {}", eventId, eventAttendee.getIdentityId(), e);
+          LOG.warn("Error initializing default reminders of event {} for user with id {}",
+                   eventId,
+                   eventAttendee.getIdentityId(),
+                   e);
         }
       }
     }
@@ -146,7 +149,10 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     }
 
     if (sendInvitations) {
-      sendInvitations(eventId, eventModificationType);
+      if (event.getStatus() == EventStatus.CANCELLED) {
+        eventModificationType = EventModificationType.DELETED;
+      }
+      sendInvitations(event, attendees, eventModificationType);
     }
 
     Utils.broadcastEvent(listenerService, "exo.agenda.event.attendees.saved", eventId, 0);
@@ -291,11 +297,9 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    * {@inheritDoc}
    */
   @Override
-  public void sendInvitations(long eventId, EventModificationType eventModificationType) {
+  public void sendInvitations(Event event, List<EventAttendee> eventAttendees, EventModificationType eventModificationType) {
     String agendaNotificationPluginType = null;
     NotificationContext ctx = NotificationContextImpl.cloneInstance();
-    Event event = eventStorage.getEventById(eventId);
-    List<EventAttendee> eventAttendees = getEventAttendees(eventId);
     ctx.append(EVENT_AGENDA, event);
     ctx.append(EVENT_ATTENDEE, eventAttendees);
     if (eventModificationType.name().equals("ADDED")) {
