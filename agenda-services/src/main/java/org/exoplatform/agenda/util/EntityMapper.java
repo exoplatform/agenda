@@ -155,7 +155,6 @@ public class EntityMapper {
                      eventEntity.isAllowAttendeeToInvite());
   }
 
-  @SuppressWarnings("unchecked")
   public static EventEntity toEntity(Event event) {
     ZoneId eventZoneId = event.getTimeZoneId() == null ? ZoneOffset.UTC : event.getTimeZoneId();
 
@@ -194,7 +193,7 @@ public class EntityMapper {
       DateTime endDateTime = new DateTime(Date.from(end.toInstant()));
 
       VEvent vevent = new VEvent(startDateTime, endDateTime, event.getSummary());
-      Recur recur = Utils.getICalendarRecur(event, recurrence);
+      Recur recur = Utils.getICalendarRecur(recurrence);
       vevent.getProperties().add(new RRule(recur));
 
       long fromTime = start.toEpochSecond() * 1000;
@@ -237,11 +236,11 @@ public class EntityMapper {
 
       Period firstOccurrencePeriod =
                                    list.isEmpty() ? null
-                                                  : (Period) list.stream()
-                                                                 .min((period1,
-                                                                       period2) -> ((Period) period1).getStart()
-                                                                                                     .compareTo(((Period) period2).getStart()))
-                                                                 .orElse(null);
+                                                  : list.stream()
+                                                        .min((period1,
+                                                              period2) -> period1.getStart()
+                                                                                 .compareTo(period2.getStart()))
+                                                        .orElse(null);
 
       DateTime firstOccurrenceOverallStart = firstOccurrencePeriod == null ? startDateTime
                                                                            : firstOccurrencePeriod.getStart();
@@ -253,11 +252,11 @@ public class EntityMapper {
 
       if (!neverEnds) {
         Period lastOccurrencePeriod = list.isEmpty() ? null
-                                                     : (Period) list.stream()
-                                                                    .max((period1,
-                                                                          period2) -> ((Period) period1).getStart()
-                                                                                                        .compareTo(((Period) period2).getStart()))
-                                                                    .orElse(null);
+                                                     : list.stream()
+                                                           .max((period1,
+                                                                 period2) -> period1.getStart()
+                                                                                    .compareTo(period2.getStart()))
+                                                           .orElse(null);
         ZonedDateTime overallEnd =
                                  lastOccurrencePeriod == null ? null
                                                               : lastOccurrencePeriod.getEnd().toInstant().atZone(ZoneOffset.UTC);
@@ -283,7 +282,7 @@ public class EntityMapper {
     } catch (ParseException e) {
       throw new IllegalStateException("Error parsing RRULE of recurrence of event " + eventEntity.getId(), e);
     }
-    EventRecurrenceFrequency frequency = EventRecurrenceFrequency.valueOf(recur.getFrequency());
+    EventRecurrenceFrequency frequency = EventRecurrenceFrequency.valueOf(recur.getFrequency().name());
     recurrence.setFrequency(frequency);
     recurrence.setInterval(recur.getInterval());
     recurrence.setCount(recur.getCount() > 0 ? recur.getCount() : 0);
@@ -344,7 +343,7 @@ public class EntityMapper {
   }
 
   public static EventRecurrenceEntity toEntity(Event event, EventRecurrence recurrence) {
-    Recur recur = Utils.getICalendarRecur(event, recurrence);
+    Recur recur = Utils.getICalendarRecur(recurrence);
     EventRecurrenceEntity eventRecurrenceEntity = new EventRecurrenceEntity();
     eventRecurrenceEntity.setType(recurrence.getType());
     eventRecurrenceEntity.setRrule(recur.toString());
