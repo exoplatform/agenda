@@ -6,8 +6,8 @@
       :labels="participantSuggesterLabels"
       :title="suggesterStatus"
       :disabled="disableAttendeeSuggester"
-      :search-options="{currentUser: ''}"
       :ignore-items="ignoredMembers"
+      :search-options="searchOptions"
       name="inviteAttendee"
       include-users
       include-spaces />
@@ -40,6 +40,15 @@ export default {
     };
   },
   computed: {
+    searchOptions() {
+      return {
+        currentUser: '',
+        spaceURL: this.event
+          && this.event.calendar
+          && this.event.calendar.owner
+          && this.event.calendar.owner.remoteId,
+      };
+    },
     participantSuggesterLabels() {
       return {
         searchPlaceholder: this.$t('agenda.searchPlaceholder'),
