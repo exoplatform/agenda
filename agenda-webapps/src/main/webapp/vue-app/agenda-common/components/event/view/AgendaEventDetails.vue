@@ -60,7 +60,7 @@
                 class="ml-1 mr-2" />
             </template>
             <template>
-              ( {{ event.timeZoneId }} )
+              ( $agendaUtils.USER_TIMEZONE_ID )
             </template>
           </div>
         </div>
