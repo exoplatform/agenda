@@ -52,12 +52,13 @@
               @changed="updateEventDates"
               @initialized="formInitialized" />
           </div>
-          <div class="d-flex flex-column flex-grow-1">
-            <div class="d-flex flex-row">
-              <agenda-time-zone-select-box
-                :event="event"
-                class="ml-3 mr-3 my-3" />
-            </div>
+          <div class="d-flex flex-row">
+            <v-flex class="flex-grow-0">
+              <i class="uiIconTimeZone darkGreyIcon uiIcon32x32 mt-4 mx-3"></i>
+            </v-flex>
+            <agenda-time-zone-select-box
+              :event="event"
+              class="ml-3 mr-3 my-3" />
           </div>
           <div class="d-flex flex-row">
             <i class="uiIconLocation darkGreyIcon uiIcon32x32 mt-4 mx-3"></i>
