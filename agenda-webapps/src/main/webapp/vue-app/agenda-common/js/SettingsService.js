@@ -29,7 +29,30 @@ export function saveRemoteProviderStatus(connectorName, connectorStatus) {
     },
     body: new URLSearchParams(formData).toString(),
   }).then(resp => {
-    if (!resp || !resp.ok) {
+    if (resp && resp.ok) {
+      return resp.json();
+    } else {
+      throw new Error('Response code indicates a server error', resp);
+    }
+  });
+}
+
+export function saveRemoteProviderApiKey(connectorName, apiKey) {
+  const formData = new FormData();
+  formData.append('connectorName', connectorName);
+  formData.append('apiKey', apiKey || '');
+  
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/settings/connector/apiKey`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams(formData).toString(),
+  }).then(resp => {
+    if (resp && resp.ok) {
+      return resp.json();
+    } else {
       throw new Error('Response code indicates a server error', resp);
     }
   });

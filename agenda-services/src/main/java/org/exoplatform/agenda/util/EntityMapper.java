@@ -398,13 +398,17 @@ public class EntityMapper {
   }
 
   public static RemoteProvider fromEntity(RemoteProviderEntity remoteProviderEntity) {
-    return new RemoteProvider(remoteProviderEntity.getId(), remoteProviderEntity.getName(), remoteProviderEntity.isEnabled());
+    return new RemoteProvider(remoteProviderEntity.getId(),
+                              remoteProviderEntity.getName(),
+                              remoteProviderEntity.getApiKey(),
+                              remoteProviderEntity.isEnabled());
   }
 
   public static RemoteProviderEntity toEntity(RemoteProvider remoteProvider) {
     RemoteProviderEntity remoteProviderEntity = new RemoteProviderEntity();
     remoteProviderEntity.setId(remoteProvider.getId() <= 0 ? null : remoteProvider.getId());
     remoteProviderEntity.setName(remoteProvider.getName());
+    remoteProviderEntity.setApiKey(remoteProvider.getApiKey());
     remoteProviderEntity.setEnabled(remoteProvider.isEnabled());
     return remoteProviderEntity;
   }
