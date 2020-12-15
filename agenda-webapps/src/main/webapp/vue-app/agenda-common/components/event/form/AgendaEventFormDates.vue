@@ -65,7 +65,7 @@
       @change="retrieveEvents">
       <template #event="eventObj">
         <div
-          v-if="eventObj.event.type !== 'remoteEvent'"
+          v-if="!eventObj.event || eventObj.event.type !== 'remoteEvent'"
           :id="getEventDomId(eventObj)"
           class="v-event-draggable v-event-draggable-parent">
           <p
@@ -152,7 +152,7 @@ export default {
     },
     event: {
       type: Object,
-      default: () => ({}),
+      default: () => null,
     },
     weekdays: {
       type: Array,
@@ -194,6 +194,7 @@ export default {
     period: {},
     remoteEvents: [],
     spaceEvents: [],
+    displayedEvents: [],
   }),
   computed: {
     nowTimeOptions() {
@@ -203,38 +204,14 @@ export default {
     currentTimeStyle() {
       return `top: ${this.currentTimeTop}px;`;
     },
-    events() {
-      return [...this.spaceEvents, this.event];
-    },
     domId() {
-      return `eventForm-${this.event.id}-${new Date(this.event.startDate).getTime()}`;
+      return this.getEventDomId(this.event);
     },
     connectedConnector() {
       return this.connectors.find(connector => connector.isSignedIn);
     },
     connectedConnectorAvatar() {
       return this.connectedConnector && this.connectedConnector.avatar || '';
-    },
-    displayedEvents() {
-      const eventsToDisplay = this.events && this.events.slice() || [];
-      // Avoid to have same event that we are changing twice
-      if (this.event && (this.event.id || this.event.parent)) {
-        const index = eventsToDisplay.findIndex(event => this.isSameEvent(event, this.event));
-        if (index >= 0) {
-          eventsToDisplay.splice(index, 1);
-        }
-      }
-      const remoteEventsToDisplay = this.remoteEvents && this.remoteEvents.slice() || [];
-      // Avoid to have same event from remote and local store (pushed events from local store)
-      if (eventsToDisplay.length && remoteEventsToDisplay.length) {
-        eventsToDisplay.forEach(event => {
-          const index = remoteEventsToDisplay.findIndex(remoteEvent => remoteEvent.id && remoteEvent.id === event.remoteId || remoteEvent.recurringEventId && remoteEvent.recurringEventId === event.remoteId);
-          if (index >= 0) {
-            remoteEventsToDisplay.splice(index, 1);
-          }
-        });
-      }
-      return [...eventsToDisplay, ...remoteEventsToDisplay];
     },
   },
   watch: {
@@ -363,13 +340,16 @@ export default {
       this.newEventStarted = true;
       this.selectedOpen = false;
 
+      this.$refs.calendar.updateTimes();
       this.$forceUpdate();
     },
     mouseMove(tms) {
       if (this.newEventStarted) {
         const mouse = this.toTime(tms);
         this.event.endDate = this.roundTime(mouse);
-        this.retrieveEvents();
+
+        this.$refs.calendar.updateTimes();
+        this.$forceUpdate();
       }
     },
     endDrag() {
@@ -380,18 +360,25 @@ export default {
         this.selectedOpen = false;
         this.selectedEvent = null;
         this.$nextTick().then(() => {
-          this.retrieveEvents();
+          this.refreshEventsToDisplay();
           this.showEventDatePickers(this.event);
         });
+
+        this.$refs.calendar.updateTimes();
+        this.$forceUpdate();
       }
     },
     getEventDomId(eventObj) {
       const event = eventObj && eventObj.event || eventObj;
-      return `eventForm-${event.id || (event.parent && event.parent.id) || ''}-${new Date(event.startDate).getTime()}`;
+      return `eventForm-${event.id || (event.parent && event.parent.id) || 'id'}-${new Date(event.startDate).getTime()}`;
     },
     isShortEvent(eventObj) {
       const event = eventObj && eventObj.event || eventObj;
-      return this.$agendaUtils.isShortEvent(event);
+      if(event && event.startDate && event.endDate) {
+        return this.$agendaUtils.isShortEvent(event);
+      } else {
+        return true;
+      }
     },
     isSameEvent(event1, event2) {
       return event1 === event2 || (event1.id && event1.id === event2.id)
@@ -482,14 +469,29 @@ export default {
           }).catch(error => {
             console.error('Error retrieving remote events', error);
             this.loading = false;
-          });
+          })
+          .finally(() => this.refreshEventsToDisplay());
       } else {
         this.remoteEvents = [];
+        this.refreshEventsToDisplay();
       }
     },
     retrieveEventsFromStore() {
       const userIdentityId = this.eventType === 'myEvents' && eXo.env.portal.userIdentityId || null;
-      this.$eventService.getEvents(null, [], userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, true), this.$agendaUtils.toRFC3339(this.period.end), this.limit, null)
+
+      const calendarOwner = this.event && this.event.calendar && this.event.calendar.owner;
+
+      let ownerIdentityPromise = null;
+      if (calendarOwner && calendarOwner.remoteId && calendarOwner.providerId) {
+        ownerIdentityPromise = this.$identityService.getIdentityByProviderIdAndRemoteId(calendarOwner.providerId, calendarOwner.remoteId);
+      } else {
+        ownerIdentityPromise = Promise.resolve(calendarOwner);
+      }
+      ownerIdentityPromise
+        .then(ownerIdentity => {
+          const ownerIds = ownerIdentity && ownerIdentity.id ? [ownerIdentity.id] : [];
+          return this.$eventService.getEvents(null, ownerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, true), this.$agendaUtils.toRFC3339(this.period.end), this.limit, null);
+        })
         .then(data => {
           const events = data && data.events || [];
           events.forEach(event => {
@@ -497,10 +499,30 @@ export default {
             this.$agendaUtils.convertDates(event);
           });
           this.spaceEvents = events;
-        }).catch(error =>{
+          return this.$nextTick();
+        })
+        .catch(error =>{
           console.error('Error retrieving events', error);
+        })
+        .finally(() => this.refreshEventsToDisplay());
+    },
+    refreshEventsToDisplay() {
+      const spaceEventsToDisplay = this.spaceEvents
+        && this.spaceEvents.filter(event => !this.isSameEvent(event, this.event)) || [];
+      // Avoid to have same event that we are changing twice
+  
+      const remoteEventsToDisplay = this.remoteEvents && this.remoteEvents.slice() || [];
+      // Avoid to have same event from remote and local store (pushed events from local store)
+      if (this.spaceEvents.length && remoteEventsToDisplay.length) {
+        this.spaceEvents.forEach(event => {
+          const index = remoteEventsToDisplay.findIndex(remoteEvent => remoteEvent.id && remoteEvent.id === event.remoteId || remoteEvent.recurringEventId && remoteEvent.recurringEventId === event.remoteId);
+          if (index >= 0) {
+            remoteEventsToDisplay.splice(index, 1);
+          }
         });
-    }
+      }
+      this.displayedEvents = this.event ? [this.event, ...spaceEventsToDisplay, ...remoteEventsToDisplay]:[...spaceEventsToDisplay, ...remoteEventsToDisplay];
+    },
   },
 };
 </script>
