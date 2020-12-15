@@ -103,6 +103,7 @@ export default {
     this.reset();
     this.$userService.getUser(eXo.env.portal.userName).then(user => {
       this.currentUser = user;
+      this.$root.$emit('current-user',this.currentUser);
     });
   },
   methods:{
