@@ -33,6 +33,18 @@ export function getTimeZones() {
   return TIMEZONES;
 }
 
+export function getTimeZoneNameFromTimeZoneId(timeZone) {
+  const dateObj = new Date(0);
+  const dateFormat = new Intl.DateTimeFormat(eXo.env.portal.language, {
+    timeZoneName: 'long',
+    second: 'numeric',
+    timeZone: timeZone,
+  });
+  const timeZoneName = dateFormat.format(dateObj);
+  const result = `${timeZoneName.charAt(2).toUpperCase() + timeZoneName.substring(3, timeZoneName.length)  } (${timeZone})`;
+  return result;
+}
+
 export function convertVuetifyRangeToPeriod(range) {
   const rangeStartHour = range.start.hour < 10 ? `0${range.start.hour}` : range.start.hour;
   const rangeStartMinute = range.start.minute < 10 ? `0${range.start.minute}` : range.start.minute;

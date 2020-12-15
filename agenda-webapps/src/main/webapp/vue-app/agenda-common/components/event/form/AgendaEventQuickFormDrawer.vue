@@ -53,6 +53,14 @@
               @initialized="formInitialized" />
           </div>
           <div class="d-flex flex-row">
+            <v-flex class="flex-grow-0">
+              <i class="uiIconTimeZone darkGreyIcon uiIcon32x32 mt-4 mx-3"></i>
+            </v-flex>
+            <agenda-time-zone-select-box
+              :event="event"
+              class="ml-3 mr-3 my-3" />
+          </div>
+          <div class="d-flex flex-row">
             <i class="uiIconLocation darkGreyIcon uiIcon32x32 mt-4 mx-3"></i>
             <input
               id="eventLocation"
@@ -176,6 +184,9 @@ export default {
       this.event = null;
       this.$nextTick().then(() => {
         this.event = event;
+        if(!this.event.timeZoneId) {
+          this.event.timeZoneId = this.$agendaUtils.USER_TIMEZONE_ID;
+        }
         this.open();
         this.$nextTick().then(() => this.$root.$emit('agenda-event-form-opened', this.event));
       });
@@ -245,7 +256,6 @@ export default {
 
       this.event.start = this.$agendaUtils.toRFC3339(this.event.startDate);
       this.event.end = this.$agendaUtils.toRFC3339(this.event.endDate);
-      this.event.timeZoneId = this.$agendaUtils.USER_TIMEZONE_ID;
 
       delete this.event.startDate;
       delete this.event.endDate;
