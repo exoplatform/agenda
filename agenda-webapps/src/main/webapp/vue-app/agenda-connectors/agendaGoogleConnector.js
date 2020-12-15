@@ -2,7 +2,7 @@ export default {
   name: 'agenda.googleCalendar',
   description: 'agenda.googleCalendar.description',
   avatar: '/agenda/skin/images/Google.png',
-  CLIENT_ID: '694838797844-h0q657all0v8cq66p9nume6mti6cll4o.apps.googleusercontent.com',
+  CLIENT_ID: null,
   DISCOVERY_DOCS: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
   SCOPE_READONLY: 'https://www.googleapis.com/auth/calendar.events.readonly',
   SCOPE_WRITE: 'https://www.googleapis.com/auth/calendar.events',
@@ -11,7 +11,12 @@ export default {
   initialized: false,
   isSignedIn: false,
   pushing: false,
-  init(connectionStatusChangedCallback, loadingCallback) {
+  init(connectionStatusChangedCallback, loadingCallback, apiKey) {
+    if (!apiKey) {
+      throw new Error('Google connector can\'t be enabled with empty Client API Key.');
+    }
+    this.CLIENT_ID = apiKey;
+
     // Already initialized
     if (this.initialized) {
       return;

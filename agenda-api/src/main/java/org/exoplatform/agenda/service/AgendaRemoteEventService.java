@@ -35,8 +35,19 @@ public interface AgendaRemoteEventService {
    * 
    * @param remoteProviderName Remote provider name
    * @param enabled whether enabled (true) or disabled (false)
+   * @return saved {@link RemoteProvider}
    */
-  void saveRemoteProviderStatus(String remoteProviderName, boolean enabled);
+  RemoteProvider saveRemoteProviderStatus(String remoteProviderName, boolean enabled);
+
+  /**
+   * Save {@link RemoteProvider} Client API Key
+   * 
+   * @param remoteProviderName Remote provider name
+   * @param apiKey Client API Key used to allow users access remote connector
+   *          API to retrieve and change events on their accounts
+   * @return saved {@link RemoteProvider}
+   */
+  RemoteProvider saveRemoteProviderApiKey(String remoteProviderName, String apiKey);
 
   /**
    * Creates or updates {@link RemoteEvent} of user

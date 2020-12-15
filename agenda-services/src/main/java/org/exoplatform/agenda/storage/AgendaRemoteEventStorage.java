@@ -65,15 +65,6 @@ public class AgendaRemoteEventStorage {
     return EntityMapper.fromEntity(remoteProviderEntity);
   }
 
-  public void saveRemoteProviderStatus(String connectorName, boolean enabled) {
-    RemoteProviderEntity remoteProviderEntity = remoteProviderDAO.findByName(connectorName);
-    if (remoteProviderEntity == null) {
-      throw new IllegalStateException("Remote calendar not found with name " + remoteProviderEntity);
-    }
-    remoteProviderEntity.setEnabled(enabled);
-    remoteProviderDAO.update(remoteProviderEntity);
-  }
-
   public RemoteEventEntity deleteRemoteEvent(long eventId, long identityId) {
     RemoteEventEntity remoteEventEntity = remoteEventDAO.findRemoteEvent(eventId, identityId);
     if (remoteEventEntity != null) {

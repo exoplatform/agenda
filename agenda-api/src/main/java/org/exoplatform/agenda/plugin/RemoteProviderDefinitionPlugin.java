@@ -32,17 +32,25 @@ public class RemoteProviderDefinitionPlugin extends BaseComponentPlugin {
 
   @Getter
   @Setter
+  private String  connectorAPIKey;
+
+  @Getter
+  @Setter
   private boolean enabled;
 
   public RemoteProviderDefinitionPlugin(InitParams params) {
     if (params == null || !params.containsKey("connectorName")) {
       throw new IllegalStateException("Init parameter 'connectorName' is mandatory");
+    } else {
+      this.connectorName = params.getValueParam("connectorName").getValue();
+      if (StringUtils.isBlank(this.connectorName)) {
+        throw new IllegalStateException("Init parameter 'connectorName' can't be empty");
+      }
     }
-    this.connectorName = params.getValueParam("connectorName").getValue();
-    if (StringUtils.isBlank(this.connectorName)) {
-      throw new IllegalStateException("Init parameter 'connectorName' can't be empty");
-    }
+
     this.enabled = !params.containsKey("connectorEnabled")
         || Boolean.parseBoolean(params.getValueParam("connectorEnabled").getValue());
+
+    this.connectorAPIKey = params.containsKey("connectorAPIKey") ? params.getValueParam("connectorAPIKey").getValue() : null;
   }
 }

@@ -11,5 +11,8 @@ public class RemoteProvider {
 
   private String  name;
 
+  private String  apiKey;
+
   private boolean enabled;
+
 }
