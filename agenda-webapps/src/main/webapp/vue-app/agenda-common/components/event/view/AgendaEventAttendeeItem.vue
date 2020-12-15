@@ -11,7 +11,9 @@
     avatar-class="border-color"
     class="attendee">
     <template slot="actions">
-      <div class="my-auto flex-grow-1 text-right">
+      <div
+        :title="responseIconTooltip"
+        class="my-auto flex-grow-1 text-right">
         <v-icon
           v-if="isCreator"
           :title="$t('agenda.eventCreator')"
@@ -29,7 +31,10 @@
       :size="32"
       :labels="labels"
       class="flex-grow-1" />
-    <span :class="responseIconResponse" class="my-auto text-right"></span>
+    <span
+      :title="responseIconTooltip"
+      :class="responseIconResponse"
+      class="my-auto text-right"></span>
   </div>
 </template>
 <script>
