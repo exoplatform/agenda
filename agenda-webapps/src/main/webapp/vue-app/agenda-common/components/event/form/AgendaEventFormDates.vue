@@ -3,6 +3,7 @@
     <v-toolbar flat class="border-color mb-4">
       <div class="d-flex flex-row align-start col-sm-3 col-2">
         <agenda-connector-status
+          v-if="connectors && connectors.length"
           class="my-auto"
           :connectors="connectors">
           <template slot="connectButton">
