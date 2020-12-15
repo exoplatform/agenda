@@ -1,8 +1,13 @@
 <template>
   <div
-    :class="{'no-date-event' : !displayEventDate}"
+    :class="{
+      'no-date-event' : !displayEventDate,
+      'primary': currentEvent
+    }"
     class="v-event-draggable remote-event rounded v-event-draggable-parent">
-    <p class="text-truncate my-auto ml-2 caption font-weight-bold primary--text">
+    <p
+      :class="textClass"
+      class="text-truncate my-auto ml-2 caption font-weight-bold">
       {{ remoteEvent.summary }}
     </p>
     <template v-if="!displayEventDate">
@@ -15,17 +20,20 @@
     </template>
     <div v-if="displayEventDate" class="d-flex">
       <date-format
-        :value="remoteEvent.startDate"
+        :value="remoteEvent.start || remoteEvent.startDate"
         :format="timeFormat"
-        class="v-event-draggable ml-2 primary--text" />
-      <strong class="mx-1 primary--text">-</strong>
+        :class="textClass"
+        class="v-event-draggable ml-2" />
+      <strong :class="textClass" class="mx-1">-</strong>
       <date-format
-        :value="remoteEvent.endDate"
+        :value="remoteEvent.end || remoteEvent.endDate"
         :format="timeFormat"
-        class="v-event-draggable mr-2 primary--text" />
+        :class="textClass"
+        class="v-event-draggable mr-2" />
       <v-avatar
+        v-if="!currentEvent"
         tile
-        class="ml-auto mr-1"
+        class="white ml-auto mr-1"
         size="16">
         <img :src="avatar">
       </v-avatar>
@@ -39,6 +47,10 @@ export default {
     remoteEvent: {
       type: Object,
       default: () => ({})
+    },
+    event: {
+      type: Object,
+      default: () => null
     },
     avatar: {
       type: String,
@@ -58,6 +70,12 @@ export default {
     };
   },
   computed: {
+    currentEvent() {
+      return this.event && this.event.id === this.remoteEvent.id;
+    },
+    textClass() {
+      return this.currentEvent ? 'white-text':'primary--text';
+    },
     isShortEvent() {
       return this.$agendaUtils.isShortEvent(this.remoteEvent);
     },
