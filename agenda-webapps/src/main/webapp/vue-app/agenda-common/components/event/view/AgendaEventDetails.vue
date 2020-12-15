@@ -57,7 +57,10 @@
               <date-format
                 :value="event.endDate"
                 :format="dateTimeFormat"
-                class="ml-1" />
+                class="ml-1 mr-2" />
+            </template>
+            <template>
+              ( {{ timeZoneName }} )
             </template>
           </div>
         </div>
@@ -207,6 +210,7 @@ export default {
         hour: '2-digit',
         minute: '2-digit',
       },
+      timeZoneName: null,
     };
   },
   computed: {
@@ -311,6 +315,9 @@ export default {
         3: this.tentativeResponsesCount,
       });
     },
+  },
+  created() {
+    this.timeZoneName = this.$agendaUtils.getTimeZoneNameFromTimeZoneId(this.$agendaUtils.USER_TIMEZONE_ID);
   },
   methods: {
     closeDialog() {
