@@ -156,8 +156,8 @@ export default {
     },
     nextStep() {
       if (this.stepper > 1) {
-        this.event.start = this.$agendaUtils.toRFC3339(this.event.startDate);
-        this.event.end = this.$agendaUtils.toRFC3339(this.event.endDate);
+        this.event.start = this.event.startDate && this.$agendaUtils.toRFC3339(this.event.startDate) || this.$agendaUtils.toRFC3339(new Date());
+        this.event.end = this.event.endDate && this.$agendaUtils.toRFC3339(this.event.endDate) || this.$agendaUtils.toRFC3339(new Date());
 
         this.$root.$emit('agenda-event-save', this.event);
       } else if (this.stepper === 1) {
