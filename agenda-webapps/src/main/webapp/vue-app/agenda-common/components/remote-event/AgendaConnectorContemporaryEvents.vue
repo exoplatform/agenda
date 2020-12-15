@@ -37,10 +37,11 @@
             <agenda-connector-remote-event-item
               v-for="remoteEvent in displayedRemoteEvents"
               :key="remoteEvent"
-              class="mt-5"
-              is-events-list
               :remote-event="remoteEvent"
-              :avatar="connectedConnectorAvatar" />
+              :avatar="connectedConnectorAvatar"
+              :event="event"
+              class="mt-5"
+              is-events-list />
           </template>
           <v-chip
             v-else-if="connectedConnectorSignedOut"
@@ -143,14 +144,20 @@ export default {
       return this.displayedRemoteEvents && this.displayedRemoteEvents.length;
     },
     displayedRemoteEvents() {
-      const remoteEventsToDisplay = this.remoteEvents && this.remoteEvents.slice();
+      const remoteEventsToDisplay = this.remoteEvents && this.remoteEvents.slice() || [];
       // Avoid to have same event from remote and local store (pushed events from local store)
-      if (remoteEventsToDisplay && remoteEventsToDisplay.length) {
+      if (remoteEventsToDisplay.length) {
         const index = remoteEventsToDisplay.findIndex(remoteEvent => remoteEvent.id && remoteEvent.id === this.event.remoteId || remoteEvent.recurringEventId === this.event.remoteId || (this.event.parent && remoteEvent.recurringEventId === this.event.parent.remoteId));
         if (index >= 0) {
           remoteEventsToDisplay.splice(index, 1);
         }
       }
+      remoteEventsToDisplay.push(this.event);
+      remoteEventsToDisplay.sort((event1, event2) => {
+        const eventStart1 = this.$agendaUtils.toDate(event1.start || event1.startDate).getTime();
+        const eventStart2 = this.$agendaUtils.toDate(event2.start || event2.startDate).getTime();
+        return eventStart1 - eventStart2;
+      });
       return remoteEventsToDisplay;
     },
   },

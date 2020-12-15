@@ -187,14 +187,14 @@ export default {
       if (!event.acl || !event.acl.attendee) {
         return eventColor;
       }
-      const currentUserAttendee = event.attendees.find(attendee => attendee.identity.id === eXo.env.portal.userIdentityId);
+      const currentUserAttendee = event.attendees && event.attendees.find(attendee => attendee.identity.id === eXo.env.portal.userIdentityId);
       if (!currentUserAttendee || currentUserAttendee.response === 'DECLINED' || currentUserAttendee.response === 'NO_ACTION') {
         return eventColor;
       }
       return 'white';
     },
     isEventDeclined(event) {
-      const currentUserAttendee = event.attendees.find(attendee => attendee.identity.id === eXo.env.portal.userIdentityId);
+      const currentUserAttendee = event.attendees && event.attendees.find(attendee => attendee.identity.id === eXo.env.portal.userIdentityId);
       if (currentUserAttendee && currentUserAttendee.response === 'DECLINED') {
         return true;
       }
@@ -204,7 +204,7 @@ export default {
       if (!event.acl || !event.acl.attendee) {
         return 'white';
       }
-      const currentUserAttendee = event.attendees.find(attendee => attendee.identity.id === eXo.env.portal.userIdentityId);
+      const currentUserAttendee = event.attendees && event.attendees.find(attendee => attendee.identity.id === eXo.env.portal.userIdentityId);
       if (!currentUserAttendee || currentUserAttendee.response === 'DECLINED' || currentUserAttendee.response === 'NO_ACTION') {
         return 'white';
       }
