@@ -26,6 +26,7 @@ export default {
   data() {
     return {
       calendarOwner: null,
+      currentUser: null,
     };
   },
   computed: {
@@ -54,12 +55,26 @@ export default {
         }
       } else {
         this.event.calendar.owner = null;
+        if (this.currentUser) {
+          this.event.attendees = [{identity: {
+            id: eXo.env.portal.userIdentityId,
+            providerId: 'organization',
+            remoteId: eXo.env.portal.userName,
+            profile: {
+              avatar: this.currentUser.avatar,
+              fullname: this.currentUser.fullname,
+            },
+          }}];
+        }
       }
     },
   },
   mounted() {
     this.$root.$once('agenda-event-form-opened', () => {
       this.$nextTick().then(() => this.reset());
+    });
+    this.$root.$on('current-user',user => {
+      this.currentUser = user;
     });
   },
   methods:{
