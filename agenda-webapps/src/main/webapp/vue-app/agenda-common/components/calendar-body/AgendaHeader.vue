@@ -26,6 +26,7 @@
           class="width-auto my-auto ml-4 subtitle-1 ignore-vuetify-classes d-none d-sm-inline"
           @change="$root.$emit('agenda-event-type-changed', eventType)">
           <option value="myEvents">{{ $t('agenda.myEvent') }}</option>
+          <option value="declinedEvent">{{ $t('agenda.declinedEvent') }}</option>
           <option value="allEvents">{{ $t('agenda.allEvent') }}</option>
         </select>
         <agenda-calendar-filter-button
