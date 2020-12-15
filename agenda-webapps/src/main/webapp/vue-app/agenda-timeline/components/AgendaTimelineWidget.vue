@@ -30,13 +30,18 @@
 </template>
 <script>
 export default {
+  props: {
+    eventType: {
+      type: String,
+      default: () => 'myEvents',
+    },
+  },
   data: () => ({
     initialized: false,
     currentSpace: null,
     loading: false,
     ownerIds: [],
     connectors: [],
-    eventType: 'myEvents',
     periodStart: new Date(),
     limit: 10,
     period: {
