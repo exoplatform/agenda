@@ -26,7 +26,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.exoplatform.agenda.constant.*;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
-import org.exoplatform.agenda.plugin.AgendaExternalUserIdentityProvider;
 import org.exoplatform.agenda.storage.AgendaEventAttendeeStorage;
 import org.exoplatform.agenda.storage.AgendaEventStorage;
 import org.exoplatform.agenda.util.Utils;
@@ -277,11 +276,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       }
     }
     String emailOrUsername = tokenParts[1];
-    Identity identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, emailOrUsername);
-    if (identity == null) {
-      identity = identityManager.getOrCreateIdentity(AgendaExternalUserIdentityProvider.NAME, emailOrUsername);
-    }
-    return identity;
+    return identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, emailOrUsername);
   }
 
   /**
