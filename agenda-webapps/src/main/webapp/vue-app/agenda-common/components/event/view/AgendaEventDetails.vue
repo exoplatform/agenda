@@ -139,7 +139,7 @@
           ref="agendaAttendees"
           :event="event" />
         <agenda-connector-contemporary-events
-          v-if="isAttendee"
+          v-if="isAcceptedEvent"
           :settings="settings"
           :event="event"
           :connectors="connectors"
@@ -167,7 +167,7 @@
       :cancel-label="$t('agenda.button.cancel')"
       @ok="deleteEvent" />
     <agenda-event-reminder-drawer
-      v-if="isAttendee"
+      v-if="canAddReminders"
       ref="reminders"
       :event="event" />
   </v-card>
@@ -249,6 +249,13 @@ export default {
     },
     isAttendee() {
       return this.event.acl && this.event.acl.attendee;
+    },
+    isAcceptedEvent() {
+      if (!this.isAttendee) {
+        return false;
+      }
+      const currentUserResponse = this.event.attendees.find(attendee => attendee && attendee.identity.remoteId ===  eXo.env.portal.userName);
+      return currentUserResponse && currentUserResponse.response !== 'DECLINED';
     },
     owner() {
       return this.event && this.event.calendar && this.event.calendar.owner;
