@@ -1,10 +1,14 @@
 export default {
-  // Configuration object constructed.
+  name: 'agenda.officeCalendar',
+  avatar: '/agenda/skin/images/office365.png',
+  CLIENT_ID: 'fd78b3a2-b6a0-465e-a5ea-d94fa9cb3a95',
+  SCOPES: 'https://graph.microsoft.com/Calendars.Read',
   config: {
     auth: {
       clientId: 'fd78b3a2-b6a0-465e-a5ea-d94fa9cb3a95',
       authority: 'https://login.microsoftonline.com/common/',
       redirectUri: 'http://localhost:8080/',
+      postLogoutRedirectUri: 'http://localhost:8080/',
     },
     cache: {
       cacheLocation: 'sessionStorage', // This configures where your cache will be stored
@@ -13,26 +17,15 @@ export default {
   },
   graphConfig: {
     graphMeEndpoint: 'https://graph.microsoft.com/v1.0/me',
-    graphMailEndpoint: 'https://graph.microsoft.com/v1.0/me/messages'
+    graphCalendarEventsEndpoint: 'https://graph.microsoft.com/v1.0/me/calendar/calendarView?'
   },
   loginRequest: {
     scopes: ['Calendars.Read'],
     redirectUri: 'http://localhost:8080/',
   },
-  /*logoutRequest: {
-    account: this.myMSALObj.getAccountByUsername(this.username)
-  },*/
-  accessTokenRequest: {
+  CalendarRequest: {
     scopes: ['calendars.read']
   },
-  username: '',
-  //officeApi: new PublicClientApplication(config),
-  // create UserAgentApplication instance
-  //userAgentApplication: new UserAgentApplication(config),
-  name: 'agenda.officeCalendar',
-  avatar: '/agenda/skin/images/office365.png',
-  CLIENT_ID: 'fd78b3a2-b6a0-465e-a5ea-d94fa9cb3a95',
-  SCOPES: 'https://graph.microsoft.com/Calendars.Read',
   canConnect: true,
   canPush: false,
   initialized: false,
@@ -54,11 +47,9 @@ export default {
   },
   connect() {
     this.loadingCallback(this, true);
-    return this.myMSALObj.loginPopup(this.loginRequest)
+    return this.officeApi.loginPopup(this.loginRequest)
       .then(loginResponse => {
-        console.log(`id_token acquired at: ${  new Date().toString()}`);
-        console.log(loginResponse);
-        return this.getTokenPopup(loginResponse);
+        return this.getTokenPopup(loginResponse).then(token => token.account.username);
       }).catch(error => {
         this.loadingCallback(this, false);
         console.error(error);
@@ -68,36 +59,70 @@ export default {
   },
 
   disconnect() {
-    this.myMSALObj.logout();
+    return new Promise((resolve) => {
+      this.officeApi.browserStorage.removeAllAccounts();
+      resolve('disconnect from office 365 done');
+    });
   },
   getTokenPopup(request) {
-    return this.myMSALObj.acquireTokenSilent(request)
+    return this.officeApi.acquireTokenSilent(request)
       .catch(error => {
-        console.log(error);
+        console.warn(error);
         //silent token acquisition fails. acquiring token using popup
-        this.loadingCallback(this, false);
         // fallback to interaction when silent call fails
-        return this.myMSALObj.acquireTokenPopup(request)
+        return this.officeApi.acquireTokenPopup(request)
           .then(tokenResponse => {
-            console.log(`tokenResponse=========> ${tokenResponse}`);
+            this.loadingCallback(this, false);
             return tokenResponse;
           }).catch(error => {
             this.loadingCallback(this, false);
             console.error(error);
           });
       }).then(token => {
-        return token.account.username;
+        this.loadingCallback(this, false);
+        return token;
       });
+  },
+  getEvents(periodStartDate, periodEndDate) {
+    if (this.officeApi) {
+      //const currentUser = this.gapi.auth2.getAuthInstance().currentUser.get();
+
+      this.loadingCallback(this, true);
+      return new Promise((resolve, reject) => {
+        //if (currentUser.hasGrantedScopes(this.SCOPE_READ)) {
+        retrieveEvents(this, periodStartDate, periodEndDate)
+          .then(oEvents => resolve(oEvents))
+          .catch(e => {
+            this.loadingCallback(this, false);
+            reject(e);
+          });
+        /*} else {
+          currentUser.grant({
+            scope: this.SCOPE_READ
+          }).then(
+            () => retrieveEvents(this, periodStartDate, periodEndDate)
+              .then(gEvents => resolve(gEvents))
+              .catch(e => {
+                this.loadingCallback(this, false);
+                reject(e);
+              })
+            ,(error) => reject(error)
+          );
+        }*/
+      });
+    } else {
+      return Promise.resolve(null);
+    }
   },
 };
 
 
 /**
- * Load Google Connector API javascript and prepare user authentication and
+ * Load Office Connector API javascript and prepare user authentication and
  * authorization process
  *
  * @param {Object}
- *          connector Google Connector SPI
+ *          connector Office Connector SPI
  * @returns {void}
  */
 function initOfficeConnector(connector) {
@@ -105,13 +130,11 @@ function initOfficeConnector(connector) {
   // appropriately. After a sign-in, the API is called.
   connector.loadingCallback(connector, true);
   window.require(['https://alcdn.msauth.net/browser/2.8.0/js/msal-browser.min.js'], (msal) => {
-    //window.require(['https://alcdn.msauth.net/lib/1.4.0/js/msal.js'], (Msal) => {
+    const officeApi = new msal.PublicClientApplication(connector.config);
+    connector.officeApi = officeApi;
 
-    const myMSALObj = new msal.PublicClientApplication(connector.config);
-    connector.myMSALObj = myMSALObj;
-
-    if (myMSALObj.getAllAccounts().length > 0) {
-      const currentUser = connector.myMSALObj.getAllAccounts()[0];
+    if (officeApi.getAllAccounts().length > 0) {
+      const currentUser = connector.officeApi.getAllAccounts()[0];
       if(currentUser) {
         connector.isSignedIn = true;
         connector.connectionStatusChangedCallback(connector, {
@@ -126,11 +149,49 @@ function initOfficeConnector(connector) {
     connector.loadingCallback(connector, false);
     console.error('Error retrieving Office API Javascript', error);
   });
-  //});
 }
-/*
 
-function callMSGraph(endpoint, token, callback) {
+
+/**
+ * @param {Object}
+ *          connector Google Connector SPI
+ * @param {Date}
+ *          periodStartDate Start date of period of events to retrieve
+ * @param {Date}
+ *          periodEndDate End date of period of events to retrieve
+ * @returns {Promise} a promise with list of Google events
+ */
+function retrieveEvents(connector, periodStartDate, periodEndDate) {
+  //const currentUser = connector.officeApi.getAllAccounts()[0];
+  let params = {
+    startDateTime: periodStartDate,
+    endDateTime: periodEndDate,
+  };
+
+  params = $.param(params, true);
+  return connector.getTokenPopup(connector.CalendarRequest).then(calendarToken => {
+    return callOfficeApi(`${connector.graphConfig.graphCalendarEventsEndpoint}${params}`,
+      calendarToken.accessToken,
+      (response) => {
+        const events = response.value;
+        events.forEach(event => {
+          event.allDay = !!event.isAllDay;
+          const StartDate = event.start.dateTime && new Date(`${event.start.dateTime}Z`);
+          const EndDate = event.end.dateTime && new Date(`${event.end.dateTime}Z`);
+          event.start = StartDate || event.start.date;
+          event.end = EndDate  || event.start.date;
+          event.summary = event.subject;
+          event.location = event.location.displayName;
+          event.type = 'remoteEvent';
+          event.color = '#FFFFFF';
+        });
+        connector.loadingCallback(connector, false);
+        return events;
+      });
+  });
+}
+
+function callOfficeApi(endpoint, token, callback) {
   const headers = new Headers();
   const bearer = `Bearer ${token}`;
 
@@ -138,17 +199,14 @@ function callMSGraph(endpoint, token, callback) {
 
   const options = {
     method: 'GET',
-    headers: headers
+    headers: headers,
   };
 
   console.log('request made to Graph API at: ', new Date().toString());
 
-  fetch(endpoint, options)
+  return fetch(endpoint, options)
     .then(response => response.json())
     .then(response => callback(response, endpoint))
     .catch(error => console.log(error));
 }
-function updateUI(data, endpoint) {
-  console.log('Graph API responded at: ', new Date().toString());
-  console.warn('update UI: \t',data, endpoint);
-}*/
+
