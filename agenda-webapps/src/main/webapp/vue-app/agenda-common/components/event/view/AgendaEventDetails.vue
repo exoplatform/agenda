@@ -139,7 +139,7 @@
           ref="agendaAttendees"
           :event="event" />
         <agenda-connector-contemporary-events
-          v-if="isAttendee"
+          v-if="isAttendee && connectors && connectors.length"
           :settings="settings"
           :event="event"
           :connectors="connectors"
