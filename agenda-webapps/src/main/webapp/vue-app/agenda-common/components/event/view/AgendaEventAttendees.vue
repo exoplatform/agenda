@@ -9,6 +9,7 @@
         v-for="attendee in attendees"
         :key="attendee"
         :attendee="attendee"
+        :creator="event.creator"
         class="mb-4" />
     </div>
   </div>

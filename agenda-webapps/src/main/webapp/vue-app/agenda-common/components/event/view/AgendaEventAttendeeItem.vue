@@ -11,7 +11,16 @@
     avatar-class="border-color"
     class="attendee">
     <template slot="actions">
-      <span :class="responseIconResponse" class="my-auto flex-grow-1 text-right"></span>
+      <div class="my-auto flex-grow-1 text-right">
+        <v-icon
+          v-if="isCreator"
+          :title="$t('agenda.eventCreator')"
+          :size="16"
+          class="mb-2">
+          fa-crown
+        </v-icon>
+        <span :class="responseIconResponse"></span>
+      </div>
     </template>
   </exo-user-avatar>
   <div v-else-if="isAttendeeSpace" class="flex-nowrap d-flex flex-shrink-0 align-center attendee">
@@ -30,8 +39,15 @@ export default {
       type: Object,
       default: () => ({})
     },
+    creator: {
+      type: Object,
+      default: () => null
+    },
   },
   computed: {
+    isCreator() {
+      return this.creator && this.attendee.identity && Number(this.creator.id) === Number(this.attendee.identity.id);
+    },
     responseIconResponse() {
       return this.attendee && this.attendee.response && `attendee-response attendee-response-${this.attendee.response.toLowerCase()}`;
     },
