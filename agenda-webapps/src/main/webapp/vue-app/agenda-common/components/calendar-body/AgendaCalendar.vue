@@ -39,15 +39,17 @@
         :style="currentTimeStyle"></div>
     </template>
     <template #event="{ event, timed, eventSummary }">
-      <div :class="isEventDeclined(event) && 'text-decoration-line-through'">
+      <div :class="getEventClass(event)">
         <strong class="text-truncate my-auto ml-2">
           {{ event.summary }}
         </strong>
-        <div v-if="event && !event.allDay && !isShortEvent(event)" class="v-event-draggable d-flex flex-row">
+        <div
+          v-if="event && !event.allDay && !isShortEvent(event)"
+          class="v-event-draggable d-flex flex-row">
           <date-format
             :value="event.startDate"
             :format="timeFormat"
-            class="v-event-draggable ml-2" />
+            class="v-event-draggable mr-2" />
           <strong class="mx-2">-</strong>
           <date-format
             :value="event.endDate"
@@ -56,7 +58,7 @@
         </div>
       </div>
       <div
-        v-if="timed && event.acl && event.acl.canEdit"
+        v-if="timed && canEdit(event)"
         class="v-event-drag-bottom"
         @mousedown.stop="extendEventEndDate(event)"></div>
     </template>
@@ -145,6 +147,14 @@ export default {
     };
   },
   methods:{
+    getEventClass(event) {
+      const textStyle = this.isEventDeclined(event) && ' text-decoration-line-through' || '';
+      const editModeStyle = this.canEdit(event) && 'editable-event' || 'readonly-event';
+      return `${editModeStyle}${textStyle}`;
+    },
+    canEdit(event) {
+      return event && event.acl && event.acl.canEdit;
+    },
     scrollToTime() {
       if (this.isMobile) {
         return;
