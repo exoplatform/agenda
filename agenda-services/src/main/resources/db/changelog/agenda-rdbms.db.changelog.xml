@@ -248,4 +248,10 @@
     <addUniqueConstraint tableName="EXO_AGENDA_REMOTE_EVENT" columnNames="EVENT_ID,IDENTITY_ID" />
   </changeSet>
 
+  <changeSet author="agenda" id="1.0.0-16">
+    <addColumn tableName="EXO_AGENDA_REMOTE_PROVIDER">
+      <column name="CLIENT_API" type="NVARCHAR(2000)" />
+    </addColumn>
+  </changeSet>
+
 </databaseChangeLog>

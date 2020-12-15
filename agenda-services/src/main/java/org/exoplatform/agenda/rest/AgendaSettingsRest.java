@@ -11,6 +11,7 @@ import javax.ws.rs.core.Response.Status;
 import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.model.AgendaUserSettings;
+import org.exoplatform.agenda.model.RemoteProvider;
 import org.exoplatform.agenda.service.*;
 import org.exoplatform.agenda.util.RestUtils;
 import org.exoplatform.common.http.HTTPStatus;
@@ -146,11 +147,13 @@ public class AgendaSettingsRest implements ResourceContainer {
 
   @Path("connector/status")
   @POST
+  @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("administrators")
   @ApiOperation(
       value = "Saves agenda connector status whether enabled or disabled for all users",
       httpMethod = "POST",
-      response = Response.class
+      response = Response.class,
+      produces = "application/json"
   )
   @ApiResponses(
       value = {
@@ -160,20 +163,64 @@ public class AgendaSettingsRest implements ResourceContainer {
           @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
       }
   )
-  public Response saveConnectorStatus(
-                                      @ApiParam(
-                                          value = "Remote connector name",
-                                          required = true
-                                      ) @FormParam("connectorName") String connectorName,
-                                      @ApiParam(
-                                          value = "Remote connector status",
-                                          required = true
-                                      ) @FormParam("enabled") boolean enabled) {
+  public Response saveRemoteProviderStatus(
+                                           @ApiParam(
+                                               value = "Remote connector name",
+                                               required = true
+                                           ) @FormParam("connectorName") String connectorName,
+                                           @ApiParam(
+                                               value = "Remote connector status",
+                                               required = true
+                                           ) @FormParam("enabled") boolean enabled) {
+    if (StringUtils.isBlank(connectorName)) {
+      return Response.status(Status.BAD_REQUEST).entity("'connectorName' parameter is mandatory").build();
+    }
+
     try {
-      agendaRemoteEventService.saveRemoteProviderStatus(connectorName, enabled);
-      return Response.noContent().build();
+      RemoteProvider remoteProvider = agendaRemoteEventService.saveRemoteProviderStatus(connectorName, enabled);
+      return Response.ok(remoteProvider).build();
     } catch (Exception e) {
       LOG.warn("Error saving connector '{}' status", connectorName, e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
+  @Path("connector/apiKey")
+  @POST
+  @Produces(MediaType.APPLICATION_JSON)
+  @RolesAllowed("administrators")
+  @ApiOperation(
+      value = "Saves agenda connector Client API Key that will be accessible by all users to access connector remote API",
+      httpMethod = "POST",
+      response = Response.class,
+      produces = "application/json"
+  )
+  @ApiResponses(
+      value = {
+          @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Bad request"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+      }
+  )
+  public Response saveRemoteProviderApiKey(
+                                           @ApiParam(
+                                               value = "Remote connector name",
+                                               required = true
+                                           ) @FormParam("connectorName") String connectorName,
+                                           @ApiParam(
+                                               value = "Remote connector Api Key",
+                                               required = true
+                                           ) @FormParam("apiKey") String apiKey) {
+    if (StringUtils.isBlank(connectorName)) {
+      return Response.status(Status.BAD_REQUEST).entity("'connectorName' parameter is mandatory").build();
+    }
+
+    try {
+      RemoteProvider remoteProvider = agendaRemoteEventService.saveRemoteProviderApiKey(connectorName, apiKey);
+      return Response.ok(remoteProvider).build();
+    } catch (Exception e) {
+      LOG.warn("Error saving connector '{}' apiKey", connectorName, e);
       return Response.serverError().entity(e.getMessage()).build();
     }
   }

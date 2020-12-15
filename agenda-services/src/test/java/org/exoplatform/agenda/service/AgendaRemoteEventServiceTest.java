@@ -45,7 +45,7 @@ public class AgendaRemoteEventServiceTest extends BaseAgendaEventTest {
     assertNotNull(remoteProviders);
     int initialisize = remoteProviders.size();
 
-    RemoteProvider remoteProviderToSave = new RemoteProvider(0, "testProvider", false);
+    RemoteProvider remoteProviderToSave = new RemoteProvider(0, "testProvider", "Client API Key", false);
     RemoteProvider remoteProviderSaved = agendaRemoteEventService.saveRemoteProvider(remoteProviderToSave);
     assertNotNull(remoteProviderSaved);
     assertTrue(remoteProviderSaved.getId() > 0);
@@ -59,7 +59,7 @@ public class AgendaRemoteEventServiceTest extends BaseAgendaEventTest {
 
   @Test
   public void testSaveRemoteProviderStatus() throws Exception { // NOSONAR
-    RemoteProvider remoteProviderToSave = new RemoteProvider(0, "testProvider222", false);
+    RemoteProvider remoteProviderToSave = new RemoteProvider(0, "testProvider222", "Client API Key", false);
     RemoteProvider remoteProviderSaved = agendaRemoteEventService.saveRemoteProvider(remoteProviderToSave);
     assertNotNull(remoteProviderSaved);
     assertFalse(remoteProviderSaved.isEnabled());
