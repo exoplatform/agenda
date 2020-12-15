@@ -4,6 +4,7 @@
     v-model="selectedDate"
     :events="events"
     :event-color="getEventColor"
+    :event-text-color="getEventTextColor"
     :event-timed="isEventTimed"
     :type="calendarType"
     :weekdays="weekdays"
@@ -38,17 +39,21 @@
         :style="currentTimeStyle"></div>
     </template>
     <template #event="{ event, timed, eventSummary }">
-      <strong class="text-truncate my-auto ml-2">{{ event.summary }}</strong>
-      <div v-if="event && !event.allDay && !isShortEvent(event)" class="v-event-draggable d-flex flex-row">
-        <date-format
-          :value="event.startDate"
-          :format="timeFormat"
-          class="v-event-draggable ml-2" />
-        <strong class="mx-2">-</strong>
-        <date-format
-          :value="event.endDate"
-          :format="timeFormat"
-          class="v-event-draggable mr-2" />
+      <div :class="isEventDeclined(event) && 'text-decoration-line-through'">
+        <strong class="text-truncate my-auto ml-2">
+          {{ event.summary }}
+        </strong>
+        <div v-if="event && !event.allDay && !isShortEvent(event)" class="v-event-draggable d-flex flex-row">
+          <date-format
+            :value="event.startDate"
+            :format="timeFormat"
+            class="v-event-draggable ml-2" />
+          <strong class="mx-2">-</strong>
+          <date-format
+            :value="event.endDate"
+            :format="timeFormat"
+            class="v-event-draggable mr-2" />
+        </div>
       </div>
       <div
         v-if="timed && event.acl && event.acl.canEdit"
@@ -167,8 +172,38 @@ export default {
       period.title = this.$refs.calendar.title;
       this.$root.$emit('agenda-change-period', period);
     },
+    getEventTextColor(event) {
+      const eventColor = event && (event.color || event.calendar && event.calendar.color) || '#2196F3';
+      if (!event.acl || !event.acl.attendee) {
+        return eventColor;
+      }
+      const currentUserAttendee = event.attendees.find(attendee => attendee.identity.id === eXo.env.portal.userIdentityId);
+      if (!currentUserAttendee || currentUserAttendee.response === 'DECLINED' || currentUserAttendee.response === 'NO_ACTION') {
+        return eventColor;
+      }
+      return 'white';
+    },
+    isEventDeclined(event) {
+      const currentUserAttendee = event.attendees.find(attendee => attendee.identity.id === eXo.env.portal.userIdentityId);
+      if (currentUserAttendee && currentUserAttendee.response === 'DECLINED') {
+        return true;
+      }
+      return false;
+    },
     getEventColor(event) {
-      return event.color || event.calendar && event.calendar.color || 'primary';
+      if (!event.acl || !event.acl.attendee) {
+        return 'white';
+      }
+      const currentUserAttendee = event.attendees.find(attendee => attendee.identity.id === eXo.env.portal.userIdentityId);
+      if (!currentUserAttendee || currentUserAttendee.response === 'DECLINED' || currentUserAttendee.response === 'NO_ACTION') {
+        return 'white';
+      }
+      const eventColor = event && (event.color || event.calendar && event.calendar.color) || '#2196F3';
+      if (this.$agendaUtils.toDate(event.endDate).getTime() > Date.now()) {
+        return eventColor;
+      } else {
+        return this.$agendaUtils.addOpacity(eventColor, 40);
+      }
     },
     isEventTimed(event) {
       return event && !event.allDay;
