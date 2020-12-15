@@ -57,7 +57,10 @@
               <date-format
                 :value="event.endDate"
                 :format="dateTimeFormat"
-                class="ml-1" />
+                class="ml-1 mr-2" />
+            </template>
+            <template>
+              ( {{ event.timeZoneId }} )
             </template>
           </div>
         </div>
