@@ -27,7 +27,7 @@ export function getTimeZones() {
     const timeZoneName = dateFormat.format(dateObj);
     TIMEZONES.push({
       value: timeZone,
-      text: timeZoneName.charAt(2).toUpperCase() + timeZoneName.substring(3, timeZoneName.length),
+      text: timeZoneName.charAt(2).toUpperCase() + timeZoneName.substring(3, timeZoneName.length) + ` (${timeZone})`,
     });
   });
   return TIMEZONES;

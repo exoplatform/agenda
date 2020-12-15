@@ -3,8 +3,7 @@
     id="AgendaTimeZone"
     v-model="event.timeZoneId"
     :items="timeZones"
-    item-text="value"
-    class="subtitle-1 pa-0"
+    class="subtitle-1 pa-0 agenda-time-zone"
     dense
     filled />
 </template>
