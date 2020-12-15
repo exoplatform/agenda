@@ -63,6 +63,12 @@
 </template>
 <script>
 export default {
+  props: {
+    eventType: {
+      type: String,
+      default: () => 'myEvents',
+    },
+  },
   data: () => ({
     initialized: false,
     currentSpace: null,
@@ -72,7 +78,6 @@ export default {
     connectors: [],
     ownerIds: [],
     searchTerm: null,
-    eventType: 'myEvents',
     periodTitle: '',
     calendarType: 'week',
     pageSize: 10,
