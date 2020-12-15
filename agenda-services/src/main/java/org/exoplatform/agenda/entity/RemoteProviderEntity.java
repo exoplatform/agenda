@@ -46,6 +46,9 @@ public class RemoteProviderEntity implements Serializable {
   @Column(name = "NAME", nullable = false)
   private String            name;
 
+  @Column(name = "CLIENT_API")
+  private String            apiKey;
+
   @Column(name = "ENABLED")
   private boolean           enabled;
 
@@ -71,5 +74,13 @@ public class RemoteProviderEntity implements Serializable {
 
   public void setEnabled(boolean enabled) {
     this.enabled = enabled;
+  }
+
+  public String getApiKey() {
+    return apiKey;
+  }
+
+  public void setApiKey(String apiKey) {
+    this.apiKey = apiKey;
   }
 }

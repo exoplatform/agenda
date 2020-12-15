@@ -55,6 +55,7 @@ export default {
           .forEach(connector => {
             const connectorObj = this.remoteProviders.find(connectorSettings => connectorSettings.name === connector.name);
             connector.enabled = connectorObj && connectorObj.enabled || false;
+            connector.apiKey = connectorObj && connectorObj.apiKey || '';
             connector.connected = connector.enabled && this.settings.connectedRemoteProvider === connectorObj.name;
             connector.user = connector.connected && this.settings.connectedRemoteUserId || '';
           });
@@ -69,8 +70,8 @@ export default {
     initConnectors() {
       this.connectors
         .forEach(connector => {
-          if (connector.init && !connector.initialized && connector.enabled) {
-            connector.init(this.connectionStatusChanged, this.connectionLoading);
+          if (connector.init && !connector.initialized && connector.enabled && connector.apiKey) {
+            connector.init(this.connectionStatusChanged, this.connectionLoading, connector.apiKey);
           }
         });
     },

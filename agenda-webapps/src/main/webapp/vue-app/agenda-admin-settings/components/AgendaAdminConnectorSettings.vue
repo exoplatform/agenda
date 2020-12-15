@@ -34,10 +34,33 @@
             </div>
           </td>
           <td>
+            <div class="align-center">
+              <v-text-field
+                v-model="props.item.apiKey"
+                :readonly="!props.item.editing"
+                :placeholder="$t('agenda.connectorClientApiKey')"
+                class="mx-2 pa-0"
+                dense>
+                <template v-slot:prepend>
+                  <i class="uiIcon uiIconLock primary--text mt-1"></i>
+                </template>
+                <template v-slot:append-outer>
+                  <v-slide-x-reverse-transition mode="out-in">
+                    <i
+                      :key="`icon-${props.item.editing}`"
+                      :class="props.item.editing ? 'uiIcon uiIconTick clickable success--text mt-1' : 'uiIcon uiIconEdit clickable primary--text mt-1'"
+                      @click="editApiKey(props.item)"></i>
+                  </v-slide-x-reverse-transition>
+                </template>
+              </v-text-field>
+            </div>
+          </td>
+          <td>
             <div class="d-flex flex-column align-center">
               <v-switch
-                v-model=" props.item.enabled"
-                :loading="loading"
+                v-model="props.item.enabled"
+                :disabled="props.item.loading || props.item.editing || !props.item.apiKey"
+                :loading="props.item.loading"
                 :ripple="false"
                 color="primary"
                 class="connectorSwitcher my-auto"
@@ -59,7 +82,6 @@ export default {
     },
   },
   data: () => ({
-    loading: false,
     connectors: [],
     headers: [],
     itemsPerPage : 10,
@@ -84,6 +106,7 @@ export default {
       { text: this.$t('agenda.avatar'), align: 'center' },
       { text: this.$t('agenda.name'), align: 'center' },
       { text: this.$t('agenda.description'), align: 'center' },
+      { text: this.$t('agenda.connectorClientApiKey'), align: 'center', width: '40%' },
       { text: this.$t('agenda.active'), align: 'center' }
     ];
     // Retrieving list of registered connectors from extensionRegistry
@@ -97,6 +120,9 @@ export default {
         connectors.forEach(connector => {
           const connectorObj = this.settings.remoteProviders.find(connectorSettings => connectorSettings.name === connector.name);
           connector.enabled = connectorObj && connectorObj.enabled || false;
+          connector.apiKey = connectorObj && connectorObj.apiKey || '';
+          connector.loading = false;
+          connector.editing = false;
         });
       } else {
         connectors.forEach(connector => connector.enabled = false);
@@ -104,11 +130,21 @@ export default {
       this.connectors = connectors;
     },
     enableDisableConnector(connector) {
-      this.loading = true;
+      connector.loading = true;
       this.$settingsService.saveRemoteProviderStatus(connector.name, connector.enabled)
+        .then(result => Object.assign(connector, result))
         .catch(() => connector.enabled = !connector.enabled)
-        .finally(() => this.loading = false);
-    }
+        .finally(() => connector.loading = false);
+    },
+    editApiKey(connector) {
+      if (connector.editing) {
+        this.$settingsService.saveRemoteProviderApiKey(connector.name, connector.apiKey)
+          .then(result => Object.assign(connector, result))
+          .finally(() => connector.editing = false);
+      } else {
+        connector.editing = true;
+      }
+    },
   }
 };
 </script>
