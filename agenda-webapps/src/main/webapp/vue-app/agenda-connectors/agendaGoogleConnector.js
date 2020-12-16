@@ -80,14 +80,11 @@ export default {
           }).then(
             () => retrieveEvents(this, periodStartDate, periodEndDate)
               .then(gEvents => resolve(gEvents))
-              .catch(e => {
-                this.loadingCallback(this, false);
-                reject(e);
-              })
+              .catch(e => reject(e))
             ,(error) => reject(error)
           );
         }
-      });
+      }).finally(() => this.loadingCallback(this, false));
     } else {
       return Promise.resolve(null);
     }
