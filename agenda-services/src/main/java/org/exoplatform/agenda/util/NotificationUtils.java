@@ -1,5 +1,6 @@
 package org.exoplatform.agenda.util;
 
+import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.time.*;
@@ -22,6 +23,8 @@ import org.exoplatform.commons.notification.template.TemplateUtils;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.portal.config.UserPortalConfigService;
+import org.exoplatform.services.log.ExoLogger;
+import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
@@ -31,6 +34,9 @@ import org.exoplatform.social.notification.plugin.SocialNotificationUtils;
 import org.exoplatform.webui.utils.TimeConvertUtils;
 
 public class NotificationUtils {
+
+  private static final Log                           LOG                                        =
+                                                         ExoLogger.getLogger(NotificationUtils.class);
 
   public static final ArgumentLiteral<Event>         EVENT_AGENDA                               =
                                                                   new ArgumentLiteral<>(Event.class, "event_agenda");
@@ -95,10 +101,6 @@ public class NotificationUtils {
   public static final String                         STORED_PARAMETER_EVENT_START_DATE          = "startDate";
 
   public static final String                         STORED_PARAMETER_EVENT_END_DATE            = "endDate";
-
-  public static final String                         STORED_PARAMETER_EVENT_RESPONSE_ACCEPTED   = "urlAcceptedResponse";
-
-  public static final String                         STORED_PARAMETER_EVENT_RESPONSE_DECLINED   = "urlAcceptedDeclined";
 
   public static final String                         STORED_PARAMETER_EVENT_RESPONSE_TENTATIVE  = "urlAcceptedTentative";
 
@@ -369,7 +371,11 @@ public class NotificationUtils {
       if (token == null) {
         token = "";
       } else {
-        token = URLEncoder.encode(token, Charset.defaultCharset());
+        try {
+          token = URLEncoder.encode(token, String.valueOf(Charset.defaultCharset()));
+        } catch (UnsupportedEncodingException e) {
+          LOG.error("Error while encoding the token of events", e);
+        }
       }
       notificationURL = currentDomain + "portal/rest/v1/agenda/events/" + eventId
           + "/response/send?response=" + response.name() + "&token=" + token + "&redirect=true";
