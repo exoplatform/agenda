@@ -227,7 +227,7 @@ function retrieveEvents(connector, periodStartDate, periodEndDate) {
   const params = new URLSearchParams(formData).toString();
 
   return getTokenPopup(connector, connector.calendarRequest)
-    .then(token => officeApiGet(`${connector.graphConfig.graphCalendarEventsEndpoint}${params}`, token.accessToken))
+    .then(tokenObject => officeApiGet(`${connector.graphConfig.graphCalendarEventsEndpoint}${params}`, tokenObject.accessToken))
     .then(data => {
       const events = data.value;
       if (!events) {
@@ -275,19 +275,67 @@ function officeApiGet(endpoint, token) {
     });
 }
 
-function officeApiPost(endpoint, token, event) {
+function officeApiDelete(endpoint, token) {
   const headers = new Headers();
   const bearer = `Bearer ${token}`;
 
   headers.append('Authorization', bearer);
-  headers.append('Content-Type', 'application/json');
 
+  const options = {
+    method: 'DELETE',
+    headers: headers,
+  };
+
+  return fetch(endpoint, options)
+    .then(resp => {
+      if (!resp || !resp.ok) {
+        throw new Error('Server indicates an error while sending request');
+      }
+    });
+}
+
+function officeApiUpdate(endpoint, token, event) {
+  const headers = new Headers();
+  const bearer = `Bearer ${token}`;
+  
+  headers.append('Authorization', bearer);
+  headers.append('Content-Type', 'application/json');
+  
+  const options = {
+    method: 'PATCH',
+    headers: headers,
+    body: JSON.stringify(event)
+  };
+  
+  return fetch(endpoint, options)
+    .then(resp => {
+      if (resp && resp.ok) {
+        return resp.json();
+      } else {
+        throw new Error('Server indicates an error while sending request');
+      }
+    })
+    .then(data => {
+      if (data && data.error) {
+        throw new Error(`Server indicates an error while sending request: ${data.error}`);
+      }
+      return data;
+    });
+}
+
+function officeApiPost(endpoint, token, event) {
+  const headers = new Headers();
+  const bearer = `Bearer ${token}`;
+  
+  headers.append('Authorization', bearer);
+  headers.append('Content-Type', 'application/json');
+  
   const options = {
     method: 'POST',
     headers: headers,
     body: JSON.stringify(event)
   };
-
+  
   return fetch(endpoint, options)
     .then(resp => {
       if (resp && resp.ok) {
@@ -339,8 +387,10 @@ function pushEventToOffice(connector, event, connectorRecurringEventId, deleteEv
       options.originalStart = event.occurrence.id;
       retrievingEventPromise = connector.gapi.client.calendar.events.instances(options);
     } else if (isRemoteEvent) {
-      options.eventId = event.remoteId;
-      retrievingEventPromise = connector.gapi.client.calendar.events.get(options);
+      const getEventEndpoint = `${connector.graphConfig.eventsEndpoint}/${event.remoteId}`;
+      retrievingEventPromise = getTokenPopup(connector, connector.calendarRequest)
+        .then(tokenObject => officeApiGet(getEventEndpoint, tokenObject.accessToken))
+        .catch(() => null);
     } else {
       retrievingEventPromise = Promise.resolve(null);
     }
@@ -349,8 +399,7 @@ function pushEventToOffice(connector, event, connectorRecurringEventId, deleteEv
   }
 
   return retrievingEventPromise
-    .then(data => {
-      const remoteConnectorEventResult = data && data.result;
+    .then(remoteConnectorEventResult => {
       let remoteConnectorEvent = null;
       if (remoteConnectorEventResult) {
         if (remoteConnectorEventResult.items) {
@@ -362,33 +411,28 @@ function pushEventToOffice(connector, event, connectorRecurringEventId, deleteEv
       const updatePoint = isDeleteEvent ?
         officeApiDelete
         :remoteConnectorEvent ?
-          officeApiPatch:
+          officeApiUpdate:
           officeApiPost;
 
-      const options = {
-        calendarId: 'primary',
-      };
+      let endPoint = connector.graphConfig.eventsEndpoint;
 
       if (isDeleteEvent) {
         if (!remoteConnectorEvent || remoteConnectorEvent.status === 'cancelled') {
           return null;
         }
-        options.eventId = remoteConnectorEvent.id;
-      } else {
-        if (remoteConnectorEvent) {
-          options.eventId = remoteConnectorEvent.id;
-          connectorEvent.id = options.eventId;
-          if (isExceptionalOccurrence) {
-            connectorEvent.originalStartTime = remoteConnectorEvent.originalStartTime;
-            connectorEvent.recurringEventId = remoteConnectorEvent.recurringEventId;
-          }
+        endPoint = `${endPoint}/${remoteConnectorEvent.id}`;
+      } else if (remoteConnectorEvent) {
+        endPoint = `${endPoint}/${remoteConnectorEvent.id}`;
+
+        connectorEvent.id = remoteConnectorEvent.id;
+        if (isExceptionalOccurrence) {
+          connectorEvent.originalStartTime = remoteConnectorEvent.originalStartTime;
+          connectorEvent.recurringEventId = remoteConnectorEvent.recurringEventId;
         }
-        options.resource = connectorEvent;
       }
 
-      return updatePoint(endPoint,calendarToken.accessToken, connectorEvent);
-    })
-    .then(resp => resp && resp.result);
+      return updatePoint(endPoint, calendarToken.accessToken, connectorEvent);
+    });
 }
 
 /**
@@ -402,10 +446,71 @@ function pushEventToOffice(connector, event, connectorRecurringEventId, deleteEv
  * @returns {void}
  */
 function buildConnectorEvent(event, connectorRecurringEventId) {
-  const connectorEvent = {};
-  /*if (event.recurrence) {
-    connectorEvent.recurrence = [`RRULE:${event.recurrence.rrule}`];
-  }*/
+  const connectorEvent = {
+    subject: event.summary,
+    body: {
+      contentType: 'HTML',
+      content: event.description || '',
+    },
+    isCancelled: event.status === 'CANCELLED',
+    isAllDay: !!event.allDay,
+    location:{
+      displayName: event.location || '',
+    },
+  };
+
+  if(event.recurrence) {
+    let recurrenceType = event.recurrence.frequency.toLowerCase();
+    if (recurrenceType === 'monthly') {
+      recurrenceType = 'absoluteMonthly';
+    }
+    if (recurrenceType === 'yearly') {
+      recurrenceType = 'absoluteYearly';
+    }
+
+    let daysOfWeek = event.recurrence.byDay;
+    if (daysOfWeek) {
+      daysOfWeek = daysOfWeek.map(day => {
+        switch(day) {
+        case 'MO': return 'monday';
+        case 'TU': return 'tuesday';
+        case 'WE': return 'wednesday';
+        case 'TH': return 'thursday';
+        case 'FR': return 'friday';
+        case 'SA': return 'saturday';
+        case 'SU': return 'sunday';
+        }
+      });
+    }
+    const daysOfMonth = event.recurrence.byMonthDay;
+    const rangeType = event.recurrence.until ? 'endDate' : event.recurrence.count ? 'numbered' : 'noEnd';
+    const untilDate = event.recurrence.until ? event.recurrence.until.substring(0, 19) : null;
+
+    connectorEvent.recurrence = {
+      pattern: {
+        interval: event.recurrence.interval,
+        type: recurrenceType,
+      },
+      range: {
+        type: rangeType,
+        startDate: event.start.substring(0, 19),
+      },
+    };
+    if (daysOfWeek) {
+      connectorEvent.pattern.daysOfWeek = daysOfWeek;
+      connectorEvent.pattern.firstDayOfWeek = 'monday';
+    }
+    if (daysOfWeek) {
+      connectorEvent.pattern.daysOfMonth = daysOfMonth;
+    }
+    if (event.recurrence.count) {
+      connectorEvent.range.numberOfOccurrences = event.recurrence.count;
+    }
+    if (untilDate) {
+      connectorEvent.range.endDate = untilDate;
+    }
+  }
+
   if(connectorRecurringEventId) {
     connectorEvent.recurringEventId = connectorRecurringEventId;
     if(event.allDay) {
@@ -420,44 +525,26 @@ function buildConnectorEvent(event, connectorRecurringEventId) {
       };
     }
   }
-  //connectorEvent.status = event.status.toLowerCase();
 
   if(event.allDay) {
     connectorEvent.start = {
-      date: event.start,
+      date: event.start.substring(0, 10),
+      timeZone: event.timeZoneId,
+    };
+    connectorEvent.end = {
+      dateTime: event.end.substring(0, 10),
+      timeZone: event.timeZoneId,
     };
   } else {
     connectorEvent.start = {
-      dateTime: event.start,
-      timeZone: event.timeZoneId
+      dateTime: event.start.substring(0, 19),
+      timeZone: event.timeZoneId,
     };
-  }
-  if(event.allDay) {
-    event.isAllDay = event.allDay;
-    const endDate = new Date(event.end);
-    endDate.setDate(endDate.getDate() +1);
-    const formattedEndDate = `${endDate.getFullYear()  }-${
-      pad(endDate.getMonth() + 1)  }-${
-      pad(endDate.getDate())}`;
     connectorEvent.end = {
-      date: formattedEndDate
-    };
-  } else {
-    connectorEvent.end = {
-      dateTime: event.end,
+      dateTime: event.end.substring(0, 19),
       timeZone: event.timeZoneId,
     };
   }
-  //connectorEvent.description = event.description;
-  connectorEvent.subject = event.summary;
-  //connectorEvent.allowNewTimeProposals = false;
-  /*connectorEvent.location = {
-    displayName: event.location || (event.conferences && event.conferences.length && event.conferences[0].url) || ''
-  };*/
+
   return connectorEvent;
 }
-
-function pad(n) {
-  return n < 10 && `0${n}` || n;
-}
-
