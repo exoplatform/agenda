@@ -151,13 +151,13 @@ export default {
         if (index >= 0) {
           remoteEventsToDisplay.splice(index, 1);
         }
+        remoteEventsToDisplay.push(this.event);
+        remoteEventsToDisplay.sort((event1, event2) => {
+          const eventStart1 = this.$agendaUtils.toDate(event1.start || event1.startDate).getTime();
+          const eventStart2 = this.$agendaUtils.toDate(event2.start || event2.startDate).getTime();
+          return eventStart1 - eventStart2;
+        });
       }
-      remoteEventsToDisplay.push(this.event);
-      remoteEventsToDisplay.sort((event1, event2) => {
-        const eventStart1 = this.$agendaUtils.toDate(event1.start || event1.startDate).getTime();
-        const eventStart2 = this.$agendaUtils.toDate(event2.start || event2.startDate).getTime();
-        return eventStart1 - eventStart2;
-      });
       return remoteEventsToDisplay;
     },
   },
