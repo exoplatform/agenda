@@ -6,8 +6,8 @@ export default {
     auth: {
       clientId: null,
       authority: 'https://login.microsoftonline.com/common/',
-      redirectUri: 'http://localhost:8080/',
-      postLogoutRedirectUri: 'http://localhost:8080/',
+      redirectUri: window.location.origin,
+      postLogoutRedirectUri: window.location.origin,
     },
     cache: {
       cacheLocation: 'sessionStorage', // This configures where your cache will be stored
@@ -23,11 +23,10 @@ export default {
     scopes: ['Calendars.Read'],
     redirectUri: window.location.origin,
   },
-  readEventsRequest: {
-    scopes: ['calendars.read']
-  },
-  writeEventsRequest: {
-    scopes: ['Calendars.ReadWrite']
+  CALENDAR_READ_SCOPE: 'Calendars.Read.Shared',
+  CALENDAR_WRITE_SCOPE: 'Calendars.ReadWrite.Shared',
+  CalendarRequest: {
+    scopes: null,
   },
   canConnect: true,
   canPush: true,
@@ -53,56 +52,30 @@ export default {
     // appropriately. After a sign-in, the API is called.
     initOfficeConnector(this);
   },
-  connect() {
+  connect(askWriteAccess) {
+    if (askWriteAccess) {
+      this.CalendarRequest.scopes = [this.CALENDAR_WRITE_SCOPE];
+    } else if (!this.CalendarRequest.scopes) {
+      this.CalendarRequest.scopes = [this.CALENDAR_READ_SCOPE];
+    }
+
     this.loadingCallback(this, true);
     return this.officeApi.loginPopup(this.loginRequest)
-      .then(loginResponse => {
-        return this.getTokenPopup(loginResponse)
-          .then(token => token.account.username);
-      }).catch(error => {
-        this.loadingCallback(this, false);
-        console.error(error);
-      }).finally(() => {
-        this.loadingCallback(this, false);
-      });
+      .then(loginResponse => getTokenPopup(this, loginResponse))
+      .then(token => token.account.username)
+      .finally(() => this.loadingCallback(this, false));
   },
-
   disconnect() {
     return new Promise((resolve) => {
       this.officeApi.browserStorage.removeAllAccounts();
       resolve('disconnect from office 365 done');
     });
   },
-  getTokenPopup(request) {
-    return this.officeApi.acquireTokenSilent(request)
-      .catch(error => {
-        console.warn(error);
-        //silent token acquisition fails. acquiring token using popup
-        // fallback to interaction when silent call fails
-        return this.officeApi.acquireTokenPopup(request)
-          .then(tokenResponse => {
-            this.loadingCallback(this, false);
-            return tokenResponse;
-          }).catch(error => {
-            this.loadingCallback(this, false);
-            console.error(error);
-          });
-      }).then(token => {
-        this.loadingCallback(this, false);
-        return token;
-      });
-  },
   getEvents(periodStartDate, periodEndDate) {
     if (this.officeApi) {
       this.loadingCallback(this, true);
-      return new Promise((resolve, reject) => {
-        retrieveEvents(this, periodStartDate, periodEndDate)
-          .then(oEvents => resolve(oEvents))
-          .catch(e => {
-            this.loadingCallback(this, false);
-            reject(e);
-          });
-      });
+      return retrieveEvents(this, periodStartDate, periodEndDate)
+        .finally(() => this.loadingCallback(this, false));
     } else {
       return Promise.resolve(null);
     }
@@ -115,35 +88,41 @@ export default {
   },
   saveEvent(event, connectorRecurringEventId, deleteEvent) {
     if (this.officeApi) {
-      const currentUser = this.officeApi.getAllAccounts()[0];
       this.pushing = true;
-      return new Promise((resolve, reject) => {
-        this.writeEventsRequest.account = currentUser;
-
-        return this.getTokenPopup(this.writeEventsRequest).then(calendarToken => {
-          //const bearer = `Bearer ${calendarToken}`;
-          /*retrievingEventPromise = fetch(this.graphConfig.eventsEndpoint, {
-            method: 'POST',
-            credentials: 'include',
-            Authorization: bearer,
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(connectorEvent),
-          });
-        });*/
-          return pushEventToOffice(this, event, connectorRecurringEventId, deleteEvent, calendarToken)
-            .then(oEvent => {
-              resolve(oEvent);
-            })
-            .catch(error => reject(error));
-        }).finally(() => this.pushing = false);
-      });
+      return getTokenPopup(this, this.writeEventsRequest)
+        .then(token => pushEventToOffice(this, event, connectorRecurringEventId, deleteEvent, token))
+        .finally(() => this.pushing = false);
+    } else {
+      return Promise.reject(new Error('Not connected'));
     }
-    return Promise.reject(new Error('Not connected'));
   },
 };
 
+/**
+ * Generates a token to be used to request Graph API
+ * 
+ * @param {Object} connector current Office connector
+ * @param {Object} request User request
+ * @returns {Promise} with result the token to be used in user queries
+ */
+function getTokenPopup(connector, request) {
+  if (!request.account && connector.user) {
+    request.account = connector.user;
+  }
+  return connector.officeApi.acquireTokenSilent(request)
+    .catch(() => {
+      // silent token acquisition fails. acquiring token using popup
+      // fallback to interaction when silent call fails
+      return connector.officeApi.acquireTokenPopup(request)
+        .then(tokenResponse => {
+          connector.loadingCallback(connector, false);
+          return tokenResponse;
+        }).catch(error => {
+          connector.loadingCallback(connector, false);
+          console.error(error);
+        });
+    }).finally(() => connector.loadingCallback(connector, false));
+}
 
 /**
  * Load Office 365 Connector API javascript and prepare user authentication and
@@ -195,36 +174,30 @@ function retrieveEvents(connector, periodStartDate, periodEndDate) {
   formData.append('startDateTime', periodStartDate);
   formData.append('endDateTime', periodEndDate);
   const params = new URLSearchParams(formData).toString();
-  const currentUser = connector.officeApi.getAllAccounts()[0];
-  connector.readEventsRequest.account = currentUser;
 
-  return connector.getTokenPopup(connector.readEventsRequest).then(calendarToken => {
-
-    return callOfficeApi(`${connector.graphConfig.graphCalendarEventsEndpoint}${params}`,
-      calendarToken.accessToken,
-      (response) => {
-        const events = response.value;
-        events.forEach(event => {
-          event.allDay = !!event.isAllDay;
-          const startDate = event.start.dateTime && new Date(`${event.start.dateTime}Z`);
-          const endDate = event.end.dateTime && new Date(`${event.end.dateTime}Z`);
-          event.start = startDate || event.start.date;
-          // Office api returns all day event with one day added for end date.
-          const endDateAllDay = new Date(event.end.date);
-          endDate.setDate(endDate.getDate()-1);
-          event.end = event.allDay ? endDateAllDay : endDate;
-          event.summary = event.subject;
-          event.location = event.location.displayName;
-          event.type = 'remoteEvent';
-          event.color = '#FFFFFF';
-        });
-        connector.loadingCallback(connector, false);
-        return events;
+  return getTokenPopup(connector, connector.CalendarRequest)
+    .then(calendarToken => officeApiGet(`${connector.graphConfig.graphCalendarEventsEndpoint}${params}`, calendarToken.accessToken))
+    .then(data => {
+      const events = data.value;
+      if (!events) {
+        throw new Error('Empty events list sent from server');
+      }
+      events.forEach(event => {
+        event.allDay = !!event.isAllDay;
+        const StartDate = event.start.dateTime && new Date(`${event.start.dateTime}Z`);
+        const EndDate = event.end.dateTime && new Date(`${event.end.dateTime}Z`);
+        event.start = StartDate || event.start.date;
+        event.end = EndDate  || event.start.date;
+        event.summary = event.subject;
+        event.location = event.location.displayName;
+        event.type = 'remoteEvent';
+        event.color = '#FFFFFF';
       });
-  });
+      return events;
+    });
 }
 
-function callOfficeApi(endpoint, token, callback) {
+function officeApiGet(endpoint, token) {
   const headers = new Headers();
   const bearer = `Bearer ${token}`;
 
@@ -236,15 +209,23 @@ function callOfficeApi(endpoint, token, callback) {
     headers: headers,
   };
 
-  console.log('request made to Graph API at: ', new Date().toString());
-
   return fetch(endpoint, options)
-    .then(response => response.json())
-    .then(response => callback(response, endpoint))
-    .catch(error => console.log(error));
+    .then(resp => {
+      if (resp && resp.ok) {
+        return resp.json();
+      } else {
+        throw new Error('Server indicates an error while sending request');
+      }
+    })
+    .then(data => {
+      if (data && data.error) {
+        throw new Error(`Server indicates an error while sending request: ${data.error}`);
+      }
+      return data;
+    });
 }
 
-function callOfficeApiRest(endpoint, token, callback, event) {
+function officeApiPost(endpoint, token, event) {
   const headers = new Headers();
   const bearer = `Bearer ${token}`;
 
@@ -257,12 +238,20 @@ function callOfficeApiRest(endpoint, token, callback, event) {
     body: JSON.stringify(event)
   };
 
-  console.log('request made to Graph API at: ', new Date().toString());
-
   return fetch(endpoint, options)
-    .then(response => response.json())
-    .then(response => callback(response, endpoint))
-    .catch(error => console.log(error));
+    .then(resp => {
+      if (resp && resp.ok) {
+        return resp.json();
+      } else {
+        throw new Error('Server indicates an error while sending request');
+      }
+    })
+    .then(data => {
+      if (data && data.error) {
+        throw new Error(`Server indicates an error while sending request: ${data.error}`);
+      }
+      return data;
+    });
 }
 
 
@@ -347,7 +336,7 @@ function pushEventToOffice(connector, event, connectorRecurringEventId, deleteEv
         options.resource = connectorEvent;
       }
 
-      return callOfficeApiRest(endPoint,calendarToken.accessToken,(events) => {console.log(events);} ,connectorEvent);
+      return officeApiPost(endPoint,calendarToken.accessToken, connectorEvent);
     })
     .then(resp => resp && resp.result);
 }
