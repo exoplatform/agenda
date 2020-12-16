@@ -221,7 +221,7 @@ export default {
       return this.$vuetify.breakpoint.name === 'xs';
     },
     isConferenceEnabled() {
-      return this.conferenceProvider && this.eventConferenceType && this.conferenceProvider.getType() === this.eventConferenceType;
+      return this.eventConferenceType === 'manual' || (this.conferenceProvider && this.eventConferenceType && this.conferenceProvider.getType() === this.eventConferenceType);
     },
     eventConferences() {
       return this.event && this.event.conferences;
