@@ -133,7 +133,7 @@ public class NotificationUtils {
   private static final String                        TEMPLATE_VARIABLE_EVENT_CREATOR            = "creatorName";
 
   private static final String                        TEMPLATE_VARIABLE_EVENT_ATTENDEES          = "attendees";
-  
+
   private static final String                        TEMPLATE_VARIABLE_EVENT_TIMEZONE_NAME      = "timeZoneName";
 
   private static final String                        TEMPLATE_VARIABLE_RESPONSE_ACCEPTED        = "acceptedResponseURL";
@@ -279,7 +279,8 @@ public class NotificationUtils {
     templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_CREATOR, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_CREATOR));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_ATTENDEES, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_ATTENDEES));
-    templateContext.put(TEMPLATE_VARIABLE_EVENT_TIMEZONE_NAME, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_TIMEZONE_NAME));
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_TIMEZONE_NAME,
+                        notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_TIMEZONE_NAME));
 
     String eventIdString = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_ID);
     long eventId = Long.parseLong(eventIdString);
@@ -358,7 +359,12 @@ public class NotificationUtils {
     }
     String notificationURL = "";
     if (event != null) {
-      notificationURL = currentDomain + "portal/" + currentSite + "/agenda?eventId=" + event.getId();
+      if (event.getRecurrence() == null) {
+        notificationURL = currentDomain + "portal/" + currentSite + "/agenda?eventId=" + event.getId();
+      } else {
+        notificationURL = currentDomain + "portal/" + currentSite + "/agenda?eventId=" + event.getId() + "&occurrenceId="
+            + AgendaDateUtils.toRFC3339Date(event.getStart());
+      }
     } else {
       notificationURL = currentDomain + "portal/" + currentSite + "/agenda";
     }

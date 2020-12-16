@@ -180,10 +180,10 @@ export default {
       }
     },
     pushEventResponse(event, occurrenceId, eventResponse) {
-      event.start = this.$agendaUtils.toRFC3339(event.start);
-      event.end = this.$agendaUtils.toRFC3339(event.end);
+      if (event && eventResponse && this.settings && this.settings.automaticPushEvents && this.connectedConnector && this.connectedConnector.canPush) {
+        event.start = this.$agendaUtils.toRFC3339(event.start);
+        event.end = this.$agendaUtils.toRFC3339(event.end);
 
-      if (eventResponse && this.settings && this.settings.automaticPushEvents && this.connectedConnector && this.connectedConnector.canPush) {
         if (eventResponse.toLowerCase()  === 'accepted') {
           return this.$remoteEventConnector.pushEventToConnector(this.connectedConnector, event, !!event.recurrence)
             .finally(() => this.$root.$emit('agenda-refresh'));
