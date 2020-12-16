@@ -1,7 +1,7 @@
 <template>
-  <div v-if="isConferenceEnabled" class="d-flex flex-row">
+  <div class="d-flex flex-row">
     <i class="uiIconVideo darkGreyIcon uiIcon32x32 my-auto mr-11"></i>
-    <div class="d-flex flex-row my-auto">
+    <div v-if="isConferenceEnabled" class="d-flex flex-row my-auto">
       <template v-if="eventConference">
         <div
           v-if="eventConferenceUrl"
@@ -37,6 +37,16 @@
         {{ $t('agenda.createEventConference') }}
       </v-btn>
     </div>
+    <div v-else class="d-flex flex-row my-auto">
+      <input
+        id="eventCallURL"
+        ref="eventCallURL"
+        v-model="conferenceURL"
+        :placeholder="$t('agenda.webConferenceURL')"
+        type="text"
+        name="locationEvent"
+        class="ignore-vuetify-classes my-3 location-event-input">
+    </div>
   </div>
 </template>
 
@@ -62,6 +72,7 @@ export default {
   },
   data: () => ({
     loading: false,
+    conferenceURL: null,
   }),
   computed:{
     isConferenceEnabled() {
@@ -85,6 +96,23 @@ export default {
     eventConferenceUrl() {
       return this.eventConference && this.eventConference.url;
     },
+  },
+  watch: {
+    conferenceURL(newVal) {
+      if (!newVal) {
+        this.event.conferences = [];
+      } else {
+        this.event.conferences = [{
+          url: newVal,
+          type: 'manual',
+        }];
+      }
+    },
+  },
+  mounted() {
+    if (this.event && this.event.conferences && this.event.conferences.length) {
+      this.conferenceURL = this.event.conferences[0].url;
+    }
   },
   methods:{
     createCallUrl() {

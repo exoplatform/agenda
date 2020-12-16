@@ -23,6 +23,8 @@ export function saveEventWebConferencing(event, conference) {
   const providerType = conference && conference.type;
   if (!providerType || !webConferencing) {
     return Promise.resolve(null);
+  } else if (providerType === 'manual') {
+    return Promise.resolve(conference);
   }
   if (conference.url) {
     if (webConferencing.updateCall) {
