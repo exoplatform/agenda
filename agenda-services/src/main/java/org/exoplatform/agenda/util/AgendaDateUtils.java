@@ -20,7 +20,9 @@ import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.format.ResolverStyle;
 import java.time.temporal.TemporalAccessor;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -42,6 +44,9 @@ public class AgendaDateUtils {
                                                                                    .withResolverStyle(ResolverStyle.LENIENT);
 
   public static final DateTimeFormatter TIME_FORMATTER          = DateTimeFormatter.ofPattern(TIME_FORMAT)
+                                                                                   .withResolverStyle(ResolverStyle.LENIENT);
+
+  public static final DateTimeFormatter FULL_TIME_FORMATTER     = DateTimeFormatter.ofPattern("EEE MMM dd, yyyy")
                                                                                    .withResolverStyle(ResolverStyle.LENIENT);
 
   private AgendaDateUtils() {
@@ -148,6 +153,40 @@ public class AgendaDateUtils {
   
   public static String formatWithHoursAndMinutes(ZonedDateTime zonedDateTime) {
     return zonedDateTime.format(TIME_FORMATTER);
+  }
+
+  public static String formatWithYearAndMonth(ZonedDateTime zonedDateTime) {
+    return zonedDateTime.format(FULL_TIME_FORMATTER);
+  }
+
+  public static final String getDayNameFromDayAbbreviation(List<String> dayNames) {
+    List<String> daysFinal = new ArrayList<>();
+    for (String name : dayNames) {
+      switch (name) {
+      case "MO":
+        daysFinal.add(StringUtils.lowerCase(String.valueOf(DayOfWeek.of(1))));
+        break;
+      case "TU":
+        daysFinal.add(StringUtils.lowerCase(String.valueOf(DayOfWeek.of(2))));
+        break;
+      case "WE":
+        daysFinal.add(StringUtils.lowerCase(String.valueOf(DayOfWeek.of(3))));
+        break;
+      case "TH":
+        daysFinal.add(StringUtils.lowerCase(String.valueOf(DayOfWeek.of(4))));
+        break;
+      case "FR":
+        daysFinal.add(StringUtils.lowerCase(String.valueOf(DayOfWeek.of(5))));
+        break;
+      case "SA":
+        daysFinal.add(StringUtils.lowerCase(String.valueOf(DayOfWeek.of(6))));
+        break;
+      case "SU":
+        daysFinal.add(StringUtils.lowerCase(String.valueOf(DayOfWeek.of(7))));
+        break;
+      }
+    }
+    return StringUtils.join(daysFinal, ",");
   }
 
 }
