@@ -31,7 +31,7 @@ export default {
           start: this.$agendaUtils.toRFC3339(eventToSave.start, false, true),
           end: this.$agendaUtils.toRFC3339(eventToSave.end, false, true),
           timeZoneId: this.$agendaUtils.USER_TIMEZONE_ID,
-        }, false, changeDatesOnly)
+        }, !!eventToSave.recurrence, changeDatesOnly)
           .then(event => this.saved(event || eventToSave))
           .finally(() => {
             this.saving = false;

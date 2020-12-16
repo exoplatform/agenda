@@ -248,7 +248,7 @@ function retrieveEvents(connector, periodStartDate, periodEndDate) {
     });
 }
 
-function officeApiGet(endpoint, token) {
+function officeApiGetInstance(endpoint, token, date) {
   const headers = new Headers();
   const bearer = `Bearer ${token}`;
 
@@ -259,6 +259,37 @@ function officeApiGet(endpoint, token) {
     headers: headers,
   };
 
+  const dateTime = new Date(date).getTime();
+  const startDateTime = `${new Date(dateTime - 3600000).toISOString().substring(0, 10)}T00:00:00Z`;
+  const endDateTime = `${new Date(dateTime + 3600000).toISOString().substring(0, 10)}T23:59:59Z`;
+
+  return fetch(`${endpoint}?startDateTime=${startDateTime}&endDateTime=${endDateTime}`, options)
+    .then(resp => {
+      if (resp && resp.ok) {
+        return resp.json();
+      } else {
+        throw new Error('Server indicates an error while sending request');
+      }
+    })
+    .then(data => {
+      if (data && data.error) {
+        throw new Error(`Server indicates an error while sending request: ${data.error}`);
+      }
+      return data;
+    });
+}
+
+function officeApiGet(endpoint, token) {
+  const headers = new Headers();
+  const bearer = `Bearer ${token}`;
+  
+  headers.append('Authorization', bearer);
+  
+  const options = {
+    method: 'GET',
+    headers: headers,
+  };
+  
   return fetch(endpoint, options)
     .then(resp => {
       if (resp && resp.ok) {
@@ -377,15 +408,11 @@ function pushEventToOffice(connector, event, connectorRecurringEventId, deleteEv
   const isDeleteEvent = deleteEvent || event.status.toLowerCase() === 'cancelled';
 
   if (isExceptionalOccurrence || isRemoteEvent || isDeleteEvent) {
-    const options = {
-      'calendarId': 'primary',
-      'showDeleted': true,
-    };
     if (isExceptionalOccurrence) {
-      options.eventId = connectorRecurringEventId;
-      options.recurringEventId = connectorRecurringEventId;
-      options.originalStart = event.occurrence.id;
-      retrievingEventPromise = connector.gapi.client.calendar.events.instances(options);
+      const getEventEndpointInstances = `${connector.graphConfig.eventsEndpoint}/${connectorRecurringEventId}/instances`;
+      retrievingEventPromise = getTokenPopup(connector, connector.calendarRequest)
+        .then(tokenObject => officeApiGetInstance(getEventEndpointInstances, tokenObject.accessToken, event.occurrence.id))
+        .catch(() => null);
     } else if (isRemoteEvent) {
       const getEventEndpoint = `${connector.graphConfig.eventsEndpoint}/${event.remoteId}`;
       retrievingEventPromise = getTokenPopup(connector, connector.calendarRequest)
@@ -402,8 +429,8 @@ function pushEventToOffice(connector, event, connectorRecurringEventId, deleteEv
     .then(remoteConnectorEventResult => {
       let remoteConnectorEvent = null;
       if (remoteConnectorEventResult) {
-        if (remoteConnectorEventResult.items) {
-          remoteConnectorEvent = remoteConnectorEventResult.items.length && remoteConnectorEventResult.items[0];
+        if (remoteConnectorEventResult.value && remoteConnectorEventResult.value.length) {
+          remoteConnectorEvent = remoteConnectorEventResult.value[0];
         } else if (remoteConnectorEventResult.id) {
           remoteConnectorEvent = remoteConnectorEventResult;
         }
@@ -425,10 +452,6 @@ function pushEventToOffice(connector, event, connectorRecurringEventId, deleteEv
         endPoint = `${endPoint}/${remoteConnectorEvent.id}`;
 
         connectorEvent.id = remoteConnectorEvent.id;
-        if (isExceptionalOccurrence) {
-          connectorEvent.originalStartTime = remoteConnectorEvent.originalStartTime;
-          connectorEvent.recurringEventId = remoteConnectorEvent.recurringEventId;
-        }
       }
 
       return updatePoint(endPoint, calendarToken.accessToken, connectorEvent);
@@ -445,7 +468,7 @@ function pushEventToOffice(connector, event, connectorRecurringEventId, deleteEv
  *          Identifier
  * @returns {void}
  */
-function buildConnectorEvent(event, connectorRecurringEventId) {
+function buildConnectorEvent(event) {
   const connectorEvent = {
     subject: event.summary,
     body: {
@@ -484,7 +507,7 @@ function buildConnectorEvent(event, connectorRecurringEventId) {
     }
     const daysOfMonth = event.recurrence.byMonthDay;
     const rangeType = event.recurrence.until ? 'endDate' : event.recurrence.count ? 'numbered' : 'noEnd';
-    const untilDate = event.recurrence.until ? event.recurrence.until.substring(0, 19) : null;
+    const untilDate = event.recurrence.until ? event.recurrence.until.substring(0, 10) : null;
 
     connectorEvent.recurrence = {
       pattern: {
@@ -493,42 +516,27 @@ function buildConnectorEvent(event, connectorRecurringEventId) {
       },
       range: {
         type: rangeType,
-        startDate: event.start.substring(0, 19),
+        startDate: event.start.substring(0, 10),
       },
     };
     if (daysOfWeek) {
-      connectorEvent.pattern.daysOfWeek = daysOfWeek;
-      connectorEvent.pattern.firstDayOfWeek = 'monday';
+      connectorEvent.recurrence.pattern.daysOfWeek = daysOfWeek;
+      connectorEvent.recurrence.pattern.firstDayOfWeek = 'monday';
     }
-    if (daysOfWeek) {
-      connectorEvent.pattern.daysOfMonth = daysOfMonth;
+    if (daysOfMonth) {
+      connectorEvent.recurrence.pattern.daysOfMonth = daysOfMonth;
     }
     if (event.recurrence.count) {
-      connectorEvent.range.numberOfOccurrences = event.recurrence.count;
+      connectorEvent.recurrence.range.numberOfOccurrences = event.recurrence.count;
     }
     if (untilDate) {
-      connectorEvent.range.endDate = untilDate;
-    }
-  }
-
-  if(connectorRecurringEventId) {
-    connectorEvent.recurringEventId = connectorRecurringEventId;
-    if(event.allDay) {
-      connectorEvent.originalStartTime = {
-        date: event.occurrence.id,
-        timeZone: event.timeZoneId
-      };
-    } else {
-      connectorEvent.originalStartTime = {
-        dateTime: event.occurrence.id,
-        timeZone: event.timeZoneId
-      };
+      connectorEvent.recurrence.range.endDate = untilDate;
     }
   }
 
   if(event.allDay) {
     connectorEvent.start = {
-      date: event.start.substring(0, 10),
+      dateTime: event.start.substring(0, 10),
       timeZone: event.timeZoneId,
     };
     connectorEvent.end = {
