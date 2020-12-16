@@ -24,7 +24,6 @@ import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.social.core.identity.model.Identity;
-import org.exoplatform.web.security.security.TokenServiceInitializationException;
 
 public interface AgendaEventAttendeeService {
 
@@ -72,10 +71,8 @@ public interface AgendaEventAttendeeService {
    * @param eventId {@link Event} technical identifier
    * @param email User email
    * @return encrypted token containing "EVENT_ID|EMAIL"
-   * @throws TokenServiceInitializationException when an error occurs while
-   *           encrypting data
    */
-  public String generateEncryptedToken(long eventId, String email) throws TokenServiceInitializationException;
+  public String generateEncryptedToken(long eventId, String email);
 
   /**
    * Generates a token that will be used to authenticate user when requesting
@@ -85,12 +82,10 @@ public interface AgendaEventAttendeeService {
    * @param emailOrUsername User name or email
    * @param response {@link EventAttendeeResponse} value for chosen answer
    * @return encrypted token containing "EVENT_ID|EMAIL|ATTENDEE_RESPONSE"
-   * @throws TokenServiceInitializationException when an error occurs while
-   *           encrypting data
    */
   public String generateEncryptedToken(long eventId,
                                        String emailOrUsername,
-                                       EventAttendeeResponse response) throws TokenServiceInitializationException;
+                                       EventAttendeeResponse response);
 
   /**
    * Reads token content and retrieves user Social Identity from email or
@@ -100,14 +95,11 @@ public interface AgendaEventAttendeeService {
    * @param eventId {@link Event} technical identifier
    * @param response {@link EventAttendeeResponse} value for chosen answer
    * @return {@link Identity} of user
-   * @throws TokenServiceInitializationException when an error occurs while
-   *           decrypting data
    * @throws IllegalAccessException when the token has bad format
    */
   public Identity decryptUserIdentity(long eventId,
                                       String token,
-                                      EventAttendeeResponse response) throws TokenServiceInitializationException,
-                                                                      IllegalAccessException;
+                                      EventAttendeeResponse response) throws IllegalAccessException;
 
   /**
    * Retrieves the event response of a user. If the user didn't responded to the

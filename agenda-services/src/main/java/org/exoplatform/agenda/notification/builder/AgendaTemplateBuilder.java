@@ -10,8 +10,7 @@ import org.apache.commons.lang.StringUtils;
 
 import org.exoplatform.agenda.model.AgendaUserSettings;
 import org.exoplatform.agenda.model.Event;
-import org.exoplatform.agenda.service.AgendaEventService;
-import org.exoplatform.agenda.service.AgendaUserSettingsService;
+import org.exoplatform.agenda.service.*;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.channel.template.AbstractTemplateBuilder;
@@ -30,21 +29,23 @@ import groovy.text.Template;
 
 public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
 
-  private static final Log          LOG = ExoLogger.getLogger(AgendaTemplateBuilder.class);
+  private static final Log           LOG = ExoLogger.getLogger(AgendaTemplateBuilder.class);
 
-  private AgendaEventService        agendaEventService;
+  private AgendaEventService         agendaEventService;
 
-  private AgendaUserSettingsService agendaUserSettingsService;
+  private AgendaEventAttendeeService agendaEventAttendeeService;
 
-  private IdentityManager           identityManager;
+  private AgendaUserSettingsService  agendaUserSettingsService;
 
-  private TemplateProvider          templateProvider;
+  private IdentityManager            identityManager;
 
-  private ExoContainer              container;
+  private TemplateProvider           templateProvider;
 
-  private boolean                   isPushNotification;
+  private ExoContainer               container;
 
-  private PluginKey                 key;
+  private boolean                    isPushNotification;
+
+  private PluginKey                  key;
 
   public AgendaTemplateBuilder(TemplateProvider templateProvider,
                                ExoContainer container,
@@ -93,7 +94,11 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
       ZoneId timeZone = agendaUserSettings == null
           || agendaUserSettings.getTimeZoneId() == null ? ZoneOffset.UTC : ZoneId.of(agendaUserSettings.getTimeZoneId());
 
-      TemplateContext templateContext = buildTemplateParameters(templateProvider, notification, timeZone);
+      TemplateContext templateContext = buildTemplateParameters(username,
+                                                                getAgendaEventAttendeeService(),
+                                                                templateProvider,
+                                                                notification,
+                                                                timeZone);
       MessageInfo messageInfo = buildMessageSubjectAndBody(templateContext, notification, pushNotificationURL);
       Throwable exception = templateContext.getException();
       logException(notification, exception);
@@ -147,6 +152,13 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
       agendaUserSettingsService = this.container.getComponentInstanceOfType(AgendaUserSettingsService.class);
     }
     return agendaUserSettingsService;
+  }
+
+  private AgendaEventAttendeeService getAgendaEventAttendeeService() {
+    if (agendaEventAttendeeService == null) {
+      agendaEventAttendeeService = this.container.getComponentInstanceOfType(AgendaEventAttendeeService.class);
+    }
+    return agendaEventAttendeeService;
   }
 
   private IdentityManager getIdentityManager() {
