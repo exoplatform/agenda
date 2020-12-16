@@ -63,7 +63,7 @@ function createConference(event, conference) {
       return webConferencing.addCall({
         title: event.title,
         owner: event.calendar.owner.remoteId,
-        ownerType: event.calendar.owner.providerId,
+        ownerType: 'space_event',
         provider: conference.type,
         participants: participants.join(';'),
         spaces: spaces.join(';'),
@@ -97,7 +97,7 @@ function updateConference(event, conference) {
       return webConferencing.updateCall(callId, {
         title: event.title,
         owner: event.calendar.owner.remoteId,
-        ownerType: event.calendar.owner.providerId,
+        ownerType: 'space_event',
         provider: conference.type,
         participants: participants.join(';'),
         spaces: spaces.join(';'),
