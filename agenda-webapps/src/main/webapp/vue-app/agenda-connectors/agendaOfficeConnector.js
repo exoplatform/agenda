@@ -50,7 +50,7 @@ export default {
     initOfficeConnector(this);
   },
   connect(askWriteAccess) {
-    if (this.isSignedIn && this.user) {
+    if (this.isSignedIn && this.user && (!askWriteAccess || this.canPush)) {
       return Promise.resolve(this.user);
     }
 
@@ -148,18 +148,42 @@ function initOfficeConnector(connector) {
     const officeApi = new msal.PublicClientApplication(connector.config);
     connector.officeApi = officeApi;
 
-    if (officeApi.getAllAccounts().length > 0) {
-      const currentUser = connector.officeApi.getAllAccounts()[0];
-      if(currentUser) {
-        connector.isSignedIn = true;
-        connector.user = currentUser.username;
-        connector.connectionStatusChangedCallback(connector, {
-          user: currentUser.username,
-          id: currentUser.localAccountId,
+    const currentUser = officeApi.getAllAccounts().length > 0 && connector.officeApi.getAllAccounts()[0] || null;
+    if(currentUser) {
+      connector.connectionStatusChangedCallback(connector, {
+        user: currentUser.username,
+        id: currentUser.localAccountId,
+      });
+
+      const request = {
+        redirectUri: window.location.origin,
+        account: currentUser.username,
+        scopes: connector.CALENDAR_WRITE_SCOPE,
+      };
+
+      return officeApi.acquireTokenSilent(request)
+        .then(() => {
+          connector.calendarRequest.scopes = connector.CALENDAR_WRITE_SCOPE;
+          connector.loginRequest.scopes = connector.CALENDAR_WRITE_SCOPE;
+          connector.canPush = true;
+        })
+        .catch(() => {
+          request.scopes = connector.CALENDAR_READ_SCOPE;
+          return officeApi.acquireTokenSilent(request)
+            .then(() => {
+              connector.calendarRequest.scopes = connector.CALENDAR_READ_SCOPE;
+              connector.loginRequest.scopes = connector.CALENDAR_READ_SCOPE;
+              connector.canPush = false;
+            });
+        })
+        .finally(() => {
+          connector.isSignedIn = true;
+          connector.user = currentUser.username;
+          connector.loadingCallback(connector, false);
         });
-      }
+    } else {
+      connector.loadingCallback(connector, false);
     }
-    connector.loadingCallback(connector, false);
   }, (error) => {
     connector.canConnect = false;
     connector.loadingCallback(connector, false);
