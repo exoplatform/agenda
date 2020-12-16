@@ -166,6 +166,7 @@ public class NotificationUtils {
                                                      Event event,
                                                      String typeModification) {
     Set<String> recipients = new HashSet<>();
+    List<String> participants = new ArrayList<>();
     for (EventAttendee attendee : eventAttendee) {
       Identity identity = Utils.getIdentityById(identityManager, attendee.getIdentityId());
       if (identity.getProviderId().equals(SpaceIdentityProvider.NAME)) {
@@ -176,18 +177,11 @@ public class NotificationUtils {
         }
       } else if (identity.getProviderId().equals(OrganizationIdentityProvider.NAME)) {
         recipients.add(identity.getRemoteId());
+        participants.add(identity.getId());
       }
     }
-    List<String> participants = new ArrayList<>(recipients);
-    List<String> showParticipants = new ArrayList<>();
-    if (recipients.size() > 3) {
-      for (int i = 0; i < 3; i++) {
-        showParticipants.add(participants.get(i));
-      }
-      notification.with(STORED_PARAMETER_EVENT_ATTENDEES, String.join(",", showParticipants).concat("..."));
-    } else {
-      notification.with(STORED_PARAMETER_EVENT_ATTENDEES, String.join(",", recipients));
-    }
+    String showParticipants = getFullUserName(participants, identityManager);
+    notification.with(STORED_PARAMETER_EVENT_ATTENDEES, showParticipants);
 
     // After computing all usernames, to whom, notifications will be sent,
     // this deletes the username of modifier/creator user
@@ -555,6 +549,23 @@ public class NotificationUtils {
       currentDomain += "/";
     }
     return currentDomain + "portal/" + currentSite + "/profile/" + identityId;
+  }
+
+  private static String getFullUserName(List<String> participants, IdentityManager identityManager) {
+    List<String> showParticipants = new ArrayList<>();
+    if (participants.size() > 3) {
+      for (int i = 0; i < 3; i++) {
+        String fullName = Utils.getIdentityById(identityManager, participants.get(i)).getProfile().getFullName();
+        showParticipants.add(fullName);
+      }
+      return String.join(", ", showParticipants).concat("...");
+    } else {
+      for (int i = 0; i < participants.size(); i++) {
+        String fullName = Utils.getIdentityById(identityManager, participants.get(i)).getProfile().getFullName();
+        showParticipants.add(fullName);
+      }
+      return String.join(", ", showParticipants);
+    }
   }
 
 }
