@@ -362,7 +362,7 @@ public class NotificationUtils {
       if (event.getRecurrence() == null) {
         notificationURL = currentDomain + "portal/" + currentSite + "/agenda?eventId=" + event.getId();
       } else {
-        notificationURL = currentDomain + "portal/" + currentSite + "/agenda?eventId=" + event.getId() + "&occurrenceId="
+        notificationURL = currentDomain + "portal/" + currentSite + "/agenda?parentId=" + event.getId() + "&occurrenceId="
             + AgendaDateUtils.toRFC3339Date(event.getStart());
       }
     } else {
