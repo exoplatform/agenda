@@ -1,11 +1,10 @@
 export default {
   name: 'agenda.officeCalendar',
   avatar: '/agenda/skin/images/office365.png',
-  CLIENT_ID: 'fd78b3a2-b6a0-465e-a5ea-d94fa9cb3a95',
   SCOPES: 'https://graph.microsoft.com/Calendars.Read',
   config: {
     auth: {
-      clientId: 'fd78b3a2-b6a0-465e-a5ea-d94fa9cb3a95',
+      clientId: null,
       authority: 'https://login.microsoftonline.com/common/',
       redirectUri: 'http://localhost:8080/',
       postLogoutRedirectUri: 'http://localhost:8080/',
@@ -21,7 +20,7 @@ export default {
   },
   loginRequest: {
     scopes: ['Calendars.Read'],
-    redirectUri: 'http://localhost:8080/',
+    redirectUri: window.location.origin,
   },
   CalendarRequest: {
     scopes: ['calendars.read']
@@ -32,7 +31,12 @@ export default {
   isSignedIn: false,
   pushing: false,
   accessToken: '',
-  init(connectionStatusChangedCallback, loadingCallback) {
+  init(connectionStatusChangedCallback, loadingCallback, apiKey) {
+    if (!apiKey) {
+      throw new Error('Office connector can\'t be enabled with empty Client API Key.');
+    }
+    this.config.auth.clientId = apiKey;
+
     // Already initialized
     if (this.initialized) {
       return;

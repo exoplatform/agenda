@@ -57,7 +57,11 @@
         </value-param>
         <value-param>
           <name>connectorEnabled</name>
-          <value>${exo.agenda.google.connector.enabled:true}</value>
+          <value>${exo.agenda.office.connector.enabled:true}</value>
+        </value-param>
+        <value-param>
+          <name>connectorAPIKey</name>
+          <value>${exo.agenda.office.connector.key}</value>
         </value-param>
       </init-params>
     </component-plugin>
