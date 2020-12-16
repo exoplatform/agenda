@@ -158,12 +158,12 @@ function initOfficeConnector(connector) {
 
 /**
  * @param {Object}
- *          connector Google Connector SPI
+ *          connector MS Office Connector SPI
  * @param {Date}
  *          periodStartDate Start date of period of events to retrieve
  * @param {Date}
  *          periodEndDate End date of period of events to retrieve
- * @returns {Promise} a promise with list of Google events
+ * @returns {Promise} a promise with list of MS Office events
  */
 function retrieveEvents(connector, periodStartDate, periodEndDate) {
   //const currentUser = connector.officeApi.getAllAccounts()[0];
