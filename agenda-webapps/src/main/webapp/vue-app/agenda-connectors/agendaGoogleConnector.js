@@ -59,7 +59,11 @@ export default {
   },
   disconnect() {
     this.loadingCallback(this, true);
-    return this.gapi.auth2.getAuthInstance().signOut();
+    if (this.gapi.auth2.getAuthInstance()) {
+      return this.gapi.auth2.getAuthInstance().signOut();
+    } else {
+      return Promise.resolve(null);
+    }
   },
   getEvents(periodStartDate, periodEndDate) {
     if (this.gapi && this.gapi.client && this.gapi.client.calendar) {

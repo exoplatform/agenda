@@ -77,8 +77,17 @@ export default {
     },
     connect(connector) {
       this.errorMessage = null;
+
+      const disconnectPromises = [];
+      this.connectors.forEach(otherConnector => {
+        if (connector.name !== otherConnector.name && (otherConnector.user || otherConnector.isSignedIn)) {
+          disconnectPromises.push(this.disconnect(otherConnector));
+        }
+      });
+
       this.$set(connector, 'loading', true);
-      return connector.connect(this.settings && this.settings.automaticPushEvents)
+      return Promise.all(disconnectPromises)
+        .then(() => connector.connect(this.settings && this.settings.automaticPushEvents))
         .then((userId) => {
           return this.$settingsService.saveUserConnector(connector.name, userId)
             .then(() => {

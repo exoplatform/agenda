@@ -69,7 +69,16 @@ export default {
         const username = tokenObject && tokenObject.account && tokenObject.account.username;
         this.user = username;
         this.canPush = askWriteAccess;
+
+        this.connectionStatusChangedCallback(this, {
+          user: username,
+        });
+
         return username;
+      })
+      .catch((error) => {
+        this.connectionStatusChangedCallback(this, false);
+        throw error;
       })
       .finally(() => this.loadingCallback(this, false));
   },
@@ -96,10 +105,19 @@ export default {
   },
   saveEvent(event, connectorRecurringEventId, deleteEvent) {
     if (this.officeApi) {
-      this.pushing = true;
-      return getTokenPopup(this, this.writeEventsRequest)
-        .then(token => pushEventToOffice(this, event, connectorRecurringEventId, deleteEvent, token))
-        .finally(() => this.pushing = false);
+      if (this.canPush) {
+        this.pushing = true;
+        return getTokenPopup(this, this.calendarRequest)
+          .then(token => pushEventToOffice(this, event, connectorRecurringEventId, deleteEvent, token))
+          .finally(() => this.pushing = false);
+      } else {
+        return this.connect(true).then(() => {
+          this.pushing = true;
+          return getTokenPopup(this, this.calendarRequest)
+            .then(token => pushEventToOffice(this, event, connectorRecurringEventId, deleteEvent, token))
+            .finally(() => this.pushing = false);
+        });
+      }
     } else {
       return Promise.reject(new Error('Not connected'));
     }
@@ -341,11 +359,11 @@ function pushEventToOffice(connector, event, connectorRecurringEventId, deleteEv
           remoteConnectorEvent = remoteConnectorEventResult;
         }
       }
-      const endPoint = isDeleteEvent ?
-        connector.gapi.client.calendar.events.delete
+      const updatePoint = isDeleteEvent ?
+        officeApiDelete
         :remoteConnectorEvent ?
-          connector.gapi.client.calendar.events.patch:
-          connector.graphConfig.eventsEndpoint;
+          officeApiPatch:
+          officeApiPost;
 
       const options = {
         calendarId: 'primary',
@@ -368,7 +386,7 @@ function pushEventToOffice(connector, event, connectorRecurringEventId, deleteEv
         options.resource = connectorEvent;
       }
 
-      return officeApiPost(endPoint,calendarToken.accessToken, connectorEvent);
+      return updatePoint(endPoint,calendarToken.accessToken, connectorEvent);
     })
     .then(resp => resp && resp.result);
 }
