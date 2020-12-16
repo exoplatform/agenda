@@ -163,12 +163,12 @@ function initOfficeConnector(connector) {
  */
 function retrieveEvents(connector, periodStartDate, periodEndDate) {
   //const currentUser = connector.officeApi.getAllAccounts()[0];
-  let params = {
-    startDateTime: periodStartDate,
-    endDateTime: periodEndDate,
-  };
 
-  params = $.param(params, true);
+  const formData = new FormData();
+  formData.append('startDateTime', periodStartDate);
+  formData.append('endDateTime', periodEndDate);
+  const params = new URLSearchParams(formData).toString();
+
   return connector.getTokenPopup(connector.CalendarRequest).then(calendarToken => {
     return callOfficeApi(`${connector.graphConfig.graphCalendarEventsEndpoint}${params}`,
       calendarToken.accessToken,
