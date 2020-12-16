@@ -48,7 +48,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
 
   private static final Log           LOG       = ExoLogger.getLogger(AgendaEventAttendeeServiceImpl.class);
 
-  private static final String        SEPARATOR = "|";
+  private static final String        SEPARATOR = "@@@";
 
   private AgendaEventAttendeeStorage attendeeStorage;
 
@@ -225,7 +225,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    * {@inheritDoc}
    */
   @Override
-  public String generateEncryptedToken(long eventId, String email) throws TokenServiceInitializationException {
+  public String generateEncryptedToken(long eventId, String email) {
     return generateEncryptedToken(eventId, email, null);
   }
 
@@ -235,7 +235,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
   @Override
   public String generateEncryptedToken(long eventId,
                                        String emailOrUsername,
-                                       EventAttendeeResponse response) throws TokenServiceInitializationException {
+                                       EventAttendeeResponse response) {
     if (eventId <= 0) {
       throw new IllegalArgumentException("eventId is mandatory");
     }
@@ -249,7 +249,12 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       tokenFlatStringBuilder.append(SEPARATOR).append(response.getValue());
     }
     String tokenFlat = tokenFlatStringBuilder.toString();
-    return codecInitializer.getCodec().encode(tokenFlat);
+    try {
+      return codecInitializer.getCodec().encode(tokenFlat);
+    } catch (TokenServiceInitializationException e) {
+      LOG.warn("Error generating Token", e);
+      return null;
+    }
   }
 
   /**
@@ -258,10 +263,15 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
   @Override
   public Identity decryptUserIdentity(long eventId,
                                       String token,
-                                      EventAttendeeResponse response) throws TokenServiceInitializationException,
-                                                                      IllegalAccessException {
-    String tokenFlat = codecInitializer.getCodec().decode(token);
-    String[] tokenParts = tokenFlat.split(SEPARATOR);
+                                      EventAttendeeResponse response) throws IllegalAccessException {
+    String tokenFlat;
+    try {
+      tokenFlat = codecInitializer.getCodec().decode(token);
+    } catch (TokenServiceInitializationException e) {
+      LOG.warn("Error decrypting Token", e);
+      return null;
+    }
+    String[] tokenParts = tokenFlat.split("\\" + SEPARATOR);
     if (tokenParts.length < 2) {
       throw new IllegalAccessException("Wrong token format");
     }

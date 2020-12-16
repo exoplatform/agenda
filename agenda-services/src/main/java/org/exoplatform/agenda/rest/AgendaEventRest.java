@@ -16,6 +16,7 @@
  */
 package org.exoplatform.agenda.rest;
 
+import java.net.URI;
 import java.time.*;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -37,6 +38,7 @@ import org.exoplatform.agenda.service.*;
 import org.exoplatform.agenda.util.*;
 import org.exoplatform.common.http.HTTPStatus;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.rest.resource.ResourceContainer;
@@ -52,7 +54,9 @@ import io.swagger.jaxrs.PATCH;
 @Api(value = "/v1/agenda/events", description = "Manages agenda events associated to users and spaces") // NOSONAR
 public class AgendaEventRest implements ResourceContainer {
 
-  private static final Log             LOG = ExoLogger.getLogger(AgendaEventRest.class);
+  private static final String          AGENDA_APP_URI = "agenda";
+
+  private static final Log             LOG            = ExoLogger.getLogger(AgendaEventRest.class);
 
   private IdentityManager              identityManager;
 
@@ -70,7 +74,10 @@ public class AgendaEventRest implements ResourceContainer {
 
   private AgendaRemoteEventService     agendaRemoteEventService;
 
+  private String                       defaultSite    = null;
+
   public AgendaEventRest(IdentityManager identityManager,
+                         UserPortalConfigService portalConfigService,
                          AgendaCalendarService agendaCalendarService,
                          AgendaEventService agendaEventService,
                          AgendaEventConferenceService agendaEventConferenceService,
@@ -86,6 +93,11 @@ public class AgendaEventRest implements ResourceContainer {
     this.agendaEventAttachmentService = agendaEventAttachmentService;
     this.agendaEventConferenceService = agendaEventConferenceService;
     this.agendaRemoteEventService = agendaRemoteEventService;
+    if (portalConfigService != null && portalConfigService.getDefaultPortal() != null) {
+      this.defaultSite = portalConfigService.getDefaultPortal();
+    } else {
+      this.defaultSite = "dw";
+    }
   }
 
   @GET
@@ -796,9 +808,19 @@ public class AgendaEventRest implements ResourceContainer {
                                         value = "Response to event invitation. Possible values: ACCEPTED, DECLINED or TENTATIVE.",
                                         required = true
                                     ) @QueryParam("response") String responseString,
-                                    @ApiParam(value = "User token to ", required = false) @QueryParam(
+                                    @ApiParam(
+                                        value = "User token used to identify user and his response to apply new reponse even when user is not authenticated",
+                                        required = false
+                                    ) @QueryParam(
                                       "token"
-                                    ) String token) {
+                                    ) String token,
+                                    @ApiParam(
+                                        value = "Whether redirect to Event details after applying new response or not",
+                                        required = false,
+                                        defaultValue = "false"
+                                    ) @QueryParam(
+                                      "redirect"
+                                    ) boolean redirect) {
     if (eventId <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
     }
@@ -837,7 +859,12 @@ public class AgendaEventRest implements ResourceContainer {
         eventId = occurrenceEvent.getId();
       }
       agendaEventAttendeeService.sendEventResponse(eventId, identityId, response);
-      return Response.noContent().build();
+      if (redirect) {
+        URI location = new URI("/portal/" + this.defaultSite + "/" + AGENDA_APP_URI + "?eventId=" + eventId); // NOSONAR
+        return Response.seeOther(location).build();
+      } else {
+        return Response.noContent().build();
+      }
     } catch (ObjectNotFoundException e) {
       return Response.status(Status.NOT_FOUND).entity("Event not found").build();
     } catch (IllegalAccessException e) {
