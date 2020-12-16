@@ -79,12 +79,20 @@ export default {
       this.errorMessage = null;
       this.$set(connector, 'loading', true);
       return connector.connect(this.settings && this.settings.automaticPushEvents)
-        .then((userId) => this.$settingsService.saveUserConnector(connector.name, userId))
+        .then((userId) => {
+          return this.$settingsService.saveUserConnector(connector.name, userId)
+            .then(() => {
+              this.$set(connector, 'isSignedIn', true);
+              this.$set(connector, 'user', userId);
+            });
+        })
         .then(() => {
           this.$set(connector, 'loading', false);
           this.$root.$emit('agenda-settings-refresh');
         })
         .catch(error => {
+          console.error('Connected - error', connector.name, error);
+
           this.$set(connector, 'loading', false);
           if(error.error !== 'popup_closed_by_user') {
             console.error('Error while connecting to remote account: ', error);
@@ -102,9 +110,14 @@ export default {
     },
     resetConnector(connector) {
       this.$set(connector, 'loading', true);
-      this.$set(connector, 'error', '');
       return this.$settingsService.resetUserConnector()
-        .then(() => this.$root.$emit('agenda-settings-refresh'))
+        .then(() => {
+          this.$set(connector, 'isSignedIn', false);
+          this.$set(connector, 'connected', false);
+          this.$set(connector, 'user', null);
+          this.$set(connector, 'canPush', false);
+          this.$root.$emit('agenda-settings-refresh');
+        })
         .finally(() => {
           this.$set(connector, 'loading', false);
         });

@@ -1,7 +1,6 @@
 export default {
   name: 'agenda.officeCalendar',
   avatar: '/agenda/skin/images/office365.png',
-  SCOPES: 'https://graph.microsoft.com/Calendars.Read',
   config: {
     auth: {
       clientId: null,
@@ -19,21 +18,19 @@ export default {
     graphCalendarEventsEndpoint: 'https://graph.microsoft.com/v1.0/me/calendar/calendarView?',
     eventsEndpoint: 'https://graph.microsoft.com/v1.0/me/events'
   },
+  CALENDAR_READ_SCOPE: ['Calendars.Read'],
+  CALENDAR_WRITE_SCOPE: ['Calendars.Read', 'Calendars.ReadWrite'],
   loginRequest: {
-    scopes: ['Calendars.Read'],
     redirectUri: window.location.origin,
   },
-  CALENDAR_READ_SCOPE: 'Calendars.Read.Shared',
-  CALENDAR_WRITE_SCOPE: 'Calendars.ReadWrite.Shared',
-  CalendarRequest: {
-    scopes: null,
+  calendarRequest: {
+    redirectUri: window.location.origin,
   },
   canConnect: true,
-  canPush: true,
+  canPush: false,
   initialized: false,
   isSignedIn: false,
   pushing: false,
-  accessToken: '',
   init(connectionStatusChangedCallback, loadingCallback, apiKey) {
     if (!apiKey) {
       throw new Error('Office connector can\'t be enabled with empty Client API Key.');
@@ -53,16 +50,27 @@ export default {
     initOfficeConnector(this);
   },
   connect(askWriteAccess) {
+    if (this.isSignedIn && this.user) {
+      return Promise.resolve(this.user);
+    }
+
     if (askWriteAccess) {
-      this.CalendarRequest.scopes = [this.CALENDAR_WRITE_SCOPE];
-    } else if (!this.CalendarRequest.scopes) {
-      this.CalendarRequest.scopes = [this.CALENDAR_READ_SCOPE];
+      this.calendarRequest.scopes = this.CALENDAR_WRITE_SCOPE;
+      this.loginRequest.scopes = this.CALENDAR_WRITE_SCOPE;
+    } else if (!this.calendarRequest.scopes) {
+      this.calendarRequest.scopes = this.CALENDAR_READ_SCOPE;
+      this.loginRequest.scopes = this.CALENDAR_READ_SCOPE;
     }
 
     this.loadingCallback(this, true);
     return this.officeApi.loginPopup(this.loginRequest)
       .then(loginResponse => getTokenPopup(this, loginResponse))
-      .then(token => token.account.username)
+      .then(tokenObject => {
+        const username = tokenObject && tokenObject.account && tokenObject.account.username;
+        this.user = username;
+        this.canPush = askWriteAccess;
+        return username;
+      })
       .finally(() => this.loadingCallback(this, false));
   },
   disconnect() {
@@ -144,6 +152,7 @@ function initOfficeConnector(connector) {
       const currentUser = connector.officeApi.getAllAccounts()[0];
       if(currentUser) {
         connector.isSignedIn = true;
+        connector.user = currentUser.username;
         connector.connectionStatusChangedCallback(connector, {
           user: currentUser.username,
           id: currentUser.localAccountId,
@@ -175,8 +184,8 @@ function retrieveEvents(connector, periodStartDate, periodEndDate) {
   formData.append('endDateTime', periodEndDate);
   const params = new URLSearchParams(formData).toString();
 
-  return getTokenPopup(connector, connector.CalendarRequest)
-    .then(calendarToken => officeApiGet(`${connector.graphConfig.graphCalendarEventsEndpoint}${params}`, calendarToken.accessToken))
+  return getTokenPopup(connector, connector.calendarRequest)
+    .then(token => officeApiGet(`${connector.graphConfig.graphCalendarEventsEndpoint}${params}`, token.accessToken))
     .then(data => {
       const events = data.value;
       if (!events) {
@@ -202,7 +211,6 @@ function officeApiGet(endpoint, token) {
   const bearer = `Bearer ${token}`;
 
   headers.append('Authorization', bearer);
-  headers.append('Content-Type', 'application/json');
 
   const options = {
     method: 'GET',
