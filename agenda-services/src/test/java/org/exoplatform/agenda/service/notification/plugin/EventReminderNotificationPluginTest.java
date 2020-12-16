@@ -83,7 +83,7 @@ public class EventReminderNotificationPluginTest extends BaseAgendaEventTest {
     Assert.assertEquals(createdEvent.getSummary(),
                         notificationInfo.getValueOwnerParameter(NotificationUtils.TEMPLATE_VARIABLE_EVENT_TITLE));
     Assert.assertEquals(1, notificationInfo.getSendToUserIds().size());
-    Assert.assertEquals(eventUrl, notificationInfo.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_URL));
+    Assert.assertTrue(notificationInfo.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_URL).startsWith(eventUrl));
   }
 
 }
