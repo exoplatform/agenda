@@ -60,8 +60,12 @@
         <v-list-item>
           <v-list-item-content>
             <div class="d-flex">
-              <span class="my-auto ml-auto pt-4 pr-2"><i class="uiIconColorWarning"></i></span>
-              <span class="my-auto mr-auto">{{ $t('agenda.allowedToConnectOnlyOneConnector') }}</span>
+              <span class="my-auto ml-auto pt-4 pr-2">
+                <i class="uiIconColorWarning"></i>
+              </span>
+              <span class="my-auto mr-auto">
+                {{ $t('agenda.allowedToConnectOnlyOneConnector') }}
+              </span>
             </div>
           </v-list-item-content>
         </v-list-item>
