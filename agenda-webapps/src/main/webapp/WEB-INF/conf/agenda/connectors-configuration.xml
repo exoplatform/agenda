@@ -38,7 +38,7 @@
         </value-param>
         <value-param>
           <name>connectorAPIKey</name>
-          <value>${exo.agenda.google.connector.key}</value>
+          <value>${exo.agenda.google.connector.key:}</value>
         </value-param>
       </init-params>
     </component-plugin>
@@ -61,7 +61,7 @@
         </value-param>
         <value-param>
           <name>connectorAPIKey</name>
-          <value>${exo.agenda.office.connector.key}</value>
+          <value>${exo.agenda.office.connector.key:}</value>
         </value-param>
       </init-params>
     </component-plugin>
