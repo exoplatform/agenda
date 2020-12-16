@@ -102,7 +102,7 @@ public class NotificationUtils {
 
   public static final String                         STORED_PARAMETER_EVENT_END_DATE            = "endDate";
 
-  public static final String                         STORED_PARAMETER_EVENT_RESPONSE_TENTATIVE  = "urlAcceptedTentative";
+  public static final String                         STORED_PARAMETER_EVENT_TIMEZONE_NAME       = "eventTimeZoneName";
 
   public static final String                         STORED_PARAMETER_EVENT_ATTENDEES           = "attendees";
 
@@ -133,6 +133,8 @@ public class NotificationUtils {
   private static final String                        TEMPLATE_VARIABLE_EVENT_CREATOR            = "creatorName";
 
   private static final String                        TEMPLATE_VARIABLE_EVENT_ATTENDEES          = "attendees";
+  
+  private static final String                        TEMPLATE_VARIABLE_EVENT_TIMEZONE_NAME      = "timeZoneName";
 
   private static final String                        TEMPLATE_VARIABLE_RESPONSE_ACCEPTED        = "acceptedResponseURL";
 
@@ -176,7 +178,16 @@ public class NotificationUtils {
         recipients.add(identity.getRemoteId());
       }
     }
-    notification.with(STORED_PARAMETER_EVENT_ATTENDEES, String.join(",", recipients));
+    List<String> participants = new ArrayList<>(recipients);
+    List<String> showParticipants = new ArrayList<>();
+    if (recipients.size() > 3) {
+      for (int i = 0; i < 3; i++) {
+        showParticipants.add(participants.get(i));
+      }
+      notification.with(STORED_PARAMETER_EVENT_ATTENDEES, String.join(",", showParticipants).concat("..."));
+    } else {
+      notification.with(STORED_PARAMETER_EVENT_ATTENDEES, String.join(",", recipients));
+    }
 
     // After computing all usernames, to whom, notifications will be sent,
     // this deletes the username of modifier/creator user
@@ -206,6 +217,7 @@ public class NotificationUtils {
       throw new IllegalArgumentException("event is null");
     }
     Identity identity = Utils.getIdentityById(identityManager, event.getCreatorId());
+    String timeZoneName = TimeZone.getTimeZone(event.getTimeZoneId()).getDisplayName() + ": " + event.getTimeZoneId();
     notification.with(STORED_PARAMETER_EVENT_ID, String.valueOf(event.getId()))
                 .with(STORED_PARAMETER_EVENT_TITLE, event.getSummary())
                 .with(STORED_PARAMETER_EVENT_OWNER_ID, String.valueOf(calendar.getOwnerId()))
@@ -214,7 +226,8 @@ public class NotificationUtils {
                 .with(STORED_EVENT_MODIFICATION_TYPE, typeModification)
                 .with(STORED_PARAMETER_EVENT_START_DATE, AgendaDateUtils.toRFC3339Date(event.getStart()))
                 .with(STORED_PARAMETER_EVENT_END_DATE, AgendaDateUtils.toRFC3339Date((event.getEnd())))
-                .with(STORED_PARAMETER_EVENT_RECURRENT_DETAILS, getRecurrenceDetails(event));
+                .with(STORED_PARAMETER_EVENT_RECURRENT_DETAILS, getRecurrenceDetails(event))
+                .with(STORED_PARAMETER_EVENT_TIMEZONE_NAME, timeZoneName);
 
     if (StringUtils.isNotBlank(event.getDescription())) {
       notification.with(STORED_PARAMETER_EVENT_DESCRIPTION, event.getDescription());
@@ -272,6 +285,7 @@ public class NotificationUtils {
     templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_CREATOR, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_CREATOR));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_ATTENDEES, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_ATTENDEES));
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_TIMEZONE_NAME, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_TIMEZONE_NAME));
 
     String eventIdString = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_ID);
     long eventId = Long.parseLong(eventIdString);

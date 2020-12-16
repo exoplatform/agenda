@@ -142,7 +142,7 @@
                                         </tr>
                                         <tr>
                                             <td style="color:#999999; font-size:13px;font-family:HelveticaNeue,arial,tahoma,serif; font-weight:bold"><%=_ctx.appRes("Notification.agenda.event.date")%></td>
-                                            <td align="left" ><%= _ctx.appRes("Notification.agenda.event.mail.body.date", monthYearDate, startDate, endDate) %></td>
+                                            <td align="left" ><%= _ctx.appRes("Notification.agenda.event.mail.body.date", monthYearDate, startDate, endDate) %> (<%= timeZoneName %>)</td>
                                         </tr>
                                         <tr>
                                             <td style="color:#999999; font-size:13px;font-family:HelveticaNeue,arial,tahoma,serif; font-weight:bold"></td>
