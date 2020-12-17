@@ -11,7 +11,7 @@
       <v-img :src="ownerAvatarUrl" />
     </v-avatar>
     <div class="d-flex flex-grow-1 flex-column align-left">
-      <strong class="event-header-title text-truncate">
+      <strong :title="event.summary" class="event-header-title text-truncate">
         {{ event.summary }}
       </strong>
       <div class="text-truncate d-flex">

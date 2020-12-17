@@ -69,6 +69,7 @@
           :id="getEventDomId(eventObj)"
           class="v-event-draggable v-event-draggable-parent">
           <p
+            :title="eventObj.event.summary"
             class="text-truncate my-auto ml-2 caption font-weight-bold">
             {{ eventObj.event.summary }}
           </p>
