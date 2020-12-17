@@ -9,7 +9,7 @@
         <img :src="connectedConnectorAvatar">
       </v-avatar>
       <i v-else class="uiIconCalRemoteCalendar darkGreyIcon uiIcon24x24 pr-2 pt-2"></i>
-      <div class="d-flex flex-column">
+      <div class="d-flex flex-column remote-events-details">
         <div class="d-flex">
           {{ $t('agenda.personalCalendar') }}
           {{ ' ( ' }}
