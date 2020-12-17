@@ -40,7 +40,9 @@
     </template>
     <template #event="{ event, timed, eventSummary }">
       <div :class="getEventClass(event)">
-        <strong class="text-truncate my-auto ml-2">
+        <strong
+          :title="event.summary"
+          class="text-truncate my-auto d-block ml-2">
           {{ event.summary }}
         </strong>
         <div
@@ -188,7 +190,7 @@ export default {
         return eventColor;
       }
       const currentUserAttendee = event.attendees && event.attendees.find(attendee => attendee.identity.id === eXo.env.portal.userIdentityId);
-      if (!currentUserAttendee || currentUserAttendee.response === 'DECLINED' || currentUserAttendee.response === 'NO_ACTION') {
+      if (!currentUserAttendee || currentUserAttendee.response === 'DECLINED' || currentUserAttendee.response === 'NEEDS_ACTION') {
         return eventColor;
       }
       return 'white';
@@ -205,7 +207,7 @@ export default {
         return 'white';
       }
       const currentUserAttendee = event.attendees && event.attendees.find(attendee => attendee.identity.id === eXo.env.portal.userIdentityId);
-      if (!currentUserAttendee || currentUserAttendee.response === 'DECLINED' || currentUserAttendee.response === 'NO_ACTION') {
+      if (!currentUserAttendee || currentUserAttendee.response === 'DECLINED' || currentUserAttendee.response === 'NEEDS_ACTION') {
         return 'white';
       }
       const eventColor = event && (event.color || event.calendar && event.calendar.color) || '#2196F3';

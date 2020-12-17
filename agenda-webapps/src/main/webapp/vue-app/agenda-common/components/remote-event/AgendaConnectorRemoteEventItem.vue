@@ -6,6 +6,7 @@
     }"
     class="v-event-draggable remote-event rounded v-event-draggable-parent">
     <p
+      :title="remoteEvent.summary"
       :class="textClass"
       class="text-truncate my-auto ml-2 caption font-weight-bold">
       {{ remoteEvent.summary }}
