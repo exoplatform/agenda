@@ -1,7 +1,6 @@
 package org.exoplatform.agenda.service;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.plugin.RemoteProviderDefinitionPlugin;
@@ -13,9 +12,16 @@ public interface AgendaRemoteEventService {
    * Register a new Remote provider
    * 
    * @param plugin {@link RemoteProviderDefinitionPlugin}
-   * @return {@link CompletableFuture} of created {@link RemoteProvider}
    */
-  CompletableFuture<RemoteProvider> addRemoteProvider(RemoteProviderDefinitionPlugin plugin);
+  void addRemoteProvider(RemoteProviderDefinitionPlugin plugin);
+
+  /**
+   * Register a new Remote provider
+   * 
+   * @param plugin {@link RemoteProviderDefinitionPlugin}
+   * @return created {@link RemoteProvider}
+   */
+  RemoteProvider saveRemoteProviderPlugin(RemoteProviderDefinitionPlugin plugin);
 
   /**
    * @return {@link List} of available events {@link RemoteProvider}

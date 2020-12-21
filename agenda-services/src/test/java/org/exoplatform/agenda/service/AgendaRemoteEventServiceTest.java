@@ -4,7 +4,6 @@ import static org.junit.Assert.*;
 
 import java.time.ZonedDateTime;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.codec.binary.StringUtils;
 import org.junit.Test;
@@ -30,9 +29,7 @@ public class AgendaRemoteEventServiceTest extends BaseAgendaEventTest {
     params.addParameter(param);
     RemoteProviderDefinitionPlugin plugin = new RemoteProviderDefinitionPlugin(params);
 
-    CompletableFuture<RemoteProvider> addedRemoteProviderFuture = agendaRemoteEventService.addRemoteProvider(plugin);
-    assertNotNull(addedRemoteProviderFuture);
-    RemoteProvider addedRemoteProvider = addedRemoteProviderFuture.get();
+    RemoteProvider addedRemoteProvider = agendaRemoteEventService.saveRemoteProviderPlugin(plugin);
     assertNotNull(addedRemoteProvider);
     assertTrue(addedRemoteProvider.getId() > 0);
     assertFalse(addedRemoteProvider.isEnabled());
