@@ -23,6 +23,7 @@ import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.social.core.space.spi.SpaceService;
 
 import groovy.text.GStringTemplateEngine;
 import groovy.text.Template;
@@ -36,6 +37,8 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
   private AgendaEventAttendeeService agendaEventAttendeeService;
 
   private AgendaUserSettingsService  agendaUserSettingsService;
+
+  private SpaceService               spaceService;
 
   private IdentityManager            identityManager;
 
@@ -95,6 +98,7 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
           || agendaUserSettings.getTimeZoneId() == null ? ZoneOffset.UTC : ZoneId.of(agendaUserSettings.getTimeZoneId());
 
       TemplateContext templateContext = buildTemplateParameters(username,
+                                                                getSpaceService(),
                                                                 getAgendaEventAttendeeService(),
                                                                 templateProvider,
                                                                 notification,
@@ -166,5 +170,12 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
       identityManager = this.container.getComponentInstanceOfType(IdentityManager.class);
     }
     return identityManager;
+  }
+
+  public SpaceService getSpaceService() {
+    if (spaceService == null) {
+      spaceService = this.container.getComponentInstanceOfType(SpaceService.class);
+    }
+    return spaceService;
   }
 }

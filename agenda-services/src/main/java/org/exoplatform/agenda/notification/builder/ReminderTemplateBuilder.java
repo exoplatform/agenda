@@ -25,6 +25,7 @@ import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.social.core.space.spi.SpaceService;
 
 import groovy.text.GStringTemplateEngine;
 import groovy.text.Template;
@@ -35,6 +36,8 @@ public class ReminderTemplateBuilder extends AbstractTemplateBuilder {
   private AgendaEventService        agendaEventService;
 
   private AgendaUserSettingsService agendaUserSettingsService;
+
+  private SpaceService              spaceService;
 
   private IdentityManager           identityManager;
 
@@ -92,7 +95,10 @@ public class ReminderTemplateBuilder extends AbstractTemplateBuilder {
       ZoneId timeZone = agendaUserSettings == null
           || agendaUserSettings.getTimeZoneId() == null ? ZoneOffset.UTC : ZoneId.of(agendaUserSettings.getTimeZoneId());
 
-      TemplateContext templateContext = buildTemplateReminderParameters(templateProvider, notification, timeZone);
+      TemplateContext templateContext = buildTemplateReminderParameters(getSpaceService(),
+                                                                        templateProvider,
+                                                                        notification,
+                                                                        timeZone);
       MessageInfo messageInfo = buildMessageSubjectAndBody(templateContext, notification, pushNotificationURL);
       Throwable exception = templateContext.getException();
       logException(notification, exception);
@@ -159,4 +165,10 @@ public class ReminderTemplateBuilder extends AbstractTemplateBuilder {
     return identityManager;
   }
 
+  public SpaceService getSpaceService() {
+    if (spaceService == null) {
+      spaceService = this.container.getComponentInstanceOfType(SpaceService.class);
+    }
+    return spaceService;
+  }
 }
