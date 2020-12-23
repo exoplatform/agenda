@@ -26,7 +26,7 @@ import org.exoplatform.social.core.space.spi.SpaceLifeCycleEvent.Type;
 
 public class AgendaSpaceApplicationListener implements SpaceLifeCycleListener {
 
-  private static final String[] AGENDA_TIMELINE_APPLICATION_ACCESS_PERMISSIONS = new String[] { "*:/platform/users" };
+  private static final String[] AGENDA_TIMELINE_APPLICATION_ACCESS_PERMISSIONS = new String[] { "Everyone" };
 
   public static final String AGENDA_APPLICATION_INSTALLED_EVENT_NAME = "agenda.space.application.installed";
 
