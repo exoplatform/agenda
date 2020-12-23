@@ -29,7 +29,9 @@ import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
+import org.exoplatform.social.notification.LinkProviderUtils;
 import org.exoplatform.social.notification.plugin.SocialNotificationUtils;
 import org.exoplatform.webui.utils.TimeConvertUtils;
 
@@ -258,6 +260,7 @@ public class NotificationUtils {
   }
 
   public static final TemplateContext buildTemplateParameters(String username,
+                                                              SpaceService spaceService,
                                                               AgendaEventAttendeeService agendaEventAttendeeService,
                                                               TemplateProvider templateProvider,
                                                               NotificationInfo notification,
@@ -271,7 +274,7 @@ public class NotificationUtils {
     setNotificationId(notification, templateContext);
     setLasModifiedTime(notification, templateContext, language);
 
-    setIdentityNameAndAvatar(notification, templateContext);
+    setIdentityNameAndAvatar(spaceService, notification, templateContext);
     setSpaceName(notification, templateContext);
     setEventDetails(templateContext, notification, timeZone);
     String modificationStoredType = notification.getValueOwnerParameter(STORED_EVENT_MODIFICATION_TYPE);
@@ -300,7 +303,8 @@ public class NotificationUtils {
     return templateContext;
   }
 
-  public static final TemplateContext buildTemplateReminderParameters(TemplateProvider templateProvider,
+  public static final TemplateContext buildTemplateReminderParameters(SpaceService spaceService,
+                                                                      TemplateProvider templateProvider,
                                                                       NotificationInfo notification,
                                                                       ZoneId timeZone) {
     String language = NotificationPluginUtils.getLanguage(notification.getTo());
@@ -311,7 +315,7 @@ public class NotificationUtils {
     setNotificationId(notification, templateContext);
     setLasModifiedTime(notification, templateContext, language);
 
-    setIdentityNameAndAvatar(notification, templateContext);
+    setIdentityNameAndAvatar(spaceService, notification, templateContext);
     setEventDetails(templateContext, notification, timeZone);
 
     templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
@@ -454,12 +458,20 @@ public class NotificationUtils {
     }
   }
 
-  private static final void setIdentityNameAndAvatar(NotificationInfo notification, TemplateContext templateContext) {
+  private static final void setIdentityNameAndAvatar(SpaceService spaceService,
+                                                     NotificationInfo notification,
+                                                     TemplateContext templateContext) {
     String ownerId = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_OWNER_ID);
     IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
     Identity identity = identityManager.getIdentity(ownerId);
     if (identity != null) {
-      String avatarUrl = identity.getProfile().getAvatarUrl();
+      String avatarUrl = null;
+      if (SpaceIdentityProvider.NAME.equals(identity.getProviderId())) {
+        Space space = spaceService.getSpaceByPrettyName(identity.getRemoteId());
+        avatarUrl = LinkProviderUtils.getSpaceAvatarUrl(space);
+      } else {
+        avatarUrl = LinkProviderUtils.getUserAvatarUrl(identity.getProfile());
+      }
       templateContext.put(TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR, avatarUrl);
     }
   }
