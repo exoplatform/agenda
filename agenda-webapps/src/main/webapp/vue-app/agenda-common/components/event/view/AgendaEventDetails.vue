@@ -71,7 +71,7 @@
         <div v-if="canAddReminders" class="event-reminders align-center d-flex pb-5 text-truncate">
           <i class="uiIcon32x32 notifIcon darkGreyIcon pr-5 mt-1 mb-auto"></i>
           <v-list
-            class="py-0"
+            class="py-0 text-truncate"
             dense>
             <v-list-item v-if="!event.reminders || !event.reminders.length">
               <label class="text-sub-title font-italic mx-auto">
@@ -88,7 +88,7 @@
                   class="mt-1 mb-2 mr-2"
                   color="primary"
                   outlined>
-                  <span class="text--primary">
+                  <span class="text--primary text-truncate">
                     <template v-if="reminder.before">
                       {{ $t('agenda.label.notifyMeBefore', {0: reminder.before, 1: $t(`agenda.option.${reminder.beforePeriodType.toLowerCase()}s`).toLowerCase()}) }}
                     </template>
