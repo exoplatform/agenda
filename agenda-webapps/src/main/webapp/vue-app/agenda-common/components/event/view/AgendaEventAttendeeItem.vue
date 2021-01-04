@@ -89,11 +89,8 @@ export default {
     attendeeProfileAvatarUrl() {
       return this.attendee.identity.space ? this.attendee.identity.space.avatarUrl : this.attendee.identity.profile ? this.attendee.identity.profile.avatar : '';
     },
-    fullName() {
-      return this.attendee.identity.profile.dataEntity.external &&  this.attendee.identity.profile.dataEntity.external === 'true' ? this.attendee.identity.profile.fullname.concat(' (').concat(this.$t('agenda.label.external')).concat(')') : this.attendee.identity.profile.fullname;
-    },
     attendeeProfileDisplayName() {
-      return this.attendee.identity.space ? this.attendee.identity.space.displayName : this.attendee.identity.profile ? this.fullName : '';
+      return this.attendee.identity.space ? this.attendee.identity.space.displayName : this.attendee.identity.profile ? this.attendee.identity.profile.fullname : '';
     },
     labels() {
       return {
