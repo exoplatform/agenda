@@ -102,6 +102,7 @@ export default {
         StatusTitle: this.$t('profile.StatusTitle'),
         join: this.$t('space.join'),
         leave: this.$t('space.leave'),
+        External: this.$t('agenda.label.external'),
         members: this.$t('space.members'),
       };
     },
