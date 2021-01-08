@@ -1529,24 +1529,24 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(fieldValue, event.getTimeZoneId().getId());
 
     fieldName = "start";
-    fieldValue = AgendaDateUtils.toRFC3339Date(start.minusDays(1), allDay);
+    fieldValue = AgendaDateUtils.toRFC3339Date(start.minusDays(1), ZoneId.systemDefault(), allDay);
     agendaEventService.updateEventFields(eventId,
                                          getFields(fieldName, fieldValue),
                                          true,
                                          true,
                                          Long.parseLong(testuser1Identity.getId()));
     event = agendaEventService.getEventById(eventId);
-    assertEquals(fieldValue, AgendaDateUtils.toRFC3339Date(event.getStart(), allDay));
+    assertEquals(fieldValue, AgendaDateUtils.toRFC3339Date(event.getStart(), ZoneId.systemDefault(), allDay));
 
     fieldName = "end";
-    fieldValue = AgendaDateUtils.toRFC3339Date(start.plusDays(2), allDay);
+    fieldValue = AgendaDateUtils.toRFC3339Date(start.plusDays(2), ZoneId.systemDefault(), allDay);
     agendaEventService.updateEventFields(eventId,
                                          getFields(fieldName, fieldValue),
                                          true,
                                          true,
                                          Long.parseLong(testuser1Identity.getId()));
     event = agendaEventService.getEventById(eventId);
-    assertEquals(fieldValue, AgendaDateUtils.toRFC3339Date(event.getEnd(), allDay));
+    assertEquals(fieldValue, AgendaDateUtils.toRFC3339Date(event.getEnd(), ZoneId.systemDefault(), allDay));
 
     fieldName = "allDay";
     fieldValue = String.valueOf(!allDay);
