@@ -189,11 +189,13 @@ public class EntityBuilder {
   public static final EventSearchResultEntity fromSearchEvent(AgendaCalendarService agendaCalendarService,
                                                               AgendaEventService agendaEventService,
                                                               IdentityManager identityManager,
-                                                              EventSearchResult eventSearchResult) {
+                                                              EventSearchResult eventSearchResult,
+                                                              ZoneId userTimeZone) {
     EventSearchResultEntity eventSearchResultEntity = (EventSearchResultEntity) fromEvent(agendaCalendarService,
                                                                                           agendaEventService,
                                                                                           identityManager,
                                                                                           eventSearchResult,
+                                                                                          userTimeZone,
                                                                                           true);
     eventSearchResultEntity.setExcerpts(eventSearchResult.getExcerpts());
     return eventSearchResultEntity;
@@ -202,14 +204,16 @@ public class EntityBuilder {
   public static final EventEntity fromEvent(AgendaCalendarService agendaCalendarService,
                                             AgendaEventService agendaEventService,
                                             IdentityManager identityManager,
-                                            Event event) {
-    return fromEvent(agendaCalendarService, agendaEventService, identityManager, event, false);
+                                            Event event,
+                                            ZoneId userTimeZone) {
+    return fromEvent(agendaCalendarService, agendaEventService, identityManager, event, userTimeZone, false);
   }
 
   private static final EventEntity fromEvent(AgendaCalendarService agendaCalendarService,
                                              AgendaEventService agendaEventService,
                                              IdentityManager identityManager,
                                              Event event,
+                                             ZoneId userTimeZone,
                                              boolean isSearch) {
     EventRecurrence recurrence = event.getRecurrence();
     EventRecurrenceEntity recurrenceEntity = null;
@@ -239,7 +243,7 @@ public class EntityBuilder {
     long parentId = event.getParentId();
     EventEntity parentEvent = null;
     if (parentId > 0 && parentId != event.getId()) {
-      parentEvent = getEventEntity(agendaCalendarService, agendaEventService, identityManager, parentId);
+      parentEvent = getEventEntity(agendaCalendarService, agendaEventService, identityManager, parentId, userTimeZone);
     }
 
     if (isSearch) {
@@ -257,8 +261,8 @@ public class EntityBuilder {
                                          event.getLocation(),
                                          event.getColor(),
                                          null,
-                                         AgendaDateUtils.toRFC3339Date(event.getStart(), event.isAllDay()),
-                                         AgendaDateUtils.toRFC3339Date(event.getEnd(), event.isAllDay()),
+                                         AgendaDateUtils.toRFC3339Date(event.getStart(), userTimeZone, event.isAllDay()),
+                                         AgendaDateUtils.toRFC3339Date(event.getEnd(), userTimeZone, event.isAllDay()),
                                          event.isAllDay(),
                                          event.getAvailability(),
                                          event.getStatus(),
@@ -274,7 +278,6 @@ public class EntityBuilder {
                                          false,
                                          null);
     } else {
-      ZoneId timeZoneId = event.getTimeZoneId() == null ? ZoneOffset.UTC : event.getTimeZoneId();
       return new EventEntity(event.getId(),
                              parentEvent,
                              null,
@@ -288,9 +291,9 @@ public class EntityBuilder {
                              event.getDescription(),
                              event.getLocation(),
                              event.getColor(),
-                             timeZoneId.getId(),
-                             AgendaDateUtils.toRFC3339Date(event.getStart(), event.isAllDay()),
-                             AgendaDateUtils.toRFC3339Date(event.getEnd(), event.isAllDay()),
+                             userTimeZone.getId(),
+                             AgendaDateUtils.toRFC3339Date(event.getStart(), userTimeZone, event.isAllDay()),
+                             AgendaDateUtils.toRFC3339Date(event.getEnd(), userTimeZone, event.isAllDay()),
                              event.isAllDay(),
                              event.getAvailability(),
                              event.getStatus(),
@@ -320,12 +323,13 @@ public class EntityBuilder {
   private static EventEntity getEventEntity(AgendaCalendarService agendaCalendarService,
                                             AgendaEventService agendaEventService,
                                             IdentityManager identityManager,
-                                            long eventId) {
+                                            long eventId,
+                                            ZoneId userTimeZone) {
     if (eventId <= 0) {
       return null;
     }
     Event event = agendaEventService.getEventById(eventId);
-    return fromEvent(agendaCalendarService, agendaEventService, identityManager, event);
+    return fromEvent(agendaCalendarService, agendaEventService, identityManager, event, userTimeZone);
   }
 
   private static IdentityEntity getIdentityEntity(IdentityManager identityManager, long ownerId) {
