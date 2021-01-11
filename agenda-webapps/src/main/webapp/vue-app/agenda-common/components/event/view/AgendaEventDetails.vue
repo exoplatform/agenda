@@ -110,15 +110,15 @@
         </div>
         <div v-if="isConferenceEnabled" class="event-conference d-flex flex-grow-0 flex-shrink-1 pb-5">
           <i class="uiIconVideo darkGreyIcon uiIcon32x32 pr-5"></i>
-          <span v-autolinker="eventConferenceUrl" class="align-self-center"></span>
+          <span v-autolinker="eventConferenceUrl" class="align-self-center text-break"></span>
         </div>
         <div v-if="event.location" class="event-location d-flex flex-grow-0 flex-shrink-1 pb-5">
           <i class="uiIconCheckin darkGreyIcon uiIcon32x32 pr-5"></i>
-          <span v-autolinker="event.location" class="align-self-center"></span>
+          <span v-autolinker="event.location" class="align-self-center text-break"></span>
         </div>
         <div v-if="event.description" class="event-description d-flex flex-grow-0 flex-shrink-1 pb-5">
           <i class="uiIconDescription darkGreyIcon uiIcon32x32 pr-5"></i>
-          <span v-autolinker="event.description" class="mt-1 align-self-center text-wrap text-left"></span>
+          <span v-autolinker="event.description" class="mt-1 align-self-center text-wrap text-left text-break"></span>
         </div>
         <div
           v-if="event.attachments && event.attachments.length !== 0"
