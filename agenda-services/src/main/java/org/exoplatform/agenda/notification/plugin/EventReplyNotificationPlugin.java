@@ -54,7 +54,7 @@ public class EventReplyNotificationPlugin extends BaseNotificationPlugin {
   }
 
   @Override
-  protected NotificationInfo makeNotification(NotificationContext ctx) {
+  public NotificationInfo makeNotification(NotificationContext ctx) {
     Event event = ctx.value(EVENT_AGENDA);
     Calendar calendar = calendarService.getCalendarById(event.getCalendarId());
     long eventParticipantId = ctx.value(EVENT_PARTICIPANT_ID);

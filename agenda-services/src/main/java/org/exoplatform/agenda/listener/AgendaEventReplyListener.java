@@ -7,7 +7,9 @@ import org.exoplatform.agenda.util.NotificationUtils;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.model.PluginKey;
 import org.exoplatform.commons.notification.impl.NotificationContextImpl;
+import org.exoplatform.container.ExoContainer;
 import org.exoplatform.container.ExoContainerContext;
+import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.listener.Asynchronous;
 import org.exoplatform.services.listener.Event;
 import org.exoplatform.services.listener.Listener;
@@ -16,13 +18,25 @@ import org.exoplatform.services.listener.Listener;
 public class AgendaEventReplyListener extends Listener<EventAttendee, EventAttendee> {
   private AgendaEventService agendaEventService;
 
+  private ExoContainer       container;
+
+  public AgendaEventReplyListener(ExoContainer container) {
+    this.container = container;
+  }
+
   @Override
   public void onEvent(Event<EventAttendee, EventAttendee> event) throws Exception {
-    EventAttendee oldAttendee = event.getSource();
-    EventAttendee newAttendee = event.getData();
-    org.exoplatform.agenda.model.Event agendaEvent = getAgendaEventService().getEventById(oldAttendee.getEventId());
-    if (oldAttendee.getResponse() != newAttendee.getResponse() && agendaEvent.getCreatorId() != oldAttendee.getIdentityId()) {
-      sendReplyResponseNotification(agendaEvent, oldAttendee.getIdentityId(), newAttendee.getResponse());
+    ExoContainerContext.setCurrentContainer(container);
+    RequestLifeCycle.begin(container);
+    try {
+      EventAttendee oldAttendee = event.getSource();
+      EventAttendee newAttendee = event.getData();
+      org.exoplatform.agenda.model.Event agendaEvent = getAgendaEventService().getEventById(oldAttendee.getEventId());
+      if (oldAttendee.getResponse() != newAttendee.getResponse() && agendaEvent.getCreatorId() != oldAttendee.getIdentityId()) {
+        sendReplyResponseNotification(agendaEvent, oldAttendee.getIdentityId(), newAttendee.getResponse());
+      }
+    } finally {
+      RequestLifeCycle.end();
     }
   }
 
@@ -33,7 +47,7 @@ public class AgendaEventReplyListener extends Listener<EventAttendee, EventAtten
     return agendaEventService;
   }
 
-  private void sendReplyResponseNotification(org.exoplatform.agenda.model.Event event,
+  public void sendReplyResponseNotification(org.exoplatform.agenda.model.Event event,
                                              long participantId,
                                              EventAttendeeResponse response) {
     NotificationContext ctx = NotificationContextImpl.cloneInstance();
