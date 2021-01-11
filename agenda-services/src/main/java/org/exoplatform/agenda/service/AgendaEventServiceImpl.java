@@ -644,7 +644,12 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
 
     event.setModifierId(Long.parseLong(userIdentity.getId()));
-    agendaEventStorage.updateEvent(event);
+    event = agendaEventStorage.updateEvent(event);
+
+    if (fields.containsKey("start")) {
+      List<EventReminder> reminders = reminderService.getEventReminders(event.getId());
+      reminderService.saveEventReminders(event, reminders);
+    }
 
     if (sendInvitations) {
       List<EventAttendee> eventAttendees = attendeeService.getEventAttendees(eventId);

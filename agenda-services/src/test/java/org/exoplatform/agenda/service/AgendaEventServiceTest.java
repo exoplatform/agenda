@@ -1468,6 +1468,13 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                testuser3Identity);
     eventId = createdEvent.getId();
 
+    List<EventReminder> reminders = agendaEventReminderService.getEventReminders(eventId, Long.parseLong(testuser1Identity.getId()));
+    assertNotNull(reminders);
+    assertEquals(1, reminders.size());
+
+    EventReminder eventReminder = reminders.get(0);
+    assertNotNull(eventReminder);
+
     String fieldName = "calendarId";
     String fieldValue = String.valueOf(spaceCalendar.getId());
     agendaEventService.updateEventFields(eventId,
@@ -1528,6 +1535,13 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     event = agendaEventService.getEventById(eventId);
     assertEquals(fieldValue, event.getTimeZoneId().getId());
 
+    reminders = agendaEventReminderService.getEventReminders(eventId, Long.parseLong(testuser1Identity.getId()));
+    assertNotNull(reminders);
+    assertEquals(1, reminders.size());
+    EventReminder sameEventReminder = reminders.get(0);
+    assertNotNull(sameEventReminder);
+    assertEquals(sameEventReminder.getDatetime(), eventReminder.getDatetime());
+
     fieldName = "start";
     fieldValue = AgendaDateUtils.toRFC3339Date(start.minusDays(1), ZoneId.systemDefault(), allDay);
     agendaEventService.updateEventFields(eventId,
@@ -1537,6 +1551,14 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                          Long.parseLong(testuser1Identity.getId()));
     event = agendaEventService.getEventById(eventId);
     assertEquals(fieldValue, AgendaDateUtils.toRFC3339Date(event.getStart(), ZoneId.systemDefault(), allDay));
+
+    reminders = agendaEventReminderService.getEventReminders(eventId, Long.parseLong(testuser1Identity.getId()));
+    assertNotNull(reminders);
+    assertEquals(1, reminders.size());
+
+    EventReminder updatedEventReminder = reminders.get(0);
+    assertNotNull(updatedEventReminder);
+    assertNotEquals(updatedEventReminder.getDatetime(), eventReminder.getDatetime());
 
     fieldName = "end";
     fieldValue = AgendaDateUtils.toRFC3339Date(start.plusDays(2), ZoneId.systemDefault(), allDay);
