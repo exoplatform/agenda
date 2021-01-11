@@ -18,7 +18,6 @@ import org.exoplatform.container.ExoContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
-import org.exoplatform.social.core.space.spi.SpaceService;
 
 import java.io.Writer;
 
@@ -28,8 +27,6 @@ public class ReplyTemplateBuilder extends AbstractTemplateBuilder {
   private static final Log   LOG = ExoLogger.getLogger(ReminderTemplateBuilder.class);
 
   private AgendaEventService agendaEventService;
-
-  private SpaceService       spaceService;
 
   private TemplateProvider   templateProvider;
 
@@ -79,8 +76,7 @@ public class ReplyTemplateBuilder extends AbstractTemplateBuilder {
       String notificationURL = getEventURL(event);
       String pushNotificationURL = isPushNotification ? notificationURL : null;
 
-      String username = notification.getTo();
-      TemplateContext templateContext = buildTemplateReplyParameters(username, getSpaceService(), templateProvider, notification);
+      TemplateContext templateContext = buildTemplateReplyParameters(templateProvider, notification);
       MessageInfo messageInfo = buildMessageSubjectAndBody(templateContext, notification, pushNotificationURL);
       Throwable exception = templateContext.getException();
       logException(notification, exception);
@@ -131,13 +127,6 @@ public class ReplyTemplateBuilder extends AbstractTemplateBuilder {
       agendaEventService = CommonsUtils.getService(AgendaEventService.class);
     }
     return agendaEventService;
-  }
-
-  public SpaceService getSpaceService() {
-    if (spaceService == null) {
-      spaceService = this.container.getComponentInstanceOfType(SpaceService.class);
-    }
-    return spaceService;
   }
 
 }

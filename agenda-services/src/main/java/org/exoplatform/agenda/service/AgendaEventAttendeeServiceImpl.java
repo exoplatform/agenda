@@ -207,11 +207,9 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     if (!isEventAttendee(eventId, identityId)) {
       throw new IllegalAccessException("User with identity id " + identityId + " isn't attendee of event with id " + eventId);
     }
-    EventAttendeeResponse oldResponse = getEventResponse(eventId,identityId);
+
     saveEventAttendee(eventId, identityId, response);
-    if (event.getCreatorId() != identityId && oldResponse != response) {
-      sendReplyResponseNotification(event, identityId, response);
-    }
+
     // Apply modification on exceptional occurrences as well
     if (eventStorage.isRecurrentEvent(eventId)) {
       List<Long> exceptionalOccurenceEventIds = eventStorage.getExceptionalOccurenceIds(eventId);
@@ -334,14 +332,6 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     attendeeStorage.saveEventAttendee(attendee, eventId);
 
     Utils.broadcastEvent(listenerService, Utils.POST_EVENT_RESPONSE_SENT, oldAttendee, attendee);
-  }
-
-  private void sendReplyResponseNotification(Event event, long participantId, EventAttendeeResponse response) {
-    NotificationContext ctx = NotificationContextImpl.cloneInstance();
-    ctx.append(EVENT_AGENDA, event);
-    ctx.append(EVENT_PARTICIPANT_ID, participantId);
-    ctx.append(EVENT_RESPONSE, response);
-    dispatch(ctx, AGENDA_REPLY_NOTIFICATION_PLUGIN);
   }
 
   private void dispatch(NotificationContext ctx, String... pluginId) {
