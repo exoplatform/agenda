@@ -1073,7 +1073,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     try {
       Event event = new Event();
       event.setId(eventId);
-      event.setCalendarId(12);
+      event.setCalendarId(1200);
       event.setStart(ZonedDateTime.now());
       event.setEnd(ZonedDateTime.now());
       EventRecurrence recurrence = new EventRecurrence();
