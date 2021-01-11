@@ -261,5 +261,10 @@
       <set-method>addListener</set-method>
       <type>org.exoplatform.agenda.search.listener.AgendaESListener</type>
     </component-plugin>
+    <component-plugin>
+      <name>exo.agenda.event.created</name>
+      <set-method>addListener</set-method>
+      <type>org.exoplatform.agenda.listener.AgendaGamificationIntegrationListener</type>
+    </component-plugin>
   </external-component-plugins>
 </configuration>
