@@ -212,8 +212,9 @@ export default {
       this.event.start = this.$agendaUtils.toRFC3339(this.event.startDate);
       this.event.end = this.$agendaUtils.toRFC3339(this.event.endDate);
 
-      this.$refs.quickAddEventDrawer.close();
       this.$root.$emit('agenda-event-form', this.event);
+      this.event = null;
+      this.$nextTick(() => this.$refs.quickAddEventDrawer.close());
     },
     resetCustomValidity() {
       if (this.$refs.eventTitle) {
