@@ -67,8 +67,8 @@ function createConference(event, conference) {
         owner: event.calendar.owner.remoteId,
         ownerType: 'space_event',
         provider: conference.type,
-        participants: participants.join(';'),
-        spaces: spaces.join(';'),
+        participants: participants && participants.join(';') || null,
+        spaces: spaces && spaces.join(';') || null,
         group : true,
         startDate,
         endDate,
@@ -82,7 +82,7 @@ function createConference(event, conference) {
 
 function updateConference(event, conference) {
   let callId = null;
-  return webConferencing.findCallId(conference.url)
+  return webConferencing.findCallId(conference.url, conference.type)
     .then(data => {
       if (!data) {
         throw new Error(`Conference with url ${conference.url} doesn't exist. Creating new one.`);
@@ -101,8 +101,8 @@ function updateConference(event, conference) {
         owner: event.calendar.owner.remoteId,
         ownerType: 'space_event',
         provider: conference.type,
-        participants: participants.join(';'),
-        spaces: spaces.join(';'),
+        participants: participants && participants.join(';') || null,
+        spaces: spaces && spaces.join(';') || null,
         group : true,
         startDate,
         endDate,
