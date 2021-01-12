@@ -1,6 +1,8 @@
 package org.exoplatform.agenda.listener;
 
+import org.apache.commons.lang.StringUtils;
 import org.exoplatform.agenda.service.AgendaEventService;
+import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
@@ -27,6 +29,10 @@ public class AgendaGamificationIntegrationListener extends Listener<Long, Object
 
   public static final String GAMIFICATION_GENERIC_EVENT = "exo.gamification.generic.action";
 
+  public static final String GAMIFICATION_CREATE_EVENT_RULE_TITLE = "createEvent";
+
+  public static final String GAMIFICATION_UPDATE_EVENT_RULE_TITLE = "updateEvent";
+
   private PortalContainer container;
 
   private ListenerService listenerService;
@@ -44,6 +50,7 @@ public class AgendaGamificationIntegrationListener extends Listener<Long, Object
     ExoContainerContext.setCurrentContainer(container);
     RequestLifeCycle.begin(container);
     try {
+      String eventName = event.getEventName();
       Long eventId = event.getSource();
       org.exoplatform.agenda.model.Event agendaEvent = getAgendaEventService().getEventById(eventId);
       String portalName = PortalContainer.getCurrentPortalContainerName();
@@ -53,10 +60,16 @@ public class AgendaGamificationIntegrationListener extends Listener<Long, Object
       if (eventId > 0) {
         eventURL.append(eventId);
       }
-
+      String ruleTitle = "";
+      if (StringUtils.equals(eventName, Utils.POST_CREATE_AGENDA_EVENT_EVENT)) {
+        ruleTitle = GAMIFICATION_CREATE_EVENT_RULE_TITLE;
+      } else if (StringUtils.equals(eventName, Utils.POST_UPDATE_AGENDA_EVENT_EVENT)) {
+        ruleTitle = GAMIFICATION_UPDATE_EVENT_RULE_TITLE;
+      }
       try {
         Map<String, String> gam = new HashMap<>();
-        gam.put("ruleTitle", "createEvent");
+
+        gam.put("ruleTitle", ruleTitle);
         gam.put("object", eventURL.toString());
         gam.put("senderId", String.valueOf(agendaEvent.getCreatorId())); // matches the gamification's earner id
         gam.put("receiverId", String.valueOf(agendaEvent.getCreatorId()));
