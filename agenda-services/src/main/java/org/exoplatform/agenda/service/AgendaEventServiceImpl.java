@@ -327,7 +327,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       remoteEventService.saveRemoteEvent(remoteEvent);
     }
 
-    Utils.broadcastEvent(listenerService, Utils.POST_CREATE_AGENDA_EVENT_EVENT, eventId, 0);
+    Utils.broadcastEvent(listenerService, Utils.POST_CREATE_AGENDA_EVENT_EVENT, eventId, userIdentityId);
 
     return createdEvent;
   }
@@ -582,7 +582,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                        false,
                                        EventModificationType.UPDATED);
 
-    Utils.broadcastEvent(listenerService, Utils.POST_UPDATE_AGENDA_EVENT_EVENT, eventId, 0);
+    Utils.broadcastEvent(listenerService, Utils.POST_UPDATE_AGENDA_EVENT_EVENT, eventId, userIdentityId);
 
     return updatedEvent;
   }
@@ -651,7 +651,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       attendeeService.sendInvitations(event, eventAttendees, EventModificationType.UPDATED);
     }
 
-    Utils.broadcastEvent(listenerService, Utils.POST_UPDATE_AGENDA_EVENT_EVENT, eventId, 0);
+    Utils.broadcastEvent(listenerService, Utils.POST_UPDATE_AGENDA_EVENT_EVENT, eventId, userIdentityId);
   }
 
   /**
@@ -679,7 +679,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     event.setModifierId(userIdentityId);
     attendeeService.sendInvitations(event, eventAttendees, EventModificationType.DELETED);
 
-    Utils.broadcastEvent(listenerService, Utils.POST_DELETE_AGENDA_EVENT_EVENT, eventId, event);
+    Utils.broadcastEvent(listenerService, Utils.POST_DELETE_AGENDA_EVENT_EVENT, eventId, userIdentityId);
     return event;
   }
 
