@@ -217,6 +217,9 @@ public class EntityBuilder {
                                              boolean isSearch) {
     EventRecurrence recurrence = event.getRecurrence();
     EventRecurrenceEntity recurrenceEntity = null;
+    if (userTimeZone == null) {
+      userTimeZone = ZoneOffset.UTC;
+    }
     if (recurrence != null) {
       recurrenceEntity = new EventRecurrenceEntity(recurrence.getId(),
                                                    AgendaDateUtils.toRFC3339Date(recurrence.getUntil()),
