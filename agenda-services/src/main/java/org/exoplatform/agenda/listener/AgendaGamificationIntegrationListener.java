@@ -2,6 +2,7 @@ package org.exoplatform.agenda.listener;
 
 import org.apache.commons.lang.StringUtils;
 import org.exoplatform.agenda.service.AgendaEventService;
+import org.exoplatform.agenda.util.NotificationUtils;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.container.ExoContainerContext;
@@ -13,6 +14,7 @@ import org.exoplatform.services.listener.Listener;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
+import org.exoplatform.services.security.ConversationState;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -23,7 +25,7 @@ import java.util.Map;
  * points.
  */
 @Asynchronous
-public class AgendaGamificationIntegrationListener extends Listener<Long, Object> {
+public class AgendaGamificationIntegrationListener extends Listener<Long, Long> {
 
   private static final Log LOG = ExoLogger.getLogger(AgendaGamificationIntegrationListener.class);
 
@@ -32,6 +34,8 @@ public class AgendaGamificationIntegrationListener extends Listener<Long, Object
   public static final String GAMIFICATION_CREATE_EVENT_RULE_TITLE = "createEvent";
 
   public static final String GAMIFICATION_UPDATE_EVENT_RULE_TITLE = "updateEvent";
+
+  public static final String GAMIFICATION_CANCEL_EVENT_RULE_TITLE = "cancelEvent";
 
   private PortalContainer container;
 
@@ -46,33 +50,31 @@ public class AgendaGamificationIntegrationListener extends Listener<Long, Object
   }
 
   @Override
-  public void onEvent(Event<Long, Object> event) throws Exception {
+  public void onEvent(Event<Long, Long> event) throws Exception {
     ExoContainerContext.setCurrentContainer(container);
     RequestLifeCycle.begin(container);
     try {
       String eventName = event.getEventName();
       Long eventId = event.getSource();
+      Long earnerId = event.getData();
       org.exoplatform.agenda.model.Event agendaEvent = getAgendaEventService().getEventById(eventId);
-      String portalName = PortalContainer.getCurrentPortalContainerName();
-      String portalOwner = CommonsUtils.getCurrentPortalOwner();
-      StringBuilder eventURL = new StringBuilder("");
-      eventURL.append(portalName).append("/").append(portalOwner).append("/agenda?event=");
-      if (eventId > 0) {
-        eventURL.append(eventId);
-      }
+      String eventURL = NotificationUtils.getEventURL(agendaEvent);
       String ruleTitle = "";
       if (StringUtils.equals(eventName, Utils.POST_CREATE_AGENDA_EVENT_EVENT)) {
         ruleTitle = GAMIFICATION_CREATE_EVENT_RULE_TITLE;
       } else if (StringUtils.equals(eventName, Utils.POST_UPDATE_AGENDA_EVENT_EVENT)) {
         ruleTitle = GAMIFICATION_UPDATE_EVENT_RULE_TITLE;
+      } else if (StringUtils.equals(eventName, Utils.POST_DELETE_AGENDA_EVENT_EVENT)) {
+        ruleTitle = GAMIFICATION_CANCEL_EVENT_RULE_TITLE;
+        eventURL = "";
       }
       try {
         Map<String, String> gam = new HashMap<>();
 
         gam.put("ruleTitle", ruleTitle);
-        gam.put("object", eventURL.toString());
-        gam.put("senderId", String.valueOf(agendaEvent.getCreatorId())); // matches the gamification's earner id
-        gam.put("receiverId", String.valueOf(agendaEvent.getCreatorId()));
+        gam.put("object", eventURL);
+        gam.put("senderId", String.valueOf(earnerId)); // matches the gamification's earner id
+        gam.put("receiverId", String.valueOf(earnerId));
         listenerService.broadcast(GAMIFICATION_GENERIC_EVENT, gam, String.valueOf(eventId));
       } catch (Exception e) {
         LOG.error("Cannot broadcast gamification event");

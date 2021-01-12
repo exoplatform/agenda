@@ -59,6 +59,33 @@
         </value-param>
       </init-params>
     </component-plugin>
+    <component-plugin>
+      <name>rule.CancelEvent</name>
+      <set-method>addPlugin</set-method>
+      <type>org.exoplatform.addons.gamification.service.setting.rule.model.RuleConfig</type>
+      <init-params>
+        <value-param>
+          <name>rule-title</name>
+          <value>CancelEvent</value>
+        </value-param>
+        <value-param>
+          <name>rule-description</name>
+          <value>Cancel an event</value>
+        </value-param>
+        <value-param>
+          <name>rule-score</name>
+          <value>2</value>
+        </value-param>
+        <value-param>
+          <name>rule-zone</name>
+          <value>Teamwork</value>
+        </value-param>
+        <value-param>
+          <name>rule-enable</name>
+          <value>true</value>
+        </value-param>
+      </init-params>
+    </component-plugin>
   </external-component-plugins>
 
 </configuration>
