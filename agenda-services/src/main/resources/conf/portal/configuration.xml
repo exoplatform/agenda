@@ -272,11 +272,6 @@
       <type>org.exoplatform.agenda.listener.AgendaEventGamificationIntegrationListener</type>
     </component-plugin>
     <component-plugin>
-      <name>exo.agenda.event.deleted</name>
-      <set-method>addListener</set-method>
-      <type>org.exoplatform.agenda.listener.AgendaEventGamificationIntegrationListener</type>
-    </component-plugin>
-    <component-plugin>
       <name>exo.agenda.event.responseSent</name>
       <set-method>addListener</set-method>
       <type>org.exoplatform.agenda.listener.AgendaEventAttendeeGamificationIntegrationListener</type>

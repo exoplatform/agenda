@@ -10,7 +10,7 @@ import java.util.Collections;
 import java.util.concurrent.atomic.AtomicBoolean;
 import static org.junit.Assert.*;
 
-public class AgendaGamificationIntegrationListenerTest  extends BaseAgendaEventTest {
+public class AgendaEventGamificationIntegrationListenerTest extends BaseAgendaEventTest {
 
   @Test
   public void testAddGamificationPointsAfterCreatingAnEvent() throws Exception { // NOSONAR
