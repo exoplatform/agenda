@@ -1,21 +1,20 @@
 package org.exoplatform.agenda.listener;
 
+import static org.junit.Assert.assertEquals;
+
+import java.time.ZonedDateTime;
+import java.util.List;
+
+import org.junit.Test;
+
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
 import org.exoplatform.agenda.service.BaseAgendaEventTest;
-import org.exoplatform.agenda.util.Utils;
-import org.exoplatform.services.listener.Listener;
-import org.junit.Test;
-import org.mockito.Mockito;
-
-import java.time.ZonedDateTime;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import static org.mockito.Mockito.*;
+import org.exoplatform.commons.api.notification.model.WebNotificationFilter;
+import org.exoplatform.commons.api.notification.service.WebNotificationService;
 
 public class AgendaReplyEventNotificationListenerTest extends BaseAgendaEventTest {
-  AgendaEventReplyListener agendaEventReplyListener = Mockito.mock(AgendaEventReplyListener.class);
 
   @Test
   public void testSendNotificationWhenReplyToEvent() throws Exception {
@@ -27,46 +26,20 @@ public class AgendaReplyEventNotificationListenerTest extends BaseAgendaEventTes
     Event event = newEventInstance(start, start, allDay);
     event = createEvent(event.clone(), Long.parseLong(testuser1Identity.getId()), testuser4Identity, testuser5Identity);
 
-    AtomicBoolean executeListener = new AtomicBoolean(true);
-    listenerService.addListener(Utils.POST_EVENT_RESPONSE_SENT, new Listener<EventAttendee, EventAttendee>() {
-      @Override
-      public void onEvent(org.exoplatform.services.listener.Event<EventAttendee, EventAttendee> event) throws Exception {
-        if (executeListener.get()) {
-          agendaEventReplyListener.onEvent(event);
-        }
-      }
-    });
-    executeListener.set(true);
-    try {
-      agendaEventAttendeeService.sendEventResponse(event.getId(),
-                                                   Long.parseLong(testuser4Identity.getId()),
-                                                   EventAttendeeResponse.ACCEPTED);
-      Mockito.doCallRealMethod()
-             .when(agendaEventReplyListener)
-             .sendReplyResponseNotification(event, Long.parseLong(testuser4Identity.getId()), EventAttendeeResponse.ACCEPTED);
-      // send invitation when user change his response
-      verify(agendaEventReplyListener, times(1)).sendReplyResponseNotification(event,
-                                                                               Long.parseLong(testuser4Identity.getId()),
-                                                                               EventAttendeeResponse.ACCEPTED);
+    long eventParticipantId = Long.parseLong(testuser4Identity.getId());
 
-    } finally {
-      executeListener.set(false);
-    }
+    WebNotificationService webNotificationService = container.getComponentInstanceOfType(WebNotificationService.class);
+    int initialNotificationsSize = webNotificationService.getNumberOnBadge(testuser1Identity.getRemoteId());
 
-    executeListener.set(true);
-    try {
-      agendaEventAttendeeService.sendEventResponse(event.getId(),
-                                                   Long.parseLong(testuser4Identity.getId()),
-                                                   EventAttendeeResponse.NEEDS_ACTION);
-      Mockito.doCallRealMethod()
-             .when(agendaEventReplyListener)
-             .sendReplyResponseNotification(event, Long.parseLong(testuser4Identity.getId()), EventAttendeeResponse.NEEDS_ACTION);
-      // don't send invitation when user send the same response twice
-      verify(agendaEventReplyListener, never()).sendReplyResponseNotification(event,
-                                                                              Long.parseLong(testuser4Identity.getId()),
-                                                                              EventAttendeeResponse.NEEDS_ACTION);
-    } finally {
-      executeListener.set(false);
-    }
+    EventAttendee oldAttendeeResponse =
+                                      new EventAttendee(0, event.getId(), eventParticipantId, EventAttendeeResponse.NEEDS_ACTION);
+    EventAttendee newAttendeeResponse = new EventAttendee(0, event.getId(), eventParticipantId, EventAttendeeResponse.ACCEPTED);
+
+    AgendaEventReplyListener agendaEventReplyListener = new AgendaEventReplyListener(container);
+    agendaEventReplyListener.onEvent(new org.exoplatform.services.listener.Event<EventAttendee, EventAttendee>(null,
+                                                                                                               oldAttendeeResponse,
+                                                                                                               newAttendeeResponse));
+
+    assertEquals(initialNotificationsSize + 1, webNotificationService.getNumberOnBadge(testuser1Identity.getRemoteId()));
   }
 }

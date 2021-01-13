@@ -32,6 +32,8 @@ public class AgendaEventReplyListener extends Listener<EventAttendee, EventAtten
       EventAttendee oldAttendee = event.getSource();
       EventAttendee newAttendee = event.getData();
       org.exoplatform.agenda.model.Event agendaEvent = getAgendaEventService().getEventById(oldAttendee.getEventId());
+      // Avoid notifying creator when he changes his response and avoid
+      // notifying him when a user doesn't change his response
       if (oldAttendee.getResponse() != newAttendee.getResponse() && agendaEvent.getCreatorId() != oldAttendee.getIdentityId()) {
         sendReplyResponseNotification(agendaEvent, oldAttendee.getIdentityId(), newAttendee.getResponse());
       }
