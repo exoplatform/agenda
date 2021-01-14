@@ -1165,7 +1165,14 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     }
 
     createdEvent = newEventInstance(start, start, allDay);
-    createdEvent = createEvent(createdEvent.clone(), Long.parseLong(testuser1Identity.getId()), testuser2Identity);
+    createdEvent = createEvent(createdEvent.clone(), Long.parseLong(testuser1Identity.getId()), testuser1Identity, testuser2Identity);
+
+    List<EventReminder> reminders = agendaEventReminderService.getEventReminders(eventId, Long.parseLong(testuser1Identity.getId()));
+    assertNotNull(reminders);
+    assertEquals(1, reminders.size());
+
+    EventReminder eventReminder = reminders.get(0);
+    assertNotNull(eventReminder);
 
     eventId = createdEvent.getId();
     storedEvent = agendaEventService.getEventById(eventId, null, Long.parseLong(testuser2Identity.getId()));
@@ -1189,12 +1196,13 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     updatedEvent.setAllowAttendeeToUpdate(true);
     updatedEvent.setAllowAttendeeToInvite(false);
 
-    EventAttendee eventAttendee = new EventAttendee(0, updatedEvent.getId(), Long.parseLong(testuser2Identity.getId()), null);
+    EventAttendee eventAttendeeTestUser2 = new EventAttendee(0, updatedEvent.getId(), Long.parseLong(testuser2Identity.getId()), null);
+    EventAttendee eventAttendeeTestUser1 = new EventAttendee(0, updatedEvent.getId(), Long.parseLong(testuser1Identity.getId()), null);
     updatedEvent = agendaEventService.updateEvent(updatedEvent,
-                                                  Collections.singletonList(eventAttendee),
+                                                  Arrays.asList(eventAttendeeTestUser1, eventAttendeeTestUser2),
                                                   null,
                                                   null,
-                                                  null,
+                                                  reminders,
                                                   null,
                                                   false,
                                                   Long.parseLong(testuser1Identity.getId()));
@@ -1204,7 +1212,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     try {
       updatedEvent = agendaEventService.updateEvent(updatedEvent,
-                                                    Collections.singletonList(eventAttendee),
+                                                    Arrays.asList(eventAttendeeTestUser1, eventAttendeeTestUser2),
                                                     null,
                                                     null,
                                                     null,
@@ -1215,9 +1223,18 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
       // Expected
     }
 
+    reminders = agendaEventReminderService.getEventReminders(eventId, Long.parseLong(testuser1Identity.getId()));
+    assertNotNull(reminders);
+    assertEquals(1, reminders.size());
+    EventReminder sameEventReminder = reminders.get(0);
+    assertNotNull(sameEventReminder);
+    assertEquals(sameEventReminder.getDatetime(), eventReminder.getDatetime());
+
     updatedEvent.setAllowAttendeeToUpdate(false);
+    updatedEvent.setStart(updatedEvent.getStart().plusDays(1));
+    updatedEvent.setEnd(updatedEvent.getEnd().plusDays(1));
     updatedEvent = agendaEventService.updateEvent(updatedEvent,
-                                                  Collections.singletonList(eventAttendee),
+                                                  Arrays.asList(eventAttendeeTestUser1, eventAttendeeTestUser2),
                                                   null,
                                                   null,
                                                   null,
@@ -1227,6 +1244,13 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertTrue("Attendees shouldn't be able to modify allowAttendeeToInvite and allowAttendeeToUpdate",
                updatedEvent.isAllowAttendeeToUpdate());
     assertTrue(updatedEvent.isAllowAttendeeToInvite());
+
+    reminders = agendaEventReminderService.getEventReminders(eventId, Long.parseLong(testuser1Identity.getId()));
+    assertNotNull(reminders);
+    assertEquals(1, reminders.size());
+    sameEventReminder = reminders.get(0);
+    assertNotNull(sameEventReminder);
+    assertEquals(sameEventReminder.getDatetime(), eventReminder.getDatetime().plusDays(1));
   }
 
   @Test
