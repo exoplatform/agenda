@@ -5,17 +5,19 @@
       v-model="stepper"
       class="d-flex flex-grow-1 flex-column">
       <v-stepper-header class="flex-grow-0 no-box-shadow border-bottom-color border-box-sizing">
-        <v-stepper-step step="1">
-          <small class="primary--text title">
-            {{ $t('agenda.stepEventDetails') }}
-          </small>
-        </v-stepper-step>
-        <v-divider />
-        <v-stepper-step step="2">
-          <small class="title" :class="stepper > 1 && 'primary--text' || ''">
-            {{ $t('agenda.stepEventChooseDate') }}
-          </small>
-        </v-stepper-step>
+        <div class="d-flex flex-grow-1">
+          <v-stepper-step :complete="stepper > 1" step="1">
+            <small class="primary--text title">
+              {{ $t('agenda.stepEventDetails') }}
+            </small>
+          </v-stepper-step>
+          <v-divider class="eventFormStepperDivider" />
+          <v-stepper-step step="2">
+            <small class="title" :class="stepper > 1 && 'primary--text' || ''">
+              {{ $t('agenda.stepEventChooseDate') }}
+            </small>
+          </v-stepper-step>
+        </div>
         <v-btn
           class="my-auto mr-2"
           color="grey"
