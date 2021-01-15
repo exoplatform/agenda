@@ -367,7 +367,7 @@ public class NotificationUtils {
         notificationURL = currentDomain + "portal/" + currentSite + "/agenda?eventId=" + event.getId();
       } else {
         notificationURL = currentDomain + "portal/" + currentSite + "/agenda?parentId=" + event.getId() + "&occurrenceId="
-            + AgendaDateUtils.toRFC3339Date(event.getStart());
+            + AgendaDateUtils.toRFC3339Date(event.getStart(), ZoneOffset.UTC);
       }
     } else {
       notificationURL = currentDomain + "portal/" + currentSite + "/agenda";
