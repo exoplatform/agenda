@@ -37,118 +37,154 @@ import org.exoplatform.webui.utils.TimeConvertUtils;
 
 public class NotificationUtils {
 
-  private static final Log                           LOG                                        =
-                                                         ExoLogger.getLogger(NotificationUtils.class);
+  private static final Log                                   LOG                                            =
+                                                                 ExoLogger.getLogger(NotificationUtils.class);
 
-  public static final ArgumentLiteral<Event>         EVENT_AGENDA                               =
-                                                                  new ArgumentLiteral<>(Event.class, "event_agenda");
+  public static final ArgumentLiteral<Event>                 EVENT_AGENDA                                   =
+                                                                          new ArgumentLiteral<>(Event.class, "event_agenda");
 
   @SuppressWarnings("rawtypes")
-  public static final ArgumentLiteral<List>          EVENT_ATTENDEE                             =
-                                                                    new ArgumentLiteral<>(List.class, "eventAttendee");
+  public static final ArgumentLiteral<List>                  EVENT_ATTENDEE                                 =
+                                                                            new ArgumentLiteral<>(List.class, "eventAttendee");
 
-  public static final ArgumentLiteral<String>        EVENT_MODIFICATION_TYPE                    =
-                                                                             new ArgumentLiteral<>(String.class,
-                                                                                                   "modificationEventType");
+  public static final ArgumentLiteral<String>                EVENT_MODIFICATION_TYPE                        =
+                                                                                     new ArgumentLiteral<>(String.class,
+                                                                                                           "modificationEventType");
 
-  public static final ArgumentLiteral<EventReminder> EVENT_AGENDA_REMINDER                      =
-                                                                           new ArgumentLiteral<>(EventReminder.class,
-                                                                                                 "event_agenda_reminder");
+  public static final ArgumentLiteral<EventReminder>         EVENT_AGENDA_REMINDER                          =
+                                                                                   new ArgumentLiteral<>(EventReminder.class,
+                                                                                                         "event_agenda_reminder");
 
-  public static final String                         AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN     = "EventAddedNotificationPlugin";
+  public static final ArgumentLiteral<Long>                  EVENT_PARTICIPANT_ID                           =
+                                                                                  new ArgumentLiteral<>(Long.class,
+                                                                                                        "event_participant_id");
 
-  public static final String                         AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN  =
-                                                                                               "EventModifiedNotificationPlugin";
+  public static final ArgumentLiteral<EventAttendeeResponse> EVENT_RESPONSE                                 =
+                                                                            new ArgumentLiteral<>(EventAttendeeResponse.class,
+                                                                                                  "event_response");
 
-  public static final String                         AGENDA_EVENT_CANCELLED_NOTIFICATION_PLUGIN =
-                                                                                                "EventCanceledNotificationPlugin";
+  public static final String                                 AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN         =
+                                                                                                    "EventAddedNotificationPlugin";
 
-  public static final String                         AGENDA_REMINDER_NOTIFICATION_PLUGIN        =
-                                                                                         "EventReminderNotificationPlugin";
+  public static final String                                 AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN      =
+                                                                                                       "EventModifiedNotificationPlugin";
 
-  private static final String                        TEMPLATE_VARIABLE_EVENT_URL                = "eventURL";
+  public static final String                                 AGENDA_EVENT_CANCELLED_NOTIFICATION_PLUGIN     =
+                                                                                                        "EventCanceledNotificationPlugin";
 
-  public static final PluginKey                      EVENT_ADDED_KEY                            =
-                                                                     PluginKey.key(AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN);
+  public static final String                                 AGENDA_REMINDER_NOTIFICATION_PLUGIN            =
+                                                                                                 "EventReminderNotificationPlugin";
 
-  public static final PluginKey                      EVENT_MODIFIED_KEY                         =
-                                                                        PluginKey.key(AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN);
+  public static final String                                 AGENDA_REPLY_NOTIFICATION_PLUGIN               =
+                                                                                              "EventReplyNotificationPlugin";
 
-  public static final PluginKey                      EVENT_CANCELLED_KEY                        =
-                                                                         PluginKey.key(AGENDA_EVENT_CANCELLED_NOTIFICATION_PLUGIN);
+  private static final String                                TEMPLATE_VARIABLE_EVENT_URL                    = "eventURL";
 
-  public static final PluginKey                      EVENT_REMINDER_KEY                         =
-                                                                        PluginKey.key(AGENDA_REMINDER_NOTIFICATION_PLUGIN);
+  public static final PluginKey                              EVENT_ADDED_KEY                                =
+                                                                             PluginKey.key(AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN);
 
-  public static final String                         STORED_PARAMETER_EVENT_TITLE               = "eventTitle";
+  public static final PluginKey                              EVENT_MODIFIED_KEY                             =
+                                                                                PluginKey.key(AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN);
 
-  public static final String                         STORED_PARAMETER_EVENT_DESCRIPTION         = "eventDescription";
+  public static final PluginKey                              EVENT_CANCELLED_KEY                            =
+                                                                                 PluginKey.key(AGENDA_EVENT_CANCELLED_NOTIFICATION_PLUGIN);
 
-  public static final String                         STORED_PARAMETER_EVENT_LOCATION            = "eventLocation";
+  public static final PluginKey                              EVENT_REMINDER_KEY                             =
+                                                                                PluginKey.key(AGENDA_REMINDER_NOTIFICATION_PLUGIN);
 
-  public static final String                         STORED_PARAMETER_EVENT_OWNER_ID            = "ownerId";
+  public static final PluginKey                              EVENT_REPLY_KEY                                =
+                                                                             PluginKey.key(AGENDA_REPLY_NOTIFICATION_PLUGIN);
 
-  private static final String                        STORED_PARAMETER_EVENT_ID                  = "eventId";
+  public static final String                                 STORED_PARAMETER_EVENT_TITLE                   = "eventTitle";
 
-  public static final String                         STORED_PARAMETER_EVENT_MODIFIER            = "eventModifier";
+  public static final String                                 STORED_PARAMETER_EVENT_DESCRIPTION             = "eventDescription";
 
-  public static final String                         STORED_PARAMETER_EVENT_CREATOR             = "eventCreator";
+  public static final String                                 STORED_PARAMETER_EVENT_LOCATION                = "eventLocation";
 
-  public static final String                         STORED_PARAMETER_EVENT_URL                 = "Url";
+  public static final String                                 STORED_PARAMETER_EVENT_OWNER_ID                = "ownerId";
 
-  public static final String                         STORED_EVENT_MODIFICATION_TYPE             = "EVENT_MODIFICATION_TYPE";
+  private static final String                                STORED_PARAMETER_EVENT_ID                      = "eventId";
 
-  public static final String                         STORED_PARAMETER_MODIFIER_IDENTITY_ID      = "MODIFIER_IDENTITY_ID";
+  public static final String                                 STORED_PARAMETER_EVENT_MODIFIER                = "eventModifier";
 
-  public static final String                         STORED_PARAMETER_EVENT_START_DATE          = "startDate";
+  public static final String                                 STORED_PARAMETER_EVENT_CREATOR                 = "eventCreator";
 
-  public static final String                         STORED_PARAMETER_EVENT_END_DATE            = "endDate";
+  public static final String                                 STORED_PARAMETER_EVENT_URL                     = "Url";
 
-  public static final String                         STORED_PARAMETER_EVENT_TIMEZONE_NAME       = "eventTimeZoneName";
+  public static final String                                 STORED_EVENT_MODIFICATION_TYPE                 =
+                                                                                            "EVENT_MODIFICATION_TYPE";
 
-  public static final String                         STORED_PARAMETER_EVENT_ATTENDEES           = "attendees";
+  public static final String                                 STORED_PARAMETER_MODIFIER_IDENTITY_ID          =
+                                                                                                   "MODIFIER_IDENTITY_ID";
 
-  public static final String                         STORED_PARAMETER_EVENT_RECURRENT_DETAILS   = "recurrenceDetails";
+  public static final String                                 STORED_PARAMETER_EVENT_START_DATE              = "startDate";
 
-  private static final String                        TEMPLATE_VARIABLE_EVENT_START_DATE         = "startDate";
+  public static final String                                 STORED_PARAMETER_EVENT_END_DATE                = "endDate";
 
-  private static final String                        TEMPLATE_VARIABLE_EVENT_END_DATE           = "endDate";
+  public static final String                                 STORED_PARAMETER_EVENT_TIMEZONE_NAME           = "eventTimeZoneName";
 
-  private static final String                        TEMPLATE_VARIABLE_EVENT_MONTH_YEAR_DATE    = "monthYearDate";
+  public static final String                                 STORED_PARAMETER_EVENT_ATTENDEES               = "attendees";
 
-  private static final String                        TEMPLATE_VARIABLE_AGENDA_NAME              = "agendaName";
+  public static final String                                 STORED_PARAMETER_EVENT_RECURRENT_DETAILS       = "recurrenceDetails";
 
-  private static final String                        TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR   = "calendarOwnerAvatarUrl";
+  public static final String                                 STORED_PARAMETER_EVENT_PARTICIPANT_NAME        = "participantName";
 
-  public static final String                         TEMPLATE_VARIABLE_EVENT_ID                 = "eventId";
+  public static final String                                 STORED_PARAMETER_EVENT_PARTICIPANT_AVATAR_URL  =
+                                                                                                           "participantAvatarUrl";
 
-  public static final String                         TEMPLATE_VARIABLE_EVENT_TITLE              = "eventTitle";
+  public static final String                                 STORED_PARAMETER_EVENT_RESPONSE                = "eventResponse";
 
-  public static final String                         TEMPLATE_VARIABLE_EVENT_LOCATION           = "eventLocation";
+  private static final String                                TEMPLATE_VARIABLE_EVENT_START_DATE             = "startDate";
 
-  public static final String                         TEMPLATE_VARIABLE_EVENT_DESCRIPTION        = "eventDescription";
+  private static final String                                TEMPLATE_VARIABLE_EVENT_END_DATE               = "endDate";
 
-  public static final String                         TEMPLATE_VARIABLE_EVENT_RECURRENT_DETAILS  = "recurrenceDetails";
+  private static final String                                TEMPLATE_VARIABLE_EVENT_MONTH_YEAR_DATE        = "monthYearDate";
 
-  private static final String                        TEMPLATE_VARIABLE_EVENT_MODIFICATION_TYPE  = "modificationType";
+  private static final String                                TEMPLATE_VARIABLE_AGENDA_NAME                  = "agendaName";
 
-  private static final String                        TEMPLATE_VARIABLE_EVENT_CREATOR            = "creatorName";
+  private static final String                                TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR       =
+                                                                                                      "calendarOwnerAvatarUrl";
 
-  private static final String                        TEMPLATE_VARIABLE_EVENT_ATTENDEES          = "attendees";
+  public static final String                                 TEMPLATE_VARIABLE_EVENT_ID                     = "eventId";
 
-  private static final String                        TEMPLATE_VARIABLE_EVENT_TIMEZONE_NAME      = "timeZoneName";
+  public static final String                                 TEMPLATE_VARIABLE_EVENT_TITLE                  = "eventTitle";
 
-  private static final String                        TEMPLATE_VARIABLE_RESPONSE_ACCEPTED        = "acceptedResponseURL";
+  public static final String                                 TEMPLATE_VARIABLE_EVENT_LOCATION               = "eventLocation";
 
-  private static final String                        TEMPLATE_VARIABLE_RESPONSE_DECLINED        = "declinedResponseURL";
+  public static final String                                 TEMPLATE_VARIABLE_EVENT_DESCRIPTION            = "eventDescription";
 
-  private static final String                        TEMPLATE_VARIABLE_RESPONSE_TENTATIVE       = "tentativeResponseURL";
+  public static final String                                 TEMPLATE_VARIABLE_EVENT_RECURRENT_DETAILS      = "recurrenceDetails";
 
-  private static final String                        TEMPLATE_VARIABLE_EVENT_MODIFIER           = "modifierName";
+  private static final String                                TEMPLATE_VARIABLE_EVENT_MODIFICATION_TYPE      = "modificationType";
 
-  private static final String                        TEMPLATE_VARIABLE_MODIFIER_IDENTITY_URL    = "modifierProfileUrl";
+  private static final String                                TEMPLATE_VARIABLE_EVENT_CREATOR                = "creatorName";
 
-  private static String                              defaultSite;
+  private static final String                                TEMPLATE_VARIABLE_EVENT_ATTENDEES              = "attendees";
+
+  private static final String                                TEMPLATE_VARIABLE_EVENT_TIMEZONE_NAME          = "timeZoneName";
+
+  private static final String                                TEMPLATE_VARIABLE_RESPONSE_ACCEPTED            =
+                                                                                                 "acceptedResponseURL";
+
+  private static final String                                TEMPLATE_VARIABLE_RESPONSE_DECLINED            =
+                                                                                                 "declinedResponseURL";
+
+  private static final String                                TEMPLATE_VARIABLE_RESPONSE_TENTATIVE           =
+                                                                                                  "tentativeResponseURL";
+
+  private static final String                                TEMPLATE_VARIABLE_EVENT_MODIFIER               = "modifierName";
+
+  private static final String                                TEMPLATE_VARIABLE_EVENT_PARTICIPANT_NAME       = "participantName";
+
+  private static final String                                TEMPLATE_VARIABLE_EVENT_RESPONSE               = "responseType";
+
+  private static final String                                TEMPLATE_VARIABLE_EVENT_PARTICIPANT_AVATAR_URL =
+                                                                                                            "participantAvatarUrl";
+
+  private static final String                                TEMPLATE_VARIABLE_MODIFIER_IDENTITY_URL        =
+                                                                                                     "modifierProfileUrl";
+
+  private static String                                      defaultSite;
 
   private NotificationUtils() {
   }
@@ -250,6 +286,21 @@ public class NotificationUtils {
                 .with(STORED_PARAMETER_EVENT_END_DATE, AgendaDateUtils.toRFC3339Date((event.getEnd())));
   }
 
+  public static final void storeEventParameters(IdentityManager identityManager,
+                                                NotificationInfo notification,
+                                                Event event,
+                                                long participantId,
+                                                EventAttendeeResponse response,
+                                                org.exoplatform.agenda.model.Calendar calendar) {
+    Identity identity = Utils.getIdentityById(identityManager, participantId);
+    notification.with(STORED_PARAMETER_EVENT_ID, String.valueOf(event.getId()))
+                .with(STORED_PARAMETER_EVENT_TITLE, event.getSummary())
+                .with(STORED_PARAMETER_EVENT_PARTICIPANT_AVATAR_URL, setParticipantAvatarUrl(identity))
+                .with(STORED_PARAMETER_EVENT_URL, getEventURL(event))
+                .with(STORED_PARAMETER_EVENT_RESPONSE, String.valueOf(response))
+                .with(STORED_PARAMETER_EVENT_PARTICIPANT_NAME, getEventNotificationCreatorOrModifierUserName(identity));
+  }
+
   public static String getDefaultSite() {
     if (defaultSite != null) {
       return defaultSite;
@@ -322,6 +373,22 @@ public class NotificationUtils {
     return templateContext;
   }
 
+  public static final TemplateContext buildTemplateReplyParameters(TemplateProvider templateProvider,
+                                                                   NotificationInfo notification) {
+    String language = NotificationPluginUtils.getLanguage(notification.getTo());
+    TemplateContext templateContext = getTemplateContext(templateProvider, notification, language);
+
+    setFooter(notification, templateContext);
+    setRead(notification, templateContext);
+    setNotificationId(notification, templateContext);
+    setLasModifiedTime(notification, templateContext, language);
+    
+    setEventReplyDetails(templateContext, notification);
+
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
+    return templateContext;
+  }
+
   public static final MessageInfo buildMessageSubjectAndBody(TemplateContext templateContext,
                                                              NotificationInfo notification,
                                                              String pushNotificationURL) {
@@ -355,7 +422,17 @@ public class NotificationUtils {
     templateContext.put("USER", notification.getTo());
   }
 
-  public static String getEventURL(Event event) {
+  private static final void setEventReplyDetails(TemplateContext templateContext, NotificationInfo notification) {
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_ID, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_ID));
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_TITLE, getEventTitle(notification));
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_PARTICIPANT_NAME,
+                        notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_PARTICIPANT_NAME));
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_RESPONSE, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_RESPONSE));
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_PARTICIPANT_AVATAR_URL,
+                        notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_PARTICIPANT_AVATAR_URL));
+  }
+
+    public static String getEventURL(Event event) {
     String currentSite = getDefaultSite();
     String currentDomain = CommonsUtils.getCurrentDomain();
     if (!currentDomain.endsWith("/")) {
@@ -476,6 +553,10 @@ public class NotificationUtils {
     }
   }
 
+  private static final String setParticipantAvatarUrl(Identity identity) {
+    return identity.getProfile().getAvatarUrl();
+  }
+
   private static final void setSpaceName(NotificationInfo notification, TemplateContext templateContext) {
     String ownerId = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_OWNER_ID);
     IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
@@ -557,16 +638,19 @@ public class NotificationUtils {
   }
 
   private static final String getEventNotificationCreatorOrModifierUserName(Identity identity) {
-    return identity.getProfile().getFullName();
+    String[] splited = identity.getProfile().getFullName().split(" ");
+    return StringUtils.capitalize(splited[0]).concat(" ").concat(StringUtils.capitalize(splited[1]));
   }
 
   private static String getUserAbsoluteURI(String identityId) {
+    IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
+    Identity identity = identityManager.getIdentity(identityId);
     String currentSite = CommonsUtils.getCurrentSite().getName();
     String currentDomain = CommonsUtils.getCurrentDomain();
     if (!currentDomain.endsWith("/")) {
       currentDomain += "/";
     }
-    return currentDomain + "portal/" + currentSite + "/profile/" + identityId;
+    return currentDomain + "portal/" + currentSite + "/profile/" + identity.getRemoteId();
   }
 
   private static String getFullUserName(List<String> participants, IdentityManager identityManager) {
