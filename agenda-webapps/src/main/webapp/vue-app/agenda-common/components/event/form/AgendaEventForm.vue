@@ -32,6 +32,7 @@
           <agenda-event-form-basic-information
             ref="eventBasicInformation"
             :event="event"
+            :display-time-in-form="displayTimeInForm"
             :settings="settings"
             :connectors="connectors"
             :conference-provider="conferenceProvider"
@@ -88,6 +89,10 @@ export default {
     event: {
       type: Object,
       default: () => ({}),
+    },
+    displayTimeInForm: {
+      type: Boolean,
+      default: false,
     },
     weekdays: {
       type: Array,
