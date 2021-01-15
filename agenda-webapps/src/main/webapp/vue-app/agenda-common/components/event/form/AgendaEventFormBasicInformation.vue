@@ -29,6 +29,14 @@
     </div>
     <div class="d-flex flex-column flex-md-row mt-1 event-form-body">
       <div class="d-flex flex-column flex-grow-1 event-form-body-left">
+        <div v-if="displayTimeInForm" class="d-flex flex-row">
+          <i class="uiIconClock darkGreyIcon uiIcon32x32 mt-4 mr-11"></i>
+          <agenda-event-form-date-pickers
+            :event="event"
+            class="event-form-datetimes my-4"
+            @changed="updateEventDates"
+            @initialized="formInitialized" />
+        </div>
         <div class="d-flex flex-row">
           <i class="uiIconLocation darkGreyIcon uiIcon32x32 mt-4 mr-11"></i>
           <input
@@ -100,6 +108,10 @@ export default {
     event: {
       type: Object,
       default: () => ({}),
+    },
+    displayTimeInForm: {
+      type: Boolean,
+      default: false,
     },
     currentSpace: {
       type: Object,
