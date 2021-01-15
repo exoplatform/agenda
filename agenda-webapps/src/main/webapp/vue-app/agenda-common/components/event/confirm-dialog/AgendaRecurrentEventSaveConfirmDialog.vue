@@ -11,11 +11,15 @@
           aria-hidden="true"
           @click="close"></a>
         <span class="ignore-vuetify-classes PopupTitle popupTitle text-truncate">
-          {{ $t('agenda.title.confirmSaveRecurrentEvent') }}
+          {{ $t('agenda.confirmSaveRecurrentEventTitle') }}
         </span>
       </div>
       <v-card-text>
-        {{ $t('agenda.message.confirmSaveRecurrentEvent') }}
+        <v-radio-group v-model="recurrenceModificationType">
+          <v-radio :label="$t('agenda.onlyThisEvent')" value="single" />
+          <v-radio :label="$t('agenda.thisAndUpcomingEvents')" value="upcoming" />
+          <v-radio :label="$t('agenda.allEvents')" value="all" />
+        </v-radio-group>
       </v-card-text>
       <v-card-actions class="d-flex flex-wrap justify-center center">
         <button
@@ -28,16 +32,9 @@
         <button
           :disabled="loading"
           :loading="loading"
-          class="ignore-vuetify-classes btn ml-2 mb-1"
-          @click="saveRecurrentEvent">
-          {{ $t('agenda.button.saveRecurrentEvent') }}
-        </button>
-        <button
-          :disabled="loading"
-          :loading="loading"
           class="ignore-vuetify-classes btn-primary ml-2 mb-1"
-          @click="saveOccurrenceEvent">
-          {{ $t('agenda.button.saveOccurrenceEvent') }}
+          @click="saveRecurrentEventChoice">
+          {{ $t('agenda.button.save') }}
         </button>
       </v-card-actions>
     </v-card>
@@ -49,6 +46,7 @@ export default {
   data: () => ({
     event: null,
     changeDatesOnly: false,
+    recurrenceModificationType: 'single',
     loading: false,
     dialog: false,
   }),
@@ -69,9 +67,55 @@ export default {
     });
   },
   methods: {
+    saveRecurrentEventChoice(eventObject) {
+      if (eventObject) {
+        eventObject.preventDefault();
+        eventObject.stopPropagation();
+      }
+      if (this.recurrenceModificationType === 'single') {
+        this.saveOccurrenceEvent();
+      } else if (this.recurrenceModificationType === 'all') {
+        this.saveRecurrentEvent();
+      } else if (this.recurrenceModificationType === 'upcoming') {
+        this.saveUpcomingEvents();
+      }
+    },
+    saveUpcomingEvents(eventObject) {
+      if (eventObject) {
+        eventObject.preventDefault();
+        eventObject.stopPropagation();
+      }
+
+      let recurrentEvent = this.event.parent;
+      this.$eventService.getEventById(recurrentEvent.id, 'all')
+        .then(parentRecurrentEvent => {
+          recurrentEvent = JSON.parse(JSON.stringify(parentRecurrentEvent));
+          const untilDate = new Date(this.event.occurrence.id);
+          untilDate.setDate(untilDate.getDate() - 1);
+          untilDate.setHours(23);
+          untilDate.setMinutes(59);
+          untilDate.setSeconds(59);
+          parentRecurrentEvent.recurrence.until = this.$agendaUtils.toRFC3339(untilDate);
+          parentRecurrentEvent.sendInvitation = false;
+          return this.$eventService.updateEvent(parentRecurrentEvent);
+        })
+        .then(() => {
+          // Keep same original recurrent event dates, and change only time
+          recurrentEvent.start = this.event.start;
+          recurrentEvent.end = this.event.end;
+          delete recurrentEvent.id;
+          return this.$eventService.createEvent(recurrentEvent);
+        })
+        .then(() => {
+          this.close();
+          this.$root.$emit('agenda-event-saved', event);
+        });
+    },
     saveRecurrentEvent(eventObject) {
-      eventObject.preventDefault();
-      eventObject.stopPropagation();
+      if (eventObject) {
+        eventObject.preventDefault();
+        eventObject.stopPropagation();
+      }
 
       const eventToSave = JSON.parse(JSON.stringify(this.event));
       eventToSave.id = this.event.parent.id;
@@ -87,8 +131,10 @@ export default {
       this.$emit('save-event', eventToSave, this.changeDatesOnly);
     },
     saveOccurrenceEvent(eventObject) {
-      eventObject.preventDefault();
-      eventObject.stopPropagation();
+      if (eventObject) {
+        eventObject.preventDefault();
+        eventObject.stopPropagation();
+      }
 
       const eventToSave = JSON.parse(JSON.stringify(this.event));
       this.$emit('save-event', eventToSave, this.changeDatesOnly);
@@ -103,6 +149,7 @@ export default {
     },
     open(event, changeDatesOnly) {
       this.event = event;
+      this.recurrenceModificationType = 'single';
       this.changeDatesOnly = changeDatesOnly;
       this.dialog = true;
     },
