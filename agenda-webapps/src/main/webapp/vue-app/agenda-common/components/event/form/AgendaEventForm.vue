@@ -65,8 +65,17 @@
       </v-btn>
       <div class="ml-auto mr-10">
         <v-btn
+          v-if="displaySaveButton"
           :disabled="disableSaveButton"
-          class="btn btn-primary"
+          class="btn btn-primary mr-2"
+          @click="saveEvent">
+          {{ $t('agenda.button.save') }}
+        </v-btn>
+        <v-btn
+          v-if="stepper < 2"
+          :disabled="disableSaveButton"
+          :outlined="displayTimeInForm"
+          :class="nextStepClass"
           @click="nextStep">
           {{ stepButtonLabel }}
         </v-btn>
@@ -139,11 +148,17 @@ export default {
     eventDescriptionValid() {
       return this.eventDescription.length <= 1300;
     },
+    displaySaveButton() {
+      return this.displayTimeInForm || this.stepper > 1;
+    },
     disableSaveButton() {
       return !this.eventTitleValid || !this.eventOwnerValid || !this.eventDescriptionValid;
     },
+    nextStepClass() {
+      return this.displayTimeInForm && 'btn primary' || 'btn btn-primary';
+    },
     stepButtonLabel() {
-      return this.stepper === 2 ? this.$t('agenda.button.save') : this.$t('agenda.button.continue');
+      return this.displayTimeInForm ? this.$t('agenda.alternativeDates') : this.$t('agenda.button.continue');
     },
   },
   mounted() {
@@ -159,12 +174,15 @@ export default {
     previousStep() {
       this.stepper--;
     },
+    saveEvent() {
+      this.event.start = this.event.startDate && this.$agendaUtils.toRFC3339(this.event.startDate) || this.$agendaUtils.toRFC3339(new Date());
+      this.event.end = this.event.endDate && this.$agendaUtils.toRFC3339(this.event.endDate) || this.$agendaUtils.toRFC3339(new Date());
+
+      this.$root.$emit('agenda-event-save', this.event);
+    },
     nextStep() {
       if (this.stepper > 1) {
-        this.event.start = this.event.startDate && this.$agendaUtils.toRFC3339(this.event.startDate) || this.$agendaUtils.toRFC3339(new Date());
-        this.event.end = this.event.endDate && this.$agendaUtils.toRFC3339(this.event.endDate) || this.$agendaUtils.toRFC3339(new Date());
-
-        this.$root.$emit('agenda-event-save', this.event);
+        this.saveEvent();
       } else if (this.stepper === 1) {
         if (this.$refs.eventBasicInformation.validateForm()) {
           this.stepper++;
