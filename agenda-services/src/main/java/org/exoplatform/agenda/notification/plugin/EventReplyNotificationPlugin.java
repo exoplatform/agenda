@@ -5,6 +5,7 @@ import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.service.AgendaCalendarService;
+import org.exoplatform.agenda.service.AgendaEventAttendeeService;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.model.NotificationInfo;
 import org.exoplatform.commons.api.notification.plugin.BaseNotificationPlugin;
@@ -18,20 +19,26 @@ import static org.exoplatform.agenda.util.NotificationUtils.*;
 import static org.exoplatform.agenda.util.NotificationUtils.storeEventParameters;
 
 public class EventReplyNotificationPlugin extends BaseNotificationPlugin {
-  private static final Log    LOG                             = ExoLogger.getLogger(EventReminderNotificationPlugin.class);
+  private static final Log           LOG                             = ExoLogger.getLogger(EventReminderNotificationPlugin.class);
 
-  private static final String AGENDA_NOTIFICATION_PLUGIN_NAME = "agenda.notification.plugin.key";
+  private static final String        AGENDA_NOTIFICATION_PLUGIN_NAME = "agenda.notification.plugin.key";
 
-  private String              notificationId;
+  private String                     notificationId;
 
-  private IdentityManager     identityManager;
+  private IdentityManager            identityManager;
 
-  private AgendaCalendarService calendarService;
+  private AgendaCalendarService      calendarService;
 
-  public EventReplyNotificationPlugin(InitParams initParams, IdentityManager identityManager, AgendaCalendarService calendarService) {
+  private AgendaEventAttendeeService eventAttendeeService;
+
+  public EventReplyNotificationPlugin(InitParams initParams,
+                                      IdentityManager identityManager,
+                                      AgendaCalendarService calendarService,
+                                      AgendaEventAttendeeService eventAttendeeService) {
     super(initParams);
     this.identityManager = identityManager;
     this.calendarService = calendarService;
+    this.eventAttendeeService = eventAttendeeService;
     ValueParam notificationIdParam = initParams.getValueParam(AGENDA_NOTIFICATION_PLUGIN_NAME);
     if (notificationIdParam == null || StringUtils.isBlank(notificationIdParam.getValue())) {
       throw new IllegalStateException("'agenda.notification.plugin.key' parameter is mandatory");
@@ -68,7 +75,13 @@ public class EventReplyNotificationPlugin extends BaseNotificationPlugin {
       LOG.debug("Notification type '{}' doesn't have a recipient", getId());
       return null;
     } else {
-      storeEventParameters(identityManager, notification, event, eventParticipantId, eventResponse, calendar);
+      storeEventParameters(identityManager,
+                           notification,
+                           event,
+                           eventParticipantId,
+                           eventResponse,
+                           calendar,
+                           eventAttendeeService);
       return notification.end();
     }
   }
