@@ -98,43 +98,6 @@
           :style="currentTimeStyle"></div>
       </template>
     </v-calendar>
-    <v-menu
-      ref="eventDatesMenu"
-      v-model="selectedOpen"
-      :close-on-content-click="false"
-      :activator="selectedElement"
-      :left="menuLeftPosition"
-      :right="!menuLeftPosition"
-      :top="menuTopPosition"
-      content-class="select-date-pickers agenda-application"
-      offset-x>
-      <v-card
-        min-width="350"
-        class="pa-0 pb-4"
-        flat>
-        <v-card-text class="pa-0">
-          <div class="d-flex">
-            <v-btn
-              class="ml-auto"
-              color="grey"
-              icon
-              dark
-              @click="selectedOpen = false">
-              <v-icon>
-                mdi-close
-              </v-icon>
-            </v-btn>
-          </div>
-          <agenda-event-form-date-pickers
-            v-if="selectedOpen"
-            ref="selectedEventDatePickers"
-            :event="selectedEvent"
-            :date-picker-top="datePickerTop"
-            class="px-3"
-            @changed="updateCalendarDisplay(selectedEvent)" />
-        </v-card-text>
-      </v-card>
-    </v-menu>
     <agenda-connectors-drawer :connectors="connectors" />
   </v-flex>
 </template>
@@ -173,9 +136,6 @@ export default {
     createStart: null,
     extendOriginal: null,
     selectedEvent: null,
-    selectedElement: null,
-    selectedOpen: null,
-    datePickerTop: true,
     dayToDisplay: Date.now(),
     dateTimeFormat: {
       year: 'numeric',
@@ -190,8 +150,6 @@ export default {
     },
     currentTimeTop: null,
     scrollToTimeTop: null,
-    menuLeftPosition: false,
-    menuTopPosition: false,
     period: {},
     remoteEvents: [],
     spaceEvents: [],
@@ -219,33 +177,10 @@ export default {
     connectedConnector() {
       this.retrieveRemoteEvents();
     },
-    displayedEvents() {
-      if (this.displayedEvents && this.displayedEvents.length) {
-        this.selectedOpen = false;
-        this.$nextTick(() => this.showEventDatePickers(this.event));
-      }
-    },
-    selectedOpen() {
-      if (this.selectedOpen && this.$refs.selectedEventDatePickers) {
-        this.$refs.selectedEventDatePickers.reset();
-      }
-    },
   },
   created() {
     if(!this.event.timeZoneId) {
       this.event.timeZoneId = this.$agendaUtils.USER_TIMEZONE_ID;
-    }
-    if (!this.event.startDate) {
-      this.event.startDate = this.event.start && this.$agendaUtils.toDate(this.event.start) || new Date();
-      this.event.startDate = this.roundTime(new Date(this.event.startDate).getTime());
-    }
-
-    if (!this.event.endDate) {
-      if (this.event.end) {
-        this.event.endDate = this.$agendaUtils.toDate(this.event.end).getTime();
-      } else {
-        this.event.endDate = new Date(this.event.startDate).getTime();
-      }
     }
 
     this.$forceUpdate();
@@ -254,28 +189,15 @@ export default {
   mounted() {
     if (this.$refs.calendar) {
       this.currentTimeTop = this.$refs.calendar.timeToY(this.nowTimeOptions);
-      this.scrollToEvent(this.event);
-      window.setTimeout(() => {
-        this.showEventDatePickers(this.event);
-      }, 200);
+      const event = Object.assign({}, this.event);
+      this.event.startDate = null;
+      this.scrollToEvent(event);
     }
     this.$root.$on('agenda-event-save', () => {
       this.selectedEvent = null;
-      this.selectedOpen = false;
     });
   },
   methods: {
-    updateCalendarDisplay(event) {
-      event.startDate = new Date(this.event.startDate);
-      event.endDate = new Date(this.event.endDate);
-      event.start = this.$agendaUtils.toRFC3339(this.event.startDate);
-      event.end = this.$agendaUtils.toRFC3339(this.event.endDate);
-      this.scrollToEvent(event);
-      this.retrieveEvents();
-      if (this.$refs.eventDatesMenu) {
-        this.showEventDatePickers(event, 200);
-      }
-    },
     scrollToEvent(event) {
       const dateTime = this.$agendaUtils.toDate(event.startDate);
       this.scrollToTimeTop = this.$refs.calendar.timeToY({
@@ -295,51 +217,24 @@ export default {
         }
       });
     },
-    showEvent({nativeEvent, event}) {
+    showEvent(nativeEvent) {
       if (!nativeEvent) {
         return;
       }
       nativeEvent.preventDefault();
       nativeEvent.stopPropagation();
-
-      if (!event.created) {
-        this.showEventDatePickers(event);
-      }
-    },
-    showEventDatePickers(event, waitTimeToDisplay = 200) {
-      const domId = this.getEventDomId(event);
-      let $targetElement = $(`#${domId}`);
-      const targetElement = $targetElement.length && $targetElement[0];
-
-      this.newEventStarted = false;
-      this.selectedOpen = false;
-      this.selectedElement = targetElement;
-      this.selectedEvent = event;
-
-      window.setTimeout(() => {
-        if (this.selectedEvent) {
-          const domId = this.getEventDomId(event);
-          $targetElement = $(`#${domId}`);
-          if (!this.selectedElement) {
-            this.selectedElement = $targetElement.length && $targetElement[0];
-          }
-          if ($targetElement && $targetElement.length && $targetElement.offset()) {
-            this.datePickerTop = $targetElement.offset().top > 330;
-            this.menuTopPosition = window.innerHeight - $targetElement.offset().top < 400;
-            this.menuLeftPosition = $targetElement.offset().left > window.innerWidth / 2;
-            this.selectedOpen = true;
-          }
-        } else {
-          this.selectedOpen = false;
-        }
-      }, waitTimeToDisplay);
     },
     startTime(tms) {
+      //refresh after assigning a startDate for the new event for the first time only
+      if (!this.event.startDate) {
+        this.$nextTick().then(() => {
+          this.refreshEventsToDisplay();
+        });
+      }
       const mouse = this.toTime(tms);
       this.event.startDate = this.roundTime(mouse);
       this.event.endDate = this.$agendaUtils.toDate(this.event.startDate);
       this.newEventStarted = true;
-      this.selectedOpen = false;
 
       this.$refs.calendar.updateTimes();
       this.$forceUpdate();
@@ -358,11 +253,9 @@ export default {
         this.newEventStarted = false;
         this.event.start = this.$agendaUtils.toRFC3339(this.event.startDate);
         this.event.end = this.$agendaUtils.toRFC3339(this.event.endDate);
-        this.selectedOpen = false;
         this.selectedEvent = null;
         this.$nextTick().then(() => {
           this.refreshEventsToDisplay();
-          this.showEventDatePickers(this.event);
         });
 
         this.$refs.calendar.updateTimes();
@@ -522,7 +415,7 @@ export default {
           }
         });
       }
-      this.displayedEvents = this.event ? [this.event, ...spaceEventsToDisplay, ...remoteEventsToDisplay]:[...spaceEventsToDisplay, ...remoteEventsToDisplay];
+      this.displayedEvents = this.event.startDate ? [this.event, ...spaceEventsToDisplay, ...remoteEventsToDisplay]:[...spaceEventsToDisplay, ...remoteEventsToDisplay];
     },
   },
 };
