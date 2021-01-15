@@ -21,6 +21,7 @@
           ref="eventForm"
           :settings="settings"
           :event="event"
+          :display-time-in-form="displayTimeInForm"
           :weekdays="weekdays"
           :current-space="currentSpace"
           :working-time="workingTime"
@@ -101,6 +102,7 @@ export default {
       messageType: null,
       originalEventString: null,
       isForm: false,
+      displayTimeInForm: false,
     };
   },
   computed: {
@@ -155,13 +157,15 @@ export default {
       }
     }
     $(document).on('keydown', this.closeByEscape);
-    this.$root.$on('agenda-event-form', agendaEvent => {
+    this.$root.$on('agenda-event-form', (agendaEvent, displayTimeInForm) => {
       const isNew = agendaEvent.id ? !agendaEvent.id : !agendaEvent.parent || !agendaEvent.parent.id;
       if (isNew) {
         this.isForm = true;
+        this.displayTimeInForm = !!displayTimeInForm;
         this.openDialog(agendaEvent);
         this.$nextTick().then(() => this.$root.$emit('agenda-event-form-opened', agendaEvent));
       } else {
+        this.displayTimeInForm = true;
         if (agendaEvent.id) {
           this.openEventForm(agendaEvent.id);
         } else if (agendaEvent.occurrence && agendaEvent.occurrence.id) {
