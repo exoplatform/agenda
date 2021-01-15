@@ -9,7 +9,7 @@
         class="flex-grow-1 my-auto" />
       <div v-if="!event.allDay" class="d-flex flex-row flex-grow-0">
         <slot name="startDateTime"></slot>
-        <time-picker v-model="startTime" />
+        <time-picker v-model="startTime" class="event-time-picker" />
       </div>
     </div>
     <slot name="endDateLabel"></slot>
@@ -26,7 +26,8 @@
         <slot name="endTimeLabel"></slot>
         <time-picker
           v-model="endTime"
-          :min="minimumEndTime" />
+          :min="minimumEndTime"
+          class="event-time-picker" />
       </div>
     </div>
     <div class="d-flex flex-row">
