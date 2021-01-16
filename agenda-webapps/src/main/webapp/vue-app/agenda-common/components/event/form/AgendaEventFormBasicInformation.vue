@@ -53,9 +53,9 @@
           <div class="d-flex flex-column">
             <agenda-event-form-recurrence :event="event" class="my-auto" />
             <agenda-event-recurrence
-              v-if="event.recurrence"
+              v-if="hasRecurrence"
               :event="event"
-              class="text-wrap mt-2" />
+              class="text-wrap ml-2" />
           </div>
         </div>
         <agenda-event-form-conference
@@ -132,6 +132,9 @@ export default {
   computed: {
     allowAttendeeToUpdate() {
       return this.event.allowAttendeeToUpdate;
+    },
+    hasRecurrence() {
+      return this.event.recurrence || this.event.parent && this.event.parent.recurrence;
     },
   },
   watch: {
