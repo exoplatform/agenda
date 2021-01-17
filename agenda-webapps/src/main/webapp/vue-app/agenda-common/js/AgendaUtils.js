@@ -2,6 +2,81 @@ import TIMEZONE_IDS from '../json/timezones.json';
 
 export const USER_TIMEZONE_ID = new window.Intl.DateTimeFormat().resolvedOptions().timeZone;
 export const TIMEZONES = [];
+export const MINIMUM_TIME_INTERVAL = 30;
+export const MINIMUM_TIME_INTERVAL_MS = MINIMUM_TIME_INTERVAL * 60 * 1000;
+
+export function initEventForm(agendaEvent) {
+  if(!agendaEvent.timeZoneId) {
+    agendaEvent.timeZoneId = USER_TIMEZONE_ID;
+  }
+  if (!agendaEvent.startDate && agendaEvent.start) {
+    agendaEvent.startDate = agendaEvent.start && toDate(agendaEvent.start) || new Date();
+    agendaEvent.startDate = roundTime(new Date(agendaEvent.startDate).getTime());
+  }
+  if (!agendaEvent.endDate && agendaEvent.end) {
+    agendaEvent.endDate = toDate(agendaEvent.end).getTime();
+  }
+  if (!agendaEvent.calendar) {
+    agendaEvent.calendar = {};
+  }
+  if (!agendaEvent.calendar.owner) {
+    agendaEvent.calendar.owner = {};
+  }
+  if (!agendaEvent.reminders) {
+    agendaEvent.reminders = [];
+  }
+  if (!agendaEvent.attachments) {
+    agendaEvent.attachments = [];
+  }
+  if (!agendaEvent.attendees) {
+    agendaEvent.attendees = [];
+  }
+  if (!agendaEvent.dateOptions) {
+    agendaEvent.dateOptions = [];
+  }
+
+  if (agendaEvent.status === 'TENTATIVE') {
+    agendaEvent.dateOptions.forEach(dateOption => {
+      if (!dateOption.startDate) {
+        dateOption.startDate = dateOption.start && toDate(dateOption.start) || new Date();
+        dateOption.startDate = roundTime(new Date(dateOption.startDate).getTime());
+      }
+
+      if (!dateOption.endDate) {
+        if (dateOption.end) {
+          dateOption.endDate = toDate(dateOption.end).getTime();
+        } else if (dateOption.start) {
+          dateOption.endDate = new Date(dateOption.startDate).getTime() + MINIMUM_TIME_INTERVAL_MS;
+        }
+      }
+    });
+  } else if (!agendaEvent.dateOptions.length && agendaEvent.startDate && agendaEvent.endDate) {
+    agendaEvent.dateOptions = [{
+      allDay: agendaEvent.allDay,
+      start: agendaEvent.start,
+      startDate: agendaEvent.startDate,
+      end: agendaEvent.end,
+      endDate: agendaEvent.endDate,
+    }];
+  }
+
+  const eventColor = agendaEvent && (agendaEvent.color || agendaEvent.calendar && agendaEvent.calendar.color) || '#2196F3';
+  agendaEvent.dateOptions.forEach(dateOption => {
+    dateOption.dateOption = true;
+    dateOption.eventId = agendaEvent.id;
+    dateOption.summary = agendaEvent.summary;
+    dateOption.color = eventColor;
+    dateOption.occurrence = agendaEvent.occurrence;
+    dateOption.parent = {
+      id: agendaEvent.parent && agendaEvent.parent.id,
+    };
+  });
+
+  agendaEvent.start = null;
+  agendaEvent.startDate = null;
+  agendaEvent.end = null;
+  agendaEvent.endDate = null;
+}
 
 export function getUserTimezone() {
   const timeZoneOffset = - (new Date().getTimezoneOffset());
@@ -122,8 +197,8 @@ export function toDate(date) {
   }
 }
 export function convertDates(event) {
-  event.startDate = event.start && this.toDate(event.start) || null;
-  event.endDate = event.end && this.toDate(event.end) || null;
+  event.startDate = event.start && toDate(event.start) || null;
+  event.endDate = event.end && toDate(event.end) || null;
   return event;
 }
 
@@ -298,4 +373,14 @@ export function addOpacity(hexColor, opacity) {
   const g = parseInt(gHex, 16);
   const b = parseInt(bHex, 16);
   return `rgba(${r},${g},${b},${opacity / 100})`;
+}
+
+export function roundTime(time, down = true) {
+  return down
+    ? time - time % MINIMUM_TIME_INTERVAL_MS
+    : time + (MINIMUM_TIME_INTERVAL_MS - time % MINIMUM_TIME_INTERVAL_MS);
+}
+
+export function toDateTime(tms, down = true) {
+  return roundTime(new Date(tms.year, tms.month - 1, tms.day, tms.hour, tms.minute).getTime(), down);
 }

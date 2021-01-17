@@ -34,7 +34,7 @@
           <agenda-event-form-basic-information
             ref="eventBasicInformation"
             :event="event"
-            :display-time-in-form="displayTimeInForm"
+            :display-time-in-form="displayTimes"
             :settings="settings"
             :connectors="connectors"
             :conference-provider="conferenceProvider"
@@ -58,7 +58,7 @@
     <div class="d-flex flex-grow-0 my-2">
       <v-btn
         v-if="stepper > 1"
-        class="btn mr-2"
+        class="btn mx-2"
         @click="previousStep">
         <v-icon>mdi-chevron-left</v-icon>
         <span class="d-none d-md-inline">
@@ -67,17 +67,17 @@
       </v-btn>
       <div class="ml-auto mr-10">
         <v-btn
-          v-if="displayCreateButton"
-          :disabled="disableCreateButton"
+          v-if="displaySaveButton"
+          :disabled="disableSaveButton"
           class="btn btn-primary mr-2"
           @click="saveEvent">
           {{ $t('agenda.label.create') }}
         </v-btn>
         <v-btn
           v-if="stepper < 2"
-          :disabled="disableCreateButton"
-          :outlined="displayTimeInForm"
+          :disabled="disableNextStepButton"
           :class="nextStepClass"
+          outlined
           @click="nextStep">
           {{ stepButtonLabel }}
         </v-btn>
@@ -128,7 +128,8 @@ export default {
   },
   data () {
     return {
-      stepper: 1,
+      eventDateOptionsLength: 0,
+      stepper: 0,
     };
   },
   computed: {
@@ -137,9 +138,6 @@ export default {
     },
     eventTitleValid() {
       return this.eventTitle && this.eventTitle.length >= 5 && this.eventTitle.length < 1024;
-    },
-    eventDateValid() {
-      return this.event && this.event.startDate;
     },
     eventOwner() {
       return this.event && this.event.calendar && this.event.calendar.owner;
@@ -153,11 +151,20 @@ export default {
     eventDescriptionValid() {
       return this.eventDescription.length <= 1300;
     },
-    displayCreateButton() {
+    eventDateOptions() {
+      return this.event && this.event.dateOptions || [];
+    },
+    displayTimes() {
+      return this.displayTimeInForm && this.eventDateOptionsLength === 1;
+    },
+    displaySaveButton() {
       return this.displayTimeInForm || this.stepper > 1;
     },
-    disableCreateButton() {
-      return !this.eventTitleValid || !this.eventOwnerValid || !this.eventDescriptionValid || (!this.eventDateValid && this.stepper > 1);
+    disableSaveButton() {
+      return !this.eventTitleValid || !this.eventOwnerValid || !this.eventDescriptionValid || this.eventDateOptionsLength === 0;
+    },
+    disableNextStepButton() {
+      return !this.eventTitleValid || !this.eventOwnerValid || !this.eventDescriptionValid;
     },
     nextStepClass() {
       return this.displayTimeInForm && 'btn primary' || 'btn btn-primary';
@@ -166,18 +173,34 @@ export default {
       return this.displayTimeInForm ? this.$t('agenda.alternativeDates') : this.$t('agenda.button.continue');
     },
   },
+  watch: {
+    eventDateOptions() {
+      this.eventDateOptionsLength = this.event.dateOptions.length;
+    },
+    stepper() {
+      this.eventDateOptionsLength = this.event.dateOptions.length;
+      this.$nextTick(() => {
+        if (this.$refs.eventBasicInformation) {
+          this.$refs.eventBasicInformation.reset();
+        }
+      });
+    },
+  },
   mounted() {
     this.reset();
   },
   methods:{
     close() {
       this.$emit('close');
+      this.$nextTick(() => this.stepper = 0);
     },
     reset() {
       this.stepper = 1;
+      this.$forceUpdate();
     },
     previousStep() {
       this.stepper--;
+      this.$forceUpdate();
     },
     saveEvent() {
       this.event.start = this.event.startDate && this.$agendaUtils.toRFC3339(this.event.startDate) || this.$agendaUtils.toRFC3339(new Date());

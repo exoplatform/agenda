@@ -69,6 +69,7 @@ public class EventSearchResultEntity extends EventEntity {
           recurrence,
           occurrence,
           acl,
+          null,
           attendees,
           conferences,
           attachments,

@@ -1,4 +1,4 @@
-+<template>
+<template>
   <v-calendar
     ref="calendar"
     v-model="selectedDate"
@@ -254,8 +254,8 @@ export default {
       this.dragEvent = dragEvent;
       if (this.dragEvent) {
         this.originalDragedEvent = JSON.parse(JSON.stringify(this.dragEvent));
-        this.originalDragedEvent.startDate = new Date(this.dragEvent.startDate);
-        this.originalDragedEvent.endDate = new Date(this.dragEvent.endDate);
+        this.originalDragedEvent.startDate = this.$agendaUtils.toDate(this.dragEvent.startDate);
+        this.originalDragedEvent.endDate = this.$agendaUtils.toDate(this.dragEvent.endDate);
       }
     },
     eventMouseDown(eventObj) {
@@ -266,8 +266,8 @@ export default {
       this.dragEvent = dragEvent;
       if (this.dragEvent) {
         this.originalDragedEvent = JSON.parse(JSON.stringify(this.dragEvent));
-        this.originalDragedEvent.startDate = new Date(this.dragEvent.startDate);
-        this.originalDragedEvent.endDate = new Date(this.dragEvent.endDate);
+        this.originalDragedEvent.startDate = this.$agendaUtils.toDate(this.dragEvent.startDate);
+        this.originalDragedEvent.endDate = this.$agendaUtils.toDate(this.dragEvent.endDate);
       }
     },
     eventMouseUp(eventObj) {
@@ -282,25 +282,25 @@ export default {
     eventMouseMove(params) {
       if (this.dragEvent) {
         if (this.eventExtended) {
-          const newDate = this.toDate(params, false);
-          if (newDate >= this.dragEvent.startDate) {
-            this.dragEvent.endDate = this.toDate(params, true);
+          const newDate = this.$agendaUtils.toDateTime(params, false);
+          if (newDate >= this.$agendaUtils.toDate(this.dragEvent.startDate).getTime()) {
+            this.dragEvent.endDate = this.$agendaUtils.toDateTime(params, true);
           } else {
             this.dragEvent.endDate = this.dragEvent.startDate;
           }
         } else {
-          const newTime = this.toDate(params, false).getTime();
+          const newTime = this.$agendaUtils.toDateTime(params, false);
           if (!Number.isNaN(newTime)) {
             this.eventDragged = true;
 
-            const start = new Date(this.dragEvent.startDate).getTime();
-            const end = new Date(this.dragEvent.endDate).getTime();
+            const start = this.$agendaUtils.toDate(this.dragEvent.startDate).getTime();
+            const end = this.$agendaUtils.toDate(this.dragEvent.endDate).getTime();
             const duration = end - start;
             const newStartTime = newTime - this.dragDelta;
-            const newStart = this.roundTime(newStartTime);
+            const newStart = this.$agendaUtils.roundTime(newStartTime);
             const newEnd = newStart + duration;
-            this.dragEvent.startDate = new Date(newStart);
-            this.dragEvent.endDate = new Date(newEnd);
+            this.dragEvent.startDate = this.$agendaUtils.toDate(newStart);
+            this.dragEvent.endDate = this.$agendaUtils.toDate(newEnd);
           }
         }
       }
@@ -312,16 +312,16 @@ export default {
       if (this.dragEvent) {
 
         if (!this.dragDelta) {
-          this.dragDelta = this.toDate(params).getTime() - new Date(this.dragEvent.startDate).getTime();
+          this.dragDelta = this.$agendaUtils.toDateTime(params) - this.$agendaUtils.toDate(this.dragEvent.startDate).getTime();
         }
       } else if (!this.eventDragged && !this.eventExtended) {
         this.cancelEventModification();
 
-        const startDate = this.toDate(params, true);
+        const startDate = this.$agendaUtils.toDateTime(params, true);
         this.quickEvent = {
           summary: '',
           startDate: startDate,
-          endDate: startDate,
+          endDate: startDate + this.$agendaUtils.MINIMUM_TIME_INTERVAL_MS,
           allDay: !params.time,
           editing: true,
           calendar: {
@@ -338,11 +338,11 @@ export default {
       }
 
       if (this.quickEvent && this.quickEvent.editing) {
-        const newDate = this.toDate(params);
-        if (new Date(this.quickEvent.startDate).getTime() > newDate.getTime()) {
-          this.quickEvent.startDate = this.toDate(params, false);
+        const newDate = this.$agendaUtils.toDateTime(params);
+        if (this.$agendaUtils.toDate(this.quickEvent.startDate).getTime() > newDate) {
+          this.quickEvent.startDate = this.$agendaUtils.toDateTime(params, false);
         } else {
-          this.quickEvent.endDate = this.toDate(params, true);
+          this.quickEvent.endDate = this.$agendaUtils.toDateTime(params, true);
         }
 
         if (!this.quickEvent.added) {
@@ -440,16 +440,6 @@ export default {
       this.dragDelta = null;
       this.dragEvent = null;
       this.originalDragedEvent = null;
-    },
-    roundTime(minute, down) {
-      const roundTo = 15; // minutes
-
-      return down
-        ? minute - minute % roundTo
-        : minute + (roundTo - minute % roundTo);
-    },
-    toDate(tms, down = true) {
-      return new Date(tms.year, tms.month - 1, tms.day, tms.hour, this.roundTime(tms.minute, down));
     },
     agendaIntervalStyle(interval) {
       if (this.workingTime.showWorkingTime) {

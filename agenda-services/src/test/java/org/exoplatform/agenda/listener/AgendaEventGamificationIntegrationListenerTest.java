@@ -33,6 +33,7 @@ public class AgendaEventGamificationIntegrationListenerTest extends BaseAgendaEv
             Collections.emptyList(),
             Collections.emptyList(),
             Collections.emptyList(),
+            Collections.emptyList(),
             null,
             true,
             user1IdentityId);

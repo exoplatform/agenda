@@ -56,6 +56,14 @@ public class Utils {
 
   public static final String            POST_EVENT_RESPONSE_SENT       = "exo.agenda.event.responseSent";
 
+  public static final String            POST_CREATE_AGENDA_EVENT_POLL  = "exo.agenda.event.poll.created";
+
+  public static final String            POST_UPDATE_AGENDA_EVENT_POLL  = "exo.agenda.event.poll.updated";
+
+  public static final String            POST_VOTE_AGENDA_EVENT_POLL    = "exo.agenda.event.poll.voted";
+
+  public static final String            POST_DISMISS_AGENDA_EVENT_POLL = "exo.agenda.event.poll.dismissed";
+
   private Utils() {
   }
 
