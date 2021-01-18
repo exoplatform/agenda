@@ -98,7 +98,9 @@ export function getEventExceptionalOccurrences(eventId, expand) {
 }
 
 export function createEvent(event) {
-  event.sendInvitation = true;
+  if (!event.hasOwnProperty('sendInvitation')) {
+    event.sendInvitation = true;
+  }
   event = formatEventToSave(event);
 
   const saveWebConferencePromises = getSaveAllWebConferencesPromises(event);
@@ -128,7 +130,9 @@ export function createEvent(event) {
 }
 
 export function updateEvent(event) {
-  event.sendInvitation = true;
+  if (!event.hasOwnProperty('sendInvitation')) {
+    event.sendInvitation = true;
+  }
   event = formatEventToSave(event);
 
   const saveWebConferencePromises = getSaveAllWebConferencesPromises(event);
