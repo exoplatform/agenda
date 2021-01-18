@@ -56,7 +56,8 @@ public class AgendaReplyNotificationPluginTest extends BaseAgendaEventTest {
     EventReplyNotificationPlugin replyNotificationPlugin = new EventReplyNotificationPlugin(initParams,
                                                                                             identityManager,
                                                                                             agendaCalendarService,
-                                                                                            agendaEventAttendeeService);
+                                                                                            agendaEventAttendeeService,
+                                                                                            spaceService);
     NotificationContext ctx =
                             NotificationContextImpl.cloneInstance()
                                                    .append(NotificationUtils.EVENT_AGENDA, event)

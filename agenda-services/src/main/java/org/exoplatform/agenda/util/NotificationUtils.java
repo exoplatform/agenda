@@ -292,18 +292,30 @@ public class NotificationUtils {
                                                 long participantId,
                                                 EventAttendeeResponse response,
                                                 org.exoplatform.agenda.model.Calendar calendar,
-                                                AgendaEventAttendeeService eventAttendeeService) {
+                                                AgendaEventAttendeeService eventAttendeeService,
+                                                SpaceService spaceService) {
     Identity identity = Utils.getIdentityById(identityManager, participantId);
     String timeZoneName = TimeZone.getTimeZone(event.getTimeZoneId()).getDisplayName() + ": " + event.getTimeZoneId();
     List<String> participants = new ArrayList<>();
     List<EventAttendee> eventAttendee = eventAttendeeService.getEventAttendees(event.getId());
+    List<String> spaceParticipants = new ArrayList<>();
+    String showSpaceParticipant = null;
     for (EventAttendee attendee : eventAttendee) {
       Identity identityAttendee = Utils.getIdentityById(identityManager, attendee.getIdentityId());
-      if (identityAttendee.getProviderId().equals(OrganizationIdentityProvider.NAME)) {
+      if (identityAttendee.getProviderId().equals(SpaceIdentityProvider.NAME)) {
+        String spaceName = identityAttendee.getRemoteId();
+        if (StringUtils.isNotBlank(spaceName)) {
+          spaceParticipants.add(spaceName);
+        }
+      } else if (identityAttendee.getProviderId().equals(OrganizationIdentityProvider.NAME)) {
         participants.add(identityAttendee.getId());
       }
     }
     String showParticipants = getFullUserName(participants, identityManager);
+    if (spaceParticipants.size() > 0) {
+      showSpaceParticipant = getSpaceDisplayName(spaceParticipants, spaceService);
+      showParticipants = showParticipants.concat(",").concat(showSpaceParticipant);
+    }
     notification.with(STORED_PARAMETER_EVENT_ID, String.valueOf(event.getId()))
                 .with(STORED_PARAMETER_EVENT_TITLE, event.getSummary())
                 .with(STORED_PARAMETER_EVENT_PARTICIPANT_AVATAR_URL, setParticipantAvatarUrl(identity))
@@ -711,6 +723,15 @@ public class NotificationUtils {
       }
       return String.join(", ", showParticipants);
     }
+  }
+
+  private static String getSpaceDisplayName(List<String> participants, SpaceService spaceService) {
+    List<String> showParticipants = new ArrayList<>();
+    for (int i = 0; i < participants.size(); i++) {
+      String displaySpaceName = spaceService.getSpaceByPrettyName(participants.get(i)).getDisplayName();
+      showParticipants.add(displaySpaceName);
+    }
+    return String.join(", ", showParticipants);
   }
 
 }

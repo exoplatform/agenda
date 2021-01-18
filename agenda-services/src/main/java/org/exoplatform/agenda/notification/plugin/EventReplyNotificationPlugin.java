@@ -14,6 +14,7 @@ import org.exoplatform.container.xml.ValueParam;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.social.core.space.spi.SpaceService;
 
 import static org.exoplatform.agenda.util.NotificationUtils.*;
 import static org.exoplatform.agenda.util.NotificationUtils.storeEventParameters;
@@ -31,14 +32,18 @@ public class EventReplyNotificationPlugin extends BaseNotificationPlugin {
 
   private AgendaEventAttendeeService eventAttendeeService;
 
+  private SpaceService               spaceService;
+
   public EventReplyNotificationPlugin(InitParams initParams,
                                       IdentityManager identityManager,
                                       AgendaCalendarService calendarService,
-                                      AgendaEventAttendeeService eventAttendeeService) {
+                                      AgendaEventAttendeeService eventAttendeeService,
+                                      SpaceService spaceService) {
     super(initParams);
     this.identityManager = identityManager;
     this.calendarService = calendarService;
     this.eventAttendeeService = eventAttendeeService;
+    this.spaceService = spaceService;
     ValueParam notificationIdParam = initParams.getValueParam(AGENDA_NOTIFICATION_PLUGIN_NAME);
     if (notificationIdParam == null || StringUtils.isBlank(notificationIdParam.getValue())) {
       throw new IllegalStateException("'agenda.notification.plugin.key' parameter is mandatory");
@@ -81,7 +86,8 @@ public class EventReplyNotificationPlugin extends BaseNotificationPlugin {
                            eventParticipantId,
                            eventResponse,
                            calendar,
-                           eventAttendeeService);
+                           eventAttendeeService,
+                           spaceService);
       return notification.end();
     }
   }
