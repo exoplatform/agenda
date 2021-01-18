@@ -157,7 +157,7 @@ export default {
       return this.displayTimeInForm || this.stepper > 1;
     },
     disableCreateButton() {
-      return !this.eventTitleValid || !this.eventOwnerValid || !this.eventDescriptionValid || !this.eventDateValid;
+      return !this.eventTitleValid || !this.eventOwnerValid || !this.eventDescriptionValid || (!this.eventDateValid && this.stepper > 1);
     },
     nextStepClass() {
       return this.displayTimeInForm && 'btn primary' || 'btn btn-primary';

@@ -56,8 +56,6 @@
       event-end="endDate"
       color="primary"
       type="week"
-      @click:event="showEvent"
-      @mousedown:event="showEvent"
       @mousedown:time="startTime"
       @mousemove:time="mouseMove"
       @mouseup:time="endDrag"
@@ -67,7 +65,7 @@
         <div
           v-if="!eventObj.event || eventObj.event.type !== 'remoteEvent'"
           :id="getEventDomId(eventObj)"
-          class="v-event-draggable v-event-draggable-parent">
+          class="readonly-event">
           <p
             :title="eventObj.event.summary"
             class="text-truncate my-auto ml-2 caption font-weight-bold">
@@ -77,13 +75,13 @@
             <date-format
               :value="eventObj.event.startDate"
               :format="timeFormat"
-              class="v-event-draggable ml-2" />
+              class="ml-2" />
             <strong
               class="mx-1">-</strong>
             <date-format
               :value="eventObj.event.endDate"
               :format="timeFormat"
-              class="v-event-draggable mr-2" />
+              class="mr-2" />
           </div>
         </div>
         <agenda-connector-remote-event-item
@@ -190,7 +188,9 @@ export default {
     if (this.$refs.calendar) {
       this.currentTimeTop = this.$refs.calendar.timeToY(this.nowTimeOptions);
       const event = Object.assign({}, this.event);
-      this.event.startDate = null;
+      if (!event.created && !event.added) {
+        this.event.startDate = null;
+      }
       this.scrollToEvent(event);
     }
     this.$root.$on('agenda-event-save', () => {
@@ -216,13 +216,6 @@ export default {
           dailyScrollElement.scrollTo(0, scrollY);
         }
       });
-    },
-    showEvent(nativeEvent) {
-      if (!nativeEvent) {
-        return;
-      }
-      nativeEvent.preventDefault();
-      nativeEvent.stopPropagation();
     },
     startTime(tms) {
       //refresh after assigning a startDate for the new event for the first time only
