@@ -11,11 +11,15 @@
           aria-hidden="true"
           @click="close"></a>
         <span class="ignore-vuetify-classes PopupTitle popupTitle text-truncate">
-          {{ $t('agenda.title.confirmSaveRecurrentEvent') }}
+          {{ $t('agenda.confirmSaveRecurrentEventTitle') }}
         </span>
       </div>
       <v-card-text>
-        {{ $t('agenda.message.confirmSaveRecurrentEvent') }}
+        <v-radio-group v-model="recurrenceModificationType">
+          <v-radio :label="$t('agenda.onlyThisEvent')" value="single" />
+          <v-radio :label="$t('agenda.thisAndUpcomingEvents')" value="upcoming" />
+          <v-radio :label="$t('agenda.allEvents')" value="all" />
+        </v-radio-group>
       </v-card-text>
       <v-card-actions class="d-flex flex-wrap justify-center center">
         <button
@@ -28,16 +32,9 @@
         <button
           :disabled="loading"
           :loading="loading"
-          class="ignore-vuetify-classes btn ml-2 mb-1"
-          @click="confirmRecurrentEvent">
-          {{ $t('agenda.button.saveRecurrentEvent') }}
-        </button>
-        <button
-          :disabled="loading"
-          :loading="loading"
           class="ignore-vuetify-classes btn-primary ml-2 mb-1"
-          @click="confirmOccurrenceEvent">
-          {{ $t('agenda.button.saveOccurrenceEvent') }}
+          @click="saveRecurrentEventChoice">
+          {{ $t('agenda.button.save') }}
         </button>
       </v-card-actions>
     </v-card>
@@ -55,6 +52,7 @@ export default {
     },
   },
   data: () => ({
+    recurrenceModificationType: 'single',
     loading: false,
     dialog: false,
     reminders: null,
@@ -76,9 +74,39 @@ export default {
     });
   },
   methods: {
+    saveRecurrentEventChoice(eventObject) {
+      if (eventObject) {
+        eventObject.preventDefault();
+        eventObject.stopPropagation();
+      }
+
+      if (this.recurrenceModificationType === 'single') {
+        this.confirmOccurrenceEvent();
+      } else if (this.recurrenceModificationType === 'all') {
+        this.confirmRecurrentEvent();
+      } else if (this.recurrenceModificationType === 'upcoming') {
+        this.confirmUpcomingEvents();
+      }
+    },
+    confirmUpcomingEvents(eventObject) {
+      if (eventObject) {
+        eventObject.preventDefault();
+        eventObject.stopPropagation();
+      }
+
+      this.loading = true;
+      this.$eventService.saveEventReminders(this.event.parent.id, this.event.occurrence.id, this.reminders, true)
+        .then(() => {
+          this.$root.$emit('agenda-event-reminders-saved', this.event, null, this.reminders);
+          this.dialog = false;
+        })
+        .finally(() => this.loading = false);
+    },
     confirmRecurrentEvent(eventObject) {
-      eventObject.preventDefault();
-      eventObject.stopPropagation();
+      if (eventObject) {
+        eventObject.preventDefault();
+        eventObject.stopPropagation();
+      }
 
       this.loading = true;
       this.$eventService.saveEventReminders(this.event.parent.id, null, this.reminders)
@@ -89,8 +117,10 @@ export default {
         .finally(() => this.loading = false);
     },
     confirmOccurrenceEvent(eventObject) {
-      eventObject.preventDefault();
-      eventObject.stopPropagation();
+      if (eventObject) {
+        eventObject.preventDefault();
+        eventObject.stopPropagation();
+      }
 
       this.loading = true;
       this.$eventService.saveEventReminders(this.event.parent.id, this.event.occurrence.id, this.reminders)
@@ -100,9 +130,12 @@ export default {
         })
         .finally(() => this.loading = false);
     },
-    close(event) {
-      event.preventDefault();
-      event.stopPropagation();
+    close(eventObject) {
+      if (eventObject) {
+        eventObject.preventDefault();
+        eventObject.stopPropagation();
+      }
+
       this.dialog = false;
     },
     open(reminders) {

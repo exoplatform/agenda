@@ -3,7 +3,6 @@ package org.exoplatform.agenda.listener;
 import static org.junit.Assert.assertEquals;
 
 import java.time.ZonedDateTime;
-import java.util.List;
 
 import org.junit.Test;
 
@@ -11,7 +10,6 @@ import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
 import org.exoplatform.agenda.service.BaseAgendaEventTest;
-import org.exoplatform.commons.api.notification.model.WebNotificationFilter;
 import org.exoplatform.commons.api.notification.service.WebNotificationService;
 
 public class AgendaReplyEventNotificationListenerTest extends BaseAgendaEventTest {
@@ -40,6 +38,6 @@ public class AgendaReplyEventNotificationListenerTest extends BaseAgendaEventTes
                                                                                                                oldAttendeeResponse,
                                                                                                                newAttendeeResponse));
 
-    assertEquals(initialNotificationsSize + 1, webNotificationService.getNumberOnBadge(testuser1Identity.getRemoteId()));
+    assertEquals(initialNotificationsSize + 1l, webNotificationService.getNumberOnBadge(testuser1Identity.getRemoteId()));
   }
 }

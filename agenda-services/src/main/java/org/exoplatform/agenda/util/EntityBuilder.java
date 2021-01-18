@@ -138,7 +138,7 @@ public class EntityBuilder {
     }
     return new EventReminder(eventReminderEntity.getId(),
                              eventId,
-                             eventReminderEntity.getReceiverId(),
+                             0,
                              eventReminderEntity.getBefore(),
                              beforePeriodType);
   }
@@ -180,7 +180,6 @@ public class EntityBuilder {
 
   public static final EventReminderEntity fromEventReminder(EventReminder eventReminder) {
     return new EventReminderEntity(eventReminder.getId(),
-                                   eventReminder.getReceiverId(),
                                    eventReminder.getBefore(),
                                    eventReminder.getBeforePeriodType() == null ? null
                                                                                : eventReminder.getBeforePeriodType().name());

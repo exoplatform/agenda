@@ -230,11 +230,11 @@ export function saveUserReminderSettings(reminders) {
   });
 }
 
-export function saveEventReminders(eventId, occurrenceId, reminders) {
+export function saveEventReminders(eventId, occurrenceId, reminders, upcoming) {
   const remindersToSave = reminders && JSON.parse(JSON.stringify(reminders)) || [];
   remindersToSave.forEach(reminder => delete reminder.datetime);
 
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}/reminders?occurrenceId=${occurrenceId ||''}`, {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}/reminders?occurrenceId=${occurrenceId ||''}&upcoming=${upcoming || false}`, {
     method: 'PUT',
     credentials: 'include',
     headers: {

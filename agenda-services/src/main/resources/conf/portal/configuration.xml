@@ -79,28 +79,6 @@
         This is the period, in days, of next upcoming events to compute using a Job.</description>
         <value>${exo.agenda.reminder.computing.period:2}</value>
       </value-param>
-      <object-param>
-        <name>Default reminder 1 - Before 10 minutes</name>
-        <object type="org.exoplatform.agenda.model.EventReminderParameter">
-          <field name="before">
-            <int>${exo.agenda.reminder.setting1.before:10}</int>
-          </field>
-          <field name="periodType">
-            <string>${exo.agenda.reminder.setting1.periodType:MINUTE}</string>
-          </field>
-        </object>
-      </object-param>
-      <object-param>
-        <name>Default reminder 2 - Before 0 minutes</name>
-        <object type="org.exoplatform.agenda.model.EventReminderParameter">
-          <field name="before">
-            <int>${exo.agenda.reminder.setting2.before:0}</int>
-          </field>
-          <field name="periodType">
-            <string>${exo.agenda.reminder.setting2.periodType:MINUTE}</string>
-          </field>
-        </object>
-      </object-param>
     </init-params>
   </component>
 
@@ -154,6 +132,28 @@
           </field>
           <field name="automaticPushEvents">
             <boolean>${exo.agenda.settings.automaticPushEvents:true}</boolean>
+          </field>
+        </object>
+      </object-param>
+      <object-param>
+        <name>Default reminder 1 - Before 10 minutes</name>
+        <object type="org.exoplatform.agenda.model.EventReminderParameter">
+          <field name="before">
+            <int>${exo.agenda.reminder.setting1.before:10}</int>
+          </field>
+          <field name="periodType">
+            <string>${exo.agenda.reminder.setting1.periodType:MINUTE}</string>
+          </field>
+        </object>
+      </object-param>
+      <object-param>
+        <name>Default reminder 2 - Before 0 minutes</name>
+        <object type="org.exoplatform.agenda.model.EventReminderParameter">
+          <field name="before">
+            <int>${exo.agenda.reminder.setting2.before:0}</int>
+          </field>
+          <field name="periodType">
+            <string>${exo.agenda.reminder.setting2.periodType:MINUTE}</string>
           </field>
         </object>
       </object-param>
