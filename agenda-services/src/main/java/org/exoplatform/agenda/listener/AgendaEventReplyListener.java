@@ -31,11 +31,13 @@ public class AgendaEventReplyListener extends Listener<EventAttendee, EventAtten
     try {
       EventAttendee oldAttendee = event.getSource();
       EventAttendee newAttendee = event.getData();
-      org.exoplatform.agenda.model.Event agendaEvent = getAgendaEventService().getEventById(oldAttendee.getEventId());
+      org.exoplatform.agenda.model.Event agendaEvent = getAgendaEventService().getEventById(newAttendee.getEventId());
+      EventAttendeeResponse oldResponse = oldAttendee == null ? null : oldAttendee.getResponse();
+      EventAttendeeResponse newResponse = newAttendee.getResponse();
       // Avoid notifying creator when he changes his response and avoid
       // notifying him when a user doesn't change his response
-      if (oldAttendee.getResponse() != newAttendee.getResponse() && agendaEvent.getCreatorId() != oldAttendee.getIdentityId()) {
-        sendReplyResponseNotification(agendaEvent, oldAttendee.getIdentityId(), newAttendee.getResponse());
+      if (oldResponse != newResponse && agendaEvent.getCreatorId() != newAttendee.getIdentityId()) {
+        sendReplyResponseNotification(agendaEvent, newAttendee.getIdentityId(), newAttendee.getResponse());
       }
     } finally {
       RequestLifeCycle.end();
