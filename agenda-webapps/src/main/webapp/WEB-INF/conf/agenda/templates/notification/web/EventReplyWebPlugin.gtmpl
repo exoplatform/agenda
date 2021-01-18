@@ -8,7 +8,7 @@
             <div class="contentSmall" data-link="<%= eventURL %>">
                 <div class="status">
                     <%
-                    String eventTitle = "<span class=\"user-name text-bold\">"+ eventTitle +"</span>";
+                    String eventTitle = "<span class=\"user-name  text-truncate text-bold\">"+ eventTitle +"</span>";
                     String participantName = "<a class=\"user-name text-bold\">" + participantName +"</a>";
                     if (org.exoplatform.agenda.constant.EventAttendeeResponse.ACCEPTED.name().equals(responseType)) { %>
                       <%= _ctx.appRes("Notification.agenda.event.response.accepted", participantName, eventTitle) %>
