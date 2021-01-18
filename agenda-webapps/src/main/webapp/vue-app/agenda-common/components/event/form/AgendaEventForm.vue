@@ -67,15 +67,15 @@
       </v-btn>
       <div class="ml-auto mr-10">
         <v-btn
-          v-if="displaySaveButton"
-          :disabled="disableSaveButton"
+          v-if="displayCreateButton"
+          :disabled="disableCreateButton"
           class="btn btn-primary mr-2"
           @click="saveEvent">
-          {{ $t('agenda.button.save') }}
+          {{ $t('agenda.label.create') }}
         </v-btn>
         <v-btn
           v-if="stepper < 2"
-          :disabled="disableSaveButton"
+          :disabled="disableCreateButton"
           :outlined="displayTimeInForm"
           :class="nextStepClass"
           @click="nextStep">
@@ -138,6 +138,9 @@ export default {
     eventTitleValid() {
       return this.eventTitle && this.eventTitle.length >= 5 && this.eventTitle.length < 1024;
     },
+    eventDateValid() {
+      return this.event && this.event.startDate;
+    },
     eventOwner() {
       return this.event && this.event.calendar && this.event.calendar.owner;
     },
@@ -150,11 +153,11 @@ export default {
     eventDescriptionValid() {
       return this.eventDescription.length <= 1300;
     },
-    displaySaveButton() {
+    displayCreateButton() {
       return this.displayTimeInForm || this.stepper > 1;
     },
-    disableSaveButton() {
-      return !this.eventTitleValid || !this.eventOwnerValid || !this.eventDescriptionValid;
+    disableCreateButton() {
+      return !this.eventTitleValid || !this.eventOwnerValid || !this.eventDescriptionValid || (!this.eventDateValid && this.stepper > 1);
     },
     nextStepClass() {
       return this.displayTimeInForm && 'btn primary' || 'btn btn-primary';
