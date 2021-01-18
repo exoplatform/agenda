@@ -29,14 +29,12 @@ public class EventReminderEntity implements Serializable, Cloneable {
 
   private long              id;
 
-  private long              receiverId;
-
   private int               before;
 
   private String            beforePeriodType;
 
   @Override
   public EventReminderEntity clone() {// NOSONAR
-    return new EventReminderEntity(id, receiverId, before, beforePeriodType);
+    return new EventReminderEntity(id, before, beforePeriodType);
   }
 }

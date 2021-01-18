@@ -1167,6 +1167,8 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     createdEvent = newEventInstance(start, start, allDay);
     createdEvent = createEvent(createdEvent.clone(), Long.parseLong(testuser1Identity.getId()), testuser1Identity, testuser2Identity);
 
+    eventId = createdEvent.getId();
+
     List<EventReminder> reminders = agendaEventReminderService.getEventReminders(eventId, Long.parseLong(testuser1Identity.getId()));
     assertNotNull(reminders);
     assertEquals(1, reminders.size());
@@ -1174,7 +1176,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     EventReminder eventReminder = reminders.get(0);
     assertNotNull(eventReminder);
 
-    eventId = createdEvent.getId();
     storedEvent = agendaEventService.getEventById(eventId, null, Long.parseLong(testuser2Identity.getId()));
 
     storedEvent.setRecurrence(null);
@@ -1206,9 +1207,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                                   null,
                                                   false,
                                                   Long.parseLong(testuser1Identity.getId()));
-    assertTrue(updatedEvent.isAllowAttendeeToUpdate());
-    assertTrue("allowAttendeeToInvite should be true automatically when allowAttendeeToUpdate is set to true",
-               updatedEvent.isAllowAttendeeToInvite());
 
     try {
       updatedEvent = agendaEventService.updateEvent(updatedEvent,
@@ -1223,12 +1221,16 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
       // Expected
     }
 
+    assertTrue(updatedEvent.isAllowAttendeeToUpdate());
+    assertTrue("allowAttendeeToInvite should be true automatically when allowAttendeeToUpdate is set to true",
+               updatedEvent.isAllowAttendeeToInvite());
+
     reminders = agendaEventReminderService.getEventReminders(eventId, Long.parseLong(testuser1Identity.getId()));
     assertNotNull(reminders);
     assertEquals(1, reminders.size());
     EventReminder sameEventReminder = reminders.get(0);
     assertNotNull(sameEventReminder);
-    assertEquals(sameEventReminder.getDatetime(), eventReminder.getDatetime());
+    assertEquals(eventReminder.getDatetime(), sameEventReminder.getDatetime());
 
     updatedEvent.setAllowAttendeeToUpdate(false);
     updatedEvent.setStart(updatedEvent.getStart().plusDays(1));
