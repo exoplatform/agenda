@@ -1,9 +1,8 @@
 <template>
   <v-dialog
     v-model="dialog"
-    :width="width"
     content-class="uiPopup width-auto"
-    max-width="100vw">
+    width="300">
     <v-card class="elevation-12">
       <div class="ignore-vuetify-classes popupHeader ClearFix">
         <a
@@ -11,11 +10,15 @@
           aria-hidden="true"
           @click="close"></a>
         <span class="ignore-vuetify-classes PopupTitle popupTitle text-truncate">
-          {{ $t('agenda.title.confirmDeleteEvent') }}
+          {{ $t('agenda.confirmCancelRecurrentEventTitle') }}
         </span>
       </div>
       <v-card-text>
-        {{ $t('agenda.message.confirmDeleteRecurrentEvent') }}
+        <v-radio-group v-model="recurrenceModificationType">
+          <v-radio :label="$t('agenda.onlyThisEvent')" value="single" />
+          <v-radio :label="$t('agenda.thisAndUpcomingEvents')" value="upcoming" />
+          <v-radio :label="$t('agenda.allEvents')" value="all" />
+        </v-radio-group>
       </v-card-text>
       <v-card-actions class="d-flex flex-wrap justify-center center">
         <button
@@ -28,16 +31,9 @@
         <button
           :disabled="loading"
           :loading="loading"
-          class="ignore-vuetify-classes btn ml-2 mb-1"
-          @click="deleteRecurrentEvent">
-          {{ $t('agenda.button.deleteRecurrentEvent') }}
-        </button>
-        <button
-          :disabled="loading"
-          :loading="loading"
           class="ignore-vuetify-classes btn-primary ml-2 mb-1"
-          @click="deleteOccurrenceEvent">
-          {{ $t('agenda.button.deleteOccurrenceEvent') }}
+          @click="deleteRecurrentEventChoice">
+          {{ $t('agenda.button.save') }}
         </button>
       </v-card-actions>
     </v-card>
@@ -56,6 +52,7 @@ export default {
   },
   data: () => ({
     loading: false,
+    recurrenceModificationType: 'single',
     dialog: false,
   }),
   watch: {
@@ -75,12 +72,59 @@ export default {
     });
   },
   methods: {
+    deleteRecurrentEventChoice(eventObject) {
+      if (eventObject) {
+        eventObject.preventDefault();
+        eventObject.stopPropagation();
+      }
+      if (this.recurrenceModificationType === 'single') {
+        this.deleteOccurrenceEvent();
+      } else if (this.recurrenceModificationType === 'all') {
+        this.deleteRecurrentEvent();
+      } else if (this.recurrenceModificationType === 'upcoming') {
+        this.deleteUpcomingEvents();
+      }
+    },
+    deleteUpcomingEvents(eventObject) {
+      if (eventObject) {
+        eventObject.preventDefault();
+        eventObject.stopPropagation();
+      }
+
+      let recurrentEvent = this.event.parent;
+      return this.$eventService.getEventById(recurrentEvent.id, 'all')
+        .then(parentRecurrentEvent => {
+          recurrentEvent = JSON.parse(JSON.stringify(parentRecurrentEvent));
+          const untilDate = new Date(this.event.occurrence.id);
+          untilDate.setDate(untilDate.getDate() - 1);
+          untilDate.setHours(23);
+          untilDate.setMinutes(59);
+          untilDate.setSeconds(59);
+
+          const startDate = new Date(recurrentEvent.start);
+
+          // If the deleted occurrence is the first occurrence of the recurring event
+          // Then delete all current recurrent event
+          if (startDate >= untilDate) {
+            return this.deleteRecurrentEvent();
+          } else {
+            parentRecurrentEvent.recurrence.until = this.$agendaUtils.toRFC3339(untilDate);
+            return this.$eventService.updateEvent(parentRecurrentEvent);
+          }
+        })
+        .then(() => {
+          this.close();
+          this.$root.$emit('agenda-event-saved', recurrentEvent);
+        });
+    },
     deleteRecurrentEvent(eventObject) {
-      eventObject.preventDefault();
-      eventObject.stopPropagation();
+      if (eventObject) {
+        eventObject.preventDefault();
+        eventObject.stopPropagation();
+      }
 
       this.loading = true;
-      this.$eventService.deleteEvent(this.event.parent.id)
+      return this.$eventService.deleteEvent(this.event.parent.id)
         .then(() => {
           this.$root.$emit('agenda-event-deleted', this.event.parent);
           this.dialog = false;
@@ -88,8 +132,10 @@ export default {
         .finally(() => this.loading = false);
     },
     deleteOccurrenceEvent(eventObject) {
-      eventObject.preventDefault();
-      eventObject.stopPropagation();
+      if (eventObject) {
+        eventObject.preventDefault();
+        eventObject.stopPropagation();
+      }
 
       let saveEventMethod = null;
       if (this.event.id) {
@@ -102,7 +148,7 @@ export default {
       eventToDelete.status = 'CANCELLED';
 
       this.loading = true;
-      saveEventMethod(eventToDelete)
+      return saveEventMethod(eventToDelete)
         .then(event => {
           this.$root.$emit('agenda-event-deleted', event);
           this.dialog = false;
@@ -110,8 +156,11 @@ export default {
         .finally(() => this.loading = false);
     },
     close(event) {
-      event.preventDefault();
-      event.stopPropagation();
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+
       this.dialog = false;
     },
     open() {
