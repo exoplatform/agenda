@@ -788,6 +788,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   public boolean canAccessEvent(Event event, long identityId) {
     long calendarId = event.getCalendarId();
     Calendar calendar = agendaCalendarService.getCalendarById(calendarId);
+    if (calendar.isDeleted()) {
+      return false;
+    }
 
     Identity identity = identityManager.getIdentity(String.valueOf(identityId));
     if (identity == null) {
@@ -810,6 +813,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (userIdentityId == event.getCreatorId()) {
       // Check if creator can always access to calendar or not
       calendar = agendaCalendarService.getCalendarById(event.getCalendarId());
+      if (calendar.isDeleted()) {
+        return false;
+      }
       if (Utils.canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), userIdentityId)) {
         return true;
       }
@@ -820,6 +826,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
     if (calendar == null) {
       calendar = agendaCalendarService.getCalendarById(event.getCalendarId());
+      if (calendar.isDeleted()) {
+        return false;
+      }
     }
     return Utils.canEditCalendar(identityManager, spaceService, calendar.getOwnerId(), userIdentityId);
   }
@@ -994,8 +1003,14 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
   private List<Event> filterEvents(List<Event> events, ZonedDateTime start, ZonedDateTime end, int limit) {
     events = events.stream()
-                   .filter(event -> (end == null || event.getStart().isBefore(end))
-                       && (event.getEnd() == null || event.getEnd().isAfter(start)))
+                   .filter(event -> {
+                     if ((end == null || event.getStart().isBefore(end))
+                         && (event.getEnd() == null || event.getEnd().isAfter(start))) {
+                       Calendar calendar = agendaCalendarService.getCalendarById(event.getCalendarId());
+                       return calendar != null && !calendar.isDeleted();
+                     }
+                     return false;
+                   })
                    .collect(Collectors.toList());
     sortEvents(events);
     if (limit > 0 && events.size() > limit) {

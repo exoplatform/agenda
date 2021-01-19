@@ -297,7 +297,7 @@ public class Utils {
                                         long userIdentityId) {
     Identity requestedOwner = identityManager.getIdentity(String.valueOf(ownerId));
     if (requestedOwner == null) {
-      throw new IllegalStateException("Calendar owner with id " + ownerId + " wasn't found");
+      return false;
     }
     Identity userIdentity = identityManager.getIdentity(String.valueOf(userIdentityId));
     if (userIdentity == null) {
@@ -332,7 +332,7 @@ public class Utils {
                                           long userIdentityId) {
     Identity requestedOwner = identityManager.getIdentity(String.valueOf(ownerId));
     if (requestedOwner == null) {
-      throw new IllegalStateException("Calendar owner with id " + ownerId + " wasn't found");
+      return false;
     }
 
     Identity userIdentity = identityManager.getIdentity(String.valueOf(userIdentityId));
