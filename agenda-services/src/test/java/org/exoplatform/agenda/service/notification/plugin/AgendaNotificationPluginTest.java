@@ -109,6 +109,7 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
                                    null,
                                    null,
                                    null,
+                                   null,
                                    true,
                                    Long.parseLong(testuser1Identity.getId()));
 
@@ -230,6 +231,7 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
                                    Collections.emptyList(),
                                    Collections.emptyList(),
                                    Collections.emptyList(),
+                                   null,
                                    null,
                                    true,
                                    Long.parseLong(testuser1Identity.getId()));

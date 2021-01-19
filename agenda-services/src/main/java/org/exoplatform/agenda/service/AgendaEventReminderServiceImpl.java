@@ -23,6 +23,7 @@ import java.time.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
 import org.exoplatform.agenda.model.*;
@@ -35,10 +36,14 @@ import org.exoplatform.commons.notification.impl.NotificationContextImpl;
 import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.container.xml.ValueParam;
 import org.exoplatform.services.listener.ListenerService;
+import org.exoplatform.services.log.ExoLogger;
+import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.spi.SpaceService;
 
 public class AgendaEventReminderServiceImpl implements AgendaEventReminderService {
+
+  private static final Log           LOG                     = ExoLogger.getLogger(AgendaEventReminderServiceImpl.class);
 
   private AgendaUserSettingsService  agendaUserSettingsService;
 
@@ -89,7 +94,7 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
   }
 
   @Override
-  public void saveEventReminders(Event event, List<EventReminder> reminders) throws AgendaException {
+  public void saveEventReminders(Event event, List<EventReminder> reminders) {
     long eventId = event.getId();
     boolean isRecurrentEvent = event.getRecurrence() != null;
     boolean isOccurrence = event.getOccurrence() != null && event.getOccurrence().getId() != null;
@@ -122,14 +127,18 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
       for (EventReminder eventReminder : reminders) {
         eventReminder = eventReminder.clone();
 
-        ZonedDateTime reminderDate = computeReminderDateTime(event, eventReminder);
-        eventReminder.setDatetime(reminderDate);
-        eventReminder.setEventId(eventId);
-        if (!isRecurrentEvent) {
-          eventReminder.setFromOccurrenceId(null);
-          eventReminder.setUntilOccurrenceId(null);
+        try {
+          ZonedDateTime reminderDate = computeReminderDateTime(event, eventReminder);
+          eventReminder.setDatetime(reminderDate == null ? Instant.ofEpochMilli(0).atZone(ZoneOffset.UTC) : reminderDate);
+          eventReminder.setEventId(eventId);
+          if (!isRecurrentEvent) {
+            eventReminder.setFromOccurrenceId(null);
+            eventReminder.setUntilOccurrenceId(null);
+          }
+          reminderStorage.saveEventReminder(eventReminder);
+        } catch (AgendaException e) {
+          LOG.warn("Error saving reminder of event with id {}", event.getId());
         }
-        reminderStorage.saveEventReminder(eventReminder);
       }
     }
 
@@ -240,7 +249,7 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
         eventReminder = eventReminder.clone();
 
         ZonedDateTime reminderDate = computeReminderDateTime(event, eventReminder);
-        eventReminder.setDatetime(reminderDate);
+        eventReminder.setDatetime(reminderDate == null ? Instant.ofEpochMilli(0).atZone(ZoneOffset.UTC) : reminderDate);
         eventReminder.setReceiverId(identityId);
         eventReminder.setEventId(eventId);
         if (!isRecurrentEvent) {
@@ -291,6 +300,9 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
   }
 
   private ZonedDateTime computeReminderDateTime(Event event, EventReminder eventReminder) throws AgendaException {
+    if (event.getStatus() != EventStatus.CONFIRMED) {
+      return null;
+    }
     ZonedDateTime eventStartDate = event.getStart();
     if (eventReminder.getBefore() < 0 || eventReminder.getBeforePeriodType() == null) {
       throw new AgendaException(AgendaExceptionType.REMINDER_DATE_CANT_COMPUTE);

@@ -21,6 +21,7 @@ import java.util.*;
 import java.util.Map.Entry;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.constant.*;
@@ -57,6 +58,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
   private AgendaRemoteEventService     remoteEventService;
 
+  private AgendaEventDatePollService   datePollService;
+
   private AgendaEventStorage           agendaEventStorage;
 
   private AgendaSearchConnector        agendaSearchConnector;
@@ -73,6 +76,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                 AgendaEventConferenceService conferenceService,
                                 AgendaEventReminderService reminderService,
                                 AgendaRemoteEventService remoteEventService,
+                                AgendaEventDatePollService datePollService,
                                 AgendaSearchConnector agendaSearchConnector,
                                 AgendaEventStorage agendaEventStorage,
                                 IdentityManager identityManager,
@@ -84,6 +88,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     this.conferenceService = conferenceService;
     this.reminderService = reminderService;
     this.remoteEventService = remoteEventService;
+    this.datePollService = datePollService;
     this.agendaEventStorage = agendaEventStorage;
     this.agendaSearchConnector = agendaSearchConnector;
     this.identityManager = identityManager;
@@ -213,6 +218,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                            List<EventConference> conferences,
                            List<EventAttachment> attachments,
                            List<EventReminder> reminders,
+                           List<EventDateOption> dateOptions,
                            RemoteEvent remoteEvent,
                            boolean sendInvitation,
                            long userIdentityId) throws IllegalAccessException, AgendaException {
@@ -228,6 +234,13 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     long calendarId = event.getCalendarId();
     if (calendarId <= 0) {
       throw new IllegalArgumentException("Event calendar id must be positive");
+    }
+
+    // Ensure that dateOptions is modifiable
+    if (dateOptions != null) {
+      dateOptions = new ArrayList<>(dateOptions);
+
+      checkAndComputeDateOptions(event, dateOptions);
     }
     if (event.getStart() == null) {
       throw new AgendaException(AgendaExceptionType.EVENT_START_DATE_MANDATORY);
@@ -309,6 +322,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
     if (conferences != null && !conferences.isEmpty()) {
       conferenceService.saveEventConferences(eventId, conferences);
+    }
+    if (dateOptions != null && !dateOptions.isEmpty()) {
+      datePollService.createEventPoll(eventId, dateOptions);
     }
     if (reminders != null) {
       reminderService.saveEventReminders(createdEvent, reminders, userIdentityId);
@@ -463,6 +479,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                            List<EventConference> conferences,
                            List<EventAttachment> attachments,
                            List<EventReminder> reminders,
+                           List<EventDateOption> dateOptions,
                            RemoteEvent remoteEvent,
                            boolean sendInvitation,
                            long userIdentityId) throws AgendaException, IllegalAccessException {
@@ -479,6 +496,14 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (calendarId <= 0) {
       throw new IllegalArgumentException("Event calendar id must be positive");
     }
+
+    if (dateOptions != null) {
+      // Ensure that dateOptions is modifiable
+      dateOptions = new ArrayList<>(dateOptions);
+
+      checkAndComputeDateOptions(event, dateOptions);
+    }
+
     if (event.getStart() == null) {
       throw new AgendaException(AgendaExceptionType.EVENT_START_DATE_MANDATORY);
     }
@@ -583,12 +608,16 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                        false,
                                        EventModificationType.UPDATED);
 
-    if (!storedEvent.getStart().equals(updatedEvent.getStart())) {
+    if (!ObjectUtils.equals(storedEvent.getStart(), updatedEvent.getStart())) {
       List<EventReminder> allReminders = reminderService.getEventReminders(eventId);
       reminderService.saveEventReminders(updatedEvent, allReminders);
     }
 
     Utils.broadcastEvent(listenerService, Utils.POST_UPDATE_AGENDA_EVENT_EVENT, eventId, userIdentityId);
+
+    if (dateOptions != null && !dateOptions.isEmpty()) {
+      datePollService.updateEventDateOptions(eventId, dateOptions);
+    }
 
     return updatedEvent;
   }
@@ -927,6 +956,87 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     return limit > 0 && occurrences.size() > limit ? occurrences.subList(0, limit) : occurrences;
   }
 
+  @Override
+  public void selectEventDateOption(long eventId, long dateOptionId, long userIdentityId) throws ObjectNotFoundException,
+                                                                                          IllegalAccessException {
+    Event event = agendaEventStorage.getEventById(eventId);
+    if (event == null) {
+      throw new ObjectNotFoundException("Event with id " + eventId + " not found");
+    }
+    if (event.getStatus() != EventStatus.TENTATIVE) {
+      throw new IllegalStateException("Event with id " + eventId + " has a different event status than 'TENTATIVE': "
+          + event.getStatus());
+    }
+
+    if (!canUpdateEvent(event, userIdentityId)) {
+      throw new IllegalAccessException("User " + userIdentityId + " can't update event with id " + eventId);
+    }
+
+    EventDateOption dateOption = datePollService.getEventDateOption(dateOptionId, ZoneOffset.UTC);
+    if (dateOption == null) {
+      throw new ObjectNotFoundException("Event Date Option with id " + dateOptionId + " not found");
+    }
+    if (dateOption.getEventId() != eventId) {
+      throw new IllegalStateException("Event Date Option with id " + dateOptionId + " has different event id than " + eventId);
+    }
+    event.setStart(dateOption.getStart());
+    event.setEnd(dateOption.getEnd());
+    event.setAllDay(dateOption.isAllDay());
+    event.setStatus(EventStatus.CONFIRMED);
+
+    Event updatedEvent = agendaEventStorage.updateEvent(event);
+
+    List<EventReminder> allReminders = reminderService.getEventReminders(eventId);
+    reminderService.saveEventReminders(updatedEvent, allReminders);
+
+    Utils.broadcastEvent(listenerService, Utils.POST_CREATE_AGENDA_EVENT_EVENT, eventId, userIdentityId);
+
+    datePollService.selectEventDateOption(dateOptionId);
+  }
+
+  private void checkAndComputeDateOptions(Event event, List<EventDateOption> dateOptions) throws AgendaException {
+    if (dateOptions != null && dateOptions.size() == 1) {
+      EventDateOption eventDateOption = dateOptions.get(0);
+      event.setStart(eventDateOption.getStart());
+      event.setEnd(eventDateOption.getEnd());
+      event.setAllDay(eventDateOption.isAllDay());
+
+      dateOptions.clear();
+    }
+
+    if (dateOptions == null || dateOptions.isEmpty()) {
+      if (event.getStart() == null) {
+        throw new AgendaException(AgendaExceptionType.EVENT_START_DATE_MANDATORY);
+      }
+      if (event.getEnd() == null) {
+        throw new AgendaException(AgendaExceptionType.EVENT_END_DATE_MANDATORY);
+      }
+      if (event.getStart().isAfter(event.getEnd())) {
+        throw new AgendaException(AgendaExceptionType.EVENT_START_DATE_BEFORE_END_DATE);
+      }
+
+      if (event.getStatus() == null || event.getStatus() == EventStatus.TENTATIVE) {
+        event.setStatus(EventStatus.CONFIRMED);
+      }
+    } else {
+      event.setStart(getMinOptionStartDate(dateOptions));
+      event.setEnd(getMaxOptionEndDate(dateOptions));
+      event.setStatus(EventStatus.TENTATIVE);
+
+      for (EventDateOption dateOption : dateOptions) {
+        if (dateOption.getStart() == null) {
+          throw new AgendaException(AgendaExceptionType.EVENT_DATE_OPTION_START_DATE_MANDATORY);
+        }
+        if (dateOption.getEnd() == null) {
+          throw new AgendaException(AgendaExceptionType.EVENT_DATE_OPTION_END_DATE_MANDATORY);
+        }
+        if (dateOption.getStart().isAfter(dateOption.getEnd())) {
+          throw new AgendaException(AgendaExceptionType.EVENT_DATE_OPTION_START_DATE_BEFORE_END_DATE);
+        }
+      }
+    }
+  }
+
   private ZonedDateTime getMaxEndDate(EventFilter eventFilter, ZoneId userTimeZone) {
     int initialSize = 0;
     int storageLimit = eventFilter.getLimit();
@@ -1112,51 +1222,57 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       }
     }
 
-    if (event.isAllDay()) {
-      start = start.withZoneSameLocal(ZoneOffset.UTC)
-                   .toLocalDate()
-                   .atStartOfDay(timeZone);
-      end = end.withZoneSameLocal(ZoneOffset.UTC)
-               .toLocalDate()
-               .atStartOfDay(timeZone)
-               .plusDays(1)
-               .minusSeconds(1);
-    } else {
-      start = start.withZoneSameInstant(timeZone);
-      end = end.withZoneSameInstant(timeZone);
-    }
-    event.setStart(start);
-    event.setEnd(end);
-
-    EventRecurrence recurrence = event.getRecurrence();
-    if (recurrence != null) {
-      if (recurrence.getUntil() != null) {
-        ZonedDateTime recurrenceUntil = recurrence.getUntil();
-        // end of until day in User TimeZone
-        recurrenceUntil =
-                        LocalDate.of(recurrenceUntil.getYear(), recurrenceUntil.getMonthValue(), recurrenceUntil.getDayOfMonth())
-                                 .atStartOfDay(timeZone)
-                                 .plusDays(1)
-                                 .minusSeconds(1);
-        recurrence.setUntil(recurrenceUntil);
-      }
-      ZonedDateTime overallStart = recurrence.getOverallStart();
-      ZonedDateTime overallEnd = recurrence.getOverallEnd();
+    if (start != null && end != null) {
       if (event.isAllDay()) {
-        overallStart = overallStart.toLocalDate()
-                                   .atStartOfDay(timeZone);
-        overallEnd = overallEnd == null ? null
-                                        : overallEnd.toLocalDate()
-                                                    .atStartOfDay(timeZone)
-                                                    .plusDays(1)
-                                                    .minusSeconds(1);
+        start = start.withZoneSameLocal(ZoneOffset.UTC)
+                     .toLocalDate()
+                     .atStartOfDay(timeZone);
+        end = end.withZoneSameLocal(ZoneOffset.UTC)
+                 .toLocalDate()
+                 .atStartOfDay(timeZone)
+                 .plusDays(1)
+                 .minusSeconds(1);
       } else {
-        overallStart = overallStart.withZoneSameInstant(timeZone);
-        overallEnd = overallEnd == null ? null
-                                        : overallEnd.withZoneSameInstant(timeZone);
+        start = start.withZoneSameInstant(timeZone);
+        end = end.withZoneSameInstant(timeZone);
       }
-      recurrence.setOverallStart(overallStart);
-      recurrence.setOverallEnd(overallEnd);
+      event.setStart(start);
+      event.setEnd(end);
+    }
+
+    if (event.getStatus() == EventStatus.CONFIRMED) {
+      EventRecurrence recurrence = event.getRecurrence();
+      if (recurrence != null) {
+        if (recurrence.getUntil() != null) {
+          ZonedDateTime recurrenceUntil = recurrence.getUntil();
+          // end of until day in User TimeZone
+          recurrenceUntil =
+                          LocalDate.of(recurrenceUntil.getYear(),
+                                       recurrenceUntil.getMonthValue(),
+                                       recurrenceUntil.getDayOfMonth())
+                                   .atStartOfDay(timeZone)
+                                   .plusDays(1)
+                                   .minusSeconds(1);
+          recurrence.setUntil(recurrenceUntil);
+        }
+        ZonedDateTime overallStart = recurrence.getOverallStart();
+        ZonedDateTime overallEnd = recurrence.getOverallEnd();
+        if (event.isAllDay()) {
+          overallStart = overallStart.toLocalDate()
+                                     .atStartOfDay(timeZone);
+          overallEnd = overallEnd == null ? null
+                                          : overallEnd.toLocalDate()
+                                                      .atStartOfDay(timeZone)
+                                                      .plusDays(1)
+                                                      .minusSeconds(1);
+        } else {
+          overallStart = overallStart.withZoneSameInstant(timeZone);
+          overallEnd = overallEnd == null ? null
+                                          : overallEnd.withZoneSameInstant(timeZone);
+        }
+        recurrence.setOverallStart(overallStart);
+        recurrence.setOverallEnd(overallEnd);
+      }
     }
   }
 
@@ -1164,15 +1280,17 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     ZonedDateTime start = event.getStart();
     ZonedDateTime end = event.getEnd();
 
-    if (event.isAllDay()) {
-      start = start.toLocalDate().atStartOfDay(ZoneOffset.UTC);
-      end = end.toLocalDate().atStartOfDay(ZoneOffset.UTC).plusDays(1).minusSeconds(1);
-    } else {
-      start = start.withZoneSameInstant(ZoneOffset.UTC);
-      end = end.withZoneSameInstant(ZoneOffset.UTC);
+    if (start != null && end != null) {
+      if (event.isAllDay()) {
+        start = start.toLocalDate().atStartOfDay(ZoneOffset.UTC);
+        end = end.toLocalDate().atStartOfDay(ZoneOffset.UTC).plusDays(1).minusSeconds(1);
+      } else {
+        start = start.withZoneSameInstant(ZoneOffset.UTC);
+        end = end.withZoneSameInstant(ZoneOffset.UTC);
+      }
+      event.setStart(start);
+      event.setEnd(end);
     }
-    event.setStart(start);
-    event.setEnd(end);
 
     EventRecurrence recurrence = event.getRecurrence();
     if (recurrence != null && recurrence.getUntil() != null) {
@@ -1213,7 +1331,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   }
 
   private void sortEvents(List<Event> computedEvents) {
-    computedEvents.sort((event1, event2) -> event1.getStart().compareTo(event2.getStart()));
+    computedEvents.sort((event1, event2) -> ObjectUtils.compare(event1.getStart(), event2.getStart()));
   }
 
   private List<Event> filterExceptionalEvents(Event recurrentEvent,
@@ -1299,6 +1417,20 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       }).collect(Collectors.toList());
     }
     return Collections.emptyList();
+  }
+
+  private ZonedDateTime getMinOptionStartDate(List<EventDateOption> dateOptions) {
+    return dateOptions.stream()
+                      .min((option1, option2) -> ObjectUtils.compare(option1.getStart(), option2.getStart()))
+                      .map(EventDateOption::getStart)
+                      .orElse(null);
+  }
+
+  private ZonedDateTime getMaxOptionEndDate(List<EventDateOption> dateOptions) {
+    return dateOptions.stream()
+                      .max((option1, option2) -> ObjectUtils.compare(option1.getEnd(), option2.getEnd()))
+                      .map(EventDateOption::getEnd)
+                      .orElse(null);
   }
 
 }

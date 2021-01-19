@@ -59,20 +59,31 @@
       event-end="endDate"
       color="primary"
       type="week"
+      @click:event="cancelClick"
+      @mousedown:event="cancelClick"
+      @mousedown:day="startTime"
+      @mousemove:day="mouseMove"
+      @mouseup:day="endDrag"
       @mousedown:time="startTime"
       @mousemove:time="mouseMove"
       @mouseup:time="endDrag"
-      @mouseleave:time="endDrag"
       @change="retrieveEvents">
       <template #event="eventObj">
         <div
           v-if="!eventObj.event || eventObj.event.type !== 'remoteEvent'"
-          :id="getEventDomId(eventObj)"
           class="readonly-event">
           <p
             :title="eventObj.event.summary"
-            class="text-truncate my-auto ml-2 caption font-weight-bold">
-            {{ eventObj.event.summary }}
+            class="text-truncate my-auto ml-2 caption font-weight-bold d-flex">
+            <span class="text-truncate mr-auto">{{ eventObj.event.summary }}</span>
+            <v-icon
+              v-if="eventObj.event.dateOption"
+              color="white"
+              class="my-auto py-0 pr-0"
+              size="18"
+              @click="deleteDateOption(eventObj)">
+              close
+            </v-icon>
           </p>
           <div v-if="!eventObj.event.allDay && !isShortEvent(eventObj)" class="d-flex">
             <date-format
@@ -136,7 +147,6 @@ export default {
     createEvent: null,
     createStart: null,
     extendOriginal: null,
-    selectedEvent: null,
     dayToDisplay: Date.now(),
     dateTimeFormat: {
       year: 'numeric',
@@ -151,6 +161,7 @@ export default {
     },
     currentTimeTop: null,
     scrollToTimeTop: null,
+    newStartedEvent: null,
     period: {},
     remoteEvents: [],
     spaceEvents: [],
@@ -164,14 +175,28 @@ export default {
     currentTimeStyle() {
       return `top: ${this.currentTimeTop}px;`;
     },
-    domId() {
-      return this.getEventDomId(this.event);
-    },
     connectedConnector() {
       return this.connectors.find(connector => connector.isSignedIn);
     },
     connectedConnectorAvatar() {
       return this.connectedConnector && this.connectedConnector.avatar || '';
+    },
+    spaceEventsToDisplay() {
+      // Avoid to have same event that we are changing twice
+      return this.spaceEvents && this.spaceEvents.filter(event => !this.isSameEvent(event)) || [];
+    },
+    remoteEventsToDisplay() {
+      const remoteEventsToDisplay = this.remoteEvents && this.remoteEvents.slice() || [];
+      // Avoid to have same event from remote and local store (pushed events from local store)
+      if (this.spaceEvents.length && remoteEventsToDisplay.length) {
+        this.spaceEvents.forEach(event => {
+          const index = remoteEventsToDisplay.findIndex(remoteEvent => remoteEvent.id && remoteEvent.id === event.remoteId || remoteEvent.recurringEventId && remoteEvent.recurringEventId === event.remoteId);
+          if (index >= 0) {
+            remoteEventsToDisplay.splice(index, 1);
+          }
+        });
+      }
+      return remoteEventsToDisplay;
     },
   },
   watch: {
@@ -184,30 +209,25 @@ export default {
       this.event.timeZoneId = this.$agendaUtils.USER_TIMEZONE_ID;
     }
 
-    this.$forceUpdate();
     this.$root.$emit('agenda-connectors-init');
   },
   mounted() {
+    this.$agendaUtils.initEventForm(this.event, true);
     if (this.$refs.calendar) {
       this.currentTimeTop = this.$refs.calendar.timeToY(this.nowTimeOptions);
-      const event = Object.assign({}, this.event);
-      if (!event.created && !event.added) {
-        this.event.startDate = null;
-      }
-      this.scrollToEvent(event);
     }
-    this.$root.$on('agenda-event-save', () => {
-      this.selectedEvent = null;
-    });
+    this.scrollToEvent();
   },
   methods: {
-    scrollToEvent(event) {
-      const dateTime = this.$agendaUtils.toDate(event.startDate);
+    scrollToEvent() {
+      const dateOption = this.event.dateOptions && this.event.dateOptions.length && this.event.dateOptions[0] || this.event;
+      const dateToScrollTo = dateOption && dateOption.startDate || Date.now();
+      const dateTime = this.$agendaUtils.toDate(dateToScrollTo);
       this.scrollToTimeTop = this.$refs.calendar.timeToY({
         hour: dateTime.getHours(),
         minute: dateTime.getMinutes(),
       });
-      this.dayToDisplay = event.startDate ? this.$agendaUtils.toDate(event.startDate).getTime(): this.$agendaUtils.toDate(event.start).getTime();
+      this.dayToDisplay = dateTime.getTime();
       this.$refs.calendar.updateTimes();
       this.scrollToTime();
     },
@@ -220,47 +240,81 @@ export default {
         }
       });
     },
-    startTime(tms) {
-      //refresh after assigning a startDate for the new event for the first time only
-      if (!this.event.startDate) {
+    deleteDateOption(eventObj) {
+      const dateOption = eventObj.event;
+      const index = this.event.dateOptions.indexOf(dateOption);
+      if (index >= 0) {
+        this.event.dateOptions.splice(index, 1);
         this.$nextTick().then(() => {
           this.refreshEventsToDisplay();
+          this.$refs.calendar.updateTimes();
+          this.$forceUpdate();
         });
       }
-      const mouse = this.toTime(tms);
-      this.event.startDate = this.roundTime(mouse);
-      this.event.endDate = this.$agendaUtils.toDate(this.event.startDate);
-      this.newEventStarted = true;
+    },
+    cancelClick({nativeEvent}) {
+      nativeEvent.stopPropagation();
+      nativeEvent.preventDefault();
+    },
+    startTime(tms) {
+      const startDate = this.$agendaUtils.toDateTime(tms);
+      const endDate = startDate + this.$agendaUtils.MINIMUM_TIME_INTERVAL_MS;
 
-      this.$refs.calendar.updateTimes();
-      this.$forceUpdate();
+      const dateOption = {
+        dateOption: true,
+        eventId: this.event.id,
+        summary: this.event.summary,
+        color: this.getEventColor(this.event, true),
+        occurrence: this.event.occurrence,
+        parent: {
+          id: this.event.parent && this.event.parent.id,
+        },
+        allDay: !tms.hasTime,
+        startDate,
+        endDate,
+      };
+      this.newStartedEvent = dateOption;
+      this.event.dateOptions.push(dateOption);
+
+      //refresh after assigning a startDate for the new event for the first time only
+      this.$nextTick().then(() => {
+        this.refreshEventsToDisplay();
+        this.$refs.calendar.updateTimes();
+        this.$forceUpdate();
+      });
     },
     mouseMove(tms) {
-      if (this.newEventStarted) {
-        const mouse = this.toTime(tms);
-        this.event.endDate = this.roundTime(mouse);
+      if (this.newStartedEvent) {
+        const mouse = this.$agendaUtils.toDateTime(tms);
+        let endDate = this.$agendaUtils.roundTime(mouse);
+
+        if (this.newStartedEvent.endDate !== endDate) {
+          this.$nextTick().then(() => {
+            this.refreshEventsToDisplay();
+          });
+        }
+
+        if(endDate - this.newStartedEvent.startDate < this.$agendaUtils.MINIMUM_TIME_INTERVAL_MS) {
+          endDate = this.newStartedEvent.startDate + this.$agendaUtils.MINIMUM_TIME_INTERVAL_MS;
+        }
+        this.newStartedEvent.endDate = endDate;
 
         this.$refs.calendar.updateTimes();
         this.$forceUpdate();
       }
     },
     endDrag() {
-      if (this.newEventStarted) {
-        this.newEventStarted = false;
-        this.event.start = this.$agendaUtils.toRFC3339(this.event.startDate);
-        this.event.end = this.$agendaUtils.toRFC3339(this.event.endDate);
-        this.selectedEvent = null;
+      if (this.newStartedEvent) {
+        this.newStartedEvent.start = this.$agendaUtils.toRFC3339(this.newStartedEvent.startDate);
+        this.newStartedEvent.end = this.$agendaUtils.toRFC3339(this.newStartedEvent.endDate);
+
+        this.newStartedEvent = null;
         this.$nextTick().then(() => {
           this.refreshEventsToDisplay();
+          this.$refs.calendar.updateTimes();
+          this.$forceUpdate();
         });
-
-        this.$refs.calendar.updateTimes();
-        this.$forceUpdate();
       }
-    },
-    getEventDomId(eventObj) {
-      const event = eventObj && eventObj.event || eventObj;
-      return `eventForm-${event.id || (event.parent && event.parent.id) || 'id'}-${new Date(event.startDate).getTime()}`;
     },
     isShortEvent(eventObj) {
       const event = eventObj && eventObj.event || eventObj;
@@ -270,14 +324,16 @@ export default {
         return true;
       }
     },
-    isSameEvent(event1, event2) {
-      return event1 === event2 || (event1.id && event1.id === event2.id)
-      || (event1.parent && event2.parent && event1.parent.id === event2.parent.id
-          && event1.occurrence && event2.occurrence && event1.occurrence.id === event2.occurrence.id);
+    isSameEvent(event) {
+      return event === this.event
+      || (event.id && event.id === this.event.id)
+      || (event.eventId && event.eventId === this.event.id)
+      || (event.parent && this.event.parent && event.parent.id === this.event.parent.id
+          && event.occurrence && this.event.occurrence && event.occurrence.id === this.event.occurrence.id);
     },
-    getEventColor(event) {
+    getEventColor(event, noOpacity) {
       const eventColor = event && (event.color || event.calendar && event.calendar.color) || '#2196F3';
-      if (this.isSameEvent(event, this.event)){
+      if (noOpacity || event.dateOption || this.isSameEvent(event)){
         return eventColor;
       } else {
         return this.$agendaUtils.addOpacity(eventColor, 40);
@@ -311,19 +367,8 @@ export default {
       this.period = this.$agendaUtils.convertVuetifyRangeToPeriod(range);
       if (this.period) {
         this.period.title = this.$refs.calendar.title;
-        this.periodTitle = this.$agendaUtils.generateCalendarTitle('week', new Date(this.period.start), this.period.title, this.$t('agenda.week'));
+        this.periodTitle = this.$agendaUtils.generateCalendarTitle('week', this.$agendaUtils.toDate(this.period.start), this.period.title, this.$t('agenda.week'));
       }
-    },
-    roundTime(time, down = true) {
-      const roundTo = 15; // minutes
-      const roundDownTime = roundTo * 60 * 1000;
-
-      return down
-        ? time - time % roundDownTime
-        : time + (roundDownTime - time % roundDownTime);
-    },
-    toTime(tms) {
-      return new Date(tms.year, tms.month - 1, tms.day, tms.hour, tms.minute).getTime();
     },
     agendaIntervalStyle(interval) {
       if (this.workingTime.showWorkingTime) {
@@ -397,21 +442,8 @@ export default {
         .finally(() => this.refreshEventsToDisplay());
     },
     refreshEventsToDisplay() {
-      const spaceEventsToDisplay = this.spaceEvents
-        && this.spaceEvents.filter(event => !this.isSameEvent(event, this.event)) || [];
-      // Avoid to have same event that we are changing twice
-  
-      const remoteEventsToDisplay = this.remoteEvents && this.remoteEvents.slice() || [];
-      // Avoid to have same event from remote and local store (pushed events from local store)
-      if (this.spaceEvents.length && remoteEventsToDisplay.length) {
-        this.spaceEvents.forEach(event => {
-          const index = remoteEventsToDisplay.findIndex(remoteEvent => remoteEvent.id && remoteEvent.id === event.remoteId || remoteEvent.recurringEventId && remoteEvent.recurringEventId === event.remoteId);
-          if (index >= 0) {
-            remoteEventsToDisplay.splice(index, 1);
-          }
-        });
-      }
-      this.displayedEvents = this.event.startDate ? [this.event, ...spaceEventsToDisplay, ...remoteEventsToDisplay]:[...spaceEventsToDisplay, ...remoteEventsToDisplay];
+      const events = this.event.dateOptions || [];
+      this.displayedEvents = [...events,...this.spaceEventsToDisplay, ...this.remoteEventsToDisplay];
     },
   },
 };

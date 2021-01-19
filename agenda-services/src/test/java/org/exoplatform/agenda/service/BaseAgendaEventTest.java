@@ -60,6 +60,8 @@ public abstract class BaseAgendaEventTest {
 
   protected AgendaRemoteEventService                agendaRemoteEventService;
 
+  protected AgendaEventDatePollService              agendaEventDatePollService;
+
   protected ListenerService                         listenerService;
 
   protected AgendaEventStorage                      agendaEventStorage;
@@ -96,6 +98,7 @@ public abstract class BaseAgendaEventTest {
     agendaEventAttendeeService = container.getComponentInstanceOfType(AgendaEventAttendeeService.class);
     agendaEventReminderService = container.getComponentInstanceOfType(AgendaEventReminderService.class);
     agendaRemoteEventService = container.getComponentInstanceOfType(AgendaRemoteEventService.class);
+    agendaEventDatePollService = container.getComponentInstanceOfType(AgendaEventDatePollService.class);
     identityManager = container.getComponentInstanceOfType(IdentityManager.class);
     spaceService = container.getComponentInstanceOfType(SpaceService.class);
     listenerService = container.getComponentInstanceOfType(ListenerService.class);
@@ -210,6 +213,7 @@ public abstract class BaseAgendaEventTest {
                                             (ArrayList<EventConference>) CONFERENCES.clone(),
                                             (ArrayList<EventAttachment>) ATTACHMENTS.clone(),
                                             (ArrayList<EventReminder>) REMINDERS.clone(),
+                                            null,
                                             REMOTE_EVENT,
                                             true,
                                             userIdentityId);

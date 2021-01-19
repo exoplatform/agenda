@@ -16,8 +16,6 @@ export default {
     openNewEventForm(){
       this.$root.$emit('agenda-event-form', {
         summary: '',
-        startDate: new Date(),
-        endDate: new Date(),
         allDay: false,
         calendar: {
           owner: {},

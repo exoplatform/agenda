@@ -136,6 +136,8 @@ public class EventEntity implements Serializable, Cloneable {
 
   private Permission                  acl;
 
+  private List<EventDateOptionEntity> dateOptions;
+
   private List<EventAttendeeEntity>   attendees;
 
   private List<EventConference>       conferences;
@@ -177,6 +179,7 @@ public class EventEntity implements Serializable, Cloneable {
                            recurrence,
                            occurrence,
                            acl,
+                           dateOptions,
                            attendees,
                            conferences,
                            attachments,
