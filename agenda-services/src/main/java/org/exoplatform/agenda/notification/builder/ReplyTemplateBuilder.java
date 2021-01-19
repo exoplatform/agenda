@@ -3,8 +3,11 @@ package org.exoplatform.agenda.notification.builder;
 import groovy.text.GStringTemplateEngine;
 import groovy.text.Template;
 import org.apache.commons.lang.StringUtils;
+import org.exoplatform.agenda.model.AgendaUserSettings;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.service.AgendaEventService;
+import org.exoplatform.agenda.service.AgendaUserSettingsService;
+import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.channel.template.AbstractTemplateBuilder;
 import org.exoplatform.commons.api.notification.channel.template.TemplateProvider;
@@ -18,23 +21,30 @@ import org.exoplatform.container.ExoContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
+import org.exoplatform.social.core.manager.IdentityManager;
 
 import java.io.Writer;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 
 import static org.exoplatform.agenda.util.NotificationUtils.*;
 
 public class ReplyTemplateBuilder extends AbstractTemplateBuilder {
-  private static final Log   LOG = ExoLogger.getLogger(ReminderTemplateBuilder.class);
+  private static final Log          LOG = ExoLogger.getLogger(ReminderTemplateBuilder.class);
 
-  private AgendaEventService agendaEventService;
+  private AgendaEventService        agendaEventService;
 
-  private TemplateProvider   templateProvider;
+  private AgendaUserSettingsService agendaUserSettingsService;
 
-  private ExoContainer       container;
+  private IdentityManager           identityManager;
 
-  private boolean            isPushNotification;
+  private TemplateProvider          templateProvider;
 
-  private PluginKey          key;
+  private ExoContainer              container;
+
+  private boolean                   isPushNotification;
+
+  private PluginKey                 key;
 
   public ReplyTemplateBuilder(TemplateProvider templateProvider,
                               ExoContainer container,
@@ -75,8 +85,13 @@ public class ReplyTemplateBuilder extends AbstractTemplateBuilder {
       Event event = getEvent(notification);
       String notificationURL = getEventURL(event);
       String pushNotificationURL = isPushNotification ? notificationURL : null;
+      String username = notification.getTo();
+      long identityId = Utils.getIdentityIdByUsername(getIdentityManager(), username);
+      AgendaUserSettings agendaUserSettings = getAgendaUserSettingsService().getAgendaUserSettings(identityId);
+      ZoneId timeZone = agendaUserSettings == null
+              || agendaUserSettings.getTimeZoneId() == null ? ZoneOffset.UTC : ZoneId.of(agendaUserSettings.getTimeZoneId());
 
-      TemplateContext templateContext = buildTemplateReplyParameters(templateProvider, notification);
+      TemplateContext templateContext = buildTemplateReplyParameters(templateProvider, notification, timeZone);
       MessageInfo messageInfo = buildMessageSubjectAndBody(templateContext, notification, pushNotificationURL);
       Throwable exception = templateContext.getException();
       logException(notification, exception);
@@ -127,6 +142,20 @@ public class ReplyTemplateBuilder extends AbstractTemplateBuilder {
       agendaEventService = CommonsUtils.getService(AgendaEventService.class);
     }
     return agendaEventService;
+  }
+
+  private AgendaUserSettingsService getAgendaUserSettingsService() {
+    if (agendaUserSettingsService == null) {
+      agendaUserSettingsService = this.container.getComponentInstanceOfType(AgendaUserSettingsService.class);
+    }
+    return agendaUserSettingsService;
+  }
+
+  private IdentityManager getIdentityManager() {
+    if (identityManager == null) {
+      identityManager = this.container.getComponentInstanceOfType(IdentityManager.class);
+    }
+    return identityManager;
   }
 
 }
