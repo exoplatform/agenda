@@ -79,6 +79,9 @@ public class NotificationUtils {
   public static final String                                 AGENDA_REPLY_NOTIFICATION_PLUGIN               =
                                                                                               "EventReplyNotificationPlugin";
 
+  public static final String                                 AGENDA_DATE_POLL_NOTIFICATION_PLUGIN           =
+                                                                                                  "DatePollNotificationPlugin";
+
   private static final String                                TEMPLATE_VARIABLE_EVENT_URL                    = "eventURL";
 
   public static final PluginKey                              EVENT_ADDED_KEY                                =
@@ -95,6 +98,9 @@ public class NotificationUtils {
 
   public static final PluginKey                              EVENT_REPLY_KEY                                =
                                                                              PluginKey.key(AGENDA_REPLY_NOTIFICATION_PLUGIN);
+
+  public static final PluginKey                              EVENT_DATE_POLL_KEY                            =
+                                                                                 PluginKey.key(AGENDA_DATE_POLL_NOTIFICATION_PLUGIN);
 
   public static final String                                 STORED_PARAMETER_EVENT_TITLE                   = "eventTitle";
 
@@ -426,6 +432,24 @@ public class NotificationUtils {
     return templateContext;
   }
 
+  public static final TemplateContext buildTemplateDatePollParameters(SpaceService spaceService,
+                                                                      TemplateProvider templateProvider,
+                                                                      NotificationInfo notification) {
+    String language = NotificationPluginUtils.getLanguage(notification.getTo());
+    TemplateContext templateContext = getTemplateContext(templateProvider, notification, language);
+
+    setFooter(notification, templateContext);
+    setRead(notification, templateContext);
+    setNotificationId(notification, templateContext);
+    setLasModifiedTime(notification, templateContext, language);
+    setSpaceName(notification, templateContext);
+    setIdentityNameAndAvatar(spaceService, notification, templateContext);
+    setEventDatePollDetails(templateContext, notification);
+
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
+    return templateContext;
+  }
+
   public static final MessageInfo buildMessageSubjectAndBody(TemplateContext templateContext,
                                                              NotificationInfo notification,
                                                              String pushNotificationURL) {
@@ -490,6 +514,13 @@ public class NotificationUtils {
     templateContext.put(TEMPLATE_VARIABLE_EVENT_START_DATE, startDateFormatted);
     templateContext.put(TEMPLATE_VARIABLE_EVENT_END_DATE, endDateFormatted);
     templateContext.put(TEMPLATE_VARIABLE_EVENT_MONTH_YEAR_DATE, dateFormatted);
+  }
+
+  private static final void setEventDatePollDetails(TemplateContext templateContext, NotificationInfo notification) {
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_ID, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_ID));
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_TITLE, getEventTitle(notification));
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_CREATOR, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_CREATOR));
+    templateContext.put("USER", notification.getTo());
   }
 
   public static String getEventURL(Event event) {
