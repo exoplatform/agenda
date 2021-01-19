@@ -1,6 +1,9 @@
 package org.exoplatform.agenda.service;
 
+import java.util.List;
+
 import org.exoplatform.agenda.model.AgendaUserSettings;
+import org.exoplatform.agenda.model.EventReminderParameter;
 import org.exoplatform.social.core.identity.model.Identity;
 
 public interface AgendaUserSettingsService {
@@ -29,5 +32,12 @@ public interface AgendaUserSettingsService {
    * @param userIdentityId user social identifier
    */
   void saveUserConnector(String connectorName, String connectorUserId, long userIdentityId);
+
+  /**
+   * @return {@link List} of {@link EventReminderParameter} that will be used
+   *         for users who didn't changed default settings about preferred
+   *         reminders
+   */
+  List<EventReminderParameter> getDefaultReminders();
 
 }

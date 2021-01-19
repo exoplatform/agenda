@@ -42,7 +42,7 @@
             @next-step="nextStep"
             @initialized="$emit('initialized')" />
         </v-stepper-content>
-        <v-stepper-content step="2">
+        <v-stepper-content step="2" class="pb-0">
           <agenda-event-form-dates
             v-if="stepper === 2"
             ref="eventDates"

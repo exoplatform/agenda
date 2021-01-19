@@ -1,6 +1,9 @@
 <template>
-  <v-flex class="event-form-dates">
-    <v-toolbar flat class="border-color mb-4">
+  <v-flex class="event-form-dates d-flex flex-column">
+    <v-toolbar
+      class="border-color mb-4"
+      max-height="64"
+      flat>
       <div class="d-flex flex-row align-start col-sm-3 col-2">
         <agenda-connector-status
           class="my-auto"

@@ -80,6 +80,12 @@ public class EventReminderEntity implements Serializable {
   @Column(name = "TRIGGER_DATE", nullable = false)
   private Date               triggerDate;
 
+  @Column(name = "FROM_OCCURRENCE_ID")
+  private Date               fromOccurrenceId;
+
+  @Column(name = "UNTIL_OCCURRENCE_ID")
+  private Date               untilOccurrenceId;
+
   public Long getId() {
     return id;
   }
@@ -127,4 +133,21 @@ public class EventReminderEntity implements Serializable {
   public void setReceiverId(long receiverId) {
     this.receiverId = receiverId;
   }
+
+  public Date getFromOccurrenceId() {
+    return fromOccurrenceId;
+  }
+
+  public void setFromOccurrenceId(Date fromOccurrenceId) {
+    this.fromOccurrenceId = fromOccurrenceId;
+  }
+
+  public Date getUntilOccurrenceId() {
+    return untilOccurrenceId;
+  }
+
+  public void setUntilOccurrenceId(Date untilOccurrenceId) {
+    this.untilOccurrenceId = untilOccurrenceId;
+  }
+
 }

@@ -391,27 +391,22 @@ export default {
 
       if (this.dragEvent) {
         this.saving = true;
-        const eventId = this.dragEvent.id || this.dragEvent.parent.id;
-        return this.$eventService.getEventById(eventId, 'all')
-          .then(event => {
-            event.id = this.dragEvent.id;
-            event.parent = this.dragEvent.parent;
-            event.occurrence = this.dragEvent.occurrence;
-            event.recurrence = null;
+        const retrieveEvent = this.dragEvent.id ?
+          this.$eventService.getEventById(this.dragEvent.id, 'all')
+          :this.$eventService.getEventOccurrence(this.dragEvent.parent.id, this.dragEvent.occurrence.id, 'all');
+        return retrieveEvent.then(event => {
+          event.start = this.$agendaUtils.toRFC3339(this.dragEvent.startDate);
+          event.end = this.$agendaUtils.toRFC3339(this.dragEvent.endDate);
+          event.timeZoneId = this.$agendaUtils.USER_TIMEZONE_ID;
+          event.allDay = this.dragEvent.allDay;
 
-            event.start = this.$agendaUtils.toRFC3339(this.dragEvent.startDate);
-            event.end = this.$agendaUtils.toRFC3339(this.dragEvent.endDate);
-            event.timeZoneId = this.$agendaUtils.USER_TIMEZONE_ID;
-            event.allDay = this.dragEvent.allDay;
-
-            // when this is about a recurrent event
-            // and the event is an all day event,
-            // when moving event, it shouldn't
-            const ignoreRecurrentPopin = event.allDay;
-            const changeDatesOnly = true;
-            this.$root.$emit('agenda-event-save', event, ignoreRecurrentPopin, changeDatesOnly);
-          })
-          .finally(() => this.saving = false);
+          // when this is about a recurrent event
+          // and the event is an all day event,
+          // when moving event, it shouldn't
+          const ignoreRecurrentPopin = event.allDay;
+          const changeDatesOnly = true;
+          this.$root.$emit('agenda-event-save', event, ignoreRecurrentPopin, changeDatesOnly);
+        }).finally(() => this.saving = false);
       } else {
         this.cancelEventModification();
       }

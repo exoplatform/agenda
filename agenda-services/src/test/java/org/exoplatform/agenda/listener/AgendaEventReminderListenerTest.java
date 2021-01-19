@@ -70,7 +70,7 @@ public class AgendaEventReminderListenerTest extends BaseAgendaEventTest {
 
     eventReminders = agendaEventReminderService.getEventReminders(eventId, user5IdentityId);
     assertNotNull(eventReminders);
-    assertEquals(agendaEventReminderService.getDefaultReminders().size(), eventReminders.size());
+    assertEquals(agendaUserSettingsService.getDefaultReminders().size(), eventReminders.size());
 
     executeListener.set(true);
     try {

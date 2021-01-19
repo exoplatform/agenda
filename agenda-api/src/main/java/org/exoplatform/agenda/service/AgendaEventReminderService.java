@@ -16,10 +16,12 @@
 */
 package org.exoplatform.agenda.service;
 
+import java.time.ZonedDateTime;
 import java.util.List;
 
 import org.exoplatform.agenda.exception.AgendaException;
-import org.exoplatform.agenda.model.*;
+import org.exoplatform.agenda.model.Event;
+import org.exoplatform.agenda.model.EventReminder;
 import org.exoplatform.social.core.identity.model.Identity;
 
 public interface AgendaEventReminderService {
@@ -70,6 +72,23 @@ public interface AgendaEventReminderService {
   void saveEventReminders(Event event, List<EventReminder> reminders) throws AgendaException;
 
   /**
+   * Save reminders for an upcoming of an occurrence of a recurring event for a
+   * specific user
+   * 
+   * @param eventId technical identifier of {@link Event}
+   * @param occurrenceId {@link Event} occurrence identifier on which the
+   *          modification will be applied
+   * @param reminders {@link List} of {@link EventReminder}
+   * @param userIdentityId User technical identifier ({@link Identity#getId()})
+   *          updating his/her reminders on the event
+   * @throws AgendaException when an error occurs while saving reminders
+   */
+  void saveUpcomingEventReminders(long eventId,
+                                  ZonedDateTime occurrenceId,
+                                  List<EventReminder> reminders,
+                                  long userIdentityId) throws AgendaException;
+
+  /**
    * @return period used to compute reminder of occurrences of a recurrent event
    *         in days
    */
@@ -80,13 +99,6 @@ public interface AgendaEventReminderService {
    *          occurrences of a recurrent event in days
    */
   void setReminderComputingPeriod(long reminderComputingPeriod);
-
-  /**
-   * @return {@link List} of {@link EventReminderParameter} that will be used
-   *         for users who didn't changed default settings about preferred
-   *         reminders
-   */
-  List<EventReminderParameter> getDefaultReminders();
 
   /**
    * Deletes all reminders of a user on a given event identified by its
@@ -108,4 +120,5 @@ public interface AgendaEventReminderService {
    * Send reminders of upcoming events of next minute
    */
   void sendReminders();
+
 }

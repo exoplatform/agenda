@@ -254,4 +254,11 @@
     </addColumn>
   </changeSet>
 
+  <changeSet author="agenda" id="1.0.0-17">
+    <addColumn tableName="EXO_AGENDA_REMINDER">
+      <column name="FROM_OCCURRENCE_ID" type="TIMESTAMP" defaultValueComputed="NULL" />
+      <column name="UNTIL_OCCURRENCE_ID" type="TIMESTAMP" defaultValueComputed="NULL" />
+    </addColumn>
+  </changeSet>
+
 </databaseChangeLog>

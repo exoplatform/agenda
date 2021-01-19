@@ -1,6 +1,6 @@
 package org.exoplatform.agenda.service;
 
-import java.util.List;
+import java.util.*;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -10,6 +10,7 @@ import org.exoplatform.commons.api.settings.SettingValue;
 import org.exoplatform.commons.api.settings.data.Context;
 import org.exoplatform.commons.api.settings.data.Scope;
 import org.exoplatform.container.xml.InitParams;
+import org.exoplatform.container.xml.ObjectParameter;
 
 public class AgendaUserSettingsServiceImpl implements AgendaUserSettingsService {
 
@@ -21,23 +22,33 @@ public class AgendaUserSettingsServiceImpl implements AgendaUserSettingsService 
 
   private AgendaEventConferenceService agendaEventConferenceService;
 
-  private AgendaEventReminderService   agendaEventReminderService;
-
   private AgendaRemoteEventService     agendaRemoteEventService;
 
   private SettingService               settingService;
 
   private AgendaUserSettings           defaultUserSettings            = null;
 
-  public AgendaUserSettingsServiceImpl(AgendaEventReminderService agendaEventReminderService,
-                                       AgendaEventConferenceService agendaEventConferenceService,
+  private List<EventReminderParameter> defaultReminders               = new ArrayList<>();
+
+  public AgendaUserSettingsServiceImpl(AgendaEventConferenceService agendaEventConferenceService,
                                        AgendaRemoteEventService agendaRemoteEventService,
                                        SettingService settingService,
                                        InitParams initParams) {
-    this.agendaEventReminderService = agendaEventReminderService;
     this.agendaEventConferenceService = agendaEventConferenceService;
     this.agendaRemoteEventService = agendaRemoteEventService;
     this.settingService = settingService;
+
+    Iterator<ObjectParameter> objectParamIterator = initParams.getObjectParamIterator();
+    if (objectParamIterator != null) {
+      while (objectParamIterator.hasNext()) {
+        ObjectParameter objectParameter = objectParamIterator.next();
+        Object objectParam = objectParameter.getObject();
+        if (objectParam instanceof EventReminderParameter) {
+          EventReminderParameter eventReminderParameter = (EventReminderParameter) objectParam;
+          defaultReminders.add(eventReminderParameter);
+        }
+      }
+    }
 
     if (initParams.containsKey(AGENDA_USER_SETTINGS_PARAM_KEY)) {
       defaultUserSettings = (AgendaUserSettings) initParams.getObjectParam(AGENDA_USER_SETTINGS_PARAM_KEY).getObject();
@@ -71,8 +82,7 @@ public class AgendaUserSettingsServiceImpl implements AgendaUserSettingsService 
     AgendaUserSettings agendaUserSettings = null;
     if (settingValue == null || settingValue.getValue() == null || StringUtils.isBlank(settingValue.getValue().toString())) {
       agendaUserSettings = defaultUserSettings.clone();
-      List<EventReminderParameter> defaultReminders = agendaEventReminderService.getDefaultReminders();
-      agendaUserSettings.setReminders(defaultReminders);
+      agendaUserSettings.setReminders(getDefaultReminders());
       agendaUserSettings.setRemoteProviders(remoteProviders);
     } else {
       agendaUserSettings = AgendaUserSettings.fromString(settingValue.getValue().toString());
@@ -111,6 +121,11 @@ public class AgendaUserSettingsServiceImpl implements AgendaUserSettingsService 
     agendaUserSettings.setConnectedRemoteUserId(connectorUserId);
     agendaUserSettings.setConnectedRemoteProvider(connectorName);
     saveAgendaUserSettings(userIdentityId, agendaUserSettings);
+  }
+
+  @Override
+  public List<EventReminderParameter> getDefaultReminders() {
+    return Collections.unmodifiableList(defaultReminders);
   }
 
 }
