@@ -436,6 +436,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
         reminder.setId(0);
         reminder.setEventId(exceptionalEventId);
       });
+
       reminderService.saveEventReminders(exceptionalEvent, reminders);
     }
     if (attendees != null && !attendees.isEmpty()) {

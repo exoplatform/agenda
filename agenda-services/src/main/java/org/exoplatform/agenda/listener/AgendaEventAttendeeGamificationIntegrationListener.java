@@ -1,22 +1,17 @@
 package org.exoplatform.agenda.listener;
 
-import org.apache.commons.lang.StringUtils;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.exoplatform.agenda.model.EventAttendee;
 import org.exoplatform.agenda.service.AgendaEventService;
 import org.exoplatform.agenda.util.NotificationUtils;
-import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
-import org.exoplatform.services.listener.Asynchronous;
-import org.exoplatform.services.listener.Event;
-import org.exoplatform.services.listener.Listener;
-import org.exoplatform.services.listener.ListenerService;
+import org.exoplatform.services.listener.*;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * A listener that will be triggered when a user reply to an event.

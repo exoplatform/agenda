@@ -176,7 +176,7 @@ public class AgendaEventRest implements ResourceContainer {
       Map<Long, List<EventAttendeeEntity>> attendeesByParentEventId = new HashMap<>();
       Map<Long, List<EventAttachmentEntity>> attachmentsByParentEventId = new HashMap<>();
       Map<Long, List<EventConference>> conferencesByParentEventId = new HashMap<>();
-      Map<Long, List<EventReminderEntity>> remindersByParentEventId = new HashMap<>();
+      Map<Long, List<EventReminder>> remindersByParentEventId = new HashMap<>();
       Map<Long, RemoteEvent> remoteEventByParentEventId = new HashMap<>();
       List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
                                                                   : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
@@ -700,6 +700,11 @@ public class AgendaEventRest implements ResourceContainer {
                                        "occurrenceId"
                                      ) String occurrenceId,
                                      @ApiParam(
+                                         value = "Whether apply on Event occurrence and its upcoming or not", required = true
+                                     ) @QueryParam(
+                                       "upcoming"
+                                     ) boolean upcoming,
+                                     @ApiParam(
                                          value = "List of reminders to store on event for currently authenticated user",
                                          required = true
                                      ) List<EventReminder> reminders) {
@@ -714,19 +719,20 @@ public class AgendaEventRest implements ResourceContainer {
         return Response.status(Status.NOT_FOUND).entity("Event with id " + eventId + " is not found").build();
       }
 
-      ZonedDateTime occurrenceIdDateTime = null;
       if (StringUtils.isBlank(occurrenceId)) {
         agendaEventReminderService.saveEventReminders(event, reminders, userIdentityId);
       } else {
         if (event.getRecurrence() == null) {
           return Response.status(Status.BAD_REQUEST).entity("Event is not recurrent, no occurrenceId is needed").build();
         }
-        occurrenceIdDateTime = AgendaDateUtils.parseRFC3339ToZonedDateTime(occurrenceId, ZoneOffset.UTC);
-        Event occurrenceEvent = agendaEventService.getExceptionalOccurrenceEvent(eventId, occurrenceIdDateTime);
-        if (occurrenceEvent == null) { // Exceptional occurrence not yet created
-          occurrenceEvent = agendaEventService.saveEventExceptionalOccurrence(eventId, occurrenceIdDateTime);
+
+        ZonedDateTime occurrenceIdDateTime = AgendaDateUtils.parseRFC3339ToZonedDateTime(occurrenceId, ZoneOffset.UTC);
+        if (upcoming) {
+          agendaEventReminderService.saveUpcomingEventReminders(eventId, occurrenceIdDateTime, reminders, userIdentityId);
+        } else {
+          Event occurrenceEvent = agendaEventService.saveEventExceptionalOccurrence(eventId, occurrenceIdDateTime);
+          agendaEventReminderService.saveEventReminders(occurrenceEvent, reminders, userIdentityId);
         }
-        agendaEventReminderService.saveEventReminders(occurrenceEvent, reminders, userIdentityId);
       }
 
       return Response.noContent().build();
@@ -1136,14 +1142,28 @@ public class AgendaEventRest implements ResourceContainer {
 
   private void fillReminders(EventEntity eventEntity,
                              long userIdentityId,
-                             Map<Long, List<EventReminderEntity>> remindersByParentEventId) {
+                             Map<Long, List<EventReminder>> remindersByParentEventId) {
     long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParent().getId()
                                                      : eventEntity.getId();
     if (remindersByParentEventId.containsKey(eventId)) {
-      eventEntity.setReminders(remindersByParentEventId.get(eventId));
+      List<EventReminder> reminders = remindersByParentEventId.get(eventId);
+      ZonedDateTime occurrenceId =
+                                 AgendaDateUtils.parseRFC3339ToZonedDateTime(eventEntity.getOccurrence().getId(), ZoneOffset.UTC);
+      reminders = reminders.stream()
+                           .filter(reminder -> (reminder.getFromOccurrenceId() == null
+                               || reminder.getFromOccurrenceId().isEqual(occurrenceId)
+                               || reminder.getFromOccurrenceId().isBefore(occurrenceId))
+                               && (reminder.getUntilOccurrenceId() == null
+                                   || reminder.getUntilOccurrenceId().isAfter(occurrenceId)))
+                           .collect(Collectors.toList());
+      eventEntity.setReminders(reminders.stream().map(EntityBuilder::fromEventReminder).collect(Collectors.toList()));
     } else {
       fillReminders(eventEntity, userIdentityId);
-      remindersByParentEventId.put(eventId, eventEntity.getReminders());
+      remindersByParentEventId.put(eventId,
+                                   eventEntity.getReminders()
+                                              .stream()
+                                              .map(reminderEntity -> EntityBuilder.toEventReminder(eventId, reminderEntity))
+                                              .collect(Collectors.toList()));
     }
   }
 
@@ -1193,13 +1213,25 @@ public class AgendaEventRest implements ResourceContainer {
   }
 
   private void fillReminders(EventEntity eventEntity, long userIdentityId) {
-    long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParent().getId()
-                                                     : eventEntity.getId();
-    List<EventReminder> eventReminders = agendaEventReminderService.getEventReminders(eventId, userIdentityId);
-    List<EventReminderEntity> eventReminderEntities = eventReminders == null ? null
-                                                                             : eventReminders.stream()
-                                                                                             .map(EntityBuilder::fromEventReminder)
-                                                                                             .collect(Collectors.toList());
+    boolean computedOccurrence = isComputedOccurrence(eventEntity);
+    long eventId = computedOccurrence ? eventEntity.getParent().getId()
+                                      : eventEntity.getId();
+    List<EventReminder> reminders = agendaEventReminderService.getEventReminders(eventId, userIdentityId);
+    if (computedOccurrence) {
+      ZonedDateTime occurrenceId =
+                                 AgendaDateUtils.parseRFC3339ToZonedDateTime(eventEntity.getOccurrence().getId(), ZoneOffset.UTC);
+      reminders = reminders.stream()
+                           .filter(reminder -> (reminder.getFromOccurrenceId() == null
+                               || reminder.getFromOccurrenceId().isEqual(occurrenceId)
+                               || reminder.getFromOccurrenceId().isBefore(occurrenceId))
+                               && (reminder.getUntilOccurrenceId() == null
+                                   || reminder.getUntilOccurrenceId().isAfter(occurrenceId)))
+                           .collect(Collectors.toList());
+    }
+    List<EventReminderEntity> eventReminderEntities = reminders == null ? null
+                                                                        : reminders.stream()
+                                                                                   .map(EntityBuilder::fromEventReminder)
+                                                                                   .collect(Collectors.toList());
     eventEntity.setReminders(eventReminderEntities);
   }
 

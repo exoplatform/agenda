@@ -41,6 +41,28 @@ public class EventReminder extends EventReminderParameter implements Cloneable {
    */
   private volatile ZonedDateTime datetime;
 
+  private ZonedDateTime          fromOccurrenceId;
+
+  private ZonedDateTime          untilOccurrenceId;
+
+  public EventReminder(long id,
+                       long eventId,
+                       long receiverId,
+                       int before,
+                       ReminderPeriodType beforePeriodType,
+                       ZonedDateTime datetime,
+                       ZonedDateTime fromOccurrenceId,
+                       ZonedDateTime untilOccurrenceId) {
+    this.id = id;
+    this.eventId = eventId;
+    this.receiverId = receiverId;
+    this.datetime = datetime;
+    this.fromOccurrenceId = fromOccurrenceId;
+    this.untilOccurrenceId = untilOccurrenceId;
+    this.setBefore(before);
+    this.setBeforePeriodType(beforePeriodType);
+  }
+
   public EventReminder(long id,
                        long eventId,
                        long receiverId,
@@ -71,7 +93,14 @@ public class EventReminder extends EventReminderParameter implements Cloneable {
 
   @Override
   public EventReminder clone() { // NOSONAR
-    return new EventReminder(id, eventId, receiverId, this.getBefore(), this.getBeforePeriodType(), datetime);
+    return new EventReminder(id,
+                             eventId,
+                             receiverId,
+                             this.getBefore(),
+                             this.getBeforePeriodType(),
+                             datetime,
+                             fromOccurrenceId,
+                             untilOccurrenceId);
   }
 
 }

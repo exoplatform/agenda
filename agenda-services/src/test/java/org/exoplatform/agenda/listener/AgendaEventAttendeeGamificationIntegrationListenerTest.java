@@ -1,16 +1,16 @@
 package org.exoplatform.agenda.listener;
 
+import static org.junit.Assert.assertTrue;
+
+import java.time.ZonedDateTime;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.junit.Test;
+
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.service.BaseAgendaEventTest;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.services.listener.Listener;
-import org.junit.Test;
-
-import java.time.ZonedDateTime;
-import java.util.Collections;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import static org.junit.Assert.assertTrue;
 
 public class AgendaEventAttendeeGamificationIntegrationListenerTest extends BaseAgendaEventTest {
 

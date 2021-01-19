@@ -87,7 +87,9 @@ public class EntityMapper {
                              eventReminderEntity.getReceiverId(),
                              eventReminderEntity.getBefore(),
                              eventReminderEntity.getBeforeType(),
-                             AgendaDateUtils.fromDate(eventReminderEntity.getTriggerDate()));
+                             AgendaDateUtils.fromDate(eventReminderEntity.getTriggerDate()),
+                             AgendaDateUtils.fromDate(eventReminderEntity.getFromOccurrenceId()),
+                             AgendaDateUtils.fromDate(eventReminderEntity.getUntilOccurrenceId()));
   }
 
   public static EventReminderEntity toEntity(EventReminder eventReminder) {
@@ -98,6 +100,8 @@ public class EntityMapper {
     eventReminderEntity.setReceiverId(eventReminder.getReceiverId());
     eventReminderEntity.setEventId(eventReminder.getEventId());
     eventReminderEntity.setTriggerDate(AgendaDateUtils.toDate(eventReminder.getDatetime()));
+    eventReminderEntity.setFromOccurrenceId(AgendaDateUtils.toDate(eventReminder.getFromOccurrenceId()));
+    eventReminderEntity.setUntilOccurrenceId(AgendaDateUtils.toDate(eventReminder.getUntilOccurrenceId()));
     return eventReminderEntity;
   }
 
