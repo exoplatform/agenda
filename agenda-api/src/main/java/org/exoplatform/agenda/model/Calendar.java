@@ -29,6 +29,8 @@ public class Calendar implements Cloneable {
 
   private boolean    system;
 
+  private boolean    deleted;
+
   private String     title;
 
   private String     description;
@@ -41,7 +43,27 @@ public class Calendar implements Cloneable {
 
   private Permission acl;
 
+  public Calendar(long id,
+                  long ownerId,
+                  boolean system,
+                  String title,
+                  String description,
+                  String created,
+                  String updated,
+                  String color,
+                  Permission acl) {
+    this.id = id;
+    this.ownerId = ownerId;
+    this.system = system;
+    this.title = title;
+    this.description = description;
+    this.created = created;
+    this.updated = updated;
+    this.color = color;
+    this.acl = acl;
+  }
+
   public Calendar clone() { // NOSONAR
-    return new Calendar(id, ownerId, system, title, description, created, updated, color, acl);
+    return new Calendar(id, ownerId, system, deleted, title, description, created, updated, color, acl);
   }
 }

@@ -72,7 +72,11 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     List<Long> calendarsIds = this.agendaCalendarStorage.getCalendarIdsByOwnerIds(offset, limit, ownerIds);
     List<Calendar> calendars = new ArrayList<>();
     for (Long calendarId : calendarsIds) {
-      calendars.add(getCalendarById(calendarId, username));
+      Calendar calendar = getCalendarById(calendarId, username);
+      if (calendar.isDeleted()) {
+        continue;
+      }
+      calendars.add(calendar);
     }
     return calendars;
   }
@@ -94,7 +98,11 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
                                                                                   ownerIds.toArray(new Long[0]));
     List<Calendar> calendars = new ArrayList<>();
     for (Long calendarId : calendarsIds) {
-      calendars.add(getCalendarById(calendarId, username));
+      Calendar calendar = getCalendarById(calendarId, username);
+      if (calendar.isDeleted()) {
+        continue;
+      }
+      calendars.add(calendar);
     }
     return calendars;
   }
@@ -137,9 +145,16 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     if (calendar == null) {
       return null;
     }
-    boolean canEditCalendar = Utils.checkAclByCalendarOwner(identityManager, spaceService, calendar.getOwnerId(), username, true);
-    calendar.setAcl(new Permission(canEditCalendar, false));
-    fillCalendarTitleByOwnerName(calendar);
+    Identity ownerIdentity = identityManager.getIdentity(String.valueOf(calendar.getOwnerId()));
+    if (ownerIdentity == null) {
+      calendar.setDeleted(true);
+      calendar.setAcl(new Permission(false, false));
+    } else {
+      boolean canEditCalendar =
+                              Utils.checkAclByCalendarOwner(identityManager, spaceService, calendar.getOwnerId(), username, true);
+      calendar.setAcl(new Permission(canEditCalendar, false));
+      fillCalendarTitleByOwnerName(calendar);
+    }
     return calendar;
   }
 
@@ -155,7 +170,12 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     if (calendar == null) {
       return null;
     }
-    fillCalendarTitleByOwnerName(calendar);
+    Identity ownerIdentity = identityManager.getIdentity(String.valueOf(calendar.getOwnerId()));
+    if (ownerIdentity == null) {
+      calendar.setDeleted(true);
+    } else {
+      fillCalendarTitleByOwnerName(calendar);
+    }
     return calendar;
   }
 
