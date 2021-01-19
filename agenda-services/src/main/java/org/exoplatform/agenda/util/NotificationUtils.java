@@ -291,14 +291,49 @@ public class NotificationUtils {
                                                 Event event,
                                                 long participantId,
                                                 EventAttendeeResponse response,
-                                                org.exoplatform.agenda.model.Calendar calendar) {
+                                                org.exoplatform.agenda.model.Calendar calendar,
+                                                AgendaEventAttendeeService eventAttendeeService,
+                                                SpaceService spaceService) {
     Identity identity = Utils.getIdentityById(identityManager, participantId);
+    String timeZoneName = TimeZone.getTimeZone(event.getTimeZoneId()).getDisplayName() + ": " + event.getTimeZoneId();
+    List<String> participants = new ArrayList<>();
+    List<EventAttendee> eventAttendee = eventAttendeeService.getEventAttendees(event.getId());
+    List<String> spaceParticipants = new ArrayList<>();
+    String showSpaceParticipant = null;
+    for (EventAttendee attendee : eventAttendee) {
+      Identity identityAttendee = Utils.getIdentityById(identityManager, attendee.getIdentityId());
+      if (identityAttendee.getProviderId().equals(SpaceIdentityProvider.NAME)) {
+        String spaceName = identityAttendee.getRemoteId();
+        if (StringUtils.isNotBlank(spaceName)) {
+          spaceParticipants.add(spaceName);
+        }
+      } else if (identityAttendee.getProviderId().equals(OrganizationIdentityProvider.NAME)) {
+        participants.add(identityAttendee.getId());
+      }
+    }
+    String showParticipants = getFullUserName(participants, identityManager);
+    if (spaceParticipants.size() > 0) {
+      showSpaceParticipant = getSpaceDisplayName(spaceParticipants, spaceService);
+      showParticipants = showParticipants.concat(",").concat(showSpaceParticipant);
+    }
     notification.with(STORED_PARAMETER_EVENT_ID, String.valueOf(event.getId()))
                 .with(STORED_PARAMETER_EVENT_TITLE, event.getSummary())
                 .with(STORED_PARAMETER_EVENT_PARTICIPANT_AVATAR_URL, setParticipantAvatarUrl(identity))
                 .with(STORED_PARAMETER_EVENT_URL, getEventURL(event))
+                .with(STORED_PARAMETER_EVENT_OWNER_ID, String.valueOf(calendar.getOwnerId()))
                 .with(STORED_PARAMETER_EVENT_RESPONSE, String.valueOf(response))
-                .with(STORED_PARAMETER_EVENT_PARTICIPANT_NAME, getEventNotificationCreatorOrModifierUserName(identity));
+                .with(STORED_PARAMETER_EVENT_PARTICIPANT_NAME, getEventNotificationCreatorOrModifierUserName(identity))
+                .with(STORED_PARAMETER_EVENT_START_DATE, AgendaDateUtils.toRFC3339Date(event.getStart()))
+                .with(STORED_PARAMETER_EVENT_END_DATE, AgendaDateUtils.toRFC3339Date((event.getEnd())))
+                .with(STORED_PARAMETER_EVENT_RECURRENT_DETAILS, getRecurrenceDetails(event))
+                .with(STORED_PARAMETER_EVENT_TIMEZONE_NAME, timeZoneName)
+                .with(STORED_PARAMETER_EVENT_ATTENDEES, showParticipants);
+    if (StringUtils.isNotBlank(event.getDescription())) {
+      notification.with(STORED_PARAMETER_EVENT_DESCRIPTION, event.getDescription());
+    }
+    if (StringUtils.isNotBlank(event.getLocation())) {
+      notification.with(STORED_PARAMETER_EVENT_LOCATION, event.getLocation());
+    }
   }
 
   public static String getDefaultSite() {
@@ -373,8 +408,7 @@ public class NotificationUtils {
     return templateContext;
   }
 
-  public static final TemplateContext buildTemplateReplyParameters(TemplateProvider templateProvider,
-                                                                   NotificationInfo notification) {
+  public static final TemplateContext buildTemplateReplyParameters(TemplateProvider templateProvider, NotificationInfo notification, ZoneId timeZone) {
     String language = NotificationPluginUtils.getLanguage(notification.getTo());
     TemplateContext templateContext = getTemplateContext(templateProvider, notification, language);
 
@@ -382,8 +416,8 @@ public class NotificationUtils {
     setRead(notification, templateContext);
     setNotificationId(notification, templateContext);
     setLasModifiedTime(notification, templateContext, language);
-    
-    setEventReplyDetails(templateContext, notification);
+    setSpaceName(notification, templateContext);
+    setEventReplyDetails(templateContext, notification, timeZone);
 
     templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
     return templateContext;
@@ -422,7 +456,7 @@ public class NotificationUtils {
     templateContext.put("USER", notification.getTo());
   }
 
-  private static final void setEventReplyDetails(TemplateContext templateContext, NotificationInfo notification) {
+  private static final void setEventReplyDetails(TemplateContext templateContext, NotificationInfo notification,  ZoneId timeZone) {
     templateContext.put(TEMPLATE_VARIABLE_EVENT_ID, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_ID));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_TITLE, getEventTitle(notification));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_PARTICIPANT_NAME,
@@ -430,6 +464,27 @@ public class NotificationUtils {
     templateContext.put(TEMPLATE_VARIABLE_EVENT_RESPONSE, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_RESPONSE));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_PARTICIPANT_AVATAR_URL,
                         notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_PARTICIPANT_AVATAR_URL));
+
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_LOCATION, getEventLocation(notification));
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_DESCRIPTION, getEventDescription(notification));
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_RECURRENT_DETAILS,
+            notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_RECURRENT_DETAILS));
+
+    String startDateRFC3339 = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_START_DATE);
+    String endDateRFC3339 = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_END_DATE);
+
+    ZonedDateTime startDate = ZonedDateTime.parse(startDateRFC3339).withZoneSameInstant(timeZone);
+    ZonedDateTime endDate = ZonedDateTime.parse(endDateRFC3339).withZoneSameInstant(timeZone);
+
+    String dateFormatted = AgendaDateUtils.formatWithYearAndMonth(startDate);
+    String startDateFormatted = AgendaDateUtils.formatWithHoursAndMinutes(startDate);
+    String endDateFormatted = AgendaDateUtils.formatWithHoursAndMinutes(endDate);
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_TIMEZONE_NAME,
+                        notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_TIMEZONE_NAME));
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_ATTENDEES, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_ATTENDEES));
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_START_DATE, startDateFormatted);
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_END_DATE, endDateFormatted);
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_MONTH_YEAR_DATE, dateFormatted);
   }
 
     public static String getEventURL(Event event) {
@@ -668,6 +723,15 @@ public class NotificationUtils {
       }
       return String.join(", ", showParticipants);
     }
+  }
+
+  private static String getSpaceDisplayName(List<String> participants, SpaceService spaceService) {
+    List<String> showParticipants = new ArrayList<>();
+    for (int i = 0; i < participants.size(); i++) {
+      String displaySpaceName = spaceService.getSpaceByPrettyName(participants.get(i)).getDisplayName();
+      showParticipants.add(displaySpaceName);
+    }
+    return String.join(", ", showParticipants);
   }
 
 }
