@@ -260,5 +260,52 @@
       <column name="UNTIL_OCCURRENCE_ID" type="TIMESTAMP" defaultValueComputed="NULL" />
     </addColumn>
   </changeSet>
+  <changeSet author="agenda" id="1.0.0-18" dbms="oracle,postgresql">
+    <createSequence sequenceName="SEQ_AGENDA_EVENT_DATE_POLL_ID" startValue="1" />
+    <createSequence sequenceName="SEQ_AGENDA_EVENT_DATE_OPTION_ID" startValue="1" />
+    <createSequence sequenceName="SEQ_AGENDA_EVENT_DATE_VOTE_ID" startValue="1" />
+  </changeSet>
+
+  <changeSet author="agenda" id="1.0.0-19">
+    <createTable tableName="EXO_AGENDA_EVENT_DATE_OPTION">
+      <column name="EVENT_DATE_OPTION_ID" type="BIGINT" autoIncrement="${autoIncrement}" startWith="1">
+        <constraints nullable="false" primaryKey="true" primaryKeyName="PK_AGENDA_EVENT_DATE_OPTION" />
+      </column>
+      <column name="EVENT_ID" type="BIGINT">
+        <constraints foreignKeyName="FK_AGENDA_EVENT_DATE_OPTION_EVENT" references="EXO_AGENDA_EVENT(EVENT_ID)" nullable="false" />
+      </column>
+      <column name="START_DATE" type="TIMESTAMP">
+        <constraints nullable="false" />
+      </column>
+      <column name="END_DATE" type="TIMESTAMP">
+        <constraints nullable="false" />
+      </column>
+      <column name="ALL_DAY" type="BOOLEAN" />
+    </createTable>
+    <createTable tableName="EXO_AGENDA_EVENT_DATE_VOTE">
+      <column name="EVENT_DATE_VOTE_ID" type="BIGINT" autoIncrement="${autoIncrement}" startWith="1">
+        <constraints nullable="false" primaryKey="true" primaryKeyName="PK_AGENDA_EVENT_DATE_VOTE" />
+      </column>
+      <column name="EVENT_DATE_OPTION_ID" type="BIGINT">
+        <constraints foreignKeyName="FK_AGENDA_EVENT_DATE_OPTION_VOTE" references="EXO_AGENDA_EVENT_DATE_OPTION(EVENT_DATE_OPTION_ID)" nullable="false" />
+      </column>
+      <column name="IDENTITY_ID" type="BIGINT">
+        <constraints nullable="false" />
+      </column>
+    </createTable>
+    <createTable tableName="EXO_AGENDA_EVENT_DATE_POLL">
+      <column name="EVENT_DATE_POLL_ID" type="BIGINT" autoIncrement="${autoIncrement}" startWith="1">
+        <constraints nullable="false" primaryKey="true" primaryKeyName="PK_AGENDA_EVENT_DATE_POLL" />
+      </column>
+      <column name="EVENT_ID" type="BIGINT">
+        <constraints foreignKeyName="FK_AGENDA_EVENT_DATE_POLL_EVENT" references="EXO_AGENDA_EVENT(EVENT_ID)" nullable="false" />
+      </column>
+      <column name="SELECTED_DATE_OPTION_ID" type="BIGINT">
+        <constraints foreignKeyName="FK_AGENDA_EVENT_DATE_POLL_OPTION" references="EXO_AGENDA_EVENT_DATE_OPTION(EVENT_DATE_OPTION_ID)" />
+      </column>
+    </createTable>
+    <addUniqueConstraint tableName="EXO_AGENDA_EVENT_DATE_POLL" columnNames="EVENT_ID" />
+    <addUniqueConstraint tableName="EXO_AGENDA_EVENT_DATE_VOTE" columnNames="IDENTITY_ID,EVENT_DATE_OPTION_ID" />
+  </changeSet>
 
 </databaseChangeLog>

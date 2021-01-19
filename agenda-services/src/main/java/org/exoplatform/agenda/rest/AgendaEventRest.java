@@ -74,6 +74,8 @@ public class AgendaEventRest implements ResourceContainer {
 
   private AgendaRemoteEventService     agendaRemoteEventService;
 
+  private AgendaEventDatePollService   agendaEventDatePollService;
+
   private String                       defaultSite    = null;
 
   public AgendaEventRest(IdentityManager identityManager,
@@ -82,6 +84,7 @@ public class AgendaEventRest implements ResourceContainer {
                          AgendaEventService agendaEventService,
                          AgendaEventConferenceService agendaEventConferenceService,
                          AgendaRemoteEventService agendaRemoteEventService,
+                         AgendaEventDatePollService agendaEventDatePollService,
                          AgendaEventAttachmentService agendaEventAttachmentService,
                          AgendaEventReminderService agendaEventReminderService,
                          AgendaEventAttendeeService agendaEventAttendeeService) {
@@ -93,6 +96,7 @@ public class AgendaEventRest implements ResourceContainer {
     this.agendaEventAttachmentService = agendaEventAttachmentService;
     this.agendaEventConferenceService = agendaEventConferenceService;
     this.agendaRemoteEventService = agendaRemoteEventService;
+    this.agendaEventDatePollService = agendaEventDatePollService;
     if (portalConfigService != null && portalConfigService.getDefaultPortal() != null) {
       this.defaultSite = portalConfigService.getDefaultPortal();
     } else {
@@ -177,6 +181,7 @@ public class AgendaEventRest implements ResourceContainer {
       Map<Long, List<EventAttachmentEntity>> attachmentsByParentEventId = new HashMap<>();
       Map<Long, List<EventConference>> conferencesByParentEventId = new HashMap<>();
       Map<Long, List<EventReminder>> remindersByParentEventId = new HashMap<>();
+      Map<Long, List<EventDateOptionEntity>> dateOptionsByParentEventId = new HashMap<>();
       Map<Long, RemoteEvent> remoteEventByParentEventId = new HashMap<>();
       List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
                                                                   : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
@@ -213,6 +218,13 @@ public class AgendaEventRest implements ResourceContainer {
             fillReminders(eventEntity, userIdentityId, remindersByParentEventId);
           } catch (Exception e) {
             LOG.warn("Error retrieving event reminders, retrieve event without it", e);
+          }
+        }
+        if (expandProperties.contains("all") || expandProperties.contains("dateOptions")) {
+          try {
+            fillDateOptions(eventEntity, userTimeZone, dateOptionsByParentEventId);
+          } catch (Exception e) {
+            LOG.warn("Error retrieving event date options, retrieve event without it", e);
           }
         }
         fillRemoteEvent(eventEntity, userIdentityId);
@@ -424,7 +436,7 @@ public class AgendaEventRest implements ResourceContainer {
 
     long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
     try {
-      Event event = createEvent(eventEntity, userIdentityId);
+      Event event = createEvent(eventEntity, userIdentityId, timeZoneId);
       return getEventById(event.getId(), "all", timeZoneId == null ? event.getTimeZoneId().getId() : timeZoneId);
     } catch (IllegalAccessException e) {
       LOG.warn("User '{}' attempts to create an event in calendar '{}'", RestUtils.getCurrentUser(), eventEntity.getCalendar());
@@ -494,15 +506,33 @@ public class AgendaEventRest implements ResourceContainer {
 
       RemoteEvent remoteEvent = getRemoteEvent(eventEntity, userIdentityId);
 
+      String userTimeZoneId = timeZoneId == null ? event.getTimeZoneId().getId() : timeZoneId;
+      ZoneId userTimeZone = userTimeZoneId == null ? ZoneOffset.UTC : ZoneId.of(userTimeZoneId);
+
+      List<EventDateOptionEntity> dateOptionEntities = eventEntity.getDateOptions();
+      List<EventDateOption> dateOptions = dateOptionEntities == null ? Collections.emptyList()
+                                                                     : dateOptionEntities.stream()
+                                                                                         .map(dateOptionEntity -> new EventDateOption(dateOptionEntity.getId(),
+                                                                                                                                      dateOptionEntity.getEventId(),
+                                                                                                                                      AgendaDateUtils.parseRFC3339ToZonedDateTime(dateOptionEntity.getStart(),
+                                                                                                                                                                                  userTimeZone),
+                                                                                                                                      AgendaDateUtils.parseRFC3339ToZonedDateTime(dateOptionEntity.getEnd(),
+                                                                                                                                                                                  userTimeZone),
+                                                                                                                                      dateOptionEntity.isAllDay(),
+                                                                                                                                      false,
+                                                                                                                                      null))
+                                                                                         .collect(Collectors.toList());
+
       agendaEventService.updateEvent(event,
                                      attendees,
                                      eventEntity.getConferences(),
                                      attachments,
                                      reminders,
+                                     dateOptions,
                                      remoteEvent,
                                      eventEntity.isSendInvitation(),
                                      userIdentityId);
-      return getEventById(event.getId(), "all", timeZoneId == null ? event.getTimeZoneId().getId() : timeZoneId);
+      return getEventById(event.getId(), "all", userTimeZoneId);
     } catch (AgendaException e) {
       return Response.serverError().entity(e.getAgendaExceptionType().getCompleteMessage()).build();
     } catch (IllegalAccessException e) {
@@ -640,6 +670,56 @@ public class AgendaEventRest implements ResourceContainer {
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error deleting an event", e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
+  @POST
+  @Path("{eventId}/dateOption/{dateOptionId}/select")
+  @RolesAllowed("users")
+  @ApiOperation(
+      value = "Select an Date Option for an event having multiple dates options", httpMethod = "POST", response = Response.class
+  )
+  @ApiResponses(
+      value = {
+          @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object not found"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+      }
+  )
+  public Response selectEventDateOption(
+                                        @ApiParam(value = "Event technical identifier", required = true) @PathParam(
+                                          "eventId"
+                                        ) long eventId,
+                                        @ApiParam(value = "Event date option technical identifier", required = true) @PathParam(
+                                          "dateOptionId"
+                                        ) long dateOptionId) {
+    if (eventId <= 0) {
+      return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
+    }
+    if (dateOptionId <= 0) {
+      return Response.status(Status.BAD_REQUEST).entity("Event date option identifier must be a positive integer").build();
+    }
+
+    try {
+      Identity identity = RestUtils.getCurrentUserIdentity(identityManager);
+      if (identity == null) {
+        return Response.status(Status.FORBIDDEN).build();
+      }
+      long userIdentityId = Long.parseLong(identity.getId());
+      agendaEventService.selectEventDateOption(eventId, dateOptionId, userIdentityId);
+      return Response.noContent().build();
+    } catch (ObjectNotFoundException e) {
+      return Response.status(Status.NOT_FOUND).entity("Event Date Option not found").build();
+    } catch (IllegalAccessException e) {
+      LOG.warn("User '{}' attempts to select Date Option on a not authorized event with Id '{}'",
+               RestUtils.getCurrentUser(),
+               eventId);
+      return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
+    } catch (Exception e) {
+      LOG.warn("Error voting on event with id '{}' with date option '{}'", eventId, dateOptionId, e);
       return Response.serverError().entity(e.getMessage()).build();
     }
   }
@@ -793,6 +873,99 @@ public class AgendaEventRest implements ResourceContainer {
     }
   }
 
+  @Path("{eventId}/dateOption/{dateOptionId}/vote")
+  @POST
+  @Produces(MediaType.TEXT_PLAIN)
+  @ApiOperation(
+      value = "Registers voted date poll option for currently authenticated user",
+      httpMethod = "POST", response = Response.class
+  )
+  @ApiResponses(
+      value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.FORBIDDEN, message = "Forbidden operation"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+  )
+  public Response voteEventDateOption(
+                                      @ApiParam(value = "Event technical identifier", required = true) @PathParam(
+                                        "eventId"
+                                      ) long eventId,
+                                      @ApiParam(value = "Event date option technical identifier", required = true) @PathParam(
+                                        "dateOptionId"
+                                      ) long dateOptionId) {
+    if (eventId <= 0) {
+      return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
+    }
+    if (dateOptionId <= 0) {
+      return Response.status(Status.BAD_REQUEST).entity("Event date option identifier must be a positive integer").build();
+    }
+
+    try {
+      Identity identity = RestUtils.getCurrentUserIdentity(identityManager);
+      if (identity == null) {
+        return Response.status(Status.FORBIDDEN).build();
+      }
+      long identityId = Long.parseLong(identity.getId());
+      agendaEventDatePollService.voteDateOption(dateOptionId, identityId);
+      return Response.noContent().build();
+    } catch (ObjectNotFoundException e) {
+      return Response.status(Status.NOT_FOUND).entity("Event not found").build();
+    } catch (IllegalAccessException e) {
+      LOG.warn("User '{}' attempts to vote on a not authorized event with Id '{}'",
+               RestUtils.getCurrentUser(),
+               eventId);
+      return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
+    } catch (Exception e) {
+      LOG.warn("Error voting on event with id '{}' with date option '{}'", eventId, dateOptionId, e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
+  @Path("{eventId}/dateOption/{dateOptionId}/vote")
+  @DELETE
+  @Produces(MediaType.TEXT_PLAIN)
+  @ApiOperation(
+      value = "Dismisses vote on date poll option for currently authenticated user",
+      httpMethod = "DELETE", response = Response.class
+  )
+  @ApiResponses(
+      value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.FORBIDDEN, message = "Forbidden operation"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+  )
+  public Response dismissEventDateOption(
+                                         @ApiParam(value = "Event technical identifier", required = true) @PathParam(
+                                           "eventId"
+                                         ) long eventId,
+                                         @ApiParam(value = "Event date option technical identifier", required = true) @PathParam(
+                                           "dateOptionId"
+                                         ) long dateOptionId) {
+    if (eventId <= 0) {
+      return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
+    }
+    if (dateOptionId <= 0) {
+      return Response.status(Status.BAD_REQUEST).entity("Event date option identifier must be a positive integer").build();
+    }
+
+    try {
+      Identity identity = RestUtils.getCurrentUserIdentity(identityManager);
+      if (identity == null) {
+        return Response.status(Status.FORBIDDEN).build();
+      }
+      long identityId = Long.parseLong(identity.getId());
+      agendaEventDatePollService.dismissDateOption(dateOptionId, identityId);
+      return Response.noContent().build();
+    } catch (ObjectNotFoundException e) {
+      return Response.status(Status.NOT_FOUND).entity("Event not found").build();
+    } catch (Exception e) {
+      LOG.warn("Error dismissing vote on event with id '{}' with date option '{}'", eventId, dateOptionId, e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
   @Path("{eventId}/response/send")
   @GET
   @ApiOperation(
@@ -933,7 +1106,8 @@ public class AgendaEventRest implements ResourceContainer {
     return Response.ok(results).build();
   }
 
-  private Event createEvent(EventEntity eventEntity, long userIdentityId) throws AgendaException, IllegalAccessException {
+  private Event createEvent(EventEntity eventEntity, long userIdentityId, String timeZoneId) throws AgendaException,
+                                                                                             IllegalAccessException {
     checkCalendar(eventEntity);
 
     cleanupAttachedEntitiesIds(eventEntity);
@@ -970,11 +1144,29 @@ public class AgendaEventRest implements ResourceContainer {
 
     RemoteEvent remoteEvent = getRemoteEvent(eventEntity, userIdentityId);
 
+    String userTimeZoneId = timeZoneId == null ? eventEntity.getTimeZoneId() : timeZoneId;
+    ZoneId userTimeZone = userTimeZoneId == null ? ZoneOffset.UTC : ZoneId.of(userTimeZoneId);
+
+    List<EventDateOptionEntity> dateOptionEntities = eventEntity.getDateOptions();
+    List<EventDateOption> dateOptions = dateOptionEntities == null ? Collections.emptyList()
+                                                                   : dateOptionEntities.stream()
+                                                                                       .map(dateOptionEntity -> new EventDateOption(dateOptionEntity.getId(),
+                                                                                                                                    dateOptionEntity.getEventId(),
+                                                                                                                                    AgendaDateUtils.parseRFC3339ToZonedDateTime(dateOptionEntity.getStart(),
+                                                                                                                                                                                userTimeZone),
+                                                                                                                                    AgendaDateUtils.parseRFC3339ToZonedDateTime(dateOptionEntity.getEnd(),
+                                                                                                                                                                                userTimeZone),
+                                                                                                                                    dateOptionEntity.isAllDay(),
+                                                                                                                                    false,
+                                                                                                                                    null))
+                                                                                       .collect(Collectors.toList());
+
     return agendaEventService.createEvent(EntityBuilder.toEvent(eventEntity),
                                           attendees,
                                           eventEntity.getConferences(),
                                           attachments,
                                           reminders,
+                                          dateOptions,
                                           remoteEvent,
                                           eventEntity.isSendInvitation(),
                                           userIdentityId);
@@ -1028,6 +1220,9 @@ public class AgendaEventRest implements ResourceContainer {
       if (expandProperties.contains("all") || expandProperties.contains("reminders")) {
         fillReminders(eventEntity, userIdentityId);
       }
+      if (expandProperties.contains("all") || expandProperties.contains("dateOptions")) {
+        fillDateOptions(eventEntity, userTimeZone);
+      }
       fillRemoteEvent(eventEntity, userIdentityId);
       if (eventEntity.getParent() != null) {
         fillRemoteEvent(eventEntity.getParent(), userIdentityId);
@@ -1063,6 +1258,9 @@ public class AgendaEventRest implements ResourceContainer {
       }
       if (expandProperties.contains("all") || expandProperties.contains("reminders")) {
         fillReminders(eventSearchResultEntity, userIdentityId);
+      }
+      if (expandProperties.contains("all") || expandProperties.contains("dateOptions")) {
+        fillDateOptions(eventSearchResultEntity, userTimeZone);
       }
       fillRemoteEvent(eventSearchResultEntity, userIdentityId);
       if (eventSearchResultEntity.getParent() != null) {
@@ -1167,6 +1365,19 @@ public class AgendaEventRest implements ResourceContainer {
     }
   }
 
+  private void fillDateOptions(EventEntity eventEntity,
+                               ZoneId userTimeZone,
+                               Map<Long, List<EventDateOptionEntity>> dateOptionsByParentEventId) {
+    long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParent().getId()
+                                                     : eventEntity.getId();
+    if (dateOptionsByParentEventId.containsKey(eventId)) {
+      eventEntity.setDateOptions(dateOptionsByParentEventId.get(eventId));
+    } else {
+      fillDateOptions(eventEntity, userTimeZone);
+      dateOptionsByParentEventId.put(eventId, eventEntity.getDateOptions());
+    }
+  }
+
   private void fillRemoteEvent(EventEntity eventEntity,
                                long userIdentityId) {
     if (isComputedOccurrence(eventEntity)) {
@@ -1233,6 +1444,27 @@ public class AgendaEventRest implements ResourceContainer {
                                                                                    .map(EntityBuilder::fromEventReminder)
                                                                                    .collect(Collectors.toList());
     eventEntity.setReminders(eventReminderEntities);
+  }
+
+  private void fillDateOptions(EventEntity eventEntity, ZoneId userTimeZone) {
+    long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParent().getId()
+                                                     : eventEntity.getId();
+    List<EventDateOption> dateOptions = agendaEventDatePollService.getEventDateOptions(eventId, userTimeZone);
+    List<EventDateOptionEntity> dateOptionEntities = dateOptions == null ? Collections.emptyList()
+                                                                         : dateOptions.stream()
+                                                                                      .map(dateOption -> new EventDateOptionEntity(dateOption.getId(),
+                                                                                                                                   dateOption.getEventId(),
+                                                                                                                                   AgendaDateUtils.toRFC3339Date(dateOption.getStart(),
+                                                                                                                                                                 userTimeZone,
+                                                                                                                                                                 dateOption.isAllDay()),
+                                                                                                                                   AgendaDateUtils.toRFC3339Date(dateOption.getEnd(),
+                                                                                                                                                                 userTimeZone,
+                                                                                                                                                                 dateOption.isAllDay()),
+                                                                                                                                   dateOption.isAllDay(),
+                                                                                                                                   false,
+                                                                                                                                   null))
+                                                                                      .collect(Collectors.toList());
+    eventEntity.setDateOptions(dateOptionEntities);
   }
 
   private boolean isComputedOccurrence(EventEntity eventEntity) {

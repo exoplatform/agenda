@@ -257,21 +257,7 @@ export default {
       if (!agendaEvent) {
         agendaEvent = {};
       }
-      if (!agendaEvent.calendar) {
-        agendaEvent.calendar = {};
-      }
-      if (!agendaEvent.calendar.owner) {
-        agendaEvent.calendar.owner = {};
-      }
-      if (!agendaEvent.reminders) {
-        agendaEvent.reminders = [];
-      }
-      if (!agendaEvent.attachments) {
-        agendaEvent.attachments = [];
-      }
-      if (!agendaEvent.attendees) {
-        agendaEvent.attendees = [];
-      }
+      this.$agendaUtils.initEventForm(agendaEvent);
       this.event = agendaEvent;
 
       let eventDetailsPath = `${window.location.pathname}`;

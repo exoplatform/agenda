@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.exoplatform.agenda.constant.EventRecurrenceFrequency;
+import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.entity.*;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.model.Calendar;
@@ -192,7 +193,7 @@ public class EntityMapper {
     if (recurrence == null) {
       eventEntity.setStartDate(AgendaDateUtils.toDate(start));
       eventEntity.setEndDate(AgendaDateUtils.toDate(end));
-    } else {
+    } else if (event.getStatus() == EventStatus.CONFIRMED) {
       DateTime startDateTime = new DateTime(Date.from(start.toInstant()));
       DateTime endDateTime = new DateTime(Date.from(end.toInstant()));
 

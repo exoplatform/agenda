@@ -4,6 +4,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
 
+import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.job.DailyReminderComputingJob;
 import org.exoplatform.agenda.service.AgendaEventReminderService;
 import org.exoplatform.agenda.service.AgendaEventService;
@@ -29,8 +30,11 @@ public class AgendaEventReminderComputingListener extends Listener<Long, Object>
   public void onEvent(Event<Long, Object> event) throws Exception {
     Long eventId = event.getSource();
     org.exoplatform.agenda.model.Event agendaEvent = getAgendaEventService().getEventById(eventId);
+    if (agendaEvent == null || agendaEvent.getStatus() != EventStatus.CONFIRMED) {
+      return;
+    }
 
-    if (agendaEvent != null && agendaEvent.getRecurrence() != null) {
+    if (agendaEvent.getRecurrence() != null) {
       ZonedDateTime start = ZonedDateTime.now();
       ZonedDateTime end = start.plusDays(getAgendaEventReminderService().getReminderComputingPeriod());
 

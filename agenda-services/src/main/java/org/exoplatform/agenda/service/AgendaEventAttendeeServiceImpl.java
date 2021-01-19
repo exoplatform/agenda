@@ -138,7 +138,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
         if (event.getStatus() == EventStatus.CONFIRMED) {
           sendEventResponse(eventId, creatorUserId, EventAttendeeResponse.ACCEPTED);
         } else if (event.getStatus() == EventStatus.TENTATIVE) {
-          sendEventResponse(eventId, creatorUserId, EventAttendeeResponse.TENTATIVE);
+          sendEventResponse(eventId, creatorUserId, EventAttendeeResponse.NEEDS_ACTION);
         } else if (event.getStatus() == EventStatus.CANCELLED) {
           sendEventResponse(eventId, creatorUserId, EventAttendeeResponse.DECLINED);
         }
@@ -303,21 +303,20 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    */
   @Override
   public void sendInvitations(Event event, List<EventAttendee> eventAttendees, EventModificationType eventModificationType) {
-    String agendaNotificationPluginType = null;
     NotificationContext ctx = NotificationContextImpl.cloneInstance();
     ctx.append(EVENT_AGENDA, event);
     ctx.append(EVENT_ATTENDEE, eventAttendees);
-    if (eventModificationType.name().equals("ADDED")) {
-      agendaNotificationPluginType = AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN;
-      ctx.append(EVENT_MODIFICATION_TYPE, "ADDED");
-    } else if (eventModificationType.name().equals("UPDATED")) {
-      agendaNotificationPluginType = AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN;
-      ctx.append(EVENT_MODIFICATION_TYPE, "UPDATED");
-    } else {
-      agendaNotificationPluginType = AGENDA_EVENT_CANCELLED_NOTIFICATION_PLUGIN;
-      ctx.append(EVENT_MODIFICATION_TYPE, "DELETED");
+    ctx.append(EVENT_MODIFICATION_TYPE, eventModificationType);
+
+    if (event.getStatus() == EventStatus.TENTATIVE) {
+      // TODO implement Notification for Date Poll Event
+    } else if (eventModificationType == EventModificationType.DELETED) {
+      dispatch(ctx, AGENDA_EVENT_CANCELLED_NOTIFICATION_PLUGIN);
+    } else if (eventModificationType == EventModificationType.ADDED) {
+      dispatch(ctx, AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN);
+    } else if (eventModificationType == EventModificationType.UPDATED) {
+      dispatch(ctx, AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN);
     }
-    dispatch(ctx, agendaNotificationPluginType);
   }
 
   private void saveEventAttendee(long eventId, long identityId, EventAttendeeResponse response) {

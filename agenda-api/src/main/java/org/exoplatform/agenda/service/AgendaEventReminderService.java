@@ -67,9 +67,8 @@ public interface AgendaEventReminderService {
    * 
    * @param event {@link Event} for which saving reminders
    * @param reminders {@link List} of {@link EventReminder}
-   * @throws AgendaException when an error occurs while saving reminders
    */
-  void saveEventReminders(Event event, List<EventReminder> reminders) throws AgendaException;
+  void saveEventReminders(Event event, List<EventReminder> reminders);
 
   /**
    * Save reminders for an upcoming of an occurrence of a recurring event for a
