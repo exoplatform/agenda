@@ -110,6 +110,12 @@ public class AgendaCalendarServiceTest {
     long notExistingCalendarId = calendarId + 2;
     retrievedCalendar = agendaCalendarService.getCalendarById(notExistingCalendarId);
     assertNull("Should return null when trying to retrieve inexistant calendar", retrievedCalendar);
+
+    // 3. Test deleting a calendar
+    when(identityManager.getIdentity(eq(String.valueOf(calendarOwnerId)))).thenReturn(null);
+    retrievedCalendar = agendaCalendarService.getCalendarById(calendarId);
+    assertNotNull(retrievedCalendar);
+    assertTrue(retrievedCalendar.isDeleted());
   }
 
   @Test
