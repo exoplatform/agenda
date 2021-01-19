@@ -182,7 +182,11 @@ public class AgendaEventRest implements ResourceContainer {
                                                                   : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
                                                                                                     ","));
       List<EventEntity> eventEntities = events.stream().map(event -> {
-        EventEntity eventEntity = EntityBuilder.fromEvent(agendaCalendarService, agendaEventService, identityManager, event);
+        EventEntity eventEntity = EntityBuilder.fromEvent(agendaCalendarService,
+                                                          agendaEventService,
+                                                          identityManager,
+                                                          event,
+                                                          userTimeZone);
         if (expandProperties.contains("all") || expandProperties.contains("attendees")) {
           try {
             fillAttendees(eventEntity, attendeesByParentEventId);
@@ -333,7 +337,7 @@ public class AgendaEventRest implements ResourceContainer {
       if (event == null) {
         return Response.status(Status.NOT_FOUND).build();
       }
-      EventEntity eventEntity = getEventEntity(event, expandProperties);
+      EventEntity eventEntity = getEventEntity(event, userTimeZone, expandProperties);
       return Response.ok(eventEntity).build();
     } catch (IllegalAccessException e) {
       LOG.warn("User '{}' attempts to access not authorized event with parentId '{}' and occurrenceId '{}'",
@@ -382,7 +386,7 @@ public class AgendaEventRest implements ResourceContainer {
       ZoneId userTimeZone = StringUtils.isBlank(timeZoneId) ? ZoneOffset.UTC : ZoneId.of(timeZoneId);
       List<Event> events = agendaEventService.getExceptionalOccurrenceEvents(parentEventId, userTimeZone, userIdentityId);
       List<EventEntity> eventEntities = events.stream()
-                                              .map(event -> getEventEntity(event, expandProperties))
+                                              .map(event -> getEventEntity(event, userTimeZone, expandProperties))
                                               .collect(Collectors.toList());
       return Response.ok(eventEntities).build();
     } catch (IllegalAccessException e) {
@@ -917,6 +921,7 @@ public class AgendaEventRest implements ResourceContainer {
     List<EventSearchResult> searchResults = agendaEventService.search(currentUserId, userTimeZone, query, offset, limit);
     List<EventSearchResultEntity> results = searchResults.stream()
                                                          .map(searchResult -> getEventSearchResultEntity(searchResult,
+                                                                                                         userTimeZone,
                                                                                                          expandProperties))
                                                          .collect(Collectors.toList());
     return Response.ok(results).build();
@@ -992,14 +997,18 @@ public class AgendaEventRest implements ResourceContainer {
                                           ZoneId userTimeZone,
                                           List<String> expandProperties) throws IllegalAccessException {
     Event event = agendaEventService.getEventById(eventId, userTimeZone, identityId);
-    return getEventEntity(event, expandProperties);
+    return getEventEntity(event, userTimeZone, expandProperties);
   }
 
-  private EventEntity getEventEntity(Event event, List<String> expandProperties) {
+  private EventEntity getEventEntity(Event event, ZoneId userTimeZone, List<String> expandProperties) {
     if (event == null) {
       return null;
     } else {
-      EventEntity eventEntity = EntityBuilder.fromEvent(agendaCalendarService, agendaEventService, identityManager, event);
+      EventEntity eventEntity = EntityBuilder.fromEvent(agendaCalendarService,
+                                                        agendaEventService,
+                                                        identityManager,
+                                                        event,
+                                                        userTimeZone);
       long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
       if (expandProperties.contains("all") || expandProperties.contains("attendees")) {
         fillAttendees(eventEntity);
@@ -1024,14 +1033,17 @@ public class AgendaEventRest implements ResourceContainer {
     }
   }
 
-  private EventSearchResultEntity getEventSearchResultEntity(EventSearchResult eventSearchResult, List<String> expandProperties) {
+  private EventSearchResultEntity getEventSearchResultEntity(EventSearchResult eventSearchResult,
+                                                             ZoneId userTimeZone,
+                                                             List<String> expandProperties) {
     if (eventSearchResult == null) {
       return null;
     } else {
       EventSearchResultEntity eventSearchResultEntity = EntityBuilder.fromSearchEvent(agendaCalendarService,
                                                                                       agendaEventService,
                                                                                       identityManager,
-                                                                                      eventSearchResult);
+                                                                                      eventSearchResult,
+                                                                                      userTimeZone);
 
       long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
       if (expandProperties.contains("all") || expandProperties.contains("attendees")) {

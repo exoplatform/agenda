@@ -80,14 +80,14 @@ public class AgendaDateUtils {
     return zonedDateTime.format(RFC_3339_FORMATTER);
   }
 
-  public static String toRFC3339Date(ZonedDateTime zonedDateTime, boolean allDay) {
+  public static String toRFC3339Date(ZonedDateTime zonedDateTime, ZoneId zoneOffset, boolean allDay) {
     if (zonedDateTime == null) {
       return null;
     }
     if (allDay) {
-      return zonedDateTime.format(ALL_DAY_FORMATTER);
+      return zonedDateTime.withZoneSameLocal(zoneOffset).format(ALL_DAY_FORMATTER);
     } else {
-      return zonedDateTime.format(RFC_3339_FORMATTER);
+      return zonedDateTime.withZoneSameInstant(zoneOffset).format(RFC_3339_FORMATTER);
     }
   }
 

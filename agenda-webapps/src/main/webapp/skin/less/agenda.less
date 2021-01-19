@@ -161,6 +161,10 @@
         padding: 0;
       }
     }
+    .eventFormStepperDivider {
+      flex-grow: 0;
+      min-width: 120px;
+    }
   }
 
   .calendar-owners-filters {
@@ -281,6 +285,15 @@
       font-size: 12px !important;
     }
 
+    .event-form-datetimes {
+      max-width: 290px;
+    }
+
+    .event-time-picker {
+      box-sizing: content-box;
+      padding: 5px;
+    }
+
     .period-title {
       font-size: 1rem !important;
     }
@@ -388,6 +401,10 @@
   }
   .uiIconRefresh.uiIcon32x32:before {
     color: @darkGrey !important;
+  }
+
+  .text-wrap a {
+    word-break: break-word;
   }
 
   .event-details-body {

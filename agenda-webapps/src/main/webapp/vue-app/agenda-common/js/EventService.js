@@ -98,7 +98,9 @@ export function getEventExceptionalOccurrences(eventId, expand) {
 }
 
 export function createEvent(event) {
-  event.sendInvitation = true;
+  if (!event.hasOwnProperty('sendInvitation')) {
+    event.sendInvitation = true;
+  }
   event = formatEventToSave(event);
 
   const saveWebConferencePromises = getSaveAllWebConferencesPromises(event);
@@ -128,7 +130,9 @@ export function createEvent(event) {
 }
 
 export function updateEvent(event) {
-  event.sendInvitation = true;
+  if (!event.hasOwnProperty('sendInvitation')) {
+    event.sendInvitation = true;
+  }
   event = formatEventToSave(event);
 
   const saveWebConferencePromises = getSaveAllWebConferencesPromises(event);
@@ -245,19 +249,21 @@ export function saveEventReminders(eventId, occurrenceId, reminders) {
 }
 
 export function deleteEvent(eventId) {
-  const deleteAllWebConferencesPromises = getDeleteAllWebConferencesPromises(event);
-
-  return Promise.all(deleteAllWebConferencesPromises)
-    .then(() =>
-      fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      })
-    ).then((resp) => {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+    .then((resp) => {
       if (resp && resp.ok) {
         return resp.json();
       } else {
         throw new Error('Error deleting event');
+      }
+    })
+    .then(event => {
+      if (event) {
+        const deleteAllWebConferencesPromises = getDeleteAllWebConferencesPromises(event);
+        return Promise.all(deleteAllWebConferencesPromises);
       }
     });
 }

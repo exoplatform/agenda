@@ -582,6 +582,11 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                        false,
                                        EventModificationType.UPDATED);
 
+    if (!storedEvent.getStart().equals(updatedEvent.getStart())) {
+      List<EventReminder> allReminders = reminderService.getEventReminders(eventId);
+      reminderService.saveEventReminders(updatedEvent, allReminders);
+    }
+
     Utils.broadcastEvent(listenerService, Utils.POST_UPDATE_AGENDA_EVENT_EVENT, eventId, 0);
 
     return updatedEvent;
@@ -644,7 +649,12 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
 
     event.setModifierId(Long.parseLong(userIdentity.getId()));
-    agendaEventStorage.updateEvent(event);
+    event = agendaEventStorage.updateEvent(event);
+
+    if (fields.containsKey("start")) {
+      List<EventReminder> reminders = reminderService.getEventReminders(event.getId());
+      reminderService.saveEventReminders(event, reminders);
+    }
 
     if (sendInvitations) {
       List<EventAttendee> eventAttendees = attendeeService.getEventAttendees(eventId);

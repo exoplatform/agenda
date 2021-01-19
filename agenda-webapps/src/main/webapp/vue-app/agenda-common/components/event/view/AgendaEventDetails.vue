@@ -71,7 +71,7 @@
         <div v-if="canAddReminders" class="event-reminders align-center d-flex pb-5 text-truncate">
           <i class="uiIcon32x32 notifIcon darkGreyIcon pr-5 mt-1 mb-auto"></i>
           <v-list
-            class="py-0"
+            class="py-0 text-truncate"
             dense>
             <v-list-item v-if="!event.reminders || !event.reminders.length">
               <label class="text-sub-title font-italic mx-auto">
@@ -88,7 +88,7 @@
                   class="mt-1 mb-2 mr-2"
                   color="primary"
                   outlined>
-                  <span class="text--primary">
+                  <span class="text--primary text-truncate">
                     <template v-if="reminder.before">
                       {{ $t('agenda.label.notifyMeBefore', {0: reminder.before, 1: $t(`agenda.option.${reminder.beforePeriodType.toLowerCase()}s`).toLowerCase()}) }}
                     </template>
@@ -110,15 +110,15 @@
         </div>
         <div v-if="isConferenceEnabled" class="event-conference d-flex flex-grow-0 flex-shrink-1 pb-5">
           <i class="uiIconVideo darkGreyIcon uiIcon32x32 pr-5"></i>
-          <span v-autolinker="eventConferenceUrl" class="align-self-center"></span>
+          <span v-autolinker="eventConferenceUrl" class="align-self-center text-break"></span>
         </div>
         <div v-if="event.location" class="event-location d-flex flex-grow-0 flex-shrink-1 pb-5">
           <i class="uiIconCheckin darkGreyIcon uiIcon32x32 pr-5"></i>
-          <span v-autolinker="event.location" class="align-self-center"></span>
+          <span v-autolinker="event.location" class="align-self-center text-break"></span>
         </div>
         <div v-if="event.description" class="event-description d-flex flex-grow-0 flex-shrink-1 pb-5">
           <i class="uiIconDescription darkGreyIcon uiIcon32x32 pr-5"></i>
-          <span v-autolinker="event.description" class="mt-1 align-self-center text-wrap text-left"></span>
+          <span v-autolinker="event.description" class="mt-1 align-self-center text-wrap text-left text-break"></span>
         </div>
         <div
           v-if="event.attachments && event.attachments.length !== 0"
