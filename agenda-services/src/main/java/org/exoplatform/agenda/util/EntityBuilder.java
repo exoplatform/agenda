@@ -98,14 +98,17 @@ public class EntityBuilder {
                                        occurrenceEntity.isExceptional());
     }
 
-    ZonedDateTime startDate = eventEntity.isAllDay() ? AgendaDateUtils.parseAllDayDateToZonedDateTime(eventEntity.getStart())
-                                                     : AgendaDateUtils.parseRFC3339ToZonedDateTime(eventEntity.getStart(),
-                                                                                                   eventZoneId,
-                                                                                                   false);
-    ZonedDateTime endDate = eventEntity.isAllDay() ? AgendaDateUtils.parseAllDayDateToZonedDateTime(eventEntity.getEnd())
-                                                   : AgendaDateUtils.parseRFC3339ToZonedDateTime(eventEntity.getEnd(),
-                                                                                                 eventZoneId,
-                                                                                                 false);
+    ZonedDateTime startDate =
+                            eventEntity.getStart() == null ? null
+                                                           : eventEntity.isAllDay() ? AgendaDateUtils.parseAllDayDateToZonedDateTime(eventEntity.getStart())
+                                                                                    : AgendaDateUtils.parseRFC3339ToZonedDateTime(eventEntity.getStart(),
+                                                                                                                                  eventZoneId,
+                                                                                                                                  false);
+    ZonedDateTime endDate = eventEntity.getEnd() == null ? null
+                                                         : eventEntity.isAllDay() ? AgendaDateUtils.parseAllDayDateToZonedDateTime(eventEntity.getEnd())
+                                                                                  : AgendaDateUtils.parseRFC3339ToZonedDateTime(eventEntity.getEnd(),
+                                                                                                                                eventZoneId,
+                                                                                                                                false);
     return new Event(eventEntity.getId(),
                      eventEntity.getParent() == null ? 0l : eventEntity.getParent().getId(),
                      eventEntity.getCalendar() == null ? 0l : eventEntity.getCalendar().getId(),
@@ -302,6 +305,7 @@ public class EntityBuilder {
                              recurrenceEntity,
                              occurrenceEntity,
                              event.getAcl(),
+                             null,
                              null,
                              null,
                              null,

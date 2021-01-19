@@ -45,6 +45,10 @@
   </component>
 
   <component>
+    <type>org.exoplatform.agenda.storage.AgendaEventDatePollStorage</type>
+  </component>
+
+  <component>
     <key>org.exoplatform.agenda.service.AgendaCalendarService</key>
     <type>org.exoplatform.agenda.service.AgendaCalendarServiceImpl</type>
     <init-params>
@@ -106,6 +110,11 @@
   <component>
     <key>org.exoplatform.agenda.service.AgendaEventAttendeeService</key>
     <type>org.exoplatform.agenda.service.AgendaEventAttendeeServiceImpl</type>
+  </component>
+
+  <component>
+    <key>org.exoplatform.agenda.service.AgendaEventDatePollService</key>
+    <type>org.exoplatform.agenda.service.AgendaEventDatePollServiceImpl</type>
   </component>
 
   <component>
@@ -194,6 +203,18 @@
 
   <component>
     <type>org.exoplatform.agenda.dao.RemoteEventDAO</type>
+  </component>
+
+  <component>
+    <type>org.exoplatform.agenda.dao.EventDateOptionDAO</type>
+  </component>
+
+  <component>
+    <type>org.exoplatform.agenda.dao.EventDatePollDAO</type>
+  </component>
+
+  <component>
+    <type>org.exoplatform.agenda.dao.EventDateVoteDAO</type>
   </component>
 
   <external-component-plugins>

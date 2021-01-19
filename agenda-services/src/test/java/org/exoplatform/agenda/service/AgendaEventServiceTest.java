@@ -44,6 +44,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      null,
+                                     null,
                                      true,
                                      0l);
       fail();
@@ -57,6 +58,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      Collections.emptyList(),
+                                     null,
                                      null,
                                      true,
                                      Long.parseLong(testuser1Identity.getId()));
@@ -74,6 +76,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      null,
+                                     null,
                                      true,
                                      Long.parseLong(testuser1Identity.getId()));
       fail();
@@ -90,6 +93,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      null,
+                                     null,
                                      true,
                                      Long.parseLong(testuser1Identity.getId()));
       fail();
@@ -105,6 +109,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      Collections.emptyList(),
+                                     null,
                                      null,
                                      true,
                                      Long.parseLong(testuser1Identity.getId()));
@@ -122,6 +127,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      Collections.emptyList(),
+                                     null,
                                      null,
                                      true,
                                      Long.parseLong(testuser1Identity.getId()));
@@ -141,6 +147,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      null,
+                                     null,
                                      true,
                                      Long.parseLong(testuser1Identity.getId()));
       fail();
@@ -159,6 +166,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      Collections.emptyList(),
+                                     null,
                                      null,
                                      true,
                                      userIdentityId);
@@ -180,6 +188,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      null,
+                                     null,
                                      true,
                                      Long.parseLong(testuser1Identity.getId()));
       fail();
@@ -200,6 +209,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      Collections.emptyList(),
+                                     null,
                                      null,
                                      true,
                                      Long.parseLong(testuser1Identity.getId()));
@@ -223,6 +233,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      null,
+                                     null,
                                      true,
                                      Long.parseLong(testuser1Identity.getId()));
       fail();
@@ -245,6 +256,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      null,
+                                     null,
                                      true,
                                      Long.parseLong(testuser4Identity.getId()));
       fail();
@@ -266,6 +278,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      Collections.emptyList(),
+                                     null,
                                      null,
                                      true,
                                      Long.parseLong(testuser1Identity.getId()));
@@ -882,6 +895,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      null,
+                                     null,
                                      true,
                                      0l);
       fail();
@@ -895,6 +909,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      Collections.emptyList(),
+                                     null,
                                      null,
                                      true,
                                      Long.parseLong(testuser1Identity.getId()));
@@ -912,6 +927,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      null,
+                                     null,
                                      true,
                                      Long.parseLong(testuser1Identity.getId()));
       fail();
@@ -927,6 +943,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      Collections.emptyList(),
+                                     null,
                                      null,
                                      true,
                                      Long.parseLong(testuser1Identity.getId()));
@@ -944,6 +961,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      Collections.emptyList(),
+                                     null,
                                      null,
                                      true,
                                      Long.parseLong(testuser1Identity.getId()));
@@ -962,6 +980,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      Collections.emptyList(),
+                                     null,
                                      null,
                                      true,
                                      Long.parseLong(testuser1Identity.getId()));
@@ -983,6 +1002,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      null,
+                                     null,
                                      true,
                                      Long.parseLong(testuser1Identity.getId()));
       fail();
@@ -1002,6 +1022,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      null,
+                                     null,
                                      true,
                                      Long.parseLong(testuser1Identity.getId()));
       fail();
@@ -1020,6 +1041,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      Collections.emptyList(),
+                                     null,
                                      null,
                                      true,
                                      3000l);
@@ -1040,6 +1062,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      Collections.emptyList(),
+                                     null,
                                      null,
                                      true,
                                      3000l);
@@ -1062,6 +1085,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      Collections.emptyList(),
+                                     null,
                                      null,
                                      true,
                                      Long.parseLong(testuser1Identity.getId()));
@@ -1086,6 +1110,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      null,
+                                     null,
                                      true,
                                      Long.parseLong(testuser1Identity.getId()));
       fail();
@@ -1109,6 +1134,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      null,
+                                     null,
                                      true,
                                      Long.parseLong(testuser4Identity.getId()));
       fail();
@@ -1131,6 +1157,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      Collections.emptyList(),
+                                     null,
                                      null,
                                      true,
                                      Long.parseLong(testuser1Identity.getId()));
@@ -1157,6 +1184,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      null,
+                                     null,
                                      true,
                                      Long.parseLong(testuser2Identity.getId()));
       fail();
@@ -1165,11 +1193,15 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     }
 
     createdEvent = newEventInstance(start, start, allDay);
-    createdEvent = createEvent(createdEvent.clone(), Long.parseLong(testuser1Identity.getId()), testuser1Identity, testuser2Identity);
+    createdEvent = createEvent(createdEvent.clone(),
+                               Long.parseLong(testuser1Identity.getId()),
+                               testuser1Identity,
+                               testuser2Identity);
 
     eventId = createdEvent.getId();
 
-    List<EventReminder> reminders = agendaEventReminderService.getEventReminders(eventId, Long.parseLong(testuser1Identity.getId()));
+    List<EventReminder> reminders = agendaEventReminderService.getEventReminders(eventId,
+                                                                                 Long.parseLong(testuser1Identity.getId()));
     assertNotNull(reminders);
     assertEquals(1, reminders.size());
 
@@ -1180,7 +1212,15 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     storedEvent.setRecurrence(null);
 
-    agendaEventService.updateEvent(storedEvent, null, null, null, null, null, false, Long.parseLong(testuser1Identity.getId()));
+    agendaEventService.updateEvent(storedEvent,
+                                   null,
+                                   null,
+                                   null,
+                                   null,
+                                   null,
+                                   null,
+                                   false,
+                                   Long.parseLong(testuser1Identity.getId()));
 
     Event updatedEvent = agendaEventService.getEventById(eventId, null, Long.parseLong(testuser1Identity.getId()));
     assertNotNull(updatedEvent);
@@ -1197,13 +1237,20 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     updatedEvent.setAllowAttendeeToUpdate(true);
     updatedEvent.setAllowAttendeeToInvite(false);
 
-    EventAttendee eventAttendeeTestUser2 = new EventAttendee(0, updatedEvent.getId(), Long.parseLong(testuser2Identity.getId()), null);
-    EventAttendee eventAttendeeTestUser1 = new EventAttendee(0, updatedEvent.getId(), Long.parseLong(testuser1Identity.getId()), null);
+    EventAttendee eventAttendeeTestUser2 = new EventAttendee(0,
+                                                             updatedEvent.getId(),
+                                                             Long.parseLong(testuser2Identity.getId()),
+                                                             null);
+    EventAttendee eventAttendeeTestUser1 = new EventAttendee(0,
+                                                             updatedEvent.getId(),
+                                                             Long.parseLong(testuser1Identity.getId()),
+                                                             null);
     updatedEvent = agendaEventService.updateEvent(updatedEvent,
                                                   Arrays.asList(eventAttendeeTestUser1, eventAttendeeTestUser2),
                                                   null,
                                                   null,
                                                   reminders,
+                                                  null,
                                                   null,
                                                   false,
                                                   Long.parseLong(testuser1Identity.getId()));
@@ -1211,6 +1258,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     try {
       updatedEvent = agendaEventService.updateEvent(updatedEvent,
                                                     Arrays.asList(eventAttendeeTestUser1, eventAttendeeTestUser2),
+                                                    null,
                                                     null,
                                                     null,
                                                     null,
@@ -1237,6 +1285,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     updatedEvent.setEnd(updatedEvent.getEnd().plusDays(1));
     updatedEvent = agendaEventService.updateEvent(updatedEvent,
                                                   Arrays.asList(eventAttendeeTestUser1, eventAttendeeTestUser2),
+                                                  null,
                                                   null,
                                                   null,
                                                   null,
@@ -1279,6 +1328,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      Collections.emptyList(),
+                                     null,
                                      null,
                                      true,
                                      0l);
@@ -1494,7 +1544,8 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                testuser3Identity);
     eventId = createdEvent.getId();
 
-    List<EventReminder> reminders = agendaEventReminderService.getEventReminders(eventId, Long.parseLong(testuser1Identity.getId()));
+    List<EventReminder> reminders = agendaEventReminderService.getEventReminders(eventId,
+                                                                                 Long.parseLong(testuser1Identity.getId()));
     assertNotNull(reminders);
     assertEquals(1, reminders.size());
 
@@ -1671,7 +1722,15 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     String newDescription = "Desc2";
     createdEvent.setDescription(newDescription);
-    agendaEventService.updateEvent(createdEvent, null, null, null, null, null, false, Long.parseLong(testuser1Identity.getId()));
+    agendaEventService.updateEvent(createdEvent,
+                                   null,
+                                   null,
+                                   null,
+                                   null,
+                                   null,
+                                   null,
+                                   false,
+                                   Long.parseLong(testuser1Identity.getId()));
 
     Event updatedEvent = agendaEventService.getEventById(createdEvent.getId(), null, Long.parseLong(testuser1Identity.getId()));
 
@@ -1681,6 +1740,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     spaceService.removeMember(space, testuser1Identity.getRemoteId());
     try {
       agendaEventService.updateEvent(updatedEvent,
+                                     null,
                                      null,
                                      null,
                                      null,
@@ -1788,6 +1848,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     exceptionalEvent.setStart(exceptionalEvent.getStart().plusDays(1));
     agendaEventService.updateEvent(exceptionalEvent,
                                    ATTENDEES,
+                                   null,
                                    null,
                                    null,
                                    null,

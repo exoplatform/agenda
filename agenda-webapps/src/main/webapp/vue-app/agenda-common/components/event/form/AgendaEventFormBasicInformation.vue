@@ -29,10 +29,10 @@
     </div>
     <div class="d-flex flex-column flex-md-row mt-1 event-form-body">
       <div class="d-flex flex-column flex-grow-1 event-form-body-left">
-        <div v-if="displayTimeInForm" class="d-flex flex-row">
+        <div v-if="displayTimeInForm && eventDateOption" class="d-flex flex-row">
           <i class="uiIconClock darkGreyIcon uiIcon32x32 mt-4 mr-11"></i>
           <agenda-event-form-date-pickers
-            :event="event"
+            :event="eventDateOption"
             class="event-form-datetimes my-4"
             @changed="updateEventDates"
             @initialized="formInitialized" />
@@ -128,6 +128,7 @@ export default {
   },
   data: () => ({
     eventDescriptionTextLength: 1300,
+    eventDateOption: null,
   }),
   computed: {
     allowAttendeeToUpdate() {
@@ -136,8 +137,17 @@ export default {
     hasRecurrence() {
       return this.event.recurrence || this.event.parent && this.event.parent.recurrence;
     },
+    eventDateOptions() {
+      return this.event && this.event.dateOptions || [];
+    },
   },
   watch: {
+    displayTimeInForm() {
+      this.reset();
+    },
+    eventDateOptions() {
+      this.reset();
+    },
     allowAttendeeToUpdate() {
       if (this.allowAttendeeToUpdate) {
         this.event.allowAttendeeToInvite = true;
@@ -155,6 +165,12 @@ export default {
     });
   },
   methods:{
+    reset() {
+      this.eventDateOption = null;
+      this.$nextTick().then(() => {
+        this.eventDateOption = this.event.dateOptions.length === 1 && this.event.dateOptions[0] || this.event;
+      });
+    },
     resetCustomValidity() {
       if (this.$refs.eventTitle) {
         this.$refs.eventTitle.setCustomValidity('');

@@ -147,6 +147,8 @@ public interface AgendaEventService {
    * @param attachments event attachment of type {@link EventAttachment}
    * @param reminders {@link List} of preferred user reminders of type
    *          {@link EventReminder}
+   * @param dateOptions {@link List} of {@link EventDateOption} of corresponding
+   *          event
    * @param remoteEvent {@link RemoteEvent} of synchronized event by user to
    *          remote connector
    * @param sendInvitation whether send invitation to attendees or not
@@ -161,6 +163,7 @@ public interface AgendaEventService {
                     List<EventConference> conferences,
                     List<EventAttachment> attachments,
                     List<EventReminder> reminders,
+                    List<EventDateOption> dateOptions,
                     RemoteEvent remoteEvent,
                     boolean sendInvitation,
                     long userIdentityId) throws IllegalAccessException, AgendaException;
@@ -176,6 +179,8 @@ public interface AgendaEventService {
    * @param attachments event attachment of type {@link EventAttachment}
    * @param reminders {@link List} of preferred user reminders of type
    *          {@link EventReminder}
+   * @param dateOptions {@link List} of {@link EventDateOption} of corresponding
+   *          event
    * @param remoteEvent {@link RemoteEvent} of synchronized event by user to
    *          remote connector
    * @param sendInvitation whether re-send invitation to attendees or not
@@ -191,6 +196,7 @@ public interface AgendaEventService {
                     List<EventConference> conferences,
                     List<EventAttachment> attachments,
                     List<EventReminder> reminders,
+                    List<EventDateOption> dateOptions,
                     RemoteEvent remoteEvent,
                     boolean sendInvitation,
                     long userIdentityId) throws IllegalAccessException, ObjectNotFoundException, AgendaException;
@@ -295,5 +301,20 @@ public interface AgendaEventService {
                                           ZonedDateTime end,
                                           ZoneId timezone,
                                           int limit);
+
+  /**
+   * Choose a selected {@link EventDateOption} for a given {@link Event}
+   * 
+   * @param eventId technical identifier of {@link Event}
+   * @param dateOptionId Technical identifier of {@link EventDateOption}
+   * @param userIdentityId user {@link Identity} identifier
+   * @throws ObjectNotFoundException when {@link Event} is not found using
+   *           identifier or {@link EventDateOption} is not found using
+   *           technical identifier
+   * @throws IllegalAccessException when user is not an allowed participant of
+   *           the event who can modifies it
+   */
+  void selectEventDateOption(long eventId, long dateOptionId, long userIdentityId) throws ObjectNotFoundException,
+                                                                                   IllegalAccessException;
 
 }

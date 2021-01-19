@@ -41,18 +41,26 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
 
   private RemoteEventDAO     remoteEventDAO;
 
+  private EventDateOptionDAO dateOptionDAO;
+
+  private EventDatePollDAO   datePollDAO;
+
   public EventDAO(EventConferenceDAO eventConferenceDAO,
                   EventAttendeeDAO eventAttendeeDAO,
                   EventAttachmentDAO eventAttachmentDAO,
                   EventReminderDAO eventReminderDAO,
                   EventRecurrenceDAO eventRecurrenceDAO,
-                  RemoteEventDAO remoteEventDAO) {
+                  RemoteEventDAO remoteEventDAO,
+                  EventDateOptionDAO dateOptionDAO,
+                  EventDatePollDAO datePollDAO) {
     this.eventConferenceDAO = eventConferenceDAO;
     this.eventAttendeeDAO = eventAttendeeDAO;
     this.eventAttachmentDAO = eventAttachmentDAO;
     this.eventReminderDAO = eventReminderDAO;
     this.eventRecurrenceDAO = eventRecurrenceDAO;
     this.remoteEventDAO = remoteEventDAO;
+    this.dateOptionDAO = dateOptionDAO;
+    this.datePollDAO = datePollDAO;
   }
 
   @Override
@@ -70,6 +78,8 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     this.eventReminderDAO.deleteEventReminders(entity.getId());
     this.eventRecurrenceDAO.deleteEventRecurrences(entity.getId());
     this.remoteEventDAO.deleteRemoteEvents(entity.getId());
+    this.datePollDAO.deleteEventPoll(entity.getId());
+    this.dateOptionDAO.deleteEventDateOptions(entity.getId());
 
     super.delete(entity);
   }
@@ -81,6 +91,15 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     this.eventReminderDAO.deleteCalendarReminders(calendarId);
     this.eventRecurrenceDAO.deleteCalendarRecurrences(calendarId);
     this.remoteEventDAO.deleteCalendarRemoteEvents(calendarId);
+
+    List<Long> calendarEventIds = getCalendarEventIds(calendarId);
+    for (Long eventId : calendarEventIds) {
+      this.datePollDAO.deleteEventPoll(eventId);
+      this.dateOptionDAO.deleteEventDateOptions(eventId);
+    }
+
+    // Ensure to delete all entities on DB to avoid having a DB constraint error
+    getEntityManager().getTransaction().commit();
 
     executeDeleteCalendarEventsQuery(calendarId);
   }
@@ -237,6 +256,13 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
   private List<Long> getChildEvents(long eventId) {
     TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaEvent.getChildEvents", Long.class);
     query.setParameter("parentEventId", eventId);
+    List<Long> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList() : resultList;
+  }
+
+  private List<Long> getCalendarEventIds(long calendarId) {
+    TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaEvent.getCalendarEventIds", Long.class);
+    query.setParameter("calendarId", calendarId);
     List<Long> resultList = query.getResultList();
     return resultList == null ? Collections.emptyList() : resultList;
   }
