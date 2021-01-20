@@ -52,7 +52,10 @@
       :owner-ids="ownerIds"
       @changed="changeDisplayedOwnerIds" />
     <agenda-user-setting-drawer :settings="settings" />
-    <agenda-event-quick-form-drawer :current-space="currentSpace" />
+    <agenda-event-quick-form-drawer
+      :current-space="currentSpace"
+      :settings="settings"
+      :conference-provider="conferenceProvider" />
     <agenda-event-mobile-form-drawer :current-space="currentSpace" />
     <agenda-event-save />
     <agenda-connector
