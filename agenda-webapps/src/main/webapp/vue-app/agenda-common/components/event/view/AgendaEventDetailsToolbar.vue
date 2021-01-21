@@ -1,5 +1,5 @@
 <template>
-  <v-row class="event-details-header d-flex align-center flex-nowrap text-left col-12">
+  <v-row class="event-details-header d-flex align-center flex-nowrap text-left col-12 mx-0">
     <v-col :title="event.summary" class="event-title title text-truncate col-auto pl-4 mx-2">
       {{ event.summary }}
     </v-col>

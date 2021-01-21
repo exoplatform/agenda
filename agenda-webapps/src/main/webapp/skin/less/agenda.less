@@ -380,6 +380,52 @@
   contain: initial !important;
 }
 
+.event-poll-details {
+  overflow: auto;
+
+  .event-checkbox-vote {
+    .v-input--selection-controls__input {
+      margin: 0;
+    }
+
+    i {
+      font-size: 22px !important;
+    }
+  }
+
+  .event-poll-details-close {
+    right: 0 !important;
+  }
+
+  .event-date-option-header-selected {
+    background-color: @primaryColor !important;
+
+    .v-card {
+      background-color: @primaryColor !important;
+    }
+
+    .v-btn {
+      position: absolute;
+      top: 3px !important;
+      right: 3px !important;
+
+      .fa-trophy:before {
+        font-family: "PLF-FONT-ICONS" !important;
+        content: "\ebdb" !important;
+        font-size: 18px;
+      }
+    }
+  }
+
+  .event-date-option-cell-selected {
+    background-color: #d7e3f2 !important;
+
+    .v-card {
+      background-color: #d7e3f2 !important;
+    }
+  }
+}
+
 .event-details {
   max-height: 100%;
 
@@ -452,6 +498,48 @@
   .remote-events-details {
     max-width: 250px;
     min-width: 250px;
+  }
+
+  .event-date-options-table {
+    border-top: 1px solid @borderColor !important;
+    border-right: 1px solid @borderColor !important;
+    border-bottom: 1px solid @borderColor !important;
+    border-left: 0 !important;
+    width: auto;
+    overflow-x: auto;
+    white-space: nowrap;
+    display: block;
+  }
+  .event-date-options-cell {
+    border-top: 0 !important;
+    border-right: 0 !important;
+    border-bottom: 1px solid @borderColor !important;
+    border-left: 1px solid @borderColor !important;
+  }
+  .event-date-options-voter-cell {
+    border-top: 0 !important;
+    border-right: 0 !important;
+    border-bottom: 0 !important;
+    border-left: 1px solid @borderColor !important;
+
+    &.disabled {
+      background-color: @inputDisabledBackground !important;
+      .v-card {
+        background-color: @inputDisabledBackground !important;
+      }
+    }
+    &.no-vote {
+      border-top: 1px solid @borderColor !important;
+    }
+  }
+  .event-date-poll-vote-choice {
+    .event-conflicted {
+      top: 3px;
+
+      &:hover:before,&:focus:before {
+        opacity: 0 !important;
+      }
+    }
   }
 }
 

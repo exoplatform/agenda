@@ -274,7 +274,8 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
     Assert.assertEquals(createdEvent.getSummary(),
                         notificationInfo1.getValueOwnerParameter(NotificationUtils.TEMPLATE_VARIABLE_EVENT_TITLE));
     Assert.assertEquals(nbAttendee1, notificationInfo1.getSendToUserIds().size());
-    Assert.assertTrue(notificationInfo1.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_URL).startsWith(eventUrl1));
+    Assert.assertTrue(notificationInfo1.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_URL)
+                                       .startsWith(eventUrl1));
     Assert.assertEquals("Weekly on monday,tuesday,wednesday",
                         notificationInfo1.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_RECURRENT_DETAILS));
 
