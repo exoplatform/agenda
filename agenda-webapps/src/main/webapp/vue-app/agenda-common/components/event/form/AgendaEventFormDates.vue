@@ -209,10 +209,11 @@ export default {
       this.event.timeZoneId = this.$agendaUtils.USER_TIMEZONE_ID;
     }
 
+    this.$agendaUtils.initEventForm(this.event, true);
+
     this.$root.$emit('agenda-connectors-init');
   },
   mounted() {
-    this.$agendaUtils.initEventForm(this.event, true);
     if (this.$refs.calendar) {
       this.currentTimeTop = this.$refs.calendar.timeToY(this.nowTimeOptions);
     }
@@ -245,6 +246,7 @@ export default {
       const index = this.event.dateOptions.indexOf(dateOption);
       if (index >= 0) {
         this.event.dateOptions.splice(index, 1);
+        this.$emit('date-option-deleted');
         this.$nextTick().then(() => {
           this.refreshEventsToDisplay();
           this.$refs.calendar.updateTimes();
@@ -275,6 +277,7 @@ export default {
       };
       this.newStartedEvent = dateOption;
       this.event.dateOptions.push(dateOption);
+      this.$emit('date-option-added');
 
       //refresh after assigning a startDate for the new event for the first time only
       this.$nextTick().then(() => {
