@@ -249,7 +249,7 @@ export function saveEventReminders(eventId, occurrenceId, reminders, upcoming) {
 }
 
 export function deleteEvent(eventId) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}`, {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}?timeZoneId=${USER_TIMEZONE_ID}`, {
     method: 'DELETE',
     credentials: 'include',
   })
@@ -264,6 +264,62 @@ export function deleteEvent(eventId) {
       if (event) {
         const deleteAllWebConferencesPromises = getDeleteAllWebConferencesPromises(event);
         return Promise.all(deleteAllWebConferencesPromises);
+      }
+    });
+}
+
+export function voteEventDate(eventId, dateOptionId) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}/votes/${dateOptionId}`, {
+    method: 'POST',
+    credentials: 'include',
+  })
+    .then((resp) => {
+      if (!resp || !resp.ok) {
+        throw new Error('Error voting on event');
+      }
+    });
+}
+
+export function saveEventVotes(eventId, dateOptionIds) {
+  const formData = new FormData();
+  Object.keys(dateOptionIds).forEach(dateOptionId => {
+    formData.append('dateOptionId', dateOptionIds[dateOptionId]);
+  });
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}/votes`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: new URLSearchParams(formData).toString(),
+  })
+    .then((resp) => {
+      if (!resp || !resp.ok) {
+        throw new Error('Error voting on event');
+      }
+    });
+}
+
+export function selectEventDate(eventId, dateOptionId) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}/selectDateOption/${dateOptionId}`, {
+    method: 'POST',
+    credentials: 'include',
+  })
+    .then((resp) => {
+      if (!resp || !resp.ok) {
+        throw new Error('Error selecting an event date');
+      }
+    });
+}
+
+export function dismissEventDate(eventId, dateOptionId) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}/votes/${dateOptionId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+    .then((resp) => {
+      if (!resp || !resp.ok) {
+        throw new Error('Error voting on event');
       }
     });
 }

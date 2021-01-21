@@ -28,9 +28,9 @@ import lombok.*;
 @NoArgsConstructor
 public class EventReminderParameter implements Serializable {
 
-  private static final long serialVersionUID = -2033232204026792697L;
+  private static final long   serialVersionUID = -2033232204026792697L;
 
-  private static final String SEPARATOR = " ";
+  private static final String SEPARATOR        = " ";
 
   @Getter
   @Setter

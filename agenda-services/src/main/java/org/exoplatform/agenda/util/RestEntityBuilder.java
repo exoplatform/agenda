@@ -31,13 +31,13 @@ import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.rest.entity.IdentityEntity;
 
-public class EntityBuilder {
+public class RestEntityBuilder {
 
   private static final String IDENTITIES_REST_PATH = "/v1/social/identities"; // NOSONAR
 
   private static final String IDENTITIES_EXPAND    = "all";
 
-  private EntityBuilder() {
+  private RestEntityBuilder() {
   }
 
   public static final Calendar toCalendar(CalendarEntity calendarEntity) {
@@ -133,6 +133,27 @@ public class EntityBuilder {
                      eventEntity.isAllowAttendeeToInvite());
   }
 
+  public static EventDateOption toEventDateOption(EventDateOptionEntity dateOptionEntity, ZoneId userTimeZone) {
+    ZonedDateTime startDate =
+                            dateOptionEntity.isAllDay() ? AgendaDateUtils.parseAllDayDateToZonedDateTime(dateOptionEntity.getStart())
+                                                        : AgendaDateUtils.parseRFC3339ToZonedDateTime(dateOptionEntity.getStart(),
+                                                                                                      userTimeZone,
+                                                                                                      false);
+    ZonedDateTime endDate =
+                          dateOptionEntity.isAllDay() ? AgendaDateUtils.parseAllDayDateToZonedDateTime(dateOptionEntity.getEnd())
+                                                      : AgendaDateUtils.parseRFC3339ToZonedDateTime(dateOptionEntity.getEnd(),
+                                                                                                    userTimeZone,
+                                                                                                    false);
+
+    return new EventDateOption(dateOptionEntity.getId(),
+                               dateOptionEntity.getEventId(),
+                               startDate,
+                               endDate,
+                               dateOptionEntity.isAllDay(),
+                               false,
+                               null);
+  }
+
   public static EventReminder toEventReminder(long eventId, EventReminderEntity eventReminderEntity) {
     String beforePeriodTypeName = eventReminderEntity.getBeforePeriodType();
     ReminderPeriodType beforePeriodType = null;
@@ -179,6 +200,20 @@ public class EntityBuilder {
   public static final EventAttachmentEntity fromEventAttachment(EventAttachment eventAttachment) {
     return new EventAttachmentEntity(eventAttachment.getId(),
                                      eventAttachment.getFileId());
+  }
+
+  public static EventDateOptionEntity fromEventDateOption(ZoneId userTimeZone, EventDateOption dateOption) {
+    return new EventDateOptionEntity(dateOption.getId(),
+                                     dateOption.getEventId(),
+                                     AgendaDateUtils.toRFC3339Date(dateOption.getStart(),
+                                                                   userTimeZone,
+                                                                   dateOption.isAllDay()),
+                                     AgendaDateUtils.toRFC3339Date(dateOption.getEnd(),
+                                                                   userTimeZone,
+                                                                   dateOption.isAllDay()),
+                                     dateOption.isAllDay(),
+                                     dateOption.isSelected(),
+                                     dateOption.getVoters());
   }
 
   public static final EventReminderEntity fromEventReminder(EventReminder eventReminder) {
