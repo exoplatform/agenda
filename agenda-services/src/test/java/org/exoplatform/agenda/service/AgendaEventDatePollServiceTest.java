@@ -597,7 +597,9 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                                                       true,
                                                       null);
     Event createdEvent = agendaEventService.createEvent(event,
-                                                        Collections.emptyList(),
+                                                        Arrays.asList(new EventAttendee(0,
+                                                                                        Long.parseLong(testuser1Identity.getId()),
+                                                                                        EventAttendeeResponse.NEEDS_ACTION)),
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
@@ -841,6 +843,85 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     assertEquals(0, createdDateOption1.getVoters().size());
     assertNotNull(createdDateOption2.getVoters());
     assertEquals(0, createdDateOption2.getVoters().size());
+  }
+
+  @Test
+  public void testSaveEventVotes() throws Exception { // NOSONAR
+    Event event = new Event();
+    event.setCalendarId(spaceCalendar.getId());
+    EventRecurrence recurrence = new EventRecurrence();
+    event.setRecurrence(recurrence);
+    recurrence.setFrequency(EventRecurrenceFrequency.DAILY);
+    recurrence.setInterval(1);
+
+    ZonedDateTime start = getDate();
+    ZonedDateTime end = start;
+    EventDateOption dateOption1 = new EventDateOption(0, 0, start, end, false, false, null);
+    EventDateOption dateOption2 = new EventDateOption(0, 0, start.plusDays(1), end.plusDays(1), true, true, null);
+    Event createdEvent = agendaEventService.createEvent(event,
+                                                        Arrays.asList(new EventAttendee(0,
+                                                                                        Long.parseLong(spaceIdentity.getId()),
+                                                                                        EventAttendeeResponse.NEEDS_ACTION)),
+                                                        Collections.emptyList(),
+                                                        Collections.emptyList(),
+                                                        Collections.emptyList(),
+                                                        Arrays.asList(dateOption1, dateOption2),
+                                                        null,
+                                                        true,
+                                                        Long.parseLong(testuser1Identity.getId()));
+
+    long eventId = createdEvent.getId();
+
+    List<EventDateOption> dateOptions = agendaEventDatePollService.getEventDateOptions(eventId, ZoneOffset.UTC);
+    assertNotNull(dateOptions);
+    assertEquals(2, dateOptions.size());
+
+    dateOptions.sort((option1, option2) -> option1.getStart().compareTo(option2.getStart()));
+    try {
+      agendaEventDatePollService.saveEventVotes(2000l, Collections.emptyList(), Long.parseLong(testuser1Identity.getId()));
+      fail("Event with id shouldn't exists");
+    } catch (ObjectNotFoundException e) {
+      // Expected
+    }
+
+    try {
+      agendaEventDatePollService.saveEventVotes(eventId, Collections.emptyList(), Long.parseLong(testuser5Identity.getId()));
+      fail("User is not attendee, thus shouldn't be able to vote on it");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+
+    agendaEventDatePollService.saveEventVotes(eventId,
+                                              Collections.singletonList(dateOptions.get(0).getId()),
+                                              Long.parseLong(testuser2Identity.getId()));
+
+    dateOptions = agendaEventDatePollService.getEventDateOptions(eventId, ZoneOffset.UTC);
+    assertNotNull(dateOptions);
+    assertEquals(2, dateOptions.size()); // NOSONAR
+
+    dateOptions.sort((option1, option2) -> option1.getStart().compareTo(option2.getStart()));
+
+    assertNotNull(dateOptions.get(0).getVoters());
+    assertEquals(1, dateOptions.get(0).getVoters().size());
+
+    assertNotNull(dateOptions.get(1).getVoters());
+    assertEquals(0, dateOptions.get(1).getVoters().size());
+
+    agendaEventDatePollService.saveEventVotes(eventId,
+                                              Collections.singletonList(dateOptions.get(1).getId()),
+                                              Long.parseLong(testuser2Identity.getId()));
+
+    dateOptions = agendaEventDatePollService.getEventDateOptions(eventId, ZoneOffset.UTC);
+    assertNotNull(dateOptions);
+    assertEquals(2, dateOptions.size()); // NOSONAR
+
+    dateOptions.sort((option1, option2) -> option1.getStart().compareTo(option2.getStart()));
+
+    assertNotNull(dateOptions.get(0).getVoters());
+    assertEquals(0, dateOptions.get(0).getVoters().size());
+
+    assertNotNull(dateOptions.get(1).getVoters());
+    assertEquals(1, dateOptions.get(1).getVoters().size());
   }
 
 }

@@ -62,6 +62,8 @@ public class Utils {
 
   public static final String            POST_UPDATE_AGENDA_EVENT_POLL  = "exo.agenda.event.poll.updated";
 
+  public static final String            POST_VOTES_AGENDA_EVENT_POLL   = "exo.agenda.event.poll.voted.all";
+
   public static final String            POST_VOTE_AGENDA_EVENT_POLL    = "exo.agenda.event.poll.voted";
 
   public static final String            POST_DISMISS_AGENDA_EVENT_POLL = "exo.agenda.event.poll.dismissed";

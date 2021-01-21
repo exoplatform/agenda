@@ -40,8 +40,24 @@
           persistent
           @ok="closeEffectively" />
       </template>
+      <agenda-event-date-poll-details
+        v-else-if="isTentativeEvent"
+        ref="eventDatePollDetails"
+        :event="event"
+        @refresh-event="openEventById(event.id)"
+        @close="close">
+        <template slot="top-bar-message">
+          <v-alert
+            v-model="hasMessage"
+            :type="messageType"
+            class="mb-0"
+            dismissible>
+            {{ message }}
+          </v-alert>
+        </template>
+      </agenda-event-date-poll-details>
       <agenda-event-details
-        v-else
+        v-else-if="isConfirmedEvent"
         ref="eventDetails"
         :settings="settings"
         :conference-provider="conferenceProvider"
@@ -59,6 +75,7 @@
           </v-alert>
         </template>
       </agenda-event-details>
+      <v-card v-else-if="event" />
     </template>
   </v-dialog>
 </template>
@@ -111,6 +128,12 @@ export default {
     },
     isModified() {
       return !this.saving && this.isForm && this.event && this.originalEventString && this.originalEventString !== JSON.stringify(this.event);
+    },
+    isConfirmedEvent() {
+      return this.event && this.event.status === 'CONFIRMED';
+    },
+    isTentativeEvent() {
+      return this.event && this.event.status === 'TENTATIVE';
     },
     confirmCloseLabels() {
       return {
@@ -182,7 +205,13 @@ export default {
     });
     this.$root.$on('agenda-event-deleted', () => this.close());
     this.$root.$on('agenda-event-save', () => this.saving = true);
-    this.$root.$on('agenda-event-saved', () => this.close());
+    this.$root.$on('agenda-event-saved', event => {
+      if (this.isForm && event && event.id && this.event && this.event.dateOptions && this.event.dateOptions.length > 1) {
+        this.$root.$emit('agenda-event-details', event);
+      } else {
+        this.close();
+      }
+    });
     this.$root.$on('agenda-event-response-sent', (event, occurrenceId, eventResponse) => {
       if (!this.event) {
         return;
@@ -234,12 +263,12 @@ export default {
     },
     openEventDetails(eventId, occurrenceId) {
       this.isForm = false;
-      this.openEventById(eventId, occurrenceId);
+      return this.openEventById(eventId, occurrenceId);
     },
     openEventById(eventId, occurrenceId) {
       if (eventId) {
         const getEventDetailsPromise = occurrenceId ? this.$eventService.getEventOccurrence(eventId, occurrenceId, 'all') : this.$eventService.getEventById(eventId, 'all');
-        getEventDetailsPromise.then(event => {
+        return getEventDetailsPromise.then(event => {
           event.startDate = this.$agendaUtils.toDate(event.start);
           event.endDate = this.$agendaUtils.toDate(event.end);
   
@@ -249,7 +278,10 @@ export default {
           } else {
             this.$nextTick().then(() => this.$root.$emit('agenda-event-details-opened', event));
           }
+          return event;
         });
+      } else {
+        return Promise.resolve(null);
       }
     },
     openDialog(agendaEvent) {
@@ -257,7 +289,21 @@ export default {
       if (!agendaEvent) {
         agendaEvent = {};
       }
-      this.$agendaUtils.initEventForm(agendaEvent);
+      if (!agendaEvent.calendar) {
+        agendaEvent.calendar = {};
+      }
+      if (!agendaEvent.calendar.owner) {
+        agendaEvent.calendar.owner = {};
+      }
+      if (!agendaEvent.reminders) {
+        agendaEvent.reminders = [];
+      }
+      if (!agendaEvent.attachments) {
+        agendaEvent.attachments = [];
+      }
+      if (!agendaEvent.attendees) {
+        agendaEvent.attendees = [];
+      }
       this.event = agendaEvent;
 
       let eventDetailsPath = `${window.location.pathname}`;
