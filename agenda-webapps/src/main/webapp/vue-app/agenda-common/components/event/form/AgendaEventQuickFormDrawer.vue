@@ -53,14 +53,6 @@
               @initialized="formInitialized" />
           </div>
           <div class="d-flex flex-row">
-            <v-flex class="flex-grow-0">
-              <i class="uiIconTimeZone darkGreyIcon uiIcon32x32 mt-4 mx-3"></i>
-            </v-flex>
-            <agenda-time-zone-select-box
-              :event="event"
-              class="ml-3 mr-3 my-3" />
-          </div>
-          <div class="d-flex flex-row">
             <i class="uiIconLocation darkGreyIcon uiIcon32x32 mt-4 mx-3"></i>
             <input
               id="eventLocation"
@@ -71,17 +63,16 @@
               name="locationEvent"
               class="ignore-vuetify-classes my-3 location-event-input">
           </div>
-          <div class="d-flex flex-row pr-3">
-            <v-flex class="flex-grow-0">
-              <i class="uiIconDescription darkGreyIcon uiIcon32x32 my-3 mx-3"></i>
+          <div class="d-flex flex-row">
+            <v-flex class="flex-grow-0 my-2 mx-3">
+              <i class="uiIconVideo darkGreyIcon uiIcon32x32"></i>
             </v-flex>
-            <extended-textarea
-              id="eventDescription"
-              ref="eventDescription"
-              v-model="event.description"
-              :placeholder="$t('agenda.descriptionPlaceholder')"
-              :max-length="eventDescriptionTextLength"
-              class="pt-2" />
+            <agenda-event-form-conference
+              :event="event"
+              :settings="settings"
+              :current-space="currentSpace"
+              :conference-provider="conferenceProvider"
+              class="mr-3" />
           </div>
           <div class="d-flex flex-row">
             <v-flex class="flex-grow-0">
@@ -138,12 +129,19 @@ export default {
       type: Boolean,
       default: () => true,
     },
+    settings: {
+      type: Object,
+      default: () => null,
+    },
+    conferenceProvider: {
+      type: Object,
+      default: () => null
+    },
   },
   data: () => ({
     event: null,
     originalEventString: null,
     saving: false,
-    eventDescriptionTextLength: 1300
   }),
   computed: {
     confirmCloseLabels() {
@@ -169,14 +167,8 @@ export default {
     eventOwnerValid() {
       return this.eventOwner && (this.eventOwner.id || this.eventOwner.remoteId && this.eventOwner.providerId);
     },
-    eventDescription() {
-      return this.event && this.event.description || '';
-    },
-    eventDescriptionValid() {
-      return this.eventDescription.length <= 1300;
-    },
     disableSaveButton() {
-      return this.saving || !this.eventTitleValid || !this.eventOwnerValid || !this.eventDescriptionValid;
+      return this.saving || !this.eventTitleValid || !this.eventOwnerValid;
     },
   },
   created() {
