@@ -84,43 +84,6 @@ public class AgendaEventDatePollServiceImpl implements AgendaEventDatePollServic
     return dateOptions;
   }
 
-  private List<EventDateOption> getDateOptionsToCreate(List<EventDateOption> dateOptions) {
-    return dateOptions.stream()
-                      .filter(dateOption -> dateOption.getId() == 0)
-                      .collect(Collectors.toList());
-  }
-
-  private List<EventDateOption> getDateOptionsToUpdate(List<EventDateOption> dateOptions,
-                                                       List<EventDateOption> existingDateOptions) {
-    return dateOptions.stream()
-                      .filter(dateOption -> {
-                        if (dateOption.getId() <= 0) {
-                          return false;
-                        }
-                        EventDateOption existingDateOption =
-                                                           existingDateOptions.stream()
-                                                                              .filter(tmp -> tmp.getId() == dateOption.getId())
-                                                                              .findAny()
-                                                                              .orElse(null);
-                        return this.sameDateOption(existingDateOption, dateOption);
-                      })
-                      .collect(Collectors.toList());
-  }
-
-  private List<EventDateOption> getDateOptionsToDelete(List<EventDateOption> dateOptions,
-                                                       List<EventDateOption> existingDateOptions) {
-    return existingDateOptions.stream()
-                              .filter(existingDateOption -> {
-                                EventDateOption dateOption =
-                                                           dateOptions.stream()
-                                                                      .filter(tmp -> tmp.getId() == existingDateOption.getId())
-                                                                      .findAny()
-                                                                      .orElse(null);
-                                return dateOption == null;
-                              })
-                              .collect(Collectors.toList());
-  }
-
   @Override
   public List<EventDateOption> getEventDateOptions(long eventId, ZoneId userTimeZone) {
     List<EventDateOption> eventDateOptions = datePollStorage.getEventDateOptions(eventId);
@@ -180,6 +143,43 @@ public class AgendaEventDatePollServiceImpl implements AgendaEventDatePollServic
   @Override
   public void selectEventDateOption(long dateOptionId) throws ObjectNotFoundException {
     datePollStorage.selectDateOption(dateOptionId);
+  }
+
+  private List<EventDateOption> getDateOptionsToCreate(List<EventDateOption> dateOptions) {
+    return dateOptions.stream()
+                      .filter(dateOption -> dateOption.getId() == 0)
+                      .collect(Collectors.toList());
+  }
+
+  private List<EventDateOption> getDateOptionsToUpdate(List<EventDateOption> dateOptions,
+                                                       List<EventDateOption> existingDateOptions) {
+    return dateOptions.stream()
+                      .filter(dateOption -> {
+                        if (dateOption.getId() <= 0) {
+                          return false;
+                        }
+                        EventDateOption existingDateOption =
+                                                           existingDateOptions.stream()
+                                                                              .filter(tmp -> tmp.getId() == dateOption.getId())
+                                                                              .findAny()
+                                                                              .orElse(null);
+                        return this.sameDateOption(existingDateOption, dateOption);
+                      })
+                      .collect(Collectors.toList());
+  }
+
+  private List<EventDateOption> getDateOptionsToDelete(List<EventDateOption> dateOptions,
+                                                       List<EventDateOption> existingDateOptions) {
+    return existingDateOptions.stream()
+                              .filter(existingDateOption -> {
+                                EventDateOption dateOption =
+                                                           dateOptions.stream()
+                                                                      .filter(tmp -> tmp.getId() == existingDateOption.getId())
+                                                                      .findAny()
+                                                                      .orElse(null);
+                                return dateOption == null;
+                              })
+                              .collect(Collectors.toList());
   }
 
   private void transformDatesTimeZone(EventDateOption dateOption, ZoneId userTimeZone) {

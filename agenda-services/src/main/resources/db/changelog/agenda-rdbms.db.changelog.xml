@@ -308,4 +308,8 @@
     <addUniqueConstraint tableName="EXO_AGENDA_EVENT_DATE_VOTE" columnNames="IDENTITY_ID,EVENT_DATE_OPTION_ID" />
   </changeSet>
 
+  <changeSet author="agenda" id="1.0.0-20">
+    <addUniqueConstraint tableName="EXO_AGENDA_ATTENDEE" columnNames="EVENT_ID,IDENTITY_ID" />
+  </changeSet>
+
 </databaseChangeLog>

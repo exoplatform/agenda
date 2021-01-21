@@ -40,7 +40,6 @@ public class AgendaEventGamificationIntegrationListener extends Listener<Long, L
 
   private AgendaEventService agendaEventService;
 
-
   public AgendaEventGamificationIntegrationListener(PortalContainer container, ListenerService listenerService) {
     this.container = container;
     this.listenerService = listenerService;
