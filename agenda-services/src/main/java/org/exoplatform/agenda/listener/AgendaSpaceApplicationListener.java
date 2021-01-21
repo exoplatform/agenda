@@ -28,34 +28,37 @@ public class AgendaSpaceApplicationListener implements SpaceLifeCycleListener {
 
   private static final String[] AGENDA_TIMELINE_APPLICATION_ACCESS_PERMISSIONS = new String[] { "Everyone" };
 
-  public static final String AGENDA_APPLICATION_INSTALLED_EVENT_NAME = "agenda.space.application.installed";
+  public static final String    AGENDA_APPLICATION_INSTALLED_EVENT_NAME        = "agenda.space.application.installed";
 
-  public static final String AGENDA_APPLICATION_UNINSTALLED_EVENT_NAME = "agenda.space.application.uniinstalled";
+  public static final String    AGENDA_APPLICATION_UNINSTALLED_EVENT_NAME      = "agenda.space.application.uniinstalled";
 
-  public static final String SPACE_HOME_EXTENSIBLE_CONTAINER_ID = "SpaceHomePortlets";
+  public static final String    SPACE_HOME_EXTENSIBLE_CONTAINER_ID             = "SpaceHomePortlets";
 
-  public static final String AGENDA_APPLICATION_NAME = "agenda";
+  public static final String    AGENDA_APPLICATION_NAME                        = "agenda";
 
-  public static final String AGENDA_AGENDA_PORTLET_ID = "Agenda";
+  public static final String    AGENDA_AGENDA_PORTLET_ID                       = "Agenda";
 
-  public static final String AGENDA_AGENDA_TIMELINE_PORTLET_ID = "AgendaTimeline";
+  public static final String    AGENDA_AGENDA_TIMELINE_PORTLET_ID              = "AgendaTimeline";
 
-  public static final String AGENDA_AGENDA_COMPLETE_ID = AGENDA_APPLICATION_NAME + "/" + AGENDA_AGENDA_PORTLET_ID;
+  public static final String    AGENDA_AGENDA_COMPLETE_ID                      =
+                                                          AGENDA_APPLICATION_NAME + "/" + AGENDA_AGENDA_PORTLET_ID;
 
-  public static final String AGENDA_AGENDA_TIMELINE_COMPLETE_ID =
-                                                                AGENDA_APPLICATION_NAME + "/" + AGENDA_AGENDA_TIMELINE_PORTLET_ID;
+  public static final String    AGENDA_AGENDA_TIMELINE_COMPLETE_ID             =
+                                                                   AGENDA_APPLICATION_NAME + "/"
+                                                                       + AGENDA_AGENDA_TIMELINE_PORTLET_ID;
 
-  private static final Log LOG = ExoLogger.getLogger(AgendaSpaceApplicationListener.class);
+  private static final Log      LOG                                            =
+                                    ExoLogger.getLogger(AgendaSpaceApplicationListener.class);
 
-  private ListenerService listenerService;
+  private ListenerService       listenerService;
 
-  private SpaceTemplateService spaceTemplateService;
+  private SpaceTemplateService  spaceTemplateService;
 
-  private NavigationService navigationService;
+  private NavigationService     navigationService;
 
-  private NavigationStore navigationStore;
+  private NavigationStore       navigationStore;
 
-  private DataStorage dataStorage;
+  private DataStorage           dataStorage;
 
   @Override
   public void applicationAdded(SpaceLifeCycleEvent event) {

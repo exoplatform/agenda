@@ -9,13 +9,6 @@ export function initEventForm(agendaEvent, deleteDates) {
   if(!agendaEvent.timeZoneId) {
     agendaEvent.timeZoneId = USER_TIMEZONE_ID;
   }
-  if (!agendaEvent.startDate && agendaEvent.start) {
-    agendaEvent.startDate = agendaEvent.start && toDate(agendaEvent.start) || new Date();
-    agendaEvent.startDate = roundTime(new Date(agendaEvent.startDate).getTime());
-  }
-  if (!agendaEvent.endDate && agendaEvent.end) {
-    agendaEvent.endDate = toDate(agendaEvent.end).getTime();
-  }
   if (!agendaEvent.calendar) {
     agendaEvent.calendar = {};
   }
@@ -35,6 +28,14 @@ export function initEventForm(agendaEvent, deleteDates) {
     agendaEvent.dateOptions = [];
   }
 
+  if (!agendaEvent.startDate && agendaEvent.start) {
+    agendaEvent.startDate = agendaEvent.start && toDate(agendaEvent.start) || new Date();
+    agendaEvent.startDate = roundTime(new Date(agendaEvent.startDate).getTime());
+  }
+  if (!agendaEvent.endDate && agendaEvent.end) {
+    agendaEvent.endDate = toDate(agendaEvent.end).getTime();
+  }
+
   if (agendaEvent.status === 'TENTATIVE') {
     agendaEvent.dateOptions.forEach(dateOption => {
       if (!dateOption.startDate) {
@@ -50,7 +51,7 @@ export function initEventForm(agendaEvent, deleteDates) {
         }
       }
     });
-  } else if (!agendaEvent.dateOptions.length && agendaEvent.startDate && agendaEvent.endDate) {
+  } else if (agendaEvent.startDate && agendaEvent.endDate) {
     agendaEvent.dateOptions = [{
       allDay: agendaEvent.allDay,
       start: agendaEvent.start,
@@ -77,6 +78,7 @@ export function initEventForm(agendaEvent, deleteDates) {
     agendaEvent.startDate = null;
     agendaEvent.end = null;
     agendaEvent.endDate = null;
+    agendaEvent.allDay = false;
   }
 }
 
@@ -164,7 +166,7 @@ export function toRFC3339(date, ignoreTime, useTimeZone) {
     }
     date = new Date(date);
   }
-  let formattedDate; 
+  let formattedDate;
   if (ignoreTime) {
     formattedDate = `${date.getFullYear()  }-${
       pad(date.getMonth() + 1)  }-${ 

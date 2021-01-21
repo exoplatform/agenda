@@ -4,8 +4,10 @@ import java.time.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventDateOption;
 import org.exoplatform.agenda.storage.AgendaEventDatePollStorage;
+import org.exoplatform.agenda.storage.AgendaEventStorage;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.services.listener.ListenerService;
@@ -22,12 +24,16 @@ public class AgendaEventDatePollServiceImpl implements AgendaEventDatePollServic
 
   private AgendaEventDatePollStorage datePollStorage;
 
+  private AgendaEventStorage         eventStorage;
+
   public AgendaEventDatePollServiceImpl(AgendaEventDatePollStorage datePollStorage,
+                                        AgendaEventStorage eventStorage,
                                         AgendaEventAttendeeService eventAttendeeService,
                                         IdentityManager identityManager,
                                         ListenerService listenerService) {
     this.eventAttendeeService = eventAttendeeService;
     this.datePollStorage = datePollStorage;
+    this.eventStorage = eventStorage;
     this.identityManager = identityManager;
     this.listenerService = listenerService;
   }
@@ -84,43 +90,6 @@ public class AgendaEventDatePollServiceImpl implements AgendaEventDatePollServic
     return dateOptions;
   }
 
-  private List<EventDateOption> getDateOptionsToCreate(List<EventDateOption> dateOptions) {
-    return dateOptions.stream()
-                      .filter(dateOption -> dateOption.getId() == 0)
-                      .collect(Collectors.toList());
-  }
-
-  private List<EventDateOption> getDateOptionsToUpdate(List<EventDateOption> dateOptions,
-                                                       List<EventDateOption> existingDateOptions) {
-    return dateOptions.stream()
-                      .filter(dateOption -> {
-                        if (dateOption.getId() <= 0) {
-                          return false;
-                        }
-                        EventDateOption existingDateOption =
-                                                           existingDateOptions.stream()
-                                                                              .filter(tmp -> tmp.getId() == dateOption.getId())
-                                                                              .findAny()
-                                                                              .orElse(null);
-                        return this.sameDateOption(existingDateOption, dateOption);
-                      })
-                      .collect(Collectors.toList());
-  }
-
-  private List<EventDateOption> getDateOptionsToDelete(List<EventDateOption> dateOptions,
-                                                       List<EventDateOption> existingDateOptions) {
-    return existingDateOptions.stream()
-                              .filter(existingDateOption -> {
-                                EventDateOption dateOption =
-                                                           dateOptions.stream()
-                                                                      .filter(tmp -> tmp.getId() == existingDateOption.getId())
-                                                                      .findAny()
-                                                                      .orElse(null);
-                                return dateOption == null;
-                              })
-                              .collect(Collectors.toList());
-  }
-
   @Override
   public List<EventDateOption> getEventDateOptions(long eventId, ZoneId userTimeZone) {
     List<EventDateOption> eventDateOptions = datePollStorage.getEventDateOptions(eventId);
@@ -135,6 +104,40 @@ public class AgendaEventDatePollServiceImpl implements AgendaEventDatePollServic
       transformDatesTimeZone(dateOption, userTimeZone);
     }
     return dateOption;
+  }
+
+  @Override
+  public void saveEventVotes(long eventId, List<Long> dateOptionVotes, long identityId) throws ObjectNotFoundException,
+                                                                                        IllegalAccessException {
+    Event event = eventStorage.getEventById(eventId);
+    if (event == null) {
+      throw new ObjectNotFoundException("Event with id " + eventId + " wasn't found");
+    }
+
+    Identity userIdentity = identityManager.getIdentity(String.valueOf(identityId));
+    if (userIdentity == null) {
+      throw new ObjectNotFoundException("Identity with id " + identityId + " wasn't found");
+    }
+
+    if (!eventAttendeeService.isEventAttendee(eventId, identityId)) {
+      throw new IllegalAccessException("User with identity id " + identityId + " isn't attendee of event with id " + eventId);
+    }
+
+    if (dateOptionVotes == null) {
+      dateOptionVotes = Collections.emptyList();
+    }
+
+    List<EventDateOption> eventDateOptions = datePollStorage.getEventDateOptions(eventId);
+    for (EventDateOption eventDateOption : eventDateOptions) {
+      long dateOptionId = eventDateOption.getId();
+      if (dateOptionVotes.contains(dateOptionId)) {
+        datePollStorage.vote(dateOptionId, identityId);
+      } else {
+        datePollStorage.dismiss(dateOptionId, identityId);
+      }
+    }
+
+    Utils.broadcastEvent(listenerService, Utils.POST_VOTES_AGENDA_EVENT_POLL, eventId, identityId);
   }
 
   @Override
@@ -180,6 +183,43 @@ public class AgendaEventDatePollServiceImpl implements AgendaEventDatePollServic
   @Override
   public void selectEventDateOption(long dateOptionId) throws ObjectNotFoundException {
     datePollStorage.selectDateOption(dateOptionId);
+  }
+
+  private List<EventDateOption> getDateOptionsToCreate(List<EventDateOption> dateOptions) {
+    return dateOptions.stream()
+                      .filter(dateOption -> dateOption.getId() == 0)
+                      .collect(Collectors.toList());
+  }
+
+  private List<EventDateOption> getDateOptionsToUpdate(List<EventDateOption> dateOptions,
+                                                       List<EventDateOption> existingDateOptions) {
+    return dateOptions.stream()
+                      .filter(dateOption -> {
+                        if (dateOption.getId() <= 0) {
+                          return false;
+                        }
+                        EventDateOption existingDateOption =
+                                                           existingDateOptions.stream()
+                                                                              .filter(tmp -> tmp.getId() == dateOption.getId())
+                                                                              .findAny()
+                                                                              .orElse(null);
+                        return this.sameDateOption(existingDateOption, dateOption);
+                      })
+                      .collect(Collectors.toList());
+  }
+
+  private List<EventDateOption> getDateOptionsToDelete(List<EventDateOption> dateOptions,
+                                                       List<EventDateOption> existingDateOptions) {
+    return existingDateOptions.stream()
+                              .filter(existingDateOption -> {
+                                EventDateOption dateOption =
+                                                           dateOptions.stream()
+                                                                      .filter(tmp -> tmp.getId() == existingDateOption.getId())
+                                                                      .findAny()
+                                                                      .orElse(null);
+                                return dateOption == null;
+                              })
+                              .collect(Collectors.toList());
   }
 
   private void transformDatesTimeZone(EventDateOption dateOption, ZoneId userTimeZone) {
