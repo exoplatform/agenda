@@ -25,11 +25,11 @@ import lombok.*;
 @NoArgsConstructor
 public class EventAttendeeResponseToken {
 
-  private long   eventId;
+  private long                  eventId;
 
-  private String email;
+  private String                email;
 
-  private long   timestamp;
+  private long                  timestamp;
 
   private EventAttendeeResponse response;
 }

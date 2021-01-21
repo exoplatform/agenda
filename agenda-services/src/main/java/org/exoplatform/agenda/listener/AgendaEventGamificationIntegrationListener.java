@@ -19,27 +19,27 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * A listener that will be triggered when an event is created or updated.
- * This will add the user who created or updated the event the dedicated
- * gamification points.
+ * A listener that will be triggered when an event is created or updated. This
+ * will add the user who created or updated the event the dedicated gamification
+ * points.
  */
 @Asynchronous
 public class AgendaEventGamificationIntegrationListener extends Listener<Long, Long> {
 
-  private static final Log LOG = ExoLogger.getLogger(AgendaEventGamificationIntegrationListener.class);
+  private static final Log   LOG                                  =
+                                 ExoLogger.getLogger(AgendaEventGamificationIntegrationListener.class);
 
-  public static final String GAMIFICATION_GENERIC_EVENT = "exo.gamification.generic.action";
+  public static final String GAMIFICATION_GENERIC_EVENT           = "exo.gamification.generic.action";
 
   public static final String GAMIFICATION_CREATE_EVENT_RULE_TITLE = "createEvent";
 
   public static final String GAMIFICATION_UPDATE_EVENT_RULE_TITLE = "updateEvent";
 
-  private PortalContainer container;
+  private PortalContainer    container;
 
-  private ListenerService listenerService;
+  private ListenerService    listenerService;
 
   private AgendaEventService agendaEventService;
-
 
   public AgendaEventGamificationIntegrationListener(PortalContainer container, ListenerService listenerService) {
     this.container = container;
@@ -69,7 +69,9 @@ public class AgendaEventGamificationIntegrationListener extends Listener<Long, L
           Map<String, String> gam = new HashMap<>();
           gam.put("ruleTitle", ruleTitle);
           gam.put("object", eventURL);
-          gam.put("senderId", String.valueOf(earnerId)); // matches the gamification's earner id
+          gam.put("senderId", String.valueOf(earnerId)); // matches the
+                                                         // gamification's
+                                                         // earner id
           gam.put("receiverId", String.valueOf(earnerId));
           listenerService.broadcast(GAMIFICATION_GENERIC_EVENT, gam, String.valueOf(eventId));
         } catch (Exception e) {

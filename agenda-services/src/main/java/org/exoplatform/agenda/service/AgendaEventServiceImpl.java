@@ -464,7 +464,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                          attendees,
                                          0,
                                          false,
-                                         false,
+                                         exceptionalEvent.getStatus() != EventStatus.CONFIRMED,
                                          null);
     }
     return exceptionalEvent;
@@ -601,11 +601,14 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     conferenceService.saveEventConferences(eventId, conferences);
     remoteEventService.saveRemoteEvent(eventId, remoteEvent, userIdentityId);
     reminderService.saveEventReminders(updatedEvent, reminders, userIdentityId);
+
+    boolean resetResponses = updatedEvent.getStatus() != EventStatus.CONFIRMED
+        && updatedEvent.getStatus() != storedEvent.getStatus();
     attendeeService.saveEventAttendees(updatedEvent,
                                        attendees,
                                        userIdentityId,
                                        sendInvitation,
-                                       false,
+                                       resetResponses,
                                        EventModificationType.UPDATED);
 
     if (!ObjectUtils.equals(storedEvent.getStart(), updatedEvent.getStart())) {
@@ -988,6 +991,14 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
     List<EventReminder> allReminders = reminderService.getEventReminders(eventId);
     reminderService.saveEventReminders(updatedEvent, allReminders);
+
+    List<EventAttendee> eventAttendees = attendeeService.getEventAttendees(eventId);
+    for (EventAttendee eventAttendee : eventAttendees) {
+      if (eventAttendee.getIdentityId() != userIdentityId) {
+        attendeeService.sendEventResponse(eventId, eventAttendee.getIdentityId(), EventAttendeeResponse.NEEDS_ACTION);
+      }
+    }
+    attendeeService.sendEventResponse(eventId, userIdentityId, EventAttendeeResponse.ACCEPTED);
 
     Utils.broadcastEvent(listenerService, Utils.POST_CREATE_AGENDA_EVENT_EVENT, eventId, userIdentityId);
 

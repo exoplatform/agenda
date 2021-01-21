@@ -11,12 +11,29 @@ import org.exoplatform.container.xml.InitParams;
 
 import static org.exoplatform.agenda.util.NotificationUtils.*;
 
-@TemplateConfigs(templates = {
-    @TemplateConfig(pluginId = AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/web/EventWebPlugin.gtmpl"),
-    @TemplateConfig(pluginId = AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/web/EventWebPlugin.gtmpl"),
-    @TemplateConfig(pluginId = AGENDA_EVENT_CANCELLED_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/web/EventWebPlugin.gtmpl"),
-    @TemplateConfig(pluginId = AGENDA_REMINDER_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/web/EventReminderWebPlugin.gtmpl"),
-    @TemplateConfig(pluginId = AGENDA_REPLY_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/web/EventReplyWebPlugin.gtmpl"), })
+@TemplateConfigs(
+    templates = {
+        @TemplateConfig(
+            pluginId = AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN,
+            template = "war:/conf/agenda/templates/notification/web/EventWebPlugin.gtmpl"
+        ),
+        @TemplateConfig(
+            pluginId = AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN,
+            template = "war:/conf/agenda/templates/notification/web/EventWebPlugin.gtmpl"
+        ),
+        @TemplateConfig(
+            pluginId = AGENDA_EVENT_CANCELLED_NOTIFICATION_PLUGIN,
+            template = "war:/conf/agenda/templates/notification/web/EventWebPlugin.gtmpl"
+        ),
+        @TemplateConfig(
+            pluginId = AGENDA_REMINDER_NOTIFICATION_PLUGIN,
+            template = "war:/conf/agenda/templates/notification/web/EventReminderWebPlugin.gtmpl"
+        ),
+        @TemplateConfig(
+            pluginId = AGENDA_REPLY_NOTIFICATION_PLUGIN,
+            template = "war:/conf/agenda/templates/notification/web/EventReplyWebPlugin.gtmpl"
+        ), }
+)
 public class WebTemplateProvider extends TemplateProvider {
   public WebTemplateProvider(ExoContainer container, InitParams initParams) {
     super(initParams);

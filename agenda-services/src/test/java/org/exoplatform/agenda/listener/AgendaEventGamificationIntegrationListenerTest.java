@@ -29,14 +29,14 @@ public class AgendaEventGamificationIntegrationListenerTest extends BaseAgendaEv
 
     long user1IdentityId = Long.parseLong(testuser1Identity.getId());
     agendaEventService.createEvent(event,
-            Collections.emptyList(),
-            Collections.emptyList(),
-            Collections.emptyList(),
-            Collections.emptyList(),
-            Collections.emptyList(),
-            null,
-            true,
-            user1IdentityId);
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   true,
+                                   user1IdentityId);
 
     assertTrue(executeListener.get());
   }
