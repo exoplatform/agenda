@@ -49,6 +49,21 @@ public interface AgendaEventDatePollService {
   List<EventDateOption> updateEventDateOptions(long eventId, List<EventDateOption> dateOptions);
 
   /**
+   * Saves all votes of user on an event. The dateOptionVotes will provide only
+   * accepted date options list. If dateOptionVotes is empty or null, this means
+   * the user has dismissed all date options.
+   * 
+   * @param eventId Technical identifier of {@link Event}
+   * @param dateOptionVotes {@link List} of accepted date poll options Technical
+   *          identifier
+   * @param identityId user {@link Identity} technical identifier
+   * @throws ObjectNotFoundException when event with given id is not found
+   * @throws IllegalAccessException when user can't vote on event
+   */
+  void saveEventVotes(long eventId, List<Long> dateOptionVotes, long identityId) throws ObjectNotFoundException,
+                                                                                 IllegalAccessException;
+
+  /**
    * Add an event vote on an event for a participant.
    * 
    * @param dateOptionId Technical identifier of {@link EventDateOption}

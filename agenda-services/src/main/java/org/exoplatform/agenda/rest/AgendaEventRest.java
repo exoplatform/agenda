@@ -113,37 +113,39 @@ public class AgendaEventRest implements ResourceContainer {
       httpMethod = "GET", response = Response.class, produces = "application/json"
   )
   @ApiResponses(
-      value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+      value = {
+          @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
           @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+      }
   )
-  public Response list(
-                       @ApiParam(value = "Identity technical identifiers of calendar owners", required = false) @QueryParam(
-                         "ownerIds"
-                       ) List<Long> ownerIds,
-                       @ApiParam(
-                           value = "Attendee identity identifier to filter on events where user is attendee", required = true
-                       ) @QueryParam("attendeeIdentityId") long attendeeIdentityId,
-                       @ApiParam(value = "Properties to expand", required = false) @QueryParam(
-                         "expand"
-                       ) String expand,
-                       @ApiParam(value = "Start datetime using RFC-3339 representation", required = true) @QueryParam(
-                         "start"
-                       ) String start,
-                       @ApiParam(value = "End datetime using RFC-3339 representation", required = false) @QueryParam(
-                         "end"
-                       ) String end,
-                       @ApiParam(value = "IANA Time zone identitifer", required = false) @QueryParam(
-                         "timeZoneId"
-                       ) String timeZoneId,
-                       @ApiParam(
-                           value = "Limit of results to return, used only when end date isn't set", required = false,
-                           defaultValue = "10"
-                       ) @QueryParam("limit") int limit,
-                       @ApiParam(
-                           value = "Attendee Response statuses to filter events by attendee response",
-                           required = false
-                       ) @QueryParam("responseTypes") List<EventAttendeeResponse> responseTypes) {
+  public Response getEvents(
+                            @ApiParam(value = "Identity technical identifiers of calendar owners", required = false) @QueryParam(
+                              "ownerIds"
+                            ) List<Long> ownerIds,
+                            @ApiParam(
+                                value = "Attendee identity identifier to filter on events where user is attendee", required = true
+                            ) @QueryParam("attendeeIdentityId") long attendeeIdentityId,
+                            @ApiParam(value = "Properties to expand", required = false) @QueryParam(
+                              "expand"
+                            ) String expand,
+                            @ApiParam(value = "Start datetime using RFC-3339 representation", required = true) @QueryParam(
+                              "start"
+                            ) String start,
+                            @ApiParam(value = "End datetime using RFC-3339 representation", required = false) @QueryParam(
+                              "end"
+                            ) String end,
+                            @ApiParam(value = "IANA Time zone identitifer", required = false) @QueryParam(
+                              "timeZoneId"
+                            ) String timeZoneId,
+                            @ApiParam(
+                                value = "Limit of results to return, used only when end date isn't set", required = false,
+                                defaultValue = "10"
+                            ) @QueryParam("limit") int limit,
+                            @ApiParam(
+                                value = "Attendee Response statuses to filter events by attendee response",
+                                required = false
+                            ) @QueryParam("responseTypes") List<EventAttendeeResponse> responseTypes) {
 
     if (StringUtils.isBlank(start)) {
       return Response.status(Status.BAD_REQUEST).entity("Start datetime is mandatory").build();
@@ -187,11 +189,11 @@ public class AgendaEventRest implements ResourceContainer {
                                                                   : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
                                                                                                     ","));
       List<EventEntity> eventEntities = events.stream().map(event -> {
-        EventEntity eventEntity = EntityBuilder.fromEvent(agendaCalendarService,
-                                                          agendaEventService,
-                                                          identityManager,
-                                                          event,
-                                                          userTimeZone);
+        EventEntity eventEntity = RestEntityBuilder.fromEvent(agendaCalendarService,
+                                                              agendaEventService,
+                                                              identityManager,
+                                                              event,
+                                                              userTimeZone);
         if (expandProperties.contains("all") || expandProperties.contains("attendees")) {
           try {
             fillAttendees(eventEntity, attendeesByParentEventId);
@@ -483,7 +485,7 @@ public class AgendaEventRest implements ResourceContainer {
       if (attendeeEntities != null && !attendeeEntities.isEmpty()) {
         attendees = new ArrayList<>();
         for (EventAttendeeEntity attendeeEntity : attendeeEntities) {
-          attendees.add(EntityBuilder.toEventAttendee(identityManager, eventEntity.getId(), attendeeEntity));
+          attendees.add(RestEntityBuilder.toEventAttendee(identityManager, eventEntity.getId(), attendeeEntity));
         }
       }
 
@@ -491,16 +493,16 @@ public class AgendaEventRest implements ResourceContainer {
       List<EventAttachment> attachments = attachmentEntities == null
           || attachmentEntities.isEmpty() ? null
                                           : attachmentEntities.stream()
-                                                              .map(EntityBuilder::toEventAttachment)
+                                                              .map(RestEntityBuilder::toEventAttachment)
                                                               .collect(Collectors.toList());
 
-      Event event = EntityBuilder.toEvent(eventEntity);
+      Event event = RestEntityBuilder.toEvent(eventEntity);
       List<EventReminderEntity> reminderEntities = eventEntity.getReminders();
       List<EventReminder> reminders = null;
       if (reminderEntities != null && !reminderEntities.isEmpty()) {
         reminders = new ArrayList<>();
         for (EventReminderEntity reminderEntity : reminderEntities) {
-          reminders.add(EntityBuilder.toEventReminder(eventEntity.getId(), reminderEntity));
+          reminders.add(RestEntityBuilder.toEventReminder(eventEntity.getId(), reminderEntity));
         }
       }
 
@@ -512,15 +514,8 @@ public class AgendaEventRest implements ResourceContainer {
       List<EventDateOptionEntity> dateOptionEntities = eventEntity.getDateOptions();
       List<EventDateOption> dateOptions = dateOptionEntities == null ? Collections.emptyList()
                                                                      : dateOptionEntities.stream()
-                                                                                         .map(dateOptionEntity -> new EventDateOption(dateOptionEntity.getId(),
-                                                                                                                                      dateOptionEntity.getEventId(),
-                                                                                                                                      AgendaDateUtils.parseRFC3339ToZonedDateTime(dateOptionEntity.getStart(),
-                                                                                                                                                                                  userTimeZone),
-                                                                                                                                      AgendaDateUtils.parseRFC3339ToZonedDateTime(dateOptionEntity.getEnd(),
-                                                                                                                                                                                  userTimeZone),
-                                                                                                                                      dateOptionEntity.isAllDay(),
-                                                                                                                                      false,
-                                                                                                                                      null))
+                                                                                         .map(dateOptionEntity -> RestEntityBuilder.toEventDateOption(dateOptionEntity,
+                                                                                                                                                      userTimeZone))
                                                                                          .collect(Collectors.toList());
 
       agendaEventService.updateEvent(event,
@@ -648,17 +643,21 @@ public class AgendaEventRest implements ResourceContainer {
           @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
   )
   public Response deleteEvent(@ApiParam(value = "Event technical identifier", required = true) @PathParam(
-    "eventId"
-  ) long eventId) {
+                                "eventId"
+                              ) long eventId,
+                              @ApiParam(value = "IANA Time zone identitifer", required = false) @QueryParam(
+                                "timeZoneId"
+                              ) String timeZoneId) {
     if (eventId <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Event technical identifier must be positive").build();
     }
 
     long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
     try {
+      ZoneId userTimeZone = timeZoneId == null ? null : ZoneId.of(timeZoneId);
       EventEntity eventEntity = getEventByIdAndUser(eventId,
                                                     userIdentityId,
-                                                    null,
+                                                    userTimeZone,
                                                     Collections.singletonList("all"));
       if (eventEntity == null) {
         return Response.status(Status.NOT_FOUND).entity("Event not found").build();
@@ -675,10 +674,12 @@ public class AgendaEventRest implements ResourceContainer {
   }
 
   @POST
-  @Path("{eventId}/dateOption/{dateOptionId}/select")
+  @Path("{eventId}/selectDateOption/{dateOptionId}")
   @RolesAllowed("users")
   @ApiOperation(
-      value = "Select an Date Option for an event having multiple dates options", httpMethod = "POST", response = Response.class
+      value = "Select an Date Option for an event having multiple dates options",
+      httpMethod = "POST",
+      response = Response.class
   )
   @ApiResponses(
       value = {
@@ -873,9 +874,59 @@ public class AgendaEventRest implements ResourceContainer {
     }
   }
 
-  @Path("{eventId}/dateOption/{dateOptionId}/vote")
+  @Path("{eventId}/votes")
   @POST
-  @Produces(MediaType.TEXT_PLAIN)
+  @Consumes("application/x-www-form-urlencoded")
+  @RolesAllowed("users")
+  @ApiOperation(
+      value = "Registers voted date poll options for currently authenticated user",
+      httpMethod = "POST", response = Response.class
+  )
+  @ApiResponses(
+      value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.FORBIDDEN, message = "Forbidden operation"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+  )
+  public Response voteEvent(
+                            @ApiParam(value = "Event technical identifier", required = true) @PathParam(
+                              "eventId"
+                            ) long eventId,
+                            @ApiParam(value = "Accepted event date options technical identifier", required = false) @FormParam(
+                              "dateOptionId"
+                            ) List<Long> dateOptionId) {
+    if (eventId <= 0) {
+      return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
+    }
+    if (dateOptionId == null) {
+      dateOptionId = Collections.emptyList();
+    }
+
+    try {
+      Identity identity = RestUtils.getCurrentUserIdentity(identityManager);
+      if (identity == null) {
+        return Response.status(Status.FORBIDDEN).build();
+      }
+      long identityId = Long.parseLong(identity.getId());
+      agendaEventDatePollService.saveEventVotes(eventId, dateOptionId, identityId);
+      return Response.noContent().build();
+    } catch (ObjectNotFoundException e) {
+      return Response.status(Status.NOT_FOUND).entity("Event with id " + eventId + " not found").build();
+    } catch (IllegalAccessException e) {
+      LOG.warn("User '{}' attempts to vote on a not authorized event with Id '{}'",
+               RestUtils.getCurrentUser(),
+               eventId);
+      return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
+    } catch (Exception e) {
+      LOG.warn("Error voting on event with id '{}'", eventId, e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
+  @Path("{eventId}/votes/{dateOptionId}")
+  @POST
+  @RolesAllowed("users")
   @ApiOperation(
       value = "Registers voted date poll option for currently authenticated user",
       httpMethod = "POST", response = Response.class
@@ -910,7 +961,7 @@ public class AgendaEventRest implements ResourceContainer {
       agendaEventDatePollService.voteDateOption(dateOptionId, identityId);
       return Response.noContent().build();
     } catch (ObjectNotFoundException e) {
-      return Response.status(Status.NOT_FOUND).entity("Event not found").build();
+      return Response.status(Status.NOT_FOUND).entity("Date option with id " + dateOptionId + " not found").build();
     } catch (IllegalAccessException e) {
       LOG.warn("User '{}' attempts to vote on a not authorized event with Id '{}'",
                RestUtils.getCurrentUser(),
@@ -922,9 +973,9 @@ public class AgendaEventRest implements ResourceContainer {
     }
   }
 
-  @Path("{eventId}/dateOption/{dateOptionId}/vote")
+  @Path("{eventId}/votes/{dateOptionId}")
   @DELETE
-  @Produces(MediaType.TEXT_PLAIN)
+  @RolesAllowed("users")
   @ApiOperation(
       value = "Dismisses vote on date poll option for currently authenticated user",
       httpMethod = "DELETE", response = Response.class
@@ -959,7 +1010,7 @@ public class AgendaEventRest implements ResourceContainer {
       agendaEventDatePollService.dismissDateOption(dateOptionId, identityId);
       return Response.noContent().build();
     } catch (ObjectNotFoundException e) {
-      return Response.status(Status.NOT_FOUND).entity("Event not found").build();
+      return Response.status(Status.NOT_FOUND).entity("Date option with id " + dateOptionId + " not found").build();
     } catch (Exception e) {
       LOG.warn("Error dismissing vote on event with id '{}' with date option '{}'", eventId, dateOptionId, e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -1123,7 +1174,7 @@ public class AgendaEventRest implements ResourceContainer {
           throw new AgendaException(AgendaExceptionType.ATTENDEE_IDENTITY_NOT_FOUND);
         }
         attendeeIdentity.setId(attendeeIdString);
-        attendees.add(EntityBuilder.toEventAttendee(identityManager, eventEntity.getId(), attendeeEntity));
+        attendees.add(RestEntityBuilder.toEventAttendee(identityManager, eventEntity.getId(), attendeeEntity));
       }
     }
 
@@ -1131,14 +1182,14 @@ public class AgendaEventRest implements ResourceContainer {
     List<EventAttachment> attachments = attachmentEntities == null
         || attachmentEntities.isEmpty() ? null
                                         : attachmentEntities.stream()
-                                                            .map(EntityBuilder::toEventAttachment)
+                                                            .map(RestEntityBuilder::toEventAttachment)
                                                             .collect(Collectors.toList());
     List<EventReminderEntity> reminderEntities = eventEntity.getReminders();
     List<EventReminder> reminders = null;
     if (reminderEntities != null && !reminderEntities.isEmpty()) {
       reminders = new ArrayList<>();
       for (EventReminderEntity reminderEntity : reminderEntities) {
-        reminders.add(EntityBuilder.toEventReminder(eventEntity.getId(), reminderEntity));
+        reminders.add(RestEntityBuilder.toEventReminder(eventEntity.getId(), reminderEntity));
       }
     }
 
@@ -1150,18 +1201,11 @@ public class AgendaEventRest implements ResourceContainer {
     List<EventDateOptionEntity> dateOptionEntities = eventEntity.getDateOptions();
     List<EventDateOption> dateOptions = dateOptionEntities == null ? Collections.emptyList()
                                                                    : dateOptionEntities.stream()
-                                                                                       .map(dateOptionEntity -> new EventDateOption(dateOptionEntity.getId(),
-                                                                                                                                    dateOptionEntity.getEventId(),
-                                                                                                                                    AgendaDateUtils.parseRFC3339ToZonedDateTime(dateOptionEntity.getStart(),
-                                                                                                                                                                                userTimeZone),
-                                                                                                                                    AgendaDateUtils.parseRFC3339ToZonedDateTime(dateOptionEntity.getEnd(),
-                                                                                                                                                                                userTimeZone),
-                                                                                                                                    dateOptionEntity.isAllDay(),
-                                                                                                                                    false,
-                                                                                                                                    null))
+                                                                                       .map(dateOptionEntity -> RestEntityBuilder.toEventDateOption(dateOptionEntity,
+                                                                                                                                                    userTimeZone))
                                                                                        .collect(Collectors.toList());
 
-    return agendaEventService.createEvent(EntityBuilder.toEvent(eventEntity),
+    return agendaEventService.createEvent(RestEntityBuilder.toEvent(eventEntity),
                                           attendees,
                                           eventEntity.getConferences(),
                                           attachments,
@@ -1184,7 +1228,7 @@ public class AgendaEventRest implements ResourceContainer {
     if (calendar == null) {
       throw new AgendaException(AgendaExceptionType.CALENDAR_NOT_FOUND);
     } else if (eventEntity.getCalendar() == null) {
-      eventEntity.setCalendar(EntityBuilder.fromCalendar(identityManager, calendar));
+      eventEntity.setCalendar(RestEntityBuilder.fromCalendar(identityManager, calendar));
     } else {
       eventEntity.getCalendar().setId(calendar.getId());
     }
@@ -1202,11 +1246,18 @@ public class AgendaEventRest implements ResourceContainer {
     if (event == null) {
       return null;
     } else {
-      EventEntity eventEntity = EntityBuilder.fromEvent(agendaCalendarService,
-                                                        agendaEventService,
-                                                        identityManager,
-                                                        event,
-                                                        userTimeZone);
+      if (userTimeZone == null) {
+        if (event.getTimeZoneId() == null) {
+          userTimeZone = ZoneOffset.UTC;
+        } else {
+          userTimeZone = event.getTimeZoneId();
+        }
+      }
+      EventEntity eventEntity = RestEntityBuilder.fromEvent(agendaCalendarService,
+                                                            agendaEventService,
+                                                            identityManager,
+                                                            event,
+                                                            userTimeZone);
       long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
       if (expandProperties.contains("all") || expandProperties.contains("attendees")) {
         fillAttendees(eventEntity);
@@ -1240,11 +1291,11 @@ public class AgendaEventRest implements ResourceContainer {
     if (eventSearchResult == null) {
       return null;
     } else {
-      EventSearchResultEntity eventSearchResultEntity = EntityBuilder.fromSearchEvent(agendaCalendarService,
-                                                                                      agendaEventService,
-                                                                                      identityManager,
-                                                                                      eventSearchResult,
-                                                                                      userTimeZone);
+      EventSearchResultEntity eventSearchResultEntity = RestEntityBuilder.fromSearchEvent(agendaCalendarService,
+                                                                                          agendaEventService,
+                                                                                          identityManager,
+                                                                                          eventSearchResult,
+                                                                                          userTimeZone);
 
       long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
       if (expandProperties.contains("all") || expandProperties.contains("attendees")) {
@@ -1292,8 +1343,8 @@ public class AgendaEventRest implements ResourceContainer {
     List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId);
     List<EventAttendeeEntity> eventAttendeeEntities = eventAttendees == null ? null
                                                                              : eventAttendees.stream()
-                                                                                             .map(eventAttendee -> EntityBuilder.fromEventAttendee(identityManager,
-                                                                                                                                                   eventAttendee))
+                                                                                             .map(eventAttendee -> RestEntityBuilder.fromEventAttendee(identityManager,
+                                                                                                                                                       eventAttendee))
                                                                                              .collect(Collectors.toList());
     eventEntity.setAttendees(eventAttendeeEntities);
   }
@@ -1315,7 +1366,7 @@ public class AgendaEventRest implements ResourceContainer {
     List<EventAttachment> eventAttachments = agendaEventAttachmentService.getEventAttachments(eventId);
     List<EventAttachmentEntity> eventAttachmentEntities = eventAttachments == null ? null
                                                                                    : eventAttachments.stream()
-                                                                                                     .map(EntityBuilder::fromEventAttachment)
+                                                                                                     .map(RestEntityBuilder::fromEventAttachment)
                                                                                                      .collect(Collectors.toList());
     eventEntity.setAttachments(eventAttachmentEntities);
   }
@@ -1354,13 +1405,13 @@ public class AgendaEventRest implements ResourceContainer {
                                && (reminder.getUntilOccurrenceId() == null
                                    || reminder.getUntilOccurrenceId().isAfter(occurrenceId)))
                            .collect(Collectors.toList());
-      eventEntity.setReminders(reminders.stream().map(EntityBuilder::fromEventReminder).collect(Collectors.toList()));
+      eventEntity.setReminders(reminders.stream().map(RestEntityBuilder::fromEventReminder).collect(Collectors.toList()));
     } else {
       fillReminders(eventEntity, userIdentityId);
       remindersByParentEventId.put(eventId,
                                    eventEntity.getReminders()
                                               .stream()
-                                              .map(reminderEntity -> EntityBuilder.toEventReminder(eventId, reminderEntity))
+                                              .map(reminderEntity -> RestEntityBuilder.toEventReminder(eventId, reminderEntity))
                                               .collect(Collectors.toList()));
     }
   }
@@ -1441,7 +1492,7 @@ public class AgendaEventRest implements ResourceContainer {
     }
     List<EventReminderEntity> eventReminderEntities = reminders == null ? null
                                                                         : reminders.stream()
-                                                                                   .map(EntityBuilder::fromEventReminder)
+                                                                                   .map(RestEntityBuilder::fromEventReminder)
                                                                                    .collect(Collectors.toList());
     eventEntity.setReminders(eventReminderEntities);
   }
@@ -1452,17 +1503,8 @@ public class AgendaEventRest implements ResourceContainer {
     List<EventDateOption> dateOptions = agendaEventDatePollService.getEventDateOptions(eventId, userTimeZone);
     List<EventDateOptionEntity> dateOptionEntities = dateOptions == null ? Collections.emptyList()
                                                                          : dateOptions.stream()
-                                                                                      .map(dateOption -> new EventDateOptionEntity(dateOption.getId(),
-                                                                                                                                   dateOption.getEventId(),
-                                                                                                                                   AgendaDateUtils.toRFC3339Date(dateOption.getStart(),
-                                                                                                                                                                 userTimeZone,
-                                                                                                                                                                 dateOption.isAllDay()),
-                                                                                                                                   AgendaDateUtils.toRFC3339Date(dateOption.getEnd(),
-                                                                                                                                                                 userTimeZone,
-                                                                                                                                                                 dateOption.isAllDay()),
-                                                                                                                                   dateOption.isAllDay(),
-                                                                                                                                   false,
-                                                                                                                                   null))
+                                                                                      .map(dateOption -> RestEntityBuilder.fromEventDateOption(userTimeZone,
+                                                                                                                                               dateOption))
                                                                                       .collect(Collectors.toList());
     eventEntity.setDateOptions(dateOptionEntities);
   }

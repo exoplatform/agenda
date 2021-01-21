@@ -43,16 +43,16 @@ public enum EventAttendeeResponse {
 
   public static EventAttendeeResponse fromValue(String value) {
     switch (value) {
-    case NEEDS_ACTION_VALUE:
-      return NEEDS_ACTION;
-    case ACCEPTED_VALUE:
-      return ACCEPTED;
-    case DECLINED_VALUE:
-      return DECLINED;
-    case TENTATIVE_VALUE:
-      return TENTATIVE;
-    default:
-      return null;
+      case NEEDS_ACTION_VALUE:
+        return NEEDS_ACTION;
+      case ACCEPTED_VALUE:
+        return ACCEPTED;
+      case DECLINED_VALUE:
+        return DECLINED;
+      case TENTATIVE_VALUE:
+        return TENTATIVE;
+      default:
+        return null;
     }
   }
 }

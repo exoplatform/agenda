@@ -84,6 +84,9 @@ public class AgendaDateUtils {
     if (zonedDateTime == null) {
       return null;
     }
+    if (zoneOffset == null) {
+      zoneOffset = ZoneOffset.UTC;
+    }
     if (allDay) {
       return zonedDateTime.withZoneSameLocal(zoneOffset).format(ALL_DAY_FORMATTER);
     } else {

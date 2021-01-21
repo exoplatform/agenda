@@ -31,7 +31,7 @@ import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.rest.model.CalendarEntity;
 import org.exoplatform.agenda.rest.model.CalendarList;
 import org.exoplatform.agenda.service.AgendaCalendarService;
-import org.exoplatform.agenda.util.EntityBuilder;
+import org.exoplatform.agenda.util.RestEntityBuilder;
 import org.exoplatform.agenda.util.RestUtils;
 import org.exoplatform.common.http.HTTPStatus;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
@@ -118,7 +118,7 @@ public class AgendaCalendarRest implements ResourceContainer {
         }
       }
       List<CalendarEntity> calendarEntities = calendars.stream()
-                                                       .map(calendar -> EntityBuilder.fromCalendar(identityManager, calendar))
+                                                       .map(calendar -> RestEntityBuilder.fromCalendar(identityManager, calendar))
                                                        .collect(Collectors.toList());
       calendarList.setCalendars(calendarEntities);
 
@@ -157,7 +157,7 @@ public class AgendaCalendarRest implements ResourceContainer {
       if (calendar == null) {
         return Response.status(Status.NOT_FOUND).build();
       } else {
-        return Response.ok(EntityBuilder.fromCalendar(identityManager, calendar)).build();
+        return Response.ok(RestEntityBuilder.fromCalendar(identityManager, calendar)).build();
       }
     } catch (IllegalAccessException e) {
       LOG.warn("User '{}' attempts to access not authorized calendar with Id '{}'", currentUser, calendarId);
@@ -189,7 +189,7 @@ public class AgendaCalendarRest implements ResourceContainer {
 
     String currentUser = RestUtils.getCurrentUser();
     try {
-      agendaCalendarService.createCalendar(EntityBuilder.toCalendar(calendarEntity), currentUser);
+      agendaCalendarService.createCalendar(RestEntityBuilder.toCalendar(calendarEntity), currentUser);
       return Response.noContent().build();
     } catch (IllegalAccessException e) {
       LOG.warn("User '{}' attempts to create a calendar for owner '{}'", currentUser, calendarEntity.getOwner());
@@ -223,7 +223,7 @@ public class AgendaCalendarRest implements ResourceContainer {
 
     String currentUser = RestUtils.getCurrentUser();
     try {
-      agendaCalendarService.updateCalendar(EntityBuilder.toCalendar(calendarEntity), currentUser);
+      agendaCalendarService.updateCalendar(RestEntityBuilder.toCalendar(calendarEntity), currentUser);
       return Response.noContent().build();
     } catch (ObjectNotFoundException e) {
       return Response.status(Status.NOT_FOUND).entity("Calendar not found").build();
