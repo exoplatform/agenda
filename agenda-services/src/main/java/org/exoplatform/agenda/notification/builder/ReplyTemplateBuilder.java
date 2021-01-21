@@ -89,7 +89,7 @@ public class ReplyTemplateBuilder extends AbstractTemplateBuilder {
       long identityId = Utils.getIdentityIdByUsername(getIdentityManager(), username);
       AgendaUserSettings agendaUserSettings = getAgendaUserSettingsService().getAgendaUserSettings(identityId);
       ZoneId timeZone = agendaUserSettings == null
-              || agendaUserSettings.getTimeZoneId() == null ? ZoneOffset.UTC : ZoneId.of(agendaUserSettings.getTimeZoneId());
+          || agendaUserSettings.getTimeZoneId() == null ? ZoneOffset.UTC : ZoneId.of(agendaUserSettings.getTimeZoneId());
 
       TemplateContext templateContext = buildTemplateReplyParameters(templateProvider, notification, timeZone);
       MessageInfo messageInfo = buildMessageSubjectAndBody(templateContext, notification, pushNotificationURL);

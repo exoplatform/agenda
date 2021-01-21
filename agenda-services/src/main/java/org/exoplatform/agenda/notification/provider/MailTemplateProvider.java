@@ -11,11 +11,25 @@ import org.exoplatform.container.xml.InitParams;
 
 import static org.exoplatform.agenda.util.NotificationUtils.*;
 
-@TemplateConfigs(templates = {
-    @TemplateConfig(pluginId = AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/mail/EventMailPlugin.gtmpl"),
-    @TemplateConfig(pluginId = AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/mail/EventMailPlugin.gtmpl"),
-    @TemplateConfig(pluginId = AGENDA_REMINDER_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/mail/EventReminderMailPlugin.gtmpl"),
-    @TemplateConfig(pluginId = AGENDA_REPLY_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/mail/EventReplyMailPlugin.gtmpl") })
+@TemplateConfigs(
+    templates = {
+        @TemplateConfig(
+            pluginId = AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN,
+            template = "war:/conf/agenda/templates/notification/mail/EventMailPlugin.gtmpl"
+        ),
+        @TemplateConfig(
+            pluginId = AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN,
+            template = "war:/conf/agenda/templates/notification/mail/EventMailPlugin.gtmpl"
+        ),
+        @TemplateConfig(
+            pluginId = AGENDA_REMINDER_NOTIFICATION_PLUGIN,
+            template = "war:/conf/agenda/templates/notification/mail/EventReminderMailPlugin.gtmpl"
+        ),
+        @TemplateConfig(
+            pluginId = AGENDA_REPLY_NOTIFICATION_PLUGIN,
+            template = "war:/conf/agenda/templates/notification/mail/EventReplyMailPlugin.gtmpl"
+        ) }
+)
 public class MailTemplateProvider extends TemplateProvider {
   public MailTemplateProvider(ExoContainer container, InitParams initParams) {
     super(initParams);

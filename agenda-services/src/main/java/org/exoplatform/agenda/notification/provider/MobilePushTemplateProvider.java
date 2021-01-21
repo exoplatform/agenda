@@ -11,12 +11,29 @@ import org.exoplatform.container.xml.InitParams;
 
 import static org.exoplatform.agenda.util.NotificationUtils.*;
 
-@TemplateConfigs(templates = {
-    @TemplateConfig(pluginId = AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/push/EventPushPlugin.gtmpl"),
-    @TemplateConfig(pluginId = AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/push/EventPushPlugin.gtmpl"),
-    @TemplateConfig(pluginId = AGENDA_EVENT_CANCELLED_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/push/EventPushPlugin.gtmpl"),
-    @TemplateConfig(pluginId = AGENDA_REMINDER_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/push/EventReminderPushPlugin.gtmpl"),
-    @TemplateConfig(pluginId = AGENDA_REPLY_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/push/EventReplyPushPlugin.gtmpl") })
+@TemplateConfigs(
+    templates = {
+        @TemplateConfig(
+            pluginId = AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN,
+            template = "war:/conf/agenda/templates/notification/push/EventPushPlugin.gtmpl"
+        ),
+        @TemplateConfig(
+            pluginId = AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN,
+            template = "war:/conf/agenda/templates/notification/push/EventPushPlugin.gtmpl"
+        ),
+        @TemplateConfig(
+            pluginId = AGENDA_EVENT_CANCELLED_NOTIFICATION_PLUGIN,
+            template = "war:/conf/agenda/templates/notification/push/EventPushPlugin.gtmpl"
+        ),
+        @TemplateConfig(
+            pluginId = AGENDA_REMINDER_NOTIFICATION_PLUGIN,
+            template = "war:/conf/agenda/templates/notification/push/EventReminderPushPlugin.gtmpl"
+        ),
+        @TemplateConfig(
+            pluginId = AGENDA_REPLY_NOTIFICATION_PLUGIN,
+            template = "war:/conf/agenda/templates/notification/push/EventReplyPushPlugin.gtmpl"
+        ) }
+)
 public class MobilePushTemplateProvider extends TemplateProvider {
   public MobilePushTemplateProvider(ExoContainer container, InitParams initParams) {
     super(initParams);

@@ -33,7 +33,8 @@ public class AgendaEventDatePollStorage {
       return Collections.emptyList();
     }
     EventDatePollEntity datePollEntity = datePollDAO.findDatePollByEventId(eventId);
-    Long selectedDateOptionId = datePollEntity == null ? 0 : datePollEntity.getSelectedDateOptionId();
+    Long selectedDateOptionId = datePollEntity == null
+        || datePollEntity.getSelectedDateOptionId() == null ? 0l : datePollEntity.getSelectedDateOptionId();
 
     List<EventDateOption> dateOptions = new ArrayList<>();
     for (EventDateOptionEntity eventDateOptionEntity : dateOptionEntities) {
@@ -153,7 +154,8 @@ public class AgendaEventDatePollStorage {
       return null;
     }
     EventDatePollEntity datePollEntity = withSelection ? datePollDAO.findDatePollByEventId(dateOptionEntity.getEventId()) : null;
-    Long selectedDateOptionId = datePollEntity == null ? 0 : datePollEntity.getSelectedDateOptionId();
+    Long selectedDateOptionId = datePollEntity == null
+        || datePollEntity.getSelectedDateOptionId() == null ? 0l : datePollEntity.getSelectedDateOptionId();
 
     ZonedDateTime startDate = AgendaDateUtils.fromDate(dateOptionEntity.getStartDate());
     ZonedDateTime endDate = AgendaDateUtils.fromDate(dateOptionEntity.getEndDate());
