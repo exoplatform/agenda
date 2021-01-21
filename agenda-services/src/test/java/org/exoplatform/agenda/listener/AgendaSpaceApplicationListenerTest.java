@@ -22,13 +22,13 @@ import org.exoplatform.social.core.space.spi.SpaceService;
 
 public class AgendaSpaceApplicationListenerTest {
 
-  protected static final AtomicBoolean LISTENER_INSTALL_COUNT = new AtomicBoolean(false);
+  protected static final AtomicBoolean LISTENER_INSTALL_COUNT   = new AtomicBoolean(false);
 
   protected static final AtomicBoolean LISTENER_UNINSTALL_COUNT = new AtomicBoolean(false);
 
-  protected static PortalContainer container;
+  protected static PortalContainer     container;
 
-  protected static SpaceService spaceService;
+  protected static SpaceService        spaceService;
 
   @BeforeClass
   public static void setUpAllTests() {

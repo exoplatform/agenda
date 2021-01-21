@@ -12,7 +12,6 @@ import org.exoplatform.container.xml.InitParams;
 
 import static org.exoplatform.agenda.util.NotificationUtils.*;
 
-
 @TemplateConfigs(templates = {
     @TemplateConfig(pluginId = AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/push/EventPushPlugin.gtmpl"),
     @TemplateConfig(pluginId = AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/push/EventPushPlugin.gtmpl"),

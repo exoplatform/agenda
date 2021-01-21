@@ -26,10 +26,18 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
 @Entity(name = "AgendaCalendar")
 @ExoEntity
 @Table(name = "EXO_AGENDA_CALENDAR")
-@NamedQueries({
-  @NamedQuery(name = "AgendaCalendar.getCalendarIdsByOwnerIds", query = "SELECT cal.id FROM AgendaCalendar cal WHERE cal.ownerId IN (:ownerIds) ORDER BY cal.id ASC"),
-  @NamedQuery(name = "AgendaCalendar.countCalendarsByOwnerIds", query = "SELECT count(cal.id) FROM AgendaCalendar cal WHERE cal.ownerId IN (:ownerIds)"),
-})
+@NamedQueries(
+  {
+      @NamedQuery(
+          name = "AgendaCalendar.getCalendarIdsByOwnerIds",
+          query = "SELECT cal.id FROM AgendaCalendar cal WHERE cal.ownerId IN (:ownerIds) ORDER BY cal.id ASC"
+      ),
+      @NamedQuery(
+          name = "AgendaCalendar.countCalendarsByOwnerIds",
+          query = "SELECT count(cal.id) FROM AgendaCalendar cal WHERE cal.ownerId IN (:ownerIds)"
+      ),
+  }
+)
 public class CalendarEntity implements Serializable {
 
   private static final long serialVersionUID = -5042089789130151840L;

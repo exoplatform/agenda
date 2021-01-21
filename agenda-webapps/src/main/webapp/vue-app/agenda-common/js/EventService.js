@@ -268,6 +268,42 @@ export function deleteEvent(eventId) {
     });
 }
 
+export function voteEventDate(eventId, dateOptionId) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}/dateOption/${dateOptionId}/vote`, {
+    method: 'POST',
+    credentials: 'include',
+  })
+    .then((resp) => {
+      if (!resp || !resp.ok) {
+        throw new Error('Error voting on event');
+      }
+    });
+}
+
+export function selectEventDate(eventId, dateOptionId) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}/dateOption/${dateOptionId}/select`, {
+    method: 'POST',
+    credentials: 'include',
+  })
+    .then((resp) => {
+      if (!resp || !resp.ok) {
+        throw new Error('Error selecting an event date');
+      }
+    });
+}
+
+export function dismissEventDate(eventId, dateOptionId) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}/dateOption/${dateOptionId}/vote`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+    .then((resp) => {
+      if (!resp || !resp.ok) {
+        throw new Error('Error voting on event');
+      }
+    });
+}
+
 function formatRecurrenceObject(event) {
   if (event.recurrence) {
     const recurrence = event.recurrence;
