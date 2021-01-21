@@ -71,7 +71,7 @@
           :disabled="disableSaveButton"
           class="btn btn-primary mr-2"
           @click="saveEvent">
-          {{ $t('agenda.label.create') }}
+          {{ saveButtonLabel }}
         </v-btn>
         <v-btn
           v-if="stepper < 2"
@@ -172,12 +172,27 @@ export default {
     stepButtonLabel() {
       return this.displayTimeInForm ? this.$t('agenda.alternativeDates') : this.$t('agenda.button.continue');
     },
+    saveButtonLabel() {
+      if (this.eventDateOptionsLength > 1) {
+        return this.$t('agenda.label.schedule');
+      } else if (this.event.id || this.event.parent) {
+        return this.$t('agenda.label.save');
+      } else {
+        return this.$t('agenda.label.create');
+      }
+    },
   },
   watch: {
+    eventDateOptionsLength(newVal, oldVal) {
+      if (newVal !== oldVal) {
+        this.$agendaUtils.initEventForm(this.event);
+      }
+    },
     eventDateOptions() {
       this.eventDateOptionsLength = this.event.dateOptions.length;
     },
     stepper() {
+      this.$agendaUtils.initEventForm(this.event);
       this.eventDateOptionsLength = this.event.dateOptions.length;
       this.$nextTick(() => {
         if (this.$refs.eventBasicInformation) {
@@ -194,7 +209,8 @@ export default {
       this.$emit('close');
     },
     reset() {
-      this.stepper = 1;
+      this.stepper = 0;
+      this.$nextTick().then(() => this.stepper = 1);
       this.$forceUpdate();
     },
     previousStep() {

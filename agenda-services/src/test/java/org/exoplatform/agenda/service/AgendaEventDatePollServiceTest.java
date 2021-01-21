@@ -597,7 +597,9 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                                                       true,
                                                       null);
     Event createdEvent = agendaEventService.createEvent(event,
-                                                        Collections.emptyList(),
+                                                        Arrays.asList(new EventAttendee(0,
+                                                                                        Long.parseLong(testuser1Identity.getId()),
+                                                                                        EventAttendeeResponse.NEEDS_ACTION)),
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),

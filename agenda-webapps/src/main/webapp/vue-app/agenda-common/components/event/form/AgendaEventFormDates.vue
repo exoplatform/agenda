@@ -209,10 +209,11 @@ export default {
       this.event.timeZoneId = this.$agendaUtils.USER_TIMEZONE_ID;
     }
 
+    this.$agendaUtils.initEventForm(this.event, true);
+
     this.$root.$emit('agenda-connectors-init');
   },
   mounted() {
-    this.$agendaUtils.initEventForm(this.event, true);
     if (this.$refs.calendar) {
       this.currentTimeTop = this.$refs.calendar.timeToY(this.nowTimeOptions);
     }

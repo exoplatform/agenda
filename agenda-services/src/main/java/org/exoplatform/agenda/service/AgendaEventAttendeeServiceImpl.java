@@ -109,7 +109,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
 
     // Create new attendees
     for (EventAttendee eventAttendee : attendeesToCreate) {
-      if (resetResponses || eventAttendee.getResponse() == null) {
+      if (resetResponses || eventAttendee.getResponse() == null || event.getStatus() != EventStatus.CONFIRMED) {
         eventAttendee.setResponse(EventAttendeeResponse.NEEDS_ACTION);
       }
       attendeeStorage.saveEventAttendee(eventAttendee, eventId);
@@ -138,7 +138,9 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
         if (event.getStatus() == EventStatus.CONFIRMED) {
           sendEventResponse(eventId, creatorUserId, EventAttendeeResponse.ACCEPTED);
         } else if (event.getStatus() == EventStatus.TENTATIVE) {
-          sendEventResponse(eventId, creatorUserId, EventAttendeeResponse.NEEDS_ACTION);
+          if (resetResponses) {
+            sendEventResponse(eventId, creatorUserId, EventAttendeeResponse.NEEDS_ACTION);
+          }
         } else if (event.getStatus() == EventStatus.CANCELLED) {
           sendEventResponse(eventId, creatorUserId, EventAttendeeResponse.DECLINED);
         }
