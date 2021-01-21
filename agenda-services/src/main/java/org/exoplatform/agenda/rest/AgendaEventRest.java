@@ -678,7 +678,9 @@ public class AgendaEventRest implements ResourceContainer {
   @Path("{eventId}/dateOption/{dateOptionId}/select")
   @RolesAllowed("users")
   @ApiOperation(
-      value = "Select an Date Option for an event having multiple dates options", httpMethod = "POST", response = Response.class
+      value = "Select an Date Option for an event having multiple dates options",
+      httpMethod = "POST",
+      response = Response.class
   )
   @ApiResponses(
       value = {
@@ -1461,8 +1463,8 @@ public class AgendaEventRest implements ResourceContainer {
                                                                                                                                                                  userTimeZone,
                                                                                                                                                                  dateOption.isAllDay()),
                                                                                                                                    dateOption.isAllDay(),
-                                                                                                                                   false,
-                                                                                                                                   null))
+                                                                                                                                   dateOption.isSelected(),
+                                                                                                                                   dateOption.getVoters()))
                                                                                       .collect(Collectors.toList());
     eventEntity.setDateOptions(dateOptionEntities);
   }

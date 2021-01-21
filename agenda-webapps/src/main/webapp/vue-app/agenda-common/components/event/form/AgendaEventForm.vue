@@ -50,7 +50,9 @@
             :event="event"
             :connectors="connectors"
             :weekdays="weekdays"
-            :working-time="workingTime" />
+            :working-time="workingTime"
+            @date-option-added="updateDateOptionsLength"
+            @date-option-deleted="updateDateOptionsLength" />
         </v-stepper-content>
       </v-stepper-items>
     </v-stepper>
@@ -71,7 +73,7 @@
           :disabled="disableSaveButton"
           class="btn btn-primary mr-2"
           @click="saveEvent">
-          {{ $t('agenda.label.create') }}
+          {{ saveButtonLabel }}
         </v-btn>
         <v-btn
           v-if="stepper < 2"
@@ -172,13 +174,27 @@ export default {
     stepButtonLabel() {
       return this.displayTimeInForm ? this.$t('agenda.alternativeDates') : this.$t('agenda.button.continue');
     },
+    saveButtonLabel() {
+      if (this.eventDateOptionsLength > 1) {
+        return this.$t('agenda.label.schedule');
+      } else if (this.event.id || this.event.parent) {
+        return this.$t('agenda.label.save');
+      } else {
+        return this.$t('agenda.label.create');
+      }
+    },
   },
   watch: {
+    event() {
+      this.$agendaUtils.initEventForm(this.event);
+    },
     eventDateOptions() {
       this.eventDateOptionsLength = this.event.dateOptions.length;
     },
     stepper() {
+      this.$agendaUtils.initEventForm(this.event);
       this.eventDateOptionsLength = this.event.dateOptions.length;
+
       this.$nextTick(() => {
         if (this.$refs.eventBasicInformation) {
           this.$refs.eventBasicInformation.reset();
@@ -193,8 +209,15 @@ export default {
     close() {
       this.$emit('close');
     },
+    updateDateOptionsLength() {
+      this.eventDateOptionsLength = this.event.dateOptions.length;
+    },
     reset() {
-      this.stepper = 1;
+      this.$agendaUtils.initEventForm(this.event);
+      this.eventDateOptionsLength = this.event.dateOptions.length;
+
+      this.stepper = 0;
+      this.$nextTick().then(() => this.stepper = 1);
       this.$forceUpdate();
     },
     previousStep() {

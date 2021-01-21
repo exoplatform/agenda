@@ -12,5 +12,6 @@
   <import>war:/conf/agenda/reminders-listener-configuration.xml</import>
   <import>war:/conf/agenda/connectors-configuration.xml</import>
   <import>war:/conf/agenda/gamification-configuration.xml</import>
+  <import>war:/conf/agenda/listeners-configuration.xml</import>
 
 </configuration>
