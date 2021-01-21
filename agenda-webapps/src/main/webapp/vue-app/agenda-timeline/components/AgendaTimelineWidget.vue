@@ -20,6 +20,8 @@
       :working-time="workingTime" />
     <agenda-event-quick-form-drawer
       :current-space="currentSpace"
+      :settings="settings"
+      :conference-provider="conferenceProvider"
       :display-more-details="false" />
     <agenda-event-save />
     <agenda-connector
@@ -57,8 +59,19 @@ export default {
     },
     events: [],
     agendaBaseLink: null,
+    conferenceProviders:null,
+    selectedProviderType:null,
   }),
   computed: {
+    enabledConferenceProviderName() {
+      return this.settings
+              && this.settings.webConferenceProviders
+              && this.settings.webConferenceProviders.length
+              && this.settings.webConferenceProviders[0];
+    },
+    conferenceProvider() {
+      return this.conferenceProviders && this.enabledConferenceProviderName && this.conferenceProviders.find(provider => provider.isInitialized && provider.linkSupported && provider.groupSupported && this.enabledConferenceProviderName === provider.getType());
+    },
     weekdays() {
       return this.settings && this.$agendaUtils.getWeekSequenceFromDay(this.settings.agendaWeekStartOn);
     },
@@ -116,7 +129,13 @@ export default {
           .then(settings => {
             if (settings) {
               this.settings = settings;
+              this.calendarType = this.settings && this.settings.agendaDefaultView;
             }
+            return this.$webConferencingService.getAllProviders();
+          })
+          .then(providers => {
+            this.conferenceProviders = providers;
+            return this.$nextTick();
           })
           .finally(() => {
             this.settingsLoaded = true;
