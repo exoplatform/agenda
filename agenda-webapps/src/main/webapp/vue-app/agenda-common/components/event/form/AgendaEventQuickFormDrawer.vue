@@ -68,11 +68,21 @@
               <i class="uiIconVideo darkGreyIcon uiIcon32x32"></i>
             </v-flex>
             <agenda-event-form-conference
+              v-if="isConferenceEnabled"
               :event="event"
               :settings="settings"
               :current-space="currentSpace"
               :conference-provider="conferenceProvider"
               class="mr-3" />
+            <input
+              v-else
+              id="eventConference"
+              ref="eventConference"
+              v-model="conferenceURL"
+              :placeholder="$t('agenda.webConferenceURL')"
+              type="text"
+              name="locationEvent"
+              class="ignore-vuetify-classes my-3 location-event-input">
           </div>
           <div class="d-flex flex-row">
             <v-flex class="flex-grow-0">
@@ -142,6 +152,7 @@ export default {
     event: null,
     originalEventString: null,
     saving: false,
+    conferenceURL: null,
   }),
   computed: {
     confirmCloseLabels() {
@@ -170,6 +181,21 @@ export default {
     disableSaveButton() {
       return this.saving || !this.eventTitleValid || !this.eventOwnerValid;
     },
+    isConferenceEnabled() {
+      return this.conferenceProvider && this.conferenceProvider.getType();
+    },
+  },
+  watch: {
+    conferenceURL(newVal) {
+      if (!newVal) {
+        this.event.conferences = [];
+      } else {
+        this.event.conferences = [{
+          url: newVal,
+          type: 'manual',
+        }];
+      }
+    },
   },
   created() {
     this.$root.$on('agenda-event-quick-form', event => {
@@ -186,6 +212,7 @@ export default {
   },
   methods:{
     close() {
+      this.conferenceURL = null;
       this.$refs.quickAddEventDrawer.close();
     },
     open() {
