@@ -309,7 +309,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     ctx.append(EVENT_MODIFICATION_TYPE, eventModificationType);
 
     if (event.getStatus() == EventStatus.TENTATIVE) {
-      // TODO implement Notification for Date Poll Event
+      dispatch(ctx, AGENDA_DATE_POLL_NOTIFICATION_PLUGIN);
     } else if (eventModificationType == EventModificationType.DELETED) {
       dispatch(ctx, AGENDA_EVENT_CANCELLED_NOTIFICATION_PLUGIN);
     } else if (eventModificationType == EventModificationType.ADDED) {
