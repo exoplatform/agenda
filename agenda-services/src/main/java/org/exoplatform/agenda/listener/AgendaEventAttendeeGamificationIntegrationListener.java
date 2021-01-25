@@ -28,10 +28,6 @@ public class AgendaEventAttendeeGamificationIntegrationListener extends Listener
 
   public static final String GAMIFICATION_REPLY_TO_EVENT_RULE_TITLE = "ReplyToEvent";
 
-  public static final String GAMIFICATION_UPDATE_EVENT_RULE_TITLE   = "updateEvent";
-
-  public static final String GAMIFICATION_CANCEL_EVENT_RULE_TITLE   = "cancelEvent";
-
   private PortalContainer    container;
 
   private ListenerService    listenerService;

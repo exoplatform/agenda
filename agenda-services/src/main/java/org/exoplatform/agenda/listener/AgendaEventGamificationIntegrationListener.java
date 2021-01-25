@@ -31,9 +31,9 @@ public class AgendaEventGamificationIntegrationListener extends Listener<Long, L
 
   public static final String GAMIFICATION_GENERIC_EVENT           = "exo.gamification.generic.action";
 
-  public static final String GAMIFICATION_CREATE_EVENT_RULE_TITLE = "createEvent";
+  public static final String GAMIFICATION_CREATE_EVENT_RULE_TITLE = "CreateEvent";
 
-  public static final String GAMIFICATION_UPDATE_EVENT_RULE_TITLE = "updateEvent";
+  public static final String GAMIFICATION_UPDATE_EVENT_RULE_TITLE = "UpdateEvent";
 
   private PortalContainer    container;
 
