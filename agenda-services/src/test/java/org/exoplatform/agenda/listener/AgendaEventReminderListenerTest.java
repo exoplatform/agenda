@@ -50,7 +50,7 @@ public class AgendaEventReminderListenerTest extends BaseAgendaEventTest {
     assertEquals(1, eventReminders.size());
 
     AtomicBoolean executeListener = new AtomicBoolean(true);
-    listenerService.addListener(Utils.POST_EVENT_RESPONSE_SENT, new Listener<EventAttendee, EventAttendee>() {
+    listenerService.addListener(Utils.POST_EVENT_RESPONSE_SAVED, new Listener<EventAttendee, EventAttendee>() {
       @Override
       public void onEvent(org.exoplatform.services.listener.Event<EventAttendee, EventAttendee> event) throws Exception {
         if (executeListener.get()) {

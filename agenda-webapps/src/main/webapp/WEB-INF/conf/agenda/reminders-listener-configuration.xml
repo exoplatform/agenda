@@ -5,7 +5,7 @@
   <external-component-plugins>
     <target-component>org.exoplatform.services.listener.ListenerService</target-component>
     <component-plugin>
-      <name>exo.agenda.event.responseSent</name>
+      <name>exo.agenda.event.responseSaved</name>
       <set-method>addListener</set-method>
       <type>org.exoplatform.agenda.listener.AgendaEventReminderListener</type>
     </component-plugin>
