@@ -1,6 +1,5 @@
 <template>
   <div class="d-flex flex-row">
-    <i class="uiIconVideo darkGreyIcon uiIcon32x32 my-auto mr-11"></i>
     <div v-if="isConferenceEnabled" class="d-flex flex-row my-auto">
       <template v-if="eventConference">
         <div
