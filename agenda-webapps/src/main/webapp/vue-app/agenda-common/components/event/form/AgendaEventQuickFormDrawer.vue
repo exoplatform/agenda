@@ -64,7 +64,7 @@
               class="ignore-vuetify-classes my-3 location-event-input">
           </div>
           <div class="d-flex flex-row">
-            <v-flex class="flex-grow-0 my-2 mx-3">
+            <v-flex class="flex-grow-0 my-auto mx-3">
               <i class="uiIconVideo darkGreyIcon uiIcon32x32"></i>
             </v-flex>
             <agenda-event-form-conference
