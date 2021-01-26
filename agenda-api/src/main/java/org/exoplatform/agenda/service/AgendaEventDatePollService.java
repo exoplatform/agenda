@@ -35,8 +35,9 @@ public interface AgendaEventDatePollService {
    * @param dateOptions {@link List} of {@link EventDateOption} corresponding to
    *          {@link Event}
    * @return {@link List} of created {@link EventDateOption}
+   * @param userIdentityId User technical identifier ({@link Identity#getId()})
    */
-  List<EventDateOption> createEventPoll(long eventId, List<EventDateOption> dateOptions);
+  List<EventDateOption> createEventPoll(long eventId, List<EventDateOption> dateOptions, long userIdentityId);
 
   /**
    * Update the list of Event Date options
