@@ -26,14 +26,16 @@ import java.util.Map;
 @Asynchronous
 public class AgendaEventGamificationIntegrationListener extends Listener<Long, Long> {
 
-  private static final Log   LOG                                  =
+  private static final Log   LOG                                      =
                                  ExoLogger.getLogger(AgendaEventGamificationIntegrationListener.class);
 
-  public static final String GAMIFICATION_GENERIC_EVENT           = "exo.gamification.generic.action";
+  public static final String GAMIFICATION_GENERIC_EVENT               = "exo.gamification.generic.action";
 
-  public static final String GAMIFICATION_CREATE_EVENT_RULE_TITLE = "CreateEvent";
+  public static final String GAMIFICATION_CREATE_EVENT_RULE_TITLE     = "CreateEvent";
 
-  public static final String GAMIFICATION_UPDATE_EVENT_RULE_TITLE = "UpdateEvent";
+  public static final String GAMIFICATION_UPDATE_EVENT_RULE_TITLE     = "UpdateEvent";
+
+  public static final String GAMIFICATION_CREATE_DATE_POLL_RULE_TITLE = "CreateDatePoll";
 
   private PortalContainer    container;
 
@@ -55,10 +57,25 @@ public class AgendaEventGamificationIntegrationListener extends Listener<Long, L
       Long eventId = event.getSource();
       Long earnerId = event.getData();
       org.exoplatform.agenda.model.Event agendaEvent = getAgendaEventService().getEventById(eventId);
+      String eventURL = NotificationUtils.getEventURL(agendaEvent);
+      String ruleTitle = "";
+      if (agendaEvent.getStatus() == EventStatus.TENTATIVE) {
+        if (StringUtils.equals(eventName, Utils.POST_CREATE_AGENDA_EVENT_POLL)) {
+          ruleTitle = GAMIFICATION_CREATE_DATE_POLL_RULE_TITLE;
+          try {
+            Map<String, String> gam = new HashMap<>();
+            gam.put("ruleTitle", ruleTitle);
+            gam.put("object", eventURL);
+            gam.put("senderId", String.valueOf(earnerId)); // matches the gamification's earner id
+            gam.put("receiverId", String.valueOf(earnerId));
+            listenerService.broadcast(GAMIFICATION_GENERIC_EVENT, gam, String.valueOf(eventId));
+          } catch (Exception e) {
+            LOG.error("Cannot broadcast gamification event");
+          }
+        }
+      }
 
       if (agendaEvent.getStatus() == EventStatus.CONFIRMED) {
-        String eventURL = NotificationUtils.getEventURL(agendaEvent);
-        String ruleTitle = "";
         if (StringUtils.equals(eventName, Utils.POST_CREATE_AGENDA_EVENT_EVENT)) {
           ruleTitle = GAMIFICATION_CREATE_EVENT_RULE_TITLE;
         } else if (StringUtils.equals(eventName, Utils.POST_UPDATE_AGENDA_EVENT_EVENT)) {
