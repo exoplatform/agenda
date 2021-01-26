@@ -208,14 +208,14 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       throw new IllegalAccessException("User with identity id " + identityId + " isn't attendee of event with id " + eventId);
     }
 
-    saveEventAttendee(eventId, identityId, response);
+    saveEventAttendee(eventId, identityId, response, true);
 
     // Apply modification on exceptional occurrences as well
     if (eventStorage.isRecurrentEvent(eventId)) {
       List<Long> exceptionalOccurenceEventIds = eventStorage.getExceptionalOccurenceIds(eventId);
       for (long exceptionalOccurenceEventId : exceptionalOccurenceEventIds) {
         if (isEventAttendee(exceptionalOccurenceEventId, identityId)) {
-          saveEventAttendee(exceptionalOccurenceEventId, identityId, response);
+          saveEventAttendee(exceptionalOccurenceEventId, identityId, response, false);
         }
       }
     }
@@ -319,7 +319,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     }
   }
 
-  private void saveEventAttendee(long eventId, long identityId, EventAttendeeResponse response) {
+  private void saveEventAttendee(long eventId, long identityId, EventAttendeeResponse response, boolean userResponseSent) {
     EventAttendee attendee = attendeeStorage.getEventAttendee(eventId, identityId);
     EventAttendee oldAttendee = null;
     if (attendee == null) {
@@ -330,7 +330,13 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     }
     attendeeStorage.saveEventAttendee(attendee, eventId);
 
-    Utils.broadcastEvent(listenerService, Utils.POST_EVENT_RESPONSE_SENT, oldAttendee, attendee);
+    // Broadcast technical event when saving any new response for a user
+    Utils.broadcastEvent(listenerService, Utils.POST_EVENT_RESPONSE_SAVED, oldAttendee, attendee);
+
+    // Broadcast user response to an event
+    if (userResponseSent) {
+      Utils.broadcastEvent(listenerService, Utils.POST_EVENT_RESPONSE_SENT, oldAttendee, attendee);
+    }
   }
 
   private void dispatch(NotificationContext ctx, String... pluginId) {

@@ -56,6 +56,8 @@ public class Utils {
 
   public static final String            POST_EVENT_RESPONSE_SENT       = "exo.agenda.event.responseSent";
 
+  public static final String            POST_EVENT_RESPONSE_SAVED      = "exo.agenda.event.responseSaved";
+
   public static final String            POST_CREATE_AGENDA_EVENT_POLL  = "exo.agenda.event.poll.created";
 
   public static final String            POST_UPDATE_AGENDA_EVENT_POLL  = "exo.agenda.event.poll.updated";
