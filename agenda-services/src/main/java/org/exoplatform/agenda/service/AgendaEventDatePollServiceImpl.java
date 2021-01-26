@@ -33,7 +33,7 @@ public class AgendaEventDatePollServiceImpl implements AgendaEventDatePollServic
   }
 
   @Override
-  public List<EventDateOption> createEventPoll(long eventId, List<EventDateOption> dateOptions) {
+  public List<EventDateOption> createEventPoll(long eventId, List<EventDateOption> dateOptions, long userIdentityId) {
     if (dateOptions == null || dateOptions.isEmpty()) {
       return Collections.emptyList();
     }
@@ -46,7 +46,7 @@ public class AgendaEventDatePollServiceImpl implements AgendaEventDatePollServic
       createdDateOptions.add(createdDateOption);
     }
 
-    Utils.broadcastEvent(listenerService, Utils.POST_CREATE_AGENDA_EVENT_POLL, eventId, createdDateOptions);
+    Utils.broadcastEvent(listenerService, Utils.POST_CREATE_AGENDA_EVENT_POLL, eventId, userIdentityId);
 
     return createdDateOptions;
   }

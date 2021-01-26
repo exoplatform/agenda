@@ -324,7 +324,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       conferenceService.saveEventConferences(eventId, conferences);
     }
     if (dateOptions != null && !dateOptions.isEmpty()) {
-      datePollService.createEventPoll(eventId, dateOptions);
+      datePollService.createEventPoll(eventId, dateOptions, userIdentityId);
     }
     if (reminders != null) {
       reminderService.saveEventReminders(createdEvent, reminders, userIdentityId);
