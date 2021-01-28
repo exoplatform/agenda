@@ -26,22 +26,25 @@ import java.util.Map;
 @Asynchronous
 public class AgendaEventGamificationIntegrationListener extends Listener<Long, Long> {
 
-  private static final Log   LOG                                      =
-                                 ExoLogger.getLogger(AgendaEventGamificationIntegrationListener.class);
+  private static final Log           LOG                                      =
+                                         ExoLogger.getLogger(AgendaEventGamificationIntegrationListener.class);
 
-  public static final String GAMIFICATION_GENERIC_EVENT               = "exo.gamification.generic.action";
+  public static final String         GAMIFICATION_GENERIC_EVENT               = "exo.gamification.generic.action";
 
-  public static final String GAMIFICATION_CREATE_EVENT_RULE_TITLE     = "CreateEvent";
+  public static final String         GAMIFICATION_CREATE_EVENT_RULE_TITLE     = "CreateEvent";
 
-  public static final String GAMIFICATION_UPDATE_EVENT_RULE_TITLE     = "UpdateEvent";
+  public static final String         GAMIFICATION_UPDATE_EVENT_RULE_TITLE     = "UpdateEvent";
 
-  public static final String GAMIFICATION_CREATE_DATE_POLL_RULE_TITLE = "CreateDatePoll";
+  public static final String         GAMIFICATION_CREATE_DATE_POLL_RULE_TITLE = "CreateDatePoll";
 
-  private PortalContainer    container;
+  public static final String         GAMIFICATION_VOTE_RULE_TITLE             = "VoteDatePoll";
 
-  private ListenerService    listenerService;
+  private PortalContainer            container;
 
-  private AgendaEventService agendaEventService;
+  private ListenerService            listenerService;
+
+  private AgendaEventService         agendaEventService;
+  
 
   public AgendaEventGamificationIntegrationListener(PortalContainer container, ListenerService listenerService) {
     this.container = container;
@@ -62,6 +65,18 @@ public class AgendaEventGamificationIntegrationListener extends Listener<Long, L
       if (agendaEvent.getStatus() == EventStatus.TENTATIVE) {
         if (StringUtils.equals(eventName, Utils.POST_CREATE_AGENDA_EVENT_POLL)) {
           ruleTitle = GAMIFICATION_CREATE_DATE_POLL_RULE_TITLE;
+          try {
+            Map<String, String> gam = new HashMap<>();
+            gam.put("ruleTitle", ruleTitle);
+            gam.put("object", eventURL);
+            gam.put("senderId", String.valueOf(earnerId)); // matches the gamification's earner id
+            gam.put("receiverId", String.valueOf(earnerId));
+            listenerService.broadcast(GAMIFICATION_GENERIC_EVENT, gam, String.valueOf(eventId));
+          } catch (Exception e) {
+            LOG.error("Cannot broadcast gamification event");
+          }
+        } else if(StringUtils.equals(eventName, Utils.POST_VOTES_AGENDA_EVENT_POLL)) {
+          ruleTitle = GAMIFICATION_VOTE_RULE_TITLE;
           try {
             Map<String, String> gam = new HashMap<>();
             gam.put("ruleTitle", ruleTitle);
