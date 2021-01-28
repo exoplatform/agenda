@@ -29,7 +29,7 @@
                                             <td>
                                                 <p style="margin: 10px 0 13px;">
                                                     <%
-                                                    String eventTitle = "<span style=\"color: #2f5e92; text-decoration: none;font-weight:bold; font-family: 'HelveticaNeue Bold', Helvetica, Arial, sans-serif\" >" + _ctx.escapeHTML(eventTitle) + "</span>";
+                                                    String eventTitle = "<span style=\"color: #2f5e92; text-decoration: none;font-weight:bold; font-family: 'HelveticaNeue Bold', Helvetica, Arial, sans-serif\" >" + eventTitle + "</span>";
                                                     String agendaName = "<a style=\"text-decoration: none; font-weight:bold;font-family: 'HelveticaNeue Bold', Helvetica, Arial, sans-serif\" >" + agendaName +"</a>";
                                                     String creatorName = "<a style=\" text-decoration: none; font-weight:bold;font-family: 'HelveticaNeue Bold', Helvetica, Arial, sans-serif\" >" + creatorName +"</a>";
                                                     %>
