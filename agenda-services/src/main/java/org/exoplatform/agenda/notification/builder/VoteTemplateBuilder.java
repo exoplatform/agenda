@@ -3,8 +3,11 @@ package org.exoplatform.agenda.notification.builder;
 import groovy.text.GStringTemplateEngine;
 import groovy.text.Template;
 import org.apache.commons.lang.StringUtils;
+import org.exoplatform.agenda.model.AgendaUserSettings;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.service.AgendaEventService;
+import org.exoplatform.agenda.service.AgendaUserSettingsService;
+import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.channel.template.AbstractTemplateBuilder;
 import org.exoplatform.commons.api.notification.channel.template.TemplateProvider;
@@ -13,7 +16,6 @@ import org.exoplatform.commons.api.notification.model.NotificationInfo;
 import org.exoplatform.commons.api.notification.model.PluginKey;
 import org.exoplatform.commons.api.notification.service.template.TemplateContext;
 import org.exoplatform.commons.notification.template.TemplateUtils;
-import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.container.ExoContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.log.ExoLogger;
@@ -25,8 +27,9 @@ import java.io.Writer;
 
 import static org.exoplatform.agenda.util.NotificationUtils.*;
 
-public class DatePollNotificationBuilder extends AbstractTemplateBuilder {
-  private static final Log   LOG = ExoLogger.getLogger(DatePollNotificationBuilder.class);
+
+public class VoteTemplateBuilder extends AbstractTemplateBuilder {
+  private static final Log   LOG = ExoLogger.getLogger(VoteTemplateBuilder.class);
 
   private AgendaEventService agendaEventService;
 
@@ -40,10 +43,10 @@ public class DatePollNotificationBuilder extends AbstractTemplateBuilder {
 
   private PluginKey          key;
 
-  public DatePollNotificationBuilder(TemplateProvider templateProvider,
-                                     ExoContainer container,
-                                     PluginKey key,
-                                     boolean isPushNotification) {
+  public VoteTemplateBuilder(TemplateProvider templateProvider,
+                             ExoContainer container,
+                             PluginKey key,
+                             boolean isPushNotification) {
     this.templateProvider = templateProvider;
     this.container = container;
     this.key = key;
@@ -128,7 +131,7 @@ public class DatePollNotificationBuilder extends AbstractTemplateBuilder {
 
   private AgendaEventService getEventService() {
     if (agendaEventService == null) {
-      agendaEventService = CommonsUtils.getService(AgendaEventService.class);
+      agendaEventService = this.container.getComponentInstanceOfType(AgendaEventService.class);
     }
     return agendaEventService;
   }
@@ -139,4 +142,5 @@ public class DatePollNotificationBuilder extends AbstractTemplateBuilder {
     }
     return spaceService;
   }
+
 }

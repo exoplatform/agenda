@@ -81,6 +81,9 @@ public class NotificationUtils {
 
   public static final String                                 AGENDA_DATE_POLL_NOTIFICATION_PLUGIN           =
                                                                                                   "DatePollNotificationPlugin";
+  
+  public static final String                                 AGENDA_VOTE_NOTIFICATION_PLUGIN                =
+                                                                                             "VoteNotificationPlugin";
 
   private static final String                                TEMPLATE_VARIABLE_EVENT_URL                    = "eventURL";
 
@@ -101,6 +104,9 @@ public class NotificationUtils {
 
   public static final PluginKey                              EVENT_DATE_POLL_KEY                            =
                                                                                  PluginKey.key(AGENDA_DATE_POLL_NOTIFICATION_PLUGIN);
+
+  public static final PluginKey                              EVENT_DATE_VOTE_KEY                            =
+                                                                                 PluginKey.key(AGENDA_VOTE_NOTIFICATION_PLUGIN);
 
   public static final String                                 STORED_PARAMETER_EVENT_TITLE                   = "eventTitle";
 
@@ -520,6 +526,8 @@ public class NotificationUtils {
     templateContext.put(TEMPLATE_VARIABLE_EVENT_ID, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_ID));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_TITLE, getEventTitle(notification));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_CREATOR, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_CREATOR));
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_PARTICIPANT_NAME,
+                        notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_PARTICIPANT_NAME));
     templateContext.put("USER", notification.getTo());
   }
 
