@@ -29,6 +29,7 @@ import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.social.core.service.LinkProvider;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.social.notification.LinkProviderUtils;
@@ -464,16 +465,18 @@ public class NotificationUtils {
     String ownerId = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_OWNER_ID);
     IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
     Identity identity = identityManager.getIdentity(ownerId);
-    if (identity != null) {
-      String avatarUrl = null;
+    String avatarUrl = null;
+    if (identity == null) {
+      avatarUrl = LinkProvider.SPACE_DEFAULT_AVATAR_URL;
+    } else {
       if (SpaceIdentityProvider.NAME.equals(identity.getProviderId())) {
         Space space = spaceService.getSpaceByPrettyName(identity.getRemoteId());
         avatarUrl = LinkProviderUtils.getSpaceAvatarUrl(space);
       } else {
         avatarUrl = LinkProviderUtils.getUserAvatarUrl(identity.getProfile());
       }
-      templateContext.put(TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR, avatarUrl);
     }
+    templateContext.put(TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR, avatarUrl);
   }
 
   private static final void setSpaceName(NotificationInfo notification, TemplateContext templateContext) {
