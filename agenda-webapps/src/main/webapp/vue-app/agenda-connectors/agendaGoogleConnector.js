@@ -4,7 +4,6 @@ export default {
   avatar: '/agenda/skin/images/Google.png',
   CLIENT_ID: null,
   DISCOVERY_DOCS: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
-  SCOPE_READONLY: 'https://www.googleapis.com/auth/calendar.events.readonly',
   SCOPE_WRITE: 'https://www.googleapis.com/auth/calendar.events',
   canConnect: true,
   canPush: false,
@@ -28,32 +27,36 @@ export default {
     initGoogleConnector(this);
   },
   connect(askWriteAccess) {
-    const googleScope = askWriteAccess && this.SCOPE_WRITE || this.SCOPE_READ;
+    const googleScope = this.SCOPE_WRITE;
 
     this.loadingCallback(this, true);
     let userEmail = null;
     // Return a Promise with connected username
     return this.gapi.auth2.getAuthInstance().signIn({
-      scope: askWriteAccess ? this.SCOPE_WRITE : this.SCOPE_READONLY,
+      scope: googleScope,
     })
       .then(currentUser => {
         userEmail = currentUser.getBasicProfile().getEmail();
         if (askWriteAccess && !this.canPush) {
-          return new Promise((resolve, reject) => {
-            currentUser.grant({
-              scope: googleScope,
-            }).then(
-              () => {
-                this.canPush = true;
-                resolve(userEmail);
-              }
-              ,(error) => {
-                this.canPush = false;
-                reject(error);
-              }
-              , this
-            );
-          });
+          if (currentUser.hasGrantedScopes(this.SCOPE_WRITE)) {
+            this.canPush = true;
+          } else {
+            return new Promise((resolve, reject) => {
+              currentUser.grant({
+                scope: googleScope,
+              }).then(
+                () => {
+                  this.canPush = true;
+                  resolve(userEmail);
+                }
+                ,(error) => {
+                  this.canPush = false;
+                  reject(error);
+                }
+                , this
+              );
+            });
+          }
         }
       }).then(() => userEmail);
   },
@@ -71,7 +74,7 @@ export default {
 
       this.loadingCallback(this, true);
       return new Promise((resolve, reject) => {
-        if (currentUser.hasGrantedScopes(this.SCOPE_READ)) {
+        if (currentUser.hasGrantedScopes(this.SCOPE_WRITE)) {
           retrieveEvents(this, periodStartDate, periodEndDate)
             .then(gEvents => resolve(gEvents))
             .catch(e => {
@@ -80,7 +83,7 @@ export default {
             });
         } else {
           currentUser.grant({
-            scope: this.SCOPE_READ
+            scope: this.SCOPE_WRITE
           }).then(
             () => retrieveEvents(this, periodStartDate, periodEndDate)
               .then(gEvents => resolve(gEvents))
@@ -200,7 +203,7 @@ function initGoogleConnector(connector) {
       gapi.client.init({
         clientId: connector.CLIENT_ID,
         discoveryDocs: connector.DISCOVERY_DOCS,
-        scope: connector.SCOPE_READONLY,
+        scope: connector.SCOPE_WRITE,
       }).then(function () {
         // Listen for sign-in state changes.
         gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
