@@ -21,6 +21,11 @@
       <type>org.exoplatform.agenda.listener.AgendaEventGamificationIntegrationListener</type>
     </component-plugin>
     <component-plugin>
+      <name>exo.agenda.event.poll.voted.all</name>
+      <set-method>addListener</set-method>
+      <type>org.exoplatform.agenda.listener.AgendaEventGamificationIntegrationListener</type>
+    </component-plugin>
+    <component-plugin>
       <name>exo.agenda.event.responseSent</name>
       <set-method>addListener</set-method>
       <type>org.exoplatform.agenda.listener.AgendaEventAttendeeGamificationIntegrationListener</type>
@@ -126,6 +131,33 @@
         <value-param>
           <name>rule-score</name>
           <value>10</value>
+        </value-param>
+        <value-param>
+          <name>rule-zone</name>
+          <value>Teamwork</value>
+        </value-param>
+        <value-param>
+          <name>rule-enable</name>
+          <value>true</value>
+        </value-param>
+      </init-params>
+    </component-plugin>
+    <component-plugin>
+      <name>rule.VoteDatePoll</name>
+      <set-method>addPlugin</set-method>
+      <type>org.exoplatform.addons.gamification.service.setting.rule.model.RuleConfig</type>
+      <init-params>
+        <value-param>
+          <name>rule-title</name>
+          <value>VoteDatePoll</value>
+        </value-param>
+        <value-param>
+          <name>rule-description</name>
+          <value>Vote in a Date Poll</value>
+        </value-param>
+        <value-param>
+          <name>rule-score</name>
+          <value>5</value>
         </value-param>
         <value-param>
           <name>rule-zone</name>
