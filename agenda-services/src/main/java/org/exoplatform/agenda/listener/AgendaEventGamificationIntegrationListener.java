@@ -75,7 +75,7 @@ public class AgendaEventGamificationIntegrationListener extends Listener<Long, L
           } catch (Exception e) {
             LOG.error("Cannot broadcast gamification event");
           }
-        } else if(StringUtils.equals(eventName, Utils.POST_VOTES_AGENDA_EVENT_POLL)) {
+        } else if (StringUtils.equals(eventName, Utils.POST_VOTES_AGENDA_EVENT_POLL)) {
           ruleTitle = GAMIFICATION_VOTE_RULE_TITLE;
           try {
             Map<String, String> gam = new HashMap<>();
