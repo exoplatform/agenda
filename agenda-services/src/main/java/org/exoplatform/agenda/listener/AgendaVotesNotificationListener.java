@@ -1,7 +1,6 @@
 package org.exoplatform.agenda.listener;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
-import org.exoplatform.agenda.service.AgendaEventAttendeeService;
 import org.exoplatform.agenda.service.AgendaEventService;
 import org.exoplatform.agenda.util.NotificationUtils;
 import org.exoplatform.commons.api.notification.NotificationContext;
@@ -16,8 +15,6 @@ import org.exoplatform.services.listener.Listener;
 public class AgendaVotesNotificationListener extends Listener<Long, Long> {
 
   private PortalContainer            container;
-
-  private AgendaEventAttendeeService attendeeService;
 
   private AgendaEventService         agendaEventService;
 
