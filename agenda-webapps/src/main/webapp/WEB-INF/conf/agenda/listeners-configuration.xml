@@ -40,5 +40,10 @@
       <set-method>addListener</set-method>
       <type>org.exoplatform.agenda.listener.AgendaVotesListener</type>
     </component-plugin>
+    <component-plugin>
+      <name>exo.agenda.event.poll.voted.all</name>
+      <set-method>addListener</set-method>
+      <type>org.exoplatform.agenda.listener.AgendaVotesNotificationListener</type>
+    </component-plugin>
   </external-component-plugins>
 </configuration>

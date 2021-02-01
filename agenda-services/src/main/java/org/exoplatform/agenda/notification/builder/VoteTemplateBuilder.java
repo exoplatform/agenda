@@ -1,13 +1,11 @@
 package org.exoplatform.agenda.notification.builder;
 
+import static org.exoplatform.agenda.util.NotificationUtils.*;
 import groovy.text.GStringTemplateEngine;
 import groovy.text.Template;
 import org.apache.commons.lang.StringUtils;
-import org.exoplatform.agenda.model.AgendaUserSettings;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.service.AgendaEventService;
-import org.exoplatform.agenda.service.AgendaUserSettingsService;
-import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.channel.template.AbstractTemplateBuilder;
 import org.exoplatform.commons.api.notification.channel.template.TemplateProvider;
@@ -20,15 +18,11 @@ import org.exoplatform.container.ExoContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
-import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.spi.SpaceService;
-
 import java.io.Writer;
 
-import static org.exoplatform.agenda.util.NotificationUtils.*;
-
-
 public class VoteTemplateBuilder extends AbstractTemplateBuilder {
+
   private static final Log   LOG = ExoLogger.getLogger(VoteTemplateBuilder.class);
 
   private AgendaEventService agendaEventService;
