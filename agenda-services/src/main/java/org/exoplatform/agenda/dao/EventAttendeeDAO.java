@@ -56,7 +56,8 @@ public class EventAttendeeDAO extends GenericDAOJPAImpl<EventAttendeeEntity, Lon
     query.setParameter("identityId", identityId);
     try {
       return query.getSingleResult();
-    } catch (NoResultException e) {
+    } catch (NoResultException e) {// NOSONAR : normal to not log this and not
+                                   // rethrow it
       return null;
     }
   }

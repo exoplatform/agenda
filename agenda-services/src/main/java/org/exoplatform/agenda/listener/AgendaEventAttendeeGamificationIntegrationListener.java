@@ -64,7 +64,7 @@ public class AgendaEventAttendeeGamificationIntegrationListener extends Listener
           gam.put("receiverId", String.valueOf(earnerId));
           listenerService.broadcast(GAMIFICATION_GENERIC_EVENT, gam, String.valueOf(agendaEvent.getId()));
         } catch (Exception e) {
-          LOG.error("Cannot broadcast gamification event");
+          LOG.error("Cannot broadcast gamification event", e);
         }
       }
 

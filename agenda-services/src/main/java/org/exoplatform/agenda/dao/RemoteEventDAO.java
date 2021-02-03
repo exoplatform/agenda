@@ -50,10 +50,11 @@ public class RemoteEventDAO extends GenericDAOJPAImpl<RemoteEventEntity, Long> {
     query.setParameter("identityId", identityId);
     try {
       return query.getSingleResult();
-    } catch (NoResultException e) {
+    } catch (NoResultException e) {// NOSONAR : normal to not log this and not
+                                   // rethrow it
       return null;
     } catch (NonUniqueResultException e) {
-      LOG.warn("More than one result is returned for remote events for event {} and user {}", eventId, identityId);
+      LOG.warn("More than one result is returned for remote events for event {} and user {}", eventId, identityId, e);
       return query.getResultList().get(0);
     }
   }

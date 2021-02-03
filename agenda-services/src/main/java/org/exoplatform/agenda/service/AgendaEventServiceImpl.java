@@ -193,7 +193,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                       // Allow to user to access other
                                       // exceptional events
                                       LOG.debug("User is not allowed to access exceptional event {}. Ignore retrieving this exceptional event",
-                                                eventId);
+                                                eventId,
+                                                e);
                                       return null;
                                     }
                                   })
