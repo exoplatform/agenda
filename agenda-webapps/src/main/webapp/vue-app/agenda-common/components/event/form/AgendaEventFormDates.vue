@@ -214,8 +214,7 @@ export default {
 
     this.$root.$emit('agenda-connectors-init');
 
-    // TODO Delete this experimental "Feature Switch"
-    this.$featureService.isfeatureEnabled('agenda.datePoll')
+    this.$featureService.isFeatureEnabled('agenda.datePoll')
       .then(enabled => this.allowMultipleDates = enabled);
   },
   mounted() {
