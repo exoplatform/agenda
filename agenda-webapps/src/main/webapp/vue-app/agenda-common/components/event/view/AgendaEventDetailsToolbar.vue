@@ -6,12 +6,12 @@
     <v-col class="flex-grow-0 flex-shrink-0 px-0 mx-2">
       {{ $t('agenda.label.in') }}
     </v-col>
-    <v-col class="flex-grow-1 flex-shrink-0 d-flex px-0 mx-2">
+    <v-col class="flex-grow-1 text-truncate flex-shrink-0 d-flex px-0 mx-2">
       <exo-space-avatar
         :space="ownerProfile"
         :size="32"
         :labels="labels"
-        class="align-center flex-grow-0 flex" />
+        class="align-center text-truncate flex-grow-0 flex" />
     </v-col>
     <v-col class="px-0 flex-grow-1 flex-shrink-0 mx-2">
       <template v-if="isAttendee && !isMobile">
