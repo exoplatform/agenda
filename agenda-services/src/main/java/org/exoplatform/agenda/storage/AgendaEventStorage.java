@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang.StringUtils;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
+import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.dao.*;
 import org.exoplatform.agenda.entity.*;
 import org.exoplatform.agenda.model.*;
@@ -61,8 +62,9 @@ public class AgendaEventStorage {
     List<Long> attendeeIds = eventFilter.getAttendeeId() > 0 ? eventFilter.getAttendeeWithSpacesIds() : null;
     List<Long> ownerIds = eventFilter.getOwnerIds();
     List<EventAttendeeResponse> responseTypes = eventFilter.getResponseTypes();
+    EventStatus eventStatus = eventFilter.getEventStatus();
     int limit = eventFilter.getEnd() == null ? DEFAULT_LIMIT : 0;
-    return this.eventDAO.getEventIds(startDate, endDate, ownerIds, attendeeIds, responseTypes, limit);
+    return this.eventDAO.getEventIds(startDate, endDate, ownerIds, attendeeIds, responseTypes, eventStatus, limit);
   }
 
   public List<Event> getParentRecurrentEventIds(ZonedDateTime start, ZonedDateTime end) {

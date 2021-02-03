@@ -166,6 +166,7 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
                                 List<Long> ownerIds,
                                 List<Long> attendeeIds,
                                 List<EventAttendeeResponse> responseTypes,
+                                EventStatus eventStatus,
                                 int limit) {
     verifyLimit(endDate, limit);
 
@@ -197,7 +198,11 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
 
     TypedQuery<Tuple> query = getEntityManager().createQuery(jpql.toString(), Tuple.class);
     query.setParameter("start", startDate);
-    query.setParameter("status", EventStatus.CONFIRMED);
+    if (eventStatus != null) {
+      query.setParameter("status", eventStatus);
+    } else {
+      query.setParameter("status", EventStatus.CONFIRMED);
+    }
     if (endDate != null) {
       query.setParameter("end", endDate);
     }

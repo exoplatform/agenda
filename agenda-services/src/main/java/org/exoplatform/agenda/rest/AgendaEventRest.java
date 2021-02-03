@@ -29,6 +29,7 @@ import javax.ws.rs.core.Response.Status;
 import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
+import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
 import org.exoplatform.agenda.model.*;
@@ -145,7 +146,11 @@ public class AgendaEventRest implements ResourceContainer {
                             @ApiParam(
                                 value = "Attendee Response statuses to filter events by attendee response",
                                 required = false
-                            ) @QueryParam("responseTypes") List<EventAttendeeResponse> responseTypes) {
+                            ) @QueryParam("responseTypes") List<EventAttendeeResponse> responseTypes,
+                            @ApiParam(
+                                    value = "Event statuses to filter events by Event status",
+                                    required = false
+                            ) @QueryParam("eventStatus") EventStatus eventStatus) {
 
     if (StringUtils.isBlank(start)) {
       return Response.status(Status.BAD_REQUEST).entity("Start datetime is mandatory").build();
@@ -175,6 +180,7 @@ public class AgendaEventRest implements ResourceContainer {
       EventFilter eventFilter = new EventFilter(attendeeIdentityId,
                                                 ownerIds,
                                                 responseTypes,
+                                                eventStatus,
                                                 startDatetime,
                                                 endDatetime,
                                                 limit);

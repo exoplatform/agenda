@@ -1327,7 +1327,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                              int limit) {
     List<Event> computedEvents = new ArrayList<>();
     for (Event event : events) {
-      if (event.getRecurrence() == null) {
+      if (event.getRecurrence() == null || event.getStatus() != EventStatus.CONFIRMED) {
         computedEvents.add(event);
       } else {
         if (userTimezone == null) {

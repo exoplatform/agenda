@@ -62,6 +62,7 @@
       :connectors="connectors"
       @connectors-loaded="connectors = $event" />
     <agenda-notification-alerts />
+    <agenda-pending-invitation-drawer :pending-invitations="pendingInvitations" />
   </v-app>
 </template>
 <script>
@@ -90,6 +91,7 @@ export default {
       end: null,
     },
     events: [],
+    pendingInvitations: [],
     settings: {
       agendaDefaultView: 'week',
       agendaWeekStartOn: 'MO',
@@ -164,6 +166,7 @@ export default {
     this.spaceId = eXo.env.portal.spaceId;
     this.$root.$on('agenda-settings-refresh', this.initSettings);
     this.initSettings();
+    this.retrievePendingInvitations();
   },
   methods: {
     initSettings(userSettings) {
@@ -215,7 +218,7 @@ export default {
       const responseTypes = userIdentityId ?
         this.eventType === 'declinedEvent' ? ['DECLINED']:['ACCEPTED', 'NEEDS_ACTION', 'TENTATIVE']
         : null;
-      return this.$eventService.getEvents(this.searchTerm, this.ownerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, true), this.$agendaUtils.toRFC3339(this.period.end), this.limit, responseTypes, 'attendees')
+      return this.$eventService.getEvents(this.searchTerm, this.ownerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, true), this.$agendaUtils.toRFC3339(this.period.end), this.limit, responseTypes, null, 'attendees')
         .then(data => {
           let events = data && data.events || [];
           if (this.filterCanceledEvents) {
@@ -245,6 +248,33 @@ export default {
     updateSettings(settings) {
       this.settings = settings;
     },
+    retrievePendingInvitations(){
+      this.loading = true;
+      const userIdentityId = this.eventType !== 'allEvents' && eXo.env.portal.userIdentityId || null;
+      if (this.ownerIds === false) {
+        this.pendingInvitations = [];
+        this.hasMore = false;
+        this.loading = false;
+        this.initialized = true;
+        return;
+      }
+      return this.$eventService.getEvents(null, this.ownerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, true), this.$agendaUtils.toRFC3339(this.period.end), this.limit, null, 'TENTATIVE', 'attendees')
+        .then(data => {
+          const pendingInvitations = data && data.events || [];
+          pendingInvitations.forEach(event => {
+            event.name = event.summary;
+            event.startDate = event.start && this.$agendaUtils.toDate(event.start) || null;
+            event.endDate = event.end && this.$agendaUtils.toDate(event.end) || null;
+          });
+          this.hasMore = this.limit > this.pageSize && (this.pendingInvitations && this.pendingInvitations.length || 0) < pendingInvitations.length || pendingInvitations.length >= this.limit;
+          this.pendingInvitations = pendingInvitations;
+        }).catch(error =>{
+          console.error('Error retrieving pending invitations', error);
+        }).finally(() => {
+          this.initialized = true;
+          this.loading = false;
+        });
+    }
   },
 };
 </script>

@@ -18,6 +18,10 @@ import AgendaFilterCalendarList from './components/filter/AgendaFilterCalendarLi
 import AgendaFilterCalendarItem from './components/filter/AgendaFilterCalendarItem.vue';
 import AgendaFilterCalendarSearch from './components/filter/AgendaFilterCalendarSearch.vue';
 
+import AgendaPendingInvitationDrawer from './components/pending-invitation/AgendaPendingInvitationDrawer.vue';
+import AgendaPendingInvitationList from './components/pending-invitation/AgendaPendingInvitationList.vue';
+import AgendaPendingInvitationItem from './components/pending-invitation/AgendaPendingInvitationItem.vue';
+
 import AgendaEventSave from './components/event/AgendaEventSave.vue';
 import AgendaEventDialog from './components/event/AgendaEventDialog.vue';
 
@@ -120,6 +124,9 @@ const components = {
   'agenda-recurrent-event-reminders-confirm-dialog': AgendaRecurrentEventReminderConfirmDialog,
   'agenda-user-setting-drawer': AgendaUserSettingDrawer,
   'agenda-connectors-drawer': AgendaConnectorsDrawer,
+  'agenda-pending-invitation-drawer':AgendaPendingInvitationDrawer,
+  'agenda-pending-invitation-list':AgendaPendingInvitationList,
+  'agenda-pending-invitation-item':AgendaPendingInvitationItem,
   'agenda-reminder-user-settings': AgendaReminderUserSettings,
   'agenda-reminder-user-setting-item': AgendaReminderUserSettingItem,
   'agenda-connector': AgendaConnector,

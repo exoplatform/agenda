@@ -1,7 +1,7 @@
 import {toRFC3339, getDayNameFromDate, getMonthNumberFromDate, toDate, USER_TIMEZONE_ID} from './AgendaUtils.js';
 import {deleteEventWebConferencing, saveEventWebConferencing} from './EventWebConferencingService.js';
 
-export function getEvents(query, ownerIds, attendeeIdentityId, start, end, limit, responseTypes, expand) {
+export function getEvents(query, ownerIds, attendeeIdentityId, start, end, limit, responseTypes, eventStatus, expand) {
   if (typeof start === 'object') {
     start = toRFC3339(start);
   }
@@ -35,6 +35,10 @@ export function getEvents(query, ownerIds, attendeeIdentityId, start, end, limit
 
   if (responseTypes) {
     params.responseTypes = responseTypes;
+  }
+
+  if (eventStatus) {
+    params.eventStatus = eventStatus;
   }
 
   params = $.param(params, true);
