@@ -81,7 +81,7 @@ public class NotificationUtils {
 
   public static final String                                 AGENDA_DATE_POLL_NOTIFICATION_PLUGIN           =
                                                                                                   "DatePollNotificationPlugin";
-  
+
   public static final String                                 AGENDA_VOTE_NOTIFICATION_PLUGIN                =
                                                                                              "VoteNotificationPlugin";
 
@@ -197,7 +197,7 @@ public class NotificationUtils {
   private static final String                                TEMPLATE_VARIABLE_MODIFIER_IDENTITY_URL        =
                                                                                                      "modifierProfileUrl";
 
-  private static String                                      defaultSite;
+  private static volatile String                             defaultSite;
 
   private NotificationUtils() {
   }

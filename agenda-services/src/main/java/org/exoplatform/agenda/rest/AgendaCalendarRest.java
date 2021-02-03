@@ -124,7 +124,7 @@ public class AgendaCalendarRest implements ResourceContainer {
 
       return Response.ok(calendarList).build();
     } catch (IllegalAccessException e) {
-      LOG.warn("User '{}' attempts to access not authorized calendar with owner Ids '{}'", currentUser, ownerIds);
+      LOG.warn("User '{}' attempts to access not authorized calendar with owner Ids '{}'", currentUser, ownerIds, e);
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error retrieving list of calendars", e);
@@ -160,7 +160,7 @@ public class AgendaCalendarRest implements ResourceContainer {
         return Response.ok(RestEntityBuilder.fromCalendar(identityManager, calendar)).build();
       }
     } catch (IllegalAccessException e) {
-      LOG.warn("User '{}' attempts to access not authorized calendar with Id '{}'", currentUser, calendarId);
+      LOG.warn("User '{}' attempts to access not authorized calendar with Id '{}'", currentUser, calendarId, e);
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error retrieving a calendar with id '{}'", calendarId, e);
@@ -192,7 +192,7 @@ public class AgendaCalendarRest implements ResourceContainer {
       agendaCalendarService.createCalendar(RestEntityBuilder.toCalendar(calendarEntity), currentUser);
       return Response.noContent().build();
     } catch (IllegalAccessException e) {
-      LOG.warn("User '{}' attempts to create a calendar for owner '{}'", currentUser, calendarEntity.getOwner());
+      LOG.warn("User '{}' attempts to create a calendar for owner '{}'", currentUser, calendarEntity.getOwner(), e);
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error creating a calendar", e);
@@ -226,9 +226,10 @@ public class AgendaCalendarRest implements ResourceContainer {
       agendaCalendarService.updateCalendar(RestEntityBuilder.toCalendar(calendarEntity), currentUser);
       return Response.noContent().build();
     } catch (ObjectNotFoundException e) {
+      LOG.debug("User '{}' attempts to update a not existing calendar '{}'", currentUser, calendarEntity.getOwner(), e);
       return Response.status(Status.NOT_FOUND).entity("Calendar not found").build();
     } catch (IllegalAccessException e) {
-      LOG.error("User '{}' attempts to update a calendar for owner '{}'", currentUser, calendarEntity.getOwner());
+      LOG.error("User '{}' attempts to update a calendar for owner '{}'", currentUser, calendarEntity.getOwner(), e);
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error updating a calendar", e);
@@ -258,9 +259,10 @@ public class AgendaCalendarRest implements ResourceContainer {
       agendaCalendarService.deleteCalendarById(calendarId, currentUser);
       return Response.noContent().build();
     } catch (ObjectNotFoundException e) {
+      LOG.debug("User '{}' attempts to delete a not existing calendar '{}'", currentUser, calendarId, e);
       return Response.status(Status.NOT_FOUND).entity("Calendar not found").build();
     } catch (IllegalAccessException e) {
-      LOG.error("User '{}' attempts to deletes a non authorized calendar", currentUser);
+      LOG.error("User '{}' attempts to deletes a non authorized calendar", currentUser, e);
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error deleting a calendar", e);

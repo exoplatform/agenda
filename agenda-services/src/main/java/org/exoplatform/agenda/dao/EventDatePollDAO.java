@@ -14,7 +14,8 @@ public class EventDatePollDAO extends GenericDAOJPAImpl<EventDatePollEntity, Lon
     query.setParameter("eventId", eventId);
     try {
       return query.getSingleResult();
-    } catch (NoResultException e) {
+    } catch (NoResultException e) {// NOSONAR : normal to not log this and not
+                                   // rethrow it
       return null;
     }
   }

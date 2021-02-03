@@ -30,7 +30,8 @@ public class RemoteProviderDAO extends GenericDAOJPAImpl<RemoteProviderEntity, L
     query.setParameter("name", connectorName);
     try {
       return query.getSingleResult();
-    } catch (NoResultException e) {
+    } catch (NoResultException e) {// NOSONAR : normal to not log this and not
+                                   // rethrow it
       return null;
     }
   }

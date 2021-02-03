@@ -137,7 +137,7 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
           }
           reminderStorage.saveEventReminder(eventReminder);
         } catch (AgendaException e) {
-          LOG.warn("Error saving reminder of event with id {}", event.getId());
+          LOG.warn("Error saving reminder of event with id {}", event.getId(), e);
         }
       }
     }

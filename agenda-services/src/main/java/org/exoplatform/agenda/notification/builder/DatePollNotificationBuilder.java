@@ -1,16 +1,17 @@
 package org.exoplatform.agenda.notification.builder;
 
-import groovy.text.GStringTemplateEngine;
-import groovy.text.Template;
+import static org.exoplatform.agenda.util.NotificationUtils.*;
+
+import java.io.Writer;
+
 import org.apache.commons.lang.StringUtils;
+
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.service.AgendaEventService;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.channel.template.AbstractTemplateBuilder;
 import org.exoplatform.commons.api.notification.channel.template.TemplateProvider;
-import org.exoplatform.commons.api.notification.model.MessageInfo;
-import org.exoplatform.commons.api.notification.model.NotificationInfo;
-import org.exoplatform.commons.api.notification.model.PluginKey;
+import org.exoplatform.commons.api.notification.model.*;
 import org.exoplatform.commons.api.notification.service.template.TemplateContext;
 import org.exoplatform.commons.notification.template.TemplateUtils;
 import org.exoplatform.commons.utils.CommonsUtils;
@@ -18,12 +19,10 @@ import org.exoplatform.container.ExoContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
-import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.spi.SpaceService;
 
-import java.io.Writer;
-
-import static org.exoplatform.agenda.util.NotificationUtils.*;
+import groovy.text.GStringTemplateEngine;
+import groovy.text.Template;
 
 public class DatePollNotificationBuilder extends AbstractTemplateBuilder {
   private static final Log   LOG = ExoLogger.getLogger(DatePollNotificationBuilder.class);
@@ -65,6 +64,7 @@ public class DatePollNotificationBuilder extends AbstractTemplateBuilder {
       try {
         return new GStringTemplateEngine().createTemplate("");
       } catch (Exception e1) {
+        LOG.warn("Error while creating empty template", e1);
         return null;
       }
     }
@@ -86,7 +86,8 @@ public class DatePollNotificationBuilder extends AbstractTemplateBuilder {
       logException(notification, exception);
       ctx.setException(exception);
       return messageInfo;
-    } catch (Throwable e) {
+    } catch (Throwable e) {// NOSONAR handle groovy exceptions of type
+                           // java.lang.Error as well
       ctx.setException(e);
       logException(notification, e);
       return null;
