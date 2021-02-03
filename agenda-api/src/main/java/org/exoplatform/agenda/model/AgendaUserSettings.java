@@ -64,7 +64,7 @@ public class AgendaUserSettings implements Cloneable {
     try {
       return new JsonGeneratorImpl().createJsonObject(this).toString();
     } catch (JsonException e) {
-      throw new IllegalStateException("Error parsing current global object to string");
+      throw new IllegalStateException("Error parsing current global object to string", e);
     }
   }
 

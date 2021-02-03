@@ -73,7 +73,7 @@ public class AgendaEventGamificationIntegrationListener extends Listener<Long, L
             gam.put("receiverId", String.valueOf(earnerId));
             listenerService.broadcast(GAMIFICATION_GENERIC_EVENT, gam, String.valueOf(eventId));
           } catch (Exception e) {
-            LOG.error("Cannot broadcast gamification event");
+            LOG.error("Cannot broadcast gamification event", e);
           }
         } else if (StringUtils.equals(eventName, Utils.POST_VOTES_AGENDA_EVENT_POLL)) {
           ruleTitle = GAMIFICATION_VOTE_RULE_TITLE;
@@ -85,7 +85,7 @@ public class AgendaEventGamificationIntegrationListener extends Listener<Long, L
             gam.put("receiverId", String.valueOf(earnerId));
             listenerService.broadcast(GAMIFICATION_GENERIC_EVENT, gam, String.valueOf(eventId));
           } catch (Exception e) {
-            LOG.error("Cannot broadcast gamification event");
+            LOG.error("Cannot broadcast gamification event", e);
           }
         }
       }

@@ -26,7 +26,8 @@ public class EventDateVoteDAO extends GenericDAOJPAImpl<EventDateVoteEntity, Lon
     query.setParameter("identityId", identityId);
     try {
       return query.getSingleResult();
-    } catch (NoResultException e) {
+    } catch (NoResultException e) {// NOSONAR : normal to not log this and not
+                                   // rethrow it
       return null;
     }
   }

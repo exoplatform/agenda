@@ -30,7 +30,8 @@ import java.time.ZoneOffset;
 import static org.exoplatform.agenda.util.NotificationUtils.*;
 
 public class ReplyTemplateBuilder extends AbstractTemplateBuilder {
-  private static final Log          LOG = ExoLogger.getLogger(ReminderTemplateBuilder.class);
+
+  private static final Log          LOG = ExoLogger.getLogger(ReplyTemplateBuilder.class);
 
   private AgendaEventService        agendaEventService;
 
@@ -71,6 +72,7 @@ public class ReplyTemplateBuilder extends AbstractTemplateBuilder {
       try {
         return new GStringTemplateEngine().createTemplate("");
       } catch (Exception e1) {
+        LOG.warn("Error while creating empty template", e1);
         return null;
       }
     }
@@ -97,7 +99,8 @@ public class ReplyTemplateBuilder extends AbstractTemplateBuilder {
       logException(notification, exception);
       ctx.setException(exception);
       return messageInfo;
-    } catch (Throwable e) {
+    } catch (Throwable e) {// NOSONAR handle groovy exceptions of type
+                           // java.lang.Error as well
       ctx.setException(e);
       logException(notification, e);
       return null;

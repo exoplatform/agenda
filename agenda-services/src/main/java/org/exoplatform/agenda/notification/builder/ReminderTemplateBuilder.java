@@ -74,6 +74,7 @@ public class ReminderTemplateBuilder extends AbstractTemplateBuilder {
       try {
         return new GStringTemplateEngine().createTemplate("");
       } catch (Exception e1) {
+        LOG.warn("Error while creating empty template", e1);
         return null;
       }
     }
@@ -104,7 +105,8 @@ public class ReminderTemplateBuilder extends AbstractTemplateBuilder {
       logException(notification, exception);
       ctx.setException(exception);
       return messageInfo;
-    } catch (Throwable e) {
+    } catch (Throwable e) {// NOSONAR handle groovy exceptions of type
+                           // java.lang.Error as well
       ctx.setException(e);
       logException(notification, e);
       return null;
