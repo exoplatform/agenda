@@ -14,17 +14,6 @@
       <v-icon>close</v-icon>
     </v-btn>
     <div :class="displayHasVotedInfo && 'pb-2' || 'pb-6'" class="d-flex flex-row px-6 pt-8">
-      <v-btn
-        v-if="isCreator"
-        :title="$t('agenda.changeSuggestedLabel')"
-        class="ml-2 mt-3"
-        x-large
-        absolute
-        left
-        icon
-        @click="$root.$emit('agenda-event-form', event, true)">
-        <i class="uiIcon uiIconDatePicker darkGreyIcon uiIcon32x32"></i>
-      </v-btn>
       <div class="flex-grow-1 mx-8">
         <v-row class="event-details-header d-flex align-center flex-nowrap text-center col-12">
           <v-col :title="event.summary" class="event-title title text-truncate col-auto pl-4 py-0 mx-auto">
@@ -147,6 +136,16 @@
       v-if="isAttendee"
       no-gutters
       class="mx-6 mb-6">
+      <v-col v-if="isCreator">
+        <v-btn
+          :disabled="sendingVotes || creatingEvent"
+          class="btn primary"
+          color="primary"
+          outlined
+          @click="$root.$emit('agenda-event-form', event, true)">
+          {{ $t('agenda.changeDates') }}
+        </v-btn>
+      </v-col>
       <v-col class="d-flex">
         <v-btn
           v-if="!hasVoted || isVoting"
