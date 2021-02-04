@@ -1,12 +1,14 @@
 package org.exoplatform.agenda.notification.plugin;
 
+import static org.exoplatform.agenda.util.NotificationUtils.*;
+
 import org.apache.commons.lang.StringUtils;
+
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.agenda.service.AgendaEventAttendeeService;
-import org.exoplatform.agenda.util.NotificationUtils;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.model.NotificationInfo;
 import org.exoplatform.commons.api.notification.plugin.BaseNotificationPlugin;
@@ -16,8 +18,6 @@ import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.spi.SpaceService;
-
-import static org.exoplatform.agenda.util.NotificationUtils.*;
 
 public class EventVoteNotificationPlugin extends BaseNotificationPlugin {
   private static final Log           LOG                             = ExoLogger.getLogger(EventVoteNotificationPlugin.class);

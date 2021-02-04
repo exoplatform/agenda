@@ -11,10 +11,14 @@ import org.exoplatform.agenda.storage.AgendaEventStorage;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.services.listener.ListenerService;
+import org.exoplatform.services.log.ExoLogger;
+import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 
 public class AgendaEventDatePollServiceImpl implements AgendaEventDatePollService {
+
+  private static final Log           LOG = ExoLogger.getLogger(AgendaEventDatePollServiceImpl.class);
 
   private IdentityManager            identityManager;
 
@@ -77,7 +81,10 @@ public class AgendaEventDatePollServiceImpl implements AgendaEventDatePollServic
       try {
         datePollStorage.updateDateOption(eventDateOption);
       } catch (ObjectNotFoundException e) {
-        // Attempt to create a new one
+        LOG.debug("Date option with id '{}' on event with id '{}' doesn't exist. A new date option will be created",
+                  eventDateOption.getId(),
+                  eventId,
+                  e);
         datePollStorage.createDateOption(eventDateOption);
       }
     }

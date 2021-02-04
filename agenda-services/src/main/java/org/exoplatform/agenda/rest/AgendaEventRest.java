@@ -357,7 +357,8 @@ public class AgendaEventRest implements ResourceContainer {
       LOG.warn("User '{}' attempts to access not authorized event with parentId '{}' and occurrenceId '{}'",
                RestUtils.getCurrentUser(),
                parentEventId,
-               occurrenceId);
+               occurrenceId,
+               e);
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error retrieving event with parentId '{}' and occurrenceId '{}'",
@@ -404,7 +405,7 @@ public class AgendaEventRest implements ResourceContainer {
                                               .collect(Collectors.toList());
       return Response.ok(eventEntities).build();
     } catch (IllegalAccessException e) {
-      LOG.warn("User '{}' attempts to access not authorized events", RestUtils.getCurrentUser());
+      LOG.warn("User '{}' attempts to access not authorized events", RestUtils.getCurrentUser(), e);
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error retrieving list of events", e);
@@ -441,7 +442,10 @@ public class AgendaEventRest implements ResourceContainer {
       Event event = createEvent(eventEntity, userIdentityId, timeZoneId);
       return getEventById(event.getId(), "all", timeZoneId == null ? event.getTimeZoneId().getId() : timeZoneId);
     } catch (IllegalAccessException e) {
-      LOG.warn("User '{}' attempts to create an event in calendar '{}'", RestUtils.getCurrentUser(), eventEntity.getCalendar());
+      LOG.warn("User '{}' attempts to create an event in calendar '{}'",
+               RestUtils.getCurrentUser(),
+               eventEntity.getCalendar(),
+               e);
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (AgendaException e) {
       LOG.debug("Error in event validation", e);
@@ -533,7 +537,7 @@ public class AgendaEventRest implements ResourceContainer {
       LOG.debug("Error in event validation", e);
       return Response.serverError().entity(e.getAgendaExceptionType().getCompleteMessage()).build();
     } catch (IllegalAccessException e) {
-      LOG.error("User '{}' attempts to update a non authorized event", RestUtils.getCurrentUser());
+      LOG.error("User '{}' attempts to update a non authorized event", RestUtils.getCurrentUser(), e);
       return Response.status(Status.UNAUTHORIZED).build();
     } catch (Exception e) {
       LOG.warn("Error updating an event", e);
@@ -625,7 +629,7 @@ public class AgendaEventRest implements ResourceContainer {
       LOG.debug("Error in event validation", e);
       return Response.serverError().entity(e.getAgendaExceptionType().getCompleteMessage()).build();
     } catch (IllegalAccessException e) {
-      LOG.error("User '{}' attempts to update a non authorized event", RestUtils.getCurrentUser());
+      LOG.error("User '{}' attempts to update a non authorized event", RestUtils.getCurrentUser(), e);
       return Response.status(Status.UNAUTHORIZED).build();
     } catch (Exception e) {
       LOG.warn("Error updating an event", e);
@@ -668,7 +672,7 @@ public class AgendaEventRest implements ResourceContainer {
       agendaEventService.deleteEventById(eventId, userIdentityId);
       return Response.ok(eventEntity).build();
     } catch (IllegalAccessException e) {
-      LOG.error("User '{}' attempts to delete a non authorized event", RestUtils.getCurrentUser());
+      LOG.error("User '{}' attempts to delete a non authorized event", RestUtils.getCurrentUser(), e);
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error deleting an event", e);
@@ -721,7 +725,8 @@ public class AgendaEventRest implements ResourceContainer {
     } catch (IllegalAccessException e) {
       LOG.warn("User '{}' attempts to select Date Option on a not authorized event with Id '{}'",
                RestUtils.getCurrentUser(),
-               eventId);
+               eventId,
+               e);
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error voting on event with id '{}' with date option '{}'", eventId, dateOptionId, e);
@@ -822,7 +827,7 @@ public class AgendaEventRest implements ResourceContainer {
 
       return Response.noContent().build();
     } catch (IllegalAccessException e) {
-      LOG.warn("User '{}' attempts to access reminders for a not authorized event with Id '{}'", userIdentityId, eventId);
+      LOG.warn("User '{}' attempts to access reminders for a not authorized event with Id '{}'", userIdentityId, eventId, e);
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error updating event reminders with id '{}'", eventId, e);
@@ -873,7 +878,8 @@ public class AgendaEventRest implements ResourceContainer {
     } catch (IllegalAccessException e) {
       LOG.warn("User '{}' attempts to access invitation response for a not authorized event with Id '{}'",
                RestUtils.getCurrentUser(),
-               eventId);
+               eventId,
+               e);
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error retrieving event response with id '{}'", eventId, e);
@@ -910,20 +916,23 @@ public class AgendaEventRest implements ResourceContainer {
       dateOptionId = Collections.emptyList();
     }
 
+    long identityId = 0;
     try {
       Identity identity = RestUtils.getCurrentUserIdentity(identityManager);
       if (identity == null) {
         return Response.status(Status.FORBIDDEN).build();
       }
-      long identityId = Long.parseLong(identity.getId());
+      identityId = Long.parseLong(identity.getId());
       agendaEventDatePollService.saveEventVotes(eventId, dateOptionId, identityId);
       return Response.noContent().build();
     } catch (ObjectNotFoundException e) {
+      LOG.debug("User '{}' attempts to vote on non existing event '{}'", identityId, eventId, e);
       return Response.status(Status.NOT_FOUND).entity("Event with id " + eventId + " not found").build();
     } catch (IllegalAccessException e) {
       LOG.warn("User '{}' attempts to vote on a not authorized event with Id '{}'",
                RestUtils.getCurrentUser(),
-               eventId);
+               eventId,
+               e);
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error voting on event with id '{}'", eventId, e);
@@ -959,20 +968,27 @@ public class AgendaEventRest implements ResourceContainer {
       return Response.status(Status.BAD_REQUEST).entity("Event date option identifier must be a positive integer").build();
     }
 
+    long identityId = 0;
     try {
       Identity identity = RestUtils.getCurrentUserIdentity(identityManager);
       if (identity == null) {
         return Response.status(Status.FORBIDDEN).build();
       }
-      long identityId = Long.parseLong(identity.getId());
+      identityId = Long.parseLong(identity.getId());
       agendaEventDatePollService.voteDateOption(dateOptionId, identityId);
       return Response.noContent().build();
     } catch (ObjectNotFoundException e) {
+      LOG.debug("User '{}' attempts to vote on non existing event '{}' with date option '{}'",
+                identityId,
+                eventId,
+                dateOptionId,
+                e);
       return Response.status(Status.NOT_FOUND).entity("Date option with id " + dateOptionId + " not found").build();
     } catch (IllegalAccessException e) {
       LOG.warn("User '{}' attempts to vote on a not authorized event with Id '{}'",
                RestUtils.getCurrentUser(),
-               eventId);
+               eventId,
+               e);
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error voting on event with id '{}' with date option '{}'", eventId, dateOptionId, e);
@@ -1008,15 +1024,21 @@ public class AgendaEventRest implements ResourceContainer {
       return Response.status(Status.BAD_REQUEST).entity("Event date option identifier must be a positive integer").build();
     }
 
+    long identityId = 0;
     try {
       Identity identity = RestUtils.getCurrentUserIdentity(identityManager);
       if (identity == null) {
         return Response.status(Status.FORBIDDEN).build();
       }
-      long identityId = Long.parseLong(identity.getId());
+      identityId = Long.parseLong(identity.getId());
       agendaEventDatePollService.dismissDateOption(dateOptionId, identityId);
       return Response.noContent().build();
     } catch (ObjectNotFoundException e) {
+      LOG.debug("User '{}' attempts to dismiss vote on non existing event '{}' with date option '{}'",
+                identityId,
+                eventId,
+                dateOptionId,
+                e);
       return Response.status(Status.NOT_FOUND).entity("Date option with id " + dateOptionId + " not found").build();
     } catch (Exception e) {
       LOG.warn("Error dismissing vote on event with id '{}' with date option '{}'", eventId, dateOptionId, e);
