@@ -265,4 +265,17 @@
     </component-plugin>
   </external-component-plugins>
 
+  <external-component-plugins>
+    <target-component>org.exoplatform.services.listener.ListenerService</target-component>
+    <component-plugin>
+      <name>exo.agenda.event.created</name>
+      <set-method>addListener</set-method>
+      <type>org.exoplatform.agenda.listener.AgendaReplyOnSaveListener</type>
+    </component-plugin>
+    <component-plugin>
+      <name>exo.agenda.event.updated</name>
+      <set-method>addListener</set-method>
+      <type>org.exoplatform.agenda.listener.AgendaReplyOnSaveListener</type>
+    </component-plugin>
+  </external-component-plugins>
 </configuration>

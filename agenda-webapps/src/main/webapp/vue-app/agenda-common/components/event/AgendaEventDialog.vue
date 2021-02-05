@@ -110,6 +110,7 @@ export default {
   },
   data () {
     return {
+      isNew: false,
       dialog: false,
       saving: false,
       event: null,
@@ -181,8 +182,8 @@ export default {
     }
     $(document).on('keydown', this.closeByEscape);
     this.$root.$on('agenda-event-form', (agendaEvent, displayTimeInForm) => {
-      const isNew = agendaEvent.id ? !agendaEvent.id : !agendaEvent.parent || !agendaEvent.parent.id;
-      if (isNew) {
+      this.isNew = agendaEvent.id ? !agendaEvent.id : !agendaEvent.parent || !agendaEvent.parent.id;
+      if (this.isNew) {
         this.isForm = true;
         this.displayTimeInForm = !!displayTimeInForm;
         this.openDialog(agendaEvent);
@@ -206,11 +207,13 @@ export default {
     this.$root.$on('agenda-event-deleted', () => this.close());
     this.$root.$on('agenda-event-save', () => this.saving = true);
     this.$root.$on('agenda-event-saved', event => {
-      if (this.isForm && event && event.id && this.event && this.event.dateOptions && this.event.dateOptions.length > 1) {
-        this.$root.$emit('agenda-event-details', event);
-      } else {
-        this.close();
+      if (this.isForm && this.isNew && event && event.id && this.event && this.event.dateOptions && this.event.dateOptions.length > 1) {
+        this.$root.$emit('agenda-notification-alert', {
+          message: this.$t('agenda.datePollCreationSuccess'),
+          type: 'success',
+        });
       }
+      this.close();
     });
     this.$root.$on('agenda-event-response-sent', (event, occurrenceId, eventResponse) => {
       if (!this.event) {

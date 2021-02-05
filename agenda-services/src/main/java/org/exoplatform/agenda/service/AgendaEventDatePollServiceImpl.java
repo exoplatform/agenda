@@ -114,7 +114,7 @@ public class AgendaEventDatePollServiceImpl implements AgendaEventDatePollServic
   }
 
   @Override
-  public void saveEventVotes(long eventId, List<Long> dateOptionVotes, long identityId) throws ObjectNotFoundException,
+  public void saveEventVotes(long eventId, List<Long> acceptedDatePollIds, long identityId) throws ObjectNotFoundException,
                                                                                         IllegalAccessException {
     Event event = eventStorage.getEventById(eventId);
     if (event == null) {
@@ -130,14 +130,14 @@ public class AgendaEventDatePollServiceImpl implements AgendaEventDatePollServic
       throw new IllegalAccessException("User with identity id " + identityId + " isn't attendee of event with id " + eventId);
     }
 
-    if (dateOptionVotes == null) {
-      dateOptionVotes = Collections.emptyList();
+    if (acceptedDatePollIds == null) {
+      acceptedDatePollIds = Collections.emptyList();
     }
 
     List<EventDateOption> eventDateOptions = datePollStorage.getEventDateOptions(eventId);
     for (EventDateOption eventDateOption : eventDateOptions) {
       long dateOptionId = eventDateOption.getId();
-      if (dateOptionVotes.contains(dateOptionId)) {
+      if (acceptedDatePollIds.contains(dateOptionId)) {
         datePollStorage.vote(dateOptionId, identityId);
       } else {
         datePollStorage.dismiss(dateOptionId, identityId);
