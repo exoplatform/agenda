@@ -20,6 +20,16 @@
             :labels="labels"
             class="d-inline-block" />
         </div>
+        <v-btn
+          v-if="isCurrentUser"
+          :title="$t('agenda.changeVote')"
+          :class="isVoting && 'hide-edit-vote'"
+          icon
+          transparent
+          class="ma-auto border-box-sizing"
+          @click="$emit('change-vote')">
+          <i class="uiIconEditInfo uiIcon16x16 darkGreyIcon pb-2"></i>
+        </v-btn>
       </v-card>
     </th>
     <td
@@ -65,6 +75,9 @@ export default {
     },
   },
   computed: {
+    isCurrentUser() {
+      return this.voter && this.voter.isCurrentUser;
+    },
     labels() {
       return {
         CancelRequest: this.$t('profile.CancelRequest'),
