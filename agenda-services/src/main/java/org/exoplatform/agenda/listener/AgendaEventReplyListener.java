@@ -15,6 +15,7 @@ import org.exoplatform.services.listener.*;
 
 @Asynchronous
 public class AgendaEventReplyListener extends Listener<EventAttendee, EventAttendee> {
+
   private AgendaEventService agendaEventService;
 
   private ExoContainer       container;
