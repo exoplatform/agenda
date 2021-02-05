@@ -1,7 +1,7 @@
 import {toRFC3339, getDayNameFromDate, getMonthNumberFromDate, toDate, USER_TIMEZONE_ID} from './AgendaUtils.js';
 import {deleteEventWebConferencing, saveEventWebConferencing} from './EventWebConferencingService.js';
 
-export function getEvents(query, ownerIds, attendeeIdentityId, start, end, limit, responseTypes, eventStatus, expand) {
+export function getEvents(query, ownerIds, attendeeIdentityId, start, end, limit, responseTypes, expand, eventStatus) {
   if (typeof start === 'object') {
     start = toRFC3339(start);
   }
@@ -326,6 +326,47 @@ export function dismissEventDate(eventId, dateOptionId) {
         throw new Error('Error voting on event');
       }
     });
+}
+
+export function getPendingInvitations(query, attendeeIdentityId, start, limit, responseTypes, expand) {
+  if (typeof start === 'object') {
+    start = toRFC3339(start);
+  }
+
+  let params = {
+    query: query || '',
+    start: start,
+    timeZoneId: USER_TIMEZONE_ID,
+  };
+
+  if (limit && limit > 0) {
+    params.limit = limit;
+  }
+
+  if (expand) {
+    params.expand = expand;
+  }
+
+  if (attendeeIdentityId) {
+    params.attendeeIdentityId = attendeeIdentityId;
+  }
+
+  if (responseTypes) {
+    params.responseTypes = responseTypes;
+  }
+
+  params = $.param(params, true);
+
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/invitations?${params}`, {
+    method: 'GET',
+    credentials: 'include',
+  }).then((resp) => {
+    if (resp && resp.ok) {
+      return resp.json();
+    } else {
+      throw new Error('Error getting event list');
+    }
+  });
 }
 
 function formatRecurrenceObject(event) {

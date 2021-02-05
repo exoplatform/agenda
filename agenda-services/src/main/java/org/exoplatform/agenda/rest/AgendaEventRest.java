@@ -51,6 +51,8 @@ import org.exoplatform.social.rest.entity.IdentityEntity;
 import io.swagger.annotations.*;
 import io.swagger.jaxrs.PATCH;
 
+import static org.exoplatform.agenda.util.RestUtils.DEFAULT_LIMIT;
+
 @Path("/v1/agenda/events")
 @Api(value = "/v1/agenda/events", description = "Manages agenda events associated to users and spaces") // NOSONAR
 public class AgendaEventRest implements ResourceContainer {
@@ -1196,6 +1198,62 @@ public class AgendaEventRest implements ResourceContainer {
                                                                                                          expandProperties))
                                                          .collect(Collectors.toList());
     return Response.ok(results).build();
+  }
+
+  @Path("invitations")
+  @GET
+  @Produces(MediaType.APPLICATION_JSON)
+  @RolesAllowed("users")
+  @ApiOperation(
+          value = "Retrieves the list of pending invitations for an owner of type user or space, identitifed by its identity technical identifier."
+                  + " If no designated owner, all events available for authenticated user will be retrieved.",
+          httpMethod = "GET", response = Response.class, produces = "application/json"
+  )
+  @ApiResponses(
+          value = {
+                  @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+                  @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+                  @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+          }
+  )
+  public Response getPendingInvitation(
+          @ApiParam(value = "Identity technical identifiers of calendar owners", required = false)
+          @QueryParam("ownerIds") List<Long> ownerIds,
+          @ApiParam(value = "Attendee identity identifier to filter on events where user is attendee", required = true
+          ) @QueryParam("attendeeIdentityId") long attendeeIdentityId,
+          @ApiParam(value = "Offset", required = false, defaultValue = "0") @QueryParam(
+                  "offset"
+          ) int offset,
+          @ApiParam(
+                  value = "Limit of results to return, used only when end date isn't set", required = false,
+                  defaultValue = "10"
+          ) @QueryParam("limit") int limit,
+          @ApiParam(
+                  value = "Attendee Response statuses to filter events by attendee response",
+                  required = false
+          ) @QueryParam("responseType") EventAttendeeResponse responseType) {
+    if (offset < 0) {
+      offset = 0;
+    }
+    if (limit <= 0) {
+      limit = DEFAULT_LIMIT;
+    }
+    long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    try {
+      List<Event> events = agendaEventService.getPendingEvents(attendeeIdentityId,
+                                                               ownerIds,
+                                                               userIdentityId,
+                                                               responseType,
+                                                               offset,
+                                                               limit);
+      return Response.ok(events).build();
+    } catch (IllegalAccessException e) {
+      LOG.warn("User '{}' attempts to access not authorized events of owner Id '{}'", RestUtils.getCurrentUser(), e);
+      return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
+    } catch (Exception e) {
+      LOG.warn("Error retrieving list of events", e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
   }
 
   private Event createEvent(EventEntity eventEntity, long userIdentityId, String timeZoneId) throws AgendaException,

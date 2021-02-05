@@ -67,6 +67,17 @@ public class AgendaEventStorage {
     return this.eventDAO.getEventIds(startDate, endDate, ownerIds, attendeeIds, responseTypes, eventStatus, limit);
   }
 
+  public List<Long> getPendingInvitationIds(long attendeeId,
+                                            List<Long> attendeeSpaceIds,
+                                            List<Long> ownerIds,
+                                            long userIdentityId,
+                                            EventAttendeeResponse responseType,
+                                            int offset,
+                                            int limit) {
+    List<Long> attendeeIds = attendeeId > 0 ? attendeeSpaceIds : null;
+    return this.eventDAO.getPendingInvitationIds(ownerIds, attendeeIds, userIdentityId, responseType, offset, limit);
+  }
+
   public List<Event> getParentRecurrentEventIds(ZonedDateTime start, ZonedDateTime end) {
     Date startDate = new Date(start.withSecond(0).withNano(0).toEpochSecond() * 1000);
     Date endDate = new Date(end.withSecond(59).toEpochSecond() * 1000);

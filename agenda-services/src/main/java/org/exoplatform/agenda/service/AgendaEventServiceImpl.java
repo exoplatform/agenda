@@ -42,6 +42,7 @@ import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvide
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.spi.SpaceService;
 
+
 public class AgendaEventServiceImpl implements AgendaEventService {
 
   private static final Log             LOG = ExoLogger.getLogger(AgendaEventServiceImpl.class);
@@ -1004,6 +1005,49 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     Utils.broadcastEvent(listenerService, Utils.POST_CREATE_AGENDA_EVENT_EVENT, eventId, userIdentityId);
 
     datePollService.selectEventDateOption(dateOptionId);
+  }
+
+  @Override
+  public List<Event> getPendingEvents(long attendeeId,
+                                      List<Long> ownerIds,
+                                      long userIdentityId,
+                                      EventAttendeeResponse responseType,
+                                      int offset,
+                                      int limit) throws IllegalAccessException {
+    Identity userIdentity = identityManager.getIdentity(String.valueOf(userIdentityId));
+    if (userIdentity == null) {
+      throw new IllegalAccessException("User with name " + userIdentityId + " doesn't exist");
+    }
+
+    if (ownerIds != null) {
+      for (Long ownerId : ownerIds) {
+        if (!Utils.canAccessCalendar(identityManager, spaceService, ownerId, userIdentityId)) {
+          throw new IllegalAccessException("User '" + userIdentity.getId() + "' is not allowed to access calendar of identity '"
+                  + ownerIds + "'");
+        }
+      }
+    }
+    List<Long> attendeeSpaceIds = new ArrayList<>();
+    if (attendeeId > 0) {
+      if (!String.valueOf(attendeeId).contentEquals(userIdentity.getId())) {
+        throw new IllegalAccessException("User '" + userIdentity.getId() + "' is not allowed to access calendar of identity '"
+                + attendeeId + "'");
+      }
+      attendeeSpaceIds = Utils.getCalendarOwnersOfUser(spaceService, identityManager, userIdentity);
+    } else if (ownerIds == null) {
+      // If no attendee is selected, and no owners, filter events by use
+      // spaceIds
+      ownerIds = Utils.getCalendarOwnersOfUser(spaceService, identityManager, userIdentity);
+    }
+
+    List<Long> eventIds = this.agendaEventStorage.getPendingInvitationIds(attendeeId,
+                                                                          attendeeSpaceIds,
+                                                                          ownerIds,
+                                                                          userIdentityId,
+                                                                          responseType,
+                                                                          offset,
+                                                                          limit);
+    return null;
   }
 
   private void checkAndComputeDateOptions(Event event, List<EventDateOption> dateOptions) throws AgendaException {

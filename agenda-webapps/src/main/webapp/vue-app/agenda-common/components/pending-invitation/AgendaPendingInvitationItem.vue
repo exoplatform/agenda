@@ -4,5 +4,3 @@
   </v-list-item>
 </template>
 
-<script>
-</script>

@@ -223,6 +223,43 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
                               : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
   }
 
+  public List<Long> getPendingInvitationIds(List<Long> ownerIds,
+                                            List<Long> attendeeIds,
+                                            long userIdentityId,
+                                            EventAttendeeResponse responseType,
+                                            int offset,
+                                            int limit) {
+    boolean filterAttendees = attendeeIds != null && !attendeeIds.isEmpty();
+    boolean filterOwners = ownerIds != null && !ownerIds.isEmpty();
+    // We avoid to use QueryBuilder to avoid contention,
+    // thus we will have to build a specific query for each use case
+    StringBuilder jpql = new StringBuilder("SELECT DISTINCT(ev.id), ev.startDate FROM AgendaEvent ev");
+    if (filterAttendees) {
+      jpql.append(" INNER JOIN ev.attendees att");
+    }
+    jpql.append(" INNER JOIN ev.calendar cal");
+    jpql.append(" WHERE ev.status = :status");
+    jpql.append(" AND (ev.endDate IS NULL OR ev.endDate >= :start)");
+    if (filterAttendees) {
+      jpql.append(" AND att.identityId IN (:attendeeIds)");
+      jpql.append(" AND att.response IN (:responseTypes)");
+    }
+    jpql.append(" ORDER BY ev.startDate DESC");
+
+    TypedQuery<Tuple> query = getEntityManager().createQuery(jpql.toString(), Tuple.class);
+    query.setParameter("status", EventStatus.CONFIRMED);
+    query.setParameter("responseTypes", responseType);
+    if (filterAttendees) {
+      query.setParameter("attendeeIds", attendeeIds);
+    }
+    if (limit > 0) {
+      query.setMaxResults(limit);
+    }
+    List<Tuple> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList()
+                              : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
+  }
+  
   public List<EventEntity> getParentRecurrentEventIds(Date startDate, Date endDate) {
     TypedQuery<EventEntity> query = getEntityManager().createNamedQuery("AgendaEvent.getParentRecurrentEventIds",
                                                                         EventEntity.class);

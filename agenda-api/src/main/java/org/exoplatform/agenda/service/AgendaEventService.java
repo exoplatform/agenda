@@ -21,10 +21,12 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
 
+import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.social.core.identity.model.Identity;
+
 
 public interface AgendaEventService {
 
@@ -316,5 +318,22 @@ public interface AgendaEventService {
    */
   void selectEventDateOption(long eventId, long dateOptionId, long userIdentityId) throws ObjectNotFoundException,
                                                                                    IllegalAccessException;
+
+  /**
+   * @param attendeeId user {@link Identity} identifier
+   * @param ownerIds {@link List} of {@link Identity} technical identifier
+   * @param userIdentityId user {@link Identity} identifier
+   * @param responseType a response type to get list of NEEDS_ACTION events
+   * @param offset
+   * @param limit maximum number of occurrences to retrieve
+   * @return
+   * @throws IllegalAccessException
+   */
+  List<Event> getPendingEvents(long attendeeId,
+                               List<Long> ownerIds,
+                               long userIdentityId,
+                               EventAttendeeResponse responseType,
+                               int offset,
+                               int limit) throws IllegalAccessException;
 
 }
