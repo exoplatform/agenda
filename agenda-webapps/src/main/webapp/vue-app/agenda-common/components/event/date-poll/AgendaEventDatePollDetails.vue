@@ -50,25 +50,6 @@
           </v-alert>
         </v-row>
       </div>
-      <template v-if="hasVoted">
-        <v-btn
-          v-if="isVoting"
-          class="btn mr-2 mt-3"
-          absolute
-          right
-          @click="isVoting = false">
-          {{ $t('agenda.button.cancel') }}
-        </v-btn>
-        <v-btn
-          v-else
-          class="btn mr-2 mt-3"
-          absolute
-          right
-          @click="isVoting = true">
-          <i class="uiIcon uiIconStatistics darkGreyIcon uiIcon16x16 mt-3 mr-2"></i>
-          {{ $t('agenda.button.voteAgain') }}
-        </v-btn>
-      </template>
     </div>
     <div class="d-flex flex-column px-6 pb-8">
       <table
@@ -76,7 +57,7 @@
         description="Event date options table"
         class="event-date-options-table mx-auto">
         <tr>
-          <th class="event-date-options-cell justify-center">
+          <th id="participantsTitle" class="event-date-options-cell justify-center">
             <v-card
               class="d-flex fill-height border-box-sizing"
               flat>
@@ -94,7 +75,7 @@
             @select="selectDate(index)" />
         </tr>
         <tr>
-          <th class="event-date-options-cell justify-center">
+          <th id="participantsCount" class="event-date-options-cell justify-center">
             <v-card
               class="d-flex fill-height border-box-sizing"
               flat>
@@ -108,6 +89,7 @@
           </th>
           <th
             v-for="(dateOption, index) in dateOptions"
+            :id="`dateOption_${index}`"
             :key="index"
             :class="selectedDateOptionIndex === index && 'event-date-option-cell-selected' || ''"
             class="event-date-options-cell">
@@ -128,7 +110,8 @@
             :date-options="dateOptions"
             :selected-date-index="selectedDateOptionIndex"
             :is-voting="isVoting"
-            @changed="enableVoteButton" />
+            @changed="enableVoteButton"
+            @change-vote="isVoting = true" />
         </template>
       </table>
     </div>
@@ -136,7 +119,7 @@
       v-if="isAttendee"
       no-gutters
       class="mx-6 mb-6">
-      <v-col v-if="isCreator">
+      <v-col v-if="isCreator && !isVoting">
         <v-btn
           :disabled="sendingVotes || creatingEvent"
           class="btn primary"
@@ -147,19 +130,25 @@
         </v-btn>
       </v-col>
       <v-col class="d-flex">
+        <template v-if="isVoting">
+          <v-btn
+            :disabled="sendingVotes"
+            class="btn ml-auto mr-2"
+            @click="isVoting = false">
+            {{ $t('agenda.button.cancel') }}
+          </v-btn>
+          <v-btn
+            :loading="sendingVotes"
+            :disabled="sendingVotes || disableVoteButton"
+            class="btn btn-primary"
+            @click="sendVotes">
+            {{ $t('agenda.button.vote') }}
+          </v-btn>
+        </template>
         <v-btn
-          v-if="!hasVoted || isVoting"
-          :loading="sendingVotes"
-          :disabled="sendingVotes || disableVoteButton"
-          class="btn btn-primary ml-auto"
-          @click="sendVotes">
-          {{ $t('agenda.button.vote') }}
-        </v-btn>
-        <v-btn
-          v-else
-          v-show="showCreateButton"
+          v-else-if="isCreator"
           :loading="creatingEvent"
-          :disabled="creatingEvent"
+          :disabled="disableCreateButton"
           class="btn btn-primary ml-auto"
           @click="createEvent">
           {{ $t('agenda.button.createEvent') }}
@@ -213,8 +202,8 @@ export default {
     canSelectDate() {
       return this.isCreator && !this.isVoting;
     },
-    showCreateButton() {
-      return this.isCreator && this.selectedDateOptionIndex > -1;
+    disableCreateButton() {
+      return this.selectedDateOptionIndex < 0;
     },
     displayHasVotedInfo() {
       return this.hasVoted && !this.isVoting;
