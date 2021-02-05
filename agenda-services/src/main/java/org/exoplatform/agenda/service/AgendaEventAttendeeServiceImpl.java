@@ -87,74 +87,15 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
                                  boolean resetResponses,
                                  EventModificationType eventModificationType) {
     long eventId = event.getId();
+    EventStatus eventStatus = event.getStatus();
 
-    List<EventAttendee> savedAttendees = getEventAttendees(event.getId());
+    List<EventAttendee> oldAttendees = getEventAttendees(event.getId());
     List<EventAttendee> newAttendees = attendees == null ? Collections.emptyList() : attendees;
-    List<EventAttendee> attendeesToDelete =
-                                          savedAttendees.stream()
-                                                        .filter(attendee -> newAttendees.stream()
-                                                                                        .noneMatch(newAttendee -> newAttendee.getIdentityId() == attendee.getIdentityId()))
-                                                        .collect(Collectors.toList());
 
-    // Delete attendees
-    for (EventAttendee eventAttendee : attendeesToDelete) {
-      attendeeStorage.removeEventAttendee(eventAttendee.getId());
-    }
-
-    List<EventAttendee> attendeesToCreate =
-                                          newAttendees.stream()
-                                                      .filter(attendee -> savedAttendees.stream()
-                                                                                        .noneMatch(newAttendee -> newAttendee.getIdentityId() == attendee.getIdentityId()))
-                                                      .collect(Collectors.toList());
-
-    // Create new attendees
-    for (EventAttendee eventAttendee : attendeesToCreate) {
-      if (resetResponses || eventAttendee.getResponse() == null || event.getStatus() != EventStatus.CONFIRMED) {
-        eventAttendee.setResponse(EventAttendeeResponse.NEEDS_ACTION);
-      }
-      attendeeStorage.saveEventAttendee(eventAttendee, eventId);
-    }
-
-    if (resetResponses) {
-      List<EventAttendee> attendeesToUpdate =
-                                            savedAttendees.stream()
-                                                          .filter(attendee -> newAttendees.stream()
-                                                                                          .anyMatch(newAttendee -> newAttendee.getIdentityId() == attendee.getIdentityId()))
-                                                          .collect(Collectors.toList());
-      for (EventAttendee eventAttendee : attendeesToUpdate) {
-        try {
-          sendEventResponse(eventId, eventAttendee.getIdentityId(), EventAttendeeResponse.NEEDS_ACTION);
-        } catch (Exception e) {
-          LOG.warn("Error initializing default reminders of event {} for user with id {}",
-                   eventId,
-                   eventAttendee.getIdentityId(),
-                   e);
-        }
-      }
-    }
-
-    try {
-      if (creatorUserId > 0 && isEventAttendee(eventId, creatorUserId)) {
-        if (event.getStatus() == EventStatus.CONFIRMED) {
-          sendEventResponse(eventId, creatorUserId, EventAttendeeResponse.ACCEPTED);
-        } else if (event.getStatus() == EventStatus.TENTATIVE) {
-          if (resetResponses) {
-            sendEventResponse(eventId, creatorUserId, EventAttendeeResponse.NEEDS_ACTION);
-          }
-        } else if (event.getStatus() == EventStatus.CANCELLED) {
-          sendEventResponse(eventId, creatorUserId, EventAttendeeResponse.DECLINED);
-        }
-      }
-    } catch (Exception e) {
-      LOG.warn("Error initializing default reminders of event {} for creator with id {}", eventId, creatorUserId, e);
-    }
-
-    if (sendInvitations) {
-      if (event.getStatus() == EventStatus.CANCELLED) {
-        eventModificationType = EventModificationType.DELETED;
-      }
-      sendInvitations(event, attendees, eventModificationType);
-    }
+    processAttendeesToDelete(oldAttendees, newAttendees);
+    processAttendeesToCreate(eventId, eventStatus, oldAttendees, newAttendees, resetResponses);
+    processAttendeesToUpdate(eventId, oldAttendees, newAttendees, resetResponses);
+    processSendingInvitation(event, attendees, sendInvitations, eventModificationType);
 
     Utils.broadcastEvent(listenerService, "exo.agenda.event.attendees.saved", eventId, 0);
   }
@@ -351,6 +292,74 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       ctx.getNotificationExecutor().with(commands).execute(ctx);
     } catch (Exception e) {
       LOG.warn("Error sending invitation notifications", e);
+    }
+  }
+
+  private void processSendingInvitation(Event event,
+                                        List<EventAttendee> attendees,
+                                        boolean sendInvitations,
+                                        EventModificationType eventModificationType) {
+    if (sendInvitations) {
+      if (event.getStatus() == EventStatus.CANCELLED) {
+        eventModificationType = EventModificationType.DELETED;
+      }
+      sendInvitations(event, attendees, eventModificationType);
+    }
+  }
+
+  private void processAttendeesToUpdate(long eventId,
+                                        List<EventAttendee> oldAttendees,
+                                        List<EventAttendee> newAttendees,
+                                        boolean resetResponses) {
+    if (resetResponses) {
+      List<EventAttendee> attendeesToUpdate =
+                                            oldAttendees.stream()
+                                                        .filter(attendee -> newAttendees.stream()
+                                                                                        .anyMatch(newAttendee -> newAttendee.getIdentityId() == attendee.getIdentityId()))
+                                                        .collect(Collectors.toList());
+      for (EventAttendee eventAttendee : attendeesToUpdate) {
+        try {
+          sendEventResponse(eventId, eventAttendee.getIdentityId(), EventAttendeeResponse.NEEDS_ACTION);
+        } catch (Exception e) {
+          LOG.warn("Error initializing default reminders of event {} for user with id {}",
+                   eventId,
+                   eventAttendee.getIdentityId(),
+                   e);
+        }
+      }
+    }
+  }
+
+  private void processAttendeesToCreate(long eventId,
+                                        EventStatus eventStatus,
+                                        List<EventAttendee> oldAttendees,
+                                        List<EventAttendee> newAttendees,
+                                        boolean resetResponses) {
+    List<EventAttendee> attendeesToCreate =
+                                          newAttendees.stream()
+                                                      .filter(attendee -> oldAttendees.stream()
+                                                                                      .noneMatch(newAttendee -> newAttendee.getIdentityId() == attendee.getIdentityId()))
+                                                      .collect(Collectors.toList());
+
+    // Create new attendees
+    for (EventAttendee eventAttendee : attendeesToCreate) {
+      if (resetResponses || eventAttendee.getResponse() == null || eventStatus != EventStatus.CONFIRMED) {
+        eventAttendee.setResponse(EventAttendeeResponse.NEEDS_ACTION);
+      }
+      attendeeStorage.saveEventAttendee(eventAttendee, eventId);
+    }
+  }
+
+  private void processAttendeesToDelete(List<EventAttendee> oldAttendees, List<EventAttendee> newAttendees) {
+    List<EventAttendee> attendeesToDelete =
+                                          oldAttendees.stream()
+                                                      .filter(attendee -> newAttendees.stream()
+                                                                                      .noneMatch(newAttendee -> newAttendee.getIdentityId() == attendee.getIdentityId()))
+                                                      .collect(Collectors.toList());
+
+    // Delete attendees
+    for (EventAttendee eventAttendee : attendeesToDelete) {
+      attendeeStorage.removeEventAttendee(eventAttendee.getId());
     }
   }
 }

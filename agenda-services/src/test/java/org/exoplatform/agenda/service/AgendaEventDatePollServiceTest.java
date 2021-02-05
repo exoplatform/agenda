@@ -58,7 +58,9 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                                                      false,
                                                      null);
     Event createdEvent = agendaEventService.createEvent(event,
-                                                        Collections.emptyList(),
+                                                        Arrays.asList(new EventAttendee(0,
+                                                                                        Long.parseLong(spaceIdentity.getId()),
+                                                                                        EventAttendeeResponse.NEEDS_ACTION)),
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
@@ -664,7 +666,9 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                                                       true,
                                                       null);
     Event createdEvent = agendaEventService.createEvent(event,
-                                                        Collections.emptyList(),
+                                                        Arrays.asList(new EventAttendee(0,
+                                                                                        Long.parseLong(testuser1Identity.getId()),
+                                                                                        EventAttendeeResponse.NEEDS_ACTION)),
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
@@ -679,6 +683,12 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     assertEquals(2, dateOptions.size()); // NOSONAR
     dateOptions.sort((option1, option2) -> option1.getStart().compareTo(option2.getStart()));
     EventDateOption createdDateOption1 = dateOptions.get(0);
+    EventDateOption createdDateOption2 = dateOptions.get(1);
+
+    assertNotNull("Creator should have accepted automatically proposed date options", createdDateOption1.getVoters());
+    assertEquals("Creator should have accepted automatically proposed date options", 1, createdDateOption1.getVoters().size());
+    assertNotNull("Creator should have accepted automatically proposed date options", createdDateOption2.getVoters());
+    assertEquals("Creator should have accepted automatically proposed date options", 1, createdDateOption2.getVoters().size());
 
     try {
       agendaEventDatePollService.voteDateOption(5000l, Long.parseLong(testuser1Identity.getId()));
@@ -720,11 +730,12 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     assertEquals(2, dateOptions.size()); // NOSONAR
     dateOptions.sort((option1, option2) -> option1.getStart().compareTo(option2.getStart()));
     createdDateOption1 = dateOptions.get(0);
-    EventDateOption createdDateOption2 = dateOptions.get(1);
+    createdDateOption2 = dateOptions.get(1);
 
     assertNotNull(createdDateOption1.getVoters());
-    assertEquals(1, createdDateOption1.getVoters().size());
-    assertTrue(createdDateOption2.getVoters() == null || createdDateOption2.getVoters().isEmpty());
+    assertEquals(2, createdDateOption1.getVoters().size());
+    assertNotNull(createdDateOption2.getVoters());
+    assertEquals(1, createdDateOption2.getVoters().size());
 
     agendaEventDatePollService.voteDateOption(createdDateOption2.getId(), Long.parseLong(testuser2Identity.getId()));
     agendaEventDatePollService.voteDateOption(createdDateOption2.getId(), Long.parseLong(testuser2Identity.getId()));
@@ -735,9 +746,9 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     createdDateOption1 = dateOptions.get(0);
     createdDateOption2 = dateOptions.get(1);
     assertNotNull(createdDateOption1.getVoters());
-    assertEquals(1, createdDateOption1.getVoters().size());
+    assertEquals(2, createdDateOption1.getVoters().size());
     assertNotNull(createdDateOption2.getVoters());
-    assertEquals(1, createdDateOption2.getVoters().size());
+    assertEquals(2, createdDateOption2.getVoters().size());
   }
 
   @Test
@@ -766,7 +777,9 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                                                       true,
                                                       null);
     Event createdEvent = agendaEventService.createEvent(event,
-                                                        Collections.emptyList(),
+                                                        Arrays.asList(new EventAttendee(0,
+                                                                                        Long.parseLong(spaceIdentity.getId()),
+                                                                                        EventAttendeeResponse.NEEDS_ACTION)),
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
@@ -781,6 +794,12 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     assertEquals(2, dateOptions.size()); // NOSONAR
     dateOptions.sort((option1, option2) -> option1.getStart().compareTo(option2.getStart()));
     EventDateOption createdDateOption1 = dateOptions.get(0);
+    EventDateOption createdDateOption2 = dateOptions.get(1);
+
+    assertNotNull("Creator should have accepted automatically proposed date options", createdDateOption1.getVoters());
+    assertEquals("Creator should have accepted automatically proposed date options", 1, createdDateOption1.getVoters().size());
+    assertNotNull("Creator should have accepted automatically proposed date options", createdDateOption2.getVoters());
+    assertEquals("Creator should have accepted automatically proposed date options", 1, createdDateOption2.getVoters().size());
 
     try {
       agendaEventDatePollService.dismissDateOption(5000l, Long.parseLong(testuser1Identity.getId()));
@@ -813,11 +832,12 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     assertEquals(2, dateOptions.size()); // NOSONAR
     dateOptions.sort((option1, option2) -> option1.getStart().compareTo(option2.getStart()));
     createdDateOption1 = dateOptions.get(0);
-    EventDateOption createdDateOption2 = dateOptions.get(1);
+    createdDateOption2 = dateOptions.get(1);
 
     assertNotNull(createdDateOption1.getVoters());
-    assertEquals(1, createdDateOption1.getVoters().size());
-    assertTrue(createdDateOption2.getVoters() == null || createdDateOption2.getVoters().isEmpty());
+    assertEquals(2, createdDateOption1.getVoters().size());
+    assertNotNull(createdDateOption2.getVoters());
+    assertEquals(1, createdDateOption2.getVoters().size());
 
     agendaEventDatePollService.dismissDateOption(createdDateOption1.getId(), Long.parseLong(testuser2Identity.getId()));
     agendaEventDatePollService.voteDateOption(createdDateOption2.getId(), Long.parseLong(testuser2Identity.getId()));
@@ -828,9 +848,9 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     createdDateOption1 = dateOptions.get(0);
     createdDateOption2 = dateOptions.get(1);
     assertNotNull(createdDateOption1.getVoters());
-    assertEquals(0, createdDateOption1.getVoters().size());
+    assertEquals(1, createdDateOption1.getVoters().size());
     assertNotNull(createdDateOption2.getVoters());
-    assertEquals(1, createdDateOption2.getVoters().size());
+    assertEquals(2, createdDateOption2.getVoters().size());
 
     agendaEventDatePollService.dismissDateOption(createdDateOption2.getId(), Long.parseLong(testuser2Identity.getId()));
 
@@ -840,9 +860,9 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     createdDateOption1 = dateOptions.get(0);
     createdDateOption2 = dateOptions.get(1);
     assertNotNull(createdDateOption1.getVoters());
-    assertEquals(0, createdDateOption1.getVoters().size());
+    assertEquals(1, createdDateOption1.getVoters().size());
     assertNotNull(createdDateOption2.getVoters());
-    assertEquals(0, createdDateOption2.getVoters().size());
+    assertEquals(1, createdDateOption2.getVoters().size());
   }
 
   @Test
@@ -876,7 +896,6 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     assertNotNull(dateOptions);
     assertEquals(2, dateOptions.size());
 
-    dateOptions.sort((option1, option2) -> option1.getStart().compareTo(option2.getStart()));
     try {
       agendaEventDatePollService.saveEventVotes(2000l, Collections.emptyList(), Long.parseLong(testuser1Identity.getId()));
       fail("Event with id shouldn't exists");
@@ -902,10 +921,10 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     dateOptions.sort((option1, option2) -> option1.getStart().compareTo(option2.getStart()));
 
     assertNotNull(dateOptions.get(0).getVoters());
-    assertEquals(1, dateOptions.get(0).getVoters().size());
+    assertEquals(2, dateOptions.get(0).getVoters().size());
 
     assertNotNull(dateOptions.get(1).getVoters());
-    assertEquals(0, dateOptions.get(1).getVoters().size());
+    assertEquals(1, dateOptions.get(1).getVoters().size());
 
     agendaEventDatePollService.saveEventVotes(eventId,
                                               Collections.singletonList(dateOptions.get(1).getId()),
@@ -918,10 +937,10 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     dateOptions.sort((option1, option2) -> option1.getStart().compareTo(option2.getStart()));
 
     assertNotNull(dateOptions.get(0).getVoters());
-    assertEquals(0, dateOptions.get(0).getVoters().size());
+    assertEquals(1, dateOptions.get(0).getVoters().size());
 
     assertNotNull(dateOptions.get(1).getVoters());
-    assertEquals(1, dateOptions.get(1).getVoters().size());
+    assertEquals(2, dateOptions.get(1).getVoters().size());
   }
 
 }
