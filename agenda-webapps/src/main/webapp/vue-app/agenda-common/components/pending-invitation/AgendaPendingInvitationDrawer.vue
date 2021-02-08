@@ -58,8 +58,7 @@ export default {
     retrievePendingDatePolls(){
       this.loading = true;
       this.$refs.calendarPendingDatePolls.startLoading();
-      const userIdentityId = eXo.env.portal.userIdentityId;
-      return this.$eventService.getPendingDatePolls(this.ownerIds,userIdentityId, 0, this.limit)
+      return this.$eventService.getDatePolls(0, this.limit)
         .then(eventsList => {
           this.pendingDatePollsCount = eventsList.size || 0;
           this.pendingDatePolls = eventsList && eventsList.events || [];

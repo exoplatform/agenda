@@ -10,18 +10,37 @@
         {{ $t('agenda.button.addEvent') }}
       </span>
     </v-btn>
-    <v-btn
-      :title="$t('agenda.pendingInvitationTooltip')"
-      icon
-      class="primary--text"
-      @click="$root.$emit('agenda-pending-invitation-drawer-open')">
-      <i class="uiIcon darkGreyIcon uiIcon32x32 uiIconClock mb-1"></i>
-    </v-btn>
+    <v-badge
+      v-if="datePollsCount"
+      :content="datePollsCount"
+      color="red">
+      <v-btn
+        :title="$t('agenda.pendingInvitationTooltip')"
+        class="ml-2"
+        color="white"
+        icon
+        depressed
+        x-small
+        @click="$root.$emit('agenda-pending-date-polls-drawer-open')">
+        <i class="uiIcon darkGreyIcon uiIcon32x32 uiIconClock mb-1"></i>
+      </v-btn>
+    </v-badge>
   </div>
 </template>
 <script>
 export default {
-  methods:{
+  data: () => {
+    return {
+      datePollsCount: 0,
+    };
+  },
+  created() {
+    this.refresh();
+  },
+  methods: {
+    refresh(){
+      return this.$eventService.getDatePolls().then(eventsList => this.datePollsCount = eventsList && eventsList.size || 0);
+    },
     openNewEventForm(){
       this.$root.$emit('agenda-event-form', {
         summary: '',
@@ -34,6 +53,6 @@ export default {
         attendees: [],
       });
     },
-  }
+  },
 };
 </script>

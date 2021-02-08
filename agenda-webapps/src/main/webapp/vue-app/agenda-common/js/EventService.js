@@ -324,7 +324,7 @@ export function dismissEventDate(eventId, dateOptionId) {
     });
 }
 
-export function getPendingDatePolls(offset, limit, expand) {
+export function getDatePolls(offset, limit, expand) {
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/datePolls?offset=${offset || 0}&limit=${limit || 0}&expand=${expand || ''}`, {
     method: 'GET',
     credentials: 'include',
