@@ -1,6 +1,5 @@
 package org.exoplatform.agenda.listener;
 
-import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.search.AgendaIndexingServiceConnector;
 import org.exoplatform.agenda.service.AgendaEventService;
 import org.exoplatform.agenda.util.Utils;
@@ -35,7 +34,7 @@ public class AgendaESListener extends Listener<Long, Object> {
       if (indexingService != null) {
         String eventId = String.valueOf(event.getSource());
         org.exoplatform.agenda.model.Event agendaEvent = getAgendaEventService().getEventById(event.getSource());
-        if (agendaEvent == null || agendaEvent.getStatus() != EventStatus.CONFIRMED) {
+        if (agendaEvent == null) {
           return;
         }
 
