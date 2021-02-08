@@ -13,10 +13,12 @@
     <v-badge
       v-if="datePollsCount"
       :content="datePollsCount"
-      color="red">
+      offset-y="10"
+      class="d-none d-md-inline"
+      color="#F8B121">
       <v-btn
         :title="$t('agenda.pendingInvitationTooltip')"
-        class="ml-2"
+        class="ml-4 mr-2"
         color="white"
         icon
         depressed
@@ -35,6 +37,8 @@ export default {
     };
   },
   created() {
+    this.$root.$on('agenda-refresh', this.refresh);
+    this.$root.$on('agenda-event-saved', this.refresh);
     this.refresh();
   },
   methods: {
