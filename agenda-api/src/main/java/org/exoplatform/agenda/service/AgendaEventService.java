@@ -324,6 +324,7 @@ public interface AgendaEventService {
    * @param ownerIds {@link List} of {@link Identity} technical identifier
    * @param userIdentityId user {@link Identity} identifier
    * @param responseType a response type to get list of NEEDS_ACTION events
+   * @param timezone used timezone to compute events
    * @param offset
    * @param limit maximum number of occurrences to retrieve
    * @return
@@ -333,6 +334,7 @@ public interface AgendaEventService {
                                List<Long> ownerIds,
                                long userIdentityId,
                                EventAttendeeResponse responseType,
+                               ZoneId timezone,
                                int offset,
                                int limit) throws IllegalAccessException;
 

@@ -1216,11 +1216,14 @@ public class AgendaEventRest implements ResourceContainer {
                   @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
           }
   )
-  public Response getPendingInvitation(
+  public Response getPendingEvents(
           @ApiParam(value = "Identity technical identifiers of calendar owners", required = false)
           @QueryParam("ownerIds") List<Long> ownerIds,
           @ApiParam(value = "Attendee identity identifier to filter on events where user is attendee", required = true
           ) @QueryParam("attendeeIdentityId") long attendeeIdentityId,
+          @ApiParam(value = "IANA Time zone identitifer", required = false) @QueryParam(
+                  "timeZoneId"
+          ) String timeZoneId,
           @ApiParam(value = "Offset", required = false, defaultValue = "0") @QueryParam(
                   "offset"
           ) int offset,
@@ -1239,11 +1242,13 @@ public class AgendaEventRest implements ResourceContainer {
       limit = DEFAULT_LIMIT;
     }
     long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    ZoneId userTimeZone = StringUtils.isBlank(timeZoneId) ? ZoneOffset.UTC : ZoneId.of(timeZoneId);
     try {
       List<Event> events = agendaEventService.getPendingEvents(attendeeIdentityId,
                                                                ownerIds,
                                                                userIdentityId,
                                                                responseType,
+                                                               userTimeZone,
                                                                offset,
                                                                limit);
       return Response.ok(events).build();

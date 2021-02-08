@@ -225,7 +225,6 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
 
   public List<Long> getPendingInvitationIds(List<Long> ownerIds,
                                             List<Long> attendeeIds,
-                                            long userIdentityId,
                                             EventAttendeeResponse responseType,
                                             int offset,
                                             int limit) {
@@ -239,19 +238,22 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     }
     jpql.append(" INNER JOIN ev.calendar cal");
     jpql.append(" WHERE ev.status = :status");
-    jpql.append(" AND (ev.endDate IS NULL OR ev.endDate >= :start)");
     if (filterAttendees) {
       jpql.append(" AND att.identityId IN (:attendeeIds)");
-      jpql.append(" AND att.response IN (:responseTypes)");
+      jpql.append(" AND att.response = :responseType)");
     }
     jpql.append(" ORDER BY ev.startDate DESC");
 
     TypedQuery<Tuple> query = getEntityManager().createQuery(jpql.toString(), Tuple.class);
     query.setParameter("status", EventStatus.CONFIRMED);
-    query.setParameter("responseTypes", responseType);
+    query.setParameter("responseType", responseType);
+    if (filterOwners) {
+      jpql.append(" AND cal.ownerId IN (:ownerIds)");
+    }
     if (filterAttendees) {
       query.setParameter("attendeeIds", attendeeIds);
     }
+    query.setFirstResult(offset);
     if (limit > 0) {
       query.setMaxResults(limit);
     }

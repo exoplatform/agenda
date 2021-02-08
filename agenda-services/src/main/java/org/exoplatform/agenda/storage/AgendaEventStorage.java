@@ -70,12 +70,11 @@ public class AgendaEventStorage {
   public List<Long> getPendingInvitationIds(long attendeeId,
                                             List<Long> attendeeSpaceIds,
                                             List<Long> ownerIds,
-                                            long userIdentityId,
                                             EventAttendeeResponse responseType,
                                             int offset,
                                             int limit) {
     List<Long> attendeeIds = attendeeId > 0 ? attendeeSpaceIds : null;
-    return this.eventDAO.getPendingInvitationIds(ownerIds, attendeeIds, userIdentityId, responseType, offset, limit);
+    return this.eventDAO.getPendingInvitationIds(ownerIds, attendeeIds, responseType, offset, limit);
   }
 
   public List<Event> getParentRecurrentEventIds(ZonedDateTime start, ZonedDateTime end) {

@@ -328,14 +328,10 @@ export function dismissEventDate(eventId, dateOptionId) {
     });
 }
 
-export function getPendingInvitations(query, attendeeIdentityId, start, limit, responseTypes, expand) {
-  if (typeof start === 'object') {
-    start = toRFC3339(start);
-  }
+export function getPendingEvents(ownerIds, attendeeIdentityId, offset, limit, responseType, expand) {
 
   let params = {
-    query: query || '',
-    start: start,
+    offset: offset,
     timeZoneId: USER_TIMEZONE_ID,
   };
 
@@ -347,12 +343,16 @@ export function getPendingInvitations(query, attendeeIdentityId, start, limit, r
     params.expand = expand;
   }
 
+  if (ownerIds && ownerIds.length) {
+    params.ownerIds = ownerIds;
+  }
+
   if (attendeeIdentityId) {
     params.attendeeIdentityId = attendeeIdentityId;
   }
 
-  if (responseTypes) {
-    params.responseTypes = responseTypes;
+  if (responseType) {
+    params.responseType = responseType;
   }
 
   params = $.param(params, true);

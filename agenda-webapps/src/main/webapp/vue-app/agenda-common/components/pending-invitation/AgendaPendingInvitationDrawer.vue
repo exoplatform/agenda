@@ -46,13 +46,28 @@ export default {
   },
   created() {
     this.$root.$on('agenda-pending-invitation-drawer-open', this.open);
-    this.retrievePendingInvitations();
+    this.retrieveEvents();
   },
   methods: {
     applyFilters() {
       this.$emit('changed', this.selectedOwnerIds);
     },
-    retrievePendingInvitations(){
+    retrieveEvents() {
+      if (!this.initialized && eXo.env.portal.spaceId) {
+        const spaceId = eXo.env.portal.spaceId;
+        this.$spaceService.getSpaceById(spaceId, 'identity')
+          .then((space) => {
+            this.currentSpace = space;
+            if (space && space.identity && space.identity.id) {
+              this.ownerIds = [space.identity.id];
+            }
+            this.retrievePendingEvents();
+          });
+      } else {
+        this.retrievePendingEvents();
+      }
+    },
+    retrievePendingEvents(){
       this.loading = true;
       const userIdentityId = eXo.env.portal.userIdentityId;
       if (this.ownerIds === false) {
@@ -62,7 +77,7 @@ export default {
         this.initialized = true;
         return;
       }
-      return this.$eventService.getPendingInvitations(null, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, true), this.limit, ['NEEDS_ACTION'], 'attendees')
+      return this.$eventService.getPendingEvents(this.ownerIds,userIdentityId, 0, this.limit, 'NEEDS_ACTION', 'attendees')
         .then(data => {
           const pendingInvitations = data && data.events || [];
           pendingInvitations.forEach(event => {
