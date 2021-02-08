@@ -42,7 +42,6 @@ import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvide
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.spi.SpaceService;
 
-
 public class AgendaEventServiceImpl implements AgendaEventService {
 
   private static final Log             LOG = ExoLogger.getLogger(AgendaEventServiceImpl.class);
@@ -1008,46 +1007,31 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   }
 
   @Override
-  public List<Event> getPendingEvents(long attendeeId,
-                                      List<Long> ownerIds,
-                                      long userIdentityId,
-                                      EventAttendeeResponse responseType,
-                                      ZoneId userTimeZone,
-                                      int offset,
-                                      int limit) throws IllegalAccessException {
+  public List<Event> getPendingDatePolls(long userIdentityId,
+                                         ZoneId userTimeZone,
+                                         int offset,
+                                         int limit) {
     Identity userIdentity = identityManager.getIdentity(String.valueOf(userIdentityId));
     if (userIdentity == null) {
-      throw new IllegalAccessException("User with name " + userIdentityId + " doesn't exist");
+      throw new IllegalStateException("User with identity id " + userIdentityId + " doesn't exist");
     }
 
-    if (ownerIds != null) {
-      for (Long ownerId : ownerIds) {
-        if (!Utils.canAccessCalendar(identityManager, spaceService, ownerId, userIdentityId)) {
-          throw new IllegalAccessException("User '" + userIdentity.getId() + "' is not allowed to access calendar of identity '"
-                  + ownerIds + "'");
-        }
-      }
-    }
-    List<Long> attendeeSpaceIds = new ArrayList<>();
-    if (attendeeId > 0) {
-      if (!String.valueOf(attendeeId).contentEquals(userIdentity.getId())) {
-        throw new IllegalAccessException("User '" + userIdentity.getId() + "' is not allowed to access calendar of identity '"
-                + attendeeId + "'");
-      }
-      attendeeSpaceIds = Utils.getCalendarOwnersOfUser(spaceService, identityManager, userIdentity);
-    } else if (ownerIds == null) {
-      // If no attendee is selected, and no owners, filter events by use
-      // spaceIds
-      ownerIds = Utils.getCalendarOwnersOfUser(spaceService, identityManager, userIdentity);
+    List<Long> attendeeIds = Utils.getCalendarOwnersOfUser(spaceService, identityManager, userIdentity);
+    List<Long> eventIds = this.agendaEventStorage.getPendingDatePollIds(attendeeIds,
+                                                                        offset,
+                                                                        limit);
+    return computeEventsProperties(eventIds, null, null, userTimeZone, limit, userIdentity, null, null);
+  }
+
+  @Override
+  public long countPendingDatePolls(long userIdentityId) {
+    Identity userIdentity = identityManager.getIdentity(String.valueOf(userIdentityId));
+    if (userIdentity == null) {
+      throw new IllegalStateException("User with identity id " + userIdentityId + " doesn't exist");
     }
 
-    List<Long> eventIds = this.agendaEventStorage.getPendingInvitationIds(attendeeId,
-                                                                          attendeeSpaceIds,
-                                                                          ownerIds,
-                                                                          responseType,
-                                                                          offset,
-                                                                          limit);
-    return computeEventsProperties(eventIds, userTimeZone, limit, userIdentity);
+    List<Long> attendeeIds = Utils.getCalendarOwnersOfUser(spaceService, identityManager, userIdentity);
+    return this.agendaEventStorage.countPendingDatePolls(attendeeIds);
   }
 
   private void checkAndComputeDateOptions(Event event, List<EventDateOption> dateOptions) throws AgendaException {
@@ -1135,21 +1119,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     return computeRecurrentEvents(events, startMinusADay, endPlusADay, timeZone, limit);
   }
 
-  private List<Event> getEventsList(List<Long> eventIds, ZoneId timeZone, int limit) {
-    List<Event> events = eventIds.stream().map(this::getEventById).collect(Collectors.toList());
-    events.forEach(event -> {
-      if (event.getRecurrence() == null || event.getTimeZoneId() == null) {
-        // Adjust event for recurrent events after computing
-        // List of occurrences
-        adjustEventDatesForRead(event, timeZone);
-      } else {
-        // Adjust recurrent event date with original timeZone
-        adjustEventDatesForRead(event, event.getTimeZoneId());
-      }
-    });
-    return computeRecurrentEvents(events, timeZone, limit);
-  }
-
   private List<Event> computeEventsProperties(List<Long> eventIds,
                                               ZonedDateTime start,
                                               ZonedDateTime end,
@@ -1162,19 +1131,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       return Collections.emptyList();
     }
     List<Event> events = getEventsList(eventIds, startMinusADay, endPlusADay, timeZone, limit);
-    events = filterEvents(events, start, end, limit);
-    computeEventsAcl(events, userIdentity);
-    return events;
-  }
-
-  private List<Event> computeEventsProperties(List<Long> eventIds,
-                                              ZoneId timeZone,
-                                              int limit,
-                                              Identity userIdentity) {
-    if (eventIds == null || eventIds.isEmpty()) {
-      return Collections.emptyList();
+    if (start != null && (end != null || limit > 0)) {
+      events = filterEvents(events, start, end, limit);
     }
-    List<Event> events = getEventsList(eventIds,timeZone, limit);
     computeEventsAcl(events, userIdentity);
     return events;
   }
@@ -1405,30 +1364,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
           userTimezone = ZoneOffset.UTC;
         }
         List<Event> occurrences = getEventOccurrencesInPeriod(event, start, end, userTimezone, limit);
-        if (occurrences != null && !occurrences.isEmpty()) {
-          computedEvents.addAll(occurrences);
-        }
-      }
-    }
-    return computedEvents;
-  }
-
-  private List<Event> computeRecurrentEvents(List<Event> events, ZoneId userTimezone, int limit) {
-    List<Event> computedEvents = new ArrayList<>();
-    for (Event event : events) {
-      if (event.getRecurrence() == null || event.getStatus() != EventStatus.CONFIRMED) {
-        computedEvents.add(event);
-      } else {
-        if (userTimezone == null) {
-          userTimezone = ZoneOffset.UTC;
-        }
-        Event recurrentEvent = agendaEventStorage.getEventById(event.getId());
-        ZonedDateTime today = ZonedDateTime.now().toLocalDate().atStartOfDay(userTimezone);
-        List<Event> occurrences = getEventOccurrencesInPeriod(recurrentEvent, today, null, userTimezone, limit);
-        if (occurrences == null || occurrences.isEmpty()) {
-          occurrences = getEventOccurrencesInPeriod(recurrentEvent, recurrentEvent.getStart(), today, userTimezone, limit);
-        }
-
         if (occurrences != null && !occurrences.isEmpty()) {
           computedEvents.addAll(occurrences);
         }

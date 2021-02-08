@@ -36,4 +36,6 @@ public class EventList implements Serializable {
 
   private int               limit;
 
+  private long              size;
+
 }

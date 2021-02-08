@@ -1807,7 +1807,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     EventFilter eventFilter = new EventFilter(Long.parseLong(testuser2Identity.getId()),
                                               null,
                                               null,
-                                              null,
                                               getDate().plusHours(1),
                                               getDate().plusMinutes(90),
                                               0);
@@ -1825,7 +1824,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     eventFilter = new EventFilter(Long.parseLong(testuser2Identity.getId()),
                                   null,
                                   null,
-                                  null,
                                   getDate().plusHours(1),
                                   getDate().plusMinutes(90),
                                   0);
@@ -1837,7 +1835,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(exceptionalEvent.getId(), events.get(0).getId());
 
     eventFilter = new EventFilter(Long.parseLong(testuser2Identity.getId()),
-                                  null,
                                   null,
                                   null,
                                   getDate().plusHours(1).plusDays(1),
@@ -1864,7 +1861,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     eventFilter = new EventFilter(Long.parseLong(testuser2Identity.getId()),
                                   null,
                                   null,
-                                  null,
                                   getDate().plusHours(1),
                                   getDate().plusMinutes(90),
                                   0);
@@ -1873,7 +1869,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(0, events.size());
 
     eventFilter = new EventFilter(Long.parseLong(testuser2Identity.getId()),
-                                  null,
                                   null,
                                   null,
                                   getDate().plusHours(1).plusDays(1),
@@ -1916,7 +1911,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     EventFilter eventFilter = new EventFilter(Long.parseLong(testuser2Identity.getId()),
                                               null,
                                               null,
-                                              null,
                                               getDate().plusHours(1),
                                               getDate().plusMinutes(90),
                                               0);
@@ -1927,7 +1921,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(1, events.size());
 
     eventFilter = new EventFilter(Long.parseLong(testuser4Identity.getId()),
-                                  null,
                                   null,
                                   null,
                                   getDate().plusHours(1),
@@ -1955,7 +1948,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     EventFilter eventFilter = new EventFilter(Long.parseLong(testuser2Identity.getId()),
                                               null,
                                               null,
-                                              null,
                                               start,
                                               end,
                                               0);
@@ -1970,7 +1962,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(event1.getId(), occurrenceEvent.getParentId());
 
     eventFilter = new EventFilter(Long.parseLong(testuser2Identity.getId()),
-                                  null,
                                   null,
                                   null,
                                   date.plusHours(1),
@@ -1991,7 +1982,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     eventFilter = new EventFilter(Long.parseLong(testuser2Identity.getId()),
                                   null,
                                   null,
-                                  null,
                                   date.plusHours(1),
                                   date.plusMinutes(90),
                                   0);
@@ -2004,7 +1994,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     eventFilter = new EventFilter(Long.parseLong(testuser2Identity.getId()),
                                   null,
                                   null,
-                                  null,
                                   date.plusHours(1),
                                   date.plusMinutes(90).plusDays(1),
                                   0);
@@ -2015,7 +2004,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(4, events.size());
 
     eventFilter = new EventFilter(Long.parseLong(testuser2Identity.getId()),
-                                  null,
                                   null,
                                   null,
                                   event1.getRecurrence()
@@ -2053,7 +2041,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     eventFilter = new EventFilter(Long.parseLong(testuser2Identity.getId()),
                                   null,
                                   null,
-                                  null,
                                   date.plusHours(1),
                                   date.plusMinutes(90).plusDays(1),
                                   0);
@@ -2084,7 +2071,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
       EventFilter eventFilter = new EventFilter(Long.parseLong(testuser2Identity.getId()),
                                                 Collections.singletonList(testuser1Id),
                                                 null,
-                                                null,
                                                 date.plusHours(1),
                                                 date.plusMinutes(90),
                                                 0);
@@ -2105,7 +2091,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     EventFilter eventFilter = new EventFilter(Long.parseLong(testuser1Identity.getId()),
                                               Collections.singletonList(testuser1Id),
                                               null,
-                                              null,
                                               date.plusHours(1),
                                               date.plusMinutes(90),
                                               0);
@@ -2121,7 +2106,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     eventFilter = new EventFilter(Long.parseLong(testuser1Identity.getId()),
                                   Collections.singletonList(testuser1Id),
-                                  null,
                                   null,
                                   date.plusHours(1),
                                   date.plusMinutes(90),
@@ -2141,7 +2125,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     eventFilter = new EventFilter(Long.parseLong(testuser1Identity.getId()),
                                   Collections.singletonList(testuser1Id),
                                   null,
-                                  null,
                                   date.plusHours(1),
                                   date.plusMinutes(90),
                                   0);
@@ -2153,7 +2136,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     eventFilter = new EventFilter(Long.parseLong(testuser1Identity.getId()),
                                   Collections.singletonList(testuser1Id),
-                                  null,
                                   null,
                                   date.plusHours(1),
                                   date.plusMinutes(90).plusDays(1),
@@ -2177,7 +2159,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
       EventFilter eventFilter = new EventFilter(testuser1Id,
                                                 Collections.singletonList(Long.parseLong(spaceIdentity.getId())),
                                                 null,
-                                                null,
                                                 date.plusHours(1),
                                                 date.plusMinutes(90),
                                                 0);
@@ -2192,7 +2173,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     try {
       EventFilter eventFilter = new EventFilter(Long.parseLong(testuser5Identity.getId()),
                                                 Collections.singletonList(Long.parseLong(spaceIdentity.getId())),
-                                                null,
                                                 null,
                                                 date.plusHours(1),
                                                 date.plusMinutes(90),
@@ -2215,7 +2195,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     EventFilter eventFilter = new EventFilter(Long.parseLong(testuser2Identity.getId()),
                                               Collections.singletonList(Long.parseLong(spaceIdentity.getId())),
                                               null,
-                                              null,
                                               date.plusHours(1),
                                               date.plusMinutes(90),
                                               0);
@@ -2229,7 +2208,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     eventFilter = new EventFilter(Long.parseLong(testuser2Identity.getId()),
                                   Collections.singletonList(Long.parseLong(testuser2Identity.getId())),
                                   null,
-                                  null,
                                   date.plusHours(1),
                                   date.plusMinutes(90),
                                   0);
@@ -2241,7 +2219,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     eventFilter = new EventFilter(Long.parseLong(testuser3Identity.getId()),
                                   Collections.singletonList(Long.parseLong(spaceIdentity.getId())),
-                                  null,
                                   null,
                                   date.plusHours(1),
                                   date.plusMinutes(90),
@@ -2258,7 +2235,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     eventFilter = new EventFilter(Long.parseLong(testuser3Identity.getId()),
                                   Collections.singletonList(Long.parseLong(spaceIdentity.getId())),
-                                  null,
                                   null,
                                   date.plusHours(1),
                                   date.plusMinutes(90),
@@ -2300,7 +2276,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     EventFilter eventFilter = new EventFilter(Long.parseLong(testuser2Identity.getId()),
                                               Collections.singletonList(Long.parseLong(spaceIdentity.getId())),
                                               null,
-                                              null,
                                               date.plusHours(1),
                                               null,
                                               10);
@@ -2324,7 +2299,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
       EventFilter eventFilter = new EventFilter(testuser1Id,
                                                 null,
                                                 null,
-                                                null,
                                                 date.plusHours(1),
                                                 date.plusMinutes(90),
                                                 0);
@@ -2346,7 +2320,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     EventFilter eventFilter = new EventFilter(Long.parseLong(testuser2Identity.getId()),
                                               null,
                                               null,
-                                              null,
                                               date.plusHours(1),
                                               date.plusMinutes(90),
                                               0);
@@ -2357,7 +2330,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(1, events.size());
 
     eventFilter = new EventFilter(Long.parseLong(testuser3Identity.getId()),
-                                  null,
                                   null,
                                   null,
                                   date.plusHours(1),
@@ -2376,7 +2348,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     eventFilter = new EventFilter(Long.parseLong(testuser3Identity.getId()),
                                   null,
                                   null,
-                                  null,
                                   date.plusHours(1),
                                   date.plusMinutes(90),
                                   0);
@@ -2387,7 +2358,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(1, events.size());
 
     eventFilter = new EventFilter(Long.parseLong(testuser4Identity.getId()),
-                                  null,
                                   null,
                                   null,
                                   date.plusHours(1),
@@ -2404,7 +2374,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     agendaEventAttendeeService.saveEventAttendees(event, eventAttendees, testuser1Id, false, false, EventModificationType.ADDED);
 
     eventFilter = new EventFilter(Long.parseLong(testuser4Identity.getId()),
-                                  null,
                                   null,
                                   null,
                                   date.plusHours(1),
@@ -2433,8 +2402,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                                  Long.parseLong(testuser3Identity.getId()),
                                                  EventAttendeeResponse.TENTATIVE);
     responseTypes.add(EventAttendeeResponse.TENTATIVE);
-    EventFilter eventFilter =
-                            new EventFilter(Long.parseLong(testuser3Identity.getId()), null, responseTypes, null, start, end, 0);
+    EventFilter eventFilter = new EventFilter(Long.parseLong(testuser3Identity.getId()), null, responseTypes, start, end, 0);
     try {
       events = agendaEventService.getEvents(eventFilter,
                                             ZoneId.systemDefault(),
@@ -2453,13 +2421,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     List<EventAttendeeResponse> responseTypes1 = new ArrayList<>();
     responseTypes1.add(EventAttendeeResponse.TENTATIVE);
-    EventFilter eventFilter1 = new EventFilter(Long.parseLong(testuser3Identity.getId()),
-                                               null,
-                                               responseTypes1,
-                                               null,
-                                               start,
-                                               end,
-                                               0);
+    EventFilter eventFilter1 = new EventFilter(Long.parseLong(testuser3Identity.getId()), null, responseTypes1, start, end, 0);
     events = agendaEventService.getEvents(eventFilter1,
                                           ZoneId.systemDefault(),
                                           Long.parseLong(testuser3Identity.getId()));
@@ -2475,13 +2437,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     List<EventAttendeeResponse> responseTypes2 = new ArrayList<>();
     responseTypes2.add(EventAttendeeResponse.TENTATIVE);
     responseTypes2.add(EventAttendeeResponse.ACCEPTED);
-    EventFilter eventFilter2 = new EventFilter(Long.parseLong(testuser3Identity.getId()),
-                                               null,
-                                               responseTypes2,
-                                               null,
-                                               start,
-                                               end,
-                                               0);
+    EventFilter eventFilter2 = new EventFilter(Long.parseLong(testuser3Identity.getId()), null, responseTypes2, start, end, 0);
     events = agendaEventService.getEvents(eventFilter2,
                                           ZoneId.systemDefault(),
                                           Long.parseLong(testuser3Identity.getId()));

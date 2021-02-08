@@ -29,7 +29,6 @@ import javax.ws.rs.core.Response.Status;
 import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
-import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
 import org.exoplatform.agenda.model.*;
@@ -50,8 +49,6 @@ import org.exoplatform.social.rest.entity.IdentityEntity;
 
 import io.swagger.annotations.*;
 import io.swagger.jaxrs.PATCH;
-
-import static org.exoplatform.agenda.util.RestUtils.DEFAULT_LIMIT;
 
 @Path("/v1/agenda/events")
 @Api(value = "/v1/agenda/events", description = "Manages agenda events associated to users and spaces") // NOSONAR
@@ -148,11 +145,7 @@ public class AgendaEventRest implements ResourceContainer {
                             @ApiParam(
                                 value = "Attendee Response statuses to filter events by attendee response",
                                 required = false
-                            ) @QueryParam("responseTypes") List<EventAttendeeResponse> responseTypes,
-                            @ApiParam(
-                                    value = "Event statuses to filter events by Event status",
-                                    required = false
-                            ) @QueryParam("eventStatus") EventStatus eventStatus) {
+                            ) @QueryParam("responseTypes") List<EventAttendeeResponse> responseTypes) {
 
     if (StringUtils.isBlank(start)) {
       return Response.status(Status.BAD_REQUEST).entity("Start datetime is mandatory").build();
@@ -182,7 +175,6 @@ public class AgendaEventRest implements ResourceContainer {
       EventFilter eventFilter = new EventFilter(attendeeIdentityId,
                                                 ownerIds,
                                                 responseTypes,
-                                                eventStatus,
                                                 startDatetime,
                                                 endDatetime,
                                                 limit);
@@ -1167,7 +1159,7 @@ public class AgendaEventRest implements ResourceContainer {
           @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
           @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
   )
-  public Response search(@Context UriInfo uriInfo,
+  public Response search(
                          @ApiParam(value = "Term to search", required = true) @QueryParam(
                            "query"
                          ) String query,
@@ -1183,9 +1175,12 @@ public class AgendaEventRest implements ResourceContainer {
                          @ApiParam(value = "Limit", required = false, defaultValue = "20") @QueryParam(
                            "limit"
                          ) int limit) throws Exception { // NOSONAR
-
-    offset = offset > 0 ? offset : RestUtils.getOffset(uriInfo);
-    limit = limit > 0 ? limit : RestUtils.getLimit(uriInfo);
+    if (offset < 0) {
+      return Response.status(Status.BAD_REQUEST).entity("Offset must be 0 or positive").build();
+    }
+    if (limit < 0) {
+      return Response.status(Status.BAD_REQUEST).entity("Limit must be positive").build();
+    }
     List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
                                                                 : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
                                                                                                   ","));
@@ -1200,61 +1195,62 @@ public class AgendaEventRest implements ResourceContainer {
     return Response.ok(results).build();
   }
 
-  @Path("invitations")
+  @Path("datePolls")
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
   @ApiOperation(
-          value = "Retrieves the list of pending invitations for an owner of type user or space, identitifed by its identity technical identifier."
-                  + " If no designated owner, all events available for authenticated user will be retrieved.",
-          httpMethod = "GET", response = Response.class, produces = "application/json"
+      value = "Retrieves the list of pending date polls for currently authenticated user.",
+      httpMethod = "GET",
+      response = Response.class,
+      produces = "application/json"
   )
   @ApiResponses(
-          value = {
-                  @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-                  @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-                  @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
-          }
+      value = {
+          @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.FORBIDDEN, message = "Forbidden operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+      }
   )
   public Response getPendingEvents(
-          @ApiParam(value = "Identity technical identifiers of calendar owners", required = false)
-          @QueryParam("ownerIds") List<Long> ownerIds,
-          @ApiParam(value = "Attendee identity identifier to filter on events where user is attendee", required = true
-          ) @QueryParam("attendeeIdentityId") long attendeeIdentityId,
-          @ApiParam(value = "IANA Time zone identitifer", required = false) @QueryParam(
-                  "timeZoneId"
-          ) String timeZoneId,
-          @ApiParam(value = "Offset", required = false, defaultValue = "0") @QueryParam(
-                  "offset"
-          ) int offset,
-          @ApiParam(
-                  value = "Limit of results to return, used only when end date isn't set", required = false,
-                  defaultValue = "10"
-          ) @QueryParam("limit") int limit,
-          @ApiParam(
-                  value = "Attendee Response statuses to filter events by attendee response",
-                  required = false
-          ) @QueryParam("responseType") EventAttendeeResponse responseType) {
+                                   @ApiParam(value = "Offset", required = false, defaultValue = "0") @QueryParam(
+                                     "offset"
+                                   ) int offset,
+                                   @ApiParam(
+                                       value = "Limit of results to return", required = false
+                                   ) @QueryParam("limit") int limit,
+                                   @ApiParam(value = "IANA Time zone identitifer", required = false) @QueryParam(
+                                     "timeZoneId"
+                                   ) String timeZoneId,
+                                   @ApiParam(value = "Properties to expand", required = false) @QueryParam(
+                                     "expand"
+                                   ) String expand) {
     if (offset < 0) {
-      offset = 0;
+      return Response.status(Status.BAD_REQUEST).entity("Offset must be 0 or positive").build();
     }
-    if (limit <= 0) {
-      limit = DEFAULT_LIMIT;
+    if (limit < 0) {
+      return Response.status(Status.BAD_REQUEST).entity("Limit must be positive").build();
     }
     long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
     ZoneId userTimeZone = StringUtils.isBlank(timeZoneId) ? ZoneOffset.UTC : ZoneId.of(timeZoneId);
     try {
-      List<Event> events = agendaEventService.getPendingEvents(attendeeIdentityId,
-                                                               ownerIds,
-                                                               userIdentityId,
-                                                               responseType,
-                                                               userTimeZone,
-                                                               offset,
-                                                               limit);
-      return Response.ok(events).build();
-    } catch (IllegalAccessException e) {
-      LOG.warn("User '{}' attempts to access not authorized events of owner Id '{}'", RestUtils.getCurrentUser(), e);
-      return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
+      EventList eventList = new EventList();
+      eventList.setLimit(limit);
+      if (limit > 0) {
+        List<Event> events = agendaEventService.getPendingDatePolls(userIdentityId,
+                                                                    userTimeZone,
+                                                                    offset,
+                                                                    limit);
+        List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
+                                                                    : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
+                                                                                                      ","));
+        List<EventEntity> eventEntities = events.stream()
+                                                .map(event -> getEventEntity(event, userTimeZone, expandProperties))
+                                                .collect(Collectors.toList());
+        eventList.setEvents(eventEntities);
+      }
+      eventList.setSize(agendaEventService.countPendingDatePolls(userIdentityId));
+      return Response.ok(eventList).build();
     } catch (Exception e) {
       LOG.warn("Error retrieving list of events", e);
       return Response.serverError().entity(e.getMessage()).build();

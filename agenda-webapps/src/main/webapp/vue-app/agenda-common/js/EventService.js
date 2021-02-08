@@ -1,7 +1,7 @@
 import {toRFC3339, getDayNameFromDate, getMonthNumberFromDate, toDate, USER_TIMEZONE_ID} from './AgendaUtils.js';
 import {deleteEventWebConferencing, saveEventWebConferencing} from './EventWebConferencingService.js';
 
-export function getEvents(query, ownerIds, attendeeIdentityId, start, end, limit, responseTypes, expand, eventStatus) {
+export function getEvents(query, ownerIds, attendeeIdentityId, start, end, limit, responseTypes, expand) {
   if (typeof start === 'object') {
     start = toRFC3339(start);
   }
@@ -35,10 +35,6 @@ export function getEvents(query, ownerIds, attendeeIdentityId, start, end, limit
 
   if (responseTypes) {
     params.responseTypes = responseTypes;
-  }
-
-  if (eventStatus) {
-    params.eventStatus = eventStatus;
   }
 
   params = $.param(params, true);
@@ -328,43 +324,15 @@ export function dismissEventDate(eventId, dateOptionId) {
     });
 }
 
-export function getPendingEvents(ownerIds, attendeeIdentityId, offset, limit, responseType, expand) {
-
-  let params = {
-    offset: offset,
-    timeZoneId: USER_TIMEZONE_ID,
-  };
-
-  if (limit && limit > 0) {
-    params.limit = limit;
-  }
-
-  if (expand) {
-    params.expand = expand;
-  }
-
-  if (ownerIds && ownerIds.length) {
-    params.ownerIds = ownerIds;
-  }
-
-  if (attendeeIdentityId) {
-    params.attendeeIdentityId = attendeeIdentityId;
-  }
-
-  if (responseType) {
-    params.responseType = responseType;
-  }
-
-  params = $.param(params, true);
-
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/invitations?${params}`, {
+export function getPendingDatePolls(offset, limit, expand) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/datePolls?offset=${offset || 0}&limit=${limit || 0}&expand=${expand || ''}`, {
     method: 'GET',
     credentials: 'include',
   }).then((resp) => {
     if (resp && resp.ok) {
       return resp.json();
     } else {
-      throw new Error('Error getting event list');
+      throw new Error('Error getting pending date poll list');
     }
   });
 }

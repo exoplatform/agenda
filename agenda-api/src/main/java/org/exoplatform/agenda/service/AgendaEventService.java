@@ -21,12 +21,10 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
 
-import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.social.core.identity.model.Identity;
-
 
 public interface AgendaEventService {
 
@@ -320,22 +318,25 @@ public interface AgendaEventService {
                                                                                    IllegalAccessException;
 
   /**
+   * Retrieves the list of pending date polls where the current user is invited
+   * 
    * @param attendeeId user {@link Identity} identifier
-   * @param ownerIds {@link List} of {@link Identity} technical identifier
-   * @param userIdentityId user {@link Identity} identifier
-   * @param responseType a response type to get list of NEEDS_ACTION events
-   * @param timezone used timezone to compute events
+   * @param userTimeZone used to compute events dates switch given time zone
    * @param offset
    * @param limit maximum number of occurrences to retrieve
-   * @return
-   * @throws IllegalAccessException
+   * @return {@link List} date poll {@link Event} for user
    */
-  List<Event> getPendingEvents(long attendeeId,
-                               List<Long> ownerIds,
-                               long userIdentityId,
-                               EventAttendeeResponse responseType,
-                               ZoneId timezone,
+  List<Event> getPendingDatePolls(long attendeeId,
+                               ZoneId userTimeZone,
                                int offset,
-                               int limit) throws IllegalAccessException;
+                               int limit);
+
+  /**
+   * Count pending date polls where the current user is invited
+   * 
+   * @param attendeeId user {@link Identity} identifier
+   * @return {@link List} date poll {@link Event} for user
+   */
+  long countPendingDatePolls(long attendeeId);
 
 }

@@ -1,130 +1,74 @@
 <template>
-  <exo-drawer
-    ref="calendarPendingInvitation"
-    right
-    @opened="drawer = true"
-    @closed="drawer = false">
+  <exo-drawer ref="calendarPendingDatePolls" right>
     <template slot="title">
       {{ $t('agenda.PendingInvitation') }}
     </template>
     <template slot="content">
-      <agenda-pending-invitation-list :pending-invitations="pendingInvitations" />
+      <v-list>
+        <agenda-pending-invitation-item
+          v-for="datePoll in pendingDatePolls"
+          :key="datePoll.id"
+          :date-poll="datePoll" />
+      </v-list>
+    </template>
+    <template v-if="hasMore" slot="footer">
+      <v-btn
+        :loading="loading"
+        :disabled="loading"
+        class="btn mx-auto"
+        @click="loadMore">
+        {{ $t('agenda.button.loadMore') }}
+      </v-btn>
     </template>
   </exo-drawer>
 </template>
 
 <script>
 export default {
-  props: {
-    ownerIds: {
-      type: Array,
-      default: () => [],
-    },
-  },
   data: () => ({
-    initialized: false,
     drawer: false,
-    selectedOwnerIds: [],
-    pendingInvitations: null,
-    hasMore: false,
-    settingsLoaded: false,
-    pageSize: 10,
-    ownerIds: [],
-    limit: 0,
-    period: {
-      start: new Date(),
-      end: null,
-    },
+    pendingDatePolls: null,
+    pendingDatePollsCount: 0,
+    pageSize: 20,
+    limit: 20,
+    loading: false,
   }),
   computed: {
-    calendarOwnersSuggesterLabels() {
-      return {
-        placeholder: this.$t('agenda.filterAgendaPlaceholder'),
-        noDataLabel: this.$t('agenda.noDataLabel'),
-      };
+    hasMore() {
+      return this.pendingDatePolls && this.pendingDatePolls.length < this.pendingDatePollsCount;
     },
   },
   created() {
-    this.$root.$on('agenda-pending-invitation-drawer-open', this.open);
-    this.retrieveEvents();
+    this.$root.$on('agenda-pending-date-polls-drawer-open', this.open);
   },
   methods: {
-    applyFilters() {
-      this.$emit('changed', this.selectedOwnerIds);
-    },
-    retrieveEvents() {
-      if (!this.initialized && eXo.env.portal.spaceId) {
-        const spaceId = eXo.env.portal.spaceId;
-        this.$spaceService.getSpaceById(spaceId, 'identity')
-          .then((space) => {
-            this.currentSpace = space;
-            if (space && space.identity && space.identity.id) {
-              this.ownerIds = [space.identity.id];
-            }
-            this.retrievePendingEvents();
-          });
-      } else {
-        this.retrievePendingEvents();
-      }
-    },
-    retrievePendingEvents(){
-      this.loading = true;
-      const userIdentityId = eXo.env.portal.userIdentityId;
-      if (this.ownerIds === false) {
-        this.pendingInvitations = [];
-        this.hasMore = false;
-        this.loading = false;
-        this.initialized = true;
-        return;
-      }
-      return this.$eventService.getPendingEvents(this.ownerIds,userIdentityId, 0, this.limit, 'NEEDS_ACTION', 'attendees')
-        .then(data => {
-          const pendingInvitations = data && data.events || [];
-          pendingInvitations.forEach(event => {
-            event.name = event.summary;
-          });
-          this.hasMore = this.limit > this.pageSize && (this.pendingInvitations && this.pendingInvitations.length || 0) < pendingInvitations.length || pendingInvitations.length >= this.limit;
-          this.pendingInvitations = pendingInvitations;
-        }).catch(error =>{
-          console.error('Error retrieving pending invitations', error);
-        }).finally(() => {
-          this.initialized = true;
-          this.loading = false;
-        });
-    },
-    retrieveDatePolls(){
-      this.loading = true;
-      const userIdentityId = eXo.env.portal.userIdentityId;
-      if (this.ownerIds === false) {
-        this.pendingInvitations = [];
-        this.hasMore = false;
-        this.loading = false;
-        this.initialized = true;
-        return;
-      }
-      return this.$eventService.getEvents(null, this.ownerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, true), this.$agendaUtils.toRFC3339(this.period.end), this.limit, null, 'all', 'TENTATIVE')
-        .then(data => {
-          const pendingInvitations = data && data.events || [];
-          pendingInvitations.forEach(event => {
-            event.name = event.summary;
-          });
-          this.hasMore = this.limit > this.pageSize && (this.pendingInvitations && this.pendingInvitations.length || 0) < pendingInvitations.length || pendingInvitations.length >= this.limit;
-          this.pendingInvitations = pendingInvitations;
-        }).catch(error =>{
-          console.error('Error retrieving pending invitations', error);
-        }).finally(() => {
-          this.initialized = true;
-          this.loading = false;
-        });
-    },
     close() {
-      this.$refs.calendarPendingInvitation.close();
+      this.$refs.calendarPendingDatePolls.close();
     },
     open() {
-      this.$refs.calendarPendingInvitation.open();
+      this.$refs.calendarPendingDatePolls.open();
       this.$nextTick().then(() => {
-        //this.$refs.PendingInvitationList.reset();
+        this.retrievePendingDatePolls();
       });
+    },
+    loadMore(){
+      this.limit += this.pageSize;
+      this.retrievePendingDatePolls();
+    },
+    retrievePendingDatePolls(){
+      this.loading = true;
+      this.$refs.calendarPendingDatePolls.startLoading();
+      const userIdentityId = eXo.env.portal.userIdentityId;
+      return this.$eventService.getPendingDatePolls(this.ownerIds,userIdentityId, 0, this.limit)
+        .then(eventsList => {
+          this.pendingDatePollsCount = eventsList.size || 0;
+          this.pendingDatePolls = eventsList && eventsList.events || [];
+        }).catch(error =>{
+          console.error('Error retrieving pending date polls', error);
+        }).finally(() => {
+          this.loading = false;
+          this.$refs.calendarPendingDatePolls.endLoading();
+        });
     },
   },
 };

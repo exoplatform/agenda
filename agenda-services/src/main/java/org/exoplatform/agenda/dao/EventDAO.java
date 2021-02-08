@@ -29,6 +29,8 @@ import org.exoplatform.commons.persistence.impl.GenericDAOJPAImpl;
 
 public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
 
+  private static final int   DEFAULT_LIMIT = 10;
+
   private EventConferenceDAO eventConferenceDAO;
 
   private EventAttendeeDAO   eventAttendeeDAO;
@@ -166,7 +168,6 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
                                 List<Long> ownerIds,
                                 List<Long> attendeeIds,
                                 List<EventAttendeeResponse> responseTypes,
-                                EventStatus eventStatus,
                                 int limit) {
     verifyLimit(endDate, limit);
 
@@ -198,11 +199,7 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
 
     TypedQuery<Tuple> query = getEntityManager().createQuery(jpql.toString(), Tuple.class);
     query.setParameter("start", startDate);
-    if (eventStatus != null) {
-      query.setParameter("status", eventStatus);
-    } else {
-      query.setParameter("status", EventStatus.CONFIRMED);
-    }
+    query.setParameter("status", EventStatus.CONFIRMED);
     if (endDate != null) {
       query.setParameter("end", endDate);
     }
@@ -223,45 +220,39 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
                               : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
   }
 
-  public List<Long> getPendingInvitationIds(List<Long> ownerIds,
-                                            List<Long> attendeeIds,
-                                            EventAttendeeResponse responseType,
-                                            int offset,
-                                            int limit) {
-    boolean filterAttendees = attendeeIds != null && !attendeeIds.isEmpty();
-    boolean filterOwners = ownerIds != null && !ownerIds.isEmpty();
-    // We avoid to use QueryBuilder to avoid contention,
-    // thus we will have to build a specific query for each use case
-    StringBuilder jpql = new StringBuilder("SELECT DISTINCT(ev.id), ev.startDate FROM AgendaEvent ev");
-    if (filterAttendees) {
-      jpql.append(" INNER JOIN ev.attendees att");
+  public List<Long> getPendingDatePollIds(List<Long> attendeeIds,
+                                          int offset,
+                                          int limit) {
+    TypedQuery<Tuple> query = getEntityManager().createNamedQuery("AgendaEvent.getPendingDatePollIds", Tuple.class);
+    query.setParameter("status", EventStatus.TENTATIVE);
+    query.setParameter("attendeeIds", attendeeIds);
+    if (offset >= 0) {
+      query.setFirstResult(offset);
+    } else {
+      query.setFirstResult(0);
     }
-    jpql.append(" INNER JOIN ev.calendar cal");
-    jpql.append(" WHERE ev.status = :status");
-    if (filterAttendees) {
-      jpql.append(" AND att.identityId IN (:attendeeIds)");
-      jpql.append(" AND att.response = :responseType)");
-    }
-    jpql.append(" ORDER BY ev.startDate DESC");
-
-    TypedQuery<Tuple> query = getEntityManager().createQuery(jpql.toString(), Tuple.class);
-    query.setParameter("status", EventStatus.CONFIRMED);
-    query.setParameter("responseType", responseType);
-    if (filterOwners) {
-      jpql.append(" AND cal.ownerId IN (:ownerIds)");
-    }
-    if (filterAttendees) {
-      query.setParameter("attendeeIds", attendeeIds);
-    }
-    query.setFirstResult(offset);
     if (limit > 0) {
       query.setMaxResults(limit);
+    } else {
+      query.setMaxResults(DEFAULT_LIMIT);
     }
     List<Tuple> resultList = query.getResultList();
     return resultList == null ? Collections.emptyList()
                               : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
   }
-  
+
+  public Long countPendingDatePolls(List<Long> attendeeIds) {
+    TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaEvent.countPendingDatePoll", Long.class);
+    query.setParameter("status", EventStatus.TENTATIVE);
+    query.setParameter("attendeeIds", attendeeIds);
+    try {
+      Long count = query.getSingleResult();
+      return count == null ? 0l : count.longValue();
+    } catch (NoResultException e) {
+      return 0l;
+    }
+  }
+
   public List<EventEntity> getParentRecurrentEventIds(Date startDate, Date endDate) {
     TypedQuery<EventEntity> query = getEntityManager().createNamedQuery("AgendaEvent.getParentRecurrentEventIds",
                                                                         EventEntity.class);

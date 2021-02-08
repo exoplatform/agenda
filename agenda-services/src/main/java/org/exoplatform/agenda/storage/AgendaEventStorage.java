@@ -25,7 +25,6 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang.StringUtils;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
-import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.dao.*;
 import org.exoplatform.agenda.entity.*;
 import org.exoplatform.agenda.model.*;
@@ -62,19 +61,18 @@ public class AgendaEventStorage {
     List<Long> attendeeIds = eventFilter.getAttendeeId() > 0 ? eventFilter.getAttendeeWithSpacesIds() : null;
     List<Long> ownerIds = eventFilter.getOwnerIds();
     List<EventAttendeeResponse> responseTypes = eventFilter.getResponseTypes();
-    EventStatus eventStatus = eventFilter.getEventStatus();
     int limit = eventFilter.getEnd() == null ? DEFAULT_LIMIT : 0;
-    return this.eventDAO.getEventIds(startDate, endDate, ownerIds, attendeeIds, responseTypes, eventStatus, limit);
+    return this.eventDAO.getEventIds(startDate, endDate, ownerIds, attendeeIds, responseTypes, limit);
   }
 
-  public List<Long> getPendingInvitationIds(long attendeeId,
-                                            List<Long> attendeeSpaceIds,
-                                            List<Long> ownerIds,
-                                            EventAttendeeResponse responseType,
-                                            int offset,
-                                            int limit) {
-    List<Long> attendeeIds = attendeeId > 0 ? attendeeSpaceIds : null;
-    return this.eventDAO.getPendingInvitationIds(ownerIds, attendeeIds, responseType, offset, limit);
+  public List<Long> getPendingDatePollIds(List<Long> attendeeIds,
+                                          int offset,
+                                          int limit) {
+    return this.eventDAO.getPendingDatePollIds(attendeeIds, offset, limit);
+  }
+
+  public long countPendingDatePolls(List<Long> attendeeIds) {
+    return this.eventDAO.countPendingDatePolls(attendeeIds);
   }
 
   public List<Event> getParentRecurrentEventIds(ZonedDateTime start, ZonedDateTime end) {
