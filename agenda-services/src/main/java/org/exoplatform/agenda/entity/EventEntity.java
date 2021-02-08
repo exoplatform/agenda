@@ -87,7 +87,6 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
               + " INNER JOIN ev.attendees att"
               + " WHERE ev.status = :status"
               + " AND att.identityId IN (:attendeeIds)"
-              + " ORDER BY ev.createdDate DESC"
       ),
   }
 )

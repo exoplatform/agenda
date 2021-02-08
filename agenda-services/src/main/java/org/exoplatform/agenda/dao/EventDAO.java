@@ -220,7 +220,7 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
                               : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
   }
 
-  public List<Long> getPendingDatePollIds(List<Long> attendeeIds,
+  public List<Long> getEventDatePollIds(List<Long> attendeeIds,
                                           int offset,
                                           int limit) {
     TypedQuery<Tuple> query = getEntityManager().createNamedQuery("AgendaEvent.getPendingDatePollIds", Tuple.class);
@@ -241,7 +241,7 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
                               : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
   }
 
-  public Long countPendingDatePolls(List<Long> attendeeIds) {
+  public Long countEventDatePolls(List<Long> attendeeIds) {
     TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaEvent.countPendingDatePoll", Long.class);
     query.setParameter("status", EventStatus.TENTATIVE);
     query.setParameter("attendeeIds", attendeeIds);

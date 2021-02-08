@@ -1237,7 +1237,7 @@ public class AgendaEventRest implements ResourceContainer {
       EventList eventList = new EventList();
       eventList.setLimit(limit);
       if (limit > 0) {
-        List<Event> events = agendaEventService.getPendingDatePolls(userIdentityId,
+        List<Event> events = agendaEventService.getEventDatePolls(userIdentityId,
                                                                     userTimeZone,
                                                                     offset,
                                                                     limit);
@@ -1249,7 +1249,7 @@ public class AgendaEventRest implements ResourceContainer {
                                                 .collect(Collectors.toList());
         eventList.setEvents(eventEntities);
       }
-      eventList.setSize(agendaEventService.countPendingDatePolls(userIdentityId));
+      eventList.setSize(agendaEventService.countEventDatePolls(userIdentityId));
       return Response.ok(eventList).build();
     } catch (Exception e) {
       LOG.warn("Error retrieving list of events", e);

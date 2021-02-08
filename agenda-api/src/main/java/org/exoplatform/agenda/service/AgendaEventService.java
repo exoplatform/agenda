@@ -326,10 +326,10 @@ public interface AgendaEventService {
    * @param limit maximum number of occurrences to retrieve
    * @return {@link List} date poll {@link Event} for user
    */
-  List<Event> getPendingDatePolls(long attendeeId,
-                               ZoneId userTimeZone,
-                               int offset,
-                               int limit);
+  List<Event> getEventDatePolls(long attendeeId,
+                                ZoneId userTimeZone,
+                                int offset,
+                                int limit);
 
   /**
    * Count pending date polls where the current user is invited
@@ -337,6 +337,6 @@ public interface AgendaEventService {
    * @param attendeeId user {@link Identity} identifier
    * @return {@link List} date poll {@link Event} for user
    */
-  long countPendingDatePolls(long attendeeId);
+  long countEventDatePolls(long attendeeId);
 
 }

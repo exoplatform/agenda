@@ -1007,31 +1007,31 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   }
 
   @Override
-  public List<Event> getPendingDatePolls(long userIdentityId,
-                                         ZoneId userTimeZone,
-                                         int offset,
-                                         int limit) {
+  public List<Event> getEventDatePolls(long userIdentityId,
+                                       ZoneId userTimeZone,
+                                       int offset,
+                                       int limit) {
     Identity userIdentity = identityManager.getIdentity(String.valueOf(userIdentityId));
     if (userIdentity == null) {
       throw new IllegalStateException("User with identity id " + userIdentityId + " doesn't exist");
     }
 
     List<Long> attendeeIds = Utils.getCalendarOwnersOfUser(spaceService, identityManager, userIdentity);
-    List<Long> eventIds = this.agendaEventStorage.getPendingDatePollIds(attendeeIds,
-                                                                        offset,
-                                                                        limit);
+    List<Long> eventIds = this.agendaEventStorage.getEventDatePollIds(attendeeIds,
+                                                                      offset,
+                                                                      limit);
     return computeEventsProperties(eventIds, null, null, userTimeZone, limit, userIdentity, null, null);
   }
 
   @Override
-  public long countPendingDatePolls(long userIdentityId) {
+  public long countEventDatePolls(long userIdentityId) {
     Identity userIdentity = identityManager.getIdentity(String.valueOf(userIdentityId));
     if (userIdentity == null) {
       throw new IllegalStateException("User with identity id " + userIdentityId + " doesn't exist");
     }
 
     List<Long> attendeeIds = Utils.getCalendarOwnersOfUser(spaceService, identityManager, userIdentity);
-    return this.agendaEventStorage.countPendingDatePolls(attendeeIds);
+    return this.agendaEventStorage.countEventDatePolls(attendeeIds);
   }
 
   private void checkAndComputeDateOptions(Event event, List<EventDateOption> dateOptions) throws AgendaException {
