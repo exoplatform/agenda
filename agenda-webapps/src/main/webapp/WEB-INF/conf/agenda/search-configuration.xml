@@ -55,7 +55,7 @@
               <string>agenda</string>
             </field>
             <field name="uri">
-              <string><![CDATA[/portal/rest/v1/agenda/events/search?limit={limit}&query={keyword}]]></string>
+              <string><![CDATA[/portal/rest/v1/agenda/events/search?limit={limit}&query={keyword}&expand=response]]></string>
             </field>
             <field name="enabled">
               <boolean>${exo.search.agenda.enabled:true}</boolean>

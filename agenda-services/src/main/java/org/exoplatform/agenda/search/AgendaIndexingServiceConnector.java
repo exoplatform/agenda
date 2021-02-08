@@ -138,6 +138,10 @@ public class AgendaIndexingServiceConnector extends ElasticIndexingServiceConnec
       fields.put("summary", summary);
     }
 
+    if (event.getStatus() != null) {
+      fields.put("status", event.getStatus().name());
+    }
+
     String description = null;
     if (StringUtils.isNotBlank(event.getDescription())) {
       description = event.getDescription();
