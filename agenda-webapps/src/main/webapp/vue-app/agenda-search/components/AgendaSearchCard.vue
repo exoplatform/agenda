@@ -18,13 +18,12 @@
             class="mx-auto" />
         </v-avatar>
         <div v-if="eventTitle" class="d-flex flex-column text-truncate pull-left ml-2">
-          <!-- eslint-disable vue/no-v-html -->
           <a
             v-if="eventTitle"
+            v-sanitized-html="eventTitle"
             :href="eventUrl"
             :title="eventTitleText"
-            class="pt-2 text-left text-truncate"
-            v-html="eventTitle">
+            class="pt-2 text-left text-truncate">
           </a>
           <a
             v-if="eventOwnerDisplayName"
@@ -45,7 +44,10 @@
       </div>
     </div>
     <v-list class="light-grey-background flex-grow-0 border-top-color no-border-radius pa-0">
-      <v-list-item class="px-0 pt-1 pb-2">
+      <v-list-item
+        v-if="isConfirmedEvent"
+        class="px-0 pt-1 pb-2"
+        two-line>
         <v-list-item-icon class="mx-0 my-auto">
           <span class="uiIconPLFEventTask tertiary--text pl-1 pr-2 display-1"></span>
         </v-list-item-icon>
@@ -59,6 +61,19 @@
               :value="eventStartDate"
               :format="dateTimeFormat"
               class="mr-1" />
+          </v-list-item-title>
+        </v-list-item-content>
+      </v-list-item>
+      <v-list-item
+        v-else-if="isTentativeEvent"
+        class="px-2 pt-1 pb-2"
+        two-line>
+        <v-list-item-icon class="mx-0 my-auto">
+          <span class="uiIconStatistics uiIcon32x32 uiIconPLFFont tertiary--text pl-1 pr-2"></span>
+        </v-list-item-icon>
+        <v-list-item-content class="pb-0">
+          <v-list-item-title>
+            {{ voteLabel }}
           </v-list-item-title>
         </v-list-item-content>
       </v-list-item>
@@ -77,6 +92,8 @@ export default {
   data: () => ({
     lineHeight: 22,
     spaceAvatarSize: 37,
+    maxEllipsisHeight: 92,
+    currentUserId: eXo.env.portal.userIdentityId,
     fullDateFormat: {
       year: 'numeric',
       month: 'long',
@@ -147,6 +164,24 @@ export default {
     eventOwnerAvatarUrl() {
       return this.ownerProfile && this.ownerProfile.avatarUrl;
     },
+    isConfirmedEvent() {
+      return this.result && (this.result.status === 'CONFIRMED' || !this.result.status);
+    },
+    isTentativeEvent() {
+      return this.result && this.result.status === 'TENTATIVE';
+    },
+    currentAttendee() {
+      return this.result.attendees.find(attendee => attendee.identity.id === this.currentUserId);
+    },
+    hasVoted() {
+      return this.currentAttendee && this.currentAttendee.response === 'TENTATIVE';
+    },
+    voteLabel() {
+      if (!this.currentAttendee) {
+        return this.$t('agenda.datePoll');
+      }
+      return this.hasVoted && this.$t('agenda.datePollVoted') || this.$t('agenda.datePollVoteNeeded');
+    },
   },
   mounted() {
     this.computeEllipsis();
@@ -161,18 +196,21 @@ export default {
         return;
       }
       excerptParent.innerHTML = this.excerpts.length ? this.excerptHtml : this.eventDescription;
-      if (this.excerpts.length) {
-        let charsToDelete = 20;
+      if (excerptParent.innerHTML.length) {
+        const charsToDelete = 50;
         let excerptParentHeight = excerptParent.getBoundingClientRect().height || this.lineHeight;
+        let lastExcerptParentHeight = 0;
         if (excerptParentHeight > this.maxEllipsisHeight) {
-          while (excerptParentHeight > this.maxEllipsisHeight) {
-            const newHtml = this.deleteLastChars(excerptParent.innerHTML.replace(/&[a-z]*;/, ''), charsToDelete);
-            const oldLength = excerptParent.innerHTML.length;
-            excerptParent.innerHTML = newHtml;
-            if (excerptParent.innerHTML.length === oldLength) {
-              charsToDelete = charsToDelete * 2;
-            }
+          let diffWithPrevious = excerptParentHeight;
+          let deleteCharsTentatives = 3;
+          while (excerptParentHeight > this.maxEllipsisHeight && (diffWithPrevious > 0 || deleteCharsTentatives)) {
+            excerptParent.innerHTML = this.deleteLastChars(excerptParent.innerHTML.replace(/&[a-z]*;/, ''), charsToDelete);
+            lastExcerptParentHeight = excerptParentHeight;
             excerptParentHeight = excerptParent.getBoundingClientRect().height || this.lineHeight;
+            diffWithPrevious = lastExcerptParentHeight - excerptParentHeight;
+            if (diffWithPrevious === 0 && excerptParentHeight > this.maxEllipsisHeight) {
+              deleteCharsTentatives--;
+            }
           }
           excerptParent.innerHTML = this.deleteLastChars(excerptParent.innerHTML, 4);
           excerptParent.innerHTML = `${excerptParent.innerHTML}...`;

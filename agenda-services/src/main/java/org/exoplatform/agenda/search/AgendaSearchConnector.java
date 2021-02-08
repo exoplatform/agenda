@@ -28,6 +28,7 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
+import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.model.EventSearchResult;
 import org.exoplatform.agenda.storage.AgendaEventStorage;
 import org.exoplatform.agenda.util.Utils;
@@ -164,6 +165,7 @@ public class AgendaSearchConnector {
         JSONObject hitSource = (JSONObject) jsonHitObject.get("_source");
         long id = parseLong(hitSource, "id");
         String summary = (String) hitSource.get("summary");
+        String status = (String) hitSource.get("status");
         long calendarId = parseLong(hitSource, "calendarId");
         String startTime = (String) hitSource.get("startTime");
         String endTime = (String) hitSource.get("endTime");
@@ -195,6 +197,7 @@ public class AgendaSearchConnector {
         eventSearchResult.setSummary(summary);
         eventSearchResult.setDescription(description);
         eventSearchResult.setExcerpts(excerpts);
+        eventSearchResult.setStatus(status == null ? EventStatus.CONFIRMED : EventStatus.valueOf(status));
         eventSearchResult.setRecurrent(agendaEventStorage.isRecurrentEvent(id));
         results.add(eventSearchResult);
       } catch (Exception e) {

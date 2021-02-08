@@ -196,7 +196,13 @@ public class AgendaEventRest implements ResourceContainer {
                                                               userTimeZone);
         if (expandProperties.contains("all") || expandProperties.contains("attendees")) {
           try {
-            fillAttendees(eventEntity, attendeesByParentEventId);
+            fillAttendees(eventEntity, attendeesByParentEventId, 0);
+          } catch (Exception e) {
+            LOG.warn("Error retrieving event reminders, retrieve event without it", e);
+          }
+        } else if (expandProperties.contains("response")) {
+          try {
+            fillAttendees(eventEntity, attendeesByParentEventId, userIdentityId);
           } catch (Exception e) {
             LOG.warn("Error retrieving event reminders, retrieve event without it", e);
           }
@@ -1289,7 +1295,9 @@ public class AgendaEventRest implements ResourceContainer {
                                                             userTimeZone);
       long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
       if (expandProperties.contains("all") || expandProperties.contains("attendees")) {
-        fillAttendees(eventEntity);
+        fillAttendees(eventEntity, 0);
+      } else if (expandProperties.contains("response")) {
+        fillAttendees(eventEntity, userIdentityId);
       }
       if (expandProperties.contains("all") || expandProperties.contains("attachments")) {
         fillAttachments(eventEntity);
@@ -1328,7 +1336,9 @@ public class AgendaEventRest implements ResourceContainer {
 
       long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
       if (expandProperties.contains("all") || expandProperties.contains("attendees")) {
-        fillAttendees(eventSearchResultEntity);
+        fillAttendees(eventSearchResultEntity, 0);
+      } else if (expandProperties.contains("response")) {
+        fillAttendees(eventSearchResultEntity, userIdentityId);
       }
       if (expandProperties.contains("all") || expandProperties.contains("attachments")) {
         fillAttachments(eventSearchResultEntity);
@@ -1353,29 +1363,41 @@ public class AgendaEventRest implements ResourceContainer {
     }
   }
 
-  private void fillAttendees(EventEntity eventEntity, Map<Long, List<EventAttendeeEntity>> attendeesByParentEventId) {
+  private void fillAttendees(EventEntity eventEntity,
+                             Map<Long, List<EventAttendeeEntity>> attendeesByParentEventId,
+                             long userIdentityId) {
     boolean computedOccurrence = isComputedOccurrence(eventEntity);
     long eventId = computedOccurrence ? eventEntity.getParent().getId()
                                       : eventEntity.getId();
     if (attendeesByParentEventId.containsKey(eventId)) {
       eventEntity.setAttendees(attendeesByParentEventId.get(eventId));
     } else {
-      fillAttendees(eventEntity);
+      fillAttendees(eventEntity, userIdentityId);
       attendeesByParentEventId.put(eventId, eventEntity.getAttendees());
     }
   }
 
-  private void fillAttendees(EventEntity eventEntity) {
+  private void fillAttendees(EventEntity eventEntity, long userIdentityId) {
     boolean computedOccurrence = isComputedOccurrence(eventEntity);
     long eventId = computedOccurrence ? eventEntity.getParent().getId()
                                       : eventEntity.getId();
     List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId);
-    List<EventAttendeeEntity> eventAttendeeEntities = eventAttendees == null ? null
-                                                                             : eventAttendees.stream()
-                                                                                             .map(eventAttendee -> RestEntityBuilder.fromEventAttendee(identityManager,
-                                                                                                                                                       eventAttendee))
-                                                                                             .collect(Collectors.toList());
-    eventEntity.setAttendees(eventAttendeeEntities);
+    if (userIdentityId > 0) {
+      List<EventAttendeeEntity> eventAttendeeEntities = eventAttendees == null ? null
+                                                                               : eventAttendees.stream()
+                                                                                               .filter(eventAttendee -> eventAttendee.getIdentityId() == userIdentityId)
+                                                                                               .map(eventAttendee -> RestEntityBuilder.fromEventAttendee(identityManager,
+                                                                                                                                                         eventAttendee))
+                                                                                               .collect(Collectors.toList());
+      eventEntity.setAttendees(eventAttendeeEntities);
+    } else {
+      List<EventAttendeeEntity> eventAttendeeEntities = eventAttendees == null ? null
+                                                                               : eventAttendees.stream()
+                                                                                               .map(eventAttendee -> RestEntityBuilder.fromEventAttendee(identityManager,
+                                                                                                                                                         eventAttendee))
+                                                                                               .collect(Collectors.toList());
+      eventEntity.setAttendees(eventAttendeeEntities);
+    }
   }
 
   private void fillAttachments(EventEntity eventEntity, Map<Long, List<EventAttachmentEntity>> attachmentsByParentEventId) {
