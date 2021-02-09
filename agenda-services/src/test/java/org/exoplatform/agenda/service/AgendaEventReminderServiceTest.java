@@ -20,8 +20,7 @@ import static org.junit.Assert.*;
 
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 import org.junit.Test;
 
@@ -61,6 +60,71 @@ public class AgendaEventReminderServiceTest extends BaseAgendaEventTest {
     eventReminders = agendaEventReminderService.getEventReminders(eventId, userIdentityId);
     assertNotNull(eventReminders);
     assertEquals(0, eventReminders.size());
+  }
+
+  @Test
+  public void testUpdateEventStatus() throws Exception { // NOSONAR
+    ZonedDateTime start = ZonedDateTime.now().withNano(0);
+
+    boolean allDay = false;
+    long userIdentityId = Long.parseLong(testuser1Identity.getId());
+
+    Event event = newEventInstance(start, start, allDay);
+    event = createEvent(event.clone(), userIdentityId, testuser5Identity);
+
+    long eventId = event.getId();
+    List<EventReminder> eventReminders = agendaEventReminderService.getEventReminders(eventId, userIdentityId);
+    assertNotNull(eventReminders);
+    assertEquals(1, eventReminders.size());
+    assertNotNull(eventReminders.get(0).getDatetime());
+
+    List<EventReminder> origEventReminders = new ArrayList<>(eventReminders);
+
+    List<EventAttendee> attendees = agendaEventAttendeeService.getEventAttendees(eventId);
+
+    event.setStatus(EventStatus.CANCELLED);
+    event = agendaEventService.updateEvent(event,
+                                           attendees,
+                                           Collections.emptyList(),
+                                           Collections.emptyList(),
+                                           origEventReminders,
+                                           null,
+                                           null,
+                                           false,
+                                           userIdentityId);
+    eventReminders = agendaEventReminderService.getEventReminders(eventId, userIdentityId);
+    assertNotNull(eventReminders);
+    assertEquals(0, eventReminders.size());
+
+    event.setStatus(EventStatus.TENTATIVE);
+    event = agendaEventService.updateEvent(event,
+                                           attendees,
+                                           Collections.emptyList(),
+                                           Collections.emptyList(),
+                                           origEventReminders,
+                                           null,
+                                           null,
+                                           false,
+                                           userIdentityId);
+    eventReminders = agendaEventReminderService.getEventReminders(eventId, userIdentityId);
+    assertNotNull(eventReminders);
+    assertEquals(1, eventReminders.size());
+    assertNull(eventReminders.get(0).getDatetime());
+
+    event.setStatus(EventStatus.CONFIRMED);
+    agendaEventService.updateEvent(event,
+                                   attendees,
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   origEventReminders,
+                                   null,
+                                   null,
+                                   false,
+                                   userIdentityId);
+    eventReminders = agendaEventReminderService.getEventReminders(eventId, userIdentityId);
+    assertNotNull(eventReminders);
+    assertEquals(1, eventReminders.size());
+    assertNotNull(eventReminders.get(0).getDatetime());
   }
 
   @Test
@@ -235,7 +299,7 @@ public class AgendaEventReminderServiceTest extends BaseAgendaEventTest {
     assertNotNull(savedUpcomingEventReminder);
     assertNotNull(savedUpcomingEventReminder.getDatetime());
 
-    exceptionalOccurrence = agendaEventService.saveEventExceptionalOccurrence(eventId, start.plusDays(4));
+    agendaEventService.saveEventExceptionalOccurrence(eventId, start.plusDays(4));
     assertNotNull(eventReminders);
     assertEquals(1, eventReminders.size());
     savedUpcomingEventReminder = eventReminders.get(0);
