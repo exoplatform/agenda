@@ -93,11 +93,12 @@ export default {
         return;
       }
       const date = this.$agendaUtils.toDate(this.startDate);
-      const newDate = this.$agendaUtils.toDate(this.event[this.eventStart]);
+      const newDate = this.$agendaUtils.toDate(this.event.startDate);
       newDate.setFullYear(date.getFullYear());
       newDate.setMonth(date.getMonth());
       newDate.setDate(date.getDate());
-      this.event[this.eventStart] = newDate;
+      this.event.startDate = newDate;
+      this.event.start = this.$agendaUtils.toRFC3339(this.event.startDate);
       this.endDate = this.$agendaUtils.toDate(newDate.getTime() + this.duration);
       this.endTime = this.$agendaUtils.toDate(newDate.getTime() + this.duration);
     },
@@ -105,11 +106,12 @@ export default {
       if (!this.event || !newVal || !oldVal || new Date(newVal).getTime() === new Date(oldVal).getTime()) {
         return;
       }
-      const newDate = this.$agendaUtils.toDate(this.event[this.eventStart]);
+      const newDate = this.$agendaUtils.toDate(this.event.startDate);
       newDate.setHours(this.startTime.getHours());
       newDate.setMinutes(this.startTime.getMinutes());
       newDate.setSeconds(0);
-      this.event[this.eventStart] = newDate;
+      this.event.startDate = newDate;
+      this.event.start = this.$agendaUtils.toRFC3339(this.event.startDate);
       this.endDate = this.$agendaUtils.toDate(newDate.getTime() + this.duration);
       this.endTime = this.$agendaUtils.toDate(newDate.getTime() + this.duration);
     },
@@ -118,12 +120,13 @@ export default {
         return;
       }
       const date = this.$agendaUtils.toDate(this.endDate);
-      const newDate = this.$agendaUtils.toDate(this.event[this.eventEnd]);
+      const newDate = this.$agendaUtils.toDate(this.event.endDate);
       newDate.setFullYear(date.getFullYear());
       newDate.setMonth(date.getMonth());
       newDate.setDate(date.getDate());
-      this.event[this.eventEnd] = newDate;
-      this.duration = newDate.getTime() - this.$agendaUtils.toDate(this.event[this.eventStart]).getTime();
+      this.event.endDate = newDate;
+      this.event.end = this.$agendaUtils.toRFC3339(this.event.endDate);
+      this.duration = newDate.getTime() - this.$agendaUtils.toDate(this.event.startDate).getTime();
       if (this.endTime) {
         this.endTime = new Date(this.endTime);
         this.endTime.setFullYear(newDate.getFullYear());
@@ -135,12 +138,13 @@ export default {
       if (!this.event || !newVal || !oldVal || new Date(newVal).getTime() === new Date(oldVal).getTime()) {
         return;
       }
-      const newDate = this.$agendaUtils.toDate(this.event[this.eventEnd]);
+      const newDate = this.$agendaUtils.toDate(this.event.endDate);
       newDate.setHours(this.endTime.getHours());
       newDate.setMinutes(this.endTime.getMinutes());
       newDate.setSeconds(0);
-      this.event[this.eventEnd] = newDate;
-      this.duration = newDate.getTime() - this.$agendaUtils.toDate(this.event[this.eventStart]).getTime();
+      this.event.endDate = newDate;
+      this.event.end = this.$agendaUtils.toRFC3339(this.event.endDate);
+      this.duration = newDate.getTime() - this.$agendaUtils.toDate(this.event.startDate).getTime();
       this.$emit('changed', this.event);
     },
   },
@@ -156,10 +160,10 @@ export default {
         this.endTime = null;
 
         this.$nextTick().then(() => {
-          this.startDate = this.$agendaUtils.toDate(this.event[this.eventStart]).getTime();
-          this.startTime = this.$agendaUtils.toDate(this.event[this.eventStart]);
-          this.endDate = this.$agendaUtils.toDate(this.event[this.eventEnd]).getTime();
-          this.endTime = this.$agendaUtils.toDate(this.event[this.eventEnd]);
+          this.startDate = this.$agendaUtils.toDate(this.event.startDate).getTime();
+          this.startTime = this.$agendaUtils.toDate(this.event.startDate);
+          this.endDate = this.$agendaUtils.toDate(this.event.endDate).getTime();
+          this.endTime = this.$agendaUtils.toDate(this.event.endDate);
           this.duration = this.endTime.getTime() - this.startTime.getTime();
         });
       }
