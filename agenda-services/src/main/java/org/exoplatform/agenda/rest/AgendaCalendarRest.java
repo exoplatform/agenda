@@ -16,8 +16,6 @@
 */
 package org.exoplatform.agenda.rest;
 
-import static org.exoplatform.agenda.util.RestUtils.DEFAULT_LIMIT;
-
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -82,10 +80,10 @@ public class AgendaCalendarRest implements ResourceContainer {
                          "limit"
                        ) int limit) {
     if (offset < 0) {
-      offset = 0;
+      return Response.status(Status.BAD_REQUEST).entity("Offset must be 0 or positive").build();
     }
     if (limit <= 0) {
-      limit = DEFAULT_LIMIT;
+      return Response.status(Status.BAD_REQUEST).entity("Limit must be positive").build();
     }
 
     String currentUser = RestUtils.getCurrentUser();

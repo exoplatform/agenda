@@ -1159,7 +1159,7 @@ public class AgendaEventRest implements ResourceContainer {
           @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
           @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
   )
-  public Response search(@Context UriInfo uriInfo,
+  public Response search(
                          @ApiParam(value = "Term to search", required = true) @QueryParam(
                            "query"
                          ) String query,
@@ -1175,9 +1175,12 @@ public class AgendaEventRest implements ResourceContainer {
                          @ApiParam(value = "Limit", required = false, defaultValue = "20") @QueryParam(
                            "limit"
                          ) int limit) throws Exception { // NOSONAR
-
-    offset = offset > 0 ? offset : RestUtils.getOffset(uriInfo);
-    limit = limit > 0 ? limit : RestUtils.getLimit(uriInfo);
+    if (offset < 0) {
+      return Response.status(Status.BAD_REQUEST).entity("Offset must be 0 or positive").build();
+    }
+    if (limit < 0) {
+      return Response.status(Status.BAD_REQUEST).entity("Limit must be positive").build();
+    }
     List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
                                                                 : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
                                                                                                   ","));
@@ -1190,6 +1193,68 @@ public class AgendaEventRest implements ResourceContainer {
                                                                                                          expandProperties))
                                                          .collect(Collectors.toList());
     return Response.ok(results).build();
+  }
+
+  @Path("datePolls")
+  @GET
+  @Produces(MediaType.APPLICATION_JSON)
+  @RolesAllowed("users")
+  @ApiOperation(
+      value = "Retrieves the list of pending date polls for currently authenticated user.",
+      httpMethod = "GET",
+      response = Response.class,
+      produces = "application/json"
+  )
+  @ApiResponses(
+      value = {
+          @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.FORBIDDEN, message = "Forbidden operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+      }
+  )
+  public Response getPendingEvents(
+                                   @ApiParam(value = "Offset", required = false, defaultValue = "0") @QueryParam(
+                                     "offset"
+                                   ) int offset,
+                                   @ApiParam(
+                                       value = "Limit of results to return", required = false
+                                   ) @QueryParam("limit") int limit,
+                                   @ApiParam(value = "IANA Time zone identitifer", required = false) @QueryParam(
+                                     "timeZoneId"
+                                   ) String timeZoneId,
+                                   @ApiParam(value = "Properties to expand", required = false) @QueryParam(
+                                     "expand"
+                                   ) String expand) {
+    if (offset < 0) {
+      return Response.status(Status.BAD_REQUEST).entity("Offset must be 0 or positive").build();
+    }
+    if (limit < 0) {
+      return Response.status(Status.BAD_REQUEST).entity("Limit must be positive").build();
+    }
+    long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    ZoneId userTimeZone = StringUtils.isBlank(timeZoneId) ? ZoneOffset.UTC : ZoneId.of(timeZoneId);
+    try {
+      EventList eventList = new EventList();
+      eventList.setLimit(limit);
+      if (limit > 0) {
+        List<Event> events = agendaEventService.getEventDatePolls(userIdentityId,
+                                                                    userTimeZone,
+                                                                    offset,
+                                                                    limit);
+        List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
+                                                                    : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
+                                                                                                      ","));
+        List<EventEntity> eventEntities = events.stream()
+                                                .map(event -> getEventEntity(event, userTimeZone, expandProperties))
+                                                .collect(Collectors.toList());
+        eventList.setEvents(eventEntities);
+      }
+      eventList.setSize(agendaEventService.countEventDatePolls(userIdentityId));
+      return Response.ok(eventList).build();
+    } catch (Exception e) {
+      LOG.warn("Error retrieving list of events", e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
   }
 
   private Event createEvent(EventEntity eventEntity, long userIdentityId, String timeZoneId) throws AgendaException,

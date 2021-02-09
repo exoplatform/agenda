@@ -943,4 +943,127 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     assertEquals(2, dateOptions.get(1).getVoters().size());
   }
 
+  @Test
+  public void testGetPendingDatePolls() throws Exception { // NOSONAR
+    Event event = new Event();
+    event.setCalendarId(spaceCalendar.getId());
+    EventRecurrence recurrence = new EventRecurrence();
+    event.setRecurrence(recurrence);
+    recurrence.setFrequency(EventRecurrenceFrequency.DAILY);
+    recurrence.setInterval(1);
+
+    long creatorIdentityId = Long.parseLong(testuser1Identity.getId());
+    ZonedDateTime start = getDate();
+    ZonedDateTime end = start;
+    EventDateOption dateOption1 = new EventDateOption(0,
+                                                      0,
+                                                      start,
+                                                      end,
+                                                      false,
+                                                      false,
+                                                      null);
+    EventDateOption dateOption2 = new EventDateOption(0,
+                                                      0,
+                                                      start.plusDays(1),
+                                                      end.plusDays(1),
+                                                      true,
+                                                      true,
+                                                      null);
+    Event createdEvent = agendaEventService.createEvent(event,
+                                                        Arrays.asList(new EventAttendee(0,
+                                                                                        Long.parseLong(testuser4Identity.getId()),
+                                                                                        EventAttendeeResponse.ACCEPTED),
+                                                                      new EventAttendee(0,
+                                                                                        Long.parseLong(spaceIdentity.getId()),
+                                                                                        EventAttendeeResponse.ACCEPTED)),
+                                                        Collections.emptyList(),
+                                                        Collections.emptyList(),
+                                                        Collections.emptyList(),
+                                                        Arrays.asList(dateOption1, dateOption2),
+                                                        null,
+                                                        true,
+                                                        creatorIdentityId);
+    assertNotNull(createdEvent);
+    assertEquals(dateOption1.getStart().withZoneSameInstant(ZoneOffset.UTC), createdEvent.getStart());
+    assertEquals(dateOption2.getEnd().withZoneSameInstant(ZoneOffset.UTC), createdEvent.getEnd());
+    assertEquals(EventStatus.TENTATIVE, createdEvent.getStatus());
+
+    List<Event> eventDatePolls = agendaEventService.getEventDatePolls(Long.parseLong(testuser1Identity.getId()),
+                                                                      ZoneOffset.UTC,
+                                                                      0,
+                                                                      10);
+    assertNotNull(eventDatePolls);
+    assertEquals(1, eventDatePolls.size());
+
+    eventDatePolls = agendaEventService.getEventDatePolls(Long.parseLong(testuser2Identity.getId()), ZoneOffset.UTC, 0, 10);
+    assertNotNull(eventDatePolls);
+    assertEquals(1, eventDatePolls.size());
+
+    eventDatePolls = agendaEventService.getEventDatePolls(Long.parseLong(testuser4Identity.getId()), ZoneOffset.UTC, 0, 10);
+    assertNotNull(eventDatePolls);
+    assertEquals(1, eventDatePolls.size());
+
+    eventDatePolls = agendaEventService.getEventDatePolls(Long.parseLong(testuser5Identity.getId()), ZoneOffset.UTC, 0, 10);
+    assertNotNull(eventDatePolls);
+    assertEquals(0, eventDatePolls.size());
+  }
+
+  @Test
+  public void testCountPendingDatePolls() throws Exception { // NOSONAR
+    Event event = new Event();
+    event.setCalendarId(spaceCalendar.getId());
+    EventRecurrence recurrence = new EventRecurrence();
+    event.setRecurrence(recurrence);
+    recurrence.setFrequency(EventRecurrenceFrequency.DAILY);
+    recurrence.setInterval(1);
+
+    long creatorIdentityId = Long.parseLong(testuser1Identity.getId());
+    ZonedDateTime start = getDate();
+    ZonedDateTime end = start;
+    EventDateOption dateOption1 = new EventDateOption(0,
+                                                      0,
+                                                      start,
+                                                      end,
+                                                      false,
+                                                      false,
+                                                      null);
+    EventDateOption dateOption2 = new EventDateOption(0,
+                                                      0,
+                                                      start.plusDays(1),
+                                                      end.plusDays(1),
+                                                      true,
+                                                      true,
+                                                      null);
+    Event createdEvent = agendaEventService.createEvent(event,
+                                                        Arrays.asList(new EventAttendee(0,
+                                                                                        Long.parseLong(testuser4Identity.getId()),
+                                                                                        EventAttendeeResponse.ACCEPTED),
+                                                                      new EventAttendee(0,
+                                                                                        Long.parseLong(spaceIdentity.getId()),
+                                                                                        EventAttendeeResponse.ACCEPTED)),
+                                                        Collections.emptyList(),
+                                                        Collections.emptyList(),
+                                                        Collections.emptyList(),
+                                                        Arrays.asList(dateOption1, dateOption2),
+                                                        null,
+                                                        true,
+                                                        creatorIdentityId);
+    assertNotNull(createdEvent);
+    assertEquals(dateOption1.getStart().withZoneSameInstant(ZoneOffset.UTC), createdEvent.getStart());
+    assertEquals(dateOption2.getEnd().withZoneSameInstant(ZoneOffset.UTC), createdEvent.getEnd());
+    assertEquals(EventStatus.TENTATIVE, createdEvent.getStatus());
+
+    long eventDatePollCount = agendaEventService.countEventDatePolls(Long.parseLong(testuser1Identity.getId()));
+    assertEquals(1, eventDatePollCount);
+
+    eventDatePollCount = agendaEventService.countEventDatePolls(Long.parseLong(testuser2Identity.getId()));
+    assertEquals(1, eventDatePollCount);
+
+    eventDatePollCount = agendaEventService.countEventDatePolls(Long.parseLong(testuser4Identity.getId()));
+    assertEquals(1, eventDatePollCount);
+
+    eventDatePollCount = agendaEventService.countEventDatePolls(Long.parseLong(testuser5Identity.getId()));
+    assertEquals(0, eventDatePollCount);
+  }
+
 }

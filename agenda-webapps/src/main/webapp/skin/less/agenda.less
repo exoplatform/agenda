@@ -702,6 +702,24 @@
   }
 }
 
+.attendee-vote-confirmed::before {
+  font-family: "PLF-FONT-ICONS";
+  content: '\e9c7';
+  color: @borderColor;
+}
+
+.attendee-vote-tentative::before {
+  font-family: "PLF-FONT-ICONS";
+  content: '\e9c7';
+  color: @borderColor;
+}
+
+.attendee-vote-needs_action::before {
+  font-family: "PLF-FONT-ICONS";
+  content: '\e76b';
+  color: @borderColor;
+}
+
 @media (max-width: @maxMobileWidth) {
   .VuetifyApp {
     .event-details {
