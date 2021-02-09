@@ -4,8 +4,7 @@
     color="transparent"
     elevation="0"
     absolute
-    left
-    timeout="50000">
+    left>
     <agenda-notification-alert
       v-for="(alert, index) in alerts"
       :key="index"

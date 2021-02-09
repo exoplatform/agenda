@@ -12,6 +12,13 @@
       {{ alertMessage }}
     </span>
     <v-btn
+      v-if="alert.click"
+      class="primary--text"
+      text
+      @click="alert.click">
+      {{ alert.clickMessage }}
+    </v-btn>
+    <v-btn
       slot="close"
       slot-scope="{toggle}"
       icon
