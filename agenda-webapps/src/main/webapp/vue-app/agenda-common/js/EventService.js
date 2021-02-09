@@ -324,6 +324,19 @@ export function dismissEventDate(eventId, dateOptionId) {
     });
 }
 
+export function getDatePolls(offset, limit, expand) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/datePolls?offset=${offset || 0}&limit=${limit || 0}&expand=${expand || ''}`, {
+    method: 'GET',
+    credentials: 'include',
+  }).then((resp) => {
+    if (resp && resp.ok) {
+      return resp.json();
+    } else {
+      throw new Error('Error getting pending date poll list');
+    }
+  });
+}
+
 function formatRecurrenceObject(event) {
   if (event.recurrence) {
     const recurrence = event.recurrence;
