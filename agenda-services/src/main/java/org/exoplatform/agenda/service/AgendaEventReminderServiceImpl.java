@@ -229,6 +229,10 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
                                   long identityId) throws AgendaException {
     long eventId = event.getId();
     boolean isRecurrentEvent = event.getRecurrence() != null;
+    if (event.getStatus() != EventStatus.CONFIRMED) {
+      // Delete all reminders of user when event is not confirmed yet
+      reminders = null;
+    }
 
     List<EventReminder> savedReminders = getEventReminders(eventId, identityId);
     List<EventReminder> newReminders = reminders == null ? Collections.emptyList() : reminders;
