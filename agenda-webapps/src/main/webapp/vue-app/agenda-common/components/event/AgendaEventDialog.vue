@@ -207,10 +207,12 @@ export default {
     this.$root.$on('agenda-event-deleted', () => this.close());
     this.$root.$on('agenda-event-save', () => this.saving = true);
     this.$root.$on('agenda-event-saved', event => {
-      if (this.isForm && this.isNew && event && event.id && this.event && this.event.dateOptions && this.event.dateOptions.length > 1) {
+      if (this.isForm && event && event.id && this.event && this.event.dateOptions && this.event.dateOptions.length > 1) {
         this.$root.$emit('agenda-notification-alert', {
-          message: this.$t('agenda.datePollCreationSuccess'),
+          message: this.isNew && this.$t('agenda.datePollCreationSuccess') || this.$t('agenda.datePollUpdateSuccess'),
           type: 'success',
+          click: () => this.$root.$emit('agenda-event-details', event),
+          clickMessage: this.$t('agenda.viewDatePoll'),
         });
       }
       this.close();
