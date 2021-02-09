@@ -160,6 +160,12 @@ export default {
         this.endTime = null;
 
         this.$nextTick().then(() => {
+          if (!this.event.startDate) {
+            this.event.startDate = new Date();
+          }
+          if (!this.event.endDate) {
+            this.event.endDate = new Date();
+          }
           this.startDate = this.$agendaUtils.toDate(this.event.startDate).getTime();
           this.startTime = this.$agendaUtils.toDate(this.event.startDate);
           this.endDate = this.$agendaUtils.toDate(this.event.endDate).getTime();

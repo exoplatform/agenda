@@ -56,7 +56,6 @@
       :current-space="currentSpace"
       :settings="settings"
       :conference-provider="conferenceProvider" />
-    <agenda-event-mobile-form-drawer :current-space="currentSpace" />
     <agenda-event-save />
     <agenda-connector
       :settings="settings"
