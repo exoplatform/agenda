@@ -16,6 +16,8 @@
 */
 package org.exoplatform.agenda.util;
 
+import javax.ws.rs.core.UriInfo;
+
 import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.container.PortalContainer;
@@ -25,13 +27,7 @@ import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvide
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.rest.entity.IdentityEntity;
 
-import javax.ws.rs.core.UriInfo;
-
 public class RestUtils {
-
-  public static final int DEFAULT_LIMIT = 10;
-
-  public static final int HARD_LIMIT    = 50;
 
   private RestUtils() {
   }
@@ -81,16 +77,6 @@ public class RestUtils {
       }
     }
     return identityIdString;
-  }
-
-  public static int getLimit(UriInfo uriInfo) {
-    Integer limit = getIntegerValue(uriInfo, "limit");
-    return (limit != null && limit > 0) ? Math.min(HARD_LIMIT, limit) : DEFAULT_LIMIT;
-  }
-
-  public static int getOffset(UriInfo uriInfo) {
-    Integer offset = getIntegerValue(uriInfo, "offset");
-    return (offset != null) ? offset : 0;
   }
 
   public static Integer getIntegerValue(UriInfo uriInfo, String name) {

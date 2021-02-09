@@ -317,4 +317,26 @@ public interface AgendaEventService {
   void selectEventDateOption(long eventId, long dateOptionId, long userIdentityId) throws ObjectNotFoundException,
                                                                                    IllegalAccessException;
 
+  /**
+   * Retrieves the list of pending date polls where the current user is invited
+   * 
+   * @param attendeeId user {@link Identity} identifier
+   * @param userTimeZone used to compute events dates switch given time zone
+   * @param offset
+   * @param limit maximum number of occurrences to retrieve
+   * @return {@link List} date poll {@link Event} for user
+   */
+  List<Event> getEventDatePolls(long attendeeId,
+                                ZoneId userTimeZone,
+                                int offset,
+                                int limit);
+
+  /**
+   * Count pending date polls where the current user is invited
+   * 
+   * @param attendeeId user {@link Identity} identifier
+   * @return {@link List} date poll {@link Event} for user
+   */
+  long countEventDatePolls(long attendeeId);
+
 }

@@ -29,6 +29,8 @@ import org.exoplatform.commons.persistence.impl.GenericDAOJPAImpl;
 
 public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
 
+  private static final int   DEFAULT_LIMIT = 10;
+
   private EventConferenceDAO eventConferenceDAO;
 
   private EventAttendeeDAO   eventAttendeeDAO;
@@ -216,6 +218,39 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     List<Tuple> resultList = query.getResultList();
     return resultList == null ? Collections.emptyList()
                               : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
+  }
+
+  public List<Long> getEventDatePollIds(List<Long> attendeeIds,
+                                          int offset,
+                                          int limit) {
+    TypedQuery<Tuple> query = getEntityManager().createNamedQuery("AgendaEvent.getPendingDatePollIds", Tuple.class);
+    query.setParameter("status", EventStatus.TENTATIVE);
+    query.setParameter("attendeeIds", attendeeIds);
+    if (offset >= 0) {
+      query.setFirstResult(offset);
+    } else {
+      query.setFirstResult(0);
+    }
+    if (limit > 0) {
+      query.setMaxResults(limit);
+    } else {
+      query.setMaxResults(DEFAULT_LIMIT);
+    }
+    List<Tuple> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList()
+                              : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
+  }
+
+  public Long countEventDatePolls(List<Long> attendeeIds) {
+    TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaEvent.countPendingDatePoll", Long.class);
+    query.setParameter("status", EventStatus.TENTATIVE);
+    query.setParameter("attendeeIds", attendeeIds);
+    try {
+      Long count = query.getSingleResult();
+      return count == null ? 0l : count.longValue();
+    } catch (NoResultException e) {
+      return 0l;
+    }
   }
 
   public List<EventEntity> getParentRecurrentEventIds(Date startDate, Date endDate) {
