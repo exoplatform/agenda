@@ -222,6 +222,7 @@ export default {
     },
     showEvent(eventObj) {
       if (this.eventDragged || this.eventExtended) {
+        this.cancelEventModification();
         return;
       }
       this.cancelEventModification();
@@ -377,13 +378,11 @@ export default {
         if (this.dragEvent.allDay) {
           if (this.$agendaUtils.areDatesOnSameDay(this.dragEvent.startDate, this.originalDragedEvent.startDate)
               && this.$agendaUtils.areDatesOnSameDay(this.dragEvent.endDate, this.originalDragedEvent.endDate)) {
-            window.setTimeout(this.cancelEventModification, 50);
             return;
           }
         } else {
           if (this.$agendaUtils.toRFC3339(this.dragEvent.startDate) === this.$agendaUtils.toRFC3339(this.originalDragedEvent.startDate)
               && this.$agendaUtils.toRFC3339(this.dragEvent.endDate) === this.$agendaUtils.toRFC3339(this.originalDragedEvent.endDate)) {
-            window.setTimeout(this.cancelEventModification, 50);
             return;
           }
         }
