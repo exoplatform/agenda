@@ -77,7 +77,7 @@ public class EventReminderEntity implements Serializable {
   @Column(name = "BEFORE_PERIOD_TYPE", nullable = false)
   private ReminderPeriodType beforeType;
 
-  @Column(name = "TRIGGER_DATE", nullable = false)
+  @Column(name = "TRIGGER_DATE", nullable = true)
   private Date               triggerDate;
 
   @Column(name = "FROM_OCCURRENCE_ID")
