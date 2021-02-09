@@ -129,7 +129,7 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
 
         try {
           ZonedDateTime reminderDate = computeReminderDateTime(event, eventReminder);
-          eventReminder.setDatetime(reminderDate == null ? Instant.ofEpochMilli(0).atZone(ZoneOffset.UTC) : reminderDate);
+          eventReminder.setDatetime(reminderDate);
           eventReminder.setEventId(eventId);
           if (!isRecurrentEvent) {
             eventReminder.setFromOccurrenceId(null);
@@ -229,6 +229,10 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
                                   long identityId) throws AgendaException {
     long eventId = event.getId();
     boolean isRecurrentEvent = event.getRecurrence() != null;
+    if (event.getStatus() == EventStatus.CANCELLED) {
+      // Delete all reminders of user when event is not confirmed yet
+      reminders = null;
+    }
 
     List<EventReminder> savedReminders = getEventReminders(eventId, identityId);
     List<EventReminder> newReminders = reminders == null ? Collections.emptyList() : reminders;
@@ -249,7 +253,7 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
         eventReminder = eventReminder.clone();
 
         ZonedDateTime reminderDate = computeReminderDateTime(event, eventReminder);
-        eventReminder.setDatetime(reminderDate == null ? Instant.ofEpochMilli(0).atZone(ZoneOffset.UTC) : reminderDate);
+        eventReminder.setDatetime(reminderDate);
         eventReminder.setReceiverId(identityId);
         eventReminder.setEventId(eventId);
         if (!isRecurrentEvent) {
