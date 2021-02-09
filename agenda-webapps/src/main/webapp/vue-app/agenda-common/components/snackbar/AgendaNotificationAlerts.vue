@@ -25,6 +25,20 @@ export default {
   },
   created() {
     this.$root.$on('agenda-notification-alert', alert => this.alerts.push(alert));
+    this.$root.$on('agenda-event-saved', event => {
+      if (event && event.id) {
+        const isDatePoll = event.dateOptions && event.dateOptions.length > 1;
+        const isNew = !event.updated;
+        const message = isDatePoll && (isNew && this.$t('agenda.datePollCreationSuccess') || this.$t('agenda.datePollUpdateSuccess'))
+                     || (isNew && this.$t('agenda.eventCreationSuccess') || this.$t('agenda.eventUpdateSuccess'));
+        this.$root.$emit('agenda-notification-alert', {
+          message,
+          type: 'success',
+          click: () => this.$root.$emit('agenda-event-details', event),
+          clickMessage: this.$t('agenda.viewDatePoll'),
+        });
+      }
+    });
   },
   methods: {
     deleteAlert(index) {
