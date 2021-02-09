@@ -1,12 +1,12 @@
 <template>
   <v-list-item
-    :style="{background: datePoll.color || datePoll.calendar.color}"
+    :style="datePollStyle"
     dense
     class="border-radius"
     @click="openDatePollDetails">
-    <v-list-item-content :title="datePoll.summary" class="pa-0">
-      <v-list-item-title class="white--text text-truncate subtitle-1">{{ datePoll.summary }}</v-list-item-title>
-      <v-list-item-subtitle class="white--text text-truncate d-flex caption">{{ $t('agenda.ongoingDatePoll') }} - {{ displayVoteStatus }}</v-list-item-subtitle>
+    <v-list-item-content class="pa-0">
+      <v-list-item-title :title="datePoll.summary" class="white--text text-truncate subtitle-1">{{ datePoll.summary }}</v-list-item-title>
+      <v-list-item-subtitle :title="displayVoteStatus" class="white--text text-truncate d-flex caption">{{ $t('agenda.ongoingDatePoll') }} - {{ displayVoteStatus }}</v-list-item-subtitle>
     </v-list-item-content>
     <v-list-item-action class="my-1 py-0">
       <span :title="displayVoteStatus" :class="voteIconStatus "></span>
@@ -50,6 +50,13 @@ export default {
       }
       return this.$t('agenda.datePollVoteNeeded');
     },
+    datePollStyle() {
+      if(this.datePoll.color) {
+        return `background: ${this.datePoll.color}`;
+      } else {
+        return `background: ${this.datePoll.calendar.color}`;
+      }
+    }
   },
   methods:{
     openDatePollDetails() {

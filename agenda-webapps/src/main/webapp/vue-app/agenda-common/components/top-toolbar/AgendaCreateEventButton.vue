@@ -17,7 +17,7 @@
       class="d-none d-md-inline"
       color="#F8B121">
       <v-btn
-        :title="$t('agenda.pendingInvitationTooltip')"
+        :title="$t('agenda.pendingInvitations')"
         class="ml-4 mr-2"
         color="white"
         icon

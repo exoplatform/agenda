@@ -1,7 +1,7 @@
 <template>
   <exo-drawer ref="calendarPendingDatePolls" right>
     <template slot="title">
-      {{ $t('agenda.pendingInvitationTooltip') }}
+      {{ $t('agenda.pendingInvitations') }}
     </template>
     <template slot="content">
       <v-list>
@@ -9,7 +9,6 @@
           v-for="datePoll in pendingDatePolls"
           :key="datePoll.id"
           :date-poll="datePoll"
-          :style="{background: datePoll.color || datePoll.calendar.color}"
           class="mx-2 px-2 py-0 mb-2"
           min-height="auto"
           min-width="100%"
