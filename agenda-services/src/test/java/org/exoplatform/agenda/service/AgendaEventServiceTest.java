@@ -2443,7 +2443,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                           Long.parseLong(testuser3Identity.getId()));
     assertNotNull(events);
     assertEquals(3, events.size());
-
   }
 
 }

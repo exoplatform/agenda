@@ -6,20 +6,20 @@
     <v-row>
       <v-col
         cols="2"
-        sm="3"
+        sm="4"
         class="align-start my-auto">
         <agenda-create-event-button class="mr-2" />
       </v-col>
       <v-col
         cols="8"
-        sm="6"
+        sm="4"
         align="center"
         class="d-flex flex-row align-center justify-start flex-nowrap">
         <agenda-switch-view :calendar-type="calendarType" />
       </v-col>
       <v-col
         cols="2"
-        sm="3"
+        sm="4"
         class="d-flex flex-row justify-end my-auto flex-nowrap">
         <select
           v-model="eventType"

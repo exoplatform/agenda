@@ -1006,6 +1006,34 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     datePollService.selectEventDateOption(dateOptionId);
   }
 
+  @Override
+  public List<Event> getEventDatePolls(long userIdentityId,
+                                       ZoneId userTimeZone,
+                                       int offset,
+                                       int limit) {
+    Identity userIdentity = identityManager.getIdentity(String.valueOf(userIdentityId));
+    if (userIdentity == null) {
+      throw new IllegalStateException("User with identity id " + userIdentityId + " doesn't exist");
+    }
+
+    List<Long> attendeeIds = Utils.getCalendarOwnersOfUser(spaceService, identityManager, userIdentity);
+    List<Long> eventIds = this.agendaEventStorage.getEventDatePollIds(attendeeIds,
+                                                                      offset,
+                                                                      limit);
+    return computeEventsProperties(eventIds, null, null, userTimeZone, limit, userIdentity, null, null);
+  }
+
+  @Override
+  public long countEventDatePolls(long userIdentityId) {
+    Identity userIdentity = identityManager.getIdentity(String.valueOf(userIdentityId));
+    if (userIdentity == null) {
+      throw new IllegalStateException("User with identity id " + userIdentityId + " doesn't exist");
+    }
+
+    List<Long> attendeeIds = Utils.getCalendarOwnersOfUser(spaceService, identityManager, userIdentity);
+    return this.agendaEventStorage.countEventDatePolls(attendeeIds);
+  }
+
   private void checkAndComputeDateOptions(Event event, List<EventDateOption> dateOptions) throws AgendaException {
     if (dateOptions != null && dateOptions.size() == 1) {
       EventDateOption eventDateOption = dateOptions.get(0);
@@ -1103,7 +1131,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       return Collections.emptyList();
     }
     List<Event> events = getEventsList(eventIds, startMinusADay, endPlusADay, timeZone, limit);
-    events = filterEvents(events, start, end, limit);
+    if (start != null && (end != null || limit > 0)) {
+      events = filterEvents(events, start, end, limit);
+    }
     computeEventsAcl(events, userIdentity);
     return events;
   }
@@ -1327,7 +1357,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                              int limit) {
     List<Event> computedEvents = new ArrayList<>();
     for (Event event : events) {
-      if (event.getRecurrence() == null) {
+      if (event.getRecurrence() == null || event.getStatus() != EventStatus.CONFIRMED) {
         computedEvents.add(event);
       } else {
         if (userTimezone == null) {
