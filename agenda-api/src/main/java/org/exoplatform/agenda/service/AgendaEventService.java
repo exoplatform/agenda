@@ -319,24 +319,31 @@ public interface AgendaEventService {
 
   /**
    * Retrieves the list of pending date polls where the current user is invited
-   * 
+   *
+   * @param ownerIds {@link List} of {@link Identity} technical identifier
    * @param attendeeId user {@link Identity} identifier
    * @param userTimeZone used to compute events dates switch given time zone
    * @param offset
    * @param limit maximum number of occurrences to retrieve
    * @return {@link List} date poll {@link Event} for user
+   * @throws IllegalAccessException when user is not an allowed participant of
+   *           the event who can modifies it
    */
-  List<Event> getEventDatePolls(long attendeeId,
+  List<Event> getEventDatePolls(List<Long> ownerIds,
+                                long attendeeId,
                                 ZoneId userTimeZone,
                                 int offset,
-                                int limit);
+                                int limit) throws IllegalAccessException;
 
   /**
    * Count pending date polls where the current user is invited
-   * 
+   *
+   * @param ownerIds {@link List} of {@link Identity} technical identifier
    * @param attendeeId user {@link Identity} identifier
    * @return {@link List} date poll {@link Event} for user
+   * @throws IllegalAccessException when user is not an allowed participant of
+   *           the event who can modifies it
    */
-  long countEventDatePolls(long attendeeId);
+  long countEventDatePolls(List<Long> ownerIds, long attendeeId) throws IllegalAccessException;
 
 }

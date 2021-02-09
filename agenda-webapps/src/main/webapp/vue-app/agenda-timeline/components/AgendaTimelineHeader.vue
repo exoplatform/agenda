@@ -4,6 +4,22 @@
       <a :href="agendaBaseLink" class="body-1 text-uppercase text-sub-title">
         {{ $t('agenda') }}
       </a>
+      <v-badge
+        v-if="datePollsCount"
+        :content="datePollsCount"
+        class="d-none d-md-inline"
+        color="#F8B121">
+        <v-btn
+          :title="$t('agenda.pendingInvitations')"
+          class="ml-4 mr-2"
+          color="white"
+          icon
+          depressed
+          x-small
+          @click="$root.$emit('agenda-pending-date-polls-drawer-open')">
+          <i class="uiIcon darkGreyIcon uiIcon32x32 uiIconClock mb-1"></i>
+        </v-btn>
+      </v-badge>
     </div>
     <v-spacer />
     <v-btn
@@ -27,7 +43,16 @@ export default {
       default: null
     },
   },
+  data: () => ({
+    datePollsCount:0,
+  }),
+  created() {
+    this.refresh();
+  },
   methods: {
+    refresh(){
+      return this.$eventService.getDatePolls().then(eventsList => this.datePollsCount = eventsList && eventsList.size || 0);
+    },
     openEventForm() {
       this.$root.$emit('agenda-event-quick-form', {
         summary: '',

@@ -88,6 +88,25 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
               + " WHERE ev.status = :status"
               + " AND att.identityId IN (:attendeeIds)"
       ),
+      @NamedQuery(
+          name = "AgendaEvent.getPendingDatePollIdsInSpace",
+          query = "SELECT DISTINCT(ev.id), ev.createdDate FROM AgendaEvent ev"
+              + " INNER JOIN ev.attendees att"
+              + " INNER JOIN ev.calendar cal"
+              + " WHERE ev.status = :status"
+              + " AND att.identityId IN (:attendeeIds)"
+              + " AND cal.ownerId IN (:ownerIds)"
+              + " ORDER BY ev.createdDate DESC"
+      ),
+      @NamedQuery(
+          name = "AgendaEvent.countPendingDatePollInSpace",
+          query = "SELECT count(DISTINCT ev.id) FROM AgendaEvent ev"
+              + " INNER JOIN ev.attendees att"
+              + " INNER JOIN ev.calendar cal"
+              + " WHERE ev.status = :status"
+              + " AND att.identityId IN (:attendeeIds)"
+              + " AND cal.ownerId IN (:ownerIds)"
+      ),
   }
 )
 public class EventEntity implements Serializable {

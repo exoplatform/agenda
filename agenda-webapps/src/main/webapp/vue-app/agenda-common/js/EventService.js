@@ -324,8 +324,25 @@ export function dismissEventDate(eventId, dateOptionId) {
     });
 }
 
-export function getDatePolls(offset, limit, expand) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/datePolls?offset=${offset || 0}&limit=${limit || 0}&expand=${expand || ''}`, {
+export function getDatePolls(ownerIds, offset, limit, expand) {
+  let params = {
+    offset: offset || 0,
+    limit: limit || 20,
+  };
+
+  if (expand) {
+    params.expand = expand;
+  }
+
+  if (ownerIds && ownerIds.length) {
+    params.ownerIds = ownerIds;
+  }
+
+  params = $.param(params, true);
+  if (ownerIds && ownerIds.length) {
+    params = ownerIds;
+  }
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/datePolls?${params}`, {
     method: 'GET',
     credentials: 'include',
   }).then((resp) => {

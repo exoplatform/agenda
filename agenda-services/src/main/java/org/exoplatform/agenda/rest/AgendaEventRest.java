@@ -1213,6 +1213,9 @@ public class AgendaEventRest implements ResourceContainer {
       }
   )
   public Response getPendingEvents(
+                                   @ApiParam(value = "Identity technical identifiers of calendar owners", required = false) @QueryParam(
+                                          "ownerIds"
+                                   ) List<Long> ownerIds,
                                    @ApiParam(value = "Offset", required = false, defaultValue = "0") @QueryParam(
                                      "offset"
                                    ) int offset,
@@ -1237,10 +1240,11 @@ public class AgendaEventRest implements ResourceContainer {
       EventList eventList = new EventList();
       eventList.setLimit(limit);
       if (limit > 0) {
-        List<Event> events = agendaEventService.getEventDatePolls(userIdentityId,
-                                                                    userTimeZone,
-                                                                    offset,
-                                                                    limit);
+        List<Event> events = agendaEventService.getEventDatePolls(ownerIds,
+                                                                  userIdentityId,
+                                                                  userTimeZone,
+                                                                  offset,
+                                                                  limit);
         List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
                                                                     : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
                                                                                                       ","));
@@ -1249,7 +1253,7 @@ public class AgendaEventRest implements ResourceContainer {
                                                 .collect(Collectors.toList());
         eventList.setEvents(eventEntities);
       }
-      eventList.setSize(agendaEventService.countEventDatePolls(userIdentityId));
+      eventList.setSize(agendaEventService.countEventDatePolls(ownerIds, userIdentityId));
       return Response.ok(eventList).build();
     } catch (Exception e) {
       LOG.warn("Error retrieving list of events", e);

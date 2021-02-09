@@ -64,7 +64,7 @@ export default {
     retrievePendingDatePolls(){
       this.loading = true;
       this.$refs.calendarPendingDatePolls.startLoading();
-      return this.$eventService.getDatePolls(0, this.limit, 'response')
+      return this.$eventService.getDatePolls(null, 0, this.limit, 'response')
         .then(eventsList => {
           this.pendingDatePollsCount = eventsList.size || 0;
           this.pendingDatePolls = eventsList && eventsList.events || [];
