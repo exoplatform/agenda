@@ -89,7 +89,7 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
               + " AND att.identityId IN (:attendeeIds)"
       ),
       @NamedQuery(
-          name = "AgendaEvent.getPendingDatePollIdsInSpace",
+          name = "AgendaEvent.getPendingDatePollIdsByOwnerIds",
           query = "SELECT DISTINCT(ev.id), ev.createdDate FROM AgendaEvent ev"
               + " INNER JOIN ev.attendees att"
               + " INNER JOIN ev.calendar cal"
@@ -99,7 +99,7 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
               + " ORDER BY ev.createdDate DESC"
       ),
       @NamedQuery(
-          name = "AgendaEvent.countPendingDatePollInSpace",
+          name = "AgendaEvent.countPendingDatePollByOwnerIds",
           query = "SELECT count(DISTINCT ev.id) FROM AgendaEvent ev"
               + " INNER JOIN ev.attendees att"
               + " INNER JOIN ev.calendar cal"

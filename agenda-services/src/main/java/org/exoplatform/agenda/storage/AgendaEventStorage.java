@@ -69,20 +69,18 @@ public class AgendaEventStorage {
                                         List<Long> attendeeIds,
                                         int offset,
                                         int limit) {
-    boolean filterOwners = ownerIds != null && !ownerIds.isEmpty();
-    if (filterOwners) {
-      return this.eventDAO.getEventDatePollIdsInSpace(ownerIds, attendeeIds, offset, limit);
-    } else {
+    if (ownerIds == null || ownerIds.isEmpty()) {
       return this.eventDAO.getEventDatePollIds(attendeeIds, offset, limit);
+    } else {
+      return this.eventDAO.getEventDatePollIdsByOwnerIds(ownerIds, attendeeIds, offset, limit);
     }
   }
 
   public long countEventDatePolls(List<Long> ownerIds, List<Long> attendeeIds) {
-    boolean filterOwners = ownerIds != null && !ownerIds.isEmpty();
-    if (filterOwners) {
-      return this.eventDAO.countEventDatePollsInSpace(ownerIds, attendeeIds);
-    } else {
+    if (ownerIds == null || ownerIds.isEmpty()) {
       return this.eventDAO.countEventDatePolls(attendeeIds);
+    } else {
+      return this.eventDAO.countEventDatePollsByOwnerIds(ownerIds, attendeeIds);
     }
   }
 

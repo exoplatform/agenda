@@ -325,23 +325,20 @@ export function dismissEventDate(eventId, dateOptionId) {
 }
 
 export function getDatePolls(ownerIds, offset, limit, expand) {
-  let params = {
-    offset: offset || 0,
-    limit: limit || 20,
-  };
-
-  if (expand) {
-    params.expand = expand;
-  }
-
+  const formData = new FormData();
+  formData.append('offset',offset);
+  formData.append('limit',limit);
+  formData.append('expand',expand);
   if (ownerIds && ownerIds.length) {
-    params.ownerIds = ownerIds;
+    formData.append('ownerIds',ownerIds);
   }
-
-  params = $.param(params, true);
+  const params = new URLSearchParams(formData).toString();
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/datePolls?${params}`, {
     method: 'GET',
     credentials: 'include',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
   }).then((resp) => {
     if (resp && resp.ok) {
       return resp.json();

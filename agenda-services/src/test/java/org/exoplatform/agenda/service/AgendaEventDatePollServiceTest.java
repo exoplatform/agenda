@@ -1017,13 +1017,19 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     assertNotNull(eventDatePolls);
     assertEquals(1, eventDatePolls.size());
 
-    eventDatePolls = agendaEventService.getEventDatePolls(Collections.singletonList(Long.parseLong(spaceIdentity1.getId())),
-                                                          Long.parseLong(testuser1Identity.getId()),
-                                                          ZoneOffset.UTC,
-                                                          0,
-                                                          10);
-    assertNotNull(eventDatePolls);
-    assertEquals(0, eventDatePolls.size());
+    List<Event> eventDatePolls1 = new ArrayList<>();
+    try {
+      eventDatePolls1 = agendaEventService.getEventDatePolls(Collections.singletonList(Long.parseLong(spaceIdentity.getId())),
+                                                             Long.parseLong(testuser4Identity.getId()),
+                                                             ZoneOffset.UTC,
+                                                             0,
+                                                             10);
+      fail();
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    assertNotNull(eventDatePolls1);
+    assertEquals(0, eventDatePolls1.size());
   }
 
   @Test
@@ -1088,9 +1094,16 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                                                                 Long.parseLong(testuser1Identity.getId()));
     assertEquals(1, eventDatePollCount);
 
-    eventDatePollCount = agendaEventService.countEventDatePolls(Collections.singletonList(Long.parseLong(spaceIdentity1.getId())),
-            Long.parseLong(testuser1Identity.getId()));
-    assertEquals(0, eventDatePollCount);
+    long eventDatePollCount1 = 0;
+    try {
+      eventDatePollCount1 =
+                          agendaEventService.countEventDatePolls(Collections.singletonList(Long.parseLong(spaceIdentity.getId())),
+                                                                 Long.parseLong(testuser4Identity.getId()));
+      fail();
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    assertEquals(0, eventDatePollCount1);
   }
 
 }

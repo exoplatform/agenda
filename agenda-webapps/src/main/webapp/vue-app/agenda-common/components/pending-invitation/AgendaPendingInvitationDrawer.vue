@@ -31,6 +31,12 @@
 
 <script>
 export default {
+  props: {
+    currentSpace: {
+      type: Object,
+      default: () => null,
+    },
+  },
   data: () => ({
     pendingDatePolls: null,
     pendingDatePollsCount: 0,
@@ -38,7 +44,6 @@ export default {
     limit: 20,
     loading: false,
     ownerIds:[],
-    currentSpace:null,
   }),
   computed: {
     hasMore() {
@@ -60,33 +65,12 @@ export default {
     },
     loadMore(){
       this.limit += this.pageSize;
-      this.retrieveDatePolls();
+      this.retrieveDatePolls(this.currentSpace.identity.id);
     },
-    retrieveDatePolls() {
-      if (eXo.env.portal.spaceId) {
-        const spaceId = eXo.env.portal.spaceId;
-        this.$spaceService.getSpaceById(spaceId, 'identity')
-          .then((space) => {
-            this.currentSpace = space;
-            if (space && space.identity && space.identity.id) {
-              this.ownerIds = [space.identity.id];
-            }
-            this.retrieveDatePollsFromStore(this.ownerIds);
-          });
-      } else {
-        this.retrieveDatePollsFromStore(this.ownerIds);
-      }
-    },
-    retrieveDatePollsFromStore(ownerIds) {
+    retrieveDatePolls(ownerIds) {
       this.loading = true;
-      let spaceIds = [];
-      if(ownerIds && ownerIds.length > 0) {
-        spaceIds.push(ownerIds);
-      } else {
-        spaceIds = [];
-      }
       this.$refs.calendarPendingDatePolls.startLoading();
-      return this.$eventService.getDatePolls(spaceIds, 0, this.limit, 'response')
+      return this.$eventService.getDatePolls(ownerIds, 0, this.limit, 'response')
         .then(eventsList => {
           this.pendingDatePollsCount = eventsList.size || 0;
           this.pendingDatePolls = eventsList && eventsList.events || [];

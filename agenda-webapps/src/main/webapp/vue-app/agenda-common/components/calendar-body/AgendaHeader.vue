@@ -8,7 +8,7 @@
         cols="2"
         sm="4"
         class="align-start my-auto">
-        <agenda-create-event-button class="mr-2" />
+        <agenda-create-event-button :current-space="currentSpace" class="mr-2" />
       </v-col>
       <v-col
         cols="8"
