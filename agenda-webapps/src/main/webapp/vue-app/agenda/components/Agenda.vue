@@ -112,7 +112,7 @@ export default {
       return this.conferenceProviders && this.enabledConferenceProviderName && this.conferenceProviders.find(provider => provider.isInitialized && provider.linkSupported && provider.groupSupported && this.enabledConferenceProviderName === provider.getType());
     },
     isMobile() {
-      return this.$vuetify.breakpoint.name === 'xs';
+      return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
     },
     enabledConnectors() {
       return this.connectors && this.connectors.filter(connector => connector.initialized && connector.enabled) || [];

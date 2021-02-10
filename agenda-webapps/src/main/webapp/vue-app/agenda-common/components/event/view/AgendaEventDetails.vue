@@ -218,7 +218,7 @@ export default {
       return this.connectors && this.connectors.find(connector => connector.connected);
     },
     isMobile() {
-      return this.$vuetify.breakpoint.name === 'xs';
+      return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
     },
     isConferenceEnabled() {
       return this.eventConferenceType === 'manual' || (this.conferenceProvider && this.eventConferenceType && this.conferenceProvider.getType() === this.eventConferenceType);

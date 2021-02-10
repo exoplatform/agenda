@@ -80,7 +80,7 @@ export default {
   }),
   computed: {
     isMobile() {
-      return this.$vuetify.breakpoint.name === 'xs';
+      return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
     },
     selected() {
       return this.selectedOwnerIds !== false && (!this.selectedOwnerIds.length || this.selectedOwnerIds.find(ownerId => ownerId === this.calendarOwnerId));
