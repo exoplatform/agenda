@@ -1007,6 +1007,23 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     eventDatePolls = agendaEventService.getEventDatePolls(Collections.emptyList(), Long.parseLong(testuser5Identity.getId()), ZoneOffset.UTC, 0, 10);
     assertNotNull(eventDatePolls);
     assertEquals(0, eventDatePolls.size());
+
+    // get Date Polls in a specific space
+    eventDatePolls = agendaEventService.getEventDatePolls(Collections.singletonList(Long.parseLong(spaceIdentity.getId())),
+                                                          Long.parseLong(testuser1Identity.getId()),
+                                                          ZoneOffset.UTC,
+                                                          0,
+                                                          10);
+    assertNotNull(eventDatePolls);
+    assertEquals(1, eventDatePolls.size());
+
+    eventDatePolls = agendaEventService.getEventDatePolls(Collections.singletonList(Long.parseLong(spaceIdentity1.getId())),
+                                                          Long.parseLong(testuser1Identity.getId()),
+                                                          ZoneOffset.UTC,
+                                                          0,
+                                                          10);
+    assertNotNull(eventDatePolls);
+    assertEquals(0, eventDatePolls.size());
   }
 
   @Test
@@ -1064,6 +1081,15 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     assertEquals(1, eventDatePollCount);
 
     eventDatePollCount = agendaEventService.countEventDatePolls(Collections.emptyList(), Long.parseLong(testuser5Identity.getId()));
+    assertEquals(0, eventDatePollCount);
+
+    // count pending Date Polls in a specific space
+    eventDatePollCount = agendaEventService.countEventDatePolls(Collections.singletonList(Long.parseLong(spaceIdentity.getId())),
+                                                                Long.parseLong(testuser1Identity.getId()));
+    assertEquals(1, eventDatePollCount);
+
+    eventDatePollCount = agendaEventService.countEventDatePolls(Collections.singletonList(Long.parseLong(spaceIdentity1.getId())),
+            Long.parseLong(testuser1Identity.getId()));
     assertEquals(0, eventDatePollCount);
   }
 

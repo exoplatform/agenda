@@ -76,6 +76,10 @@ public abstract class BaseAgendaEventTest {
 
   protected Identity                                spaceIdentity;
 
+  protected Space                                   space1;
+
+  protected Identity                                spaceIdentity1;
+
   protected Identity                                testuser1Identity;
 
   protected Identity                                testuser2Identity;
@@ -173,6 +177,16 @@ public abstract class BaseAgendaEventTest {
                                                                                       "Client API Key",
                                                                                       true));
     }
+
+    String displayName1 = "testSpaceAgenda1";
+    space1 = spaceService.getSpaceByDisplayName(displayName1);
+    if (space1 == null) {
+      space1 = createSpace(displayName1, testuser1Identity.getRemoteId());
+    }
+    if (!spaceService.isMember(space1, testuser1Identity.getRemoteId())) {
+      spaceService.addMember(space1, testuser1Identity.getRemoteId());
+    }
+    spaceIdentity1 = identityManager.getOrCreateIdentity(SpaceIdentityProvider.NAME, space1.getPrettyName());
   }
 
   protected void purgeData() throws ObjectNotFoundException {

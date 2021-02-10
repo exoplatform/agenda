@@ -6,12 +6,13 @@
       </a>
       <v-badge
         v-if="datePollsCount"
+        offset-y="10"
         :content="datePollsCount"
         class="d-none d-md-inline"
         color="#F8B121">
         <v-btn
           :title="$t('agenda.pendingInvitations')"
-          class="ml-4 mr-2"
+          class="mb-2 ml-4 mr-2"
           color="white"
           icon
           depressed
@@ -45,13 +46,35 @@ export default {
   },
   data: () => ({
     datePollsCount:0,
+    ownerIds: [],
   }),
   created() {
-    this.refresh();
+    this.$root.$on('agenda-refresh', this.getInComingDatePolls);
+    this.$root.$on('agenda-event-saved', this.getInComingDatePolls);
+    this.getInComingDatePolls();
   },
   methods: {
-    refresh(){
-      return this.$eventService.getDatePolls().then(eventsList => this.datePollsCount = eventsList && eventsList.size || 0);
+    getInComingDatePolls() {
+      if (eXo.env.portal.spaceId) {
+        const spaceId = eXo.env.portal.spaceId;
+        this.$spaceService.getSpaceById(spaceId, 'identity')
+          .then((space) => {
+            this.currentSpace = space;
+            if (space && space.identity && space.identity.id) {
+              this.ownerIds = [space.identity.id];
+            }
+            this.refresh(this.ownerIds);
+          });
+      } else {
+        this.refresh(this.ownerIds);
+      }
+    },
+    refresh(ownerIds) {
+      if(ownerIds && ownerIds.length > 0) {
+        return this.$eventService.getDatePolls(ownerIds).then(eventsList => this.datePollsCount = eventsList && eventsList.size || 0);
+      } else {
+        return this.$eventService.getDatePolls().then(eventsList => this.datePollsCount = eventsList && eventsList.size || 0);
+      }
     },
     openEventForm() {
       this.$root.$emit('agenda-event-quick-form', {

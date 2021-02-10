@@ -16,7 +16,7 @@
       </v-list>
     </template>
     <template v-if="hasMore" slot="footer">
-      <div class="d-flex">
+      <div class="d-flex mx-4">
         <v-btn
           :loading="loading"
           :disabled="loading"
@@ -32,12 +32,13 @@
 <script>
 export default {
   data: () => ({
-    drawer: false,
     pendingDatePolls: null,
     pendingDatePollsCount: 0,
     pageSize: 20,
     limit: 20,
     loading: false,
+    ownerIds:[],
+    currentSpace:null,
   }),
   computed: {
     hasMore() {
@@ -54,17 +55,38 @@ export default {
     open() {
       this.$refs.calendarPendingDatePolls.open();
       this.$nextTick().then(() => {
-        this.retrievePendingDatePolls();
+        this.retrieveDatePolls();
       });
     },
     loadMore(){
       this.limit += this.pageSize;
-      this.retrievePendingDatePolls();
+      this.retrieveDatePolls();
     },
-    retrievePendingDatePolls(){
+    retrieveDatePolls() {
+      if (eXo.env.portal.spaceId) {
+        const spaceId = eXo.env.portal.spaceId;
+        this.$spaceService.getSpaceById(spaceId, 'identity')
+          .then((space) => {
+            this.currentSpace = space;
+            if (space && space.identity && space.identity.id) {
+              this.ownerIds = [space.identity.id];
+            }
+            this.retrieveDatePollsFromStore(this.ownerIds);
+          });
+      } else {
+        this.retrieveDatePollsFromStore(this.ownerIds);
+      }
+    },
+    retrieveDatePollsFromStore(ownerIds) {
       this.loading = true;
+      let spaceIds = [];
+      if(ownerIds && ownerIds.length > 0) {
+        spaceIds.push(ownerIds);
+      } else {
+        spaceIds = [];
+      }
       this.$refs.calendarPendingDatePolls.startLoading();
-      return this.$eventService.getDatePolls(null, 0, this.limit, 'response')
+      return this.$eventService.getDatePolls(spaceIds, 0, this.limit, 'response')
         .then(eventsList => {
           this.pendingDatePollsCount = eventsList.size || 0;
           this.pendingDatePolls = eventsList && eventsList.events || [];

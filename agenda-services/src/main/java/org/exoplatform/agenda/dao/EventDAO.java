@@ -257,7 +257,7 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
                                                List<Long> attendeeIds, 
                                                int offset, 
                                                int limit) {
-    TypedQuery<Tuple> query = getEntityManager().createNamedQuery("AgendaEvent.getPendingDatePollIds", Tuple.class);
+    TypedQuery<Tuple> query = getEntityManager().createNamedQuery("AgendaEvent.getPendingDatePollIdsInSpace", Tuple.class);
     query.setParameter("status", EventStatus.TENTATIVE);
     query.setParameter("attendeeIds", attendeeIds);
     query.setParameter("ownerIds", ownerIds);
@@ -277,7 +277,7 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
   }
 
   public Long countEventDatePollsInSpace(List<Long> ownerIds, List<Long> attendeeIds) {
-    TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaEvent.countPendingDatePoll", Long.class);
+    TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaEvent.countPendingDatePollInSpace", Long.class);
     query.setParameter("status", EventStatus.TENTATIVE);
     query.setParameter("attendeeIds", attendeeIds);
     query.setParameter("ownerIds", ownerIds);

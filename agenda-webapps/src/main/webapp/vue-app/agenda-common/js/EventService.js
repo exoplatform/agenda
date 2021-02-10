@@ -339,9 +339,6 @@ export function getDatePolls(ownerIds, offset, limit, expand) {
   }
 
   params = $.param(params, true);
-  if (ownerIds && ownerIds.length) {
-    params = ownerIds;
-  }
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/datePolls?${params}`, {
     method: 'GET',
     credentials: 'include',
