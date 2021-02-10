@@ -307,6 +307,66 @@ public class Utils {
    * @param ownerId calendar owner {@link Identity} technical identifier
    * @param userIdentityId {@link Identity} identifier of user accessing
    *          calendar data
+   * @return true if user can create event in a calendar, else return false
+   */
+  public static boolean canCreateEvent(IdentityManager identityManager,
+                                       SpaceService spaceService,
+                                       long ownerId,
+                                       long userIdentityId) {
+    Identity requestedOwner = identityManager.getIdentity(String.valueOf(ownerId));
+    if (requestedOwner == null) {
+      return false;
+    }
+    Identity userIdentity = identityManager.getIdentity(String.valueOf(userIdentityId));
+    if (userIdentity == null) {
+      throw new IllegalStateException("User with id " + userIdentity + " wasn't found");
+    }
+
+    if (StringUtils.equals(OrganizationIdentityProvider.NAME, requestedOwner.getProviderId())) {
+      return userIdentityId == Long.parseLong(requestedOwner.getId());
+    } else if (StringUtils.equals(SpaceIdentityProvider.NAME, requestedOwner.getProviderId())) {
+      boolean superManager = spaceService.isSuperManager(userIdentity.getRemoteId());
+      Space space = spaceService.getSpaceByPrettyName(requestedOwner.getRemoteId());
+      boolean isMember = space != null && spaceService.isMember(space, userIdentity.getRemoteId());
+      boolean isRedactor = space != null && spaceService.isRedactor(space, userIdentity.getRemoteId());
+      boolean spaceHasARedactor = space != null && space.getRedactors() != null && space.getRedactors().length > 0;
+      return (!spaceHasARedactor || isRedactor) && (superManager || isMember);
+    } else {
+      return false;
+    }
+  }
+
+  /**
+   * @param identityManager {@link IdentityManager} service instance
+   * @param spaceService {@link SpaceService} service instance
+   * @param ownerId calendar owner {@link Identity} technical identifier
+   * @return true if owner is a space and has at least one redactor, else return
+   *         false
+   */
+  public static boolean canInviteeEdit(IdentityManager identityManager,
+                                    SpaceService spaceService,
+                                    long ownerId) {
+    Identity requestedOwner = identityManager.getIdentity(String.valueOf(ownerId));
+    if (requestedOwner == null) {
+      return false;
+    }
+
+    if (StringUtils.equals(OrganizationIdentityProvider.NAME, requestedOwner.getProviderId())) {
+      return false;
+    } else if (StringUtils.equals(SpaceIdentityProvider.NAME, requestedOwner.getProviderId())) {
+      Space space = spaceService.getSpaceByPrettyName(requestedOwner.getRemoteId());
+      return space != null && (space.getRedactors() == null || space.getRedactors().length == 0);
+    } else {
+      return false;
+    }
+  }
+
+  /**
+   * @param identityManager {@link IdentityManager} service instance
+   * @param spaceService {@link SpaceService} service instance
+   * @param ownerId calendar owner {@link Identity} technical identifier
+   * @param userIdentityId {@link Identity} identifier of user accessing
+   *          calendar data
    * @return true if user can modify calendar or its events, else return false
    */
   public static boolean canEditCalendar(IdentityManager identityManager,
@@ -325,12 +385,12 @@ public class Utils {
     if (StringUtils.equals(OrganizationIdentityProvider.NAME, requestedOwner.getProviderId())) {
       return userIdentityId == Long.parseLong(requestedOwner.getId());
     } else if (StringUtils.equals(SpaceIdentityProvider.NAME, requestedOwner.getProviderId())) {
-      if (spaceService.isSuperManager(userIdentity.getRemoteId())) {
-        return true;
-      } else {
-        Space space = spaceService.getSpaceByPrettyName(requestedOwner.getRemoteId());
-        return space != null && spaceService.isManager(space, userIdentity.getRemoteId());
-      }
+      boolean superManager = spaceService.isSuperManager(userIdentity.getRemoteId());
+      Space space = spaceService.getSpaceByPrettyName(requestedOwner.getRemoteId());
+      boolean isManager = space != null && spaceService.isManager(space, userIdentity.getRemoteId());
+      boolean isRedactor = space != null && spaceService.isRedactor(space, userIdentity.getRemoteId());
+      boolean spaceHasARedactor = space != null && space.getRedactors() != null && space.getRedactors().length > 0;
+      return (!spaceHasARedactor || isRedactor) && (superManager || isManager);
     } else {
       return false;
     }

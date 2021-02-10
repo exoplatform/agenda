@@ -1,15 +1,21 @@
 <template>
   <div class="text-no-wrap">
-    <v-btn
-      class="btn btn-primary"
-      @click="openNewEventForm">
-      <v-icon dark>
-        mdi-plus
-      </v-icon>
-      <span class="ml-2 d-none d-lg-inline">
-        {{ $t('agenda.button.addEvent') }}
-      </span>
-    </v-btn>
+    <div
+      v-if="displayButton"
+      :title="addEventButtonTooltip"
+      class="d-inline-block">
+      <v-btn
+        :disabled="!canCreateEvent"
+        class="btn btn-primary"
+        @click="openNewEventForm">
+        <v-icon dark>
+          mdi-plus
+        </v-icon>
+        <span class="ml-2 d-none d-lg-inline">
+          {{ $t('agenda.button.addEvent') }}
+        </span>
+      </v-btn>
+    </div>
     <agenda-pending-invitation-badge :current-space="currentSpace" />
   </div>
 </template>
@@ -20,6 +26,30 @@ export default {
       type: Object,
       default: null
     },
+    canCreateEvent: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  data: () => ({
+    initialized: false,
+  }),
+  computed: {
+    isMobile() {
+      return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
+    },
+    displayButton() {
+      return (!this.isMobile || this.canCreateEvent) && (this.initialized || !eXo.env.portal.spaceId);
+    },
+    addEventButtonTooltip() {
+      if (!this.canCreateEvent) {
+        return this.$t('agenda.onlySpaceRedactorCanCreateEvent');
+      }
+      return '';
+    },
+  },
+  created() {
+    this.$root.$on('agenda-application-loaded', () => this.initialized = true);
   },
   methods: {
     openNewEventForm(){
