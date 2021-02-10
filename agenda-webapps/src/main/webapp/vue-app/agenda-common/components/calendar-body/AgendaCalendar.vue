@@ -158,9 +158,6 @@ export default {
       return event && event.acl && event.acl.canEdit;
     },
     scrollToTime() {
-      if (this.isMobile) {
-        return;
-      }
       this.$nextTick().then(() => {
         const dailyScrollElement = document.querySelector('.v-calendar-daily__scroll-area');
         if (dailyScrollElement) {
