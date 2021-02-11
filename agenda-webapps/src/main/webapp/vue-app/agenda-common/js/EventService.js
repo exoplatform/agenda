@@ -324,8 +324,19 @@ export function dismissEventDate(eventId, dateOptionId) {
     });
 }
 
-export function getDatePolls(offset, limit, expand) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/datePolls?offset=${offset || 0}&limit=${limit || 0}&expand=${expand || ''}`, {
+export function getDatePolls(ownerId, offset, limit, expand) {
+  offset = offset || 0;
+  limit = limit || 0;
+  expand = expand || '';
+  const formData = new FormData();
+  formData.append('offset',offset);
+  formData.append('limit',limit);
+  formData.append('expand',expand);
+  if (ownerId) {
+    formData.append('ownerIds',ownerId);
+  }
+  const params = new URLSearchParams(formData).toString();
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/datePolls?${params}`, {
     method: 'GET',
     credentials: 'include',
   }).then((resp) => {
@@ -334,6 +345,26 @@ export function getDatePolls(offset, limit, expand) {
     } else {
       throw new Error('Error getting pending date poll list');
     }
+  });
+}
+
+export function countDatePolls(ownerId) {
+  const formData = new FormData();
+  if (ownerId) {
+    formData.append('ownerIds',ownerId);
+  }
+  const params = new URLSearchParams(formData).toString();
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/datePolls?${params}`, {
+    method: 'GET',
+    credentials: 'include',
+  }).then((resp) => {
+    if (resp && resp.ok) {
+      return resp.json();
+    } else {
+      throw new Error('Error getting pending date poll list');
+    }
+  }).then(eventsList => {
+    return eventsList && eventsList.size || 0;
   });
 }
 

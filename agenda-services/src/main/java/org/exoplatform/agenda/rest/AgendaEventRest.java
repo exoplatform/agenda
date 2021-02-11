@@ -1212,19 +1212,22 @@ public class AgendaEventRest implements ResourceContainer {
           @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
       }
   )
-  public Response getPendingEvents(
-                                   @ApiParam(value = "Offset", required = false, defaultValue = "0") @QueryParam(
-                                     "offset"
-                                   ) int offset,
-                                   @ApiParam(
-                                       value = "Limit of results to return", required = false
-                                   ) @QueryParam("limit") int limit,
-                                   @ApiParam(value = "IANA Time zone identitifer", required = false) @QueryParam(
-                                     "timeZoneId"
-                                   ) String timeZoneId,
-                                   @ApiParam(value = "Properties to expand", required = false) @QueryParam(
-                                     "expand"
-                                   ) String expand) {
+  public Response getDatePolls(
+                               @ApiParam(value = "Identity technical identifiers of calendar owners", required = false) @QueryParam(
+                                 "ownerIds"
+                               ) List<Long> ownerIds,
+                               @ApiParam(value = "Offset", required = false, defaultValue = "0") @QueryParam(
+                                 "offset"
+                               ) int offset,
+                               @ApiParam(
+                                   value = "Limit of results to return", required = false
+                               ) @QueryParam("limit") int limit,
+                               @ApiParam(value = "IANA Time zone identitifer", required = false) @QueryParam(
+                                 "timeZoneId"
+                               ) String timeZoneId,
+                               @ApiParam(value = "Properties to expand", required = false) @QueryParam(
+                                 "expand"
+                               ) String expand) {
     if (offset < 0) {
       return Response.status(Status.BAD_REQUEST).entity("Offset must be 0 or positive").build();
     }
@@ -1237,10 +1240,11 @@ public class AgendaEventRest implements ResourceContainer {
       EventList eventList = new EventList();
       eventList.setLimit(limit);
       if (limit > 0) {
-        List<Event> events = agendaEventService.getEventDatePolls(userIdentityId,
-                                                                    userTimeZone,
-                                                                    offset,
-                                                                    limit);
+        List<Event> events = agendaEventService.getEventDatePolls(ownerIds,
+                                                                  userIdentityId,
+                                                                  userTimeZone,
+                                                                  offset,
+                                                                  limit);
         List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
                                                                     : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
                                                                                                       ","));
@@ -1249,7 +1253,7 @@ public class AgendaEventRest implements ResourceContainer {
                                                 .collect(Collectors.toList());
         eventList.setEvents(eventEntities);
       }
-      eventList.setSize(agendaEventService.countEventDatePolls(userIdentityId));
+      eventList.setSize(agendaEventService.countEventDatePolls(ownerIds, userIdentityId));
       return Response.ok(eventList).build();
     } catch (Exception e) {
       LOG.warn("Error retrieving list of events", e);
