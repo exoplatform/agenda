@@ -348,6 +348,26 @@ export function getDatePolls(ownerId, offset, limit, expand) {
   });
 }
 
+export function countDatePolls(ownerId) {
+  const formData = new FormData();
+  if (ownerId) {
+    formData.append('ownerIds',ownerId);
+  }
+  const params = new URLSearchParams(formData).toString();
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/datePolls?${params}`, {
+    method: 'GET',
+    credentials: 'include',
+  }).then((resp) => {
+    if (resp && resp.ok) {
+      return resp.json();
+    } else {
+      throw new Error('Error getting pending date poll list');
+    }
+  }).then(eventsList => {
+    return eventsList && eventsList.size || 0;
+  });
+}
+
 function formatRecurrenceObject(event) {
   if (event.recurrence) {
     const recurrence = event.recurrence;

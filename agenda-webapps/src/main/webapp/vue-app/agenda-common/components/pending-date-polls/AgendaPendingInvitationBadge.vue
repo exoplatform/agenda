@@ -1,12 +1,13 @@
 <template>
   <v-badge
-    v-if="datePollsCount"
+    :value="datePollsCount"
     :content="datePollsCount"
     offset-y="10"
     class="d-none d-md-inline"
     color="#F8B121">
     <v-btn
       :title="$t('agenda.pendingInvitations')"
+      :loading="loading"
       class="ml-4 mr-2"
       color="white"
       icon
@@ -28,20 +29,36 @@ export default {
   },
   data: () => ({
     datePollsCount: 0,
+    loading: true,
   }),
   computed: {
+    spaceRetrieved() {
+      return !eXo.env.portal.spaceId || this.currentSpace;
+    },
     spaceIdentityId() {
       return this.currentSpace && this.currentSpace.identity && this.currentSpace.identity.id;
     },
   },
+  watch: {
+    currentSpace() {
+      if (this.spaceRetrieved) {
+        this.countDatePolls();
+      }
+    },
+  },
   created() {
-    this.$root.$on('agenda-refresh', this.getInComingDatePolls);
-    this.$root.$on('agenda-event-saved', this.getInComingDatePolls);
-    this.getInComingDatePolls();
+    this.$root.$on('agenda-refresh', this.countDatePolls);
+    this.$root.$on('agenda-event-saved', this.countDatePolls);
+    if (this.spaceRetrieved) {
+      this.countDatePolls();
+    }
   },
   methods: {
-    getInComingDatePolls() {
-      return this.$eventService.getDatePolls(this.spaceIdentityId).then(eventsList => this.datePollsCount = eventsList && eventsList.size || 0);
+    countDatePolls() {
+      this.loading = true;
+      return this.$eventService.countDatePolls(this.spaceIdentityId)
+        .then(datePollsCount => this.datePollsCount = datePollsCount)
+        .finally(() => this.loading = false);
     },
   }
 };

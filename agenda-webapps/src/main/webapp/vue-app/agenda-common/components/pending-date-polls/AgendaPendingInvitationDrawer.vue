@@ -61,9 +61,7 @@ export default {
     },
     open() {
       this.$refs.calendarPendingDatePolls.open();
-      this.$nextTick().then(() => {
-        this.retrieveDatePolls();
-      });
+      this.retrieveDatePolls();
     },
     loadMore(){
       this.limit += this.pageSize;
@@ -79,8 +77,8 @@ export default {
         }).catch(error =>{
           console.error('Error retrieving pending date polls', error);
         }).finally(() => {
-          this.loading = false;
           this.$refs.calendarPendingDatePolls.endLoading();
+          this.loading = false;
         });
     },
   },

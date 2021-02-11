@@ -62,7 +62,6 @@ export default {
     agendaBaseLink: null,
     conferenceProviders:null,
     selectedProviderType:null,
-    datePollsCount:0,
   }),
   computed: {
     enabledConferenceProviderName() {

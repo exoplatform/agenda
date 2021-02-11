@@ -1212,22 +1212,22 @@ public class AgendaEventRest implements ResourceContainer {
           @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
       }
   )
-  public Response getPendingEvents(
-                                   @ApiParam(value = "Identity technical identifiers of calendar owners", required = false) @QueryParam(
-                                          "ownerIds"
-                                   ) List<Long> ownerIds,
-                                   @ApiParam(value = "Offset", required = false, defaultValue = "0") @QueryParam(
-                                     "offset"
-                                   ) int offset,
-                                   @ApiParam(
-                                       value = "Limit of results to return", required = false
-                                   ) @QueryParam("limit") int limit,
-                                   @ApiParam(value = "IANA Time zone identitifer", required = false) @QueryParam(
-                                     "timeZoneId"
-                                   ) String timeZoneId,
-                                   @ApiParam(value = "Properties to expand", required = false) @QueryParam(
-                                     "expand"
-                                   ) String expand) {
+  public Response getDatePolls(
+                               @ApiParam(value = "Identity technical identifiers of calendar owners", required = false) @QueryParam(
+                                 "ownerIds"
+                               ) List<Long> ownerIds,
+                               @ApiParam(value = "Offset", required = false, defaultValue = "0") @QueryParam(
+                                 "offset"
+                               ) int offset,
+                               @ApiParam(
+                                   value = "Limit of results to return", required = false
+                               ) @QueryParam("limit") int limit,
+                               @ApiParam(value = "IANA Time zone identitifer", required = false) @QueryParam(
+                                 "timeZoneId"
+                               ) String timeZoneId,
+                               @ApiParam(value = "Properties to expand", required = false) @QueryParam(
+                                 "expand"
+                               ) String expand) {
     if (offset < 0) {
       return Response.status(Status.BAD_REQUEST).entity("Offset must be 0 or positive").build();
     }

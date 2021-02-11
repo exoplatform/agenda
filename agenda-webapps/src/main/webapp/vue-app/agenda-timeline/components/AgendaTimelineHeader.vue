@@ -4,7 +4,7 @@
       <a :href="agendaBaseLink" class="body-1 text-uppercase text-sub-title">
         {{ $t('agenda') }}
       </a>
-      <agenda-pending-invitation-badge v-if="spaceRetrieved" :current-space="currentSpace" />
+      <agenda-pending-invitation-badge :current-space="currentSpace" />
     </div>
     <v-spacer />
     <v-btn
@@ -26,14 +26,6 @@ export default {
     agendaBaseLink: {
       type: String,
       default: null
-    },
-  },
-  computed: {
-    spaceIdentityId() {
-      return this.currentSpace && this.currentSpace.identity && this.currentSpace.identity.id;
-    },
-    spaceRetrieved() {
-      return !eXo.env.portal.spaceId || this.currentSpace;
     },
   },
   methods: {
