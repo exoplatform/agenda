@@ -8,8 +8,7 @@ import java.util.*;
 
 import org.apache.commons.lang.StringUtils;
 
-import org.exoplatform.agenda.constant.EventAttendeeResponse;
-import org.exoplatform.agenda.constant.EventModificationType;
+import org.exoplatform.agenda.constant.*;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.service.AgendaEventAttendeeService;
@@ -405,7 +404,7 @@ public class NotificationUtils {
     templateContext.put(TEMPLATE_VARIABLE_RESPONSE_TENTATIVE,
                         getResponseURL(agendaEventAttendeeService, eventId, username, EventAttendeeResponse.TENTATIVE));
 
-    if (StringUtils.equals(modificationStoredType, EventModificationType.UPDATED.name())) {
+    if (StringUtils.equals(modificationStoredType, AgendaEventModificationType.UPDATED.name())) {
       String identityId = notification.getValueOwnerParameter(STORED_PARAMETER_MODIFIER_IDENTITY_ID);
       templateContext.put(TEMPLATE_VARIABLE_EVENT_MODIFIER, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_MODIFIER));
       templateContext.put(TEMPLATE_VARIABLE_MODIFIER_IDENTITY_URL, getUserAbsoluteURI(identityId));

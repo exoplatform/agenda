@@ -2,7 +2,9 @@ package org.exoplatform.agenda.service;
 
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Set;
 
+import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventDateOption;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
@@ -45,9 +47,10 @@ public interface AgendaEventDatePollService {
    * @param eventId Technical identifier of {@link Event}
    * @param dateOptions {@link List} of {@link EventDateOption} corresponding to
    *          {@link Event}
-   * @return {@link List} of created {@link EventDateOption}
+   * @return {@link Set} of {@link AgendaEventModificationType} containing
+   *         modifications made on event reminders
    */
-  List<EventDateOption> updateEventDateOptions(long eventId, List<EventDateOption> dateOptions);
+  Set<AgendaEventModificationType> updateEventDateOptions(long eventId, List<EventDateOption> dateOptions);
 
   /**
    * Saves all votes of user on an event. The dateOptionVotes will provide only

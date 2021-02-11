@@ -1,7 +1,9 @@
 package org.exoplatform.agenda.service;
 
 import java.util.List;
+import java.util.Set;
 
+import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttachment;
 import org.exoplatform.social.core.identity.model.Identity;
@@ -14,8 +16,10 @@ public interface AgendaEventAttachmentService {
    * @param eventId technichal identifier of {@link Event}
    * @param attachments {@link List} of {@link EventAttachment}
    * @param creatorIdentityId {@link Identity} technical identifier of user
+   * @return {@link Set} of {@link AgendaEventModificationType} containing
+   *         modifications made on event attachments
    */
-  void saveEventAttachments(long eventId, List<EventAttachment> attachments, long creatorIdentityId);
+  Set<AgendaEventModificationType> saveEventAttachments(long eventId, List<EventAttachment> attachments, long creatorIdentityId);
 
   /**
    * Return the list of attachments of an event

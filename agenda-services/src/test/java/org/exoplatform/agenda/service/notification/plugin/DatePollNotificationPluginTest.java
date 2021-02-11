@@ -1,6 +1,11 @@
 package org.exoplatform.agenda.service.notification.plugin;
 
-import org.exoplatform.agenda.constant.EventModificationType;
+import java.time.ZonedDateTime;
+
+import org.junit.Assert;
+import org.junit.Test;
+
+import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.notification.plugin.DatePollNotificationPlugin;
 import org.exoplatform.agenda.service.BaseAgendaEventTest;
@@ -11,10 +16,6 @@ import org.exoplatform.commons.api.notification.model.NotificationInfo;
 import org.exoplatform.commons.notification.impl.NotificationContextImpl;
 import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.container.xml.ValueParam;
-import org.junit.Assert;
-import org.junit.Test;
-
-import java.time.ZonedDateTime;
 
 public class DatePollNotificationPluginTest extends BaseAgendaEventTest {
   public static final ArgumentLiteral<String> EVENT_TITLE = new ArgumentLiteral<>(String.class, "eventTitle");
@@ -51,7 +52,7 @@ public class DatePollNotificationPluginTest extends BaseAgendaEventTest {
                                                              agendaEventAttendeeService.getEventAttendees(createdEvent.getId()))
                                                      .append(EVENT_TITLE, createdEvent.getSummary())
                                                      .append(NotificationUtils.EVENT_MODIFICATION_TYPE,
-                                                             EventModificationType.ADDED.name());
+                                                             AgendaEventModificationType.ADDED.name());
 
     long nbAttendee = agendaEventAttendeeService.getEventAttendees(createdEvent.getId()).size();
     long ownerId = agendaCalendarService.getCalendarById(createdEvent.getCalendarId()).getOwnerId();

@@ -1,10 +1,10 @@
 package org.exoplatform.agenda.service;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
 
+import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.model.EventConference;
 import org.exoplatform.agenda.storage.AgendaEventConferenceStorage;
 import org.exoplatform.agenda.util.Utils;
@@ -47,14 +47,13 @@ public class AgendaEventConferenceServiceImpl implements AgendaEventConferenceSe
   }
 
   @Override
-  public void saveEventConferences(long eventId, List<EventConference> conferences) {
+  public Set<AgendaEventModificationType> saveEventConferences(long eventId, List<EventConference> conferences) {
     List<EventConference> savedConferences = getEventConferences(eventId);
     List<EventConference> newConferences = conferences == null ? Collections.emptyList() : conferences;
-    List<EventConference> conferencesToDelete =
-                                              savedConferences.stream()
-                                                              .filter(conference -> newConferences.stream()
-                                                                                                  .noneMatch(newConference -> newConference.getId() == conference.getId()))
-                                                              .collect(Collectors.toList());
+    List<EventConference> conferencesToDelete = new ArrayList<>(savedConferences);
+    conferencesToDelete.removeAll(newConferences);
+    List<EventConference> conferencesToCreate = new ArrayList<>(newConferences);
+    conferencesToCreate.removeAll(savedConferences);
 
     // Delete conferences
     for (EventConference eventConference : conferencesToDelete) {
@@ -62,12 +61,20 @@ public class AgendaEventConferenceServiceImpl implements AgendaEventConferenceSe
     }
 
     // Create new conferences
-    for (EventConference eventConference : newConferences) {
+    for (EventConference eventConference : conferencesToCreate) {
       eventConference.setEventId(eventId);
       conferenceStorage.saveEventConference(eventConference);
     }
 
+    Set<AgendaEventModificationType> conferenceModificationTypes = new HashSet<>();
+    if (!conferencesToDelete.isEmpty()) {
+      conferenceModificationTypes.add(AgendaEventModificationType.CONFERENCE_DELETED);
+    }
+    if (!conferencesToCreate.isEmpty()) {
+      conferenceModificationTypes.add(AgendaEventModificationType.CONFERENCE_ADDED);
+    }
     Utils.broadcastEvent(listenerService, "exo.agenda.event.conferences.saved", eventId, 0);
+    return conferenceModificationTypes;
   }
 
   @Override

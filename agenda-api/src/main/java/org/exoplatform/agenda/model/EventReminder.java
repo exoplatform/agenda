@@ -21,6 +21,7 @@ import java.time.ZonedDateTime;
 import org.exoplatform.agenda.constant.ReminderPeriodType;
 
 import lombok.*;
+import lombok.EqualsAndHashCode.Exclude;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
@@ -29,6 +30,7 @@ public class EventReminder extends EventReminderParameter implements Cloneable {
 
   private static final long      serialVersionUID = -7068947528529938343L;
 
+  @Exclude
   private long                   id;
 
   private long                   eventId;
@@ -39,6 +41,7 @@ public class EventReminder extends EventReminderParameter implements Cloneable {
    * Date and time converted to user timezone (Timestamp representation using
    * RFC-3339). This is the computed datetime to send reminder.
    */
+  @Exclude
   private volatile ZonedDateTime datetime;
 
   private ZonedDateTime          fromOccurrenceId;

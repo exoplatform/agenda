@@ -21,8 +21,10 @@ import java.util.*;
 import java.util.Date;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang.ObjectUtils;
 import org.apache.commons.lang.StringUtils;
 
+import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.services.listener.ListenerService;
@@ -108,26 +110,25 @@ public class Utils {
     ZoneId timeZone = event.getTimeZoneId();
 
     TimeZone ical4jTimezone = getICalTimeZone(timeZone);
-    long startTime = event.isAllDay() ? event.getStart().toLocalDate().atStartOfDay(timeZone).toInstant().toEpochMilli()
-                                      : event.getStart().toInstant().toEpochMilli();
-    long endTime = event.isAllDay() ? event.getEnd()
-                                           .toLocalDate()
-                                           .atStartOfDay(timeZone)
-                                           .plusDays(1)
-                                           .minusSeconds(1)
-                                           .toInstant()
-                                           .toEpochMilli()
-                                    : event.getEnd().toInstant().toEpochMilli();
+    ZonedDateTime startTime = event.isAllDay() ? event.getStart().toLocalDate().atStartOfDay(timeZone)
+                                               : event.getStart();
+    ZonedDateTime endTime = event.isAllDay() ? event.getEnd()
+                                                    .toLocalDate()
+                                                    .atStartOfDay(timeZone)
+                                                    .plusDays(1)
+                                                    .minusSeconds(1)
+                                             : event.getEnd();
 
-    DateTime startDateTime = new DateTime(startTime);
+    DateTime startDateTime = new DateTime(Date.from(startTime.toInstant()));
     startDateTime.setTimeZone(ical4jTimezone);
-    DateTime endDateTime = new DateTime(endTime);
+    DateTime endDateTime = new DateTime(Date.from(endTime.toInstant()));
     endDateTime.setTimeZone(ical4jTimezone);
+
     VEvent vevent = new VEvent(startDateTime, endDateTime, event.getSummary());
-    Recur recur = getICalendarRecur(event.getRecurrence());
+    Recur recur = getICalendarRecur(event.getRecurrence(), timeZone);
     vevent.getProperties().add(new RRule(recur));
 
-    long fromTime = from.atStartOfDay(timeZone).toInstant().toEpochMilli();
+    ZonedDateTime fromTime = from.atStartOfDay(timeZone);
     if (to == null) {
       ZonedDateTime overallEnd = event.getRecurrence().getOverallEnd();
       if (overallEnd == null) {
@@ -136,10 +137,10 @@ public class Utils {
         to = overallEnd.withZoneSameInstant(ZoneOffset.UTC).toLocalDate();
       }
     }
-    long toTime = to.atStartOfDay(timeZone).plusDays(1).minusSeconds(1).toEpochSecond() * 1000;
-    DateTime ical4jFrom = new DateTime(fromTime);
+    ZonedDateTime toTime = to.atStartOfDay(timeZone).plusDays(1).minusSeconds(1);
+    DateTime ical4jFrom = new DateTime(Date.from(fromTime.toInstant()));
     ical4jFrom.setTimeZone(ical4jTimezone);
-    DateTime ical4jTo = new DateTime(toTime);
+    DateTime ical4jTo = new DateTime(Date.from(toTime.toInstant()));
     ical4jTo.setTimeZone(ical4jTimezone);
     DateList dates = limit > 0 ? recur.getDates(startDateTime, ical4jFrom, ical4jTo, null, limit)
                                : recur.getDates(startDateTime, ical4jFrom, ical4jTo, null);
@@ -158,7 +159,8 @@ public class Utils {
       // Limit period of dates to retrieve of this recurrence to date where we
       // have at maximum 'limit' occurrences that will be retrieved
       ical4jTo = (DateTime) dates.get(limit - 1);
-      long duration = endTime - startTime;
+      long duration = (endTime.toEpochSecond() - startTime.toEpochSecond()) * 1000;
+
       ical4jTo = new DateTime(ical4jTo.getTime() + duration + 1000);
       ical4jTo.setTimeZone(ical4jTimezone);
     }
@@ -190,14 +192,18 @@ public class Utils {
     return occurrences;
   }
 
-  public static Recur getICalendarRecur(EventRecurrence recurrence) {
+  public static Recur getICalendarRecur(EventRecurrence recurrence, ZoneId zoneId) {
     Recur.Builder recurBuilder = new Recur.Builder();
     recurBuilder.frequency(Frequency.valueOf(recurrence.getFrequency().name()));
     recurBuilder.count(recurrence.getCount() > 0 ? recurrence.getCount() : 0);
     recurBuilder.interval(recurrence.getInterval());
     if (recurrence.getUntil() != null) {
-      DateTime dateTime = new DateTime(AgendaDateUtils.toDate(recurrence.getUntil()));
-      dateTime.setUtc(true);
+      DateTime dateTime = new DateTime(AgendaDateUtils.toDate(recurrence.getUntil()
+                                                                        .atStartOfDay(zoneId)
+                                                                        .plusDays(1)
+                                                                        .minusSeconds(1)));
+      TimeZone ical4jTimezone = getICalTimeZone(zoneId == null ? ZoneOffset.UTC : zoneId);
+      dateTime.setTimeZone(ical4jTimezone);
       recurBuilder.until(dateTime);
     }
     if (recurrence.getBySecond() != null && !recurrence.getBySecond().isEmpty()) {
@@ -432,5 +438,55 @@ public class Utils {
     long dateTimeMS = Long.parseLong(dateTimeString);
     ZonedDateTime dateTime = AgendaDateUtils.fromDate(new Date(dateTimeMS));
     return dateTime.withZoneSameLocal(ZoneOffset.UTC).withZoneSameInstant(userTimeZone);
+  }
+
+  public static void detectEventModifiedFields(Event newEvent, Event oldEvent, AgendaEventModification eventModification) {
+    if (!StringUtils.equals(newEvent.getSummary(), oldEvent.getSummary())) {
+      eventModification.addModificationType(AgendaEventModificationType.SUMMARY_UPDATED);
+    }
+    if (!StringUtils.equals(newEvent.getDescription(), oldEvent.getDescription())) {
+      eventModification.addModificationType(AgendaEventModificationType.DESCRIPTION_UPDATED);
+    }
+    if (!StringUtils.equals(newEvent.getLocation(), oldEvent.getLocation())) {
+      eventModification.addModificationType(AgendaEventModificationType.LOCATION_UPDATED);
+    }
+    if (!StringUtils.equals(newEvent.getColor(), oldEvent.getColor())) {
+      eventModification.addModificationType(AgendaEventModificationType.COLOR_UPDATED);
+    }
+    if (!newEvent.getStart()
+                 .withZoneSameInstant(ZoneOffset.UTC)
+                 .equals(oldEvent.getStart().withZoneSameInstant(ZoneOffset.UTC))) {
+      eventModification.addModificationType(AgendaEventModificationType.START_DATE_UPDATED);
+    }
+    if (!newEvent.getEnd()
+                 .withZoneSameInstant(ZoneOffset.UTC)
+                 .equals(oldEvent.getEnd().withZoneSameInstant(ZoneOffset.UTC))) {
+      eventModification.addModificationType(AgendaEventModificationType.END_DATE_UPDATED);
+    }
+    if (newEvent.isAllDay() != oldEvent.isAllDay()) {
+      eventModification.addModificationType(AgendaEventModificationType.START_DATE_UPDATED);
+      eventModification.addModificationType(AgendaEventModificationType.END_DATE_UPDATED);
+    }
+    if (newEvent.isAllowAttendeeToUpdate() != oldEvent.isAllowAttendeeToUpdate()) {
+      eventModification.addModificationType(AgendaEventModificationType.ALLOW_MODIFY_UPDATED);
+    }
+    if (newEvent.isAllowAttendeeToInvite() != oldEvent.isAllowAttendeeToInvite()) {
+      eventModification.addModificationType(AgendaEventModificationType.ALLOW_INVITE_UPDATED);
+    }
+    if (newEvent.getCalendarId() != oldEvent.getCalendarId()) {
+      eventModification.addModificationType(AgendaEventModificationType.OWNER_UPDATED);
+    }
+    if (newEvent.getAvailability() != oldEvent.getAvailability()) {
+      eventModification.addModificationType(AgendaEventModificationType.AVAILABILITY_UPDATED);
+    }
+    if (newEvent.getStatus() != oldEvent.getStatus()) {
+      eventModification.addModificationType(AgendaEventModificationType.STATUS_UPDATED);
+    }
+    if (!newEvent.getTimeZoneId().equals(oldEvent.getTimeZoneId())) {
+      eventModification.addModificationType(AgendaEventModificationType.TIMEZONE_UPDATED);
+    }
+    if (!ObjectUtils.equals(newEvent.getRecurrence(), oldEvent.getRecurrence())) {
+      eventModification.addModificationType(AgendaEventModificationType.RECURRENCE_UPDATED);
+    }
   }
 }
