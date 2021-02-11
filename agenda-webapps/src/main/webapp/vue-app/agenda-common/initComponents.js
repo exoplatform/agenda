@@ -18,8 +18,9 @@ import AgendaFilterCalendarList from './components/filter/AgendaFilterCalendarLi
 import AgendaFilterCalendarItem from './components/filter/AgendaFilterCalendarItem.vue';
 import AgendaFilterCalendarSearch from './components/filter/AgendaFilterCalendarSearch.vue';
 
-import AgendaPendingInvitationDrawer from './components/pending-invitation/AgendaPendingInvitationDrawer.vue';
-import AgendaPendingInvitationItem from './components/pending-invitation/AgendaPendingInvitationItem.vue';
+import AgendaPendingInvitationDrawer from './components/pending-date-polls/AgendaPendingInvitationDrawer.vue';
+import AgendaPendingInvitationItem from './components/pending-date-polls/AgendaPendingInvitationItem.vue';
+import AgendaPendingInvitationBadge from './components/pending-date-polls/AgendaPendingInvitationBadge.vue';
 
 import AgendaEventSave from './components/event/AgendaEventSave.vue';
 import AgendaEventDialog from './components/event/AgendaEventDialog.vue';
@@ -125,6 +126,7 @@ const components = {
   'agenda-connectors-drawer': AgendaConnectorsDrawer,
   'agenda-pending-invitation-drawer':AgendaPendingInvitationDrawer,
   'agenda-pending-invitation-item':AgendaPendingInvitationItem,
+  'agenda-pending-invitation-badge':AgendaPendingInvitationBadge,
   'agenda-reminder-user-settings': AgendaReminderUserSettings,
   'agenda-reminder-user-setting-item': AgendaReminderUserSettingItem,
   'agenda-connector': AgendaConnector,

@@ -65,14 +65,23 @@ public class AgendaEventStorage {
     return this.eventDAO.getEventIds(startDate, endDate, ownerIds, attendeeIds, responseTypes, limit);
   }
 
-  public List<Long> getEventDatePollIds(List<Long> attendeeIds,
+  public List<Long> getEventDatePollIds(List<Long> ownerIds,
+                                        List<Long> attendeeIds,
                                         int offset,
                                         int limit) {
-    return this.eventDAO.getEventDatePollIds(attendeeIds, offset, limit);
+    if (ownerIds == null || ownerIds.isEmpty()) {
+      return this.eventDAO.getEventDatePollIds(attendeeIds, offset, limit);
+    } else {
+      return this.eventDAO.getEventDatePollIdsByOwnerIds(ownerIds, attendeeIds, offset, limit);
+    }
   }
 
-  public long countEventDatePolls(List<Long> attendeeIds) {
-    return this.eventDAO.countEventDatePolls(attendeeIds);
+  public long countEventDatePolls(List<Long> ownerIds, List<Long> attendeeIds) {
+    if (ownerIds == null || ownerIds.isEmpty()) {
+      return this.eventDAO.countEventDatePolls(attendeeIds);
+    } else {
+      return this.eventDAO.countEventDatePollsByOwnerIds(ownerIds, attendeeIds);
+    }
   }
 
   public List<Event> getParentRecurrentEventIds(ZonedDateTime start, ZonedDateTime end) {

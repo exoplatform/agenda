@@ -988,24 +988,48 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     assertEquals(dateOption2.getEnd().withZoneSameInstant(ZoneOffset.UTC), createdEvent.getEnd());
     assertEquals(EventStatus.TENTATIVE, createdEvent.getStatus());
 
-    List<Event> eventDatePolls = agendaEventService.getEventDatePolls(Long.parseLong(testuser1Identity.getId()),
+    List<Event> eventDatePolls = agendaEventService.getEventDatePolls(Collections.emptyList(),
+                                                                      Long.parseLong(testuser1Identity.getId()),
                                                                       ZoneOffset.UTC,
                                                                       0,
                                                                       10);
     assertNotNull(eventDatePolls);
     assertEquals(1, eventDatePolls.size());
 
-    eventDatePolls = agendaEventService.getEventDatePolls(Long.parseLong(testuser2Identity.getId()), ZoneOffset.UTC, 0, 10);
+    eventDatePolls = agendaEventService.getEventDatePolls(Collections.emptyList(), Long.parseLong(testuser2Identity.getId()), ZoneOffset.UTC, 0, 10);
     assertNotNull(eventDatePolls);
     assertEquals(1, eventDatePolls.size());
 
-    eventDatePolls = agendaEventService.getEventDatePolls(Long.parseLong(testuser4Identity.getId()), ZoneOffset.UTC, 0, 10);
+    eventDatePolls = agendaEventService.getEventDatePolls(Collections.emptyList(), Long.parseLong(testuser4Identity.getId()), ZoneOffset.UTC, 0, 10);
     assertNotNull(eventDatePolls);
     assertEquals(1, eventDatePolls.size());
 
-    eventDatePolls = agendaEventService.getEventDatePolls(Long.parseLong(testuser5Identity.getId()), ZoneOffset.UTC, 0, 10);
+    eventDatePolls = agendaEventService.getEventDatePolls(Collections.emptyList(), Long.parseLong(testuser5Identity.getId()), ZoneOffset.UTC, 0, 10);
     assertNotNull(eventDatePolls);
     assertEquals(0, eventDatePolls.size());
+
+    // get Date Polls in a specific space
+    eventDatePolls = agendaEventService.getEventDatePolls(Collections.singletonList(Long.parseLong(spaceIdentity.getId())),
+                                                          Long.parseLong(testuser1Identity.getId()),
+                                                          ZoneOffset.UTC,
+                                                          0,
+                                                          10);
+    assertNotNull(eventDatePolls);
+    assertEquals(1, eventDatePolls.size());
+
+    List<Event> eventDatePolls1 = new ArrayList<>();
+    try {
+      eventDatePolls1 = agendaEventService.getEventDatePolls(Collections.singletonList(Long.parseLong(spaceIdentity.getId())),
+                                                             Long.parseLong(testuser4Identity.getId()),
+                                                             ZoneOffset.UTC,
+                                                             0,
+                                                             10);
+      fail();
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    assertNotNull(eventDatePolls1);
+    assertEquals(0, eventDatePolls1.size());
   }
 
   @Test
@@ -1053,17 +1077,33 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     assertEquals(dateOption2.getEnd().withZoneSameInstant(ZoneOffset.UTC), createdEvent.getEnd());
     assertEquals(EventStatus.TENTATIVE, createdEvent.getStatus());
 
-    long eventDatePollCount = agendaEventService.countEventDatePolls(Long.parseLong(testuser1Identity.getId()));
+    long eventDatePollCount = agendaEventService.countEventDatePolls(Collections.emptyList(), Long.parseLong(testuser1Identity.getId()));
     assertEquals(1, eventDatePollCount);
 
-    eventDatePollCount = agendaEventService.countEventDatePolls(Long.parseLong(testuser2Identity.getId()));
+    eventDatePollCount = agendaEventService.countEventDatePolls(Collections.emptyList(), Long.parseLong(testuser2Identity.getId()));
     assertEquals(1, eventDatePollCount);
 
-    eventDatePollCount = agendaEventService.countEventDatePolls(Long.parseLong(testuser4Identity.getId()));
+    eventDatePollCount = agendaEventService.countEventDatePolls(Collections.emptyList(), Long.parseLong(testuser4Identity.getId()));
     assertEquals(1, eventDatePollCount);
 
-    eventDatePollCount = agendaEventService.countEventDatePolls(Long.parseLong(testuser5Identity.getId()));
+    eventDatePollCount = agendaEventService.countEventDatePolls(Collections.emptyList(), Long.parseLong(testuser5Identity.getId()));
     assertEquals(0, eventDatePollCount);
+
+    // count pending Date Polls in a specific space
+    eventDatePollCount = agendaEventService.countEventDatePolls(Collections.singletonList(Long.parseLong(spaceIdentity.getId())),
+                                                                Long.parseLong(testuser1Identity.getId()));
+    assertEquals(1, eventDatePollCount);
+
+    long eventDatePollCount1 = 0;
+    try {
+      eventDatePollCount1 =
+                          agendaEventService.countEventDatePolls(Collections.singletonList(Long.parseLong(spaceIdentity.getId())),
+                                                                 Long.parseLong(testuser4Identity.getId()));
+      fail();
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    assertEquals(0, eventDatePollCount1);
   }
 
 }
