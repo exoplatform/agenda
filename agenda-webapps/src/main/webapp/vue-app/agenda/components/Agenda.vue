@@ -62,7 +62,7 @@
       :connectors="connectors"
       @connectors-loaded="connectors = $event" />
     <agenda-notification-alerts />
-    <agenda-pending-invitation-drawer />
+    <agenda-pending-invitation-drawer :current-space="currentSpace" />
   </v-app>
 </template>
 <script>
