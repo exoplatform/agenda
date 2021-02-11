@@ -253,6 +253,42 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     }
   }
 
+  public List<Long> getEventDatePollIdsByOwnerIds(List<Long> ownerIds,
+                                               List<Long> attendeeIds, 
+                                               int offset, 
+                                               int limit) {
+    TypedQuery<Tuple> query = getEntityManager().createNamedQuery("AgendaEvent.getPendingDatePollIdsByOwnerIds", Tuple.class);
+    query.setParameter("status", EventStatus.TENTATIVE);
+    query.setParameter("attendeeIds", attendeeIds);
+    query.setParameter("ownerIds", ownerIds);
+    if (offset >= 0) {
+      query.setFirstResult(offset);
+    } else {
+      query.setFirstResult(0);
+    }
+    if (limit > 0) {
+      query.setMaxResults(limit);
+    } else {
+      query.setMaxResults(DEFAULT_LIMIT);
+    }
+    List<Tuple> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList()
+            : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
+  }
+
+  public Long countEventDatePollsByOwnerIds(List<Long> ownerIds, List<Long> attendeeIds) {
+    TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaEvent.countPendingDatePollByOwnerIds", Long.class);
+    query.setParameter("status", EventStatus.TENTATIVE);
+    query.setParameter("attendeeIds", attendeeIds);
+    query.setParameter("ownerIds", ownerIds);
+    try {
+      Long count = query.getSingleResult();
+      return count == null ? 0l : count.longValue();
+    } catch (NoResultException e) {
+      return 0l;
+    }
+  }
+
   public List<EventEntity> getParentRecurrentEventIds(Date startDate, Date endDate) {
     TypedQuery<EventEntity> query = getEntityManager().createNamedQuery("AgendaEvent.getParentRecurrentEventIds",
                                                                         EventEntity.class);

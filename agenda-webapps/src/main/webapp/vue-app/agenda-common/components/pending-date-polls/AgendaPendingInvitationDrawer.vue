@@ -16,7 +16,7 @@
       </v-list>
     </template>
     <template v-if="hasMore" slot="footer">
-      <div class="d-flex">
+      <div class="d-flex mx-4">
         <v-btn
           :loading="loading"
           :disabled="loading"
@@ -31,8 +31,13 @@
 
 <script>
 export default {
+  props: {
+    currentSpace: {
+      type: Object,
+      default: () => null,
+    },
+  },
   data: () => ({
-    drawer: false,
     pendingDatePolls: null,
     pendingDatePollsCount: 0,
     pageSize: 20,
@@ -42,6 +47,9 @@ export default {
   computed: {
     hasMore() {
       return this.pendingDatePolls && this.pendingDatePolls.length < this.pendingDatePollsCount;
+    },
+    spaceIdentityId() {
+      return this.currentSpace && this.currentSpace.identity && this.currentSpace.identity.id;
     },
   },
   created() {
@@ -53,26 +61,24 @@ export default {
     },
     open() {
       this.$refs.calendarPendingDatePolls.open();
-      this.$nextTick().then(() => {
-        this.retrievePendingDatePolls();
-      });
+      this.retrieveDatePolls();
     },
     loadMore(){
       this.limit += this.pageSize;
-      this.retrievePendingDatePolls();
+      this.retrieveDatePolls();
     },
-    retrievePendingDatePolls(){
+    retrieveDatePolls() {
       this.loading = true;
       this.$refs.calendarPendingDatePolls.startLoading();
-      return this.$eventService.getDatePolls(0, this.limit, 'response')
+      return this.$eventService.getDatePolls(this.spaceIdentityId, 0, this.limit, 'response')
         .then(eventsList => {
           this.pendingDatePollsCount = eventsList.size || 0;
           this.pendingDatePolls = eventsList && eventsList.events || [];
         }).catch(error =>{
           console.error('Error retrieving pending date polls', error);
         }).finally(() => {
-          this.loading = false;
           this.$refs.calendarPendingDatePolls.endLoading();
+          this.loading = false;
         });
     },
   },
