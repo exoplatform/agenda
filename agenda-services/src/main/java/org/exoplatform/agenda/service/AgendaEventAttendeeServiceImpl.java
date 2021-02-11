@@ -249,7 +249,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     NotificationContext ctx = NotificationContextImpl.cloneInstance();
     ctx.append(EVENT_AGENDA, event);
     ctx.append(EVENT_ATTENDEE, eventAttendees);
-    ctx.append(EVENT_MODIFICATION_TYPE, eventModificationType);
+    ctx.append(EVENT_MODIFICATION_TYPE, eventModificationType.name());
 
     if (event.getStatus() == EventStatus.TENTATIVE) {
       dispatch(ctx, AGENDA_DATE_POLL_NOTIFICATION_PLUGIN);
