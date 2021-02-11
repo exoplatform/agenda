@@ -324,21 +324,21 @@ export function dismissEventDate(eventId, dateOptionId) {
     });
 }
 
-export function getDatePolls(ownerIds, offset, limit, expand) {
+export function getDatePolls(ownerId, offset, limit, expand) {
+  offset = offset || 0;
+  limit = limit || 0;
+  expand = expand || '';
   const formData = new FormData();
   formData.append('offset',offset);
   formData.append('limit',limit);
   formData.append('expand',expand);
-  if (ownerIds && ownerIds.length) {
-    formData.append('ownerIds',ownerIds);
+  if (ownerId) {
+    formData.append('ownerIds',ownerId);
   }
   const params = new URLSearchParams(formData).toString();
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/datePolls?${params}`, {
     method: 'GET',
     credentials: 'include',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
   }).then((resp) => {
     if (resp && resp.ok) {
       return resp.json();

@@ -43,11 +43,13 @@ export default {
     pageSize: 20,
     limit: 20,
     loading: false,
-    ownerIds:[],
   }),
   computed: {
     hasMore() {
       return this.pendingDatePolls && this.pendingDatePolls.length < this.pendingDatePollsCount;
+    },
+    spaceIdentityId() {
+      return this.currentSpace && this.currentSpace.identity && this.currentSpace.identity.id;
     },
   },
   created() {
@@ -65,12 +67,12 @@ export default {
     },
     loadMore(){
       this.limit += this.pageSize;
-      this.retrieveDatePolls(this.currentSpace.identity.id);
+      this.retrieveDatePolls();
     },
-    retrieveDatePolls(ownerIds) {
+    retrieveDatePolls() {
       this.loading = true;
       this.$refs.calendarPendingDatePolls.startLoading();
-      return this.$eventService.getDatePolls(ownerIds, 0, this.limit, 'response')
+      return this.$eventService.getDatePolls(this.spaceIdentityId, 0, this.limit, 'response')
         .then(eventsList => {
           this.pendingDatePollsCount = eventsList.size || 0;
           this.pendingDatePolls = eventsList && eventsList.events || [];

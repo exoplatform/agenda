@@ -4,23 +4,7 @@
       <a :href="agendaBaseLink" class="body-1 text-uppercase text-sub-title">
         {{ $t('agenda') }}
       </a>
-      <v-badge
-        v-if="datePollsCount"
-        offset-y="10"
-        :content="datePollsCount"
-        class="d-none d-md-inline"
-        color="#F8B121">
-        <v-btn
-          :title="$t('agenda.pendingInvitations')"
-          class="mb-2 ml-4 mr-2"
-          color="white"
-          icon
-          depressed
-          x-small
-          @click="$root.$emit('agenda-pending-date-polls-drawer-open')">
-          <i class="uiIcon darkGreyIcon uiIcon32x32 uiIconClock mb-1"></i>
-        </v-btn>
-      </v-badge>
+      <agenda-pending-invitation-badge v-if="spaceRetrieved" :current-space="currentSpace" />
     </div>
     <v-spacer />
     <v-btn
@@ -44,20 +28,15 @@ export default {
       default: null
     },
   },
-  data: () => ({
-    datePollsCount:0,
-    ownerIds: [],
-  }),
-  created() {
-    const ownerIds = this.currentSpace.identity.id;
-    this.$root.$on('agenda-refresh', this.getInComingDatePolls(ownerIds));
-    this.$root.$on('agenda-event-saved', this.getInComingDatePolls(ownerIds));
-    this.getInComingDatePolls(ownerIds);
+  computed: {
+    spaceIdentityId() {
+      return this.currentSpace && this.currentSpace.identity && this.currentSpace.identity.id;
+    },
+    spaceRetrieved() {
+      return !eXo.env.portal.spaceId || this.currentSpace;
+    },
   },
   methods: {
-    getInComingDatePolls(ownerIds) {
-      return this.$eventService.getDatePolls(ownerIds).then(eventsList => this.datePollsCount = eventsList && eventsList.size || 0);
-    },
     openEventForm() {
       this.$root.$emit('agenda-event-quick-form', {
         summary: '',
