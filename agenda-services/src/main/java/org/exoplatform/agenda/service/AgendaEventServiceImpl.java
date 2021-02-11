@@ -1007,31 +1007,50 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   }
 
   @Override
-  public List<Event> getEventDatePolls(long userIdentityId,
+  public List<Event> getEventDatePolls(List<Long> ownerIds,
+                                       long userIdentityId,
                                        ZoneId userTimeZone,
                                        int offset,
-                                       int limit) {
+                                       int limit) throws IllegalAccessException {
     Identity userIdentity = identityManager.getIdentity(String.valueOf(userIdentityId));
     if (userIdentity == null) {
       throw new IllegalStateException("User with identity id " + userIdentityId + " doesn't exist");
     }
 
+    if (ownerIds != null) {
+      for (Long ownerId : ownerIds) {
+        if (!Utils.canAccessCalendar(identityManager, spaceService, ownerId, userIdentityId)) {
+          throw new IllegalAccessException("User '" + userIdentity.getId() + "' is not allowed to access calendar of identity '"
+              + ownerIds + "'");
+        }
+      }
+    }
+
     List<Long> attendeeIds = Utils.getCalendarOwnersOfUser(spaceService, identityManager, userIdentity);
-    List<Long> eventIds = this.agendaEventStorage.getEventDatePollIds(attendeeIds,
+    List<Long> eventIds = this.agendaEventStorage.getEventDatePollIds(ownerIds,
+                                                                      attendeeIds,
                                                                       offset,
                                                                       limit);
     return computeEventsProperties(eventIds, null, null, userTimeZone, limit, userIdentity, null, null);
   }
 
   @Override
-  public long countEventDatePolls(long userIdentityId) {
+  public long countEventDatePolls(List<Long> ownerIds, long userIdentityId) throws IllegalAccessException{
     Identity userIdentity = identityManager.getIdentity(String.valueOf(userIdentityId));
     if (userIdentity == null) {
       throw new IllegalStateException("User with identity id " + userIdentityId + " doesn't exist");
     }
 
+    if (ownerIds != null) {
+      for (Long ownerId : ownerIds) {
+        if (!Utils.canAccessCalendar(identityManager, spaceService, ownerId, userIdentityId)) {
+          throw new IllegalAccessException("User '" + userIdentity.getId() + "' is not allowed to access calendar of identity '"
+                  + ownerIds + "'");
+        }
+      }
+    }
     List<Long> attendeeIds = Utils.getCalendarOwnersOfUser(spaceService, identityManager, userIdentity);
-    return this.agendaEventStorage.countEventDatePolls(attendeeIds);
+    return this.agendaEventStorage.countEventDatePolls(ownerIds, attendeeIds);
   }
 
   private void checkAndComputeDateOptions(Event event, List<EventDateOption> dateOptions) throws AgendaException {
