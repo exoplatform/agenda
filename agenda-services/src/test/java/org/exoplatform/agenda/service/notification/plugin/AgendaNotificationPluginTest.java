@@ -159,6 +159,21 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
     Assert.assertEquals(String.valueOf(nbAttendee), String.valueOf(notificationInfo.getSendToUserIds().size()));
     Assert.assertTrue(notificationInfo.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_URL).startsWith(eventUrl));
 
+    // Given
+    NotificationContext ctx2 = NotificationContextImpl.cloneInstance()
+                                                      .append(NotificationUtils.EVENT_AGENDA, updatedEvent)
+                                                      .append(NotificationUtils.EVENT_ATTENDEE,
+                                                              agendaEventAttendeeService.getEventAttendees(updatedEvent.getId()))
+
+                                                      .append(EVENT_TITLE, updatedEvent.getSummary())
+                                                      .append(NotificationUtils.EVENT_MODIFICATION_TYPE,
+                                                              EventModificationType.UPDATED);
+    // When
+    try {
+      NotificationInfo notificationInfo2 = agendaNotificationPlugin.makeNotification(ctx2);
+    } catch (IllegalArgumentException e) {
+      // Expected
+    }
   }
 
   @Test

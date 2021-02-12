@@ -216,6 +216,13 @@ public class NotificationUtils {
                                                      List<EventAttendee> eventAttendee,
                                                      Event event,
                                                      String typeModification) {
+    if (event == null) {
+      throw new IllegalArgumentException("event is null");
+    }
+    if (typeModification == null) {
+      throw new IllegalArgumentException("Modification type is null");
+    }
+    
     Set<String> recipients = new HashSet<>();
     List<String> participants = new ArrayList<>();
     for (EventAttendee attendee : eventAttendee) {
@@ -261,6 +268,10 @@ public class NotificationUtils {
     if (event == null) {
       throw new IllegalArgumentException("event is null");
     }
+    if (typeModification == null) {
+      throw new IllegalArgumentException("Modification type is null");
+    }
+
     Identity identity = Utils.getIdentityById(identityManager, event.getCreatorId());
     String timeZoneName = TimeZone.getTimeZone(event.getTimeZoneId()).getDisplayName() + ": " + event.getTimeZoneId();
     notification.with(STORED_PARAMETER_EVENT_ID, String.valueOf(event.getId()))
