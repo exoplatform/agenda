@@ -93,6 +93,8 @@ export default {
     originalDragedEvent: null,
     dragEvent: null,
     dragDelta: null,
+    mouseDown: false,
+    mouseIsPressed: 0,
     eventExtended: false,
     eventDragged: false,
     selectedDate: '',
@@ -115,12 +117,31 @@ export default {
     }
   },
   watch: {
+    mouseIsPressed() {
+      if (!this.mouseIsPressed && this.mouseDown) {
+        this.mouseDown = false;
+        this.cancelEventModification();
+      }
+    },
+    mouseDown(newVal, oldVal) {
+      if (!newVal && oldVal) {
+        window.setTimeout(() => {
+          if (!this.saving) {
+            this.cancelEventModification();
+          }
+        }, 500);
+      }
+    },
     calendarType() {
       this.scrollToTime();
     },
     workingTime() {
       this.scrollToTime();
     }
+  },
+  created() {
+    document.body.onmousedown = () => ++this.mouseIsPressed;
+    document.body.onmouseup = () => --this.mouseIsPressed;
   },
   mounted() {
     this.$root.$on('agenda-display-calendar-atDate', date => {
@@ -259,18 +280,29 @@ export default {
       }
     },
     eventMouseDown(eventObj) {
-      const dragEvent = eventObj && eventObj.event || eventObj;
-      if (!dragEvent || !dragEvent.acl || !dragEvent.acl.canEdit) {
-        return;
+      if (eventObj && eventObj.nativeEvent) {
+        eventObj.nativeEvent.preventDefault();
+        eventObj.nativeEvent.stopPropagation();
       }
-      this.dragEvent = dragEvent;
-      if (this.dragEvent) {
-        this.originalDragedEvent = JSON.parse(JSON.stringify(this.dragEvent));
-        this.originalDragedEvent.startDate = new Date(this.dragEvent.startDate);
-        this.originalDragedEvent.endDate = new Date(this.dragEvent.endDate);
-      }
+
+      this.mouseDown = true;
+      window.setTimeout(() => {
+        if (this.mouseDown) {
+          const dragEvent = eventObj && eventObj.event || eventObj;
+          if (!dragEvent || !dragEvent.acl || !dragEvent.acl.canEdit) {
+            return;
+          }
+          this.dragEvent = dragEvent;
+          if (this.dragEvent) {
+            this.originalDragedEvent = JSON.parse(JSON.stringify(this.dragEvent));
+            this.originalDragedEvent.startDate = this.$agendaUtils.toDate(this.dragEvent.startDate);
+            this.originalDragedEvent.endDate = this.$agendaUtils.toDate(this.dragEvent.endDate);
+          }
+        }
+      }, 500);
     },
     eventMouseUp(eventObj) {
+      this.mouseDown = false;
       if(this.eventDragged || this.eventExtended) {
         if (eventObj && eventObj.nativeEvent) {
           eventObj.nativeEvent.preventDefault();
@@ -352,6 +384,7 @@ export default {
       }
     },
     calendarMouseUp() {
+      this.mouseDown = false;
       if (this.quickEvent) {
         if (!this.quickEvent.added) {
           this.quickEvent.added = true;
