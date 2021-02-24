@@ -40,24 +40,8 @@
           persistent
           @ok="closeEffectively" />
       </template>
-      <agenda-event-date-poll-details
-        v-else-if="isTentativeEvent"
-        ref="eventDatePollDetails"
-        :event="event"
-        @refresh-event="openEventById(event.id)"
-        @close="close">
-        <template slot="top-bar-message">
-          <v-alert
-            v-model="hasMessage"
-            :type="messageType"
-            class="mb-0"
-            dismissible>
-            {{ message }}
-          </v-alert>
-        </template>
-      </agenda-event-date-poll-details>
       <agenda-event-details
-        v-else-if="isConfirmedEvent"
+        v-else-if="isTentativeEvent || isConfirmedEvent"
         ref="eventDetails"
         :settings="settings"
         :conference-provider="conferenceProvider"
@@ -75,7 +59,6 @@
           </v-alert>
         </template>
       </agenda-event-details>
-      <v-card v-else-if="event" />
     </template>
   </v-dialog>
 </template>
@@ -271,6 +254,9 @@ export default {
       if (eventId) {
         const getEventDetailsPromise = occurrenceId ? this.$eventService.getEventOccurrence(eventId, occurrenceId, 'all') : this.$eventService.getEventById(eventId, 'all');
         return getEventDetailsPromise.then(event => {
+          if(!event ||  (event.status !== 'TENTATIVE'&& event.status !=='CONFIRMED')) {
+            return ;
+          }
           event.startDate = this.$agendaUtils.toDate(event.start);
           event.endDate = this.$agendaUtils.toDate(event.end);
   

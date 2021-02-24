@@ -53,7 +53,10 @@ export default {
   created() {
     this.$root.$on('agenda-refresh', this.countPendingInvitations);
     this.$root.$on('agenda-event-response-sent', this.countPendingEvents);
+    this.$root.$on('date-poll-undo-remove', this.countDatePolls);
+    this.$root.$on('agenda-refresh', this.countDatePolls);
     this.$root.$on('agenda-event-saved', this.countDatePolls);
+    this.$root.$on('date-poll-deleted', this.countDatePolls);
     if (this.spaceRetrieved) {
       this.countPendingInvitations();
     }
