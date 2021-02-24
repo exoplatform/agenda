@@ -4,15 +4,6 @@
     :loading="loading"
     flat
     class="event-details event-poll-details d-flex flex-column">
-    <v-btn
-      :title="$t('agenda.button.close')"
-      class="event-poll-details-close"
-      absolute
-      right
-      icon
-      @click="$emit('close')">
-      <v-icon>close</v-icon>
-    </v-btn>
     <div :class="displayHasVotedInfo && 'pb-2' || 'pb-6'" class="d-flex flex-row px-6 pt-8">
       <div class="flex-grow-1 mx-8">
         <v-row class="event-details-header d-flex align-center flex-nowrap text-center col-12">
@@ -40,14 +31,6 @@
               :format="fullDateFormat"
               class="ml-1" />
           </div>
-        </v-row>
-        <v-row
-          v-if="displayHasVotedInfo"
-          align="center"
-          justify="center">
-          <v-alert type="info" class="mb-0">
-            {{ $t('agenda.youAlreadyVoted') }}
-          </v-alert>
         </v-row>
       </div>
     </div>

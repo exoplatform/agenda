@@ -14,7 +14,7 @@
         class="align-center text-truncate flex-grow-0 flex" />
     </v-col>
     <v-col class="px-0 flex-grow-1 flex-shrink-0 mx-2">
-      <template v-if="isAttendee && !isMobile">
+      <template v-if="!isTentativeEvent && isAttendee && !isMobile">
         <agenda-event-attendee-buttons
           ref="eventAttendeeButtons"
           :event="event" />
@@ -117,6 +117,9 @@ export default {
         leave: this.$t('space.leave'),
         members: this.$t('space.members'),
       };
+    },
+    isTentativeEvent() {
+      return this.event && this.event.status === 'TENTATIVE';
     },
   },
 };

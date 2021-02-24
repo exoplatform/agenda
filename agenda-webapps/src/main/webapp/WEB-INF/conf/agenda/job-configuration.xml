@@ -67,5 +67,21 @@
         </properties-param>
       </init-params>
     </component-plugin>
+    <component-plugin>
+      <name>CleanUpCanceledEventJob</name>
+      <set-method>addCronJob</set-method>
+      <type>org.exoplatform.services.scheduler.CronJob</type>
+      <description>A cron job to delete effectively  canceled event every 3 days at 00h</description>
+      <init-params>
+        <properties-param>
+          <name>cronjob.info</name>
+          <property name="jobName" value="CleanUpCanceledEventJob" />
+          <property name="groupName" value="Agenda" />
+          <property name="job" value="org.exoplatform.agenda.job.AgendaEventCleanUpJob" />
+          <!-- Period: each 3 days scan to delete canceled events. -->
+          <property name="expression" value="0 0/2 * * * ?" />
+        </properties-param>
+      </init-params>
+    </component-plugin>
   </external-component-plugins>
 </configuration> 

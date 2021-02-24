@@ -241,6 +241,7 @@ export default {
           if (this.filterCanceledEvents) {
             events = events.filter(event => !event.status || event.status !== 'CANCELED');
           }
+          events = events.filter(event => event.id !== this.getStoredEventToDelete(event.id));
           events.forEach(event => {
             event.name = event.summary;
             event.startDate = event.start && this.$agendaUtils.toDate(event.start) || null;
@@ -265,6 +266,11 @@ export default {
     updateSettings(settings) {
       this.settings = settings;
     },
+    getStoredEventToDelete(eventId) {
+      if(localStorage.getItem(`eventsToDelete${eventId}`) !== null){
+        return JSON.parse(localStorage.getItem(`eventsToDelete${eventId}`)).eventId;
+      }
+    }
   },
 };
 </script>

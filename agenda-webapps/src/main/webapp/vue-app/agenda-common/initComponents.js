@@ -51,6 +51,7 @@ import AgendaReminderUserSettings from './components/settings/AgendaReminderUser
 import AgendaReminderUserSettingItem from './components/settings/AgendaReminderUserSettingItem.vue';
 
 import AgendaEventDetails from './components/event/view/AgendaEventDetails.vue';
+import AgendaEventsDetailsBody from './components/event/view/AgendaEventsDetailsBody.vue';
 import AgendaEventDetailsToolbar from './components/event/view/AgendaEventDetailsToolbar.vue';
 import AgendaEventDetailsMobileToolbar from './components/event/view/mobile/AgendaEventDetailsMobileToolbar.vue';
 import AgendaEventRecurrence from './components/event/view/AgendaEventRecurrence.vue';
@@ -101,6 +102,7 @@ const components = {
   'agenda-event-form-attachments': AgendaEventFormAttachments,
   'agenda-event-form-attachment-item': AgendaEventFormAttachmentItem,
   'agenda-event-details': AgendaEventDetails,
+  'agenda-event-details-body': AgendaEventsDetailsBody,
   'agenda-event-details-toolbar': AgendaEventDetailsToolbar,
   'agenda-event-details-mobile-toolbar': AgendaEventDetailsMobileToolbar,
   'agenda-event-recurrence': AgendaEventRecurrence,

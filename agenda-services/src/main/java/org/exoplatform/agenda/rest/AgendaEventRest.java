@@ -715,15 +715,20 @@ public class AgendaEventRest implements ResourceContainer {
           @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
   )
   public Response deleteEvent(@ApiParam(value = "Event technical identifier", required = true)
-  @PathParam(
-    "eventId"
-  )
-  long eventId,
+                              @PathParam(
+                                 "eventId"
+                              )
+                              long eventId,
                               @ApiParam(value = "IANA Time zone identitifer", required = false)
                               @QueryParam(
                                 "timeZoneId"
                               )
-                              String timeZoneId) {
+                              String timeZoneId,
+                              @ApiParam(value = "Time to effectively delete event", required = false)
+                              @QueryParam(
+                                  "delay"
+                              )
+                              long delay) {
     if (eventId <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Event technical identifier must be positive").build();
     }
