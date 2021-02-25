@@ -1,10 +1,13 @@
 package org.exoplatform.agenda.notification.plugin;
 
+import static org.exoplatform.agenda.util.NotificationUtils.*;
+
+import java.util.List;
+
 import org.apache.commons.lang.StringUtils;
-import org.exoplatform.agenda.constant.EventModificationType;
-import org.exoplatform.agenda.model.Calendar;
-import org.exoplatform.agenda.model.Event;
-import org.exoplatform.agenda.model.EventAttendee;
+
+import org.exoplatform.agenda.constant.AgendaEventModificationType;
+import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.model.NotificationInfo;
@@ -16,23 +19,18 @@ import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.spi.SpaceService;
 
-import java.util.List;
-
-import static org.exoplatform.agenda.util.NotificationUtils.*;
-import static org.exoplatform.agenda.util.NotificationUtils.storeEventParameters;
-
 public class DatePollNotificationPlugin extends BaseNotificationPlugin {
-  private static final Log           LOG                                  = ExoLogger.getLogger(DatePollNotificationPlugin.class);
+  private static final Log      LOG                                  = ExoLogger.getLogger(DatePollNotificationPlugin.class);
 
-  private static final String        AGENDA_DATE_POLL_NOTIFICATION_PLUGIN = "agenda.notification.plugin.key";
+  private static final String   AGENDA_DATE_POLL_NOTIFICATION_PLUGIN = "agenda.notification.plugin.key";
 
-  private String                     notificationId;
+  private String                notificationId;
 
-  private IdentityManager            identityManager;
+  private IdentityManager       identityManager;
 
-  private AgendaCalendarService      calendarService;
-  
-  private SpaceService               spaceService;
+  private AgendaCalendarService calendarService;
+
+  private SpaceService          spaceService;
 
   public DatePollNotificationPlugin(InitParams initParams,
                                     IdentityManager identityManager,
@@ -65,13 +63,14 @@ public class DatePollNotificationPlugin extends BaseNotificationPlugin {
 
   @Override
   public NotificationInfo makeNotification(NotificationContext ctx) {
+    @SuppressWarnings("unchecked")
     List<EventAttendee> eventAttendees = ctx.value(EVENT_ATTENDEE);
     Event event = ctx.value(EVENT_AGENDA);
     String typeModification = ctx.value(EVENT_MODIFICATION_TYPE);
     // To avoid NPE for previously stored notifications, if
     // EVENT_MODIFICATION_TYPE parameter
     // doesn't exists, we assume that it's a new one
-    typeModification = StringUtils.isNotBlank(typeModification) ? typeModification : EventModificationType.ADDED.name();
+    typeModification = StringUtils.isNotBlank(typeModification) ? typeModification : AgendaEventModificationType.ADDED.name();
 
     Calendar calendar = calendarService.getCalendarById(event.getCalendarId());
     NotificationInfo notification = NotificationInfo.instance();

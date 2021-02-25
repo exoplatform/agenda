@@ -318,6 +318,11 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     long eventId = createdEvent.getId();
     createdEvent = getEventById(eventId, event.getTimeZoneId(), userIdentityId);
 
+    AgendaEventModification eventModifications =
+                                               new AgendaEventModification(eventId,
+                                                                           userIdentityId,
+                                                                           Collections.singleton(AgendaEventModificationType.ADDED));
+
     if (attachments != null && !attachments.isEmpty()) {
       attachmentService.saveEventAttachments(eventId, attachments, userIdentityId);
     }
@@ -330,22 +335,21 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (reminders != null) {
       reminderService.saveEventReminders(createdEvent, reminders, userIdentityId);
     }
+    if (remoteEvent != null) {
+      remoteEvent.setIdentityId(userIdentityId);
+      remoteEvent.setEventId(createdEvent.getId());
+      remoteEventService.saveRemoteEvent(remoteEvent);
+    }
     if (attendees != null && !attendees.isEmpty()) {
       attendeeService.saveEventAttendees(createdEvent,
                                          attendees,
                                          userIdentityId,
                                          sendInvitation,
                                          false,
-                                         EventModificationType.ADDED);
-    }
-    if (remoteEvent != null) {
-      remoteEvent.setIdentityId(userIdentityId);
-      remoteEvent.setEventId(createdEvent.getId());
-      remoteEventService.saveRemoteEvent(remoteEvent);
+                                         eventModifications);
     }
 
-    Utils.broadcastEvent(listenerService, Utils.POST_CREATE_AGENDA_EVENT_EVENT, eventId, userIdentityId);
-
+    Utils.broadcastEvent(listenerService, Utils.POST_CREATE_AGENDA_EVENT_EVENT, eventModifications, null);
     return createdEvent;
   }
 
@@ -412,7 +416,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     LocalDate overAllEndDate = overallEnd == null ? null
                                                   : overallEnd.withZoneSameInstant(ZoneOffset.UTC)
                                                               .toLocalDate();
-    if (overAllEndDate != null && overAllEndDate.plusDays(1).isBefore(occurrenceIdUTC)) {
+    if (overAllEndDate != null && overAllEndDate.isBefore(occurrenceIdUTC)) {
       throw new IllegalStateException("Event with id " + eventId + " doesn't have an occurrence with id " + occurrenceId);
     }
 
@@ -598,30 +602,48 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
     Event updatedEvent = agendaEventStorage.updateEvent(eventToUpdate);
 
-    attachmentService.saveEventAttachments(eventId, attachments, userIdentityId);
-    conferenceService.saveEventConferences(eventId, conferences);
+    AgendaEventModification eventModifications = new AgendaEventModification(eventId, userIdentityId);
+    eventModifications.addModificationType(AgendaEventModificationType.UPDATED);
+    Utils.detectEventModifiedFields(event, storedEvent, eventModifications);
+
+    Set<AgendaEventModificationType> attachmentModifications = attachmentService.saveEventAttachments(eventId,
+                                                                                                      attachments,
+                                                                                                      userIdentityId);
+    eventModifications.addModificationTypes(attachmentModifications);
+
+    Set<AgendaEventModificationType> conferenceModifications = conferenceService.saveEventConferences(eventId, conferences);
+    eventModifications.addModificationTypes(conferenceModifications);
+
+    Set<AgendaEventModificationType> reminderModifications = reminderService.saveEventReminders(updatedEvent,
+                                                                                                reminders,
+                                                                                                userIdentityId);
+    eventModifications.addModificationTypes(reminderModifications);
+
     remoteEventService.saveRemoteEvent(eventId, remoteEvent, userIdentityId);
-    reminderService.saveEventReminders(updatedEvent, reminders, userIdentityId);
 
     boolean resetResponses = updatedEvent.getStatus() != EventStatus.CONFIRMED
         && updatedEvent.getStatus() != storedEvent.getStatus();
-    attendeeService.saveEventAttendees(updatedEvent,
-                                       attendees,
-                                       userIdentityId,
-                                       sendInvitation,
-                                       resetResponses,
-                                       EventModificationType.UPDATED);
+    Set<AgendaEventModificationType> attendeeModifications = attendeeService.saveEventAttendees(updatedEvent,
+                                                                                                attendees,
+                                                                                                userIdentityId,
+                                                                                                sendInvitation,
+                                                                                                resetResponses,
+                                                                                                eventModifications);
+    eventModifications.addModificationTypes(attendeeModifications);
 
-    if (!ObjectUtils.equals(storedEvent.getStart(), updatedEvent.getStart())) {
+    if (eventModifications.hasModification(AgendaEventModificationType.START_DATE_UPDATED)) {
       List<EventReminder> allReminders = reminderService.getEventReminders(eventId);
       reminderService.saveEventReminders(updatedEvent, allReminders);
     }
 
-    Utils.broadcastEvent(listenerService, Utils.POST_UPDATE_AGENDA_EVENT_EVENT, eventId, userIdentityId);
-
     if (dateOptions != null && !dateOptions.isEmpty()) {
-      datePollService.updateEventDateOptions(eventId, dateOptions);
+      Set<AgendaEventModificationType> dateOptionModifications = datePollService.updateEventDateOptions(eventId, dateOptions);
+      eventModifications.addModificationTypes(dateOptionModifications);
+      eventModifications.removeModification(AgendaEventModificationType.START_DATE_UPDATED);
+      eventModifications.removeModification(AgendaEventModificationType.END_DATE_UPDATED);
     }
+
+    Utils.broadcastEvent(listenerService, Utils.POST_UPDATE_AGENDA_EVENT_EVENT, eventModifications, null);
 
     return updatedEvent;
   }
@@ -648,6 +670,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (event == null) {
       throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
     }
+
+    Event originalEvent = event.clone();
 
     Identity userIdentity = identityManager.getIdentity(String.valueOf(userIdentityId));
     if (userIdentity == null) {
@@ -690,12 +714,16 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       reminderService.saveEventReminders(event, reminders);
     }
 
+    AgendaEventModification eventModifications = new AgendaEventModification(eventId, userIdentityId);
+    eventModifications.addModificationType(AgendaEventModificationType.UPDATED);
+    Utils.detectEventModifiedFields(event, originalEvent, eventModifications);
+
     if (sendInvitations) {
       List<EventAttendee> eventAttendees = attendeeService.getEventAttendees(eventId);
-      attendeeService.sendInvitations(event, eventAttendees, EventModificationType.UPDATED);
+      attendeeService.sendInvitations(event, eventAttendees, eventModifications);
     }
 
-    Utils.broadcastEvent(listenerService, Utils.POST_UPDATE_AGENDA_EVENT_EVENT, eventId, userIdentityId);
+    Utils.broadcastEvent(listenerService, Utils.POST_UPDATE_AGENDA_EVENT_EVENT, eventModifications, null);
   }
 
   /**
@@ -721,9 +749,11 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     agendaEventStorage.deleteEventById(eventId);
 
     event.setModifierId(userIdentityId);
-    attendeeService.sendInvitations(event, eventAttendees, EventModificationType.DELETED);
 
-    Utils.broadcastEvent(listenerService, Utils.POST_DELETE_AGENDA_EVENT_EVENT, eventId, userIdentityId);
+    AgendaEventModification eventModifications = new AgendaEventModification(eventId, userIdentityId);
+    eventModifications.addModificationType(AgendaEventModificationType.DELETED);
+    attendeeService.sendInvitations(event, eventAttendees, eventModifications);
+    Utils.broadcastEvent(listenerService, Utils.POST_DELETE_AGENDA_EVENT_EVENT, eventModifications, null);
     return event;
   }
 
@@ -1000,10 +1030,15 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       }
     }
     attendeeService.sendEventResponse(eventId, userIdentityId, EventAttendeeResponse.ACCEPTED);
-
-    Utils.broadcastEvent(listenerService, Utils.POST_CREATE_AGENDA_EVENT_EVENT, eventId, userIdentityId);
-
     datePollService.selectEventDateOption(dateOptionId);
+
+    Set<AgendaEventModificationType> modificationTypes = new HashSet<>();
+    modificationTypes.add(AgendaEventModificationType.ADDED);
+    modificationTypes.add(AgendaEventModificationType.DATE_OPTION_SELECTED);
+    AgendaEventModification eventModification = new AgendaEventModification(eventId,
+                                                                            userIdentityId,
+                                                                            modificationTypes);
+    Utils.broadcastEvent(listenerService, Utils.POST_CREATE_AGENDA_EVENT_EVENT, eventModification, null);
   }
 
   @Override
@@ -1035,7 +1070,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   }
 
   @Override
-  public long countEventDatePolls(List<Long> ownerIds, long userIdentityId) throws IllegalAccessException{
+  public long countEventDatePolls(List<Long> ownerIds, long userIdentityId) throws IllegalAccessException {
     Identity userIdentity = identityManager.getIdentity(String.valueOf(userIdentityId));
     if (userIdentity == null) {
       throw new IllegalStateException("User with identity id " + userIdentityId + " doesn't exist");
@@ -1045,7 +1080,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       for (Long ownerId : ownerIds) {
         if (!Utils.canAccessCalendar(identityManager, spaceService, ownerId, userIdentityId)) {
           throw new IllegalAccessException("User '" + userIdentity.getId() + "' is not allowed to access calendar of identity '"
-                  + ownerIds + "'");
+              + ownerIds + "'");
         }
       }
     }
@@ -1275,11 +1310,12 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     ZonedDateTime start = event.getStart();
     ZonedDateTime end = event.getEnd();
 
+    ZoneId eventTimeZoneId = event.getTimeZoneId();
     if (timeZone == null) {
-      if (event.getTimeZoneId() == null) {
+      if (eventTimeZoneId == null) {
         timeZone = ZoneOffset.UTC;
       } else {
-        timeZone = event.getTimeZoneId();
+        timeZone = eventTimeZoneId;
       }
     }
 
@@ -1305,24 +1341,22 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       EventRecurrence recurrence = event.getRecurrence();
       if (recurrence != null) {
         if (recurrence.getUntil() != null) {
-          ZonedDateTime recurrenceUntil = recurrence.getUntil();
+          LocalDate recurrenceUntil = recurrence.getUntil();
           // end of until day in User TimeZone
-          recurrenceUntil =
-                          LocalDate.of(recurrenceUntil.getYear(),
-                                       recurrenceUntil.getMonthValue(),
-                                       recurrenceUntil.getDayOfMonth())
-                                   .atStartOfDay(timeZone)
-                                   .plusDays(1)
-                                   .minusSeconds(1);
+          recurrenceUntil = LocalDate.of(recurrenceUntil.getYear(),
+                                         recurrenceUntil.getMonthValue(),
+                                         recurrenceUntil.getDayOfMonth());
           recurrence.setUntil(recurrenceUntil);
         }
         ZonedDateTime overallStart = recurrence.getOverallStart();
         ZonedDateTime overallEnd = recurrence.getOverallEnd();
         if (event.isAllDay()) {
-          overallStart = overallStart.toLocalDate()
+          overallStart = overallStart.withZoneSameInstant(eventTimeZoneId)
+                                     .toLocalDate()
                                      .atStartOfDay(timeZone);
           overallEnd = overallEnd == null ? null
-                                          : overallEnd.toLocalDate()
+                                          : overallEnd.withZoneSameInstant(eventTimeZoneId)
+                                                      .toLocalDate()
                                                       .atStartOfDay(timeZone)
                                                       .plusDays(1)
                                                       .minusSeconds(1);
@@ -1351,21 +1385,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       }
       event.setStart(start);
       event.setEnd(end);
-    }
-
-    EventRecurrence recurrence = event.getRecurrence();
-    if (recurrence != null && recurrence.getUntil() != null) {
-      ZonedDateTime recurrenceUntil = recurrence.getUntil();
-      // end of until day in UTC
-      recurrenceUntil = ZonedDateTime.now(ZoneOffset.UTC)
-                                     .withYear(recurrenceUntil.getYear())
-                                     .withMonth(recurrenceUntil.getMonthValue())
-                                     .withDayOfMonth(recurrenceUntil.getDayOfMonth())
-                                     .toLocalDate()
-                                     .atStartOfDay(ZoneOffset.UTC)
-                                     .plusDays(1)
-                                     .minusSeconds(1);
-      recurrence.setUntil(recurrenceUntil);
     }
   }
 

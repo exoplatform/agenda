@@ -24,8 +24,7 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.constant.*;
-import org.exoplatform.agenda.model.Event;
-import org.exoplatform.agenda.model.EventAttendee;
+import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.storage.AgendaEventAttendeeStorage;
 import org.exoplatform.agenda.storage.AgendaEventStorage;
 import org.exoplatform.agenda.util.Utils;
@@ -80,24 +79,28 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    * {@inheritDoc}
    */
   @Override
-  public void saveEventAttendees(Event event,
-                                 List<EventAttendee> attendees,
-                                 long creatorUserId,
-                                 boolean sendInvitations,
-                                 boolean resetResponses,
-                                 EventModificationType eventModificationType) {
+  public Set<AgendaEventModificationType> saveEventAttendees(Event event,
+                                                             List<EventAttendee> attendees,
+                                                             long creatorUserId,
+                                                             boolean sendInvitations,
+                                                             boolean resetResponses,
+                                                             AgendaEventModification eventModifications) {
     long eventId = event.getId();
     EventStatus eventStatus = event.getStatus();
 
     List<EventAttendee> oldAttendees = getEventAttendees(event.getId());
     List<EventAttendee> newAttendees = attendees == null ? Collections.emptyList() : attendees;
 
-    processAttendeesToDelete(oldAttendees, newAttendees);
-    processAttendeesToCreate(eventId, eventStatus, oldAttendees, newAttendees, resetResponses);
+    Set<AgendaEventModificationType> eventModificationTypes = new HashSet<>();
+
+    processAttendeesToDelete(oldAttendees, newAttendees, eventModificationTypes);
+    processAttendeesToCreate(eventId, eventStatus, oldAttendees, newAttendees, resetResponses, eventModificationTypes);
     processAttendeesToUpdate(eventId, oldAttendees, newAttendees, resetResponses);
-    processSendingInvitation(event, attendees, sendInvitations, eventModificationType);
+    processSendingInvitation(event, attendees, sendInvitations, eventModifications);
 
     Utils.broadcastEvent(listenerService, "exo.agenda.event.attendees.saved", eventId, 0);
+
+    return eventModificationTypes;
   }
 
   /**
@@ -245,19 +248,26 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    * {@inheritDoc}
    */
   @Override
-  public void sendInvitations(Event event, List<EventAttendee> eventAttendees, EventModificationType eventModificationType) {
+  public void sendInvitations(Event event, List<EventAttendee> eventAttendees, AgendaEventModification eventModifications) {
     NotificationContext ctx = NotificationContextImpl.cloneInstance();
     ctx.append(EVENT_AGENDA, event);
     ctx.append(EVENT_ATTENDEE, eventAttendees);
-    ctx.append(EVENT_MODIFICATION_TYPE, eventModificationType.name());
+
+    if (eventModifications.hasModification(AgendaEventModificationType.DELETED)) {
+      ctx.append(EVENT_MODIFICATION_TYPE, AgendaEventModificationType.DELETED.name());
+    } else if (eventModifications.hasModification(AgendaEventModificationType.ADDED)) {
+      ctx.append(EVENT_MODIFICATION_TYPE, AgendaEventModificationType.ADDED.name());
+    } else if (eventModifications.hasModification(AgendaEventModificationType.UPDATED)) {
+      ctx.append(EVENT_MODIFICATION_TYPE, AgendaEventModificationType.UPDATED.name());
+    }
 
     if (event.getStatus() == EventStatus.TENTATIVE) {
       dispatch(ctx, AGENDA_DATE_POLL_NOTIFICATION_PLUGIN);
-    } else if (eventModificationType == EventModificationType.DELETED) {
+    } else if (eventModifications.hasModification(AgendaEventModificationType.DELETED)) {
       dispatch(ctx, AGENDA_EVENT_CANCELLED_NOTIFICATION_PLUGIN);
-    } else if (eventModificationType == EventModificationType.ADDED) {
+    } else if (eventModifications.hasModification(AgendaEventModificationType.ADDED)) {
       dispatch(ctx, AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN);
-    } else if (eventModificationType == EventModificationType.UPDATED) {
+    } else if (eventModifications.hasModification(AgendaEventModificationType.UPDATED)) {
       dispatch(ctx, AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN);
     }
   }
@@ -298,12 +308,12 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
   private void processSendingInvitation(Event event,
                                         List<EventAttendee> attendees,
                                         boolean sendInvitations,
-                                        EventModificationType eventModificationType) {
+                                        AgendaEventModification eventModifications) {
     if (sendInvitations) {
       if (event.getStatus() == EventStatus.CANCELLED) {
-        eventModificationType = EventModificationType.DELETED;
+        eventModifications.setModificationTypes(Collections.singleton(AgendaEventModificationType.DELETED));
       }
-      sendInvitations(event, attendees, eventModificationType);
+      sendInvitations(event, attendees, eventModifications);
     }
   }
 
@@ -334,7 +344,8 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
                                         EventStatus eventStatus,
                                         List<EventAttendee> oldAttendees,
                                         List<EventAttendee> newAttendees,
-                                        boolean resetResponses) {
+                                        boolean resetResponses,
+                                        Set<AgendaEventModificationType> eventModificationTypes) {
     List<EventAttendee> attendeesToCreate =
                                           newAttendees.stream()
                                                       .filter(attendee -> oldAttendees.stream()
@@ -348,9 +359,14 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       }
       attendeeStorage.saveEventAttendee(eventAttendee, eventId);
     }
+    if (!attendeesToCreate.isEmpty()) {
+      eventModificationTypes.add(AgendaEventModificationType.ATTENDEE_ADDED);
+    }
   }
 
-  private void processAttendeesToDelete(List<EventAttendee> oldAttendees, List<EventAttendee> newAttendees) {
+  private void processAttendeesToDelete(List<EventAttendee> oldAttendees,
+                                        List<EventAttendee> newAttendees,
+                                        Set<AgendaEventModificationType> eventModificationTypes) {
     List<EventAttendee> attendeesToDelete =
                                           oldAttendees.stream()
                                                       .filter(attendee -> newAttendees.stream()
@@ -360,6 +376,9 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     // Delete attendees
     for (EventAttendee eventAttendee : attendeesToDelete) {
       attendeeStorage.removeEventAttendee(eventAttendee.getId());
+    }
+    if (!attendeesToDelete.isEmpty()) {
+      eventModificationTypes.add(AgendaEventModificationType.ATTENDEE_DELETED);
     }
   }
 }

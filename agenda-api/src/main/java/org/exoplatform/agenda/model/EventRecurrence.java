@@ -17,6 +17,7 @@
 package org.exoplatform.agenda.model;
 
 import java.io.Serializable;
+import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,7 +36,7 @@ public class EventRecurrence implements Cloneable, Serializable {
 
   private long                     id;
 
-  private ZonedDateTime            until;
+  private LocalDate                until;
 
   private int                      count;
 
@@ -80,7 +81,7 @@ public class EventRecurrence implements Cloneable, Serializable {
   private transient ZonedDateTime  overallEnd;
 
   public EventRecurrence(long id,
-                         ZonedDateTime until,
+                         LocalDate until,
                          int count,
                          EventRecurrenceType type,
                          EventRecurrenceFrequency frequency,

@@ -1,11 +1,11 @@
 package org.exoplatform.agenda.service;
 
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import org.apache.commons.codec.binary.StringUtils;
 
+import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.model.EventAttachment;
 import org.exoplatform.agenda.storage.AgendaEventAttachmentStorage;
 import org.exoplatform.agenda.util.Utils;
@@ -30,7 +30,9 @@ public class AgendaEventAttachmentServiceImpl implements AgendaEventAttachmentSe
   }
 
   @Override
-  public void saveEventAttachments(long eventId, List<EventAttachment> attachments, long creatorIdentityId) {
+  public Set<AgendaEventModificationType> saveEventAttachments(long eventId,
+                                                               List<EventAttachment> attachments,
+                                                               long creatorIdentityId) {
     List<EventAttachment> savedAttachments = getEventAttachments(eventId);
     List<EventAttachment> newAttachments = attachments == null ? Collections.emptyList() : attachments;
     List<EventAttachment> attachmentsToDelete =
@@ -62,7 +64,15 @@ public class AgendaEventAttachmentServiceImpl implements AgendaEventAttachmentSe
       }
     }
 
+    Set<AgendaEventModificationType> attachmentModificationTypes = new HashSet<>();
+    if (!attachmentsToDelete.isEmpty()) {
+      attachmentModificationTypes.add(AgendaEventModificationType.ATTACHMENT_DELETED);
+    }
+    if (!attachmentsToCreate.isEmpty()) {
+      attachmentModificationTypes.add(AgendaEventModificationType.ATTACHMENT_ADDED);
+    }
     Utils.broadcastEvent(listenerService, "exo.agenda.event.attachments.saved", eventId, null);
+    return attachmentModificationTypes;
   }
 
   @Override

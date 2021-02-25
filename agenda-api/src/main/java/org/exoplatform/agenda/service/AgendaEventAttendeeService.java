@@ -17,11 +17,10 @@
 package org.exoplatform.agenda.service;
 
 import java.util.List;
+import java.util.Set;
 
-import org.exoplatform.agenda.constant.EventAttendeeResponse;
-import org.exoplatform.agenda.constant.EventModificationType;
-import org.exoplatform.agenda.model.Event;
-import org.exoplatform.agenda.model.EventAttendee;
+import org.exoplatform.agenda.constant.*;
+import org.exoplatform.agenda.model.*;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.social.core.identity.model.Identity;
 
@@ -41,10 +40,14 @@ public interface AgendaEventAttendeeService {
    * 
    * @param event {@link Event}
    * @param eventAttendees {@link List} of {@link EventAttendee} of the event
-   * @param eventModificationType flag to indicate if event is added, updated or
-   *          deleted
+   * @param eventModifications {@link AgendaEventModification} contains a
+   *          {@link Set} of {@link AgendaEventModificationType} to indicate
+   *          event modification types: fields modifications, creation or
+   *          deletion
    */
-  public void sendInvitations(Event event, List<EventAttendee> eventAttendees, EventModificationType eventModificationType);
+  public void sendInvitations(Event event,
+                              List<EventAttendee> eventAttendees,
+                              AgendaEventModification eventModifications);
 
   /**
    * @param event {@link Event} to attach attendees
@@ -54,15 +57,19 @@ public interface AgendaEventAttendeeService {
    * @param sendInvitations whether send invitations to other attendees or not
    * @param resetResponses whether reset attendees responses or not to default
    *          {@link EventAttendeeResponse#NEEDS_ACTION}
-   * @param eventModificationType flag to indicate if event is added, updated or
-   *          deleted
+   * @param eventModifications {@link AgendaEventModification} contains a
+   *          {@link Set} of {@link AgendaEventModificationType} to indicate
+   *          event modification types: fields modifications, creation or
+   *          deletion
+   * @return {@link Set} of {@link AgendaEventModificationType} containing
+   *         modifications made on event attendees
    */
-  void saveEventAttendees(Event event,
-                          List<EventAttendee> attendees,
-                          long creatorIdentityId,
-                          boolean sendInvitations,
-                          boolean resetResponses,
-                          EventModificationType eventModificationType);
+  Set<AgendaEventModificationType> saveEventAttendees(Event event,
+                                                      List<EventAttendee> attendees,
+                                                      long creatorIdentityId,
+                                                      boolean sendInvitations,
+                                                      boolean resetResponses,
+                                                      AgendaEventModification eventModifications);
 
   /**
    * Generates a token that will be used to authenticate user when requesting

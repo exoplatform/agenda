@@ -36,7 +36,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
   @Test
   public void testCreateEvent() throws Exception { // NOSONAR
-
     try {
       Event event = new Event();
       event.setId(0);
@@ -300,6 +299,12 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     assertNotNull(createdEvent);
     assertTrue(createdEvent.getId() > 0);
+    AgendaEventModification eventModification = eventCreationReference.get();
+    assertNotNull(eventModification);
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.ADDED));
+    assertEquals("Modification types are more than expected : " + eventModification.getModificationTypes(),
+                 1,
+                 eventModification.getModificationTypes().size());
 
     assertEquals(event.getSummary(), createdEvent.getSummary());
     assertEquals(event.getDescription(), createdEvent.getDescription());
@@ -329,10 +334,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(eventRecurrence.getInterval(), createdEventRecurrence.getInterval());
     assertTrue(createdEventRecurrence.getCount() == 0);
     assertNotNull(createdEventRecurrence.getUntil());
-    assertEquals(start.plusDays(2).toLocalDate(),
-                 createdEventRecurrence.getUntil().toLocalDate());
+    assertEquals(start.toLocalDate().plusDays(2),
+                 createdEventRecurrence.getUntil());
     assertEquals(createdEvent.getRecurrence().getOverallEnd().toLocalDate(),
-                 createdEventRecurrence.getUntil().toLocalDate());
+                 createdEventRecurrence.getUntil());
     assertEquals(eventRecurrence.getBySecond(), createdEventRecurrence.getBySecond());
     assertEquals(eventRecurrence.getByMinute(), createdEventRecurrence.getByMinute());
     assertEquals(eventRecurrence.getByHour(), createdEventRecurrence.getByHour());
@@ -366,6 +371,12 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     assertNotNull(createdEvent);
     assertTrue(createdEvent.getId() > 0);
+    AgendaEventModification eventModification = eventCreationReference.get();
+    assertNotNull(eventModification);
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.ADDED));
+    assertEquals("Modification types are more than expected : " + eventModification.getModificationTypes(),
+                 1,
+                 eventModification.getModificationTypes().size());
 
     try {
       event = newEventInstance(start, start, allDay);
@@ -433,9 +444,9 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(eventRecurrence.getInterval(), createdEventRecurrence.getInterval());
     assertTrue(createdEventRecurrence.getCount() == 0);
     assertEquals(start.plusDays(2).toLocalDate(),
-                 createdEventRecurrence.getUntil().toLocalDate());
+                 createdEventRecurrence.getUntil());
     assertEquals(createdEvent.getRecurrence().getOverallEnd().toLocalDate(),
-                 createdEventRecurrence.getUntil().toLocalDate());
+                 createdEventRecurrence.getUntil());
     assertEquals(eventRecurrence.getBySecond(), createdEventRecurrence.getBySecond());
     assertEquals(eventRecurrence.getByMinute(), createdEventRecurrence.getByMinute());
     assertEquals(eventRecurrence.getByHour(), createdEventRecurrence.getByHour());
@@ -496,9 +507,9 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertNotNull(createdEventRecurrence.getUntil());
 
     assertEquals(end.plusDays(2).toLocalDate(),
-                 createdEventRecurrence.getUntil().toLocalDate());
-    assertEquals(createdEvent.getRecurrence().getOverallEnd().toLocalDate(),
-                 createdEventRecurrence.getUntil().toLocalDate());
+                 createdEventRecurrence.getUntil());
+    assertEquals(createdEventRecurrence.getUntil(),
+                 createdEvent.getRecurrence().getOverallEnd().withZoneSameInstant(ZoneOffset.UTC).toLocalDate());
 
     assertEquals(eventRecurrence.getBySecond(), createdEventRecurrence.getBySecond());
     assertEquals(eventRecurrence.getByMinute(), createdEventRecurrence.getByMinute());
@@ -615,9 +626,9 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(eventRecurrence.getInterval(), createdEventRecurrence.getInterval());
     assertTrue(createdEventRecurrence.getCount() == 0);
     assertEquals(start.plusDays(2).toLocalDate(),
-                 createdEventRecurrence.getUntil().toLocalDate());
+                 createdEventRecurrence.getUntil());
     assertEquals(createdEvent.getRecurrence().getOverallEnd().toLocalDate(),
-                 createdEventRecurrence.getUntil().toLocalDate());
+                 createdEventRecurrence.getUntil());
     assertEquals(eventRecurrence.getBySecond(), createdEventRecurrence.getBySecond());
     assertEquals(eventRecurrence.getByMinute(), createdEventRecurrence.getByMinute());
     assertEquals(eventRecurrence.getByHour(), createdEventRecurrence.getByHour());
@@ -644,7 +655,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     Event event = newEventInstance(start, start, allDay);
     EventRecurrence recurrence = new EventRecurrence(0,
-                                                     start.plusDays(2),
+                                                     start.plusDays(2).toLocalDate(),
                                                      0,
                                                      EventRecurrenceType.DAILY,
                                                      EventRecurrenceFrequency.DAILY,
@@ -736,7 +747,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     Event event = newEventInstance(start, start, allDay);
     EventRecurrence recurrence = new EventRecurrence(0,
-                                                     start.plusDays(2),
+                                                     start.plusDays(2).toLocalDate(),
                                                      0,
                                                      EventRecurrenceType.DAILY,
                                                      EventRecurrenceFrequency.DAILY,
@@ -784,7 +795,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     Event event = newEventInstance(start, start, allDay);
     EventRecurrence recurrence = new EventRecurrence(0,
-                                                     start.plusDays(6),
+                                                     start.plusDays(6).toLocalDate(),
                                                      0,
                                                      EventRecurrenceType.DAILY,
                                                      EventRecurrenceFrequency.DAILY,
@@ -828,7 +839,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     Event event = newEventInstance(start, start, allDay);
     EventRecurrence recurrence = new EventRecurrence(0,
-                                                     start.plusDays(2),
+                                                     start.plusDays(2).toLocalDate(),
                                                      0,
                                                      EventRecurrenceType.DAILY,
                                                      EventRecurrenceFrequency.DAILY,
@@ -1224,6 +1235,18 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                    false,
                                    Long.parseLong(testuser1Identity.getId()));
 
+    AgendaEventModification eventModification = eventUpdateReference.get();
+    assertNotNull(eventModification);
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.UPDATED));
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.REMINDER_DELETED));
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.ATTACHMENT_DELETED));
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.CONFERENCE_DELETED));
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.RECURRENCE_UPDATED));
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.ATTENDEE_DELETED));
+    assertEquals("Modification types are more than expected : " + eventModification.getModificationTypes(),
+                 6,
+                 eventModification.getModificationTypes().size());
+
     Event updatedEvent = agendaEventService.getEventById(eventId, null, Long.parseLong(testuser1Identity.getId()));
     assertNotNull(updatedEvent);
     assertNull(updatedEvent.getRecurrence());
@@ -1256,6 +1279,15 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                                   null,
                                                   false,
                                                   Long.parseLong(testuser1Identity.getId()));
+    eventModification = eventUpdateReference.get();
+    assertNotNull(eventModification);
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.UPDATED));
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.REMINDER_ADDED));
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.ALLOW_MODIFY_UPDATED));
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.ATTENDEE_ADDED));
+    assertEquals("Modification types are more than expected : " + eventModification.getModificationTypes(),
+                 4,
+                 eventModification.getModificationTypes().size());
 
     try {
       updatedEvent = agendaEventService.updateEvent(updatedEvent,
@@ -1294,6 +1326,16 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                                   null,
                                                   false,
                                                   Long.parseLong(testuser2Identity.getId()));
+    eventModification = eventUpdateReference.get();
+    assertNotNull(eventModification);
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.UPDATED));
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.START_DATE_UPDATED));
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.END_DATE_UPDATED));
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.ALLOW_MODIFY_UPDATED));
+    assertEquals("Modification types are more than expected : " + eventModification.getModificationTypes(),
+                 4,
+                 eventModification.getModificationTypes().size());
+
     assertTrue("Attendees shouldn't be able to modify allowAttendeeToInvite and allowAttendeeToUpdate",
                updatedEvent.isAllowAttendeeToUpdate());
     assertTrue(updatedEvent.isAllowAttendeeToInvite());
@@ -1561,6 +1603,14 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                          true,
                                          true,
                                          Long.parseLong(testuser1Identity.getId()));
+    AgendaEventModification eventModification = eventUpdateReference.get();
+    assertNotNull(eventModification);
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.UPDATED));
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.OWNER_UPDATED));
+    assertEquals("Modification types are more than expected : " + eventModification.getModificationTypes(),
+                 2,
+                 eventModification.getModificationTypes().size());
+
     Event event = agendaEventService.getEventById(eventId);
     assertEquals(fieldValue, String.valueOf(event.getCalendarId()));
 
@@ -1571,6 +1621,14 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                          true,
                                          true,
                                          Long.parseLong(testuser1Identity.getId()));
+    eventModification = eventUpdateReference.get();
+    assertNotNull(eventModification);
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.UPDATED));
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.SUMMARY_UPDATED));
+    assertEquals("Modification types are more than expected : " + eventModification.getModificationTypes(),
+                 2,
+                 eventModification.getModificationTypes().size());
+
     event = agendaEventService.getEventById(eventId);
     assertEquals(fieldValue, String.valueOf(event.getSummary()));
 
@@ -1581,6 +1639,14 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                          true,
                                          true,
                                          Long.parseLong(testuser1Identity.getId()));
+    eventModification = eventUpdateReference.get();
+    assertNotNull(eventModification);
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.UPDATED));
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.DESCRIPTION_UPDATED));
+    assertEquals("Modification types are more than expected : " + eventModification.getModificationTypes(),
+                 2,
+                 eventModification.getModificationTypes().size());
+
     event = agendaEventService.getEventById(eventId);
     assertEquals(fieldValue, String.valueOf(event.getDescription()));
 
@@ -1591,6 +1657,14 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                          true,
                                          true,
                                          Long.parseLong(testuser1Identity.getId()));
+    eventModification = eventUpdateReference.get();
+    assertNotNull(eventModification);
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.UPDATED));
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.LOCATION_UPDATED));
+    assertEquals("Modification types are more than expected : " + eventModification.getModificationTypes(),
+                 2,
+                 eventModification.getModificationTypes().size());
+
     event = agendaEventService.getEventById(eventId);
     assertEquals(fieldValue, String.valueOf(event.getLocation()));
 
@@ -1601,6 +1675,14 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                          true,
                                          true,
                                          Long.parseLong(testuser1Identity.getId()));
+    eventModification = eventUpdateReference.get();
+    assertNotNull(eventModification);
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.UPDATED));
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.COLOR_UPDATED));
+    assertEquals("Modification types are more than expected : " + eventModification.getModificationTypes(),
+                 2,
+                 eventModification.getModificationTypes().size());
+
     event = agendaEventService.getEventById(eventId);
     assertEquals(fieldValue, String.valueOf(event.getColor()));
 
@@ -1611,6 +1693,14 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                          true,
                                          true,
                                          Long.parseLong(testuser1Identity.getId()));
+    eventModification = eventUpdateReference.get();
+    assertNotNull(eventModification);
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.UPDATED));
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.TIMEZONE_UPDATED));
+    assertEquals("Modification types are more than expected : " + eventModification.getModificationTypes(),
+                 2,
+                 eventModification.getModificationTypes().size());
+
     event = agendaEventService.getEventById(eventId);
     assertEquals(fieldValue, event.getTimeZoneId().getId());
 
@@ -1628,6 +1718,14 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                          true,
                                          true,
                                          Long.parseLong(testuser1Identity.getId()));
+    eventModification = eventUpdateReference.get();
+    assertNotNull(eventModification);
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.UPDATED));
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.START_DATE_UPDATED));
+    assertEquals("Modification types are more than expected : " + eventModification.getModificationTypes(),
+                 2,
+                 eventModification.getModificationTypes().size());
+
     event = agendaEventService.getEventById(eventId);
     assertEquals(fieldValue, AgendaDateUtils.toRFC3339Date(event.getStart(), ZoneId.systemDefault(), allDay));
 
@@ -1646,6 +1744,14 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                          true,
                                          true,
                                          Long.parseLong(testuser1Identity.getId()));
+    eventModification = eventUpdateReference.get();
+    assertNotNull(eventModification);
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.UPDATED));
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.END_DATE_UPDATED));
+    assertEquals("Modification types are more than expected : " + eventModification.getModificationTypes(),
+                 2,
+                 eventModification.getModificationTypes().size());
+
     event = agendaEventService.getEventById(eventId);
     assertEquals(fieldValue, AgendaDateUtils.toRFC3339Date(event.getEnd(), ZoneId.systemDefault(), allDay));
 
@@ -1656,6 +1762,15 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                          true,
                                          true,
                                          Long.parseLong(testuser1Identity.getId()));
+    eventModification = eventUpdateReference.get();
+    assertNotNull(eventModification);
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.UPDATED));
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.START_DATE_UPDATED));
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.END_DATE_UPDATED));
+    assertEquals("Modification types are more than expected : " + eventModification.getModificationTypes(),
+                 3,
+                 eventModification.getModificationTypes().size());
+
     event = agendaEventService.getEventById(eventId);
     assertEquals(fieldValue, String.valueOf(event.isAllDay()));
 
@@ -1666,6 +1781,14 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                          true,
                                          true,
                                          Long.parseLong(testuser1Identity.getId()));
+    eventModification = eventUpdateReference.get();
+    assertNotNull(eventModification);
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.UPDATED));
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.AVAILABILITY_UPDATED));
+    assertEquals("Modification types are more than expected : " + eventModification.getModificationTypes(),
+                 2,
+                 eventModification.getModificationTypes().size());
+
     event = agendaEventService.getEventById(eventId);
     assertEquals(fieldValue, event.getAvailability().name());
 
@@ -1676,26 +1799,50 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                          true,
                                          true,
                                          Long.parseLong(testuser1Identity.getId()));
+    eventModification = eventUpdateReference.get();
+    assertNotNull(eventModification);
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.UPDATED));
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.STATUS_UPDATED));
+    assertEquals("Modification types are more than expected : " + eventModification.getModificationTypes(),
+                 2,
+                 eventModification.getModificationTypes().size());
+
     event = agendaEventService.getEventById(eventId);
     assertEquals(fieldValue, event.getStatus().name());
 
     fieldName = "allowAttendeeToUpdate";
-    fieldValue = String.valueOf(event.isAllowAttendeeToUpdate());
+    fieldValue = String.valueOf(!event.isAllowAttendeeToUpdate());
     agendaEventService.updateEventFields(eventId,
                                          getFields(fieldName, fieldValue),
                                          true,
                                          true,
                                          Long.parseLong(testuser1Identity.getId()));
+    eventModification = eventUpdateReference.get();
+    assertNotNull(eventModification);
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.UPDATED));
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.ALLOW_MODIFY_UPDATED));
+    assertEquals("Modification types are more than expected : " + eventModification.getModificationTypes(),
+                 2,
+                 eventModification.getModificationTypes().size());
+
     event = agendaEventService.getEventById(eventId);
     assertEquals(fieldValue, String.valueOf(event.isAllowAttendeeToUpdate()));
 
     fieldName = "allowAttendeeToInvite";
-    fieldValue = String.valueOf(event.isAllowAttendeeToInvite());
+    fieldValue = String.valueOf(!event.isAllowAttendeeToInvite());
     agendaEventService.updateEventFields(eventId,
                                          getFields(fieldName, fieldValue),
                                          true,
                                          true,
                                          Long.parseLong(testuser1Identity.getId()));
+    eventModification = eventUpdateReference.get();
+    assertNotNull(eventModification);
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.UPDATED));
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.ALLOW_INVITE_UPDATED));
+    assertEquals("Modification types are more than expected : " + eventModification.getModificationTypes(),
+                 2,
+                 eventModification.getModificationTypes().size());
+
     event = agendaEventService.getEventById(eventId);
     assertEquals(fieldValue, String.valueOf(event.isAllowAttendeeToInvite()));
   }
@@ -1779,6 +1926,12 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     }
 
     agendaEventService.deleteEventById(eventId, Long.parseLong(testuser1Identity.getId()));
+    AgendaEventModification eventModification = eventDeletionReference.get();
+    assertNotNull(eventModification);
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.DELETED));
+    assertEquals("Modification types are more than expected : " + eventModification.getModificationTypes(),
+                 1,
+                 eventModification.getModificationTypes().size());
 
     event = agendaEventService.getEventById(eventId, null, Long.parseLong(testuser1Identity.getId()));
     assertNull(event);
@@ -1800,7 +1953,9 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     Event event = newEventInstance(start, end, allDay);
     event = createEvent(event.clone(), Long.parseLong(testuser1Identity.getId()), testuser2Identity);
-    Event createdEvent = agendaEventService.getEventById(event.getId(), null, Long.parseLong(testuser2Identity.getId()));
+    Event createdEvent = agendaEventService.getEventById(event.getId(),
+                                                         ZoneId.systemDefault(),
+                                                         Long.parseLong(testuser2Identity.getId()));
 
     assertNotNull(createdEvent);
     assertTrue(createdEvent.getId() > 0);
@@ -2009,9 +2164,12 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                   event1.getRecurrence()
                                         .getUntil()
                                         .plusDays(2)
-                                        .toLocalDate()
                                         .atStartOfDay(ZoneId.systemDefault()),
-                                  event1.getRecurrence().getUntil().plusDays(3),
+                                  event1.getRecurrence()
+                                        .getUntil()
+                                        .plusDays(4)
+                                        .atStartOfDay(ZoneId.systemDefault())
+                                        .minusSeconds(1),
                                   0);
     events = agendaEventService.getEvents(eventFilter,
                                           ZoneId.systemDefault(),
@@ -2231,7 +2389,14 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(event.getId());
     eventAttendees.add(new EventAttendee(0, event.getId(), Long.parseLong(spaceIdentity.getId()), null));
-    agendaEventAttendeeService.saveEventAttendees(event, eventAttendees, testuser1Id, false, false, EventModificationType.ADDED);
+    agendaEventAttendeeService.saveEventAttendees(event,
+                                                  eventAttendees,
+                                                  testuser1Id,
+                                                  false,
+                                                  false,
+                                                  new AgendaEventModification(event.getId(),
+                                                                              testuser1Id,
+                                                                              Collections.singleton(AgendaEventModificationType.ADDED)));
 
     eventFilter = new EventFilter(Long.parseLong(testuser3Identity.getId()),
                                   Collections.singletonList(Long.parseLong(spaceIdentity.getId())),
@@ -2343,7 +2508,14 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(event.getId());
     eventAttendees.add(new EventAttendee(0, event.getId(), Long.parseLong(spaceIdentity.getId()), null));
-    agendaEventAttendeeService.saveEventAttendees(event, eventAttendees, testuser1Id, false, false, EventModificationType.ADDED);
+    agendaEventAttendeeService.saveEventAttendees(event,
+                                                  eventAttendees,
+                                                  testuser1Id,
+                                                  false,
+                                                  false,
+                                                  new AgendaEventModification(event.getId(),
+                                                                              testuser1Id,
+                                                                              Collections.singleton(AgendaEventModificationType.ADDED)));
 
     eventFilter = new EventFilter(Long.parseLong(testuser3Identity.getId()),
                                   null,
@@ -2371,7 +2543,14 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     eventAttendees = agendaEventAttendeeService.getEventAttendees(event.getId());
     eventAttendees.add(new EventAttendee(0, event.getId(), Long.parseLong(testuser4Identity.getId()), null));
-    agendaEventAttendeeService.saveEventAttendees(event, eventAttendees, testuser1Id, false, false, EventModificationType.ADDED);
+    agendaEventAttendeeService.saveEventAttendees(event,
+                                                  eventAttendees,
+                                                  testuser1Id,
+                                                  false,
+                                                  false,
+                                                  new AgendaEventModification(event.getId(),
+                                                                              testuser1Id,
+                                                                              Collections.singleton(AgendaEventModificationType.ADDED)));
 
     eventFilter = new EventFilter(Long.parseLong(testuser4Identity.getId()),
                                   null,

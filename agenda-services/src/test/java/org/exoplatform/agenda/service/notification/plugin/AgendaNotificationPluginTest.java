@@ -1,18 +1,14 @@
 package org.exoplatform.agenda.service.notification.plugin;
 
 import java.time.ZonedDateTime;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
-import org.exoplatform.agenda.constant.EventRecurrenceFrequency;
-import org.exoplatform.agenda.model.EventRecurrence;
 import org.junit.Assert;
 import org.junit.Test;
 
-import org.exoplatform.agenda.constant.EventModificationType;
-import org.exoplatform.agenda.model.Event;
-import org.exoplatform.agenda.model.EventAttendee;
+import org.exoplatform.agenda.constant.AgendaEventModificationType;
+import org.exoplatform.agenda.constant.EventRecurrenceFrequency;
+import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.notification.plugin.AgendaNotificationPlugin;
 import org.exoplatform.agenda.service.BaseAgendaEventTest;
 import org.exoplatform.agenda.util.NotificationUtils;
@@ -60,7 +56,7 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
                                                              agendaEventAttendeeService.getEventAttendees(createdEvent.getId()))
                                                      .append(EVENT_TITLE, createdEvent.getSummary())
                                                      .append(NotificationUtils.EVENT_MODIFICATION_TYPE,
-                                                             EventModificationType.ADDED.name());
+                                                             AgendaEventModificationType.ADDED.name());
     String eventUrl = System.getProperty("gatein.email.domain.url")
                             .concat("portal/classic/agenda?parentId=")
                             .concat(String.valueOf(createdEvent.getId()));
@@ -135,7 +131,7 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
 
                                                      .append(EVENT_TITLE, updatedEvent.getSummary())
                                                      .append(NotificationUtils.EVENT_MODIFICATION_TYPE,
-                                                             EventModificationType.UPDATED.name());
+                                                             AgendaEventModificationType.UPDATED.name());
     String eventUrl = System.getProperty("gatein.email.domain.url")
                             .concat("portal/classic/agenda?parentId=")
                             .concat(String.valueOf(createdEvent.getId()));
@@ -167,10 +163,10 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
 
                                                       .append(EVENT_TITLE, updatedEvent.getSummary())
                                                       .append(NotificationUtils.EVENT_MODIFICATION_TYPE,
-                                                              EventModificationType.UPDATED);
+                                                              AgendaEventModificationType.UPDATED);
     // When
     try {
-      NotificationInfo notificationInfo2 = agendaNotificationPlugin.makeNotification(ctx2);
+      agendaNotificationPlugin.makeNotification(ctx2);
     } catch (IllegalArgumentException e) {
       // Expected
     }
@@ -207,7 +203,7 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
                                                              agendaEventAttendeeService.getEventAttendees(createdEvent.getId()))
                                                      .append(EVENT_TITLE, createdEvent.getSummary())
                                                      .append(NotificationUtils.EVENT_MODIFICATION_TYPE,
-                                                             EventModificationType.ADDED.name());
+                                                             AgendaEventModificationType.ADDED.name());
     String eventUrl = System.getProperty("gatein.email.domain.url")
                             .concat("portal/classic/agenda?parentId=")
                             .concat(String.valueOf(createdEvent.getId()));
@@ -270,7 +266,7 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
                                                               agendaEventAttendeeService.getEventAttendees(createdEvent.getId()))
                                                       .append(EVENT_TITLE, createdEvent.getSummary())
                                                       .append(NotificationUtils.EVENT_MODIFICATION_TYPE,
-                                                              EventModificationType.ADDED.name());
+                                                              AgendaEventModificationType.ADDED.name());
     String eventUrl1 = System.getProperty("gatein.email.domain.url")
                              .concat("portal/classic/agenda?parentId=")
                              .concat(String.valueOf(createdEvent.getId()));
