@@ -6,7 +6,7 @@ import java.util.List;
 
 import org.apache.commons.lang.StringUtils;
 
-import org.exoplatform.agenda.constant.EventModificationType;
+import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.commons.api.notification.NotificationContext;
@@ -70,7 +70,7 @@ public class AgendaNotificationPlugin extends BaseNotificationPlugin {
     // To avoid NPE for previously stored notifications, if
     // EVENT_MODIFICATION_TYPE parameter
     // doesn't exists, we assume that it's a new one
-    typeModification = StringUtils.isNotBlank(typeModification) ? typeModification : EventModificationType.ADDED.name();
+    typeModification = StringUtils.isNotBlank(typeModification) ? typeModification : AgendaEventModificationType.ADDED.name();
 
     Calendar calendar = calendarService.getCalendarById(event.getCalendarId());
     NotificationInfo notification = NotificationInfo.instance();

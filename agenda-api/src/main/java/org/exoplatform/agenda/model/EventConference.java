@@ -19,6 +19,7 @@ package org.exoplatform.agenda.model;
 import java.io.Serializable;
 
 import lombok.*;
+import lombok.EqualsAndHashCode.Exclude;
 
 @Data
 @AllArgsConstructor
@@ -27,6 +28,7 @@ public class EventConference implements Cloneable, Serializable {
 
   private static final long serialVersionUID = -1220341038848536226L;
 
+  @Exclude
   private long              id;
 
   /**

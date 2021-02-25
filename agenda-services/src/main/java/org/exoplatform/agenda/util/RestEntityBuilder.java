@@ -71,10 +71,11 @@ public class RestEntityBuilder {
     ZoneId eventZoneId = ZoneId.of(eventEntity.getTimeZoneId());
 
     if (recurrenceEntity != null) {
+      ZonedDateTime untilDate = AgendaDateUtils.parseRFC3339ToZonedDateTime(recurrenceEntity.getUntil(),
+                                                                            eventZoneId,
+                                                                            false);
       recurrence = new EventRecurrence(recurrenceEntity.getId(),
-                                       AgendaDateUtils.parseRFC3339ToZonedDateTime(recurrenceEntity.getUntil(),
-                                                                                   eventZoneId,
-                                                                                   false),
+                                       untilDate == null ? null : untilDate.toLocalDate(),
                                        recurrenceEntity.getCount(),
                                        recurrenceEntity.getType(),
                                        recurrenceEntity.getFrequency(),
@@ -258,8 +259,13 @@ public class RestEntityBuilder {
       userTimeZone = ZoneOffset.UTC;
     }
     if (recurrence != null) {
+      LocalDate until = recurrence.getUntil();
+      String untilDateRFC3339 = until == null ? null
+                                              : AgendaDateUtils.toRFC3339Date(until.plusDays(1)
+                                                                                   .atStartOfDay(userTimeZone)
+                                                                                   .minusSeconds(1));
       recurrenceEntity = new EventRecurrenceEntity(recurrence.getId(),
-                                                   AgendaDateUtils.toRFC3339Date(recurrence.getUntil()),
+                                                   untilDateRFC3339,
                                                    recurrence.getCount(),
                                                    recurrence.getType(),
                                                    recurrence.getFrequency(),

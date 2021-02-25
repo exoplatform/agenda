@@ -143,7 +143,7 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
 
     Event event = newEventInstance(start, start, allDay);
     EventRecurrence recurrence = new EventRecurrence(0,
-                                                     start.plusDays(2),
+                                                     start.plusDays(2).toLocalDate(),
                                                      0,
                                                      EventRecurrenceType.DAILY,
                                                      EventRecurrenceFrequency.DAILY,
@@ -230,7 +230,14 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
     eventAttendees.add(eventAttendee);
 
     long userIdentityId = Long.parseLong(testuser5Identity.getId());
-    agendaEventAttendeeService.saveEventAttendees(event, eventAttendees, userIdentityId, true, true, EventModificationType.ADDED);
+    agendaEventAttendeeService.saveEventAttendees(event,
+                                                  eventAttendees,
+                                                  userIdentityId,
+                                                  true,
+                                                  true,
+                                                  new AgendaEventModification(event.getId(),
+                                                                              userIdentityId,
+                                                                              Collections.singleton(AgendaEventModificationType.ADDED)));
     eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId);
     assertNotNull(eventAttendees);
     assertEquals("Same user was added twice, only one attendee object should remain in store", 1, eventAttendees.size());
@@ -240,7 +247,14 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
     eventAttendee.setIdentityId(Long.parseLong(testuser4Identity.getId()));
     eventAttendees.add(eventAttendee);
 
-    agendaEventAttendeeService.saveEventAttendees(event, eventAttendees, userIdentityId, true, true, EventModificationType.ADDED);
+    agendaEventAttendeeService.saveEventAttendees(event,
+                                                  eventAttendees,
+                                                  userIdentityId,
+                                                  true,
+                                                  true,
+                                                  new AgendaEventModification(event.getId(),
+                                                                              userIdentityId,
+                                                                              Collections.singleton(AgendaEventModificationType.ADDED)));
     eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId);
     assertNotNull(eventAttendees);
     assertEquals(2, eventAttendees.size());
@@ -250,7 +264,9 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
                                                   userIdentityId,
                                                   true,
                                                   true,
-                                                  EventModificationType.ADDED);
+                                                  new AgendaEventModification(event.getId(),
+                                                                              userIdentityId,
+                                                                              Collections.singleton(AgendaEventModificationType.ADDED)));
     eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId);
     assertNotNull(eventAttendees);
     assertEquals(0, eventAttendees.size());

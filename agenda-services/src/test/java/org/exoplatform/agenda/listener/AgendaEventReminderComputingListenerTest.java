@@ -19,12 +19,14 @@ package org.exoplatform.agenda.listener;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.Test;
 
+import org.exoplatform.agenda.model.AgendaEventModification;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.service.BaseAgendaEventTest;
 import org.exoplatform.agenda.util.Utils;
@@ -39,9 +41,9 @@ public class AgendaEventReminderComputingListenerTest extends BaseAgendaEventTes
     boolean allDay = false;
 
     AtomicBoolean executeListener = new AtomicBoolean(true);
-    listenerService.addListener(Utils.POST_CREATE_AGENDA_EVENT_EVENT, new Listener<Long, Object>() {
+    listenerService.addListener(Utils.POST_CREATE_AGENDA_EVENT_EVENT, new Listener<AgendaEventModification, Object>() {
       @Override
-      public void onEvent(org.exoplatform.services.listener.Event<Long, Object> event) throws Exception {
+      public void onEvent(org.exoplatform.services.listener.Event<AgendaEventModification, Object> event) throws Exception {
         if (executeListener.get()) {
           new AgendaEventReminderComputingListener().onEvent(event);
         }
@@ -56,9 +58,9 @@ public class AgendaEventReminderComputingListenerTest extends BaseAgendaEventTes
     }
 
     List<Event> events = agendaEventService.getEventOccurrencesInPeriod(event,
-                                                                        start,
-                                                                        start.plusDays(2),
-                                                                        start.getZone(),
+                                                                        ZonedDateTime.now(),
+                                                                        ZonedDateTime.now().plusDays(2),
+                                                                        ZoneId.systemDefault(),
                                                                         0);
     assertNotNull(events);
     assertEquals(0, events.size());

@@ -209,6 +209,12 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                                                         null,
                                                         true,
                                                         Long.parseLong(testuser1Identity.getId()));
+    AgendaEventModification eventModifications = eventCreationReference.get();
+    assertNotNull(eventModifications);
+    assertTrue(eventModifications.hasModification(AgendaEventModificationType.ADDED));
+    assertEquals("Modification types are more than expected : " + eventModifications.getModificationTypes(),
+                 1,
+                 eventModifications.getModificationTypes().size());
 
     try {
       start = getDate();
@@ -256,6 +262,15 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     List<EventDateOption> dateOptions = agendaEventDatePollService.getEventDateOptions(createdEvent.getId(), ZoneOffset.UTC);
     assertTrue(dateOptions == null || dateOptions.isEmpty());
     assertEquals(EventStatus.CONFIRMED, event.getStatus());
+
+    eventModifications = eventUpdateReference.get();
+    assertNotNull(eventModifications);
+    assertTrue(eventModifications.hasModification(AgendaEventModificationType.UPDATED));
+    assertTrue(eventModifications.hasModification(AgendaEventModificationType.START_DATE_UPDATED));
+    assertTrue(eventModifications.hasModification(AgendaEventModificationType.END_DATE_UPDATED));
+    assertEquals("Modification types are more than expected : " + eventModifications.getModificationTypes(),
+                 3,
+                 eventModifications.getModificationTypes().size());
 
     assertTrue(updatedEvent.isAllDay());
     assertEquals(dateOption.getStart()
@@ -357,6 +372,15 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     assertEquals(dateOption1.getEnd().withZoneSameInstant(ZoneOffset.UTC), updatedEvent.getEnd());
     assertEquals(EventStatus.TENTATIVE, updatedEvent.getStatus());
 
+    AgendaEventModification eventModifications = eventUpdateReference.get();
+    assertNotNull(eventModifications);
+    assertTrue(eventModifications.hasModification(AgendaEventModificationType.UPDATED));
+    assertTrue(eventModifications.hasModification(AgendaEventModificationType.DATE_OPTION_CREATED));
+    assertTrue(eventModifications.hasModification(AgendaEventModificationType.DATE_OPTION_DELETED));
+    assertEquals("Modification types are more than expected : " + eventModifications.getModificationTypes(),
+                 3,
+                 eventModifications.getModificationTypes().size());
+
     List<EventDateOption> dateOptions = agendaEventDatePollService.getEventDateOptions(updatedEvent.getId(), ZoneOffset.UTC);
     assertFalse(dateOptions == null || dateOptions.isEmpty());
     assertEquals(2, dateOptions.size()); // NOSONAR
@@ -404,6 +428,41 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                             .plusDays(1)
                             .minusSeconds(1),
                  createdDateOption2.getEnd());
+
+    updatedEvent = agendaEventService.updateEvent(updatedEvent,
+                                                  Collections.emptyList(),
+                                                  Collections.emptyList(),
+                                                  Collections.emptyList(),
+                                                  Collections.emptyList(),
+                                                  Arrays.asList(createdDateOption1, createdDateOption2),
+                                                  null,
+                                                  true,
+                                                  Long.parseLong(testuser1Identity.getId()));
+    eventModifications = eventUpdateReference.get();
+    assertNotNull(eventModifications);
+    assertTrue(eventModifications.hasModification(AgendaEventModificationType.UPDATED));
+    assertEquals("Modification types are more than expected : " + eventModifications.getModificationTypes(),
+                 1,
+                 eventModifications.getModificationTypes().size());
+
+    createdDateOption1.setStart(createdDateOption1.getStart().plusDays(1));
+    createdDateOption1.setEnd(createdDateOption1.getEnd().plusDays(1));
+    agendaEventService.updateEvent(updatedEvent,
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   Arrays.asList(createdDateOption1, createdDateOption2),
+                                   null,
+                                   true,
+                                   Long.parseLong(testuser1Identity.getId()));
+    eventModifications = eventUpdateReference.get();
+    assertNotNull(eventModifications);
+    assertTrue(eventModifications.hasModification(AgendaEventModificationType.UPDATED));
+    assertTrue(eventModifications.hasModification(AgendaEventModificationType.DATE_OPTION_UPDATED));
+    assertEquals("Modification types are more than expected : " + eventModifications.getModificationTypes(),
+                 2,
+                 eventModifications.getModificationTypes().size());
   }
 
   @Test
@@ -623,6 +682,14 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     agendaEventService.selectEventDateOption(eventId,
                                              createdDateOption1.getId(),
                                              Long.parseLong(testuser1Identity.getId()));
+
+    AgendaEventModification eventModifications = eventCreationReference.get();
+    assertNotNull(eventModifications);
+    assertTrue(eventModifications.hasModification(AgendaEventModificationType.ADDED));
+    assertTrue(eventModifications.hasModification(AgendaEventModificationType.DATE_OPTION_SELECTED));
+    assertEquals("Modification types are more than expected : " + eventModifications.getModificationTypes(),
+                 2,
+                 eventModifications.getModificationTypes().size());
 
     Event updatedEvent = agendaEventService.getEventById(eventId);
     assertNotNull(updatedEvent);
@@ -996,15 +1063,27 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     assertNotNull(eventDatePolls);
     assertEquals(1, eventDatePolls.size());
 
-    eventDatePolls = agendaEventService.getEventDatePolls(Collections.emptyList(), Long.parseLong(testuser2Identity.getId()), ZoneOffset.UTC, 0, 10);
+    eventDatePolls = agendaEventService.getEventDatePolls(Collections.emptyList(),
+                                                          Long.parseLong(testuser2Identity.getId()),
+                                                          ZoneOffset.UTC,
+                                                          0,
+                                                          10);
     assertNotNull(eventDatePolls);
     assertEquals(1, eventDatePolls.size());
 
-    eventDatePolls = agendaEventService.getEventDatePolls(Collections.emptyList(), Long.parseLong(testuser4Identity.getId()), ZoneOffset.UTC, 0, 10);
+    eventDatePolls = agendaEventService.getEventDatePolls(Collections.emptyList(),
+                                                          Long.parseLong(testuser4Identity.getId()),
+                                                          ZoneOffset.UTC,
+                                                          0,
+                                                          10);
     assertNotNull(eventDatePolls);
     assertEquals(1, eventDatePolls.size());
 
-    eventDatePolls = agendaEventService.getEventDatePolls(Collections.emptyList(), Long.parseLong(testuser5Identity.getId()), ZoneOffset.UTC, 0, 10);
+    eventDatePolls = agendaEventService.getEventDatePolls(Collections.emptyList(),
+                                                          Long.parseLong(testuser5Identity.getId()),
+                                                          ZoneOffset.UTC,
+                                                          0,
+                                                          10);
     assertNotNull(eventDatePolls);
     assertEquals(0, eventDatePolls.size());
 
@@ -1077,16 +1156,20 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     assertEquals(dateOption2.getEnd().withZoneSameInstant(ZoneOffset.UTC), createdEvent.getEnd());
     assertEquals(EventStatus.TENTATIVE, createdEvent.getStatus());
 
-    long eventDatePollCount = agendaEventService.countEventDatePolls(Collections.emptyList(), Long.parseLong(testuser1Identity.getId()));
+    long eventDatePollCount = agendaEventService.countEventDatePolls(Collections.emptyList(),
+                                                                     Long.parseLong(testuser1Identity.getId()));
     assertEquals(1, eventDatePollCount);
 
-    eventDatePollCount = agendaEventService.countEventDatePolls(Collections.emptyList(), Long.parseLong(testuser2Identity.getId()));
+    eventDatePollCount =
+                       agendaEventService.countEventDatePolls(Collections.emptyList(), Long.parseLong(testuser2Identity.getId()));
     assertEquals(1, eventDatePollCount);
 
-    eventDatePollCount = agendaEventService.countEventDatePolls(Collections.emptyList(), Long.parseLong(testuser4Identity.getId()));
+    eventDatePollCount =
+                       agendaEventService.countEventDatePolls(Collections.emptyList(), Long.parseLong(testuser4Identity.getId()));
     assertEquals(1, eventDatePollCount);
 
-    eventDatePollCount = agendaEventService.countEventDatePolls(Collections.emptyList(), Long.parseLong(testuser5Identity.getId()));
+    eventDatePollCount =
+                       agendaEventService.countEventDatePolls(Collections.emptyList(), Long.parseLong(testuser5Identity.getId()));
     assertEquals(0, eventDatePollCount);
 
     // count pending Date Polls in a specific space

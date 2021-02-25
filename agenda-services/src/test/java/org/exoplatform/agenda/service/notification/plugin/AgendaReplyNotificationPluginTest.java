@@ -1,9 +1,15 @@
 package org.exoplatform.agenda.service.notification.plugin;
 
+import java.time.ZonedDateTime;
+import java.util.Collections;
+import java.util.List;
+
+import org.junit.Assert;
+import org.junit.Test;
+
+import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
-import org.exoplatform.agenda.constant.EventModificationType;
-import org.exoplatform.agenda.model.Event;
-import org.exoplatform.agenda.model.EventAttendee;
+import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.notification.plugin.EventReplyNotificationPlugin;
 import org.exoplatform.agenda.service.BaseAgendaEventTest;
 import org.exoplatform.agenda.util.NotificationUtils;
@@ -13,11 +19,6 @@ import org.exoplatform.commons.notification.impl.NotificationContextImpl;
 import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.container.xml.ValueParam;
 import org.exoplatform.social.core.identity.model.Identity;
-import org.junit.Assert;
-import org.junit.Test;
-
-import java.time.ZonedDateTime;
-import java.util.List;
 
 public class AgendaReplyNotificationPluginTest extends BaseAgendaEventTest {
   @Test
@@ -28,7 +29,8 @@ public class AgendaReplyNotificationPluginTest extends BaseAgendaEventTest {
     boolean allDay = false;
 
     Event event = newEventInstance(start, start, allDay);
-    event = createEvent(event, Long.parseLong(testuser1Identity.getId()), testuser2Identity, testuser5Identity);
+    long modifierId = Long.parseLong(testuser1Identity.getId());
+    event = createEvent(event, modifierId, testuser2Identity, testuser5Identity);
 
     List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(event.getId());
     eventAttendees.add(new EventAttendee(0,
@@ -37,10 +39,12 @@ public class AgendaReplyNotificationPluginTest extends BaseAgendaEventTest {
                                          EventAttendeeResponse.ACCEPTED));
     agendaEventAttendeeService.saveEventAttendees(event,
                                                   eventAttendees,
-                                                  Long.parseLong(testuser1Identity.getId()),
+                                                  modifierId,
                                                   false,
                                                   true,
-                                                  EventModificationType.ADDED);
+                                                  new AgendaEventModification(event.getId(),
+                                                                              modifierId,
+                                                                              Collections.singleton(AgendaEventModificationType.ADDED)));
     agendaEventAttendeeService.sendEventResponse(event.getId(),
                                                  Long.parseLong(testuser2Identity.getId()),
                                                  EventAttendeeResponse.ACCEPTED);

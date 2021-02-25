@@ -49,6 +49,7 @@ public class AgendaEventReminderServiceTest extends BaseAgendaEventTest {
 
     eventReminder = eventReminder.clone();
     eventReminder.setId(0);
+    eventReminder.setBefore(eventReminder.getBefore() + 1);
     eventReminders.add(eventReminder);
 
     agendaEventReminderService.saveEventReminders(event, eventReminders, userIdentityId);
@@ -135,7 +136,7 @@ public class AgendaEventReminderServiceTest extends BaseAgendaEventTest {
 
     Event event = newEventInstance(start, start, allDay);
     EventRecurrence recurrence = new EventRecurrence(0,
-                                                     start.plusDays(2),
+                                                     start.plusDays(2).toLocalDate(),
                                                      0,
                                                      EventRecurrenceType.DAILY,
                                                      EventRecurrenceFrequency.DAILY,
@@ -185,6 +186,7 @@ public class AgendaEventReminderServiceTest extends BaseAgendaEventTest {
 
     eventReminder = eventReminder.clone();
     eventReminder.setId(0);
+    eventReminder.setBefore(eventReminder.getBefore() + 1);
     eventReminders.add(eventReminder);
 
     agendaEventReminderService.saveEventReminders(event, eventReminders, userIdentityId);

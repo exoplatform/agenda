@@ -18,7 +18,9 @@ package org.exoplatform.agenda.service;
 
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Set;
 
+import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventReminder;
@@ -56,11 +58,15 @@ public interface AgendaEventReminderService {
    * @param reminders {@link List} of {@link EventReminder}
    * @param userIdentityId User technical identifier ({@link Identity#getId()})
    *          updating his/her reminders on the event
+   * @return {@link Set} of {@link AgendaEventModificationType} containing
+   *         modifications made on event reminders
    * @throws IllegalAccessException when user isn't an attendee of the event
    * @throws AgendaException when a reminder datetime can't be computed
    */
-  void saveEventReminders(Event event, List<EventReminder> reminders, long userIdentityId) throws IllegalAccessException,
-                                                                                           AgendaException;
+  Set<AgendaEventModificationType> saveEventReminders(Event event,
+                                                      List<EventReminder> reminders,
+                                                      long userIdentityId) throws IllegalAccessException,
+                                                                           AgendaException;
 
   /**
    * Saves the {@link List} of {@link EventReminder} of a chosen {@link Event}

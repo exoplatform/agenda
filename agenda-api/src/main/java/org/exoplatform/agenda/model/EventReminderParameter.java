@@ -23,6 +23,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.exoplatform.agenda.constant.ReminderPeriodType;
 
 import lombok.*;
+import lombok.EqualsAndHashCode.Exclude;
 
 @EqualsAndHashCode
 @NoArgsConstructor
@@ -44,6 +45,7 @@ public class EventReminderParameter implements Serializable {
    * supported enum type )
    */
   @Setter
+  @Exclude
   private String              periodType;
 
   public EventReminderParameter(int before, ReminderPeriodType beforePeriodType) {

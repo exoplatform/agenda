@@ -6,6 +6,7 @@ import java.util.List;
 
 import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.job.DailyReminderComputingJob;
+import org.exoplatform.agenda.model.AgendaEventModification;
 import org.exoplatform.agenda.service.AgendaEventReminderService;
 import org.exoplatform.agenda.service.AgendaEventService;
 import org.exoplatform.container.ExoContainerContext;
@@ -20,15 +21,15 @@ import org.exoplatform.services.listener.Listener;
  * {@link DailyReminderComputingJob} is applied on all events, even those that
  * are created the same day.
  */
-public class AgendaEventReminderComputingListener extends Listener<Long, Object> {
+public class AgendaEventReminderComputingListener extends Listener<AgendaEventModification, Object> {
 
   private AgendaEventReminderService agendaEventReminderService;
 
   private AgendaEventService         agendaEventService;
 
   @Override
-  public void onEvent(Event<Long, Object> event) throws Exception {
-    Long eventId = event.getSource();
+  public void onEvent(Event<AgendaEventModification, Object> event) throws Exception {
+    long eventId = event.getSource().getEventId();
     org.exoplatform.agenda.model.Event agendaEvent = getAgendaEventService().getEventById(eventId);
     if (agendaEvent == null || agendaEvent.getStatus() != EventStatus.CONFIRMED) {
       return;

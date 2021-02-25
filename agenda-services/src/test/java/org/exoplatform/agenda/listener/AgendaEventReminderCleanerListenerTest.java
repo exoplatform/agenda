@@ -26,8 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.Test;
 
 import org.exoplatform.agenda.constant.EventStatus;
-import org.exoplatform.agenda.model.Event;
-import org.exoplatform.agenda.model.EventReminder;
+import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.service.BaseAgendaEventTest;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.services.listener.Listener;
@@ -51,9 +50,9 @@ public class AgendaEventReminderCleanerListenerTest extends BaseAgendaEventTest 
     assertEquals(1, eventReminders.size());
 
     AtomicBoolean executeListener = new AtomicBoolean(true);
-    listenerService.addListener(Utils.POST_UPDATE_AGENDA_EVENT_EVENT, new Listener<Long, Object>() {
+    listenerService.addListener(Utils.POST_UPDATE_AGENDA_EVENT_EVENT, new Listener<AgendaEventModification, Object>() {
       @Override
-      public void onEvent(org.exoplatform.services.listener.Event<Long, Object> event) throws Exception {
+      public void onEvent(org.exoplatform.services.listener.Event<AgendaEventModification, Object> event) throws Exception {
         if (executeListener.get()) {
           new AgendaEventReminderCleanerListener().onEvent(event);
         }

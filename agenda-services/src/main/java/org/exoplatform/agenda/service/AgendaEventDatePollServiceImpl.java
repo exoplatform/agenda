@@ -4,6 +4,7 @@ import java.time.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventDateOption;
 import org.exoplatform.agenda.storage.AgendaEventDatePollStorage;
@@ -62,15 +63,25 @@ public class AgendaEventDatePollServiceImpl implements AgendaEventDatePollServic
   }
 
   @Override
-  public List<EventDateOption> updateEventDateOptions(long eventId, List<EventDateOption> dateOptions) {
+  public Set<AgendaEventModificationType> updateEventDateOptions(long eventId, List<EventDateOption> dateOptions) {
     if (dateOptions == null) {
       dateOptions = Collections.emptyList();
     }
+    Set<AgendaEventModificationType> dateOptionModifications = new HashSet<>();
     List<EventDateOption> existingDateOptions = getEventDateOptions(eventId, ZoneOffset.UTC);
 
     List<EventDateOption> dateOptionsToCreate = getDateOptionsToCreate(dateOptions);
+    if (!dateOptionsToCreate.isEmpty()) {
+      dateOptionModifications.add(AgendaEventModificationType.DATE_OPTION_CREATED);
+    }
     List<EventDateOption> dateOptionsToUpdate = getDateOptionsToUpdate(dateOptions, existingDateOptions);
+    if (!dateOptionsToUpdate.isEmpty()) {
+      dateOptionModifications.add(AgendaEventModificationType.DATE_OPTION_UPDATED);
+    }
     List<EventDateOption> dateOptionsToDelete = getDateOptionsToDelete(dateOptions, existingDateOptions);
+    if (!dateOptionsToDelete.isEmpty()) {
+      dateOptionModifications.add(AgendaEventModificationType.DATE_OPTION_DELETED);
+    }
     for (EventDateOption eventDateOption : dateOptionsToCreate) {
       eventDateOption.setEventId(eventId);
       EventDateOption createdDateOption = datePollStorage.createDateOption(eventDateOption);
@@ -93,8 +104,7 @@ public class AgendaEventDatePollServiceImpl implements AgendaEventDatePollServic
     }
 
     Utils.broadcastEvent(listenerService, Utils.POST_UPDATE_AGENDA_EVENT_POLL, eventId, dateOptions);
-
-    return dateOptions;
+    return dateOptionModifications;
   }
 
   @Override
@@ -115,7 +125,7 @@ public class AgendaEventDatePollServiceImpl implements AgendaEventDatePollServic
 
   @Override
   public void saveEventVotes(long eventId, List<Long> acceptedDatePollIds, long identityId) throws ObjectNotFoundException,
-                                                                                        IllegalAccessException {
+                                                                                            IllegalAccessException {
     Event event = eventStorage.getEventById(eventId);
     if (event == null) {
       throw new ObjectNotFoundException("Event with id " + eventId + " wasn't found");
@@ -210,7 +220,7 @@ public class AgendaEventDatePollServiceImpl implements AgendaEventDatePollServic
                                                                               .filter(tmp -> tmp.getId() == dateOption.getId())
                                                                               .findAny()
                                                                               .orElse(null);
-                        return this.sameDateOption(existingDateOption, dateOption);
+                        return !this.sameDateOption(existingDateOption, dateOption);
                       })
                       .collect(Collectors.toList());
   }

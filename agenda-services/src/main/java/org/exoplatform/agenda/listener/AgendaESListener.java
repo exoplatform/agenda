@@ -1,5 +1,6 @@
 package org.exoplatform.agenda.listener;
 
+import org.exoplatform.agenda.model.AgendaEventModification;
 import org.exoplatform.agenda.search.AgendaIndexingServiceConnector;
 import org.exoplatform.agenda.service.AgendaEventService;
 import org.exoplatform.agenda.util.Utils;
@@ -12,7 +13,7 @@ import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 
 @Asynchronous
-public class AgendaESListener extends Listener<Long, Object> {
+public class AgendaESListener extends Listener<AgendaEventModification, Object> {
   private static final Log      LOG = ExoLogger.getExoLogger(AgendaESListener.class);
 
   private final PortalContainer container;
@@ -27,13 +28,14 @@ public class AgendaESListener extends Listener<Long, Object> {
   }
 
   @Override
-  public void onEvent(Event<Long, Object> event) throws Exception {
+  public void onEvent(Event<AgendaEventModification, Object> event) throws Exception {
     ExoContainerContext.setCurrentContainer(container);
     RequestLifeCycle.begin(container);
     try {
       if (indexingService != null) {
-        String eventId = String.valueOf(event.getSource());
-        org.exoplatform.agenda.model.Event agendaEvent = getAgendaEventService().getEventById(event.getSource());
+        AgendaEventModification eventModifications = event.getSource();
+        long eventId = eventModifications.getEventId();
+        org.exoplatform.agenda.model.Event agendaEvent = getAgendaEventService().getEventById(eventId);
         if (agendaEvent == null) {
           return;
         }
@@ -51,14 +53,14 @@ public class AgendaESListener extends Listener<Long, Object> {
     }
   }
 
-  private void reindexAgendaEvent(String eventId, String cause) {
+  private void reindexAgendaEvent(long eventId, String cause) {
     LOG.debug("Notifying indexing service for event with id={}. Cause: {}", eventId, cause);
-    indexingService.reindex(AgendaIndexingServiceConnector.TYPE, eventId);
+    indexingService.reindex(AgendaIndexingServiceConnector.TYPE, String.valueOf(eventId));
   }
 
-  private void unindexAgendaEvent(String eventId, String cause) {
+  private void unindexAgendaEvent(long eventId, String cause) {
     LOG.debug("Notifying unindexing service for event with id={}. Cause: {}", eventId, cause);
-    indexingService.unindex(AgendaIndexingServiceConnector.TYPE, eventId);
+    indexingService.unindex(AgendaIndexingServiceConnector.TYPE, String.valueOf(eventId));
   }
 
   private AgendaEventService getAgendaEventService() {

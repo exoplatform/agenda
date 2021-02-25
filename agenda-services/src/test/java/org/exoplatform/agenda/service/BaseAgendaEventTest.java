@@ -3,6 +3,7 @@ package org.exoplatform.agenda.service;
 import java.time.*;
 import java.util.ArrayList;
 import java.util.TimeZone;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.After;
 import org.junit.Before;
@@ -10,10 +11,12 @@ import org.junit.Before;
 import org.exoplatform.agenda.constant.*;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.storage.AgendaEventStorage;
+import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
+import org.exoplatform.services.listener.Listener;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
@@ -24,72 +27,87 @@ import org.exoplatform.social.core.space.spi.SpaceService;
 
 public abstract class BaseAgendaEventTest {
 
-  protected static final String                     CALENDAR_DESCRIPTION = "calendarDescription";
+  protected static final String                             CALENDAR_DESCRIPTION = "calendarDescription";
 
-  protected static final String                     CALENDAR_COLOR       = "calendarColor";
+  protected static final String                             CALENDAR_COLOR       = "calendarColor";
 
-  protected static final ArrayList<EventAttendee>   ATTENDEES            = new ArrayList<>();
+  protected static final ArrayList<EventAttendee>           ATTENDEES            = new ArrayList<>();
 
-  protected static final ArrayList<EventConference> CONFERENCES          = new ArrayList<>();
+  protected static final ArrayList<EventConference>         CONFERENCES          = new ArrayList<>();
 
-  protected static final ArrayList<EventAttachment> ATTACHMENTS          = new ArrayList<>();
+  protected static final ArrayList<EventAttachment>         ATTACHMENTS          = new ArrayList<>();
 
-  protected static final ArrayList<EventReminder>   REMINDERS            = new ArrayList<>();
+  protected static final ArrayList<EventReminder>           REMINDERS            = new ArrayList<>();
 
-  protected static final RemoteEvent                REMOTE_EVENT         = null;
+  protected static final RemoteEvent                        REMOTE_EVENT         = null;
 
-  protected PortalContainer                         container;
+  protected static AtomicReference<AgendaEventModification> eventCreationReference;
 
-  protected IdentityManager                         identityManager;
+  protected static AtomicReference<AgendaEventModification> eventDeletionReference;
 
-  protected SpaceService                            spaceService;
+  protected static AtomicReference<AgendaEventModification> eventUpdateReference;
 
-  protected AgendaCalendarService                   agendaCalendarService;
+  protected PortalContainer                                 container;
 
-  protected AgendaUserSettingsService               agendaUserSettingsService;
+  protected IdentityManager                                 identityManager;
 
-  protected AgendaEventService                      agendaEventService;
+  protected SpaceService                                    spaceService;
 
-  protected AgendaEventConferenceService            agendaEventConferenceService;
+  protected AgendaCalendarService                           agendaCalendarService;
 
-  protected AgendaEventAttachmentService            agendaEventAttachmentService;
+  protected AgendaUserSettingsService                       agendaUserSettingsService;
 
-  protected AgendaEventAttendeeService              agendaEventAttendeeService;
+  protected AgendaEventService                              agendaEventService;
 
-  protected AgendaEventReminderService              agendaEventReminderService;
+  protected AgendaEventConferenceService                    agendaEventConferenceService;
 
-  protected AgendaRemoteEventService                agendaRemoteEventService;
+  protected AgendaEventAttachmentService                    agendaEventAttachmentService;
 
-  protected AgendaEventDatePollService              agendaEventDatePollService;
+  protected AgendaEventAttendeeService                      agendaEventAttendeeService;
 
-  protected ListenerService                         listenerService;
+  protected AgendaEventReminderService                      agendaEventReminderService;
 
-  protected AgendaEventStorage                      agendaEventStorage;
+  protected AgendaRemoteEventService                        agendaRemoteEventService;
 
-  protected RemoteProvider                          remoteProvider;
+  protected AgendaEventDatePollService                      agendaEventDatePollService;
 
-  protected Calendar                                calendar;
+  protected ListenerService                                 listenerService;
 
-  protected Calendar                                spaceCalendar;
+  protected AgendaEventStorage                              agendaEventStorage;
 
-  protected Space                                   space;
+  protected RemoteProvider                                  remoteProvider;
 
-  protected Identity                                spaceIdentity;
+  protected Calendar                                        calendar;
 
-  protected Identity                                testuser1Identity;
+  protected Calendar                                        spaceCalendar;
 
-  protected Identity                                testuser2Identity;
+  protected Space                                           space;
 
-  protected Identity                                testuser3Identity;
+  protected Identity                                        spaceIdentity;
 
-  protected Identity                                testuser4Identity;
+  protected Identity                                        testuser1Identity;
 
-  protected Identity                                testuser5Identity;
+  protected Identity                                        testuser2Identity;
+
+  protected Identity                                        testuser3Identity;
+
+  protected Identity                                        testuser4Identity;
+
+  protected Identity                                        testuser5Identity;
 
   @Before
   public void setUp() throws ObjectNotFoundException {
     container = PortalContainer.getInstance();
 
+    initServices();
+
+    TimeZone.setDefault(TimeZone.getTimeZone("US/Hawaii"));
+
+    begin();
+    injectData();
+  }
+
+  private void initServices() {
     agendaCalendarService = container.getComponentInstanceOfType(AgendaCalendarService.class);
     agendaEventService = container.getComponentInstanceOfType(AgendaEventService.class);
     agendaUserSettingsService = container.getComponentInstanceOfType(AgendaUserSettingsService.class);
@@ -104,10 +122,42 @@ public abstract class BaseAgendaEventTest {
     listenerService = container.getComponentInstanceOfType(ListenerService.class);
     agendaEventStorage = container.getComponentInstanceOfType(AgendaEventStorage.class);
 
-    TimeZone.setDefault(TimeZone.getTimeZone("US/Hawaii"));
-
-    begin();
-    injectData();
+    if (eventCreationReference == null) {
+      eventCreationReference = new AtomicReference<>();// NOSONAR
+      Listener<AgendaEventModification, Object> creationListener = new Listener<AgendaEventModification, Object>() {
+        @Override
+        public void onEvent(org.exoplatform.services.listener.Event<AgendaEventModification, Object> event) throws Exception {
+          eventCreationReference.set(event.getSource());
+        }
+      };
+      listenerService.addListener(Utils.POST_CREATE_AGENDA_EVENT_EVENT, creationListener);
+    } else {
+      eventCreationReference.set(null);
+    }
+    if (eventUpdateReference == null) {
+      eventUpdateReference = new AtomicReference<>();// NOSONAR
+      Listener<AgendaEventModification, Object> updateListener = new Listener<AgendaEventModification, Object>() {
+        @Override
+        public void onEvent(org.exoplatform.services.listener.Event<AgendaEventModification, Object> event) throws Exception {
+          eventUpdateReference.set(event.getSource());
+        }
+      };
+      listenerService.addListener(Utils.POST_UPDATE_AGENDA_EVENT_EVENT, updateListener);
+    } else {
+      eventUpdateReference.set(null);
+    }
+    if (eventDeletionReference == null) {
+      eventDeletionReference = new AtomicReference<>();// NOSONAR
+      Listener<AgendaEventModification, Object> deletionListener = new Listener<AgendaEventModification, Object>() {
+        @Override
+        public void onEvent(org.exoplatform.services.listener.Event<AgendaEventModification, Object> event) throws Exception {
+          eventDeletionReference.set(event.getSource());
+        }
+      };
+      listenerService.addListener(Utils.POST_DELETE_AGENDA_EVENT_EVENT, deletionListener);
+    } else {
+      eventDeletionReference.set(null);
+    }
   }
 
   @After
@@ -237,7 +287,7 @@ public abstract class BaseAgendaEventTest {
     ZonedDateTime until = end.plusDays(2);
 
     EventRecurrence recurrence = new EventRecurrence(0,
-                                                     until,
+                                                     until.toLocalDate(),
                                                      0,
                                                      EventRecurrenceType.DAILY,
                                                      EventRecurrenceFrequency.DAILY,

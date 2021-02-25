@@ -23,6 +23,7 @@ import java.time.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
@@ -109,13 +110,36 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
                                    || reminder.getUntilOccurrenceId().isAfter(occurrenceId)))
                            .collect(Collectors.toList());
     }
+    List<EventReminder> newReminders = reminders == null ? Collections.emptyList() : reminders;
+    for (EventReminder eventReminder : newReminders) {
+      eventReminder.setEventId(event.getId());
+    }
 
     List<EventReminder> savedReminders = getEventReminders(eventId);
-    List<EventReminder> newReminders = reminders == null ? Collections.emptyList() : reminders;
-    List<EventReminder> remindersToDelete = savedReminders.stream()
-                                                          .filter(reminder -> newReminders.stream()
-                                                                                          .noneMatch(newReminder -> newReminder.getId() == reminder.getId()))
-                                                          .collect(Collectors.toList());
+    List<EventReminder> remindersToDelete = new ArrayList<>(savedReminders);
+    remindersToDelete.removeAll(newReminders);
+    List<EventReminder> remindersToCreate = new ArrayList<>(newReminders);
+    remindersToCreate.removeAll(savedReminders);
+    List<EventReminder> remindersToUpdate = new ArrayList<>(savedReminders);
+    remindersToUpdate.removeAll(remindersToDelete);
+    remindersToUpdate.removeAll(remindersToCreate);
+
+    // Update existing reminders computed trigger date
+    if (!remindersToUpdate.isEmpty()) {
+      for (EventReminder eventReminder : remindersToUpdate) {
+        try {
+          ZonedDateTime reminderDate = computeReminderDateTime(event, eventReminder);
+          eventReminder.setDatetime(reminderDate);
+          if (!isRecurrentEvent) {
+            eventReminder.setFromOccurrenceId(null);
+            eventReminder.setUntilOccurrenceId(null);
+          }
+          reminderStorage.saveEventReminder(eventReminder);
+        } catch (AgendaException e) {
+          LOG.warn("Error updating reminder of event with id {}", event.getId(), e);
+        }
+      }
+    }
 
     // Delete Reminders
     for (EventReminder eventReminder : remindersToDelete) {
@@ -123,8 +147,8 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
     }
 
     // Create new Reminders
-    if (reminders != null && !reminders.isEmpty()) {
-      for (EventReminder eventReminder : reminders) {
+    if (!remindersToCreate.isEmpty()) {
+      for (EventReminder eventReminder : remindersToCreate) {
         eventReminder = eventReminder.clone();
 
         try {
@@ -137,7 +161,7 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
           }
           reminderStorage.saveEventReminder(eventReminder);
         } catch (AgendaException e) {
-          LOG.warn("Error saving reminder of event with id {}", event.getId(), e);
+          LOG.warn("Error creating reminder of event with id {}", event.getId(), e);
         }
       }
     }
@@ -186,10 +210,10 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
   }
 
   @Override
-  public void saveEventReminders(Event event,
-                                 List<EventReminder> reminders,
-                                 long identityId) throws AgendaException {
-    saveEventReminders(event, null, reminders, identityId);
+  public Set<AgendaEventModificationType> saveEventReminders(Event event,
+                                                             List<EventReminder> reminders,
+                                                             long identityId) throws AgendaException {
+    return saveEventReminders(event, null, reminders, identityId);
   }
 
   @Override
@@ -223,24 +247,47 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
     this.reminderComputingPeriod = reminderComputingPeriod;
   }
 
-  private void saveEventReminders(Event event,
-                                  ZonedDateTime fromOccurrenceId,
-                                  List<EventReminder> reminders,
-                                  long identityId) throws AgendaException {
+  private Set<AgendaEventModificationType> saveEventReminders(Event event,
+                                                              ZonedDateTime fromOccurrenceId,
+                                                              List<EventReminder> reminders,
+                                                              long identityId) throws AgendaException {
     long eventId = event.getId();
     boolean isRecurrentEvent = event.getRecurrence() != null;
     if (event.getStatus() == EventStatus.CANCELLED) {
       // Delete all reminders of user when event is not confirmed yet
       reminders = null;
     }
+    List<EventReminder> newReminders = reminders == null ? Collections.emptyList() : reminders;
+    for (EventReminder eventReminder : newReminders) {
+      eventReminder.setEventId(event.getId());
+      eventReminder.setReceiverId(identityId);
+    }
 
     List<EventReminder> savedReminders = getEventReminders(eventId, identityId);
-    List<EventReminder> newReminders = reminders == null ? Collections.emptyList() : reminders;
-    List<EventReminder> remindersToDelete =
-                                          savedReminders.stream()
-                                                        .filter(reminder -> newReminders.stream()
-                                                                                        .noneMatch(newReminder -> newReminder.getId() == reminder.getId()))
-                                                        .collect(Collectors.toList());
+    List<EventReminder> remindersToDelete = new ArrayList<>(savedReminders);
+    remindersToDelete.removeAll(newReminders);
+    List<EventReminder> remindersToCreate = new ArrayList<>(newReminders);
+    remindersToCreate.removeAll(savedReminders);
+    List<EventReminder> remindersToUpdate = new ArrayList<>(savedReminders);
+    remindersToUpdate.removeAll(remindersToDelete);
+    remindersToUpdate.removeAll(remindersToCreate);
+
+    // Update existing reminders computed trigger date
+    if (!remindersToUpdate.isEmpty()) {
+      for (EventReminder eventReminder : remindersToUpdate) {
+        try {
+          ZonedDateTime reminderDate = computeReminderDateTime(event, eventReminder);
+          eventReminder.setDatetime(reminderDate);
+          if (!isRecurrentEvent) {
+            eventReminder.setFromOccurrenceId(null);
+            eventReminder.setUntilOccurrenceId(null);
+          }
+          reminderStorage.saveEventReminder(eventReminder);
+        } catch (AgendaException e) {
+          LOG.warn("Error updating reminder of event with id {}", event.getId(), e);
+        }
+      }
+    }
 
     // Delete Reminders
     for (EventReminder eventReminder : remindersToDelete) {
@@ -248,8 +295,8 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
     }
 
     // Create new Reminders and update old ones
-    if (reminders != null && !reminders.isEmpty()) {
-      for (EventReminder eventReminder : reminders) {
+    if (!remindersToCreate.isEmpty()) {
+      for (EventReminder eventReminder : remindersToCreate) {
         eventReminder = eventReminder.clone();
 
         ZonedDateTime reminderDate = computeReminderDateTime(event, eventReminder);
@@ -270,6 +317,15 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
     if (isRecurrentEvent) {
       saveExceptionalOccurrencesReminders(eventId, fromOccurrenceId, reminders, identityId);
     }
+
+    Set<AgendaEventModificationType> reminderModificationTypes = new HashSet<>();
+    if (!remindersToDelete.isEmpty()) {
+      reminderModificationTypes.add(AgendaEventModificationType.REMINDER_DELETED);
+    }
+    if (!remindersToCreate.isEmpty()) {
+      reminderModificationTypes.add(AgendaEventModificationType.REMINDER_ADDED);
+    }
+    return reminderModificationTypes;
   }
 
   private void saveExceptionalOccurrencesReminders(long eventId,

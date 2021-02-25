@@ -162,6 +162,7 @@ public class EntityMapper {
 
   public static EventEntity toEntity(Event event) {
     ZoneId eventZoneId = event.getTimeZoneId() == null ? ZoneOffset.UTC : event.getTimeZoneId();
+    TimeZone ical4jTimezone = Utils.getICalTimeZone(ZoneOffset.UTC);
 
     EventEntity eventEntity = new EventEntity();
     eventEntity.setId(event.getId());
@@ -198,20 +199,23 @@ public class EntityMapper {
       DateTime endDateTime = new DateTime(Date.from(end.toInstant()));
 
       VEvent vevent = new VEvent(startDateTime, endDateTime, event.getSummary());
-      Recur recur = Utils.getICalendarRecur(recurrence);
+      Recur recur = Utils.getICalendarRecur(recurrence, eventZoneId);
       vevent.getProperties().add(new RRule(recur));
 
-      long fromTime = start.toEpochSecond() * 1000;
-      DateTime ical4jFrom = new DateTime(fromTime);
+      DateTime ical4jFrom = new DateTime(Date.from(start.toInstant()), ical4jTimezone);
 
       ZonedDateTime untilDateTime = null;
       boolean neverEnds = true;
       if (recurrence.getUntil() != null) {
         neverEnds = false;
-        untilDateTime = recurrence.getUntil().withHour(23).withMinute(59).withSecond(59);
+        untilDateTime = recurrence.getUntil().atStartOfDay(ZoneOffset.UTC).withHour(23).withMinute(59).withSecond(59);
       } else if (recurrence.getCount() > 0) {
         neverEnds = false;
-        untilDateTime = end.withHour(23).withMinute(59).withSecond(59);
+        if (event.isAllDay()) {
+          untilDateTime = end.toLocalDate().atStartOfDay(ZoneOffset.UTC).withHour(23).withMinute(59).withSecond(59);
+        } else {
+          untilDateTime = end.withZoneSameInstant(ZoneOffset.UTC).plusSeconds(1);
+        }
         int countIntervals = recurrence.getInterval() * recurrence.getCount();
         switch (recurrence.getFrequency()) {
           case YEARLY:
@@ -233,10 +237,10 @@ public class EntityMapper {
         neverEnds = true;
         untilDateTime = end.plusMonths(2);
       }
-      long toTime = untilDateTime.toEpochSecond() * 1000;
-      DateTime ical4jTo = new DateTime(toTime);
+      DateTime ical4jTo = new DateTime(Date.from(untilDateTime.toInstant()), ical4jTimezone);
 
       Period period = new Period(ical4jFrom, ical4jTo);
+      period.setTimeZone(ical4jTimezone);
       PeriodList list = vevent.calculateRecurrenceSet(period);
 
       Period firstOccurrencePeriod =
@@ -249,25 +253,42 @@ public class EntityMapper {
 
       DateTime firstOccurrenceOverallStart = firstOccurrencePeriod == null ? startDateTime
                                                                            : firstOccurrencePeriod.getStart();
-      ZonedDateTime overallStart = firstOccurrenceOverallStart.toInstant().atZone(eventZoneId);
+      Date firstOccurrenceDate = null;
+      Date lastOccurrenceDate = null;
+      Period lastOccurrencePeriod = null;
+      if (!neverEnds && !list.isEmpty()) {
+        lastOccurrencePeriod = list.stream()
+                                   .max((period1,
+                                         period2) -> period1.getStart()
+                                                            .compareTo(period2.getStart()))
+                                   .orElse(null);
+      }
+      ZonedDateTime overallStart = null;
       if (event.isAllDay()) {
-        overallStart = overallStart.withZoneSameInstant(ZoneOffset.UTC);
-      }
-      eventEntity.setStartDate(AgendaDateUtils.toDate(overallStart));
+        overallStart = firstOccurrenceOverallStart.toInstant().atZone(ZoneOffset.UTC).toLocalDate().atStartOfDay(eventZoneId);
+        firstOccurrenceDate = AgendaDateUtils.toDate(overallStart);
 
-      if (!neverEnds) {
-        Period lastOccurrencePeriod = list.isEmpty() ? null
-                                                     : list.stream()
-                                                           .max((period1,
-                                                                 period2) -> period1.getStart()
-                                                                                    .compareTo(period2.getStart()))
-                                                           .orElse(null);
-        ZonedDateTime overallEnd =
-                                 lastOccurrencePeriod == null ? null
-                                                              : lastOccurrencePeriod.getEnd().toInstant().atZone(ZoneOffset.UTC);
-        Date lastOccurrenceDate = overallEnd == null ? ical4jTo : AgendaDateUtils.toDate(overallEnd);
-        eventEntity.setEndDate(lastOccurrenceDate);
+        if (lastOccurrencePeriod != null) {
+          ZonedDateTime overallEnd = lastOccurrencePeriod.getEnd()
+                                                         .toInstant()
+                                                         .atZone(ZoneOffset.UTC)
+                                                         .toLocalDate()
+                                                         .plusDays(1)
+                                                         .atStartOfDay(eventZoneId)
+                                                         .minusSeconds(1);
+          lastOccurrenceDate = AgendaDateUtils.toDate(overallEnd);
+        }
+      } else {
+        overallStart = firstOccurrenceOverallStart.toInstant().atZone(eventZoneId);
+        firstOccurrenceDate = AgendaDateUtils.toDate(overallStart);
+
+        if (lastOccurrencePeriod != null) {
+          ZonedDateTime overallEnd = lastOccurrencePeriod.getEnd().toInstant().atZone(eventZoneId);
+          lastOccurrenceDate = overallEnd == null ? ical4jTo : AgendaDateUtils.toDate(overallEnd);
+        }
       }
+      eventEntity.setStartDate(firstOccurrenceDate);
+      eventEntity.setEndDate(lastOccurrenceDate);
     }
     return eventEntity;
   }
@@ -277,8 +298,23 @@ public class EntityMapper {
     recurrence = new EventRecurrence();
     recurrence.setId(recurrenceEntity.getId());
     recurrence.setType(recurrenceEntity.getType());
-    recurrence.setOverallStart(AgendaDateUtils.fromDate(eventEntity.getStartDate()));
-    recurrence.setOverallEnd(AgendaDateUtils.fromDate(eventEntity.getEndDate()));
+
+    ZoneId eventTimeZoneId = null;
+    if (eventEntity.getTimeZoneId() != null) {
+      eventTimeZoneId = ZoneId.of(eventEntity.getTimeZoneId());
+    }
+
+    ZonedDateTime overallStart = AgendaDateUtils.fromDate(eventEntity.getStartDate());
+    ZonedDateTime overallEnd = AgendaDateUtils.fromDate(eventEntity.getEndDate());
+    if (eventTimeZoneId != null && overallStart != null) {
+      overallStart = overallStart.withZoneSameInstant(eventTimeZoneId);
+    }
+    if (eventTimeZoneId != null && overallEnd != null) {
+      overallEnd = overallEnd.withZoneSameInstant(eventTimeZoneId);
+    }
+
+    recurrence.setOverallStart(overallStart);
+    recurrence.setOverallEnd(overallEnd);
     recurrence.setRrule(recurrenceEntity.getRrule());
 
     Recur recur;
@@ -293,10 +329,10 @@ public class EntityMapper {
     recurrence.setCount(recur.getCount() > 0 ? recur.getCount() : 0);
     if (recur.getUntil() != null) {
       ZonedDateTime untilDate = AgendaDateUtils.fromDate(recur.getUntil());
-      if (eventEntity.getTimeZoneId() != null) {
-        untilDate = untilDate.withZoneSameLocal(ZoneId.of(eventEntity.getTimeZoneId()));
+      if (eventTimeZoneId != null) {
+        untilDate = untilDate.withZoneSameInstant(eventTimeZoneId);
       }
-      recurrence.setUntil(untilDate);
+      recurrence.setUntil(untilDate.toLocalDate());
     }
 
     if (recur.getSecondList() != null && !recur.getSecondList().isEmpty()) {
@@ -348,7 +384,7 @@ public class EntityMapper {
   }
 
   public static EventRecurrenceEntity toEntity(Event event, EventRecurrence recurrence) {
-    Recur recur = Utils.getICalendarRecur(recurrence);
+    Recur recur = Utils.getICalendarRecur(recurrence, event.getTimeZoneId());
     EventRecurrenceEntity eventRecurrenceEntity = new EventRecurrenceEntity();
     eventRecurrenceEntity.setType(recurrence.getType());
     eventRecurrenceEntity.setRrule(recur.toString());
