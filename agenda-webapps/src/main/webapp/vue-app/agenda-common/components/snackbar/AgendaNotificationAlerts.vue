@@ -50,16 +50,14 @@ export default {
         });
       }
     });
-    this.$root.$on('date-poll-deleted', event => {
+    this.$root.$on('event-canceled', event => {
       if (event && event.id) {
-        this.datePollId = event.id;
-        const isDatePoll = event.dateOptions && event.dateOptions.length > 1;
-        const clickMessage = isDatePoll && this.$t('agenda.undoRemoveDatePoll');
-        const message = isDatePoll && this.$t('agenda.datePollDeleteSuccess');
+        const clickMessage = this.$t('agenda.undoRemoveDatePoll');
+        const message = this.$t('agenda.datePollDeleteSuccess');
         this.$root.$emit('agenda-notification-alert', {
           message,
           type: 'success',
-          click: () => this.undoDeleteDatePoll(event),
+          click: () => this.undoDeleteEvent(event),
           clickMessage,
         });
       }
@@ -70,14 +68,23 @@ export default {
       this.alerts.splice(index, 1);
       this.$forceUpdate();
     },
-    undoDeleteDatePoll(event) {
-      this.$eventService.updateEventFields(event.id, {
-        status :'TENTATIVE'
-      }, false, true)
-        .then(() => {
-          this.$root.$emit('date-poll-undo-remove', event);
-          this.$root.$emit('agenda-event-details', event);
-        });
+    undoDeleteEvent(event) {
+      if (event && event.status ==='TENTATIVE') {
+        this.$eventService.updateEventFields(event.id, {
+          status :'TENTATIVE'
+        }, false, true)
+          .then(() => {
+            this.$root.$emit('undo-event-remove', event);
+            this.$root.$emit('agenda-event-details', event);
+          });
+      } else {
+        this.$eventService.updateEventFields(event.id, {
+          status :''
+        }, false, true)
+          .then(() => {
+            this.$root.$emit('agenda-refresh', event);
+          });
+      }
     }
   },
 };

@@ -85,8 +85,14 @@ export default {
   },
   methods:{
     deleteEvent() {
-      this.$eventService.deleteEvent(this.event.id)
-        .then(() => this.$root.$emit('agenda-event-deleted', this.event));
+      this.$eventService.updateEventFields(this.event.id, {
+        status :'CANCELLED'
+      }, false, true)
+        .then(() => {
+          this.$root.$emit('agenda-refresh', this.event);
+          this.$root.$emit('event-canceled', this.event);
+          this.$emit('close');
+        });
     },
     deleteConfirmDialog() {
       if (!this.isDatePoll) {
@@ -96,7 +102,7 @@ export default {
           status :'CANCELLED'
         }, false, true)
           .then(() => {
-            this.$root.$emit('date-poll-deleted', this.event);
+            this.$root.$emit('event-canceled', this.event);
             this.$emit('close');
           });
       }

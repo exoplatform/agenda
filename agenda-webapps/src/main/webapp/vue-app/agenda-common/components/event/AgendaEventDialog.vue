@@ -254,7 +254,7 @@ export default {
       if (eventId) {
         const getEventDetailsPromise = occurrenceId ? this.$eventService.getEventOccurrence(eventId, occurrenceId, 'all') : this.$eventService.getEventById(eventId, 'all');
         return getEventDetailsPromise.then(event => {
-          if(!event ||  (event.status !== 'TENTATIVE'&& event.status !=='CONFIRMED')) {
+          if(!event ||  (event.status !== 'TENTATIVE' && event.status !== 'CONFIRMED')) {
             return ;
           }
           event.startDate = this.$agendaUtils.toDate(event.start);
