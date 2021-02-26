@@ -8,6 +8,7 @@
     name="calendarOwnerAutocomplete"
     class="user-suggester calendarOwnerAutocomplete"
     include-spaces
+    only-redactor
     required />
 </template>
 

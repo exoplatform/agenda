@@ -38,6 +38,7 @@
             :settings="settings"
             :connectors="connectors"
             :conference-provider="conferenceProvider"
+            :selected-calendar="selectedCalendar"
             :current-space="currentSpace"
             @next-step="nextStep"
             @initialized="$emit('initialized')" />
@@ -131,6 +132,7 @@ export default {
   data () {
     return {
       eventDateOptionsLength: 0,
+      selectedCalendar: null,
       stepper: 0,
     };
   },
@@ -141,8 +143,11 @@ export default {
     eventTitleValid() {
       return this.eventTitle && this.eventTitle.length >= 5 && this.eventTitle.length < 1024;
     },
+    eventCalendar() {
+      return this.event && this.event.calendar;
+    },
     eventOwner() {
-      return this.event && this.event.calendar && this.event.calendar.owner;
+      return this.eventCalendar && this.eventCalendar.owner;
     },
     eventOwnerValid() {
       return this.eventOwner && (this.eventOwner.id || this.eventOwner.remoteId && this.eventOwner.providerId);
@@ -191,6 +196,21 @@ export default {
     eventDateOptions() {
       this.eventDateOptionsLength = this.event.dateOptions.length;
     },
+    eventOwner() {
+      if (this.eventOwner && this.eventOwner.remoteId && (!this.selectedCalendar || !this.selectedCalendar.owner || this.selectedCalendar.owner.remoteId !== this.eventOwner.remoteId)) {
+        this.$identityService.getIdentityByProviderIdAndRemoteId(this.eventOwner.providerId, this.eventOwner.remoteId)
+          .then(identity => {
+            if (identity) {
+              return this.$calendarService.getCalendars(0, 1, false, [Number(identity.id)]);
+            }
+          })
+          .then(data => {
+            this.selectedCalendar = data && data.calendars.length && data.calendars[0] || null;
+          });
+      } else if (!this.eventOwner || !this.eventOwner.remoteId) {
+        this.selectedCalendar = null;
+      }
+    },
     stepper() {
       this.$agendaUtils.initEventForm(this.event);
       this.eventDateOptionsLength = this.event.dateOptions.length;
@@ -213,6 +233,12 @@ export default {
       this.eventDateOptionsLength = this.event.dateOptions.length;
     },
     reset() {
+      if (this.eventCalendar && this.eventCalendar.acl) {
+        this.selectedCalendar = this.eventCalendar;
+      } else {
+        this.selectedCalendar = null;
+      }
+
       this.$agendaUtils.initEventForm(this.event);
       this.eventDateOptionsLength = this.event.dateOptions.length;
 

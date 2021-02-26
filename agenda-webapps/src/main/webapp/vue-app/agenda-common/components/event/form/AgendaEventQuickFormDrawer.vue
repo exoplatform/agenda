@@ -135,6 +135,10 @@ export default {
       type: Object,
       default: () => null,
     },
+    currentCalendar: {
+      type: Object,
+      default: () => null
+    },
     displayMoreDetails: {
       type: Boolean,
       default: () => true,
@@ -216,6 +220,9 @@ export default {
       this.$refs.quickAddEventDrawer.close();
     },
     open() {
+      if (this.currentCalendar && this.currentCalendar.acl && !this.currentCalendar.acl.canCreate) {
+        return;
+      }
       this.resetCustomValidity();
       this.$refs.quickAddEventDrawer.open();
       window.setTimeout(() => {

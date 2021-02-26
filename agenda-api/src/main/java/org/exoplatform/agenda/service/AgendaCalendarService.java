@@ -111,12 +111,13 @@ public interface AgendaCalendarService {
    * Create new {@link Calendar} object instance
    * 
    * @param ownerId {@link Identity} technical id of the {@link Calendar}
-   * @param username user accessing {@link Calendar}
+   * @param userIdentityId user identity Technical Identifier accessing
+   *          {@link Calendar}
    * @return {@link Calendar} object instance
    * @throws IllegalAccessException when user is not authorized to access
    *           calendar of the designated owner
    */
-  Calendar createCalendarInstance(long ownerId, String username) throws IllegalAccessException;
+  Calendar createCalendarInstance(long ownerId, long userIdentityId) throws IllegalAccessException;
 
   /**
    * Updates an existing calendar

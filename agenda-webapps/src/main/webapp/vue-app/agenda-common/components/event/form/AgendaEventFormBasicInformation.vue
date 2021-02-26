@@ -97,7 +97,11 @@
         </div>
         <div class="d-flex flex-row">
           <label class="switch-label-text mt-1 text-subtitle-1 font-weight-bold">{{ $t('agenda.modifyEventPermission') }}</label>
-          <v-switch v-model="event.allowAttendeeToUpdate" class="mt-0 ml-4" />
+          <v-switch
+            ref="allowAttendeeToUpdateRef"
+            v-model="event.allowAttendeeToUpdate"
+            :disabled="!canInviteeEdit"
+            class="mt-0 ml-4" />
         </div>
         <div class="d-flex flex-row font-weight-regular">
           {{ $t('agenda.modifyEventPermissionDescription') }}
@@ -122,6 +126,10 @@ export default {
       type: Object,
       default: () => null,
     },
+    selectedCalendar: {
+      type: Object,
+      default: () => null,
+    },
     settings: {
       type: Object,
       default: () => null,
@@ -133,6 +141,7 @@ export default {
   },
   data: () => ({
     eventDescriptionTextLength: 1300,
+    canInviteeEdit: true,
     eventDateOption: null,
   }),
   computed: {
@@ -156,6 +165,19 @@ export default {
     allowAttendeeToUpdate() {
       if (this.allowAttendeeToUpdate) {
         this.event.allowAttendeeToInvite = true;
+      }
+    },
+    selectedCalendar() {
+      this.canInviteeEdit = !this.selectedCalendar || !this.selectedCalendar.acl || this.selectedCalendar.acl.canInviteeEdit;
+      if (!this.canInviteeEdit && this.selectedCalendar) {
+        this.event.allowAttendeeToUpdate = false;
+        this.$forceUpdate();
+      }
+    },
+    canInviteeEdit() {
+      if (!this.canInviteeEdit && this.selectedCalendar) {
+        this.event.allowAttendeeToUpdate = false;
+        this.$forceUpdate();
       }
     },
   },
