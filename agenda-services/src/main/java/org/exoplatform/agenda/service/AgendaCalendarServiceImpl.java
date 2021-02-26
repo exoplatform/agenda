@@ -21,7 +21,7 @@ import java.util.*;
 import org.apache.commons.codec.binary.StringUtils;
 
 import org.exoplatform.agenda.model.Calendar;
-import org.exoplatform.agenda.model.Permission;
+import org.exoplatform.agenda.model.CalendarPermission;
 import org.exoplatform.agenda.storage.AgendaCalendarStorage;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
@@ -145,14 +145,16 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     if (calendar == null) {
       return null;
     }
-    Identity ownerIdentity = identityManager.getIdentity(String.valueOf(calendar.getOwnerId()));
+    long ownerId = calendar.getOwnerId();
+    Identity ownerIdentity = identityManager.getIdentity(String.valueOf(ownerId));
     if (ownerIdentity == null) {
       calendar.setDeleted(true);
-      calendar.setAcl(new Permission(false, false));
+      calendar.setAcl(new CalendarPermission());
     } else {
-      boolean canEditCalendar =
-                              Utils.checkAclByCalendarOwner(identityManager, spaceService, calendar.getOwnerId(), username, true);
-      calendar.setAcl(new Permission(canEditCalendar, false));
+      boolean canEditCalendar = Utils.checkAclByCalendarOwner(identityManager, spaceService, ownerId, username, true);
+      boolean canCreateEvent = Utils.canCreateEvent(identityManager, spaceService, ownerId, Long.parseLong(userIdentity.getId()));
+      boolean hasRedactor = Utils.canInviteeEdit(identityManager, spaceService, ownerId);
+      calendar.setAcl(new CalendarPermission(canCreateEvent, canEditCalendar, hasRedactor));
       fillCalendarTitleByOwnerName(calendar);
     }
     return calendar;
@@ -212,8 +214,10 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
    * {@inheritDoc}
    */
   @Override
-  public Calendar createCalendarInstance(long ownerId, String username) throws IllegalAccessException {
-    boolean canEditCalendar = Utils.checkAclByCalendarOwner(identityManager, spaceService, ownerId, username, true);
+  public Calendar createCalendarInstance(long ownerId, long userIdentityId) throws IllegalAccessException {
+    boolean canEditCalendar = Utils.canEditCalendar(identityManager, spaceService, ownerId, userIdentityId);
+    boolean canCreateEvent = Utils.canCreateEvent(identityManager, spaceService, ownerId, userIdentityId);
+    boolean canInviteeEdit = Utils.canInviteeEdit(identityManager, spaceService, ownerId);
     return new Calendar(0,
                         ownerId,
                         true,
@@ -222,7 +226,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
                         null,
                         null,
                         getRandomDefaultColor(),
-                        new Permission(canEditCalendar, false));
+                        new CalendarPermission(canCreateEvent, canEditCalendar, canInviteeEdit));
   }
 
   /**

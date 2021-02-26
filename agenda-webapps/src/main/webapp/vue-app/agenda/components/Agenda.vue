@@ -4,6 +4,7 @@
       <v-main v-if="isMobile" class="pt-2 px-1">
         <agenda-mobile-header
           :current-space="currentSpace"
+          :current-calendar="currentCalendar"
           :owner-ids="ownerIds"
           :period="period"
           class="mt-2" />
@@ -28,10 +29,12 @@
           :calendar-type="calendarType"
           :event-type="eventType"
           :current-space="currentSpace"
+          :current-calendar="currentCalendar"
           :owner-ids="ownerIds"
           class="mb-5" />
         <agenda-body
           :events="events"
+          :current-calendar="currentCalendar"
           :period-title="periodTitle"
           :calendar-type="calendarType"
           :weekdays="weekdays"
@@ -42,6 +45,7 @@
     <agenda-event-dialog
       ref="eventFormDialog"
       :current-space="currentSpace"
+      :current-calendar="currentCalendar"
       :settings="settings"
       :connectors="enabledConnectors"
       :conference-provider="conferenceProvider"
@@ -54,6 +58,7 @@
     <agenda-user-setting-drawer :settings="settings" />
     <agenda-event-quick-form-drawer
       :current-space="currentSpace"
+      :current-calendar="currentCalendar"
       :settings="settings"
       :conference-provider="conferenceProvider" />
     <agenda-event-save />
@@ -75,6 +80,7 @@ export default {
   },
   data: () => ({
     initialized: false,
+    currentCalendar: null,
     currentSpace: null,
     filterCanceledEvents: true,
     loading: false,
@@ -134,6 +140,11 @@ export default {
     },
     eventType() {
       this.retrieveEvents();
+    },
+    initialized() {
+      if (this.initialized) {
+        this.$root.$emit('agenda-application-loaded');
+      }
     },
     period() {
       this.retrieveEvents();
@@ -197,6 +208,14 @@ export default {
             if (space && space.identity && space.identity.id) {
               this.ownerIds = [space.identity.id];
             }
+            if (this.ownerIds && this.ownerIds.length) {
+              return this.$calendarService.getCalendars(0, 1, false, this.ownerIds);
+            }
+          })
+          .then(data => {
+            this.currentCalendar = data && data.calendars && data.calendars.length && data.calendars[0] || null;
+          })
+          .finally(() => {
             this.retrieveEventsFromStore();
           });
       } else {

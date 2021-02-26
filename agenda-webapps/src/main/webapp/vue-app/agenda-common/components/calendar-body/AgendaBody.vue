@@ -3,6 +3,7 @@
     <agenda-toolbar :period-title="periodTitle" />
     <agenda-calendar
       :events="events"
+      :current-calendar="currentCalendar"
       :calendar-type="calendarType"
       :weekdays="weekdays"
       :working-time="workingTime"
@@ -15,6 +16,10 @@ export default {
   props: {
     periodTitle: {
       type: String,
+      default: () => null
+    },
+    currentCalendar: {
+      type: Object,
       default: () => null
     },
     calendarType: {

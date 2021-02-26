@@ -354,10 +354,14 @@ export default {
       return event && !event.allDay;
     },
     nextDate() {
-      this.$refs.calendar.next();
+      if (this.$refs.calendar) {
+        this.$refs.calendar.next();
+      }
     },
     prevDate() {
-      this.$refs.calendar.prev();
+      if (this.$refs.calendar) {
+        this.$refs.calendar.prev();
+      }
     },
     retrieveEvents(range) {
       if (range) {

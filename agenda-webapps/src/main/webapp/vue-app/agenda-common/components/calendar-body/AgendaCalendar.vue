@@ -74,6 +74,10 @@ export default {
       type: Array,
       default: null
     },
+    currentCalendar: {
+      type: Object,
+      default: () => null
+    },
     calendarType: {
       type: String,
       default: null
@@ -114,7 +118,10 @@ export default {
     },
     currentTimeStyle() {
       return `top: ${this.currentTimeTop}px;`;
-    }
+    },
+    canCreateEvent() {
+      return !this.currentCalendar || !this.currentCalendar.acl || this.currentCalendar.acl.canCreate;
+    },
   },
   watch: {
     mouseIsPressed() {
@@ -148,10 +155,14 @@ export default {
       this.selectedDate = date || '';
     });
     this.$root.$on('agenda-display-calendar-next', () => {
-      this.$refs.calendar.next();
+      if (this.$refs.calendar) {
+        this.$refs.calendar.next();
+      }
     });
     this.$root.$on('agenda-display-calendar-previous', () => {
-      this.$refs.calendar.prev();
+      if (this.$refs.calendar) {
+        this.$refs.calendar.prev();
+      }
     });
     this.$root.$on('agenda-calendar-color-changed', (calendarId, calendarColor) => {
       this.events.forEach(event => {
@@ -336,11 +347,10 @@ export default {
       }
     },
     calendarMouseDown(params) {
-      if (!params || params.event) {
+      if (!params || params.event || !this.canCreateEvent) {
         return;
       }
       if (this.dragEvent) {
-
         if (!this.dragDelta) {
           this.dragDelta = this.$agendaUtils.toDateTime(params) - this.$agendaUtils.toDate(this.dragEvent.startDate).getTime();
         }

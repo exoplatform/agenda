@@ -37,6 +37,9 @@ pom.xml.versionsBackup
 .project
 *.log
 
+# hotswap-agent file
+hotswap-agent.properties
+
 # OS
 .DS_Store
 

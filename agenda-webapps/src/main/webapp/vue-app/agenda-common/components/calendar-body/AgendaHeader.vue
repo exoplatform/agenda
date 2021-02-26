@@ -8,7 +8,10 @@
         cols="2"
         sm="4"
         class="align-start my-auto">
-        <agenda-create-event-button :current-space="currentSpace" class="agenda-toolbar-left mr-2" />
+        <agenda-create-event-button
+          :current-space="currentSpace"
+          :can-create-event="canCreateEvent"
+          class="agenda-toolbar-left mr-2" />
       </v-col>
       <v-col
         cols="8"
@@ -59,9 +62,18 @@ export default {
       type: Object,
       default: null
     },
+    currentCalendar: {
+      type: Object,
+      default: () => null
+    },
     ownerIds: {
       type: Array,
       default: null
+    },
+  },
+  computed: {
+    canCreateEvent() {
+      return !this.currentCalendar || !this.currentCalendar.acl || this.currentCalendar.acl.canCreate;
     },
   },
 };

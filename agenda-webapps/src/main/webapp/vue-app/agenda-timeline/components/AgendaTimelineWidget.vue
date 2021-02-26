@@ -3,6 +3,7 @@
     <v-main class="white">
       <agenda-timeline-header
         :current-space="currentSpace"
+        :current-calendar="currentCalendar"
         :agenda-base-link="agendaBaseLink" />
       <agenda-timeline
         :events="events"
@@ -14,12 +15,14 @@
     <agenda-event-dialog
       ref="eventFormDialog"
       :current-space="currentSpace"
+      :current-calendar="currentCalendar"
       :settings="settings"
       :connectors="enabledConnectors"
       :weekdays="weekdays"
       :working-time="workingTime" />
     <agenda-event-quick-form-drawer
       :current-space="currentSpace"
+      :current-calendar="currentCalendar"
       :settings="settings"
       :conference-provider="conferenceProvider"
       :display-more-details="false" />
@@ -42,6 +45,7 @@ export default {
   data: () => ({
     initialized: false,
     currentSpace: null,
+    currentCalendar: null,
     loading: false,
     ownerIds: [],
     connectors: [],
@@ -93,6 +97,11 @@ export default {
     },
     eventType() {
       this.retrieveEvents();
+    },
+    initialized() {
+      if (this.initialized) {
+        this.$root.$emit('agenda-application-loaded');
+      }
     },
     period() {
       this.retrieveEvents();
@@ -153,14 +162,19 @@ export default {
               this.ownerIds = [space.identity.id];
               const spaceGroupUri = this.currentSpace.groupId.replace(/\//g, ':');
               this.agendaBaseLink = `${eXo.env.portal.context}/g/${spaceGroupUri}/${this.currentSpace.prettyName}/Agenda`;
+
+              return this.$calendarService.getCalendars(0, 1, false, this.ownerIds);
             } else {
               this.agendaBaseLink = `${eXo.env.portal.context}/${eXo.env.portal.portalName}/agenda`;
             }
-            return this.retrieveEventsFromStore();
+          })
+          .then(data => {
+            this.currentCalendar = data && data.calendars && data.calendars.length && data.calendars[0] || null;
           })
           .finally(() => {
             this.initialized = true;
             this.loading = false;
+            this.retrieveEventsFromStore();
           });
       } else {
         if (!eXo.env.portal.spaceId) {

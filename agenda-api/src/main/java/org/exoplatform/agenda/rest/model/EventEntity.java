@@ -22,7 +22,7 @@ import java.util.List;
 import org.exoplatform.agenda.constant.EventAvailability;
 import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.model.EventConference;
-import org.exoplatform.agenda.model.Permission;
+import org.exoplatform.agenda.model.EventPermission;
 import org.exoplatform.social.rest.entity.IdentityEntity;
 
 import lombok.*;
@@ -134,7 +134,7 @@ public class EventEntity implements Serializable, Cloneable {
 
   private EventOccurrenceEntity       occurrence;
 
-  private Permission                  acl;
+  private EventPermission             acl;
 
   private List<EventDateOptionEntity> dateOptions;
 

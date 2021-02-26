@@ -61,7 +61,9 @@ public class AgendaCalendarRest implements ResourceContainer {
   @ApiOperation(
       value = "Retrieves the list of calendars available for an owner of type user or space, identitifed by its identity technical identifier."
           + " If no designated owner, all calendars available for authenticated user will be retrieved.",
-      httpMethod = "GET", response = Response.class, produces = "application/json"
+      httpMethod = "GET",
+      response = Response.class,
+      produces = "application/json"
   )
   @ApiResponses(
       value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
@@ -69,16 +71,24 @@ public class AgendaCalendarRest implements ResourceContainer {
           @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
   )
   public Response list(
-                       @ApiParam(value = "Limit of calendar owner identity ids to incluse in results", required = false) @QueryParam(
+                       @ApiParam(value = "Limit of calendar owner identity ids to incluse in results", required = false)
+                       @QueryParam(
                          "ownerIds"
-                       ) List<Long> ownerIds,
-                       @ApiParam(value = "Whether return size of results or not", required = false, defaultValue = "false") @QueryParam("returnSize") boolean returnSize,
-                       @ApiParam(value = "Offset of result", required = false, defaultValue = "0") @QueryParam(
+                       )
+                       List<Long> ownerIds,
+                       @ApiParam(value = "Whether return size of results or not", required = false, defaultValue = "false")
+                       @QueryParam("returnSize")
+                       boolean returnSize,
+                       @ApiParam(value = "Offset of result", required = false, defaultValue = "0")
+                       @QueryParam(
                          "offset"
-                       ) int offset,
-                       @ApiParam(value = "Limit of result", required = false, defaultValue = "10") @QueryParam(
+                       )
+                       int offset,
+                       @ApiParam(value = "Limit of result", required = false, defaultValue = "10")
+                       @QueryParam(
                          "limit"
-                       ) int limit) {
+                       )
+                       int limit) {
     if (offset < 0) {
       return Response.status(Status.BAD_REQUEST).entity("Offset must be 0 or positive").build();
     }
@@ -99,7 +109,8 @@ public class AgendaCalendarRest implements ResourceContainer {
         for (Long ownerId : ownerIds) {
           boolean calendarNotFound = calendars.stream().noneMatch(calendar -> calendar.getOwnerId() == ownerId);
           if (calendarNotFound) {
-            Calendar calendar = agendaCalendarService.createCalendarInstance(ownerId, currentUser);
+            long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+            Calendar calendar = agendaCalendarService.createCalendarInstance(ownerId, userIdentityId);
             calendars.add(calendar);
           }
         }
@@ -135,16 +146,24 @@ public class AgendaCalendarRest implements ResourceContainer {
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
   @ApiOperation(
-      value = "Retrieves a calendar identified by its technical identifier.", httpMethod = "GET", response = Response.class,
-      produces = "application/json")
-      @ApiResponses(
-          value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-              @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-              @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-              @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
-          )
-          public Response getCalendarById(@ApiParam(
-              value = "Calendar technical identifier", required = true) @PathParam("calendarId") long calendarId) {
+      value = "Retrieves a calendar identified by its technical identifier.",
+      httpMethod = "GET",
+      response = Response.class,
+      produces = "application/json"
+  )
+  @ApiResponses(
+      value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error") }
+  )
+  public Response getCalendarById(
+                                  @ApiParam(
+                                      value = "Calendar technical identifier",
+                                      required = true
+                                  )
+                                  @PathParam("calendarId")
+                                  long calendarId) {
     if (calendarId <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Calendar identifier must be a positive integer").build();
     }
@@ -175,9 +194,13 @@ public class AgendaCalendarRest implements ResourceContainer {
           @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
           @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
           @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
-      )
-      public Response createCalendar(@ApiParam(
-          value = "Calendar object to create", required = true) CalendarEntity calendarEntity) {
+  )
+  public Response createCalendar(
+                                 @ApiParam(
+                                     value = "Calendar object to create",
+                                     required = true
+                                 )
+                                 CalendarEntity calendarEntity) {
     if (calendarEntity == null) {
       return Response.status(Status.BAD_REQUEST).entity("Calendar object is mandatory").build();
     }
@@ -202,16 +225,24 @@ public class AgendaCalendarRest implements ResourceContainer {
   @Consumes(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
   @ApiOperation(
-      value = "Updates an existing calendar", httpMethod = "PUT", response = Response.class, consumes = "application/json")
-      @ApiResponses(
-          value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
-              @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object not found"),
-              @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-              @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-              @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
-          )
-          public Response updateCalendar(@ApiParam(
-              value = "Calendar object to update", required = true) CalendarEntity calendarEntity) {
+      value = "Updates an existing calendar",
+      httpMethod = "PUT",
+      response = Response.class,
+      consumes = "application/json"
+  )
+  @ApiResponses(
+      value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object not found"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+  )
+  public Response updateCalendar(
+                                 @ApiParam(
+                                     value = "Calendar object to update",
+                                     required = true
+                                 )
+                                 CalendarEntity calendarEntity) {
     if (calendarEntity == null) {
       return Response.status(Status.BAD_REQUEST).entity("Calendar object is mandatory").build();
     }
@@ -244,10 +275,13 @@ public class AgendaCalendarRest implements ResourceContainer {
           @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
           @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
           @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
-      )
-      public Response deleteCalendar(@ApiParam(value = "Calendar technical identifier", required = true) @PathParam(
-    "calendarId"
-  ) long calendarId) {
+  )
+  public Response deleteCalendar(
+                                 @ApiParam(value = "Calendar technical identifier", required = true)
+                                 @PathParam(
+                                   "calendarId"
+                                 )
+                                 long calendarId) {
     if (calendarId <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Calendar technical identifier must be positive").build();
     }

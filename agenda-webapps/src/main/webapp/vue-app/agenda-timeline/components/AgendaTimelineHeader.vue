@@ -7,13 +7,19 @@
       <agenda-pending-invitation-badge :current-space="currentSpace" />
     </div>
     <v-spacer />
-    <v-btn
-      :title="$t('agenda.button.addEvent')"
-      icon
-      text
-      @click="openEventForm">
-      <v-icon>mdi-plus</v-icon>
-    </v-btn>
+    <div
+      v-if="displayButton"
+      :title="addEventButtonTooltip"
+      class="d-inline-block">
+      <v-btn
+        :disabled="!canCreateEvent"
+        :title="$t('agenda.button.addEvent')"
+        icon
+        text
+        @click="openEventForm">
+        <v-icon>mdi-plus</v-icon>
+      </v-btn>
+    </div>
   </v-flex>
 </template>
 <script>
@@ -23,10 +29,37 @@ export default {
       type: Object,
       default: null
     },
+    currentCalendar: {
+      type: Object,
+      default: null
+    },
     agendaBaseLink: {
       type: String,
       default: null
     },
+  },
+  data: () => ({
+    initialized: false,
+  }),
+  computed: {
+    isMobile() {
+      return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
+    },
+    displayButton() {
+      return (!this.isMobile || this.canCreateEvent) && (this.initialized || !eXo.env.portal.spaceId);
+    },
+    canCreateEvent() {
+      return !this.currentCalendar || !this.currentCalendar.acl || this.currentCalendar.acl.canCreate;
+    },
+    addEventButtonTooltip() {
+      if (!this.canCreateEvent) {
+        return this.$t('agenda.onlySpaceRedactorCanCreateEvent');
+      }
+      return '';
+    },
+  },
+  created() {
+    this.$root.$on('agenda-application-loaded', () => this.initialized = true);
   },
   methods: {
     openEventForm() {

@@ -1,6 +1,9 @@
 <template>
   <v-flex class="agenda-mobile-header d-flex flex-row pa-2 border-radius border-color">
-    <agenda-create-event-button class="my-auto" />
+    <agenda-create-event-button
+      :current-space="currentSpace"
+      :can-create-event="canCreateEvent"
+      class="my-auto" />
     <date-picker
       v-model="periodStart"
       class="d-flex flex-grow-1 ma-auto agenda-header-date-picker" />
@@ -16,6 +19,10 @@ export default {
       type: Object,
       default: null
     },
+    currentCalendar: {
+      type: Object,
+      default: () => null
+    },
     ownerIds: {
       type: Array,
       default: null
@@ -28,6 +35,11 @@ export default {
   data: () => ({
     periodStart: null,
   }),
+  computed: {
+    canCreateEvent() {
+      return !this.currentCalendar || !this.currentCalendar.acl || this.currentCalendar.acl.canCreate;
+    },
+  },
   watch: {
     periodStart(newVal, oldVal) {
       if (!oldVal || !newVal) {
