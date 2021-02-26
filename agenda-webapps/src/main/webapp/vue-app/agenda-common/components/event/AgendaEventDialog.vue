@@ -99,6 +99,10 @@ export default {
       type: Object,
       default: () => null
     },
+    currentCalendar: {
+      type: Object,
+      default: () => null
+    },
     connectors: {
       type: Array,
       default: () => null,
@@ -184,6 +188,9 @@ export default {
     this.$root.$on('agenda-event-form', (agendaEvent, displayTimeInForm) => {
       this.isNew = agendaEvent.id ? !agendaEvent.id : !agendaEvent.parent || !agendaEvent.parent.id;
       if (this.isNew) {
+        if (this.currentCalendar && this.currentCalendar.acl && !this.currentCalendar.acl.canCreate) {
+          return;
+        }
         this.isForm = true;
         this.displayTimeInForm = !!displayTimeInForm;
         this.openDialog(agendaEvent);

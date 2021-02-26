@@ -90,7 +90,7 @@ public class Event implements Cloneable {
 
   private EventOccurrence   occurrence;
 
-  private Permission        acl;
+  private EventPermission   acl;
 
   private boolean           allowAttendeeToUpdate;
 

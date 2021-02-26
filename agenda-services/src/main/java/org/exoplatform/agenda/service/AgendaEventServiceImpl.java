@@ -110,7 +110,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       adjustEventDatesForRead(event, timeZone);
       boolean canUpdateEvent = canUpdateEvent(event, userIdentityId);
       boolean isEventAttendee = attendeeService.isEventAttendee(getEventIdOrParentId(event), userIdentityId);
-      event.setAcl(new Permission(canUpdateEvent, isEventAttendee));
+      event.setAcl(new EventPermission(canUpdateEvent, isEventAttendee));
       return event;
     } else {
       throw new IllegalAccessException("User with identity id " + userIdentityId + "is not allowed to access event with id "
@@ -165,7 +165,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       adjustEventDatesForRead(event, timeZone);
       boolean canUpdateEvent = canUpdateEvent(event, userIdentityId);
       boolean isEventAttendee = attendeeService.isEventAttendee(getEventIdOrParentId(event), userIdentityId);
-      event.setAcl(new Permission(canUpdateEvent, isEventAttendee));
+      event.setAcl(new EventPermission(canUpdateEvent, isEventAttendee));
     }
     return event;
   }
@@ -902,7 +902,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    */
   @Override
   public boolean canCreateEvent(Calendar calendar, long userIdentityId) {
-    return Utils.canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), userIdentityId);
+    return Utils.canCreateEvent(identityManager, spaceService, calendar.getOwnerId(), userIdentityId);
   }
 
   /**
@@ -1194,14 +1194,14 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
   private void computeEventsAcl(List<Event> events, Identity userIdentity) {
     long userIdentityId = Long.parseLong(userIdentity.getId());
-    Map<Long, Permission> eventPermissionsMap = new HashMap<>();
+    Map<Long, EventPermission> eventPermissionsMap = new HashMap<>();
     events.forEach(event -> {
       long eventId = getEventIdOrParentId(event);
-      Permission permission = eventPermissionsMap.get(eventId);
+      EventPermission permission = eventPermissionsMap.get(eventId);
       if (permission == null) {
         boolean canUpdateEvent = canUpdateEvent(event, userIdentityId);
         boolean isEventAttendee = attendeeService.isEventAttendee(eventId, userIdentityId);
-        permission = new Permission(canUpdateEvent, isEventAttendee);
+        permission = new EventPermission(canUpdateEvent, isEventAttendee);
         eventPermissionsMap.put(eventId, permission);
       }
       event.setAcl(permission);

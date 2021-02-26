@@ -9,6 +9,7 @@
       :ignore-items="ignoredMembers"
       :search-options="searchOptions"
       name="inviteAttendee"
+      no-redactor-space
       include-users
       include-spaces />
     <span v-if="disableAttendeeSuggester" class="error--text">

@@ -23,25 +23,25 @@ import lombok.*;
 @NoArgsConstructor
 public class Calendar implements Cloneable {
 
-  private long       id;
+  private long               id;
 
-  private long       ownerId;
+  private long               ownerId;
 
-  private boolean    system;
+  private boolean            system;
 
-  private boolean    deleted;
+  private boolean            deleted;
 
-  private String     title;
+  private String             title;
 
-  private String     description;
+  private String             description;
 
-  private String     created;
+  private String             created;
 
-  private String     updated;
+  private String             updated;
 
-  private String     color;
+  private String             color;
 
-  private Permission acl;
+  private CalendarPermission acl;
 
   public Calendar(long id,
                   long ownerId,
@@ -51,7 +51,7 @@ public class Calendar implements Cloneable {
                   String created,
                   String updated,
                   String color,
-                  Permission acl) {
+                  CalendarPermission acl) {
     this.id = id;
     this.ownerId = ownerId;
     this.system = system;

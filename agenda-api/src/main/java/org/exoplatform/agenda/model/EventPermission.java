@@ -14,42 +14,25 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see<http://www.gnu.org/licenses/>.
 */
-package org.exoplatform.agenda.rest.model;
+package org.exoplatform.agenda.model;
 
 import java.io.Serializable;
-
-import org.exoplatform.agenda.model.CalendarPermission;
-import org.exoplatform.social.rest.entity.IdentityEntity;
 
 import lombok.*;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class CalendarEntity implements Serializable, Cloneable {
+public class EventPermission implements Cloneable, Serializable {
 
-  private static final long  serialVersionUID = 2689301355435962774L;
+  private static final long serialVersionUID = -505066459639689152L;
 
-  private long               id;
+  private boolean           canEdit;
 
-  private IdentityEntity     owner;
-
-  private boolean            system;
-
-  private String             title;
-
-  private String             description;
-
-  private String             created;
-
-  private String             updated;
-
-  private String             color;
-
-  private CalendarPermission acl;
+  private boolean           attendee;
 
   @Override
-  public CalendarEntity clone() {// NOSONAR
-    return new CalendarEntity(id, owner, system, title, description, created, updated, color, acl == null ? null : acl.clone());
+  public EventPermission clone() { // NOSONAR
+    return new EventPermission(canEdit, attendee);
   }
 }

@@ -23,16 +23,18 @@ import lombok.*;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class Permission implements Cloneable, Serializable {
+public class CalendarPermission implements Cloneable, Serializable {
 
   private static final long serialVersionUID = -505066459639689152L;
 
+  private boolean           canCreate;
+
   private boolean           canEdit;
 
-  private boolean           attendee;
+  private boolean           canInviteeEdit;
 
   @Override
-  public Permission clone() { // NOSONAR
-    return new Permission(canEdit, attendee);
+  public CalendarPermission clone() { // NOSONAR
+    return new CalendarPermission(canEdit, canCreate, canInviteeEdit);
   }
 }

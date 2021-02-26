@@ -5,7 +5,7 @@ import java.util.List;
 import org.exoplatform.agenda.constant.EventAvailability;
 import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.model.EventConference;
-import org.exoplatform.agenda.model.Permission;
+import org.exoplatform.agenda.model.EventPermission;
 import org.exoplatform.social.rest.entity.IdentityEntity;
 
 import lombok.*;
@@ -38,7 +38,7 @@ public class EventSearchResultEntity extends EventEntity {
                                  final EventStatus status,
                                  final EventRecurrenceEntity recurrence,
                                  final EventOccurrenceEntity occurrence,
-                                 final Permission acl,
+                                 final EventPermission acl,
                                  final List<EventAttendeeEntity> attendees,
                                  final List<EventConference> conferences,
                                  final List<EventAttachmentEntity> attachments,
