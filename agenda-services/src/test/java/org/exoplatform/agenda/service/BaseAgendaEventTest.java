@@ -1,15 +1,16 @@
 package org.exoplatform.agenda.service;
 
 import java.time.*;
-import java.util.ArrayList;
-import java.util.TimeZone;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.apache.commons.lang.math.RandomUtils;
 import org.junit.After;
 import org.junit.Before;
 
 import org.exoplatform.agenda.constant.*;
 import org.exoplatform.agenda.model.*;
+import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.storage.AgendaEventStorage;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
@@ -189,7 +190,7 @@ public abstract class BaseAgendaEventTest {
                                                                  CALENDAR_COLOR,
                                                                  null));
 
-    String displayName = "testSpaceAgenda";
+    String displayName = "testSpaceAgenda" + RandomUtils.nextInt();
     space = spaceService.getSpaceByDisplayName(displayName);
     if (space == null) {
       space = createSpace(displayName,
@@ -366,5 +367,11 @@ public abstract class BaseAgendaEventTest {
     newSpace.setRegistration(Space.OPEN);
     newSpace.setVisibility(Space.PRIVATE);
     return spaceService.createSpace(newSpace, "root");
+  }
+
+  protected Map<String, List<String>> getFields(String fieldName, String fieldValue) {
+    Map<String, List<String>> fields = new HashMap<>();
+    fields.put(fieldName, Collections.singletonList(fieldValue));
+    return fields;
   }
 }

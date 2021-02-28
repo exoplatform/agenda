@@ -40,6 +40,11 @@ public class AgendaEventModification {
     return modificationTypes != null && modificationTypes.contains(modificationType);
   }
 
+  public boolean hasModifiedDate() {
+    return modificationTypes != null && (modificationTypes.contains(AgendaEventModificationType.START_DATE_UPDATED)
+        || modificationTypes.contains(AgendaEventModificationType.END_DATE_UPDATED));
+  }
+
   public void addModificationTypes(Set<AgendaEventModificationType> eventModifications) {
     if (eventModifications != null && !eventModifications.isEmpty()) {
       modificationTypes.addAll(eventModifications);

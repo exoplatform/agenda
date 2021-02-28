@@ -30,6 +30,7 @@ import org.exoplatform.agenda.entity.*;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.agenda.util.EntityMapper;
+import org.exoplatform.commons.api.persistence.ExoTransactional;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 
@@ -63,6 +64,28 @@ public class AgendaEventStorage {
     List<EventAttendeeResponse> responseTypes = eventFilter.getResponseTypes();
     int limit = eventFilter.getEnd() == null ? DEFAULT_LIMIT : 0;
     return this.eventDAO.getEventIds(startDate, endDate, ownerIds, attendeeIds, responseTypes, limit);
+  }
+
+  public List<Long> getPendingEventIds(Long userIdentityId,
+                                       List<Long> ownerIds,
+                                       List<Long> attendeeIds,
+                                       int offset,
+                                       int limit) {
+    if (ownerIds == null || ownerIds.isEmpty()) {
+      return this.eventDAO.getPendingEventIds(userIdentityId, attendeeIds, offset, limit);
+    } else {
+      return this.eventDAO.getPendingEventIdsByOwnerIds(userIdentityId, ownerIds, attendeeIds, offset, limit);
+    }
+  }
+
+  public long countPendingEvents(Long userIdentityId,
+                                 List<Long> ownerIds,
+                                 List<Long> attendeeIds) {
+    if (ownerIds == null || ownerIds.isEmpty()) {
+      return this.eventDAO.countPendingEvents(userIdentityId, attendeeIds);
+    } else {
+      return this.eventDAO.countPendingEventsByOwnerIds(userIdentityId, ownerIds, attendeeIds);
+    }
   }
 
   public List<Long> getEventDatePollIds(List<Long> ownerIds,
@@ -99,8 +122,14 @@ public class AgendaEventStorage {
     return EntityMapper.fromEntity(eventEntity);
   }
 
+  @ExoTransactional
   public void deleteEventById(long eventId) {
     eventDAO.deleteEvent(eventId);
+  }
+
+  @ExoTransactional
+  public void deleteCalendarEvents(long calendarId) {
+    eventDAO.deleteCalendarEvents(calendarId);
   }
 
   /**
@@ -148,8 +177,10 @@ public class AgendaEventStorage {
     return EntityMapper.fromEntity(eventEntity);
   }
 
-  public void deleteExceptionalOccurences(long parentRecurrentEventId) {
+  public List<Long> deleteExceptionalOccurences(long parentRecurrentEventId) {
+    List<Long> deletedEventIds = this.eventDAO.getExceptionalOccurenceIds(parentRecurrentEventId);
     this.eventDAO.deleteExceptionalOccurences(parentRecurrentEventId);
+    return deletedEventIds;
   }
 
   public Event getExceptionalOccurrenceEvent(long parentRecurrentEventId, ZonedDateTime occurrenceId) {

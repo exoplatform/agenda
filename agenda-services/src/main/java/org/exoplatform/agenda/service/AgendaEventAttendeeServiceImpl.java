@@ -295,11 +295,16 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
   private void dispatch(NotificationContext ctx, String... pluginId) {
     List<NotificationCommand> commands = new ArrayList<>(pluginId.length);
     for (String p : pluginId) {
-      commands.add(ctx.makeCommand(PluginKey.key(p)));
+      NotificationCommand command = ctx.makeCommand(PluginKey.key(p));
+      if (command != null) {
+        commands.add(command);
+      }
     }
 
     try {
-      ctx.getNotificationExecutor().with(commands).execute(ctx);
+      if (!commands.isEmpty()) {
+        ctx.getNotificationExecutor().with(commands).execute(ctx);
+      }
     } catch (Exception e) {
       LOG.warn("Error sending invitation notifications", e);
     }

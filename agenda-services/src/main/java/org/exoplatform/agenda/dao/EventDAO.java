@@ -101,7 +101,9 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     }
 
     // Ensure to delete all entities on DB to avoid having a DB constraint error
-    getEntityManager().getTransaction().commit();
+    if (getEntityManager().getTransaction() != null && getEntityManager().getTransaction().isActive()) {
+      getEntityManager().getTransaction().commit();
+    }
 
     executeDeleteCalendarEventsQuery(calendarId);
   }
@@ -220,9 +222,88 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
                               : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
   }
 
+  public List<Long> getPendingEventIds(Long userIdentityId,
+                                       List<Long> attendeeIds,
+                                       int offset,
+                                       int limit) {
+    TypedQuery<Tuple> query = getEntityManager().createNamedQuery("AgendaEvent.getPendingEventIds", Tuple.class);
+    query.setParameter("status", EventStatus.CONFIRMED);
+    query.setParameter("response", EventAttendeeResponse.NEEDS_ACTION);
+    query.setParameter("userIdentityId", userIdentityId);
+    query.setParameter("attendeeIds", attendeeIds);
+    if (offset >= 0) {
+      query.setFirstResult(offset);
+    } else {
+      query.setFirstResult(0);
+    }
+    if (limit > 0) {
+      query.setMaxResults(limit);
+    } else {
+      query.setMaxResults(DEFAULT_LIMIT);
+    }
+    List<Tuple> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList()
+                              : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
+  }
+
+  public Long countPendingEvents(Long userIdentityId, List<Long> attendeeIds) {
+    TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaEvent.countPendingEvents", Long.class);
+    query.setParameter("status", EventStatus.CONFIRMED);
+    query.setParameter("response", EventAttendeeResponse.NEEDS_ACTION);
+    query.setParameter("userIdentityId", userIdentityId);
+    query.setParameter("attendeeIds", attendeeIds);
+    try {
+      Long count = query.getSingleResult();
+      return count == null ? 0l : count.longValue();
+    } catch (NoResultException e) {
+      return 0l;
+    }
+  }
+
+  public List<Long> getPendingEventIdsByOwnerIds(Long userIdentityId,
+                                                 List<Long> ownerIds,
+                                                 List<Long> attendeeIds,
+                                                 int offset,
+                                                 int limit) {
+    TypedQuery<Tuple> query = getEntityManager().createNamedQuery("AgendaEvent.getPendingEventIdsByOwnerIds", Tuple.class);
+    query.setParameter("status", EventStatus.CONFIRMED);
+    query.setParameter("response", EventAttendeeResponse.NEEDS_ACTION);
+    query.setParameter("userIdentityId", userIdentityId);
+    query.setParameter("attendeeIds", attendeeIds);
+    query.setParameter("ownerIds", ownerIds);
+    if (offset >= 0) {
+      query.setFirstResult(offset);
+    } else {
+      query.setFirstResult(0);
+    }
+    if (limit > 0) {
+      query.setMaxResults(limit);
+    } else {
+      query.setMaxResults(DEFAULT_LIMIT);
+    }
+    List<Tuple> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList()
+                              : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
+  }
+
+  public long countPendingEventsByOwnerIds(Long userIdentityId, List<Long> ownerIds, List<Long> attendeeIds) {
+    TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaEvent.countPendingEventsByOwnerIds", Long.class);
+    query.setParameter("status", EventStatus.CONFIRMED);
+    query.setParameter("response", EventAttendeeResponse.NEEDS_ACTION);
+    query.setParameter("userIdentityId", userIdentityId);
+    query.setParameter("attendeeIds", attendeeIds);
+    query.setParameter("ownerIds", ownerIds);
+    try {
+      Long count = query.getSingleResult();
+      return count == null ? 0l : count.longValue();
+    } catch (NoResultException e) {
+      return 0l;
+    }
+  }
+
   public List<Long> getEventDatePollIds(List<Long> attendeeIds,
-                                          int offset,
-                                          int limit) {
+                                        int offset,
+                                        int limit) {
     TypedQuery<Tuple> query = getEntityManager().createNamedQuery("AgendaEvent.getPendingDatePollIds", Tuple.class);
     query.setParameter("status", EventStatus.TENTATIVE);
     query.setParameter("attendeeIds", attendeeIds);
@@ -254,9 +335,9 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
   }
 
   public List<Long> getEventDatePollIdsByOwnerIds(List<Long> ownerIds,
-                                               List<Long> attendeeIds, 
-                                               int offset, 
-                                               int limit) {
+                                                  List<Long> attendeeIds,
+                                                  int offset,
+                                                  int limit) {
     TypedQuery<Tuple> query = getEntityManager().createNamedQuery("AgendaEvent.getPendingDatePollIdsByOwnerIds", Tuple.class);
     query.setParameter("status", EventStatus.TENTATIVE);
     query.setParameter("attendeeIds", attendeeIds);
@@ -273,7 +354,7 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     }
     List<Tuple> resultList = query.getResultList();
     return resultList == null ? Collections.emptyList()
-            : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
+                              : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
   }
 
   public Long countEventDatePollsByOwnerIds(List<Long> ownerIds, List<Long> attendeeIds) {

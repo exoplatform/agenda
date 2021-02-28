@@ -184,7 +184,7 @@ public class Utils {
       occurrence.setId(0);
       occurrence.setStart(occurrencePeriod.getStart().toInstant().atZone(timeZone));
       occurrence.setEnd(occurrencePeriod.getEnd().toInstant().atZone(timeZone));
-      occurrence.setOccurrence(new EventOccurrence(occurrenceId, false));
+      occurrence.setOccurrence(new EventOccurrence(occurrenceId, false, false));
       occurrence.setParentId(event.getId());
       occurrence.setRecurrence(null);
       occurrences.add(occurrence);
@@ -344,8 +344,8 @@ public class Utils {
    *         false
    */
   public static boolean canInviteeEdit(IdentityManager identityManager,
-                                    SpaceService spaceService,
-                                    long ownerId) {
+                                       SpaceService spaceService,
+                                       long ownerId) {
     Identity requestedOwner = identityManager.getIdentity(String.valueOf(ownerId));
     if (requestedOwner == null) {
       return false;

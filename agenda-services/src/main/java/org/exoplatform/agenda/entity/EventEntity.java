@@ -74,12 +74,108 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
               + " AND (ev.endDate IS NULL OR ev.endDate >= :start)"
       ),
       @NamedQuery(
+          name = "AgendaEvent.getPendingEventIds",
+          query = "SELECT DISTINCT(ev.id), ev.createdDate, ev.updatedDate FROM AgendaEvent ev"
+              + " INNER JOIN ev.attendees att"
+              + " WHERE ev.status = :status"
+              + " AND ("
+              + "   ev.occurrencePeriodChanged = TRUE"
+              + "   OR ev.parent IS NULL"
+              + " )"
+              + " AND att.identityId IN (:attendeeIds)"
+              + " AND att.response = :response"
+              + " AND NOT EXISTS("
+              + "   SELECT att2.id FROM AgendaEventAttendee att2"
+              + "   WHERE att2.event.id = ev.id"
+              + "         AND att2.identityId = :userIdentityId"
+              + "         AND att2.response != :response"
+              + " )"
+              + " ORDER BY "
+              + "   CASE "
+              + "     WHEN ev.updatedDate IS NULL"
+              + "       THEN ev.createdDate"
+              + "     ELSE ev.updatedDate"
+              + "   END"
+              + " DESC"
+      ),
+      @NamedQuery(
+          name = "AgendaEvent.countPendingEvents",
+          query = "SELECT count(DISTINCT ev.id) FROM AgendaEvent ev"
+              + " INNER JOIN ev.attendees att"
+              + " WHERE ev.status = :status"
+              + " AND ("
+              + "   ev.occurrencePeriodChanged = TRUE"
+              + "   OR ev.parent IS NULL"
+              + " )"
+              + " AND att.identityId IN (:attendeeIds)"
+              + " AND att.response = :response"
+              + " AND NOT EXISTS("
+              + "   SELECT att2.id FROM AgendaEventAttendee att2"
+              + "   WHERE att2.event.id = ev.id"
+              + "         AND att2.identityId = :userIdentityId"
+              + "         AND att2.response != :response"
+              + " )"
+      ),
+      @NamedQuery(
+          name = "AgendaEvent.countPendingEventsByOwnerIds",
+          query = "SELECT count(DISTINCT ev.id) FROM AgendaEvent ev"
+              + " INNER JOIN ev.attendees att"
+              + " INNER JOIN ev.calendar cal"
+              + " WHERE ev.status = :status"
+              + " AND ("
+              + "   ev.occurrencePeriodChanged = TRUE"
+              + "   OR ev.parent IS NULL"
+              + " )"
+              + " AND cal.ownerId IN (:ownerIds)"
+              + " AND att.identityId IN (:attendeeIds)"
+              + " AND att.response = :response"
+              + " AND NOT EXISTS("
+              + "   SELECT att2.id FROM AgendaEventAttendee att2"
+              + "   WHERE att2.event.id = ev.id"
+              + "         AND att2.identityId = :userIdentityId"
+              + "         AND att2.response != :response"
+              + " )"
+      ),
+      @NamedQuery(
+          name = "AgendaEvent.getPendingEventIdsByOwnerIds",
+          query = "SELECT DISTINCT(ev.id), ev.createdDate, ev.updatedDate FROM AgendaEvent ev"
+              + " INNER JOIN ev.attendees att"
+              + " INNER JOIN ev.calendar cal"
+              + " WHERE ev.status = :status"
+              + " AND ("
+              + "   ev.occurrencePeriodChanged = TRUE"
+              + "   OR ev.parent IS NULL"
+              + " )"
+              + " AND cal.ownerId IN (:ownerIds)"
+              + " AND att.identityId IN (:attendeeIds)"
+              + " AND att.response = :response"
+              + " AND NOT EXISTS("
+              + "   SELECT att2.id FROM AgendaEventAttendee att2"
+              + "   WHERE att2.event.id = ev.id"
+              + "         AND att2.identityId = :userIdentityId"
+              + "         AND att2.response != :response"
+              + " )"
+              + " ORDER BY "
+              + "   CASE "
+              + "     WHEN ev.updatedDate IS NULL"
+              + "       THEN ev.createdDate"
+              + "     ELSE ev.updatedDate"
+              + "   END"
+              + " DESC"
+      ),
+      @NamedQuery(
           name = "AgendaEvent.getPendingDatePollIds",
-          query = "SELECT DISTINCT(ev.id), ev.createdDate FROM AgendaEvent ev"
+          query = "SELECT DISTINCT(ev.id), ev.createdDate, ev.updatedDate FROM AgendaEvent ev"
               + " INNER JOIN ev.attendees att"
               + " WHERE ev.status = :status"
               + " AND att.identityId IN (:attendeeIds)"
-              + " ORDER BY ev.createdDate DESC"
+              + " ORDER BY "
+              + "   CASE "
+              + "     WHEN ev.updatedDate IS NULL"
+              + "       THEN ev.createdDate"
+              + "     ELSE ev.updatedDate"
+              + "   END"
+              + " DESC"
       ),
       @NamedQuery(
           name = "AgendaEvent.countPendingDatePoll",
@@ -90,13 +186,19 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
       ),
       @NamedQuery(
           name = "AgendaEvent.getPendingDatePollIdsByOwnerIds",
-          query = "SELECT DISTINCT(ev.id), ev.createdDate FROM AgendaEvent ev"
+          query = "SELECT DISTINCT(ev.id), ev.createdDate, ev.updatedDate FROM AgendaEvent ev"
               + " INNER JOIN ev.attendees att"
               + " INNER JOIN ev.calendar cal"
               + " WHERE ev.status = :status"
               + " AND att.identityId IN (:attendeeIds)"
               + " AND cal.ownerId IN (:ownerIds)"
-              + " ORDER BY ev.createdDate DESC"
+              + " ORDER BY "
+              + "   CASE "
+              + "     WHEN ev.updatedDate IS NULL"
+              + "       THEN ev.createdDate"
+              + "     ELSE ev.updatedDate"
+              + "   END"
+              + " DESC"
       ),
       @NamedQuery(
           name = "AgendaEvent.countPendingDatePollByOwnerIds",
@@ -177,6 +279,9 @@ public class EventEntity implements Serializable {
 
   @Column(name = "STATUS", nullable = false)
   private EventStatus               status;
+
+  @Column(name = "OCCURRENCE_PERIOD_CHANGED")
+  private boolean                   occurrencePeriodChanged;
 
   @Column(name = "ALLOW_ATTENDEE_TO_UPDATE", nullable = false)
   private boolean                   allowAttendeeToUpdate;
@@ -334,6 +439,14 @@ public class EventEntity implements Serializable {
 
   public void setStatus(EventStatus status) {
     this.status = status;
+  }
+
+  public boolean isOccurrencePeriodChanged() {
+    return occurrencePeriodChanged;
+  }
+
+  public void setOccurrencePeriodChanged(boolean occurrencePeriodChanged) {
+    this.occurrencePeriodChanged = occurrencePeriodChanged;
   }
 
   public boolean isAllowAttendeeToUpdate() {

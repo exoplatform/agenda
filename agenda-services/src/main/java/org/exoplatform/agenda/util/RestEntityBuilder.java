@@ -95,8 +95,7 @@ public class RestEntityBuilder {
     EventOccurrenceEntity occurrenceEntity = eventEntity.getOccurrence();
     EventOccurrence occurrence = null;
     if (occurrenceEntity != null) {
-      occurrence = new EventOccurrence(AgendaDateUtils.parseRFC3339ToZonedDateTime(occurrenceEntity.getId(), ZoneOffset.UTC),
-                                       occurrenceEntity.isExceptional());
+      occurrence = new EventOccurrence(AgendaDateUtils.parseRFC3339ToZonedDateTime(occurrenceEntity.getId(), ZoneOffset.UTC));
     }
 
     ZonedDateTime startDate =

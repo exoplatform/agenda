@@ -361,7 +361,51 @@ export function countDatePolls(ownerId) {
     if (resp && resp.ok) {
       return resp.json();
     } else {
-      throw new Error('Error getting pending date poll list');
+      throw new Error('Error getting pending date poll count');
+    }
+  }).then(eventsList => {
+    return eventsList && eventsList.size || 0;
+  });
+}
+
+export function getPendingEvents(ownerId, offset, limit, expand) {
+  offset = offset || 0;
+  limit = limit || 0;
+  expand = expand || '';
+  const formData = new FormData();
+  formData.append('offset',offset);
+  formData.append('limit',limit);
+  formData.append('expand',expand);
+  if (ownerId) {
+    formData.append('ownerIds',ownerId);
+  }
+  const params = new URLSearchParams(formData).toString();
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/pending?${params}`, {
+    method: 'GET',
+    credentials: 'include',
+  }).then((resp) => {
+    if (resp && resp.ok) {
+      return resp.json();
+    } else {
+      throw new Error('Error getting pending event list');
+    }
+  });
+}
+
+export function countPendingEvents(ownerId) {
+  const formData = new FormData();
+  if (ownerId) {
+    formData.append('ownerIds',ownerId);
+  }
+  const params = new URLSearchParams(formData).toString();
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/pending?${params}`, {
+    method: 'GET',
+    credentials: 'include',
+  }).then((resp) => {
+    if (resp && resp.ok) {
+      return resp.json();
+    } else {
+      throw new Error('Error getting pending event count');
     }
   }).then(eventsList => {
     return eventsList && eventsList.size || 0;

@@ -1,23 +1,48 @@
 <template>
   <v-list-item
-    :style="datePollStyle"
+    :style="eventStyle"
     dense
-    class="border-radius"
-    @click="openDatePollDetails">
+    class="pending-invitation-item border-radius"
+    @click="openEventDetails">
     <v-list-item-content class="pa-0">
-      <v-list-item-title :title="datePoll.summary" class="white--text text-truncate subtitle-1">{{ datePoll.summary }}</v-list-item-title>
-      <v-list-item-subtitle :title="displayVoteStatus" class="white--text text-truncate d-flex caption">{{ $t('agenda.ongoingDatePoll') }} - {{ displayVoteStatus }}</v-list-item-subtitle>
+      <v-list-item-title
+        :style="textStyle"
+        :title="invitedEvent.summary"
+        class="white--text text-truncate subtitle-1">
+        {{ invitedEvent.summary }}
+      </v-list-item-title>
+      <v-list-item-subtitle class="text-truncate d-flex caption mt-1">
+        <span v-if="isDatePoll" :style="textStyle">
+          {{ $t('agenda.ongoingDatePoll') }} - {{ displayVoteStatus }}
+        </span>
+        <template v-else>
+          <span>
+            {{ $t('agenda.pendingReply') }}
+          </span>
+          <date-format
+            :value="invitedEvent.start"
+            :format="dayFormat"
+            class="ml-auto" />
+        </template>
+      </v-list-item-subtitle>
     </v-list-item-content>
     <v-list-item-action class="my-1 py-0">
-      <span :title="displayVoteStatus" :class="voteIconStatus "></span>
-      <i v-if="isTentativeEvent" class="uiIconStatistics white--text uiIcon32x32 uiIconPLFFont mb-1 mr-1"></i>
+      <span
+        v-if="isDatePoll"
+        :title="displayVoteStatus"
+        :class="voteIconStatus ">
+      </span>
+      <i
+        :style="textStyle"
+        :class="eventIcon"
+        class="uiIcon32x32 uiIconPLFFont align-self-center d-flex mb-1 mr-1"></i>
     </v-list-item-action>
   </v-list-item>
 </template>
 <script>
 export default {
   props: {
-    datePoll: {
+    invitedEvent: {
       type: Object,
       default: () => ({})
     },
@@ -26,23 +51,31 @@ export default {
     return {
       dialog: false,
       currentUserId: eXo.env.portal.userIdentityId,
+      dayFormat: {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      },
     };
   },
   computed:{
-    isTentativeEvent() {
-      return this.datePoll && this.datePoll.status === 'TENTATIVE';
+    isDatePoll() {
+      return this.invitedEvent && this.invitedEvent.status === 'TENTATIVE';
+    },
+    isEvent() {
+      return this.invitedEvent && this.invitedEvent.status === 'CONFIRMED';
     },
     currentAttendee() {
-      return this.datePoll.attendees.find(attendee => attendee.identity.id === this.currentUserId);
+      return this.invitedEvent.attendees && this.invitedEvent.attendees.find(attendee => attendee.identity.id === this.currentUserId);
     },
     hasVoted() {
       return this.currentAttendee && this.currentAttendee.response === 'TENTATIVE';
     },
     textClass() {
-      return this.datePoll ? 'white-text':'primary--text';
+      return this.invitedEvent ? 'white-text':'primary--text';
     },
     voteIconStatus() {
-      return this.datePoll && this.datePoll.attendees && `attendee-vote-${this.currentAttendee.response.toLowerCase()}`;
+      return this.invitedEvent && this.invitedEvent.attendees && `attendee-vote-${this.currentAttendee.response.toLowerCase()}`;
     },
     displayVoteStatus() {
       if(this.hasVoted) {
@@ -50,17 +83,36 @@ export default {
       }
       return this.$t('agenda.datePollVoteNeeded');
     },
-    datePollStyle() {
-      if(this.datePoll.color) {
-        return `background: ${this.datePoll.color}`;
-      } else {
-        return `background: ${this.datePoll.calendar.color}`;
+    eventIcon() {
+      return this.isDatePoll && 'uiIconStatistics' || 'uiIconCalendarEmpty';
+    },
+    eventColor() {
+      if (this.invitedEvent) {
+        if (this.invitedEvent.color) {
+          return this.invitedEvent.color;
+        } else {
+          return this.invitedEvent.calendar.color;
+        }
       }
+      return '';
+    },
+    textStyle() {
+      if (this.isDatePoll) {
+        return 'color: #fff !important';
+      } else {
+        return `color: ${this.eventColor} !important`;
+      }
+    },
+    eventStyle() {
+      if (this.isDatePoll) {
+        return `background: ${this.eventColor};`;
+      }
+      return `border: 1px solid ${this.eventColor};`;
     }
   },
   methods:{
-    openDatePollDetails() {
-      this.$root.$emit('agenda-event-details', this.datePoll);
+    openEventDetails() {
+      this.$root.$emit('agenda-event-details', this.invitedEvent);
       this.$emit('close');
     },
   }

@@ -282,6 +282,53 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                      null,
                                      null,
                                      true,
+                                     Long.parseLong(testuser2Identity.getId()));
+    } catch (Exception e) {
+      fail(e.getMessage());
+    }
+
+    try {
+      spaceService.addRedactor(space, testuser1Identity.getRemoteId());
+
+      Event event = new Event();
+      event.setCalendarId(spaceCalendar.getId());
+      event.setStart(ZonedDateTime.now());
+      event.setEnd(ZonedDateTime.now());
+      EventRecurrence recurrence = new EventRecurrence();
+      event.setRecurrence(recurrence);
+      recurrence.setFrequency(EventRecurrenceFrequency.DAILY);
+      recurrence.setInterval(1);
+      agendaEventService.createEvent(event,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     null,
+                                     null,
+                                     true,
+                                     Long.parseLong(testuser2Identity.getId()));
+      fail();
+    } catch (IllegalAccessException e) {
+      // expected
+    }
+
+    try {
+      Event event = new Event();
+      event.setCalendarId(spaceCalendar.getId());
+      event.setStart(ZonedDateTime.now());
+      event.setEnd(ZonedDateTime.now());
+      EventRecurrence recurrence = new EventRecurrence();
+      event.setRecurrence(recurrence);
+      recurrence.setFrequency(EventRecurrenceFrequency.DAILY);
+      recurrence.setInterval(1);
+      agendaEventService.createEvent(event,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     null,
+                                     null,
+                                     true,
                                      Long.parseLong(testuser1Identity.getId()));
     } catch (AgendaException e) {
       fail(e.getMessage());
@@ -1181,6 +1228,79 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     try {
       Event event = new Event();
+      event.setCalendarId(spaceCalendar.getId());
+      event.setStart(ZonedDateTime.now());
+      event.setEnd(ZonedDateTime.now());
+      EventRecurrence recurrence = new EventRecurrence();
+      event.setRecurrence(recurrence);
+      recurrence.setFrequency(EventRecurrenceFrequency.DAILY);
+      recurrence.setInterval(1);
+      event = agendaEventService.createEvent(event,
+                                             Collections.singletonList(new EventAttendee(0,
+                                                                                         Long.parseLong(testuser2Identity.getId()),
+                                                                                         EventAttendeeResponse.ACCEPTED)),
+                                             Collections.emptyList(),
+                                             Collections.emptyList(),
+                                             Collections.emptyList(),
+                                             null,
+                                             null,
+                                             true,
+                                             Long.parseLong(testuser2Identity.getId()));
+      agendaEventService.updateEvent(event,
+                                     Collections.singletonList(new EventAttendee(0,
+                                                                                 Long.parseLong(testuser2Identity.getId()),
+                                                                                 EventAttendeeResponse.ACCEPTED)),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     null,
+                                     null,
+                                     true,
+                                     Long.parseLong(testuser2Identity.getId()));
+    } catch (Exception e) {
+      fail(e.getMessage());
+    }
+
+    try {
+      spaceService.addRedactor(space, testuser1Identity.getRemoteId());
+
+      Event event = new Event();
+      event.setCalendarId(spaceCalendar.getId());
+      event.setStart(ZonedDateTime.now());
+      event.setEnd(ZonedDateTime.now());
+      EventRecurrence recurrence = new EventRecurrence();
+      event.setRecurrence(recurrence);
+      recurrence.setFrequency(EventRecurrenceFrequency.DAILY);
+      recurrence.setInterval(1);
+      event = agendaEventService.createEvent(event,
+                                             Collections.singletonList(new EventAttendee(0,
+                                                                                         Long.parseLong(testuser2Identity.getId()),
+                                                                                         EventAttendeeResponse.ACCEPTED)),
+                                             Collections.emptyList(),
+                                             Collections.emptyList(),
+                                             Collections.emptyList(),
+                                             null,
+                                             null,
+                                             true,
+                                             Long.parseLong(testuser2Identity.getId()));
+      agendaEventService.updateEvent(event,
+                                     Collections.singletonList(new EventAttendee(0,
+                                                                                 Long.parseLong(testuser2Identity.getId()),
+                                                                                 EventAttendeeResponse.ACCEPTED)),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     null,
+                                     null,
+                                     true,
+                                     Long.parseLong(testuser2Identity.getId()));
+      fail();
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+
+    try {
+      Event event = new Event();
       event.setId(eventId);
       event.setCalendarId(spaceCalendar.getId());
       event.setStart(ZonedDateTime.now());
@@ -1847,12 +1967,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(fieldValue, String.valueOf(event.isAllowAttendeeToInvite()));
   }
 
-  private Map<String, List<String>> getFields(String fieldName, String fieldValue) {
-    Map<String, List<String>> fields = new HashMap<>();
-    fields.put(fieldName, Collections.singletonList(fieldValue));
-    return fields;
-  }
-
   @Test
   public void testUpdateEvent_InSpace_AsMember() throws Exception { // NOSONAR
     ZonedDateTime start = getDate().withNano(0);
@@ -1861,6 +1975,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     Event event = newEventInstance(start, start, allDay);
     event.setCalendarId(spaceCalendar.getId());
+    event.setAllowAttendeeToUpdate(true);
     Event createdEvent = createEvent(event.clone(),
                                      Long.parseLong(testuser1Identity.getId()),
                                      testuser2Identity,
@@ -1879,14 +1994,14 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                    null,
                                    null,
                                    false,
-                                   Long.parseLong(testuser1Identity.getId()));
+                                   Long.parseLong(testuser2Identity.getId()));
 
-    Event updatedEvent = agendaEventService.getEventById(createdEvent.getId(), null, Long.parseLong(testuser1Identity.getId()));
+    Event updatedEvent = agendaEventService.getEventById(createdEvent.getId(), null, Long.parseLong(testuser2Identity.getId()));
 
     assertNotNull(updatedEvent);
     assertEquals(newDescription, updatedEvent.getDescription());
 
-    spaceService.removeMember(space, testuser1Identity.getRemoteId());
+    spaceService.removeMember(space, testuser2Identity.getRemoteId());
     try {
       agendaEventService.updateEvent(updatedEvent,
                                      null,
@@ -1896,12 +2011,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                      null,
                                      null,
                                      false,
-                                     Long.parseLong(testuser1Identity.getId()));
-      fail("testuser1 shouldn't be able to update a previously created event by him, while he's not member of space anymore");
+                                     Long.parseLong(testuser2Identity.getId()));
+      fail("testuser2 shouldn't be able to update a previously created event by him, while he's not member of space anymore");
     } catch (IllegalAccessException e) {
       // Expected
-    } finally {
-      spaceService.addMember(space, testuser1Identity.getRemoteId());
     }
   }
 
@@ -2624,4 +2737,371 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(3, events.size());
   }
 
+  @Test
+  public void testCountPendingEvents() throws Exception {
+    ZonedDateTime start = getDate();
+    ZonedDateTime end = start.plusHours(1);
+    Event event = newEventInstance(start, end, false);
+    event.setCalendarId(spaceCalendar.getId());
+    long userIdentityId = Long.parseLong(testuser1Identity.getId());
+    event = createEvent(event, userIdentityId, spaceIdentity, testuser4Identity);
+    long eventId = event.getId();
+
+    agendaEventAttendeeService.sendEventResponse(eventId, userIdentityId, EventAttendeeResponse.DECLINED);
+    agendaEventAttendeeService.sendEventResponse(eventId,
+                                                 Long.parseLong(testuser3Identity.getId()),
+                                                 EventAttendeeResponse.ACCEPTED);
+
+    long countPendingEvents = agendaEventService.countPendingEvents(null, userIdentityId);
+    assertEquals(0, countPendingEvents);
+    countPendingEvents = agendaEventService.countPendingEvents(null, Long.parseLong(testuser2Identity.getId()));
+    assertEquals(1, countPendingEvents);
+    countPendingEvents = agendaEventService.countPendingEvents(null, Long.parseLong(testuser3Identity.getId()));
+    assertEquals(0, countPendingEvents);
+    countPendingEvents = agendaEventService.countPendingEvents(null, Long.parseLong(testuser4Identity.getId()));
+    assertEquals(1, countPendingEvents);
+    countPendingEvents = agendaEventService.countPendingEvents(null, Long.parseLong(testuser5Identity.getId()));
+    assertEquals(0, countPendingEvents);
+
+    ZonedDateTime occurrenceId = start.plusDays(1);
+    agendaEventService.saveEventExceptionalOccurrence(eventId, occurrenceId);
+    agendaEventService.saveEventExceptionalOccurrence(eventId, occurrenceId.plusDays(1));
+    Event exceptionalOccurrenceEvent = agendaEventService.getExceptionalOccurrenceEvent(eventId, occurrenceId);
+    assertNotNull(exceptionalOccurrenceEvent);
+    assertNotNull(exceptionalOccurrenceEvent.getOccurrence());
+
+    countPendingEvents = agendaEventService.countPendingEvents(null, userIdentityId);
+    assertEquals(0, countPendingEvents);
+    countPendingEvents = agendaEventService.countPendingEvents(null, Long.parseLong(testuser2Identity.getId()));
+    assertEquals(1, countPendingEvents);
+    countPendingEvents = agendaEventService.countPendingEvents(null, Long.parseLong(testuser3Identity.getId()));
+    assertEquals(0, countPendingEvents);
+    countPendingEvents = agendaEventService.countPendingEvents(null, Long.parseLong(testuser4Identity.getId()));
+    assertEquals(1, countPendingEvents);
+    countPendingEvents = agendaEventService.countPendingEvents(null, Long.parseLong(testuser5Identity.getId()));
+    assertEquals(0, countPendingEvents);
+
+    String exceptionalEventEndDateRFC3339 = AgendaDateUtils.toRFC3339Date(exceptionalOccurrenceEvent.getEnd().plusHours(1));
+    Map<String, List<String>> dateFields = getFields("end", exceptionalEventEndDateRFC3339);
+    agendaEventService.updateEventFields(exceptionalOccurrenceEvent.getId(), dateFields, false, false, userIdentityId);
+
+    countPendingEvents = agendaEventService.countPendingEvents(null, userIdentityId);
+    assertEquals(0, countPendingEvents);
+    countPendingEvents = agendaEventService.countPendingEvents(null, Long.parseLong(testuser2Identity.getId()));
+    assertEquals(2, countPendingEvents);
+    countPendingEvents = agendaEventService.countPendingEvents(null, Long.parseLong(testuser3Identity.getId()));
+    assertEquals(1, countPendingEvents);
+    countPendingEvents = agendaEventService.countPendingEvents(null, Long.parseLong(testuser4Identity.getId()));
+    assertEquals(2, countPendingEvents);
+    countPendingEvents = agendaEventService.countPendingEvents(null, Long.parseLong(testuser5Identity.getId()));
+    assertEquals(0, countPendingEvents);
+
+    exceptionalOccurrenceEvent = agendaEventService.getEventById(exceptionalOccurrenceEvent.getId());
+    List<EventAttendee> eventAttendees = new ArrayList<>(agendaEventAttendeeService.getEventAttendees(eventId));
+    eventAttendees.add(new EventAttendee(0,
+                                         0,
+                                         Long.parseLong(testuser5Identity.getId()),
+                                         null));
+
+    agendaEventService.updateEvent(exceptionalOccurrenceEvent,
+                                   eventAttendees,
+                                   null,
+                                   null,
+                                   null,
+                                   null,
+                                   null,
+                                   false,
+                                   userIdentityId);
+    countPendingEvents = agendaEventService.countPendingEvents(null, userIdentityId);
+    assertEquals(0, countPendingEvents);
+    countPendingEvents = agendaEventService.countPendingEvents(null, Long.parseLong(testuser2Identity.getId()));
+    assertEquals(2, countPendingEvents);
+    countPendingEvents = agendaEventService.countPendingEvents(null, Long.parseLong(testuser3Identity.getId()));
+    assertEquals(1, countPendingEvents);
+    countPendingEvents = agendaEventService.countPendingEvents(null, Long.parseLong(testuser4Identity.getId()));
+    assertEquals(2, countPendingEvents);
+    countPendingEvents = agendaEventService.countPendingEvents(null, Long.parseLong(testuser5Identity.getId()));
+    assertEquals(1, countPendingEvents);
+  }
+
+  @Test
+  public void testGetPendingEvents() throws Exception {
+    ZonedDateTime start = getDate();
+    ZonedDateTime end = start.plusHours(1);
+    Event event = newEventInstance(start, end, false);
+    event.setCalendarId(spaceCalendar.getId());
+    long userIdentityId = Long.parseLong(testuser1Identity.getId());
+    event = createEvent(event, userIdentityId, spaceIdentity, testuser4Identity);
+    long eventId = event.getId();
+
+    agendaEventAttendeeService.sendEventResponse(eventId, userIdentityId, EventAttendeeResponse.DECLINED);
+    agendaEventAttendeeService.sendEventResponse(eventId,
+                                                 Long.parseLong(testuser3Identity.getId()),
+                                                 EventAttendeeResponse.ACCEPTED);
+
+    List<Event> pendingEvents = agendaEventService.getPendingEvents(null, userIdentityId, ZoneOffset.UTC, 0, 10);
+    assertEquals(0, pendingEvents.size());
+    pendingEvents = agendaEventService.getPendingEvents(null, Long.parseLong(testuser2Identity.getId()), ZoneOffset.UTC, 0, 10);
+    assertEquals(1, pendingEvents.size());
+    pendingEvents = agendaEventService.getPendingEvents(null, Long.parseLong(testuser3Identity.getId()), ZoneOffset.UTC, 0, 10);
+    assertEquals(0, pendingEvents.size());
+    pendingEvents = agendaEventService.getPendingEvents(null, Long.parseLong(testuser4Identity.getId()), ZoneOffset.UTC, 0, 10);
+    assertEquals(1, pendingEvents.size());
+    pendingEvents = agendaEventService.getPendingEvents(null, Long.parseLong(testuser5Identity.getId()), ZoneOffset.UTC, 0, 10);
+    assertEquals(0, pendingEvents.size());
+
+    ZonedDateTime occurrenceId = start.plusDays(1);
+    agendaEventService.saveEventExceptionalOccurrence(eventId, occurrenceId);
+    agendaEventService.saveEventExceptionalOccurrence(eventId, occurrenceId.plusDays(1));
+    Event exceptionalOccurrenceEvent = agendaEventService.getExceptionalOccurrenceEvent(eventId, occurrenceId);
+    assertNotNull(exceptionalOccurrenceEvent);
+    assertNotNull(exceptionalOccurrenceEvent.getOccurrence());
+
+    pendingEvents = agendaEventService.getPendingEvents(null, userIdentityId, ZoneOffset.UTC, 0, 10);
+    assertEquals(0, pendingEvents.size());
+    pendingEvents = agendaEventService.getPendingEvents(null, Long.parseLong(testuser2Identity.getId()), ZoneOffset.UTC, 0, 10);
+    assertEquals(1, pendingEvents.size());
+    pendingEvents = agendaEventService.getPendingEvents(null, Long.parseLong(testuser3Identity.getId()), ZoneOffset.UTC, 0, 10);
+    assertEquals(0, pendingEvents.size());
+    pendingEvents = agendaEventService.getPendingEvents(null, Long.parseLong(testuser4Identity.getId()), ZoneOffset.UTC, 0, 10);
+    assertEquals(1, pendingEvents.size());
+    pendingEvents = agendaEventService.getPendingEvents(null, Long.parseLong(testuser5Identity.getId()), ZoneOffset.UTC, 0, 10);
+    assertEquals(0, pendingEvents.size());
+
+    String exceptionalEventEndDateRFC3339 = AgendaDateUtils.toRFC3339Date(exceptionalOccurrenceEvent.getEnd().plusHours(1));
+    Map<String, List<String>> dateFields = getFields("end", exceptionalEventEndDateRFC3339);
+    agendaEventService.updateEventFields(exceptionalOccurrenceEvent.getId(), dateFields, false, false, userIdentityId);
+
+    pendingEvents = agendaEventService.getPendingEvents(null, userIdentityId, ZoneOffset.UTC, 0, 10);
+    assertEquals(0, pendingEvents.size());
+    pendingEvents = agendaEventService.getPendingEvents(null, Long.parseLong(testuser2Identity.getId()), ZoneOffset.UTC, 0, 10);
+    assertEquals(2, pendingEvents.size());
+    assertEquals(exceptionalOccurrenceEvent.getId(), pendingEvents.get(0).getId());
+    assertEquals(event.getId(), pendingEvents.get(1).getId());
+    pendingEvents = agendaEventService.getPendingEvents(null, Long.parseLong(testuser3Identity.getId()), ZoneOffset.UTC, 0, 10);
+    assertEquals(1, pendingEvents.size());
+    assertEquals(exceptionalOccurrenceEvent.getId(), pendingEvents.get(0).getId());
+    pendingEvents = agendaEventService.getPendingEvents(null, Long.parseLong(testuser4Identity.getId()), ZoneOffset.UTC, 0, 10);
+    assertEquals(2, pendingEvents.size());
+    assertEquals(exceptionalOccurrenceEvent.getId(), pendingEvents.get(0).getId());
+    assertEquals(event.getId(), pendingEvents.get(1).getId());
+    pendingEvents = agendaEventService.getPendingEvents(null, Long.parseLong(testuser5Identity.getId()), ZoneOffset.UTC, 0, 10);
+    assertEquals(0, pendingEvents.size());
+
+    exceptionalOccurrenceEvent = agendaEventService.getEventById(exceptionalOccurrenceEvent.getId());
+    List<EventAttendee> eventAttendees = new ArrayList<>(agendaEventAttendeeService.getEventAttendees(eventId));
+    eventAttendees.add(new EventAttendee(0,
+                                         0,
+                                         Long.parseLong(testuser5Identity.getId()),
+                                         null));
+
+    agendaEventService.updateEvent(exceptionalOccurrenceEvent,
+                                   eventAttendees,
+                                   null,
+                                   null,
+                                   null,
+                                   null,
+                                   null,
+                                   false,
+                                   userIdentityId);
+    pendingEvents = agendaEventService.getPendingEvents(null, userIdentityId, ZoneOffset.UTC, 0, 10);
+    assertEquals(0, pendingEvents.size());
+    pendingEvents = agendaEventService.getPendingEvents(null, Long.parseLong(testuser2Identity.getId()), ZoneOffset.UTC, 0, 10);
+    assertEquals(2, pendingEvents.size());
+    assertEquals(exceptionalOccurrenceEvent.getId(), pendingEvents.get(0).getId());
+    assertEquals(event.getId(), pendingEvents.get(1).getId());
+    pendingEvents = agendaEventService.getPendingEvents(null, Long.parseLong(testuser3Identity.getId()), ZoneOffset.UTC, 0, 10);
+    assertEquals(1, pendingEvents.size());
+    assertEquals(exceptionalOccurrenceEvent.getId(), pendingEvents.get(0).getId());
+    pendingEvents = agendaEventService.getPendingEvents(null, Long.parseLong(testuser4Identity.getId()), ZoneOffset.UTC, 0, 10);
+    assertEquals(2, pendingEvents.size());
+    assertEquals(exceptionalOccurrenceEvent.getId(), pendingEvents.get(0).getId());
+    assertEquals(event.getId(), pendingEvents.get(1).getId());
+    pendingEvents = agendaEventService.getPendingEvents(null, Long.parseLong(testuser5Identity.getId()), ZoneOffset.UTC, 0, 10);
+    assertEquals(1, pendingEvents.size());
+    assertEquals(exceptionalOccurrenceEvent.getId(), pendingEvents.get(0).getId());
+  }
+
+  @Test
+  public void testCountPendingEventsByOwnerIds() throws Exception {
+    ZonedDateTime start = getDate();
+    ZonedDateTime end = start.plusHours(1);
+    Event event = newEventInstance(start, end, false);
+    event.setCalendarId(spaceCalendar.getId());
+    long userIdentityId = Long.parseLong(testuser1Identity.getId());
+    event = createEvent(event, userIdentityId, spaceIdentity, testuser4Identity);
+    long eventId = event.getId();
+
+    agendaEventAttendeeService.sendEventResponse(eventId, userIdentityId, EventAttendeeResponse.DECLINED);
+    agendaEventAttendeeService.sendEventResponse(eventId,
+                                                 Long.parseLong(testuser3Identity.getId()),
+                                                 EventAttendeeResponse.ACCEPTED);
+
+    List<Long> ownerIds = Collections.singletonList(Long.parseLong(spaceIdentity.getId()));
+    long countPendingEvents = agendaEventService.countPendingEvents(ownerIds, userIdentityId);
+    assertEquals(0, countPendingEvents);
+    countPendingEvents = agendaEventService.countPendingEvents(ownerIds, Long.parseLong(testuser2Identity.getId()));
+    assertEquals(1, countPendingEvents);
+    countPendingEvents = agendaEventService.countPendingEvents(ownerIds, Long.parseLong(testuser3Identity.getId()));
+    assertEquals(0, countPendingEvents);
+    try {
+      agendaEventService.countPendingEvents(ownerIds, Long.parseLong(testuser4Identity.getId()));
+      fail();
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    try {
+      agendaEventService.countPendingEvents(ownerIds, Long.parseLong(testuser5Identity.getId()));
+      fail();
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+
+    ZonedDateTime occurrenceId = start.plusDays(1);
+    agendaEventService.saveEventExceptionalOccurrence(eventId, occurrenceId);
+    agendaEventService.saveEventExceptionalOccurrence(eventId, occurrenceId.plusDays(1));
+    Event exceptionalOccurrenceEvent = agendaEventService.getExceptionalOccurrenceEvent(eventId, occurrenceId);
+    assertNotNull(exceptionalOccurrenceEvent);
+    assertNotNull(exceptionalOccurrenceEvent.getOccurrence());
+
+    countPendingEvents = agendaEventService.countPendingEvents(ownerIds, userIdentityId);
+    assertEquals(0, countPendingEvents);
+    countPendingEvents = agendaEventService.countPendingEvents(ownerIds, Long.parseLong(testuser2Identity.getId()));
+    assertEquals(1, countPendingEvents);
+    countPendingEvents = agendaEventService.countPendingEvents(ownerIds, Long.parseLong(testuser3Identity.getId()));
+    assertEquals(0, countPendingEvents);
+
+    String exceptionalEventEndDateRFC3339 = AgendaDateUtils.toRFC3339Date(exceptionalOccurrenceEvent.getEnd().plusHours(1));
+    Map<String, List<String>> dateFields = getFields("end", exceptionalEventEndDateRFC3339);
+    agendaEventService.updateEventFields(exceptionalOccurrenceEvent.getId(), dateFields, false, false, userIdentityId);
+
+    countPendingEvents = agendaEventService.countPendingEvents(ownerIds, userIdentityId);
+    assertEquals(0, countPendingEvents);
+    countPendingEvents = agendaEventService.countPendingEvents(ownerIds, Long.parseLong(testuser2Identity.getId()));
+    assertEquals(2, countPendingEvents);
+    countPendingEvents = agendaEventService.countPendingEvents(ownerIds, Long.parseLong(testuser3Identity.getId()));
+    assertEquals(1, countPendingEvents);
+
+    exceptionalOccurrenceEvent = agendaEventService.getEventById(exceptionalOccurrenceEvent.getId());
+    List<EventAttendee> eventAttendees = new ArrayList<>(agendaEventAttendeeService.getEventAttendees(eventId));
+    eventAttendees.add(new EventAttendee(0,
+                                         0,
+                                         Long.parseLong(testuser5Identity.getId()),
+                                         null));
+
+    agendaEventService.updateEvent(exceptionalOccurrenceEvent,
+                                   eventAttendees,
+                                   null,
+                                   null,
+                                   null,
+                                   null,
+                                   null,
+                                   false,
+                                   userIdentityId);
+    countPendingEvents = agendaEventService.countPendingEvents(ownerIds, userIdentityId);
+    assertEquals(0, countPendingEvents);
+    countPendingEvents = agendaEventService.countPendingEvents(ownerIds, Long.parseLong(testuser2Identity.getId()));
+    assertEquals(2, countPendingEvents);
+    countPendingEvents = agendaEventService.countPendingEvents(ownerIds, Long.parseLong(testuser3Identity.getId()));
+    assertEquals(1, countPendingEvents);
+  }
+
+  @Test
+  public void testGetPendingEventsByOwnerIds() throws Exception {
+    ZonedDateTime start = getDate();
+    ZonedDateTime end = start.plusHours(1);
+    Event event = newEventInstance(start, end, false);
+    event.setCalendarId(spaceCalendar.getId());
+    long userIdentityId = Long.parseLong(testuser1Identity.getId());
+    event = createEvent(event, userIdentityId, spaceIdentity, testuser4Identity);
+    long eventId = event.getId();
+
+    agendaEventAttendeeService.sendEventResponse(eventId, userIdentityId, EventAttendeeResponse.DECLINED);
+    agendaEventAttendeeService.sendEventResponse(eventId,
+                                                 Long.parseLong(testuser3Identity.getId()),
+                                                 EventAttendeeResponse.ACCEPTED);
+
+    List<Long> ownerIds = Collections.singletonList(Long.parseLong(spaceIdentity.getId()));
+    List<Event> pendingEvents = agendaEventService.getPendingEvents(ownerIds, userIdentityId, ZoneOffset.UTC, 0, 10);
+    assertEquals(0, pendingEvents.size());
+    pendingEvents =
+                  agendaEventService.getPendingEvents(ownerIds, Long.parseLong(testuser2Identity.getId()), ZoneOffset.UTC, 0, 10);
+    assertEquals(1, pendingEvents.size());
+    pendingEvents =
+                  agendaEventService.getPendingEvents(ownerIds, Long.parseLong(testuser3Identity.getId()), ZoneOffset.UTC, 0, 10);
+    assertEquals(0, pendingEvents.size());
+
+    try {
+      agendaEventService.getPendingEvents(ownerIds, Long.parseLong(testuser4Identity.getId()), ZoneOffset.UTC, 0, 10);
+      fail();
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    try {
+      agendaEventService.getPendingEvents(ownerIds, Long.parseLong(testuser5Identity.getId()), ZoneOffset.UTC, 0, 10);
+      fail();
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+
+    ZonedDateTime occurrenceId = start.plusDays(1);
+    agendaEventService.saveEventExceptionalOccurrence(eventId, occurrenceId);
+    agendaEventService.saveEventExceptionalOccurrence(eventId, occurrenceId.plusDays(1));
+    Event exceptionalOccurrenceEvent = agendaEventService.getExceptionalOccurrenceEvent(eventId, occurrenceId);
+    assertNotNull(exceptionalOccurrenceEvent);
+    assertNotNull(exceptionalOccurrenceEvent.getOccurrence());
+
+    pendingEvents = agendaEventService.getPendingEvents(ownerIds, userIdentityId, ZoneOffset.UTC, 0, 10);
+    assertEquals(0, pendingEvents.size());
+    pendingEvents =
+                  agendaEventService.getPendingEvents(ownerIds, Long.parseLong(testuser2Identity.getId()), ZoneOffset.UTC, 0, 10);
+    assertEquals(1, pendingEvents.size());
+    pendingEvents =
+                  agendaEventService.getPendingEvents(ownerIds, Long.parseLong(testuser3Identity.getId()), ZoneOffset.UTC, 0, 10);
+    assertEquals(0, pendingEvents.size());
+
+    String exceptionalEventEndDateRFC3339 = AgendaDateUtils.toRFC3339Date(exceptionalOccurrenceEvent.getEnd().plusHours(1));
+    Map<String, List<String>> dateFields = getFields("end", exceptionalEventEndDateRFC3339);
+    agendaEventService.updateEventFields(exceptionalOccurrenceEvent.getId(), dateFields, false, false, userIdentityId);
+
+    pendingEvents = agendaEventService.getPendingEvents(ownerIds, userIdentityId, ZoneOffset.UTC, 0, 10);
+    assertEquals(0, pendingEvents.size());
+    pendingEvents =
+                  agendaEventService.getPendingEvents(ownerIds, Long.parseLong(testuser2Identity.getId()), ZoneOffset.UTC, 0, 10);
+    assertEquals(2, pendingEvents.size());
+    assertEquals(exceptionalOccurrenceEvent.getId(), pendingEvents.get(0).getId());
+    assertEquals(event.getId(), pendingEvents.get(1).getId());
+    pendingEvents =
+                  agendaEventService.getPendingEvents(ownerIds, Long.parseLong(testuser3Identity.getId()), ZoneOffset.UTC, 0, 10);
+    assertEquals(1, pendingEvents.size());
+    assertEquals(exceptionalOccurrenceEvent.getId(), pendingEvents.get(0).getId());
+
+    exceptionalOccurrenceEvent = agendaEventService.getEventById(exceptionalOccurrenceEvent.getId());
+    List<EventAttendee> eventAttendees = new ArrayList<>(agendaEventAttendeeService.getEventAttendees(eventId));
+    eventAttendees.add(new EventAttendee(0,
+                                         0,
+                                         Long.parseLong(testuser5Identity.getId()),
+                                         null));
+
+    agendaEventService.updateEvent(exceptionalOccurrenceEvent,
+                                   eventAttendees,
+                                   null,
+                                   null,
+                                   null,
+                                   null,
+                                   null,
+                                   false,
+                                   userIdentityId);
+    pendingEvents = agendaEventService.getPendingEvents(ownerIds, userIdentityId, ZoneOffset.UTC, 0, 10);
+    assertEquals(0, pendingEvents.size());
+    pendingEvents =
+                  agendaEventService.getPendingEvents(ownerIds, Long.parseLong(testuser2Identity.getId()), ZoneOffset.UTC, 0, 10);
+    assertEquals(2, pendingEvents.size());
+    assertEquals(exceptionalOccurrenceEvent.getId(), pendingEvents.get(0).getId());
+    assertEquals(event.getId(), pendingEvents.get(1).getId());
+    pendingEvents =
+                  agendaEventService.getPendingEvents(ownerIds, Long.parseLong(testuser3Identity.getId()), ZoneOffset.UTC, 0, 10);
+    assertEquals(1, pendingEvents.size());
+    assertEquals(exceptionalOccurrenceEvent.getId(), pendingEvents.get(0).getId());
+  }
 }
