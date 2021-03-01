@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang.StringUtils;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
+import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.dao.*;
 import org.exoplatform.agenda.entity.*;
 import org.exoplatform.agenda.model.*;
@@ -218,6 +219,11 @@ public class AgendaEventStorage {
       return false;
     }
     return event.getRecurrence() != null;
+  }
+
+  @ExoTransactional
+  public void deleteEventByStatus(EventStatus eventStatus) {
+    eventDAO.deleteEventByStatus(eventStatus);
   }
 
   private void updateEventCalendar(Event event, EventEntity eventEntity) {
