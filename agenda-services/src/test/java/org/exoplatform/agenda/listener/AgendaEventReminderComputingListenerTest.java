@@ -36,7 +36,7 @@ public class AgendaEventReminderComputingListenerTest extends BaseAgendaEventTes
 
   @Test
   public void testComputeEventReminders() throws Exception { // NOSONAR
-    ZonedDateTime start = ZonedDateTime.now();
+    ZonedDateTime start = getDate();
 
     boolean allDay = false;
 
@@ -58,8 +58,8 @@ public class AgendaEventReminderComputingListenerTest extends BaseAgendaEventTes
     }
 
     List<Event> events = agendaEventService.getEventOccurrencesInPeriod(event,
-                                                                        ZonedDateTime.now(),
-                                                                        ZonedDateTime.now().plusDays(2),
+                                                                        start,
+                                                                        start.plusDays(2),
                                                                         ZoneId.systemDefault(),
                                                                         0);
     assertNotNull(events);

@@ -119,7 +119,9 @@ public class EntityMapper {
       startDate = AgendaDateUtils.fromDate(eventEntity.getStartDate());
       endDate = AgendaDateUtils.fromDate(eventEntity.getEndDate());
       if (eventEntity.getOccurrenceId() != null) {
-        occurrence = new EventOccurrence(AgendaDateUtils.fromDate(eventEntity.getOccurrenceId()), true);
+        occurrence = new EventOccurrence(AgendaDateUtils.fromDate(eventEntity.getOccurrenceId()),
+                                         true,
+                                         eventEntity.isOccurrencePeriodChanged());
       }
     } else {
       recurrence = fromEntity(recurrenceEntity, eventEntity);
@@ -175,6 +177,7 @@ public class EntityMapper {
     eventEntity.setDescription(event.getDescription());
     eventEntity.setLocation(event.getLocation());
     eventEntity.setOccurrenceId(event.getOccurrence() == null ? null : AgendaDateUtils.toDate(event.getOccurrence().getId()));
+    eventEntity.setOccurrencePeriodChanged(event.getOccurrence() != null && event.getOccurrence().isDatesModified());
     eventEntity.setStatus(event.getStatus());
     eventEntity.setSummary(event.getSummary());
     eventEntity.setUpdatedDate(AgendaDateUtils.toDate(event.getUpdated()));

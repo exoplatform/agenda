@@ -21,7 +21,8 @@
   </component>
 
   <component>
-    <type>org.exoplatform.agenda.storage.AgendaEventStorage</type>
+    <key>org.exoplatform.agenda.storage.AgendaEventStorage</key>
+    <type>org.exoplatform.agenda.storage.cached.CachedAgendaEventStorage</type>
   </component>
 
   <component>

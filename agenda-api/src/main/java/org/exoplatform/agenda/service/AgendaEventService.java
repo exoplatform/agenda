@@ -326,8 +326,8 @@ public interface AgendaEventService {
    * @param offset
    * @param limit maximum number of occurrences to retrieve
    * @return {@link List} date poll {@link Event} for user
-   * @throws IllegalAccessException when user is not an allowed participant of
-   *           the event who can modifies it
+   * @throws IllegalAccessException when user is not an allowed to access one of
+   *           ownerIds events
    */
   List<Event> getEventDatePolls(List<Long> ownerIds,
                                 long attendeeId,
@@ -341,9 +341,38 @@ public interface AgendaEventService {
    * @param ownerIds {@link List} of {@link Identity} technical identifier
    * @param attendeeId user {@link Identity} identifier
    * @return {@link List} date poll {@link Event} for user
-   * @throws IllegalAccessException when user is not an allowed participant of
-   *           the event who can modifies it
+   * @throws IllegalAccessException when user is not an allowed to access one of
+   *           ownerIds events
    */
   long countEventDatePolls(List<Long> ownerIds, long attendeeId) throws IllegalAccessException;
+
+  /**
+   * Retrieve pending events that the selected user didn't answered yet
+   * 
+   * @param ownerIds {@link List} of {@link Identity} technical identifier
+   * @param userIdentityId user {@link Identity} identifier
+   * @param userTimeZone User time zone
+   * @param offset offset of the events to retrieve
+   * @param limit Limit of events to retrieve
+   * @return {@link List} of {@link Event}
+   * @throws IllegalAccessException when user is not an allowed to access one of
+   *           ownerIds events
+   */
+  List<Event> getPendingEvents(List<Long> ownerIds,
+                               long userIdentityId,
+                               ZoneId userTimeZone,
+                               int offset,
+                               int limit) throws IllegalAccessException;
+
+  /**
+   * Count pending events that the selected user didn't answered yet
+   * 
+   * @param ownerIds {@link List} of {@link Identity} technical identifier
+   * @param userIdentityId user {@link Identity} identifier
+   * @return pending events count
+   * @throws IllegalAccessException when user is not an allowed to access one of
+   *           ownerIds events
+   */
+  long countPendingEvents(List<Long> ownerIds, long userIdentityId) throws IllegalAccessException;
 
 }

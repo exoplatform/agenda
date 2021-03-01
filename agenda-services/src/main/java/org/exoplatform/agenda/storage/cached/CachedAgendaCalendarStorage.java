@@ -19,6 +19,7 @@ package org.exoplatform.agenda.storage.cached;
 import org.exoplatform.agenda.dao.CalendarDAO;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.storage.AgendaCalendarStorage;
+import org.exoplatform.agenda.storage.AgendaEventStorage;
 import org.exoplatform.commons.cache.future.FutureExoCache;
 import org.exoplatform.commons.cache.future.Loader;
 import org.exoplatform.services.cache.CacheService;
@@ -31,8 +32,11 @@ public class CachedAgendaCalendarStorage extends AgendaCalendarStorage {
 
   private FutureExoCache<Long, Calendar, Object> calendarFutureCache = null;
 
-  public CachedAgendaCalendarStorage(CacheService cacheService, CalendarDAO calendarDAO, ListenerService listenerService) {
-    super(calendarDAO, listenerService);
+  public CachedAgendaCalendarStorage(CacheService cacheService,
+                                     AgendaEventStorage agendaEventStorage,
+                                     CalendarDAO calendarDAO,
+                                     ListenerService listenerService) {
+    super(agendaEventStorage, calendarDAO, listenerService);
 
     ExoCache<Long, Calendar> calendarCache = cacheService.getCacheInstance(CALENDAR_CACHE_NAME);
     // Future cache is used for clustered environment improvements (usage of
@@ -40,18 +44,15 @@ public class CachedAgendaCalendarStorage extends AgendaCalendarStorage {
     this.calendarFutureCache = new FutureExoCache<>(new Loader<Long, Calendar, Object>() {
       @Override
       public Calendar retrieve(Object context, Long calendarId) throws Exception {
-        Calendar calendar = CachedAgendaCalendarStorage.super.getCalendarById(calendarId);
-        if (calendar != null) {
-          calendar = calendar.clone();
-        }
-        return calendar;
+        return CachedAgendaCalendarStorage.super.getCalendarById(calendarId);
       }
     }, calendarCache);
   }
 
   @Override
   public Calendar getCalendarById(long calendarId) {
-    return this.calendarFutureCache.get(null, calendarId);
+    Calendar calendar = this.calendarFutureCache.get(null, calendarId);
+    return calendar == null ? null : calendar.clone();
   }
 
   @Override

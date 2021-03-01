@@ -46,11 +46,12 @@ public class AgendaCalendarStorageTest {
   public void setUp() throws Exception { // NOSONAR
     CacheService cacheService = mock(CacheService.class);
     calendarDAO = mock(CalendarDAO.class);
+    AgendaEventStorage agendaEventStorage = mock(AgendaEventStorage.class);
     ListenerService listenerService = new ListenerService(new ExoContainerContext(null));
     listenerService = spy(listenerService);
     when(cacheService.getCacheInstance(CachedAgendaCalendarStorage.CALENDAR_CACHE_NAME)).thenReturn(new ConcurrentFIFOExoCache<>(CachedAgendaCalendarStorage.CALENDAR_CACHE_NAME,
                                                                                                                                  500));
-    agendaCalendarStorage = new CachedAgendaCalendarStorage(cacheService, calendarDAO, listenerService);
+    agendaCalendarStorage = new CachedAgendaCalendarStorage(cacheService, agendaEventStorage, calendarDAO, listenerService);
   }
 
   @Test
