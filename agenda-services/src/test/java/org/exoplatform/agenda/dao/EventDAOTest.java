@@ -98,6 +98,7 @@ public class EventDAOTest extends TestCase {
       assertEquals(startDate, eventEntity.getStartDate());
       assertEquals(endDate, eventEntity.getEndDate());
     } finally {
+      eventDAO.deleteCalendarEvents(calendarEntity.getId());
       calendarDAO.delete(calendarEntity);
     }
   }
@@ -111,6 +112,7 @@ public class EventDAOTest extends TestCase {
       eventEntity = eventDAO.find(eventEntity.getId());
       assertNull(eventEntity);
     } finally {
+      eventDAO.deleteCalendarEvents(calendarEntity.getId());
       calendarDAO.delete(calendarEntity);
     }
   }

@@ -26,16 +26,9 @@ import org.exoplatform.commons.persistence.impl.GenericDAOJPAImpl;
 
 public class CalendarDAO extends GenericDAOJPAImpl<CalendarEntity, Long> {
 
-  private EventDAO eventDAO;
-
-  public CalendarDAO(EventDAO eventDAO) {
-    this.eventDAO = eventDAO;
-  }
-
   @Override
   @ExoTransactional
   public void delete(CalendarEntity entity) {
-    this.eventDAO.deleteCalendarEvents(entity.getId());
     super.delete(entity);
   }
 

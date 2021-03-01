@@ -312,4 +312,10 @@
     <addUniqueConstraint tableName="EXO_AGENDA_ATTENDEE" columnNames="EVENT_ID,IDENTITY_ID" />
   </changeSet>
 
+  <changeSet author="agenda" id="1.0.0-21">
+    <addColumn tableName="EXO_AGENDA_EVENT">
+      <column name="OCCURRENCE_PERIOD_CHANGED" type="BOOLEAN" defaultValueBoolean="false" />
+    </addColumn>
+  </changeSet>
+
 </databaseChangeLog>

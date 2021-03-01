@@ -29,8 +29,14 @@ public class EventOccurrence implements Cloneable {
 
   private boolean       exceptional;
 
+  private boolean       datesModified;
+
+  public EventOccurrence(ZonedDateTime id) {
+    this.id = id;
+  }
+
   @Override
   public EventOccurrence clone() { // NOSONAR
-    return new EventOccurrence(id, exceptional);
+    return new EventOccurrence(id, exceptional, datesModified);
   }
 }

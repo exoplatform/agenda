@@ -29,13 +29,16 @@ import org.exoplatform.services.listener.ListenerService;
 
 public class AgendaCalendarStorage {
 
-  private ListenerService listenerService;
+  private AgendaEventStorage agendaEventStorage;
 
-  private CalendarDAO     calendarDAO;
+  private ListenerService    listenerService;
 
-  public AgendaCalendarStorage(CalendarDAO calendarDAO, ListenerService listenerService) {
-    this.listenerService = listenerService;
+  private CalendarDAO        calendarDAO;
+
+  public AgendaCalendarStorage(AgendaEventStorage agendaEventStorage, CalendarDAO calendarDAO, ListenerService listenerService) {
+    this.agendaEventStorage = agendaEventStorage;
     this.calendarDAO = calendarDAO;
+    this.listenerService = listenerService;
   }
 
   public List<Long> getCalendarIdsByOwnerIds(int offset, int limit, Long... ownerIds) {
@@ -70,6 +73,7 @@ public class AgendaCalendarStorage {
     if (calendarEntity == null) {
       return;
     }
+    this.agendaEventStorage.deleteCalendarEvents(calendarId);
     calendarDAO.delete(calendarEntity);
     Utils.broadcastEvent(listenerService, "exo.agenda.calendar.deleted", fromEntity(calendarEntity), null);
   }
