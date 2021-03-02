@@ -69,9 +69,6 @@ export default {
       default: () => null
     },
   },
-  data: () => ({
-    confirmDeleteEvent: false,
-  }),
   computed: {
     connectedConnector() {
       return this.connectors && this.connectors.find(connector => connector.connected);
@@ -86,46 +83,28 @@ export default {
       return this.event.acl && this.event.acl.attendee;
     },
   },
-  created() {
-    this.$root.$on('confirm-delete-event', (data) => {
-      this.confirmDeleteEvent = data;
-    });
-  },
   methods:{
     deleteEvent() {
-      this.$eventService.updateEventFields(this.event.id, {
-        status :'CANCELLED',
-      }, false, true)
+      const eventsToDelete = {
+        eventId: this.event.id,
+      };
+      localStorage.setItem(`eventsToDelete${this.event.id}`,JSON.stringify(eventsToDelete));
+      /* this.$eventService.deleteEvent(this.event.id, 'delay')
         .then(() => {
-          this.$eventService.sendEventResponse(this.event.id, null, 'ACCEPTED').then(() =>
-            this.$root.$emit('agenda-event-response-sent', this.event, null, 'ACCEPTED')
-          );
           this.$root.$emit('agenda-refresh', this.event);
           this.$root.$emit('event-canceled', this.event);
           this.$emit('close');
-        }).then(()=>{
-          if(this.confirmDeleteEvent) {
-            window.setTimeout(() =>this.$eventService.deleteEvent(this.event.id),10000);
-            this.confirmDeleteEvent = true;
-          }
-        });
+        });*/
+      this.$root.$emit('agenda-refresh', this.event);
+      this.$root.$emit('event-canceled', this.event);
+      this.$emit('close');
     },
     deleteConfirmDialog() {
       if (!this.isDatePoll) {
         this.$refs.deleteConfirmDialog.open();
       } else {
-        this.$eventService.updateEventFields(this.event.id, {
-          status :'CANCELLED'
-        }, false, true)
-          .then(() => {
-            this.$root.$emit('event-canceled', this.event);
-            this.$emit('close');
-          }).then(()=>{
-            if(this.confirmDeleteEvent) {
-              window.setTimeout(() =>this.$eventService.deleteEvent(this.event.id),10000);
-              this.this.confirmDeleteEvent = true;
-            }
-          });
+        this.$eventService.deleteEvent(this.event.id)
+          .then(() => this.$root.$emit('agenda-event-deleted', this.event));
       }
     },
   },

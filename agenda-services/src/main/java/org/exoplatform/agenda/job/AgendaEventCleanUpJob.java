@@ -33,7 +33,8 @@ public class AgendaEventCleanUpJob implements Job {
     ExoContainerContext.setCurrentContainer(container);
     RequestLifeCycle.begin(this.container);
     try {
-      getAgendaEventService().deleteEventByStatus(EventStatus.CANCELLED);
+      //TODO
+      //getAgendaEventService().deleteEventByStatus(EventStatus.CANCELLED);
     } catch (Exception e) {
       LOG.error("Error while computing reminder date of events", e);
     } finally {

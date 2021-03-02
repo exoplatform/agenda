@@ -24,7 +24,6 @@ export default {
   },
   data: () => ({
     alerts: [],
-    confirmDeleteEvent: true,
   }),
   computed: {
     displayAlerts() {
@@ -70,16 +69,10 @@ export default {
       this.$forceUpdate();
     },
     undoDeleteEvent(event) {
-      this.$eventService.updateEventFields(event.id, {
-        status : event.status
-      }, false, true)
-        .then(() => {
-          this.confirmDeleteEvent = false;
-          this.$root.$emit('undo-event-remove', event);
-          this.$root.$emit('agenda-refresh', event);
-          this.$root.$emit('confirm-delete-event', this.confirmDeleteEvent);
-          this.$root.$emit('agenda-event-details', event);
-        });
+      localStorage.removeItem(`eventsToDelete${event.id}`);
+      this.$root.$emit('confirm-delete');
+      this.$root.$emit('agenda-refresh', event);
+      this.$root.$emit('agenda-event-details', event);
     }
   },
 };

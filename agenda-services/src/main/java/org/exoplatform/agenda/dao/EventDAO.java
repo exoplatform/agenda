@@ -405,24 +405,6 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     }
   }
 
-  @ExoTransactional
-  public void deleteEventByStatus(EventStatus eventStatus) {
-    TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaEvent.getEventByStatus", Long.class);
-    query.setParameter("status", eventStatus);
-    List<Long> eventList = query.getResultList();
-    if(eventList !=null && !eventList.isEmpty()) {
-      for(Long eventId:eventList) {
-        EventEntity eventEntity = find(eventId);
-        this.eventConferenceDAO.deleteEventConferences(eventId);
-        this.eventAttendeeDAO.deleteEventAttendees(eventId);
-        this.eventAttachmentDAO.deleteEventAttachments(eventId);
-        this.eventReminderDAO.deleteEventReminders(eventId);
-        this.remoteEventDAO.deleteRemoteEvents(eventId);
-        deleteEvent(eventEntity.getId());
-      }
-    }
-  }
-
   private List<Long> getChildEvents(long eventId) {
     TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaEvent.getChildEvents", Long.class);
     query.setParameter("parentEventId", eventId);

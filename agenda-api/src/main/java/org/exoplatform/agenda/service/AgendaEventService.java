@@ -21,7 +21,6 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
 
-import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
@@ -375,12 +374,5 @@ public interface AgendaEventService {
    *           ownerIds events
    */
   long countPendingEvents(List<Long> ownerIds, long userIdentityId) throws IllegalAccessException;
-
-  /**
-   * Delete events by status
-   * 
-   * @param eventStatus event attendees of type {@link EventStatus}
-   */
-  void deleteEventByStatus(EventStatus eventStatus);
 
 }

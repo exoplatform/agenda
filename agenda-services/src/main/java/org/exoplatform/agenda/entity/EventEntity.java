@@ -209,12 +209,6 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
               + " AND att.identityId IN (:attendeeIds)"
               + " AND cal.ownerId IN (:ownerIds)"
       ),
-      @NamedQuery(
-          name = "AgendaEvent.getEventByStatus",
-          query = "SELECT DISTINCT(ev.id) FROM AgendaEvent ev WHERE ev.status = :status"
-              + " AND ev.occurrenceId IS NOT NULL"
-              + " AND ev.parent IS NULL"
-      )
   }
 )
 public class EventEntity implements Serializable {

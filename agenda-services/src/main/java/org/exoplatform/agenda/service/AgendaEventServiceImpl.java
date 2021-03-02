@@ -1144,14 +1144,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     return this.agendaEventStorage.countEventDatePolls(ownerIds, attendeeIds);
   }
 
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public void deleteEventByStatus(EventStatus eventStatus) {
-    agendaEventStorage.deleteEventByStatus(eventStatus);
-  }
-
   private void checkAndComputeDateOptions(Event event, List<EventDateOption> dateOptions) throws AgendaException {
     if (dateOptions != null && dateOptions.size() == 1) {
       EventDateOption eventDateOption = dateOptions.get(0);
