@@ -19,6 +19,10 @@ package org.exoplatform.agenda.rest;
 import java.net.URI;
 import java.time.*;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import javax.annotation.security.RolesAllowed;
@@ -75,6 +79,8 @@ public class AgendaEventRest implements ResourceContainer {
   private AgendaRemoteEventService     agendaRemoteEventService;
 
   private AgendaEventDatePollService   agendaEventDatePollService;
+
+  private Set<Long>                    eventsToDeleteQueue = new HashSet<>();
 
   private String                       defaultSite    = null;
 
@@ -743,7 +749,28 @@ public class AgendaEventRest implements ResourceContainer {
       if (eventEntity == null) {
         return Response.status(Status.NOT_FOUND).entity("Event not found").build();
       }
-      agendaEventService.deleteEventById(eventId, userIdentityId);
+      eventsToDeleteQueue.add(eventId);
+      ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+      Runnable task = () -> {
+          if (eventsToDeleteQueue.contains(eventId)) {
+            eventsToDeleteQueue.remove(eventId);
+            try {
+              agendaEventService.deleteEventById(eventId, userIdentityId);
+            } catch (IllegalAccessException e) {
+              LOG.warn("User '{}' attempts to select Date Option on a not authorized event with Id '{}'",
+                      RestUtils.getCurrentUser(),
+                      eventId,
+                      e);
+            } catch (ObjectNotFoundException e) {
+              LOG.debug("User '{}' attempts to delete not existing event '{}'", userIdentityId, eventId, e);
+            }
+          }
+      };
+      if (delay > 0) {
+        scheduler.schedule(task, delay, TimeUnit.SECONDS);
+      } else {
+        agendaEventService.deleteEventById(eventId, userIdentityId);
+      }
       return Response.ok(eventEntity).build();
     } catch (IllegalAccessException e) {
       LOG.error("User '{}' attempts to delete a non authorized event", RestUtils.getCurrentUser(), e);
@@ -1474,6 +1501,37 @@ public class AgendaEventRest implements ResourceContainer {
       return Response.ok(eventList).build();
     } catch (Exception e) {
       LOG.warn("Error retrieving list of pending events", e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
+  @Path("{eventId}/undoDelete")
+  @GET
+  @ApiOperation(
+          value = "Undo delete event for currently authenticated user (using token or effectively authenticated).",
+          httpMethod = "GET",
+          response = Response.class
+  )
+  @ApiResponses(
+          value = {
+                  @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
+                  @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+                  @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+                  @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+          )
+  public Response undoDeleteEvent(@ApiParam(value = "Event technical identifier", required = true)
+                                  @PathParam(
+                                    "eventId"
+                                  )
+                                  long eventId) {
+    if (eventId <= 0) {
+      return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
+    }
+    try {
+      eventsToDeleteQueue.remove(eventId);
+      return Response.noContent().build();
+    } catch (Exception e) {
+      LOG.warn("Error undo deleting event with id '{}'", eventId, e);
       return Response.serverError().entity(e.getMessage()).build();
     }
   }

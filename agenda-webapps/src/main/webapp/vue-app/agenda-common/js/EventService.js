@@ -248,8 +248,8 @@ export function saveEventReminders(eventId, occurrenceId, reminders, upcoming) {
   });
 }
 
-export function deleteEvent(eventId) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}?timeZoneId=${USER_TIMEZONE_ID}`, {
+export function deleteEvent(eventId, delay) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}?timeZoneId=${USER_TIMEZONE_ID}&delay=${delay}`, {
     method: 'DELETE',
     credentials: 'include',
   })
