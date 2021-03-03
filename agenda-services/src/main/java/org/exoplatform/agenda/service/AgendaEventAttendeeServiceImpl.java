@@ -138,6 +138,17 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
   public void sendEventResponse(long eventId,
                                 long identityId,
                                 EventAttendeeResponse response) throws ObjectNotFoundException, IllegalAccessException {
+    sendEventResponse(eventId, identityId, response, true);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void sendEventResponse(long eventId,
+                                long identityId,
+                                EventAttendeeResponse response,
+                                boolean broadcast) throws ObjectNotFoundException, IllegalAccessException {
     if (response == null) {
       throw new IllegalArgumentException("Attendee response is mandatory");
     }
@@ -154,7 +165,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       throw new IllegalAccessException("User with identity id " + identityId + " isn't attendee of event with id " + eventId);
     }
 
-    saveEventAttendee(eventId, identityId, response, true);
+    saveEventAttendee(eventId, identityId, response, broadcast);
 
     // Apply modification on exceptional occurrences as well
     if (eventStorage.isRecurrentEvent(eventId)) {

@@ -11,6 +11,11 @@
       <type>org.exoplatform.agenda.listener.AgendaESListener</type>
     </component-plugin>
     <component-plugin>
+      <name>exo.agenda.event.poll.created</name>
+      <set-method>addListener</set-method>
+      <type>org.exoplatform.agenda.listener.AgendaESListener</type>
+    </component-plugin>
+    <component-plugin>
       <name>exo.agenda.event.updated</name>
       <set-method>addListener</set-method>
       <type>org.exoplatform.agenda.listener.AgendaESListener</type>

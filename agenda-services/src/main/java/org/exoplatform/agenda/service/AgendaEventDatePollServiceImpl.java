@@ -57,8 +57,6 @@ public class AgendaEventDatePollServiceImpl implements AgendaEventDatePollServic
       createdDateOptions.add(createdDateOption);
     }
 
-    Utils.broadcastEvent(listenerService, Utils.POST_CREATE_AGENDA_EVENT_POLL, eventId, userIdentityId);
-
     return createdDateOptions;
   }
 
@@ -103,7 +101,6 @@ public class AgendaEventDatePollServiceImpl implements AgendaEventDatePollServic
       datePollStorage.deleteDateOption(eventDateOption);
     }
 
-    Utils.broadcastEvent(listenerService, Utils.POST_UPDATE_AGENDA_EVENT_POLL, eventId, dateOptions);
     return dateOptionModifications;
   }
 
