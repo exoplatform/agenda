@@ -4,6 +4,7 @@
     color="transparent"
     elevation="0"
     absolute
+    app
     left>
     <agenda-notification-alert
       v-for="(alert, index) in alerts"
@@ -15,6 +16,12 @@
 
 <script>
 export default {
+  props: {
+    name: {
+      type: String,
+      default: null
+    },
+  },
   data: () => ({
     alerts: [],
   }),
@@ -25,7 +32,10 @@ export default {
   },
   created() {
     this.$root.$on('agenda-notification-alert', alert => this.alerts.push(alert));
-    this.$root.$on('agenda-event-saved', event => {
+    this.$root.$on('agenda-event-saved', (event, name) => {
+      if (name !== this.name && (this.name || !this.name !== !name)) {
+        return;
+      }
       if (event && event.id) {
         const isDatePoll = event.dateOptions && event.dateOptions.length > 1;
         const isNew = !event.updated;
