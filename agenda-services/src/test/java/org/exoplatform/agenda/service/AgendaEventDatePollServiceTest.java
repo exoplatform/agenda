@@ -72,6 +72,9 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     assertEquals(start.withZoneSameInstant(ZoneOffset.UTC), createdEvent.getStart());
     assertEquals(end.withZoneSameInstant(ZoneOffset.UTC), createdEvent.getEnd());
     assertEquals(EventStatus.CONFIRMED, createdEvent.getStatus());
+    assertNotNull(eventCreationReference.get());
+    assertEquals(createdEvent.getId(), eventCreationReference.get().getEventId());
+    assertNull(eventPollCreationReference.get());
 
     List<EventDateOption> dateOptions = agendaEventDatePollService.getEventDateOptions(createdEvent.getId(), ZoneOffset.UTC);
     assertTrue(dateOptions == null || dateOptions.isEmpty());
@@ -149,6 +152,9 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     assertEquals(dateOption1.getStart().withZoneSameInstant(ZoneOffset.UTC), createdEvent.getStart());
     assertEquals(dateOption2.getEnd().withZoneSameInstant(ZoneOffset.UTC), createdEvent.getEnd());
     assertEquals(EventStatus.TENTATIVE, createdEvent.getStatus());
+    assertNotNull(eventPollCreationReference.get());
+    assertEquals(createdEvent.getId(), eventPollCreationReference.get().getEventId());
+    assertNull(eventCreationReference.get());
 
     List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(createdEvent.getId());
     assertNotNull(eventAttendees);

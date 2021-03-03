@@ -44,6 +44,8 @@ public abstract class BaseAgendaEventTest {
 
   protected static AtomicReference<AgendaEventModification> eventCreationReference;
 
+  protected static AtomicReference<AgendaEventModification> eventPollCreationReference;
+
   protected static AtomicReference<AgendaEventModification> eventDeletionReference;
 
   protected static AtomicReference<AgendaEventModification> eventUpdateReference;
@@ -132,8 +134,16 @@ public abstract class BaseAgendaEventTest {
         }
       };
       listenerService.addListener(Utils.POST_CREATE_AGENDA_EVENT_EVENT, creationListener);
-    } else {
-      eventCreationReference.set(null);
+    }
+    if (eventPollCreationReference == null) {
+      eventPollCreationReference = new AtomicReference<>();// NOSONAR
+      Listener<AgendaEventModification, Object> pollCreationListener = new Listener<AgendaEventModification, Object>() {
+        @Override
+        public void onEvent(org.exoplatform.services.listener.Event<AgendaEventModification, Object> event) throws Exception {
+          eventPollCreationReference.set(event.getSource());
+        }
+      };
+      listenerService.addListener(Utils.POST_CREATE_AGENDA_EVENT_POLL, pollCreationListener);
     }
     if (eventUpdateReference == null) {
       eventUpdateReference = new AtomicReference<>();// NOSONAR
@@ -144,8 +154,6 @@ public abstract class BaseAgendaEventTest {
         }
       };
       listenerService.addListener(Utils.POST_UPDATE_AGENDA_EVENT_EVENT, updateListener);
-    } else {
-      eventUpdateReference.set(null);
     }
     if (eventDeletionReference == null) {
       eventDeletionReference = new AtomicReference<>();// NOSONAR
@@ -156,8 +164,6 @@ public abstract class BaseAgendaEventTest {
         }
       };
       listenerService.addListener(Utils.POST_DELETE_AGENDA_EVENT_EVENT, deletionListener);
-    } else {
-      eventDeletionReference.set(null);
     }
   }
 
@@ -235,6 +241,11 @@ public abstract class BaseAgendaEventTest {
       agendaCalendarService.deleteCalendarById(calendar.getId());
       calendar = null;
     }
+
+    eventCreationReference.set(null);
+    eventPollCreationReference.set(null);
+    eventUpdateReference.set(null);
+    eventDeletionReference.set(null);
   }
 
   @SuppressWarnings("unchecked")
