@@ -53,7 +53,9 @@ public class AgendaReplyOnSaveListener extends Listener<AgendaEventModification,
             for (EventAttendee eventAttendee : eventAttendees) {
               EventAttendeeResponse response = modifierId == eventAttendee.getIdentityId() ? EventAttendeeResponse.ACCEPTED
                                                                                            : EventAttendeeResponse.NEEDS_ACTION;
-              getAgendaEventAttendeeService().sendEventResponse(eventId, eventAttendee.getIdentityId(), response);
+              if (eventAttendee.getResponse() != response) {
+                getAgendaEventAttendeeService().sendEventResponse(eventId, eventAttendee.getIdentityId(), response, false);
+              }
             }
           }
           break;

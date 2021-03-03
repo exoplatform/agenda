@@ -25,7 +25,7 @@ public class AgendaVotesListener extends Listener<Long, Long> {
   public void onEvent(Event<Long, Long> event) throws Exception {
     long eventId = event.getSource();
     long identityId = event.getData();
-    getAttendeeService().sendEventResponse(eventId, identityId, EventAttendeeResponse.TENTATIVE);
+    getAttendeeService().sendEventResponse(eventId, identityId, EventAttendeeResponse.TENTATIVE, false);
   }
 
   private AgendaEventAttendeeService getAttendeeService() {

@@ -139,6 +139,22 @@ public interface AgendaEventAttendeeService {
                                                                 IllegalAccessException;
 
   /**
+   * @param eventId Technical identifier of {@link Event}
+   * @param identityId {@link Identity} technical identifier of user
+   * @param response User response of type {@link EventAttendeeResponse} to the
+   *          event. The value {@link EventAttendeeResponse#NEEDS_ACTION} isn't
+   *          allowed.
+   * @param broadcast whether broadcast event about this change or not
+   * @throws ObjectNotFoundException when event with provided identifier doesn't
+   *           exists
+   * @throws IllegalAccessException when user is not an invitee of the event
+   */
+  public void sendEventResponse(long eventId,
+                                long identityId,
+                                EventAttendeeResponse response,
+                                boolean broadcast) throws ObjectNotFoundException, IllegalAccessException;
+
+  /**
    * Checks whether the user is an attendee of the event or not
    * 
    * @param eventId Technical identifier of {@link Event}

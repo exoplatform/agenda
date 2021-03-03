@@ -348,7 +348,13 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                          eventModifications);
     }
 
-    Utils.broadcastEvent(listenerService, Utils.POST_CREATE_AGENDA_EVENT_EVENT, eventModifications, null);
+    if (createdEvent.getStatus() == EventStatus.TENTATIVE) {
+      Utils.broadcastEvent(listenerService, Utils.POST_CREATE_AGENDA_EVENT_POLL, eventModifications, null);
+    } else if (createdEvent.getStatus() == EventStatus.CONFIRMED) {
+      Utils.broadcastEvent(listenerService, Utils.POST_CREATE_AGENDA_EVENT_EVENT, eventModifications, null);
+    } else if (createdEvent.getStatus() == EventStatus.CANCELLED) {
+      Utils.broadcastEvent(listenerService, Utils.POST_DELETE_AGENDA_EVENT_EVENT, eventModifications, null);
+    }
     return createdEvent;
   }
 
