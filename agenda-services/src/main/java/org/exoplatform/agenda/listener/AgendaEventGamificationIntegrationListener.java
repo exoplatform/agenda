@@ -23,7 +23,7 @@ import org.exoplatform.services.log.Log;
  * points.
  */
 @Asynchronous
-public class AgendaEventGamificationIntegrationListener extends Listener<AgendaEventModification, Object> {
+public class AgendaEventGamificationIntegrationListener extends Listener<Object, Object> {
 
   private static final Log   LOG                                      =
                                  ExoLogger.getLogger(AgendaEventGamificationIntegrationListener.class);
@@ -50,14 +50,28 @@ public class AgendaEventGamificationIntegrationListener extends Listener<AgendaE
   }
 
   @Override
-  public void onEvent(Event<AgendaEventModification, Object> event) throws Exception {
+  public void onEvent(Event<Object, Object> event) throws Exception {
     ExoContainerContext.setCurrentContainer(container);
     RequestLifeCycle.begin(container);
     try {
       String eventName = event.getEventName();
-      AgendaEventModification eventModification = event.getSource();
-      Long eventId = eventModification.getEventId();
-      Long earnerId = eventModification.getModifierId();
+      Long eventId = null;
+      Long earnerId = null;
+      if (event.getSource() instanceof AgendaEventModification) {
+        AgendaEventModification eventModification = (AgendaEventModification) event.getSource();
+        eventId = eventModification.getEventId();
+        earnerId = eventModification.getModifierId();
+      } else if (event.getSource() instanceof Long) {
+        eventId = (Long) event.getSource();
+        earnerId = (Long) event.getData();
+      }
+      if (earnerId == null || eventId == null) {
+        LOG.warn("Gamification points for event {} aren't collected because empty inputs: eventId: {}, modifierId: {}",
+                 event.getEventName(),
+                 eventId,
+                 earnerId);
+        return;
+      }
       org.exoplatform.agenda.model.Event agendaEvent = getAgendaEventService().getEventById(eventId);
       String eventURL = NotificationUtils.getEventURL(agendaEvent);
       String ruleTitle = "";
@@ -90,14 +104,23 @@ public class AgendaEventGamificationIntegrationListener extends Listener<AgendaE
           } catch (Exception e) {
             LOG.error("Cannot broadcast gamification event", e);
           }
+        } else {
+          LOG.warn("Not recognized event name {} for Agenda Poll gamification points collection. eventId: {}, modifierId: {}",
+                   event.getEventName(),
+                   eventId,
+                   earnerId);
         }
-      }
-
-      if (agendaEvent.getStatus() == EventStatus.CONFIRMED) {
+      } else if (agendaEvent.getStatus() == EventStatus.CONFIRMED) {
         if (StringUtils.equals(eventName, Utils.POST_CREATE_AGENDA_EVENT_EVENT)) {
           ruleTitle = GAMIFICATION_CREATE_EVENT_RULE_TITLE;
         } else if (StringUtils.equals(eventName, Utils.POST_UPDATE_AGENDA_EVENT_EVENT)) {
           ruleTitle = GAMIFICATION_UPDATE_EVENT_RULE_TITLE;
+        } else {
+          LOG.warn("Not recognized event name {} for Agenda Event gamification points collection. eventId: {}, modifierId: {}",
+                   event.getEventName(),
+                   eventId,
+                   earnerId);
+          return;
         }
 
         try {
