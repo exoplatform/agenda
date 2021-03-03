@@ -71,6 +71,7 @@
       <template #event="eventObj">
         <div
           v-if="!eventObj.event || eventObj.event.type !== 'remoteEvent'"
+          :class="eventObj.event.dateOption && 'editing-event' || ''"
           class="readonly-event">
           <p
             :title="eventObj.event.summary"
@@ -201,6 +202,11 @@ export default {
     },
   },
   watch: {
+    displayedEvents() {
+      window.setTimeout(() => {
+        this.adjustEditingEventsZIndex();
+      }, 200);
+    },
     connectedConnector() {
       this.retrieveRemoteEvents();
     },
@@ -224,6 +230,11 @@ export default {
     this.scrollToEvent();
   },
   methods: {
+    adjustEditingEventsZIndex() {
+      // A JS trick to force displaying events that are edited
+      // displayed on top of the readonly events
+      $('div:has(>.editing-event)').css('z-index', '1');
+    },
     scrollToEvent() {
       const dateOption = this.event.dateOptions && this.event.dateOptions.length && this.event.dateOptions[0] || this.event;
       const dateToScrollTo = dateOption && dateOption.startDate || Date.now();
