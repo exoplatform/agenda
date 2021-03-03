@@ -50,7 +50,7 @@ export default {
         });
       }
     });
-    this.$root.$on('event-canceled', event => {
+    this.$root.$on('agenda-event-deleted', event => {
       if (event && event.id) {
         const clickMessage = this.$t('agenda.undoRemoveDatePoll');
         const message = this.$t('agenda.datePollDeleteSuccess');
@@ -69,10 +69,8 @@ export default {
       this.$forceUpdate();
     },
     undoDeleteEvent(event) {
-      localStorage.removeItem(`eventsToDelete${event.id}`);
-      this.$root.$emit('confirm-delete');
-      this.$root.$emit('agenda-refresh', event);
-      this.$root.$emit('agenda-event-details', event);
+      return this.$eventService.undoDeleteEvent(event.id)
+        .then(() => this.$root.$emit('agenda-refresh', event));
     }
   },
 };

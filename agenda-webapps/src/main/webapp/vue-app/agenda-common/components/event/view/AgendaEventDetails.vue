@@ -84,28 +84,12 @@ export default {
     },
   },
   methods:{
-    deleteEvent() {
-      const eventsToDelete = {
-        eventId: this.event.id,
-      };
-      localStorage.setItem(`eventsToDelete${this.event.id}`,JSON.stringify(eventsToDelete));
-      this.$eventService.deleteEvent(this.event.id, 5000)
-        .then(() => {
-          this.$root.$emit('agenda-refresh', this.event);
-          this.$root.$emit('event-canceled', this.event);
-          this.$emit('close');
-        });
-      this.$root.$emit('agenda-refresh', this.event);
-      this.$root.$emit('event-canceled', this.event);
-      this.$emit('close');
-    },
     deleteConfirmDialog() {
-      if (!this.isDatePoll) {
-        this.$refs.deleteConfirmDialog.open();
-      } else {
-        this.$eventService.deleteEvent(this.event.id)
-          .then(() => this.$root.$emit('agenda-event-deleted', this.event));
-      }
+      this.$refs.deleteConfirmDialog.open();
+    },
+    deleteEvent() {
+      this.$eventService.deleteEvent(this.event.id, 10000)
+        .then(() => this.$root.$emit('agenda-event-deleted', this.event));
     },
   },
 };
