@@ -89,12 +89,12 @@ export default {
         eventId: this.event.id,
       };
       localStorage.setItem(`eventsToDelete${this.event.id}`,JSON.stringify(eventsToDelete));
-      /* this.$eventService.deleteEvent(this.event.id, 'delay')
+      this.$eventService.deleteEvent(this.event.id, 5000)
         .then(() => {
           this.$root.$emit('agenda-refresh', this.event);
           this.$root.$emit('event-canceled', this.event);
           this.$emit('close');
-        });*/
+        });
       this.$root.$emit('agenda-refresh', this.event);
       this.$root.$emit('event-canceled', this.event);
       this.$emit('close');
