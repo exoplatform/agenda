@@ -4,33 +4,12 @@
     :loading="loading"
     flat
     class="event-details event-poll-details d-flex flex-column">
-    <div :class="displayHasVotedInfo && 'pb-2' || 'pb-6'" class="d-flex flex-row px-6 pt-8">
+    <div :class="displayHasVotedInfo && 'pb-2' || 'pb-6'" class="px-6 pt-8">
       <div class="flex-grow-1 mx-8">
         <v-row class="event-details-header d-flex align-center flex-nowrap text-center col-12">
-          <v-col :title="event.summary" class="event-title title text-truncate col-auto pl-4 py-0 mx-auto">
-            {{ event.summary }}
+          <v-col class="font-italic subtitle-1 col-auto pl-4 py-0 mx-auto justify-center mb-10">
+            {{ event.description }}
           </v-col>
-        </v-row>
-        <v-row class="justify-center">
-          <div class="flex-grow-0 px-0 my-auto">
-            {{ $t('agenda.label.createdBy', {0: creatorFullName}) }},
-          </div>
-          <div class="flex-grow-0 px-0 ml-1 mr-2 my-auto">
-            {{ $t('agenda.label.in') }}
-          </div>
-          <div class="flex-grow-0 d-flex px-0 my-auto">
-            <exo-space-avatar
-              :space="ownerProfile"
-              :size="24"
-              :labels="labels" />
-          </div>
-          <div class="d-flex flex-grow-0 px-0 ml-2 my-auto">
-            {{ $t('agenda.label.onDate') }}
-            <date-format
-              :value="event.created"
-              :format="fullDateFormat"
-              class="ml-1" />
-          </div>
         </v-row>
       </div>
     </div>
@@ -93,6 +72,7 @@
             :date-options="dateOptions"
             :selected-date-index="selectedDateOptionIndex"
             :is-voting="isVoting"
+            :event="event"
             @changed="enableVoteButton"
             @change-vote="isVoting = true" />
         </template>
@@ -102,16 +82,6 @@
       v-if="isAttendee"
       no-gutters
       class="mx-6 mb-6">
-      <v-col v-if="isCreator && !isVoting">
-        <v-btn
-          :disabled="sendingVotes || creatingEvent"
-          class="btn primary"
-          color="primary"
-          outlined
-          @click="$root.$emit('agenda-event-form', event, true)">
-          {{ $t('agenda.changeDates') }}
-        </v-btn>
-      </v-col>
       <v-col class="d-flex">
         <template v-if="isVoting">
           <v-btn
@@ -190,9 +160,6 @@ export default {
     },
     displayHasVotedInfo() {
       return this.hasVoted && !this.isVoting;
-    },
-    creatorFullName() {
-      return this.event && this.event.creator && this.event.creator.profile && this.event.creator.profile.fullname || '';
     },
     owner() {
       return this.event && this.event.calendar && this.event.calendar.owner;
