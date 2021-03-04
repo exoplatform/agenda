@@ -88,7 +88,7 @@ export default {
       this.$refs.deleteConfirmDialog.open();
     },
     deleteEvent() {
-      this.$eventService.deleteEvent(this.event.id, 10000)
+      this.$eventService.deleteEvent(this.event.id, 10)
         .then(() => this.$root.$emit('agenda-event-deleted', this.event));
     },
   },
