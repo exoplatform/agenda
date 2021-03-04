@@ -268,6 +268,9 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       ctx.append(EVENT_MODIFICATION_TYPE, AgendaEventModificationType.DELETED.name());
     } else if (eventModifications.hasModification(AgendaEventModificationType.ADDED)) {
       ctx.append(EVENT_MODIFICATION_TYPE, AgendaEventModificationType.ADDED.name());
+    } else if (eventModifications.hasModification(AgendaEventModificationType.START_DATE_UPDATED)
+        || eventModifications.hasModification(AgendaEventModificationType.END_DATE_UPDATED)) {
+      ctx.append(EVENT_MODIFICATION_TYPE, AgendaEventModificationType.DATES_UPDATED.name());
     } else if (eventModifications.hasModification(AgendaEventModificationType.UPDATED)) {
       ctx.append(EVENT_MODIFICATION_TYPE, AgendaEventModificationType.UPDATED.name());
     }
