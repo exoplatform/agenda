@@ -55,6 +55,8 @@ export default {
     this.$root.$on('agenda-event-response-sent', this.countPendingEvents);
     this.$root.$on('agenda-event-saved', this.countDatePolls);
     this.$root.$on('agenda-event-deleted', this.countPendingInvitations);
+    this.$root.$on('agenda-alert-hidden', this.countPendingInvitations);
+    this.$root.$on('agenda-remove-event-drawer', this.countPendingInvitations);
     if (this.spaceRetrieved) {
       this.countPendingInvitations();
     }

@@ -371,6 +371,15 @@ export function getDatePolls(ownerId, offset, limit, expand) {
     } else {
       throw new Error('Error getting pending date poll list');
     }
+  }).then((data) => {
+    let events = data && data.events || [];
+    let deletedEventId = localStorage.getItem('agendaDeletedEvents');
+    if (deletedEventId) {
+      deletedEventId = Number(deletedEventId);
+      events = events.filter(event => Number(event.id) !== deletedEventId && (!event.parent || Number(event.parent.id) !== deletedEventId));
+      data.events = events;
+    }
+    return data;
   });
 }
 
@@ -415,6 +424,15 @@ export function getPendingEvents(ownerId, offset, limit, expand) {
     } else {
       throw new Error('Error getting pending event list');
     }
+  }).then((data) => {
+    let events = data && data.events || [];
+    let deletedEventId = localStorage.getItem('agendaDeletedEvents');
+    if (deletedEventId) {
+      deletedEventId = Number(deletedEventId);
+      events = events.filter(event => Number(event.id) !== deletedEventId && (!event.parent || Number(event.parent.id) !== deletedEventId));
+      data.events = events;
+    }
+    return data;
   });
 }
 

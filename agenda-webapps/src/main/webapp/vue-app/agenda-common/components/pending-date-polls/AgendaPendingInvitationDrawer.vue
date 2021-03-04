@@ -80,6 +80,7 @@ export default {
   },
   created() {
     this.$root.$on('agenda-pending-date-polls-drawer-open', this.open);
+    this.$root.$on('agenda-event-deleted',this.retrievePendingInvitations);
   },
   methods: {
     close() {
