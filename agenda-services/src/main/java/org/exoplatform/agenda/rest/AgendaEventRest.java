@@ -776,9 +776,9 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       if (delay > 0) {
         eventsToDeleteQueue.put(eventId, userIdentityId);
         scheduledExecutor.schedule(() -> {
-          ExoContainerContext.setCurrentContainer(container);
-          RequestLifeCycle.begin(container);
           if (eventsToDeleteQueue.containsKey(eventId)) {
+            ExoContainerContext.setCurrentContainer(container);
+            RequestLifeCycle.begin(container);
             try {
               eventsToDeleteQueue.remove(eventId);
               agendaEventService.deleteEventById(eventId, userIdentityId);
