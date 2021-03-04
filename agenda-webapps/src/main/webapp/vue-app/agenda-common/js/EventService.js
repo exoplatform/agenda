@@ -285,13 +285,13 @@ export function undoDeleteEvent(eventId) {
     method: 'POST',
     credentials: 'include',
   })
-  .then((resp) => {
-    if (resp && resp.ok) {
-      localStorage.removeItem('agendaDeletedEvents');
-    } else {
-      throw new Error('Error deleting event');
-    }
-  });
+    .then((resp) => {
+      if (resp && resp.ok) {
+        localStorage.removeItem('agendaDeletedEvents');
+      } else {
+        throw new Error('Error deleting event');
+      }
+    });
 }
 
 export function voteEventDate(eventId, dateOptionId) {

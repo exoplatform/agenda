@@ -28,6 +28,9 @@ import javax.ws.rs.core.*;
 import javax.ws.rs.core.Response.Status;
 
 import org.apache.commons.lang3.StringUtils;
+import org.exoplatform.container.ExoContainerContext;
+import org.exoplatform.container.PortalContainer;
+import org.exoplatform.container.component.RequestLifeCycle;
 import org.picocontainer.Startable;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
@@ -80,6 +83,8 @@ public class AgendaEventRest implements ResourceContainer, Startable {
 
   private ScheduledExecutorService     scheduledExecutor;
 
+  private PortalContainer              container;
+
   private Map<Long, Long>              eventsToDeleteQueue = new HashMap<>();
 
   private String                       defaultSite         = null;
@@ -93,7 +98,8 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                          AgendaEventDatePollService agendaEventDatePollService,
                          AgendaEventAttachmentService agendaEventAttachmentService,
                          AgendaEventReminderService agendaEventReminderService,
-                         AgendaEventAttendeeService agendaEventAttendeeService) {
+                         AgendaEventAttendeeService agendaEventAttendeeService,
+                         PortalContainer container) {
     this.identityManager = identityManager;
     this.agendaCalendarService = agendaCalendarService;
     this.agendaEventService = agendaEventService;
@@ -103,6 +109,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
     this.agendaEventConferenceService = agendaEventConferenceService;
     this.agendaRemoteEventService = agendaRemoteEventService;
     this.agendaEventDatePollService = agendaEventDatePollService;
+    this.container = container;
     if (portalConfigService != null && portalConfigService.getDefaultPortal() != null) {
       this.defaultSite = portalConfigService.getDefaultPortal();
     } else {
@@ -769,6 +776,8 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       if (delay > 0) {
         eventsToDeleteQueue.put(eventId, userIdentityId);
         scheduledExecutor.schedule(() -> {
+          ExoContainerContext.setCurrentContainer(container);
+          RequestLifeCycle.begin(container);
           if (eventsToDeleteQueue.containsKey(eventId)) {
             try {
               eventsToDeleteQueue.remove(eventId);
@@ -777,6 +786,8 @@ public class AgendaEventRest implements ResourceContainer, Startable {
               LOG.error("User '{}' attempts to delete a non authorized event", userIdentityId, e);
             } catch (Exception e) {
               LOG.warn("Error deleting an event", e);
+            } finally {
+              RequestLifeCycle.end();
             }
           }
         }, delay, TimeUnit.SECONDS);

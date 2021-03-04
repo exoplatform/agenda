@@ -14,7 +14,7 @@
       depressed
       x-small
       @click="$root.$emit('agenda-pending-date-polls-drawer-open')">
-      <i class="uiIcon darkGreyIcon uiIcon32x32 uiIconClock mb-1"></i>
+      <i class="uiIcon darkGreyIcon uiIconClock mb-1"></i>
     </v-btn>
   </v-badge>
 </template>
