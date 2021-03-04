@@ -19,6 +19,7 @@ package org.exoplatform.agenda.rest;
 import java.net.URI;
 import java.time.*;
 import java.util.*;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 import javax.annotation.security.RolesAllowed;
@@ -27,6 +28,10 @@ import javax.ws.rs.core.*;
 import javax.ws.rs.core.Response.Status;
 
 import org.apache.commons.lang3.StringUtils;
+import org.exoplatform.container.ExoContainerContext;
+import org.exoplatform.container.PortalContainer;
+import org.exoplatform.container.component.RequestLifeCycle;
+import org.picocontainer.Startable;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.exception.AgendaException;
@@ -52,11 +57,11 @@ import io.swagger.jaxrs.PATCH;
 
 @Path("/v1/agenda/events")
 @Api(value = "/v1/agenda/events", description = "Manages agenda events associated to users and spaces") // NOSONAR
-public class AgendaEventRest implements ResourceContainer {
+public class AgendaEventRest implements ResourceContainer, Startable {
 
-  private static final String          AGENDA_APP_URI = "agenda";
+  private static final String          AGENDA_APP_URI      = "agenda";
 
-  private static final Log             LOG            = ExoLogger.getLogger(AgendaEventRest.class);
+  private static final Log             LOG                 = ExoLogger.getLogger(AgendaEventRest.class);
 
   private IdentityManager              identityManager;
 
@@ -76,7 +81,13 @@ public class AgendaEventRest implements ResourceContainer {
 
   private AgendaEventDatePollService   agendaEventDatePollService;
 
-  private String                       defaultSite    = null;
+  private ScheduledExecutorService     scheduledExecutor;
+
+  private PortalContainer              container;
+
+  private Map<Long, Long>              eventsToDeleteQueue = new HashMap<>();
+
+  private String                       defaultSite         = null;
 
   public AgendaEventRest(IdentityManager identityManager,
                          UserPortalConfigService portalConfigService,
@@ -87,7 +98,8 @@ public class AgendaEventRest implements ResourceContainer {
                          AgendaEventDatePollService agendaEventDatePollService,
                          AgendaEventAttachmentService agendaEventAttachmentService,
                          AgendaEventReminderService agendaEventReminderService,
-                         AgendaEventAttendeeService agendaEventAttendeeService) {
+                         AgendaEventAttendeeService agendaEventAttendeeService,
+                         PortalContainer container) {
     this.identityManager = identityManager;
     this.agendaCalendarService = agendaCalendarService;
     this.agendaEventService = agendaEventService;
@@ -97,10 +109,23 @@ public class AgendaEventRest implements ResourceContainer {
     this.agendaEventConferenceService = agendaEventConferenceService;
     this.agendaRemoteEventService = agendaRemoteEventService;
     this.agendaEventDatePollService = agendaEventDatePollService;
+    this.container = container;
     if (portalConfigService != null && portalConfigService.getDefaultPortal() != null) {
       this.defaultSite = portalConfigService.getDefaultPortal();
     } else {
       this.defaultSite = "dw";
+    }
+  }
+
+  @Override
+  public void start() {
+    scheduledExecutor = Executors.newScheduledThreadPool(1);
+  }
+
+  @Override
+  public void stop() {
+    if (scheduledExecutor != null) {
+      scheduledExecutor.shutdown();
     }
   }
 
@@ -706,19 +731,29 @@ public class AgendaEventRest implements ResourceContainer {
   @Path("{eventId}")
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(value = "Delete an existing event", httpMethod = "DELETE", response = Response.class)
+  @ApiOperation(
+      value = "Delete an existing event or delay deleting an existing event with a fixed period.",
+      httpMethod = "DELETE",
+      response = Response.class
+  )
   @ApiResponses(
-      value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
+      value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
           @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object not found"),
           @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
           @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
           @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
   )
-  public Response deleteEvent(@ApiParam(value = "Event technical identifier", required = true)
-  @PathParam(
-    "eventId"
-  )
-  long eventId,
+  public Response deleteEvent(
+                              @ApiParam(value = "Event technical identifier", required = true)
+                              @PathParam(
+                                "eventId"
+                              )
+                              long eventId,
+                              @ApiParam(value = "Time to effectively delete event", required = false)
+                              @QueryParam(
+                                "delay"
+                              )
+                              long delay,
                               @ApiParam(value = "IANA Time zone identitifer", required = false)
                               @QueryParam(
                                 "timeZoneId"
@@ -738,7 +773,28 @@ public class AgendaEventRest implements ResourceContainer {
       if (eventEntity == null) {
         return Response.status(Status.NOT_FOUND).entity("Event not found").build();
       }
-      agendaEventService.deleteEventById(eventId, userIdentityId);
+      if (delay > 0) {
+        eventsToDeleteQueue.put(eventId, userIdentityId);
+        scheduledExecutor.schedule(() -> {
+          if (eventsToDeleteQueue.containsKey(eventId)) {
+            ExoContainerContext.setCurrentContainer(container);
+            RequestLifeCycle.begin(container);
+            try {
+              eventsToDeleteQueue.remove(eventId);
+              agendaEventService.deleteEventById(eventId, userIdentityId);
+            } catch (IllegalAccessException e) {
+              LOG.error("User '{}' attempts to delete a non authorized event", userIdentityId, e);
+            } catch (Exception e) {
+              LOG.warn("Error deleting an event", e);
+            } finally {
+              RequestLifeCycle.end();
+            }
+          }
+        }, delay, TimeUnit.SECONDS);
+      } else {
+        eventsToDeleteQueue.remove(eventId);
+        agendaEventService.deleteEventById(eventId, userIdentityId);
+      }
       return Response.ok(eventEntity).build();
     } catch (IllegalAccessException e) {
       LOG.error("User '{}' attempts to delete a non authorized event", RestUtils.getCurrentUser(), e);
@@ -746,6 +802,47 @@ public class AgendaEventRest implements ResourceContainer {
     } catch (Exception e) {
       LOG.warn("Error deleting an event", e);
       return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
+  @Path("{eventId}/undoDelete")
+  @POST
+  @RolesAllowed("users")
+  @ApiOperation(
+      value = "Undo deleting event if not yet effectively deleted.",
+      httpMethod = "POST",
+      response = Response.class
+  )
+  @ApiResponses(
+      value = {
+          @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.FORBIDDEN, message = "Forbidden operation"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+  )
+  public Response undoDeleteEvent(
+                                  @ApiParam(value = "Event technical identifier", required = true)
+                                  @PathParam(
+                                    "eventId"
+                                  )
+                                  long eventId) {
+    if (eventId <= 0) {
+      return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
+    }
+    if (eventsToDeleteQueue.containsKey(eventId)) {
+      long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+      Long originalModifierUserId = eventsToDeleteQueue.get(eventId);
+      if (originalModifierUserId != userIdentityId) {
+        LOG.warn("User {} attempts to cancel deletion of an event deleted by user {}",
+                 userIdentityId,
+                 originalModifierUserId);
+        return Response.status(Status.FORBIDDEN).build();
+      }
+      eventsToDeleteQueue.remove(eventId);
+      return Response.noContent().build();
+    } else {
+      return Response.status(Status.BAD_REQUEST).entity("Event id was already deleted or isn't planned to be deleted").build();
     }
   }
 
@@ -823,11 +920,12 @@ public class AgendaEventRest implements ResourceContainer {
           @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
           @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
   )
-  public Response getEventRemindersById(@ApiParam(value = "Event technical identifier", required = true)
-  @PathParam(
-    "eventId"
-  )
-  long eventId) {
+  public Response getEventRemindersById(
+                                        @ApiParam(value = "Event technical identifier", required = true)
+                                        @PathParam(
+                                          "eventId"
+                                        )
+                                        long eventId) {
     if (eventId <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
     }
@@ -938,11 +1036,12 @@ public class AgendaEventRest implements ResourceContainer {
           @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
           @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
   )
-  public Response getEventResponse(@ApiParam(value = "Event technical identifier", required = true)
-  @PathParam(
-    "eventId"
-  )
-  long eventId,
+  public Response getEventResponse(
+                                   @ApiParam(value = "Event technical identifier", required = true)
+                                   @PathParam(
+                                     "eventId"
+                                   )
+                                   long eventId,
                                    @ApiParam(value = "User token to ", required = false)
                                    @QueryParam("token")
                                    String token) {

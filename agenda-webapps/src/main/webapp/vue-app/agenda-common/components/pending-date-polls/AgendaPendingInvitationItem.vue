@@ -75,7 +75,7 @@ export default {
       return this.invitedEvent ? 'white-text':'primary--text';
     },
     voteIconStatus() {
-      return this.invitedEvent && this.invitedEvent.attendees && `attendee-vote-${this.currentAttendee.response.toLowerCase()}`;
+      return this.currentAttendee && this.currentAttendee.response && `attendee-vote-${this.currentAttendee.response.toLowerCase()}` || 'attendee-vote-needs_action';
     },
     displayVoteStatus() {
       if(this.hasVoted) {

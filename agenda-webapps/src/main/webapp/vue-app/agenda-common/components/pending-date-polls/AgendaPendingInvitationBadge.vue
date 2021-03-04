@@ -14,7 +14,7 @@
       depressed
       x-small
       @click="$root.$emit('agenda-pending-date-polls-drawer-open')">
-      <i class="uiIcon darkGreyIcon uiIcon32x32 uiIconClock mb-1"></i>
+      <i class="uiIcon darkGreyIcon uiIconClock mb-1"></i>
     </v-btn>
   </v-badge>
 </template>
@@ -54,9 +54,12 @@ export default {
     this.$root.$on('agenda-refresh', this.countPendingInvitations);
     this.$root.$on('agenda-event-response-sent', this.countPendingEvents);
     this.$root.$on('agenda-event-saved', this.countDatePolls);
-    if (this.spaceRetrieved) {
-      this.countPendingInvitations();
-    }
+    this.$root.$on('agenda-event-deleted', () => {
+      window.setTimeout(() => {
+        this.countPendingInvitations();
+      }, 11000);
+    });
+    this.countPendingInvitations();
   },
   methods: {
     countPendingInvitations() {

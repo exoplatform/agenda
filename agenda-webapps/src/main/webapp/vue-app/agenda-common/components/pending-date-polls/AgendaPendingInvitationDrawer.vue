@@ -18,8 +18,8 @@
     <template v-if="hasMore" slot="footer">
       <div class="d-flex mx-4">
         <v-btn
-          :loading="loading"
-          :disabled="loading"
+          :loading="!!loading"
+          :disabled="!!loading"
           class="btn mx-auto"
           @click="loadMore">
           {{ $t('agenda.button.loadMore') }}

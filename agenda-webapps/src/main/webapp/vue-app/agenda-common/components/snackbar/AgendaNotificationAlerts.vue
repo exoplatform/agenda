@@ -50,11 +50,27 @@ export default {
         });
       }
     });
+    this.$root.$on('agenda-event-deleted', event => {
+      if (event && event.id) {
+        const clickMessage = this.$t('agenda.undoRemoveDatePoll');
+        const message = this.$t('agenda.datePollDeleteSuccess');
+        this.$root.$emit('agenda-notification-alert', {
+          message,
+          type: 'success',
+          click: () => this.undoDeleteEvent(event),
+          clickMessage,
+        });
+      }
+    });
   },
   methods: {
     deleteAlert(index) {
       this.alerts.splice(index, 1);
       this.$forceUpdate();
+    },
+    undoDeleteEvent(event) {
+      return this.$eventService.undoDeleteEvent(event.id)
+        .then(() => this.$root.$emit('agenda-refresh', event));
     }
   },
 };
