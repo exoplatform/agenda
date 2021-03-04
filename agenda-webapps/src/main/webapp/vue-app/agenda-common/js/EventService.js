@@ -48,6 +48,15 @@ export function getEvents(query, ownerIds, attendeeIdentityId, start, end, limit
     } else {
       throw new Error('Error getting event list');
     }
+  }).then((data) => {
+    let events = data && data.events || [];
+    let deletedEventId = localStorage.getItem('agendaDeletedEvents');
+    if (deletedEventId) {
+      deletedEventId = Number(deletedEventId);
+      events = events.filter(event => Number(event.id) !== deletedEventId && (!event.parent || Number(event.parent.id) !== deletedEventId));
+      data.events = events;
+    }
+    return data;
   });
 }
 
@@ -248,8 +257,11 @@ export function saveEventReminders(eventId, occurrenceId, reminders, upcoming) {
   });
 }
 
-export function deleteEvent(eventId) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}?timeZoneId=${USER_TIMEZONE_ID}`, {
+export function deleteEvent(eventId, delay) {
+  if (delay > 0) {
+    localStorage.setItem('agendaDeletedEvents', eventId);
+  }
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}?timeZoneId=${USER_TIMEZONE_ID}&delay=${delay || 0}`, {
     method: 'DELETE',
     credentials: 'include',
   })
@@ -264,6 +276,20 @@ export function deleteEvent(eventId) {
       if (event) {
         const deleteAllWebConferencesPromises = getDeleteAllWebConferencesPromises(event);
         return Promise.all(deleteAllWebConferencesPromises);
+      }
+    });
+}
+
+export function undoDeleteEvent(eventId) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}/undoDelete`, {
+    method: 'POST',
+    credentials: 'include',
+  })
+    .then((resp) => {
+      if (resp && resp.ok) {
+        localStorage.removeItem('agendaDeletedEvents');
+      } else {
+        throw new Error('Error undoing deleting event');
       }
     });
 }
@@ -345,6 +371,15 @@ export function getDatePolls(ownerId, offset, limit, expand) {
     } else {
       throw new Error('Error getting pending date poll list');
     }
+  }).then((data) => {
+    let events = data && data.events || [];
+    let deletedEventId = localStorage.getItem('agendaDeletedEvents');
+    if (deletedEventId) {
+      deletedEventId = Number(deletedEventId);
+      events = events.filter(event => Number(event.id) !== deletedEventId && (!event.parent || Number(event.parent.id) !== deletedEventId));
+      data.events = events;
+    }
+    return data;
   });
 }
 
@@ -389,6 +424,15 @@ export function getPendingEvents(ownerId, offset, limit, expand) {
     } else {
       throw new Error('Error getting pending event list');
     }
+  }).then((data) => {
+    let events = data && data.events || [];
+    let deletedEventId = localStorage.getItem('agendaDeletedEvents');
+    if (deletedEventId) {
+      deletedEventId = Number(deletedEventId);
+      events = events.filter(event => Number(event.id) !== deletedEventId && (!event.parent || Number(event.parent.id) !== deletedEventId));
+      data.events = events;
+    }
+    return data;
   });
 }
 

@@ -161,6 +161,11 @@ export default {
     },
   },
   created() {
+    // Ensure that localStorage doesn't have a deleted event
+    window.setTimeout(() => {
+      localStorage.removeItem('agendaDeletedEvents');
+    }, 10000);
+
     this.$root.$on('agenda-change-period', period => {
       this.period = period;
       this.periodTitle = this.generateCalendarTitle(period);
