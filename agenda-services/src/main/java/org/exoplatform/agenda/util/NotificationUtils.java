@@ -221,7 +221,7 @@ public class NotificationUtils {
     if (typeModification == null) {
       throw new IllegalArgumentException("Modification type is null");
     }
-    
+
     Set<String> recipients = new HashSet<>();
     List<String> participants = new ArrayList<>();
     for (EventAttendee attendee : eventAttendee) {
@@ -404,7 +404,8 @@ public class NotificationUtils {
     templateContext.put(TEMPLATE_VARIABLE_RESPONSE_TENTATIVE,
                         getResponseURL(agendaEventAttendeeService, eventId, username, EventAttendeeResponse.TENTATIVE));
 
-    if (StringUtils.equals(modificationStoredType, AgendaEventModificationType.UPDATED.name())) {
+    if (StringUtils.equals(modificationStoredType, AgendaEventModificationType.UPDATED.name())
+        || StringUtils.equals(modificationStoredType, AgendaEventModificationType.DATES_UPDATED.name())) {
       String identityId = notification.getValueOwnerParameter(STORED_PARAMETER_MODIFIER_IDENTITY_ID);
       templateContext.put(TEMPLATE_VARIABLE_EVENT_MODIFIER, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_MODIFIER));
       templateContext.put(TEMPLATE_VARIABLE_MODIFIER_IDENTITY_URL, getUserAbsoluteURI(identityId));

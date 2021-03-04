@@ -9,7 +9,9 @@
                             out.write(_ctx.appRes("Notification.title.AgendaInvitationPlugin", eventTitle));
                           } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.UPDATED.name().equals(modificationType)){
                             out.write(_ctx.appRes("Notification.title.AgendaInvitationPlugin.update", eventTitle));
-                        }
+                          } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.DATES_UPDATED.name().equals(modificationType)){
+                            out.write(_ctx.appRes("Notification.title.AgendaInvitationPlugin.dates.update", eventTitle));
+                          }
                         %>
                     </td>
                 </tr>
@@ -42,6 +44,11 @@
                                                         String profileModifierUrl = "<a target=\"_blank\" style=\"color: #2f5e92; font-size: 13px; text-decoration: none; font-family: 'HelveticaNeue Bold', Helvetica, Arial, sans-serif\" href=\""+ modifierProfileUrl + "\">" + _ctx.escapeHTML(modifierName) + "</a>";
                                                       %>
                                                       <%= _ctx.appRes("Notification.agenda.event.mail.body.updated", eventTitle, profileModifierUrl) %>
+                                                    <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.DATES_UPDATED.name().equals(modificationType)){ %>
+                                                      <%
+                                                        String profileModifierUrl = "<a target=\"_blank\" style=\"color: #2f5e92; font-size: 13px; text-decoration: none; font-family: 'HelveticaNeue Bold', Helvetica, Arial, sans-serif\" href=\""+ modifierProfileUrl + "\">" + _ctx.escapeHTML(modifierName) + "</a>";
+                                                      %>
+                                                      <%= _ctx.appRes("Notification.agenda.event.mail.body.dates.updated", eventTitle, profileModifierUrl) %>
                                                     <% } %>
                                                 </p>
                                                 <br/>
