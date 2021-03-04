@@ -164,7 +164,7 @@ export default {
     // Ensure that localStorage doesn't have a deleted event
     window.setTimeout(() => {
       localStorage.removeItem('agendaDeletedEvents');
-    }, 4000);
+    }, 10000);
 
     this.$root.$on('agenda-change-period', period => {
       this.period = period;

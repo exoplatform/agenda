@@ -67,7 +67,6 @@ export default {
     deleteAlert(index) {
       this.alerts.splice(index, 1);
       this.$forceUpdate();
-      window.setTimeout(() => this.$root.$emit('agenda-alert-hidden'),5000);
     },
     undoDeleteEvent(event) {
       return this.$eventService.undoDeleteEvent(event.id)

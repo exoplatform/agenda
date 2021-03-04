@@ -89,10 +89,7 @@ export default {
     },
     deleteEvent() {
       this.$eventService.deleteEvent(this.event.id, 10)
-        .then(() => {
-          this.$root.$emit('agenda-event-deleted', this.event);
-          window.setTimeout(() => this.$root.$emit('agenda-remove-event-drawer'),10000);}
-        );
+        .then(() => this.$root.$emit('agenda-event-deleted', this.event));
     },
   },
 };

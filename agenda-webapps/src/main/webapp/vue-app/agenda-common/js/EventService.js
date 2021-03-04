@@ -289,7 +289,7 @@ export function undoDeleteEvent(eventId) {
       if (resp && resp.ok) {
         localStorage.removeItem('agendaDeletedEvents');
       } else {
-        throw new Error('Error deleting event');
+        throw new Error('Error undoing deleting event');
       }
     });
 }
