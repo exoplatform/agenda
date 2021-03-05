@@ -17,7 +17,7 @@
             :fullname="voter.profile.fullname"
             :title="voter.profile.fullname"
             :labels="labels"
-            class="d-inline-block" />
+            class="d-inline-block date-poll-participant" />
         </div>
         <v-icon
           v-if="isCreator"
