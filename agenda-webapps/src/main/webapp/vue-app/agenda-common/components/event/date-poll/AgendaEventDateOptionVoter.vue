@@ -5,7 +5,6 @@
         class="d-flex fill-height border-box-sizing"
         flat>
         <div
-          :title="voterFullName"
           class="ma-auto text-center text-truncate pa-3">
           <exo-space-avatar
             v-if="voter.space"
@@ -20,6 +19,13 @@
             :labels="labels"
             class="d-inline-block" />
         </div>
+        <v-icon
+          v-if="isCreator"
+          :title="$t('agenda.eventCreator')"
+          :size="16"
+          class="mb-2">
+          fa-crown
+        </v-icon>
         <v-btn
           v-if="isCurrentUser"
           :title="$t('agenda.changeVote')"
@@ -73,10 +79,17 @@ export default {
       type: Boolean,
       default: false,
     },
+    eventCreatorId: {
+      type: Number,
+      default: () => null
+    },
   },
   computed: {
     isCurrentUser() {
       return this.voter && this.voter.isCurrentUser;
+    },
+    isCreator() {
+      return this.voter && Number(this.voter.id) === Number(this.eventCreatorId);
     },
     labels() {
       return {
