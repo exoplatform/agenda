@@ -67,7 +67,7 @@
               <string>locale.portlet.Agenda</string>
             </field>
             <field name="cssModule">
-              <string>agenda/AgendaPortlet</string>
+              <string>agenda/Agenda</string>
             </field>
             <field name="uiComponent">
               <string>agenda-search-card</string>
