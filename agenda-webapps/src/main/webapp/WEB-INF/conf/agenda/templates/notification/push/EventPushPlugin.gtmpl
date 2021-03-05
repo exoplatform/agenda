@@ -6,6 +6,8 @@
            <%= _ctx.appRes("Notification.agenda.event.push.created", eventTitle, creatorName) %>
         <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.UPDATED.name().equals(modificationType)){ %>
            <%= _ctx.appRes("Notification.agenda.event.updated", eventTitle) %>
+        <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.DATES_UPDATED.name().equals(modificationType)){ %>
+          <%= _ctx.appRes("Notification.agenda.event.dates.updated", eventTitle) %>
         <% } else { %>
            <%= _ctx.appRes("Notification.agenda.event.canceled", eventTitle) %>
         <% } %>
@@ -14,7 +16,8 @@
         <a href="<%= eventURL %>">
             <a href="<%= eventURL %>">
                 <%
-                if(org.exoplatform.agenda.constant.AgendaEventModificationType.ADDED.name().equals(modificationType)) { %>
+                if(org.exoplatform.agenda.constant.AgendaEventModificationType.ADDED.name().equals(modificationType)
+                    || org.exoplatform.agenda.constant.AgendaEventModificationType.DATES_UPDATED.name().equals(modificationType)) { %>
                   <%= _ctx.appRes("Notification.agenda.event.reply") %>
                 <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.UPDATED.name().equals(modificationType)){ %>
                   <%= _ctx.appRes("Notification.agenda.event.view") %>

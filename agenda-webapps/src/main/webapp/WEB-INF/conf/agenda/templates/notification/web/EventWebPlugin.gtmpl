@@ -13,6 +13,8 @@
           String eventTitle = "<span class=\"user-name text-bold\">"+ eventTitle +"</span>";
           if (org.exoplatform.agenda.constant.AgendaEventModificationType.ADDED.name().equals(modificationType)) { %>
             <%= _ctx.appRes("Notification.agenda.event.created", eventTitle, creatorName) %>
+          <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.DATES_UPDATED.name().equals(modificationType)){ %>
+            <%= _ctx.appRes("Notification.agenda.event.dates.updated", eventTitle) %>
           <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.UPDATED.name().equals(modificationType)){ %>
             <%= _ctx.appRes("Notification.agenda.event.updated", eventTitle) %>
           <% } else { %>
@@ -22,7 +24,8 @@
         <div class="content float-right">
           <a>
             <%
-            if(org.exoplatform.agenda.constant.AgendaEventModificationType.ADDED.name().equals(modificationType)) { %>
+            if(org.exoplatform.agenda.constant.AgendaEventModificationType.ADDED.name().equals(modificationType)
+                || org.exoplatform.agenda.constant.AgendaEventModificationType.DATES_UPDATED.name().equals(modificationType)) { %>
               <%= _ctx.appRes("Notification.agenda.event.reply") %>
             <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.UPDATED.name().equals(modificationType)){ %>
               <%= _ctx.appRes("Notification.agenda.event.view") %>
