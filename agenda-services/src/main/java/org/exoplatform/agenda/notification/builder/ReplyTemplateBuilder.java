@@ -89,11 +89,12 @@ public class ReplyTemplateBuilder extends AbstractTemplateBuilder {
       String pushNotificationURL = isPushNotification ? notificationURL : null;
       String username = notification.getTo();
       long identityId = Utils.getIdentityIdByUsername(getIdentityManager(), username);
+      boolean isCreator = event.getCreatorId() == identityId;
       AgendaUserSettings agendaUserSettings = getAgendaUserSettingsService().getAgendaUserSettings(identityId);
       ZoneId timeZone = agendaUserSettings == null
           || agendaUserSettings.getTimeZoneId() == null ? ZoneOffset.UTC : ZoneId.of(agendaUserSettings.getTimeZoneId());
 
-      TemplateContext templateContext = buildTemplateReplyParameters(templateProvider, notification, timeZone);
+      TemplateContext templateContext = buildTemplateReplyParameters(templateProvider, notification, timeZone, isCreator);
       MessageInfo messageInfo = buildMessageSubjectAndBody(templateContext, notification, pushNotificationURL);
       Throwable exception = templateContext.getException();
       logException(notification, exception);

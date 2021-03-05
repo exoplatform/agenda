@@ -1,4 +1,7 @@
-<% eventTitle = _ctx.escapeHTML(eventTitle); %>
+<%
+  eventTitle = _ctx.escapeHTML(eventTitle);
+  isCreator = "true".equals(isCreator);
+%>
 <div>
     <div class="contentSmall" data-link="<%= eventURL %>">
         <div class="status">
@@ -6,11 +9,23 @@
             String eventTitle = "<span class=\"user-name text-bold\">"+ eventTitle +"</span>";
             String participantName = "<a class=\"user-name text-bold\">" + participantName +"</a>";
             if (org.exoplatform.agenda.constant.EventAttendeeResponse.ACCEPTED.name().equals(responseType)) { %>
-              <%= _ctx.appRes("Notification.agenda.event.response.accepted", participantName, eventTitle) %>
+              <% if (isCreator) { %>
+                <%=  _ctx.appRes("Notification.agenda.event.creator.response.accepted", participantName, eventTitle) %>
+              <% } else { %>
+                <%=  _ctx.appRes("Notification.agenda.event.participant.response.accepted", participantName, eventTitle) %>
+              <% } %>
             <% } else if(org.exoplatform.agenda.constant.EventAttendeeResponse.DECLINED.name().equals(responseType)){ %>
-              <%= _ctx.appRes("Notification.agenda.event.response.declined", participantName, eventTitle) %>
+              <% if (isCreator) { %>
+                <%=  _ctx.appRes("Notification.agenda.event.creator.response.declined", participantName, eventTitle) %>
+              <% } else { %>
+                <%=  _ctx.appRes("Notification.agenda.event.participant.response.declined", participantName, eventTitle) %>
+              <% } %>
             <% } else { %>
-              <%= _ctx.appRes("Notification.agenda.event.response.mayBe", participantName, eventTitle) %>
+              <% if (isCreator) { %>
+                <%=  _ctx.appRes("Notification.agenda.event.creator.response.mayBe", participantName, eventTitle) %>
+              <% } else { %>
+                <%=  _ctx.appRes("Notification.agenda.event.participant.response.mayBe", participantName, eventTitle) %>
+              <% } %>
             <% } %>
         </div>
     </div>

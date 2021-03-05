@@ -16,11 +16,11 @@
 */
 package org.exoplatform.agenda.dao;
 
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 import javax.persistence.*;
 
+import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.entity.EventAttendeeEntity;
 import org.exoplatform.commons.api.persistence.ExoTransactional;
 import org.exoplatform.commons.persistence.impl.GenericDAOJPAImpl;
@@ -45,6 +45,16 @@ public class EventAttendeeDAO extends GenericDAOJPAImpl<EventAttendeeEntity, Lon
     TypedQuery<EventAttendeeEntity> query = getEntityManager().createNamedQuery("AgendaEventAttendee.getEventAttendeesByEventId",
                                                                                 EventAttendeeEntity.class);
     query.setParameter("eventId", eventId);
+    List<EventAttendeeEntity> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList() : resultList;
+  }
+
+  public List<EventAttendeeEntity> getEventAttendeesByResponses(long eventId, EventAttendeeResponse... responses) {
+    TypedQuery<EventAttendeeEntity> query =
+                                          getEntityManager().createNamedQuery("AgendaEventAttendee.getEventAttendeesByEventIdAndByResponses",
+                                                                              EventAttendeeEntity.class);
+    query.setParameter("eventId", eventId);
+    query.setParameter("responses", Arrays.asList(responses));
     List<EventAttendeeEntity> resultList = query.getResultList();
     return resultList == null ? Collections.emptyList() : resultList;
   }
