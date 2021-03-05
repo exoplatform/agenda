@@ -79,8 +79,8 @@ export default {
       type: Boolean,
       default: false,
     },
-    event: {
-      type: Object,
+    eventCreatorId: {
+      type: Number,
       default: () => null
     },
   },
@@ -89,7 +89,7 @@ export default {
       return this.voter && this.voter.isCurrentUser;
     },
     isCreator() {
-      return this.event && this.event.creator && Number(this.event.creator.id) === Number(this.voter.id);
+      return this.voter && Number(this.voter.id) === Number(this.eventCreatorId);
     },
     labels() {
       return {

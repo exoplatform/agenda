@@ -72,7 +72,7 @@
             :date-options="dateOptions"
             :selected-date-index="selectedDateOptionIndex"
             :is-voting="isVoting"
-            :event="event"
+            :event-creator-id="event.creator.id"
             @changed="enableVoteButton"
             @change-vote="isVoting = true" />
         </template>
