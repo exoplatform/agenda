@@ -2,7 +2,7 @@
   <tr>
     <th :class="!voter.profile && 'no-vote' || ''" class="event-date-options-voter-cell justify-center">
       <v-card
-        class="d-flex fill-height border-box-sizing"
+        class="d-flex fill-height border-box-sizing mr-3"
         flat>
         <div
           class="ma-auto text-center text-truncate pa-3">
@@ -17,7 +17,7 @@
             :fullname="voter.profile.fullname"
             :title="voter.profile.fullname"
             :labels="labels"
-            class="d-inline-block" />
+            class="d-inline-block date-poll-participant" />
         </div>
         <v-icon
           v-if="isCreator"
