@@ -53,7 +53,7 @@
                 <value>
                   <string>*:/platform/users</string>
                 </value>
-				<value>
+				        <value>
                   <string>*:/platform/externals</string>
                 </value>
               </collection>
@@ -62,7 +62,7 @@
               <boolean>true</boolean>
             </field>
             <field name="isMandatory">
-              <boolean>false</boolean>
+              <boolean>true</boolean>
             </field>
             <field name="isMobile">
               <boolean>true</boolean>
