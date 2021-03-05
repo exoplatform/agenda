@@ -115,6 +115,14 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    * {@inheritDoc}
    */
   @Override
+  public List<EventAttendee> getEventAttendees(long eventId, EventAttendeeResponse ...responses) {
+    return attendeeStorage.getEventAttendees(eventId, responses);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
   public EventAttendeeResponse getEventResponse(long eventId, long identityId) throws ObjectNotFoundException,
                                                                                IllegalAccessException {
     Event event = eventStorage.getEventById(eventId);

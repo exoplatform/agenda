@@ -37,12 +37,16 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
           query = "DELETE FROM AgendaEventAttendee a WHERE a.event.id = :eventId"
       ),
       @NamedQuery(
+          name = "AgendaEventAttendee.getEventAttendee",
+          query = "SELECT a FROM AgendaEventAttendee a WHERE a.event.id = :eventId AND  a.identityId = :identityId"
+      ),
+      @NamedQuery(
           name = "AgendaEventAttendee.getEventAttendeesByEventId",
           query = "SELECT a FROM AgendaEventAttendee a WHERE a.event.id = :eventId"
       ),
       @NamedQuery(
-          name = "AgendaEventAttendee.getEventAttendee",
-          query = "SELECT a FROM AgendaEventAttendee a WHERE a.event.id = :eventId AND  a.identityId = :identityId"
+          name = "AgendaEventAttendee.getEventAttendeesByEventIdAndByResponses",
+          query = "SELECT a FROM AgendaEventAttendee a WHERE a.event.id = :eventId AND a.response in (:responses)"
       ),
   }
 )

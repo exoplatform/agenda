@@ -8,7 +8,8 @@ import java.util.*;
 
 import org.apache.commons.lang.StringUtils;
 
-import org.exoplatform.agenda.constant.*;
+import org.exoplatform.agenda.constant.AgendaEventModificationType;
+import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.service.AgendaEventAttendeeService;
@@ -85,6 +86,8 @@ public class NotificationUtils {
                                                                                              "VoteNotificationPlugin";
 
   private static final String                                TEMPLATE_VARIABLE_EVENT_URL                    = "eventURL";
+
+  private static final String                                TEMPLATE_VARIABLE_IS_CREATOR                   = "isCreator";
 
   public static final PluginKey                              EVENT_ADDED_KEY                                =
                                                                              PluginKey.key(AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN);
@@ -226,6 +229,9 @@ public class NotificationUtils {
     List<String> participants = new ArrayList<>();
     for (EventAttendee attendee : eventAttendee) {
       Identity identity = Utils.getIdentityById(identityManager, attendee.getIdentityId());
+      if (identity == null) {
+        continue;
+      }
       if (identity.getProviderId().equals(SpaceIdentityProvider.NAME)) {
         String spaceName = identity.getRemoteId();
         List<String> memberSpace = Utils.getSpaceMembersBySpaceName(spaceName, spaceService);
@@ -254,9 +260,15 @@ public class NotificationUtils {
 
   public static final void setEventReminderNotificationRecipients(IdentityManager identityManager,
                                                                   NotificationInfo notification,
-                                                                  Long receiverId) {
-    Identity identity = Utils.getIdentityById(identityManager, receiverId);
-    notification.to(String.valueOf(identity.getRemoteId()));
+                                                                  Long... receiverIds) {
+    List<String> receivers = new ArrayList<>();
+    for (Long receiverId : receiverIds) {
+      Identity identity = Utils.getIdentityById(identityManager, receiverId);
+      if (identity != null && StringUtils.equals(OrganizationIdentityProvider.NAME, identity.getProviderId())) {
+        receivers.add(identity.getRemoteId());
+      }
+    }
+    notification.to(receivers);
   }
 
   public static final void storeEventParameters(IdentityManager identityManager,
@@ -434,9 +446,11 @@ public class NotificationUtils {
 
   public static final TemplateContext buildTemplateReplyParameters(TemplateProvider templateProvider,
                                                                    NotificationInfo notification,
-                                                                   ZoneId timeZone) {
+                                                                   ZoneId timeZone,
+                                                                   boolean isCreator) {
     String language = NotificationPluginUtils.getLanguage(notification.getTo());
     TemplateContext templateContext = getTemplateContext(templateProvider, notification, language);
+    templateContext.put(TEMPLATE_VARIABLE_IS_CREATOR, String.valueOf(isCreator));
 
     setFooter(notification, templateContext);
     setRead(notification, templateContext);
