@@ -54,6 +54,49 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
   }
 
   @Test
+  public void testGetEventAttendeesByResponses() throws Exception { // NOSONAR
+    ZonedDateTime start = ZonedDateTime.now().withNano(0);
+
+    boolean allDay = true;
+
+    Event event = newEventInstance(start, start, allDay);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+    event = createEvent(event.clone(),
+                        creatorId,
+                        testuser1Identity,
+                        testuser5Identity,
+                        spaceIdentity);
+
+    long eventId = event.getId();
+    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId, EventAttendeeResponse.ACCEPTED);
+    assertNotNull(eventAttendees);
+    assertEquals(1, eventAttendees.size());
+
+    EventAttendee eventAttendee = eventAttendees.get(0);
+    assertNotNull(eventAttendee);
+    assertTrue(eventAttendee.getId() > 0);
+    assertEquals(creatorId, eventAttendee.getIdentityId());
+    assertEquals(EventAttendeeResponse.ACCEPTED, eventAttendee.getResponse());
+
+    agendaEventAttendeeService.sendEventResponse(eventId,
+                                                 Long.parseLong(testuser5Identity.getId()),
+                                                 EventAttendeeResponse.ACCEPTED);
+    agendaEventAttendeeService.sendEventResponse(eventId,
+                                                 Long.parseLong(testuser3Identity.getId()),
+                                                 EventAttendeeResponse.TENTATIVE);
+
+    eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId, EventAttendeeResponse.ACCEPTED);
+    assertNotNull(eventAttendees);
+    assertEquals(2, eventAttendees.size());
+
+    eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId,
+                                                                  EventAttendeeResponse.ACCEPTED,
+                                                                  EventAttendeeResponse.TENTATIVE);
+    assertNotNull(eventAttendees);
+    assertEquals(3, eventAttendees.size());
+  }
+
+  @Test
   public void testGetEventResponse() throws Exception { // NOSONAR
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
 

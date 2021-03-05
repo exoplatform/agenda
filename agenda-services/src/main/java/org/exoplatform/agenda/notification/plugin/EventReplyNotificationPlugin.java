@@ -1,9 +1,16 @@
 package org.exoplatform.agenda.notification.plugin;
 
+import static org.exoplatform.agenda.util.NotificationUtils.*;
+
+import java.util.*;
+import java.util.stream.Collectors;
+
 import org.apache.commons.lang.StringUtils;
+
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.Event;
+import org.exoplatform.agenda.model.EventAttendee;
 import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.agenda.service.AgendaEventAttendeeService;
 import org.exoplatform.commons.api.notification.NotificationContext;
@@ -16,11 +23,8 @@ import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.spi.SpaceService;
 
-import static org.exoplatform.agenda.util.NotificationUtils.*;
-import static org.exoplatform.agenda.util.NotificationUtils.storeEventParameters;
-
 public class EventReplyNotificationPlugin extends BaseNotificationPlugin {
-  private static final Log           LOG                             = ExoLogger.getLogger(EventReminderNotificationPlugin.class);
+  private static final Log           LOG                             = ExoLogger.getLogger(EventReplyNotificationPlugin.class);
 
   private static final String        AGENDA_NOTIFICATION_PLUGIN_NAME = "agenda.notification.plugin.key";
 
@@ -74,7 +78,16 @@ public class EventReplyNotificationPlugin extends BaseNotificationPlugin {
     NotificationInfo notification = NotificationInfo.instance();
     notification.key(getId());
     if (event.getId() > 0) {
-      setEventReminderNotificationRecipients(identityManager, notification, event.getCreatorId());
+      List<EventAttendee> eventAttendees = eventAttendeeService.getEventAttendees(event.getId(),
+                                                                                  EventAttendeeResponse.ACCEPTED,
+                                                                                  EventAttendeeResponse.TENTATIVE);
+      Set<Long> eventAttendeeIds = eventAttendees.stream().map(EventAttendee::getIdentityId).collect(Collectors.toSet());
+      eventAttendeeIds = new HashSet<>(eventAttendeeIds);
+      eventAttendeeIds.add(event.getCreatorId());
+      eventAttendeeIds.remove(eventParticipantId);
+      setEventReminderNotificationRecipients(identityManager,
+                                             notification,
+                                             eventAttendeeIds.toArray(new Long[eventAttendeeIds.size()]));
     }
     if (notification.getSendToUserIds() == null || notification.getSendToUserIds().isEmpty()) {
       LOG.debug("Notification type '{}' doesn't have a recipient", getId());

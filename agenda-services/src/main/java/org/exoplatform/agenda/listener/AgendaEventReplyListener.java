@@ -39,7 +39,7 @@ public class AgendaEventReplyListener extends Listener<EventAttendee, EventAtten
       EventAttendeeResponse newResponse = newAttendee.getResponse();
       // Avoid notifying creator when he changes his response and avoid
       // notifying him when a user doesn't change his response
-      if (oldResponse != newResponse && agendaEvent.getCreatorId() != newAttendee.getIdentityId()) {
+      if (oldResponse != newResponse) {
         sendReplyResponseNotification(agendaEvent, newAttendee.getIdentityId(), newAttendee.getResponse());
       }
     } finally {
