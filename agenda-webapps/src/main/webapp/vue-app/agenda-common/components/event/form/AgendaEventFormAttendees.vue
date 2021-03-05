@@ -1,5 +1,5 @@
 <template>
-  <v-flex class="user-suggester">
+  <v-flex class="user-suggester text-truncate">
     <exo-identity-suggester
       ref="invitedAttendeeAutoComplete"
       v-model="invitedAttendee"

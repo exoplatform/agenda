@@ -2,10 +2,9 @@
   <tr>
     <th :class="!voter.profile && 'no-vote' || ''" class="event-date-options-voter-cell justify-center">
       <v-card
-        class="d-flex fill-height border-box-sizing"
+        class="d-flex fill-height border-box-sizing mr-3"
         flat>
         <div
-          :title="voterFullName"
           class="ma-auto text-center text-truncate pa-3">
           <exo-space-avatar
             v-if="voter.space"
@@ -18,8 +17,15 @@
             :fullname="voter.profile.fullname"
             :title="voter.profile.fullname"
             :labels="labels"
-            class="d-inline-block" />
+            class="d-inline-block date-poll-participant" />
         </div>
+        <v-icon
+          v-if="isCreator"
+          :title="$t('agenda.eventCreator')"
+          :size="16"
+          class="mb-2">
+          fa-crown
+        </v-icon>
         <v-btn
           v-if="isCurrentUser"
           :title="$t('agenda.changeVote')"
@@ -73,10 +79,17 @@ export default {
       type: Boolean,
       default: false,
     },
+    eventCreatorId: {
+      type: Number,
+      default: () => null
+    },
   },
   computed: {
     isCurrentUser() {
       return this.voter && this.voter.isCurrentUser;
+    },
+    isCreator() {
+      return this.voter && Number(this.voter.id) === Number(this.eventCreatorId);
     },
     labels() {
       return {
