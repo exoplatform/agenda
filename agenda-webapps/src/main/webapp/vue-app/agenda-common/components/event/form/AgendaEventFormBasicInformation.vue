@@ -206,6 +206,20 @@ export default {
         this.$refs.calendarOwner.resetCustomValidity();
       }
     },
+    updateEventDates() {
+      this.event.startDate = new Date(this.eventDateOption.startDate);
+      this.event.endDate = new Date(this.eventDateOption.endDate);
+
+      this.event.start = this.$agendaUtils.toRFC3339(this.event.startDate);
+      this.event.end = this.$agendaUtils.toRFC3339(this.event.endDate);
+
+      if (this.event.dateOptions && this.event.dateOptions.length === 1) {
+        this.event.dateOptions[0].startDate = new Date(this.event.startDate);
+        this.event.dateOptions[0].endDate = new Date(this.event.endDate);
+        this.event.dateOptions[0].start = this.event.start;
+        this.event.dateOptions[0].end = this.event.end;
+      }
+    },
     validateForm() {
       this.resetCustomValidity();
       this.$refs.calendarOwner.validateForm();
