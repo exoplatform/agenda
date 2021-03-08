@@ -13,7 +13,8 @@
         class="event-conflicted ml-2"
         absolute
         icon
-        fab>
+        fab
+        @click="$root.$emit('agenda-conflict-events-drawer-open', dateOption, conflictEvents)">
         <v-icon size="20px" color="#f8b441">warning</v-icon>
       </v-btn>
     </v-fab-transition>
@@ -41,12 +42,15 @@ export default {
   },
   data() {
     return {
-      conflictWithOtherEvent: false,
+      conflictEvents: null,
     };
   },
   computed: {
     isCurrentUser() {
       return this.voter && this.voter.isCurrentUser;
+    },
+    conflictWithOtherEvent() {
+      return this.conflictEvents && this.conflictEvents.length;
     },
   },
   mounted() {
@@ -58,8 +62,8 @@ export default {
         const start = this.$agendaUtils.toRFC3339(this.dateOption.start, this.dateOption.allDay, true);
         const end = this.$agendaUtils.toRFC3339(this.dateOption.end, this.dateOption.allDay, true).replace('00:00:00', '23:59:59');
 
-        this.$eventService.getEvents(null, null, eXo.env.portal.userIdentityId, start, end, 1, ['ACCEPTED'])
-          .then(data => this.conflictWithOtherEvent = data && data.events && data.events.length);
+        this.$eventService.getEvents(null, null, eXo.env.portal.userIdentityId, start, end, 10, ['ACCEPTED','TENTATIVE'])
+          .then(data => this.conflictEvents = data && data.events);
       }
     },
   },

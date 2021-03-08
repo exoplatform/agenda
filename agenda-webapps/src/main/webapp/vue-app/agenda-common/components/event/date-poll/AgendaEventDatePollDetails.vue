@@ -108,6 +108,7 @@
         </v-btn>
       </v-col>
     </v-row>
+    <agenda-date-option-conflict-drawer />
   </v-card>
 </template>
 <script>
