@@ -1,5 +1,6 @@
 <template>
   <td
+    v-if="!isMobile"
     :title="dateOptionHeaderTitle"
     :class="dateOptionHeaderClass"
     class="event-date-options-cell"
@@ -54,6 +55,44 @@
       </v-fab-transition>
     </v-card>
   </td>
+  <div v-else class="d-inline-flex">
+    <date-format
+      :value="dateOption.start"
+      :format="dateDayFormat"
+      class="text-no-wrap mr-1 font-weight-bold" />
+    <template v-if="!sameDayDates">
+      -
+      <date-format
+        :value="dateOption.end"
+        :format="dateDayFormat"
+        class="ml-1 font-weight-bold" />
+    </template>
+    <template v-if="dateOption.allDay">
+      {{ $t('agenda.allDay') }}
+    </template>
+    <template v-else>
+      <date-format
+        :value="dateOption.start"
+        :format="dateTimeFormat"
+        class="mr-1" />
+      -
+      <date-format
+        :value="dateOption.end"
+        :format="dateTimeFormat"
+        class="ml-1 mr-2" />
+    </template>
+    <v-fab-transition>
+      <v-btn
+        :title="$t('agenda.finalDate')"
+        absolute
+        right
+        icon
+        fab
+        x-small>
+        <v-icon color="#f8b441">fa-trophy</v-icon>
+      </v-btn>
+    </v-fab-transition>
+  </div>
 </template>
 <script>
 export default {
@@ -114,6 +153,9 @@ export default {
         dateOptionHeaderClass += ' event-date-option-header-selected';
       }
       return dateOptionHeaderClass;
+    },
+    isMobile() {
+      return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
     },
   },
 };

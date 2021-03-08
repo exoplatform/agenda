@@ -1,5 +1,5 @@
 <template>
-  <tr>
+  <tr v-if="!isMobile">
     <th :class="!voter.profile && 'no-vote' || ''" class="event-date-options-voter-cell justify-center">
       <v-card
         class="d-flex fill-height border-box-sizing mr-3"
@@ -103,6 +103,9 @@ export default {
         leave: this.$t('space.leave'),
         members: this.$t('space.members'),
       };
+    },
+    isMobile() {
+      return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
     },
   },
   methods: {

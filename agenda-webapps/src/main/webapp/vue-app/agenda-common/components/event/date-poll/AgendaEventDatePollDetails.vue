@@ -15,6 +15,7 @@
     </div>
     <div class="d-flex flex-column px-6 pb-8">
       <table
+        v-if="!isMobile"
         id="event-date-options-table"
         description="Event date options table"
         class="event-date-options-table mx-auto">
@@ -77,6 +78,13 @@
             @change-vote="isVoting = true" />
         </template>
       </table>
+      <agenda-event-date-poll-details-mobile
+        v-else
+        :event="event"
+        :date-options="dateOptions"
+        :is-voting="isVoting"
+        :is-creator="isCreator"
+        :voters="voters" />
     </div>
     <v-row
       v-if="isAttendee"
@@ -209,6 +217,9 @@ export default {
         leave: this.$t('space.leave'),
         members: this.$t('space.members'),
       };
+    },
+    isMobile() {
+      return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
     },
   },
   watch: {
