@@ -6,7 +6,7 @@
       {{ $t('agenda.schedulingConflict') }}
     </template>
     <template slot="content">
-      <div v-if="dateOption" class="text-center text-subtitle-2 font-weight-bold">
+      <div v-if="dateOption" class="text-center text-subtitle-2 font-weight-bold pt-2">
         <div class="d-inline-flex">
           <date-format
             :value="dateOption.start"
@@ -42,10 +42,7 @@
           v-for="event in events"
           :key="event.id"
           :event="event"
-          class="mx-2 px-2 py-0 mb-2"
-          min-height="auto"
-          min-width="100%"
-          @close="close" />
+          class="mx-2 px-2 py-0 mb-2" />
       </v-list>
     </template>
   </exo-drawer>
@@ -79,16 +76,14 @@ export default {
     this.$root.$on('agenda-conflict-events-drawer-open', (dateOption, events) => {
       this.dateOption = dateOption;
       this.events = events;
-      this.pendingEventCount = events.length;
       this.open();
     });
   },
   methods: {
     open() {
-      this.$refs.conflictEventsDrawer.open();
-    },
-    close() {
-      this.$refs.conflictEventsDrawer.close();
+      if (this.$refs.conflictEventsDrawer) {
+        this.$refs.conflictEventsDrawer.open();
+      }
     },
   }
 };
