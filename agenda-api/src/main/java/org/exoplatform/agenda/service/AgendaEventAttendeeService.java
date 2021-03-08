@@ -35,6 +35,15 @@ public interface AgendaEventAttendeeService {
   public List<EventAttendee> getEventAttendees(long eventId);
 
   /**
+   * Return the list of attendees of an event having a specific responses.
+   * 
+   * @param eventId agenda {@link Event} identifier
+   * @param responses Array of answers of attendees to retrieve
+   * @return {@link List} of {@link EventAttendee}
+   */
+  List<EventAttendee> getEventAttendees(long eventId, EventAttendeeResponse... responses);
+
+  /**
    * Sends an invitation to event attendees of type: user, space or external
    * user.
    * 

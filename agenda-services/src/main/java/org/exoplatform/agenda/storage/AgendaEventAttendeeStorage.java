@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.dao.EventAttendeeDAO;
 import org.exoplatform.agenda.dao.EventDAO;
 import org.exoplatform.agenda.entity.EventAttendeeEntity;
@@ -57,6 +58,16 @@ public class AgendaEventAttendeeStorage {
 
   public List<EventAttendee> getEventAttendees(long eventId) {
     List<EventAttendeeEntity> eventAttendeeEntities = eventAttendeeDAO.getEventAttendees(eventId);
+    if (eventAttendeeEntities == null) {
+      return Collections.emptyList();
+    }
+    return eventAttendeeEntities.stream()
+                                .map(eventAttendeeEntity -> EntityMapper.fromEntity(eventAttendeeEntity, eventId))
+                                .collect(Collectors.toList());
+  }
+
+  public List<EventAttendee> getEventAttendees(long eventId, EventAttendeeResponse... responses) {
+    List<EventAttendeeEntity> eventAttendeeEntities = eventAttendeeDAO.getEventAttendeesByResponses(eventId, responses);
     if (eventAttendeeEntities == null) {
       return Collections.emptyList();
     }
