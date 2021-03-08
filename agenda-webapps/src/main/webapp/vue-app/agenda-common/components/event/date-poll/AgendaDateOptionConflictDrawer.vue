@@ -1,0 +1,95 @@
+<template>
+  <exo-drawer
+    ref="conflictEventsDrawer"
+    right>
+    <template slot="title">
+      {{ $t('agenda.schedulingConflict') }}
+    </template>
+    <template slot="content">
+      <div v-if="dateOption" class="text-center text-subtitle-2 font-weight-bold">
+        <div class="d-inline-flex">
+          <date-format
+            :value="dateOption.start"
+            :format="fullDateFormat"
+            class="mr-1" />
+          <template v-if="!sameDayDates">
+            -
+            <date-format
+              :value="dateOption.end"
+              :format="fullDateFormat"
+              class="ml-1" />
+          </template>
+        </div>
+        <div class="d-inline-flex">
+          <template v-if="dateOption.allDay">
+            {{ $t('agenda.allDay') }}
+          </template>
+          <template v-else>
+            <date-format
+              :value="dateOption.start"
+              :format="dateTimeFormat"
+              class="mr-1" />
+            -
+            <date-format
+              :value="dateOption.end"
+              :format="dateTimeFormat"
+              class="ml-1 mr-2" />
+          </template>
+        </div>
+      </div>
+      <v-list>
+        <agenda-date-option-conflict-item
+          v-for="event in events"
+          :key="event.id"
+          :event="event"
+          class="mx-2 px-2 py-0 mb-2"
+          min-height="auto"
+          min-width="100%"
+          @close="close" />
+      </v-list>
+    </template>
+  </exo-drawer>
+</template>
+
+<script>
+export default {
+  data:() => ({
+    events: [],
+    dateOption: null,
+    fullDateFormat: {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    },
+    dateDayFormat: {
+      month: 'short',
+      day: 'numeric',
+    },
+    dateTimeFormat: {
+      hour: '2-digit',
+      minute: '2-digit',
+    },
+  }),
+  computed: {
+    sameDayDates() {
+      return this.dateOption.start && this.dateOption.end && this.$agendaUtils.areDatesOnSameDay(this.dateOption.start, this.dateOption.end);
+    },
+  },
+  created() {
+    this.$root.$on('agenda-conflict-events-drawer-open', (dateOption, events) => {
+      this.dateOption = dateOption;
+      this.events = events;
+      this.pendingEventCount = events.length;
+      this.open();
+    });
+  },
+  methods: {
+    open() {
+      this.$refs.conflictEventsDrawer.open();
+    },
+    close() {
+      this.$refs.conflictEventsDrawer.close();
+    },
+  }
+};
+</script>
