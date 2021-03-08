@@ -13,13 +13,13 @@
         <div :style="textStyle" class="d-inline-flex">
           <date-format
             :value="event.start"
-            :format="fullDateFormat"
+            :format="dateFormat"
             class="mr-1" />
           <template v-if="!sameDayDates">
             -
             <date-format
               :value="event.end"
-              :format="fullDateFormat"
+              :format="dateFormat"
               class="ml-1" />
           </template>
         </div>
@@ -30,12 +30,12 @@
           <template v-else>
             <date-format
               :value="event.start"
-              :format="dateTimeFormat"
+              :format="timeFormat"
               class="ml-1 mr-1" />
             -
             <date-format
               :value="event.end"
-              :format="dateTimeFormat"
+              :format="timeFormat"
               class="ml-1 mr-2" />
           </template>
         </div>
@@ -53,16 +53,12 @@ export default {
     },
   },
   data:() => ({
-    fullDateFormat: {
+    dateFormat: {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
     },
-    dateDayFormat: {
-      month: 'short',
-      day: 'numeric',
-    },
-    dateTimeFormat: {
+    timeFormat: {
       hour: '2-digit',
       minute: '2-digit',
     },
@@ -78,22 +74,11 @@ export default {
     sameDayDates() {
       return this.event.start && this.event.end && this.$agendaUtils.areDatesOnSameDay(this.event.start, this.event.end);
     },
-    eventStyle() {
-      if (this.event) {
-        return `background: ${this.eventColor};`;
-      } else {
-        return `border: 1px solid ${this.eventColor};`;
-      }
-    },
     eventColor() {
-      if (this.event) {
-        if (this.event.color) {
-          return this.event.color;
-        } else {
-          return this.event.calendar.color;
-        }
-      }
-      return '';
+      return this.event && this.event.calendar && this.event.calendar.color || '#2196F3';
+    },
+    eventStyle() {
+      return `background: ${this.eventColor};`;
     },
   },
 };

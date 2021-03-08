@@ -10,13 +10,13 @@
         <div class="d-inline-flex">
           <date-format
             :value="dateOption.start"
-            :format="fullDateFormat"
+            :format="dateFormat"
             class="mr-1" />
           <template v-if="!sameDayDates">
             -
             <date-format
               :value="dateOption.end"
-              :format="fullDateFormat"
+              :format="dateFormat"
               class="ml-1" />
           </template>
         </div>
@@ -27,12 +27,12 @@
           <template v-else>
             <date-format
               :value="dateOption.start"
-              :format="dateTimeFormat"
+              :format="timeFormat"
               class="mr-1" />
             -
             <date-format
               :value="dateOption.end"
-              :format="dateTimeFormat"
+              :format="timeFormat"
               class="ml-1 mr-2" />
           </template>
         </div>
@@ -53,16 +53,12 @@ export default {
   data:() => ({
     events: [],
     dateOption: null,
-    fullDateFormat: {
+    dateFormat: {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
     },
-    dateDayFormat: {
-      month: 'short',
-      day: 'numeric',
-    },
-    dateTimeFormat: {
+    timeFormat: {
       hour: '2-digit',
       minute: '2-digit',
     },
