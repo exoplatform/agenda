@@ -45,6 +45,8 @@ import AgendaEventDatePollDetails from './components/event/date-poll/AgendaEvent
 import AgendaEventDateOptionPeriod from './components/event/date-poll/AgendaEventDateOptionPeriod.vue';
 import AgendaEventDateOptionVoter from './components/event/date-poll/AgendaEventDateOptionVoter.vue';
 import AgendaEventDateOptionVote from './components/event/date-poll/AgendaEventDateOptionVote.vue';
+import AgendaDateOptionConflictDrawer from './components/event/date-poll/AgendaDateOptionConflictDrawer.vue';
+import AgendaDateOptionConflictItem from './components/event/date-poll/AgendaDateOptionConflictItem.vue';
 
 import AgendaUserSettingDrawer from './components/settings/AgendaUserSettingDrawer.vue';
 import AgendaReminderUserSettings from './components/settings/AgendaReminderUserSettings.vue';
@@ -131,6 +133,8 @@ const components = {
   'agenda-pending-invitation-badge':AgendaPendingInvitationBadge,
   'agenda-reminder-user-settings': AgendaReminderUserSettings,
   'agenda-reminder-user-setting-item': AgendaReminderUserSettingItem,
+  'agenda-date-option-conflict-drawer':AgendaDateOptionConflictDrawer,
+  'agenda-date-option-conflict-item':AgendaDateOptionConflictItem,
   'agenda-connector': AgendaConnector,
   'agenda-connector-status': AgendaConnectorStatus,
   'agenda-connector-contemporary-events': AgendaConnectorContemporaryEvents,
