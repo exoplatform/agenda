@@ -43,11 +43,15 @@ import AgendaEventFormCalendarOwner from './components/event/form/AgendaEventFor
 import AgendaEventFormConference from './components/event/form/AgendaEventFormConference.vue';
 
 import AgendaEventDatePollDetails from './components/event/date-poll/AgendaEventDatePollDetails.vue';
+import AgendaEventDatePollDetailsMobile from './components/event/date-poll/mobile/AgendaEventDatePollDetailsMobile.vue';
 import AgendaEventDateOptionPeriod from './components/event/date-poll/AgendaEventDateOptionPeriod.vue';
 import AgendaEventDateOptionVoter from './components/event/date-poll/AgendaEventDateOptionVoter.vue';
 import AgendaEventDateOptionVote from './components/event/date-poll/AgendaEventDateOptionVote.vue';
 import AgendaDateOptionConflictDrawer from './components/event/date-poll/AgendaDateOptionConflictDrawer.vue';
 import AgendaDateOptionConflictItem from './components/event/date-poll/AgendaDateOptionConflictItem.vue';
+import AgendaEventDateOptionPeriodMobile from './components/event/date-poll/mobile/AgendaEventDateOptionPeriodMobile.vue';
+import AgendaEventDateOptionVoteMobile from './components/event/date-poll/mobile/AgendaEventDateOptionVoteMobile.vue';
+import AgendaEventDateOptionVoterMobile from './components/event/date-poll/mobile/AgendaEventDateOptionVoterMobile.vue';
 
 import AgendaUserSettingDrawer from './components/settings/AgendaUserSettingDrawer.vue';
 import AgendaReminderUserSettings from './components/settings/AgendaReminderUserSettings.vue';
@@ -122,9 +126,13 @@ const components = {
   'agenda-event-form-calendar-owner': AgendaEventFormCalendarOwner,
   'agenda-event-form-conference':AgendaEventFormConference,
   'agenda-event-date-poll-details':AgendaEventDatePollDetails,
+  'agenda-event-date-poll-details-mobile':AgendaEventDatePollDetailsMobile,
   'agenda-event-date-option-period':AgendaEventDateOptionPeriod,
   'agenda-event-date-option-voter':AgendaEventDateOptionVoter,
   'agenda-event-date-option-vote':AgendaEventDateOptionVote,
+  'agenda-event-date-option-voter-mobile':AgendaEventDateOptionVoterMobile,
+  'agenda-event-date-option-vote-mobile':AgendaEventDateOptionVoteMobile,
+  'agenda-event-date-option-period-mobile':AgendaEventDateOptionPeriodMobile,
   'agenda-recurrent-event-save-confirm-dialog': AgendaRecurrentEventSaveConfirmDialog,
   'agenda-recurrent-event-response-confirm-dialog': AgendaRecurrentEventResponseConfirmDialog,
   'agenda-recurrent-event-reminders-confirm-dialog': AgendaRecurrentEventReminderConfirmDialog,
