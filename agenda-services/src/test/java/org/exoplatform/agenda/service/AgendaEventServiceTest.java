@@ -2508,6 +2508,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                                   false,
                                                   false,
                                                   new AgendaEventModification(event.getId(),
+                                                                              event.getCalendarId(),
                                                                               testuser1Id,
                                                                               Collections.singleton(AgendaEventModificationType.ADDED)));
 
@@ -2627,6 +2628,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                                   false,
                                                   false,
                                                   new AgendaEventModification(event.getId(),
+                                                                              event.getCalendarId(),
                                                                               testuser1Id,
                                                                               Collections.singleton(AgendaEventModificationType.ADDED)));
 
@@ -2662,6 +2664,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                                   false,
                                                   false,
                                                   new AgendaEventModification(event.getId(),
+                                                                              event.getCalendarId(),
                                                                               testuser1Id,
                                                                               Collections.singleton(AgendaEventModificationType.ADDED)));
 

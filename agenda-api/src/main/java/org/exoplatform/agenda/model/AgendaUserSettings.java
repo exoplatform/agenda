@@ -8,6 +8,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.exoplatform.ws.frameworks.json.impl.*;
 
 import lombok.*;
+import lombok.ToString.Exclude;
 
 @Data
 @EqualsAndHashCode
@@ -29,6 +30,14 @@ public class AgendaUserSettings implements Cloneable {
 
   private String                       connectedRemoteUserId   = null;
 
+  @Exclude
+  @lombok.EqualsAndHashCode.Exclude
+  private String                       cometdToken             = null;
+
+  @Exclude
+  @lombok.EqualsAndHashCode.Exclude
+  private String                       cometdContextName       = null;
+
   private boolean                      automaticPushEvents     = true;
 
   private String                       timeZoneId              = null;
@@ -39,7 +48,8 @@ public class AgendaUserSettings implements Cloneable {
 
   private List<String>                 webConferenceProviders  = null;
 
-  public AgendaUserSettings(String agendaDefaultView,
+  public AgendaUserSettings(String cometdToken,
+                            String agendaDefaultView,
                             String agendaWeekStartOn,
                             boolean showWorkingTime,
                             String workingTimeStart,
@@ -48,6 +58,7 @@ public class AgendaUserSettings implements Cloneable {
                             String connectedRemoteUserId,
                             boolean automaticPushEvents,
                             String timeZoneId) {
+    this.cometdToken = cometdToken;
     this.agendaDefaultView = agendaDefaultView;
     this.agendaWeekStartOn = agendaWeekStartOn;
     this.showWorkingTime = showWorkingTime;
@@ -83,7 +94,8 @@ public class AgendaUserSettings implements Cloneable {
 
   @Override
   public AgendaUserSettings clone() { // NOSONAR
-    return new AgendaUserSettings(agendaDefaultView,
+    return new AgendaUserSettings(cometdToken,
+                                  agendaDefaultView,
                                   agendaWeekStartOn,
                                   showWorkingTime,
                                   workingTimeStart,

@@ -18,6 +18,7 @@ import org.exoplatform.common.http.HTTPStatus;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.rest.resource.ResourceContainer;
+import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 
 import io.swagger.annotations.*;
@@ -34,15 +35,19 @@ public class AgendaSettingsRest implements ResourceContainer {
 
   private AgendaRemoteEventService     agendaRemoteEventService;
 
+  private AgendaWebSocketService       agendaWebSocketService;
+
   private IdentityManager              identityManager;
 
   public AgendaSettingsRest(AgendaUserSettingsService agendaUserSettingsService,
                             AgendaEventConferenceService agendaEventConferenceService,
                             AgendaRemoteEventService agendaRemoteEventService,
+                            AgendaWebSocketService agendaWebSocketService,
                             IdentityManager identityManager) {
     this.agendaUserSettingsService = agendaUserSettingsService;
     this.agendaEventConferenceService = agendaEventConferenceService;
     this.agendaRemoteEventService = agendaRemoteEventService;
+    this.agendaWebSocketService = agendaWebSocketService;
     this.identityManager = identityManager;
   }
 
@@ -63,12 +68,16 @@ public class AgendaSettingsRest implements ResourceContainer {
       }
   )
   public Response getUserSettings() {
-    long identityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    Identity currentUserIdentity = RestUtils.getCurrentUserIdentity(identityManager);
     try {
+      long identityId = Long.parseLong(currentUserIdentity.getId());
       AgendaUserSettings agendaUserSettings = agendaUserSettingsService.getAgendaUserSettings(identityId);
+      String cometdToken = agendaWebSocketService.getUserToken(currentUserIdentity.getRemoteId());
+      agendaUserSettings.setCometdToken(cometdToken);
+      agendaUserSettings.setCometdContextName(agendaWebSocketService.getCometdContextName());
       return Response.ok(agendaUserSettings).build();
     } catch (Exception e) {
-      LOG.warn("Error retrieving agenda settings for user with id '{}'", identityId, e);
+      LOG.warn("Error retrieving agenda settings for user with id '{}'", currentUserIdentity, e);
       return Response.serverError().entity(e.getMessage()).build();
     }
   }
@@ -94,7 +103,8 @@ public class AgendaSettingsRest implements ResourceContainer {
                                    @ApiParam(
                                        value = "User agenda settings to update",
                                        required = true
-                                   ) AgendaUserSettings agendaUserSettings) {
+                                   )
+                                   AgendaUserSettings agendaUserSettings) {
     if (agendaUserSettings == null) {
       return Response.status(Status.BAD_REQUEST).entity("Agenda settings object is mandatory").build();
     }
@@ -128,7 +138,9 @@ public class AgendaSettingsRest implements ResourceContainer {
                                           @ApiParam(
                                               value = "User preferred time zone",
                                               required = true
-                                          ) @FormParam("timeZoneId") String timeZoneId) {
+                                          )
+                                          @FormParam("timeZoneId")
+                                          String timeZoneId) {
     if (StringUtils.isBlank(timeZoneId)) {
       return Response.status(Status.BAD_REQUEST).entity("'timeZoneId' parameter is mandatory").build();
     }
@@ -167,11 +179,15 @@ public class AgendaSettingsRest implements ResourceContainer {
                                            @ApiParam(
                                                value = "Remote connector name",
                                                required = true
-                                           ) @FormParam("connectorName") String connectorName,
+                                           )
+                                           @FormParam("connectorName")
+                                           String connectorName,
                                            @ApiParam(
                                                value = "Remote connector status",
                                                required = true
-                                           ) @FormParam("enabled") boolean enabled) {
+                                           )
+                                           @FormParam("enabled")
+                                           boolean enabled) {
     if (StringUtils.isBlank(connectorName)) {
       return Response.status(Status.BAD_REQUEST).entity("'connectorName' parameter is mandatory").build();
     }
@@ -207,11 +223,15 @@ public class AgendaSettingsRest implements ResourceContainer {
                                            @ApiParam(
                                                value = "Remote connector name",
                                                required = true
-                                           ) @FormParam("connectorName") String connectorName,
+                                           )
+                                           @FormParam("connectorName")
+                                           String connectorName,
                                            @ApiParam(
                                                value = "Remote connector Api Key",
                                                required = true
-                                           ) @FormParam("apiKey") String apiKey) {
+                                           )
+                                           @FormParam("apiKey")
+                                           String apiKey) {
     if (StringUtils.isBlank(connectorName)) {
       return Response.status(Status.BAD_REQUEST).entity("'connectorName' parameter is mandatory").build();
     }
@@ -244,7 +264,9 @@ public class AgendaSettingsRest implements ResourceContainer {
                                              @ApiParam(
                                                  value = "Web conferencing provider name",
                                                  required = true
-                                             ) @FormParam("providerName") String providerName) {
+                                             )
+                                             @FormParam("providerName")
+                                             String providerName) {
     try {
       if (providerName == null) {
         providerName = "";
@@ -279,11 +301,15 @@ public class AgendaSettingsRest implements ResourceContainer {
                                             @ApiParam(
                                                 value = "User connector name",
                                                 required = true
-                                            ) @FormParam("connectorName") String connectorName,
+                                            )
+                                            @FormParam("connectorName")
+                                            String connectorName,
                                             @ApiParam(
                                                 value = "User connector identifier",
                                                 required = true
-                                            ) @FormParam("connectorUserId") String connectorUserId) {
+                                            )
+                                            @FormParam("connectorUserId")
+                                            String connectorUserId) {
     if (StringUtils.isBlank(connectorName)) {
       return Response.status(Status.BAD_REQUEST).entity("'connectorName' parameter is mandatory").build();
     }

@@ -43,6 +43,7 @@ public class VoteNotificationPluginTest extends BaseAgendaEventTest {
                                                   false,
                                                   true,
                                                   new AgendaEventModification(event.getId(),
+                                                                              event.getCalendarId(),
                                                                               modifierId,
                                                                               Collections.singleton(AgendaEventModificationType.ADDED)));
     agendaEventAttendeeService.sendEventResponse(event.getId(),

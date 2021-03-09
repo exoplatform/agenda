@@ -14,12 +14,15 @@ public class AgendaEventModification {
 
   private long                             eventId;
 
+  private long                             calendarId;
+
   private long                             modifierId;
 
   private Set<AgendaEventModificationType> modificationTypes;
 
-  public AgendaEventModification(long eventId, long modifierId) {
+  public AgendaEventModification(long eventId, long calendarId, long modifierId) {
     this.eventId = eventId;
+    this.calendarId = calendarId;
     this.modifierId = modifierId;
   }
 
