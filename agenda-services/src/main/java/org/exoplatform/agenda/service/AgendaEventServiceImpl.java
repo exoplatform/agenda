@@ -319,6 +319,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
     AgendaEventModification eventModifications =
                                                new AgendaEventModification(eventId,
+                                                                           createdEvent.getCalendarId(),
                                                                            userIdentityId,
                                                                            Collections.singleton(AgendaEventModificationType.ADDED));
 
@@ -604,7 +605,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       agendaEventStorage.deleteExceptionalOccurences(eventToUpdate.getId());
     }
 
-    AgendaEventModification eventModifications = new AgendaEventModification(eventId, userIdentityId);
+    AgendaEventModification eventModifications = new AgendaEventModification(eventId, event.getCalendarId(), userIdentityId);
     eventModifications.addModificationType(AgendaEventModificationType.UPDATED);
     Utils.detectEventModifiedFields(event, storedEvent, eventModifications);
     if (eventToUpdate.getOccurrence() != null && eventModifications.hasModifiedDate()) {
@@ -713,7 +714,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
 
     event.setModifierId(Long.parseLong(userIdentity.getId()));
-    AgendaEventModification eventModifications = new AgendaEventModification(eventId, userIdentityId);
+    AgendaEventModification eventModifications = new AgendaEventModification(eventId, event.getCalendarId(), userIdentityId);
     eventModifications.addModificationType(AgendaEventModificationType.UPDATED);
     Utils.detectEventModifiedFields(event, originalEvent, eventModifications);
     if (event.getOccurrence() != null && eventModifications.hasModifiedDate()) {
@@ -758,7 +759,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
     event.setModifierId(userIdentityId);
 
-    AgendaEventModification eventModifications = new AgendaEventModification(eventId, userIdentityId);
+    AgendaEventModification eventModifications = new AgendaEventModification(eventId, event.getCalendarId(), userIdentityId);
     eventModifications.addModificationType(AgendaEventModificationType.DELETED);
     attendeeService.sendInvitations(event, eventAttendees, eventModifications);
     Utils.broadcastEvent(listenerService, Utils.POST_DELETE_AGENDA_EVENT_EVENT, eventModifications, null);
@@ -1044,6 +1045,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     modificationTypes.add(AgendaEventModificationType.ADDED);
     modificationTypes.add(AgendaEventModificationType.DATE_OPTION_SELECTED);
     AgendaEventModification eventModification = new AgendaEventModification(eventId,
+                                                                            event.getCalendarId(),
                                                                             userIdentityId,
                                                                             modificationTypes);
     Utils.broadcastEvent(listenerService, Utils.POST_CREATE_AGENDA_EVENT_EVENT, eventModification, null);

@@ -279,6 +279,7 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
                                                   true,
                                                   true,
                                                   new AgendaEventModification(event.getId(),
+                                                                              event.getCalendarId(),
                                                                               userIdentityId,
                                                                               Collections.singleton(AgendaEventModificationType.ADDED)));
     eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId);
@@ -296,6 +297,7 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
                                                   true,
                                                   true,
                                                   new AgendaEventModification(event.getId(),
+                                                                              event.getCalendarId(),
                                                                               userIdentityId,
                                                                               Collections.singleton(AgendaEventModificationType.ADDED)));
     eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId);
@@ -308,6 +310,7 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
                                                   true,
                                                   true,
                                                   new AgendaEventModification(event.getId(),
+                                                                              event.getCalendarId(),
                                                                               userIdentityId,
                                                                               Collections.singleton(AgendaEventModificationType.ADDED)));
     eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId);
