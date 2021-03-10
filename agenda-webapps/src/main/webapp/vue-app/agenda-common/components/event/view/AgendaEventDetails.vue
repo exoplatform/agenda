@@ -6,6 +6,7 @@
     <agenda-event-details-mobile-toolbar
       v-if="isMobile"
       :event="event"
+      :is-date-poll="isDatePoll"
       :connected-connector="connectedConnector"
       :is-attendee="isAttendee"
       @close="$emit('close')"

@@ -34,7 +34,7 @@
             <v-icon>mdi-dots-vertical</v-icon>
           </v-btn>
         </template>
-        <v-list>
+        <v-list v-if="!isDatePoll">
           <v-list-item v-if="canEdit" @click="$emit('edit')">
             <v-list-item-title>
               {{ $t('agenda.details.header.menu.edit') }}
@@ -43,6 +43,18 @@
           <v-list-item v-if="canEdit" @click="$emit('delete')">
             <v-list-item-title>
               {{ $t('agenda.details.header.menu.delete') }}
+            </v-list-item-title>
+          </v-list-item>
+        </v-list>
+        <v-list v-else>
+          <v-list-item v-if="canEdit" @click="$emit('edit')">
+            <v-list-item-title>
+              {{ $t('agenda.details.header.menu.edit') }}
+            </v-list-item-title>
+          </v-list-item>
+          <v-list-item v-if="canEdit" @click="$emit('change-vote')">
+            <v-list-item-title>
+              {{ $t('agenda.changeVote') }}
             </v-list-item-title>
           </v-list-item>
         </v-list>
@@ -72,6 +84,10 @@ export default {
       type: Object,
       default: () => null
     },
+    isDatePoll: {
+      type: Boolean,
+      default: false,
+    }
   },
   computed: {
     calendarOwnerLink() {

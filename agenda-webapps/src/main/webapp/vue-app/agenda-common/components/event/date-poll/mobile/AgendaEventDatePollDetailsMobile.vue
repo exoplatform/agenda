@@ -1,17 +1,35 @@
 <template>
   <v-flex class="agenda-date-poll-details-mobile">
     <v-list>
-      <v-list-item>
-        <v-list-item-content>
+      <v-list-item-group
+        v-model="selected"
+        color="primary">
+        <v-list-item
+          v-for="(dateOption, index) in dateOptions"
+          :key="index">
+          <agenda-event-date-option-vote class="my-auto" :date-option="dateOption"  />
           <agenda-event-date-option-period-mobile
-            v-for="(dateOption, index) in dateOptions"
-            :key="index"
             :date-option="dateOption"
-            :can-select="canSelectDate"
-            :voters="voters" />
-        </v-list-item-content>
-      </v-list-item>
+            class="text--primary my-auto" />
+          <v-list-item-content class="text--primary my-auto" @click="$root.$emit('selected-date-option',dateOption)">
+            <agenda-event-date-option-voter-mobile
+              :date-option="dateOption"
+              :voters="voters" />
+          </v-list-item-content>
+          <div class="my-auto">
+            <v-btn
+              :title="$t('agenda.finalDate')"
+              icon
+              right
+              fab
+              x-small>
+              <v-icon color="#f8b441">fa-trophy</v-icon>
+            </v-btn>
+          </div>
+        </v-list-item>
+      </v-list-item-group>
     </v-list>
+    <agenda-date-poll-participants-drawer-mobile :event-title="eventTitle" />
   </v-flex>
 </template>
 
@@ -29,7 +47,14 @@ export default {
     voters: {
       type: Array,
       default: () => null,
-    }
-  }
+    },
+    eventTitle: {
+      type: String,
+      default: () => null
+    },
+  },
+  data: () => ({
+    selected: 0,
+  }),
 };
 </script>

@@ -112,8 +112,9 @@
       <agenda-date-option-conflict-drawer />
     </v-card>
     <div v-else>
-      <span class="ml-3 mt-2 grey--text text-subtitle-2">Vote for your preferred dates:</span>
+      <div class="ml-3 mt-5 mb-3 grey--text text-subtitle-2">{{ $t('agenda.votePreferredDates') }}</div>
       <agenda-event-date-poll-details-mobile
+        :event-title="event.summary"
         :date-options="dateOptions"
         :voters="voters"
         :can-select-date="canSelectDate" />

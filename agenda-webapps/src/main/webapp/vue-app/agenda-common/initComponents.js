@@ -52,6 +52,7 @@ import AgendaDateOptionConflictItem from './components/event/date-poll/AgendaDat
 import AgendaEventDateOptionPeriodMobile from './components/event/date-poll/mobile/AgendaEventDateOptionPeriodMobile.vue';
 import AgendaEventDateOptionVoteMobile from './components/event/date-poll/mobile/AgendaEventDateOptionVoteMobile.vue';
 import AgendaEventDateOptionVoterMobile from './components/event/date-poll/mobile/AgendaEventDateOptionVoterMobile.vue';
+import AgendaDatePollParticipantsDrawerMobile from './components/event/date-poll/mobile/AgendaDatePollParticipantsDrawerMobile.vue';
 
 import AgendaUserSettingDrawer from './components/settings/AgendaUserSettingDrawer.vue';
 import AgendaReminderUserSettings from './components/settings/AgendaReminderUserSettings.vue';
@@ -133,6 +134,7 @@ const components = {
   'agenda-event-date-option-voter-mobile':AgendaEventDateOptionVoterMobile,
   'agenda-event-date-option-vote-mobile':AgendaEventDateOptionVoteMobile,
   'agenda-event-date-option-period-mobile':AgendaEventDateOptionPeriodMobile,
+  'agenda-date-poll-participants-drawer-mobile':AgendaDatePollParticipantsDrawerMobile,
   'agenda-recurrent-event-save-confirm-dialog': AgendaRecurrentEventSaveConfirmDialog,
   'agenda-recurrent-event-response-confirm-dialog': AgendaRecurrentEventResponseConfirmDialog,
   'agenda-recurrent-event-reminders-confirm-dialog': AgendaRecurrentEventReminderConfirmDialog,

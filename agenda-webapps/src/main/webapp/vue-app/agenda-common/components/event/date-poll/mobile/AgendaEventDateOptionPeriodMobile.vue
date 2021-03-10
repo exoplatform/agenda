@@ -1,25 +1,22 @@
 <template>
-  <v-row class="d-flex flex-nowrap col-12">
-    <v-col class="flex-grow-1 flex-shrink-0 d-flex my-auto">
-      <agenda-event-date-option-vote />
-    </v-col>
-    <v-col class="flex-grow-1 flex-shrink-0 d-flex my-auto">
+  <div v-if="dateOption" class="d-flex flex-nowrap">
+    <div class="d-inline-flex font-weight-bold">
       <date-format
         :value="dateOption.start"
         :format="dateDayFormat"
-        class="text-no-wrap mr-1 font-weight-bold" />
-    </v-col>
-    <v-col v-if="!sameDayDates" class="flex-grow-1 flex-shrink-0 my-auto">
-      -
-      <date-format
-        :value="dateOption.end"
-        :format="dateDayFormat"
-        class="ml-1 font-weight-bold" />
-    </v-col>
-    <v-col v-if="dateOption.allDay" class="flex-grow-1 flex-shrink-0 d-flex my-auto">
+        class="text-no-wrap mr-1" />
+      <template v-if="!sameDayDates">
+        -
+        <date-format
+          :value="dateOption.end"
+          :format="dateDayFormat"
+          class="ml-1" />
+      </template>
+    </div>
+    <template v-if="dateOption.allDay">
       {{ $t('agenda.allDay') }}
-    </v-col>
-    <v-col v-else class="flex-grow-1 flex-shrink-0 d-flex my-auto">
+    </template>
+    <template v-else>
       <date-format
         :value="dateOption.start"
         :format="dateTimeFormat"
@@ -29,22 +26,8 @@
         :value="dateOption.end"
         :format="dateTimeFormat"
         class="ml-1 mr-2" />
-    </v-col>
-    <v-col class="flex-grow-1 flex-shrink-0 d-flex">
-      <agenda-event-date-option-voter-mobile
-        :voters="voters" />
-    </v-col>
-    <v-col class="flex-grow-0 flex-shrink-0">
-      <v-btn
-        :title="$t('agenda.finalDate')"
-        icon
-        right
-        fab
-        x-small>
-        <v-icon color="#f8b441">fa-trophy</v-icon>
-      </v-btn>
-    </v-col>
-  </v-row>
+    </template>
+  </div>
 </template>
 
 <script>
@@ -54,18 +37,6 @@ export default {
       type: Object,
       default: () => null
     },
-    canSelect: {
-      type: Boolean,
-      default: false,
-    },
-    selected: {
-      type: Boolean,
-      default: false,
-    },
-    voters: {
-      type: Array,
-      default: () => null,
-    }
   },
   data () {
     return {
