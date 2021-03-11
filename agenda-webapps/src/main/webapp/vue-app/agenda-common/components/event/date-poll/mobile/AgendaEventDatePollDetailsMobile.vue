@@ -7,7 +7,12 @@
         <v-list-item
           v-for="(dateOption, index) in dateOptions"
           :key="index">
-          <agenda-event-date-option-vote class="my-auto" :date-option="dateOption"  />
+          <agenda-event-date-option-vote
+              class="my-auto"
+              :date-option="dateOption"
+              :vote="vote"
+              :disabled="disabled"
+              :voter="voter" />
           <agenda-event-date-option-period-mobile
             :date-option="dateOption"
             class="text--primary my-auto" />
@@ -55,6 +60,28 @@ export default {
   },
   data: () => ({
     selected: 0,
+    vote: false,
+    voter: null,
+    disabled: false,
   }),
+  created() {
+    this.initializeCurrentUserVote();
+  },
+  methods: {
+    initializeCurrentUserVote() {
+      this.voters.forEach(voter => {
+        if(voter.isCurrentUser) {
+          this.voter = voter;
+        voter.dateOptionVotes.forEach(dateOptionVote => {
+          if (dateOptionVote) {
+            this.vote = dateOptionVote;
+          } else {
+            this.vote = false;
+          }
+        });
+      }
+      });
+    },
+  }
 };
 </script>
