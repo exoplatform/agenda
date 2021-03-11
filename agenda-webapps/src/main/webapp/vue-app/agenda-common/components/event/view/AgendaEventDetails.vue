@@ -30,12 +30,21 @@
       :connectors="connectors"
       :conference-provider="conferenceProvider"
       @refresh-event="$emit('refresh-event')" />
-    <agenda-event-details-body
-      v-else
-      :settings="settings"
-      :event="event"
-      :connectors="connectors"
-      :conference-provider="conferenceProvider" />
+    <template v-else>
+      <agenda-event-details-body
+        :settings="settings"
+        :event="event"
+        :connectors="connectors"
+        :conference-provider="conferenceProvider" />
+      <template v-if="isAttendee && isMobile">
+        <v-divider />
+        <agenda-event-attendee-buttons
+          ref="eventAttendeeButtons"
+          :event="event"
+          :class="isMobile && 'mr-1' || 'mr-10'"
+          class="flex-grow-0 my-2" />
+      </template>
+    </template>
     <agenda-recurrent-event-delete-confirm-dialog
       v-if="event.occurrence"
       ref="deleteConfirmDialog"
