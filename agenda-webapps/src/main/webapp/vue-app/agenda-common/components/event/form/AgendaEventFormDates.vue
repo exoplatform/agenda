@@ -48,7 +48,7 @@
     <v-calendar
       ref="calendar"
       v-model="dayToDisplay"
-      :events="displayedEvents"
+      :events="eventsToDisplay"
       :event-color="getEventColor"
       :event-timed="isEventTimed"
       :weekdays="weekdays"
@@ -170,6 +170,22 @@ export default {
     displayedEvents: [],
   }),
   computed: {
+    // A workaround to display events that finishes at midnight the same day
+    eventsToDisplay() {
+      const eventsToDisplay = [];
+      this.displayedEvents.forEach(event => {
+        if (event.endDate && event.endDate.toString().indexOf('00:00:00') >= 0) {
+          const eventToDisplay = JSON.parse(JSON.stringify(event));
+          eventToDisplay.startDate = this.$agendaUtils.toDate(event.startDate);
+          eventToDisplay.endDate = this.$agendaUtils.toDate(event.endDate);
+          eventToDisplay.endDate = new Date(eventToDisplay.endDate.getTime() - 60000);
+          eventsToDisplay.push(eventToDisplay);
+        } else {
+          eventsToDisplay.push(event);
+        }
+      });
+      return eventsToDisplay;
+    },
     nowTimeOptions() {
       const now = new Date();
       return {hour: now.getHours(), minute: now.getMinutes()};

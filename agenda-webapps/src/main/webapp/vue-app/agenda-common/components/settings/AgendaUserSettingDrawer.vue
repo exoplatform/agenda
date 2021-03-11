@@ -42,11 +42,11 @@
           <div v-if="userSettingsForm.showWorkingTime" class="workingTime d-flex flex-row align-center">
             <time-picker
               v-model="userSettingsForm.workingTimeStart"
-              interval-minutes="$agendaUtils.MINIMUM_TIME_INTERVAL" />
+              :interval-minutes="$agendaUtils.MINIMUM_TIME_INTERVAL" />
             <label class="switch-label-text mx-5 text-subtitle-1">{{ $t('agenda.label.to') }}</label>
             <time-picker
               v-model="userSettingsForm.workingTimeEnd"
-              interval-minutes="$agendaUtils.MINIMUM_TIME_INTERVAL" />
+              :interval-minutes="$agendaUtils.MINIMUM_TIME_INTERVAL" />
           </div>
           <label class="subtitle-1 float-left mt-5 mr-4">
             {{ $t('agenda.label.defaultReminders') }}
