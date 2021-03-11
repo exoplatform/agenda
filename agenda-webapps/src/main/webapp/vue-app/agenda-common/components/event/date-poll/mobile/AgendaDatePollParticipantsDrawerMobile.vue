@@ -44,10 +44,10 @@
             :labels="labels"
             class="d-inline-block" />
           <exo-user-avatar
-            v-else-if="voter.profile"
-            :username="voter.profile.username"
-            :fullname="voter.profile.fullname"
-            :title="voter.profile.fullname"
+            v-else-if="voter"
+            :username="voter.username"
+            :fullname="voter.fullname"
+            :title="voter.fullname"
             :labels="labels"
             class="d-inline-block date-poll-participant" />
         </v-list-item>
