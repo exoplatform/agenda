@@ -66,7 +66,7 @@ export default {
   },
   methods: {
     changeResponse(response) {
-      if (this.event.occurrence) {
+      if (this.event.occurrence && this.event.parent && (!this.event.parent.acl || this.event.parent.acl.attendee)) {
         this.$refs.responseConfirmDialog.open(response);
       } else {
         this.savingResponse = response;

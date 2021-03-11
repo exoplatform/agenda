@@ -66,6 +66,10 @@ public class DatePollNotificationPlugin extends BaseNotificationPlugin {
     @SuppressWarnings("unchecked")
     List<EventAttendee> eventAttendees = ctx.value(EVENT_ATTENDEE);
     Event event = ctx.value(EVENT_AGENDA);
+    Long modifierId = ctx.value(EVENT_MODIFIER);
+    if (modifierId == null) {
+      modifierId = event.getModifierId();
+    }
     String typeModification = ctx.value(EVENT_MODIFICATION_TYPE);
     // To avoid NPE for previously stored notifications, if
     // EVENT_MODIFICATION_TYPE parameter
@@ -76,7 +80,7 @@ public class DatePollNotificationPlugin extends BaseNotificationPlugin {
     NotificationInfo notification = NotificationInfo.instance();
     notification.key(getId());
     if (event.getId() > 0) {
-      setNotificationRecipients(identityManager, notification, spaceService, eventAttendees, event, typeModification);
+      setNotificationRecipients(identityManager, notification, spaceService, eventAttendees, event, typeModification, modifierId);
     }
     if (notification.getSendToUserIds() == null || notification.getSendToUserIds().isEmpty()) {
       LOG.debug("Notification type '{}' doesn't have a recipient", getId());

@@ -68,15 +68,6 @@ public class AgendaReplyOnSaveListener extends Listener<AgendaEventModification,
             getAgendaEventDatePollService().saveEventVotes(eventId, acceptedDatePollIds, modifierId);
           }
           break;
-        case CANCELLED:
-          // Automatically change creator response to accepted for all proposed
-          // Date Polls
-          for (EventAttendee eventAttendee : eventAttendees) {
-            getAgendaEventAttendeeService().sendEventResponse(eventId,
-                                                              eventAttendee.getIdentityId(),
-                                                              EventAttendeeResponse.DECLINED);
-          }
-          break;
         default:
           break;
       }

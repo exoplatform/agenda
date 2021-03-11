@@ -202,7 +202,7 @@ export default {
       if (!this.event) {
         return;
       }
-      const retrieveEventDetailsPromise = this.event.occurrence && this.event.occurrence.id ? this.$eventService.getEventOccurrence(this.event.parent.id, this.event.occurrence.id, 'all') : this.$eventService.getEventById(this.event.id, 'all');
+      const retrieveEventDetailsPromise = this.event.occurrence && this.event.occurrence.id ? this.$eventService.getEventOccurrence(this.event.parent.id, this.event.occurrence.id, 'all,parentAll') : this.$eventService.getEventById(this.event.id, 'all,parentAll');
       retrieveEventDetailsPromise
         .then(event => this.event = event)
         .finally(() => {
@@ -253,7 +253,7 @@ export default {
     },
     openEventById(eventId, occurrenceId) {
       if (eventId) {
-        const getEventDetailsPromise = occurrenceId ? this.$eventService.getEventOccurrence(eventId, occurrenceId, 'all') : this.$eventService.getEventById(eventId, 'all');
+        const getEventDetailsPromise = occurrenceId ? this.$eventService.getEventOccurrence(eventId, occurrenceId, 'all,parentAll') : this.$eventService.getEventById(eventId, 'all,parentAll');
         return getEventDetailsPromise.then(event => {
           if(!event ||  (event.status !== 'TENTATIVE' && event.status !== 'CONFIRMED')) {
             return ;

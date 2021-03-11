@@ -415,7 +415,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                                                                                     ","));
       ZoneId userTimeZone = StringUtils.isBlank(timeZoneId) ? ZoneOffset.UTC : ZoneId.of(timeZoneId);
       long identityId = RestUtils.getCurrentUserIdentityId(identityManager);
-      ZonedDateTime occurrenceDate = AgendaDateUtils.parseRFC3339ToZonedDateTime(occurrenceId, userTimeZone);
+      ZonedDateTime occurrenceDate = AgendaDateUtils.parseRFC3339ToZonedDateTime(occurrenceId, ZoneOffset.UTC);
       Event event = agendaEventService.getEventOccurrence(parentEventId, occurrenceDate, userTimeZone, identityId);
       if (event == null) {
         return Response.status(Status.NOT_FOUND).build();
@@ -1692,10 +1692,18 @@ public class AgendaEventRest implements ResourceContainer, Startable {
         fillDateOptions(eventEntity, userTimeZone);
       }
       fillRemoteEvent(eventEntity, userIdentityId);
-      if (eventEntity.getParent() != null) {
-        fillRemoteEvent(eventEntity.getParent(), userIdentityId);
+      boolean isComputedOccurrence = isComputedOccurrence(eventEntity);
+      EventEntity parentEventEntity = eventEntity.getParent();
+      if (parentEventEntity != null) {
+        fillRemoteEvent(parentEventEntity, userIdentityId);
+
+        if (expandProperties.contains("parentAll") && !isComputedOccurrence) {
+          boolean isEventAttendee = agendaEventAttendeeService.isEventAttendee(parentEventEntity.getId(), userIdentityId);
+          boolean canUpdateEvent = isEventAttendee && eventEntity.getAcl().isCanEdit();
+          parentEventEntity.setAcl(new EventPermission(canUpdateEvent, isEventAttendee));
+        }
       }
-      if (isComputedOccurrence(eventEntity)) {
+      if (isComputedOccurrence) {
         cleanupAttachedEntitiesIds(eventEntity);
       }
       return eventEntity;

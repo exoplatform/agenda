@@ -75,7 +75,7 @@ public class RestEntityBuilder {
                                                                             eventZoneId,
                                                                             false);
       recurrence = new EventRecurrence(recurrenceEntity.getId(),
-                                       untilDate == null ? null : untilDate.toLocalDate(),
+                                       untilDate == null ? null : untilDate.withZoneSameInstant(ZoneOffset.UTC).toLocalDate(),
                                        recurrenceEntity.getCount(),
                                        recurrenceEntity.getType(),
                                        recurrenceEntity.getFrequency(),
