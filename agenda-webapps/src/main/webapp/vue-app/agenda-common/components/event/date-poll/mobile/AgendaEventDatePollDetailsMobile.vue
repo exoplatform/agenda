@@ -8,18 +8,21 @@
           v-for="(dateOption, index) in dateOptions"
           :key="index">
           <agenda-event-date-option-vote
-              class="my-auto"
-              :date-option="dateOption"
-              :vote="vote"
-              :disabled="disabled"
-              :voter="voter" />
+            class="my-auto"
+            :date-option="dateOption"
+            :vote="vote"
+            :disabled="disabled"
+            :voter="voter" />
           <agenda-event-date-option-period-mobile
             :date-option="dateOption"
             class="text--primary my-auto" />
-          <v-list-item-content class="text--primary my-auto" @click="$root.$emit('selected-date-option',dateOption)">
-            <agenda-event-date-option-voter-mobile
-              :date-option="dateOption"
-              :voters="voters" />
+          <v-list-item-content
+            class="text--primary my-auto"
+            @click="$root.$emit('selected-date-option',dateOption)">
+            <exo-user-avatars-list
+              :users="dateOption.voters"
+              :max="2"
+              @open-detail="$root.$emit('agenda-display-voters', votersAcceptedDatePoll)" />          
           </v-list-item-content>
           <div class="my-auto">
             <v-btn
@@ -72,14 +75,14 @@ export default {
       this.voters.forEach(voter => {
         if(voter.isCurrentUser) {
           this.voter = voter;
-        voter.dateOptionVotes.forEach(dateOptionVote => {
-          if (dateOptionVote) {
-            this.vote = dateOptionVote;
-          } else {
-            this.vote = false;
-          }
-        });
-      }
+          voter.dateOptionVotes.forEach(dateOptionVote => {
+            if (dateOptionVote) {
+              this.vote = dateOptionVote;
+            } else {
+              this.vote = false;
+            }
+          });
+        }
       });
     },
   }

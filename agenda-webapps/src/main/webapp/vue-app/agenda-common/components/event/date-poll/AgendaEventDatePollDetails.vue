@@ -322,7 +322,6 @@ export default {
     computeVoterFromIdentity(voters, attendee) {
       const voter = attendee.identity;
       voter.fullName = voter.profile && voter.profile.fullname || voter.space && voter.space.displayName || '';
-      voter.username = voter.profile && voter.profile.username;
       if (Number(voter.id) === this.currentUserId) {
         voter.isCurrentUser = true;
         this.currentUserAttendee = attendee;
