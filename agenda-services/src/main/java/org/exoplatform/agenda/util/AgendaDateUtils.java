@@ -66,10 +66,12 @@ public class AgendaDateUtils {
     if (StringUtils.isBlank(dateString)) {
       return null;
     }
-    if (parseTimeZone) {
-      return LocalDateTime.parse(dateString, RFC_3339_FORMATTER).atZone(zoneId);
-    } else {
+    if (!parseTimeZone) {
       return LocalDateTime.parse(dateString, RFC_3339_FORMATTER).atZone(ZoneId.systemDefault()).withZoneSameLocal(zoneId);
+    } else if (dateString.length() > 20) {
+      return ZonedDateTime.parse(dateString, RFC_3339_FORMATTER).withZoneSameInstant(zoneId);
+    } else {
+      return LocalDateTime.parse(dateString, RFC_3339_FORMATTER).atZone(zoneId);
     }
   }
 

@@ -123,12 +123,13 @@ public class Utils {
     endDateTime.setTimeZone(ical4jTimezone);
 
     VEvent vevent = new VEvent(startDateTime, endDateTime, event.getSummary());
-    Recur recur = getICalendarRecur(event.getRecurrence(), timeZone);
+    EventRecurrence recurrence = event.getRecurrence();
+    Recur recur = getICalendarRecur(recurrence, timeZone);
     vevent.getProperties().add(new RRule(recur));
 
     ZonedDateTime fromTime = from.atStartOfDay(timeZone);
     if (to == null) {
-      ZonedDateTime overallEnd = event.getRecurrence().getOverallEnd();
+      ZonedDateTime overallEnd = recurrence.getOverallEnd();
       if (overallEnd == null) {
         to = from.plusYears(5);
       } else {
@@ -511,15 +512,28 @@ public class Utils {
     if (!StringUtils.equals(newEvent.getColor(), oldEvent.getColor())) {
       eventModification.addModificationType(AgendaEventModificationType.COLOR_UPDATED);
     }
-    if (!newEvent.getStart()
-                 .withZoneSameInstant(ZoneOffset.UTC)
-                 .equals(oldEvent.getStart().withZoneSameInstant(ZoneOffset.UTC))) {
-      eventModification.addModificationType(AgendaEventModificationType.START_DATE_UPDATED);
-    }
-    if (!newEvent.getEnd()
-                 .withZoneSameInstant(ZoneOffset.UTC)
-                 .equals(oldEvent.getEnd().withZoneSameInstant(ZoneOffset.UTC))) {
-      eventModification.addModificationType(AgendaEventModificationType.END_DATE_UPDATED);
+    if (newEvent.isAllDay()) {
+      if (!newEvent.getStart()
+                   .toLocalDate()
+                   .equals(oldEvent.getStart().toLocalDate())) {
+        eventModification.addModificationType(AgendaEventModificationType.START_DATE_UPDATED);
+      }
+      if (!newEvent.getEnd()
+                   .toLocalDate()
+                   .equals(oldEvent.getEnd().toLocalDate())) {
+        eventModification.addModificationType(AgendaEventModificationType.END_DATE_UPDATED);
+      }
+    } else {
+      if (!newEvent.getStart()
+                   .withZoneSameInstant(ZoneOffset.UTC)
+                   .equals(oldEvent.getStart().withZoneSameInstant(ZoneOffset.UTC))) {
+        eventModification.addModificationType(AgendaEventModificationType.START_DATE_UPDATED);
+      }
+      if (!newEvent.getEnd()
+                   .withZoneSameInstant(ZoneOffset.UTC)
+                   .equals(oldEvent.getEnd().withZoneSameInstant(ZoneOffset.UTC))) {
+        eventModification.addModificationType(AgendaEventModificationType.END_DATE_UPDATED);
+      }
     }
     if (newEvent.isAllDay() != oldEvent.isAllDay()) {
       eventModification.addModificationType(AgendaEventModificationType.START_DATE_UPDATED);

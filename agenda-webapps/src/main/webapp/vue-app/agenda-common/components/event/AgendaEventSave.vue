@@ -2,6 +2,7 @@
   <agenda-recurrent-event-save-confirm-dialog
     ref="recurrentEventConfirm"
     @save-event="save"
+    @dialog-opened="$root.$emit('agenda-event-save-opened')"
     @dialog-closed="$root.$emit('agenda-event-save-cancel')" />
 </template>
 
@@ -33,6 +34,7 @@ export default {
           timeZoneId: this.$agendaUtils.USER_TIMEZONE_ID,
         }, !!eventToSave.recurrence, changeDatesOnly)
           .then(event => this.saved(event || eventToSave))
+          .catch(error => this.$root.$emit('agenda-event-save-error', event, error))
           .finally(() => {
             this.saving = false;
           });
@@ -40,6 +42,7 @@ export default {
         const saveEventMethod = eventToSave.id ? this.$eventService.updateEvent : this.$eventService.createEvent;
         saveEventMethod(eventToSave)
           .then(event => this.saved(event || eventToSave))
+          .catch(error => this.$root.$emit('agenda-event-save-error', event, error))
           .finally(() => {
             this.saving = false;
           });

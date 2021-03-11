@@ -164,7 +164,9 @@ public class EntityMapper {
 
   public static EventEntity toEntity(Event event) {
     ZoneId eventZoneId = event.getTimeZoneId() == null ? ZoneOffset.UTC : event.getTimeZoneId();
-    TimeZone ical4jTimezone = Utils.getICalTimeZone(ZoneOffset.UTC);
+    // iCal4j doesn't recognize ZoneOffset.UTC, thus we use here ZoneId.of("UTC")
+    ZoneId iCal4jZoneId = event.getTimeZoneId() == null ? ZoneId.of("UTC") : event.getTimeZoneId();
+    TimeZone ical4jTimezone = Utils.getICalTimeZone(iCal4jZoneId);
 
     EventEntity eventEntity = new EventEntity();
     eventEntity.setId(event.getId());
@@ -188,6 +190,30 @@ public class EntityMapper {
     ZonedDateTime start = event.getStart();
     ZonedDateTime end = event.getEnd();
 
+    ZonedDateTime startUTC = null;
+    ZonedDateTime endUTC = null;
+    if (event.isAllDay()) {
+      start = start.toLocalDate()
+                   .atStartOfDay(eventZoneId);
+      end = end.toLocalDate()
+               .atStartOfDay(eventZoneId)
+               .plusDays(1)
+               .minusSeconds(1);
+
+      startUTC = start.toLocalDate()
+                      .atStartOfDay(ZoneOffset.UTC);
+      endUTC = end.toLocalDate()
+                  .atStartOfDay(ZoneOffset.UTC)
+                  .plusDays(1)
+                  .minusSeconds(1);
+    } else {
+      start = start.withZoneSameInstant(eventZoneId);
+      end = end.withZoneSameInstant(eventZoneId);
+
+      startUTC = start.withZoneSameInstant(ZoneOffset.UTC);
+      endUTC = end.withZoneSameInstant(ZoneOffset.UTC);
+    }
+
     EventRecurrence recurrence = event.getRecurrence();
     if (event.getOccurrence() != null && recurrence != null) {
       LOG.warn("Occurrence with id " + event.getOccurrence().getId() + " shouldn't have a recurrence");
@@ -195,11 +221,11 @@ public class EntityMapper {
     }
 
     if (recurrence == null) {
-      eventEntity.setStartDate(AgendaDateUtils.toDate(start));
-      eventEntity.setEndDate(AgendaDateUtils.toDate(end));
+      eventEntity.setStartDate(AgendaDateUtils.toDate(startUTC));
+      eventEntity.setEndDate(AgendaDateUtils.toDate(endUTC));
     } else if (event.getStatus() == EventStatus.CONFIRMED) {
-      DateTime startDateTime = new DateTime(Date.from(start.toInstant()));
-      DateTime endDateTime = new DateTime(Date.from(end.toInstant()));
+      DateTime startDateTime = new DateTime(Date.from(start.toInstant()), ical4jTimezone);
+      DateTime endDateTime = new DateTime(Date.from(end.toInstant()), ical4jTimezone);
 
       VEvent vevent = new VEvent(startDateTime, endDateTime, event.getSummary());
       Recur recur = Utils.getICalendarRecur(recurrence, eventZoneId);
@@ -211,13 +237,13 @@ public class EntityMapper {
       boolean neverEnds = true;
       if (recurrence.getUntil() != null) {
         neverEnds = false;
-        untilDateTime = recurrence.getUntil().atStartOfDay(ZoneOffset.UTC).withHour(23).withMinute(59).withSecond(59);
+        untilDateTime = recurrence.getUntil().atStartOfDay(eventZoneId).withHour(23).withMinute(59).withSecond(59);
       } else if (recurrence.getCount() > 0) {
         neverEnds = false;
         if (event.isAllDay()) {
-          untilDateTime = end.toLocalDate().atStartOfDay(ZoneOffset.UTC).withHour(23).withMinute(59).withSecond(59);
+          untilDateTime = end.toLocalDate().atStartOfDay(eventZoneId).withHour(23).withMinute(59).withSecond(59);
         } else {
-          untilDateTime = end.withZoneSameInstant(ZoneOffset.UTC).plusSeconds(1);
+          untilDateTime = end.withZoneSameInstant(eventZoneId).plusSeconds(1);
         }
         int countIntervals = recurrence.getInterval() * recurrence.getCount();
         switch (recurrence.getFrequency()) {
@@ -256,8 +282,6 @@ public class EntityMapper {
 
       DateTime firstOccurrenceOverallStart = firstOccurrencePeriod == null ? startDateTime
                                                                            : firstOccurrencePeriod.getStart();
-      Date firstOccurrenceDate = null;
-      Date lastOccurrenceDate = null;
       Period lastOccurrencePeriod = null;
       if (!neverEnds && !list.isEmpty()) {
         lastOccurrencePeriod = list.stream()
@@ -267,31 +291,43 @@ public class EntityMapper {
                                    .orElse(null);
       }
       ZonedDateTime overallStart = null;
+      ZonedDateTime overallEnd = null;
       if (event.isAllDay()) {
-        overallStart = firstOccurrenceOverallStart.toInstant().atZone(ZoneOffset.UTC).toLocalDate().atStartOfDay(eventZoneId);
-        firstOccurrenceDate = AgendaDateUtils.toDate(overallStart);
+        overallStart = firstOccurrenceOverallStart.toInstant().atZone(eventZoneId).toLocalDate().atStartOfDay(eventZoneId);
 
         if (lastOccurrencePeriod != null) {
-          ZonedDateTime overallEnd = lastOccurrencePeriod.getEnd()
-                                                         .toInstant()
-                                                         .atZone(ZoneOffset.UTC)
-                                                         .toLocalDate()
-                                                         .plusDays(1)
-                                                         .atStartOfDay(eventZoneId)
-                                                         .minusSeconds(1);
-          lastOccurrenceDate = AgendaDateUtils.toDate(overallEnd);
+          overallEnd = lastOccurrencePeriod.getEnd()
+                                           .toInstant()
+                                           .atZone(eventZoneId)
+                                           .toLocalDate()
+                                           .plusDays(1)
+                                           .atStartOfDay(eventZoneId)
+                                           .minusSeconds(1);
         }
       } else {
         overallStart = firstOccurrenceOverallStart.toInstant().atZone(eventZoneId);
-        firstOccurrenceDate = AgendaDateUtils.toDate(overallStart);
 
         if (lastOccurrencePeriod != null) {
-          ZonedDateTime overallEnd = lastOccurrencePeriod.getEnd().toInstant().atZone(eventZoneId);
-          lastOccurrenceDate = overallEnd == null ? ical4jTo : AgendaDateUtils.toDate(overallEnd);
+          overallEnd = lastOccurrencePeriod.getEnd().toInstant().atZone(eventZoneId);
         }
       }
-      eventEntity.setStartDate(firstOccurrenceDate);
-      eventEntity.setEndDate(lastOccurrenceDate);
+
+      // Give a far date as default value for overall end when the recurrent
+      // event doesn't end
+      if (overallEnd == null) {
+        overallEnd = overallStart.plusYears(10);
+      }
+
+      if (event.isAllDay()) {
+        overallStart = overallStart.toLocalDate().atStartOfDay(ZoneOffset.UTC);
+        overallEnd = overallEnd.toLocalDate().atStartOfDay(ZoneOffset.UTC).plusDays(1).minusSeconds(1);
+      } else {
+        overallStart = overallStart.withZoneSameInstant(ZoneOffset.UTC);
+        overallEnd = overallEnd.withZoneSameInstant(ZoneOffset.UTC);
+      }
+
+      eventEntity.setStartDate(AgendaDateUtils.toDate(overallStart));
+      eventEntity.setEndDate(AgendaDateUtils.toDate(overallEnd));
     }
     return eventEntity;
   }
@@ -309,11 +345,22 @@ public class EntityMapper {
 
     ZonedDateTime overallStart = AgendaDateUtils.fromDate(eventEntity.getStartDate());
     ZonedDateTime overallEnd = AgendaDateUtils.fromDate(eventEntity.getEndDate());
-    if (eventTimeZoneId != null && overallStart != null) {
-      overallStart = overallStart.withZoneSameInstant(eventTimeZoneId);
-    }
-    if (eventTimeZoneId != null && overallEnd != null) {
-      overallEnd = overallEnd.withZoneSameInstant(eventTimeZoneId);
+    if (eventTimeZoneId != null) {
+      if (eventEntity.isAllDay()) {
+        if (overallStart != null) {
+          overallStart = overallStart.toLocalDate().atStartOfDay(eventTimeZoneId);
+        }
+        if (overallEnd != null) {
+          overallEnd = overallEnd.toLocalDate().plusDays(1).atStartOfDay(eventTimeZoneId).minusSeconds(1);
+        }
+      } else {
+        if (overallStart != null) {
+          overallStart = overallStart.withZoneSameInstant(eventTimeZoneId);
+        }
+        if (overallEnd != null) {
+          overallEnd = overallEnd.withZoneSameInstant(eventTimeZoneId);
+        }
+      }
     }
 
     recurrence.setOverallStart(overallStart);
@@ -332,10 +379,7 @@ public class EntityMapper {
     recurrence.setCount(recur.getCount() > 0 ? recur.getCount() : 0);
     if (recur.getUntil() != null) {
       ZonedDateTime untilDate = AgendaDateUtils.fromDate(recur.getUntil());
-      if (eventTimeZoneId != null) {
-        untilDate = untilDate.withZoneSameInstant(eventTimeZoneId);
-      }
-      recurrence.setUntil(untilDate.toLocalDate());
+      recurrence.setUntil(untilDate.withZoneSameInstant(eventTimeZoneId).toLocalDate());
     }
 
     if (recur.getSecondList() != null && !recur.getSecondList().isEmpty()) {

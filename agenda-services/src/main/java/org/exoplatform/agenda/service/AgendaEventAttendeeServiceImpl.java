@@ -115,7 +115,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    * {@inheritDoc}
    */
   @Override
-  public List<EventAttendee> getEventAttendees(long eventId, EventAttendeeResponse ...responses) {
+  public List<EventAttendee> getEventAttendees(long eventId, EventAttendeeResponse... responses) {
     return attendeeStorage.getEventAttendees(eventId, responses);
   }
 
@@ -271,6 +271,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     NotificationContext ctx = NotificationContextImpl.cloneInstance();
     ctx.append(EVENT_AGENDA, event);
     ctx.append(EVENT_ATTENDEE, eventAttendees);
+    ctx.append(EVENT_MODIFIER, eventModifications.getModifierId());
 
     if (eventModifications.hasModification(AgendaEventModificationType.DELETED)) {
       ctx.append(EVENT_MODIFICATION_TYPE, AgendaEventModificationType.DELETED.name());
@@ -381,7 +382,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
 
     // Create new attendees
     for (EventAttendee eventAttendee : attendeesToCreate) {
-      if (resetResponses || eventAttendee.getResponse() == null || eventStatus != EventStatus.CONFIRMED) {
+      if (resetResponses || eventAttendee.getResponse() == null || eventStatus == EventStatus.TENTATIVE) {
         eventAttendee.setResponse(EventAttendeeResponse.NEEDS_ACTION);
       }
       attendeeStorage.saveEventAttendee(eventAttendee, eventId);

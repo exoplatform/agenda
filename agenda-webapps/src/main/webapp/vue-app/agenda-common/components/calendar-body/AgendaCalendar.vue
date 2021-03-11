@@ -2,7 +2,7 @@
   <v-calendar
     ref="calendar"
     v-model="selectedDate"
-    :events="events"
+    :events="eventsToDisplay"
     :event-color="getEventColor"
     :event-text-color="getEventTextColor"
     :event-timed="isEventTimed"
@@ -10,6 +10,8 @@
     :weekdays="weekdays"
     :interval-style="agendaIntervalStyle"
     :interval-height="40"
+    :event-overlap-threshold="30"
+    event-overlap-mode="stack"
     event-name="summary"
     event-start="startDate"
     event-end="endDate"
@@ -47,7 +49,7 @@
         </strong>
         <div
           v-if="event && !event.allDay && !isShortEvent(event)"
-          class="v-event-draggable d-flex flex-row">
+          class="v-event-draggable px-2 d-flex flex-row">
           <date-format
             :value="event.startDate"
             :format="timeFormat"
@@ -112,6 +114,22 @@ export default {
     }
   }),
   computed: {
+    // A workaround to display events that finishes at midnight the same day
+    eventsToDisplay() {
+      const eventsToDisplay = [];
+      this.events.forEach(event => {
+        if (event.endDate && event.endDate.toString().indexOf('00:00:00') >= 0) {
+          const eventToDisplay = JSON.parse(JSON.stringify(event));
+          eventToDisplay.startDate = this.$agendaUtils.toDate(event.startDate);
+          eventToDisplay.endDate = this.$agendaUtils.toDate(event.endDate);
+          eventToDisplay.endDate = new Date(eventToDisplay.endDate.getTime() - 60000);
+          eventsToDisplay.push(eventToDisplay);
+        } else {
+          eventsToDisplay.push(event);
+        }
+      });
+      return eventsToDisplay;
+    },
     nowTimeOptions() {
       const now = new Date();
       return {hour: now.getHours(), minute: now.getMinutes()};
@@ -173,8 +191,19 @@ export default {
       this.$forceUpdate();
     });
     this.$root.$on('agenda-event-saved', this.applyEventModification);
-    this.$root.$on('agenda-event-save-cancel', this.cancelEventModification);
-    this.$root.$on('agenda-event-quick-form-cancel', this.cancelEventModification);
+    this.$root.$on('agenda-event-save-error', () => {
+      this.saving = false;
+      this.cancelEventModification();
+    });
+    this.$root.$on('agenda-event-save-opened', () => this.saving = true);
+    this.$root.$on('agenda-event-save-cancel', () => {
+      this.saving = false;
+      this.cancelEventModification();
+    });
+    this.$root.$on('agenda-event-quick-form-cancel', () => {
+      this.saving = false;
+      this.cancelEventModification();
+    });
     this.scrollToTime();
     document.body.onmouseleave = () => {
       this.cancelEventModification();
@@ -402,6 +431,7 @@ export default {
 
         window.setTimeout(() => {
           if (this.quickEvent) {
+            this.saving = true;
             this.$root.$emit('agenda-event-quick-form', this.quickEvent);
           }
         }, 200);
@@ -445,16 +475,21 @@ export default {
           const ignoreRecurrentPopin = event.allDay;
           const changeDatesOnly = true;
           this.$root.$emit('agenda-event-save', event, ignoreRecurrentPopin, changeDatesOnly);
-        }).finally(() => this.saving = false);
+        });
       } else {
         this.cancelEventModification();
       }
     },
     applyEventModification() {
       this.originalDragedEvent = null;
+      this.saving = false;
       this.cancelEventModification();
     },
     cancelEventModification() {
+      if (this.saving) {
+        return;
+      }
+
       if (this.quickEvent) {
         const index = this.events.findIndex(event => event === this.quickEvent);
         if (index >= 0) {

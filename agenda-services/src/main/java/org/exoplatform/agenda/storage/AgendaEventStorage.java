@@ -184,8 +184,12 @@ public class AgendaEventStorage {
   }
 
   public Event getExceptionalOccurrenceEvent(long parentRecurrentEventId, ZonedDateTime occurrenceId) {
-    ZonedDateTime start = occurrenceId.toLocalDate().atStartOfDay(ZoneOffset.UTC);
-    ZonedDateTime end = occurrenceId.toLocalDate().atStartOfDay(ZoneOffset.UTC).plusDays(1).minusSeconds(1);
+    ZonedDateTime start = occurrenceId.withZoneSameInstant(ZoneOffset.UTC).toLocalDate().atStartOfDay(ZoneOffset.UTC);
+    ZonedDateTime end = occurrenceId.withZoneSameInstant(ZoneOffset.UTC)
+                                    .toLocalDate()
+                                    .atStartOfDay(ZoneOffset.UTC)
+                                    .plusDays(1)
+                                    .minusSeconds(1);
     List<Long> exceptionalOccurenceEventIds = eventDAO.getExceptionalOccurenceIdsByPeriod(parentRecurrentEventId,
                                                                                           AgendaDateUtils.toDate(start),
                                                                                           AgendaDateUtils.toDate(end));

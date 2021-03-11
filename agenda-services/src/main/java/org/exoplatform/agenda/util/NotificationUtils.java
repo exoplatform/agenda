@@ -48,6 +48,9 @@ public class NotificationUtils {
   public static final ArgumentLiteral<List>                  EVENT_ATTENDEE                                 =
                                                                             new ArgumentLiteral<>(List.class, "eventAttendee");
 
+  public static final ArgumentLiteral<Long>                  EVENT_MODIFIER                                 =
+                                                                            new ArgumentLiteral<>(Long.class, "eventModifier");
+
   public static final ArgumentLiteral<String>                EVENT_MODIFICATION_TYPE                        =
                                                                                      new ArgumentLiteral<>(String.class,
                                                                                                            "modificationEventType");
@@ -217,7 +220,8 @@ public class NotificationUtils {
                                                      SpaceService spaceService,
                                                      List<EventAttendee> eventAttendee,
                                                      Event event,
-                                                     String typeModification) {
+                                                     String typeModification,
+                                                     long modifierId) {
     if (event == null) {
       throw new IllegalArgumentException("event is null");
     }
@@ -248,7 +252,7 @@ public class NotificationUtils {
 
     // After computing all usernames, to whom, notifications will be sent,
     // this deletes the username of modifier/creator user
-    long userIdentityToExclude = StringUtils.equals(typeModification, "ADDED") ? event.getCreatorId() : event.getModifierId();
+    long userIdentityToExclude = StringUtils.equals(typeModification, "ADDED") ? event.getCreatorId() : modifierId;
     if (userIdentityToExclude > 0) {
       Identity identityToExclude = identityManager.getIdentity(String.valueOf(userIdentityToExclude));
       if (identityToExclude != null) {
