@@ -7,7 +7,6 @@
     color="#F8B121">
     <v-btn
       :title="$t('agenda.pendingInvitations')"
-      :loading="loading"
       class="ml-4 mr-2"
       color="white"
       icon
@@ -34,7 +33,7 @@ export default {
   }),
   computed: {
     pendingInvitationsCount() {
-      return this.loading ? 0 : this.datePollsCount + this.pendingEventsCount;
+      return this.datePollsCount + this.pendingEventsCount;
     },
     spaceRetrieved() {
       return !eXo.env.portal.spaceId || this.currentSpace;
@@ -52,6 +51,7 @@ export default {
   },
   created() {
     this.$root.$on('agenda-refresh', this.countPendingInvitations);
+    this.$root.$on('agenda-refresh-pending', this.countPendingInvitations);
     this.$root.$on('agenda-event-response-sent', this.countPendingEvents);
     this.$root.$on('agenda-event-saved', this.countDatePolls);
     this.$root.$on('agenda-event-deleted', () => {

@@ -67,6 +67,15 @@
       :connectors="connectors"
       @connectors-loaded="connectors = $event" />
     <agenda-notification-alerts />
+    <agenda-events-updater
+      v-if="settingsLoaded"
+      :settings="settings"
+      :current-calendar="currentCalendar"
+      :calendar-type="eventType"
+      :owner-ids="ownerIds"
+      :events="events"
+      :period="period"
+      :limit="limit" />
     <agenda-pending-invitation-drawer :current-space="currentSpace" />
   </v-app>
 </template>
@@ -75,6 +84,7 @@ export default {
   props: {
     eventType: {
       type: String,
+      // allEvents, declinedEvent or myEvents
       default: () => 'myEvents',
     },
   },
