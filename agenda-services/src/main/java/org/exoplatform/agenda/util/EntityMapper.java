@@ -287,7 +287,7 @@ public class EntityMapper {
 
         if (lastOccurrencePeriod != null) {
           ZonedDateTime overallEnd = lastOccurrencePeriod.getEnd().toInstant().atZone(eventZoneId);
-          lastOccurrenceDate = overallEnd == null ? ical4jTo : AgendaDateUtils.toDate(overallEnd);
+          lastOccurrenceDate = overallEnd == null ? ical4jTo : AgendaDateUtils.toDate(overallEnd.plusDays(1));
         }
       }
       eventEntity.setStartDate(firstOccurrenceDate);
@@ -332,9 +332,6 @@ public class EntityMapper {
     recurrence.setCount(recur.getCount() > 0 ? recur.getCount() : 0);
     if (recur.getUntil() != null) {
       ZonedDateTime untilDate = AgendaDateUtils.fromDate(recur.getUntil());
-      if (eventTimeZoneId != null) {
-        untilDate = untilDate.withZoneSameInstant(eventTimeZoneId);
-      }
       recurrence.setUntil(untilDate.toLocalDate());
     }
 

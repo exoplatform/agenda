@@ -10,6 +10,8 @@
     :weekdays="weekdays"
     :interval-style="agendaIntervalStyle"
     :interval-height="40"
+    :event-overlap-threshold="30"
+    event-overlap-mode="stack"
     event-name="summary"
     event-start="startDate"
     event-end="endDate"

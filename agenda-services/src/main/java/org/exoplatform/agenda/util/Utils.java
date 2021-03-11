@@ -123,12 +123,13 @@ public class Utils {
     endDateTime.setTimeZone(ical4jTimezone);
 
     VEvent vevent = new VEvent(startDateTime, endDateTime, event.getSummary());
-    Recur recur = getICalendarRecur(event.getRecurrence(), timeZone);
+    EventRecurrence recurrence = event.getRecurrence();
+    Recur recur = getICalendarRecur(recurrence, timeZone);
     vevent.getProperties().add(new RRule(recur));
 
     ZonedDateTime fromTime = from.atStartOfDay(timeZone);
     if (to == null) {
-      ZonedDateTime overallEnd = event.getRecurrence().getOverallEnd();
+      ZonedDateTime overallEnd = recurrence.getOverallEnd();
       if (overallEnd == null) {
         to = from.plusYears(5);
       } else {

@@ -409,20 +409,20 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     } else {
       occurrenceId = occurrenceId.withZoneSameInstant(ZoneOffset.UTC);
     }
-    LocalDate occurrenceIdUTC = occurrenceId.toLocalDate();
+    LocalDate occurrenceDateUTC = occurrenceId.toLocalDate();
     LocalDate overallStartDate = parentEvent.getRecurrence()
                                             .getOverallStart()
                                             .withZoneSameInstant(ZoneOffset.UTC)
                                             .toLocalDate();
-    if (overallStartDate.minusDays(1).isAfter(occurrenceIdUTC)) {
-      throw new IllegalStateException("Event with id " + eventId + " doesn't have an occurrence with id " + occurrenceIdUTC
+    if (overallStartDate.minusDays(1).isAfter(occurrenceDateUTC)) {
+      throw new IllegalStateException("Event with id " + eventId + " doesn't have an occurrence with id " + occurrenceDateUTC
           + ". Recurrent Event overall start equals to " + overallStartDate);
     }
     ZonedDateTime overallEnd = parentEvent.getRecurrence().getOverallEnd();
     LocalDate overAllEndDate = overallEnd == null ? null
                                                   : overallEnd.withZoneSameInstant(ZoneOffset.UTC)
                                                               .toLocalDate();
-    if (overAllEndDate != null && overAllEndDate.isBefore(occurrenceIdUTC)) {
+    if (overAllEndDate != null && overAllEndDate.isBefore(occurrenceDateUTC)) {
       throw new IllegalStateException("Event with id " + eventId + " doesn't have an occurrence with id " + occurrenceId);
     }
 
@@ -431,14 +431,16 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     exceptionalEvent.setParentId(parentEvent.getId());
     exceptionalEvent.setRecurrence(null);
     exceptionalEvent.setOccurrence(new EventOccurrence(occurrenceId, true, false));
-    exceptionalEvent.setStart(exceptionalEvent.getStart()
-                                              .withYear(occurrenceId.getYear())
-                                              .withMonth(occurrenceId.getMonthValue())
-                                              .withDayOfMonth(occurrenceId.getDayOfMonth()));
-    exceptionalEvent.setEnd(exceptionalEvent.getEnd()
-                                            .withYear(occurrenceId.getYear())
-                                            .withMonth(occurrenceId.getMonthValue())
-                                            .withDayOfMonth(occurrenceId.getDayOfMonth()));
+    ZonedDateTime start = exceptionalEvent.getStart();
+    ZonedDateTime end = exceptionalEvent.getEnd();
+    long diffInSeconds = end.toEpochSecond() - start.toEpochSecond();
+
+    ZonedDateTime occurrenceStart = start.withYear(occurrenceId.getYear())
+                                         .withMonth(occurrenceId.getMonthValue())
+                                         .withDayOfMonth(occurrenceId.getDayOfMonth());
+    ZonedDateTime occurrenceEnd = occurrenceStart.plusSeconds(diffInSeconds);
+    exceptionalEvent.setStart(occurrenceStart);
+    exceptionalEvent.setEnd(occurrenceEnd);
     adjustEventDatesForWrite(exceptionalEvent);
     exceptionalEvent = agendaEventStorage.createEvent(exceptionalEvent);
     long originalRecurrentEventCreator = parentEvent.getCreatorId();

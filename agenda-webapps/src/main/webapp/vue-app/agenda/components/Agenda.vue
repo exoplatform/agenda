@@ -254,7 +254,7 @@ export default {
         .then(data => {
           let events = data && data.events || [];
           if (this.filterCanceledEvents) {
-            events = events.filter(event => !event.status || event.status !== 'CANCELED');
+            events = events.filter(event => !event.status || event.status !== 'CANCELLED');
           }
           events.forEach(event => {
             event.name = event.summary;
