@@ -180,7 +180,7 @@ export function updateEventFields(eventId, eventFields, updateAllOccurrences, se
   updateAllOccurrences = !!updateAllOccurrences;
   sendInvitations = !!sendInvitations;
 
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}?updateAllOccurrences=${updateAllOccurrences}&sendInvitations=${sendInvitations}`, {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}?updateAllOccurrences=${updateAllOccurrences}&timeZoneId=${USER_TIMEZONE_ID}&sendInvitations=${sendInvitations}`, {
     method: 'PATCH',
     credentials: 'include',
     headers: {
@@ -188,7 +188,9 @@ export function updateEventFields(eventId, eventFields, updateAllOccurrences, se
     },
     body: new URLSearchParams(formData).toString(),
   }).then((resp) => {
-    if (!resp || !resp.ok) {
+    if (resp && resp.ok) {
+      return resp.json();
+    } else {
       throw new Error('Error patching event');
     }
   });
@@ -275,7 +277,8 @@ export function deleteEvent(eventId, delay) {
     .then(event => {
       if (event) {
         const deleteAllWebConferencesPromises = getDeleteAllWebConferencesPromises(event);
-        return Promise.all(deleteAllWebConferencesPromises);
+        return Promise.all(deleteAllWebConferencesPromises)
+          .finally(() => event);
       }
     });
 }
