@@ -109,12 +109,12 @@ export default {
             return this.deleteRecurrentEvent();
           } else {
             parentRecurrentEvent.recurrence.until = this.$agendaUtils.toRFC3339(untilDate);
-            return this.$eventService.updateEvent(parentRecurrentEvent);
+            return this.$eventService.updateEvent(parentRecurrentEvent)
+              .then((updatedEvent) => {
+                this.$root.$emit('agenda-event-deleted', updatedEvent, true);
+                this.close();
+              });
           }
-        })
-        .then(() => {
-          this.close();
-          this.$root.$emit('agenda-event-saved', recurrentEvent);
         });
     },
     deleteRecurrentEvent(eventObject) {
@@ -127,7 +127,7 @@ export default {
       return this.$eventService.deleteEvent(this.event.parent.id)
         .then(() => {
           this.$root.$emit('agenda-event-deleted', this.event.parent);
-          this.dialog = false;
+          this.close();
         })
         .finally(() => this.loading = false);
     },
