@@ -146,24 +146,13 @@
         </object>
       </object-param>
       <object-param>
-        <name>Default reminder 1 - Before 10 minutes</name>
+        <name>Default reminder - Before 5 minutes</name>
         <object type="org.exoplatform.agenda.model.EventReminderParameter">
           <field name="before">
-            <int>${exo.agenda.reminder.setting1.before:10}</int>
+            <int>${exo.agenda.reminder.setting.before:5}</int>
           </field>
           <field name="periodType">
-            <string>${exo.agenda.reminder.setting1.periodType:MINUTE}</string>
-          </field>
-        </object>
-      </object-param>
-      <object-param>
-        <name>Default reminder 2 - Before 0 minutes</name>
-        <object type="org.exoplatform.agenda.model.EventReminderParameter">
-          <field name="before">
-            <int>${exo.agenda.reminder.setting2.before:0}</int>
-          </field>
-          <field name="periodType">
-            <string>${exo.agenda.reminder.setting2.periodType:MINUTE}</string>
+            <string>${exo.agenda.reminder.setting.periodType:MINUTE}</string>
           </field>
         </object>
       </object-param>
