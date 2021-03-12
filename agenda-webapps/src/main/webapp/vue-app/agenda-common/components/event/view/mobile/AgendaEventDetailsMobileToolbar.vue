@@ -52,9 +52,9 @@
               {{ $t('agenda.details.header.menu.edit') }}
             </v-list-item-title>
           </v-list-item>
-          <v-list-item v-if="canEdit" @click="$emit('change-vote')">
+          <v-list-item v-if="canEdit" @click="$root.$emit('change-vote')">
             <v-list-item-title>
-              {{ $t('agenda.changeVote') }}
+              {{ $t('agenda.button.voteAgain') }}
             </v-list-item-title>
           </v-list-item>
         </v-list>

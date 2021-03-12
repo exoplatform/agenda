@@ -1,5 +1,8 @@
 <template>
-  <div v-if="dateOption" class="d-flex flex-nowrap">
+  <div
+    v-if="dateOption"
+    class="d-flex flex-nowrap flex-grow-0"
+    @click="$emit('select')">
     <div class="d-inline-flex font-weight-bold">
       <date-format
         :value="dateOption.start"
@@ -36,6 +39,10 @@ export default {
     dateOption: {
       type: Object,
       default: () => null
+    },
+    canSelect: {
+      type: Boolean,
+      default: false,
     },
   },
   data () {

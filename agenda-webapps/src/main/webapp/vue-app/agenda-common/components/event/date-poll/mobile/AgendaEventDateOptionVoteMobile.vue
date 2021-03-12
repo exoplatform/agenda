@@ -10,7 +10,7 @@
       <v-btn
         v-show="conflictWithOtherEvent"
         :title="$t('agenda.conflictWithOtherEvent')"
-        class="event-conflicted ml-2"
+        class="event-conflicted"
         absolute
         icon
         fab

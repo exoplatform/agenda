@@ -6,30 +6,44 @@
       <v-list-item
         v-for="(dateOption, index) in dateOptions"
         :key="index">
-        <agenda-event-date-option-vote
-          class="my-auto"
-          :date-option="dateOption"
-          :vote="vote"
-          :disabled="disabled"
-          :voter="voter" />
-        <agenda-event-date-option-period-mobile
-          :date-option="dateOption"
-          class="text--primary my-auto" />
-        <v-list-item-content
-          class="text--primary my-auto"
-          @click="$root.$emit('selected-date-option',dateOption)">
-          <agenda-event-date-option-voter-mobile :date-option="dateOption" />
-        </v-list-item-content>
-        <div class="my-auto">
-          <v-btn
-            :title="$t('agenda.finalDate')"
-            icon
-            right
-            fab
-            x-small>
-            <v-icon color="#f8b441">fa-trophy</v-icon>
-          </v-btn>
-        </div>
+        <template v-slot:default="{ active }">
+          <agenda-event-date-option-vote
+            class="my-auto"
+            :date-option="dateOption"
+            :voter="currentUserVotes"
+            :vote="currentUserVotes.dateOptionVotes[index]"
+            :disabled="!isVoting"
+            @change="changeVote(index, $event)" />
+          <agenda-event-date-option-period-mobile
+            :date-option="dateOption"
+            :can-select="canSelectDate"
+            class="text--primary my-auto" />
+          <v-list-item-content
+            class="text--primary my-auto flex-grow-1 flex-shrink-0 avatar-voters-position"
+            @click="$root.$emit('selected-date-option', dateOption)">
+            <agenda-event-date-option-voter-mobile :date-option="dateOption" />
+          </v-list-item-content>
+          <div v-if="!active" class="my-auto">
+            <v-btn
+              :title="$t('agenda.finalDate')"
+              icon
+              right
+              fab
+              x-small>
+              <v-icon color="grey lighten-1">fa-trophy</v-icon>
+            </v-btn>
+          </div>
+          <div v-else class="my-auto">
+            <v-btn
+              :title="$t('agenda.finalDate')"
+              icon
+              right
+              fab
+              x-small>
+              <v-icon color="#f8b441">fa-trophy</v-icon>
+            </v-btn>
+          </div>
+        </template>
       </v-list-item>
     </v-list-item-group>
   </v-list>
@@ -42,6 +56,57 @@ export default {
       type: Array,
       default: () => null
     },
+    voters: {
+      type: Array,
+      default: () => null
+    },
+    event: {
+      type: Object,
+      default: () => null
+    },
+    currentUserVotes: {
+      type: Object,
+      default: () => null
+    }
   },
+  data:() => ({
+    selected: 0,
+    isVoting: false,
+    currentUserId: Number(eXo.env.portal.userIdentityId),
+  }),
+  computed: {
+    isCreator() {
+      return this.event && this.event.creator && Number(this.event.creator.id) === this.currentUserId;
+    },
+    canSelectDate() {
+      return this.isCreator && !this.isVoting;
+    },
+  },
+  created() {
+    this.$root.$on('change-vote', ()=> {
+      this.isVoting = true;
+    });
+  },
+  methods: {
+    changeVote(index, vote) {
+      this.currentUserVotes.dateOptionVotes[index] = vote;
+      this.sendVotes(this.currentUserVotes.dateOptionVotes);
+      this.$forceUpdate();
+      this.$emit('changed');
+    },
+    sendVotes(dateOptionVotes) {
+      const eventId = this.event.id;
+      const acceptedDateOptionIds = [];
+      for(const index in this.dateOptions) {
+        const dateOptionId = this.dateOptions[index].id;
+        if (dateOptionVotes[index]) {
+          acceptedDateOptionIds.push(dateOptionId);
+        }
+      }
+      this.sendingVotes = true;
+      this.$eventService.saveEventVotes(eventId, acceptedDateOptionIds)
+        .finally(() => this.$emit('refresh-event'));
+    },
+  }
 };
 </script>

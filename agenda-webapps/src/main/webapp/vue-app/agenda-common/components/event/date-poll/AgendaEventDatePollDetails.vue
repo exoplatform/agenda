@@ -114,9 +114,11 @@
     <div v-else>
       <div class="ml-3 mt-5 mb-3 grey--text text-subtitle-2">{{ $t('agenda.votePreferredDates') }}</div>
       <agenda-event-date-poll-details-mobile
-        :event-title="event.summary"
+        :event="event"
+        :current-user-votes="currentUserVotes"
         :date-options="dateOptions"
         :voters="voters"
+        :selected-date-option-index="selectedDateOptionIndex"
         :can-select-date="canSelectDate" />
     </div>
   </div>
