@@ -7,10 +7,10 @@
     app
     left>
     <agenda-notification-alert
-      v-for="(alert, index) in alerts"
-      :key="index"
+      v-for="alert in alerts"
+      :key="alert.message"
       :alert="alert"
-      @dismissed="deleteAlert(index)" />
+      @dismissed="deleteAlert(alert)" />
   </v-snackbar>
 </template>
 
@@ -31,46 +31,80 @@ export default {
     },
   },
   created() {
-    this.$root.$on('agenda-notification-alert', alert => this.alerts.push(alert));
+    this.$root.$on('agenda-notification-alert', this.addAlert);
+    const self = this;
     this.$root.$on('agenda-event-saved', (event, name) => {
-      if (name !== this.name && (this.name || !this.name !== !name)) {
+      if (name !== self.name && (self.name || !self.name !== !name)) {
         return;
       }
       if (event && event.id) {
-        const isDatePoll = event.dateOptions && event.dateOptions.length > 1;
+        const isDatePoll = event.status === 'TENTATIVE';
         const isNew = !event.updated;
-        const message = isDatePoll && (isNew && this.$t('agenda.datePollCreationSuccess') || this.$t('agenda.datePollUpdateSuccess'))
-                     || (isNew && this.$t('agenda.eventCreationSuccess') || this.$t('agenda.eventUpdateSuccess'));
-        const clickMessage = isDatePoll && this.$t('agenda.viewDatePoll') || this.$t('agenda.viewEvent');
-        this.$root.$emit('agenda-notification-alert', {
+
+        const message = isDatePoll && (isNew && self.$t('agenda.datePollCreationSuccess') || self.$t('agenda.datePollUpdateSuccess'))
+                     || (isNew && self.$t('agenda.eventCreationSuccess') || self.$t('agenda.eventUpdateSuccess'));
+        const clickMessage = isDatePoll && self.$t('agenda.viewDatePoll') || self.$t('agenda.viewEvent');
+        self.addAlert({
           message,
           type: 'success',
-          click: () => this.$root.$emit('agenda-event-details', event),
+          click: () => self.$root.$emit('agenda-event-details', event),
           clickMessage,
         });
       }
     });
-    this.$root.$on('agenda-event-deleted', event => {
+    self.$root.$on('agenda-event-deleted', (event, untilDateRecurrenceUpdated) => {
       if (event && event.id) {
-        const clickMessage = this.$t('agenda.undoRemoveDatePoll');
-        const message = this.$t('agenda.datePollDeleteSuccess');
-        this.$root.$emit('agenda-notification-alert', {
+        const isDatePoll = event.status === 'TENTATIVE';
+        const message = isDatePoll
+                        && self.$t('agenda.datePollDeleteSuccess')
+                        || (untilDateRecurrenceUpdated && self.$t('agenda.eventRecurrenceUntilDateUpdated'))
+                        || self.$t('agenda.eventDeleteSuccess');
+        const deleteEventAlert = {
           message,
           type: 'success',
-          click: () => this.undoDeleteEvent(event),
-          clickMessage,
-        });
+        };
+        if (isDatePoll || !untilDateRecurrenceUpdated) {
+          deleteEventAlert.clickMessage = self.$t('agenda.undoRemoveEvent');
+          deleteEventAlert.click = () => self.undoDeleteEvent(event, deleteEventAlert);
+        }
+        self.addAlert(deleteEventAlert);
       }
     });
   },
   methods: {
-    deleteAlert(index) {
+    addAlert(alert) {
+      if (alert) {
+        this.alerts.push(alert);
+        window.setTimeout(() => this.deleteAlert(alert), 5000);
+      }
+    },
+    deleteAlert(alert) {
+      const index = this.alerts.indexOf(alert);
       this.alerts.splice(index, 1);
       this.$forceUpdate();
     },
-    undoDeleteEvent(event) {
-      return this.$eventService.undoDeleteEvent(event.id)
-        .then(() => this.$root.$emit('agenda-refresh', event));
+    undoDeleteEvent(event, alert) {
+      if (event.occurrence && event.occurrence.id) {
+        return this.$eventService.updateEventFields(event.id, {status: 'CONFIRMED'}, false, true)
+          .then(() => {
+            this.$root.$emit('agenda-refresh', event);
+            this.deleteAlert(alert);
+            this.addAlert({
+              message: this.$t('agenda.eventDeletionCanceled'),
+              type: 'success',
+            });
+          });
+      } else {
+        return this.$eventService.undoDeleteEvent(event.id)
+          .then(() => {
+            this.$root.$emit('agenda-refresh', event);
+            this.deleteAlert(alert);
+            this.addAlert({
+              message: this.$t('agenda.eventDeletionCanceled'),
+              type: 'success',
+            });
+          });
+      }
     }
   },
 };

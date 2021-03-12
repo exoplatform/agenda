@@ -28,9 +28,6 @@ import javax.ws.rs.core.*;
 import javax.ws.rs.core.Response.Status;
 
 import org.apache.commons.lang3.StringUtils;
-import org.exoplatform.container.ExoContainerContext;
-import org.exoplatform.container.PortalContainer;
-import org.exoplatform.container.component.RequestLifeCycle;
 import org.picocontainer.Startable;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
@@ -43,6 +40,9 @@ import org.exoplatform.agenda.service.*;
 import org.exoplatform.agenda.util.*;
 import org.exoplatform.common.http.HTTPStatus;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.container.ExoContainerContext;
+import org.exoplatform.container.PortalContainer;
+import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -631,11 +631,12 @@ public class AgendaEventRest implements ResourceContainer, Startable {
   @Path("{eventId}")
   @PATCH
   @Consumes("application/x-www-form-urlencoded")
+  @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
   @ApiOperation(value = "Update an attribute of an existing event", httpMethod = "PATCH", response = Response.class)
   @ApiResponses(
       value = {
-          @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
           @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object not found"),
           @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
           @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
@@ -663,6 +664,11 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                     )
                                     @QueryParam("sendInvitations")
                                     boolean sendInvitations,
+                                    @ApiParam(value = "IANA Time zone identitifer", required = false)
+                                    @QueryParam(
+                                      "timeZoneId"
+                                    )
+                                    String timeZoneId,
                                     @ApiParam(
                                         value = "Event fields to patch",
                                         required = true
@@ -714,7 +720,13 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                              sendInvitations,
                                              userIdentityId);
       }
-      return Response.noContent().build();
+
+      ZoneId userTimeZone = timeZoneId == null ? null : ZoneId.of(timeZoneId);
+      EventEntity eventEntity = getEventByIdAndUser(eventId,
+                                                    userIdentityId,
+                                                    userTimeZone,
+                                                    Collections.singletonList("all"));
+      return Response.ok(eventEntity).build();
     } catch (AgendaException e) {
       LOG.debug("Error in event validation", e);
       return Response.serverError().entity(e.getAgendaExceptionType().getCompleteMessage()).build();
