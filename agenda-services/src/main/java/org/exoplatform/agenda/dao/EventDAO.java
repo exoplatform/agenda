@@ -224,6 +224,7 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
 
   public List<Long> getPendingEventIds(Long userIdentityId,
                                        List<Long> attendeeIds,
+                                       Date fromDate,
                                        int offset,
                                        int limit) {
     TypedQuery<Tuple> query = getEntityManager().createNamedQuery("AgendaEvent.getPendingEventIds", Tuple.class);
@@ -231,6 +232,7 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     query.setParameter("response", EventAttendeeResponse.NEEDS_ACTION);
     query.setParameter("userIdentityId", userIdentityId);
     query.setParameter("attendeeIds", attendeeIds);
+    query.setParameter("date", fromDate);
     if (offset >= 0) {
       query.setFirstResult(offset);
     } else {
@@ -246,12 +248,15 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
                               : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
   }
 
-  public Long countPendingEvents(Long userIdentityId, List<Long> attendeeIds) {
+  public Long countPendingEvents(Long userIdentityId,
+                                 List<Long> attendeeIds,
+                                 Date fromDate) {
     TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaEvent.countPendingEvents", Long.class);
     query.setParameter("status", EventStatus.CONFIRMED);
     query.setParameter("response", EventAttendeeResponse.NEEDS_ACTION);
     query.setParameter("userIdentityId", userIdentityId);
     query.setParameter("attendeeIds", attendeeIds);
+    query.setParameter("date", fromDate);
     try {
       Long count = query.getSingleResult();
       return count == null ? 0l : count.longValue();
@@ -263,6 +268,7 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
   public List<Long> getPendingEventIdsByOwnerIds(Long userIdentityId,
                                                  List<Long> ownerIds,
                                                  List<Long> attendeeIds,
+                                                 Date fromDate,
                                                  int offset,
                                                  int limit) {
     TypedQuery<Tuple> query = getEntityManager().createNamedQuery("AgendaEvent.getPendingEventIdsByOwnerIds", Tuple.class);
@@ -271,6 +277,7 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     query.setParameter("userIdentityId", userIdentityId);
     query.setParameter("attendeeIds", attendeeIds);
     query.setParameter("ownerIds", ownerIds);
+    query.setParameter("date", fromDate);
     if (offset >= 0) {
       query.setFirstResult(offset);
     } else {
@@ -286,13 +293,17 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
                               : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
   }
 
-  public long countPendingEventsByOwnerIds(Long userIdentityId, List<Long> ownerIds, List<Long> attendeeIds) {
+  public long countPendingEventsByOwnerIds(Long userIdentityId,
+                                           List<Long> ownerIds,
+                                           List<Long> attendeeIds,
+                                           Date fromDate) {
     TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaEvent.countPendingEventsByOwnerIds", Long.class);
     query.setParameter("status", EventStatus.CONFIRMED);
     query.setParameter("response", EventAttendeeResponse.NEEDS_ACTION);
     query.setParameter("userIdentityId", userIdentityId);
     query.setParameter("attendeeIds", attendeeIds);
     query.setParameter("ownerIds", ownerIds);
+    query.setParameter("date", fromDate);
     try {
       Long count = query.getSingleResult();
       return count == null ? 0l : count.longValue();
@@ -301,12 +312,16 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     }
   }
 
-  public List<Long> getEventDatePollIds(List<Long> attendeeIds,
+  public List<Long> getEventDatePollIds(Long userIdentityId,
+                                        List<Long> attendeeIds,
+                                        Date fromDate,
                                         int offset,
                                         int limit) {
     TypedQuery<Tuple> query = getEntityManager().createNamedQuery("AgendaEvent.getPendingDatePollIds", Tuple.class);
     query.setParameter("status", EventStatus.TENTATIVE);
     query.setParameter("attendeeIds", attendeeIds);
+    query.setParameter("userIdentityId", userIdentityId);
+    query.setParameter("date", fromDate);
     if (offset >= 0) {
       query.setFirstResult(offset);
     } else {
@@ -322,10 +337,12 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
                               : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
   }
 
-  public Long countEventDatePolls(List<Long> attendeeIds) {
+  public Long countEventDatePolls(List<Long> attendeeIds,
+                                  Date fromDate) {
     TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaEvent.countPendingDatePoll", Long.class);
     query.setParameter("status", EventStatus.TENTATIVE);
     query.setParameter("attendeeIds", attendeeIds);
+    query.setParameter("date", fromDate);
     try {
       Long count = query.getSingleResult();
       return count == null ? 0l : count.longValue();
@@ -334,14 +351,18 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     }
   }
 
-  public List<Long> getEventDatePollIdsByOwnerIds(List<Long> ownerIds,
+  public List<Long> getEventDatePollIdsByOwnerIds(Long userIdentityId,
+                                                  List<Long> ownerIds,
                                                   List<Long> attendeeIds,
+                                                  Date fromDate,
                                                   int offset,
                                                   int limit) {
     TypedQuery<Tuple> query = getEntityManager().createNamedQuery("AgendaEvent.getPendingDatePollIdsByOwnerIds", Tuple.class);
     query.setParameter("status", EventStatus.TENTATIVE);
     query.setParameter("attendeeIds", attendeeIds);
     query.setParameter("ownerIds", ownerIds);
+    query.setParameter("date", fromDate);
+    query.setParameter("userIdentityId", userIdentityId);
     if (offset >= 0) {
       query.setFirstResult(offset);
     } else {
@@ -357,11 +378,14 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
                               : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
   }
 
-  public Long countEventDatePollsByOwnerIds(List<Long> ownerIds, List<Long> attendeeIds) {
+  public Long countEventDatePollsByOwnerIds(List<Long> ownerIds,
+                                            List<Long> attendeeIds,
+                                            Date fromDate) {
     TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaEvent.countPendingDatePollByOwnerIds", Long.class);
     query.setParameter("status", EventStatus.TENTATIVE);
     query.setParameter("attendeeIds", attendeeIds);
     query.setParameter("ownerIds", ownerIds);
+    query.setParameter("date", fromDate);
     try {
       Long count = query.getSingleResult();
       return count == null ? 0l : count.longValue();

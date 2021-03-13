@@ -71,39 +71,44 @@ public class AgendaEventStorage {
                                        List<Long> attendeeIds,
                                        int offset,
                                        int limit) {
+    Date now = getNowDate();
     if (ownerIds == null || ownerIds.isEmpty()) {
-      return this.eventDAO.getPendingEventIds(userIdentityId, attendeeIds, offset, limit);
+      return this.eventDAO.getPendingEventIds(userIdentityId, attendeeIds, now, offset, limit);
     } else {
-      return this.eventDAO.getPendingEventIdsByOwnerIds(userIdentityId, ownerIds, attendeeIds, offset, limit);
+      return this.eventDAO.getPendingEventIdsByOwnerIds(userIdentityId, ownerIds, attendeeIds, now, offset, limit);
     }
   }
 
   public long countPendingEvents(Long userIdentityId,
                                  List<Long> ownerIds,
                                  List<Long> attendeeIds) {
+    Date now = getNowDate();
     if (ownerIds == null || ownerIds.isEmpty()) {
-      return this.eventDAO.countPendingEvents(userIdentityId, attendeeIds);
+      return this.eventDAO.countPendingEvents(userIdentityId, attendeeIds, now);
     } else {
-      return this.eventDAO.countPendingEventsByOwnerIds(userIdentityId, ownerIds, attendeeIds);
+      return this.eventDAO.countPendingEventsByOwnerIds(userIdentityId, ownerIds, attendeeIds, now);
     }
   }
 
-  public List<Long> getEventDatePollIds(List<Long> ownerIds,
+  public List<Long> getEventDatePollIds(Long userIdentityId,
+                                        List<Long> ownerIds,
                                         List<Long> attendeeIds,
                                         int offset,
                                         int limit) {
+    Date now = getNowDate();
     if (ownerIds == null || ownerIds.isEmpty()) {
-      return this.eventDAO.getEventDatePollIds(attendeeIds, offset, limit);
+      return this.eventDAO.getEventDatePollIds(userIdentityId, attendeeIds, now, offset, limit);
     } else {
-      return this.eventDAO.getEventDatePollIdsByOwnerIds(ownerIds, attendeeIds, offset, limit);
+      return this.eventDAO.getEventDatePollIdsByOwnerIds(userIdentityId, ownerIds, attendeeIds, now, offset, limit);
     }
   }
 
   public long countEventDatePolls(List<Long> ownerIds, List<Long> attendeeIds) {
+    Date now = getNowDate();
     if (ownerIds == null || ownerIds.isEmpty()) {
-      return this.eventDAO.countEventDatePolls(attendeeIds);
+      return this.eventDAO.countEventDatePolls(attendeeIds, now);
     } else {
-      return this.eventDAO.countEventDatePollsByOwnerIds(ownerIds, attendeeIds);
+      return this.eventDAO.countEventDatePollsByOwnerIds(ownerIds, attendeeIds, now);
     }
   }
 
@@ -273,6 +278,10 @@ public class AgendaEventStorage {
       eventEntity.setRecurrence(eventRecurrenceEntity);
       eventRecurrenceDAO.create(eventRecurrenceEntity);
     }
+  }
+
+  private Date getNowDate() {
+    return AgendaDateUtils.toDate(ZonedDateTime.now(ZoneOffset.UTC));
   }
 
 }
