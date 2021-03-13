@@ -1146,7 +1146,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
 
     List<Long> attendeeIds = Utils.getCalendarOwnersOfUser(spaceService, identityManager, userIdentity);
-    List<Long> eventIds = this.agendaEventStorage.getEventDatePollIds(ownerIds,
+    List<Long> eventIds = this.agendaEventStorage.getEventDatePollIds(userIdentityId,
+                                                                      ownerIds,
                                                                       attendeeIds,
                                                                       offset,
                                                                       limit);

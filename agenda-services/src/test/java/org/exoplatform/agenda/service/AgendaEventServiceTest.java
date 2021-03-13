@@ -26,11 +26,9 @@ import org.junit.Test;
 import org.exoplatform.agenda.constant.*;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.model.*;
-import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
-import org.exoplatform.social.core.space.model.Space;
 
 public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
@@ -920,7 +918,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     int count = 0;
     int interval = 3;
-    LocalDate untilDate = start.plusDays(interval * 2).toLocalDate();
+    LocalDate untilDate = start.plusDays(interval * 2l).toLocalDate();
     EventRecurrence recurrence = new EventRecurrence(0,
                                                      untilDate,
                                                      count,
@@ -956,14 +954,14 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                                             Long.parseLong(testuser1Identity.getId()));
     assertNotNull(eventOccurrence);
 
-    occurrenceDate = event.getStart().plusDays(interval + 1).withZoneSameInstant(event.getTimeZoneId());
+    occurrenceDate = event.getStart().plusDays(interval + 1l).withZoneSameInstant(event.getTimeZoneId());
     eventOccurrence = agendaEventService.getEventOccurrence(event.getId(),
                                                             occurrenceDate,
                                                             event.getTimeZoneId(),
                                                             Long.parseLong(testuser1Identity.getId()));
     assertNull(eventOccurrence);
 
-    occurrenceDate = event.getStart().plusDays(interval * 2).withZoneSameInstant(event.getTimeZoneId());
+    occurrenceDate = event.getStart().plusDays(interval * 2l).withZoneSameInstant(event.getTimeZoneId());
     eventOccurrence = agendaEventService.getEventOccurrence(event.getId(),
                                                             occurrenceDate,
                                                             event.getTimeZoneId(),
@@ -2392,21 +2390,6 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertNotNull(events);
     assertEquals(0, events.size());
 
-    Space space = createSpace("Test space to delete",
-                              testuser1Identity.getRemoteId(),
-                              testuser2Identity.getRemoteId(),
-                              testuser3Identity.getRemoteId());
-    Identity spaceIdentity = identityManager.getOrCreateIdentity(SpaceIdentityProvider.NAME, space.getPrettyName());
-    Calendar spaceCalendar = agendaCalendarService.createCalendar(new Calendar(0,
-                                                                               Long.parseLong(spaceIdentity.getId()),
-                                                                               false,
-                                                                               null,
-                                                                               CALENDAR_DESCRIPTION,
-                                                                               null,
-                                                                               null,
-                                                                               CALENDAR_COLOR,
-                                                                               null));
-
     event = newEventInstance(start, end, false);
     event.setCalendarId(spaceCalendar.getId());
     createEvent(event, Long.parseLong(testuser1Identity.getId()), testuser2Identity, testuser3Identity);
@@ -2927,6 +2910,34 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(2, countPendingEvents);
     countPendingEvents = agendaEventService.countPendingEvents(null, Long.parseLong(testuser5Identity.getId()));
     assertEquals(1, countPendingEvents);
+  }
+
+  @Test
+  public void testCountPastPendingEvents() throws Exception {
+    ZonedDateTime start = ZonedDateTime.now().minusHours(1);
+    ZonedDateTime end = ZonedDateTime.now().minusMinutes(1);
+    Event event = newEventInstance(start, end, false);
+    event.setCalendarId(spaceCalendar.getId());
+    event.setRecurrence(null);
+    long userIdentityId = Long.parseLong(testuser1Identity.getId());
+    event = createEvent(event, userIdentityId, spaceIdentity, testuser4Identity);
+    long eventId = event.getId();
+
+    agendaEventAttendeeService.sendEventResponse(eventId, userIdentityId, EventAttendeeResponse.DECLINED);
+    agendaEventAttendeeService.sendEventResponse(eventId,
+                                                 Long.parseLong(testuser3Identity.getId()),
+                                                 EventAttendeeResponse.ACCEPTED);
+
+    long countPendingEvents = agendaEventService.countPendingEvents(null, userIdentityId);
+    assertEquals(0, countPendingEvents);
+    countPendingEvents = agendaEventService.countPendingEvents(null, Long.parseLong(testuser2Identity.getId()));
+    assertEquals(0, countPendingEvents);
+    countPendingEvents = agendaEventService.countPendingEvents(null, Long.parseLong(testuser3Identity.getId()));
+    assertEquals(0, countPendingEvents);
+    countPendingEvents = agendaEventService.countPendingEvents(null, Long.parseLong(testuser4Identity.getId()));
+    assertEquals(0, countPendingEvents);
+    countPendingEvents = agendaEventService.countPendingEvents(null, Long.parseLong(testuser5Identity.getId()));
+    assertEquals(0, countPendingEvents);
   }
 
   @Test
