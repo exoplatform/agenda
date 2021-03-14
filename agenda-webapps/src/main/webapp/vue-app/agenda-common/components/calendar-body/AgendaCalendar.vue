@@ -39,7 +39,8 @@
       <div
         class="v-current-time"
         :class="{ today: day.present }"
-        :style="currentTimeStyle"></div>
+        :style="currentTimeStyle">
+      </div>
     </template>
     <template #event="{ event, timed, eventSummary }">
       <div :class="getEventClass(event)">
@@ -98,6 +99,7 @@ export default {
     saving: false,
     quickEvent: null,
     originalDragedEvent: null,
+    nowDate: null,
     lang: eXo.env.portal.language,
     dragEvent: null,
     dragDelta: null,
@@ -109,7 +111,6 @@ export default {
     selectedEvent: {},
     selectedElement: null,
     selectedOpen: false,
-    currentTimeTop: null,
     timeFormat: {
       hour: '2-digit',
       minute: '2-digit',
@@ -133,11 +134,13 @@ export default {
       return eventsToDisplay;
     },
     nowTimeOptions() {
-      const now = new Date();
-      return {hour: now.getHours(), minute: now.getMinutes()};
+      return this.nowDate && {hour: this.nowDate.getHours(), minute: this.nowDate.getMinutes()};
+    },
+    currentTimeTop() {
+      return this.nowDate && this.$refs && this.$refs.calendar && this.nowTimeOptions && this.$refs.calendar.timeToY(this.nowTimeOptions);
     },
     currentTimeStyle() {
-      return `top: ${this.currentTimeTop}px;`;
+      return this.nowDate && this.currentTimeTop && `top: ${this.currentTimeTop}px;`;
     },
     canCreateEvent() {
       return !this.currentCalendar || !this.currentCalendar.acl || this.currentCalendar.acl.canCreate;
@@ -206,10 +209,23 @@ export default {
       this.saving = false;
       this.cancelEventModification();
     });
-    this.scrollToTime();
     document.body.onmouseleave = () => {
       this.cancelEventModification();
     };
+
+    this.nowDate = new Date();
+    this.$nextTick().then(() => this.scrollToTime());
+
+    window.setTimeout(() => {
+      // Refresh current time each 3 minutes
+      const dailyScrollElement = document.querySelector('.v-calendar-daily__scroll-area');
+      const REFRESH_PERIOD = 60000;
+      if (dailyScrollElement) {
+        window.setInterval(() => {
+          this.nowDate = new Date();
+        }, REFRESH_PERIOD);
+      }
+    }, 2000);
   },
   methods:{
     getEventClass(event) {
@@ -224,7 +240,6 @@ export default {
       this.$nextTick().then(() => {
         const dailyScrollElement = document.querySelector('.v-calendar-daily__scroll-area');
         if (dailyScrollElement) {
-          this.currentTimeTop = this.$refs.calendar.timeToY(this.nowTimeOptions);
           const scrollY = this.currentTimeTop - dailyScrollElement.offsetHeight / 2;
           dailyScrollElement.scrollTo(0, scrollY);
         }
