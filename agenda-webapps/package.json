@@ -8,7 +8,7 @@
   },
   "scripts": {
     "watch": "webpack --config webpack.watch.js --progress --colors --watch -d",
-    "lint": "eslint --fix \"./src/main/webapp/vue-app/\"",
+    "lint": "eslint --fix \"./src/main/webapp/vue-app/**\"",
     "build": "webpack --config webpack.prod.js --mode production"
   },
   "author": "eXo",

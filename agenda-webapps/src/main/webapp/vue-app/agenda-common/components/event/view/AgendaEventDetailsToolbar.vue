@@ -23,6 +23,8 @@
     <v-col class="px-0 flex-grow-0 flex-shrink-0 text-right mx-2">
       <v-menu
         v-if="canEdit"
+        v-model="eventMenu"
+        eager
         bottom
         left
         offset-y>
@@ -76,6 +78,9 @@ export default {
       default: false
     },
   },
+  data: () => ({
+    eventMenu: null,
+  }),
   computed: {
     isMobile() {
       return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
@@ -121,6 +126,9 @@ export default {
     isTentativeEvent() {
       return this.event && this.event.status === 'TENTATIVE';
     },
+  },
+  mounted() {
+    $('.agendaEventDialog').parent().on('click', () => this.eventMenu = false);
   },
 };
 </script>
