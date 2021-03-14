@@ -10,6 +10,7 @@
     :weekdays="weekdays"
     :interval-style="agendaIntervalStyle"
     :interval-height="40"
+    :locale="lang"
     event-name="summary"
     event-start="startDate"
     event-end="endDate"
@@ -91,6 +92,7 @@ export default {
     saving: false,
     quickEvent: null,
     originalDragedEvent: null,
+    lang: eXo.env.portal.language,
     dragEvent: null,
     dragDelta: null,
     mouseDown: false,
