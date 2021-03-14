@@ -11,6 +11,7 @@
     :interval-style="agendaIntervalStyle"
     :interval-height="40"
     :event-overlap-threshold="30"
+    :locale="lang"
     event-overlap-mode="stack"
     event-name="summary"
     event-start="startDate"
@@ -97,6 +98,7 @@ export default {
     saving: false,
     quickEvent: null,
     originalDragedEvent: null,
+    lang: eXo.env.portal.language,
     dragEvent: null,
     dragDelta: null,
     mouseDown: false,

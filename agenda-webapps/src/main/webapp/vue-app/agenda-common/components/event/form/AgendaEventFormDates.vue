@@ -54,6 +54,7 @@
       :weekdays="weekdays"
       :interval-style="agendaIntervalStyle"
       :event-ripple="false"
+      :locale="lang"
       event-name="summary"
       event-start="startDate"
       event-end="endDate"
@@ -144,6 +145,7 @@ export default {
     periodTitle: '',
     loading: false,
     allowMultipleDates: false,
+    lang: eXo.env.portal.language,
     dragEvent: null,
     dragStart: null,
     createEvent: null,
