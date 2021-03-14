@@ -2,6 +2,9 @@
   <v-dialog
     ref="eventDialog"
     v-model="dialog"
+    :retain-focus="false"
+    :attach="parentDialogSelector"
+    content-class="agendaEventDialog"
     persistent
     fullscreen
     hide-overlay>
@@ -102,6 +105,7 @@ export default {
       dialog: false,
       saving: false,
       event: null,
+      parentDialogSelector: null,
       loadingMessage: false,
       hasMessage: null,
       message: null,
@@ -151,6 +155,21 @@ export default {
     },
   },
   created() {
+    const parentElementSelector = '#left-topNavigation-container .VuetifyApp .v-application';
+    const $parentDialog = $(parentElementSelector);
+    if ($parentDialog.length) {
+      this.parentDialogSelector = parentElementSelector;
+    } else {
+      if ($('#left-topNavigation-container').length) {
+        $('#left-topNavigation-container').html(`
+            <div class="VuetifyApp">
+              <div data-app="true" class="v-application v-application--is-ltr transparent theme--light">
+              </div>
+            </div>`);
+        this.parentDialogSelector = parentElementSelector;
+      }
+    }
+
     const search = document.location.search.substring(1);
     if(search) {
       const parameters = JSON.parse(
