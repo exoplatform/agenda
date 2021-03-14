@@ -229,7 +229,7 @@ export default {
         if (this.$refs.eventTitle) {
           this.$refs.eventTitle.focus();
         }
-      }, 200);
+      }, 500);
     },
     formInitialized() {
       this.originalEventString = JSON.stringify(this.event);

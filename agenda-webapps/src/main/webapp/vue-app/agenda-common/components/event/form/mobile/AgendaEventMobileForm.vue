@@ -181,7 +181,7 @@ export default {
         if (this.$refs.eventTitle) {
           this.$refs.eventTitle.focus();
         }
-      }, 200);
+      }, 500);
     },
     resetCustomValidity() {
       if (this.$refs.eventTitle) {

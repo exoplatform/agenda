@@ -184,12 +184,14 @@ export default {
   created() {
     this.$root.$once('agenda-event-form-opened', () => {
       this.$nextTick().then(this.resetCustomValidity);
-      window.setTimeout(() => {
-        if (this.$refs.eventTitle) {
-          this.$refs.eventTitle.focus();
-        }
-      }, 200);
     });
+  },
+  mounted() {
+    window.setTimeout(() => {
+      if (this.$refs.eventTitle) {
+        this.$refs.eventTitle.focus();
+      }
+    }, 500);
   },
   methods:{
     reset() {
