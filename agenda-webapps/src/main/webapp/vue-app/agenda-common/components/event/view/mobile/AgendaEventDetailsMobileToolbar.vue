@@ -14,9 +14,24 @@
       <strong :title="event.summary" class="event-header-title text-truncate">
         {{ event.summary }}
       </strong>
-      <div class="text-truncate d-flex">
+      <div v-if="!isDatePoll" class="text-truncate d-flex">
         <span>{{ $t('agenda.label.in') }}</span>
         <a :href="calendarOwnerLink" class="text-truncate calendar-owner-link pl-1">{{ ownerDisplayName }}</a>
+      </div>
+      <div v-else class="text-truncate d-flex">
+        <span class="caption">
+          {{ $t('agenda.label.createdBy') }} {{ creatorFullName }} {{ $t('agenda.label.in') }}
+          <div class="d-inline-flex">
+            <date-format
+              :value="event.created"
+              :format="fullDateFormat" />
+            ,
+            <date-format
+              :value="event.created"
+              :format="dateTimeFormat"
+              class="ml-1 " />
+          </div>
+        </span>
       </div>
     </div>
     <div class="d-flex flex-grow-0">
@@ -89,6 +104,17 @@ export default {
       default: false,
     }
   },
+  data:() => ({
+    fullDateFormat: {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    },
+    dateTimeFormat: {
+      hour: '2-digit',
+      minute: '2-digit',
+    },
+  }),
   computed: {
     calendarOwnerLink() {
       if (this.owner) {
@@ -114,6 +140,9 @@ export default {
     },
     ownerDisplayName() {
       return this.ownerProfile && (this.ownerProfile.displayName || this.ownerProfile.fullname || this.ownerProfile.fullName);
+    },
+    creatorFullName() {
+      return this.event && this.event.creator && this.event.creator.profile && this.event.creator.profile.fullname || '';
     },
   },
 };

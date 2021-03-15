@@ -1,41 +1,56 @@
 <template>
   <exo-drawer ref="datePollParticipantsDrawer" right>
-    <template slot="title">
-      {{ $t('agenda.datePollVoters') }}
-    </template>
-    <template slot="content">
-      <div v-if="dateOption" class="text-center text-subtitle-2 font-weight-bold pt-2">
-        <div class="d-inline-flex">
-          <date-format
-            :value="dateOption.start"
-            :format="dateFormat"
-            class="mr-1" />
-          <template v-if="!sameDayDates">
-            -
-            <date-format
-              :value="dateOption.end"
-              :format="dateFormat"
-              class="ml-1" />
-          </template>
+    <template
+      slot="title">
+      <div class="d-flex flex-grow-1">
+        <div class="my-auto body-1 flex-grow-0 mr-2">
+          <v-icon @click="close()">mdi-keyboard-backspace</v-icon>
         </div>
-        <div class="d-inline-flex">
-          <template v-if="dateOption.allDay">
-            {{ $t('agenda.allDay') }}
-          </template>
-          <template v-else>
-            <date-format
-              :value="dateOption.start"
-              :format="timeFormat"
-              class="mr-1" />
-            -
-            <date-format
-              :value="dateOption.end"
-              :format="timeFormat"
-              class="ml-1 mr-2" />
-          </template>
+        <div class="flex-grow-0 d-flex flex-column">
+          <div class="flex-grow-0 d-flex flex-row body-2 font-weight-bold">
+            <div class="mr-1">
+              {{ $t('agenda.datePollVoters') }}
+            </div>
+            <div class="my-auto text-truncate">
+              <div
+                v-if="dateOption"
+                class="d-flex flex-nowrap flex-grow-0"
+                @click="$emit('select')">
+                <div class="d-inline-flex ">
+                  <date-format
+                    :value="dateOption.start"
+                    :format="dateDayFormat"
+                    class="text-no-wrap mr-1" />
+                  <template v-if="!sameDayDates">
+                    -
+                    <date-format
+                      :value="dateOption.end"
+                      :format="dateDayFormat"
+                      class="ml-1" />
+                  </template>
+                </div>
+                <template v-if="dateOption.allDay">
+                  {{ $t('agenda.allDay') }}
+                </template>
+                <template v-else>
+                  <date-format
+                    :value="dateOption.start"
+                    :format="dateTimeFormat"
+                    class="mr-1" />
+                  -
+                  <date-format
+                    :value="dateOption.end"
+                    :format="dateTimeFormat"
+                    class="ml-1 mr-2" />
+                </template>
+              </div>
+            </div>
+          </div>
+          <div class="text-subtitle-2 text-truncate text-capitalize"> {{ eventTitle }}</div>
         </div>
       </div>
-      <div class="ml-10 text-subtitle-2 text-truncate"> {{ eventTitle }}</div>
+    </template>
+    <template slot="content">
       <v-list>
         <v-list-item v-for="(voter,index) in voters" :key="index">
           <exo-space-avatar
@@ -67,21 +82,33 @@ export default {
   data: () => ({
     voters: [],
     dateOption: null,
-    dateFormat: {
-      year: 'numeric',
-      month: 'short',
+    currentYear: `${new Date().getYear() + 1900}`,
+    dateShortDayFormat: {
+      month: 'long',
       day: 'numeric',
     },
-    timeFormat: {
+    dateFullDayFormat: {
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+    },
+    dateTimeFormat: {
       hour: '2-digit',
       minute: '2-digit',
     },
   }),
   computed: {
-    computed: {
-      sameDayDates() {
-        return this.dateOption.start && this.dateOption.end && this.$agendaUtils.areDatesOnSameDay(this.dateOption.start, this.dateOption.end);
-      },
+    startThisYear() {
+      return this.currentYear === this.dateOption.start.substring(0, 4);
+    },
+    endThisYear() {
+      return this.currentYear === this.dateOption.end.substring(0, 4);
+    },
+    sameDayDates() {
+      return this.dateOption.start.substring(0, 10) === this.dateOption.end.substring(0, 10);
+    },
+    dateDayFormat() {
+      return this.startThisYear && this.endThisYear && this.dateShortDayFormat || this.dateFullDayFormat;
     },
   },
   created() {
@@ -96,6 +123,9 @@ export default {
   methods: {
     open() {
       this.$refs.datePollParticipantsDrawer.open();
+    },
+    close() {
+      this.$refs.datePollParticipantsDrawer.close();
     },
   }
 };

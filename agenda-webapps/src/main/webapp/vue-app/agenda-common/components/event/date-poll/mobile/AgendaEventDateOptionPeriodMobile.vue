@@ -1,7 +1,7 @@
 <template>
   <div
     v-if="dateOption"
-    class="d-flex flex-nowrap flex-grow-0"
+    class="d-flex flex-nowrap"
     @click="$emit('select')">
     <div class="d-inline-flex font-weight-bold">
       <date-format

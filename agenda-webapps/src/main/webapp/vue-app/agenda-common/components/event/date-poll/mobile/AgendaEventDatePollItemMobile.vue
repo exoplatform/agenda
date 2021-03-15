@@ -5,7 +5,8 @@
       color="primary">
       <v-list-item
         v-for="(dateOption, index) in dateOptions"
-        :key="index">
+        :key="index"
+        @click="$root.$emit('selected-date-option', dateOption, index)">
         <template v-slot:default="{ active }">
           <agenda-event-date-option-vote
             class="my-auto"
@@ -17,10 +18,9 @@
           <agenda-event-date-option-period-mobile
             :date-option="dateOption"
             :can-select="canSelectDate"
-            class="text--primary my-auto" />
+            class="text--primary my-auto flex-grow-0 ml-4" />
           <v-list-item-content
-            class="text--primary my-auto flex-grow-1 flex-shrink-0 avatar-voters-position"
-            @click="$root.$emit('selected-date-option', dateOption)">
+            class="text--primary my-auto flex-grow-1 flex-shrink-0 avatar-voters-position">
             <agenda-event-date-option-voter-mobile :date-option="dateOption" />
           </v-list-item-content>
           <div v-if="!active" class="my-auto">
@@ -33,7 +33,7 @@
               <v-icon color="grey lighten-1">fa-trophy</v-icon>
             </v-btn>
           </div>
-          <div v-else class="my-auto">
+          <div v-else-if="canSelectDate && active" class="my-auto">
             <v-btn
               :title="$t('agenda.finalDate')"
               icon
@@ -41,6 +41,16 @@
               fab
               x-small>
               <v-icon color="#f8b441">fa-trophy</v-icon>
+            </v-btn>
+          </div>
+          <div v-else>
+            <v-btn
+              :title="$t('agenda.finalDate')"
+              icon
+              right
+              fab
+              x-small>
+              <v-icon color="grey lighten-1">fa-trophy</v-icon>
             </v-btn>
           </div>
         </template>
@@ -103,7 +113,7 @@ export default {
           acceptedDateOptionIds.push(dateOptionId);
         }
       }
-      this.sendingVotes = true;
+      this.isVoting = true;
       this.$eventService.saveEventVotes(eventId, acceptedDateOptionIds)
         .finally(() => this.$emit('refresh-event'));
     },

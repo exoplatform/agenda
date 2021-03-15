@@ -118,7 +118,6 @@
         :current-user-votes="currentUserVotes"
         :date-options="dateOptions"
         :voters="voters"
-        :selected-date-option-index="selectedDateOptionIndex"
         :can-select-date="canSelectDate" />
     </div>
   </div>
