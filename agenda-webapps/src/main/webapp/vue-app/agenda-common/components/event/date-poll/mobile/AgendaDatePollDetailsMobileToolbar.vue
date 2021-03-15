@@ -15,8 +15,19 @@
         {{ event.summary }}
       </strong>
       <div class="text-truncate d-flex">
-        <span>{{ $t('agenda.label.in') }}</span>
-        <a :href="calendarOwnerLink" class="text-truncate calendar-owner-link pl-1">{{ ownerDisplayName }}</a>
+        <span class="caption">
+          {{ $t('agenda.label.createdBy', {0: creatorFullName}) }} {{ $t('agenda.label.in') }}
+          <div class="d-inline-flex">
+            <date-format
+              :value="event.created"
+              :format="fullDateFormat" />
+            ,
+            <date-format
+              :value="event.created"
+              :format="dateTimeFormat"
+              class="ml-1 " />
+          </div>
+        </span>
       </div>
     </div>
     <div class="d-flex flex-grow-0">
@@ -40,9 +51,9 @@
               {{ $t('agenda.details.header.menu.edit') }}
             </v-list-item-title>
           </v-list-item>
-          <v-list-item v-if="canEdit" @click="$emit('delete')">
+          <v-list-item v-if="canEdit" @click="$root.$emit('change-vote')">
             <v-list-item-title>
-              {{ $t('agenda.details.header.menu.delete') }}
+              {{ $t('agenda.changeVote') }}
             </v-list-item-title>
           </v-list-item>
         </v-list>
@@ -61,6 +72,7 @@
     </div>
   </div>
 </template>
+
 <script>
 export default {
   props: {
@@ -68,11 +80,18 @@ export default {
       type: Object,
       default: () => ({})
     },
-    connectedConnector: {
-      type: Object,
-      default: () => null
-    },
   },
+  data:() => ({
+    fullDateFormat: {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    },
+    dateTimeFormat: {
+      hour: '2-digit',
+      minute: '2-digit',
+    },
+  }),
   computed: {
     calendarOwnerLink() {
       if (this.owner) {
@@ -98,6 +117,9 @@ export default {
     },
     ownerDisplayName() {
       return this.ownerProfile && (this.ownerProfile.displayName || this.ownerProfile.fullname || this.ownerProfile.fullName);
+    },
+    creatorFullName() {
+      return this.event && this.event.creator && this.event.creator.profile && this.event.creator.profile.fullname || '';
     },
   },
 };

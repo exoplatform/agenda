@@ -63,6 +63,7 @@ import AgendaEventDetails from './components/event/view/AgendaEventDetails.vue';
 import AgendaEventsDetailsBody from './components/event/view/AgendaEventsDetailsBody.vue';
 import AgendaEventDetailsToolbar from './components/event/view/AgendaEventDetailsToolbar.vue';
 import AgendaEventDetailsMobileToolbar from './components/event/view/mobile/AgendaEventDetailsMobileToolbar.vue';
+import AgendaDatePollDetailsMobileToolbar from './components/event/date-poll/mobile/AgendaDatePollDetailsMobileToolbar.vue';
 import AgendaEventRecurrence from './components/event/view/AgendaEventRecurrence.vue';
 import AgendaEventAttendeeButtons from './components/event/view/AgendaEventAttendeeButtons.vue';
 import AgendaEventAttendees from './components/event/view/AgendaEventAttendees.vue';
@@ -115,6 +116,7 @@ const components = {
   'agenda-event-details-body': AgendaEventsDetailsBody,
   'agenda-event-details-toolbar': AgendaEventDetailsToolbar,
   'agenda-event-details-mobile-toolbar': AgendaEventDetailsMobileToolbar,
+  'agenda-date-poll-details-mobile-toolbar':AgendaDatePollDetailsMobileToolbar,
   'agenda-event-recurrence': AgendaEventRecurrence,
   'agenda-event-attendees': AgendaEventAttendees,
   'agenda-event-attendee-item': AgendaEventAttendeeItem,

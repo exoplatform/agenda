@@ -77,11 +77,14 @@ export default {
     currentUserVotes: {
       type: Object,
       default: () => null
-    }
+    },
+    isVoting: {
+      type: Boolean,
+      default: false
+    },
   },
   data:() => ({
     selected: 0,
-    isVoting: false,
     currentUserId: Number(eXo.env.portal.userIdentityId),
   }),
   computed: {
@@ -92,30 +95,11 @@ export default {
       return this.isCreator && !this.isVoting;
     },
   },
-  created() {
-    this.$root.$on('change-vote', ()=> {
-      this.isVoting = true;
-    });
-  },
   methods: {
     changeVote(index, vote) {
       this.currentUserVotes.dateOptionVotes[index] = vote;
-      this.sendVotes(this.currentUserVotes.dateOptionVotes);
       this.$forceUpdate();
       this.$emit('changed');
-    },
-    sendVotes(dateOptionVotes) {
-      const eventId = this.event.id;
-      const acceptedDateOptionIds = [];
-      for(const index in this.dateOptions) {
-        const dateOptionId = this.dateOptions[index].id;
-        if (dateOptionVotes[index]) {
-          acceptedDateOptionIds.push(dateOptionId);
-        }
-      }
-      this.isVoting = true;
-      this.$eventService.saveEventVotes(eventId, acceptedDateOptionIds)
-        .finally(() => this.$emit('refresh-event'));
     },
   }
 };

@@ -1,68 +1,251 @@
 <template>
-  <v-flex class="agenda-date-poll-details-mobile">
+  <v-flex class="agenda-date-poll-details-mobile" :loading="loading">
+    <div class="ml-3 mt-5 mb-3 grey--text text-subtitle-2">{{ $t('agenda.votePreferredDates') }}</div>
+    <agenda-date-poll-participants-drawer-mobile :event-title="event.summary" />
+    <agenda-date-option-conflict-drawer />
     <agenda-event-date-poll-item-mobile
       :date-options="dateOptions"
       :current-user-votes="currentUserVotes"
       :event="event"
-      :voters="voters" />
-    <v-btn
-      v-if="isCreator"
-      :loading="creatingEvent"
-      :disabled="disableCreateButton"
-      class="btn btn-primary float-right mr-2 mt-5 "
-      @click="createEvent">
-      {{ $t('agenda.button.createEvent') }}
-    </v-btn>
+      :voters="voters"
+      :is-voting="isVoting"
+      @changed="enableVoteButton" />
+    <div class="float-right mt-5">
+      <template v-if="isVoting">
+        <v-btn
+          :disabled="sendingVotes"
+          class="btn mr-2"
+          @click="isVoting = false">
+          {{ $t('agenda.button.cancel') }}
+        </v-btn>
+        <v-btn
+          :loading="sendingVotes"
+          :disabled="sendingVotes || disableVoteButton"
+          class="btn btn-primary mr-2"
+          @click="sendVotes(currentUserVotes)">
+          {{ $t('agenda.button.vote') }}
+        </v-btn>
+      </template>
+      <v-btn
+        v-else-if="isCreator"
+        :loading="creatingEvent"
+        :disabled="disableCreateButton"
+        class="btn btn-primary mr-2"
+        @click="createEvent">
+        {{ $t('agenda.button.createEvent') }}
+      </v-btn>
+    </div>
   </v-flex>
 </template>
 
 <script>
 export default {
   props: {
-    dateOptions: {
-      type: Object,
-      default: () => null
-    },
-    canSelectDate: {
-      type: Boolean,
-      default: false,
-    },
-    voters: {
-      type: Array,
-      default: () => null,
-    },
     event: {
       type: Object,
       default: () => null
     },
-    currentUserVotes: {
-      type: Object,
-      default: () => null
-    },
   },
-  data: () => ({
-    vote: false,
-    voter: null,
-    disabled: false,
-    creatingEvent: false,
-    currentUserId: Number(eXo.env.portal.userIdentityId),
-    selectedDateOptionIndex: 0,
-  }),
+  data () {
+    return {
+      voters: null,
+      loading: true,
+      sendingVotes: false,
+      creatingEvent: false,
+      selectedDateOptionIndex: -1,
+      currentUserAttendee: null,
+      isVoting: false,
+      hasVoted: false,
+      disableVoteButton: true,
+      originalUserVotes: null,
+      currentUserId: Number(eXo.env.portal.userIdentityId),
+      fullDateFormat: {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      },
+      dateDayFormat: {
+        month: 'short',
+        day: 'numeric',
+      },
+      dateTimeFormat: {
+        hour: '2-digit',
+        minute: '2-digit',
+      },
+    };
+  },
   computed: {
     isCreator() {
       return this.event && this.event.creator && Number(this.event.creator.id) === this.currentUserId;
     },
+    canSelectDate() {
+      return this.isCreator && !this.isVoting;
+    },
     disableCreateButton() {
       return this.selectedDateOptionIndex < 0;
     },
+    displayHasVotedInfo() {
+      return this.hasVoted && !this.isVoting;
+    },
+    dateOptions() {
+      return this.event && this.event.dateOptions || [];
+    },
+    attendees() {
+      return this.event && this.event.attendees || [];
+    },
+    attendeesCount() {
+      return this.attendees.filter(attendee => attendee.identity && attendee.identity.profile).length;
+    },
+    votedAttendees() {
+      const votedAttendees = new Set();
+      this.dateOptions.forEach(dateOption => {
+        if (dateOption.voters) {
+          dateOption.voters.forEach(voter => {
+            votedAttendees.add(voter);
+          });
+        }
+      });
+      return Array.from(votedAttendees);
+    },
+    votedAttendeesCount() {
+      return this.votedAttendees.length;
+    },
+    isAttendee() {
+      return this.event && this.event.acl && this.event.acl.attendee;
+    },
+    currentUserVotes() {
+      return this.currentUserAttendee && this.currentUserAttendee.identity;
+    },
+  },
+  watch: {
+    event() {
+      if (this.event) {
+        this.computeVoters();
+        if (this.isVoting) {
+          window.setTimeout(() => {
+            this.sendingVotes = false;
+            this.hasVoted = true;
+            this.isVoting = false;
+            this.originalUserVotes = this.currentUserVotes.dateOptionVotes.slice();
+            this.enableVoteButton();
+          }, 200);
+        }
+      }
+    },
+    isVoting() {
+      if (this.isVoting) {
+        this.selectedDateOptionIndex = -1;
+      } else if (this.isCreator) {
+        this.preselectDateOption();
+      }
+      this.enableVoteButton();
+    },
+    currentUserAttendee() {
+      if (this.currentUserAttendee && this.currentUserAttendee.identity) {
+        this.originalUserVotes = this.currentUserAttendee.identity.dateOptionVotes.slice();
+        this.hasVoted = this.hasVoted || this.currentUserAttendee.response === 'TENTATIVE';
+        if (this.currentUserAttendee.response !== 'TENTATIVE') {
+          this.isVoting = true;
+        }
+      }
+    },
+    dateOptions() {
+      if (this.isCreator && this.dateOptions) {
+        this.preselectDateOption();
+      }
+    },
   },
   created() {
+    this.computeVoters().finally(() => this.loading = false);
+    this.$root.$on('change-vote', ()=> {
+      this.isVoting = true;
+    });
     this.$root.$on('selected-date-option', (dateOption , selected)=> {
-      this.dateOption = dateOption;
       this.selectedDateOptionIndex = selected;
     });
   },
   methods: {
+    preselectDateOption() {
+      if (this.dateOptions && this.isCreator && this.hasVoted) {
+        let selectedDateOption = null;
+        let selectedDateOptionIndex = null;
+        let maxVotes = 0;
+        this.dateOptions.forEach((dateOption, index) => {
+          if (dateOption.voters && dateOption.voters.length > maxVotes) {
+            selectedDateOption = dateOption;
+            selectedDateOptionIndex = index;
+            maxVotes = dateOption.voters.length;
+          }
+        });
+        if (selectedDateOption) {
+          this.selectedDateOptionIndex = selectedDateOptionIndex;
+        }
+      }
+    },
+    computeVoters() {
+      if (this.dateOptions) {
+        this.dateOptions.sort((dateOption1, dateOption2) => dateOption1.start.localeCompare(dateOption2.start));
+      }
+      if (this.event.attendees) {
+        this.voters = [];
+        const attendees = [...this.attendees];
+        const isDirectAttendee = attendees.find(attendee => attendee && attendee.identity && Number(attendee.identity.id) === this.currentUserId);
+        if (this.isAttendee && !isDirectAttendee) {
+          return this.$identityService.getIdentityById(this.currentUserId)
+            .then(identity => {
+              attendees.push({identity});
+              this.computeVotersFromAttendees(attendees);
+            });
+        } else {
+          this.computeVotersFromAttendees(attendees);
+        }
+      } else {
+        this.voters = null;
+      }
+      return Promise.resolve(null);
+    },
+    computeVotersFromAttendees(attendees) {
+      const voters = [];
+      attendees.forEach(attendee => {
+        this.computeVoterFromIdentity(voters, attendee);
+      });
+      voters.sort((voter1, voter2) =>
+        Number(voter1.id) === this.currentUserId && -1
+          || Number(voter2.id) === this.currentUserId && 1
+          || voter1.space && 1
+          || voter2.space && -1
+          || voter1.fullName.localeCompare(voter2.fullName)
+      );
+      this.voters = voters;
+    },
+    computeVoterFromIdentity(voters, attendee) {
+      const voter = attendee.identity;
+      voter.fullName = voter.profile && voter.profile.fullname || voter.space && voter.space.displayName || '';
+      if (Number(voter.id) === this.currentUserId) {
+        voter.isCurrentUser = true;
+        this.currentUserAttendee = attendee;
+      }
+      voter.dateOptionVotes = [];
+      this.dateOptions.forEach(dateOption => {
+        const acceptedVote = dateOption && dateOption.voters && dateOption.voters.indexOf(Number(voter.id)) >= 0 || false;
+        voter.dateOptionVotes.push(acceptedVote);
+      });
+      voters.push(voter);
+    },
+    enableVoteButton() {
+      this.disableVoteButton = this.hasVoted && this.originalUserVotes.join('') === this.currentUserVotes.dateOptionVotes.join('');
+    },
+    selectDate(index) {
+      if (this.isCreator && !this.isVoting) {
+        if (this.selectedDateOptionIndex === index) {
+          this.selectedDateOptionIndex = -1;
+        } else {
+          this.selectedDateOptionIndex = index;
+        }
+      }
+    },
     createEvent() {
       const dateOption = this.dateOptions[this.selectedDateOptionIndex];
       this.creatingEvent = true;
@@ -77,6 +260,19 @@ export default {
           }, 200);
         });
     },
-  }
+    sendVotes() {
+      const eventId = this.event.id;
+      const acceptedDateOptionIds = [];
+      for(const index in this.dateOptions) {
+        const dateOptionId = this.dateOptions[index].id;
+        if (this.currentUserVotes.dateOptionVotes[index]) {
+          acceptedDateOptionIds.push(dateOptionId);
+        }
+      }
+      this.sendingVotes = true;
+      this.$eventService.saveEventVotes(eventId, acceptedDateOptionIds)
+        .finally(() => this.$emit('refresh-event'));
+    },
+  },
 };
 </script>
