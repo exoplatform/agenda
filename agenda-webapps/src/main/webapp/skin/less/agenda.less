@@ -595,10 +595,19 @@
 }
 
 .agenda-date-poll-details-mobile {
-  .avatar-voters-position {
+  .date-poll-voters-avatar {
     position: relative;
+    flex-basis: auto;
+
     .notDisplayedIdentitiesOverlay {
       right: 5px;
+      .notDisplayedIdentities {
+        line-height: 26px;
+      }
+    }
+
+    a {
+      padding-left: 5px;
     }
   }
 }
@@ -627,7 +636,7 @@
 }
 
 .agenda-mobile-header {
-  z-index: 1000;
+  z-index: 999;
   position: relative;
 }
 .agenda-timeline {

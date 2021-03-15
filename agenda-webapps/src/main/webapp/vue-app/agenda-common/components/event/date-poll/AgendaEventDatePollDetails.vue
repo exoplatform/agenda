@@ -119,6 +119,8 @@
         :date-options="dateOptions"
         :voters="voters"
         :can-select-date="canSelectDate" />
+      <agenda-date-poll-participants-drawer-mobile :event-title="event.summary" />
+      <agenda-date-option-conflict-drawer />
     </div>
   </div>
 </template>

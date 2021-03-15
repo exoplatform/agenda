@@ -2,7 +2,7 @@
   <exo-user-avatars-list
     :users="votersAcceptedDatePoll"
     :max="2"
-    :size="24"
+    :icon-size="28"
     @open-detail="$root.$emit('agenda-display-voters', votersAcceptedDatePoll)" />
 </template>
 

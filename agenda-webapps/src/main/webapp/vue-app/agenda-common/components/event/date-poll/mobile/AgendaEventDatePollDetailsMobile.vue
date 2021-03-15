@@ -5,7 +5,6 @@
       :current-user-votes="currentUserVotes"
       :event="event"
       :voters="voters" />
-    <agenda-date-poll-participants-drawer-mobile :event-title="event.summary" />
     <v-btn
       v-if="isCreator"
       :loading="creatingEvent"
@@ -14,7 +13,6 @@
       @click="createEvent">
       {{ $t('agenda.button.createEvent') }}
     </v-btn>
-    <agenda-date-option-conflict-drawer />
   </v-flex>
 </template>
 

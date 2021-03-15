@@ -8,7 +8,6 @@
       :event="event"
       :is-date-poll="isDatePoll"
       :connected-connector="connectedConnector"
-      :is-attendee="isAttendee"
       @close="$emit('close')"
       @edit="$root.$emit('agenda-event-form', event)"
       @delete="deleteConfirmDialog" />
@@ -26,10 +25,7 @@
     <v-divider class="flex-grow-0" />
     <agenda-event-date-poll-details
       v-if="isDatePoll"
-      :settings="settings"
       :event="event"
-      :connectors="connectors"
-      :conference-provider="conferenceProvider"
       @refresh-event="$emit('refresh-event')" />
     <template v-else>
       <agenda-event-details-body

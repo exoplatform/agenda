@@ -20,7 +20,7 @@
       </div>
       <div v-else class="text-truncate d-flex">
         <span class="caption">
-          {{ $t('agenda.label.createdBy') }} {{ creatorFullName }} {{ $t('agenda.label.in') }}
+          {{ $t('agenda.label.createdBy', {0: creatorFullName}) }} {{ $t('agenda.label.in') }}
           <div class="d-inline-flex">
             <date-format
               :value="event.created"
