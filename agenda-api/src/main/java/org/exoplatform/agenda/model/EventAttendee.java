@@ -16,6 +16,8 @@
 */
 package org.exoplatform.agenda.model;
 
+import java.time.ZonedDateTime;
+
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 
 import lombok.*;
@@ -31,6 +33,10 @@ public class EventAttendee implements Cloneable {
 
   private long                  identityId;
 
+  private ZonedDateTime         fromOccurrenceId;
+
+  private ZonedDateTime         untilOccurrenceId;
+
   private EventAttendeeResponse response;
 
   public EventAttendee(long id, long identityId, EventAttendeeResponse response) {
@@ -39,8 +45,20 @@ public class EventAttendee implements Cloneable {
     this.response = response;
   }
 
+  public EventAttendee(long id, long eventId, long identityId, EventAttendeeResponse response) {
+    this.id = id;
+    this.eventId = eventId;
+    this.identityId = identityId;
+    this.response = response;
+  }
+
   @Override
   public EventAttendee clone() { // NOSONAR
-    return new EventAttendee(id, eventId, identityId, response);
+    return new EventAttendee(id,
+                             eventId,
+                             identityId,
+                             fromOccurrenceId,
+                             untilOccurrenceId,
+                             response);
   }
 }

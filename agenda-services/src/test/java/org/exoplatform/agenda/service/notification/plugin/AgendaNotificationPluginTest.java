@@ -98,10 +98,10 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
                                      testuser3Identity,
                                      spaceIdentity);
     Event updatedEvent = agendaEventService.getEventById(createdEvent.getId(), null, Long.parseLong(testuser1Identity.getId()));
-    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(updatedEvent.getId());
+    List<EventAttendee> eventAttendees =
+                                       agendaEventAttendeeService.getEventAttendees(updatedEvent.getId()).getEventAttendees(null);
     agendaEventService.updateEvent(updatedEvent,
                                    eventAttendees,
-                                   null,
                                    null,
                                    null,
                                    null,
@@ -236,10 +236,10 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
     recurrence.setInterval(1);
     List<String> days = Arrays.asList("MO", "TU", "WE");
     recurrence.setByDay(days);
-    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(createdEvent.getId());
+    List<EventAttendee> eventAttendees =
+                                       agendaEventAttendeeService.getEventAttendees(createdEvent.getId()).getEventAttendees(null);
     agendaEventService.updateEvent(createdEvent,
                                    eventAttendees,
-                                   Collections.emptyList(),
                                    Collections.emptyList(),
                                    Collections.emptyList(),
                                    null,

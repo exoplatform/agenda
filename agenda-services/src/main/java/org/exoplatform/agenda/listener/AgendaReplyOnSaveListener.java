@@ -41,7 +41,7 @@ public class AgendaReplyOnSaveListener extends Listener<AgendaEventModification,
     long modifierId = eventModification.getModifierId();
     try {
       org.exoplatform.agenda.model.Event agendaEvent = getAgendaEventService().getEventById(eventId);
-      List<EventAttendee> eventAttendees = getAgendaEventAttendeeService().getEventAttendees(eventId);
+      List<EventAttendee> eventAttendees = getAgendaEventAttendeeService().getEventAttendees(eventId).getEventAttendees(null);
       switch (agendaEvent.getStatus()) {
         case CONFIRMED:
           // Check if dates modification is made

@@ -318,4 +318,17 @@
     </addColumn>
   </changeSet>
 
+  <changeSet author="agenda" id="1.0.0-22">
+    <dropTable tableName="EXO_AGENDA_ATTACHMENT" />
+  </changeSet>
+
+  <changeSet author="agenda" id="1.0.0-23">
+    <addColumn tableName="EXO_AGENDA_ATTENDEE">
+      <column name="FROM_OCCURRENCE_ID" type="TIMESTAMP" defaultValueComputed="NULL" />
+      <column name="UNTIL_OCCURRENCE_ID" type="TIMESTAMP" defaultValueComputed="NULL" />
+    </addColumn>
+    <dropUniqueConstraint tableName="EXO_AGENDA_ATTENDEE" uniqueColumns="EVENT_ID,IDENTITY_ID" />
+    <addUniqueConstraint tableName="EXO_AGENDA_ATTENDEE" columnNames="EVENT_ID,IDENTITY_ID,FROM_OCCURRENCE_ID" />
+  </changeSet>
+
 </databaseChangeLog>

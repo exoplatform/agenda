@@ -38,7 +38,6 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      Collections.emptyList(),
-                                     Collections.emptyList(),
                                      Arrays.asList(dateOption),
                                      null,
                                      true,
@@ -61,7 +60,6 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                                                         Arrays.asList(new EventAttendee(0,
                                                                                         Long.parseLong(spaceIdentity.getId()),
                                                                                         EventAttendeeResponse.NEEDS_ACTION)),
-                                                        Collections.emptyList(),
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
                                                         Arrays.asList(dateOption),
@@ -111,7 +109,6 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      Collections.emptyList(),
-                                     Collections.emptyList(),
                                      Arrays.asList(dateOption1, dateOption2),
                                      null,
                                      true,
@@ -143,7 +140,6 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                                                                                         EventAttendeeResponse.ACCEPTED)),
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
-                                                        Collections.emptyList(),
                                                         Arrays.asList(dateOption1, dateOption2),
                                                         null,
                                                         true,
@@ -156,7 +152,7 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     assertEquals(createdEvent.getId(), eventPollCreationReference.get().getEventId());
     assertNull(eventCreationReference.get());
 
-    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(createdEvent.getId());
+    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(createdEvent.getId()).getEventAttendees(null);
     assertNotNull(eventAttendees);
     assertEquals(1, eventAttendees.size());
     assertEquals(creatorIdentityId, eventAttendees.get(0).getIdentityId());
@@ -210,7 +206,6 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
-                                                        Collections.emptyList(),
                                                         Arrays.asList(dateOption),
                                                         null,
                                                         true,
@@ -236,7 +231,6 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      Collections.emptyList(),
-                                     Collections.emptyList(),
                                      Arrays.asList(dateOption),
                                      null,
                                      true,
@@ -256,7 +250,6 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                                      false,
                                      null);
     Event updatedEvent = agendaEventService.updateEvent(createdEvent,
-                                                        Collections.emptyList(),
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
@@ -322,7 +315,6 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
-                                                        Collections.emptyList(),
                                                         Arrays.asList(dateOption1, dateOption2),
                                                         null,
                                                         true,
@@ -349,7 +341,6 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                                      Collections.emptyList(),
                                      Collections.emptyList(),
                                      Collections.emptyList(),
-                                     Collections.emptyList(),
                                      Arrays.asList(dateOptionTmp1, dateOptionTmp2),
                                      null,
                                      true,
@@ -364,7 +355,6 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     dateOption1.setEnd(dateOption1.getEnd().plusDays(1));
 
     Event updatedEvent = agendaEventService.updateEvent(createdEvent,
-                                                        Collections.emptyList(),
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
@@ -439,7 +429,6 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                                                   Collections.emptyList(),
                                                   Collections.emptyList(),
                                                   Collections.emptyList(),
-                                                  Collections.emptyList(),
                                                   Arrays.asList(createdDateOption1, createdDateOption2),
                                                   null,
                                                   true,
@@ -454,7 +443,6 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     createdDateOption1.setStart(createdDateOption1.getStart().plusDays(1));
     createdDateOption1.setEnd(createdDateOption1.getEnd().plusDays(1));
     agendaEventService.updateEvent(updatedEvent,
-                                   Collections.emptyList(),
                                    Collections.emptyList(),
                                    Collections.emptyList(),
                                    Collections.emptyList(),
@@ -500,7 +488,6 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
-                                                        Collections.emptyList(),
                                                         Arrays.asList(dateOption1, dateOption2),
                                                         null,
                                                         true,
@@ -514,7 +501,6 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     dateOption1.setEnd(dateOption1.getEnd().plusDays(1));
 
     Event updatedEvent = agendaEventService.updateEvent(createdEvent,
-                                                        Collections.emptyList(),
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
@@ -562,7 +548,6 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
-                                                        Collections.emptyList(),
                                                         Arrays.asList(dateOption1),
                                                         null,
                                                         true,
@@ -586,7 +571,6 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
-                                                        Collections.emptyList(),
                                                         Arrays.asList(dateOption1, dateOption2),
                                                         null,
                                                         true,
@@ -602,7 +586,6 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
 
     // Test update again: should be idempotent
     agendaEventService.updateEvent(updatedEvent,
-                                   Collections.emptyList(),
                                    Collections.emptyList(),
                                    Collections.emptyList(),
                                    Collections.emptyList(),
@@ -667,7 +650,6 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                                                         Arrays.asList(new EventAttendee(0,
                                                                                         Long.parseLong(testuser1Identity.getId()),
                                                                                         EventAttendeeResponse.NEEDS_ACTION)),
-                                                        Collections.emptyList(),
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
                                                         Arrays.asList(dateOption1, dateOption2),
@@ -744,7 +726,6 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                                                                                         EventAttendeeResponse.NEEDS_ACTION)),
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
-                                                        Collections.emptyList(),
                                                         Arrays.asList(dateOption1, dateOption2),
                                                         null,
                                                         true,
@@ -788,7 +769,6 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                                    Arrays.asList(new EventAttendee(0,
                                                                    Long.parseLong(spaceIdentity.getId()),
                                                                    EventAttendeeResponse.NEEDS_ACTION)),
-                                   Collections.emptyList(),
                                    Collections.emptyList(),
                                    Collections.emptyList(),
                                    dateOptions,
@@ -855,7 +835,6 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                                                                                         EventAttendeeResponse.NEEDS_ACTION)),
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
-                                                        Collections.emptyList(),
                                                         Arrays.asList(dateOption1, dateOption2),
                                                         null,
                                                         true,
@@ -891,7 +870,6 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                                    Arrays.asList(new EventAttendee(0,
                                                                    Long.parseLong(spaceIdentity.getId()),
                                                                    EventAttendeeResponse.NEEDS_ACTION)),
-                                   Collections.emptyList(),
                                    Collections.emptyList(),
                                    Collections.emptyList(),
                                    dateOptions,
@@ -955,7 +933,6 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                                                         Arrays.asList(new EventAttendee(0,
                                                                                         Long.parseLong(spaceIdentity.getId()),
                                                                                         EventAttendeeResponse.NEEDS_ACTION)),
-                                                        Collections.emptyList(),
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
                                                         Arrays.asList(dateOption1, dateOption2),
@@ -1049,7 +1026,6 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                                                                       new EventAttendee(0,
                                                                                         Long.parseLong(spaceIdentity.getId()),
                                                                                         EventAttendeeResponse.ACCEPTED)),
-                                                        Collections.emptyList(),
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
                                                         Arrays.asList(dateOption1, dateOption2),
@@ -1161,7 +1137,6 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                                                                                         EventAttendeeResponse.ACCEPTED)),
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
-                                                        Collections.emptyList(),
                                                         Arrays.asList(dateOption1, dateOption2, dateOption3),
                                                         null,
                                                         true,
@@ -1239,7 +1214,6 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                                                                       new EventAttendee(0,
                                                                                         Long.parseLong(spaceIdentity.getId()),
                                                                                         EventAttendeeResponse.ACCEPTED)),
-                                                        Collections.emptyList(),
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
                                                         Arrays.asList(dateOption1, dateOption2, dateOption3),

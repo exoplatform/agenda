@@ -81,17 +81,16 @@ public class AgendaEventReminderServiceTest extends BaseAgendaEventTest {
 
     List<EventReminder> origEventReminders = new ArrayList<>(eventReminders);
 
-    List<EventAttendee> attendees = agendaEventAttendeeService.getEventAttendees(eventId);
+    List<EventAttendee> attendees = agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees(null);
 
     event.setStatus(EventStatus.CANCELLED);
     event = agendaEventService.updateEvent(event,
                                            attendees,
-                                           Collections.emptyList(),
-                                           Collections.emptyList(),
+                                           null,
                                            origEventReminders,
                                            null,
-                                           null,
-                                           false,
+                                           REMOTE_EVENT,
+                                           allDay,
                                            userIdentityId);
     eventReminders = agendaEventReminderService.getEventReminders(eventId, userIdentityId);
     assertNotNull(eventReminders);
@@ -100,8 +99,7 @@ public class AgendaEventReminderServiceTest extends BaseAgendaEventTest {
     event.setStatus(EventStatus.TENTATIVE);
     event = agendaEventService.updateEvent(event,
                                            attendees,
-                                           Collections.emptyList(),
-                                           Collections.emptyList(),
+                                           null,
                                            origEventReminders,
                                            null,
                                            null,
@@ -115,7 +113,6 @@ public class AgendaEventReminderServiceTest extends BaseAgendaEventTest {
     event.setStatus(EventStatus.CONFIRMED);
     agendaEventService.updateEvent(event,
                                    attendees,
-                                   Collections.emptyList(),
                                    Collections.emptyList(),
                                    origEventReminders,
                                    null,

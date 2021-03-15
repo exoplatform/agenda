@@ -15,7 +15,11 @@
         </span>
       </div>
       <v-card-text>
-        {{ $t('agenda.message.confirmSaveRecurrentEvent') }}
+        <v-radio-group v-model="recurrenceResponseType">
+          <v-radio :label="$t('agenda.onlyThisEvent')" value="single" />
+          <v-radio :label="$t('agenda.thisAndUpcomingEvents')" value="upcoming" />
+          <v-radio :label="$t('agenda.allEvents')" value="all" />
+        </v-radio-group>
       </v-card-text>
       <v-card-actions class="d-flex flex-wrap justify-center center">
         <button
@@ -28,16 +32,9 @@
         <button
           :disabled="loading"
           :loading="loading"
-          class="ignore-vuetify-classes btn ml-2 mb-1"
-          @click="confirmRecurrentEvent">
-          {{ $t('agenda.button.saveRecurrentEvent') }}
-        </button>
-        <button
-          :disabled="loading"
-          :loading="loading"
           class="ignore-vuetify-classes btn-primary ml-2 mb-1"
-          @click="confirmOccurrenceEvent">
-          {{ $t('agenda.button.saveOccurrenceEvent') }}
+          @click="sendRecurrentEventChoice">
+          {{ $t('agenda.button.save') }}
         </button>
       </v-card-actions>
     </v-card>
@@ -56,6 +53,7 @@ export default {
   },
   data: () => ({
     loading: false,
+    recurrenceResponseType: 'single',
     dialog: false,
     eventResponse: null,
   }),
@@ -76,10 +74,29 @@ export default {
     });
   },
   methods: {
-    confirmRecurrentEvent(eventObject) {
-      eventObject.preventDefault();
-      eventObject.stopPropagation();
-
+    sendRecurrentEventChoice(eventObject) {
+      if (eventObject) {
+        eventObject.preventDefault();
+        eventObject.stopPropagation();
+      }
+      if (this.recurrenceResponseType === 'single') {
+        this.confirmOccurrenceEvent();
+      } else if (this.recurrenceResponseType === 'all') {
+        this.confirmRecurrentEvent();
+      } else if (this.recurrenceModificationType === 'upcoming') {
+        this.confirmUpcomingEvent();
+      }
+    },
+    confirmUpcomingEvent() {
+      this.loading = true;
+      this.$eventService.sendEventResponse(this.event.parent.id, this.event.occurrence.id, this.eventResponse, true)
+        .then(() => {
+          this.$root.$emit('agenda-event-response-sent', this.event.parent, null, this.eventResponse);
+          this.dialog = false;
+        })
+        .finally(() => this.loading = false);
+    },
+    confirmRecurrentEvent() {
       this.loading = true;
       this.$eventService.sendEventResponse(this.event.parent.id, null, this.eventResponse)
         .then(() => {
@@ -88,10 +105,7 @@ export default {
         })
         .finally(() => this.loading = false);
     },
-    confirmOccurrenceEvent(eventObject) {
-      eventObject.preventDefault();
-      eventObject.stopPropagation();
-
+    confirmOccurrenceEvent() {
       this.loading = true;
       this.$eventService.sendEventResponse(this.event.parent.id, this.event.occurrence.id, this.eventResponse)
         .then(() => {

@@ -464,6 +464,13 @@ public class Utils {
   public static boolean isEventAttendee(IdentityManager identityManager,
                                         SpaceService spaceService,
                                         long identityId,
+                                        EventAttendeeList eventAttendeeList) {
+    return isEventAttendee(identityManager, spaceService, identityId, eventAttendeeList.getEventAttendees(null));
+  }
+
+  public static boolean isEventAttendee(IdentityManager identityManager,
+                                        SpaceService spaceService,
+                                        long identityId,
                                         List<EventAttendee> eventAttendees) {
     Identity userIdentity = identityManager.getIdentity(String.valueOf(identityId));
     if (userIdentity == null) {

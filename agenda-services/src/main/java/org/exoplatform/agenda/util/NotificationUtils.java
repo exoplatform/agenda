@@ -5,6 +5,7 @@ import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.time.*;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
 
@@ -218,7 +219,7 @@ public class NotificationUtils {
   public static final void setNotificationRecipients(IdentityManager identityManager,
                                                      NotificationInfo notification,
                                                      SpaceService spaceService,
-                                                     List<EventAttendee> eventAttendee,
+                                                     List<EventAttendee> eventAttendees,
                                                      Event event,
                                                      String typeModification,
                                                      long modifierId) {
@@ -230,8 +231,8 @@ public class NotificationUtils {
     }
 
     Set<String> recipients = new HashSet<>();
-    List<String> participants = new ArrayList<>();
-    for (EventAttendee attendee : eventAttendee) {
+    Set<String> participants = new HashSet<>();
+    for (EventAttendee attendee : eventAttendees) {
       Identity identity = Utils.getIdentityById(identityManager, attendee.getIdentityId());
       if (identity == null) {
         continue;
@@ -335,9 +336,9 @@ public class NotificationUtils {
                                                 SpaceService spaceService) {
     Identity identity = Utils.getIdentityById(identityManager, participantId);
     String timeZoneName = TimeZone.getTimeZone(event.getTimeZoneId()).getDisplayName() + ": " + event.getTimeZoneId();
-    List<String> participants = new ArrayList<>();
-    List<EventAttendee> eventAttendee = eventAttendeeService.getEventAttendees(event.getId());
-    List<String> spaceParticipants = new ArrayList<>();
+    Set<String> participants = new HashSet<>();
+    List<EventAttendee> eventAttendee = eventAttendeeService.getEventAttendees(event.getId()).getEventAttendees(null);
+    Set<String> spaceParticipants = new HashSet<>();
     String showSpaceParticipant = null;
     for (EventAttendee attendee : eventAttendee) {
       Identity identityAttendee = Utils.getIdentityById(identityManager, attendee.getIdentityId());
@@ -785,27 +786,22 @@ public class NotificationUtils {
     return currentDomain + "portal/" + currentSite + "/profile/" + identity.getRemoteId();
   }
 
-  private static String getFullUserName(List<String> participants, IdentityManager identityManager) {
-    List<String> showParticipants = new ArrayList<>();
+  private static String getFullUserName(Set<String> participants, IdentityManager identityManager) {
     if (participants.size() > 3) {
-      for (int i = 0; i < 3; i++) {
-        String fullName = Utils.getIdentityById(identityManager, participants.get(i)).getProfile().getFullName();
-        showParticipants.add(fullName);
-      }
+      List<String> showParticipants = participants.stream().limit(3).collect(Collectors.toList());
       return String.join(", ", showParticipants).concat("...");
     } else {
-      for (int i = 0; i < participants.size(); i++) {
-        String fullName = Utils.getIdentityById(identityManager, participants.get(i)).getProfile().getFullName();
-        showParticipants.add(fullName);
-      }
+      List<String> showParticipants = participants.stream().map(participant -> {
+        return Utils.getIdentityById(identityManager, participant).getProfile().getFullName();
+      }).collect(Collectors.toList());
       return String.join(", ", showParticipants);
     }
   }
 
-  private static String getSpaceDisplayName(List<String> participants, SpaceService spaceService) {
+  private static String getSpaceDisplayName(Set<String> participants, SpaceService spaceService) {
     List<String> showParticipants = new ArrayList<>();
-    for (int i = 0; i < participants.size(); i++) {
-      String displaySpaceName = spaceService.getSpaceByPrettyName(participants.get(i)).getDisplayName();
+    for (String participant : participants) {
+      String displaySpaceName = spaceService.getSpaceByPrettyName(participant).getDisplayName();
       showParticipants.add(displaySpaceName);
     }
     return String.join(", ", showParticipants);

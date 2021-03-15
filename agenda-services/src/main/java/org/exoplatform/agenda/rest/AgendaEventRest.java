@@ -16,6 +16,8 @@
  */
 package org.exoplatform.agenda.rest;
 
+import static org.exoplatform.agenda.util.RestUtils.*;
+
 import java.net.URI;
 import java.time.*;
 import java.util.*;
@@ -27,6 +29,7 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.*;
 import javax.ws.rs.core.Response.Status;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.picocontainer.Startable;
 
@@ -34,7 +37,6 @@ import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
 import org.exoplatform.agenda.model.*;
-import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.rest.model.*;
 import org.exoplatform.agenda.service.*;
 import org.exoplatform.agenda.util.*;
@@ -50,7 +52,6 @@ import org.exoplatform.services.rest.resource.ResourceContainer;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
-import org.exoplatform.social.rest.entity.IdentityEntity;
 
 import io.swagger.annotations.*;
 import io.swagger.jaxrs.PATCH;
@@ -73,8 +74,6 @@ public class AgendaEventRest implements ResourceContainer, Startable {
 
   private AgendaEventAttendeeService   agendaEventAttendeeService;
 
-  private AgendaEventAttachmentService agendaEventAttachmentService;
-
   private AgendaEventConferenceService agendaEventConferenceService;
 
   private AgendaRemoteEventService     agendaRemoteEventService;
@@ -96,7 +95,6 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                          AgendaEventConferenceService agendaEventConferenceService,
                          AgendaRemoteEventService agendaRemoteEventService,
                          AgendaEventDatePollService agendaEventDatePollService,
-                         AgendaEventAttachmentService agendaEventAttachmentService,
                          AgendaEventReminderService agendaEventReminderService,
                          AgendaEventAttendeeService agendaEventAttendeeService,
                          PortalContainer container) {
@@ -105,7 +103,6 @@ public class AgendaEventRest implements ResourceContainer, Startable {
     this.agendaEventService = agendaEventService;
     this.agendaEventReminderService = agendaEventReminderService;
     this.agendaEventAttendeeService = agendaEventAttendeeService;
-    this.agendaEventAttachmentService = agendaEventAttachmentService;
     this.agendaEventConferenceService = agendaEventConferenceService;
     this.agendaRemoteEventService = agendaRemoteEventService;
     this.agendaEventDatePollService = agendaEventDatePollService;
@@ -224,8 +221,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                                 endDatetime,
                                                 limit);
       List<Event> events = agendaEventService.getEvents(eventFilter, userTimeZone, userIdentityId);
-      Map<Long, List<EventAttendeeEntity>> attendeesByParentEventId = new HashMap<>();
-      Map<Long, List<EventAttachmentEntity>> attachmentsByParentEventId = new HashMap<>();
+      Map<Long, EventAttendeeList> attendeesByParentEventId = new HashMap<>();
       Map<Long, List<EventConference>> conferencesByParentEventId = new HashMap<>();
       Map<Long, List<EventReminder>> remindersByParentEventId = new HashMap<>();
       Map<Long, List<EventDateOptionEntity>> dateOptionsByParentEventId = new HashMap<>();
@@ -239,56 +235,72 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                                               identityManager,
                                                               event,
                                                               userTimeZone);
+
+        ZonedDateTime occurrenceId = event.getOccurrence() == null ? null : event.getOccurrence().getId();
         if (expandProperties.contains("all") || expandProperties.contains("attendees")) {
           try {
-            fillAttendees(eventEntity, attendeesByParentEventId, 0);
+            fillAttendees(identityManager,
+                          agendaEventAttendeeService,
+                          eventEntity,
+                          occurrenceId,
+                          attendeesByParentEventId,
+                          0l);
           } catch (Exception e) {
             LOG.warn("Error retrieving event reminders, retrieve event without it", e);
           }
         } else if (expandProperties.contains("response")) {
           try {
-            fillAttendees(eventEntity, attendeesByParentEventId, userIdentityId);
+            fillAttendees(identityManager,
+                          agendaEventAttendeeService,
+                          eventEntity,
+                          occurrenceId,
+                          attendeesByParentEventId,
+                          userIdentityId);
           } catch (Exception e) {
             LOG.warn("Error retrieving event reminders, retrieve event without it", e);
           }
         }
-        if (expandProperties.contains("all") || expandProperties.contains("attachments")) {
-          try {
-            fillAttachments(eventEntity, attachmentsByParentEventId);
-          } catch (Exception e) {
-            LOG.warn("Error retrieving event reminders, retrieve event without it", e);
+        List<EventAttendeeEntity> attendees = eventEntity.getAttendees();
+        // Avoid to return an event with user response not in selected
+        // responseTypes
+        if (CollectionUtils.isNotEmpty(responseTypes) && CollectionUtils.isNotEmpty(attendees)) {
+          for (EventAttendeeEntity attendee : attendees) {
+            if (Long.parseLong(attendee.getIdentity().getId()) == userIdentityId
+                && !responseTypes.contains(attendee.getResponse())) {
+              return null;
+            }
           }
         }
         if (expandProperties.contains("all") || expandProperties.contains("conferences")) {
           try {
-            fillConferences(eventEntity, conferencesByParentEventId);
+            fillConferences(agendaEventConferenceService, eventEntity, conferencesByParentEventId);
           } catch (Exception e) {
             LOG.warn("Error retrieving event conferences, retrieve event without it", e);
           }
         }
         if (expandProperties.contains("all") || expandProperties.contains("reminders")) {
           try {
-            fillReminders(eventEntity, userIdentityId, remindersByParentEventId);
+            fillReminders(agendaEventReminderService, eventEntity, userIdentityId, remindersByParentEventId);
           } catch (Exception e) {
             LOG.warn("Error retrieving event reminders, retrieve event without it", e);
           }
         }
         if (expandProperties.contains("all") || expandProperties.contains("dateOptions")) {
           try {
-            fillDateOptions(eventEntity, userTimeZone, dateOptionsByParentEventId);
+            fillDateOptions(agendaEventDatePollService, eventEntity, userTimeZone, dateOptionsByParentEventId);
           } catch (Exception e) {
             LOG.warn("Error retrieving event date options, retrieve event without it", e);
           }
         }
-        fillRemoteEvent(eventEntity, userIdentityId);
+        fillRemoteEvent(agendaRemoteEventService, eventEntity, userIdentityId);
         if (eventEntity.getParent() != null) {
-          fillRemoteEvent(eventEntity.getParent(), userIdentityId, remoteEventByParentEventId);
+          fillRemoteEvent(agendaRemoteEventService, eventEntity.getParent(), userIdentityId, remoteEventByParentEventId);
         }
         if (isComputedOccurrence(eventEntity)) {
           cleanupAttachedEntitiesIds(eventEntity);
         }
         return eventEntity;
-      }).collect(Collectors.toList());
+      }).filter(eventEntity -> eventEntity != null).collect(Collectors.toList());
 
       EventList eventList = new EventList();
       eventList.setEvents(eventEntities);
@@ -347,8 +359,17 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                                                   : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
                                                                                                     ","));
       ZoneId userTimeZone = StringUtils.isBlank(timeZoneId) ? ZoneOffset.UTC : ZoneId.of(timeZoneId);
-      EventEntity eventEntity = getEventByIdAndUser(eventId,
+      EventEntity eventEntity = getEventByIdAndUser(identityManager,
+                                                    agendaCalendarService,
+                                                    agendaEventService,
+                                                    agendaRemoteEventService,
+                                                    agendaEventDatePollService,
+                                                    agendaEventReminderService,
+                                                    agendaEventConferenceService,
+                                                    agendaEventAttendeeService,
+                                                    eventId,
                                                     RestUtils.getCurrentUserIdentityId(identityManager),
+                                                    null,
                                                     userTimeZone,
                                                     expandProperties);
       if (eventEntity == null) {
@@ -420,7 +441,18 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       if (event == null) {
         return Response.status(Status.NOT_FOUND).build();
       }
-      EventEntity eventEntity = getEventEntity(event, userTimeZone, expandProperties);
+      EventEntity eventEntity = getEventEntity(identityManager,
+                                               agendaCalendarService,
+                                               agendaEventService,
+                                               agendaRemoteEventService,
+                                               agendaEventDatePollService,
+                                               agendaEventReminderService,
+                                               agendaEventConferenceService,
+                                               agendaEventAttendeeService,
+                                               event,
+                                               occurrenceDate,
+                                               userTimeZone,
+                                               expandProperties);
       return Response.ok(eventEntity).build();
     } catch (IllegalAccessException e) {
       LOG.warn("User '{}' attempts to access not authorized event with parentId '{}' and occurrenceId '{}'",
@@ -478,7 +510,18 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       ZoneId userTimeZone = StringUtils.isBlank(timeZoneId) ? ZoneOffset.UTC : ZoneId.of(timeZoneId);
       List<Event> events = agendaEventService.getExceptionalOccurrenceEvents(parentEventId, userTimeZone, userIdentityId);
       List<EventEntity> eventEntities = events.stream()
-                                              .map(event -> getEventEntity(event, userTimeZone, expandProperties))
+                                              .map(event -> getEventEntity(identityManager,
+                                                                           agendaCalendarService,
+                                                                           agendaEventService,
+                                                                           agendaRemoteEventService,
+                                                                           agendaEventDatePollService,
+                                                                           agendaEventReminderService,
+                                                                           agendaEventConferenceService,
+                                                                           agendaEventAttendeeService,
+                                                                           event,
+                                                                           null,
+                                                                           userTimeZone,
+                                                                           expandProperties))
                                               .collect(Collectors.toList());
       return Response.ok(eventEntities).build();
     } catch (IllegalAccessException e) {
@@ -519,7 +562,12 @@ public class AgendaEventRest implements ResourceContainer, Startable {
 
     long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
     try {
-      Event event = createEvent(eventEntity, userIdentityId, timeZoneId);
+      Event event = createEventEntity(identityManager,
+                                      agendaCalendarService,
+                                      agendaEventService,
+                                      eventEntity,
+                                      userIdentityId,
+                                      timeZoneId);
       return getEventById(event.getId(), "all", timeZoneId == null ? event.getTimeZoneId().getId() : timeZoneId);
     } catch (IllegalAccessException e) {
       LOG.warn("User '{}' attempts to create an event in calendar '{}'",
@@ -566,7 +614,9 @@ public class AgendaEventRest implements ResourceContainer, Startable {
 
     long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
     try {
-      checkCalendar(eventEntity);
+      checkCalendar(identityManager,
+                    agendaCalendarService,
+                    eventEntity);
 
       List<EventAttendeeEntity> attendeeEntities = eventEntity.getAttendees();
       List<EventAttendee> attendees = null;
@@ -576,13 +626,6 @@ public class AgendaEventRest implements ResourceContainer, Startable {
           attendees.add(RestEntityBuilder.toEventAttendee(identityManager, eventEntity.getId(), attendeeEntity));
         }
       }
-
-      List<EventAttachmentEntity> attachmentEntities = eventEntity.getAttachments();
-      List<EventAttachment> attachments = attachmentEntities == null
-          || attachmentEntities.isEmpty() ? null
-                                          : attachmentEntities.stream()
-                                                              .map(RestEntityBuilder::toEventAttachment)
-                                                              .collect(Collectors.toList());
 
       Event event = RestEntityBuilder.toEvent(eventEntity);
       List<EventReminderEntity> reminderEntities = eventEntity.getReminders();
@@ -609,7 +652,6 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       agendaEventService.updateEvent(event,
                                      attendees,
                                      eventEntity.getConferences(),
-                                     attachments,
                                      reminders,
                                      dateOptions,
                                      remoteEvent,
@@ -722,8 +764,17 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       }
 
       ZoneId userTimeZone = timeZoneId == null ? null : ZoneId.of(timeZoneId);
-      EventEntity eventEntity = getEventByIdAndUser(eventId,
+      EventEntity eventEntity = getEventByIdAndUser(identityManager,
+                                                    agendaCalendarService,
+                                                    agendaEventService,
+                                                    agendaRemoteEventService,
+                                                    agendaEventDatePollService,
+                                                    agendaEventReminderService,
+                                                    agendaEventConferenceService,
+                                                    agendaEventAttendeeService,
+                                                    eventId,
                                                     userIdentityId,
+                                                    null,
                                                     userTimeZone,
                                                     Collections.singletonList("all"));
       return Response.ok(eventEntity).build();
@@ -778,8 +829,17 @@ public class AgendaEventRest implements ResourceContainer, Startable {
     long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
     try {
       ZoneId userTimeZone = timeZoneId == null ? null : ZoneId.of(timeZoneId);
-      EventEntity eventEntity = getEventByIdAndUser(eventId,
+      EventEntity eventEntity = getEventByIdAndUser(identityManager,
+                                                    agendaCalendarService,
+                                                    agendaEventService,
+                                                    agendaRemoteEventService,
+                                                    agendaEventDatePollService,
+                                                    agendaEventReminderService,
+                                                    agendaEventConferenceService,
+                                                    agendaEventAttendeeService,
+                                                    eventId,
                                                     userIdentityId,
+                                                    null,
                                                     userTimeZone,
                                                     Collections.singletonList("all"));
       if (eventEntity == null) {
@@ -1054,6 +1114,14 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                      "eventId"
                                    )
                                    long eventId,
+                                   @ApiParam(
+                                       value = "Event occurrence identifier",
+                                       required = false
+                                   )
+                                   @QueryParam(
+                                     "occurrenceId"
+                                   )
+                                   String occurrenceId,
                                    @ApiParam(value = "User token to ", required = false)
                                    @QueryParam("token")
                                    String token) {
@@ -1074,7 +1142,8 @@ public class AgendaEventRest implements ResourceContainer, Startable {
         return Response.status(Status.FORBIDDEN).build();
       }
       identityId = Long.parseLong(identity.getId());
-      EventAttendeeResponse response = agendaEventAttendeeService.getEventResponse(eventId, identityId);
+      ZonedDateTime occurrenceIdDateTime = AgendaDateUtils.parseRFC3339ToZonedDateTime(occurrenceId, ZoneOffset.UTC);
+      EventAttendeeResponse response = agendaEventAttendeeService.getEventResponse(eventId, occurrenceIdDateTime, identityId);
       return Response.ok(response.getValue()).build();
     } catch (ObjectNotFoundException e) {
       LOG.debug("User '{}' attempts to get event response of a not existing event '{}'", identityId, eventId, e);
@@ -1285,7 +1354,10 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                       "eventId"
                                     )
                                     long eventId,
-                                    @ApiParam(value = "Event occurrence identifier", required = true)
+                                    @ApiParam(
+                                        value = "Event occurrence identifier",
+                                        required = false
+                                    )
                                     @QueryParam(
                                       "occurrenceId"
                                     )
@@ -1296,6 +1368,12 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                     )
                                     @QueryParam("response")
                                     String responseString,
+                                    @ApiParam(
+                                        value = "Whether apply response on upcoming event of a recurrent event or not",
+                                        required = false
+                                    )
+                                    @QueryParam("upcoming")
+                                    boolean upcoming,
                                     @ApiParam(
                                         value = "User token used to identify user and his response to apply new reponse even when user is not authenticated",
                                         required = false
@@ -1323,6 +1401,9 @@ public class AgendaEventRest implements ResourceContainer, Startable {
     if (response == null || response == EventAttendeeResponse.NEEDS_ACTION) {
       return Response.status(Status.BAD_REQUEST).entity("Event response is not recognized").build();
     }
+    if (upcoming && StringUtils.isBlank(occurrenceId)) {
+      return Response.status(Status.BAD_REQUEST).entity("Event occurrenceId is mandatory when having upcoming = true").build();
+    }
 
     String currentUser = RestUtils.getCurrentUser();
     try {
@@ -1341,16 +1422,24 @@ public class AgendaEventRest implements ResourceContainer, Startable {
         throw new IllegalAccessException("User " + currentUser + " isn't attendee of event with id " + eventId);
       }
 
-      ZonedDateTime occurrenceIdDateTime = null;
-      if (StringUtils.isNotBlank(occurrenceId)) {
-        occurrenceIdDateTime = AgendaDateUtils.parseRFC3339ToZonedDateTime(occurrenceId, ZoneOffset.UTC);
-        Event occurrenceEvent = agendaEventService.getExceptionalOccurrenceEvent(eventId, occurrenceIdDateTime);
-        if (occurrenceEvent == null) { // Exceptional occurrence not yet created
-          occurrenceEvent = agendaEventService.saveEventExceptionalOccurrence(eventId, occurrenceIdDateTime);
+      if (StringUtils.isBlank(occurrenceId)) {
+        agendaEventAttendeeService.sendEventResponse(eventId, identityId, response);
+      } else {
+        ZonedDateTime occurrenceIdDateTime = AgendaDateUtils.parseRFC3339ToZonedDateTime(occurrenceId, ZoneOffset.UTC);
+        if (upcoming) {
+          agendaEventAttendeeService.sendUpcomingEventResponse(eventId,
+                                                               occurrenceIdDateTime,
+                                                               identityId,
+                                                               response);
+        } else {
+          Event occurrenceEvent = agendaEventService.getExceptionalOccurrenceEvent(eventId, occurrenceIdDateTime);
+          if (occurrenceEvent == null) { // Exceptional occurrence not yet
+                                         // created
+            occurrenceEvent = agendaEventService.saveEventExceptionalOccurrence(eventId, occurrenceIdDateTime);
+          }
+          agendaEventAttendeeService.sendEventResponse(occurrenceEvent.getId(), identityId, response);
         }
-        eventId = occurrenceEvent.getId();
       }
-      agendaEventAttendeeService.sendEventResponse(eventId, identityId, response);
       if (redirect) {
         URI location = new URI("/portal/" + this.defaultSite + "/" + AGENDA_APP_URI + "?eventId=" + eventId); // NOSONAR
         return Response.seeOther(location).build();
@@ -1423,7 +1512,16 @@ public class AgendaEventRest implements ResourceContainer, Startable {
     ZoneId userTimeZone = StringUtils.isBlank(timeZoneId) ? ZoneOffset.UTC : ZoneId.of(timeZoneId);
     List<EventSearchResult> searchResults = agendaEventService.search(currentUserId, userTimeZone, query, offset, limit);
     List<EventSearchResultEntity> results = searchResults.stream()
-                                                         .map(searchResult -> getEventSearchResultEntity(searchResult,
+                                                         .map(searchResult -> getEventSearchResultEntity(identityManager,
+                                                                                                         agendaCalendarService,
+                                                                                                         agendaEventService,
+                                                                                                         agendaRemoteEventService,
+                                                                                                         agendaEventDatePollService,
+                                                                                                         agendaEventReminderService,
+                                                                                                         agendaEventConferenceService,
+                                                                                                         agendaEventAttendeeService,
+                                                                                                         searchResult,
+                                                                                                         null,
                                                                                                          userTimeZone,
                                                                                                          expandProperties))
                                                          .collect(Collectors.toList());
@@ -1495,7 +1593,18 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                                                     : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
                                                                                                       ","));
         List<EventEntity> eventEntities = events.stream()
-                                                .map(event -> getEventEntity(event, userTimeZone, expandProperties))
+                                                .map(event -> getEventEntity(identityManager,
+                                                                             agendaCalendarService,
+                                                                             agendaEventService,
+                                                                             agendaRemoteEventService,
+                                                                             agendaEventDatePollService,
+                                                                             agendaEventReminderService,
+                                                                             agendaEventConferenceService,
+                                                                             agendaEventAttendeeService,
+                                                                             event,
+                                                                             null,
+                                                                             userTimeZone,
+                                                                             expandProperties))
                                                 .collect(Collectors.toList());
         eventList.setEvents(eventEntities);
       }
@@ -1572,7 +1681,18 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                                                     : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
                                                                                                       ","));
         List<EventEntity> eventEntities = events.stream()
-                                                .map(event -> getEventEntity(event, userTimeZone, expandProperties))
+                                                .map(event -> getEventEntity(identityManager,
+                                                                             agendaCalendarService,
+                                                                             agendaEventService,
+                                                                             agendaRemoteEventService,
+                                                                             agendaEventDatePollService,
+                                                                             agendaEventReminderService,
+                                                                             agendaEventConferenceService,
+                                                                             agendaEventAttendeeService,
+                                                                             event,
+                                                                             null,
+                                                                             userTimeZone,
+                                                                             expandProperties))
                                                 .collect(Collectors.toList());
         eventList.setEvents(eventEntities);
       }
@@ -1581,425 +1701,6 @@ public class AgendaEventRest implements ResourceContainer, Startable {
     } catch (Exception e) {
       LOG.warn("Error retrieving list of pending events", e);
       return Response.serverError().entity(e.getMessage()).build();
-    }
-  }
-
-  private Event createEvent(EventEntity eventEntity, long userIdentityId, String timeZoneId) throws AgendaException,
-                                                                                             IllegalAccessException {
-    checkCalendar(eventEntity);
-
-    cleanupAttachedEntitiesIds(eventEntity);
-
-    List<EventAttendeeEntity> attendeeEntities = eventEntity.getAttendees();
-    List<EventAttendee> attendees = null;
-    if (attendeeEntities != null && !attendeeEntities.isEmpty()) {
-      attendees = new ArrayList<>();
-      for (EventAttendeeEntity attendeeEntity : attendeeEntities) {
-        IdentityEntity attendeeIdentity = attendeeEntity.getIdentity();
-        String attendeeIdString = RestUtils.getIdentityId(attendeeIdentity, identityManager);
-        if (StringUtils.isBlank(attendeeIdString)) {
-          throw new AgendaException(AgendaExceptionType.ATTENDEE_IDENTITY_NOT_FOUND);
-        }
-        attendeeIdentity.setId(attendeeIdString);
-        attendees.add(RestEntityBuilder.toEventAttendee(identityManager, eventEntity.getId(), attendeeEntity));
-      }
-    }
-
-    List<EventAttachmentEntity> attachmentEntities = eventEntity.getAttachments();
-    List<EventAttachment> attachments = attachmentEntities == null
-        || attachmentEntities.isEmpty() ? null
-                                        : attachmentEntities.stream()
-                                                            .map(RestEntityBuilder::toEventAttachment)
-                                                            .collect(Collectors.toList());
-    List<EventReminderEntity> reminderEntities = eventEntity.getReminders();
-    List<EventReminder> reminders = null;
-    if (reminderEntities != null && !reminderEntities.isEmpty()) {
-      reminders = new ArrayList<>();
-      for (EventReminderEntity reminderEntity : reminderEntities) {
-        reminders.add(RestEntityBuilder.toEventReminder(eventEntity.getId(), reminderEntity));
-      }
-    }
-
-    RemoteEvent remoteEvent = getRemoteEvent(eventEntity, userIdentityId);
-
-    String userTimeZoneId = timeZoneId == null ? eventEntity.getTimeZoneId() : timeZoneId;
-    ZoneId userTimeZone = userTimeZoneId == null ? ZoneOffset.UTC : ZoneId.of(userTimeZoneId);
-
-    List<EventDateOptionEntity> dateOptionEntities = eventEntity.getDateOptions();
-    List<EventDateOption> dateOptions = dateOptionEntities == null ? Collections.emptyList()
-                                                                   : dateOptionEntities.stream()
-                                                                                       .map(dateOptionEntity -> RestEntityBuilder.toEventDateOption(dateOptionEntity,
-                                                                                                                                                    userTimeZone))
-                                                                                       .collect(Collectors.toList());
-
-    return agendaEventService.createEvent(RestEntityBuilder.toEvent(eventEntity),
-                                          attendees,
-                                          eventEntity.getConferences(),
-                                          attachments,
-                                          reminders,
-                                          dateOptions,
-                                          remoteEvent,
-                                          eventEntity.isSendInvitation(),
-                                          userIdentityId);
-  }
-
-  private void checkCalendar(EventEntity eventEntity) throws AgendaException {
-    IdentityEntity identityEntity = eventEntity.getCalendar().getOwner();
-
-    String ownerIdString = RestUtils.getIdentityId(identityEntity, identityManager);
-    if (StringUtils.isBlank(ownerIdString)) {
-      throw new AgendaException(AgendaExceptionType.CALENDAR_OWNER_NOT_FOUND);
-    }
-    identityEntity.setId(ownerIdString);
-    Calendar calendar = agendaCalendarService.getOrCreateCalendarByOwnerId(Long.parseLong(ownerIdString));
-    if (calendar == null) {
-      throw new AgendaException(AgendaExceptionType.CALENDAR_NOT_FOUND);
-    } else if (eventEntity.getCalendar() == null) {
-      eventEntity.setCalendar(RestEntityBuilder.fromCalendar(identityManager, calendar));
-    } else {
-      eventEntity.getCalendar().setId(calendar.getId());
-    }
-  }
-
-  private EventEntity getEventByIdAndUser(long eventId,
-                                          long identityId,
-                                          ZoneId userTimeZone,
-                                          List<String> expandProperties) throws IllegalAccessException {
-    Event event = agendaEventService.getEventById(eventId, userTimeZone, identityId);
-    return getEventEntity(event, userTimeZone, expandProperties);
-  }
-
-  private EventEntity getEventEntity(Event event, ZoneId userTimeZone, List<String> expandProperties) {
-    if (event == null) {
-      return null;
-    } else {
-      if (userTimeZone == null) {
-        if (event.getTimeZoneId() == null) {
-          userTimeZone = ZoneOffset.UTC;
-        } else {
-          userTimeZone = event.getTimeZoneId();
-        }
-      }
-      EventEntity eventEntity = RestEntityBuilder.fromEvent(agendaCalendarService,
-                                                            agendaEventService,
-                                                            identityManager,
-                                                            event,
-                                                            userTimeZone);
-      long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
-      if (expandProperties.contains("all") || expandProperties.contains("attendees")) {
-        fillAttendees(eventEntity, 0);
-      } else if (expandProperties.contains("response")) {
-        fillAttendees(eventEntity, userIdentityId);
-      }
-      if (expandProperties.contains("all") || expandProperties.contains("attachments")) {
-        fillAttachments(eventEntity);
-      }
-      if (expandProperties.contains("all") || expandProperties.contains("conferences")) {
-        fillConferences(eventEntity);
-      }
-      if (expandProperties.contains("all") || expandProperties.contains("reminders")) {
-        fillReminders(eventEntity, userIdentityId);
-      }
-      if (expandProperties.contains("all") || expandProperties.contains("dateOptions")) {
-        fillDateOptions(eventEntity, userTimeZone);
-      }
-      fillRemoteEvent(eventEntity, userIdentityId);
-      boolean isComputedOccurrence = isComputedOccurrence(eventEntity);
-      EventEntity parentEventEntity = eventEntity.getParent();
-      if (parentEventEntity != null) {
-        fillRemoteEvent(parentEventEntity, userIdentityId);
-
-        if (expandProperties.contains("parentAll") && !isComputedOccurrence) {
-          boolean isEventAttendee = agendaEventAttendeeService.isEventAttendee(parentEventEntity.getId(), userIdentityId);
-          boolean canUpdateEvent = isEventAttendee && eventEntity.getAcl().isCanEdit();
-          parentEventEntity.setAcl(new EventPermission(canUpdateEvent, isEventAttendee));
-        }
-      }
-      if (isComputedOccurrence) {
-        cleanupAttachedEntitiesIds(eventEntity);
-      }
-      return eventEntity;
-    }
-  }
-
-  private EventSearchResultEntity getEventSearchResultEntity(EventSearchResult eventSearchResult,
-                                                             ZoneId userTimeZone,
-                                                             List<String> expandProperties) {
-    if (eventSearchResult == null) {
-      return null;
-    } else {
-      EventSearchResultEntity eventSearchResultEntity = RestEntityBuilder.fromSearchEvent(agendaCalendarService,
-                                                                                          agendaEventService,
-                                                                                          identityManager,
-                                                                                          eventSearchResult,
-                                                                                          userTimeZone);
-
-      long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
-      if (expandProperties.contains("all") || expandProperties.contains("attendees")) {
-        fillAttendees(eventSearchResultEntity, 0);
-      } else if (expandProperties.contains("response")) {
-        fillAttendees(eventSearchResultEntity, userIdentityId);
-      }
-      if (expandProperties.contains("all") || expandProperties.contains("attachments")) {
-        fillAttachments(eventSearchResultEntity);
-      }
-      if (expandProperties.contains("all") || expandProperties.contains("conferences")) {
-        fillConferences(eventSearchResultEntity);
-      }
-      if (expandProperties.contains("all") || expandProperties.contains("reminders")) {
-        fillReminders(eventSearchResultEntity, userIdentityId);
-      }
-      if (expandProperties.contains("all") || expandProperties.contains("dateOptions")) {
-        fillDateOptions(eventSearchResultEntity, userTimeZone);
-      }
-      fillRemoteEvent(eventSearchResultEntity, userIdentityId);
-      if (eventSearchResultEntity.getParent() != null) {
-        fillRemoteEvent(eventSearchResultEntity.getParent(), userIdentityId);
-      }
-      if (isComputedOccurrence(eventSearchResultEntity)) {
-        cleanupAttachedEntitiesIds(eventSearchResultEntity);
-      }
-      return eventSearchResultEntity;
-    }
-  }
-
-  private void fillAttendees(EventEntity eventEntity,
-                             Map<Long, List<EventAttendeeEntity>> attendeesByParentEventId,
-                             long userIdentityId) {
-    boolean computedOccurrence = isComputedOccurrence(eventEntity);
-    long eventId = computedOccurrence ? eventEntity.getParent().getId()
-                                      : eventEntity.getId();
-    if (attendeesByParentEventId.containsKey(eventId)) {
-      eventEntity.setAttendees(attendeesByParentEventId.get(eventId));
-    } else {
-      fillAttendees(eventEntity, userIdentityId);
-      attendeesByParentEventId.put(eventId, eventEntity.getAttendees());
-    }
-  }
-
-  private void fillAttendees(EventEntity eventEntity, long userIdentityId) {
-    boolean computedOccurrence = isComputedOccurrence(eventEntity);
-    long eventId = computedOccurrence ? eventEntity.getParent().getId()
-                                      : eventEntity.getId();
-    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId);
-    if (userIdentityId > 0) {
-      List<EventAttendeeEntity> eventAttendeeEntities = eventAttendees == null ? null
-                                                                               : eventAttendees.stream()
-                                                                                               .filter(eventAttendee -> eventAttendee.getIdentityId() == userIdentityId)
-                                                                                               .map(eventAttendee -> RestEntityBuilder.fromEventAttendee(identityManager,
-                                                                                                                                                         eventAttendee))
-                                                                                               .collect(Collectors.toList());
-      eventEntity.setAttendees(eventAttendeeEntities);
-    } else {
-      List<EventAttendeeEntity> eventAttendeeEntities = eventAttendees == null ? null
-                                                                               : eventAttendees.stream()
-                                                                                               .map(eventAttendee -> RestEntityBuilder.fromEventAttendee(identityManager,
-                                                                                                                                                         eventAttendee))
-                                                                                               .collect(Collectors.toList());
-      eventEntity.setAttendees(eventAttendeeEntities);
-    }
-  }
-
-  private void fillAttachments(EventEntity eventEntity, Map<Long, List<EventAttachmentEntity>> attachmentsByParentEventId) {
-    long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParent().getId()
-                                                     : eventEntity.getId();
-    if (attachmentsByParentEventId.containsKey(eventId)) {
-      eventEntity.setAttachments(attachmentsByParentEventId.get(eventId));
-    } else {
-      fillAttachments(eventEntity);
-      attachmentsByParentEventId.put(eventId, eventEntity.getAttachments());
-    }
-  }
-
-  private void fillAttachments(EventEntity eventEntity) {
-    long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParent().getId()
-                                                     : eventEntity.getId();
-    List<EventAttachment> eventAttachments = agendaEventAttachmentService.getEventAttachments(eventId);
-    List<EventAttachmentEntity> eventAttachmentEntities = eventAttachments == null ? null
-                                                                                   : eventAttachments.stream()
-                                                                                                     .map(RestEntityBuilder::fromEventAttachment)
-                                                                                                     .collect(Collectors.toList());
-    eventEntity.setAttachments(eventAttachmentEntities);
-  }
-
-  private void fillConferences(EventEntity eventEntity, Map<Long, List<EventConference>> conferencesByParentEventId) {
-    long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParent().getId()
-                                                     : eventEntity.getId();
-    if (conferencesByParentEventId.containsKey(eventId)) {
-      eventEntity.setConferences(conferencesByParentEventId.get(eventId));
-    } else {
-      fillConferences(eventEntity);
-      conferencesByParentEventId.put(eventId, eventEntity.getConferences());
-    }
-  }
-
-  private void fillConferences(EventEntity eventEntity) {
-    long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParent().getId()
-                                                     : eventEntity.getId();
-    List<EventConference> eventConferences = agendaEventConferenceService.getEventConferences(eventId);
-    eventEntity.setConferences(eventConferences);
-  }
-
-  private void fillReminders(EventEntity eventEntity,
-                             long userIdentityId,
-                             Map<Long, List<EventReminder>> remindersByParentEventId) {
-    long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParent().getId()
-                                                     : eventEntity.getId();
-    if (remindersByParentEventId.containsKey(eventId)) {
-      List<EventReminder> reminders = remindersByParentEventId.get(eventId);
-      ZonedDateTime occurrenceId =
-                                 AgendaDateUtils.parseRFC3339ToZonedDateTime(eventEntity.getOccurrence().getId(), ZoneOffset.UTC);
-      reminders = reminders.stream()
-                           .filter(reminder -> (reminder.getFromOccurrenceId() == null
-                               || reminder.getFromOccurrenceId().isEqual(occurrenceId)
-                               || reminder.getFromOccurrenceId().isBefore(occurrenceId))
-                               && (reminder.getUntilOccurrenceId() == null
-                                   || reminder.getUntilOccurrenceId().isAfter(occurrenceId)))
-                           .collect(Collectors.toList());
-      eventEntity.setReminders(reminders.stream().map(RestEntityBuilder::fromEventReminder).collect(Collectors.toList()));
-    } else {
-      fillReminders(eventEntity, userIdentityId);
-      remindersByParentEventId.put(eventId,
-                                   eventEntity.getReminders()
-                                              .stream()
-                                              .map(reminderEntity -> RestEntityBuilder.toEventReminder(eventId, reminderEntity))
-                                              .collect(Collectors.toList()));
-    }
-  }
-
-  private void fillDateOptions(EventEntity eventEntity,
-                               ZoneId userTimeZone,
-                               Map<Long, List<EventDateOptionEntity>> dateOptionsByParentEventId) {
-    long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParent().getId()
-                                                     : eventEntity.getId();
-    if (dateOptionsByParentEventId.containsKey(eventId)) {
-      eventEntity.setDateOptions(dateOptionsByParentEventId.get(eventId));
-    } else {
-      fillDateOptions(eventEntity, userTimeZone);
-      dateOptionsByParentEventId.put(eventId, eventEntity.getDateOptions());
-    }
-  }
-
-  private void fillRemoteEvent(EventEntity eventEntity,
-                               long userIdentityId) {
-    if (isComputedOccurrence(eventEntity)) {
-      return;
-    }
-
-    long eventId = eventEntity.getId();
-    RemoteEvent remoteEvent = agendaRemoteEventService.findRemoteEvent(eventId, userIdentityId);
-    if (remoteEvent != null) {
-      eventEntity.setRemoteId(remoteEvent.getRemoteId());
-      eventEntity.setRemoteProviderId(remoteEvent.getRemoteProviderId());
-      eventEntity.setRemoteProviderName(remoteEvent.getRemoteProviderName());
-    }
-  }
-
-  private void fillRemoteEvent(EventEntity eventEntity, long userIdentityId, Map<Long, RemoteEvent> remoteEventByParentEventId) {
-    if (isComputedOccurrence(eventEntity)) {
-      return;
-    }
-
-    long eventId = eventEntity.getId();
-    RemoteEvent remoteEvent = null;
-    if (remoteEventByParentEventId.containsKey(eventId)) {
-      remoteEvent = remoteEventByParentEventId.get(eventId);
-    } else {
-      remoteEvent = agendaRemoteEventService.findRemoteEvent(eventId, userIdentityId);
-      remoteEventByParentEventId.put(eventId, remoteEvent);
-    }
-    if (remoteEvent != null) {
-      eventEntity.setRemoteId(remoteEvent.getRemoteId());
-      eventEntity.setRemoteProviderId(remoteEvent.getRemoteProviderId());
-      eventEntity.setRemoteProviderName(remoteEvent.getRemoteProviderName());
-    }
-  }
-
-  private RemoteEvent getRemoteEvent(EventEntity eventEntity, long userIdentityId) {
-    return new RemoteEvent(0l,
-                           eventEntity.getId(),
-                           userIdentityId,
-                           eventEntity.getRemoteId(),
-                           eventEntity.getRemoteProviderId(),
-                           eventEntity.getRemoteProviderName());
-
-  }
-
-  private void fillReminders(EventEntity eventEntity, long userIdentityId) {
-    boolean computedOccurrence = isComputedOccurrence(eventEntity);
-    long eventId = computedOccurrence ? eventEntity.getParent().getId()
-                                      : eventEntity.getId();
-    List<EventReminder> reminders = agendaEventReminderService.getEventReminders(eventId, userIdentityId);
-    if (computedOccurrence) {
-      ZonedDateTime occurrenceId =
-                                 AgendaDateUtils.parseRFC3339ToZonedDateTime(eventEntity.getOccurrence().getId(), ZoneOffset.UTC);
-      reminders = reminders.stream()
-                           .filter(reminder -> (reminder.getFromOccurrenceId() == null
-                               || reminder.getFromOccurrenceId().isEqual(occurrenceId)
-                               || reminder.getFromOccurrenceId().isBefore(occurrenceId))
-                               && (reminder.getUntilOccurrenceId() == null
-                                   || reminder.getUntilOccurrenceId().isAfter(occurrenceId)))
-                           .collect(Collectors.toList());
-    }
-    List<EventReminderEntity> eventReminderEntities = reminders == null ? null
-                                                                        : reminders.stream()
-                                                                                   .map(RestEntityBuilder::fromEventReminder)
-                                                                                   .collect(Collectors.toList());
-    eventEntity.setReminders(eventReminderEntities);
-  }
-
-  private void fillDateOptions(EventEntity eventEntity, ZoneId userTimeZone) {
-    long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParent().getId()
-                                                     : eventEntity.getId();
-    List<EventDateOption> dateOptions = agendaEventDatePollService.getEventDateOptions(eventId, userTimeZone);
-    List<EventDateOptionEntity> dateOptionEntities = dateOptions == null ? Collections.emptyList()
-                                                                         : dateOptions.stream()
-                                                                                      .map(dateOption -> RestEntityBuilder.fromEventDateOption(userTimeZone,
-                                                                                                                                               dateOption))
-                                                                                      .collect(Collectors.toList());
-    eventEntity.setDateOptions(dateOptionEntities);
-  }
-
-  private boolean isComputedOccurrence(EventEntity eventEntity) {
-    return eventEntity.getId() == 0 && eventEntity.getParent() != null;
-  }
-
-  private void cleanupAttachedEntitiesIds(EventEntity eventEntity) {
-    List<EventAttendeeEntity> attendees = eventEntity.getAttendees();
-    if (attendees != null && !attendees.isEmpty()) {
-      attendees = attendees.stream().map(attendee -> {
-        attendee = attendee.clone();
-        attendee.setId(0);
-        return attendee;
-      }).collect(Collectors.toList());
-      eventEntity.setAttendees(attendees);
-    }
-    List<EventAttachmentEntity> attachments = eventEntity.getAttachments();
-    if (attachments != null && !attachments.isEmpty()) {
-      attachments = attachments.stream().map(attachment -> {
-        attachment = attachment.clone();
-        attachment.setId(0);
-        return attachment;
-      }).collect(Collectors.toList());
-      eventEntity.setAttachments(attachments);
-    }
-    List<EventConference> conferences = eventEntity.getConferences();
-    if (conferences != null && !conferences.isEmpty()) {
-      conferences = conferences.stream().map(conference -> {
-        conference = conference.clone();
-        conference.setId(0);
-        return conference;
-      }).collect(Collectors.toList());
-      eventEntity.setConferences(conferences);
-    }
-    List<EventReminderEntity> reminders = eventEntity.getReminders();
-    if (reminders != null && !reminders.isEmpty()) {
-      reminders = reminders.stream().map(reminder -> {
-        reminder = reminder.clone();
-        reminder.setId(0);
-        return reminder;
-      }).collect(Collectors.toList());
-      eventEntity.setReminders(reminders);
     }
   }
 

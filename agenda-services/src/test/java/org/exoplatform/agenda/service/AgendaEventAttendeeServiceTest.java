@@ -40,7 +40,7 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
     event = createEvent(event.clone(), Long.parseLong(testuser1Identity.getId()), testuser5Identity);
 
     long eventId = event.getId();
-    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId);
+    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees(null);
     assertNotNull(eventAttendees);
     assertEquals(1, eventAttendees.size());
 
@@ -68,7 +68,8 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
                         spaceIdentity);
 
     long eventId = event.getId();
-    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId, EventAttendeeResponse.ACCEPTED);
+    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId, EventAttendeeResponse.ACCEPTED)
+                                                                   .getEventAttendees(null);
     assertNotNull(eventAttendees);
     assertEquals(1, eventAttendees.size());
 
@@ -85,13 +86,15 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
                                                  Long.parseLong(testuser3Identity.getId()),
                                                  EventAttendeeResponse.TENTATIVE);
 
-    eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId, EventAttendeeResponse.ACCEPTED);
+    eventAttendees =
+                   agendaEventAttendeeService.getEventAttendees(eventId, EventAttendeeResponse.ACCEPTED).getEventAttendees(null);
     assertNotNull(eventAttendees);
     assertEquals(2, eventAttendees.size());
 
     eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId,
                                                                   EventAttendeeResponse.ACCEPTED,
-                                                                  EventAttendeeResponse.TENTATIVE);
+                                                                  EventAttendeeResponse.TENTATIVE)
+                                               .getEventAttendees(null);
     assertNotNull(eventAttendees);
     assertEquals(3, eventAttendees.size());
   }
@@ -108,25 +111,27 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
     long eventId = event.getId();
 
     try {
-      agendaEventAttendeeService.getEventResponse(eventId, Long.parseLong(testuser4Identity.getId()));
+      agendaEventAttendeeService.getEventResponse(eventId, null, Long.parseLong(testuser4Identity.getId()));
       fail("should throw an exception, user is not attendee of the event");
     } catch (IllegalAccessException e) {
       // Expected, user is not attendee of the event
     }
 
     try {
-      agendaEventAttendeeService.getEventResponse(5000l, Long.parseLong(testuser1Identity.getId()));
+      agendaEventAttendeeService.getEventResponse(5000l, null, Long.parseLong(testuser1Identity.getId()));
       fail("should throw an exception, event id doesn't exists");
     } catch (ObjectNotFoundException e) {
       // Expected
     }
 
     EventAttendeeResponse eventResponse = agendaEventAttendeeService.getEventResponse(eventId,
+                                                                                      null,
                                                                                       Long.parseLong(testuser1Identity.getId()));
     assertNotNull(eventResponse);
     assertEquals("Creator should accept event just after creating the event", EventAttendeeResponse.ACCEPTED, eventResponse);
 
     eventResponse = agendaEventAttendeeService.getEventResponse(eventId,
+                                                                null,
                                                                 Long.parseLong(testuser5Identity.getId()));
     assertNotNull(eventResponse);
     assertEquals("Invitee default response should be empty just after creating the event",
@@ -165,6 +170,7 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
                                                  Long.parseLong(testuser1Identity.getId()),
                                                  EventAttendeeResponse.DECLINED);
     EventAttendeeResponse eventResponse = agendaEventAttendeeService.getEventResponse(eventId,
+                                                                                      null,
                                                                                       Long.parseLong(testuser1Identity.getId()));
     assertNotNull(eventResponse);
     assertEquals(EventAttendeeResponse.DECLINED, eventResponse);
@@ -173,6 +179,7 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
                                                  Long.parseLong(testuser5Identity.getId()),
                                                  EventAttendeeResponse.TENTATIVE);
     eventResponse = agendaEventAttendeeService.getEventResponse(eventId,
+                                                                null,
                                                                 Long.parseLong(testuser5Identity.getId()));
     assertNotNull(eventResponse);
     assertEquals(EventAttendeeResponse.TENTATIVE, eventResponse);
@@ -213,41 +220,45 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
     long exceptionalOccurrenceId = exceptionalOccurrence.getId();
     long userIdentityId = Long.parseLong(testuser1Identity.getId());
 
-    EventAttendeeResponse eventResponse = agendaEventAttendeeService.getEventResponse(eventId, userIdentityId);
+    EventAttendeeResponse eventResponse = agendaEventAttendeeService.getEventResponse(eventId, null, userIdentityId);
     assertNotNull(eventResponse);
     assertEquals(EventAttendeeResponse.ACCEPTED, eventResponse);
 
     EventAttendeeResponse exceptionalOccurrenceResponse = agendaEventAttendeeService.getEventResponse(exceptionalOccurrenceId,
+                                                                                                      null,
                                                                                                       userIdentityId);
     assertNotNull(exceptionalOccurrenceResponse);
     assertEquals(EventAttendeeResponse.ACCEPTED, exceptionalOccurrenceResponse);
 
     agendaEventAttendeeService.sendEventResponse(eventId, userIdentityId, EventAttendeeResponse.DECLINED);
 
-    eventResponse = agendaEventAttendeeService.getEventResponse(eventId, userIdentityId);
+    eventResponse = agendaEventAttendeeService.getEventResponse(eventId, null, userIdentityId);
     assertNotNull(eventResponse);
     assertEquals(EventAttendeeResponse.DECLINED, eventResponse);
     exceptionalOccurrenceResponse = agendaEventAttendeeService.getEventResponse(exceptionalOccurrenceId,
+                                                                                null,
                                                                                 userIdentityId);
     assertNotNull(exceptionalOccurrenceResponse);
     assertEquals(EventAttendeeResponse.DECLINED, exceptionalOccurrenceResponse);
 
     agendaEventAttendeeService.sendEventResponse(exceptionalOccurrenceId, userIdentityId, EventAttendeeResponse.TENTATIVE);
 
-    eventResponse = agendaEventAttendeeService.getEventResponse(eventId, userIdentityId);
+    eventResponse = agendaEventAttendeeService.getEventResponse(eventId, null, userIdentityId);
     assertNotNull(eventResponse);
     assertEquals(EventAttendeeResponse.DECLINED, eventResponse);
     exceptionalOccurrenceResponse = agendaEventAttendeeService.getEventResponse(exceptionalOccurrenceId,
+                                                                                null,
                                                                                 userIdentityId);
     assertNotNull(exceptionalOccurrenceResponse);
     assertEquals(EventAttendeeResponse.TENTATIVE, exceptionalOccurrenceResponse);
 
     agendaEventAttendeeService.sendEventResponse(eventId, userIdentityId, EventAttendeeResponse.ACCEPTED);
 
-    eventResponse = agendaEventAttendeeService.getEventResponse(eventId, userIdentityId);
+    eventResponse = agendaEventAttendeeService.getEventResponse(eventId, null, userIdentityId);
     assertNotNull(eventResponse);
     assertEquals(EventAttendeeResponse.ACCEPTED, eventResponse);
     exceptionalOccurrenceResponse = agendaEventAttendeeService.getEventResponse(exceptionalOccurrenceId,
+                                                                                null,
                                                                                 userIdentityId);
     assertNotNull(exceptionalOccurrenceResponse);
     assertEquals(EventAttendeeResponse.ACCEPTED, exceptionalOccurrenceResponse);
@@ -263,7 +274,7 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
     event = createEvent(event.clone(), Long.parseLong(testuser1Identity.getId()), testuser5Identity);
 
     long eventId = event.getId();
-    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId);
+    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees(null);
     assertNotNull(eventAttendees);
     assertEquals(1, eventAttendees.size());
     EventAttendee eventAttendee = eventAttendees.get(0);
@@ -282,7 +293,7 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
                                                                               event.getCalendarId(),
                                                                               userIdentityId,
                                                                               Collections.singleton(AgendaEventModificationType.ADDED)));
-    eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId);
+    eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees(null);
     assertNotNull(eventAttendees);
     assertEquals("Same user was added twice, only one attendee object should remain in store", 1, eventAttendees.size());
 
@@ -300,7 +311,7 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
                                                                               event.getCalendarId(),
                                                                               userIdentityId,
                                                                               Collections.singleton(AgendaEventModificationType.ADDED)));
-    eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId);
+    eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees(null);
     assertNotNull(eventAttendees);
     assertEquals(2, eventAttendees.size());
 
@@ -313,7 +324,7 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
                                                                               event.getCalendarId(),
                                                                               userIdentityId,
                                                                               Collections.singleton(AgendaEventModificationType.ADDED)));
-    eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId);
+    eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees(null);
     assertNotNull(eventAttendees);
     assertEquals(0, eventAttendees.size());
   }

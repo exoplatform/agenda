@@ -79,6 +79,9 @@ public class EventReplyNotificationPlugin extends BaseNotificationPlugin {
     notification.key(getId());
     if (event.getId() > 0) {
       List<EventAttendee> eventAttendees = eventAttendeeService.getEventAttendees(event.getId(),
+                                                                                  event.getOccurrence() == null ? null
+                                                                                                                : event.getOccurrence()
+                                                                                                                       .getId(),
                                                                                   EventAttendeeResponse.ACCEPTED,
                                                                                   EventAttendeeResponse.TENTATIVE);
       Set<Long> eventAttendeeIds = eventAttendees.stream().map(EventAttendee::getIdentityId).collect(Collectors.toSet());

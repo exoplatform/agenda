@@ -114,7 +114,6 @@ public interface AgendaEventService {
    * @param eventId technical identifier of parent recurrent event
    * @param attendees {@link List} of attendees
    * @param conferences {@link List} of conferences
-   * @param attachments {@link List} of attachments
    * @param reminders {@link List} of reminders
    * @param occurrenceId event occurent identifier
    * @return newly created {@link Event}
@@ -123,7 +122,6 @@ public interface AgendaEventService {
   Event createEventExceptionalOccurrence(long eventId,
                                          List<EventAttendee> attendees,
                                          List<EventConference> conferences,
-                                         List<EventAttachment> attachments,
                                          List<EventReminder> reminders,
                                          ZonedDateTime occurrenceId) throws AgendaException;
 
@@ -144,7 +142,6 @@ public interface AgendaEventService {
    * @param event {@link Event} to create
    * @param attendees event attendees of type {@link EventAttendee}
    * @param conferences event conferences of type {@link EventConference}
-   * @param attachments event attachment of type {@link EventAttachment}
    * @param reminders {@link List} of preferred user reminders of type
    *          {@link EventReminder}
    * @param dateOptions {@link List} of {@link EventDateOption} of corresponding
@@ -161,7 +158,6 @@ public interface AgendaEventService {
   Event createEvent(Event event,
                     List<EventAttendee> attendees,
                     List<EventConference> conferences,
-                    List<EventAttachment> attachments,
                     List<EventReminder> reminders,
                     List<EventDateOption> dateOptions,
                     RemoteEvent remoteEvent,
@@ -176,7 +172,6 @@ public interface AgendaEventService {
    * @param event {@link Event} to create
    * @param attendees event attendees of type {@link EventAttendee}
    * @param conferences event conferences of type {@link EventConference}
-   * @param attachments event attachment of type {@link EventAttachment}
    * @param reminders {@link List} of preferred user reminders of type
    *          {@link EventReminder}
    * @param dateOptions {@link List} of {@link EventDateOption} of corresponding
@@ -194,7 +189,6 @@ public interface AgendaEventService {
   Event updateEvent(Event event,
                     List<EventAttendee> attendees,
                     List<EventConference> conferences,
-                    List<EventAttachment> attachments,
                     List<EventReminder> reminders,
                     List<EventDateOption> dateOptions,
                     RemoteEvent remoteEvent,
