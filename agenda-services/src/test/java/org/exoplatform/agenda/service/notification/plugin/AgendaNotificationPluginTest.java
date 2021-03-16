@@ -53,12 +53,12 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
     NotificationContext ctx = NotificationContextImpl.cloneInstance()
                                                      .append(NotificationUtils.EVENT_AGENDA, createdEvent)
                                                      .append(NotificationUtils.EVENT_ATTENDEE,
-                                                             agendaEventAttendeeService.getEventAttendees(createdEvent.getId()))
+                                                             agendaEventAttendeeService.getEventAttendees(createdEvent.getId()).getEventAttendees())
                                                      .append(EVENT_TITLE, createdEvent.getSummary())
                                                      .append(NotificationUtils.EVENT_MODIFICATION_TYPE,
                                                              AgendaEventModificationType.ADDED.name());
     String eventUrl = System.getProperty("gatein.email.domain.url")
-                            .concat("portal/classic/agenda?parentId=")
+                            .concat("portal/classic/agenda?eventId=")
                             .concat(String.valueOf(createdEvent.getId()));
     // Attendee: Root is the manager of space, testuser4Identity creator of
     // space,testuser2Identity, testuser3Identity
@@ -98,10 +98,10 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
                                      testuser3Identity,
                                      spaceIdentity);
     Event updatedEvent = agendaEventService.getEventById(createdEvent.getId(), null, Long.parseLong(testuser1Identity.getId()));
-    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(updatedEvent.getId());
+    List<EventAttendee> eventAttendees =
+                                       agendaEventAttendeeService.getEventAttendees(updatedEvent.getId()).getEventAttendees();
     agendaEventService.updateEvent(updatedEvent,
                                    eventAttendees,
-                                   null,
                                    null,
                                    null,
                                    null,
@@ -127,13 +127,13 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
     NotificationContext ctx = NotificationContextImpl.cloneInstance()
                                                      .append(NotificationUtils.EVENT_AGENDA, updatedEvent)
                                                      .append(NotificationUtils.EVENT_ATTENDEE,
-                                                             agendaEventAttendeeService.getEventAttendees(updatedEvent.getId()))
+                                                             agendaEventAttendeeService.getEventAttendees(updatedEvent.getId()).getEventAttendees())
 
                                                      .append(EVENT_TITLE, updatedEvent.getSummary())
                                                      .append(NotificationUtils.EVENT_MODIFICATION_TYPE,
                                                              AgendaEventModificationType.UPDATED.name());
     String eventUrl = System.getProperty("gatein.email.domain.url")
-                            .concat("portal/classic/agenda?parentId=")
+                            .concat("portal/classic/agenda?eventId=")
                             .concat(String.valueOf(createdEvent.getId()));
     /*
      * Attendee Root is manager of space, testuser4Identity creator of space,
@@ -159,7 +159,7 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
     NotificationContext ctx2 = NotificationContextImpl.cloneInstance()
                                                       .append(NotificationUtils.EVENT_AGENDA, updatedEvent)
                                                       .append(NotificationUtils.EVENT_ATTENDEE,
-                                                              agendaEventAttendeeService.getEventAttendees(updatedEvent.getId()))
+                                                              agendaEventAttendeeService.getEventAttendees(updatedEvent.getId()).getEventAttendees())
 
                                                       .append(EVENT_TITLE, updatedEvent.getSummary())
                                                       .append(NotificationUtils.EVENT_MODIFICATION_TYPE,
@@ -200,12 +200,12 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
     NotificationContext ctx = NotificationContextImpl.cloneInstance()
                                                      .append(NotificationUtils.EVENT_AGENDA, createdEvent)
                                                      .append(NotificationUtils.EVENT_ATTENDEE,
-                                                             agendaEventAttendeeService.getEventAttendees(createdEvent.getId()))
+                                                             agendaEventAttendeeService.getEventAttendees(createdEvent.getId()).getEventAttendees())
                                                      .append(EVENT_TITLE, createdEvent.getSummary())
                                                      .append(NotificationUtils.EVENT_MODIFICATION_TYPE,
                                                              AgendaEventModificationType.ADDED.name());
     String eventUrl = System.getProperty("gatein.email.domain.url")
-                            .concat("portal/classic/agenda?parentId=")
+                            .concat("portal/classic/agenda?eventId=")
                             .concat(String.valueOf(createdEvent.getId()));
 
     long nbAttendee = agendaEventAttendeeService.getEventAttendees(createdEvent.getId()).size();
@@ -236,10 +236,10 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
     recurrence.setInterval(1);
     List<String> days = Arrays.asList("MO", "TU", "WE");
     recurrence.setByDay(days);
-    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(createdEvent.getId());
+    List<EventAttendee> eventAttendees =
+                                       agendaEventAttendeeService.getEventAttendees(createdEvent.getId()).getEventAttendees();
     agendaEventService.updateEvent(createdEvent,
                                    eventAttendees,
-                                   Collections.emptyList(),
                                    Collections.emptyList(),
                                    Collections.emptyList(),
                                    null,
@@ -263,12 +263,12 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
     NotificationContext ctx1 = NotificationContextImpl.cloneInstance()
                                                       .append(NotificationUtils.EVENT_AGENDA, createdEvent)
                                                       .append(NotificationUtils.EVENT_ATTENDEE,
-                                                              agendaEventAttendeeService.getEventAttendees(createdEvent.getId()))
+                                                              agendaEventAttendeeService.getEventAttendees(createdEvent.getId()).getEventAttendees())
                                                       .append(EVENT_TITLE, createdEvent.getSummary())
                                                       .append(NotificationUtils.EVENT_MODIFICATION_TYPE,
                                                               AgendaEventModificationType.ADDED.name());
     String eventUrl1 = System.getProperty("gatein.email.domain.url")
-                             .concat("portal/classic/agenda?parentId=")
+                             .concat("portal/classic/agenda?eventId=")
                              .concat(String.valueOf(createdEvent.getId()));
 
     long nbAttendee1 = agendaEventAttendeeService.getEventAttendees(createdEvent.getId()).size();

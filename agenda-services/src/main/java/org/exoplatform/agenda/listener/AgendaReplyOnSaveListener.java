@@ -1,7 +1,7 @@
 package org.exoplatform.agenda.listener;
 
 import java.time.ZoneOffset;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import org.exoplatform.agenda.constant.AgendaEventModificationType;
@@ -41,7 +41,7 @@ public class AgendaReplyOnSaveListener extends Listener<AgendaEventModification,
     long modifierId = eventModification.getModifierId();
     try {
       org.exoplatform.agenda.model.Event agendaEvent = getAgendaEventService().getEventById(eventId);
-      List<EventAttendee> eventAttendees = getAgendaEventAttendeeService().getEventAttendees(eventId);
+      List<EventAttendee> eventAttendees = getAgendaEventAttendeeService().getEventAttendees(eventId).getEventAttendees();
       switch (agendaEvent.getStatus()) {
         case CONFIRMED:
           // Check if dates modification is made
@@ -50,12 +50,31 @@ public class AgendaReplyOnSaveListener extends Listener<AgendaEventModification,
               || eventModification.hasModification(AgendaEventModificationType.ADDED)) {
             // Automatically change creator response to accepted
             // and for others to NEEDS_ACTION
+            Set<Long> identityIds = new HashSet<>();
+            boolean updateModifierResponse = eventModification.hasModification(AgendaEventModificationType.ADDED);
+            boolean isModifierAttendee = false;
             for (EventAttendee eventAttendee : eventAttendees) {
-              EventAttendeeResponse response = modifierId == eventAttendee.getIdentityId() ? EventAttendeeResponse.ACCEPTED
-                                                                                           : EventAttendeeResponse.NEEDS_ACTION;
-              if (eventAttendee.getResponse() != response) {
-                getAgendaEventAttendeeService().sendEventResponse(eventId, eventAttendee.getIdentityId(), response, false);
+              if (modifierId == eventAttendee.getIdentityId()) {
+                isModifierAttendee = true;
+                if (eventAttendee.getResponse() != EventAttendeeResponse.ACCEPTED) {
+                  updateModifierResponse = true;
+                }
+              } else if (modifierId != eventAttendee.getIdentityId()
+                  && eventAttendee.getResponse() != EventAttendeeResponse.NEEDS_ACTION) {
+                identityIds.add(eventAttendee.getIdentityId());
               }
+            }
+            for (Long identityId : identityIds) {
+              getAgendaEventAttendeeService().sendEventResponse(eventId,
+                                                                identityId,
+                                                                EventAttendeeResponse.NEEDS_ACTION,
+                                                                false);
+            }
+            if (isModifierAttendee && updateModifierResponse) {
+              getAgendaEventAttendeeService().sendEventResponse(eventId,
+                                                                modifierId,
+                                                                EventAttendeeResponse.ACCEPTED,
+                                                                false);
             }
           }
           break;

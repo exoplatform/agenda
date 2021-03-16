@@ -16,10 +16,12 @@
 */
 package org.exoplatform.agenda.service;
 
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Set;
 
-import org.exoplatform.agenda.constant.*;
+import org.exoplatform.agenda.constant.AgendaEventModificationType;
+import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.social.core.identity.model.Identity;
@@ -30,18 +32,30 @@ public interface AgendaEventAttendeeService {
    * Return the list of attendees of an event
    * 
    * @param eventId agenda {@link Event} identifier
+   * @return {@link EventAttendeeList}
+   */
+  public EventAttendeeList getEventAttendees(long eventId);
+
+  /**
+   * Return the list of attendees of an event having a specific responses.
+   * 
+   * @param eventId agenda {@link Event} identifier
+   * @param occurrenceId event occurrence id
+   * @param responses Array of answers of attendees to retrieve
    * @return {@link List} of {@link EventAttendee}
    */
-  public List<EventAttendee> getEventAttendees(long eventId);
+  List<EventAttendee> getEventAttendees(long eventId,
+                                        ZonedDateTime occurrenceId,
+                                        EventAttendeeResponse... responses);
 
   /**
    * Return the list of attendees of an event having a specific responses.
    * 
    * @param eventId agenda {@link Event} identifier
    * @param responses Array of answers of attendees to retrieve
-   * @return {@link List} of {@link EventAttendee}
+   * @return {@link EventAttendeeList}
    */
-  List<EventAttendee> getEventAttendees(long eventId, EventAttendeeResponse... responses);
+  EventAttendeeList getEventAttendees(long eventId, EventAttendeeResponse... responses);
 
   /**
    * Sends an invitation to event attendees of type: user, space or external
@@ -123,14 +137,17 @@ public interface AgendaEventAttendeeService {
    * retrieved.
    * 
    * @param eventId Technical identifier of {@link Event}
+   * @param occurrenceId event occurrence id
    * @param identityId {@link Identity} technical identifier of user
    * @return {@link EventAttendeeResponse}, no null value is returned
    * @throws ObjectNotFoundException when event with provided identifier doesn't
    *           exists
    * @throws IllegalAccessException when user is not an invitee of the event
    */
-  public EventAttendeeResponse getEventResponse(long eventId, long identityId) throws ObjectNotFoundException,
-                                                                               IllegalAccessException;
+  public EventAttendeeResponse getEventResponse(long eventId,
+                                                ZonedDateTime occurrenceId,
+                                                long identityId) throws ObjectNotFoundException,
+                                                                 IllegalAccessException;
 
   /**
    * @param eventId Technical identifier of {@link Event}
@@ -146,6 +163,25 @@ public interface AgendaEventAttendeeService {
                                 long identityId,
                                 EventAttendeeResponse response) throws ObjectNotFoundException,
                                                                 IllegalAccessException;
+
+  /**
+   * Sends an event response for a recurrent event starting from a specific
+   * occurrence
+   * 
+   * @param eventId Technical identifier of {@link Event}
+   * @param occurrenceId event occurrence id
+   * @param identityId {@link Identity} technical identifier of user
+   * @param response User response of type {@link EventAttendeeResponse} to the
+   *          event. The value {@link EventAttendeeResponse#NEEDS_ACTION} isn't
+   *          allowed.
+   * @throws ObjectNotFoundException when event with provided identifier doesn't
+   *           exists
+   * @throws IllegalAccessException when user is not an invitee of the event
+   */
+  public void sendUpcomingEventResponse(long eventId,
+                                        ZonedDateTime occurrenceId,
+                                        long identityId,
+                                        EventAttendeeResponse response) throws ObjectNotFoundException, IllegalAccessException;
 
   /**
    * @param eventId Technical identifier of {@link Event}

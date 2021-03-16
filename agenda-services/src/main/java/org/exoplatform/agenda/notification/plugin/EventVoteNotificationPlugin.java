@@ -83,6 +83,7 @@ public class EventVoteNotificationPlugin extends BaseNotificationPlugin {
       storeEventParameters(identityManager,
                            notification,
                            event,
+                           null,
                            eventParticipantId,
                            eventResponse,
                            calendar,

@@ -26,10 +26,6 @@
   </component>
 
   <component>
-    <type>org.exoplatform.agenda.storage.AgendaEventAttachmentStorage</type>
-  </component>
-
-  <component>
     <type>org.exoplatform.agenda.storage.AgendaEventAttendeeStorage</type>
   </component>
 
@@ -85,11 +81,6 @@
         <value>${exo.agenda.reminder.computing.period:2}</value>
       </value-param>
     </init-params>
-  </component>
-
-  <component>
-    <key>org.exoplatform.agenda.service.AgendaEventAttachmentService</key>
-    <type>org.exoplatform.agenda.service.AgendaEventAttachmentServiceImpl</type>
   </component>
 
   <component>
@@ -165,10 +156,6 @@
 
   <component>
     <type>org.exoplatform.agenda.dao.EventDAO</type>
-  </component>
-
-  <component>
-    <type>org.exoplatform.agenda.dao.EventAttachmentDAO</type>
   </component>
 
   <component>

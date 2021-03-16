@@ -18,6 +18,7 @@ package org.exoplatform.agenda.service;
 
 import static org.exoplatform.agenda.util.NotificationUtils.*;
 
+import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -88,7 +89,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     long eventId = event.getId();
     EventStatus eventStatus = event.getStatus();
 
-    List<EventAttendee> oldAttendees = getEventAttendees(event.getId());
+    List<EventAttendee> oldAttendees = getEventAttendees(event.getId()).getEventAttendees();
     List<EventAttendee> newAttendees = attendees == null ? Collections.emptyList() : attendees;
 
     Set<AgendaEventModificationType> eventModificationTypes = new HashSet<>();
@@ -107,7 +108,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    * {@inheritDoc}
    */
   @Override
-  public List<EventAttendee> getEventAttendees(long eventId) {
+  public EventAttendeeList getEventAttendees(long eventId) {
     return attendeeStorage.getEventAttendees(eventId);
   }
 
@@ -115,7 +116,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    * {@inheritDoc}
    */
   @Override
-  public List<EventAttendee> getEventAttendees(long eventId, EventAttendeeResponse... responses) {
+  public EventAttendeeList getEventAttendees(long eventId, EventAttendeeResponse... responses) {
     return attendeeStorage.getEventAttendees(eventId, responses);
   }
 
@@ -123,8 +124,21 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    * {@inheritDoc}
    */
   @Override
-  public EventAttendeeResponse getEventResponse(long eventId, long identityId) throws ObjectNotFoundException,
-                                                                               IllegalAccessException {
+  public List<EventAttendee> getEventAttendees(long eventId,
+                                               ZonedDateTime occurrenceId,
+                                               EventAttendeeResponse... responses) {
+    EventAttendeeList eventAttendeeList = attendeeStorage.getEventAttendees(eventId, responses);
+    return eventAttendeeList.getEventAttendees(occurrenceId);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public EventAttendeeResponse getEventResponse(long eventId,
+                                                ZonedDateTime occurrenceId,
+                                                long identityId) throws ObjectNotFoundException,
+                                                                 IllegalAccessException {
     Event event = eventStorage.getEventById(eventId);
     if (event == null) {
       throw new ObjectNotFoundException("Event with id " + eventId + " wasn't found");
@@ -132,11 +146,12 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     if (!isEventAttendee(eventId, identityId)) {
       throw new IllegalAccessException("User " + identityId + " is not attendee of event " + eventId);
     }
-    EventAttendee attendee = attendeeStorage.getEventAttendee(eventId, identityId);
-    if (attendee == null) {
+    EventAttendeeList eventAttendeeList = attendeeStorage.getEventAttendees(eventId, identityId);
+    if (eventAttendeeList.isEmpty()) {
       return EventAttendeeResponse.NEEDS_ACTION;
     }
-    return attendee.getResponse();
+    EventAttendee eventAttendee = eventAttendeeList.getEventAttendee(identityId, occurrenceId);
+    return eventAttendee == null ? EventAttendeeResponse.NEEDS_ACTION : eventAttendee.getResponse();
   }
 
   /**
@@ -153,12 +168,62 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    * {@inheritDoc}
    */
   @Override
+  public void sendUpcomingEventResponse(long eventId,
+                                        ZonedDateTime occurrenceId,
+                                        long identityId,
+                                        EventAttendeeResponse response) throws ObjectNotFoundException, IllegalAccessException {
+    if (response == null) {
+      throw new IllegalArgumentException("Attendee response is mandatory");
+    }
+    if (occurrenceId == null) {
+      throw new IllegalArgumentException("occurrenceId is mandatory");
+    }
+    if (eventId <= 0) {
+      throw new IllegalArgumentException("eventId is mandatory");
+    }
+    if (identityId <= 0) {
+      throw new IllegalArgumentException("identityId is mandatory");
+    }
+    Event event = eventStorage.getEventById(eventId);
+    if (event == null) {
+      throw new ObjectNotFoundException("Parent event with id " + eventId + " wasn't found");
+    }
+    if (event.getRecurrence() == null) {
+      throw new IllegalStateException("Event with id " + eventId + " isn't recurrent");
+    }
+    Identity userIdentity = identityManager.getIdentity(String.valueOf(identityId));
+    if (userIdentity == null) {
+      throw new ObjectNotFoundException("Identity with id " + identityId + " wasn't found");
+    }
+
+    if (!isEventAttendee(eventId, identityId)) {
+      throw new IllegalAccessException("User with identity id " + identityId + " isn't attendee of event with id " + eventId);
+    }
+
+    saveEventAttendee(eventId, occurrenceId, identityId, response, true);
+
+    // Apply modification on exceptional occurrences as well
+    List<Long> exceptionalOccurenceEventIds = eventStorage.getExceptionalOccurenceIds(eventId, occurrenceId);
+    for (long exceptionalOccurenceEventId : exceptionalOccurenceEventIds) {
+      if (isEventAttendee(exceptionalOccurenceEventId, identityId)) {
+        saveEventAttendee(exceptionalOccurenceEventId, identityId, response, false);
+      }
+    }
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
   public void sendEventResponse(long eventId,
                                 long identityId,
                                 EventAttendeeResponse response,
                                 boolean broadcast) throws ObjectNotFoundException, IllegalAccessException {
     if (response == null) {
       throw new IllegalArgumentException("Attendee response is mandatory");
+    }
+    if (eventId <= 0) {
+      throw new IllegalArgumentException("eventId is mandatory");
     }
     Event event = eventStorage.getEventById(eventId);
     if (event == null) {
@@ -173,10 +238,15 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       throw new IllegalAccessException("User with identity id " + identityId + " isn't attendee of event with id " + eventId);
     }
 
+    boolean isRecurrentEvent = eventStorage.isRecurrentEvent(eventId);
+    if (isRecurrentEvent) {
+
+    }
+
     saveEventAttendee(eventId, identityId, response, broadcast);
 
     // Apply modification on exceptional occurrences as well
-    if (eventStorage.isRecurrentEvent(eventId)) {
+    if (isRecurrentEvent) {
       List<Long> exceptionalOccurenceEventIds = eventStorage.getExceptionalOccurenceIds(eventId);
       for (long exceptionalOccurenceEventId : exceptionalOccurenceEventIds) {
         if (isEventAttendee(exceptionalOccurenceEventId, identityId)) {
@@ -259,7 +329,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    */
   @Override
   public boolean isEventAttendee(long eventId, long identityId) {
-    List<EventAttendee> eventAttendees = getEventAttendees(eventId);
+    EventAttendeeList eventAttendees = getEventAttendees(eventId);
     return Utils.isEventAttendee(identityManager, spaceService, identityId, eventAttendees);
   }
 
@@ -295,16 +365,49 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     }
   }
 
-  private void saveEventAttendee(long eventId, long identityId, EventAttendeeResponse response, boolean userResponseSent) {
-    EventAttendee attendee = attendeeStorage.getEventAttendee(eventId, identityId);
-    EventAttendee oldAttendee = null;
-    if (attendee == null) {
-      attendee = new EventAttendee(0, eventId, identityId, response);
+  private void saveEventAttendee(long eventId,
+                                 long identityId,
+                                 EventAttendeeResponse response,
+                                 boolean userResponseSent) {
+    saveEventAttendee(eventId, null, identityId, response, userResponseSent);
+  }
+
+  private void saveEventAttendee(long eventId,
+                                 ZonedDateTime occurrenceId,
+                                 long identityId,
+                                 EventAttendeeResponse response,
+                                 boolean userResponseSent) {
+    EventAttendeeList eventAttendees = attendeeStorage.getEventAttendees(eventId, identityId);
+    EventAttendee attendee = eventAttendees.getEventAttendee(identityId, occurrenceId);
+    EventAttendee oldAttendee = attendee == null ? null : attendee.clone();
+    if (occurrenceId == null) {
+      List<EventAttendee> userEventAttendees = eventAttendees.getEventAttendees(identityId);
+      if (userEventAttendees.size() > 1) {
+        userEventAttendees.forEach(userEventAttendee -> {
+          attendeeStorage.removeEventAttendee(userEventAttendee.getId());
+        });
+        attendee = new EventAttendee(0, eventId, identityId, response);
+      } else if (attendee == null) {
+        attendee = new EventAttendee(0, eventId, identityId, response);
+      } else {
+        attendee.setResponse(response);
+      }
+      attendeeStorage.saveEventAttendee(attendee, eventId);
     } else {
-      oldAttendee = attendee.clone();
-      attendee.setResponse(response);
+      List<EventAttendee> userAttendees = eventAttendees.getEventAttendees();
+      for (EventAttendee eventAttendee : userAttendees) {
+        if (eventAttendee.getFromOccurrenceId() != null && (eventAttendee.getFromOccurrenceId().isAfter(occurrenceId)
+            || eventAttendee.getFromOccurrenceId().isEqual(occurrenceId))) {
+          attendeeStorage.removeEventAttendee(eventAttendee.getId());
+        } else if ((eventAttendee.getFromOccurrenceId() == null || eventAttendee.getFromOccurrenceId().isBefore(occurrenceId))
+            && (eventAttendee.getUntilOccurrenceId() == null || eventAttendee.getUntilOccurrenceId().isAfter(occurrenceId))) {
+          eventAttendee.setUntilOccurrenceId(occurrenceId);
+          attendeeStorage.saveEventAttendee(eventAttendee, eventId);
+        }
+      }
+      attendee = new EventAttendee(identityId, eventId, identityId, occurrenceId, null, response);
+      attendeeStorage.saveEventAttendee(attendee, eventId);
     }
-    attendeeStorage.saveEventAttendee(attendee, eventId);
 
     // Broadcast technical event when saving any new response for a user
     Utils.broadcastEvent(listenerService, Utils.POST_EVENT_RESPONSE_SAVED, oldAttendee, attendee);

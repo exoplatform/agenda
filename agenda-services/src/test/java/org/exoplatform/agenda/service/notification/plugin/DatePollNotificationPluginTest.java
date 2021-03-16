@@ -49,7 +49,7 @@ public class DatePollNotificationPluginTest extends BaseAgendaEventTest {
     NotificationContext ctx = NotificationContextImpl.cloneInstance()
                                                      .append(NotificationUtils.EVENT_AGENDA, createdEvent)
                                                      .append(NotificationUtils.EVENT_ATTENDEE,
-                                                             agendaEventAttendeeService.getEventAttendees(createdEvent.getId()))
+                                                             agendaEventAttendeeService.getEventAttendees(createdEvent.getId()).getEventAttendees())
                                                      .append(EVENT_TITLE, createdEvent.getSummary())
                                                      .append(NotificationUtils.EVENT_MODIFICATION_TYPE,
                                                              AgendaEventModificationType.ADDED.name());

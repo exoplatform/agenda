@@ -167,12 +167,6 @@ public class RestEntityBuilder {
                              beforePeriodType);
   }
 
-  public static EventAttachment toEventAttachment(EventAttachmentEntity attachmentEntity) {
-    return new EventAttachment(attachmentEntity.getId(),
-                               attachmentEntity.getFileId(),
-                               0l);
-  }
-
   public static EventAttendee toEventAttendee(IdentityManager identityManager,
                                               long eventId,
                                               EventAttendeeEntity attendeeEntity) throws AgendaException {
@@ -195,11 +189,6 @@ public class RestEntityBuilder {
     return new EventAttendeeEntity(eventAttendee.getId(),
                                    getIdentityEntity(identityManager, eventAttendee.getIdentityId()),
                                    eventAttendee.getResponse());
-  }
-
-  public static final EventAttachmentEntity fromEventAttachment(EventAttachment eventAttachment) {
-    return new EventAttachmentEntity(eventAttachment.getId(),
-                                     eventAttachment.getFileId());
   }
 
   public static EventDateOptionEntity fromEventDateOption(ZoneId userTimeZone, EventDateOption dateOption) {
@@ -317,7 +306,6 @@ public class RestEntityBuilder {
                                          null,
                                          null,
                                          null,
-                                         null,
                                          event.isAllowAttendeeToUpdate(),
                                          event.isAllowAttendeeToInvite(),
                                          false,
@@ -345,7 +333,6 @@ public class RestEntityBuilder {
                              recurrenceEntity,
                              occurrenceEntity,
                              event.getAcl(),
-                             null,
                              null,
                              null,
                              null,

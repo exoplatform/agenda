@@ -5,6 +5,7 @@ import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.time.*;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
 
@@ -67,6 +68,10 @@ public class NotificationUtils {
                                                                             new ArgumentLiteral<>(EventAttendeeResponse.class,
                                                                                                   "event_response");
 
+  public static final ArgumentLiteral<ZonedDateTime>         EVENT_OCCURRENCE_ID                            =
+                                                                                 new ArgumentLiteral<>(ZonedDateTime.class,
+                                                                                                       "occurrence_id");
+
   public static final String                                 AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN         =
                                                                                                     "EventAddedNotificationPlugin";
 
@@ -128,6 +133,8 @@ public class NotificationUtils {
   public static final String                                 STORED_PARAMETER_EVENT_CREATOR                 = "eventCreator";
 
   public static final String                                 STORED_PARAMETER_EVENT_URL                     = "Url";
+
+  public static final String                                 STORED_PARAMETER_EVENT_OCCURRENCE_ID           = "eventOccurrenceId";
 
   public static final String                                 STORED_EVENT_MODIFICATION_TYPE                 =
                                                                                             "EVENT_MODIFICATION_TYPE";
@@ -218,7 +225,7 @@ public class NotificationUtils {
   public static final void setNotificationRecipients(IdentityManager identityManager,
                                                      NotificationInfo notification,
                                                      SpaceService spaceService,
-                                                     List<EventAttendee> eventAttendee,
+                                                     List<EventAttendee> eventAttendees,
                                                      Event event,
                                                      String typeModification,
                                                      long modifierId) {
@@ -230,8 +237,8 @@ public class NotificationUtils {
     }
 
     Set<String> recipients = new HashSet<>();
-    List<String> participants = new ArrayList<>();
-    for (EventAttendee attendee : eventAttendee) {
+    Set<String> participants = new HashSet<>();
+    for (EventAttendee attendee : eventAttendees) {
       Identity identity = Utils.getIdentityById(identityManager, attendee.getIdentityId());
       if (identity == null) {
         continue;
@@ -328,6 +335,7 @@ public class NotificationUtils {
   public static final void storeEventParameters(IdentityManager identityManager,
                                                 NotificationInfo notification,
                                                 Event event,
+                                                ZonedDateTime occurrenceId,
                                                 long participantId,
                                                 EventAttendeeResponse response,
                                                 Calendar calendar,
@@ -335,9 +343,9 @@ public class NotificationUtils {
                                                 SpaceService spaceService) {
     Identity identity = Utils.getIdentityById(identityManager, participantId);
     String timeZoneName = TimeZone.getTimeZone(event.getTimeZoneId()).getDisplayName() + ": " + event.getTimeZoneId();
-    List<String> participants = new ArrayList<>();
-    List<EventAttendee> eventAttendee = eventAttendeeService.getEventAttendees(event.getId());
-    List<String> spaceParticipants = new ArrayList<>();
+    Set<String> participants = new HashSet<>();
+    List<EventAttendee> eventAttendee = eventAttendeeService.getEventAttendees(event.getId()).getEventAttendees();
+    Set<String> spaceParticipants = new HashSet<>();
     String showSpaceParticipant = null;
     for (EventAttendee attendee : eventAttendee) {
       Identity identityAttendee = Utils.getIdentityById(identityManager, attendee.getIdentityId());
@@ -358,7 +366,7 @@ public class NotificationUtils {
     notification.with(STORED_PARAMETER_EVENT_ID, String.valueOf(event.getId()))
                 .with(STORED_PARAMETER_EVENT_TITLE, event.getSummary())
                 .with(STORED_PARAMETER_EVENT_PARTICIPANT_AVATAR_URL, setParticipantAvatarUrl(identity))
-                .with(STORED_PARAMETER_EVENT_URL, getEventURL(event))
+                .with(STORED_PARAMETER_EVENT_URL, getEventURL(event, occurrenceId))
                 .with(STORED_PARAMETER_EVENT_OWNER_ID, String.valueOf(calendar.getOwnerId()))
                 .with(STORED_PARAMETER_EVENT_RESPONSE, String.valueOf(response))
                 .with(STORED_PARAMETER_EVENT_PARTICIPANT_NAME, getEventNotificationCreatorOrModifierUserName(identity))
@@ -367,6 +375,12 @@ public class NotificationUtils {
                 .with(STORED_PARAMETER_EVENT_RECURRENT_DETAILS, getRecurrenceDetails(event))
                 .with(STORED_PARAMETER_EVENT_TIMEZONE_NAME, timeZoneName)
                 .with(STORED_PARAMETER_EVENT_ATTENDEES, showParticipants);
+    if (occurrenceId == null && event.getOccurrence() != null) {
+      occurrenceId = event.getOccurrence().getId();
+    }
+    if (occurrenceId != null) {
+      notification.with(STORED_PARAMETER_EVENT_OCCURRENCE_ID, AgendaDateUtils.toRFC3339Date(occurrenceId, ZoneOffset.UTC));
+    }
     if (StringUtils.isNotBlank(event.getDescription())) {
       notification.with(STORED_PARAMETER_EVENT_DESCRIPTION, event.getDescription());
     }
@@ -560,7 +574,7 @@ public class NotificationUtils {
     templateContext.put("USER", notification.getTo());
   }
 
-  public static String getEventURL(Event event) {
+  public static String getEventURL(Event event, ZonedDateTime occurrenceId) {
     String currentSite = getDefaultSite();
     String currentDomain = CommonsUtils.getCurrentDomain();
     if (!currentDomain.endsWith("/")) {
@@ -568,16 +582,20 @@ public class NotificationUtils {
     }
     String notificationURL = "";
     if (event != null) {
-      if (event.getRecurrence() == null) {
+      if (occurrenceId == null) {
         notificationURL = currentDomain + "portal/" + currentSite + "/agenda?eventId=" + event.getId();
       } else {
         notificationURL = currentDomain + "portal/" + currentSite + "/agenda?parentId=" + event.getId() + "&occurrenceId="
-            + AgendaDateUtils.toRFC3339Date(event.getStart(), ZoneOffset.UTC);
+            + AgendaDateUtils.toRFC3339Date(occurrenceId, ZoneOffset.UTC);
       }
     } else {
       notificationURL = currentDomain + "portal/" + currentSite + "/agenda";
     }
     return notificationURL;
+  }
+
+  public static String getEventURL(Event event) {
+    return getEventURL(event, null);
   }
 
   public static String getResponseURL(AgendaEventAttendeeService agendaEventAttendeeService,
@@ -785,27 +803,22 @@ public class NotificationUtils {
     return currentDomain + "portal/" + currentSite + "/profile/" + identity.getRemoteId();
   }
 
-  private static String getFullUserName(List<String> participants, IdentityManager identityManager) {
-    List<String> showParticipants = new ArrayList<>();
+  private static String getFullUserName(Set<String> participants, IdentityManager identityManager) {
     if (participants.size() > 3) {
-      for (int i = 0; i < 3; i++) {
-        String fullName = Utils.getIdentityById(identityManager, participants.get(i)).getProfile().getFullName();
-        showParticipants.add(fullName);
-      }
+      List<String> showParticipants = participants.stream().limit(3).collect(Collectors.toList());
       return String.join(", ", showParticipants).concat("...");
     } else {
-      for (int i = 0; i < participants.size(); i++) {
-        String fullName = Utils.getIdentityById(identityManager, participants.get(i)).getProfile().getFullName();
-        showParticipants.add(fullName);
-      }
+      List<String> showParticipants = participants.stream().map(participant -> {
+        return Utils.getIdentityById(identityManager, participant).getProfile().getFullName();
+      }).collect(Collectors.toList());
       return String.join(", ", showParticipants);
     }
   }
 
-  private static String getSpaceDisplayName(List<String> participants, SpaceService spaceService) {
+  private static String getSpaceDisplayName(Set<String> participants, SpaceService spaceService) {
     List<String> showParticipants = new ArrayList<>();
-    for (int i = 0; i < participants.size(); i++) {
-      String displaySpaceName = spaceService.getSpaceByPrettyName(participants.get(i)).getDisplayName();
+    for (String participant : participants) {
+      String displaySpaceName = spaceService.getSpaceByPrettyName(participant).getDisplayName();
       showParticipants.add(displaySpaceName);
     }
     return String.join(", ", showParticipants);

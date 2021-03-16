@@ -32,7 +32,7 @@ public class VoteNotificationPluginTest extends BaseAgendaEventTest {
     long modifierId = Long.parseLong(testuser1Identity.getId());
     event = createEvent(event, modifierId, testuser2Identity, testuser5Identity);
 
-    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(event.getId());
+    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(event.getId()).getEventAttendees();
     eventAttendees.add(new EventAttendee(0,
                                          event.getId(),
                                          Long.parseLong(testuser2Identity.getId()),
@@ -70,7 +70,7 @@ public class VoteNotificationPluginTest extends BaseAgendaEventTest {
                                                            eventAttendees.get(2).getIdentityId())
                                                    .append(NotificationUtils.EVENT_RESPONSE, eventAttendees.get(2).getResponse());
     String eventUrl = System.getProperty("gatein.email.domain.url")
-                            .concat("portal/classic/agenda?parentId=")
+                            .concat("portal/classic/agenda?eventId=")
                             .concat(String.valueOf(event.getId()));
 
     String avatarUrl = "/portal/rest/v1/social/users/default-image/";

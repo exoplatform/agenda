@@ -1,8 +1,9 @@
 package org.exoplatform.agenda.storage;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import org.apache.commons.collections.CollectionUtils;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.dao.EventAttendeeDAO;
@@ -10,6 +11,7 @@ import org.exoplatform.agenda.dao.EventDAO;
 import org.exoplatform.agenda.entity.EventAttendeeEntity;
 import org.exoplatform.agenda.entity.EventEntity;
 import org.exoplatform.agenda.model.EventAttendee;
+import org.exoplatform.agenda.model.EventAttendeeList;
 import org.exoplatform.agenda.util.EntityMapper;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.services.listener.ListenerService;
@@ -56,24 +58,19 @@ public class AgendaEventAttendeeStorage {
     }
   }
 
-  public List<EventAttendee> getEventAttendees(long eventId) {
+  public EventAttendeeList getEventAttendees(long eventId) {
     List<EventAttendeeEntity> eventAttendeeEntities = eventAttendeeDAO.getEventAttendees(eventId);
-    if (eventAttendeeEntities == null) {
-      return Collections.emptyList();
-    }
-    return eventAttendeeEntities.stream()
-                                .map(eventAttendeeEntity -> EntityMapper.fromEntity(eventAttendeeEntity, eventId))
-                                .collect(Collectors.toList());
+    return fromAttendeeEntities(eventId, eventAttendeeEntities);
   }
 
-  public List<EventAttendee> getEventAttendees(long eventId, EventAttendeeResponse... responses) {
+  public EventAttendeeList getEventAttendees(long eventId, EventAttendeeResponse... responses) {
     List<EventAttendeeEntity> eventAttendeeEntities = eventAttendeeDAO.getEventAttendeesByResponses(eventId, responses);
-    if (eventAttendeeEntities == null) {
-      return Collections.emptyList();
-    }
-    return eventAttendeeEntities.stream()
-                                .map(eventAttendeeEntity -> EntityMapper.fromEntity(eventAttendeeEntity, eventId))
-                                .collect(Collectors.toList());
+    return fromAttendeeEntities(eventId, eventAttendeeEntities);
+  }
+
+  public EventAttendeeList getEventAttendees(long eventId, long identityId) {
+    List<EventAttendeeEntity> eventAttendeeEntities = eventAttendeeDAO.getEventAttendees(eventId, identityId);
+    return fromAttendeeEntities(eventId, eventAttendeeEntities);
   }
 
   public void removeEventAttendee(long eventAttendeeId) {
@@ -88,12 +85,16 @@ public class AgendaEventAttendeeStorage {
     }
   }
 
-  public EventAttendee getEventAttendee(long eventId, long identityId) {
-    EventAttendeeEntity attendeeEntity = eventAttendeeDAO.getEventAttendee(eventId, identityId);
-    if (attendeeEntity == null) {
-      return null;
+  private EventAttendeeList fromAttendeeEntities(long eventId, List<EventAttendeeEntity> eventAttendeeEntities) {
+    if (CollectionUtils.isEmpty(eventAttendeeEntities)) {
+      return EventAttendeeList.EMPTY_ATTENDEE_LIST;
+    } else {
+      List<EventAttendee> attendees = eventAttendeeEntities.stream()
+                                                           .map(eventAttendeeEntity -> EntityMapper.fromEntity(eventAttendeeEntity,
+                                                                                                               eventId))
+                                                           .collect(Collectors.toList());
+      return new EventAttendeeList(attendees);
     }
-    return EntityMapper.fromEntity(attendeeEntity, eventId);
   }
 
 }

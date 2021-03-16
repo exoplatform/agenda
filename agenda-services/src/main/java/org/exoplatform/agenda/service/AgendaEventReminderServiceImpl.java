@@ -334,7 +334,7 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
                                                    long identityId) throws AgendaException {
     List<Long> exceptionalOccurenceEventIds = eventStorage.getExceptionalOccurenceIds(eventId);
     for (long exceptionalOccurenceEventId : exceptionalOccurenceEventIds) {
-      List<EventAttendee> eventAttendees = attendeeStorage.getEventAttendees(exceptionalOccurenceEventId);
+      EventAttendeeList eventAttendees = attendeeStorage.getEventAttendees(exceptionalOccurenceEventId);
       if (Utils.isEventAttendee(identityManager, spaceService, identityId, eventAttendees)) {
         Event exceptionalOccurrenceEvent = eventStorage.getEventById(exceptionalOccurenceEventId);
         ZonedDateTime exceptionalOccurrenceId = exceptionalOccurrenceEvent.getOccurrence().getId();
