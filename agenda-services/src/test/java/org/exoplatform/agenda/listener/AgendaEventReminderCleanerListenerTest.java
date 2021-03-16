@@ -64,7 +64,6 @@ public class AgendaEventReminderCleanerListenerTest extends BaseAgendaEventTest 
       agendaEventService.updateEvent(event,
                                      Collections.emptyList(),
                                      Collections.emptyList(),
-                                     Collections.emptyList(),
                                      eventReminders,
                                      Collections.emptyList(),
                                      null,

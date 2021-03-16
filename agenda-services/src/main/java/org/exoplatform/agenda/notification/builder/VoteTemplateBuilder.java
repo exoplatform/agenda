@@ -75,7 +75,13 @@ public class VoteTemplateBuilder extends AbstractTemplateBuilder {
     RequestLifeCycle.begin(container);
     try {
       Event event = getEvent(notification);
-      String notificationURL = getEventURL(event);
+      if (event == null) {
+        return null;
+      }
+      String notificationURL = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL);
+      if (StringUtils.isBlank(notificationURL)) {
+        notificationURL = getEventURL(event);
+      }
       String pushNotificationURL = isPushNotification ? notificationURL : null;
 
       TemplateContext templateContext = buildTemplateDatePollParameters(getSpaceService(), templateProvider, notification);

@@ -37,7 +37,6 @@ public class AgendaVotesNotificationListenerTest extends BaseAgendaEventTest {
                                                                                         EventAttendeeResponse.NEEDS_ACTION)),
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
-                                                        Collections.emptyList(),
                                                         Arrays.asList(dateOption1, dateOption2),
                                                         null,
                                                         true,

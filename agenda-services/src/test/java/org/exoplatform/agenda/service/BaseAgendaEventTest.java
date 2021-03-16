@@ -36,8 +36,6 @@ public abstract class BaseAgendaEventTest {
 
   protected static final ArrayList<EventConference>         CONFERENCES          = new ArrayList<>();
 
-  protected static final ArrayList<EventAttachment>         ATTACHMENTS          = new ArrayList<>();
-
   protected static final ArrayList<EventReminder>           REMINDERS            = new ArrayList<>();
 
   protected static final RemoteEvent                        REMOTE_EVENT         = null;
@@ -63,8 +61,6 @@ public abstract class BaseAgendaEventTest {
   protected AgendaEventService                              agendaEventService;
 
   protected AgendaEventConferenceService                    agendaEventConferenceService;
-
-  protected AgendaEventAttachmentService                    agendaEventAttachmentService;
 
   protected AgendaEventAttendeeService                      agendaEventAttendeeService;
 
@@ -115,7 +111,6 @@ public abstract class BaseAgendaEventTest {
     agendaEventService = container.getComponentInstanceOfType(AgendaEventService.class);
     agendaUserSettingsService = container.getComponentInstanceOfType(AgendaUserSettingsService.class);
     agendaEventConferenceService = container.getComponentInstanceOfType(AgendaEventConferenceService.class);
-    agendaEventAttachmentService = container.getComponentInstanceOfType(AgendaEventAttachmentService.class);
     agendaEventAttendeeService = container.getComponentInstanceOfType(AgendaEventAttendeeService.class);
     agendaEventReminderService = container.getComponentInstanceOfType(AgendaEventReminderService.class);
     agendaRemoteEventService = container.getComponentInstanceOfType(AgendaRemoteEventService.class);
@@ -261,19 +256,12 @@ public abstract class BaseAgendaEventTest {
       EventConference conference = new EventConference(0, 0, "webrtc", "conf_uri", "+123456", "654321", "confDescription");
       CONFERENCES.add(conference);
 
-      ATTACHMENTS.clear();
-      EventAttachment eventAttachment = new EventAttachment(0,
-                                                            "1",
-                                                            0);
-      ATTACHMENTS.add(eventAttachment);
-
       REMINDERS.clear();
       REMINDERS.add(new EventReminder(0, 0, 1l, 1, ReminderPeriodType.MINUTE, null));
 
       return agendaEventService.createEvent(event.clone(),
                                             (ArrayList<EventAttendee>) ATTENDEES.clone(),
                                             (ArrayList<EventConference>) CONFERENCES.clone(),
-                                            (ArrayList<EventAttachment>) ATTACHMENTS.clone(),
                                             (ArrayList<EventReminder>) REMINDERS.clone(),
                                             null,
                                             REMOTE_EVENT,

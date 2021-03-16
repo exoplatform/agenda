@@ -17,6 +17,7 @@
 package org.exoplatform.agenda.entity;
 
 import java.io.Serializable;
+import java.util.Date;
 
 import javax.persistence.*;
 
@@ -42,11 +43,14 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
       ),
       @NamedQuery(
           name = "AgendaEventAttendee.getEventAttendeesByEventId",
-          query = "SELECT a FROM AgendaEventAttendee a WHERE a.event.id = :eventId"
+          query = "SELECT a FROM AgendaEventAttendee a"
+              + "  WHERE a.event.id = :eventId"
       ),
       @NamedQuery(
           name = "AgendaEventAttendee.getEventAttendeesByEventIdAndByResponses",
-          query = "SELECT a FROM AgendaEventAttendee a WHERE a.event.id = :eventId AND a.response in (:responses)"
+          query = "SELECT a FROM AgendaEventAttendee a"
+              + "  WHERE a.event.id = :eventId"
+              + "  AND a.response in (:responses)"
       ),
   }
 )
@@ -66,6 +70,12 @@ public class EventAttendeeEntity implements Serializable {
 
   @Column(name = "IDENTITY_ID", nullable = false)
   private long                  identityId;
+
+  @Column(name = "FROM_OCCURRENCE_ID")
+  private Date                  fromOccurrenceId;
+
+  @Column(name = "UNTIL_OCCURRENCE_ID")
+  private Date                  untilOccurrenceId;
 
   @Column(name = "RESPONSE", nullable = false)
   private EventAttendeeResponse response;
@@ -102,4 +112,19 @@ public class EventAttendeeEntity implements Serializable {
     this.response = response;
   }
 
+  public Date getFromOccurrenceId() {
+    return fromOccurrenceId;
+  }
+
+  public Date getUntilOccurrenceId() {
+    return untilOccurrenceId;
+  }
+
+  public void setFromOccurrenceId(Date fromOccurrenceId) {
+    this.fromOccurrenceId = fromOccurrenceId;
+  }
+
+  public void setUntilOccurrenceId(Date untilOccurrenceId) {
+    this.untilOccurrenceId = untilOccurrenceId;
+  }
 }

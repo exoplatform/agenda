@@ -164,7 +164,8 @@ public class EntityMapper {
 
   public static EventEntity toEntity(Event event) {
     ZoneId eventZoneId = event.getTimeZoneId() == null ? ZoneOffset.UTC : event.getTimeZoneId();
-    // iCal4j doesn't recognize ZoneOffset.UTC, thus we use here ZoneId.of("UTC")
+    // iCal4j doesn't recognize ZoneOffset.UTC, thus we use here
+    // ZoneId.of("UTC")
     ZoneId iCal4jZoneId = event.getTimeZoneId() == null ? ZoneId.of("UTC") : event.getTimeZoneId();
     TimeZone ical4jTimezone = Utils.getICalTimeZone(iCal4jZoneId);
 
@@ -333,8 +334,7 @@ public class EntityMapper {
   }
 
   public static EventRecurrence fromEntity(EventRecurrenceEntity recurrenceEntity, EventEntity eventEntity) {
-    EventRecurrence recurrence;
-    recurrence = new EventRecurrence();
+    EventRecurrence recurrence = new EventRecurrence();
     recurrence.setId(recurrenceEntity.getId());
     recurrence.setType(recurrenceEntity.getType());
 
@@ -378,8 +378,11 @@ public class EntityMapper {
     recurrence.setInterval(recur.getInterval());
     recurrence.setCount(recur.getCount() > 0 ? recur.getCount() : 0);
     if (recur.getUntil() != null) {
-      ZonedDateTime untilDate = AgendaDateUtils.fromDate(recur.getUntil());
-      recurrence.setUntil(untilDate.withZoneSameInstant(eventTimeZoneId).toLocalDate());
+      LocalDate untilDate = recur.getUntil()
+                                 .toInstant()
+                                 .atZone(ZoneId.systemDefault())
+                                 .toLocalDate();
+      recurrence.setUntil(untilDate);
     }
 
     if (recur.getSecondList() != null && !recur.getSecondList().isEmpty()) {
@@ -447,6 +450,8 @@ public class EntityMapper {
     return new EventAttendee(eventAttendeeEntity.getId(),
                              eventId,
                              eventAttendeeEntity.getIdentityId(),
+                             AgendaDateUtils.fromDate(eventAttendeeEntity.getFromOccurrenceId()),
+                             AgendaDateUtils.fromDate(eventAttendeeEntity.getUntilOccurrenceId()),
                              eventAttendeeEntity.getResponse());
   }
 
@@ -455,13 +460,9 @@ public class EntityMapper {
     eventAttendeeEntity.setId(eventAttendee.getId());
     eventAttendeeEntity.setIdentityId(eventAttendee.getIdentityId());
     eventAttendeeEntity.setResponse(eventAttendee.getResponse());
+    eventAttendeeEntity.setFromOccurrenceId(AgendaDateUtils.toDate(eventAttendee.getFromOccurrenceId()));
+    eventAttendeeEntity.setUntilOccurrenceId(AgendaDateUtils.toDate(eventAttendee.getUntilOccurrenceId()));
     return eventAttendeeEntity;
-  }
-
-  public static EventAttachment fromEntity(EventAttachmentEntity eventAttachmentEntity) {
-    return new EventAttachment(eventAttachmentEntity.getId(),
-                               eventAttachmentEntity.getFileId(),
-                               eventAttachmentEntity.getEvent().getId());
   }
 
   public static EventConference fromEntity(EventConferenceEntity eventConferenceEntity) {

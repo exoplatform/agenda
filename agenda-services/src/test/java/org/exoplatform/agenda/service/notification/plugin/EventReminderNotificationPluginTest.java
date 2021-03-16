@@ -68,7 +68,7 @@ public class EventReminderNotificationPluginTest extends BaseAgendaEventTest {
     NotificationContext ctx = NotificationContextImpl.cloneInstance()
                                                      .append(NotificationUtils.EVENT_AGENDA_REMINDER, eventReminders.get(0));
     String eventUrl = System.getProperty("gatein.email.domain.url")
-                            .concat("portal/classic/agenda?parentId=")
+                            .concat("portal/classic/agenda?eventId=")
                             .concat(String.valueOf(createdEvent.getId()));
 
     // When

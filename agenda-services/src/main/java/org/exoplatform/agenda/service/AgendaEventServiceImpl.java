@@ -50,8 +50,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
   private AgendaEventAttendeeService   attendeeService;
 
-  private AgendaEventAttachmentService attachmentService;
-
   private AgendaEventConferenceService conferenceService;
 
   private AgendaEventReminderService   reminderService;
@@ -72,7 +70,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
   public AgendaEventServiceImpl(AgendaCalendarService agendaCalendarService,
                                 AgendaEventAttendeeService attendeeService,
-                                AgendaEventAttachmentService attachmentService,
                                 AgendaEventConferenceService conferenceService,
                                 AgendaEventReminderService reminderService,
                                 AgendaRemoteEventService remoteEventService,
@@ -84,7 +81,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                 ListenerService listenerService) {
     this.agendaCalendarService = agendaCalendarService;
     this.attendeeService = attendeeService;
-    this.attachmentService = attachmentService;
     this.conferenceService = conferenceService;
     this.reminderService = reminderService;
     this.remoteEventService = remoteEventService;
@@ -232,7 +228,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   public Event createEvent(Event event,
                            List<EventAttendee> attendees,
                            List<EventConference> conferences,
-                           List<EventAttachment> attachments,
                            List<EventReminder> reminders,
                            List<EventDateOption> dateOptions,
                            RemoteEvent remoteEvent,
@@ -338,9 +333,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                                                            userIdentityId,
                                                                            Collections.singleton(AgendaEventModificationType.ADDED));
 
-    if (attachments != null && !attachments.isEmpty()) {
-      attachmentService.saveEventAttachments(eventId, attachments, userIdentityId);
-    }
     if (conferences != null && !conferences.isEmpty()) {
       conferenceService.saveEventConferences(eventId, conferences);
     }
@@ -384,10 +376,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       return exceptionalOccurrenceEvent;
     }
 
-    List<EventAttendee> attendees = attendeeService.getEventAttendees(eventId);
+    List<EventAttendee> attendees = attendeeService.getEventAttendees(eventId).getEventAttendees(occurrenceId);
     cleanupAttendeeIds(attendees);
-    List<EventAttachment> attachments = attachmentService.getEventAttachments(eventId);
-    cleanupAttachmentIds(attachments);
     List<EventConference> conferences = conferenceService.getEventConferences(eventId);
     cleanupConferenceIds(conferences);
     List<EventReminder> reminders = reminderService.getEventReminders(eventId);
@@ -396,7 +386,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     return createEventExceptionalOccurrence(eventId,
                                             attendees,
                                             conferences,
-                                            attachments,
                                             reminders,
                                             occurrenceId);
   }
@@ -408,7 +397,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   public Event createEventExceptionalOccurrence(long eventId,
                                                 List<EventAttendee> attendees,
                                                 List<EventConference> conferences,
-                                                List<EventAttachment> attachments,
                                                 List<EventReminder> reminders,
                                                 ZonedDateTime occurrenceId) throws AgendaException {
     Event parentEvent = agendaEventStorage.getEventById(eventId);
@@ -419,11 +407,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       throw new IllegalStateException("Event with id " + eventId + " isn't a recurrent event");
     }
 
-    if (parentEvent.isAllDay()) {
-      occurrenceId = occurrenceId.withZoneSameLocal(ZoneOffset.UTC);
-    } else {
-      occurrenceId = occurrenceId.withZoneSameInstant(ZoneOffset.UTC);
-    }
+    boolean allDay = parentEvent.isAllDay();
+    occurrenceId = Utils.getOccurrenceId(allDay, occurrenceId, parentEvent.getTimeZoneId());
     LocalDate occurrenceDateUTC = occurrenceId.toLocalDate();
     LocalDate overallStartDate = parentEvent.getRecurrence()
                                             .getOverallStart()
@@ -451,7 +436,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     long diffInSeconds = end.toEpochSecond() - start.toEpochSecond();
 
     ZonedDateTime occurrenceStart = null;
-    if (parentEvent.isAllDay()) {
+    if (allDay) {
       ZonedDateTime occurrenceStartTime = occurrenceId.withZoneSameInstant(parentEvent.getTimeZoneId());
       occurrenceStart = start.withYear(occurrenceStartTime.getYear())
                              .withMonth(occurrenceStartTime.getMonthValue())
@@ -466,16 +451,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     exceptionalEvent.setEnd(occurrenceEnd);
     adjustEventDatesForWrite(exceptionalEvent);
     exceptionalEvent = agendaEventStorage.createEvent(exceptionalEvent);
-    long originalRecurrentEventCreator = parentEvent.getCreatorId();
     long exceptionalEventId = exceptionalEvent.getId();
 
-    if (attachments != null && !attachments.isEmpty()) {
-      attachments.forEach(attachment -> {
-        attachment.setId(0);
-        attachment.setEventId(exceptionalEventId);
-      });
-      attachmentService.saveEventAttachments(exceptionalEventId, attachments, originalRecurrentEventCreator);
-    }
     if (conferences != null && !conferences.isEmpty()) {
       conferences.forEach(conference -> {
         conference.setId(0);
@@ -513,7 +490,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   public Event updateEvent(Event event,
                            List<EventAttendee> attendees,
                            List<EventConference> conferences,
-                           List<EventAttachment> attachments,
                            List<EventReminder> reminders,
                            List<EventDateOption> dateOptions,
                            RemoteEvent remoteEvent,
@@ -638,11 +614,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
     Event updatedEvent = agendaEventStorage.updateEvent(eventToUpdate);
 
-    Set<AgendaEventModificationType> attachmentModifications = attachmentService.saveEventAttachments(eventId,
-                                                                                                      attachments,
-                                                                                                      userIdentityId);
-    eventModifications.addModificationTypes(attachmentModifications);
-
     Set<AgendaEventModificationType> conferenceModifications = conferenceService.saveEventConferences(eventId, conferences);
     eventModifications.addModificationTypes(conferenceModifications);
 
@@ -754,7 +725,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
 
     if (sendInvitations) {
-      List<EventAttendee> eventAttendees = attendeeService.getEventAttendees(eventId);
+      List<EventAttendee> eventAttendees = attendeeService.getEventAttendees(eventId).getEventAttendees();
       attendeeService.sendInvitations(event, eventAttendees, eventModifications);
     }
 
@@ -779,7 +750,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (!canUpdateEvent(event, userIdentityId)) {
       throw new IllegalAccessException("User " + userIdentityId + " hasn't enough privileges to delete event with id " + eventId);
     }
-    List<EventAttendee> eventAttendees = attendeeService.getEventAttendees(event.getId());
+    EventAttendeeList eventAttendeeList = attendeeService.getEventAttendees(event.getId());
 
     agendaEventStorage.deleteEventById(eventId);
 
@@ -787,7 +758,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
     AgendaEventModification eventModifications = new AgendaEventModification(eventId, event.getCalendarId(), userIdentityId);
     eventModifications.addModificationType(AgendaEventModificationType.DELETED);
-    attendeeService.sendInvitations(event, eventAttendees, eventModifications);
+    attendeeService.sendInvitations(event, eventAttendeeList.getEventAttendees(), eventModifications);
     Utils.broadcastEvent(listenerService, Utils.POST_DELETE_AGENDA_EVENT_EVENT, eventModifications, null);
     return event;
   }
@@ -1058,8 +1029,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     List<EventReminder> allReminders = reminderService.getEventReminders(eventId);
     reminderService.saveEventReminders(updatedEvent, allReminders);
 
-    List<EventAttendee> eventAttendees = attendeeService.getEventAttendees(eventId);
-    for (EventAttendee eventAttendee : eventAttendees) {
+    EventAttendeeList eventAttendeeList = attendeeService.getEventAttendees(eventId);
+    for (EventAttendee eventAttendee : eventAttendeeList.getEventAttendees()) {
       if (eventAttendee.getIdentityId() != userIdentityId) {
         attendeeService.sendEventResponse(eventId, eventAttendee.getIdentityId(), EventAttendeeResponse.NEEDS_ACTION);
       }
@@ -1516,17 +1487,24 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                                                                 .collect(Collectors.toList());
     return occurrences.stream()
                       .filter(occurrence -> {
-                        LocalDate occurrenceDate = occurrence.getOccurrence()
-                                                             .getId()
-                                                             .withZoneSameInstant(ZoneOffset.UTC)
-                                                             .toLocalDate();
+                        ZonedDateTime occurrenceId = occurrence.getOccurrence().getId();
+                        LocalDate occurrenceDate = occurrenceId
+                                                               .withZoneSameInstant(ZoneOffset.UTC)
+                                                               .toLocalDate();
                         return exceptionalEvents.stream()
                                                 .noneMatch(exceptionalOccurence -> {
-                                                  LocalDate exceptionalOccurenceDate = exceptionalOccurence.getOccurrence()
-                                                                                                           .getId()
-                                                                                                           .withZoneSameInstant(ZoneOffset.UTC)
+                                                  ZonedDateTime exceptionalOccurenceId = exceptionalOccurence.getOccurrence()
+                                                                                                             .getId();
+                                                  LocalDate exceptionalOccurenceDate =
+                                                                                     exceptionalOccurenceId.withZoneSameInstant(ZoneOffset.UTC)
                                                                                                            .toLocalDate();
-                                                  return occurrenceDate.isEqual(exceptionalOccurenceDate);
+                                                  return occurrenceDate.isEqual(exceptionalOccurenceDate)
+                                                      // Added for retro
+                                                      // compatibility with
+                                                      // previous occurrenceId
+                                                      // computing algorithm
+                                                      || Math.abs(exceptionalOccurenceId.toEpochSecond()
+                                                          - occurrenceId.toEpochSecond()) < 43200;
                                                 });
                       })
                       .collect(Collectors.toList());
@@ -1549,17 +1527,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
         attendee = attendee.clone();
         attendee.setId(0);
         return attendee;
-      }).collect(Collectors.toList());
-    }
-    return Collections.emptyList();
-  }
-
-  private List<EventAttachment> cleanupAttachmentIds(List<EventAttachment> attachments) {
-    if (attachments != null && !attachments.isEmpty()) {
-      return attachments.stream().map(attachment -> {
-        attachment = attachment.clone();
-        attachment.setId(0);
-        return attachment;
       }).collect(Collectors.toList());
     }
     return Collections.emptyList();

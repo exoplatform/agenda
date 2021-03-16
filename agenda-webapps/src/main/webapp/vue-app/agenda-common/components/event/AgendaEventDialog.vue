@@ -272,7 +272,7 @@ export default {
     },
     openEventById(eventId, occurrenceId) {
       if (eventId) {
-        const getEventDetailsPromise = occurrenceId ? this.$eventService.getEventOccurrence(eventId, occurrenceId, 'all,parentAll') : this.$eventService.getEventById(eventId, 'all,parentAll');
+        const getEventDetailsPromise = occurrenceId ? this.$eventService.getEventOccurrence(eventId, occurrenceId, 'all,parentAll') : this.$eventService.getEventById(eventId, 'all,parentAll', true);
         return getEventDetailsPromise.then(event => {
           if(!event ||  (event.status !== 'TENTATIVE' && event.status !== 'CONFIRMED')) {
             return ;

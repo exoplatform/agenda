@@ -40,7 +40,7 @@ public class AgendaEventReplyListener extends Listener<EventAttendee, EventAtten
       // Avoid notifying creator when he changes his response and avoid
       // notifying him when a user doesn't change his response
       if (oldResponse != newResponse) {
-        sendReplyResponseNotification(agendaEvent, newAttendee.getIdentityId(), newAttendee.getResponse());
+        sendReplyResponseNotification(agendaEvent, newAttendee);
       }
     } finally {
       RequestLifeCycle.end();
@@ -55,12 +55,14 @@ public class AgendaEventReplyListener extends Listener<EventAttendee, EventAtten
   }
 
   public void sendReplyResponseNotification(org.exoplatform.agenda.model.Event event,
-                                            long participantId,
-                                            EventAttendeeResponse response) {
+                                            EventAttendee eventAttendee) {
     NotificationContext ctx = NotificationContextImpl.cloneInstance();
     ctx.append(NotificationUtils.EVENT_AGENDA, event);
-    ctx.append(NotificationUtils.EVENT_PARTICIPANT_ID, participantId);
-    ctx.append(NotificationUtils.EVENT_RESPONSE, response);
+    ctx.append(NotificationUtils.EVENT_PARTICIPANT_ID, eventAttendee.getIdentityId());
+    ctx.append(NotificationUtils.EVENT_RESPONSE, eventAttendee.getResponse());
+    if (eventAttendee.getFromOccurrenceId() != null) {
+      ctx.append(NotificationUtils.EVENT_OCCURRENCE_ID, eventAttendee.getFromOccurrenceId());
+    }
     ctx.getNotificationExecutor()
        .with(ctx.makeCommand(PluginKey.key(NotificationUtils.AGENDA_REPLY_NOTIFICATION_PLUGIN)))
        .execute(ctx);

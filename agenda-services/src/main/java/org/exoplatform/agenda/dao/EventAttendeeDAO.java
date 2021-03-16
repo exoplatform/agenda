@@ -18,7 +18,8 @@ package org.exoplatform.agenda.dao;
 
 import java.util.*;
 
-import javax.persistence.*;
+import javax.persistence.Query;
+import javax.persistence.TypedQuery;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.entity.EventAttendeeEntity;
@@ -49,7 +50,8 @@ public class EventAttendeeDAO extends GenericDAOJPAImpl<EventAttendeeEntity, Lon
     return resultList == null ? Collections.emptyList() : resultList;
   }
 
-  public List<EventAttendeeEntity> getEventAttendeesByResponses(long eventId, EventAttendeeResponse... responses) {
+  public List<EventAttendeeEntity> getEventAttendeesByResponses(long eventId,
+                                                                EventAttendeeResponse... responses) {
     TypedQuery<EventAttendeeEntity> query =
                                           getEntityManager().createNamedQuery("AgendaEventAttendee.getEventAttendeesByEventIdAndByResponses",
                                                                               EventAttendeeEntity.class);
@@ -59,17 +61,13 @@ public class EventAttendeeDAO extends GenericDAOJPAImpl<EventAttendeeEntity, Lon
     return resultList == null ? Collections.emptyList() : resultList;
   }
 
-  public EventAttendeeEntity getEventAttendee(long eventId, long identityId) {
+  public List<EventAttendeeEntity> getEventAttendees(long eventId, long identityId) {
     TypedQuery<EventAttendeeEntity> query = getEntityManager().createNamedQuery("AgendaEventAttendee.getEventAttendee",
                                                                                 EventAttendeeEntity.class);
     query.setParameter("eventId", eventId);
     query.setParameter("identityId", identityId);
-    try {
-      return query.getSingleResult();
-    } catch (NoResultException e) {// NOSONAR : normal to not log this and not
-                                   // rethrow it
-      return null;
-    }
+    List<EventAttendeeEntity> result = query.getResultList();
+    return result == null ? Collections.emptyList() : result;
   }
 
 }
