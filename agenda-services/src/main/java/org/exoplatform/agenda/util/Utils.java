@@ -108,14 +108,15 @@ public class Utils {
     ZoneId timeZone = event.getTimeZoneId();
 
     TimeZone ical4jTimezone = getICalTimeZone(timeZone);
-    ZonedDateTime startTime = event.isAllDay() ? event.getStart().toLocalDate().atStartOfDay(timeZone)
-                                               : event.getStart();
-    ZonedDateTime endTime = event.isAllDay() ? event.getEnd()
-                                                    .toLocalDate()
-                                                    .atStartOfDay(timeZone)
-                                                    .plusDays(1)
-                                                    .minusSeconds(1)
-                                             : event.getEnd();
+    boolean allDay = event.isAllDay();
+    ZonedDateTime startTime = allDay ? event.getStart().toLocalDate().atStartOfDay(timeZone)
+                                     : event.getStart();
+    ZonedDateTime endTime = allDay ? event.getEnd()
+                                          .toLocalDate()
+                                          .atStartOfDay(timeZone)
+                                          .plusDays(1)
+                                          .minusSeconds(1)
+                                   : event.getEnd();
 
     DateTime startDateTime = new DateTime(Date.from(startTime.toInstant()));
     startDateTime.setTimeZone(ical4jTimezone);
@@ -148,10 +149,9 @@ public class Utils {
     }
     @SuppressWarnings("all")
     List<LocalDate> occurrencesIds = (List<LocalDate>) dates.stream()
-                                                            .map(date -> ((DateTime) date).toInstant()
-                                                                                          .atZone(ZoneId.systemDefault())
-                                                                                          .withZoneSameInstant(ZoneOffset.UTC)
-                                                                                          .toLocalDate())
+                                                            .map(date -> getOccurrenceId(allDay,
+                                                                                         ((DateTime) date),
+                                                                                         timeZone).toLocalDate())
                                                             .collect(Collectors.toList());
 
     if (limit > 0 && dates.size() >= limit) {
@@ -172,16 +172,15 @@ public class Utils {
     Iterator<?> periods = list.iterator();
     while (periods.hasNext()) {
       Period occurrencePeriod = (Period) periods.next();
-      ZonedDateTime occurrenceId = occurrencePeriod.getStart()
-                                                   .toInstant()
-                                                   .atZone(ZoneId.systemDefault())
-                                                   .withZoneSameInstant(ZoneOffset.UTC);
+      ZonedDateTime occurrenceId = null;
+      DateTime eventStartDate = occurrencePeriod.getStart();
+      occurrenceId = getOccurrenceId(allDay, eventStartDate, timeZone);
       if (!occurrencesIds.contains(occurrenceId.toLocalDate())) {
         continue;
       }
       Event occurrence = event.clone();
       occurrence.setId(0);
-      occurrence.setStart(occurrencePeriod.getStart().toInstant().atZone(timeZone));
+      occurrence.setStart(eventStartDate.toInstant().atZone(timeZone));
       occurrence.setEnd(occurrencePeriod.getEnd().toInstant().atZone(timeZone));
       occurrence.setOccurrence(new EventOccurrence(occurrenceId, false, false));
       occurrence.setParentId(event.getId());
@@ -189,6 +188,28 @@ public class Utils {
       occurrences.add(occurrence);
     }
     return occurrences;
+  }
+
+  public static ZonedDateTime getOccurrenceId(boolean allDay, DateTime eventStartDate, ZoneId eventStartDateTimeZone) {
+    if (allDay) {
+      return eventStartDate.toInstant()
+                           .atZone(eventStartDateTimeZone)
+                           .withZoneSameLocal(ZoneOffset.UTC);
+    } else {
+      return eventStartDate.toInstant()
+                           .atZone(eventStartDateTimeZone)
+                           .withZoneSameInstant(ZoneOffset.UTC);
+    }
+  }
+
+  public static ZonedDateTime getOccurrenceId(boolean allDay, ZonedDateTime eventStartDate, ZoneId eventStartDateTimeZone) {
+    if (allDay) {
+      return eventStartDate.withZoneSameInstant(eventStartDateTimeZone)
+                           .withZoneSameLocal(ZoneOffset.UTC);
+    } else {
+      return eventStartDate.withZoneSameInstant(eventStartDateTimeZone)
+                           .withZoneSameInstant(ZoneOffset.UTC);
+    }
   }
 
   public static Recur getICalendarRecur(EventRecurrence recurrence, ZoneId zoneId) {

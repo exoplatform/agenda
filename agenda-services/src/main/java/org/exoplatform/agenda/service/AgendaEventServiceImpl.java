@@ -407,11 +407,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       throw new IllegalStateException("Event with id " + eventId + " isn't a recurrent event");
     }
 
-    if (parentEvent.isAllDay()) {
-      occurrenceId = occurrenceId.withZoneSameLocal(ZoneOffset.UTC);
-    } else {
-      occurrenceId = occurrenceId.withZoneSameInstant(ZoneOffset.UTC);
-    }
+    boolean allDay = parentEvent.isAllDay();
+    occurrenceId = Utils.getOccurrenceId(allDay, occurrenceId, parentEvent.getTimeZoneId());
     LocalDate occurrenceDateUTC = occurrenceId.toLocalDate();
     LocalDate overallStartDate = parentEvent.getRecurrence()
                                             .getOverallStart()
@@ -439,7 +436,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     long diffInSeconds = end.toEpochSecond() - start.toEpochSecond();
 
     ZonedDateTime occurrenceStart = null;
-    if (parentEvent.isAllDay()) {
+    if (allDay) {
       ZonedDateTime occurrenceStartTime = occurrenceId.withZoneSameInstant(parentEvent.getTimeZoneId());
       occurrenceStart = start.withYear(occurrenceStartTime.getYear())
                              .withMonth(occurrenceStartTime.getMonthValue())
@@ -1490,17 +1487,24 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                                                                 .collect(Collectors.toList());
     return occurrences.stream()
                       .filter(occurrence -> {
-                        LocalDate occurrenceDate = occurrence.getOccurrence()
-                                                             .getId()
-                                                             .withZoneSameInstant(ZoneOffset.UTC)
-                                                             .toLocalDate();
+                        ZonedDateTime occurrenceId = occurrence.getOccurrence().getId();
+                        LocalDate occurrenceDate = occurrenceId
+                                                               .withZoneSameInstant(ZoneOffset.UTC)
+                                                               .toLocalDate();
                         return exceptionalEvents.stream()
                                                 .noneMatch(exceptionalOccurence -> {
-                                                  LocalDate exceptionalOccurenceDate = exceptionalOccurence.getOccurrence()
-                                                                                                           .getId()
-                                                                                                           .withZoneSameInstant(ZoneOffset.UTC)
+                                                  ZonedDateTime exceptionalOccurenceId = exceptionalOccurence.getOccurrence()
+                                                                                                             .getId();
+                                                  LocalDate exceptionalOccurenceDate =
+                                                                                     exceptionalOccurenceId.withZoneSameInstant(ZoneOffset.UTC)
                                                                                                            .toLocalDate();
-                                                  return occurrenceDate.isEqual(exceptionalOccurenceDate);
+                                                  return occurrenceDate.isEqual(exceptionalOccurenceDate)
+                                                      // Added for retro
+                                                      // compatibility with
+                                                      // previous occurrenceId
+                                                      // computing algorithm
+                                                      || Math.abs(exceptionalOccurenceId.toEpochSecond()
+                                                          - occurrenceId.toEpochSecond()) < 43200;
                                                 });
                       })
                       .collect(Collectors.toList());

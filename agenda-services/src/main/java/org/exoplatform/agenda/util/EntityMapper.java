@@ -334,8 +334,7 @@ public class EntityMapper {
   }
 
   public static EventRecurrence fromEntity(EventRecurrenceEntity recurrenceEntity, EventEntity eventEntity) {
-    EventRecurrence recurrence;
-    recurrence = new EventRecurrence();
+    EventRecurrence recurrence = new EventRecurrence();
     recurrence.setId(recurrenceEntity.getId());
     recurrence.setType(recurrenceEntity.getType());
 
@@ -379,8 +378,12 @@ public class EntityMapper {
     recurrence.setInterval(recur.getInterval());
     recurrence.setCount(recur.getCount() > 0 ? recur.getCount() : 0);
     if (recur.getUntil() != null) {
-      ZonedDateTime untilDate = AgendaDateUtils.fromDate(recur.getUntil());
-      recurrence.setUntil(untilDate.withZoneSameInstant(eventTimeZoneId).toLocalDate());
+      LocalDate untilDate = recur.getUntil()
+                                 .toInstant()
+                                 .atZone(ZoneOffset.UTC)
+                                 .withZoneSameLocal(eventTimeZoneId)
+                                 .toLocalDate();
+      recurrence.setUntil(untilDate);
     }
 
     if (recur.getSecondList() != null && !recur.getSecondList().isEmpty()) {
