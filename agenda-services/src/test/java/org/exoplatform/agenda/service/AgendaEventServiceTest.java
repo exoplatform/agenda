@@ -751,7 +751,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertTrue(eventId > 0);
     assertEquals(event.getId(), exceptionalOccurrence.getParentId());
 
-    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees(null);
+    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees();
     assertTrue(eventAttendees != null && !eventAttendees.isEmpty());
 
     List<EventConference> eventConferences = agendaEventConferenceService.getEventConferences(eventId);
@@ -981,8 +981,25 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     event.setRecurrence(recurrence);
 
     event = createEvent(event.clone(), Long.parseLong(testuser1Identity.getId()), testuser1Identity, testuser2Identity);
+    long eventId = event.getId();
 
-    Event exceptionalOccurrence = agendaEventService.createEventExceptionalOccurrence(event.getId(),
+    List<Event> exceptionalOccurrenceEvents =
+                                            agendaEventService.getExceptionalOccurrenceEvents(2000l,
+                                                                                              null,
+                                                                                              Long.parseLong(testuser1Identity.getId()));
+    assertNotNull(exceptionalOccurrenceEvents);
+    assertTrue(exceptionalOccurrenceEvents.isEmpty());
+
+    try {
+      agendaEventService.getExceptionalOccurrenceEvents(eventId,
+                                                        null,
+                                                        Long.parseLong(testuser3Identity.getId()));
+      fail();
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+
+    Event exceptionalOccurrence = agendaEventService.createEventExceptionalOccurrence(eventId,
                                                                                       ATTENDEES,
                                                                                       CONFERENCES,
                                                                                       REMINDERS,
@@ -992,6 +1009,13 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertTrue(exceptionalOccurrence.getId() > 0);
     assertNotNull(exceptionalOccurrence.getOccurrence());
     assertNotNull(exceptionalOccurrence.getOccurrence().getId());
+
+    exceptionalOccurrenceEvents = agendaEventService.getExceptionalOccurrenceEvents(eventId,
+                                                                                    null,
+                                                                                    Long.parseLong(testuser1Identity.getId()));
+
+    assertTrue(exceptionalOccurrenceEvents.stream()
+                                          .anyMatch(exceptionalOccurrenceEvent -> exceptionalOccurrenceEvent.getId() == exceptionalOccurrence.getId()));
 
     Event eventOccurrence = agendaEventService.getEventOccurrence(exceptionalOccurrence.getParentId(),
                                                                   exceptionalOccurrence.getOccurrence().getId(),
@@ -1426,7 +1450,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertNull(updatedEvent.getRecurrence());
     assertNull(updatedEvent.getOccurrence());
 
-    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees(null);
+    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees();
     assertTrue(eventAttendees == null || eventAttendees.isEmpty());
     List<EventConference> eventConferences = agendaEventConferenceService.getEventConferences(eventId);
     assertTrue(eventConferences == null || eventConferences.isEmpty());
@@ -2096,7 +2120,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     event = agendaEventService.getEventById(eventId, null, Long.parseLong(testuser1Identity.getId()));
     assertNull(event);
 
-    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees(null);
+    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees();
     assertTrue(eventAttendees == null || eventAttendees.isEmpty());
     List<EventConference> eventConferences = agendaEventConferenceService.getEventConferences(eventId);
     assertTrue(eventConferences == null || eventConferences.isEmpty());
@@ -2529,7 +2553,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertNotNull(events);
     assertEquals(0, events.size());
 
-    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(event.getId()).getEventAttendees(null);
+    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(event.getId()).getEventAttendees();
     eventAttendees.add(new EventAttendee(0, event.getId(), Long.parseLong(spaceIdentity.getId()), null));
     agendaEventAttendeeService.saveEventAttendees(event,
                                                   eventAttendees,
@@ -2649,7 +2673,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertNotNull(events);
     assertEquals(0, events.size());
 
-    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(event.getId()).getEventAttendees(null);
+    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(event.getId()).getEventAttendees();
     eventAttendees.add(new EventAttendee(0, event.getId(), Long.parseLong(spaceIdentity.getId()), null));
     agendaEventAttendeeService.saveEventAttendees(event,
                                                   eventAttendees,
@@ -2685,7 +2709,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertNotNull(events);
     assertEquals(0, events.size());
 
-    eventAttendees = agendaEventAttendeeService.getEventAttendees(event.getId()).getEventAttendees(null);
+    eventAttendees = agendaEventAttendeeService.getEventAttendees(event.getId()).getEventAttendees();
     eventAttendees.add(new EventAttendee(0, event.getId(), Long.parseLong(testuser4Identity.getId()), null));
     agendaEventAttendeeService.saveEventAttendees(event,
                                                   eventAttendees,
@@ -2830,7 +2854,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     exceptionalOccurrenceEvent = agendaEventService.getEventById(exceptionalOccurrenceEvent.getId());
     List<EventAttendee> eventAttendees = new ArrayList<>(agendaEventAttendeeService.getEventAttendees(eventId)
-                                                                                   .getEventAttendees(null));
+                                                                                   .getEventAttendees());
     eventAttendees.add(new EventAttendee(0,
                                          0,
                                          Long.parseLong(testuser5Identity.getId()),
@@ -2950,7 +2974,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     exceptionalOccurrenceEvent = agendaEventService.getEventById(exceptionalOccurrenceEvent.getId());
     List<EventAttendee> eventAttendees = new ArrayList<>(agendaEventAttendeeService.getEventAttendees(eventId)
-                                                                                   .getEventAttendees(null));
+                                                                                   .getEventAttendees());
     eventAttendees.add(new EventAttendee(0,
                                          0,
                                          Long.parseLong(testuser5Identity.getId()),
@@ -3044,7 +3068,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     exceptionalOccurrenceEvent = agendaEventService.getEventById(exceptionalOccurrenceEvent.getId());
     List<EventAttendee> eventAttendees = new ArrayList<>(agendaEventAttendeeService.getEventAttendees(eventId)
-                                                                                   .getEventAttendees(null));
+                                                                                   .getEventAttendees());
     eventAttendees.add(new EventAttendee(0,
                                          0,
                                          Long.parseLong(testuser5Identity.getId()),
@@ -3138,7 +3162,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     exceptionalOccurrenceEvent = agendaEventService.getEventById(exceptionalOccurrenceEvent.getId());
     List<EventAttendee> eventAttendees = new ArrayList<>(agendaEventAttendeeService.getEventAttendees(eventId)
-                                                                                   .getEventAttendees(null));
+                                                                                   .getEventAttendees());
     eventAttendees.add(new EventAttendee(0,
                                          0,
                                          Long.parseLong(testuser5Identity.getId()),

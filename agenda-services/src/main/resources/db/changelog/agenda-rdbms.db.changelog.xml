@@ -322,13 +322,32 @@
     <dropTable tableName="EXO_AGENDA_ATTACHMENT" />
   </changeSet>
 
-  <changeSet author="agenda" id="1.0.0-23">
+  <changeSet author="agenda" id="1.0.0-23" dbms="hsqldb">
+    <customChange class="org.exoplatform.agenda.liquibase.DropHSQLDBUniqueConstraint">
+      <param name="tableName">EXO_AGENDA_ATTENDEE</param>
+    </customChange>
+  </changeSet>
+
+  <changeSet author="agenda" id="1.0.0-24" dbms="mysql">
+    <dropAllForeignKeyConstraints baseTableName="EXO_AGENDA_ATTENDEE" />
+    <customChange class="org.exoplatform.agenda.liquibase.DropMySQLUniqueConstraint">
+      <param name="tableName">EXO_AGENDA_ATTENDEE</param>
+    </customChange>
+    <addForeignKeyConstraint constraintName="FK_AGENDA_EVENT_ATTENDEE" referencedTableName="EXO_AGENDA_EVENT" referencedColumnNames="EVENT_ID" baseColumnNames="EVENT_ID" baseTableName="EXO_AGENDA_ATTENDEE"/>
+  </changeSet>
+
+  <changeSet author="agenda" id="1.0.0-25" dbms="postgresql">
+    <customChange class="org.exoplatform.agenda.liquibase.DropPostgreSQLUniqueConstraint">
+      <param name="tableName">EXO_AGENDA_ATTENDEE</param>
+    </customChange>
+  </changeSet>
+
+  <changeSet author="agenda" id="1.0.0-26">
     <addColumn tableName="EXO_AGENDA_ATTENDEE">
       <column name="FROM_OCCURRENCE_ID" type="TIMESTAMP" defaultValueComputed="NULL" />
       <column name="UNTIL_OCCURRENCE_ID" type="TIMESTAMP" defaultValueComputed="NULL" />
     </addColumn>
-    <dropUniqueConstraint tableName="EXO_AGENDA_ATTENDEE" uniqueColumns="EVENT_ID,IDENTITY_ID" />
-    <addUniqueConstraint tableName="EXO_AGENDA_ATTENDEE" columnNames="EVENT_ID,IDENTITY_ID,FROM_OCCURRENCE_ID" />
+    <addUniqueConstraint tableName="EXO_AGENDA_ATTENDEE" columnNames="EVENT_ID,IDENTITY_ID,FROM_OCCURRENCE_ID" constraintName="UK_EXO_AGENDA_ATTENDEE" />
   </changeSet>
 
 </databaseChangeLog>

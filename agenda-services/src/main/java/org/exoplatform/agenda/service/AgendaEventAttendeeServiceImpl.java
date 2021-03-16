@@ -89,7 +89,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     long eventId = event.getId();
     EventStatus eventStatus = event.getStatus();
 
-    List<EventAttendee> oldAttendees = getEventAttendees(event.getId()).getEventAttendees(null);
+    List<EventAttendee> oldAttendees = getEventAttendees(event.getId()).getEventAttendees();
     List<EventAttendee> newAttendees = attendees == null ? Collections.emptyList() : attendees;
 
     Set<AgendaEventModificationType> eventModificationTypes = new HashSet<>();
@@ -188,6 +188,9 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     if (event == null) {
       throw new ObjectNotFoundException("Parent event with id " + eventId + " wasn't found");
     }
+    if (event.getRecurrence() == null) {
+      throw new IllegalStateException("Event with id " + eventId + " isn't recurrent");
+    }
     Identity userIdentity = identityManager.getIdentity(String.valueOf(identityId));
     if (userIdentity == null) {
       throw new ObjectNotFoundException("Identity with id " + identityId + " wasn't found");
@@ -200,12 +203,10 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     saveEventAttendee(eventId, occurrenceId, identityId, response, true);
 
     // Apply modification on exceptional occurrences as well
-    if (eventStorage.isRecurrentEvent(eventId)) {
-      List<Long> exceptionalOccurenceEventIds = eventStorage.getExceptionalOccurenceIds(eventId, occurrenceId);
-      for (long exceptionalOccurenceEventId : exceptionalOccurenceEventIds) {
-        if (isEventAttendee(exceptionalOccurenceEventId, identityId)) {
-          saveEventAttendee(exceptionalOccurenceEventId, identityId, response, false);
-        }
+    List<Long> exceptionalOccurenceEventIds = eventStorage.getExceptionalOccurenceIds(eventId, occurrenceId);
+    for (long exceptionalOccurenceEventId : exceptionalOccurenceEventIds) {
+      if (isEventAttendee(exceptionalOccurenceEventId, identityId)) {
+        saveEventAttendee(exceptionalOccurenceEventId, identityId, response, false);
       }
     }
   }
@@ -221,6 +222,9 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     if (response == null) {
       throw new IllegalArgumentException("Attendee response is mandatory");
     }
+    if (eventId <= 0) {
+      throw new IllegalArgumentException("eventId is mandatory");
+    }
     Event event = eventStorage.getEventById(eventId);
     if (event == null) {
       throw new ObjectNotFoundException("Parent event with id " + eventId + " wasn't found");
@@ -234,10 +238,15 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       throw new IllegalAccessException("User with identity id " + identityId + " isn't attendee of event with id " + eventId);
     }
 
+    boolean isRecurrentEvent = eventStorage.isRecurrentEvent(eventId);
+    if (isRecurrentEvent) {
+
+    }
+
     saveEventAttendee(eventId, identityId, response, broadcast);
 
     // Apply modification on exceptional occurrences as well
-    if (eventStorage.isRecurrentEvent(eventId)) {
+    if (isRecurrentEvent) {
       List<Long> exceptionalOccurenceEventIds = eventStorage.getExceptionalOccurenceIds(eventId);
       for (long exceptionalOccurenceEventId : exceptionalOccurenceEventIds) {
         if (isEventAttendee(exceptionalOccurenceEventId, identityId)) {
@@ -368,19 +377,36 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
                                  long identityId,
                                  EventAttendeeResponse response,
                                  boolean userResponseSent) {
-    EventAttendee attendee = attendeeStorage.getEventAttendees(eventId, identityId).getEventAttendee(identityId, occurrenceId);
+    EventAttendeeList eventAttendees = attendeeStorage.getEventAttendees(eventId, identityId);
+    EventAttendee attendee = eventAttendees.getEventAttendee(identityId, occurrenceId);
     EventAttendee oldAttendee = attendee == null ? null : attendee.clone();
     if (occurrenceId == null) {
-      if (attendee == null) {
+      List<EventAttendee> userEventAttendees = eventAttendees.getEventAttendees(identityId);
+      if (userEventAttendees.size() > 1) {
+        userEventAttendees.forEach(userEventAttendee -> {
+          attendeeStorage.removeEventAttendee(userEventAttendee.getId());
+        });
+        attendee = new EventAttendee(0, eventId, identityId, response);
+      } else if (attendee == null) {
         attendee = new EventAttendee(0, eventId, identityId, response);
       } else {
         attendee.setResponse(response);
       }
       attendeeStorage.saveEventAttendee(attendee, eventId);
     } else {
-      attendeeStorage.deleteEventAttendeeAfterOccurrence(eventId, identityId, occurrenceId);
-      attendeeStorage.updateEventAttendeeBeforeOccurrence(eventId, identityId, occurrenceId);
+      List<EventAttendee> userAttendees = eventAttendees.getEventAttendees();
+      for (EventAttendee eventAttendee : userAttendees) {
+        if (eventAttendee.getFromOccurrenceId() != null && (eventAttendee.getFromOccurrenceId().isAfter(occurrenceId)
+            || eventAttendee.getFromOccurrenceId().isEqual(occurrenceId))) {
+          attendeeStorage.removeEventAttendee(eventAttendee.getId());
+        } else if ((eventAttendee.getFromOccurrenceId() == null || eventAttendee.getFromOccurrenceId().isBefore(occurrenceId))
+            && (eventAttendee.getUntilOccurrenceId() == null || eventAttendee.getUntilOccurrenceId().isAfter(occurrenceId))) {
+          eventAttendee.setUntilOccurrenceId(occurrenceId);
+          attendeeStorage.saveEventAttendee(eventAttendee, eventId);
+        }
+      }
       attendee = new EventAttendee(identityId, eventId, identityId, occurrenceId, null, response);
+      attendeeStorage.saveEventAttendee(attendee, eventId);
     }
 
     // Broadcast technical event when saving any new response for a user

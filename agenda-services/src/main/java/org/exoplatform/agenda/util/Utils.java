@@ -465,7 +465,7 @@ public class Utils {
                                         SpaceService spaceService,
                                         long identityId,
                                         EventAttendeeList eventAttendeeList) {
-    return isEventAttendee(identityManager, spaceService, identityId, eventAttendeeList.getEventAttendees(null));
+    return isEventAttendee(identityManager, spaceService, identityId, eventAttendeeList.getEventAttendees());
   }
 
   public static boolean isEventAttendee(IdentityManager identityManager,

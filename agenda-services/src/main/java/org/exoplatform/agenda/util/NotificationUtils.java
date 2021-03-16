@@ -68,6 +68,10 @@ public class NotificationUtils {
                                                                             new ArgumentLiteral<>(EventAttendeeResponse.class,
                                                                                                   "event_response");
 
+  public static final ArgumentLiteral<ZonedDateTime>         EVENT_OCCURRENCE_ID                            =
+                                                                                 new ArgumentLiteral<>(ZonedDateTime.class,
+                                                                                                       "occurrence_id");
+
   public static final String                                 AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN         =
                                                                                                     "EventAddedNotificationPlugin";
 
@@ -129,6 +133,8 @@ public class NotificationUtils {
   public static final String                                 STORED_PARAMETER_EVENT_CREATOR                 = "eventCreator";
 
   public static final String                                 STORED_PARAMETER_EVENT_URL                     = "Url";
+
+  public static final String                                 STORED_PARAMETER_EVENT_OCCURRENCE_ID           = "eventOccurrenceId";
 
   public static final String                                 STORED_EVENT_MODIFICATION_TYPE                 =
                                                                                             "EVENT_MODIFICATION_TYPE";
@@ -329,6 +335,7 @@ public class NotificationUtils {
   public static final void storeEventParameters(IdentityManager identityManager,
                                                 NotificationInfo notification,
                                                 Event event,
+                                                ZonedDateTime occurrenceId,
                                                 long participantId,
                                                 EventAttendeeResponse response,
                                                 Calendar calendar,
@@ -337,7 +344,7 @@ public class NotificationUtils {
     Identity identity = Utils.getIdentityById(identityManager, participantId);
     String timeZoneName = TimeZone.getTimeZone(event.getTimeZoneId()).getDisplayName() + ": " + event.getTimeZoneId();
     Set<String> participants = new HashSet<>();
-    List<EventAttendee> eventAttendee = eventAttendeeService.getEventAttendees(event.getId()).getEventAttendees(null);
+    List<EventAttendee> eventAttendee = eventAttendeeService.getEventAttendees(event.getId()).getEventAttendees();
     Set<String> spaceParticipants = new HashSet<>();
     String showSpaceParticipant = null;
     for (EventAttendee attendee : eventAttendee) {
@@ -359,7 +366,7 @@ public class NotificationUtils {
     notification.with(STORED_PARAMETER_EVENT_ID, String.valueOf(event.getId()))
                 .with(STORED_PARAMETER_EVENT_TITLE, event.getSummary())
                 .with(STORED_PARAMETER_EVENT_PARTICIPANT_AVATAR_URL, setParticipantAvatarUrl(identity))
-                .with(STORED_PARAMETER_EVENT_URL, getEventURL(event))
+                .with(STORED_PARAMETER_EVENT_URL, getEventURL(event, occurrenceId))
                 .with(STORED_PARAMETER_EVENT_OWNER_ID, String.valueOf(calendar.getOwnerId()))
                 .with(STORED_PARAMETER_EVENT_RESPONSE, String.valueOf(response))
                 .with(STORED_PARAMETER_EVENT_PARTICIPANT_NAME, getEventNotificationCreatorOrModifierUserName(identity))
@@ -368,6 +375,12 @@ public class NotificationUtils {
                 .with(STORED_PARAMETER_EVENT_RECURRENT_DETAILS, getRecurrenceDetails(event))
                 .with(STORED_PARAMETER_EVENT_TIMEZONE_NAME, timeZoneName)
                 .with(STORED_PARAMETER_EVENT_ATTENDEES, showParticipants);
+    if (occurrenceId == null && event.getOccurrence() != null) {
+      occurrenceId = event.getOccurrence().getId();
+    }
+    if (occurrenceId != null) {
+      notification.with(STORED_PARAMETER_EVENT_OCCURRENCE_ID, AgendaDateUtils.toRFC3339Date(occurrenceId, ZoneOffset.UTC));
+    }
     if (StringUtils.isNotBlank(event.getDescription())) {
       notification.with(STORED_PARAMETER_EVENT_DESCRIPTION, event.getDescription());
     }
@@ -561,7 +574,7 @@ public class NotificationUtils {
     templateContext.put("USER", notification.getTo());
   }
 
-  public static String getEventURL(Event event) {
+  public static String getEventURL(Event event, ZonedDateTime occurrenceId) {
     String currentSite = getDefaultSite();
     String currentDomain = CommonsUtils.getCurrentDomain();
     if (!currentDomain.endsWith("/")) {
@@ -571,6 +584,9 @@ public class NotificationUtils {
     if (event != null) {
       if (event.getRecurrence() == null) {
         notificationURL = currentDomain + "portal/" + currentSite + "/agenda?eventId=" + event.getId();
+      } else if (occurrenceId != null) {
+        notificationURL = currentDomain + "portal/" + currentSite + "/agenda?parentId=" + event.getId() + "&occurrenceId="
+            + AgendaDateUtils.toRFC3339Date(occurrenceId, ZoneOffset.UTC);
       } else {
         notificationURL = currentDomain + "portal/" + currentSite + "/agenda?parentId=" + event.getId() + "&occurrenceId="
             + AgendaDateUtils.toRFC3339Date(event.getStart(), ZoneOffset.UTC);
@@ -579,6 +595,10 @@ public class NotificationUtils {
       notificationURL = currentDomain + "portal/" + currentSite + "/agenda";
     }
     return notificationURL;
+  }
+
+  public static String getEventURL(Event event) {
+    return getEventURL(event, null);
   }
 
   public static String getResponseURL(AgendaEventAttendeeService agendaEventAttendeeService,

@@ -75,7 +75,7 @@ public class AgendaEventConferenceServiceTest extends BaseAgendaEventTest {
     boolean allDay = true;
 
     Event event = newEventInstance(start, start, allDay);
-    event = createEvent(event.clone(), Long.parseLong(testuser1Identity.getId()), testuser2Identity);
+    event = createEvent(event.clone(), Long.parseLong(testuser1Identity.getId()), testuser1Identity, testuser2Identity);
 
     long eventId = event.getId();
     List<EventConference> eventConferences = agendaEventConferenceService.getEventConferences(eventId);

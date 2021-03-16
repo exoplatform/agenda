@@ -728,7 +728,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
 
     if (sendInvitations) {
-      List<EventAttendee> eventAttendees = attendeeService.getEventAttendees(eventId).getEventAttendees(null);
+      List<EventAttendee> eventAttendees = attendeeService.getEventAttendees(eventId).getEventAttendees();
       attendeeService.sendInvitations(event, eventAttendees, eventModifications);
     }
 
@@ -761,7 +761,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
     AgendaEventModification eventModifications = new AgendaEventModification(eventId, event.getCalendarId(), userIdentityId);
     eventModifications.addModificationType(AgendaEventModificationType.DELETED);
-    attendeeService.sendInvitations(event, eventAttendeeList.getEventAttendees(null), eventModifications);
+    attendeeService.sendInvitations(event, eventAttendeeList.getEventAttendees(), eventModifications);
     Utils.broadcastEvent(listenerService, Utils.POST_DELETE_AGENDA_EVENT_EVENT, eventModifications, null);
     return event;
   }
@@ -1033,7 +1033,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     reminderService.saveEventReminders(updatedEvent, allReminders);
 
     EventAttendeeList eventAttendeeList = attendeeService.getEventAttendees(eventId);
-    for (EventAttendee eventAttendee : eventAttendeeList.getEventAttendees(null)) {
+    for (EventAttendee eventAttendee : eventAttendeeList.getEventAttendees()) {
       if (eventAttendee.getIdentityId() != userIdentityId) {
         attendeeService.sendEventResponse(eventId, eventAttendee.getIdentityId(), EventAttendeeResponse.NEEDS_ACTION);
       }

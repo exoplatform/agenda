@@ -1,6 +1,5 @@
 package org.exoplatform.agenda.storage;
 
-import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -84,14 +83,6 @@ public class AgendaEventAttendeeStorage {
                            eventAttendeeEntity.getEvent().getId(),
                            eventAttendeeId);
     }
-  }
-
-  public void deleteEventAttendeeAfterOccurrence(long eventId, long identityId, ZonedDateTime occurrenceId) {
-    eventAttendeeDAO.deleteEventAttendeeAfterOccurrence(eventId, identityId, occurrenceId);
-  }
-
-  public void updateEventAttendeeBeforeOccurrence(long eventId, long identityId, ZonedDateTime occurrenceId) {
-    eventAttendeeDAO.updateEventAttendeeBeforeOccurrence(eventId, identityId, occurrenceId);
   }
 
   private EventAttendeeList fromAttendeeEntities(long eventId, List<EventAttendeeEntity> eventAttendeeEntities) {

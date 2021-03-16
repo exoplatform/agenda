@@ -53,7 +53,7 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
     NotificationContext ctx = NotificationContextImpl.cloneInstance()
                                                      .append(NotificationUtils.EVENT_AGENDA, createdEvent)
                                                      .append(NotificationUtils.EVENT_ATTENDEE,
-                                                             agendaEventAttendeeService.getEventAttendees(createdEvent.getId()))
+                                                             agendaEventAttendeeService.getEventAttendees(createdEvent.getId()).getEventAttendees())
                                                      .append(EVENT_TITLE, createdEvent.getSummary())
                                                      .append(NotificationUtils.EVENT_MODIFICATION_TYPE,
                                                              AgendaEventModificationType.ADDED.name());
@@ -99,7 +99,7 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
                                      spaceIdentity);
     Event updatedEvent = agendaEventService.getEventById(createdEvent.getId(), null, Long.parseLong(testuser1Identity.getId()));
     List<EventAttendee> eventAttendees =
-                                       agendaEventAttendeeService.getEventAttendees(updatedEvent.getId()).getEventAttendees(null);
+                                       agendaEventAttendeeService.getEventAttendees(updatedEvent.getId()).getEventAttendees();
     agendaEventService.updateEvent(updatedEvent,
                                    eventAttendees,
                                    null,
@@ -127,7 +127,7 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
     NotificationContext ctx = NotificationContextImpl.cloneInstance()
                                                      .append(NotificationUtils.EVENT_AGENDA, updatedEvent)
                                                      .append(NotificationUtils.EVENT_ATTENDEE,
-                                                             agendaEventAttendeeService.getEventAttendees(updatedEvent.getId()))
+                                                             agendaEventAttendeeService.getEventAttendees(updatedEvent.getId()).getEventAttendees())
 
                                                      .append(EVENT_TITLE, updatedEvent.getSummary())
                                                      .append(NotificationUtils.EVENT_MODIFICATION_TYPE,
@@ -159,7 +159,7 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
     NotificationContext ctx2 = NotificationContextImpl.cloneInstance()
                                                       .append(NotificationUtils.EVENT_AGENDA, updatedEvent)
                                                       .append(NotificationUtils.EVENT_ATTENDEE,
-                                                              agendaEventAttendeeService.getEventAttendees(updatedEvent.getId()))
+                                                              agendaEventAttendeeService.getEventAttendees(updatedEvent.getId()).getEventAttendees())
 
                                                       .append(EVENT_TITLE, updatedEvent.getSummary())
                                                       .append(NotificationUtils.EVENT_MODIFICATION_TYPE,
@@ -200,7 +200,7 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
     NotificationContext ctx = NotificationContextImpl.cloneInstance()
                                                      .append(NotificationUtils.EVENT_AGENDA, createdEvent)
                                                      .append(NotificationUtils.EVENT_ATTENDEE,
-                                                             agendaEventAttendeeService.getEventAttendees(createdEvent.getId()))
+                                                             agendaEventAttendeeService.getEventAttendees(createdEvent.getId()).getEventAttendees())
                                                      .append(EVENT_TITLE, createdEvent.getSummary())
                                                      .append(NotificationUtils.EVENT_MODIFICATION_TYPE,
                                                              AgendaEventModificationType.ADDED.name());
@@ -237,7 +237,7 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
     List<String> days = Arrays.asList("MO", "TU", "WE");
     recurrence.setByDay(days);
     List<EventAttendee> eventAttendees =
-                                       agendaEventAttendeeService.getEventAttendees(createdEvent.getId()).getEventAttendees(null);
+                                       agendaEventAttendeeService.getEventAttendees(createdEvent.getId()).getEventAttendees();
     agendaEventService.updateEvent(createdEvent,
                                    eventAttendees,
                                    Collections.emptyList(),
@@ -263,7 +263,7 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
     NotificationContext ctx1 = NotificationContextImpl.cloneInstance()
                                                       .append(NotificationUtils.EVENT_AGENDA, createdEvent)
                                                       .append(NotificationUtils.EVENT_ATTENDEE,
-                                                              agendaEventAttendeeService.getEventAttendees(createdEvent.getId()))
+                                                              agendaEventAttendeeService.getEventAttendees(createdEvent.getId()).getEventAttendees())
                                                       .append(EVENT_TITLE, createdEvent.getSummary())
                                                       .append(NotificationUtils.EVENT_MODIFICATION_TYPE,
                                                               AgendaEventModificationType.ADDED.name());

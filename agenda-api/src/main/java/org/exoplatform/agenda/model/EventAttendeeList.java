@@ -18,6 +18,10 @@ public class EventAttendeeList {
   @Setter
   private List<EventAttendee>           attendees;
 
+  public List<EventAttendee> getEventAttendees() {
+    return getEventAttendees(null);
+  }
+
   public List<EventAttendee> getEventAttendees(ZonedDateTime occurrenceId) {
     if (isEmpty()) {
       return Collections.emptyList();
@@ -42,6 +46,12 @@ public class EventAttendeeList {
                       .collect(Collectors.toList());
 
     }
+  }
+
+  public List<EventAttendee> getEventAttendees(long identityId) {
+    return attendees.stream()
+                    .filter(eventAttendee -> eventAttendee.getIdentityId() == identityId)
+                    .collect(Collectors.toList());
   }
 
   public EventAttendee getEventAttendee(long identityId, ZonedDateTime occurrenceId) {

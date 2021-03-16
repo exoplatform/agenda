@@ -16,7 +16,6 @@
 */
 package org.exoplatform.agenda.dao;
 
-import java.time.ZonedDateTime;
 import java.util.*;
 
 import javax.persistence.Query;
@@ -41,22 +40,6 @@ public class EventAttendeeDAO extends GenericDAOJPAImpl<EventAttendeeEntity, Lon
     Query deleteEventsQuery = getEntityManager().createNamedQuery("AgendaEventAttendee.deleteEventAttendees");
     deleteEventsQuery.setParameter("eventId", eventId);
     deleteEventsQuery.executeUpdate();
-  }
-
-  public void deleteEventAttendeeAfterOccurrence(long eventId, long identityId, ZonedDateTime occurrenceId) {
-    Query query = getEntityManager().createNamedQuery("AgendaEventAttendee.removeEventAttendeeAfterOccurrence");
-    query.setParameter("eventId", eventId);
-    query.setParameter("identityId", identityId);
-    query.setParameter("occurrenceId", occurrenceId);
-    query.executeUpdate();
-  }
-
-  public void updateEventAttendeeBeforeOccurrence(long eventId, long identityId, ZonedDateTime occurrenceId) {
-    Query query = getEntityManager().createNamedQuery("AgendaEventAttendee.updateEventAttendeeBeforeOccurrence");
-    query.setParameter("eventId", eventId);
-    query.setParameter("identityId", identityId);
-    query.setParameter("occurrenceId", occurrenceId);
-    query.executeUpdate();
   }
 
   public List<EventAttendeeEntity> getEventAttendees(long eventId) {

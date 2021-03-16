@@ -152,7 +152,7 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     assertEquals(createdEvent.getId(), eventPollCreationReference.get().getEventId());
     assertNull(eventCreationReference.get());
 
-    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(createdEvent.getId()).getEventAttendees(null);
+    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(createdEvent.getId()).getEventAttendees();
     assertNotNull(eventAttendees);
     assertEquals(1, eventAttendees.size());
     assertEquals(creatorIdentityId, eventAttendees.get(0).getIdentityId());
@@ -649,6 +649,9 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     Event createdEvent = agendaEventService.createEvent(event,
                                                         Arrays.asList(new EventAttendee(0,
                                                                                         Long.parseLong(testuser1Identity.getId()),
+                                                                                        EventAttendeeResponse.NEEDS_ACTION),
+                                                                      new EventAttendee(0,
+                                                                                        Long.parseLong(testuser2Identity.getId()),
                                                                                         EventAttendeeResponse.NEEDS_ACTION)),
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
@@ -666,6 +669,33 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     EventDateOption createdDateOption2 = dateOptions.get(1);
     assertFalse(createdDateOption1.isSelected());
     assertFalse(createdDateOption2.isSelected());
+
+    try {
+      agendaEventService.selectEventDateOption(0,
+                                               createdDateOption1.getId(),
+                                               Long.parseLong(testuser1Identity.getId()));
+      fail();
+    } catch (ObjectNotFoundException e) {
+      // EXpected
+    }
+
+    try {
+      agendaEventService.selectEventDateOption(eventId,
+                                               createdDateOption1.getId(),
+                                               Long.parseLong(testuser3Identity.getId()));
+      fail();
+    } catch (IllegalAccessException e) {
+      // EXpected
+    }
+
+    try {
+      agendaEventService.selectEventDateOption(eventId,
+                                               3000l,
+                                               Long.parseLong(testuser1Identity.getId()));
+      fail();
+    } catch (ObjectNotFoundException e) {
+      // EXpected
+    }
 
     agendaEventService.selectEventDateOption(eventId,
                                              createdDateOption1.getId(),

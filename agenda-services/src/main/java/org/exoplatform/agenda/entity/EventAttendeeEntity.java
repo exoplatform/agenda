@@ -38,23 +38,6 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
           query = "DELETE FROM AgendaEventAttendee a WHERE a.event.id = :eventId"
       ),
       @NamedQuery(
-          name = "AgendaEventAttendee.deleteEventAttendeeAfterOccurrence",
-          query = "DELETE FROM AgendaEventAttendee a"
-              + "  WHERE a.event.id = :eventId"
-              + "  AND a.identityId = :identityId "
-              + "  AND a.fromOccurrenceId IS NOT NULL "
-              + "  AND a.fromOccurrenceId >= :occurrenceId "
-      ),
-      @NamedQuery(
-          name = "AgendaEventAttendee.updateEventAttendeeBeforeOccurrence",
-          query = "UPDATE AgendaEventAttendee a"
-              + "  SET a.untilOccurrenceId = :occurrenceId"
-              + "  WHERE a.event.id = :eventId"
-              + "  AND a.identityId = :identityId "
-              + "  AND (a.untilOccurrenceId IS NULL OR a.untilOccurrenceId > :occurrenceId) "
-              + "  AND (a.fromOccurrenceId IS NULL OR a.fromOccurrenceId < :occurrenceId) "
-      ),
-      @NamedQuery(
           name = "AgendaEventAttendee.getEventAttendee",
           query = "SELECT a FROM AgendaEventAttendee a WHERE a.event.id = :eventId AND  a.identityId = :identityId"
       ),

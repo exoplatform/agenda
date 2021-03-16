@@ -18,6 +18,7 @@ package org.exoplatform.agenda.service;
 
 import static org.junit.Assert.*;
 
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -40,7 +41,7 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
     event = createEvent(event.clone(), Long.parseLong(testuser1Identity.getId()), testuser5Identity);
 
     long eventId = event.getId();
-    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees(null);
+    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees();
     assertNotNull(eventAttendees);
     assertEquals(1, eventAttendees.size());
 
@@ -69,7 +70,7 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
 
     long eventId = event.getId();
     List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId, EventAttendeeResponse.ACCEPTED)
-                                                                   .getEventAttendees(null);
+                                                                   .getEventAttendees();
     assertNotNull(eventAttendees);
     assertEquals(1, eventAttendees.size());
 
@@ -87,14 +88,14 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
                                                  EventAttendeeResponse.TENTATIVE);
 
     eventAttendees =
-                   agendaEventAttendeeService.getEventAttendees(eventId, EventAttendeeResponse.ACCEPTED).getEventAttendees(null);
+                   agendaEventAttendeeService.getEventAttendees(eventId, EventAttendeeResponse.ACCEPTED).getEventAttendees();
     assertNotNull(eventAttendees);
     assertEquals(2, eventAttendees.size());
 
     eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId,
                                                                   EventAttendeeResponse.ACCEPTED,
                                                                   EventAttendeeResponse.TENTATIVE)
-                                               .getEventAttendees(null);
+                                               .getEventAttendees();
     assertNotNull(eventAttendees);
     assertEquals(3, eventAttendees.size());
   }
@@ -163,6 +164,15 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
                                                    EventAttendeeResponse.ACCEPTED);
       fail("should throw an exception, event with id doesn't exists");
     } catch (ObjectNotFoundException e) {
+      // Expected
+    }
+
+    try {
+      agendaEventAttendeeService.sendEventResponse(0,
+                                                   Long.parseLong(testuser1Identity.getId()),
+                                                   EventAttendeeResponse.ACCEPTED);
+      fail("should throw an exception, event with id doesn't exists");
+    } catch (IllegalArgumentException e) {
       // Expected
     }
 
@@ -274,7 +284,7 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
     event = createEvent(event.clone(), Long.parseLong(testuser1Identity.getId()), testuser5Identity);
 
     long eventId = event.getId();
-    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees(null);
+    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees();
     assertNotNull(eventAttendees);
     assertEquals(1, eventAttendees.size());
     EventAttendee eventAttendee = eventAttendees.get(0);
@@ -293,7 +303,7 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
                                                                               event.getCalendarId(),
                                                                               userIdentityId,
                                                                               Collections.singleton(AgendaEventModificationType.ADDED)));
-    eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees(null);
+    eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees();
     assertNotNull(eventAttendees);
     assertEquals("Same user was added twice, only one attendee object should remain in store", 1, eventAttendees.size());
 
@@ -311,7 +321,7 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
                                                                               event.getCalendarId(),
                                                                               userIdentityId,
                                                                               Collections.singleton(AgendaEventModificationType.ADDED)));
-    eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees(null);
+    eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees();
     assertNotNull(eventAttendees);
     assertEquals(2, eventAttendees.size());
 
@@ -324,9 +334,186 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
                                                                               event.getCalendarId(),
                                                                               userIdentityId,
                                                                               Collections.singleton(AgendaEventModificationType.ADDED)));
-    eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees(null);
+    eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees();
     assertNotNull(eventAttendees);
     assertEquals(0, eventAttendees.size());
+  }
+
+  @Test
+  public void testSendUpcomingEventResponse() throws Exception { // NOSONAR
+    ZonedDateTime start = ZonedDateTime.now().withNano(0);
+
+    boolean allDay = true;
+
+    Event event = newEventInstance(start, start, allDay);
+    event.setStatus(EventStatus.CONFIRMED);
+    event.setRecurrence(new EventRecurrence(0,
+                                            null,
+                                            0,
+                                            EventRecurrenceType.DAILY,
+                                            EventRecurrenceFrequency.DAILY,
+                                            1,
+                                            null,
+                                            null,
+                                            null,
+                                            null,
+                                            null,
+                                            null,
+                                            null,
+                                            null,
+                                            null,
+                                            null,
+                                            null));
+
+    event = createEvent(event.clone(), Long.parseLong(testuser1Identity.getId()), testuser1Identity, testuser5Identity);
+    long eventId = event.getId();
+
+    agendaEventAttendeeService.sendEventResponse(eventId,
+                                                 Long.parseLong(testuser5Identity.getId()),
+                                                 EventAttendeeResponse.ACCEPTED);
+    EventAttendeeResponse eventResponse = agendaEventAttendeeService.getEventResponse(eventId,
+                                                                                      null,
+                                                                                      Long.parseLong(testuser5Identity.getId()));
+    assertNotNull(eventResponse);
+    assertEquals(EventAttendeeResponse.ACCEPTED, eventResponse);
+
+    List<Event> eventOccurrences = agendaEventService.getEventOccurrencesInPeriod(event,
+                                                                                  start,
+                                                                                  start.plusDays(10),
+                                                                                  ZoneOffset.UTC,
+                                                                                  0);
+    assertNotNull(eventOccurrences);
+    assertEquals(11, eventOccurrences.size());
+
+    try {
+      agendaEventAttendeeService.sendUpcomingEventResponse(eventId,
+                                                           eventOccurrences.get(3).getOccurrence().getId(),
+                                                           Long.parseLong(testuser1Identity.getId()),
+                                                           null);
+      fail("should throw an exception, response shouldn't be null");
+    } catch (IllegalArgumentException e) {
+      // Expected
+    }
+
+    try {
+      agendaEventAttendeeService.sendUpcomingEventResponse(0,
+                                                           eventOccurrences.get(3).getOccurrence().getId(),
+                                                           Long.parseLong(testuser1Identity.getId()),
+                                                           EventAttendeeResponse.TENTATIVE);
+      fail("should throw an exception, event with id doesn't exists");
+    } catch (IllegalArgumentException e) {
+      // Expected
+    }
+
+    try {
+      agendaEventAttendeeService.sendUpcomingEventResponse(eventId,
+                                                           eventOccurrences.get(3).getOccurrence().getId(),
+                                                           0,
+                                                           EventAttendeeResponse.TENTATIVE);
+      fail("should throw an exception, occurrence id doesn't exists");
+    } catch (IllegalArgumentException e) {
+      // Expected
+    }
+
+    try {
+      agendaEventAttendeeService.sendUpcomingEventResponse(eventId,
+                                                           eventOccurrences.get(3).getOccurrence().getId(),
+                                                           2222l,
+                                                           EventAttendeeResponse.TENTATIVE);
+      fail("should throw an exception, identity id doesn't exists");
+    } catch (ObjectNotFoundException e) {
+      // Expected
+    }
+
+    try {
+      agendaEventAttendeeService.sendUpcomingEventResponse(5000l,
+                                                           eventOccurrences.get(3).getOccurrence().getId(),
+                                                           Long.parseLong(testuser1Identity.getId()),
+                                                           EventAttendeeResponse.TENTATIVE);
+      fail("should throw an exception, event with id doesn't exists");
+    } catch (ObjectNotFoundException e) {
+      // Expected
+    }
+
+    try {
+      agendaEventAttendeeService.sendUpcomingEventResponse(eventId,
+                                                           eventOccurrences.get(3).getOccurrence().getId(),
+                                                           Long.parseLong(testuser3Identity.getId()),
+                                                           EventAttendeeResponse.TENTATIVE);
+      fail("should throw an exception, user testuser3 isn't an attendee");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+
+    agendaEventAttendeeService.sendUpcomingEventResponse(eventId,
+                                                         eventOccurrences.get(3).getOccurrence().getId(),
+                                                         Long.parseLong(testuser5Identity.getId()),
+                                                         EventAttendeeResponse.TENTATIVE);
+    assertEquals(EventAttendeeResponse.ACCEPTED,
+                 agendaEventAttendeeService.getEventResponse(eventId,
+                                                             eventOccurrences.get(0).getOccurrence().getId(),
+                                                             Long.parseLong(testuser5Identity.getId())));
+    assertEquals(EventAttendeeResponse.ACCEPTED,
+                 agendaEventAttendeeService.getEventResponse(eventId,
+                                                             eventOccurrences.get(1).getOccurrence().getId(),
+                                                             Long.parseLong(testuser5Identity.getId())));
+    assertEquals(EventAttendeeResponse.ACCEPTED,
+                 agendaEventAttendeeService.getEventResponse(eventId,
+                                                             eventOccurrences.get(2).getOccurrence().getId(),
+                                                             Long.parseLong(testuser5Identity.getId())));
+    assertEquals(EventAttendeeResponse.TENTATIVE,
+                 agendaEventAttendeeService.getEventResponse(eventId,
+                                                             eventOccurrences.get(3).getOccurrence().getId(),
+                                                             Long.parseLong(testuser5Identity.getId())));
+    assertEquals(EventAttendeeResponse.TENTATIVE,
+                 agendaEventAttendeeService.getEventResponse(eventId,
+                                                             eventOccurrences.get(4).getOccurrence().getId(),
+                                                             Long.parseLong(testuser5Identity.getId())));
+    assertEquals(EventAttendeeResponse.TENTATIVE,
+                 agendaEventAttendeeService.getEventResponse(eventId,
+                                                             eventOccurrences.get(9).getOccurrence().getId(),
+                                                             Long.parseLong(testuser5Identity.getId())));
+
+    agendaEventAttendeeService.sendUpcomingEventResponse(eventId,
+                                                         eventOccurrences.get(5).getOccurrence().getId(),
+                                                         Long.parseLong(testuser5Identity.getId()),
+                                                         EventAttendeeResponse.DECLINED);
+    assertEquals(EventAttendeeResponse.ACCEPTED,
+                 agendaEventAttendeeService.getEventResponse(eventId,
+                                                             eventOccurrences.get(0).getOccurrence().getId(),
+                                                             Long.parseLong(testuser5Identity.getId())));
+    assertEquals(EventAttendeeResponse.ACCEPTED,
+                 agendaEventAttendeeService.getEventResponse(eventId,
+                                                             eventOccurrences.get(1).getOccurrence().getId(),
+                                                             Long.parseLong(testuser5Identity.getId())));
+    assertEquals(EventAttendeeResponse.ACCEPTED,
+                 agendaEventAttendeeService.getEventResponse(eventId,
+                                                             eventOccurrences.get(2).getOccurrence().getId(),
+                                                             Long.parseLong(testuser5Identity.getId())));
+    assertEquals(EventAttendeeResponse.TENTATIVE,
+                 agendaEventAttendeeService.getEventResponse(eventId,
+                                                             eventOccurrences.get(3).getOccurrence().getId(),
+                                                             Long.parseLong(testuser5Identity.getId())));
+    assertEquals(EventAttendeeResponse.TENTATIVE,
+                 agendaEventAttendeeService.getEventResponse(eventId,
+                                                             eventOccurrences.get(4).getOccurrence().getId(),
+                                                             Long.parseLong(testuser5Identity.getId())));
+    assertEquals(EventAttendeeResponse.DECLINED,
+                 agendaEventAttendeeService.getEventResponse(eventId,
+                                                             eventOccurrences.get(5).getOccurrence().getId(),
+                                                             Long.parseLong(testuser5Identity.getId())));
+    assertEquals(EventAttendeeResponse.DECLINED,
+                 agendaEventAttendeeService.getEventResponse(eventId,
+                                                             eventOccurrences.get(9).getOccurrence().getId(),
+                                                             Long.parseLong(testuser5Identity.getId())));
+
+    agendaEventAttendeeService.sendEventResponse(eventId,
+                                                 Long.parseLong(testuser5Identity.getId()),
+                                                 EventAttendeeResponse.ACCEPTED);
+    assertEquals(EventAttendeeResponse.ACCEPTED,
+                 agendaEventAttendeeService.getEventResponse(eventId,
+                                                             eventOccurrences.get(9).getOccurrence().getId(),
+                                                             Long.parseLong(testuser5Identity.getId())));
   }
 
 }

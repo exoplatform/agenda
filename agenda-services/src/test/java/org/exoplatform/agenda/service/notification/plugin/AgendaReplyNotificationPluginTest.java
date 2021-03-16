@@ -32,7 +32,7 @@ public class AgendaReplyNotificationPluginTest extends BaseAgendaEventTest {
     long modifierId = Long.parseLong(testuser1Identity.getId());
     event = createEvent(event, modifierId, testuser2Identity, testuser5Identity);
 
-    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(event.getId()).getEventAttendees(null);
+    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(event.getId()).getEventAttendees();
     eventAttendees.add(new EventAttendee(0,
                                          event.getId(),
                                          Long.parseLong(testuser2Identity.getId()),

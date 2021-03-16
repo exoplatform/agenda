@@ -81,7 +81,7 @@ public class AgendaEventReminderServiceTest extends BaseAgendaEventTest {
 
     List<EventReminder> origEventReminders = new ArrayList<>(eventReminders);
 
-    List<EventAttendee> attendees = agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees(null);
+    List<EventAttendee> attendees = agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees();
 
     event.setStatus(EventStatus.CANCELLED);
     event = agendaEventService.updateEvent(event,

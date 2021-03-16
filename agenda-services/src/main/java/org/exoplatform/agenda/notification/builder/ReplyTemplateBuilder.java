@@ -88,7 +88,10 @@ public class ReplyTemplateBuilder extends AbstractTemplateBuilder {
       if (event == null) {
         return null;
       }
-      String notificationURL = getEventURL(event);
+      String notificationURL = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL);
+      if (StringUtils.isBlank(notificationURL)) {
+        notificationURL = getEventURL(event);
+      }
       String pushNotificationURL = isPushNotification ? notificationURL : null;
       String username = notification.getTo();
       long identityId = Utils.getIdentityIdByUsername(getIdentityManager(), username);

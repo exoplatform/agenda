@@ -83,7 +83,7 @@ export default {
         this.confirmOccurrenceEvent();
       } else if (this.recurrenceResponseType === 'all') {
         this.confirmRecurrentEvent();
-      } else if (this.recurrenceModificationType === 'upcoming') {
+      } else if (this.recurrenceResponseType === 'upcoming') {
         this.confirmUpcomingEvent();
       }
     },

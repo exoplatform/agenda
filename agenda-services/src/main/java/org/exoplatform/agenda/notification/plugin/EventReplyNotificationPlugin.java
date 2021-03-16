@@ -2,6 +2,7 @@ package org.exoplatform.agenda.notification.plugin;
 
 import static org.exoplatform.agenda.util.NotificationUtils.*;
 
+import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -75,6 +76,7 @@ public class EventReplyNotificationPlugin extends BaseNotificationPlugin {
     Calendar calendar = calendarService.getCalendarById(event.getCalendarId());
     long eventParticipantId = ctx.value(EVENT_PARTICIPANT_ID);
     EventAttendeeResponse eventResponse = ctx.value(EVENT_RESPONSE);
+    ZonedDateTime occurrenceId = ctx.value(EVENT_OCCURRENCE_ID);
     NotificationInfo notification = NotificationInfo.instance();
     notification.key(getId());
     if (event.getId() > 0) {
@@ -99,6 +101,7 @@ public class EventReplyNotificationPlugin extends BaseNotificationPlugin {
       storeEventParameters(identityManager,
                            notification,
                            event,
+                           occurrenceId,
                            eventParticipantId,
                            eventResponse,
                            calendar,
