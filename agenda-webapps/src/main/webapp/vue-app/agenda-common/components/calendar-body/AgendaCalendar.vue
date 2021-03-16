@@ -46,8 +46,13 @@
       <div :class="getEventClass(event)">
         <strong
           :title="event.summary"
-          class="text-truncate my-auto d-block ml-2">
-          {{ event.summary }}
+          class="text-truncate my-auto d-flex ml-2">
+          <div class="flex-grow-1 text-truncate">
+            {{ event.summary }}
+          </div>
+          <div v-if="isEventTentative(event)" class="flex-grow-0 mr-1">
+            <i class="uiIcon attendee-response attendee-response-tentative"></i>
+          </div>
         </strong>
         <div
           v-if="event && !event.allDay && !isShortEvent(event)"
@@ -265,24 +270,25 @@ export default {
         return eventColor;
       }
       const currentUserAttendee = event.attendees && event.attendees.find(attendee => attendee.identity.id === eXo.env.portal.userIdentityId);
-      if (!currentUserAttendee || currentUserAttendee.response === 'DECLINED' || currentUserAttendee.response === 'NEEDS_ACTION') {
+      if (!currentUserAttendee || currentUserAttendee.response === 'DECLINED' || currentUserAttendee.response === 'NEEDS_ACTION' || currentUserAttendee.response === 'TENTATIVE') {
         return eventColor;
       }
       return 'white';
     },
     isEventDeclined(event) {
       const currentUserAttendee = event.attendees && event.attendees.find(attendee => attendee.identity.id === eXo.env.portal.userIdentityId);
-      if (currentUserAttendee && currentUserAttendee.response === 'DECLINED') {
-        return true;
-      }
-      return false;
+      return currentUserAttendee && currentUserAttendee.response === 'DECLINED';
+    },
+    isEventTentative(event) {
+      const currentUserAttendee = event.attendees && event.attendees.find(attendee => attendee.identity.id === eXo.env.portal.userIdentityId);
+      return currentUserAttendee && currentUserAttendee.response === 'TENTATIVE';
     },
     getEventColor(event) {
       if (!event.acl || !event.acl.attendee) {
         return 'white';
       }
       const currentUserAttendee = event.attendees && event.attendees.find(attendee => attendee.identity.id === eXo.env.portal.userIdentityId);
-      if (!currentUserAttendee || currentUserAttendee.response === 'DECLINED' || currentUserAttendee.response === 'NEEDS_ACTION') {
+      if (!currentUserAttendee || currentUserAttendee.response === 'DECLINED' || currentUserAttendee.response === 'NEEDS_ACTION' || currentUserAttendee.response === 'TENTATIVE') {
         return 'white';
       }
       const eventColor = event && (event.color || event.calendar && event.calendar.color) || '#2196F3';
