@@ -112,7 +112,6 @@ export default {
       voters: null,
       loading: true,
       sendingVotes: false,
-      creatingEvent: false,
       selectedDateOptionIndex: -1,
       currentUserAttendee: null,
       isVoting: false,
@@ -120,21 +119,6 @@ export default {
       disableVoteButton: true,
       originalUserVotes: null,
       currentUserId: Number(eXo.env.portal.userIdentityId),
-      fullDateFormat: {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      },
-      dateDayFormat: {
-        month: 'short',
-        day: 'numeric',
-      },
-      dateTimeFormat: {
-        hour: '2-digit',
-        minute: '2-digit',
-      },
     };
   },
   computed: {
