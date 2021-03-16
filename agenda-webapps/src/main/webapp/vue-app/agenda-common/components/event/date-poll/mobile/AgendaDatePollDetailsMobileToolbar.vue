@@ -14,20 +14,16 @@
       <strong :title="event.summary" class="event-header-title text-truncate">
         {{ event.summary }}
       </strong>
-      <div class="text-truncate d-flex">
-        <span class="caption">
-          {{ $t('agenda.label.createdBy', {0: creatorFullName}) }} {{ $t('agenda.label.in') }}
-          <div class="d-inline-flex">
-            <date-format
-              :value="event.created"
-              :format="fullDateFormat" />
-            ,
-            <date-format
-              :value="event.created"
-              :format="dateTimeFormat"
-              class="ml-1 " />
-          </div>
-        </span>
+      <div class="text-truncate calendar-owner-link caption d-flex">
+        {{ $t('agenda.label.createdBy', {0: creatorFullName}) }} {{ $t('agenda.label.in') }}
+        <date-format
+          :value="event.created"
+          :format="fullDateFormat" />
+        ,
+        <date-format
+          :value="event.created"
+          :format="dateTimeFormat"
+          class="ml-1 " />
       </div>
     </div>
     <div class="d-flex flex-grow-0">

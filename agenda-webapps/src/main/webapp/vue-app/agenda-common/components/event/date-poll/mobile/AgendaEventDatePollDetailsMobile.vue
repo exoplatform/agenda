@@ -10,30 +10,16 @@
       :voters="voters"
       :is-voting="isVoting"
       @changed="enableVoteButton" />
-    <div class="float-right mt-5">
-      <template v-if="isVoting">
-        <v-btn
-          :disabled="sendingVotes"
-          class="btn mr-2"
-          @click="isVoting = false">
-          {{ $t('agenda.button.cancel') }}
-        </v-btn>
-        <v-btn
-          :loading="sendingVotes"
-          :disabled="sendingVotes || disableVoteButton"
-          class="btn btn-primary mr-2"
-          @click="sendVotes(currentUserVotes)">
-          {{ $t('agenda.button.vote') }}
-        </v-btn>
-      </template>
-      <v-btn
-        v-else-if="isCreator"
-        :loading="creatingEvent"
-        :disabled="disableCreateButton"
-        class="btn btn-primary mr-2"
-        @click="createEvent">
-        {{ $t('agenda.button.createEvent') }}
-      </v-btn>
+    <div class="float-right mt-5 mr-2">
+      <agenda-date-poll-action-buttons
+        :is-voting="isVoting"
+        :sending-votes="sendingVotes"
+        :current-user-votes="currentUserVotes"
+        :date-options="dateOptions"
+        :event="event"
+        :disable-vote-button="disableVoteButton"
+        :voters="voters"
+        :selected-date-index="selectedDateOptionIndex" />
     </div>
   </v-flex>
 </template>
@@ -77,18 +63,6 @@ export default {
     };
   },
   computed: {
-    isCreator() {
-      return this.event && this.event.creator && Number(this.event.creator.id) === this.currentUserId;
-    },
-    canSelectDate() {
-      return this.isCreator && !this.isVoting;
-    },
-    disableCreateButton() {
-      return this.selectedDateOptionIndex < 0;
-    },
-    displayHasVotedInfo() {
-      return this.hasVoted && !this.isVoting;
-    },
     dateOptions() {
       return this.event && this.event.dateOptions || [];
     },
@@ -165,8 +139,15 @@ export default {
     this.$root.$on('selected-date-option', (dateOption , selected)=> {
       this.selectedDateOptionIndex = selected;
     });
+    this.$root.$on('agenda-date-poll-voted', () => {
+      this.isVoting = false;
+      this.sendingVotes = false;
+    });
   },
   methods: {
+    enableVoteButton() {
+      this.disableVoteButton = this.hasVoted && this.originalUserVotes.join('') === this.currentUserVotes.dateOptionVotes.join('');
+    },
     preselectDateOption() {
       if (this.dateOptions && this.isCreator && this.hasVoted) {
         let selectedDateOption = null;
@@ -233,45 +214,6 @@ export default {
         voter.dateOptionVotes.push(acceptedVote);
       });
       voters.push(voter);
-    },
-    enableVoteButton() {
-      this.disableVoteButton = this.hasVoted && this.originalUserVotes.join('') === this.currentUserVotes.dateOptionVotes.join('');
-    },
-    selectDate(index) {
-      if (this.isCreator && !this.isVoting) {
-        if (this.selectedDateOptionIndex === index) {
-          this.selectedDateOptionIndex = -1;
-        } else {
-          this.selectedDateOptionIndex = index;
-        }
-      }
-    },
-    createEvent() {
-      const dateOption = this.dateOptions[this.selectedDateOptionIndex];
-      this.creatingEvent = true;
-      return this.$eventService.selectEventDate(dateOption.eventId, dateOption.id)
-        .then(() => {
-          this.$root.$emit('agenda-refresh');
-          window.setTimeout(() => this.$root.$emit('agenda-event-details', this.event), 200);
-        })
-        .finally(() => {
-          window.setTimeout(() => {
-            this.creatingEvent = false;
-          }, 200);
-        });
-    },
-    sendVotes() {
-      const eventId = this.event.id;
-      const acceptedDateOptionIds = [];
-      for(const index in this.dateOptions) {
-        const dateOptionId = this.dateOptions[index].id;
-        if (this.currentUserVotes.dateOptionVotes[index]) {
-          acceptedDateOptionIds.push(dateOptionId);
-        }
-      }
-      this.sendingVotes = true;
-      this.$eventService.saveEventVotes(eventId, acceptedDateOptionIds)
-        .finally(() => this.$emit('refresh-event'));
     },
   },
 };

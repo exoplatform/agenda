@@ -83,30 +83,16 @@
         v-if="isAttendee"
         no-gutters
         class="mx-6 mb-6">
-        <v-col class="d-flex">
-          <template v-if="isVoting">
-            <v-btn
-              :disabled="sendingVotes"
-              class="btn ml-auto mr-2"
-              @click="isVoting = false">
-              {{ $t('agenda.button.cancel') }}
-            </v-btn>
-            <v-btn
-              :loading="sendingVotes"
-              :disabled="sendingVotes || disableVoteButton"
-              class="btn btn-primary"
-              @click="sendVotes">
-              {{ $t('agenda.button.vote') }}
-            </v-btn>
-          </template>
-          <v-btn
-            v-else-if="isCreator"
-            :loading="creatingEvent"
-            :disabled="disableCreateButton"
-            class="btn btn-primary ml-auto"
-            @click="createEvent">
-            {{ $t('agenda.button.createEvent') }}
-          </v-btn>
+        <v-col class="d-flex justify-end">
+          <agenda-date-poll-action-buttons
+            :is-voting="isVoting"
+            :sending-votes="sendingVotes"
+            :current-user-votes="currentUserVotes"
+            :date-options="dateOptions"
+            :event="event"
+            :disable-vote-button="disableVoteButton"
+            :voters="voters"
+            :selected-date-index="selectedDateOptionIndex" />
         </v-col>
       </v-row>
       <agenda-date-option-conflict-drawer />
@@ -336,33 +322,6 @@ export default {
           this.selectedDateOptionIndex = index;
         }
       }
-    },
-    createEvent() {
-      const dateOption = this.dateOptions[this.selectedDateOptionIndex];
-      this.creatingEvent = true;
-      return this.$eventService.selectEventDate(dateOption.eventId, dateOption.id)
-        .then(() => {
-          this.$root.$emit('agenda-refresh');
-          window.setTimeout(() => this.$root.$emit('agenda-event-details', this.event), 200);
-        })
-        .finally(() => {
-          window.setTimeout(() => {
-            this.creatingEvent = false;
-          }, 200);
-        });
-    },
-    sendVotes() {
-      const eventId = this.event.id;
-      const acceptedDateOptionIds = [];
-      for(const index in this.dateOptions) {
-        const dateOptionId = this.dateOptions[index].id;
-        if (this.currentUserVotes.dateOptionVotes[index]) {
-          acceptedDateOptionIds.push(dateOptionId);
-        }
-      }
-      this.sendingVotes = true;
-      this.$eventService.saveEventVotes(eventId, acceptedDateOptionIds)
-        .finally(() => this.$emit('refresh-event'));
     },
   },
 };
