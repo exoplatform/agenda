@@ -583,10 +583,10 @@ public class NotificationUtils {
     String notificationURL = "";
     if (event != null) {
       if (occurrenceId == null) {
+        notificationURL = currentDomain + "portal/" + currentSite + "/agenda?eventId=" + event.getId();
+      } else {
         notificationURL = currentDomain + "portal/" + currentSite + "/agenda?parentId=" + event.getId() + "&occurrenceId="
             + AgendaDateUtils.toRFC3339Date(occurrenceId, ZoneOffset.UTC);
-      } else {
-        notificationURL = currentDomain + "portal/" + currentSite + "/agenda?eventId=" + event.getId();
       }
     } else {
       notificationURL = currentDomain + "portal/" + currentSite + "/agenda";

@@ -380,8 +380,7 @@ public class EntityMapper {
     if (recur.getUntil() != null) {
       LocalDate untilDate = recur.getUntil()
                                  .toInstant()
-                                 .atZone(ZoneOffset.UTC)
-                                 .withZoneSameLocal(eventTimeZoneId)
+                                 .atZone(ZoneId.systemDefault())
                                  .toLocalDate();
       recurrence.setUntil(untilDate);
     }

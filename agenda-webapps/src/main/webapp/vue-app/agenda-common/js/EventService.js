@@ -60,8 +60,8 @@ export function getEvents(query, ownerIds, attendeeIdentityId, start, end, limit
   });
 }
 
-export function getEventById(eventId, expand) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}?expand=${expand || ''}&timeZoneId=${USER_TIMEZONE_ID}`, {
+export function getEventById(eventId, expand, firstOccurrence) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}?expand=${expand || ''}&timeZoneId=${USER_TIMEZONE_ID}&firstOccurrence=${firstOccurrence || false}`, {
     method: 'GET',
     credentials: 'include',
   }).then((resp) => {

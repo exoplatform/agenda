@@ -322,6 +322,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     boolean allDay = true;
 
     Event event = newEventInstance(start, start, allDay);
+    LocalDate untilDate = event.getRecurrence().getUntil();
     Event createdEvent = createEvent(event.clone(),
                                      Long.parseLong(testuser1Identity.getId()),
                                      testuser2Identity,
@@ -364,7 +365,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(eventRecurrence.getInterval(), createdEventRecurrence.getInterval());
     assertTrue(createdEventRecurrence.getCount() == 0);
     assertNotNull(createdEventRecurrence.getUntil());
-    assertEquals(start.toLocalDate().plusDays(2),
+    assertEquals(untilDate,
                  createdEventRecurrence.getUntil());
     assertEquals(createdEvent.getRecurrence().getOverallEnd().toLocalDate(),
                  createdEventRecurrence.getUntil());

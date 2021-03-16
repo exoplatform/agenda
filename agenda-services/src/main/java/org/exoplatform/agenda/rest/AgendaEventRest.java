@@ -348,7 +348,12 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                @QueryParam(
                                  "timeZoneId"
                                )
-                               String timeZoneId) {
+                               String timeZoneId,
+                               @ApiParam(value = "Whether to retrieve first occurrence or not", required = false)
+                               @QueryParam(
+                                 "firstOccurrence"
+                               )
+                               boolean firstOccurrence) {
     if (eventId <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
     }
@@ -368,6 +373,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                                     agendaEventConferenceService,
                                                     agendaEventAttendeeService,
                                                     eventId,
+                                                    firstOccurrence,
                                                     RestUtils.getCurrentUserIdentityId(identityManager),
                                                     null,
                                                     userTimeZone,
@@ -568,7 +574,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                       eventEntity,
                                       userIdentityId,
                                       timeZoneId);
-      return getEventById(event.getId(), "all", timeZoneId == null ? event.getTimeZoneId().getId() : timeZoneId);
+      return getEventById(event.getId(), "all", timeZoneId == null ? event.getTimeZoneId().getId() : timeZoneId, false);
     } catch (IllegalAccessException e) {
       LOG.warn("User '{}' attempts to create an event in calendar '{}'",
                RestUtils.getCurrentUser(),
@@ -657,7 +663,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                      remoteEvent,
                                      eventEntity.isSendInvitation(),
                                      userIdentityId);
-      return getEventById(event.getId(), "all", userTimeZoneId);
+      return getEventById(event.getId(), "all", userTimeZoneId, false);
     } catch (AgendaException e) {
       LOG.debug("Error in event validation", e);
       return Response.serverError().entity(e.getAgendaExceptionType().getCompleteMessage()).build();
@@ -773,6 +779,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                                     agendaEventConferenceService,
                                                     agendaEventAttendeeService,
                                                     eventId,
+                                                    false,
                                                     userIdentityId,
                                                     null,
                                                     userTimeZone,
@@ -838,6 +845,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                                     agendaEventConferenceService,
                                                     agendaEventAttendeeService,
                                                     eventId,
+                                                    false,
                                                     userIdentityId,
                                                     null,
                                                     userTimeZone,

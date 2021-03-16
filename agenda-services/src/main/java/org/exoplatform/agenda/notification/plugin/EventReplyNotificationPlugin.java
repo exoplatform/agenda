@@ -77,13 +77,14 @@ public class EventReplyNotificationPlugin extends BaseNotificationPlugin {
     long eventParticipantId = ctx.value(EVENT_PARTICIPANT_ID);
     EventAttendeeResponse eventResponse = ctx.value(EVENT_RESPONSE);
     ZonedDateTime occurrenceId = ctx.value(EVENT_OCCURRENCE_ID);
+    if (occurrenceId == null && event.getOccurrence() != null) {
+      occurrenceId = event.getOccurrence().getId();
+    }
     NotificationInfo notification = NotificationInfo.instance();
     notification.key(getId());
     if (event.getId() > 0) {
       List<EventAttendee> eventAttendees = eventAttendeeService.getEventAttendees(event.getId(),
-                                                                                  event.getOccurrence() == null ? null
-                                                                                                                : event.getOccurrence()
-                                                                                                                       .getId(),
+                                                                                  occurrenceId,
                                                                                   EventAttendeeResponse.ACCEPTED,
                                                                                   EventAttendeeResponse.TENTATIVE);
       Set<Long> eventAttendeeIds = eventAttendees.stream().map(EventAttendee::getIdentityId).collect(Collectors.toSet());

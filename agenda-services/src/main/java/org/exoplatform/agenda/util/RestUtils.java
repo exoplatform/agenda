@@ -22,6 +22,7 @@ import java.util.stream.Collectors;
 
 import javax.ws.rs.core.UriInfo;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.exception.AgendaException;
@@ -190,11 +191,19 @@ public class RestUtils {
                                                 AgendaEventConferenceService agendaEventConferenceService,
                                                 AgendaEventAttendeeService agendaEventAttendeeService,
                                                 long eventId,
+                                                boolean firstOccurrence,
                                                 long identityId,
                                                 ZonedDateTime occurrenceId,
                                                 ZoneId userTimeZone,
                                                 List<String> expandProperties) throws IllegalAccessException {
     Event event = agendaEventService.getEventById(eventId, userTimeZone, identityId);
+    if (event.getRecurrence() != null && firstOccurrence) {
+      List<Event> occurrences = Utils.getOccurrences(event, event.getStart().minusDays(1).toLocalDate(), null, 1);
+      if (CollectionUtils.isNotEmpty(occurrences)) {
+        event = occurrences.get(0);
+        occurrenceId = event.getOccurrence().getId();
+      }
+    }
     return getEventEntity(identityManager,
                           agendaCalendarService,
                           agendaEventService,
