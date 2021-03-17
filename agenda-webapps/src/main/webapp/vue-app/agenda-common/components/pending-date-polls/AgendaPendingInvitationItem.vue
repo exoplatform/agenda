@@ -4,6 +4,13 @@
     dense
     class="pending-invitation-item border-radius"
     @click="openEventDetails">
+    <v-list-item-icon class="my-auto mr-2">
+      <v-icon
+        v-if="isCreator"
+        :style="textStyle">
+        fa-crown
+      </v-icon>
+    </v-list-item-icon>
     <v-list-item-content class="pa-0">
       <v-list-item-title
         :style="textStyle"
@@ -59,11 +66,11 @@ export default {
     };
   },
   computed:{
+    isCreator() {
+      return this.invitedEvent && this.invitedEvent.creator && Number(this.invitedEvent.creator.id) === Number(this.currentUserId);
+    },
     isDatePoll() {
       return this.invitedEvent && this.invitedEvent.status === 'TENTATIVE';
-    },
-    isEvent() {
-      return this.invitedEvent && this.invitedEvent.status === 'CONFIRMED';
     },
     currentAttendee() {
       return this.invitedEvent.attendees && this.invitedEvent.attendees.find(attendee => attendee.identity.id === this.currentUserId);
@@ -87,14 +94,12 @@ export default {
       return this.isDatePoll && 'uiIconStatistics' || 'uiIconCalendarEmpty';
     },
     eventColor() {
-      if (this.invitedEvent) {
-        if (this.invitedEvent.color) {
-          return this.invitedEvent.color;
-        } else {
-          return this.invitedEvent.calendar.color;
-        }
+      const eventColor = this.invitedEvent && (this.invitedEvent.color || this.invitedEvent.calendar && this.invitedEvent.calendar.color) || '#2196F3';
+      if (this.invitedEvent && this.$agendaUtils.toDate(this.invitedEvent.end).getTime() > Date.now()) {
+        return eventColor;
+      } else {
+        return this.$agendaUtils.addOpacity(eventColor, 40);
       }
-      return '';
     },
     textStyle() {
       if (this.isDatePoll) {
