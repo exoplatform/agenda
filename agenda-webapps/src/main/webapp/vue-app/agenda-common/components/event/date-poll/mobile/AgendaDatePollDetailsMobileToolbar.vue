@@ -28,7 +28,7 @@
     </div>
     <div class="d-flex flex-grow-0">
       <v-menu
-        v-if="canEdit"
+        v-if="isAttendee"
         bottom
         left
         offset-y>
@@ -47,7 +47,7 @@
               {{ $t('agenda.details.header.menu.edit') }}
             </v-list-item-title>
           </v-list-item>
-          <v-list-item v-if="canEdit" @click="$root.$emit('change-vote')">
+          <v-list-item v-if="isAttendee" @click="$root.$emit('agenda-date-poll-change-vote')">
             <v-list-item-title>
               {{ $t('agenda.changeVote') }}
             </v-list-item-title>
@@ -89,6 +89,9 @@ export default {
     },
   }),
   computed: {
+    isAttendee() {
+      return this.event.acl && this.event.acl.attendee;
+    },
     canEdit() {
       return this.event.acl && this.event.acl.canEdit;
     },

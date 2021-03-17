@@ -71,14 +71,8 @@ export default {
     isCreator() {
       return this.event && this.event.creator && Number(this.event.creator.id) === this.currentUserId;
     },
-    canSelectDate() {
-      return this.isCreator && !this.isVoting;
-    },
     disableCreateButton() {
       return this.selectedDateIndex < 0 || this.creatingEvent;
-    },
-    displayHasVotedInfo() {
-      return this.hasVoted && !this.isVoting;
     },
   },
   created() {

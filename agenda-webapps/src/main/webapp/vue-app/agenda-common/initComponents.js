@@ -55,6 +55,7 @@ import AgendaEventDatePollItemMobile from './components/event/date-poll/mobile/A
 import AgendaDatePollParticipantsDrawerMobile from './components/event/date-poll/mobile/AgendaDatePollParticipantsDrawerMobile.vue';
 import AgendaEventDateOptionVoterMobile from './components/event/date-poll/mobile/AgendaEventDateOptionVoterMobile.vue';
 import AgendaDatePollActionButtons from './components/event/date-poll/AgendaDatePollActionButtons.vue';
+import AgendaEventDatePollDetailsDesktop from './components/event/date-poll/AgendaEventDatePollDetailsDesktop.vue';
 
 import AgendaUserSettingDrawer from './components/settings/AgendaUserSettingDrawer.vue';
 import AgendaReminderUserSettings from './components/settings/AgendaReminderUserSettings.vue';
@@ -131,6 +132,7 @@ const components = {
   'agenda-event-form-calendar-owner': AgendaEventFormCalendarOwner,
   'agenda-event-form-conference':AgendaEventFormConference,
   'agenda-event-date-poll-details':AgendaEventDatePollDetails,
+  'agenda-event-date-poll-details-desktop':AgendaEventDatePollDetailsDesktop,
   'agenda-event-date-poll-details-mobile':AgendaEventDatePollDetailsMobile,
   'agenda-event-date-option-period':AgendaEventDateOptionPeriod,
   'agenda-event-date-option-voter':AgendaEventDateOptionVoter,
@@ -170,6 +172,7 @@ import * as eventService from './js/EventService.js';
 import * as calendarService from './js/CalendarService.js';
 import * as settingsService from './js/SettingsService.js';
 import * as agendaUtils from './js/AgendaUtils.js';
+import * as datePollUtils from './js/DatePollUtils.js';
 import * as webConferencingService from './js/EventWebConferencingService.js';
 import * as remoteEventConnector from './js/RemoteEventConnector.js';
 import * as agendaWebSocket from './js/WebSocket.js';
@@ -194,6 +197,11 @@ if (!Vue.prototype.$settingsService) {
 if (!Vue.prototype.$agendaUtils) {
   window.Object.defineProperty(Vue.prototype, '$agendaUtils', {
     value: agendaUtils,
+  });
+}
+if (!Vue.prototype.$datePollUtils) {
+  window.Object.defineProperty(Vue.prototype, '$datePollUtils', {
+    value: datePollUtils,
   });
 }
 if (!Vue.prototype.$userTimeZoneId) {

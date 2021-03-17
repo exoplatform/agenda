@@ -4,79 +4,31 @@
     :loading="loading"
     flat
     class="event-details event-poll-details d-flex flex-column">
-    <div :class="displayHasVotedInfo && 'pb-2' || 'pb-6'" class="px-6 pt-8">
-      <div class="flex-grow-1 mx-8">
-        <v-row class="event-details-header d-flex align-center flex-nowrap text-center col-12">
-          <v-col class="font-italic subtitle-1 col-auto pl-4 py-0 mx-auto justify-center mb-10">
-            {{ event.description }}
-          </v-col>
-        </v-row>
-      </div>
-    </div>
-    <div class="d-flex flex-column px-6 pb-8">
-      <table
-        id="event-date-options-table"
-        description="Event date options table"
-        class="event-date-options-table mx-auto">
-        <tr>
-          <th id="participantsTitle" class="event-date-options-cell justify-center">
-            <v-card
-              class="d-flex fill-height border-box-sizing"
-              flat>
-              <v-card-title class="ma-auto text-no-wrap text-center">
-                {{ $t('agenda.participants') }}
-              </v-card-title>
-            </v-card>
-          </th>
-          <agenda-event-date-option-period
-            v-for="(dateOption, index) in dateOptions"
-            :key="index"
-            :date-option="dateOption"
-            :can-select="canSelectDate"
-            :selected="selectedDateOptionIndex === index"
-            @select="selectDate(index)" />
-        </tr>
-        <tr>
-          <th id="participantsCount" class="event-date-options-cell justify-center">
-            <v-card
-              class="d-flex fill-height border-box-sizing"
-              flat>
-              <v-card-text class="ma-auto text-center text-no-wrap">
-                {{ votedAttendeesCount }}
-                /
-                {{ attendeesCount }}
-                {{ $t('agenda.participants') }}
-              </v-card-text>
-            </v-card>
-          </th>
-          <th
-            v-for="(dateOption, index) in dateOptions"
-            :id="`dateOption_${index}`"
-            :key="index"
-            :class="selectedDateOptionIndex === index && 'event-date-option-cell-selected' || ''"
-            class="event-date-options-cell">
-            <v-card
-              class="d-flex fill-height text-center border-box-sizing"
-              flat>
-              <v-card-text class="ma-auto text-center">
-                {{ dateOption.voters && dateOption.voters.length || 0 }}
-              </v-card-text>
-            </v-card>
-          </th>
-        </tr>
-        <template v-if="voters">
-          <agenda-event-date-option-voter
-            v-for="(voter, index) in voters"
-            :key="index"
-            :voter="voter"
-            :date-options="dateOptions"
-            :selected-date-index="selectedDateOptionIndex"
-            :is-voting="isVoting"
-            :event-creator-id="event.creator.id"
-            @changed="enableVoteButton" />
-        </template>
-      </table>
-    </div>
+    <agenda-event-date-poll-details-mobile
+      v-if="isMobile"
+      :event="event"
+      :date-options="dateOptions"
+      :voters="voters"
+      :current-user-votes="currentUserVotes"
+      :attendees-count="attendeesCount"
+      :voted-attendees-count="votedAttendeesCount"
+      :can-select-date="canSelectDate"
+      :is-voting="isVoting"
+      :selected-date-option-index="selectedDateOptionIndex"
+      @selectDate="selectDate($event)"
+      @enableVoteButton="enableVoteButton()" />
+    <agenda-event-date-poll-details-desktop
+      v-else
+      :event="event"
+      :date-options="dateOptions"
+      :voters="voters"
+      :attendees-count="attendeesCount"
+      :voted-attendees-count="votedAttendeesCount"
+      :can-select-date="canSelectDate"
+      :is-voting="isVoting"
+      :selected-date-option-index="selectedDateOptionIndex"
+      @selectDate="selectDate($event)"
+      @enableVoteButton="enableVoteButton()" />
     <v-row
       v-if="isAttendee"
       no-gutters
@@ -107,10 +59,9 @@ export default {
   data () {
     return {
       voters: null,
-      loading: true,
+      loading: false,
       sendingVotes: false,
       selectedDateOptionIndex: -1,
-      currentUserAttendee: null,
       isVoting: false,
       hasVoted: false,
       disableVoteButton: true,
@@ -125,9 +76,6 @@ export default {
     canSelectDate() {
       return this.isCreator && !this.isVoting;
     },
-    displayHasVotedInfo() {
-      return this.hasVoted && !this.isVoting;
-    },
     dateOptions() {
       return this.event && this.event.dateOptions || [];
     },
@@ -137,22 +85,14 @@ export default {
     attendeesCount() {
       return this.attendees.filter(attendee => attendee.identity && attendee.identity.profile).length;
     },
-    votedAttendees() {
-      const votedAttendees = new Set();
-      this.dateOptions.forEach(dateOption => {
-        if (dateOption.voters) {
-          dateOption.voters.forEach(voter => {
-            votedAttendees.add(voter);
-          });
-        }
-      });
-      return Array.from(votedAttendees);
-    },
     votedAttendeesCount() {
-      return this.votedAttendees.length;
+      return this.voters && this.voters.filter(voter => voter.hasVoted).length || 0;
     },
     isAttendee() {
       return this.event && this.event.acl && this.event.acl.attendee;
+    },
+    currentUserAttendee() {
+      return this.attendees.find(attendee => attendee && attendee.identity && Number(attendee.identity.id) === this.currentUserId);
     },
     currentUserVotes() {
       return this.currentUserAttendee && this.currentUserAttendee.identity;
@@ -164,7 +104,6 @@ export default {
   watch: {
     event() {
       if (this.event) {
-        this.computeVoters();
         if (this.isVoting) {
           window.setTimeout(() => {
             this.sendingVotes = false;
@@ -174,6 +113,7 @@ export default {
             this.enableVoteButton();
           }, 200);
         }
+        this.voters = this.$datePollUtils.computeVoters(this.event);
       }
     },
     isVoting() {
@@ -184,7 +124,7 @@ export default {
       }
       this.enableVoteButton();
     },
-    currentUserAttendee() {
+    voters() {
       if (this.currentUserAttendee && this.currentUserAttendee.identity) {
         this.originalUserVotes = this.currentUserAttendee.identity.dateOptionVotes.slice();
         this.hasVoted = this.hasVoted || this.currentUserAttendee.response === 'TENTATIVE';
@@ -200,16 +140,31 @@ export default {
     },
   },
   created() {
-    this.computeVoters().finally(() => this.loading = false);
     this.$root.$on('agenda-date-poll-change-vote', ()=> {
       this.isVoting = true;
     });
     this.$root.$on('agenda-date-poll-voted', () => {
-      this.isVoting = false;
+      this.$emit('refresh-event');
     });
     this.$root.$on('agenda-date-poll-canceled', () => {
+      this.voters = this.$datePollUtils.computeVoters(this.event);
       this.isVoting = false;
     });
+
+    if (this.currentUserAttendee) {
+      this.voters = this.$datePollUtils.computeVoters(this.event);
+    } else {
+      this.loading = true;
+      return this.$identityService.getIdentityById(this.currentUserId)
+        .then(identity => {
+          this.event.attendees.push({
+            identity,
+            response: this.hasVoted && 'TENTATIVE' || 'NEEDS_ACTION',
+          });
+          this.voters = this.$datePollUtils.computeVoters(this.event);
+        })
+        .finally(() => this.loading = false);
+    }
   },
   methods: {
     preselectDateOption() {
@@ -228,56 +183,6 @@ export default {
           this.selectedDateOptionIndex = selectedDateOptionIndex;
         }
       }
-    },
-    computeVoters() {
-      if (this.dateOptions) {
-        this.dateOptions.sort((dateOption1, dateOption2) => dateOption1.start.localeCompare(dateOption2.start));
-      }
-      if (this.event.attendees) {
-        this.voters = [];
-        const attendees = [...this.attendees];
-        const isDirectAttendee = attendees.find(attendee => attendee && attendee.identity && Number(attendee.identity.id) === this.currentUserId);
-        if (this.isAttendee && !isDirectAttendee) {
-          return this.$identityService.getIdentityById(this.currentUserId)
-            .then(identity => {
-              attendees.push({identity});
-              this.computeVotersFromAttendees(attendees);
-            });
-        } else {
-          this.computeVotersFromAttendees(attendees);
-        }
-      } else {
-        this.voters = null;
-      }
-      return Promise.resolve(null);
-    },
-    computeVotersFromAttendees(attendees) {
-      const voters = [];
-      attendees.forEach(attendee => {
-        this.computeVoterFromIdentity(voters, attendee);
-      });
-      voters.sort((voter1, voter2) => 
-        Number(voter1.id) === this.currentUserId && -1
-        || Number(voter2.id) === this.currentUserId && 1
-        || voter1.space && 1
-        || voter2.space && -1
-        || voter1.fullName.localeCompare(voter2.fullName)
-      );
-      this.voters = voters;
-    },
-    computeVoterFromIdentity(voters, attendee) {
-      const voter = attendee.identity;
-      voter.fullName = voter.profile && voter.profile.fullname || voter.space && voter.space.displayName || '';
-      if (Number(voter.id) === this.currentUserId) {
-        voter.isCurrentUser = true;
-        this.currentUserAttendee = attendee;
-      }
-      voter.dateOptionVotes = [];
-      this.dateOptions.forEach(dateOption => {
-        const acceptedVote = dateOption && dateOption.voters && dateOption.voters.indexOf(Number(voter.id)) >= 0 || false;
-        voter.dateOptionVotes.push(acceptedVote);
-      });
-      voters.push(voter);
     },
     enableVoteButton() {
       this.disableVoteButton = this.hasVoted && this.originalUserVotes.join('') === this.currentUserVotes.dateOptionVotes.join('');
