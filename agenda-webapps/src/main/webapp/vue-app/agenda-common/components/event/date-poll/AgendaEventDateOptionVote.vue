@@ -1,11 +1,17 @@
 <template>
   <div class="event-date-poll-vote-choice">
     <v-checkbox
+      v-if="isCurrentUserVoting"
       v-model="vote"
       :disabled="disabled || !isCurrentUser"
       class="event-checkbox-vote ma-auto pa-0"
       hide-details
       @change="$emit('change', vote)" />
+    <template v-else>
+      <span v-if="!hasVoted"></span>
+      <i v-else-if="vote" class="uiIcon uiIconColorValidate"></i>
+      <i v-else class="uiIcon uiIconColorError"></i>
+    </template>
     <v-fab-transition>
       <v-btn
         v-show="conflictWithOtherEvent"
@@ -31,11 +37,11 @@ export default {
       type: Object,
       default: () => null
     },
-    vote: {
+    isVoting: {
       type: Boolean,
       default: false,
     },
-    disabled: {
+    vote: {
       type: Boolean,
       default: false,
     },
@@ -49,6 +55,12 @@ export default {
     isCurrentUser() {
       return this.voter && this.voter.isCurrentUser;
     },
+    isCurrentUserVoting() {
+      return this.isCurrentUser && this.isVoting;
+    },
+    hasVoted() {
+      return this.voter && this.voter.hasVoted;
+    },
     conflictWithOtherEvent() {
       return this.conflictEvents && this.conflictEvents.length;
     },
@@ -58,7 +70,7 @@ export default {
   },
   methods: {
     computeEventConflicts() {
-      if (this.voter && this.voter.isCurrentUser) {
+      if (this.isCurrentUser) {
         const start = this.$agendaUtils.toRFC3339(this.dateOption.start, this.dateOption.allDay, true);
         const end = this.$agendaUtils.toRFC3339(this.dateOption.end, this.dateOption.allDay, true).replace('00:00:00', '23:59:59');
 
