@@ -125,17 +125,8 @@ export default {
     canSelectDate() {
       return this.isCreator && !this.isVoting;
     },
-    disableCreateButton() {
-      return this.selectedDateOptionIndex < 0;
-    },
     displayHasVotedInfo() {
       return this.hasVoted && !this.isVoting;
-    },
-    owner() {
-      return this.event && this.event.calendar && this.event.calendar.owner;
-    },
-    ownerProfile() {
-      return this.owner && (this.owner.profile || this.owner.space);
     },
     dateOptions() {
       return this.event && this.event.dateOptions || [];
@@ -165,19 +156,6 @@ export default {
     },
     currentUserVotes() {
       return this.currentUserAttendee && this.currentUserAttendee.identity;
-    },
-    labels() {
-      return {
-        CancelRequest: this.$t('profile.CancelRequest'),
-        Confirm: this.$t('profile.Confirm'),
-        Connect: this.$t('profile.Connect'),
-        Ignore: this.$t('profile.Ignore'),
-        RemoveConnection: this.$t('profile.RemoveConnection'),
-        StatusTitle: this.$t('profile.StatusTitle'),
-        join: this.$t('space.join'),
-        leave: this.$t('space.leave'),
-        members: this.$t('space.members'),
-      };
     },
     isMobile() {
       return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';

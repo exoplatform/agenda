@@ -89,16 +89,6 @@ export default {
     },
   }),
   computed: {
-    calendarOwnerLink() {
-      if (this.owner) {
-        if (this.owner.providerId === 'organization') {
-          return `${eXo.env.portal.context}/${eXo.env.portal.portalName}/profile/${this.owner.remoteId}`;
-        } else if (this.owner.providerId === 'space') {
-          return `${eXo.env.portal.context}/g/:spaces:${this.owner.remoteId}/`;
-        }
-      }
-      return '';
-    },
     canEdit() {
       return this.event.acl && this.event.acl.canEdit;
     },
@@ -110,9 +100,6 @@ export default {
     },
     ownerAvatarUrl() {
       return this.ownerProfile && (this.ownerProfile.avatar || this.ownerProfile.avatarUrl);
-    },
-    ownerDisplayName() {
-      return this.ownerProfile && (this.ownerProfile.displayName || this.ownerProfile.fullname || this.ownerProfile.fullName);
     },
     creatorFullName() {
       return this.event && this.event.creator && this.event.creator.profile && this.event.creator.profile.fullname || '';
