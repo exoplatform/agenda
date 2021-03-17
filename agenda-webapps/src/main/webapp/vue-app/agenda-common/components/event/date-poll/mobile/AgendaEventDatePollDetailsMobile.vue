@@ -1,5 +1,5 @@
 <template>
-  <v-flex class="agenda-date-poll-details-mobile" :loading="loading">
+  <v-flex class="agenda-date-poll-details-mobile">
     <div class="ml-3 mt-5 mb-3 grey--text text-subtitle-2">{{ $t('agenda.votePreferredDates') }}</div>
     <agenda-date-poll-participants-drawer-mobile :event-title="event.summary" />
     <agenda-date-option-conflict-drawer />
@@ -35,9 +35,7 @@ export default {
   data () {
     return {
       voters: null,
-      loading: true,
       sendingVotes: false,
-      creatingEvent: false,
       selectedDateOptionIndex: -1,
       currentUserAttendee: null,
       isVoting: false,
@@ -117,7 +115,6 @@ export default {
     },
   },
   created() {
-    this.computeVoters().finally(() => this.loading = false);
     this.$root.$on('agenda-date-poll-change-vote', ()=> {
       this.isVoting = true;
     });
@@ -139,17 +136,17 @@ export default {
     preselectDateOption() {
       if (this.dateOptions && this.isCreator && this.hasVoted) {
         let selectedDateOption = null;
-        let selectedDateOptionIndex = null;
+        let dateOptionIndex = null;
         let maxVotes = 0;
         this.dateOptions.forEach((dateOption, index) => {
           if (dateOption.voters && dateOption.voters.length > maxVotes) {
             selectedDateOption = dateOption;
-            selectedDateOptionIndex = index;
+            dateOptionIndex = index;
             maxVotes = dateOption.voters.length;
           }
         });
         if (selectedDateOption) {
-          this.selectedDateOptionIndex = selectedDateOptionIndex;
+          this.selectedDateOptionIndex = dateOptionIndex;
         }
       }
     },
