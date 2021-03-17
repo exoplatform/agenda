@@ -3,7 +3,7 @@
     <agenda-create-event-button
       :current-space="currentSpace"
       :can-create-event="canCreateEvent"
-      class="my-auto" />
+      class="my-auto agenda-toolbar-left" />
     <date-picker
       v-model="periodStart"
       class="d-flex flex-grow-1 ma-auto agenda-header-date-picker" />
