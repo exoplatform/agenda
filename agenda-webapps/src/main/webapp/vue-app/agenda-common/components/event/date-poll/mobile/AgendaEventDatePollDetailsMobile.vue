@@ -1,101 +1,29 @@
 <template>
-  <v-card
-    v-if="event"
-    :loading="loading"
-    flat
-    class="event-details event-poll-details d-flex flex-column">
-    <div :class="displayHasVotedInfo && 'pb-2' || 'pb-6'" class="px-6 pt-8">
-      <div class="flex-grow-1 mx-8">
-        <v-row class="event-details-header d-flex align-center flex-nowrap text-center col-12">
-          <v-col class="font-italic subtitle-1 col-auto pl-4 py-0 mx-auto justify-center mb-10">
-            {{ event.description }}
-          </v-col>
-        </v-row>
-      </div>
-    </div>
-    <div class="d-flex flex-column px-6 pb-8">
-      <table
-        id="event-date-options-table"
-        description="Event date options table"
-        class="event-date-options-table mx-auto">
-        <tr>
-          <th id="participantsTitle" class="event-date-options-cell justify-center">
-            <v-card
-              class="d-flex fill-height border-box-sizing"
-              flat>
-              <v-card-title class="ma-auto text-no-wrap text-center">
-                {{ $t('agenda.participants') }}
-              </v-card-title>
-            </v-card>
-          </th>
-          <agenda-event-date-option-period
-            v-for="(dateOption, index) in dateOptions"
-            :key="index"
-            :date-option="dateOption"
-            :can-select="canSelectDate"
-            :selected="selectedDateOptionIndex === index"
-            @select="selectDate(index)" />
-        </tr>
-        <tr>
-          <th id="participantsCount" class="event-date-options-cell justify-center">
-            <v-card
-              class="d-flex fill-height border-box-sizing"
-              flat>
-              <v-card-text class="ma-auto text-center text-no-wrap">
-                {{ votedAttendeesCount }}
-                /
-                {{ attendeesCount }}
-                {{ $t('agenda.participants') }}
-              </v-card-text>
-            </v-card>
-          </th>
-          <th
-            v-for="(dateOption, index) in dateOptions"
-            :id="`dateOption_${index}`"
-            :key="index"
-            :class="selectedDateOptionIndex === index && 'event-date-option-cell-selected' || ''"
-            class="event-date-options-cell">
-            <v-card
-              class="d-flex fill-height text-center border-box-sizing"
-              flat>
-              <v-card-text class="ma-auto text-center">
-                {{ dateOption.voters && dateOption.voters.length || 0 }}
-              </v-card-text>
-            </v-card>
-          </th>
-        </tr>
-        <template v-if="voters">
-          <agenda-event-date-option-voter
-            v-for="(voter, index) in voters"
-            :key="index"
-            :voter="voter"
-            :date-options="dateOptions"
-            :selected-date-index="selectedDateOptionIndex"
-            :is-voting="isVoting"
-            :event-creator-id="event.creator.id"
-            @changed="enableVoteButton" />
-        </template>
-      </table>
-    </div>
-    <v-row
-      v-if="isAttendee"
-      no-gutters
-      class="mx-6 mb-6">
-      <v-col class="d-flex justify-end">
-        <agenda-date-poll-action-buttons
-          :is-voting="isVoting"
-          :sending-votes="sendingVotes"
-          :current-user-votes="currentUserVotes"
-          :date-options="dateOptions"
-          :event="event"
-          :disable-vote-button="disableVoteButton"
-          :voters="voters"
-          :selected-date-index="selectedDateOptionIndex" />
-      </v-col>
-    </v-row>
+  <v-flex class="agenda-date-poll-details-mobile">
+    <div class="ml-3 mt-5 mb-3 grey--text text-subtitle-2">{{ $t('agenda.votePreferredDates') }}</div>
+    <agenda-date-poll-participants-drawer-mobile :event-title="event.summary" />
     <agenda-date-option-conflict-drawer />
-  </v-card>
+    <agenda-event-date-poll-item-mobile
+      :date-options="dateOptions"
+      :current-user-votes="currentUserVotes"
+      :event="event"
+      :voters="voters"
+      :is-voting="isVoting"
+      @changed="enableVoteButton" />
+    <div class="float-right mt-5 mr-2">
+      <agenda-date-poll-action-buttons
+        :is-voting="isVoting"
+        :sending-votes="sendingVotes"
+        :current-user-votes="currentUserVotes"
+        :date-options="dateOptions"
+        :event="event"
+        :disable-vote-button="disableVoteButton"
+        :voters="voters"
+        :selected-date-index="selectedDateOptionIndex" />
+    </div>
+  </v-flex>
 </template>
+
 <script>
 export default {
   props: {
@@ -107,7 +35,6 @@ export default {
   data () {
     return {
       voters: null,
-      loading: true,
       sendingVotes: false,
       selectedDateOptionIndex: -1,
       currentUserAttendee: null,
@@ -119,15 +46,6 @@ export default {
     };
   },
   computed: {
-    isCreator() {
-      return this.event && this.event.creator && Number(this.event.creator.id) === this.currentUserId;
-    },
-    canSelectDate() {
-      return this.isCreator && !this.isVoting;
-    },
-    displayHasVotedInfo() {
-      return this.hasVoted && !this.isVoting;
-    },
     dateOptions() {
       return this.event && this.event.dateOptions || [];
     },
@@ -156,9 +74,6 @@ export default {
     },
     currentUserVotes() {
       return this.currentUserAttendee && this.currentUserAttendee.identity;
-    },
-    isMobile() {
-      return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
     },
   },
   watch: {
@@ -200,32 +115,38 @@ export default {
     },
   },
   created() {
-    this.computeVoters().finally(() => this.loading = false);
     this.$root.$on('agenda-date-poll-change-vote', ()=> {
       this.isVoting = true;
     });
+    this.$root.$on('agenda-select-date-option', (dateOption , selected)=> {
+      this.selectedDateOptionIndex = selected;
+    });
     this.$root.$on('agenda-date-poll-voted', () => {
       this.isVoting = false;
+      this.sendingVotes = false;
     });
     this.$root.$on('agenda-date-poll-canceled', () => {
       this.isVoting = false;
     });
   },
   methods: {
+    enableVoteButton() {
+      this.disableVoteButton = this.hasVoted && this.originalUserVotes.join('') === this.currentUserVotes.dateOptionVotes.join('');
+    },
     preselectDateOption() {
       if (this.dateOptions && this.isCreator && this.hasVoted) {
         let selectedDateOption = null;
-        let selectedDateOptionIndex = null;
+        let dateOptionIndex = null;
         let maxVotes = 0;
         this.dateOptions.forEach((dateOption, index) => {
           if (dateOption.voters && dateOption.voters.length > maxVotes) {
             selectedDateOption = dateOption;
-            selectedDateOptionIndex = index;
+            dateOptionIndex = index;
             maxVotes = dateOption.voters.length;
           }
         });
         if (selectedDateOption) {
-          this.selectedDateOptionIndex = selectedDateOptionIndex;
+          this.selectedDateOptionIndex = dateOptionIndex;
         }
       }
     },
@@ -256,12 +177,12 @@ export default {
       attendees.forEach(attendee => {
         this.computeVoterFromIdentity(voters, attendee);
       });
-      voters.sort((voter1, voter2) => 
+      voters.sort((voter1, voter2) =>
         Number(voter1.id) === this.currentUserId && -1
-        || Number(voter2.id) === this.currentUserId && 1
-        || voter1.space && 1
-        || voter2.space && -1
-        || voter1.fullName.localeCompare(voter2.fullName)
+          || Number(voter2.id) === this.currentUserId && 1
+          || voter1.space && 1
+          || voter2.space && -1
+          || voter1.fullName.localeCompare(voter2.fullName)
       );
       this.voters = voters;
     },
@@ -278,18 +199,6 @@ export default {
         voter.dateOptionVotes.push(acceptedVote);
       });
       voters.push(voter);
-    },
-    enableVoteButton() {
-      this.disableVoteButton = this.hasVoted && this.originalUserVotes.join('') === this.currentUserVotes.dateOptionVotes.join('');
-    },
-    selectDate(index) {
-      if (this.isCreator && !this.isVoting) {
-        if (this.selectedDateOptionIndex === index) {
-          this.selectedDateOptionIndex = -1;
-        } else {
-          this.selectedDateOptionIndex = index;
-        }
-      }
     },
   },
 };
