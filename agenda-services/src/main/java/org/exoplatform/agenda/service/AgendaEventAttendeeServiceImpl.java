@@ -347,6 +347,10 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       ctx.append(EVENT_MODIFICATION_TYPE, AgendaEventModificationType.DELETED.name());
     } else if (eventModifications.hasModification(AgendaEventModificationType.ADDED)) {
       ctx.append(EVENT_MODIFICATION_TYPE, AgendaEventModificationType.ADDED.name());
+    } else if (eventModifications.hasModification(AgendaEventModificationType.SWITCHED_EVENT_TO_DATE_POLL)) {
+      ctx.append(EVENT_MODIFICATION_TYPE, AgendaEventModificationType.SWITCHED_EVENT_TO_DATE_POLL.name());
+    } else if (eventModifications.hasModification(AgendaEventModificationType.SWITCHED_DATE_POLL_TO_EVENT)) {
+      ctx.append(EVENT_MODIFICATION_TYPE, AgendaEventModificationType.SWITCHED_DATE_POLL_TO_EVENT.name());
     } else if (eventModifications.hasModification(AgendaEventModificationType.START_DATE_UPDATED)
         || eventModifications.hasModification(AgendaEventModificationType.END_DATE_UPDATED)) {
       ctx.append(EVENT_MODIFICATION_TYPE, AgendaEventModificationType.DATES_UPDATED.name());
@@ -354,14 +358,16 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       ctx.append(EVENT_MODIFICATION_TYPE, AgendaEventModificationType.UPDATED.name());
     }
 
-    if (event.getStatus() == EventStatus.TENTATIVE) {
-      dispatch(ctx, AGENDA_DATE_POLL_NOTIFICATION_PLUGIN);
-    } else if (eventModifications.hasModification(AgendaEventModificationType.DELETED)) {
+    if (eventModifications.hasModification(AgendaEventModificationType.DELETED)) {
       dispatch(ctx, AGENDA_EVENT_CANCELLED_NOTIFICATION_PLUGIN);
-    } else if (eventModifications.hasModification(AgendaEventModificationType.ADDED)) {
-      dispatch(ctx, AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN);
     } else if (eventModifications.hasModification(AgendaEventModificationType.UPDATED)) {
       dispatch(ctx, AGENDA_EVENT_MODIFIED_NOTIFICATION_PLUGIN);
+    } else if (eventModifications.hasModification(AgendaEventModificationType.ADDED)
+        && event.getStatus() == EventStatus.TENTATIVE) {
+      dispatch(ctx, AGENDA_DATE_POLL_NOTIFICATION_PLUGIN);
+    } else if (eventModifications.hasModification(AgendaEventModificationType.ADDED)
+        && event.getStatus() == EventStatus.CONFIRMED) {
+      dispatch(ctx, AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN);
     }
   }
 

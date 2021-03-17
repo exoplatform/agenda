@@ -47,6 +47,8 @@ public class AgendaReplyOnSaveListener extends Listener<AgendaEventModification,
           // Check if dates modification is made
           if (eventModification.hasModification(AgendaEventModificationType.START_DATE_UPDATED)
               || eventModification.hasModification(AgendaEventModificationType.END_DATE_UPDATED)
+              || eventModification.hasModification(AgendaEventModificationType.SWITCHED_DATE_POLL_TO_EVENT)
+              || eventModification.hasModification(AgendaEventModificationType.SWITCHED_EVENT_TO_DATE_POLL)
               || eventModification.hasModification(AgendaEventModificationType.ADDED)) {
             // Automatically change creator response to accepted
             // and for others to NEEDS_ACTION

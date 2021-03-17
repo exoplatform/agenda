@@ -25,6 +25,7 @@ import org.apache.commons.lang.ObjectUtils;
 import org.apache.commons.lang.StringUtils;
 
 import org.exoplatform.agenda.constant.AgendaEventModificationType;
+import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.services.listener.ListenerService;
@@ -581,6 +582,11 @@ public class Utils {
     }
     if (newEvent.getStatus() != oldEvent.getStatus()) {
       eventModification.addModificationType(AgendaEventModificationType.STATUS_UPDATED);
+      if (EventStatus.CONFIRMED.equals(newEvent.getStatus()) && EventStatus.TENTATIVE.equals(oldEvent.getStatus())) {
+        eventModification.addModificationType(AgendaEventModificationType.SWITCHED_DATE_POLL_TO_EVENT);
+      } else if (EventStatus.TENTATIVE.equals(newEvent.getStatus()) && EventStatus.CONFIRMED.equals(oldEvent.getStatus())) {
+        eventModification.addModificationType(AgendaEventModificationType.SWITCHED_EVENT_TO_DATE_POLL);
+      }
     }
     if (!newEvent.getTimeZoneId().equals(oldEvent.getTimeZoneId())) {
       eventModification.addModificationType(AgendaEventModificationType.TIMEZONE_UPDATED);
