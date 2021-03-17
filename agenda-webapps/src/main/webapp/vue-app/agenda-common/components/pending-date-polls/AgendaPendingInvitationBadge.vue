@@ -3,7 +3,7 @@
     :value="pendingInvitationsCount"
     :content="pendingInvitationsCount"
     offset-y="10"
-    class="iconBadge d-none d-md-inline"
+    class="iconBadge"
     color="#F8B121">
     <v-btn
       :title="$t('agenda.pendingInvitations')"
