@@ -1030,7 +1030,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     reminderService.saveEventReminders(updatedEvent, allReminders);
 
     EventAttendeeList eventAttendeeList = attendeeService.getEventAttendees(eventId);
-    for (EventAttendee eventAttendee : eventAttendeeList.getEventAttendees()) {
+    List<EventAttendee> eventAttendees = eventAttendeeList.getEventAttendees();
+    for (EventAttendee eventAttendee : eventAttendees) {
       if (eventAttendee.getIdentityId() != userIdentityId) {
         attendeeService.sendEventResponse(eventId, eventAttendee.getIdentityId(), EventAttendeeResponse.NEEDS_ACTION);
       }
@@ -1039,13 +1040,15 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     datePollService.selectEventDateOption(dateOptionId);
 
     Set<AgendaEventModificationType> modificationTypes = new HashSet<>();
-    modificationTypes.add(AgendaEventModificationType.ADDED);
+    modificationTypes.add(AgendaEventModificationType.UPDATED);
     modificationTypes.add(AgendaEventModificationType.DATE_OPTION_SELECTED);
-    AgendaEventModification eventModification = new AgendaEventModification(eventId,
-                                                                            event.getCalendarId(),
-                                                                            userIdentityId,
-                                                                            modificationTypes);
-    Utils.broadcastEvent(listenerService, Utils.POST_CREATE_AGENDA_EVENT_EVENT, eventModification, null);
+    modificationTypes.add(AgendaEventModificationType.SWITCHED_DATE_POLL_TO_EVENT);
+    AgendaEventModification eventModifications = new AgendaEventModification(eventId,
+                                                                             event.getCalendarId(),
+                                                                             userIdentityId,
+                                                                             modificationTypes);
+    attendeeService.sendInvitations(event, eventAttendees, eventModifications);
+    Utils.broadcastEvent(listenerService, Utils.POST_UPDATE_AGENDA_EVENT_EVENT, eventModifications, null);
   }
 
   @Override

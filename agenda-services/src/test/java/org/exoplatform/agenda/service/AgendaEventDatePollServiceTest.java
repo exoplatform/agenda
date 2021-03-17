@@ -701,12 +701,13 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                                              createdDateOption1.getId(),
                                              Long.parseLong(testuser1Identity.getId()));
 
-    AgendaEventModification eventModifications = eventCreationReference.get();
+    AgendaEventModification eventModifications = eventUpdateReference.get();
     assertNotNull(eventModifications);
-    assertTrue(eventModifications.hasModification(AgendaEventModificationType.ADDED));
+    assertTrue(eventModifications.hasModification(AgendaEventModificationType.UPDATED));
     assertTrue(eventModifications.hasModification(AgendaEventModificationType.DATE_OPTION_SELECTED));
+    assertTrue(eventModifications.hasModification(AgendaEventModificationType.SWITCHED_DATE_POLL_TO_EVENT));
     assertEquals("Modification types are more than expected : " + eventModifications.getModificationTypes(),
-                 2,
+                 3,
                  eventModifications.getModificationTypes().size());
 
     Event updatedEvent = agendaEventService.getEventById(eventId);
