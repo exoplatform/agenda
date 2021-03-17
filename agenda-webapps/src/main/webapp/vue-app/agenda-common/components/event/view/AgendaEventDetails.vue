@@ -4,13 +4,17 @@
     flat
     class="event-details d-flex flex-column">
     <agenda-event-details-mobile-toolbar
-      v-if="isMobile"
+      v-if="isMobile && !isDatePoll"
       :event="event"
       :connected-connector="connectedConnector"
-      :is-attendee="isAttendee"
       @close="$emit('close')"
       @edit="$root.$emit('agenda-event-form', event)"
       @delete="deleteConfirmDialog" />
+    <agenda-date-poll-details-mobile-toolbar
+      v-else-if="isMobile && isDatePoll"
+      :event="event"
+      @close="$emit('close')"
+      @edit="$root.$emit('agenda-event-form', event)" />
     <agenda-event-details-toolbar
       v-else
       :event="event"
@@ -24,13 +28,14 @@
 
     <v-divider class="flex-grow-0" />
     <agenda-event-date-poll-details
-      v-if="isDatePoll"
-      :settings="settings"
+      v-if="!isMobile && isDatePoll"
       :event="event"
-      :connectors="connectors"
-      :conference-provider="conferenceProvider"
       @refresh-event="$emit('refresh-event')" />
-    <template v-else>
+    <agenda-event-date-poll-details-mobile
+      v-if="isMobile && isDatePoll"
+      :event="event"
+      @refresh-event="$emit('refresh-event')" />
+    <template v-else-if="!isDatePoll">
       <agenda-event-details-body
         :settings="settings"
         :event="event"
