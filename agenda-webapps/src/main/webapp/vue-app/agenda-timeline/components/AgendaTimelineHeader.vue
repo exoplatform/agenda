@@ -4,7 +4,10 @@
       <a :href="agendaBaseLink" class="body-1 text-uppercase text-sub-title">
         {{ $t('agenda') }}
       </a>
-      <agenda-pending-invitation-badge :current-space="currentSpace" />
+      <agenda-pending-invitation-badge
+        :current-space="currentSpace"
+        :offset-y="18"
+        :offset-x="12" />
     </div>
     <v-spacer />
     <div
