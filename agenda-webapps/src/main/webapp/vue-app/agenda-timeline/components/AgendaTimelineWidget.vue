@@ -24,8 +24,7 @@
       :current-space="currentSpace"
       :current-calendar="currentCalendar"
       :settings="settings"
-      :conference-provider="conferenceProvider"
-      :display-more-details="false" />
+      :conference-provider="conferenceProvider" />
     <agenda-event-save />
     <agenda-connector
       :settings="settings"
