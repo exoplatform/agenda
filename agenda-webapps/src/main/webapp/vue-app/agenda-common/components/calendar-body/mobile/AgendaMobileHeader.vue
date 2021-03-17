@@ -3,6 +3,8 @@
     <agenda-create-event-button
       :current-space="currentSpace"
       :can-create-event="canCreateEvent"
+      :offset-y="18"
+      :offset-x="12"
       class="my-auto agenda-toolbar-left" />
     <date-picker
       v-model="periodStart"

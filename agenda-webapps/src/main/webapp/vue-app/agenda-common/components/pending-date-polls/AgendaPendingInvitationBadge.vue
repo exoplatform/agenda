@@ -2,18 +2,16 @@
   <v-badge
     :value="pendingInvitationsCount"
     :content="pendingInvitationsCount"
-    offset-y="10"
-    class="iconBadge"
+    :offset-x="offsetX"
+    :offset-y="offsetY"
+    overlap
+    bordered
     color="#F8B121">
     <v-btn
       :title="$t('agenda.pendingInvitations')"
-      class="ml-4 mr-2"
-      color="white"
       icon
-      depressed
-      x-small
       @click="$root.$emit('agenda-pending-date-polls-drawer-open')">
-      <i class="uiIcon darkGreyIcon uiIconClock mb-1"></i>
+      <v-icon>fa-history</v-icon>
     </v-btn>
   </v-badge>
 </template>
@@ -24,6 +22,14 @@ export default {
     currentSpace: {
       type: Object,
       default: () => null,
+    },
+    offsetX: {
+      type: Object,
+      default: () => 18,
+    },
+    offsetY: {
+      type: Number,
+      default: () => 22,
     },
   },
   data: () => ({
