@@ -15,6 +15,7 @@
           ref="eventForm"
           :event="event"
           :current-space="currentSpace"
+          :conference-provider="conferenceProvider"
           class="fill-height event-form"
           @close="close"
           @saved="saved"
@@ -155,18 +156,22 @@ export default {
     },
   },
   created() {
-    const parentElementSelector = '#left-topNavigation-container .VuetifyApp .v-application';
-    const $parentDialog = $(parentElementSelector);
-    if ($parentDialog.length) {
-      this.parentDialogSelector = parentElementSelector;
+    if (this.isMobile) {
+      this.parentDialogSelector = '#vuetify-apps';
     } else {
-      if ($('#left-topNavigation-container').length) {
-        $('#left-topNavigation-container').html(`
-            <div class="VuetifyApp">
-              <div data-app="true" class="v-application v-application--is-ltr transparent theme--light">
-              </div>
-            </div>`);
+      const parentElementSelector = '#left-topNavigation-container .VuetifyApp .v-application';
+      const $parentDialog = $(parentElementSelector);
+      if ($parentDialog.length) {
         this.parentDialogSelector = parentElementSelector;
+      } else {
+        if ($('#left-topNavigation-container').length) {
+          $('#left-topNavigation-container').html(`
+              <div class="VuetifyApp">
+                <div data-app="true" class="v-application v-application--is-ltr transparent theme--light">
+                </div>
+              </div>`);
+          this.parentDialogSelector = parentElementSelector;
+        }
       }
     }
 
