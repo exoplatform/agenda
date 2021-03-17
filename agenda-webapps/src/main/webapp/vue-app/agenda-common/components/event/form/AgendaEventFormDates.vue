@@ -79,7 +79,7 @@
             class="text-truncate my-auto ml-2 caption font-weight-bold d-flex">
             <span class="text-truncate mr-auto">{{ eventObj.event.summary }}</span>
             <v-icon
-              v-if="eventObj.event.dateOption && allowMultipleDates"
+              v-if="eventObj.event.dateOption"
               color="white"
               class="my-auto py-0 pr-0"
               size="18"
@@ -144,7 +144,6 @@ export default {
   data: () => ({
     periodTitle: '',
     loading: false,
-    allowMultipleDates: false,
     lang: eXo.env.portal.language,
     dragEvent: null,
     dragStart: null,
@@ -237,9 +236,6 @@ export default {
     this.$agendaUtils.initEventForm(this.event, true);
 
     this.$root.$emit('agenda-connectors-init');
-
-    this.$featureService.isFeatureEnabled('agenda.datePoll')
-      .then(enabled => this.allowMultipleDates = enabled);
   },
   mounted() {
     if (this.$refs.calendar) {
@@ -309,11 +305,7 @@ export default {
         endDate,
       };
       this.newStartedEvent = dateOption;
-      if (this.allowMultipleDates) {
-        this.event.dateOptions.push(dateOption);
-      } else {
-        this.event.dateOptions = [dateOption];
-      }
+      this.event.dateOptions.push(dateOption);
       this.$emit('date-option-added');
 
       //refresh after assigning a startDate for the new event for the first time only
