@@ -43,11 +43,18 @@ import AgendaEventFormCalendarOwner from './components/event/form/AgendaEventFor
 import AgendaEventFormConference from './components/event/form/AgendaEventFormConference.vue';
 
 import AgendaEventDatePollDetails from './components/event/date-poll/AgendaEventDatePollDetails.vue';
+import AgendaEventDatePollDetailsMobile from './components/event/date-poll/mobile/AgendaEventDatePollDetailsMobile.vue';
 import AgendaEventDateOptionPeriod from './components/event/date-poll/AgendaEventDateOptionPeriod.vue';
 import AgendaEventDateOptionVoter from './components/event/date-poll/AgendaEventDateOptionVoter.vue';
 import AgendaEventDateOptionVote from './components/event/date-poll/AgendaEventDateOptionVote.vue';
 import AgendaDateOptionConflictDrawer from './components/event/date-poll/AgendaDateOptionConflictDrawer.vue';
 import AgendaDateOptionConflictItem from './components/event/date-poll/AgendaDateOptionConflictItem.vue';
+import AgendaEventDateOptionPeriodMobile from './components/event/date-poll/mobile/AgendaEventDateOptionPeriodMobile.vue';
+import AgendaEventDateOptionVoteMobile from './components/event/date-poll/mobile/AgendaEventDateOptionVoteMobile.vue';
+import AgendaEventDatePollItemMobile from './components/event/date-poll/mobile/AgendaEventDatePollItemMobile.vue';
+import AgendaDatePollParticipantsDrawerMobile from './components/event/date-poll/mobile/AgendaDatePollParticipantsDrawerMobile.vue';
+import AgendaEventDateOptionVoterMobile from './components/event/date-poll/mobile/AgendaEventDateOptionVoterMobile.vue';
+import AgendaDatePollActionButtons from './components/event/date-poll/AgendaDatePollActionButtons.vue';
 
 import AgendaUserSettingDrawer from './components/settings/AgendaUserSettingDrawer.vue';
 import AgendaReminderUserSettings from './components/settings/AgendaReminderUserSettings.vue';
@@ -57,6 +64,7 @@ import AgendaEventDetails from './components/event/view/AgendaEventDetails.vue';
 import AgendaEventsDetailsBody from './components/event/view/AgendaEventsDetailsBody.vue';
 import AgendaEventDetailsToolbar from './components/event/view/AgendaEventDetailsToolbar.vue';
 import AgendaEventDetailsMobileToolbar from './components/event/view/mobile/AgendaEventDetailsMobileToolbar.vue';
+import AgendaDatePollDetailsMobileToolbar from './components/event/date-poll/mobile/AgendaDatePollDetailsMobileToolbar.vue';
 import AgendaEventRecurrence from './components/event/view/AgendaEventRecurrence.vue';
 import AgendaEventAttendeeButtons from './components/event/view/AgendaEventAttendeeButtons.vue';
 import AgendaEventAttendees from './components/event/view/AgendaEventAttendees.vue';
@@ -109,6 +117,7 @@ const components = {
   'agenda-event-details-body': AgendaEventsDetailsBody,
   'agenda-event-details-toolbar': AgendaEventDetailsToolbar,
   'agenda-event-details-mobile-toolbar': AgendaEventDetailsMobileToolbar,
+  'agenda-date-poll-details-mobile-toolbar':AgendaDatePollDetailsMobileToolbar,
   'agenda-event-recurrence': AgendaEventRecurrence,
   'agenda-event-attendees': AgendaEventAttendees,
   'agenda-event-attendee-item': AgendaEventAttendeeItem,
@@ -122,9 +131,16 @@ const components = {
   'agenda-event-form-calendar-owner': AgendaEventFormCalendarOwner,
   'agenda-event-form-conference':AgendaEventFormConference,
   'agenda-event-date-poll-details':AgendaEventDatePollDetails,
+  'agenda-event-date-poll-details-mobile':AgendaEventDatePollDetailsMobile,
   'agenda-event-date-option-period':AgendaEventDateOptionPeriod,
   'agenda-event-date-option-voter':AgendaEventDateOptionVoter,
   'agenda-event-date-option-vote':AgendaEventDateOptionVote,
+  'agenda-event-date-poll-item-mobile': AgendaEventDatePollItemMobile,
+  'agenda-event-date-option-vote-mobile': AgendaEventDateOptionVoteMobile,
+  'agenda-event-date-option-period-mobile':AgendaEventDateOptionPeriodMobile,
+  'agenda-event-date-option-voter-mobile':AgendaEventDateOptionVoterMobile,
+  'agenda-date-poll-action-buttons':AgendaDatePollActionButtons,
+  'agenda-date-poll-participants-drawer-mobile':AgendaDatePollParticipantsDrawerMobile,
   'agenda-recurrent-event-save-confirm-dialog': AgendaRecurrentEventSaveConfirmDialog,
   'agenda-recurrent-event-response-confirm-dialog': AgendaRecurrentEventResponseConfirmDialog,
   'agenda-recurrent-event-reminders-confirm-dialog': AgendaRecurrentEventReminderConfirmDialog,

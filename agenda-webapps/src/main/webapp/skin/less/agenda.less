@@ -594,6 +594,24 @@
   }
 }
 
+.agenda-date-poll-details-mobile {
+  .date-poll-voters-avatar {
+    position: relative;
+    flex-basis: auto;
+
+    .notDisplayedIdentitiesOverlay {
+      right: 5px;
+      .notDisplayedIdentities {
+        line-height: 26px;
+      }
+    }
+
+    a {
+      padding-left: 5px;
+    }
+  }
+}
+
 .agenda-mobile-header {
   background-color: #FFFFFF;
 
@@ -602,6 +620,7 @@
       margin: auto;
       padding-right: 0 !important;
       padding-left: 0 !important;
+      max-width: 70% !important;
       &:after {
         font-family: "PLF-FONT-ICONS";
         content: "\e75a";
@@ -617,7 +636,7 @@
 }
 
 .agenda-mobile-header {
-  z-index: 1000;
+  z-index: 999;
   position: relative;
 }
 .agenda-timeline {
