@@ -40,7 +40,7 @@
     </th>
     <td
       v-for="(dateOptionVote, index) in voter.dateOptionVotes"
-      :key="index"
+      :key="`${index}_${dateOptionVote}`"
       :class="`${selectedDateIndex === index && 'event-date-option-cell-selected' || ''} ${!voter.profile && 'disabled' || ''}`"
       class="event-date-options-voter-cell">
       <v-card
@@ -52,7 +52,7 @@
             :voter="voter"
             :date-option="dateOptions[index]"
             :vote="dateOptionVote"
-            :disabled="!isVoting"
+            :is-voting="isVoting"
             class="flex-grow-0 mx-auto"
             @change="changeVote(index, $event)" />
         </v-card-text>
