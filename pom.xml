@@ -9,7 +9,7 @@
   </parent>
   <groupId>org.exoplatform.agenda</groupId>
   <artifactId>agenda-parent</artifactId>
-  <version>1.2.x-SNAPSHOT</version>
+  <version>1.2.x-ux-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>eXo Agenda - Parent POM</name>
   <description>eXo Agenda Addon</description>
@@ -27,9 +27,9 @@
   </scm>
   <properties>
     <!-- 3rd party libraries versions -->
-    <org.exoplatform.social.version>6.3.x-SNAPSHOT</org.exoplatform.social.version>
-    <org.exoplatform.platform-ui.version>6.3.x-SNAPSHOT</org.exoplatform.platform-ui.version>
-    <addon.exo.analytics.version>1.2.x-SNAPSHOT</addon.exo.analytics.version>
+    <org.exoplatform.social.version>6.3.x-ux-SNAPSHOT</org.exoplatform.social.version>
+    <org.exoplatform.platform-ui.version>6.3.x-ux-SNAPSHOT</org.exoplatform.platform-ui.version>
+    <addon.exo.analytics.version>1.2.x-ux-SNAPSHOT</addon.exo.analytics.version>
 
     <!-- ical4j dependencies -->
     <org.mnode.ical4j.version>3.0.21</org.mnode.ical4j.version>
