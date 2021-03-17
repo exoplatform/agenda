@@ -1,19 +1,22 @@
 <template>
   <v-list>
     <v-list-item-group
-      v-model="selected"
-      color="primary">
+      v-model="selectedDateOptionIndex"
+      color="primary"
+      @change="$emit('selectDate', selectedDateOptionIndex)">
       <v-list-item
         v-for="(dateOption, index) in dateOptions"
         :key="index"
+        :disabled="!canSelectDate && !isVoting"
         @click="$root.$emit('agenda-select-date-option', dateOption, index)">
         <template v-slot:default="{ active }">
           <agenda-event-date-option-vote
+            v-if="currentUserVotes"
             class="my-auto"
             :date-option="dateOption"
             :voter="currentUserVotes"
             :vote="currentUserVotes.dateOptionVotes[index]"
-            :disabled="!isVoting"
+            :is-voting="isVoting"
             @change="changeVote(index, $event)" />
           <agenda-event-date-option-period-mobile
             :date-option="dateOption"
@@ -74,28 +77,24 @@ export default {
       type: Object,
       default: () => null
     },
+    canSelectDate: {
+      type: Boolean,
+      default: false,
+    },
+    selectedDateOptionIndex: {
+      type: Number,
+      default: () => -1
+    },
     isVoting: {
       type: Boolean,
       default: false
-    },
-  },
-  data:() => ({
-    selected: 0,
-    currentUserId: Number(eXo.env.portal.userIdentityId),
-  }),
-  computed: {
-    isCreator() {
-      return this.event && this.event.creator && Number(this.event.creator.id) === this.currentUserId;
-    },
-    canSelectDate() {
-      return this.isCreator && !this.isVoting;
     },
   },
   methods: {
     changeVote(index, vote) {
       this.currentUserVotes.dateOptionVotes[index] = vote;
       this.$forceUpdate();
-      this.$emit('changed');
+      this.$emit('votes-changed');
     },
   }
 };

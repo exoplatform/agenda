@@ -28,11 +28,7 @@
 
     <v-divider class="flex-grow-0" />
     <agenda-event-date-poll-details
-      v-if="!isMobile && isDatePoll"
-      :event="event"
-      @refresh-event="$emit('refresh-event')" />
-    <agenda-event-date-poll-details-mobile
-      v-if="isMobile && isDatePoll"
+      v-if="isDatePoll"
       :event="event"
       @refresh-event="$emit('refresh-event')" />
     <template v-else-if="!isDatePoll">

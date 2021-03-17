@@ -485,7 +485,6 @@
   }
 
   .event-date-options-table {
-    border-top: 1px solid @borderColor !important;
     border-right: 1px solid @borderColor !important;
     border-bottom: 1px solid @borderColor !important;
     border-left: 0 !important;
@@ -493,6 +492,12 @@
     white-space: nowrap;
     display: block;
 
+    caption {
+      border-bottom: 1px solid @borderColor !important;
+      border-right: 2px solid #fff;
+      box-sizing: border-box;
+      margin-right: -2px;
+    }
     th, td {
       -webkit-user-select: none;
          -moz-user-select: none;
