@@ -2,18 +2,15 @@
   <v-badge
     :value="pendingInvitationsCount"
     :content="pendingInvitationsCount"
-    offset-y="10"
-    class="iconBadge"
+    overlap
+    offset-y="22"
+    offset-x="18"
     color="#F8B121">
     <v-btn
       :title="$t('agenda.pendingInvitations')"
-      class="ml-4 mr-2"
-      color="white"
       icon
-      depressed
-      x-small
       @click="$root.$emit('agenda-pending-date-polls-drawer-open')">
-      <i class="uiIcon darkGreyIcon uiIconClock mb-1"></i>
+      <v-icon>fa-history</v-icon>
     </v-btn>
   </v-badge>
 </template>
