@@ -66,10 +66,6 @@ export default {
       type: Array,
       default: () => null
     },
-    voters: {
-      type: Array,
-      default: () => null
-    },
     event: {
       type: Object,
       default: () => null

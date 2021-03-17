@@ -74,8 +74,7 @@
               :selected-date-index="selectedDateOptionIndex"
               :is-voting="isVoting"
               :event-creator-id="event.creator.id"
-              @changed="enableVoteButton"
-              @change-vote="isVoting = true" />
+              @changed="enableVoteButton" />
           </template>
         </table>
       </div>
@@ -226,6 +225,15 @@ export default {
   },
   created() {
     this.computeVoters().finally(() => this.loading = false);
+    this.$root.$on('change-vote', ()=> {
+      this.isVoting = true;
+    });
+    this.$root.$on('agenda-date-poll-voted', () => {
+      this.isVoting = false;
+    });
+    this.$root.$on('agenda-date-poll-canceled', () => {
+      this.isVoting = false;
+    });
   },
   methods: {
     preselectDateOption() {

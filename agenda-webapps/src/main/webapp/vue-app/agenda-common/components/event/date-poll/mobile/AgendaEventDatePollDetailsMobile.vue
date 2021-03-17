@@ -128,6 +128,9 @@ export default {
       this.isVoting = false;
       this.sendingVotes = false;
     });
+    this.$root.$on('agenda-date-poll-canceled', () => {
+      this.isVoting = false;
+    });
   },
   methods: {
     enableVoteButton() {

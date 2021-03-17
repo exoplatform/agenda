@@ -4,7 +4,7 @@
       <v-btn
         :disabled="sendingVotes"
         class="btn ml-auto mr-2"
-        @click="isVoting = false">
+        @click="$root.$emit('agenda-date-poll-canceled')">
         {{ $t('agenda.button.cancel') }}
       </v-btn>
       <v-btn
