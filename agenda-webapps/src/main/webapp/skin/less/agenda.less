@@ -758,11 +758,21 @@
 }
 
 #AgendaContainer {
-  &, .NormalContainerBlock, .VIEW-CONTAINER, .UIIntermediateContainer, .UIRowContainer, .UIRowContainer > div, .PORTLET-FRAGMENT, .VuetifyApp, .v-application, .v-application--wrap, .v-main, .agenda-timeline {
+  &, .NormalContainerBlock, .VIEW-CONTAINER, .UIIntermediateContainer, .UIRowContainer, .UIRowContainer > div, .PORTLET-FRAGMENT, .VuetifyApp, .v-application, .v-application--wrap, .v-main {
     display: flex;
     min-height: 100%;
     flex: 1 1 auto;
     max-width: 100%;
+  }
+  .agenda-timeline {
+    display: flex;
+    min-height: ~"calc(100% - 53px)";
+    flex: 1 1 auto;
+    max-width: 100%;
+
+    .agenda-empty-timeline {
+      padding-bottom: 20px;
+    }
   }
 }
 
