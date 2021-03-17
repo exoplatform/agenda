@@ -75,15 +75,26 @@
           name="locationEvent"
           class="ignore-vuetify-classes my-0 location-event-input">
         <label class="font-weight-bold my-2">
-          {{ $t('agenda.description') }}
+          {{ $t('agenda.conference') }}
         </label>
-        <extended-textarea
-          id="eventDescription"
-          ref="eventDescription"
-          v-model="event.description"
-          :placeholder="$t('agenda.descriptionPlaceholder')"
-          :max-length="eventDescriptionTextLength"
-          class="border-box-sizing py-0 my-0" />
+        <div class="d-flex flex-row">
+          <agenda-event-form-conference
+            v-if="isConferenceEnabled"
+            :event="event"
+            :settings="settings"
+            :current-space="currentSpace"
+            :conference-provider="conferenceProvider"
+            class="mr-3" />
+          <input
+            v-else
+            id="eventConference"
+            ref="eventConference"
+            v-model="conferenceURL"
+            :placeholder="$t('agenda.webConferenceURL')"
+            type="text"
+            name="locationEvent"
+            class="ignore-vuetify-classes my-3 location-event-input">
+        </div>
         <label class="font-weight-bold my-2">
           {{ $t('agenda.participants') }}
         </label>
@@ -128,6 +139,10 @@ export default {
       type: Object,
       default: () => null,
     },
+    conferenceProvider: {
+      type: Object,
+      default: () => null
+    },
   },
   data: () => ({
     saving: false,
@@ -157,6 +172,9 @@ export default {
     },
     disableSaveButton() {
       return this.saving || !this.eventTitleValid || !this.eventOwnerValid || !this.eventDescriptionValid;
+    },
+    isConferenceEnabled() {
+      return this.conferenceProvider && this.conferenceProvider.getType();
     },
   },
   created() {
