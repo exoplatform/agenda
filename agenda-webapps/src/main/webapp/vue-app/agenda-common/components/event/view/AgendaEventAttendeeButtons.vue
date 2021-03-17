@@ -1,5 +1,5 @@
 <template>
-  <div class="d-flex flex-column">
+  <div v-if="!isPastEvent" class="d-flex flex-column">
     <div class="title d-md-none mt-2 mb-3 mx-4">
       {{ $t('agenda.doYouParticipate') }}
     </div>
@@ -54,6 +54,17 @@ export default {
     savingResponse: false,
   }),
   computed: {
+    isPastEvent() {
+      if (!this.event) {
+        return true;
+      } else if (this.event.parent) {
+        const endDate = this.$agendaUtils.toDate(this.event.parent.end);
+        return endDate.getTime() < Date.now();
+      } else {
+        const endDate = this.$agendaUtils.toDate(this.event.end);
+        return endDate.getTime() < Date.now();
+      }
+    },
     userAttendee() {
       if (this.event && this.event.attendees && this.event.attendees.length) {
         return this.event.attendees.find(attendee => attendee.identity && Number(attendee.identity.id) === Number(eXo.env.portal.userIdentityId));
