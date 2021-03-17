@@ -99,23 +99,15 @@
     <template slot="footer">
       <div class="d-flex">
         <v-btn
-          v-if="displayMoreDetails"
           class="btn ml-2"
           @click="close">
           {{ $t('agenda.button.cancel') }}
         </v-btn>
         <v-spacer />
         <v-btn
-          v-if="displayMoreDetails"
           class="btn ml-2"
           @click="openCompleteEventForm">
           {{ $t('agenda.button.moreDetails') }}
-        </v-btn>
-        <v-btn
-          v-else
-          class="btn ml-2"
-          @click="close">
-          {{ $t('agenda.button.cancel') }}
         </v-btn>
         <v-btn
           :disabled="disableSaveButton"
@@ -138,10 +130,6 @@ export default {
     currentCalendar: {
       type: Object,
       default: () => null
-    },
-    displayMoreDetails: {
-      type: Boolean,
-      default: () => true,
     },
     settings: {
       type: Object,
