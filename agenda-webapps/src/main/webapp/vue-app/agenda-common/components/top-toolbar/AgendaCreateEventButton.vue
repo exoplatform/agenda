@@ -16,7 +16,10 @@
         </span>
       </v-btn>
     </div>
-    <agenda-pending-invitation-badge :current-space="currentSpace" />
+    <agenda-pending-invitation-badge
+      :current-space="currentSpace"
+      :offset-x="offsetX"
+      :offset-y="offsetY" />
   </div>
 </template>
 <script>
@@ -29,6 +32,14 @@ export default {
     canCreateEvent: {
       type: Boolean,
       default: false,
+    },
+    offsetX: {
+      type: Object,
+      default: () => 18,
+    },
+    offsetY: {
+      type: Number,
+      default: () => 22,
     },
   },
   data: () => ({
