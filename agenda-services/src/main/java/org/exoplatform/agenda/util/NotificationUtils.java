@@ -313,10 +313,11 @@ public class NotificationUtils {
     if (StringUtils.isNotBlank(event.getLocation())) {
       notification.with(STORED_PARAMETER_EVENT_LOCATION, event.getLocation());
     }
-    if (event.getModifierId() > 0) {
-      identity = Utils.getIdentityById(identityManager, event.getModifierId());
+    long modifierId = event.getModifierId() > 0 ? event.getModifierId() : event.getCreatorId();
+    if (modifierId > 0) {
+      identity = Utils.getIdentityById(identityManager, modifierId);
       notification.with(STORED_PARAMETER_EVENT_MODIFIER, getEventNotificationCreatorOrModifierUserName(identity))
-                  .with(STORED_PARAMETER_MODIFIER_IDENTITY_ID, String.valueOf(event.getModifierId()));
+                  .with(STORED_PARAMETER_MODIFIER_IDENTITY_ID, String.valueOf(modifierId));
     }
   }
 
@@ -435,10 +436,14 @@ public class NotificationUtils {
                         getResponseURL(agendaEventAttendeeService, eventId, username, EventAttendeeResponse.TENTATIVE));
 
     if (StringUtils.equals(modificationStoredType, AgendaEventModificationType.UPDATED.name())
-        || StringUtils.equals(modificationStoredType, AgendaEventModificationType.DATES_UPDATED.name())) {
+        || StringUtils.equals(modificationStoredType, AgendaEventModificationType.DATES_UPDATED.name())
+        || StringUtils.equals(modificationStoredType, AgendaEventModificationType.SWITCHED_DATE_POLL_TO_EVENT.name())
+        || StringUtils.equals(modificationStoredType, AgendaEventModificationType.SWITCHED_EVENT_TO_DATE_POLL.name())) {
       String identityId = notification.getValueOwnerParameter(STORED_PARAMETER_MODIFIER_IDENTITY_ID);
       templateContext.put(TEMPLATE_VARIABLE_EVENT_MODIFIER, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_MODIFIER));
-      templateContext.put(TEMPLATE_VARIABLE_MODIFIER_IDENTITY_URL, getUserAbsoluteURI(identityId));
+      String userAbsoluteURI = StringUtils.isBlank(identityId)
+          || StringUtils.equals("0", identityId) ? "" : getUserAbsoluteURI(identityId);
+      templateContext.put(TEMPLATE_VARIABLE_MODIFIER_IDENTITY_URL, userAbsoluteURI);
     }
     return templateContext;
   }

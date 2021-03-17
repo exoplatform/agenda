@@ -8,7 +8,11 @@
            <%= _ctx.appRes("Notification.agenda.event.updated", eventTitle) %>
         <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.DATES_UPDATED.name().equals(modificationType)){ %>
           <%= _ctx.appRes("Notification.agenda.event.dates.updated", eventTitle) %>
-        <% } else { %>
+        <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.SWITCHED_EVENT_TO_DATE_POLL.name().equals(modificationType)){ %>
+          <%= _ctx.appRes("Notification.agenda.event.switchedToDatePoll", eventTitle) %>
+        <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.SWITCHED_DATE_POLL_TO_EVENT.name().equals(modificationType)){ %>
+          <%= _ctx.appRes("Notification.agenda.event.switchedToEvent", eventTitle) %>
+        <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.DELETED.name().equals(modificationType)){ %>
            <%= _ctx.appRes("Notification.agenda.event.canceled", eventTitle) %>
         <% } %>
     </div>
@@ -17,7 +21,9 @@
             <a href="<%= eventURL %>">
                 <%
                 if(org.exoplatform.agenda.constant.AgendaEventModificationType.ADDED.name().equals(modificationType)
-                    || org.exoplatform.agenda.constant.AgendaEventModificationType.DATES_UPDATED.name().equals(modificationType)) { %>
+                    || org.exoplatform.agenda.constant.AgendaEventModificationType.DATES_UPDATED.name().equals(modificationType)
+                    || org.exoplatform.agenda.constant.AgendaEventModificationType.SWITCHED_DATE_POLL_TO_EVENT.name().equals(modificationType)
+                    || org.exoplatform.agenda.constant.AgendaEventModificationType.SWITCHED_EVENT_TO_DATE_POLL.name().equals(modificationType)) { %>
                   <%= _ctx.appRes("Notification.agenda.event.reply") %>
                 <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.UPDATED.name().equals(modificationType)){ %>
                   <%= _ctx.appRes("Notification.agenda.event.view") %>
