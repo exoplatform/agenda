@@ -1997,8 +1997,28 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertNotNull(eventModification);
     assertTrue(eventModification.hasModification(AgendaEventModificationType.UPDATED));
     assertTrue(eventModification.hasModification(AgendaEventModificationType.STATUS_UPDATED));
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.SWITCHED_EVENT_TO_DATE_POLL));
     assertEquals("Modification types are more than expected : " + eventModification.getModificationTypes(),
-                 2,
+                 3,
+                 eventModification.getModificationTypes().size());
+
+    event = agendaEventService.getEventById(eventId);
+    assertEquals(fieldValue, event.getStatus().name());
+
+    fieldName = "status";
+    fieldValue = EventStatus.CONFIRMED.name();
+    agendaEventService.updateEventFields(eventId,
+                                         getFields(fieldName, fieldValue),
+                                         true,
+                                         true,
+                                         Long.parseLong(testuser1Identity.getId()));
+    eventModification = eventUpdateReference.get();
+    assertNotNull(eventModification);
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.UPDATED));
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.STATUS_UPDATED));
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.SWITCHED_DATE_POLL_TO_EVENT));
+    assertEquals("Modification types are more than expected : " + eventModification.getModificationTypes(),
+                 3,
                  eventModification.getModificationTypes().size());
 
     event = agendaEventService.getEventById(eventId);
