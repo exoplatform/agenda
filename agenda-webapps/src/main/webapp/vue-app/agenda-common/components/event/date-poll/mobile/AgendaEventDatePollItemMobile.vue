@@ -6,7 +6,7 @@
       <v-list-item
         v-for="(dateOption, index) in dateOptions"
         :key="index"
-        @click="$root.$emit('selected-date-option', dateOption, index)">
+        @click="$root.$emit('agenda-select-date-option', dateOption, index)">
         <template v-slot:default="{ active }">
           <agenda-event-date-option-vote
             class="my-auto"

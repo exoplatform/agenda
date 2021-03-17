@@ -1,102 +1,100 @@
 <template>
-  <div v-if="event">
-    <v-card
-      v-if="!isMobile"
-      :loading="loading"
-      flat
-      class="event-details event-poll-details d-flex flex-column">
-      <div :class="displayHasVotedInfo && 'pb-2' || 'pb-6'" class="px-6 pt-8">
-        <div class="flex-grow-1 mx-8">
-          <v-row class="event-details-header d-flex align-center flex-nowrap text-center col-12">
-            <v-col class="font-italic subtitle-1 col-auto pl-4 py-0 mx-auto justify-center mb-10">
-              {{ event.description }}
-            </v-col>
-          </v-row>
-        </div>
+  <v-card
+    v-if="event"
+    :loading="loading"
+    flat
+    class="event-details event-poll-details d-flex flex-column">
+    <div :class="displayHasVotedInfo && 'pb-2' || 'pb-6'" class="px-6 pt-8">
+      <div class="flex-grow-1 mx-8">
+        <v-row class="event-details-header d-flex align-center flex-nowrap text-center col-12">
+          <v-col class="font-italic subtitle-1 col-auto pl-4 py-0 mx-auto justify-center mb-10">
+            {{ event.description }}
+          </v-col>
+        </v-row>
       </div>
-      <div class="d-flex flex-column px-6 pb-8">
-        <table
-          id="event-date-options-table"
-          description="Event date options table"
-          class="event-date-options-table mx-auto">
-          <tr>
-            <th id="participantsTitle" class="event-date-options-cell justify-center">
-              <v-card
-                class="d-flex fill-height border-box-sizing"
-                flat>
-                <v-card-title class="ma-auto text-no-wrap text-center">
-                  {{ $t('agenda.participants') }}
-                </v-card-title>
-              </v-card>
-            </th>
-            <agenda-event-date-option-period
-              v-for="(dateOption, index) in dateOptions"
-              :key="index"
-              :date-option="dateOption"
-              :can-select="canSelectDate"
-              :selected="selectedDateOptionIndex === index"
-              @select="selectDate(index)" />
-          </tr>
-          <tr>
-            <th id="participantsCount" class="event-date-options-cell justify-center">
-              <v-card
-                class="d-flex fill-height border-box-sizing"
-                flat>
-                <v-card-text class="ma-auto text-center text-no-wrap">
-                  {{ votedAttendeesCount }}
-                  /
-                  {{ attendeesCount }}
-                  {{ $t('agenda.participants') }}
-                </v-card-text>
-              </v-card>
-            </th>
-            <th
-              v-for="(dateOption, index) in dateOptions"
-              :id="`dateOption_${index}`"
-              :key="index"
-              :class="selectedDateOptionIndex === index && 'event-date-option-cell-selected' || ''"
-              class="event-date-options-cell">
-              <v-card
-                class="d-flex fill-height text-center border-box-sizing"
-                flat>
-                <v-card-text class="ma-auto text-center">
-                  {{ dateOption.voters && dateOption.voters.length || 0 }}
-                </v-card-text>
-              </v-card>
-            </th>
-          </tr>
-          <template v-if="voters">
-            <agenda-event-date-option-voter
-              v-for="(voter, index) in voters"
-              :key="index"
-              :voter="voter"
-              :date-options="dateOptions"
-              :selected-date-index="selectedDateOptionIndex"
-              :is-voting="isVoting"
-              :event-creator-id="event.creator.id"
-              @changed="enableVoteButton" />
-          </template>
-        </table>
-      </div>
-      <v-row
-        v-if="isAttendee"
-        no-gutters
-        class="mx-6 mb-6">
-        <v-col class="d-flex justify-end">
-          <agenda-date-poll-action-buttons
-            :is-voting="isVoting"
-            :sending-votes="sendingVotes"
-            :current-user-votes="currentUserVotes"
+    </div>
+    <div class="d-flex flex-column px-6 pb-8">
+      <table
+        id="event-date-options-table"
+        description="Event date options table"
+        class="event-date-options-table mx-auto">
+        <tr>
+          <th id="participantsTitle" class="event-date-options-cell justify-center">
+            <v-card
+              class="d-flex fill-height border-box-sizing"
+              flat>
+              <v-card-title class="ma-auto text-no-wrap text-center">
+                {{ $t('agenda.participants') }}
+              </v-card-title>
+            </v-card>
+          </th>
+          <agenda-event-date-option-period
+            v-for="(dateOption, index) in dateOptions"
+            :key="index"
+            :date-option="dateOption"
+            :can-select="canSelectDate"
+            :selected="selectedDateOptionIndex === index"
+            @select="selectDate(index)" />
+        </tr>
+        <tr>
+          <th id="participantsCount" class="event-date-options-cell justify-center">
+            <v-card
+              class="d-flex fill-height border-box-sizing"
+              flat>
+              <v-card-text class="ma-auto text-center text-no-wrap">
+                {{ votedAttendeesCount }}
+                /
+                {{ attendeesCount }}
+                {{ $t('agenda.participants') }}
+              </v-card-text>
+            </v-card>
+          </th>
+          <th
+            v-for="(dateOption, index) in dateOptions"
+            :id="`dateOption_${index}`"
+            :key="index"
+            :class="selectedDateOptionIndex === index && 'event-date-option-cell-selected' || ''"
+            class="event-date-options-cell">
+            <v-card
+              class="d-flex fill-height text-center border-box-sizing"
+              flat>
+              <v-card-text class="ma-auto text-center">
+                {{ dateOption.voters && dateOption.voters.length || 0 }}
+              </v-card-text>
+            </v-card>
+          </th>
+        </tr>
+        <template v-if="voters">
+          <agenda-event-date-option-voter
+            v-for="(voter, index) in voters"
+            :key="index"
+            :voter="voter"
             :date-options="dateOptions"
-            :event="event"
-            :disable-vote-button="disableVoteButton"
-            :voters="voters"
-            :selected-date-index="selectedDateOptionIndex" />
-        </v-col>
-      </v-row>
-      <agenda-date-option-conflict-drawer />
-    </v-card>
-  </div>
+            :selected-date-index="selectedDateOptionIndex"
+            :is-voting="isVoting"
+            :event-creator-id="event.creator.id"
+            @changed="enableVoteButton" />
+        </template>
+      </table>
+    </div>
+    <v-row
+      v-if="isAttendee"
+      no-gutters
+      class="mx-6 mb-6">
+      <v-col class="d-flex justify-end">
+        <agenda-date-poll-action-buttons
+          :is-voting="isVoting"
+          :sending-votes="sendingVotes"
+          :current-user-votes="currentUserVotes"
+          :date-options="dateOptions"
+          :event="event"
+          :disable-vote-button="disableVoteButton"
+          :voters="voters"
+          :selected-date-index="selectedDateOptionIndex" />
+      </v-col>
+    </v-row>
+    <agenda-date-option-conflict-drawer />
+  </v-card>
 </template>
 <script>
 export default {
@@ -225,7 +223,7 @@ export default {
   },
   created() {
     this.computeVoters().finally(() => this.loading = false);
-    this.$root.$on('change-vote', ()=> {
+    this.$root.$on('agenda-date-poll-change-vote', ()=> {
       this.isVoting = true;
     });
     this.$root.$on('agenda-date-poll-voted', () => {

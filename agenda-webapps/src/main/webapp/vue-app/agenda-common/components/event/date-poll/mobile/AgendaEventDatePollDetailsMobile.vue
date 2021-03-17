@@ -118,10 +118,10 @@ export default {
   },
   created() {
     this.computeVoters().finally(() => this.loading = false);
-    this.$root.$on('change-vote', ()=> {
+    this.$root.$on('agenda-date-poll-change-vote', ()=> {
       this.isVoting = true;
     });
-    this.$root.$on('selected-date-option', (dateOption , selected)=> {
+    this.$root.$on('agenda-select-date-option', (dateOption , selected)=> {
       this.selectedDateOptionIndex = selected;
     });
     this.$root.$on('agenda-date-poll-voted', () => {

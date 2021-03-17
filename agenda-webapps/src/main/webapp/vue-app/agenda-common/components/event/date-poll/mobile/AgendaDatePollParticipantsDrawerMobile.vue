@@ -116,7 +116,7 @@ export default {
       this.voters = voters;
       this.open();
     });
-    this.$root.$on('selected-date-option', dateOption => {
+    this.$root.$on('agenda-select-date-option', dateOption => {
       this.dateOption = dateOption;
     });
   },

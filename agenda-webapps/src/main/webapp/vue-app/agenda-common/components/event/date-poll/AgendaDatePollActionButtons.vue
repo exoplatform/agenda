@@ -8,6 +8,7 @@
         {{ $t('agenda.button.cancel') }}
       </v-btn>
       <v-btn
+        v-if="currentUserVotes"
         :loading="sendingVotes"
         :disabled="sendingVotes || disableVoteButton"
         class="btn btn-primary"
@@ -64,7 +65,6 @@ export default {
   },
   data: () => ({
     creatingEvent: false,
-    computeVoters: [],
     currentUserId: Number(eXo.env.portal.userIdentityId),
   }),
   computed: {
@@ -75,7 +75,7 @@ export default {
       return this.isCreator && !this.isVoting;
     },
     disableCreateButton() {
-      return this.selectedDateIndex < 0;
+      return this.selectedDateIndex < 0 || this.creatingEvent;
     },
     displayHasVotedInfo() {
       return this.hasVoted && !this.isVoting;
@@ -88,9 +88,6 @@ export default {
     });
   },
   methods: {
-    enableVoteButton() {
-      this.disableVoteButton = this.hasVoted && this.originalUserVotes.join('') === this.currentUserVotes.dateOptionVotes.join('');
-    },
     createEvent() {
       const dateOption = this.dateOptions[this.selectedDateIndex];
       this.creatingEvent = true;

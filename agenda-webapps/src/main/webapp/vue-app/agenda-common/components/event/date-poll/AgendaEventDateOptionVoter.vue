@@ -33,7 +33,7 @@
           icon
           transparent
           class="ma-auto border-box-sizing"
-          @click="$root.$emit('change-vote')">
+          @click="$root.$emit('agenda-date-poll-change-vote')">
           <i class="uiIconEditInfo uiIcon16x16 darkGreyIcon pb-2"></i>
         </v-btn>
       </v-card>
