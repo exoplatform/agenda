@@ -3,7 +3,7 @@
     v-if="event"
     :loading="loading"
     flat
-    class="event-details event-poll-details d-flex flex-column">
+    class="event-poll-details d-flex flex-column">
     <agenda-event-date-poll-details-mobile
       v-if="isMobile"
       :event="event"
@@ -45,6 +45,23 @@
           :selected-date-index="selectedDateOptionIndex" />
       </v-col>
     </v-row>
+    <v-divider class="mx-6" />
+    <div class="d-flex flex-column mx-6 mt-2 mb-6 uiActivityStreamWrapper activityStream">
+      <v-btn
+        text
+        class="ml-auto mb-4"
+        @click="$refs.dateOptionCommentEditor.show()">
+        <v-icon class="mr-2 text-sub-title">fa-comment</v-icon>
+        <span class="text-color">{{ $t('agenda.button.comment') }}</span>
+      </v-btn>
+      <agenda-event-date-option-comment-editor
+        ref="dateOptionCommentEditor"
+        :event="event"
+        @saved="$refs.datePollComments.loadComments()" />
+      <agenda-event-date-option-comments
+        ref="datePollComments"
+        :event="event" />
+    </div>
     <agenda-date-option-conflict-drawer />
   </v-card>
 </template>

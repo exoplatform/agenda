@@ -406,6 +406,9 @@
 
 .event-details {
   max-height: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
 
   [class^="uiIcon"] {
     height: 35px;
@@ -542,7 +545,9 @@
 }
 
 .event-poll-details {
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-width: 100%;
 
   .date-poll-participant p {
     max-width: 200px;
@@ -550,6 +555,16 @@
 
   [class^="uiIcon"] {
     height: inherit;
+  }
+
+  .commentRight {
+    position: relative;
+  }
+
+  .deleteCommentButton {
+    position: absolute;
+    top: 0;
+    right: 0;
   }
 
   .event-checkbox-vote {
@@ -796,6 +811,22 @@
 
 .agendaSearchCard .caption {
   max-height: 82px !important;
+}
+
+.datePollMessageLength {
+  &:after {
+    content: "\e769";
+    font-family: "PLF-FONT-ICONS";
+    color: @successColor;
+    padding-left: 5px;
+    top: 1px;
+    position: relative;
+  }
+  &.error--text {
+    &:after {
+      color: @errorColor;
+    }
+  }
 }
 
 @media (max-width: @maxMobileWidth) {

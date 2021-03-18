@@ -65,6 +65,8 @@ public class EventEntity implements Serializable, Cloneable {
    */
   private String                      remoteProviderName;
 
+  private String                      activityId;
+
   private CalendarEntity              calendar;
 
   private IdentityEntity              creator;
@@ -160,6 +162,7 @@ public class EventEntity implements Serializable, Cloneable {
                            remoteId,
                            remoteProviderId,
                            remoteProviderName,
+                           activityId,
                            calendar,
                            creator,
                            created,

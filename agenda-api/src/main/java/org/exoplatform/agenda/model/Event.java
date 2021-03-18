@@ -57,6 +57,8 @@ public class Event implements Cloneable {
 
   private String            description;
 
+  private String            activityId;
+  
   /**
    * Geopgraphic location of the event, content is free text and no predefined
    * format is used.
@@ -107,6 +109,7 @@ public class Event implements Cloneable {
                      updated,
                      summary,
                      description,
+                     activityId,
                      location,
                      color,
                      timeZoneId,

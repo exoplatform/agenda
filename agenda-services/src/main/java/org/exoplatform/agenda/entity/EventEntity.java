@@ -258,6 +258,9 @@ public class EventEntity implements Serializable {
   @Column(name = "MODIFIER_ID", nullable = false)
   private long                      modifierId;
 
+  @Column(name = "ACTIVITY_ID", nullable = false)
+  private long                      activityId;
+
   @Column(name = "TIMEZONE_ID")
   private String                    timeZoneId;
 
@@ -357,6 +360,14 @@ public class EventEntity implements Serializable {
 
   public void setModifierId(long modifierId) {
     this.modifierId = modifierId;
+  }
+
+  public long getActivityId() {
+    return activityId;
+  }
+
+  public void setActivityId(long activityId) {
+    this.activityId = activityId;
   }
 
   public Date getCreatedDate() {

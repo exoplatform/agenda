@@ -57,6 +57,10 @@ import AgendaEventDateOptionVoterMobile from './components/event/date-poll/mobil
 import AgendaDatePollActionButtons from './components/event/date-poll/AgendaDatePollActionButtons.vue';
 import AgendaEventDatePollDetailsDesktop from './components/event/date-poll/AgendaEventDatePollDetailsDesktop.vue';
 
+import AgendaDatePollCommentEditor from './components/event/date-poll/comments/AgendaDatePollCommentEditor.vue';
+import AgendaDatePollComments from './components/event/date-poll/comments/AgendaDatePollComments.vue';
+import AgendaDatePollComment from './components/event/date-poll/comments/AgendaDatePollComment.vue';
+
 import AgendaUserSettingDrawer from './components/settings/AgendaUserSettingDrawer.vue';
 import AgendaReminderUserSettings from './components/settings/AgendaReminderUserSettings.vue';
 import AgendaReminderUserSettingItem from './components/settings/AgendaReminderUserSettingItem.vue';
@@ -141,6 +145,9 @@ const components = {
   'agenda-event-date-option-vote-mobile': AgendaEventDateOptionVoteMobile,
   'agenda-event-date-option-period-mobile':AgendaEventDateOptionPeriodMobile,
   'agenda-event-date-option-voter-mobile':AgendaEventDateOptionVoterMobile,
+  'agenda-event-date-option-comment-editor':AgendaDatePollCommentEditor,
+  'agenda-event-date-option-comments':AgendaDatePollComments,
+  'agenda-event-date-option-comment':AgendaDatePollComment,
   'agenda-date-poll-action-buttons':AgendaDatePollActionButtons,
   'agenda-date-poll-participants-drawer-mobile':AgendaDatePollParticipantsDrawerMobile,
   'agenda-recurrent-event-save-confirm-dialog': AgendaRecurrentEventSaveConfirmDialog,
@@ -176,6 +183,7 @@ import * as datePollUtils from './js/DatePollUtils.js';
 import * as webConferencingService from './js/EventWebConferencingService.js';
 import * as remoteEventConnector from './js/RemoteEventConnector.js';
 import * as agendaWebSocket from './js/WebSocket.js';
+import * as eventCommentService from './js/EventCommentService.js';
 
 const userTimeZoneId = agendaUtils.USER_TIMEZONE_ID;
 
@@ -222,5 +230,10 @@ if (!Vue.prototype.$remoteEventConnector) {
 if (!Vue.prototype.$agendaWebSocket) {
   window.Object.defineProperty(Vue.prototype, '$agendaWebSocket', {
     value: agendaWebSocket,
+  });
+}
+if (!Vue.prototype.$eventCommentService) {
+  window.Object.defineProperty(Vue.prototype, '$eventCommentService', {
+    value: eventCommentService,
   });
 }

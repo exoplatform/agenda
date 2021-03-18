@@ -350,4 +350,10 @@
     <addUniqueConstraint tableName="EXO_AGENDA_ATTENDEE" columnNames="EVENT_ID,IDENTITY_ID,FROM_OCCURRENCE_ID" constraintName="UK_EXO_AGENDA_ATTENDEE" />
   </changeSet>
 
+  <changeSet author="agenda" id="1.0.0-27">
+    <addColumn tableName="EXO_AGENDA_EVENT">
+      <column name="ACTIVITY_ID" type="BIGINT" defaultValueNumeric="0" />
+    </addColumn>
+  </changeSet>
+
 </databaseChangeLog>

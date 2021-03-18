@@ -314,6 +314,7 @@ public abstract class BaseAgendaEventTest {
                      updated,
                      summary,
                      description,
+                     null,
                      location,
                      color,
                      ZoneId.systemDefault(),

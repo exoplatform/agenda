@@ -309,6 +309,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                     null,
                                     event.getSummary(),
                                     event.getDescription(),
+                                    event.getActivityId(),
                                     event.getLocation(),
                                     event.getColor(),
                                     event.getTimeZoneId(),
@@ -587,6 +588,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                     ZonedDateTime.now(),
                                     event.getSummary(),
                                     event.getDescription(),
+                                    event.getActivityId(),
                                     event.getLocation(),
                                     event.getColor(),
                                     event.getTimeZoneId(),
@@ -1362,6 +1364,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
         break;
       case "allowAttendeeToInvite":
         event.setAllowAttendeeToInvite(Boolean.parseBoolean(fieldValue));
+        break;
+      case "activityId":
+        event.setActivityId(fieldValue);
         break;
       default:
         throw new UnsupportedOperationException();

@@ -22,6 +22,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.StringUtils;
+
 import org.exoplatform.agenda.constant.EventRecurrenceFrequency;
 import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.entity.*;
@@ -147,6 +149,7 @@ public class EntityMapper {
                      AgendaDateUtils.fromDate(eventEntity.getUpdatedDate()),
                      eventEntity.getSummary(),
                      eventEntity.getDescription(),
+                     eventEntity.getActivityId() < 1 ? null : String.valueOf(eventEntity.getActivityId()),
                      eventEntity.getLocation(),
                      eventEntity.getColor(),
                      eventZoneId,
@@ -187,6 +190,7 @@ public class EntityMapper {
     eventEntity.setAllowAttendeeToInvite(event.isAllowAttendeeToInvite());
     eventEntity.setAllowAttendeeToUpdate(event.isAllowAttendeeToUpdate());
     eventEntity.setTimeZoneId(eventZoneId.getId());
+    eventEntity.setActivityId(StringUtils.isBlank(event.getActivityId()) ? 0 : Long.parseLong(event.getActivityId()));
 
     ZonedDateTime start = event.getStart();
     ZonedDateTime end = event.getEnd();
