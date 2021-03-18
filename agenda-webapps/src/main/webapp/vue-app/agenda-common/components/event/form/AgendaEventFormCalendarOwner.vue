@@ -5,6 +5,7 @@
     :labels="calendarSuggesterLabels"
     :include-users="false"
     :disabled="currentSpace"
+    :width="220"
     name="calendarOwnerAutocomplete"
     class="user-suggester calendarOwnerAutocomplete"
     include-spaces
