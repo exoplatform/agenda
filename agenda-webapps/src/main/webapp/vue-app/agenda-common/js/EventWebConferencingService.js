@@ -21,10 +21,12 @@ export function deleteEventWebConferencing(conference) {
 
 export function saveEventWebConferencing(event, conference) {
   const providerType = conference && conference.type;
-  if (!providerType || !webConferencing) {
+  if (!providerType) {
     return Promise.resolve(null);
   } else if (providerType === 'manual') {
     return Promise.resolve(conference);
+  } else if (!webConferencing) {
+    return Promise.resolve(null);
   }
   if (conference.url) {
     if (webConferencing.updateCall) {
