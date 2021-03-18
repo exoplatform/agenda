@@ -365,6 +365,9 @@ function buildConnectorEvent(event, connectorRecurringEventId) {
   connectorEvent.description = event.description;
   connectorEvent.summary = event.summary;
   connectorEvent.location = event.location || (event.conferences && event.conferences.length && event.conferences[0].url) || '';
+  connectorEvent.source =   {
+    "url": `${window.location.origin}${eXo.env.portal.context}/${eXo.env.portal.portalName}/agenda?eventId=${event.id}`,
+  };
   return connectorEvent;
 }
 
