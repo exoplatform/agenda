@@ -159,6 +159,8 @@ public class NotificationUtils {
 
   public static final String                                 STORED_PARAMETER_EVENT_RESPONSE                = "eventResponse";
 
+  public static final String                                 STORED_PARAMETER_EVENT_STATUS                  = "eventStatus";
+
   private static final String                                TEMPLATE_VARIABLE_EVENT_START_DATE             = "startDate";
 
   private static final String                                TEMPLATE_VARIABLE_EVENT_END_DATE               = "endDate";
@@ -208,6 +210,8 @@ public class NotificationUtils {
 
   private static final String                                TEMPLATE_VARIABLE_MODIFIER_IDENTITY_URL        =
                                                                                                      "modifierProfileUrl";
+
+  private static final String                                TEMPLATE_VARIABLE_EVENT_STATUS                 = "eventStatus";
 
   private static volatile String                             defaultSite;
 
@@ -305,7 +309,8 @@ public class NotificationUtils {
                 .with(STORED_PARAMETER_EVENT_START_DATE, AgendaDateUtils.toRFC3339Date(event.getStart()))
                 .with(STORED_PARAMETER_EVENT_END_DATE, AgendaDateUtils.toRFC3339Date((event.getEnd())))
                 .with(STORED_PARAMETER_EVENT_RECURRENT_DETAILS, getRecurrenceDetails(event))
-                .with(STORED_PARAMETER_EVENT_TIMEZONE_NAME, timeZoneName);
+                .with(STORED_PARAMETER_EVENT_TIMEZONE_NAME, timeZoneName)
+                .with(STORED_PARAMETER_EVENT_STATUS, event.getStatus().name());
 
     if (StringUtils.isNotBlank(event.getDescription())) {
       notification.with(STORED_PARAMETER_EVENT_DESCRIPTION, event.getDescription());
@@ -424,6 +429,7 @@ public class NotificationUtils {
     templateContext.put(TEMPLATE_VARIABLE_EVENT_ATTENDEES, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_ATTENDEES));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_TIMEZONE_NAME,
                         notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_TIMEZONE_NAME));
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_STATUS, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_STATUS));
 
     String eventIdString = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_ID);
     long eventId = Long.parseLong(eventIdString);
