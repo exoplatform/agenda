@@ -8,6 +8,7 @@ import java.time.ZoneOffset;
 
 import org.apache.commons.lang.StringUtils;
 
+import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.model.AgendaUserSettings;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.service.*;
@@ -89,7 +90,8 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
     RequestLifeCycle.begin(container);
     try {
       Event event = getEvent(notification);
-      if (event == null) {
+      String eventModificationType = notification.getValueOwnerParameter(STORED_EVENT_MODIFICATION_TYPE);
+      if (event == null && !StringUtils.equals(eventModificationType, AgendaEventModificationType.DELETED.name())) {
         return null;
       }
       String notificationURL = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL);

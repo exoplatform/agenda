@@ -438,7 +438,8 @@ public class NotificationUtils {
     if (StringUtils.equals(modificationStoredType, AgendaEventModificationType.UPDATED.name())
         || StringUtils.equals(modificationStoredType, AgendaEventModificationType.DATES_UPDATED.name())
         || StringUtils.equals(modificationStoredType, AgendaEventModificationType.SWITCHED_DATE_POLL_TO_EVENT.name())
-        || StringUtils.equals(modificationStoredType, AgendaEventModificationType.SWITCHED_EVENT_TO_DATE_POLL.name())) {
+        || StringUtils.equals(modificationStoredType, AgendaEventModificationType.SWITCHED_EVENT_TO_DATE_POLL.name())
+        || StringUtils.equals(modificationStoredType, AgendaEventModificationType.DELETED.name())) {
       String identityId = notification.getValueOwnerParameter(STORED_PARAMETER_MODIFIER_IDENTITY_ID);
       templateContext.put(TEMPLATE_VARIABLE_EVENT_MODIFIER, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_MODIFIER));
       String userAbsoluteURI = StringUtils.isBlank(identityId)
