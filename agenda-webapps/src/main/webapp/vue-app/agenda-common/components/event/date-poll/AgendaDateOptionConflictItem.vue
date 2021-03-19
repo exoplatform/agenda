@@ -1,6 +1,7 @@
 <template>
   <v-list-item
     :style="eventStyle"
+    two-line
     dense
     class="pending-invitation-item border-radius">
     <v-list-item-content class="pa-0">
@@ -41,6 +42,15 @@
         </div>
       </v-list-item-subtitle>
     </v-list-item-content>
+    <v-list-item-action
+      v-if="isDatePoll"
+      :title="$t('agenda.votedDatePollOption')"
+      class="my-1 py-0">
+      <i
+        :style="textStyle"
+        :class="eventIcon"
+        class="uiIcon32x32 uiIconPLFFont align-self-center d-flex mb-1 mr-1"></i>
+    </v-list-item-action>
   </v-list-item>
 </template>
 
@@ -79,6 +89,12 @@ export default {
     },
     eventStyle() {
       return `background: ${this.eventColor};`;
+    },
+    isDatePoll() {
+      return this.event.status === 'TENTATIVE';
+    },
+    eventIcon() {
+      return this.isDatePoll && 'uiIconStatistics' || 'uiIconCalendarEmpty';
     },
   },
 };

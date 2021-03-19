@@ -1,26 +1,27 @@
 <template>
   <div class="event-date-poll-vote-choice">
-    <v-checkbox
-      v-if="isCurrentUserVoting"
-      v-model="vote"
-      :disabled="disabled || !isCurrentUser"
-      class="event-checkbox-vote ma-auto pa-0"
-      hide-details
-      @change="$emit('change', vote)" />
-    <template v-else>
-      <span v-if="!hasVoted"></span>
-      <i v-else-if="vote" class="uiIcon uiIconColorValidate"></i>
-      <i v-else class="uiIcon uiIconColorError"></i>
-    </template>
+    <div>
+      <v-checkbox
+        v-if="isCurrentUserVoting"
+        v-model="vote"
+        :disabled="disabled || !isCurrentUser"
+        class="event-checkbox-vote ma-auto pa-0 ma-0 mb-1"
+        hide-details
+        @change="$emit('change', vote)" />
+      <template v-else>
+        <span v-if="!hasVoted"></span>
+        <i v-else-if="vote" class="uiIcon uiIconColorValidate"></i>
+        <i v-else class="uiIcon uiIconColorError"></i>
+      </template>
+    </div>
     <v-fab-transition>
       <v-btn
         v-show="conflictWithOtherEvent"
         :title="$t('agenda.conflictWithOtherEvent')"
-        class="event-conflicted ml-2"
+        class="event-conflicted ml-2 mt-1"
         absolute
         icon
-        fab
-        @click="$root.$emit('agenda-conflict-events-drawer-open', dateOption, conflictEvents)">
+        @click="$root.$emit('agenda-conflict-events-drawer-open', dateOption, conflictEvents, conflictingDatePolls)">
         <v-icon size="20px" color="#f8b441">warning</v-icon>
       </v-btn>
     </v-fab-transition>
@@ -29,6 +30,10 @@
 <script>
 export default {
   props: {
+    votedDatePolls: {
+      type: Array,
+      default: () => null
+    },
     voter: {
       type: Object,
       default: () => null
@@ -62,7 +67,27 @@ export default {
       return this.voter && this.voter.hasVoted;
     },
     conflictWithOtherEvent() {
-      return this.conflictEvents && this.conflictEvents.length;
+      return (this.conflictEvents && this.conflictEvents.length)
+              || (this.conflictingDatePolls && this.conflictingDatePolls.length);
+    },
+    conflictingDatePolls() {
+      if (!this.isCurrentUser) {
+        return null;
+      }
+      const conflictingDatePolls = [];
+      const eventStart = new Date(this.dateOption.start);
+      const eventEnd = new Date(this.dateOption.end);
+      if (this.votedDatePolls && this.votedDatePolls.length) {
+        this.votedDatePolls.forEach(datePoll => {
+          const datePollStart = new Date(datePoll.start);
+          const datePollEnd = new Date(datePoll.end);
+          if (datePollStart.getTime() < eventEnd.getTime()
+              && datePollEnd.getTime() > eventStart.getTime()) {
+            conflictingDatePolls.push(datePoll);
+          }
+        });
+      }
+      return conflictingDatePolls;
     },
   },
   mounted() {
