@@ -386,6 +386,34 @@ export function getDatePolls(ownerId, offset, limit, expand) {
   });
 }
 
+export function getDatePollsByDates(start, end, expand) {
+  expand = expand || '';
+  const formData = new FormData();
+  formData.append('start',start);
+  formData.append('end',end);
+  formData.append('expand',expand);
+  const params = new URLSearchParams(formData).toString();
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/datePolls?${params}`, {
+    method: 'GET',
+    credentials: 'include',
+  }).then((resp) => {
+    if (resp && resp.ok) {
+      return resp.json();
+    } else {
+      throw new Error('Error getting pending date poll list');
+    }
+  }).then((data) => {
+    let events = data && data.events || [];
+    let deletedEventId = localStorage.getItem('agendaDeletedEvents');
+    if (deletedEventId) {
+      deletedEventId = Number(deletedEventId);
+      events = events.filter(event => Number(event.id) !== deletedEventId && (!event.parent || Number(event.parent.id) !== deletedEventId));
+      data.events = events;
+    }
+    return data;
+  });
+}
+
 export function countDatePolls(ownerId) {
   const formData = new FormData();
   if (ownerId) {

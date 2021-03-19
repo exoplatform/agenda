@@ -49,6 +49,7 @@
         <v-card-text class="d-flex ma-auto text-center">
           <agenda-event-date-option-vote
             v-if="voter.profile"
+            :voted-date-polls="votedDatePolls"
             :voter="voter"
             :date-option="dateOptions[index]"
             :vote="dateOptionVote"
@@ -65,6 +66,10 @@ export default {
   props: {
     dateOptions: {
       type: Object,
+      default: () => null
+    },
+    votedDatePolls: {
+      type: Array,
       default: () => null
     },
     voter: {

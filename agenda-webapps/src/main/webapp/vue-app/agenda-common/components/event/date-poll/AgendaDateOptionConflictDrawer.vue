@@ -43,6 +43,11 @@
           :key="event.id"
           :event="event"
           class="mx-2 px-2 py-0 mb-2" />
+        <agenda-date-option-conflict-item
+          v-for="event in votedDatePolls"
+          :key="event.id"
+          :event="event"
+          class="mx-2 px-2 py-0 mb-2" />
       </v-list>
     </template>
   </exo-drawer>
@@ -52,6 +57,7 @@
 export default {
   data:() => ({
     events: [],
+    votedDatePolls: [],
     dateOption: null,
     dateFormat: {
       year: 'numeric',
@@ -69,9 +75,10 @@ export default {
     },
   },
   created() {
-    this.$root.$on('agenda-conflict-events-drawer-open', (dateOption, events) => {
+    this.$root.$on('agenda-conflict-events-drawer-open', (dateOption, events, votedDatePolls) => {
       this.dateOption = dateOption;
       this.events = events;
+      this.votedDatePolls = votedDatePolls;
       this.open();
     });
   },

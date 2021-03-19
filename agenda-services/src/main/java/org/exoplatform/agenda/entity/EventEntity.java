@@ -189,12 +189,46 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
               + " DESC"
       ),
       @NamedQuery(
+          name = "AgendaEvent.getDatePollIdsByDates",
+          query = "SELECT DISTINCT(ev.id), ev.createdDate, ev.updatedDate FROM AgendaEvent ev"
+              + " INNER JOIN ev.attendees att"
+              + " WHERE ev.status = :status"
+              + " AND (ev.endDate IS NULL OR ev.endDate > :start)"
+              + " AND (ev.startDate < :end)"
+              + " AND att.identityId IN (:attendeeIds)"
+              + " ORDER BY "
+              + "   CASE "
+              + "     WHEN ev.updatedDate IS NULL"
+              + "       THEN ev.createdDate"
+              + "     ELSE ev.updatedDate"
+              + "   END"
+              + " DESC"
+      ),
+      @NamedQuery(
           name = "AgendaEvent.countPendingDatePoll",
           query = "SELECT count(DISTINCT ev.id) FROM AgendaEvent ev"
               + " INNER JOIN ev.attendees att"
               + " WHERE ev.status = :status"
               + " AND (ev.endDate IS NULL OR ev.endDate > :date)"
               + " AND att.identityId IN (:attendeeIds)"
+      ),
+      @NamedQuery(
+          name = "AgendaEvent.getDatePollIdsByOwnerIdsAndDates",
+          query = "SELECT DISTINCT(ev.id), ev.createdDate, ev.updatedDate FROM AgendaEvent ev"
+              + " INNER JOIN ev.attendees att"
+              + " INNER JOIN ev.calendar cal"
+              + " WHERE ev.status = :status"
+              + " AND (ev.endDate IS NULL OR ev.endDate > :start)"
+              + " AND (ev.startDate < :end)"
+              + " AND att.identityId IN (:attendeeIds)"
+              + " AND cal.ownerId IN (:ownerIds)"
+              + " ORDER BY "
+              + "   CASE "
+              + "     WHEN ev.updatedDate IS NULL"
+              + "       THEN ev.createdDate"
+              + "     ELSE ev.updatedDate"
+              + "   END"
+              + " DESC"
       ),
       @NamedQuery(
           name = "AgendaEvent.getPendingDatePollIdsByOwnerIds",
