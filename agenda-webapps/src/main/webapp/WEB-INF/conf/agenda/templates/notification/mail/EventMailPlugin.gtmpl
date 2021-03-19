@@ -9,6 +9,8 @@
                             out.write(_ctx.appRes("Notification.title.AgendaInvitationPlugin", eventTitle));
                           } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.UPDATED.name().equals(modificationType)){
                             out.write(_ctx.appRes("Notification.title.AgendaInvitationPlugin.update", eventTitle));
+                          } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.DELETED.name().equals(modificationType)){
+                            out.write(_ctx.appRes("Notification.title.AgendaInvitationPlugin.deleted", eventTitle));
                           } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.DATES_UPDATED.name().equals(modificationType)){
                             out.write(_ctx.appRes("Notification.title.AgendaInvitationPlugin.dates.update", eventTitle));
                           } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.SWITCHED_EVENT_TO_DATE_POLL.name().equals(modificationType)){
@@ -43,16 +45,24 @@
                                                     String creatorName = "<span style=\"color: #2f5e92; text-decoration: none; font-family: 'HelveticaNeue Bold', Helvetica, Arial, sans-serif\" >" + _ctx.escapeHTML(creatorName) + "</span>";
                                                     if (org.exoplatform.agenda.constant.AgendaEventModificationType.ADDED.name().equals(modificationType)) { %>
                                                       <%= _ctx.appRes("Notification.agenda.event.created", eventTitle, creatorName) %>
-                                                    <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.UPDATED.name().equals(modificationType)){ %>
+                                                    <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.UPDATED.name().equals(modificationType) && org.exoplatform.agenda.constant.EventStatus.CONFIRMED.name().equals(eventStatus)){ %>
                                                       <%
                                                         String profileModifierUrl = "<a target=\"_blank\" style=\"color: #2f5e92; font-size: 13px; text-decoration: none; font-family: 'HelveticaNeue Bold', Helvetica, Arial, sans-serif\" href=\""+ modifierProfileUrl + "\">" + _ctx.escapeHTML(modifierName) + "</a>";
                                                       %>
                                                       <%= _ctx.appRes("Notification.agenda.event.mail.body.updated", eventTitle, profileModifierUrl) %>
-                                                    <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.DATES_UPDATED.name().equals(modificationType)){ %>
+                                                      <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.DELETED.name().equals(modificationType) && org.exoplatform.agenda.constant.EventStatus.CONFIRMED.name().equals(eventStatus)){ %>
+                                                         <%= _ctx.appRes("Notification.agenda.event.canceled", eventTitle) %>
+                                                      <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.DELETED.name().equals(modificationType) && org.exoplatform.agenda.constant.EventStatus.TENTATIVE.name().equals(eventStatus)){ %>
+                                                        <%= _ctx.appRes("Notification.agenda.event.mail.body.datePoll.deleted", eventTitle) %>
+                                                      <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.DATES_UPDATED.name().equals(modificationType)){ %>
                                                       <%
                                                         String profileModifierUrl = "<a target=\"_blank\" style=\"color: #2f5e92; font-size: 13px; text-decoration: none; font-family: 'HelveticaNeue Bold', Helvetica, Arial, sans-serif\" href=\""+ modifierProfileUrl + "\">" + _ctx.escapeHTML(modifierName) + "</a>";
                                                       %>
                                                       <%= _ctx.appRes("Notification.agenda.event.mail.body.dates.updated", eventTitle, profileModifierUrl) %>
+                                                                <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.DATES_UPDATED.name().equals(modificationType) && org.exoplatform.agenda.constant.EventStatus.TENTATIVE.name().equals(eventStatus)){ %>
+                                                      <%= _ctx.appRes("Notification.agenda.event.datePoll.dates.updated", eventTitle) %>
+                                                      <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.UPDATED.name().equals(modificationType) && org.exoplatform.agenda.constant.EventStatus.TENTATIVE.name().equals(eventStatus)){ %>
+                                                         <%= _ctx.appRes("Notification.agenda.event.datePoll.updated", eventTitle) %>
                                                     <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.SWITCHED_EVENT_TO_DATE_POLL.name().equals(modificationType)){ %>
                                                       <%
                                                         String profileModifierUrl = "<a target=\"_blank\" style=\"color: #2f5e92; font-size: 13px; text-decoration: none; font-family: 'HelveticaNeue Bold', Helvetica, Arial, sans-serif\" href=\""+ modifierProfileUrl + "\">" + _ctx.escapeHTML(modifierName) + "</a>";
@@ -66,6 +76,8 @@
                                                     <% } %>
                                                 </p>
                                                 <br/>
+                                                <%
+                                                if (!org.exoplatform.agenda.constant.AgendaEventModificationType.DELETED.name().equals(modificationType)) { %>
                                                 <p style="margin: 0 0 20px;">
                                                     <a target="_blank" style="
                                                         display: inline-block;
@@ -92,7 +104,10 @@
                                                         text-align: center;
                                                         vertical-align: middle;"
                                                         href="<%= declinedResponseURL %>">
-                                                        <%= _ctx.appRes("Notification.agenda.event.declined") %>
+                                                        <%
+                                                         if (!org.exoplatform.agenda.constant.AgendaEventModificationType.DELETED.name().equals(modificationType)) { %>
+                                                          <%= _ctx.appRes("Notification.agenda.event.declined") %>
+                                                        <% } %>
                                                     </a>
 
                                                     <a target="_blank" style="
@@ -106,7 +121,10 @@
                                                         text-align: center;
                                                         vertical-align: middle;"
                                                         href="<%= tentativeResponseURL %>">
-                                                        <%= _ctx.appRes("Notification.agenda.event.tentative") %>
+                                                        <%
+                                                        if (!org.exoplatform.agenda.constant.AgendaEventModificationType.DELETED.name().equals(modificationType)) { %>
+                                                          <%= _ctx.appRes("Notification.agenda.event.tentative") %>
+                                                         <% } %>
                                                     </a>
 
                                                     &nbsp; &nbsp; &nbsp;
@@ -129,6 +147,7 @@
                                                         <% } %>
                                                     </a>
                                                 </p>
+                                               <% } %>
                                             </td>
                                         </tr>
                                     </table>
