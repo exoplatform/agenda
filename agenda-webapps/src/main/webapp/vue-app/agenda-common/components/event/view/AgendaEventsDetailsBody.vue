@@ -1,7 +1,7 @@
 <template>
-  <div class="event-details-body overflow-auto flex-grow-1 d-flex flex-column flex-md-row pa-4">
+  <div class="event-details-body overflow-auto flex-grow-1 d-flex flex-column flex-md-row pa-4 mt-5">
     <div class="flex-grow-1 flex-shrink-0 d-flex event-details-body-left">
-      <div class="mx-auto flex">
+      <div class="mx-auto">
         <div class="event-date align-center d-flex pb-5">
           <i class="uiIconDatePicker darkGreyIcon uiIcon32x32 pr-5"></i>
           <div class="d-inline-flex">
@@ -124,7 +124,7 @@
       <v-divider vertical class="event-details-body-divider" />
     </div>
     <div class="flex-grow-1 flex-shrink-0 d-flex event-details-body-right">
-      <div class="mx-auto">
+      <div class="mx-10">
         <agenda-event-attendees
           ref="agendaAttendees"
           :event="event" />
