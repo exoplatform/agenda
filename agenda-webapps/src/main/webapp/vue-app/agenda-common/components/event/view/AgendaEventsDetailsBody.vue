@@ -1,7 +1,7 @@
 <template>
   <div class="event-details-body overflow-auto flex-grow-1 d-flex flex-column flex-md-row pa-4">
     <div class="flex-grow-1 flex-shrink-0 d-flex event-details-body-left">
-      <div class="mx-auto">
+      <div class="mx-auto flex">
         <div class="event-date align-center d-flex pb-5">
           <i class="uiIconDatePicker darkGreyIcon uiIcon32x32 pr-5"></i>
           <div class="d-inline-flex">
@@ -84,9 +84,20 @@
             <i class="uiIconEditInfo uiIcon16x16 darkGreyIcon pt-2"></i>
           </v-btn>
         </div>
-        <div v-if="isConferenceEnabled" class="event-conference d-flex flex-grow-0 flex-shrink-1 pb-5">
+        <div v-if="isConferenceEnabled" class="event-conference flex d-flex flex-grow-0 flex-shrink-1 pb-5">
           <i class="uiIconVideo darkGreyIcon uiIcon32x32 pr-5"></i>
+
           <v-btn link text :href="eventConferenceUrl" class="text-lowercase primary--text">{{ eventConferenceUrl }}</v-btn>
+          <v-btn
+            :title="eventConferenceUrl"
+            :href="eventConferenceUrl"
+            link
+            text
+            class="text-lowercase text-truncate primary--text flex-shrink-1 flex-grow-1 d-inline pt-2">
+            <template slot="default">
+              {{ eventConferenceUrl }}
+            </template>
+          </v-btn>
         </div>
         <div v-if="event.location" class="event-location d-flex flex-grow-0 flex-shrink-1 pb-5">
           <i class="uiIconCheckin darkGreyIcon uiIcon32x32 pr-5"></i>
