@@ -2,7 +2,7 @@
   <div class="d-flex">
     <select
       v-model="recurrenceType"
-      class="subtitle-1 ignore-vuetify-classes">
+      class="subtitle-1 my-auto ignore-vuetify-classes">
       <option
         v-for="recurrenceOption in recurrenceOptions"
         :key="recurrenceOption.value"
@@ -13,6 +13,7 @@
     <v-btn
       v-if="recurrenceType === 'CUSTOM'"
       icon
+      small
       class="ml-2 my-auto"
       @click="openCustomRecurrenceForm">
       <i class="uiIcon uiIconEdit  primary--text"></i>

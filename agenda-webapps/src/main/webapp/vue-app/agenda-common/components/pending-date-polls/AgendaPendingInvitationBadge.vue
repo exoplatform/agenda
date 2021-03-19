@@ -1,19 +1,24 @@
 <template>
-  <v-badge
-    :value="pendingInvitationsCount"
-    :content="pendingInvitationsCount"
-    :offset-x="offsetX"
-    :offset-y="offsetY"
-    overlap
-    bordered
-    color="#F8B121">
-    <v-btn
-      :title="$t('agenda.pendingInvitations')"
-      icon
-      @click="$root.$emit('agenda-pending-date-polls-drawer-open')">
+  <v-btn
+    :title="$t('agenda.pendingInvitations')"
+    icon
+    class="text-header-title"
+    @click="openPendingInvitationsDrawer()">
+    <v-badge
+      :value="pendingInvitationsCount"
+      :content="pendingInvitationsCount"
+      :offset-x="offsetX"
+      :offset-y="offsetY"
+      class="pending-invitation-badge"
+      bordered
+      flat
+      overlap
+      top
+      right
+      color="#F8B121">
       <v-icon>fa-history</v-icon>
-    </v-btn>
-  </v-badge>
+    </v-badge>
+  </v-btn>
 </template>
 
 <script>
@@ -68,6 +73,9 @@ export default {
     this.countPendingInvitations();
   },
   methods: {
+    openPendingInvitationsDrawer() {
+      this.$root.$emit('agenda-pending-date-polls-drawer-open');
+    },
     countPendingInvitations() {
       this.countDatePolls();
       this.countPendingEvents();
