@@ -49,7 +49,7 @@
             class="ignore-vuetify-classes my-3 location-event-input">
         </div>
         <div class="d-flex flex-row">
-          <i class="uiIconRecurrence darkGreyIcon uiIcon32x32 my-3 mr-11"></i>
+          <i class="uiIconRecurrence darkGreyIcon uiIcon32x32 my-auto mr-11"></i>
           <div class="d-flex flex-column">
             <agenda-event-form-recurrence :event="event" class="my-auto" />
             <agenda-event-recurrence
