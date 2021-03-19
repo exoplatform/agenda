@@ -103,6 +103,20 @@ public class AgendaEventStorage {
     }
   }
 
+  public List<Long> getEventDatePollIds(long userIdentityId,
+                                        List<Long> ownerIds,
+                                        List<Long> attendeeIds,
+                                        ZonedDateTime start,
+                                        ZonedDateTime end) {
+    Date startDate = AgendaDateUtils.toDate(start);
+    Date endDate = AgendaDateUtils.toDate(end);
+    if (ownerIds == null || ownerIds.isEmpty()) {
+      return this.eventDAO.getEventDatePollIds(userIdentityId, attendeeIds, startDate, endDate);
+    } else {
+      return this.eventDAO.getEventDatePollIdsByOwnerIds(userIdentityId, ownerIds, attendeeIds, startDate, endDate);
+    }
+  }
+
   public long countEventDatePolls(List<Long> ownerIds, List<Long> attendeeIds) {
     Date now = getNowDate();
     if (ownerIds == null || ownerIds.isEmpty()) {

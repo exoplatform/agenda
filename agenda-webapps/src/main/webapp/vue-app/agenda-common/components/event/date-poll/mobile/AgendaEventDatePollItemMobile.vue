@@ -13,6 +13,7 @@
           <agenda-event-date-option-vote
             v-if="currentUserVotes"
             class="my-auto"
+            :voted-date-polls="votedDatePolls"
             :date-option="dateOption"
             :voter="currentUserVotes"
             :vote="currentUserVotes.dateOptionVotes[index]"
@@ -65,12 +66,16 @@
 <script>
 export default {
   props: {
-    dateOptions: {
+    event: {
+      type: Object,
+      default: () => null
+    },
+    votedDatePolls: {
       type: Array,
       default: () => null
     },
-    event: {
-      type: Object,
+    dateOptions: {
+      type: Array,
       default: () => null
     },
     currentUserVotes: {

@@ -1570,6 +1570,16 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                )
                                @QueryParam("limit")
                                int limit,
+                               @ApiParam(value = "Start datetime using RFC-3339 representation", required = true)
+                               @QueryParam(
+                                 "start"
+                               )
+                               String start,
+                               @ApiParam(value = "End datetime using RFC-3339 representation", required = false)
+                               @QueryParam(
+                                 "end"
+                               )
+                               String end,
                                @ApiParam(value = "IANA Time zone identitifer", required = false)
                                @QueryParam(
                                  "timeZoneId"
@@ -1583,39 +1593,61 @@ public class AgendaEventRest implements ResourceContainer, Startable {
     if (offset < 0) {
       return Response.status(Status.BAD_REQUEST).entity("Offset must be 0 or positive").build();
     }
-    if (limit < 0) {
-      return Response.status(Status.BAD_REQUEST).entity("Limit must be positive").build();
-    }
-    long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+
     ZoneId userTimeZone = StringUtils.isBlank(timeZoneId) ? ZoneOffset.UTC : ZoneId.of(timeZoneId);
+    ZonedDateTime endDatetime = null;
+    if (StringUtils.isBlank(end)) {
+      if (limit <= 0) {
+        limit = 10;
+      }
+    } else {
+      endDatetime = AgendaDateUtils.parseRFC3339ToZonedDateTime(end, userTimeZone);
+    }
+
+    ZonedDateTime startDatetime = null;
+    if (StringUtils.isBlank(start)) {
+      if (limit <= 0) {
+        limit = 10;
+      }
+    } else {
+      startDatetime = AgendaDateUtils.parseRFC3339ToZonedDateTime(start, userTimeZone);
+    }
+
+    if (endDatetime != null && startDatetime != null
+        && (endDatetime.isBefore(startDatetime) || endDatetime.equals(startDatetime))) {
+      return Response.status(Status.BAD_REQUEST).entity("Start date must be before end date").build();
+    }
+
+    long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
     try {
       EventList eventList = new EventList();
       eventList.setLimit(limit);
-      if (limit > 0) {
-        List<Event> events = agendaEventService.getEventDatePolls(ownerIds,
-                                                                  userIdentityId,
-                                                                  userTimeZone,
-                                                                  offset,
-                                                                  limit);
-        List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
-                                                                    : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
-                                                                                                      ","));
-        List<EventEntity> eventEntities = events.stream()
-                                                .map(event -> getEventEntity(identityManager,
-                                                                             agendaCalendarService,
-                                                                             agendaEventService,
-                                                                             agendaRemoteEventService,
-                                                                             agendaEventDatePollService,
-                                                                             agendaEventReminderService,
-                                                                             agendaEventConferenceService,
-                                                                             agendaEventAttendeeService,
-                                                                             event,
-                                                                             null,
-                                                                             userTimeZone,
-                                                                             expandProperties))
-                                                .collect(Collectors.toList());
-        eventList.setEvents(eventEntities);
-      }
+      EventFilter eventFilter = startDatetime != null && endDatetime != null ? new EventFilter(ownerIds,
+                                                                                               startDatetime,
+                                                                                               endDatetime)
+                                                                             : new EventFilter(ownerIds,
+                                                                                               offset,
+                                                                                               limit);
+
+      List<Event> events = agendaEventService.getEventDatePolls(eventFilter, userTimeZone, userIdentityId);
+      List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
+                                                                  : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
+                                                                                                    ","));
+      List<EventEntity> eventEntities = events.stream()
+                                              .map(event -> getEventEntity(identityManager,
+                                                                           agendaCalendarService,
+                                                                           agendaEventService,
+                                                                           agendaRemoteEventService,
+                                                                           agendaEventDatePollService,
+                                                                           agendaEventReminderService,
+                                                                           agendaEventConferenceService,
+                                                                           agendaEventAttendeeService,
+                                                                           event,
+                                                                           null,
+                                                                           userTimeZone,
+                                                                           expandProperties))
+                                              .collect(Collectors.toList());
+      eventList.setEvents(eventEntities);
       eventList.setSize(agendaEventService.countEventDatePolls(ownerIds, userIdentityId));
       return Response.ok(eventList).build();
     } catch (Exception e) {

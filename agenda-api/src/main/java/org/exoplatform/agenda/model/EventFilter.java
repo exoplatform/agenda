@@ -24,6 +24,8 @@ public class EventFilter implements Cloneable {
 
   private ZonedDateTime               end;
 
+  private int                         offset;
+
   private int                         limit;
 
   public EventFilter(long attendeeId,
@@ -40,9 +42,36 @@ public class EventFilter implements Cloneable {
     this.limit = limit;
   }
 
+  public EventFilter(List<Long> ownerIds,
+                     ZonedDateTime start,
+                     ZonedDateTime end) {
+    this.ownerIds = ownerIds;
+    this.start = start;
+    this.end = end;
+  }
+
+  public EventFilter(List<Long> ownerIds,
+                     int offset,
+                     int limit) {
+    this.ownerIds = ownerIds;
+    this.offset = offset;
+    this.limit = limit;
+  }
+
+  public boolean isUseDates() {
+    return start != null && end != null;
+  }
+
   @Override
   public EventFilter clone() { // NOSONAR
-    return new EventFilter(attendeeId, attendeeWithSpacesIds, ownerIds, responseTypes, start, end, limit);
+    return new EventFilter(attendeeId,
+                           attendeeWithSpacesIds,
+                           ownerIds,
+                           responseTypes,
+                           start,
+                           end,
+                           offset,
+                           limit);
   }
 
 }

@@ -5,6 +5,7 @@
     </div>
     <agenda-event-date-poll-item-mobile
       :event="event"
+      :voted-date-polls="votedDatePolls"
       :date-options="dateOptions"
       :voters="voters"
       :current-user-votes="currentUserVotes"
@@ -20,6 +21,10 @@ export default {
   props: {
     event: {
       type: Object,
+      default: () => null
+    },
+    votedDatePolls: {
+      type: Array,
       default: () => null
     },
     dateOptions: {
