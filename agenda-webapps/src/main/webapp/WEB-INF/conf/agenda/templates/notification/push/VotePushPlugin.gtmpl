@@ -7,7 +7,7 @@
             String agendaName = "<a style=\"text-decoration: none; font-weight:bold;font-family: 'HelveticaNeue Bold', Helvetica, Arial, sans-serif\" >" + agendaName +"</a>";
             String participantName = "<a style=\" text-decoration: none; font-weight:bold;font-family: 'HelveticaNeue Bold', Helvetica, Arial, sans-serif\" >" + participantName +"</a>";
             %>
-            <%= _ctx.appRes("Notification.agenda.event.mail.body.date.vote", participantName, eventTitle, agendaName) %>
+            <%= _ctx.appRes("Notification.agenda.event.date.vote", participantName, eventTitle, agendaName) %>
         </div>
         <div class="lastUpdatedTime"><%= LAST_UPDATED_TIME %></div>
     </div>
