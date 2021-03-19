@@ -103,6 +103,7 @@ export default {
         join: this.$t('space.join'),
         leave: this.$t('space.leave'),
         External: this.$t('agenda.label.external'),
+        Disabled: this.$t('agenda.label.disabled'),
         members: this.$t('space.members'),
       };
     },
