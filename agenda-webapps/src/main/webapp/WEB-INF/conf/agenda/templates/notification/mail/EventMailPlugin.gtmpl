@@ -89,7 +89,7 @@
                                                         vertical-align: middle;"
                                                         href="<%= acceptedResponseURL %>">
                                                         <%
-                                                        if (org.exoplatform.agenda.constant.AgendaEventModificationType.ADDED.name().equals(modificationType)) { %>
+                                                        if (!org.exoplatform.agenda.constant.AgendaEventModificationType.DELETED.name().equals(modificationType)) { %>
                                                         <%= _ctx.appRes("Notification.agenda.event.accepted") %>
                                                         <% } %>
                                                     </a>
@@ -106,7 +106,7 @@
                                                         vertical-align: middle;"
                                                         href="<%= declinedResponseURL %>">
                                                         <%
-                                                         if (org.exoplatform.agenda.constant.AgendaEventModificationType.ADDED.name().equals(modificationType)) { %>
+                                                         if (!org.exoplatform.agenda.constant.AgendaEventModificationType.DELETED.name().equals(modificationType)) { %>
                                                           <%= _ctx.appRes("Notification.agenda.event.declined") %>
                                                         <% } %>
                                                     </a>
@@ -123,7 +123,7 @@
                                                         vertical-align: middle;"
                                                         href="<%= tentativeResponseURL %>">
                                                         <%
-                                                        if (org.exoplatform.agenda.constant.AgendaEventModificationType.ADDED.name().equals(modificationType)) { %>
+                                                        if (!org.exoplatform.agenda.constant.AgendaEventModificationType.DELETED.name().equals(modificationType)) { %>
                                                           <%= _ctx.appRes("Notification.agenda.event.tentative") %>
                                                          <% } %>
                                                     </a>
