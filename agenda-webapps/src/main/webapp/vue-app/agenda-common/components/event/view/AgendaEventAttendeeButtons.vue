@@ -57,12 +57,11 @@ export default {
     isPastEvent() {
       if (!this.event) {
         return true;
-      } else if (this.event.parent) {
-        const endDate = this.$agendaUtils.toDate(this.event.parent.end);
-        return endDate.getTime() < Date.now();
-      } else {
+      } else if (this.event.start && this.event.end) {
         const endDate = this.$agendaUtils.toDate(this.event.end);
         return endDate.getTime() < Date.now();
+      } else {
+        return false;
       }
     },
     userAttendee() {
