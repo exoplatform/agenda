@@ -80,7 +80,6 @@
           v-if="stepper < 2"
           :disabled="disableNextStepButton"
           :class="nextStepClass"
-          outlined
           @click="nextStep">
           {{ stepButtonLabel }}
         </v-btn>
@@ -175,7 +174,7 @@ export default {
       return !this.eventTitleValid || !this.eventOwnerValid || !this.eventDescriptionValid;
     },
     nextStepClass() {
-      return this.displayTimeInForm && 'btn primary' || 'btn btn-primary';
+      return this.displayTimeInForm && 'btn' || 'btn btn-primary';
     },
     stepButtonLabel() {
       return this.displayTimeInForm ? this.$t('agenda.alternativeDates') : this.$t('agenda.button.continue');

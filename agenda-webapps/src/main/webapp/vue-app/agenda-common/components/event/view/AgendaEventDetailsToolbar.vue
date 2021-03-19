@@ -128,7 +128,9 @@ export default {
     },
   },
   mounted() {
-    $('.agendaEventDialog').parent().click(() => this.eventMenu = false);
+    $('.agendaEventDialog').parent().click(() => {
+      this.eventMenu = false;
+    });
   },
 };
 </script>
