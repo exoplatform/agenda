@@ -4,7 +4,7 @@
       <i class="uiIconGroup darkGreyIcon uiIcon32x32 pr-5"></i>
       <span>{{ attendeesResponsesTitle }}</span>
     </div>
-    <div class="event-attendees ml-5 mt-2 flex-column">
+    <div class="event-attendees pl-5 ml-7 mt-2 flex-column">
       <agenda-event-attendee-item
         v-for="attendee in displayedAttendees"
         :key="attendee"
