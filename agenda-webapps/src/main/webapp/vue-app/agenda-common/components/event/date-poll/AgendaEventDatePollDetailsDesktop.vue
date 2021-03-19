@@ -64,6 +64,7 @@
             v-for="(voter, index) in voters"
             :key="index"
             :voter="voter"
+            :voted-date-polls="votedDatePolls"
             :date-options="dateOptions"
             :selected-date-index="selectedDateOptionIndex"
             :is-voting="isVoting"
@@ -80,6 +81,10 @@ export default {
   props: {
     event: {
       type: Object,
+      default: () => null
+    },
+    votedDatePolls: {
+      type: Array,
       default: () => null
     },
     dateOptions: {

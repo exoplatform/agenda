@@ -459,7 +459,7 @@
   }
 
   .event-header-title  {
-    max-width: 140px;
+    max-width: ~"calc(100% - 145px)";
   }
   .calendar-owner-link  {
     max-width: 140px;
@@ -529,11 +529,7 @@
   }
   .event-date-poll-vote-choice {
     .event-conflicted {
-      top: 0px;
-
-      &:hover:before,&:focus:before {
-        opacity: 0 !important;
-      }
+      top: 4px;
     }
   }
   .event-details-body-divider {
@@ -553,7 +549,7 @@
   }
 
   .event-checkbox-vote {
-    .v-input--selection-controls__input {
+    .v-input--selection-controls__input, .v-input--selection-controls__ripple {
       margin: 0;
     }
 

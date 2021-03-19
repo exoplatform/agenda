@@ -330,6 +330,20 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
                               : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
   }
 
+  public List<Long> getEventDatePollIds(Long userIdentityId,
+                                        List<Long> attendeeIds,
+                                        Date start,
+                                        Date end) {
+    TypedQuery<Tuple> query = getEntityManager().createNamedQuery("AgendaEvent.getDatePollIdsByDates", Tuple.class);
+    query.setParameter("status", EventStatus.TENTATIVE);
+    query.setParameter("attendeeIds", attendeeIds);
+    query.setParameter("start", start);
+    query.setParameter("end", end);
+    List<Tuple> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList()
+                              : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
+  }
+
   public Long countEventDatePolls(List<Long> attendeeIds,
                                   Date fromDate) {
     TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaEvent.countPendingDatePoll", Long.class);
@@ -366,6 +380,22 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     } else {
       query.setMaxResults(DEFAULT_LIMIT);
     }
+    List<Tuple> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList()
+                              : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
+  }
+
+  public List<Long> getEventDatePollIdsByOwnerIds(Long userIdentityId,
+                                                  List<Long> ownerIds,
+                                                  List<Long> attendeeIds,
+                                                  Date start,
+                                                  Date end) {
+    TypedQuery<Tuple> query = getEntityManager().createNamedQuery("AgendaEvent.getDatePollIdsByOwnerIdsAndDates", Tuple.class);
+    query.setParameter("status", EventStatus.TENTATIVE);
+    query.setParameter("attendeeIds", attendeeIds);
+    query.setParameter("ownerIds", ownerIds);
+    query.setParameter("start", start);
+    query.setParameter("end", end);
     List<Tuple> resultList = query.getResultList();
     return resultList == null ? Collections.emptyList()
                               : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());

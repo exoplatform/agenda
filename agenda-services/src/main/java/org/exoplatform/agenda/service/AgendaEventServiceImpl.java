@@ -1101,16 +1101,15 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   }
 
   @Override
-  public List<Event> getEventDatePolls(List<Long> ownerIds,
-                                       long userIdentityId,
+  public List<Event> getEventDatePolls(EventFilter eventFilter,
                                        ZoneId userTimeZone,
-                                       int offset,
-                                       int limit) throws IllegalAccessException {
+                                       long userIdentityId) throws IllegalAccessException {
     Identity userIdentity = identityManager.getIdentity(String.valueOf(userIdentityId));
     if (userIdentity == null) {
       throw new IllegalStateException("User with identity id " + userIdentityId + " doesn't exist");
     }
 
+    List<Long> ownerIds = eventFilter.getOwnerIds();
     if (ownerIds != null) {
       for (Long ownerId : ownerIds) {
         if (!Utils.canAccessCalendar(identityManager, spaceService, ownerId, userIdentityId)) {
@@ -1121,12 +1120,21 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
 
     List<Long> attendeeIds = Utils.getCalendarOwnersOfUser(spaceService, identityManager, userIdentity);
-    List<Long> eventIds = this.agendaEventStorage.getEventDatePollIds(userIdentityId,
-                                                                      ownerIds,
-                                                                      attendeeIds,
-                                                                      offset,
-                                                                      limit);
-    return computeEventsProperties(eventIds, null, null, userTimeZone, true, limit, userIdentity, null, null);
+    List<Long> eventIds = null;
+    if (eventFilter.isUseDates()) {
+      eventIds = this.agendaEventStorage.getEventDatePollIds(userIdentityId,
+                                                             ownerIds,
+                                                             attendeeIds,
+                                                             eventFilter.getStart(),
+                                                             eventFilter.getEnd());
+    } else {
+      eventIds = this.agendaEventStorage.getEventDatePollIds(userIdentityId,
+                                                             ownerIds,
+                                                             attendeeIds,
+                                                             eventFilter.getOffset(),
+                                                             eventFilter.getLimit());
+    }
+    return computeEventsProperties(eventIds, null, null, userTimeZone, true, eventFilter.getLimit(), userIdentity, null, null);
   }
 
   @Override

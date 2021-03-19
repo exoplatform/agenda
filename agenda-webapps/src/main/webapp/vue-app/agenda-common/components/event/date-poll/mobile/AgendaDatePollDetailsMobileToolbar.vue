@@ -10,20 +10,12 @@
       class="mx-3 my-auto spaceAvatar space-avatar-header">
       <v-img :src="ownerAvatarUrl" />
     </v-avatar>
-    <div class="d-flex flex-grow-1 flex-column align-left">
-      <strong :title="event.summary" class="event-header-title text-truncate">
+    <div class="event-header-title d-flex flex-grow-1 flex-column align-left">
+      <strong class="text-truncate">
         {{ event.summary }}
       </strong>
-      <div class="text-truncate calendar-owner-link caption d-flex">
-        {{ $t('agenda.label.createdBy', {0: creatorFullName}) }} {{ $t('agenda.label.in') }}
-        <date-format
-          :value="event.created"
-          :format="fullDateFormat" />
-        ,
-        <date-format
-          :value="event.created"
-          :format="dateTimeFormat"
-          class="ml-1 " />
+      <div class="text-truncate caption">
+        {{ $t('agenda.label.createdBy', {0: creatorFullName}) }}
       </div>
     </div>
     <div class="d-flex flex-grow-0">

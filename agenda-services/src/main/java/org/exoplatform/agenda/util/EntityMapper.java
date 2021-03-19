@@ -224,7 +224,7 @@ public class EntityMapper {
     if (recurrence == null) {
       eventEntity.setStartDate(AgendaDateUtils.toDate(startUTC));
       eventEntity.setEndDate(AgendaDateUtils.toDate(endUTC));
-    } else if (event.getStatus() == EventStatus.CONFIRMED) {
+    } else if (event.getStatus() != EventStatus.CANCELLED) {
       DateTime startDateTime = new DateTime(Date.from(start.toInstant()), ical4jTimezone);
       DateTime endDateTime = new DateTime(Date.from(end.toInstant()), ical4jTimezone);
 

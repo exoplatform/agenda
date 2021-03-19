@@ -7,6 +7,7 @@
     <agenda-event-date-poll-details-mobile
       v-if="isMobile"
       :event="event"
+      :voted-date-polls="votedDatePolls"
       :date-options="dateOptions"
       :voters="voters"
       :current-user-votes="currentUserVotes"
@@ -20,6 +21,7 @@
     <agenda-event-date-poll-details-desktop
       v-else
       :event="event"
+      :voted-date-polls="votedDatePolls"
       :date-options="dateOptions"
       :voters="voters"
       :attendees-count="attendeesCount"
@@ -64,6 +66,7 @@ export default {
       selectedDateOptionIndex: -1,
       isVoting: false,
       hasVoted: false,
+      votedDatePolls: null,
       disableVoteButton: true,
       originalUserVotes: null,
       currentUserId: Number(eXo.env.portal.userIdentityId),
@@ -155,7 +158,7 @@ export default {
       this.voters = this.$datePollUtils.computeVoters(this.event);
     } else {
       this.loading = true;
-      return this.$identityService.getIdentityById(this.currentUserId)
+      this.$identityService.getIdentityById(this.currentUserId)
         .then(identity => {
           this.event.attendees.push({
             identity,
@@ -165,6 +168,33 @@ export default {
         })
         .finally(() => this.loading = false);
     }
+
+    this.$eventService.getDatePollsByDates(this.event.start, this.event.end, 'dateOptions,response')
+      .then(data => {
+        const datePolls = data && data.events;
+        if (datePolls && datePolls.length) {
+          this.votedDatePolls = [];
+          datePolls.forEach(datePoll => {
+            if (datePoll.id === this.event.id) {
+              return;
+            }
+            if (datePoll.attendees
+                && datePoll.attendees.length
+                && datePoll.attendees[0].response === 'TENTATIVE'
+                && datePoll.dateOptions
+                && datePoll.dateOptions.length) {
+              datePoll.dateOptions.forEach(dateOption => {
+                if (dateOption.voters && dateOption.voters.indexOf(this.currentUserId) >= 0) {
+                  const datePollOption = JSON.parse(JSON.stringify(datePoll));
+                  datePollOption.start = dateOption.start;
+                  datePollOption.end = dateOption.end;
+                  this.votedDatePolls.push(datePollOption);
+                }
+              });
+            }
+          });
+        }
+      });
   },
   methods: {
     preselectDateOption() {
