@@ -132,7 +132,7 @@ export default {
             if (space && space.identity && space.identity.id) {
               this.ownerIds = [space.identity.id];
               const spaceGroupUri = this.currentSpace.groupId.replace(/\//g, ':');
-              this.agendaBaseLink = `${eXo.env.portal.context}/g/${spaceGroupUri}/${this.currentSpace.prettyName}/Agenda`;
+              this.agendaBaseLink = `${eXo.env.portal.context}/g/${spaceGroupUri}/${this.currentSpace.prettyName}/agenda`;
             } else {
               this.agendaBaseLink = `${eXo.env.portal.context}/${eXo.env.portal.portalName}/agenda`;
             }
