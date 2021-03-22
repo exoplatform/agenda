@@ -32,7 +32,7 @@ function modifyEventOnConnector(connector, event, allRecurrentEvent, deleteEvent
       return updateEventRemoteInformation(connector, event, connectorParentEvent);
     })
     .then(event => {
-      if(allRecurrentEvent && event.recurrence) {
+      if (allRecurrentEvent && event.recurrence) {
         return getEventExceptionalOccurrences(event.id)
           .then(exceptionalOcuurences => {
             if (exceptionalOcuurences && exceptionalOcuurences.length) {
@@ -61,7 +61,7 @@ function updateEventRemoteInformation(connector, event, connectorEvent) {
   const remoteId = connectorEvent && connectorEvent.id || '';
   const remoteProviderName = connectorEvent && connector && connector.name || '';
 
-  if(eventId) {
+  if (eventId) {
     return updateEventFields(eventId, {
       remoteId,
       remoteProviderName,

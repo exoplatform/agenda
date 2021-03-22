@@ -193,7 +193,7 @@ export default {
       }
     }, 500);
   },
-  methods:{
+  methods: {
     reset() {
       this.eventDateOption = null;
       this.$nextTick().then(() => {

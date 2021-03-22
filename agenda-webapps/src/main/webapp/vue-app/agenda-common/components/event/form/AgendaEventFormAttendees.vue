@@ -61,14 +61,14 @@ export default {
       return this.event.attendees.map(attendee => `${attendee.identity.providerId}:${attendee.identity.remoteId}`);
     },
     disableAttendeeSuggester() {
-      if(!this.event.calendar || !this.event.calendar.owner || !this.event.calendar.owner.remoteId) {
+      if (!this.event.calendar || !this.event.calendar.owner || !this.event.calendar.owner.remoteId) {
         return true;
       } else {
         return false;
       }
     },
     suggesterStatus(){
-      if(this.disableAttendeeSuggester) {
+      if (this.disableAttendeeSuggester) {
         return this.$t('agenda.suggesterRequired.tooltip');
       } else {
         return '';
@@ -107,7 +107,7 @@ export default {
       this.$root.$emit('current-user',this.currentUser);
     });
   },
-  methods:{
+  methods: {
     reset() {
       if (!this.event.id && !this.event.occurrence && (!this.event.attendees || !this.event.attendees.length)) { // In case of edit existing event
         // Add current user as default attendee

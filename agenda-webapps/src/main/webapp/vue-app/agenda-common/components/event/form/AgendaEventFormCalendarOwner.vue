@@ -79,7 +79,7 @@ export default {
       this.currentUser = user;
     });
   },
-  methods:{
+  methods: {
     resetCustomValidity() {
       if (this.$refs.calendarOwnerSuggester) {
         this.$refs.calendarOwnerSuggester.$el.querySelector('input').setCustomValidity('');

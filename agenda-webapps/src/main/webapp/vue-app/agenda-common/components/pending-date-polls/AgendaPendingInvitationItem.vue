@@ -65,7 +65,7 @@ export default {
       },
     };
   },
-  computed:{
+  computed: {
     isCreator() {
       return this.invitedEvent && this.invitedEvent.creator && Number(this.invitedEvent.creator.id) === Number(this.currentUserId);
     },
@@ -85,7 +85,7 @@ export default {
       return this.currentAttendee && this.currentAttendee.response && `attendee-vote-${this.currentAttendee.response.toLowerCase()}` || 'attendee-vote-needs_action';
     },
     displayVoteStatus() {
-      if(this.hasVoted) {
+      if (this.hasVoted) {
         return this.$t('agenda.datePollVoted');
       }
       return this.$t('agenda.datePollVoteNeeded');
@@ -115,7 +115,7 @@ export default {
       return `border: 1px solid ${this.eventColor};`;
     }
   },
-  methods:{
+  methods: {
     openEventDetails() {
       this.$root.$emit('agenda-event-details', this.invitedEvent);
       this.$emit('close');

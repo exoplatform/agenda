@@ -94,7 +94,7 @@ export default {
       return this.event.acl && this.event.acl.attendee;
     },
   },
-  methods:{
+  methods: {
     deleteConfirmDialog() {
       this.$refs.deleteConfirmDialog.open();
     },

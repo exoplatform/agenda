@@ -240,7 +240,7 @@ export default {
   mounted() {
     this.reset();
   },
-  methods:{
+  methods: {
     close() {
       this.$emit('close');
     },

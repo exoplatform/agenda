@@ -186,7 +186,7 @@ export default {
   mounted() {
     this.reset();
   },
-  methods:{
+  methods: {
     close() {
       this.$emit('close');
       window.setTimeout(() => {

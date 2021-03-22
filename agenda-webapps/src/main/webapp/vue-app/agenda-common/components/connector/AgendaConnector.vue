@@ -103,7 +103,7 @@ export default {
           console.error('Connected - error', connector.name, error);
 
           this.$set(connector, 'loading', false);
-          if(error.error !== 'popup_closed_by_user') {
+          if (error.error !== 'popup_closed_by_user') {
             console.error('Error while connecting to remote account: ', error);
             this.errorMessage = this.$t('agenda.connectionFailure');
           }

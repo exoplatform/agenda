@@ -232,7 +232,7 @@ export default {
       }
     }, 2000);
   },
-  methods:{
+  methods: {
     getEventClass(event) {
       const textStyle = this.isEventDeclined(event) && ' text-decoration-line-through' || '';
       const editModeStyle = this.canEdit(event) && 'editable-event' || 'readonly-event';
@@ -364,7 +364,7 @@ export default {
     },
     eventMouseUp(eventObj) {
       this.mouseDown = false;
-      if(this.eventDragged || this.eventExtended) {
+      if (this.eventDragged || this.eventExtended) {
         if (eventObj && eventObj.nativeEvent) {
           eventObj.nativeEvent.preventDefault();
           eventObj.nativeEvent.stopPropagation();
@@ -458,7 +458,7 @@ export default {
             this.$root.$emit('agenda-event-quick-form', this.quickEvent);
           }
         }, 200);
-      } else if(this.eventDragged || this.eventExtended) {
+      } else if (this.eventDragged || this.eventExtended) {
         this.saveDraggedEvent();
       }
     },
@@ -540,7 +540,7 @@ export default {
     },
     agendaIntervalStyle(interval) {
       if (this.workingTime.showWorkingTime) {
-        if(this.workingTime.workingTimeStart && this.workingTime.workingTimeEnd) {
+        if (this.workingTime.workingTimeStart && this.workingTime.workingTimeEnd) {
           const inactive = interval.weekday === 0 ||
               interval.weekday === 6 ||
               interval.time < this.workingTime.workingTimeStart ||

@@ -6,7 +6,7 @@ export const MINIMUM_TIME_INTERVAL = 30;
 export const MINIMUM_TIME_INTERVAL_MS = MINIMUM_TIME_INTERVAL * 60 * 1000;
 
 export function initEventForm(agendaEvent, deleteDates) {
-  if(!agendaEvent.timeZoneId) {
+  if (!agendaEvent.timeZoneId) {
     agendaEvent.timeZoneId = USER_TIMEZONE_ID;
   }
   if (!agendaEvent.calendar) {
@@ -207,7 +207,7 @@ export function convertDates(event) {
 }
 
 export function generateCalendarTitle(calendarType, startDate, periodTitle, weekTitle) {
-  if(calendarType === 'week') {
+  if (calendarType === 'week') {
     const weekNumber = getWeekNumber(startDate);
     return `${periodTitle} - ${weekTitle} ${weekNumber}`;
   } else if (calendarType === 'day') {

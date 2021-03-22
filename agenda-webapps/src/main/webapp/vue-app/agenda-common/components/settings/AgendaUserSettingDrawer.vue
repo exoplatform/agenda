@@ -146,7 +146,7 @@ export default {
       this.$refs.UserSettingAgendaDrawer.close();
     },
     save() {
-      if(this.validateForm()) {
+      if (this.validateForm()) {
         this.$refs.UserSettingAgendaDrawer.startLoading();
         this.$settingsService.saveUserSettings(this.userSettingsForm)
           .then(() => {

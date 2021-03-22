@@ -73,7 +73,7 @@
 
 <script>
 export default {
-  props:{
+  props: {
     eventTitle: {
       type: String,
       default: () => null

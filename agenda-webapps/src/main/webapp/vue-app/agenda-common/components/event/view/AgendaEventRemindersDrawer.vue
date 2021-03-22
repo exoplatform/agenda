@@ -84,7 +84,7 @@ export default {
       this.$refs.drawer.close();
     },
     save() {
-      if(this.validateForm()) {
+      if (this.validateForm()) {
         if (this.event.occurrence && this.event.occurrence.id) {
           this.$refs.remindersConfirmDialog.open(this.eventReminders);
         } else {

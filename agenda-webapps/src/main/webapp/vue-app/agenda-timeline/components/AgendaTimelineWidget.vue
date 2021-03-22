@@ -64,8 +64,8 @@ export default {
     },
     events: [],
     agendaBaseLink: null,
-    conferenceProviders:null,
-    selectedProviderType:null,
+    conferenceProviders: null,
+    selectedProviderType: null,
   }),
   computed: {
     enabledConferenceProviderName() {

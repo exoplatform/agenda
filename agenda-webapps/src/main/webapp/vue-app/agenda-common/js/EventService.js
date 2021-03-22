@@ -502,7 +502,7 @@ function formatRecurrenceObject(event) {
       recurrence.byMonth = null;
       const dayNumberInMonth = startDate.getDate();
       recurrence.byMonthDay = [dayNumberInMonth];
-    } else if(recurrence.frequency === 'YEARLY') {
+    } else if (recurrence.frequency === 'YEARLY') {
       recurrence.byDay = null;
       const dayNumberInMonth = startDate.getDate();
       recurrence.byMonthDay = [dayNumberInMonth];

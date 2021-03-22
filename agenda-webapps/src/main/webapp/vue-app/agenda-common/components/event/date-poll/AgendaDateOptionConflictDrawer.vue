@@ -55,7 +55,7 @@
 
 <script>
 export default {
-  data:() => ({
+  data: () => ({
     events: [],
     votedDatePolls: [],
     dateOption: null,

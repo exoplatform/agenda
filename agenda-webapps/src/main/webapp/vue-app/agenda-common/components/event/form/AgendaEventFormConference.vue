@@ -73,7 +73,7 @@ export default {
     loading: false,
     conferenceURL: null,
   }),
-  computed:{
+  computed: {
     isConferenceEnabled() {
       return this.conferenceProvider && (!this.eventConferenceType || this.conferenceProvider.getType() === this.eventConferenceType);
     },
@@ -113,7 +113,7 @@ export default {
       this.conferenceURL = this.event.conferences[0].url;
     }
   },
-  methods:{
+  methods: {
     createCallUrl() {
       this.$set(this.event, 'conferences', [{
         type: this.conferenceProvider.getType(),

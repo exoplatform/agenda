@@ -71,7 +71,7 @@ function createConference(event, conference) {
         provider: conference.type,
         participants: participants && participants.join(';') || null,
         spaces: spaces && spaces.join(';') || null,
-        group : true,
+        group: true,
         startDate,
         endDate,
       });
@@ -105,7 +105,7 @@ function updateConference(event, conference) {
         provider: conference.type,
         participants: participants && participants.join(';') || null,
         spaces: spaces && spaces.join(';') || null,
-        group : true,
+        group: true,
         startDate,
         endDate,
       });

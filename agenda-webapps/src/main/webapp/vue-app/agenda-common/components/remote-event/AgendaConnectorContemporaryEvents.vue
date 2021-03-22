@@ -178,7 +178,7 @@ export default {
       this.retrieveRemoteEvents(this.connectedConnector);
     },
     retrieveRemoteEvents(connector) {
-      if(this.connectorStatus === 1) {
+      if (this.connectorStatus === 1) {
         const eventStartDay = this.event.startDate;
         const eventEndDay = this.event.endDate;
 

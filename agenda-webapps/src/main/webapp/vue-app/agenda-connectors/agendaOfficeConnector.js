@@ -167,7 +167,7 @@ function initOfficeConnector(connector) {
     connector.officeApi = officeApi;
 
     const currentUser = officeApi.getAllAccounts().length > 0 && connector.officeApi.getAllAccounts()[0] || null;
-    if(currentUser) {
+    if (currentUser) {
       connector.connectionStatusChangedCallback(connector, {
         user: currentUser.username,
         id: currentUser.localAccountId,
@@ -477,12 +477,12 @@ function buildConnectorEvent(event) {
     },
     isCancelled: event.status === 'CANCELLED',
     isAllDay: !!event.allDay,
-    location:{
+    location: {
       displayName: event.location || '',
     },
   };
 
-  if(event.recurrence) {
+  if (event.recurrence) {
     let recurrenceType = event.recurrence.frequency.toLowerCase();
     if (recurrenceType === 'monthly') {
       recurrenceType = 'absoluteMonthly';
@@ -494,7 +494,7 @@ function buildConnectorEvent(event) {
     let daysOfWeek = event.recurrence.byDay;
     if (daysOfWeek) {
       daysOfWeek = daysOfWeek.map(day => {
-        switch(day) {
+        switch (day) {
         case 'MO': return 'monday';
         case 'TU': return 'tuesday';
         case 'WE': return 'wednesday';
@@ -534,7 +534,7 @@ function buildConnectorEvent(event) {
     }
   }
 
-  if(event.allDay) {
+  if (event.allDay) {
     connectorEvent.start = {
       dateTime: event.start.substring(0, 10),
       timeZone: event.timeZoneId,

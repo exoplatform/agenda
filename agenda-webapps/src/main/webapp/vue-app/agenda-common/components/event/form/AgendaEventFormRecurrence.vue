@@ -57,15 +57,15 @@ export default {
         value: 'WEEK_DAYS'
       },
       {
-        text: this.$t('agenda.weekly',{ 0 : localizedDayNamefromDate }),
+        text: this.$t('agenda.weekly',{ 0: localizedDayNamefromDate }),
         value: 'WEEKLY'
       },
       {
-        text: this.$t('agenda.monthly',{ 0 : dayNumberInMonth }),
+        text: this.$t('agenda.monthly',{ 0: dayNumberInMonth }),
         value: 'MONTHLY'
       },
       {
-        text: this.$t('agenda.yearly',{ 0 : localizedMonthFromDate , 1: dayNumberInMonth}),
+        text: this.$t('agenda.yearly',{ 0: localizedMonthFromDate , 1: dayNumberInMonth}),
         value: 'YEARLY'
       },
       {
@@ -126,7 +126,7 @@ export default {
             this.event.recurrence.byDay = [this.dayNamefromDate.substring(0,2).toUpperCase()];
           } else if (this.recurrenceType === 'MONTHLY') {
             this.event.recurrence.byMonthDay = [this.dayNumberInMonth];
-          } else if(this.recurrenceType === 'YEARLY') {
+          } else if (this.recurrenceType === 'YEARLY') {
             this.event.recurrence.byMonthDay = [this.dayNumberInMonth];
             this.event.recurrence.byMonth = [this.monthNumberFromDate];
           }
@@ -139,7 +139,7 @@ export default {
       this.$nextTick().then(() => this.reset());
     });
   },
-  methods:{
+  methods: {
     applyCustomEventRecurrence(eventRecurrence) {
       this.$set(this.event, 'recurrence', JSON.parse(JSON.stringify(eventRecurrence)));
       this.event.recurrence.type = 'CUSTOM';
