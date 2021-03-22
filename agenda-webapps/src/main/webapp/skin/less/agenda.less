@@ -466,8 +466,11 @@
       }
     }
     .event-conference {
-      span {
-        display: inline !important;
+      a {
+        max-width: ~"calc(50vw - 100px)" !important;
+        span {
+          display: inline !important;
+        }
       }
     }
   }
@@ -815,6 +818,11 @@
         .event-details-body-right, .event-details-body-left {
           max-width: 100%;
           flex-grow: 0 !important;
+        }
+      }
+      .event-conference {
+        a {
+          max-width: ~"calc(100vw - 100px) !important";
         }
       }
     }
