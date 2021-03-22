@@ -99,7 +99,7 @@ export default {
     sendVotes() {
       const eventId = this.event.id;
       const acceptedDateOptionIds = [];
-      for(const index in this.dateOptions) {
+      for (const index in this.dateOptions) {
         const dateOptionId = this.dateOptions[index].id;
         if (this.currentUserVotes.dateOptionVotes[index]) {
           acceptedDateOptionIds.push(dateOptionId);

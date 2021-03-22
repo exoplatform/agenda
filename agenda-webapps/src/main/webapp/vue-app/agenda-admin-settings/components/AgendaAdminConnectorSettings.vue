@@ -85,7 +85,7 @@ export default {
   data: () => ({
     connectors: [],
     headers: [],
-    itemsPerPage : 10,
+    itemsPerPage: 10,
     settings: null,
   }),
   computed: {

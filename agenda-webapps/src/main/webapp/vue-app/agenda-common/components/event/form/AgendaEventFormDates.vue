@@ -229,7 +229,7 @@ export default {
     },
   },
   created() {
-    if(!this.event.timeZoneId) {
+    if (!this.event.timeZoneId) {
       this.event.timeZoneId = this.$agendaUtils.USER_TIMEZONE_ID;
     }
 
@@ -326,7 +326,7 @@ export default {
           });
         }
 
-        if(endDate - this.newStartedEvent.startDate < this.$agendaUtils.MINIMUM_TIME_INTERVAL_MS) {
+        if (endDate - this.newStartedEvent.startDate < this.$agendaUtils.MINIMUM_TIME_INTERVAL_MS) {
           endDate = this.newStartedEvent.startDate + this.$agendaUtils.MINIMUM_TIME_INTERVAL_MS;
         }
         this.newStartedEvent.endDate = endDate;
@@ -350,7 +350,7 @@ export default {
     },
     isShortEvent(eventObj) {
       const event = eventObj && eventObj.event || eventObj;
-      if(event && event.startDate && event.endDate) {
+      if (event && event.startDate && event.endDate) {
         return this.$agendaUtils.isShortEvent(event);
       } else {
         return true;
@@ -425,7 +425,7 @@ export default {
       }
     },
     retrieveRemoteEvents() {
-      if(this.connectedConnector) {
+      if (this.connectedConnector) {
         const startEventRFC3359 = this.$agendaUtils.toRFC3339(this.period.start, false, true);
         const endEventRFC3359 = this.$agendaUtils.toRFC3339(this.period.end, false, true);
 

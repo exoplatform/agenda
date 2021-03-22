@@ -46,7 +46,7 @@ export default {
       default: () => ({}),
     },
   },
-  methods:{
+  methods: {
     addReminder() {
       this.event.reminders.push({
         before: 10,

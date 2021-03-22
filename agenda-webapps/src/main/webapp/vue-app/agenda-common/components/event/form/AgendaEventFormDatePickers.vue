@@ -151,7 +151,7 @@ export default {
   mounted() {
     this.reset();
   },
-  methods:{
+  methods: {
     reset() {
       if (this.event) {
         this.startDate = null;

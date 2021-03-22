@@ -69,7 +69,7 @@ export default {
       default: () => ({})
     },
   },
-  data:() => ({
+  data: () => ({
     fullDateFormat: {
       year: 'numeric',
       month: 'short',

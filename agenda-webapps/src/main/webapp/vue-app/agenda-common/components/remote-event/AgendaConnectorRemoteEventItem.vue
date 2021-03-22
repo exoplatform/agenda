@@ -44,7 +44,7 @@
 
 <script>
 export default {
-  props:{
+  props: {
     remoteEvent: {
       type: Object,
       default: () => ({})

@@ -321,9 +321,9 @@ function buildConnectorEvent(event, connectorRecurringEventId) {
   if (event.recurrence) {
     connectorEvent.recurrence = [`RRULE:${event.recurrence.rrule}`];
   }
-  if(connectorRecurringEventId) {
+  if (connectorRecurringEventId) {
     connectorEvent.recurringEventId = connectorRecurringEventId;
-    if(event.allDay) {
+    if (event.allDay) {
       connectorEvent.originalStartTime = {
         date: event.occurrence.id,
         timeZone: event.timeZoneId
@@ -337,7 +337,7 @@ function buildConnectorEvent(event, connectorRecurringEventId) {
   }
   connectorEvent.status = event.status.toLowerCase();
 
-  if(event.allDay) {
+  if (event.allDay) {
     connectorEvent.start = {
       date: event.start,
     };
@@ -347,7 +347,7 @@ function buildConnectorEvent(event, connectorRecurringEventId) {
       timeZone: event.timeZoneId
     };
   }
-  if(event.allDay) {
+  if (event.allDay) {
     const endDate = new Date(event.end);
     endDate.setDate(endDate.getDate() +1);
     const formattedEndDate = `${endDate.getFullYear()  }-${

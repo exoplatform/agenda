@@ -194,7 +194,7 @@ export default {
       this.event = null;
       this.$nextTick().then(() => {
         this.event = event;
-        if(!this.event.timeZoneId) {
+        if (!this.event.timeZoneId) {
           this.event.timeZoneId = this.$agendaUtils.USER_TIMEZONE_ID;
         }
         this.open();
@@ -202,7 +202,7 @@ export default {
       });
     });
   },
-  methods:{
+  methods: {
     close() {
       this.conferenceURL = null;
       this.$refs.quickAddEventDrawer.close();

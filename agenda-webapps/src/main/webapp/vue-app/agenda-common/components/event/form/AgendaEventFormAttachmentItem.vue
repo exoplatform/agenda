@@ -47,7 +47,7 @@ export default {
       }
     },
     getIconClassFromFileMimeType() {
-      if(this.attachment) {
+      if (this.attachment) {
         const fileMimeTypeClass = this.attachment.mimeType.replace(/\./g, '').replace('/', '').replace('\\', '');
         return this.attachment.mimeType
           ? `uiIcon32x32${this.attachment.mimeType.replace(/[/.]/g, '')}`

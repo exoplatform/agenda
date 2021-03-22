@@ -48,12 +48,12 @@ export default {
     maxFileSize: 10, // TODO: get from settings
     errors: [],
   }),
-  computed:{
+  computed: {
     attachments() {
       return this.event.attachments || [];
     },
   },
-  methods:{
+  methods: {
     openUploadWindow(){
       this.$refs.uploadInput.click();
     },

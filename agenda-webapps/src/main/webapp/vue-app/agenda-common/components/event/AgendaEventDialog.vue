@@ -176,7 +176,7 @@ export default {
     }
 
     const search = document.location.search.substring(1);
-    if(search) {
+    if (search) {
       const parameters = JSON.parse(
         `{"${decodeURI(search)
           .replace(/"/g, '\\"')
@@ -279,7 +279,7 @@ export default {
       if (eventId) {
         const getEventDetailsPromise = occurrenceId ? this.$eventService.getEventOccurrence(eventId, occurrenceId, 'all,parentAll') : this.$eventService.getEventById(eventId, 'all,parentAll', true);
         return getEventDetailsPromise.then(event => {
-          if(!event ||  (event.status !== 'TENTATIVE' && event.status !== 'CONFIRMED')) {
+          if (!event ||  (event.status !== 'TENTATIVE' && event.status !== 'CONFIRMED')) {
             return ;
           }
           event.startDate = this.$agendaUtils.toDate(event.start);

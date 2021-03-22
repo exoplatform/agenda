@@ -40,7 +40,7 @@
 <script>
 export default {
   data: () => ({
-    selectedOpen:false,
+    selectedOpen: false,
     selectedEvent: {},
     selectedElement: null,
   })
