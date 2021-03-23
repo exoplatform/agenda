@@ -39,4 +39,11 @@ public class EventDateVoteDAO extends GenericDAOJPAImpl<EventDateVoteEntity, Lon
     query.executeUpdate();
   }
 
+  @ExoTransactional
+  public void deleteDateOptionsVotes(List<Long> dateOptionIds) {
+    Query query = getEntityManager().createNamedQuery("AgendaEventDateVote.deleteVotesByOptionIds");
+    query.setParameter("dateOptionIds", dateOptionIds);
+    query.executeUpdate();
+  }
+
 }

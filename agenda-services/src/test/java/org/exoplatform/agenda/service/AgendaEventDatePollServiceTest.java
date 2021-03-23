@@ -5,6 +5,7 @@ import static org.junit.Assert.*;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import org.junit.Test;
 
@@ -156,7 +157,7 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     assertNotNull(eventAttendees);
     assertEquals(1, eventAttendees.size());
     assertEquals(creatorIdentityId, eventAttendees.get(0).getIdentityId());
-    assertEquals(EventAttendeeResponse.NEEDS_ACTION, eventAttendees.get(0).getResponse());
+    assertEquals(EventAttendeeResponse.TENTATIVE, eventAttendees.get(0).getResponse());
 
     List<EventDateOption> dateOptions = agendaEventDatePollService.getEventDateOptions(createdEvent.getId(), ZoneOffset.UTC);
     assertFalse(dateOptions == null || dateOptions.isEmpty());
@@ -312,7 +313,15 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                                                       true,
                                                       null);
     Event createdEvent = agendaEventService.createEvent(event,
-                                                        Collections.emptyList(),
+                                                        Arrays.asList(new EventAttendee(0,
+                                                                                        Long.parseLong(testuser1Identity.getId()),
+                                                                                        EventAttendeeResponse.NEEDS_ACTION),
+                                                                      new EventAttendee(0,
+                                                                                        Long.parseLong(testuser2Identity.getId()),
+                                                                                        EventAttendeeResponse.NEEDS_ACTION),
+                                                                      new EventAttendee(0,
+                                                                                        Long.parseLong(testuser3Identity.getId()),
+                                                                                        EventAttendeeResponse.NEEDS_ACTION)),
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
                                                         Arrays.asList(dateOption1, dateOption2),
@@ -350,12 +359,26 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
       // Expected
     }
 
+    long eventId = createdEvent.getId();
+
     dateOption1.setAllDay(true);
     dateOption1.setStart(dateOption1.getStart().plusDays(1));
     dateOption1.setEnd(dateOption1.getEnd().plusDays(1));
 
+    List<EventDateOption> eventDateOptions = agendaEventDatePollService.getEventDateOptions(eventId, null);
+    agendaEventDatePollService.saveEventVotes(eventId,
+                                              eventDateOptions.stream().map(EventDateOption::getId).collect(Collectors.toList()),
+                                              Long.parseLong(testuser3Identity.getId()));
+
+    EventAttendeeResponse eventResponse = agendaEventAttendeeService.getEventResponse(eventId,
+                                                                                      null,
+                                                                                      Long.parseLong(testuser3Identity.getId()));
+    assertEquals(EventAttendeeResponse.TENTATIVE, eventResponse);
+
+    List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees();
+
     Event updatedEvent = agendaEventService.updateEvent(createdEvent,
-                                                        Collections.emptyList(),
+                                                        eventAttendees,
                                                         Collections.emptyList(),
                                                         Collections.emptyList(),
                                                         Arrays.asList(dateOption1, dateOption2),
@@ -367,6 +390,11 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     assertEquals(dateOption2.getStart().withZoneSameInstant(ZoneOffset.UTC), updatedEvent.getStart());
     assertEquals(dateOption1.getEnd().withZoneSameInstant(ZoneOffset.UTC), updatedEvent.getEnd());
     assertEquals(EventStatus.TENTATIVE, updatedEvent.getStatus());
+
+    eventResponse = agendaEventAttendeeService.getEventResponse(eventId,
+                                                                null,
+                                                                Long.parseLong(testuser3Identity.getId()));
+    assertEquals(EventAttendeeResponse.NEEDS_ACTION, eventResponse);
 
     AgendaEventModification eventModifications = eventUpdateReference.get();
     assertNotNull(eventModifications);
@@ -426,7 +454,7 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                  createdDateOption2.getEnd());
 
     updatedEvent = agendaEventService.updateEvent(updatedEvent,
-                                                  Collections.emptyList(),
+                                                  eventAttendees,
                                                   Collections.emptyList(),
                                                   Collections.emptyList(),
                                                   Arrays.asList(createdDateOption1, createdDateOption2),
@@ -443,7 +471,7 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     createdDateOption1.setStart(createdDateOption1.getStart().plusDays(1));
     createdDateOption1.setEnd(createdDateOption1.getEnd().plusDays(1));
     agendaEventService.updateEvent(updatedEvent,
-                                   Collections.emptyList(),
+                                   eventAttendees,
                                    Collections.emptyList(),
                                    Collections.emptyList(),
                                    Arrays.asList(createdDateOption1, createdDateOption2),

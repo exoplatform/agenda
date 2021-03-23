@@ -48,7 +48,6 @@ public class AgendaReplyOnSaveListener extends Listener<AgendaEventModification,
           if (eventModification.hasModification(AgendaEventModificationType.START_DATE_UPDATED)
               || eventModification.hasModification(AgendaEventModificationType.END_DATE_UPDATED)
               || eventModification.hasModification(AgendaEventModificationType.SWITCHED_DATE_POLL_TO_EVENT)
-              || eventModification.hasModification(AgendaEventModificationType.SWITCHED_EVENT_TO_DATE_POLL)
               || eventModification.hasModification(AgendaEventModificationType.ADDED)) {
             // Automatically change creator response to accepted
             // and for others to NEEDS_ACTION
@@ -81,12 +80,42 @@ public class AgendaReplyOnSaveListener extends Listener<AgendaEventModification,
           }
           break;
         case TENTATIVE:
-          if (getAgendaEventAttendeeService().isEventAttendee(eventId, modifierId)) {
-            // Automatically change creator response to accepted for all
-            // proposed Date Polls
-            List<EventDateOption> eventDateOptions = getAgendaEventDatePollService().getEventDateOptions(eventId, ZoneOffset.UTC);
-            List<Long> acceptedDatePollIds = eventDateOptions.stream().map(EventDateOption::getId).collect(Collectors.toList());
-            getAgendaEventDatePollService().saveEventVotes(eventId, acceptedDatePollIds, modifierId);
+          // Check if dates modification is made
+          if (eventModification.hasModification(AgendaEventModificationType.START_DATE_UPDATED)
+              || eventModification.hasModification(AgendaEventModificationType.END_DATE_UPDATED)
+              || eventModification.hasModification(AgendaEventModificationType.DATE_OPTION_CREATED)
+              || eventModification.hasModification(AgendaEventModificationType.DATE_OPTION_DELETED)
+              || eventModification.hasModification(AgendaEventModificationType.DATE_OPTION_UPDATED)
+              || eventModification.hasModification(AgendaEventModificationType.SWITCHED_EVENT_TO_DATE_POLL)
+              || eventModification.hasModification(AgendaEventModificationType.ADDED)) {
+
+            if (!eventModification.hasModification(AgendaEventModificationType.ADDED)) {
+              getAgendaEventDatePollService().resetEventVotes(eventId);
+            }
+
+            if (getAgendaEventAttendeeService().isEventAttendee(eventId, modifierId)) {
+              // Automatically change creator response to accepted for all
+              // proposed Date Polls and for other attendees to NEEDS_ACTION
+              List<EventDateOption> eventDateOptions =
+                                                     getAgendaEventDatePollService().getEventDateOptions(eventId, ZoneOffset.UTC);
+              List<Long> acceptedDatePollIds = eventDateOptions.stream().map(EventDateOption::getId).collect(Collectors.toList());
+              getAgendaEventDatePollService().saveEventVotes(eventId, acceptedDatePollIds, modifierId);
+            }
+            if (!eventModification.hasModification(AgendaEventModificationType.ADDED)) {
+              Set<Long> identityIds = new HashSet<>();
+              for (EventAttendee eventAttendee : eventAttendees) {
+                if (modifierId != eventAttendee.getIdentityId()
+                    && eventAttendee.getResponse() != EventAttendeeResponse.NEEDS_ACTION) {
+                  identityIds.add(eventAttendee.getIdentityId());
+                }
+              }
+              for (Long identityId : identityIds) {
+                getAgendaEventAttendeeService().sendEventResponse(eventId,
+                                                                  identityId,
+                                                                  EventAttendeeResponse.NEEDS_ACTION,
+                                                                  false);
+              }
+            }
           }
           break;
         default:

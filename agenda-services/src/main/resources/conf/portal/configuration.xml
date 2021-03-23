@@ -259,5 +259,20 @@
       <set-method>addListener</set-method>
       <type>org.exoplatform.agenda.listener.AgendaReplyOnSaveListener</type>
     </component-plugin>
+    <component-plugin>
+      <name>exo.agenda.event.poll.voted</name>
+      <set-method>addListener</set-method>
+      <type>org.exoplatform.agenda.listener.AgendaVoteListener</type>
+    </component-plugin>
+    <component-plugin>
+      <name>exo.agenda.event.poll.dismissed</name>
+      <set-method>addListener</set-method>
+      <type>org.exoplatform.agenda.listener.AgendaVoteListener</type>
+    </component-plugin>
+    <component-plugin>
+      <name>exo.agenda.event.poll.voted.all</name>
+      <set-method>addListener</set-method>
+      <type>org.exoplatform.agenda.listener.AgendaVotesListener</type>
+    </component-plugin>
   </external-component-plugins>
 </configuration>

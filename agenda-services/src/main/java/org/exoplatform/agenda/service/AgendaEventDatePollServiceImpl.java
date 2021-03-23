@@ -199,6 +199,11 @@ public class AgendaEventDatePollServiceImpl implements AgendaEventDatePollServic
     datePollStorage.selectDateOption(dateOptionId);
   }
 
+  @Override
+  public void resetEventVotes(long eventId) {
+    datePollStorage.deleteEventVotes(eventId);
+  }
+
   private List<EventDateOption> getDateOptionsToCreate(List<EventDateOption> dateOptions) {
     return dateOptions.stream()
                       .filter(dateOption -> dateOption.getId() == 0)

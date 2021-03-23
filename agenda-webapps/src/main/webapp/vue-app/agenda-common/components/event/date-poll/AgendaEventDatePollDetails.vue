@@ -154,7 +154,7 @@ export default {
       this.isVoting = false;
     });
 
-    if (this.currentUserAttendee) {
+    if (this.currentUserAttendee || !this.isAttendee) {
       this.voters = this.$datePollUtils.computeVoters(this.event);
     } else {
       this.loading = true;

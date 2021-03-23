@@ -1,5 +1,5 @@
 <template>
-  <div class="d-flex flex-row pa-6">
+  <div class="d-flex flex-row ma-6 overflow-auto">
     <v-spacer />
     <div class="d-inline">
       <table
