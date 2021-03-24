@@ -32,6 +32,10 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
           query = "DELETE from AgendaEventDateVote dateVote WHERE dateVote.dateOptionId = :dateOptionId"
       ),
       @NamedQuery(
+          name = "AgendaEventDateVote.deleteVotesByOptionIds",
+          query = "DELETE from AgendaEventDateVote dateVote WHERE dateVote.dateOptionId in (:dateOptionIds)"
+      ),
+      @NamedQuery(
           name = "AgendaEventDateVote.findVotersByDateOptionId",
           query = "SELECT dateVote from AgendaEventDateVote dateVote WHERE dateVote.dateOptionId = :dateOptionId"
       ),

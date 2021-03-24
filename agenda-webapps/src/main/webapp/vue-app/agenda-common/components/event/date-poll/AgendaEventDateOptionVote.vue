@@ -5,13 +5,13 @@
         v-if="isCurrentUserVoting"
         v-model="vote"
         :disabled="disabled || !isCurrentUser"
-        class="event-checkbox-vote ma-auto pa-0 ma-0 mb-1"
+        class="event-checkbox-vote pa-0"
         hide-details
         @change="$emit('change', vote)" />
       <template v-else>
         <span v-if="!hasVoted"></span>
-        <i v-else-if="vote" class="uiIcon uiIconColorValidate"></i>
-        <i v-else class="uiIcon uiIconColorError"></i>
+        <i v-else-if="vote" class="uiIcon py-1 uiIconColorValidate"></i>
+        <i v-else class="uiIcon py-1 uiIconColorError"></i>
       </template>
     </div>
     <v-fab-transition>
@@ -20,7 +20,7 @@
         :title="$t('agenda.conflictWithOtherEvent')"
         :absolute="!isMobile"
         :small="isMobile"
-        :class="isMobile && 'ml-2 mb-3' || 'ml-4 mt-1'"
+        :class="isMobile && 'ml-2 mb-3' || 'ml-8'"
         class="event-conflicted"
         icon
         @click="$root.$emit('agenda-conflict-events-drawer-open', dateOption, conflictEvents, conflictingDatePolls)">

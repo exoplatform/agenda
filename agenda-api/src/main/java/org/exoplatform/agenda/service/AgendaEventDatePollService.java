@@ -97,4 +97,11 @@ public interface AgendaEventDatePollService {
    */
   void selectEventDateOption(long dateOptionId) throws ObjectNotFoundException;
 
+  /**
+   * Delete all votes on a selected event
+   * 
+   * @param eventId Technical identifier of {@link Event}
+   */
+  void resetEventVotes(long eventId);
+
 }

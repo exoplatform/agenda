@@ -107,6 +107,14 @@ public class AgendaEventDatePollStorage {
     }
   }
 
+  public void deleteEventVotes(long eventId) {
+    List<EventDateOptionEntity> dateOptionEntities = dateOptionDAO.findDateOptionsByEventId(eventId);
+    if (dateOptionEntities != null && !dateOptionEntities.isEmpty()) {
+      List<Long> eventDateOptionIds = dateOptionEntities.stream().map(EventDateOptionEntity::getId).collect(Collectors.toList());
+      dateVoteDAO.deleteDateOptionsVotes(eventDateOptionIds);
+    }
+  }
+
   public void updateDateOption(EventDateOption dateOption) throws ObjectNotFoundException {
     long dateOptionId = dateOption.getId();
 

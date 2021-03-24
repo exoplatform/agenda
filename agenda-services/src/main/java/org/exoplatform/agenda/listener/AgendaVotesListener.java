@@ -10,7 +10,6 @@ import org.exoplatform.services.listener.*;
  * the response type of the user will be changed from NEEDS_ACTION to TENTATIVE
  * to determine whether the user has voted on the event before or not.
  */
-@Asynchronous
 public class AgendaVotesListener extends Listener<Long, Long> {
 
   private PortalContainer            container;
