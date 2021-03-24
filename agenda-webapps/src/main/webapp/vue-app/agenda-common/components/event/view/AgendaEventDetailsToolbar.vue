@@ -118,12 +118,6 @@ export default {
         members: this.$t('space.members'),
       };
     },
-    isTentativeEvent() {
-      return this.event && this.event.status === 'TENTATIVE';
-    },
-  },
-  mounted() {
-    $('.agendaEventDialog').parent().click(() => this.eventMenu = false);
   },
 };
 </script>
