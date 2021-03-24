@@ -16,6 +16,7 @@
       :current-space="currentSpace"
       :settings="settings"
       :connectors="enabledConnectors"
+      :conference-provider="conferenceProvider"
       :weekdays="weekdays"
       :working-time="workingTime" />
     <agenda-event-quick-form-drawer
