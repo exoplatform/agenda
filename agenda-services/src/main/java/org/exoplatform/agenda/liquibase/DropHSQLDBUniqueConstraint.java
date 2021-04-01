@@ -52,6 +52,11 @@ public class DropHSQLDBUniqueConstraint implements CustomTaskChange {
       CallableStatement dropConstraintQuery = connection.prepareCall("ALTER TABLE " + tableName + " DROP CONSTRAINT "
           + constraintName);
       dropConstraintQuery.execute();
+      // This will close the database and write .log file into .script
+      // to avoid this problem:
+      // https://stackoverflow.com/questions/32266213/hsqldb-unable-to-drop-foreign-key-constraint-object-not-found
+      CallableStatement hsqldbCheckpointQuery = connection.prepareCall("CHECKPOINT");
+      hsqldbCheckpointQuery.execute();
       connection.commit();
     } catch (Exception e) {
       throw new CustomChangeException("Error dropping constraint of table " +
