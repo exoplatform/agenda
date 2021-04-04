@@ -13,7 +13,7 @@
                   class="ma-2"
                   color="primary">
                   <span class="text-capitalize">{{ agendaSelectedView }}</span>
-                  <span class="pl-1">{{ $t('agenda.view') }}</span>
+                  <span class="ps-1">{{ $t('agenda.view') }}</span>
                 </v-chip>
                 <v-chip
                   class="ma-2"

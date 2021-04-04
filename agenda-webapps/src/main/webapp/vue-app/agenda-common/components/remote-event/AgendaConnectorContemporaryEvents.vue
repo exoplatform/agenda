@@ -4,11 +4,11 @@
       <v-avatar
         v-if="connectedConnector"
         tile
-        class="mr-2 pt-1"
+        class="me-2 pt-1"
         size="32">
         <img :src="connectedConnectorAvatar">
       </v-avatar>
-      <i v-else class="uiIconCalRemoteCalendar darkGreyIcon uiIcon24x24 pr-2 pt-2"></i>
+      <i v-else class="uiIconCalRemoteCalendar darkGreyIcon uiIcon24x24 pe-2 pt-2"></i>
       <div class="d-flex flex-column">
         <div class="d-flex text-no-wrap text-truncate">
           {{ $t('agenda.personalCalendar') }}
@@ -16,7 +16,7 @@
           <date-format
             :value="event.startDate"
             :format="fullDateFormat"
-            class="mr-1 text-wrap center" />
+            class="me-1 text-wrap center" />
           {{ ' ) ' }}
         </div>
         <a
@@ -50,7 +50,7 @@
             outlined>
             <v-icon
               size="20"
-              class="mr-4"
+              class="me-4"
               color="primary"
               depressed>
               fa-info-circle
@@ -66,7 +66,7 @@
             outlined>
             <v-icon
               size="20"
-              class="mr-4"
+              class="me-4"
               color="primary"
               depressed>
               fa-info-circle

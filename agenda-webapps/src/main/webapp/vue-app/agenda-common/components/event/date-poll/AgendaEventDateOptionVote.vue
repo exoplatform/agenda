@@ -20,7 +20,7 @@
         :title="$t('agenda.conflictWithOtherEvent')"
         :absolute="!isMobile"
         :small="isMobile"
-        :class="isMobile && 'ml-2 mb-3' || 'ml-8'"
+        :class="isMobile && 'ms-2 mb-3' || 'ms-8'"
         class="event-conflicted"
         icon
         @click="$root.$emit('agenda-conflict-events-drawer-open', dateOption, conflictEvents, conflictingDatePolls)">

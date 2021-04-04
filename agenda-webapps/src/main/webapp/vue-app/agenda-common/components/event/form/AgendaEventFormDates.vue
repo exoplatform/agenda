@@ -10,7 +10,7 @@
           :connectors="connectors">
           <template slot="connectButton">
             <v-btn class="btn">
-              <i class="uiIconHyperlink mr-2 darkGreyIcon"></i>
+              <i class="uiIconHyperlink me-2 darkGreyIcon"></i>
               {{ $t('agenda.connectYourPersonalAgenda') }}
             </v-btn>
           </template>
@@ -20,7 +20,7 @@
           indeterminate
           color="primary"
           size="20"
-          class="ml-3 my-auto" />
+          class="ms-3 my-auto" />
       </div>
       <v-row
         align="center"
@@ -76,12 +76,12 @@
           class="readonly-event">
           <p
             :title="eventObj.event.summary"
-            class="text-truncate my-auto ml-2 caption font-weight-bold d-flex">
-            <span class="text-truncate mr-auto">{{ eventObj.event.summary }}</span>
+            class="text-truncate my-auto ms-2 caption font-weight-bold d-flex">
+            <span class="text-truncate me-auto">{{ eventObj.event.summary }}</span>
             <v-icon
               v-if="eventObj.event.dateOption"
               color="white"
-              class="my-auto py-0 pr-0"
+              class="my-auto py-0 pe-0"
               size="18"
               @click="deleteDateOption(eventObj)">
               close
@@ -91,13 +91,13 @@
             <date-format
               :value="eventObj.event.startDate"
               :format="timeFormat"
-              class="ml-2" />
+              class="ms-2" />
             <strong
               class="mx-1">-</strong>
             <date-format
               :value="eventObj.event.endDate"
               :format="timeFormat"
-              class="mr-2" />
+              class="me-2" />
           </div>
         </div>
         <agenda-connector-remote-event-item

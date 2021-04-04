@@ -1,7 +1,7 @@
 <template>
   <v-list>
     <v-list-item class="agenda-calendar-settings px-0">
-      <v-list-item-action class="mr-2 ml-4">
+      <v-list-item-action class="me-2 ms-4">
         <v-checkbox
           v-model="selectAll"
           :indeterminate="partiallySelected"
@@ -15,7 +15,7 @@
           v-model="query"
           class="mb-0 mt-1" />
       </v-list-item-content>
-      <v-list-item-action class="ml-2">
+      <v-list-item-action class="ms-2">
         <select
           v-model="selectionType"
           class="width-auto my-auto subtitle-1 ignore-vuetify-classes">

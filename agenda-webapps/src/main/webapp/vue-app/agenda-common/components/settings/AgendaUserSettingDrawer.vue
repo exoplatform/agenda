@@ -17,7 +17,7 @@
         <v-layout class="ma-5 d-flex flex-column">
           <div class="d-flex flex-column mb-5">
             <label class="switch-label-text mt-1 text-subtitle-1">{{ $t('agenda.settings.drawer.label.DefaultView') }}:</label>
-            <select v-model="userSettingsForm.agendaDefaultView" class="width-auto my-auto pr-2 ignore-vuetify-classes d-none d-sm-inline">
+            <select v-model="userSettingsForm.agendaDefaultView" class="width-auto my-auto pe-2 ignore-vuetify-classes d-none d-sm-inline">
               <option value="day">{{ $t('agenda.label.viewDay') }}</option>
               <option value="week">{{ $t('agenda.label.viewWeek') }}</option>
               <option value="month">{{ $t('agenda.label.viewMonth') }}</option>
@@ -25,7 +25,7 @@
           </div>
           <div class="d-flex flex-column mb-5">
             <label class="switch-label-text mt-1 text-subtitle-1">{{ $t('agenda.settings.drawer.label.WeekStartOn') }}:</label>
-            <select v-model="userSettingsForm.agendaWeekStartOn" class="width-auto my-auto pr-2 ignore-vuetify-classes d-none d-sm-inline">
+            <select v-model="userSettingsForm.agendaWeekStartOn" class="width-auto my-auto pe-2 ignore-vuetify-classes d-none d-sm-inline">
               <option
                 v-for="day in DAYS_ABBREVIATIONS"
                 :key="day"
@@ -37,7 +37,7 @@
 
           <div class="d-flex flex-row">
             <label class="switch-label-text mt-1 text-subtitle-1">{{ $t('agenda.settings.drawer.label.showWorkingTime') }}:</label>
-            <v-switch v-model="userSettingsForm.showWorkingTime" class="mt-0 ml-4" />
+            <v-switch v-model="userSettingsForm.showWorkingTime" class="mt-0 ms-4" />
           </div>
           <div v-if="userSettingsForm.showWorkingTime" class="workingTime d-flex flex-row align-center">
             <time-picker
@@ -48,7 +48,7 @@
               v-model="userSettingsForm.workingTimeEnd"
               :interval-minutes="$agendaUtils.MINIMUM_TIME_INTERVAL" />
           </div>
-          <label class="subtitle-1 float-left mt-5 mr-4">
+          <label class="subtitle-1 float-left mt-5 me-4">
             {{ $t('agenda.label.defaultReminders') }}
           </label>
           <agenda-reminder-user-settings ref="reminders" :reminders="userSettingsForm.reminders" />
@@ -66,7 +66,7 @@
       <div class="d-flex">
         <v-spacer />
         <v-btn
-          class="btn mr-2"
+          class="btn me-2"
           @click="close">
           <template>
             {{ $t('agenda.button.cancel') }}

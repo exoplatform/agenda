@@ -42,7 +42,7 @@
         <agenda-event-attendee-buttons
           ref="eventAttendeeButtons"
           :event="event"
-          :class="isMobile && 'mr-1' || 'mr-10'"
+          :class="isMobile && 'me-1' || 'me-10'"
           class="flex-grow-0 my-2" />
       </template>
     </template>

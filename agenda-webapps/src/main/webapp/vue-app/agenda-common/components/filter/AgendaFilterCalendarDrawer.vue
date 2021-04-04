@@ -11,7 +11,7 @@
       <agenda-filter-calendar-list
         ref="filterCalendarList"
         v-model="selectedOwnerIds"
-        class="calendar-owners-filters mr-4"
+        class="calendar-owners-filters me-4"
         @start-loading="$refs.calendarOwnersFilters.startLoading()"
         @end-loading="$refs.calendarOwnersFilters.endLoading()" />
     </template>

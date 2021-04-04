@@ -10,7 +10,7 @@
         dense>
         <v-list-item class="agenda-timeline-month-title" dense>
           <v-list-item-action class="event-timeline-day" />
-          <v-list-item-action-text class="subtitle-1 mr-2 text-capitalize">
+          <v-list-item-action-text class="subtitle-1 me-2 text-capitalize">
             <date-format :value="month" :format="monthFormat" />
           </v-list-item-action-text>
           <v-list-item-content>

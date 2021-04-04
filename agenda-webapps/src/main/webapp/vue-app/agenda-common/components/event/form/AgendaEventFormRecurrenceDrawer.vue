@@ -49,7 +49,7 @@
               v-for="day in days"
               :key="day.value"
               :value="day.value"
-              class="mr-1">
+              class="me-1">
               <span class="text-uppercase">
                 {{ day.text }}
               </span>
@@ -60,7 +60,7 @@
         <div class="control-group">
           <div class="d-flex flex-column mt-3">
             <div class="control-label text-subtitle-1">{{ $t('agenda.label.endRepeat') }}:</div>
-            <div class="controls ml-5">
+            <div class="controls ms-5">
               <v-radio-group v-model="recurrentEventDate">
                 <v-radio
                   :label="$t('agenda.label.never')"
@@ -72,7 +72,7 @@
                       <div class="flex-grow-0">
                         {{ $t('agenda.label.after') }}
                       </div>
-                      <div class="pl-5 pr-2">
+                      <div class="ps-5 pe-2">
                         <input
                           v-model="eventRecurrence.count"
                           :disabled="recurrentEventDate !== 'count'"
@@ -81,7 +81,7 @@
                           min="1"
                           required>
                       </div>
-                      <div class="pl-0">
+                      <div class="ps-0">
                         {{ $t('agenda.label.events') }}
                       </div>
                     </div>
@@ -93,7 +93,7 @@
                       <div class="flex-grow-0">
                         {{ $t('agenda.label.untilDate') }}
                       </div>
-                      <div class="pl-5 pr-2">
+                      <div class="ps-5 pe-2">
                         <date-picker
                           v-model="untilDate"
                           :disabled="recurrentEventDate !== 'date'" />
@@ -111,12 +111,12 @@
       <div class="d-flex">
         <v-spacer />
         <v-btn
-          class="btn ml-2"
+          class="btn ms-2"
           @click="close">
           {{ $t('agenda.button.cancel') }}
         </v-btn>
         <v-btn
-          class="btn btn-primary ml-2"
+          class="btn btn-primary ms-2"
           @click="apply">
           {{ $t('agenda.button.apply') }}
         </v-btn>

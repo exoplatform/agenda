@@ -22,9 +22,9 @@
           <agenda-event-date-option-period-mobile
             :date-option="dateOption"
             :can-select="canSelectDate"
-            class="text--primary my-auto flex-grow-1 ml-4" />
+            class="text--primary my-auto flex-grow-1 ms-4" />
           <v-list-item-content
-            class="text--primary my-auto flex-grow-0 flex-shrink-0 pr-1 date-poll-voters-avatar">
+            class="text--primary my-auto flex-grow-0 flex-shrink-0 pe-1 date-poll-voters-avatar">
             <agenda-event-date-option-voter-mobile :date-option="dateOption" />
           </v-list-item-content>
           <div v-if="!active" class="my-auto">

@@ -165,9 +165,10 @@ export default {
         this.parentDialogSelector = parentElementSelector;
       } else {
         if ($('#left-topNavigation-container').length) {
+          const directionClass = eXo.env.portal.orientation === 'rtl' && 'v-application--is-rtl' || 'v-application--is-ltr';
           $('#left-topNavigation-container').html(`
               <div class="VuetifyApp">
-                <div data-app="true" class="v-application v-application--is-ltr transparent theme--light">
+                <div data-app="true" class="v-application ${directionClass} transparent theme--light">
                 </div>
               </div>`);
           this.parentDialogSelector = parentElementSelector;

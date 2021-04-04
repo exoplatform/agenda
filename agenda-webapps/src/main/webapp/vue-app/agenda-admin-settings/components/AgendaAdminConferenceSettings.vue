@@ -6,7 +6,7 @@
     <div class="d-flex flex-row">
       <select
         v-model="selectedProviderType"
-        class="subtitle-1 ignore-vuetify-classes my-4 mr-2"
+        class="subtitle-1 ignore-vuetify-classes my-4 me-2"
         @change="saveSelectedProvider">
         <option
           v-for="conferenceProvider in webConferenceProviderChoices"
@@ -20,7 +20,7 @@
         indeterminate
         color="primary"
         size="20"
-        class="ml-3 my-auto" />
+        class="ms-3 my-auto" />
       <v-alert
         v-model="saved"
         type="success"
