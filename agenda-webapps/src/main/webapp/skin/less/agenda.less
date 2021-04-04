@@ -224,7 +224,8 @@
         display: flex !important;
         flex-direction: row;
         flex-wrap: nowrap;
-        padding: 0 0 0 8px !important;
+        padding:  ~'0 0 0 8px !important; /** orientation=lt */ ';
+        padding:  ~'0 8px 0 0 !important; /** orientation=rt */ ';
       }
       input {
         padding: 2px 0 !important;
@@ -612,6 +613,11 @@
   .hide-edit-vote {
     visibility: hidden;
   }
+}
+
+.v-calendar-daily__head {
+  margin-right:  ~'0 !important; /** orientation=rt */ ';
+  margin-left: ~'14px !important; /** orientation=rt */ ';
 }
 
 .agenda-date-poll-details-mobile {

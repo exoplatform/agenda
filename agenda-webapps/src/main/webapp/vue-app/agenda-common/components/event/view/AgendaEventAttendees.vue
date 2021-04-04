@@ -1,10 +1,10 @@
 <template>
   <div>
     <div class="event-attendees-responses align-center d-flex">
-      <i class="uiIconGroup darkGreyIcon uiIcon32x32 pr-5"></i>
+      <i class="uiIconGroup darkGreyIcon uiIcon32x32 pe-5"></i>
       <span>{{ attendeesResponsesTitle }}</span>
     </div>
-    <div class="event-attendees pl-5 ml-7 mt-2 flex-column">
+    <div class="event-attendees ps-5 ms-7 mt-2 flex-column">
       <agenda-event-attendee-item
         v-for="attendee in displayedAttendees"
         :key="attendee"

@@ -4,7 +4,7 @@
       <div class="title text-truncate flex-grow-1 px-0 pt-1 mx-2">
         {{ $t('agenda.scheduleEvent') }}
       </div>
-      <div class="flex-grow-0 flex-shrink-0 px-0 mr-2">
+      <div class="flex-grow-0 flex-shrink-0 px-0 me-2">
         <v-btn
           color="grey"
           icon
@@ -84,7 +84,7 @@
             :settings="settings"
             :current-space="currentSpace"
             :conference-provider="conferenceProvider"
-            class="mr-3" />
+            class="me-3" />
           <input
             v-else
             id="eventConference"
@@ -103,7 +103,7 @@
           @initialized="$emit('initialized')" />
         <div class="d-flex flex-row my-2 align-center">
           <label class="font-weight-bold">{{ $t('agenda.modifyEventPermission') }}</label>
-          <v-switch v-model="event.allowAttendeeToUpdate" class="pa-0 mt-0 ml-4" />
+          <v-switch v-model="event.allowAttendeeToUpdate" class="pa-0 mt-0 ms-4" />
         </div>
         <div class="d-flex flex-row font-weight-regular">
           {{ $t('agenda.modifyEventPermissionDescription') }}
@@ -114,13 +114,13 @@
     <div class="d-flex ma-2">
       <v-spacer />
       <v-btn
-        class="btn ml-2 d-inline d-sm-none"
+        class="btn ms-2 d-inline d-sm-none"
         @click="close">
         {{ $t('agenda.button.cancel') }}
       </v-btn>
       <v-btn
         :disabled="disableSaveButton"
-        class="btn btn-primary ml-2"
+        class="btn btn-primary ms-2"
         @click="saveEvent">
         {{ $t('agenda.button.save') }}
       </v-btn>

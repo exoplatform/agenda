@@ -27,7 +27,7 @@
       <div class="d-flex">
         <v-spacer />
         <v-btn
-          class="btn mr-2"
+          class="btn me-2"
           @click="close">
           <template>
             {{ $t('agenda.button.cancel') }}

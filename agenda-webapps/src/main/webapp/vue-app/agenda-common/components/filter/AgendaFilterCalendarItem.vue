@@ -5,7 +5,7 @@
         v-model="checked"
         :color="calendarColor"
         :label="calendarDisplayName"
-        class="agenda-calendar-settings-color ml-4"
+        class="agenda-calendar-settings-color ms-4"
         @click="changeSelection" />
     </v-list-item-content>
     <v-list-item-action
@@ -38,14 +38,14 @@
             <v-spacer />
             <v-btn
               :disabled="saving"
-              class="btn ml-2"
+              class="btn ms-2"
               @click="closeMenu">
               {{ $t('agenda.button.cancel') }}
             </v-btn>
             <v-btn
               :loading="saving"
               :disabled="saving"
-              class="btn btn-primary ml-2"
+              class="btn btn-primary ms-2"
               @click="applyColor">
               {{ $t('agenda.button.apply') }}
             </v-btn>

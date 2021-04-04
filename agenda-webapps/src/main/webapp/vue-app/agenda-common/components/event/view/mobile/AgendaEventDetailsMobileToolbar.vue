@@ -16,7 +16,7 @@
       </strong>
       <div class="text-truncate d-flex">
         <span>{{ $t('agenda.label.in') }}</span>
-        <a :href="calendarOwnerLink" class="text-truncate calendar-owner-link pl-1">{{ ownerDisplayName }}</a>
+        <a :href="calendarOwnerLink" class="text-truncate calendar-owner-link ps-1">{{ ownerDisplayName }}</a>
       </div>
     </div>
     <div class="d-flex flex-grow-0">
@@ -28,7 +28,7 @@
         <template v-slot:activator="{ on, attrs }">
           <v-btn
             icon
-            class="my-auto mr-2"
+            class="my-auto me-2"
             v-bind="attrs"
             v-on="on">
             <v-icon>mdi-dots-vertical</v-icon>
@@ -50,7 +50,7 @@
     </div>
     <div class="d-flex flex-grow-0">
       <v-btn
-        class="my-auto mr-2"
+        class="my-auto me-2"
         color="grey"
         icon
         @click="$emit('close')">

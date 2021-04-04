@@ -2,7 +2,7 @@
   <tr>
     <th :class="!voter.profile && 'no-vote' || ''" class="event-date-options-voter-cell justify-center">
       <v-card
-        class="d-flex fill-height border-box-sizing mr-3"
+        class="d-flex fill-height border-box-sizing me-3"
         flat>
         <div
           class="my-auto text-center text-truncate pa-3">

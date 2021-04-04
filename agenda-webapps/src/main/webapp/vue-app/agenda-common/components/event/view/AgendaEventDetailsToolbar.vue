@@ -1,6 +1,6 @@
 <template>
   <v-row class="event-details-header d-flex align-center flex-nowrap text-left col-12 mx-0">
-    <v-col :title="event.summary" class="event-title title text-truncate col-auto pl-4 mx-2">
+    <v-col :title="event.summary" class="event-title title text-truncate col-auto ps-4 mx-2">
       {{ event.summary }}
     </v-col>
     <v-col class="flex-grow-0 flex-shrink-0 px-0 mx-2">
@@ -50,7 +50,7 @@
         </v-list>
       </v-menu>
     </v-col>
-    <v-col class="px-0 flex-grow-0 flex-shrink-0 mr-2">
+    <v-col class="px-0 flex-grow-0 flex-shrink-0 me-2">
       <v-btn
         color="grey"
         icon

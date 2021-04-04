@@ -5,7 +5,7 @@
     flat
     @submit="$emit('next-step')">
     <div class="d-flex flex-column flex-md-row">
-      <label class="create-event-label float-left mt-5 mr-6 text-subtitle-1 d-none d-md-inline">
+      <label class="create-event-label float-left mt-5 me-6 text-subtitle-1 d-none d-md-inline">
         {{ $t('agenda.label.create') }}
       </label>
       <input
@@ -18,7 +18,7 @@
         class="ignore-vuetify-classes my-3"
         required
         @change="resetCustomValidity">
-      <label class="mt-5 ml-4 mr-4 text-subtitle-1 font-weight-bold d-none d-md-inline">
+      <label class="mt-5 ms-4 me-4 text-subtitle-1 font-weight-bold d-none d-md-inline">
         {{ $t('agenda.label.in') }}
       </label>
       <agenda-event-form-calendar-owner
@@ -30,7 +30,7 @@
     <div class="d-flex flex-column flex-md-row mt-1 event-form-body">
       <div class="d-flex flex-column flex-grow-1 event-form-body-left">
         <div v-if="displayTimeInForm && eventDateOption" class="d-flex flex-row">
-          <i class="uiIconClock darkGreyIcon uiIcon32x32 mt-4 mr-11"></i>
+          <i class="uiIconClock darkGreyIcon uiIcon32x32 mt-4 me-11"></i>
           <agenda-event-form-date-pickers
             :event="eventDateOption"
             class="event-form-datetimes my-4"
@@ -38,7 +38,7 @@
             @initialized="formInitialized" />
         </div>
         <div class="d-flex flex-row">
-          <i class="uiIconLocation darkGreyIcon uiIcon32x32 mt-4 mr-11"></i>
+          <i class="uiIconLocation darkGreyIcon uiIcon32x32 mt-4 me-11"></i>
           <input
             id="eventLocation"
             ref="eventLocation"
@@ -49,17 +49,17 @@
             class="ignore-vuetify-classes my-3 location-event-input">
         </div>
         <div class="d-flex flex-row">
-          <i class="uiIconRecurrence darkGreyIcon uiIcon32x32 my-auto mr-11"></i>
+          <i class="uiIconRecurrence darkGreyIcon uiIcon32x32 my-auto me-11"></i>
           <div class="d-flex flex-column">
             <agenda-event-form-recurrence :event="event" class="my-auto" />
             <agenda-event-recurrence
               v-if="hasRecurrence"
               :event="event"
-              class="text-wrap ml-2" />
+              class="text-wrap ms-2" />
           </div>
         </div>
         <div class="d-flex flex-row">
-          <i class="uiIconVideo darkGreyIcon uiIcon32x32 uiIcon32x32 my-3 mr-11"></i>
+          <i class="uiIconVideo darkGreyIcon uiIcon32x32 uiIcon32x32 my-3 me-11"></i>
           <div class="d-flex flex-column">
             <agenda-event-form-conference
               :event="event"
@@ -71,7 +71,7 @@
         </div>
         <div class="d-flex flex-row">
           <v-flex class="flex-grow-0">
-            <i class="uiIconDescription darkGreyIcon uiIcon32x32 my-3 mr-11"></i>
+            <i class="uiIconDescription darkGreyIcon uiIcon32x32 my-3 me-11"></i>
           </v-flex>
           <extended-textarea
             id="eventDescription"
@@ -87,12 +87,12 @@
       </div>
       <div class="d-flex flex-column flex-grow-1 event-form-body-right">
         <div class="d-flex flex-row">
-          <v-flex class="flex-grow-0 mr-2 mt-1">
+          <v-flex class="flex-grow-0 me-2 mt-1">
             <i class="uiIconGroup darkGreyIcon uiIcon32x32 my-3"></i>
           </v-flex>
           <agenda-event-form-attendees
             :event="event"
-            class="ml-4"
+            class="ms-4"
             @initialized="$emit('initialized')" />
         </div>
         <div class="d-flex flex-row">
@@ -101,7 +101,7 @@
             ref="allowAttendeeToUpdateRef"
             v-model="event.allowAttendeeToUpdate"
             :disabled="!canInviteeEdit"
-            class="mt-0 ml-4" />
+            class="mt-0 ms-4" />
         </div>
         <div class="d-flex flex-row font-weight-regular">
           {{ $t('agenda.modifyEventPermissionDescription') }}

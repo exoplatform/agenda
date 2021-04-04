@@ -39,7 +39,7 @@
               ref="calendarOwner"
               :event="event"
               :current-space="currentSpace"
-              class="ml-1 pr-1"
+              class="ms-1 pe-1"
               @initialized="formInitialized" />
           </div>
           <div class="d-flex flex-row">
@@ -48,7 +48,7 @@
             </v-flex>
             <agenda-event-form-date-pickers
               :event="event"
-              class="pt-3 my-4 mr-3"
+              class="pt-3 my-4 me-3"
               @changed="updateEventDates"
               @initialized="formInitialized" />
           </div>
@@ -73,7 +73,7 @@
               :settings="settings"
               :current-space="currentSpace"
               :conference-provider="conferenceProvider"
-              class="mr-3" />
+              class="me-3" />
             <input
               v-else
               id="eventConference"
@@ -90,7 +90,7 @@
             </v-flex>
             <agenda-event-form-attendees
               :event="event"
-              class="pr-1"
+              class="pe-1"
               @initialized="formInitialized" />
           </div>
         </div>
@@ -99,19 +99,19 @@
     <template slot="footer">
       <div class="d-flex">
         <v-btn
-          class="btn ml-2"
+          class="btn ms-2"
           @click="close">
           {{ $t('agenda.button.cancel') }}
         </v-btn>
         <v-spacer />
         <v-btn
-          class="btn ml-2"
+          class="btn ms-2"
           @click="openCompleteEventForm">
           {{ $t('agenda.button.moreDetails') }}
         </v-btn>
         <v-btn
           :disabled="disableSaveButton"
-          class="btn btn-primary ml-2"
+          class="btn btn-primary ms-2"
           @click="createEvent">
           {{ $t('agenda.button.save') }}
         </v-btn>

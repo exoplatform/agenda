@@ -14,7 +14,7 @@
       v-if="recurrenceType === 'CUSTOM'"
       icon
       small
-      class="ml-2 my-auto"
+      class="ms-2 my-auto"
       @click="openCustomRecurrenceForm">
       <i class="uiIcon uiIconEdit  primary--text"></i>
     </v-btn>

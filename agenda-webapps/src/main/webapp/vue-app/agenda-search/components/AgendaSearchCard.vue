@@ -17,7 +17,7 @@
             :max-width="spaceAvatarSize"
             class="mx-auto" />
         </v-avatar>
-        <div v-if="eventTitle" class="d-flex flex-column text-truncate pull-left ml-2">
+        <div v-if="eventTitle" class="d-flex flex-column text-truncate pull-left ms-2">
           <a
             v-if="eventTitle"
             v-sanitized-html="eventTitle"
@@ -49,18 +49,18 @@
         class="px-0 pt-1 pb-2"
         two-line>
         <v-list-item-icon class="mx-0 my-auto">
-          <span class="uiIconPLFEventTask tertiary--text pl-1 pr-2 display-1"></span>
+          <span class="uiIconPLFEventTask tertiary--text ps-1 pe-2 display-1"></span>
         </v-list-item-icon>
         <v-list-item-content>
           <v-list-item-title>
             <date-format
               :value="eventStartDate"
               :format="fullDateFormat"
-              class="mr-1" />
+              class="me-1" />
             <date-format
               :value="eventStartDate"
               :format="dateTimeFormat"
-              class="mr-1" />
+              class="me-1" />
           </v-list-item-title>
         </v-list-item-content>
       </v-list-item>
@@ -69,7 +69,7 @@
         class="px-2 pt-1 pb-2"
         two-line>
         <v-list-item-icon class="mx-0 my-auto">
-          <span class="uiIconStatistics uiIcon32x32 uiIconPLFFont tertiary--text pl-1 pr-2"></span>
+          <span class="uiIconStatistics uiIcon32x32 uiIconPLFFont tertiary--text ps-1 pe-2"></span>
         </v-list-item-icon>
         <v-list-item-content class="pb-0">
           <v-list-item-title>

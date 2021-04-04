@@ -3,7 +3,7 @@
     <template v-if="isVoting">
       <v-btn
         :disabled="sendingVotes"
-        class="btn ml-auto mr-2"
+        class="btn ms-auto me-2"
         @click="$root.$emit('agenda-date-poll-canceled')">
         {{ $t('agenda.button.cancel') }}
       </v-btn>
@@ -20,7 +20,7 @@
       v-else-if="isCreator"
       :loading="creatingEvent"
       :disabled="disableCreateButton"
-      class="btn btn-primary ml-auto"
+      class="btn btn-primary ms-auto"
       @click="createEvent">
       {{ $t('agenda.button.createEvent') }}
     </v-btn>

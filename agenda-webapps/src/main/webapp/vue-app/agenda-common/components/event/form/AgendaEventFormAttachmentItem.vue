@@ -1,7 +1,7 @@
 <template>
   <v-list-item class="d-flex flex-row">
     <i :class="getIconClassFromFileMimeType"></i>
-    <div class="d-flex flex-column ml-2">
+    <div class="d-flex flex-column ms-2">
       <a :href="attachment.url || ''" class="my-auto">{{ attachment.name }} ({{ formattedFileSize }})</a>
       <v-progress-linear
         v-if="attachment.control && uploadProgress < 100"

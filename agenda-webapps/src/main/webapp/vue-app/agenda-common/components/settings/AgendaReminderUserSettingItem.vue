@@ -11,20 +11,20 @@
     <select
       ref="periodTypeInput"
       v-model="reminder.beforePeriodType"
-      class="reminder-period-type width-auto my-auto ml-4 pr-2 ignore-vuetify-classes"
+      class="reminder-period-type width-auto my-auto ms-4 pe-2 ignore-vuetify-classes"
       required>
       <option value="MINUTE">{{ $t('agenda.option.minutes') }}</option>
       <option value="HOUR">{{ $t('agenda.option.hours') }}</option>
       <option value="DAY">{{ $t('agenda.option.days') }}</option>
     </select>
-    <span class="ml-4">
+    <span class="ms-4">
       {{ $t('agenda.label.beforeStart') }}
     </span>
     <v-btn
       color="grey"
       icon
       dark
-      class="ml-auto"
+      class="ms-auto"
       @click="$emit('remove')">
       <v-icon>
         mdi-close

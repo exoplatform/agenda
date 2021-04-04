@@ -17,7 +17,7 @@
       @remove="removeReminder(reminder)" />
     <v-list-item
       v-if="canAddReminder"
-      class="pl-0 my-auto reminder-list-item"
+      class="ps-0 my-auto reminder-list-item"
       dense>
       <a class="text-subtitle-1 font-weight-regular add-notification-link" @click="addReminder">
         {{ $t('agenda.addReminder') }}

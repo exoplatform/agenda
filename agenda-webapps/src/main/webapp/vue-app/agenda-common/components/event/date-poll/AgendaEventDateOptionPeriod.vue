@@ -13,13 +13,13 @@
           <date-format
             :value="dateOption.start"
             :format="dateDayFormat"
-            class="text-no-wrap mr-1" />
+            class="text-no-wrap me-1" />
           <template v-if="!sameDayDates">
             -
             <date-format
               :value="dateOption.end"
               :format="dateDayFormat"
-              class="ml-1" />
+              class="ms-1" />
           </template>
         </div>
       </v-card-title>
@@ -31,12 +31,12 @@
           <date-format
             :value="dateOption.start"
             :format="dateTimeFormat"
-            class="mr-1" />
+            class="me-1" />
           -
           <date-format
             :value="dateOption.end"
             :format="dateTimeFormat"
-            class="ml-1 mr-2" />
+            class="ms-1 me-2" />
         </template>
       </v-card-text>
       <v-fab-transition>

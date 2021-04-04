@@ -3,12 +3,12 @@
     <template
       slot="title">
       <div class="d-flex flex-grow-1">
-        <div class="my-auto body-1 flex-grow-0 mr-2">
+        <div class="my-auto body-1 flex-grow-0 me-2">
           <v-icon @click="close()">mdi-keyboard-backspace</v-icon>
         </div>
         <div class="flex-grow-0 d-flex flex-column">
           <div class="flex-grow-0 d-flex flex-row body-2 font-weight-bold">
-            <div class="mr-1">
+            <div class="me-1">
               {{ $t('agenda.datePollVoters') }}
             </div>
             <div class="my-auto text-truncate">
@@ -20,13 +20,13 @@
                   <date-format
                     :value="dateOption.start"
                     :format="dateDayFormat"
-                    class="text-no-wrap mr-1" />
+                    class="text-no-wrap me-1" />
                   <template v-if="!sameDayDates">
                     -
                     <date-format
                       :value="dateOption.end"
                       :format="dateDayFormat"
-                      class="ml-1" />
+                      class="ms-1" />
                   </template>
                 </div>
                 <template v-if="dateOption.allDay">
@@ -36,12 +36,12 @@
                   <date-format
                     :value="dateOption.start"
                     :format="dateTimeFormat"
-                    class="mr-1" />
+                    class="me-1" />
                   -
                   <date-format
                     :value="dateOption.end"
                     :format="dateTimeFormat"
-                    class="ml-1 mr-2" />
+                    class="ms-1 me-2" />
                 </template>
               </div>
             </div>
