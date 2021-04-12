@@ -348,11 +348,16 @@ public class Utils {
     } else if (StringUtils.equals(SpaceIdentityProvider.NAME, requestedOwner.getProviderId())) {
       boolean superManager = spaceService.isSuperManager(userIdentity.getRemoteId());
       Space space = spaceService.getSpaceByPrettyName(requestedOwner.getRemoteId());
+      if (spaceService.isSuperManager(userIdentity.getRemoteId())) {
+        return true;
+      } else if (space == null) {
+        return false;
+      }
       boolean isManager = space != null && spaceService.isManager(space, userIdentity.getRemoteId());
       boolean isMember = space != null && spaceService.isMember(space, userIdentity.getRemoteId());
       boolean isRedactor = space != null && spaceService.isRedactor(space, userIdentity.getRemoteId());
       boolean spaceHasARedactor = space != null && space.getRedactors() != null && space.getRedactors().length > 0;
-      return (!spaceHasARedactor || isRedactor || isManager) && (superManager || isMember);
+      return isMember && (!spaceHasARedactor || isRedactor || isManager);
     } else {
       return false;
     }
