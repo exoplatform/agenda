@@ -15,13 +15,13 @@
           <date-format
             :value="event.start"
             :format="dateFormat"
-            class="mr-1" />
+            class="me-1" />
           <template v-if="!sameDayDates">
             -
             <date-format
               :value="event.end"
               :format="dateFormat"
-              class="ml-1" />
+              class="ms-1" />
           </template>
         </div>
         <div :style="textStyle" class="d-inline-flex">
@@ -32,12 +32,12 @@
             <date-format
               :value="event.start"
               :format="timeFormat"
-              class="ml-1 mr-1" />
+              class="ms-1 me-1" />
             -
             <date-format
               :value="event.end"
               :format="timeFormat"
-              class="ml-1 mr-2" />
+              class="ms-1 me-2" />
           </template>
         </div>
       </v-list-item-subtitle>
@@ -49,7 +49,7 @@
       <i
         :style="textStyle"
         :class="eventIcon"
-        class="uiIcon32x32 uiIconPLFFont align-self-center d-flex mb-1 mr-1"></i>
+        class="uiIcon32x32 uiIconPLFFont align-self-center d-flex mb-1 me-1"></i>
     </v-list-item-action>
   </v-list-item>
 </template>

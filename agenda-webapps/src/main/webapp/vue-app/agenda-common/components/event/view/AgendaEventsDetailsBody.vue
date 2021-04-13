@@ -3,23 +3,23 @@
     <div class="flex-grow-1 flex-shrink-0 d-flex event-details-body-left">
       <div class="mx-auto">
         <div class="event-date align-center d-flex pb-5">
-          <i class="uiIconDatePicker darkGreyIcon uiIcon32x32 pr-5"></i>
+          <i class="uiIconDatePicker darkGreyIcon uiIcon32x32 pe-5"></i>
           <div class="d-inline-flex">
             <date-format
               :value="event.startDate"
               :format="fullDateFormat"
-              class="mr-1" />
+              class="me-1" />
             <template v-if="!sameDayDates">
               -
               <date-format
                 :value="event.endDate"
                 :format="fullDateFormat"
-                class="ml-1" />
+                class="ms-1" />
             </template>
           </div>
         </div>
         <div class="event-time align-center d-flex pb-5">
-          <i class="uiIconClock darkGreyIcon uiIcon32x32 pr-5"></i>
+          <i class="uiIconClock darkGreyIcon uiIcon32x32 pe-5"></i>
           <div class="d-inline-flex">
             <template v-if="event.allDay">
               {{ $t('agenda.allDay') }}
@@ -28,24 +28,24 @@
               <date-format
                 :value="event.startDate"
                 :format="dateTimeFormat"
-                class="mr-1" />
+                class="me-1" />
               -
               <date-format
                 :value="event.endDate"
                 :format="dateTimeFormat"
-                class="ml-1 mr-2" />
+                class="ms-1 me-2" />
             </template>
             <template>
               ( {{ timeZoneName }} )
             </template>
           </div>
         </div>
-        <div v-if="hasRecurrence" class="event-recurrence align-center d-flex pl-1 pb-5 text-truncate">
-          <i class="uiIconRefresh darkGreyIcon uiIcon32x32 pr-5"></i>
+        <div v-if="hasRecurrence" class="event-recurrence align-center d-flex ps-1 pb-5 text-truncate">
+          <i class="uiIconRefresh darkGreyIcon uiIcon32x32 pe-5"></i>
           <agenda-event-recurrence :event="event" class="text-wrap text-left" />
         </div>
         <div v-if="canAddReminders" class="event-reminders align-center d-flex pb-5 text-truncate">
-          <i class="uiIcon32x32 notifIcon darkGreyIcon pr-5 mt-1 mb-auto"></i>
+          <i class="uiIcon32x32 notifIcon darkGreyIcon pe-5 mt-1 mb-auto"></i>
           <v-list
             class="py-0 text-truncate"
             dense>
@@ -58,10 +58,10 @@
               <v-list-item
                 v-for="(reminder, index) in event.reminders"
                 :key="index"
-                class="pl-0"
+                class="ps-0"
                 dense>
                 <v-chip
-                  class="mt-1 mb-2 mr-2"
+                  class="mt-1 mb-2 me-2"
                   color="primary"
                   outlined>
                   <span class="text--primary text-truncate">
@@ -85,7 +85,7 @@
           </v-btn>
         </div>
         <div v-if="isConferenceEnabled" class="event-conference flex d-flex flex-grow-0 flex-shrink-1 pb-5">
-          <i class="uiIconVideo darkGreyIcon uiIcon32x32 pr-5"></i>
+          <i class="uiIconVideo darkGreyIcon uiIcon32x32 pe-5"></i>
           <v-btn
             :title="eventConferenceUrl"
             :href="eventConferenceUrl"
@@ -98,17 +98,17 @@
           </v-btn>
         </div>
         <div v-if="event.location" class="event-location d-flex flex-grow-0 flex-shrink-1 pb-5">
-          <i class="uiIconCheckin darkGreyIcon uiIcon32x32 pr-5"></i>
+          <i class="uiIconCheckin darkGreyIcon uiIcon32x32 pe-5"></i>
           <span v-autolinker="event.location" class="align-self-center text-break"></span>
         </div>
         <div v-if="event.description" class="event-description d-flex flex-grow-0 flex-shrink-1 pb-5">
-          <i class="uiIconDescription darkGreyIcon uiIcon32x32 pr-5"></i>
+          <i class="uiIconDescription darkGreyIcon uiIcon32x32 pe-5"></i>
           <span v-autolinker:[autolinkerArgs]="event.description" class="mt-1 align-self-center text-wrap text-left text-break"></span>
         </div>
         <div
           v-if="event.attachments && event.attachments.length !== 0"
           class="event-attachments align-center d-flex pb-5">
-          <i class="uiIconAttach darkGreyIcon uiIcon32x32 pr-5"></i>
+          <i class="uiIconAttach darkGreyIcon uiIcon32x32 pe-5"></i>
           <div
             v-for="attachedFile in event.attachments"
             :key="attachedFile.name"

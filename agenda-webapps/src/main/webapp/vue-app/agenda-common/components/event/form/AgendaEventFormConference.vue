@@ -21,7 +21,7 @@
           color="grey"
           icon
           dark
-          class="ml-auto"
+          class="ms-auto"
           @click="deleteCallURL">
           <v-icon>
             mdi-close

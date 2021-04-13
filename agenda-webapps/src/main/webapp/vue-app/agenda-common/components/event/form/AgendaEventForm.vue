@@ -19,7 +19,7 @@
           </v-stepper-step>
         </div>
         <v-btn
-          class="my-auto mr-2"
+          class="my-auto me-2"
           color="grey"
           icon
           dark
@@ -63,16 +63,16 @@
         v-if="stepper > 1"
         class="btn mx-2"
         @click="previousStep">
-        <v-icon>mdi-chevron-left</v-icon>
+        <v-icon>{{ $vuetify.rtl && 'mdi-chevron-right' || 'mdi-chevron-left' }}</v-icon>
         <span class="d-none d-md-inline">
           {{ $t('agenda.button.previous') }}
         </span>
       </v-btn>
-      <div class="ml-auto mr-10">
+      <div class="ms-auto me-10">
         <v-btn
           v-if="displaySaveButton"
           :disabled="disableSaveButton"
-          class="btn btn-primary mr-2"
+          class="btn btn-primary me-2"
           @click="saveEvent">
           {{ saveButtonLabel }}
         </v-btn>
@@ -84,7 +84,7 @@
           {{ stepButtonLabel }}
         </v-btn>
         <v-btn
-          class="btn ml-2"
+          class="btn ms-2"
           @click="close">
           {{ $t('agenda.button.cancel') }}
         </v-btn>

@@ -4,7 +4,7 @@
       <v-col cols="2" class="my-auto">
         <v-btn
           outlined
-          class="btn mr-4"
+          class="btn me-4"
           color="grey darken-2"
           @click="setToday">
           {{ $t('agenda.toDay') }}

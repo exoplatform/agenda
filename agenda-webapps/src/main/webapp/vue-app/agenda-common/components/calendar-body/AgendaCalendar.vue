@@ -46,11 +46,11 @@
       <div :class="getEventClass(event)">
         <strong
           :title="event.summary"
-          class="text-truncate my-auto d-flex ml-2">
+          class="text-truncate my-auto d-flex ms-2">
           <div class="flex-grow-1 text-truncate">
             {{ event.summary }}
           </div>
-          <div v-if="isEventTentative(event)" class="flex-grow-0 mr-1">
+          <div v-if="isEventTentative(event)" class="flex-grow-0 me-1">
             <i class="uiIcon attendee-response attendee-response-tentative"></i>
           </div>
         </strong>
@@ -60,12 +60,12 @@
           <date-format
             :value="event.startDate"
             :format="timeFormat"
-            class="v-event-draggable mr-2" />
+            class="v-event-draggable me-2" />
           <strong class="mx-2">-</strong>
           <date-format
             :value="event.endDate"
             :format="timeFormat"
-            class="v-event-draggable mr-2" />
+            class="v-event-draggable me-2" />
         </div>
       </div>
       <div

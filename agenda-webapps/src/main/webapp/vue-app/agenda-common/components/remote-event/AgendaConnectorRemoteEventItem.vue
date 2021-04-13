@@ -8,12 +8,12 @@
     <p
       :title="remoteEvent.summary"
       :class="textClass"
-      class="text-truncate my-auto ml-2 caption font-weight-bold">
+      class="text-truncate my-auto ms-2 caption font-weight-bold">
       {{ remoteEvent.summary }}
     </p>
     <template v-if="!displayEventDate">
       <v-avatar
-        class="mr-1 my-auto"
+        class="me-1 my-auto"
         tile
         size="16">
         <img :src="avatar">
@@ -24,17 +24,17 @@
         :value="remoteEvent.start || remoteEvent.startDate"
         :format="timeFormat"
         :class="textClass"
-        class="v-event-draggable ml-2" />
+        class="v-event-draggable ms-2" />
       <strong :class="textClass" class="mx-1">-</strong>
       <date-format
         :value="remoteEvent.end || remoteEvent.endDate"
         :format="timeFormat"
         :class="textClass"
-        class="v-event-draggable mr-2" />
+        class="v-event-draggable me-2" />
       <v-avatar
         v-if="!currentEvent"
         tile
-        class="white ml-auto mr-1"
+        class="white ms-auto me-1"
         size="16">
         <img :src="avatar">
       </v-avatar>

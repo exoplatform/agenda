@@ -1,6 +1,6 @@
 <template>
   <v-flex class="agenda-date-poll-details-mobile">
-    <div class="ml-3 mt-5 mb-3 grey--text text-subtitle-2">
+    <div class="ms-3 mt-5 mb-3 grey--text text-subtitle-2">
       {{ $t('agenda.votePreferredDates') }}
     </div>
     <agenda-event-date-poll-item-mobile

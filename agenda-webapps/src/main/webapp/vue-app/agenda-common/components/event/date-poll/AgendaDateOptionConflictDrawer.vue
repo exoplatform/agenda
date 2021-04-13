@@ -11,13 +11,13 @@
           <date-format
             :value="dateOption.start"
             :format="dateFormat"
-            class="mr-1" />
+            class="me-1" />
           <template v-if="!sameDayDates">
             -
             <date-format
               :value="dateOption.end"
               :format="dateFormat"
-              class="ml-1" />
+              class="ms-1" />
           </template>
         </div>
         <div class="d-inline-flex">
@@ -28,12 +28,12 @@
             <date-format
               :value="dateOption.start"
               :format="timeFormat"
-              class="mr-1" />
+              class="me-1" />
             -
             <date-format
               :value="dateOption.end"
               :format="timeFormat"
-              class="ml-1 mr-2" />
+              class="ms-1 me-2" />
           </template>
         </div>
       </div>

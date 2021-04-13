@@ -4,7 +4,7 @@
     dense
     class="pending-invitation-item border-radius"
     @click="openEventDetails">
-    <v-list-item-icon class="my-auto mr-2">
+    <v-list-item-icon class="my-auto me-2">
       <v-icon
         v-if="isCreator"
         :style="textStyle">
@@ -29,7 +29,7 @@
           <date-format
             :value="invitedEvent.start"
             :format="dayFormat"
-            class="ml-auto" />
+            class="ms-auto" />
         </template>
       </v-list-item-subtitle>
     </v-list-item-content>
@@ -42,7 +42,7 @@
       <i
         :style="textStyle"
         :class="eventIcon"
-        class="uiIcon32x32 uiIconPLFFont align-self-center d-flex mb-1 mr-1"></i>
+        class="uiIcon32x32 uiIconPLFFont align-self-center d-flex mb-1 me-1"></i>
     </v-list-item-action>
   </v-list-item>
 </template>

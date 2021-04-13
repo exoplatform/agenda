@@ -25,14 +25,14 @@
         <button
           :disabled="loading"
           :loading="loading"
-          class="ignore-vuetify-classes btn mr-2 mb-1"
+          class="ignore-vuetify-classes btn me-2 mb-1"
           @click="close">
           {{ $t('agenda.button.cancel') }}
         </button>
         <button
           :disabled="loading"
           :loading="loading"
-          class="ignore-vuetify-classes btn-primary ml-2 mb-1"
+          class="ignore-vuetify-classes btn-primary ms-2 mb-1"
           @click="saveRecurrentEventChoice">
           {{ $t('agenda.button.save') }}
         </button>

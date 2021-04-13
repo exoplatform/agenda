@@ -11,7 +11,7 @@
         <agenda-create-event-button
           :current-space="currentSpace"
           :can-create-event="canCreateEvent"
-          class="agenda-toolbar-left mr-2" />
+          class="agenda-toolbar-left me-2" />
       </v-col>
       <v-col
         cols="8"
@@ -26,7 +26,7 @@
         class="d-flex flex-row justify-end my-auto flex-nowrap">
         <select
           v-model="eventType"
-          class="width-auto my-auto ml-4 subtitle-1 ignore-vuetify-classes d-none d-sm-inline"
+          class="width-auto my-auto ms-4 subtitle-1 ignore-vuetify-classes d-none d-sm-inline"
           @change="$root.$emit('agenda-event-type-changed', eventType)">
           <option value="myEvents">{{ $t('agenda.myEvent') }}</option>
           <option value="declinedEvent">{{ $t('agenda.declinedEvent') }}</option>
@@ -35,7 +35,7 @@
         <agenda-calendar-filter-button
           :current-space="currentSpace"
           :owner-ids="ownerIds"
-          class="ml-2" />
+          class="ms-2" />
         <v-btn
           icon
           :title="$t('agenda.settings.drawer.title')"
