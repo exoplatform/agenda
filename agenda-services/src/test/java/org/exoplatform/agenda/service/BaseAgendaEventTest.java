@@ -80,15 +80,9 @@ public abstract class BaseAgendaEventTest {
 
   protected Calendar                                        spaceCalendar;
 
-  protected Calendar                                        spaceCalendar1;
-
   protected Space                                           space;
 
-  protected Space                                           space1;
-
   protected Identity                                        spaceIdentity;
-
-  protected Identity                                        spaceIdentity1;
 
   protected Identity                                        testuser1Identity;
 
@@ -231,25 +225,6 @@ public abstract class BaseAgendaEventTest {
                                                                                       "Client API Key",
                                                                                       true));
     }
-
-    String displayName1 = "testSpaceAgenda1" + RandomUtils.nextInt();
-    space1 = createSpace(displayName1,
-                         testuser1Identity.getRemoteId(),
-                         testuser2Identity.getRemoteId(),
-                         testuser3Identity.getRemoteId());
-    spaceIdentity1 = identityManager.getOrCreateIdentity(SpaceIdentityProvider.NAME, space1.getPrettyName());
-    spaceCalendar1 = agendaCalendarService.createCalendar(new Calendar(0,
-                                                                      Long.parseLong(spaceIdentity1.getId()),
-                                                                      false,
-                                                                      null,
-                                                                      CALENDAR_DESCRIPTION,
-                                                                      null,
-                                                                      null,
-                                                                      CALENDAR_COLOR,
-                                                                      null));
-    space1 = spaceService.getSpaceByDisplayName(displayName1);
-    spaceService.addRedactor(space1, testuser3Identity.getRemoteId());
-    spaceService.setManager(space1, testuser2Identity.getRemoteId(), true);
   }
 
   protected void purgeData() throws ObjectNotFoundException {
@@ -260,10 +235,6 @@ public abstract class BaseAgendaEventTest {
     if (calendar != null) {
       agendaCalendarService.deleteCalendarById(calendar.getId());
       calendar = null;
-    }
-    if (spaceCalendar1 != null) {
-      agendaCalendarService.deleteCalendarById(spaceCalendar1.getId());
-      spaceCalendar1 = null;
     }
 
     eventCreationReference.set(null);

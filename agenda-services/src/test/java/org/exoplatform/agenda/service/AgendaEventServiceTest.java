@@ -424,9 +424,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     ZonedDateTime start = getDate().withNano(0);
 
     boolean allDay = true;
-
+    spaceService.addRedactor(space, testuser1Identity.getRemoteId());
+    spaceService.setManager(space, testuser2Identity.getRemoteId(), true);
     Event event = newEventInstance(start, start, allDay);
-    event.setCalendarId(spaceCalendar1.getId());
+    event.setCalendarId(spaceCalendar.getId());
     Event createdEvent = createEvent(event.clone(),
                                      Long.parseLong(testuser2Identity.getId()),
                                      testuser3Identity);
