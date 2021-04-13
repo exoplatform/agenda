@@ -420,6 +420,29 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
   }
 
   @Test
+  public void testCreateEvent_InSpace_AsManager() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+
+    boolean allDay = true;
+    spaceService.addRedactor(space, testuser1Identity.getRemoteId());
+    spaceService.setManager(space, testuser2Identity.getRemoteId(), true);
+    Event event = newEventInstance(start, start, allDay);
+    event.setCalendarId(spaceCalendar.getId());
+    Event createdEvent = createEvent(event.clone(),
+                                     Long.parseLong(testuser2Identity.getId()),
+                                     testuser3Identity);
+
+    assertNotNull(createdEvent);
+    assertTrue(createdEvent.getId() > 0);
+    AgendaEventModification eventModification = eventCreationReference.get();
+    assertNotNull(eventModification);
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.ADDED));
+    assertEquals("Modification types are more than expected : " + eventModification.getModificationTypes(),
+                 1,
+                 eventModification.getModificationTypes().size());
+  }
+
+  @Test
   public void testGetEventById() throws Exception { // NOSONAR
     ZonedDateTime start = getDate().withNano(0);
 
