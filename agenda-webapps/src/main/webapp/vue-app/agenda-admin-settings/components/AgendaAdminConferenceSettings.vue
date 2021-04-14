@@ -61,7 +61,9 @@ export default {
     },
   },
   mounted() {
-    this.isWebConferencingEnabled = this.$webConferencingService.isWebConferencingEnabled();
+    this.$webConferencingService.checkWebConferencingEnabled().then(enabled => {
+      this.isWebConferencingEnabled = enabled;
+    });
   },
   methods: {
     refreshConferencesList() {
