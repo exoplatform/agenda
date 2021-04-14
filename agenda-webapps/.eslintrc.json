@@ -3,6 +3,7 @@
     "eslint-config-meedsio"
   ],
   "globals": {
-    "gapi": true
+    "gapi": true,
+    "webConferencing": true
   }
 }

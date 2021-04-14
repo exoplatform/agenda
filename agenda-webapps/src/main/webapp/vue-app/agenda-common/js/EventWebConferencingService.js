@@ -1,19 +1,15 @@
-let webConferencing = null;
-
-export function isWebConferencingEnabled() {
-  return !!webConferencing;
+export function checkWebConferencingEnabled() {
+  return loadWebContferencing();
 }
 
 export function getAllProviders() {
-  if (isWebConferencingEnabled()) {
-    return webConferencing.getAllProviders();
-  }
-  return Promise.resolve(null);
+  return checkWebConferencingEnabled()
+    .then(enabled => enabled && global.webConferencing.getAllProviders() || null);
 }
 
 export function deleteEventWebConferencing(conference) {
   const providerType = conference && conference.type;
-  if (!providerType || !webConferencing || !webConferencing.deleteCall || !conference.url) {
+  if (!providerType || !global.webConferencing || !global.webConferencing.deleteCall || !conference.url) {
     return Promise.resolve(null);
   }
   return deleteConference(conference.url);
@@ -25,18 +21,18 @@ export function saveEventWebConferencing(event, conference) {
     return Promise.resolve(null);
   } else if (providerType === 'manual') {
     return Promise.resolve(conference);
-  } else if (!webConferencing) {
+  } else if (!global.webConferencing) {
     return Promise.resolve(null);
   }
   if (conference.url) {
-    if (webConferencing.updateCall) {
+    if (global.webConferencing.updateCall) {
       // Update existing conference
       return updateConference(event, conference);
     } else {
       return Promise.resolve(null);
     }
   } else {
-    if (webConferencing.addCall) {
+    if (global.webConferencing.addCall) {
       // Create new conference
       return createConference(event, conference);
     } else {
@@ -46,13 +42,13 @@ export function saveEventWebConferencing(event, conference) {
 }
 
 function deleteConference(provider, url) {
-  return webConferencing.getCallId(url)
+  return global.webConferencing.getCallId(url)
     .then(callId => {
       if (!callId) {
         // The call is already deleted or inexistant
         return;
       }
-      return webConferencing.deleteCall(callId);
+      return global.webConferencing.deleteCall(callId);
     });
 }
 
@@ -64,7 +60,7 @@ function createConference(event, conference) {
       const spaces = identities.filter(identity => identity && identity.providerId === 'space').map(identity => identity.id);
       const startDate = new Date(event.startDate);
       const endDate = event.endDate && new Date(event.endDate) || event.recurrence && event.recurrence.until && new Date(event.recurrence.until) || null;
-      return webConferencing.addCall({
+      return global.webConferencing.addCall({
         title: event.title,
         owner: event.calendar.owner.remoteId,
         ownerType: 'space_event',
@@ -84,7 +80,7 @@ function createConference(event, conference) {
 
 function updateConference(event, conference) {
   let callId = null;
-  return webConferencing.findCallId(conference.url, conference.type)
+  return global.webConferencing.findCallId(conference.url, conference.type)
     .then(data => {
       if (!data) {
         throw new Error(`Conference with url ${conference.url} doesn't exist. Creating new one.`);
@@ -98,7 +94,7 @@ function updateConference(event, conference) {
       const spaces = identities.filter(identity => identity && identity.providerId === 'space').map(identity => identity.id);
       const startDate = new Date(event.startDate);
       const endDate = event.endDate && new Date(event.endDate) || event.recurrence && event.recurrence.until && new Date(event.recurrence.until) || null;
-      return webConferencing.updateCall(callId, {
+      return global.webConferencing.updateCall(callId, {
         title: event.title,
         owner: event.calendar.owner.remoteId,
         ownerType: 'space_event',
@@ -125,9 +121,17 @@ function getAllIdentities(attendees) {
   return Promise.all(promises);
 }
 
-// Load lazily webconferencing API
-if (window.require.defined('SHARED/webConferencing')) {
-  window.require(['SHARED/webConferencing'], webConferencingAPI => {
-    webConferencing = webConferencingAPI;
+function loadWebContferencing() {
+  return new Promise(resolve => {
+    // Load lazily webconferencing API
+    if (window.require.defined('SHARED/webConferencing')) {
+      window.require(['SHARED/webConferencing'], webConferencingAPI => {
+        global.webConferencing = webConferencingAPI;
+        return resolve(!!webConferencingAPI);
+      });
+    }
+    return resolve(!!global.webConferencing);
   });
 }
+
+loadWebContferencing();
