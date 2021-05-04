@@ -38,9 +38,6 @@
     <org.mnode.ical4j.version>3.0.21</org.mnode.ical4j.version>
     <backport-util-concurrent.version>3.1</backport-util-concurrent.version>
     <cache-api.version>1.1.1</cache-api.version>
-
-    <!-- Maven Plugin for JS and CSS bundling and Unit Test execution -->
-    <com.github.eirslett.frontend.version>1.6</com.github.eirslett.frontend.version>
   </properties>
   <dependencyManagement>
     <dependencies>
