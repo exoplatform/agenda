@@ -16,6 +16,8 @@
             :username="voter.profile.username"
             :fullname="voter.profile.fullname"
             :title="voter.profile.fullname"
+            :external="voter.profile.external"
+            :retrieve-extra-information="false"
             :labels="labels"
             class="d-inline-block date-poll-participant" />
         </div>
