@@ -38,7 +38,12 @@ export default {
     },
     displayName() {
       const profile = this.attendee.identity && (this.attendee.identity.profile || this.attendee.identity.space);
-      return profile && (profile.displayName || profile.fullname || profile.fullName);
+      const fullName = profile && (profile.displayName || profile.fullname || profile.fullName);
+      return this.isExternal ? `${fullName} (${this.$t('profile.External')})` : fullName;
+    },
+    isExternal() {
+      const profile = this.attendee.identity && this.attendee.identity.profile ;
+      return profile && profile.dataEntity && profile.dataEntity.external === 'true';
     },
   },
 };

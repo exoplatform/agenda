@@ -16,7 +16,7 @@
             :username="voter.profile.username"
             :fullname="voter.profile.fullname"
             :title="voter.profile.fullname"
-            :external="voter.profile.external"
+            :external="voter.profile.dataEntity.external"
             :retrieve-extra-information="false"
             :labels="labels"
             class="d-inline-block date-poll-participant" />
@@ -105,6 +105,7 @@ export default {
         Connect: this.$t('profile.Connect'),
         Ignore: this.$t('profile.Ignore'),
         RemoveConnection: this.$t('profile.RemoveConnection'),
+        External: this.$t('profile.External'),
         StatusTitle: this.$t('profile.StatusTitle'),
         join: this.$t('space.join'),
         leave: this.$t('space.leave'),
