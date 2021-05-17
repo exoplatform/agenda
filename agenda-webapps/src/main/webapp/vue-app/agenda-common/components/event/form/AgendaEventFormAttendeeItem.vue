@@ -43,7 +43,7 @@ export default {
     },
     isExternal() {
       const profile = this.attendee.identity && this.attendee.identity.profile ;
-      return profile && profile.dataEntity && profile.dataEntity.external === 'true';
+      return profile && (profile.dataEntity && profile.dataEntity.external === 'true' || profile.external);
     },
   },
 };
