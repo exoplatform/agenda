@@ -803,7 +803,7 @@ public class NotificationUtils {
     String[] splited = identity.getProfile().getFullName().split(" ");
     String fullName = StringUtils.capitalize(splited[0]).concat(" ").concat(StringUtils.capitalize(splited[1]));
     if(Utils.isExternal(identity.getRemoteId())) {
-      fullName += " " + "(" + Utils.getResourceBundleLabel(new Locale(Utils.getCurrentUserLanguage(identity.getRemoteId())), "external.label.tag") + ")";
+      fullName += " " + "(" + Utils.getResourceBundleLabel(new Locale(Utils.getUserLanguage(identity.getRemoteId())), "external.label.tag") + ")";
     }
     return fullName;
   }
