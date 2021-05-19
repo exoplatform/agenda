@@ -119,6 +119,7 @@ export default {
             profile: {
               avatar: this.currentUser.avatar,
               fullname: this.currentUser.fullname,
+              external: this.currentUser.external === 'true',
             },
           }}];
         } else {

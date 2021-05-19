@@ -27,11 +27,18 @@ import org.apache.commons.lang.StringUtils;
 import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.model.*;
+import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.commons.utils.ListAccess;
+import org.exoplatform.container.ExoContainerContext;
+import org.exoplatform.portal.localization.LocaleContextInfoUtils;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
+import org.exoplatform.services.resources.LocaleContextInfo;
+import org.exoplatform.services.resources.LocalePolicy;
+import org.exoplatform.services.resources.ResourceBundleService;
 import org.exoplatform.social.core.identity.model.Identity;
+import org.exoplatform.social.core.identity.model.Profile;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
@@ -600,5 +607,34 @@ public class Utils {
     if (!ObjectUtils.equals(newEvent.getRecurrence(), oldEvent.getRecurrence())) {
       eventModification.addModificationType(AgendaEventModificationType.RECURRENCE_UPDATED);
     }
+  }
+
+  public static String getResourceBundleLabel(Locale locale, String label) {
+    ResourceBundleService resourceBundleService =  ExoContainerContext.getService(ResourceBundleService.class);
+    return resourceBundleService.getResourceBundle(resourceBundleService.getSharedResourceBundleNames(), locale).getString(label);
+  }
+
+  /**
+   * Gets platform language of user. In case of any errors return null.
+   *
+   * @param userId user Id
+   * @return the platform language
+   */
+  public static String getUserLanguage(String userId) {
+    LocaleContextInfo localeCtx = LocaleContextInfoUtils.buildLocaleContextInfo(userId);
+    LocalePolicy localePolicy = ExoContainerContext.getCurrentContainer().getComponentInstanceOfType(LocalePolicy.class);
+    String lang = Locale.getDefault().getLanguage();
+    if(localePolicy != null) {
+      Locale locale = localePolicy.determineLocale(localeCtx);
+      lang = locale.toString();
+    }
+    return lang;
+  }
+
+  public static boolean isExternal(String userId) {
+    IdentityManager identityManager = CommonsUtils.getService(IdentityManager.class);
+    org.exoplatform.social.core.identity.model.Identity userIdentity =  identityManager.getOrCreateIdentity(
+            OrganizationIdentityProvider.NAME, userId);
+    return userIdentity.getProfile() != null && userIdentity.getProfile().getProperty(Profile.EXTERNAL) != null && userIdentity.getProfile().getProperty(Profile.EXTERNAL).equals("true");
   }
 }
