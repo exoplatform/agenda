@@ -5,11 +5,11 @@
   <parent>
     <artifactId>maven-parent-pom</artifactId>
     <groupId>org.exoplatform</groupId>
-    <version>24-M02</version>
+    <version>24-microservices-SNAPSHOT</version>
   </parent>
   <groupId>org.exoplatform.agenda</groupId>
   <artifactId>agenda-parent</artifactId>
-  <version>1.2.x-SNAPSHOT</version>
+  <version>1.2.x-microservices-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>eXo Agenda - Parent POM</name>
   <description>eXo Agenda Addon</description>
@@ -27,8 +27,8 @@
   </scm>
   <properties>
     <!-- 3rd party libraries versions -->
-    <org.exoplatform.social.version>6.3.x-SNAPSHOT</org.exoplatform.social.version>
-    <org.exoplatform.platform-ui.version>6.3.x-SNAPSHOT</org.exoplatform.platform-ui.version>
+    <org.exoplatform.social.version>6.3.x-microservices-SNAPSHOT</org.exoplatform.social.version>
+    <org.exoplatform.platform-ui.version>6.3.x-microservices-SNAPSHOT</org.exoplatform.platform-ui.version>
 
     <!-- Used to generate default methods for POJO -->
     <org.lombok.version>1.18.2</org.lombok.version>
