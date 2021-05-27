@@ -138,13 +138,19 @@ public class EntityMapper {
 
     ZoneId eventZoneId = eventEntity.getTimeZoneId() == null ? ZoneOffset.UTC : ZoneId.of(eventEntity.getTimeZoneId());
 
+    ZonedDateTime createdDate = AgendaDateUtils.fromDate(eventEntity.getCreatedDate());
+    ZonedDateTime updatedDate = null;
+    if (eventEntity.getModifierId() > 0) {
+      // Set updatedDate = null when no update was made on Event
+      updatedDate = AgendaDateUtils.fromDate(eventEntity.getUpdatedDate());
+    }
     return new Event(eventEntity.getId(),
                      parentId,
                      eventEntity.getCalendar().getId(),
                      eventEntity.getCreatorId(),
                      eventEntity.getModifierId(),
-                     AgendaDateUtils.fromDate(eventEntity.getCreatedDate()),
-                     AgendaDateUtils.fromDate(eventEntity.getUpdatedDate()),
+                     createdDate,
+                     updatedDate,
                      eventEntity.getSummary(),
                      eventEntity.getDescription(),
                      eventEntity.getLocation(),
@@ -174,7 +180,6 @@ public class EntityMapper {
     eventEntity.setAllDay(event.isAllDay());
     eventEntity.setAvailability(event.getAvailability());
     eventEntity.setColor(event.getColor());
-    eventEntity.setCreatedDate(AgendaDateUtils.toDate(event.getCreated()));
     eventEntity.setCreatorId(event.getCreatorId());
     eventEntity.setModifierId(event.getModifierId());
     eventEntity.setDescription(event.getDescription());
@@ -183,7 +188,14 @@ public class EntityMapper {
     eventEntity.setOccurrencePeriodChanged(event.getOccurrence() != null && event.getOccurrence().isDatesModified());
     eventEntity.setStatus(event.getStatus());
     eventEntity.setSummary(event.getSummary());
-    eventEntity.setUpdatedDate(AgendaDateUtils.toDate(event.getUpdated()));
+    // Add createdDate = updatedDate to be able to sort on it in DB queries
+    Date createdDate = AgendaDateUtils.toDate(event.getCreated());
+    eventEntity.setCreatedDate(createdDate);
+    if (event.getModifierId() <= 0) {
+      eventEntity.setUpdatedDate(createdDate);
+    } else {
+      eventEntity.setUpdatedDate(AgendaDateUtils.toDate(event.getUpdated()));
+    }
     eventEntity.setAllowAttendeeToInvite(event.isAllowAttendeeToInvite());
     eventEntity.setAllowAttendeeToUpdate(event.isAllowAttendeeToUpdate());
     eventEntity.setTimeZoneId(eventZoneId.getId());
