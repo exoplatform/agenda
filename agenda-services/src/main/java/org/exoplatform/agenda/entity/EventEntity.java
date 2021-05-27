@@ -81,7 +81,7 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
       ),
       @NamedQuery(
           name = "AgendaEvent.getPendingEventIds",
-          query = "SELECT DISTINCT(ev.id), ev.createdDate, ev.updatedDate FROM AgendaEvent ev"
+          query = "SELECT DISTINCT(ev.id), ev.updatedDate FROM AgendaEvent ev"
               + " INNER JOIN ev.attendees att"
               + " WHERE ev.status = :status"
               + " AND (ev.endDate IS NULL OR ev.endDate > :date)"
@@ -97,13 +97,7 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
               + "         AND att2.identityId = :userIdentityId"
               + "         AND att2.response != :response"
               + " )"
-              + " ORDER BY "
-              + "   CASE "
-              + "     WHEN ev.updatedDate IS NULL"
-              + "       THEN ev.createdDate"
-              + "     ELSE ev.updatedDate"
-              + "   END"
-              + " DESC"
+              + " ORDER BY ev.updatedDate DESC"
       ),
       @NamedQuery(
           name = "AgendaEvent.countPendingEvents",
@@ -147,7 +141,7 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
       ),
       @NamedQuery(
           name = "AgendaEvent.getPendingEventIdsByOwnerIds",
-          query = "SELECT DISTINCT(ev.id), ev.createdDate, ev.updatedDate FROM AgendaEvent ev"
+          query = "SELECT DISTINCT(ev.id), ev.updatedDate FROM AgendaEvent ev"
               + " INNER JOIN ev.attendees att"
               + " INNER JOIN ev.calendar cal"
               + " WHERE ev.status = :status"
@@ -165,44 +159,26 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
               + "         AND att2.identityId = :userIdentityId"
               + "         AND att2.response != :response"
               + " )"
-              + " ORDER BY "
-              + "   CASE "
-              + "     WHEN ev.updatedDate IS NULL"
-              + "       THEN ev.createdDate"
-              + "     ELSE ev.updatedDate"
-              + "   END"
-              + " DESC"
+              + " ORDER BY ev.updatedDate DESC"
       ),
       @NamedQuery(
           name = "AgendaEvent.getPendingDatePollIds",
-          query = "SELECT DISTINCT(ev.id), ev.createdDate, ev.updatedDate FROM AgendaEvent ev"
+          query = "SELECT DISTINCT(ev.id), ev.updatedDate FROM AgendaEvent ev"
               + " INNER JOIN ev.attendees att"
               + " WHERE ev.status = :status"
               + " AND (ev.endDate IS NULL OR ev.endDate > :date OR ev.creatorId = :userIdentityId)"
               + " AND att.identityId IN (:attendeeIds)"
-              + " ORDER BY "
-              + "   CASE "
-              + "     WHEN ev.updatedDate IS NULL"
-              + "       THEN ev.createdDate"
-              + "     ELSE ev.updatedDate"
-              + "   END"
-              + " DESC"
+              + " ORDER BY ev.updatedDate DESC"
       ),
       @NamedQuery(
           name = "AgendaEvent.getDatePollIdsByDates",
-          query = "SELECT DISTINCT(ev.id), ev.createdDate, ev.updatedDate FROM AgendaEvent ev"
+          query = "SELECT DISTINCT(ev.id), ev.updatedDate FROM AgendaEvent ev"
               + " INNER JOIN ev.attendees att"
               + " WHERE ev.status = :status"
               + " AND (ev.endDate IS NULL OR ev.endDate > :start)"
               + " AND (ev.startDate < :end)"
               + " AND att.identityId IN (:attendeeIds)"
-              + " ORDER BY "
-              + "   CASE "
-              + "     WHEN ev.updatedDate IS NULL"
-              + "       THEN ev.createdDate"
-              + "     ELSE ev.updatedDate"
-              + "   END"
-              + " DESC"
+              + " ORDER BY ev.updatedDate DESC"
       ),
       @NamedQuery(
           name = "AgendaEvent.countPendingDatePoll",
@@ -214,7 +190,7 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
       ),
       @NamedQuery(
           name = "AgendaEvent.getDatePollIdsByOwnerIdsAndDates",
-          query = "SELECT DISTINCT(ev.id), ev.createdDate, ev.updatedDate FROM AgendaEvent ev"
+          query = "SELECT DISTINCT(ev.id), ev.updatedDate FROM AgendaEvent ev"
               + " INNER JOIN ev.attendees att"
               + " INNER JOIN ev.calendar cal"
               + " WHERE ev.status = :status"
@@ -222,30 +198,18 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
               + " AND (ev.startDate < :end)"
               + " AND att.identityId IN (:attendeeIds)"
               + " AND cal.ownerId IN (:ownerIds)"
-              + " ORDER BY "
-              + "   CASE "
-              + "     WHEN ev.updatedDate IS NULL"
-              + "       THEN ev.createdDate"
-              + "     ELSE ev.updatedDate"
-              + "   END"
-              + " DESC"
+              + " ORDER BY ev.updatedDate DESC"
       ),
       @NamedQuery(
           name = "AgendaEvent.getPendingDatePollIdsByOwnerIds",
-          query = "SELECT DISTINCT(ev.id), ev.createdDate, ev.updatedDate FROM AgendaEvent ev"
+          query = "SELECT DISTINCT(ev.id), ev.updatedDate FROM AgendaEvent ev"
               + " INNER JOIN ev.attendees att"
               + " INNER JOIN ev.calendar cal"
               + " WHERE ev.status = :status"
               + " AND (ev.endDate IS NULL OR ev.endDate > :date OR ev.creatorId = :userIdentityId)"
               + " AND att.identityId IN (:attendeeIds)"
               + " AND cal.ownerId IN (:ownerIds)"
-              + " ORDER BY "
-              + "   CASE "
-              + "     WHEN ev.updatedDate IS NULL"
-              + "       THEN ev.createdDate"
-              + "     ELSE ev.updatedDate"
-              + "   END"
-              + " DESC"
+              + " ORDER BY ev.updatedDate DESC"
       ),
       @NamedQuery(
           name = "AgendaEvent.countPendingDatePollByOwnerIds",
