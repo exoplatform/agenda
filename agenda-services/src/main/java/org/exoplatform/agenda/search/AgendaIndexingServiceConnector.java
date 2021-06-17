@@ -35,9 +35,8 @@ import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 
 public class AgendaIndexingServiceConnector extends ElasticIndexingServiceConnector {
-  private static final long           serialVersionUID = 3299213985533395198L;
 
-  public static final String          TYPE             = "event";
+  public static final String          INDEX            = "event";
 
   private static final Log            LOG              = ExoLogger.getLogger(AgendaIndexingServiceConnector.class);
 
@@ -59,11 +58,6 @@ public class AgendaIndexingServiceConnector extends ElasticIndexingServiceConnec
   }
 
   @Override
-  public String getType() {
-    return TYPE;
-  }
-
-  @Override
   public Document create(String id) {
     return getDocument(id);
   }
@@ -79,8 +73,8 @@ public class AgendaIndexingServiceConnector extends ElasticIndexingServiceConnec
   }
 
   @Override
-  public boolean canReindex() {
-    return false;
+  public String getConnectorName() {
+    return INDEX;
   }
 
   private Document getDocument(String id) {
@@ -154,7 +148,7 @@ public class AgendaIndexingServiceConnector extends ElasticIndexingServiceConnec
     eventPermissionIds.add(String.valueOf(ownerIdentityId));
 
     ZonedDateTime lastUpdateDateTime = event.getUpdated() == null ? event.getCreated() : event.getUpdated();
-    return new Document(TYPE, id, null, AgendaDateUtils.toDate(lastUpdateDateTime), eventPermissionIds, fields);
+    return new Document(id, null, AgendaDateUtils.toDate(lastUpdateDateTime), eventPermissionIds, fields);
   }
 
   private String toMilliSecondsString(ZonedDateTime dateTime) {

@@ -62,8 +62,6 @@ public class AgendaSearchConnector {
 
   private String                       index;
 
-  private String                       searchType;
-
   private String                       searchQueryFilePath;
 
   private String                       searchQuery;
@@ -82,7 +80,6 @@ public class AgendaSearchConnector {
 
     PropertiesParam param = initParams.getPropertiesParam("constructor.params");
     this.index = param.getProperty("index");
-    this.searchType = param.getProperty("searchType");
     if (initParams.containsKey(SEARCH_QUERY_FILE_PATH_PARAM)) {
       searchQueryFilePath = initParams.getValueParam(SEARCH_QUERY_FILE_PATH_PARAM).getValue();
       try {
@@ -112,10 +109,10 @@ public class AgendaSearchConnector {
                                                                                        identityManager,
                                                                                        userIdentity))
                                              .map(HashSet::new)
-                                             .orElse(null);
+                                             .orElse(new HashSet<>());
     calendarOwnersOfUser.add(userIdentityId);
     String esQuery = buildQueryStatement(calendarOwnersOfUser, term, offset, limit);
-    String jsonResponse = this.client.sendRequest(esQuery, this.index, this.searchType);
+    String jsonResponse = this.client.sendRequest(esQuery, this.index);
     return buildResult(jsonResponse, userTimeZone);
   }
 
@@ -129,11 +126,11 @@ public class AgendaSearchConnector {
       return word;
     }).collect(Collectors.toList());
     String termQuery = StringUtils.join(termsQuery, " AND ");
-    return retrieveSearchQuery().replaceAll("@term@", term)
-                                .replaceAll("@term_query@", termQuery)
-                                .replaceAll("@permissions@", StringUtils.join(calendarOwnersOfUser, ","))
-                                .replaceAll("@offset@", String.valueOf(offset))
-                                .replaceAll("@limit@", String.valueOf(limit));
+    return retrieveSearchQuery().replace("@term@", term)
+                                .replace("@term_query@", termQuery)
+                                .replace("@permissions@", StringUtils.join(calendarOwnersOfUser, ","))
+                                .replace("@offset@", String.valueOf(offset))
+                                .replace("@limit@", String.valueOf(limit));
   }
 
   @SuppressWarnings("rawtypes")
@@ -226,7 +223,7 @@ public class AgendaSearchConnector {
 
   private String removeSpecialCharacters(String string) {
     string = Normalizer.normalize(string, Normalizer.Form.NFD);
-    string = string.replaceAll("[\\p{InCombiningDiacriticalMarks}]", "").replaceAll("'", " ");
+    string = string.replaceAll("[\\p{InCombiningDiacriticalMarks}]", "").replace("'", " ");
     return string;
   }
 }
