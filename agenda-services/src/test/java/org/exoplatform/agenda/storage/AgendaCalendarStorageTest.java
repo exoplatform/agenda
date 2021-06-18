@@ -119,7 +119,7 @@ public class AgendaCalendarStorageTest {
     when(calendarDAO.create(anyObject())).thenAnswer(new Answer<CalendarEntity>() {
       @Override
       public CalendarEntity answer(InvocationOnMock invocation) throws Throwable {
-        CalendarEntity calendarEntity = invocation.getArgumentAt(0, CalendarEntity.class);
+        CalendarEntity calendarEntity = invocation.getArgument(0, CalendarEntity.class);
         calendarEntity.setId(1l);
         calendarEntity.setCreatedDate(new Date());
         return calendarEntity;

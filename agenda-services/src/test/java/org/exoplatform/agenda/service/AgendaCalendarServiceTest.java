@@ -913,7 +913,7 @@ public class AgendaCalendarServiceTest {
         int size = Integer.parseInt(args[1].toString());
         List<Long> ownerIds = new ArrayList<>();
         for (int i = 2; i < args.length; i++) {
-          ownerIds.add(invocation.getArgumentAt(i, Long.class));
+          ownerIds.add(invocation.getArgument(i, Long.class));
         }
         int from = offset;
         int to = from + size;
@@ -1060,7 +1060,7 @@ public class AgendaCalendarServiceTest {
         int size = Integer.parseInt(args[1].toString());
         List<Long> ownerIds = new ArrayList<>();
         for (int i = 2; i < args.length; i++) {
-          ownerIds.add(invocation.getArgumentAt(i, Long.class));
+          ownerIds.add(invocation.getArgument(i, Long.class));
         }
         List<Long> calendarIds = new ArrayList<>();
         int length = offset + size;
