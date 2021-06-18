@@ -1292,8 +1292,8 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                                                         true,
                                                         creatorIdentityId);
     assertNotNull(createdEvent);
-    assertEquals(dateOption1.getStart().withZoneSameInstant(ZoneOffset.UTC), createdEvent.getStart());
-    assertEquals(dateOption3.getEnd().withZoneSameInstant(ZoneOffset.UTC), createdEvent.getEnd());
+    assertEquals(dateOption1.getStart().withZoneSameInstant(ZoneOffset.UTC).withNano(0), createdEvent.getStart().withNano(0));
+    assertEquals(dateOption3.getEnd().withZoneSameInstant(ZoneOffset.UTC).withNano(0), createdEvent.getEnd().withNano(0));
     assertEquals(EventStatus.TENTATIVE, createdEvent.getStatus());
 
     long eventDatePollCount = agendaEventService.countEventDatePolls(Collections.emptyList(),
@@ -1371,8 +1371,8 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
                                                         true,
                                                         creatorIdentityId);
     assertNotNull(createdEvent);
-    assertEquals(dateOption1.getStart().withZoneSameInstant(ZoneOffset.UTC), createdEvent.getStart());
-    assertEquals(dateOption3.getEnd().withZoneSameInstant(ZoneOffset.UTC), createdEvent.getEnd());
+    assertEquals(dateOption1.getStart().withZoneSameInstant(ZoneOffset.UTC).withNano(0), createdEvent.getStart().withNano(0));
+    assertEquals(dateOption3.getEnd().withZoneSameInstant(ZoneOffset.UTC).withNano(0), createdEvent.getEnd().withNano(0));
     assertEquals(EventStatus.TENTATIVE, createdEvent.getStatus());
 
     long eventDatePollCount = agendaEventService.countEventDatePolls(Collections.emptyList(),

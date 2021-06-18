@@ -1,10 +1,8 @@
 package org.exoplatform.agenda.search;
 
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Matchers.*;
+import static org.mockito.Mockito.*;
 
 import java.io.ByteArrayInputStream;
 import java.time.*;
@@ -207,7 +205,7 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
 
     Event event = newEventInstance(start, end, allDay);
     event = createEvent(event.clone(), Long.parseLong(testuser1Identity.getId()), testuser2Identity);
-    when(agendaEventService.getEventById(eq(1L))).thenReturn(event);
+    lenient().when(agendaEventService.getEventById(eq(1L))).thenReturn(event);
     when(spaceService.getMemberSpaces(eq("testuser1"))).thenAnswer(new Answer<ListAccess<Space>>() {
       @Override
       public ListAccess<Space> answer(InvocationOnMock invocation) throws Throwable {
