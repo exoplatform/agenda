@@ -218,9 +218,7 @@
         <properties-param>
           <name>constructor.params</name>
           <property name="index_alias" value="event_alias" />
-          <property name="index_previous" value="" />
           <property name="index_current" value="event_v1" />
-          <property name="type" value="event" />
         </properties-param>
       </init-params>
     </component-plugin>

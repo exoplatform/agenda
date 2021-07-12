@@ -44,21 +44,12 @@ public class AgendaIndexingServiceConnectorTest extends BaseAgendaEventTest {
   }
 
   @Test
-  public void testCanReindex() {
-    agendaIndexingServiceConnector = new AgendaIndexingServiceConnector(agendaCalendarService,
-                                                                        agendaEventService,
-                                                                        attendeeService,
-                                                                        getParams());
-    assertFalse(agendaIndexingServiceConnector.canReindex());
-  }
-
-  @Test
   public void testGetType() {
     agendaIndexingServiceConnector = new AgendaIndexingServiceConnector(agendaCalendarService,
                                                                         agendaEventService,
                                                                         attendeeService,
                                                                         getParams());
-    assertEquals(AgendaIndexingServiceConnector.TYPE, agendaIndexingServiceConnector.getType());
+    assertEquals(AgendaIndexingServiceConnector.INDEX, agendaIndexingServiceConnector.getConnectorName());
   }
 
   @Test
@@ -147,6 +138,7 @@ public class AgendaIndexingServiceConnectorTest extends BaseAgendaEventTest {
     PropertiesParam propertiesParam = new PropertiesParam();
     propertiesParam.setName("constructor.params");
     params.addParameter(propertiesParam);
+    propertiesParam.setProperty("index_current", "index_name");
     return params;
   }
 

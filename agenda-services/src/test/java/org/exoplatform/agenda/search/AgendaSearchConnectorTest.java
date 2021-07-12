@@ -36,8 +36,6 @@ import org.exoplatform.social.core.space.spi.SpaceService;
 @RunWith(MockitoJUnitRunner.class)
 public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
 
-  private static final String ES_TYPE         = "event";
-
   private static final String ES_INDEX        = "event_alias";
 
   public static final String  FAKE_ES_QUERY   =
@@ -141,7 +139,7 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
                                           .replaceAll("@permissions@", StringUtils.join(permissions, ","))
                                           .replaceAll("@offset@", "0")
                                           .replaceAll("@limit@", "10");
-    when(client.sendRequest(eq(expectedESQuery), eq(ES_INDEX), eq(ES_TYPE))).thenReturn("{}");
+    when(client.sendRequest(eq(expectedESQuery), eq(ES_INDEX))).thenReturn("{}");
     when(spaceService.getMemberSpaces(eq("testuser1"))).thenAnswer(new Answer<ListAccess<Space>>() {
       @Override
       public ListAccess<Space> answer(InvocationOnMock invocation) throws Throwable {
@@ -193,7 +191,7 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
                                           .replaceAll("@permissions@", StringUtils.join(permissions, ","))
                                           .replaceAll("@offset@", "0")
                                           .replaceAll("@limit@", "10");
-    when(client.sendRequest(eq(expectedESQuery), eq(ES_INDEX), eq(ES_TYPE))).thenReturn(searchResult);
+    when(client.sendRequest(eq(expectedESQuery), eq(ES_INDEX))).thenReturn(searchResult);
     long startTime = 1602979200000L;
     long endTime = 1603151999000L;
     ZonedDateTime start = ZonedDateTime.ofInstant(Instant.ofEpochMilli(startTime),
@@ -264,7 +262,6 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
     PropertiesParam propertiesParam = new PropertiesParam();
     propertiesParam.setName("constructor.params");
     propertiesParam.setProperty("index", ES_INDEX);
-    propertiesParam.setProperty("searchType", ES_TYPE);
 
     ValueParam valueParam = new ValueParam();
     valueParam.setName("query.file.path");

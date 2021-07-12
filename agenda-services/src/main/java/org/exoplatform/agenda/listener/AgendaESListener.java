@@ -55,12 +55,12 @@ public class AgendaESListener extends Listener<AgendaEventModification, Object> 
 
   private void reindexAgendaEvent(long eventId, String cause) {
     LOG.debug("Notifying indexing service for event with id={}. Cause: {}", eventId, cause);
-    indexingService.reindex(AgendaIndexingServiceConnector.TYPE, String.valueOf(eventId));
+    indexingService.reindex(AgendaIndexingServiceConnector.INDEX, String.valueOf(eventId));
   }
 
   private void unindexAgendaEvent(long eventId, String cause) {
     LOG.debug("Notifying unindexing service for event with id={}. Cause: {}", eventId, cause);
-    indexingService.unindex(AgendaIndexingServiceConnector.TYPE, String.valueOf(eventId));
+    indexingService.unindex(AgendaIndexingServiceConnector.INDEX, String.valueOf(eventId));
   }
 
   private AgendaEventService getAgendaEventService() {
