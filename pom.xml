@@ -38,6 +38,9 @@
     <org.mnode.ical4j.version>3.0.21</org.mnode.ical4j.version>
     <backport-util-concurrent.version>3.1</backport-util-concurrent.version>
     <cache-api.version>1.1.1</cache-api.version>
+  
+    <!-- Sonar properties -->
+    <sonar.organization>exoplatform</sonar.organization>
   </properties>
   <dependencyManagement>
     <dependencies>
@@ -141,4 +144,34 @@
       </plugins>
     </pluginManagement>
   </build>
+  
+  <!-- This profile is used to allow github action to build branches. The github action is used for sonar analysis -->
+  <profiles>
+    <profile>
+      <id>project-repositories</id>
+      <activation>
+        <property>
+          <name>!skip-project-repositories</name>
+        </property>
+      </activation>
+      <repositories>
+        <repository>
+          <snapshots>
+            <enabled>true</enabled>
+          </snapshots>
+          <id>repository.exoplatform.org</id>
+          <url>https://repository.exoplatform.org/public</url>
+        </repository>
+      </repositories>
+      <pluginRepositories>
+        <pluginRepository>
+          <snapshots>
+            <enabled>true</enabled>
+          </snapshots>
+          <id>repository.exoplatform.org</id>
+          <url>https://repository.exoplatform.org/public</url>
+        </pluginRepository>
+      </pluginRepositories>
+    </profile>
+  </profiles>
 </project>
