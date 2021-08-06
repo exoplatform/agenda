@@ -111,6 +111,7 @@ export default {
         document.dispatchEvent(new CustomEvent('displayTopBarLoading'));
       } else {
         document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
+        this.$root.$applicationLoaded();
       }
     },
   },

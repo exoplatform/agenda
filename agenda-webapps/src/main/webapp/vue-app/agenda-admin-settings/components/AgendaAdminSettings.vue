@@ -13,11 +13,12 @@ export default {
     settings: null,
   }),
   created() {
-    this.refreshSettings();
+    this.refreshSettings()
+      .finally(() => this.$root.$applicationLoaded());
   },
   methods: {
     refreshSettings() {
-      this.$settingsService.getUserSettings()
+      return this.$settingsService.getUserSettings()
         .then(settings => this.settings = settings);
     },
   }

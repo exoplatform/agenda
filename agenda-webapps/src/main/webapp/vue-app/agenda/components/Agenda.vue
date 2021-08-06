@@ -166,6 +166,7 @@ export default {
       if (this.loading) {
         document.dispatchEvent(new CustomEvent('displayTopBarLoading'));
       } else {
+        this.$root.$applicationLoaded();
         document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
       }
     },
