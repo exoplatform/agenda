@@ -27,10 +27,10 @@ export function init() {
   exoi18n.loadLanguageAsync(lang, url).then(i18n => {
     // init Vue app when locale ressources are ready
     const eventType = eXo.env.portal.spaceId ? 'allEvents' : 'myEvents';
-    new Vue({
+    Vue.createApp({
       template: `<agenda id="${appId}" event-type="${eventType}" />`,
       vuetify,
       i18n
-    }).$mount(`#${appId}`);
+    }, `#${appId}`, 'Agenda');
   });
 }

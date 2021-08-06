@@ -29,13 +29,13 @@ export function init() {
 
   exoi18n.loadLanguageAsync(lang, url).then(i18n => {
     // init Vue app when locale ressources are ready
-    new Vue({
+    Vue.createApp({
       mounted() {
         document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
       },
       template: `<agenda-user-settings v-cacheable id="${appId}" />`,
       vuetify,
       i18n
-    }).$mount(appElement);
+    }, appElement, 'User Settings Agenda');
   });
 }

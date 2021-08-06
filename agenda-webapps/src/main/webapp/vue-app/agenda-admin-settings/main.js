@@ -26,10 +26,10 @@ const url = `${eXo.env.portal.context}/${eXo.env.portal.rest}/i18n/bundle/locale
 export function init() {
   exoi18n.loadLanguageAsync(lang, url).then(i18n => {
     // init Vue app when locale ressources are ready
-    new Vue({
+    Vue.createApp({
       template: `<agenda-admin-settings id="${appId}" />`,
       vuetify,
       i18n
-    }).$mount(`#${appId}`);
+    }, `#${appId}`, 'Agenda administration');
   });
 }
