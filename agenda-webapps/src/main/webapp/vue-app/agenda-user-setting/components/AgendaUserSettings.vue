@@ -38,6 +38,7 @@ export default {
     initSettings(userSettings) {
       if (userSettings) {
         this.settings = userSettings;
+        this.$root.$applicationLoaded();
       } else {
         return this.$settingsService.getUserSettings()
           .then(settings => {
@@ -46,7 +47,7 @@ export default {
             }
             return this.$nextTick();
           })
-          .finally(() => this.$root.$emit('application-loaded'));
+          .finally(() => this.$root.$applicationLoaded());
       }
     },
   },
