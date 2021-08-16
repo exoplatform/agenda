@@ -35,9 +35,11 @@ public class AgendaESListener extends Listener<AgendaEventModification, Object> 
       if (indexingService != null) {
         AgendaEventModification eventModifications = event.getSource();
         long eventId = eventModifications.getEventId();
-        org.exoplatform.agenda.model.Event agendaEvent = getAgendaEventService().getEventById(eventId);
-        if (agendaEvent == null) {
-          return;
+        if (!Utils.POST_DELETE_AGENDA_EVENT_EVENT.equals(event.getEventName())) {
+          org.exoplatform.agenda.model.Event agendaEvent = getAgendaEventService().getEventById(eventId);
+          if (agendaEvent == null) {
+            return;
+          }
         }
 
         if (Utils.POST_CREATE_AGENDA_EVENT_EVENT.equals(event.getEventName())) {
