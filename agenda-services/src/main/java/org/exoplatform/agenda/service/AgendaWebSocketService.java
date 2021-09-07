@@ -18,7 +18,6 @@ package org.exoplatform.agenda.service;
 
 import java.util.*;
 
-import org.apache.commons.lang.StringUtils;
 import org.mortbay.cometd.continuation.EXoContinuationBayeux;
 
 import org.exoplatform.agenda.model.AgendaEventModification;
@@ -26,7 +25,6 @@ import org.exoplatform.agenda.model.WebSocketMessage;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.identity.model.Identity;
-import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
@@ -87,7 +85,7 @@ public class AgendaWebSocketService {
     }
     Set<String> recipientUsers = new HashSet<>();
     String remoteId = identity.getRemoteId();
-    if (StringUtils.equals(OrganizationIdentityProvider.NAME, identity.getProviderId())) {
+    if (identity.isUser()) {
       recipientUsers.add(remoteId);
     } else {
       Space space = spaceService.getSpaceByPrettyName(remoteId);

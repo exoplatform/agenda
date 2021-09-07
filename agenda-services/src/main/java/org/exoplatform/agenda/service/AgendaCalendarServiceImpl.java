@@ -18,8 +18,6 @@ package org.exoplatform.agenda.service;
 
 import java.util.*;
 
-import org.apache.commons.codec.binary.StringUtils;
-
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.CalendarPermission;
 import org.exoplatform.agenda.storage.AgendaCalendarStorage;
@@ -27,8 +25,6 @@ import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.social.core.identity.model.Identity;
-import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
-import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
@@ -61,7 +57,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     if (username == null) {
       throw new IllegalArgumentException("Username is mandatory");
     }
-    Identity identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+    Identity identity = identityManager.getOrCreateUserIdentity(username);
     if (identity == null) {
       throw new IllegalStateException("User with name " + username + " is not found");
     }
@@ -89,7 +85,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     if (username == null) {
       throw new IllegalArgumentException("Username is mandatory");
     }
-    Identity identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+    Identity identity = identityManager.getOrCreateUserIdentity(username);
     if (identity == null) {
       throw new IllegalStateException("User with name " + username + " is not found");
     }
@@ -115,7 +111,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     if (username == null) {
       throw new IllegalArgumentException("Username is mandatory");
     }
-    Identity identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+    Identity identity = identityManager.getOrCreateUserIdentity(username);
     if (identity == null) {
       throw new IllegalStateException("User with name " + username + " is not found");
     }
@@ -137,7 +133,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     if (username == null) {
       throw new IllegalArgumentException("Username is mandatory");
     }
-    Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+    Identity userIdentity = identityManager.getOrCreateUserIdentity(username);
     if (userIdentity == null) {
       throw new IllegalStateException("User with name " + username + " is not found");
     }
@@ -247,7 +243,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     if (ownerId <= 0) {
       // Automatically set owner of calendar, the currently authenticated user
       // if no owner has been specified
-      Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+      Identity userIdentity = identityManager.getOrCreateUserIdentity(username);
       if (userIdentity == null) {
         throw new IllegalStateException("User with name " + username + " is not found");
       }
@@ -280,8 +276,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     if (calendarOwnerIdentity == null) {
       throw new IllegalStateException("Calendar owner is not found");
     }
-    if (!StringUtils.equals(OrganizationIdentityProvider.NAME, calendarOwnerIdentity.getProviderId())
-        && !StringUtils.equals(SpaceIdentityProvider.NAME, calendarOwnerIdentity.getProviderId())) {
+    if (!calendarOwnerIdentity.isUser() && !calendarOwnerIdentity.isSpace()) {
       throw new IllegalStateException("Calendar owner providerId '" + calendarOwnerIdentity.getProviderId()
           + "' is not managed by Calendar API");
     }
@@ -385,9 +380,9 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
 
   private void fillCalendarTitleByOwnerName(Calendar calendar) {
     Identity requestedOwner = identityManager.getIdentity(String.valueOf(calendar.getOwnerId()));
-    if (StringUtils.equals(requestedOwner.getProviderId(), OrganizationIdentityProvider.NAME)) {
+    if (requestedOwner.isUser()) {
       calendar.setTitle(requestedOwner.getProfile().getFullName());
-    } else if (StringUtils.equals(requestedOwner.getProviderId(), SpaceIdentityProvider.NAME)) {
+    } else if (requestedOwner.isSpace()) {
       Space space = spaceService.getSpaceByPrettyName(requestedOwner.getRemoteId());
       calendar.setTitle(space.getDisplayName());
     }

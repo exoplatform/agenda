@@ -6,10 +6,10 @@
     <artifactId>agenda-parent</artifactId>
     <version>1.2.x-microservices-SNAPSHOT</version>
   </parent>
-  <artifactId>agenda-packaging</artifactId>
+  <artifactId>agenda-microservices-packaging</artifactId>
   <packaging>pom</packaging>
-  <name>eXo Agenda - Addon Packaging</name>
-  <description>eXo Agenda - Addon Packaging</description>
+  <name>eXo Agenda - Microservices addon Packaging</name>
+  <description>eXo Agenda - Microservices addon Packaging</description>
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>

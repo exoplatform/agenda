@@ -38,7 +38,6 @@ import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.identity.model.Identity;
-import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.web.security.codec.CodecInitializer;
@@ -321,7 +320,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       }
     }
     String emailOrUsername = tokenParts[1];
-    return identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, emailOrUsername);
+    return identityManager.getOrCreateUserIdentity(emailOrUsername);
   }
 
   /**

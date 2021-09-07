@@ -247,13 +247,13 @@ public class NotificationUtils {
       if (identity == null) {
         continue;
       }
-      if (identity.getProviderId().equals(SpaceIdentityProvider.NAME)) {
+      if (identity.isSpace()) {
         String spaceName = identity.getRemoteId();
         List<String> memberSpace = Utils.getSpaceMembersBySpaceName(spaceName, spaceService);
         if (memberSpace != null) {
           recipients.addAll(memberSpace);
         }
-      } else if (identity.getProviderId().equals(OrganizationIdentityProvider.NAME)) {
+      } else if (identity.isUser()) {
         recipients.add(identity.getRemoteId());
         participants.add(identity.getId());
       }
@@ -279,7 +279,7 @@ public class NotificationUtils {
     List<String> receivers = new ArrayList<>();
     for (Long receiverId : receiverIds) {
       Identity identity = Utils.getIdentityById(identityManager, receiverId);
-      if (identity != null && StringUtils.equals(OrganizationIdentityProvider.NAME, identity.getProviderId())) {
+      if (identity != null && identity.isUser()) {
         receivers.add(identity.getRemoteId());
       }
     }
@@ -355,12 +355,12 @@ public class NotificationUtils {
     String showSpaceParticipant = null;
     for (EventAttendee attendee : eventAttendee) {
       Identity identityAttendee = Utils.getIdentityById(identityManager, attendee.getIdentityId());
-      if (identityAttendee.getProviderId().equals(SpaceIdentityProvider.NAME)) {
+      if (identityAttendee.isSpace()) {
         String spaceName = identityAttendee.getRemoteId();
         if (StringUtils.isNotBlank(spaceName)) {
           spaceParticipants.add(spaceName);
         }
-      } else if (identityAttendee.getProviderId().equals(OrganizationIdentityProvider.NAME)) {
+      } else if (identityAttendee.isUser()) {
         participants.add(identityAttendee.getId());
       }
     }
@@ -703,7 +703,7 @@ public class NotificationUtils {
     if (identity == null) {
       avatarUrl = LinkProvider.SPACE_DEFAULT_AVATAR_URL;
     } else {
-      if (SpaceIdentityProvider.NAME.equals(identity.getProviderId())) {
+      if (identity.isSpace()) {
         Space space = spaceService.getSpaceByPrettyName(identity.getRemoteId());
         avatarUrl = LinkProviderUtils.getSpaceAvatarUrl(space);
       } else {
