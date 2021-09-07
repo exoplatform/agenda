@@ -89,8 +89,7 @@ public class AgendaCalendarServiceTest {
                                      null);
     when(agendaCalendarStorage.getCalendarById(eq(calendarId))).thenReturn(calendar);
     when(identityManager.getIdentity(eq(String.valueOf(calendarOwnerId)))).thenReturn(calendarOwnerIdentity);
-    when(identityManager.getOrCreateIdentity(eq(OrganizationIdentityProvider.NAME),
-                                             eq(username))).thenReturn(calendarOwnerIdentity);
+    when(identityManager.getOrCreateUserIdentity(eq(username))).thenReturn(calendarOwnerIdentity);
 
     // 0. Arguments validation tests
     try {
@@ -187,8 +186,7 @@ public class AgendaCalendarServiceTest {
                                      null);
     when(agendaCalendarStorage.getCalendarById(eq(calendarId))).thenReturn(calendar);
     when(identityManager.getIdentity(eq(String.valueOf(calendarOwnerId)))).thenReturn(calendarOwnerIdentity);
-    when(identityManager.getOrCreateIdentity(eq(OrganizationIdentityProvider.NAME),
-                                             eq(username))).thenReturn(calendarOwnerIdentity);
+    when(identityManager.getOrCreateUserIdentity(eq(username))).thenReturn(calendarOwnerIdentity);
 
     // 0. Arguments validation tests
     try {
@@ -445,8 +443,7 @@ public class AgendaCalendarServiceTest {
     }
 
     when(identityManager.getIdentity(eq(String.valueOf(calendarOwnerId)))).thenReturn(calendarOwnerIdentity);
-    when(identityManager.getOrCreateIdentity(eq(OrganizationIdentityProvider.NAME),
-                                             eq(username))).thenReturn(calendarOwnerIdentity);
+    when(identityManager.getOrCreateUserIdentity(eq(username))).thenReturn(calendarOwnerIdentity);
 
     try {
       calendarOwnerIdentity.setProviderId("NotManagerProviderByCalendarAPI");
@@ -865,9 +862,9 @@ public class AgendaCalendarServiceTest {
     long calendarOwnerId = 2;
     Identity calendarOwnerIdentity = new Identity(OrganizationIdentityProvider.NAME, username);
     calendarOwnerIdentity.setId(String.valueOf(calendarOwnerId));
-    when(identityManager.getIdentity(eq(String.valueOf(calendarOwnerId)))).thenReturn(calendarOwnerIdentity);
-    when(identityManager.getOrCreateIdentity(eq(OrganizationIdentityProvider.NAME),
-                                             eq(username))).thenReturn(calendarOwnerIdentity);
+    when(identityManager.getIdentity(String.valueOf(calendarOwnerId))).thenReturn(calendarOwnerIdentity);
+    when(identityManager.getOrCreateUserIdentity(username)).thenReturn(calendarOwnerIdentity);
+    when(identityManager.getOrCreateIdentity(eq(OrganizationIdentityProvider.NAME), eq(username))).thenReturn(calendarOwnerIdentity);
     when(spaceService.getMemberSpaces(eq(username))).thenAnswer(new Answer<ListAccess<Space>>() {
       @Override
       public ListAccess<Space> answer(InvocationOnMock invocation) throws Throwable {
@@ -892,9 +889,9 @@ public class AgendaCalendarServiceTest {
               Identity spaceIdentity = new Identity(String.valueOf(spaceIdentityIndex));
               spaceIdentity.setProviderId(SpaceIdentityProvider.NAME);
               spaceIdentity.setRemoteId(prettyName);
-              when(identityManager.getOrCreateIdentity(eq(SpaceIdentityProvider.NAME),
-                                                       eq(prettyName))).thenReturn(spaceIdentity);
               when(identityManager.getIdentity(spaceIdentity.getId())).thenReturn(spaceIdentity);
+              when(identityManager.getOrCreateSpaceIdentity(eq(prettyName))).thenReturn(spaceIdentity);
+              when(identityManager.getOrCreateIdentity(eq(SpaceIdentityProvider.NAME), eq(prettyName))).thenReturn(spaceIdentity);
               when(spaceService.getSpaceByPrettyName(eq(prettyName))).thenReturn(spaces[i]);
               when(spaceService.isMember(eq(spaces[i]), eq(username))).thenReturn(true);
             }
@@ -974,8 +971,8 @@ public class AgendaCalendarServiceTest {
     Identity calendarOwnerIdentity = new Identity(OrganizationIdentityProvider.NAME, username);
     calendarOwnerIdentity.setId(String.valueOf(calendarOwnerId));
     when(identityManager.getIdentity(eq(String.valueOf(calendarOwnerId)))).thenReturn(calendarOwnerIdentity);
-    when(identityManager.getOrCreateIdentity(eq(OrganizationIdentityProvider.NAME),
-                                             eq(username))).thenReturn(calendarOwnerIdentity);
+    when(identityManager.getOrCreateUserIdentity(eq(username))).thenReturn(calendarOwnerIdentity);
+    when(identityManager.getOrCreateIdentity(eq(OrganizationIdentityProvider.NAME), eq(username))).thenReturn(calendarOwnerIdentity);
     when(spaceService.getMemberSpaces(eq(username))).thenAnswer(new Answer<ListAccess<Space>>() {
       @Override
       public ListAccess<Space> answer(InvocationOnMock invocation) throws Throwable {
@@ -1000,8 +997,8 @@ public class AgendaCalendarServiceTest {
               Identity spaceIdentity = new Identity(String.valueOf(spaceIdentityIndex));
               spaceIdentity.setProviderId(SpaceIdentityProvider.NAME);
               spaceIdentity.setRemoteId(prettyName);
-              when(identityManager.getOrCreateIdentity(eq(SpaceIdentityProvider.NAME),
-                                                       eq(prettyName))).thenReturn(spaceIdentity);
+              when(identityManager.getOrCreateSpaceIdentity(eq(prettyName))).thenReturn(spaceIdentity);
+              when(identityManager.getOrCreateIdentity(eq(SpaceIdentityProvider.NAME), eq(prettyName))).thenReturn(spaceIdentity);
             }
             return spaces;
           }
@@ -1040,16 +1037,14 @@ public class AgendaCalendarServiceTest {
     Identity calendarOwnerIdentity = new Identity(OrganizationIdentityProvider.NAME, username);
     calendarOwnerIdentity.setId(String.valueOf(calendarOwnerId));
     when(identityManager.getIdentity(eq(String.valueOf(calendarOwnerId)))).thenReturn(calendarOwnerIdentity);
-    when(identityManager.getOrCreateIdentity(eq(OrganizationIdentityProvider.NAME),
-                                             eq(username))).thenReturn(calendarOwnerIdentity);
+    when(identityManager.getOrCreateUserIdentity(eq(username))).thenReturn(calendarOwnerIdentity);
 
     long anotherCalendarOwnerId = 3;
     String anotherUser = "username2";
     Identity anotherCalendarOwnerIdentity = new Identity(OrganizationIdentityProvider.NAME, anotherUser);
     anotherCalendarOwnerIdentity.setId(String.valueOf(anotherCalendarOwnerId));
     when(identityManager.getIdentity(eq(String.valueOf(anotherCalendarOwnerId)))).thenReturn(anotherCalendarOwnerIdentity);
-    when(identityManager.getOrCreateIdentity(eq(OrganizationIdentityProvider.NAME),
-                                             eq(anotherUser))).thenReturn(anotherCalendarOwnerIdentity);
+    when(identityManager.getOrCreateUserIdentity(eq(anotherUser))).thenReturn(anotherCalendarOwnerIdentity);
 
     // 3. Retrieve calendars with pagination
     when(agendaCalendarStorage.getCalendarIdsByOwnerIds(anyInt(), anyInt(), anyVararg())).thenAnswer(new Answer<List<Long>>() {

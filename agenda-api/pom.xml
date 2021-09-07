@@ -26,28 +26,25 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>org.exoplatform.core</groupId>
-      <artifactId>exo.core.component.security.core</artifactId>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.exoplatform.commons</groupId>
-      <artifactId>commons-component-common</artifactId>
+      <groupId>org.exoplatform.gatein.portal</groupId>
+      <artifactId>exo.portal.component.api</artifactId>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.exoplatform.social</groupId>
-      <artifactId>social-component-core</artifactId>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.exoplatform.social</groupId>
-      <artifactId>social-component-service</artifactId>
+      <artifactId>social-component-api</artifactId>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- To cleanup once MS architecture re-worked -->
+    <dependency>
+      <groupId>org.exoplatform.social</groupId>
+      <artifactId>social-component-service</artifactId>
       <scope>provided</scope>
     </dependency>
   </dependencies>
@@ -67,16 +64,6 @@
               <sourceDirectory>${basedir}/src/main/java</sourceDirectory>
               <addOutputDirectory>false</addOutputDirectory>
             </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <!-- we need to overide the enforcer rules here because lombok doesn't match it -->
-      <plugin>
-        <artifactId>maven-enforcer-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>check-java-compat</id>
-            <phase>none</phase>
           </execution>
         </executions>
       </plugin>
