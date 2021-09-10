@@ -27,7 +27,6 @@ import org.apache.commons.lang.StringUtils;
 import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.model.*;
-import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.portal.localization.LocaleContextInfoUtils;
@@ -632,7 +631,7 @@ public class Utils {
   }
 
   public static boolean isExternal(String userId) {
-    IdentityManager identityManager = CommonsUtils.getService(IdentityManager.class);
+    IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
     org.exoplatform.social.core.identity.model.Identity userIdentity =  identityManager.getOrCreateIdentity(
             OrganizationIdentityProvider.NAME, userId);
     return userIdentity.getProfile() != null && userIdentity.getProfile().getProperty(Profile.EXTERNAL) != null && userIdentity.getProfile().getProperty(Profile.EXTERNAL).equals("true");

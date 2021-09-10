@@ -45,7 +45,7 @@ import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
-import org.exoplatform.portal.config.UserPortalConfigService;
+import org.exoplatform.portal.config.PortalConfigService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.rest.resource.ResourceContainer;
@@ -89,7 +89,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
   private String                       defaultSite         = null;
 
   public AgendaEventRest(IdentityManager identityManager,
-                         UserPortalConfigService portalConfigService,
+                         PortalConfigService portalConfigService,
                          AgendaCalendarService agendaCalendarService,
                          AgendaEventService agendaEventService,
                          AgendaEventConferenceService agendaEventConferenceService,

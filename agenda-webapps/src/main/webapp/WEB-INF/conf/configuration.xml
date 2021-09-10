@@ -5,15 +5,16 @@
   <import profiles="all">war:/conf/agenda/agenda-portal-configuration.xml</import>
   <import profiles="all">war:/conf/agenda/application-registry-configuration.xml</import>
   <import profiles="all">war:/conf/agenda/notification-configuration.xml</import>
-  <import profiles="all">war:/conf/agenda/search-configuration.xml</import>
   <import profiles="all">war:/conf/agenda/spaces-templates-configuration.xml</import>
   <import profiles="all">war:/conf/agenda/job-configuration.xml</import>
   <import profiles="app-center">war:/conf/agenda/app-center-configuration.xml</import>
   <import profiles="gamification">war:/conf/agenda/gamification-configuration.xml</import>
+  <import>war:/conf/agenda/search-configuration.xml</import>
   <import>war:/conf/agenda/reminders-listener-configuration.xml</import>
   <import>war:/conf/agenda/connectors-configuration.xml</import>
   <import>war:/conf/agenda/listeners-configuration.xml</import>
   <import>war:/conf/agenda/cache-configuration.xml</import>
   <import>war:/conf/agenda/websocket-configuration.xml</import>
 
+  <import profiles="microservices">war:/conf/agenda/microservices/core-configuration.xml</import>
 </configuration>

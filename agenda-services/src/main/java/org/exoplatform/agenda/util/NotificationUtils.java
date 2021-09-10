@@ -21,14 +21,11 @@ import org.exoplatform.commons.api.notification.model.*;
 import org.exoplatform.commons.api.notification.plugin.NotificationPluginUtils;
 import org.exoplatform.commons.api.notification.service.template.TemplateContext;
 import org.exoplatform.commons.notification.template.TemplateUtils;
-import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.container.ExoContainerContext;
-import org.exoplatform.portal.config.UserPortalConfigService;
+import org.exoplatform.portal.config.PortalConfigService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.identity.model.Identity;
-import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
-import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.service.LinkProvider;
 import org.exoplatform.social.core.space.model.Space;
@@ -399,7 +396,7 @@ public class NotificationUtils {
     if (defaultSite != null) {
       return defaultSite;
     }
-    UserPortalConfigService portalConfig = CommonsUtils.getService(UserPortalConfigService.class);
+    PortalConfigService portalConfig = ExoContainerContext.getService(PortalConfigService.class);
     defaultSite = portalConfig.getDefaultPortal();
     return defaultSite;
   }
@@ -588,7 +585,7 @@ public class NotificationUtils {
 
   public static String getEventURL(Event event, ZonedDateTime occurrenceId) {
     String currentSite = getDefaultSite();
-    String currentDomain = CommonsUtils.getCurrentDomain();
+    String currentDomain = org.exoplatform.commons.utils.Utils.getCurrentDomain();
     if (!currentDomain.endsWith("/")) {
       currentDomain += "/";
     }
@@ -615,7 +612,7 @@ public class NotificationUtils {
                                       String username,
                                       EventAttendeeResponse response) {
     String notificationURL = "";
-    String currentDomain = CommonsUtils.getCurrentDomain();
+    String currentDomain = org.exoplatform.commons.utils.Utils.getCurrentDomain();
     if (!currentDomain.endsWith("/")) {
       currentDomain += "/";
     }
@@ -812,8 +809,8 @@ public class NotificationUtils {
   private static String getUserAbsoluteURI(String identityId) {
     IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
     Identity identity = identityManager.getIdentity(identityId);
-    String currentSite = CommonsUtils.getCurrentSite().getName();
-    String currentDomain = CommonsUtils.getCurrentDomain();
+    String currentSite = getDefaultSite();
+    String currentDomain = org.exoplatform.commons.utils.Utils.getCurrentDomain();
     if (!currentDomain.endsWith("/")) {
       currentDomain += "/";
     }
