@@ -16,8 +16,8 @@ import org.exoplatform.commons.api.notification.model.NotificationInfo;
 import org.exoplatform.commons.api.notification.model.PluginKey;
 import org.exoplatform.commons.api.notification.service.template.TemplateContext;
 import org.exoplatform.commons.notification.template.TemplateUtils;
-import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.container.ExoContainer;
+import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -149,7 +149,7 @@ public class ReplyTemplateBuilder extends AbstractTemplateBuilder {
 
   private AgendaEventService getEventService() {
     if (agendaEventService == null) {
-      agendaEventService = CommonsUtils.getService(AgendaEventService.class);
+      agendaEventService = ExoContainerContext.getService(AgendaEventService.class);
     }
     return agendaEventService;
   }

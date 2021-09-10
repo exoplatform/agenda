@@ -12,19 +12,17 @@
       <outputDirectory>/</outputDirectory>
       <includes>
         <include>${project.groupId}:agenda-webapps:war</include>
+        <include>org.exoplatform.commons:commons-comet-webapp:war</include>
       </includes>
       <scope>provided</scope>
-      <outputFileNameMapping>agenda.war</outputFileNameMapping>
+      <outputFileNameMapping>${artifact.build.finalName}.war</outputFileNameMapping>
     </dependencySet>
     <!-- Libraries -->
     <dependencySet>
       <useProjectArtifact>false</useProjectArtifact>
       <outputDirectory>/</outputDirectory>
       <includes>
-        <include>${project.groupId}:*:jar</include>
-        <include>backport-util-concurrent:backport-util-concurrent:jar</include>
-        <include>org.mnode.ical4j:ical4j:jar</include>
-        <include>javax.cache:cache-api:jar</include>
+        <include>*:*:jar</include>
       </includes>
       <scope>provided</scope>
       <outputFileNameMapping>${artifact.artifactId}.${artifact.extension}</outputFileNameMapping>
