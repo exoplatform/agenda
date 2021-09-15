@@ -11,6 +11,7 @@ import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
 import org.exoplatform.agenda.service.BaseAgendaEventTest;
 import org.exoplatform.commons.api.notification.service.WebNotificationService;
+import org.exoplatform.commons.api.notification.service.storage.NotificationService;
 
 public class AgendaReplyEventNotificationListenerTest extends BaseAgendaEventTest {
 
@@ -27,13 +28,14 @@ public class AgendaReplyEventNotificationListenerTest extends BaseAgendaEventTes
     long eventParticipantId = Long.parseLong(testuser4Identity.getId());
 
     WebNotificationService webNotificationService = container.getComponentInstanceOfType(WebNotificationService.class);
+    NotificationService notificationService  = container.getComponentInstanceOfType(NotificationService.class);
     int initialNotificationsSize = webNotificationService.getNumberOnBadge(testuser1Identity.getRemoteId());
 
     EventAttendee oldAttendeeResponse =
                                       new EventAttendee(0, event.getId(), eventParticipantId, EventAttendeeResponse.NEEDS_ACTION);
     EventAttendee newAttendeeResponse = new EventAttendee(0, event.getId(), eventParticipantId, EventAttendeeResponse.ACCEPTED);
 
-    AgendaEventReplyListener agendaEventReplyListener = new AgendaEventReplyListener(container);
+    AgendaEventReplyListener agendaEventReplyListener = new AgendaEventReplyListener(container, notificationService);
     agendaEventReplyListener.onEvent(new org.exoplatform.services.listener.Event<EventAttendee, EventAttendee>(null,
                                                                                                                oldAttendeeResponse,
                                                                                                                newAttendeeResponse));

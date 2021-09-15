@@ -20,8 +20,8 @@ import org.exoplatform.commons.api.notification.model.NotificationInfo;
 import org.exoplatform.commons.notification.impl.NotificationContextImpl;
 import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.container.xml.ValueParam;
+import org.exoplatform.social.core.activity.model.ActivityStream;
 import org.exoplatform.social.core.identity.model.Identity;
-import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 import org.exoplatform.social.core.space.model.Space;
 
 public class EventReminderNotificationPluginTest extends BaseAgendaEventTest {
@@ -37,7 +37,7 @@ public class EventReminderNotificationPluginTest extends BaseAgendaEventTest {
     Event event = newEventInstance(start, start, allDay);
 
     Space space = createSpace("Test space notifications", testuser4Identity.getRemoteId());
-    Identity spaceIdentity = identityManager.getOrCreateIdentity(SpaceIdentityProvider.NAME, space.getPrettyName());
+    Identity spaceIdentity = identityManager.getOrCreateIdentity(ActivityStream.SPACE_PROVIDER_ID, space.getPrettyName());
 
     Event createdEvent = createEvent(event.clone(),
                                      Long.parseLong(testuser1Identity.getId()),

@@ -27,22 +27,16 @@ import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.rest.model.*;
 import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.agenda.service.AgendaEventService;
-import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
-import org.exoplatform.social.rest.entity.IdentityEntity;
 
 public class RestEntityBuilder {
-
-  private static final String IDENTITIES_REST_PATH = "/v1/social/identities"; // NOSONAR
-
-  private static final String IDENTITIES_EXPAND    = "all";
 
   private RestEntityBuilder() {
   }
 
   public static final Calendar toCalendar(CalendarEntity calendarEntity) {
     return new Calendar(calendarEntity.getId(),
-                        Long.parseLong(calendarEntity.getOwner().getId()),
+                        calendarEntity.getOwnerId(),
                         calendarEntity.isSystem(),
                         calendarEntity.getTitle(),
                         calendarEntity.getDescription(),
@@ -52,9 +46,9 @@ public class RestEntityBuilder {
                         calendarEntity.getAcl());
   }
 
-  public static final CalendarEntity fromCalendar(IdentityManager identityManager, Calendar calendar) {
+  public static final CalendarEntity fromCalendar(Calendar calendar) {
     return new CalendarEntity(calendar.getId(),
-                              getIdentityEntity(identityManager, calendar.getOwnerId()),
+                              calendar.getOwnerId(),
                               calendar.isSystem(),
                               calendar.getTitle(),
                               calendar.getDescription(),
@@ -112,7 +106,7 @@ public class RestEntityBuilder {
     return new Event(eventEntity.getId(),
                      eventEntity.getParent() == null ? 0l : eventEntity.getParent().getId(),
                      eventEntity.getCalendar() == null ? 0l : eventEntity.getCalendar().getId(),
-                     eventEntity.getCreator() == null ? 0l : Long.parseLong(eventEntity.getCreator().getId()),
+                     eventEntity.getCreatorId(),
                      0l,
                      AgendaDateUtils.parseRFC3339ToZonedDateTime(eventEntity.getCreated(), ZoneOffset.UTC),
                      AgendaDateUtils.parseRFC3339ToZonedDateTime(eventEntity.getUpdated(), ZoneOffset.UTC),
@@ -167,27 +161,18 @@ public class RestEntityBuilder {
                              beforePeriodType);
   }
 
-  public static EventAttendee toEventAttendee(IdentityManager identityManager,
-                                              long eventId,
+  public static EventAttendee toEventAttendee(long eventId,
                                               EventAttendeeEntity attendeeEntity) throws AgendaException {
-    long identityId = 0;
-    IdentityEntity attendeeIdentityEntity = attendeeEntity.getIdentity();
-    String providerId = attendeeIdentityEntity.getProviderId();
-    String remoteId = attendeeIdentityEntity.getRemoteId();
-    if (StringUtils.isNotBlank(providerId) && StringUtils.isNotBlank(remoteId)) {
-      Identity identity = identityManager.getOrCreateIdentity(providerId, remoteId);
-      identityId = Long.parseLong(identity.getId());
-    } else if (StringUtils.isNotBlank(attendeeIdentityEntity.getId())) {
-      identityId = Long.parseLong(attendeeIdentityEntity.getId());
-    } else {
+    long identityId = attendeeEntity.getIdentityId();
+    if (identityId <= 0) {
       throw new AgendaException(AgendaExceptionType.WRONG_EVENT_ATTENDEE_ID);
     }
     return new EventAttendee(attendeeEntity.getId(), eventId, identityId, attendeeEntity.getResponse());
   }
 
-  public static final EventAttendeeEntity fromEventAttendee(IdentityManager identityManager, EventAttendee eventAttendee) {
+  public static final EventAttendeeEntity fromEventAttendee(EventAttendee eventAttendee) {
     return new EventAttendeeEntity(eventAttendee.getId(),
-                                   getIdentityEntity(identityManager, eventAttendee.getIdentityId()),
+                                   eventAttendee.getIdentityId(),
                                    eventAttendee.getResponse());
   }
 
@@ -286,8 +271,8 @@ public class RestEntityBuilder {
                                          null,
                                          0l,
                                          null,
-                                         getCalendarEntity(agendaCalendarService, identityManager, event.getCalendarId()),
-                                         getIdentityEntity(identityManager, event.getCreatorId()),
+                                         getCalendarEntity(agendaCalendarService, event.getCalendarId()),
+                                         event.getCreatorId(),
                                          AgendaDateUtils.toRFC3339Date(event.getCreated()),
                                          AgendaDateUtils.toRFC3339Date(event.getUpdated()),
                                          event.getSummary(),
@@ -316,8 +301,8 @@ public class RestEntityBuilder {
                              null,
                              0l,
                              null,
-                             getCalendarEntity(agendaCalendarService, identityManager, event.getCalendarId()),
-                             getIdentityEntity(identityManager, event.getCreatorId()),
+                             getCalendarEntity(agendaCalendarService, event.getCalendarId()),
+                             event.getCreatorId(),
                              AgendaDateUtils.toRFC3339Date(event.getCreated()),
                              AgendaDateUtils.toRFC3339Date(event.getUpdated()),
                              event.getSummary(),
@@ -344,13 +329,12 @@ public class RestEntityBuilder {
   }
 
   private static CalendarEntity getCalendarEntity(AgendaCalendarService agendaCalendarService,
-                                                  IdentityManager identityManager,
                                                   long calendarId) {
     if (calendarId <= 0) {
       return null;
     }
     Calendar calendar = agendaCalendarService.getCalendarById(calendarId);
-    return fromCalendar(identityManager, calendar);
+    return fromCalendar(calendar);
   }
 
   private static EventEntity getEventEntity(AgendaCalendarService agendaCalendarService,
@@ -363,18 +347,6 @@ public class RestEntityBuilder {
     }
     Event event = agendaEventService.getEventById(eventId);
     return fromEvent(agendaCalendarService, agendaEventService, identityManager, event, userTimeZone);
-  }
-
-  private static IdentityEntity getIdentityEntity(IdentityManager identityManager, long ownerId) {
-    Identity identity = getIdentity(identityManager, ownerId);
-    if (identity == null) {
-      return null;
-    }
-    return org.exoplatform.social.rest.api.EntityBuilder.buildEntityIdentity(identity, IDENTITIES_REST_PATH, IDENTITIES_EXPAND);
-  }
-
-  private static final Identity getIdentity(IdentityManager identityManager, long identityId) {
-    return identityManager.getIdentity(String.valueOf(identityId));
   }
 
 }

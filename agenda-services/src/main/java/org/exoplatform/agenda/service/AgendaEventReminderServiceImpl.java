@@ -33,7 +33,7 @@ import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.command.NotificationCommand;
 import org.exoplatform.commons.api.notification.model.PluginKey;
-import org.exoplatform.commons.notification.impl.NotificationContextImpl;
+import org.exoplatform.commons.api.notification.service.storage.NotificationService;
 import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.container.xml.ValueParam;
 import org.exoplatform.services.listener.ListenerService;
@@ -58,6 +58,8 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
 
   private SpaceService               spaceService;
 
+  private NotificationService        notificationService;
+
   private ListenerService            listenerService;
 
   private long                       reminderComputingPeriod = 2;
@@ -68,6 +70,7 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
                                         AgendaUserSettingsService agendaUserSettingsService,
                                         IdentityManager identityManager,
                                         SpaceService spaceService,
+                                        NotificationService notificationService,
                                         ListenerService listenerService,
                                         InitParams initParams) {
     this.agendaUserSettingsService = agendaUserSettingsService;
@@ -77,6 +80,7 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
     this.listenerService = listenerService;
     this.identityManager = identityManager;
     this.spaceService = spaceService;
+    this.notificationService = notificationService;
 
     ValueParam reminderComputingPeriodParam = initParams.getValueParam("period.computing.days");
     if (reminderComputingPeriodParam != null && reminderComputingPeriodParam.getValue() != null) {
@@ -388,7 +392,7 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
   }
 
   private void sendReminderNotification(EventReminder eventReminder) {
-    NotificationContext ctx = NotificationContextImpl.cloneInstance();
+    NotificationContext ctx = notificationService.createNotificationContextInstance();
     ctx.append(EVENT_AGENDA_REMINDER, eventReminder);
     NotificationCommand command = ctx.makeCommand(PluginKey.key(AGENDA_REMINDER_NOTIFICATION_PLUGIN));
     ctx.getNotificationExecutor().with(command).execute(ctx);

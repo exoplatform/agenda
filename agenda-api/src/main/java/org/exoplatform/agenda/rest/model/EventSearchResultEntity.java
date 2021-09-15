@@ -6,7 +6,6 @@ import org.exoplatform.agenda.constant.EventAvailability;
 import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.model.EventConference;
 import org.exoplatform.agenda.model.EventPermission;
-import org.exoplatform.social.rest.entity.IdentityEntity;
 
 import lombok.*;
 
@@ -23,7 +22,7 @@ public class EventSearchResultEntity extends EventEntity {
                                  final long remoteProviderId,
                                  final String remoteProviderName,
                                  final CalendarEntity calendar,
-                                 final IdentityEntity creator,
+                                 final long creatorId,
                                  final String created,
                                  final String updated,
                                  final String summary,
@@ -52,7 +51,7 @@ public class EventSearchResultEntity extends EventEntity {
           remoteProviderId,
           remoteProviderName,
           calendar,
-          creator,
+          creatorId,
           created,
           updated,
           summary,

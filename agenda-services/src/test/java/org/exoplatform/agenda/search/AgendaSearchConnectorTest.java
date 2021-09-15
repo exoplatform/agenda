@@ -1,7 +1,8 @@
 package org.exoplatform.agenda.search;
 
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.*;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import java.io.ByteArrayInputStream;
@@ -27,8 +28,8 @@ import org.exoplatform.commons.search.es.client.ElasticSearchingClient;
 import org.exoplatform.commons.utils.*;
 import org.exoplatform.container.configuration.ConfigurationManager;
 import org.exoplatform.container.xml.*;
+import org.exoplatform.social.core.activity.model.ActivityStream;
 import org.exoplatform.social.core.identity.model.Identity;
-import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
@@ -159,10 +160,9 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
             spaces[0].setId(String.valueOf(spaceIdentityIndex));
             spaces[0].setPrettyName(prettyName);
             Identity spaceIdentity = new Identity(String.valueOf(spaceIdentityIndex));
-            spaceIdentity.setProviderId(SpaceIdentityProvider.NAME);
+            spaceIdentity.setProviderId(ActivityStream.SPACE_PROVIDER_ID);
             spaceIdentity.setRemoteId(prettyName);
-            when(identityManager.getOrCreateIdentity(eq(SpaceIdentityProvider.NAME),
-                                                     eq(prettyName))).thenReturn(spaceIdentity);
+            when(identityManager.getOrCreateSpaceIdentity(prettyName)).thenReturn(spaceIdentity);
             return spaces;
           }
         });
@@ -223,10 +223,9 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
             spaces[0].setId(String.valueOf(spaceIdentityIndex));
             spaces[0].setPrettyName(prettyName);
             Identity spaceIdentity = new Identity(String.valueOf(spaceIdentityIndex));
-            spaceIdentity.setProviderId(SpaceIdentityProvider.NAME);
+            spaceIdentity.setProviderId(ActivityStream.SPACE_PROVIDER_ID);
             spaceIdentity.setRemoteId(prettyName);
-            when(identityManager.getOrCreateIdentity(eq(SpaceIdentityProvider.NAME),
-                                                     eq(prettyName))).thenReturn(spaceIdentity);
+            when(identityManager.getOrCreateSpaceIdentity(prettyName)).thenReturn(spaceIdentity);
             return spaces;
           }
         });

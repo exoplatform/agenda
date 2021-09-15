@@ -7,7 +7,7 @@ import org.exoplatform.agenda.service.AgendaEventService;
 import org.exoplatform.agenda.util.NotificationUtils;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.model.PluginKey;
-import org.exoplatform.commons.notification.impl.NotificationContextImpl;
+import org.exoplatform.commons.api.notification.service.storage.NotificationService;
 import org.exoplatform.container.ExoContainer;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.component.RequestLifeCycle;
@@ -16,12 +16,15 @@ import org.exoplatform.services.listener.*;
 @Asynchronous
 public class AgendaEventReplyListener extends Listener<EventAttendee, EventAttendee> {
 
-  private AgendaEventService agendaEventService;
+  private AgendaEventService  agendaEventService;
 
-  private ExoContainer       container;
+  private NotificationService notificationService;
 
-  public AgendaEventReplyListener(ExoContainer container) {
+  private ExoContainer        container;
+
+  public AgendaEventReplyListener(ExoContainer container, NotificationService notificationService) {
     this.container = container;
+    this.notificationService = notificationService;
   }
 
   @Override
@@ -56,7 +59,7 @@ public class AgendaEventReplyListener extends Listener<EventAttendee, EventAtten
 
   public void sendReplyResponseNotification(org.exoplatform.agenda.model.Event event,
                                             EventAttendee eventAttendee) {
-    NotificationContext ctx = NotificationContextImpl.cloneInstance();
+    NotificationContext ctx = notificationService.createNotificationContextInstance();
     ctx.append(NotificationUtils.EVENT_AGENDA, event);
     ctx.append(NotificationUtils.EVENT_PARTICIPANT_ID, eventAttendee.getIdentityId());
     ctx.append(NotificationUtils.EVENT_RESPONSE, eventAttendee.getResponse());

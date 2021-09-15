@@ -127,7 +127,7 @@ public class AgendaCalendarRest implements ResourceContainer {
         }
       }
       List<CalendarEntity> calendarEntities = calendars.stream()
-                                                       .map(calendar -> RestEntityBuilder.fromCalendar(identityManager, calendar))
+                                                       .map(calendar -> RestEntityBuilder.fromCalendar(calendar))
                                                        .collect(Collectors.toList());
       calendarList.setCalendars(calendarEntities);
 
@@ -174,7 +174,7 @@ public class AgendaCalendarRest implements ResourceContainer {
       if (calendar == null) {
         return Response.status(Status.NOT_FOUND).build();
       } else {
-        return Response.ok(RestEntityBuilder.fromCalendar(identityManager, calendar)).build();
+        return Response.ok(RestEntityBuilder.fromCalendar(calendar)).build();
       }
     } catch (IllegalAccessException e) {
       LOG.warn("User '{}' attempts to access not authorized calendar with Id '{}'", currentUser, calendarId, e);
@@ -204,7 +204,7 @@ public class AgendaCalendarRest implements ResourceContainer {
     if (calendarEntity == null) {
       return Response.status(Status.BAD_REQUEST).entity("Calendar object is mandatory").build();
     }
-    if (calendarEntity.getOwner() == null) {
+    if (calendarEntity.getOwnerId() <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Calendar owner is mandatory").build();
     }
 
@@ -213,7 +213,7 @@ public class AgendaCalendarRest implements ResourceContainer {
       agendaCalendarService.createCalendar(RestEntityBuilder.toCalendar(calendarEntity), currentUser);
       return Response.noContent().build();
     } catch (IllegalAccessException e) {
-      LOG.warn("User '{}' attempts to create a calendar for owner '{}'", currentUser, calendarEntity.getOwner(), e);
+      LOG.warn("User '{}' attempts to create a calendar for owner '{}'", currentUser, calendarEntity.getOwnerId(), e);
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error creating a calendar", e);
@@ -255,10 +255,10 @@ public class AgendaCalendarRest implements ResourceContainer {
       agendaCalendarService.updateCalendar(RestEntityBuilder.toCalendar(calendarEntity), currentUser);
       return Response.noContent().build();
     } catch (ObjectNotFoundException e) {
-      LOG.debug("User '{}' attempts to update a not existing calendar '{}'", currentUser, calendarEntity.getOwner(), e);
+      LOG.debug("User '{}' attempts to update a not existing calendar '{}'", currentUser, calendarEntity.getOwnerId(), e);
       return Response.status(Status.NOT_FOUND).entity("Calendar not found").build();
     } catch (IllegalAccessException e) {
-      LOG.error("User '{}' attempts to update a calendar for owner '{}'", currentUser, calendarEntity.getOwner(), e);
+      LOG.error("User '{}' attempts to update a calendar for owner '{}'", currentUser, calendarEntity.getOwnerId(), e);
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error updating a calendar", e);

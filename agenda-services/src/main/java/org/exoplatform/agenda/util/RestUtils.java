@@ -23,7 +23,6 @@ import java.util.stream.Collectors;
 import javax.ws.rs.core.UriInfo;
 
 import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
@@ -34,9 +33,7 @@ import org.exoplatform.agenda.service.*;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.social.core.identity.model.Identity;
-import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
-import org.exoplatform.social.rest.entity.IdentityEntity;
 
 public class RestUtils {
 
@@ -49,12 +46,12 @@ public class RestUtils {
 
   public static final Identity getCurrentUserIdentity(IdentityManager identityManager) {
     String currentUser = getCurrentUser();
-    return identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, currentUser);
+    return identityManager.getOrCreateUserIdentity(currentUser);
   }
 
   public static final long getCurrentUserIdentityId(IdentityManager identityManager) {
     String currentUser = getCurrentUser();
-    Identity identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, currentUser);
+    Identity identity = identityManager.getOrCreateUserIdentity(currentUser);
     return identity == null ? 0 : Long.parseLong(identity.getId());
   }
 
@@ -64,30 +61,6 @@ public class RestUtils {
 
   public static String getBasePortalURI() {
     return "/" + PortalContainer.getCurrentPortalContainerName();
-  }
-
-  public static String getIdentityId(IdentityEntity identityEntity, IdentityManager identityManager) {
-    if (identityEntity == null) {
-      return null;
-    }
-    String identityIdString = identityEntity.getId();
-    String remoteId = identityEntity.getRemoteId();
-    String providerId = identityEntity.getProviderId();
-
-    if (StringUtils.isNotBlank(identityIdString)) {
-      Identity identity = identityManager.getIdentity(identityIdString);
-      if (identity == null) {
-        // Wrong id, attempt with remoteId and providerId
-        identityIdString = null;
-      }
-    }
-    if (StringUtils.isBlank(identityIdString) && StringUtils.isNotBlank(remoteId) && StringUtils.isNotBlank(providerId)) {
-      Identity identity = identityManager.getOrCreateIdentity(providerId, remoteId);
-      if (identity != null) {
-        identityIdString = identity.getId();
-      }
-    }
-    return identityIdString;
   }
 
   public static Integer getIntegerValue(UriInfo uriInfo, String name) {
@@ -105,14 +78,13 @@ public class RestUtils {
     return uriInfo.getQueryParameters().getFirst(name);
   }
 
-  public static Event createEventEntity(IdentityManager identityManager,
-                                        AgendaCalendarService agendaCalendarService,
+  public static Event createEventEntity(AgendaCalendarService agendaCalendarService,
                                         AgendaEventService agendaEventService,
                                         EventEntity eventEntity,
                                         long userIdentityId,
                                         String timeZoneId) throws AgendaException,
                                                            IllegalAccessException {
-    checkCalendar(identityManager, agendaCalendarService, eventEntity);
+    checkCalendar(agendaCalendarService, eventEntity);
 
     cleanupAttachedEntitiesIds(eventEntity);
 
@@ -121,13 +93,7 @@ public class RestUtils {
     if (attendeeEntities != null && !attendeeEntities.isEmpty()) {
       attendees = new ArrayList<>();
       for (EventAttendeeEntity attendeeEntity : attendeeEntities) {
-        IdentityEntity attendeeIdentity = attendeeEntity.getIdentity();
-        String attendeeIdString = RestUtils.getIdentityId(attendeeIdentity, identityManager);
-        if (StringUtils.isBlank(attendeeIdString)) {
-          throw new AgendaException(AgendaExceptionType.ATTENDEE_IDENTITY_NOT_FOUND);
-        }
-        attendeeIdentity.setId(attendeeIdString);
-        attendees.add(RestEntityBuilder.toEventAttendee(identityManager, eventEntity.getId(), attendeeEntity));
+        attendees.add(RestEntityBuilder.toEventAttendee(eventEntity.getId(), attendeeEntity));
       }
     }
 
@@ -162,21 +128,17 @@ public class RestUtils {
                                           userIdentityId);
   }
 
-  public static void checkCalendar(IdentityManager identityManager,
-                                   AgendaCalendarService agendaCalendarService,
+  public static void checkCalendar(AgendaCalendarService agendaCalendarService,
                                    EventEntity eventEntity) throws AgendaException {
-    IdentityEntity identityEntity = eventEntity.getCalendar().getOwner();
-
-    String ownerIdString = RestUtils.getIdentityId(identityEntity, identityManager);
-    if (StringUtils.isBlank(ownerIdString)) {
+    long ownerId = eventEntity.getCalendar().getOwnerId();
+    if (ownerId <= 0) {
       throw new AgendaException(AgendaExceptionType.CALENDAR_OWNER_NOT_FOUND);
     }
-    identityEntity.setId(ownerIdString);
-    Calendar calendar = agendaCalendarService.getOrCreateCalendarByOwnerId(Long.parseLong(ownerIdString));
+    Calendar calendar = agendaCalendarService.getOrCreateCalendarByOwnerId(ownerId);
     if (calendar == null) {
       throw new AgendaException(AgendaExceptionType.CALENDAR_NOT_FOUND);
     } else if (eventEntity.getCalendar() == null) {
-      eventEntity.setCalendar(RestEntityBuilder.fromCalendar(identityManager, calendar));
+      eventEntity.setCalendar(RestEntityBuilder.fromCalendar(calendar));
     } else {
       eventEntity.getCalendar().setId(calendar.getId());
     }
@@ -247,9 +209,9 @@ public class RestUtils {
                                                             userTimeZone);
       long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
       if (expandProperties.contains("all") || expandProperties.contains("attendees")) {
-        fillAttendees(identityManager, agendaEventAttendeeService, eventEntity, occurrenceId, 0);
+        fillAttendees(agendaEventAttendeeService, eventEntity, occurrenceId, 0);
       } else if (expandProperties.contains("response")) {
-        fillAttendees(identityManager, agendaEventAttendeeService, eventEntity, occurrenceId, userIdentityId);
+        fillAttendees(agendaEventAttendeeService, eventEntity, occurrenceId, userIdentityId);
       }
       if (expandProperties.contains("all") || expandProperties.contains("conferences")) {
         fillConferences(agendaEventConferenceService, eventEntity);
@@ -302,9 +264,9 @@ public class RestUtils {
 
       long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
       if (expandProperties.contains("all") || expandProperties.contains("attendees")) {
-        fillAttendees(identityManager, agendaEventAttendeeService, eventSearchResultEntity, occurrenceId, 0);
+        fillAttendees(agendaEventAttendeeService, eventSearchResultEntity, occurrenceId, 0);
       } else if (expandProperties.contains("response")) {
-        fillAttendees(identityManager, agendaEventAttendeeService, eventSearchResultEntity, occurrenceId, userIdentityId);
+        fillAttendees(agendaEventAttendeeService, eventSearchResultEntity, occurrenceId, userIdentityId);
       }
       if (expandProperties.contains("all") || expandProperties.contains("conferences")) {
         fillConferences(agendaEventConferenceService, eventSearchResultEntity);
@@ -326,8 +288,7 @@ public class RestUtils {
     }
   }
 
-  public static void fillAttendees(IdentityManager identityManager,
-                                   AgendaEventAttendeeService agendaEventAttendeeService,
+  public static void fillAttendees(AgendaEventAttendeeService agendaEventAttendeeService,
                                    EventEntity eventEntity,
                                    ZonedDateTime occurrenceId,
                                    Map<Long, EventAttendeeList> attendeesByParentEventId,
@@ -339,12 +300,10 @@ public class RestUtils {
       EventAttendeeList eventAttendeeList = attendeesByParentEventId.get(eventId);
       List<EventAttendee> eventAttendees = eventAttendeeList.getEventAttendees(occurrenceId);
       eventEntity.setAttendees(eventAttendees.stream()
-                                             .map(eventAttendee -> RestEntityBuilder.fromEventAttendee(identityManager,
-                                                                                                       eventAttendee))
+                                             .map(RestEntityBuilder::fromEventAttendee)
                                              .collect(Collectors.toList()));
     } else {
-      EventAttendeeList eventAttendeeList = fillAttendees(identityManager,
-                                                          agendaEventAttendeeService,
+      EventAttendeeList eventAttendeeList = fillAttendees(agendaEventAttendeeService,
                                                           eventEntity,
                                                           occurrenceId,
                                                           userIdentityId);
@@ -354,8 +313,7 @@ public class RestUtils {
     }
   }
 
-  private static EventAttendeeList fillAttendees(IdentityManager identityManager,
-                                                 AgendaEventAttendeeService agendaEventAttendeeService,
+  private static EventAttendeeList fillAttendees(AgendaEventAttendeeService agendaEventAttendeeService,
                                                  EventEntity eventEntity,
                                                  ZonedDateTime occurrenceId,
                                                  long userIdentityId) {
@@ -368,14 +326,12 @@ public class RestUtils {
       if (eventAttendee == null) {
         eventEntity.setAttendees(Collections.emptyList());
       } else {
-        eventEntity.setAttendees(Collections.singletonList(RestEntityBuilder.fromEventAttendee(identityManager,
-                                                                                               eventAttendee)));
+        eventEntity.setAttendees(Collections.singletonList(RestEntityBuilder.fromEventAttendee(eventAttendee)));
       }
     } else {
       List<EventAttendeeEntity> eventAttendeeEntities = eventAttendeeList.getEventAttendees(occurrenceId)
                                                                          .stream()
-                                                                         .map(eventAttendee -> RestEntityBuilder.fromEventAttendee(identityManager,
-                                                                                                                                   eventAttendee))
+                                                                         .map(RestEntityBuilder::fromEventAttendee)
                                                                          .collect(Collectors.toList());
       eventEntity.setAttendees(eventAttendeeEntities);
     }

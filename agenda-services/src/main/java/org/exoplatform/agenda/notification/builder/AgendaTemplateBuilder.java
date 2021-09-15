@@ -108,6 +108,7 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
 
       TemplateContext templateContext = buildTemplateParameters(username,
                                                                 getSpaceService(),
+                                                                getIdentityManager(),
                                                                 getAgendaEventAttendeeService(),
                                                                 templateProvider,
                                                                 notification,

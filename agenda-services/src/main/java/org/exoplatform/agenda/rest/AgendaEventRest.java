@@ -50,7 +50,6 @@ import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.rest.resource.ResourceContainer;
 import org.exoplatform.social.core.identity.model.Identity;
-import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
 
 import io.swagger.annotations.*;
@@ -239,8 +238,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
         ZonedDateTime occurrenceId = event.getOccurrence() == null ? null : event.getOccurrence().getId();
         if (expandProperties.contains("all") || expandProperties.contains("attendees")) {
           try {
-            fillAttendees(identityManager,
-                          agendaEventAttendeeService,
+            fillAttendees(agendaEventAttendeeService,
                           eventEntity,
                           occurrenceId,
                           attendeesByParentEventId,
@@ -250,8 +248,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
           }
         } else if (expandProperties.contains("response")) {
           try {
-            fillAttendees(identityManager,
-                          agendaEventAttendeeService,
+            fillAttendees(agendaEventAttendeeService,
                           eventEntity,
                           occurrenceId,
                           attendeesByParentEventId,
@@ -265,7 +262,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
         // responseTypes
         if (CollectionUtils.isNotEmpty(responseTypes) && CollectionUtils.isNotEmpty(attendees)) {
           for (EventAttendeeEntity attendee : attendees) {
-            if (Long.parseLong(attendee.getIdentity().getId()) == userIdentityId
+            if (attendee.getIdentityId() == userIdentityId
                 && !responseTypes.contains(attendee.getResponse())) {
               return null;
             }
@@ -562,14 +559,13 @@ public class AgendaEventRest implements ResourceContainer, Startable {
     if (eventEntity == null) {
       return Response.status(Status.BAD_REQUEST).entity(AgendaExceptionType.EVENT_MANDATORY.getCompleteMessage()).build();
     }
-    if (eventEntity.getCalendar() == null || eventEntity.getCalendar().getOwner() == null) {
+    if (eventEntity.getCalendar() == null || eventEntity.getCalendar().getOwnerId() <= 0) {
       return Response.status(Status.BAD_REQUEST).entity(AgendaExceptionType.CALENDAR_OWNER_NOT_FOUND).build();
     }
 
     long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
     try {
-      Event event = createEventEntity(identityManager,
-                                      agendaCalendarService,
+      Event event = createEventEntity(agendaCalendarService,
                                       agendaEventService,
                                       eventEntity,
                                       userIdentityId,
@@ -620,16 +616,14 @@ public class AgendaEventRest implements ResourceContainer, Startable {
 
     long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
     try {
-      checkCalendar(identityManager,
-                    agendaCalendarService,
-                    eventEntity);
+      checkCalendar(agendaCalendarService, eventEntity);
 
       List<EventAttendeeEntity> attendeeEntities = eventEntity.getAttendees();
       List<EventAttendee> attendees = null;
       if (attendeeEntities != null && !attendeeEntities.isEmpty()) {
         attendees = new ArrayList<>();
         for (EventAttendeeEntity attendeeEntity : attendeeEntities) {
-          attendees.add(RestEntityBuilder.toEventAttendee(identityManager, eventEntity.getId(), attendeeEntity));
+          attendees.add(RestEntityBuilder.toEventAttendee(eventEntity.getId(), attendeeEntity));
         }
       }
 
@@ -1420,7 +1414,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
         identity = agendaEventAttendeeService.decryptUserIdentity(eventId, token, response);
         currentUser = identity.getRemoteId();
       } else if (StringUtils.isNotBlank(currentUser)) {
-        identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, currentUser);
+        identity = identityManager.getOrCreateUserIdentity(currentUser);
       }
       if (identity == null) {
         return Response.status(Status.FORBIDDEN).build();

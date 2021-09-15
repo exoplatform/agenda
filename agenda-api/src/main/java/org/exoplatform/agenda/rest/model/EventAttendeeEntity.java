@@ -19,7 +19,6 @@ package org.exoplatform.agenda.rest.model;
 import java.io.Serializable;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
-import org.exoplatform.social.rest.entity.IdentityEntity;
 
 import lombok.*;
 
@@ -32,12 +31,12 @@ public class EventAttendeeEntity implements Serializable, Cloneable {
 
   private long                  id;
 
-  private IdentityEntity        identity;
+  private long                  identityId;
 
   private EventAttendeeResponse response;
 
   @Override
   public EventAttendeeEntity clone() {// NOSONAR
-    return new EventAttendeeEntity(id, identity, response);
+    return new EventAttendeeEntity(id, identityId, response);
   }
 }

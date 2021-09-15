@@ -20,19 +20,18 @@ import org.exoplatform.commons.api.notification.channel.template.TemplateProvide
 import org.exoplatform.commons.api.notification.model.*;
 import org.exoplatform.commons.api.notification.plugin.NotificationPluginUtils;
 import org.exoplatform.commons.api.notification.service.template.TemplateContext;
+import org.exoplatform.commons.api.notification.utils.TimeUtils;
 import org.exoplatform.commons.notification.template.TemplateUtils;
+import org.exoplatform.commons.utils.I18N;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.portal.config.PortalConfigService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.identity.model.Identity;
+import org.exoplatform.social.core.identity.model.Profile;
 import org.exoplatform.social.core.manager.IdentityManager;
-import org.exoplatform.social.core.service.LinkProvider;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
-import org.exoplatform.social.notification.LinkProviderUtils;
-import org.exoplatform.social.notification.plugin.SocialNotificationUtils;
-import org.exoplatform.webui.utils.TimeConvertUtils;
 
 public class NotificationUtils {
 
@@ -209,6 +208,12 @@ public class NotificationUtils {
                                                                                                      "modifierProfileUrl";
 
   private static final String                                TEMPLATE_VARIABLE_EVENT_STATUS                 = "eventStatus";
+
+  public static final String                                 RESOURCE_URL                                   =
+                                                                          "social/notifications";
+
+  public static final String                                 REDIRECT_URL                                   =
+                                                                          RESOURCE_URL + "/redirectUrl";
 
   private static volatile String                             defaultSite;
 
@@ -403,6 +408,7 @@ public class NotificationUtils {
 
   public static final TemplateContext buildTemplateParameters(String username,
                                                               SpaceService spaceService,
+                                                              IdentityManager identityManager,
                                                               AgendaEventAttendeeService agendaEventAttendeeService,
                                                               TemplateProvider templateProvider,
                                                               NotificationInfo notification,
@@ -411,7 +417,7 @@ public class NotificationUtils {
     String language = NotificationPluginUtils.getLanguage(notificationReceiverUserName);
     TemplateContext templateContext = getTemplateContext(templateProvider, notification, language);
 
-    setFooter(notification, templateContext);
+    setFooter(identityManager, notification, templateContext);
     setRead(notification, templateContext);
     setNotificationId(notification, templateContext);
     setLasModifiedTime(notification, templateContext, language);
@@ -453,13 +459,14 @@ public class NotificationUtils {
   }
 
   public static final TemplateContext buildTemplateReminderParameters(SpaceService spaceService,
+                                                                      IdentityManager identityManager,
                                                                       TemplateProvider templateProvider,
                                                                       NotificationInfo notification,
                                                                       ZoneId timeZone) {
     String language = NotificationPluginUtils.getLanguage(notification.getTo());
     TemplateContext templateContext = getTemplateContext(templateProvider, notification, language);
 
-    setFooter(notification, templateContext);
+    setFooter(identityManager, notification, templateContext);
     setRead(notification, templateContext);
     setNotificationId(notification, templateContext);
     setLasModifiedTime(notification, templateContext, language);
@@ -471,7 +478,8 @@ public class NotificationUtils {
     return templateContext;
   }
 
-  public static final TemplateContext buildTemplateReplyParameters(TemplateProvider templateProvider,
+  public static final TemplateContext buildTemplateReplyParameters(IdentityManager identityManager,
+                                                                   TemplateProvider templateProvider,
                                                                    NotificationInfo notification,
                                                                    ZoneId timeZone,
                                                                    boolean isCreator) {
@@ -479,7 +487,7 @@ public class NotificationUtils {
     TemplateContext templateContext = getTemplateContext(templateProvider, notification, language);
     templateContext.put(TEMPLATE_VARIABLE_IS_CREATOR, String.valueOf(isCreator));
 
-    setFooter(notification, templateContext);
+    setFooter(identityManager, notification, templateContext);
     setRead(notification, templateContext);
     setNotificationId(notification, templateContext);
     setLasModifiedTime(notification, templateContext, language);
@@ -491,12 +499,13 @@ public class NotificationUtils {
   }
 
   public static final TemplateContext buildTemplateDatePollParameters(SpaceService spaceService,
+                                                                      IdentityManager identityManager,
                                                                       TemplateProvider templateProvider,
                                                                       NotificationInfo notification) {
     String language = NotificationPluginUtils.getLanguage(notification.getTo());
     TemplateContext templateContext = getTemplateContext(templateProvider, notification, language);
 
-    setFooter(notification, templateContext);
+    setFooter(identityManager, notification, templateContext);
     setRead(notification, templateContext);
     setNotificationId(notification, templateContext);
     setLasModifiedTime(notification, templateContext, language);
@@ -690,6 +699,20 @@ public class NotificationUtils {
     }
   }
 
+  /**
+   * Gets platform language of user. In case of any errors return null.
+   *
+   * @param userId user Id
+   * @return the platform language
+   */
+  public static String getUserLanguage(String userId) {
+    Locale locale = I18N.getUserLocale(userId);
+    if (locale != null) {
+      return locale.toString();
+    }
+    return null;
+  }
+
   private static final void setIdentityNameAndAvatar(SpaceService spaceService,
                                                      NotificationInfo notification,
                                                      TemplateContext templateContext) {
@@ -698,13 +721,13 @@ public class NotificationUtils {
     Identity identity = identityManager.getIdentity(ownerId);
     String avatarUrl = null;
     if (identity == null) {
-      avatarUrl = LinkProvider.SPACE_DEFAULT_AVATAR_URL;
+      avatarUrl = Space.SPACE_DEFAULT_AVATAR_URL;
     } else {
       if (identity.isSpace()) {
         Space space = spaceService.getSpaceByPrettyName(identity.getRemoteId());
-        avatarUrl = LinkProviderUtils.getSpaceAvatarUrl(space);
+        avatarUrl = getSpaceAvatarUrl(space);
       } else {
-        avatarUrl = LinkProviderUtils.getUserAvatarUrl(identity.getProfile());
+        avatarUrl = getUserAvatarUrl(identity.getProfile());
       }
     }
     templateContext.put(TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR, avatarUrl);
@@ -773,8 +796,21 @@ public class NotificationUtils {
     messageInfo.body(TemplateUtils.processGroovy(templateContext));
   }
 
-  private static final void setFooter(NotificationInfo notification, TemplateContext templateContext) {
-    SocialNotificationUtils.addFooterAndFirstName(notification.getTo(), templateContext);
+  private static final void setFooter(IdentityManager identityManager,
+                                      NotificationInfo notification,
+                                      TemplateContext templateContext) {
+    String remoteId = notification.getTo();
+    String firstName = "";
+    String redirectUrl = "";
+
+    Identity receiver = identityManager.getOrCreateUserIdentity(remoteId);
+    if (receiver != null) {
+      firstName = (String) receiver.getProfile().getProperty(Profile.FIRST_NAME);
+      redirectUrl = getRedirectUrl("notification_settings", receiver.getRemoteId());
+    }
+
+    templateContext.put("FIRSTNAME", firstName);
+    templateContext.put("FOOTER_LINK", redirectUrl);
   }
 
   private static final void setRead(NotificationInfo notification, TemplateContext templateContext) {
@@ -790,17 +826,18 @@ public class NotificationUtils {
     java.util.Calendar cal = java.util.Calendar.getInstance();
     cal.setTimeInMillis(notification.getLastModifiedDate());
     templateContext.put("LAST_UPDATED_TIME",
-                        TimeConvertUtils.convertXTimeAgoByTimeServer(cal.getTime(),
-                                                                     "EE, dd yyyy",
-                                                                     new Locale(language),
-                                                                     TimeConvertUtils.YEAR));
+                        TimeUtils.convertXTimeAgoByTimeServer(cal.getTime(),
+                                                              "EE, dd yyyy",
+                                                              new Locale(language),
+                                                              TimeUtils.YEAR));
   }
 
   private static final String getEventNotificationCreatorOrModifierUserName(Identity identity) {
     String[] splited = identity.getProfile().getFullName().split(" ");
     String fullName = StringUtils.capitalize(splited[0]).concat(" ").concat(StringUtils.capitalize(splited[1]));
-    if(Utils.isExternal(identity.getRemoteId())) {
-      fullName += " " + "(" + Utils.getResourceBundleLabel(new Locale(Utils.getUserLanguage(identity.getRemoteId())), "external.label.tag") + ")";
+    if (Utils.isExternal(identity.getRemoteId())) {
+      fullName +=
+               " " + "(" + Utils.getResourceBundleLabel(I18N.getUserLocale(identity.getRemoteId()), "external.label.tag") + ")";
     }
     return fullName;
   }
@@ -821,9 +858,11 @@ public class NotificationUtils {
       List<String> showParticipants = participants.stream().limit(3).collect(Collectors.toList());
       return String.join(", ", showParticipants).concat("...");
     } else {
-      List<String> showParticipants = participants.stream().map(participant -> {
-        return Utils.getIdentityById(identityManager, participant).getProfile().getFullName();
-      }).collect(Collectors.toList());
+      List<String> showParticipants = participants.stream()
+                                                  .map(participant -> Utils.getIdentityById(identityManager, participant)
+                                                                           .getProfile()
+                                                                           .getFullName())
+                                                  .collect(Collectors.toList());
       return String.join(", ", showParticipants);
     }
   }
@@ -837,4 +876,68 @@ public class NotificationUtils {
     return String.join(", ", showParticipants);
   }
 
+  /**
+   * Gets the user's avatar url. In case this url is null, we take the default
+   * url
+   * 
+   * @param profile user profile
+   * @return
+   */
+  public static String getUserAvatarUrl(Profile profile) {
+    return org.exoplatform.commons.utils.Utils.getCurrentDomain()
+        + ((profile != null && profile.getAvatarUrl() != null) ? profile.getAvatarUrl() : Profile.PROFILE_DEFAULT_AVATAR_URL);
+  }
+
+  /**
+   * Gets the space's avatar url. In case this url is null, we take the default
+   * url
+   * 
+   * @param space
+   * @return
+   */
+  public static String getSpaceAvatarUrl(Space space) {
+    return org.exoplatform.commons.utils.Utils.getCurrentDomain()
+        + ((space != null && space.getAvatarUrl() != null) ? space.getAvatarUrl() : Space.SPACE_DEFAULT_AVATAR_URL);
+  }
+
+  /**
+   * Gets the associated page of type
+   * 
+   * @param type type of the page : user or space or activity
+   * @param objectId can be a space's id or user's id or activity's id
+   * @return
+   */
+  public static String getRedirectUrl(String type, String objectId) {
+    return getRestUrl(REDIRECT_URL, type, objectId);
+  }
+
+  /**
+   * Gets full rest url
+   * 
+   * @param type
+   * @param objectId1
+   * @param objectId2
+   * @return
+   */
+  public static String getRestUrl(String type, String objectId1, String objectId2) {
+    String baseUrl = getBaseRestUrl();
+    return new StringBuffer(baseUrl).append("/")
+                                    .append(type)
+                                    .append("/")
+                                    .append(objectId1)
+                                    .append("/")
+                                    .append(objectId2)
+                                    .toString();
+  }
+
+  /**
+   * Get base url of rest service
+   * 
+   * @return base rest url like : http://localhost:8080/rest
+   */
+  public static String getBaseRestUrl() {
+    return new StringBuffer(org.exoplatform.commons.utils.Utils.getCurrentDomain()).append("/")
+                                                                                   .append(org.exoplatform.commons.utils.Utils.getRestContextName())
+                                                                                   .toString();
+  }
 }
