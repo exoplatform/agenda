@@ -19,9 +19,8 @@ import org.exoplatform.container.PortalContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.listener.Listener;
 import org.exoplatform.services.listener.ListenerService;
+import org.exoplatform.social.core.activity.model.ActivityStream;
 import org.exoplatform.social.core.identity.model.Identity;
-import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
-import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
@@ -175,11 +174,11 @@ public abstract class BaseAgendaEventTest {
   protected void injectData() throws ObjectNotFoundException {
     purgeData();
 
-    testuser1Identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, "testuser1");
-    testuser2Identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, "testuser2");
-    testuser3Identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, "testuser3");
-    testuser4Identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, "testuser4");
-    testuser5Identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, "testuser5");
+    testuser1Identity = identityManager.getOrCreateIdentity(ActivityStream.ORGANIZATION_PROVIDER_ID, "testuser1");
+    testuser2Identity = identityManager.getOrCreateIdentity(ActivityStream.ORGANIZATION_PROVIDER_ID, "testuser2");
+    testuser3Identity = identityManager.getOrCreateIdentity(ActivityStream.ORGANIZATION_PROVIDER_ID, "testuser3");
+    testuser4Identity = identityManager.getOrCreateIdentity(ActivityStream.ORGANIZATION_PROVIDER_ID, "testuser4");
+    testuser5Identity = identityManager.getOrCreateIdentity(ActivityStream.ORGANIZATION_PROVIDER_ID, "testuser5");
 
     calendar = agendaCalendarService.createCalendar(new Calendar(0,
                                                                  Long.parseLong(testuser1Identity.getId()),
@@ -208,7 +207,7 @@ public abstract class BaseAgendaEventTest {
     if (!spaceService.isMember(space, testuser3Identity.getRemoteId())) {
       spaceService.addMember(space, testuser3Identity.getRemoteId());
     }
-    spaceIdentity = identityManager.getOrCreateIdentity(SpaceIdentityProvider.NAME, space.getPrettyName());
+    spaceIdentity = identityManager.getOrCreateIdentity(ActivityStream.SPACE_PROVIDER_ID, space.getPrettyName());
 
     spaceCalendar = agendaCalendarService.createCalendar(new Calendar(0,
                                                                       Long.parseLong(spaceIdentity.getId()),

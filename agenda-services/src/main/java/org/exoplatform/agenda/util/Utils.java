@@ -29,17 +29,12 @@ import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.container.ExoContainerContext;
-import org.exoplatform.portal.localization.LocaleContextInfoUtils;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
-import org.exoplatform.services.resources.LocaleContextInfo;
-import org.exoplatform.services.resources.LocalePolicy;
 import org.exoplatform.services.resources.ResourceBundleService;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.model.Profile;
-import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
-import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
@@ -103,7 +98,7 @@ public class Utils {
     while (limitToFetch > 0) {
       Space[] spaces = userSpaces.load(offsetToFetch, limitToFetch);
       Arrays.stream(spaces).forEach(space -> {
-        Identity spaceIdentity = identityManager.getOrCreateIdentity(SpaceIdentityProvider.NAME, space.getPrettyName());
+        Identity spaceIdentity = identityManager.getOrCreateSpaceIdentity(space.getPrettyName());
         identityIds.add(Long.parseLong(spaceIdentity.getId()));
       });
       offsetToFetch += limitToFetch;
@@ -300,13 +295,13 @@ public class Utils {
       throw new IllegalStateException("Calendar owner with id " + ownerId + " wasn't found");
     }
 
-    if (StringUtils.equals(OrganizationIdentityProvider.NAME, requestedOwner.getProviderId())) {
+    if (requestedOwner.isUser()) {
       if (!StringUtils.equals(requestedOwner.getRemoteId(), username)) {
         throw new IllegalAccessException("User " + username + " is not allowed to retrieve calendar data of user "
             + requestedOwner.getRemoteId());
       }
       return true;
-    } else if (StringUtils.equals(SpaceIdentityProvider.NAME, requestedOwner.getProviderId())) {
+    } else if (requestedOwner.isSpace()) {
       if (spaceService.isSuperManager(username)) {
         return true;
       } else {
@@ -349,20 +344,19 @@ public class Utils {
       throw new IllegalStateException("User with id " + userIdentity + " wasn't found");
     }
 
-    if (StringUtils.equals(OrganizationIdentityProvider.NAME, requestedOwner.getProviderId())) {
+    if (requestedOwner.isUser()) {
       return userIdentityId == Long.parseLong(requestedOwner.getId());
-    } else if (StringUtils.equals(SpaceIdentityProvider.NAME, requestedOwner.getProviderId())) {
-      boolean superManager = spaceService.isSuperManager(userIdentity.getRemoteId());
+    } else if (requestedOwner.isSpace()) {
       Space space = spaceService.getSpaceByPrettyName(requestedOwner.getRemoteId());
       if (spaceService.isSuperManager(userIdentity.getRemoteId())) {
         return true;
       } else if (space == null) {
         return false;
       }
-      boolean isManager = space != null && spaceService.isManager(space, userIdentity.getRemoteId());
-      boolean isMember = space != null && spaceService.isMember(space, userIdentity.getRemoteId());
-      boolean isRedactor = space != null && spaceService.isRedactor(space, userIdentity.getRemoteId());
-      boolean spaceHasARedactor = space != null && space.getRedactors() != null && space.getRedactors().length > 0;
+      boolean isManager = spaceService.isManager(space, userIdentity.getRemoteId());
+      boolean isMember = spaceService.isMember(space, userIdentity.getRemoteId());
+      boolean isRedactor = spaceService.isRedactor(space, userIdentity.getRemoteId());
+      boolean spaceHasARedactor = space.getRedactors() != null && space.getRedactors().length > 0;
       return isMember && (!spaceHasARedactor || isRedactor || isManager);
     } else {
       return false;
@@ -384,9 +378,9 @@ public class Utils {
       return false;
     }
 
-    if (StringUtils.equals(OrganizationIdentityProvider.NAME, requestedOwner.getProviderId())) {
+    if (requestedOwner.isUser()) {
       return false;
-    } else if (StringUtils.equals(SpaceIdentityProvider.NAME, requestedOwner.getProviderId())) {
+    } else if (requestedOwner.isSpace()) {
       Space space = spaceService.getSpaceByPrettyName(requestedOwner.getRemoteId());
       return space != null && (space.getRedactors() == null || space.getRedactors().length == 0);
     } else {
@@ -415,9 +409,9 @@ public class Utils {
       throw new IllegalStateException("User with id " + userIdentity + " wasn't found");
     }
 
-    if (StringUtils.equals(OrganizationIdentityProvider.NAME, requestedOwner.getProviderId())) {
+    if (requestedOwner.isUser()) {
       return userIdentityId == Long.parseLong(requestedOwner.getId());
-    } else if (StringUtils.equals(SpaceIdentityProvider.NAME, requestedOwner.getProviderId())) {
+    } else if (requestedOwner.isSpace()) {
       boolean superManager = spaceService.isSuperManager(userIdentity.getRemoteId());
       Space space = spaceService.getSpaceByPrettyName(requestedOwner.getRemoteId());
       boolean isManager = space != null && spaceService.isManager(space, userIdentity.getRemoteId());
@@ -451,9 +445,9 @@ public class Utils {
       throw new IllegalStateException("User with id " + userIdentity + " wasn't found");
     }
 
-    if (StringUtils.equals(OrganizationIdentityProvider.NAME, requestedOwner.getProviderId())) {
+    if (requestedOwner.isUser()) {
       return userIdentityId == Long.parseLong(requestedOwner.getId());
-    } else if (StringUtils.equals(SpaceIdentityProvider.NAME, requestedOwner.getProviderId())) {
+    } else if (requestedOwner.isSpace()) {
       if (spaceService.isSuperManager(userIdentity.getRemoteId())) {
         return true;
       } else {
@@ -482,7 +476,7 @@ public class Utils {
   }
 
   public static long getIdentityIdByUsername(IdentityManager identityManager, String username) {
-    Identity identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+    Identity identity = identityManager.getOrCreateUserIdentity(username);
     if (identity == null) {
       return 0;
     } else {
@@ -515,9 +509,9 @@ public class Utils {
         && eventAttendees.stream().anyMatch(eventAttendee -> {
           if (identityId == eventAttendee.getIdentityId()) {
             return true;
-          } else if (StringUtils.equals(userIdentity.getProviderId(), OrganizationIdentityProvider.NAME)) {
+          } else if (userIdentity.isUser()) {
             Identity identity = identityManager.getIdentity(String.valueOf(eventAttendee.getIdentityId()));
-            if (StringUtils.equals(identity.getProviderId(), SpaceIdentityProvider.NAME)) {
+            if (identity.isSpace()) {
               if (spaceService.isSuperManager(userIdentity.getRemoteId())) {
                 return true;
               } else {
@@ -609,31 +603,14 @@ public class Utils {
   }
 
   public static String getResourceBundleLabel(Locale locale, String label) {
-    ResourceBundleService resourceBundleService =  ExoContainerContext.getService(ResourceBundleService.class);
+    ResourceBundleService resourceBundleService = ExoContainerContext.getService(ResourceBundleService.class);
     return resourceBundleService.getResourceBundle(resourceBundleService.getSharedResourceBundleNames(), locale).getString(label);
-  }
-
-  /**
-   * Gets platform language of user. In case of any errors return null.
-   *
-   * @param userId user Id
-   * @return the platform language
-   */
-  public static String getUserLanguage(String userId) {
-    LocaleContextInfo localeCtx = LocaleContextInfoUtils.buildLocaleContextInfo(userId);
-    LocalePolicy localePolicy = ExoContainerContext.getCurrentContainer().getComponentInstanceOfType(LocalePolicy.class);
-    String lang = Locale.getDefault().getLanguage();
-    if(localePolicy != null) {
-      Locale locale = localePolicy.determineLocale(localeCtx);
-      lang = locale.toString();
-    }
-    return lang;
   }
 
   public static boolean isExternal(String userId) {
     IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
-    org.exoplatform.social.core.identity.model.Identity userIdentity =  identityManager.getOrCreateIdentity(
-            OrganizationIdentityProvider.NAME, userId);
-    return userIdentity.getProfile() != null && userIdentity.getProfile().getProperty(Profile.EXTERNAL) != null && userIdentity.getProfile().getProperty(Profile.EXTERNAL).equals("true");
+    org.exoplatform.social.core.identity.model.Identity userIdentity = identityManager.getOrCreateUserIdentity(userId);
+    return userIdentity.getProfile() != null && userIdentity.getProfile().getProperty(Profile.EXTERNAL) != null
+        && userIdentity.getProfile().getProperty(Profile.EXTERNAL).equals("true");
   }
 }

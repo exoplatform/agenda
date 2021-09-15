@@ -100,7 +100,11 @@ public class ReplyTemplateBuilder extends AbstractTemplateBuilder {
       ZoneId timeZone = agendaUserSettings == null
           || agendaUserSettings.getTimeZoneId() == null ? ZoneOffset.UTC : ZoneId.of(agendaUserSettings.getTimeZoneId());
 
-      TemplateContext templateContext = buildTemplateReplyParameters(templateProvider, notification, timeZone, isCreator);
+      TemplateContext templateContext = buildTemplateReplyParameters(getIdentityManager(),
+                                                                     templateProvider,
+                                                                     notification,
+                                                                     timeZone,
+                                                                     isCreator);
       MessageInfo messageInfo = buildMessageSubjectAndBody(templateContext, notification, pushNotificationURL);
       Throwable exception = templateContext.getException();
       logException(notification, exception);

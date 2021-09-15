@@ -19,7 +19,6 @@ package org.exoplatform.agenda.rest.model;
 import java.io.Serializable;
 
 import org.exoplatform.agenda.model.CalendarPermission;
-import org.exoplatform.social.rest.entity.IdentityEntity;
 
 import lombok.*;
 

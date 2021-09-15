@@ -29,13 +29,10 @@ import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.agenda.service.AgendaEventService;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
-import org.exoplatform.social.rest.entity.IdentityEntity;
 
 public class RestEntityBuilder {
 
   private static final String IDENTITIES_REST_PATH = "/v1/social/identities"; // NOSONAR
-
-  private static final String IDENTITIES_EXPAND    = "all";
 
   private RestEntityBuilder() {
   }
@@ -370,7 +367,7 @@ public class RestEntityBuilder {
     if (identity == null) {
       return null;
     }
-    return org.exoplatform.social.rest.api.EntityBuilder.buildEntityIdentity(identity, IDENTITIES_REST_PATH, IDENTITIES_EXPAND);
+    return IdentityEntityBuilder.buildEntityIdentity(identity, IDENTITIES_REST_PATH);
   }
 
   private static final Identity getIdentity(IdentityManager identityManager, long identityId) {

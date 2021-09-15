@@ -27,8 +27,8 @@ import org.exoplatform.agenda.constant.*;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.util.AgendaDateUtils;
+import org.exoplatform.social.core.activity.model.ActivityStream;
 import org.exoplatform.social.core.identity.model.Identity;
-import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 
 public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
@@ -2316,7 +2316,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     boolean allDay = true;
 
-    Identity spaceIdentity = identityManager.getOrCreateIdentity(SpaceIdentityProvider.NAME, space.getPrettyName());
+    Identity spaceIdentity = identityManager.getOrCreateIdentity(ActivityStream.SPACE_PROVIDER_ID, space.getPrettyName());
 
     Event event = newEventInstance(start, start, allDay);
     event = createEvent(event.clone(), Long.parseLong(testuser1Identity.getId()), spaceIdentity);

@@ -32,8 +32,8 @@ import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.command.NotificationCommand;
 import org.exoplatform.commons.api.notification.model.PluginKey;
+import org.exoplatform.commons.api.notification.service.storage.NotificationService;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
-import org.exoplatform.commons.notification.impl.NotificationContextImpl;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -59,11 +59,14 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
 
   private SpaceService               spaceService;
 
+  private NotificationService        notificationService;
+
   private CodecInitializer           codecInitializer;
 
   public AgendaEventAttendeeServiceImpl(AgendaEventAttendeeStorage attendeeStorage,
                                         AgendaEventStorage eventStorage,
                                         ListenerService listenerService,
+                                        NotificationService notificationService,
                                         IdentityManager identityManager,
                                         SpaceService spaceService,
                                         CodecInitializer codecInitializer) {
@@ -73,6 +76,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     this.identityManager = identityManager;
     this.spaceService = spaceService;
     this.listenerService = listenerService;
+    this.notificationService = notificationService;
   }
 
   /**
@@ -337,7 +341,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    */
   @Override
   public void sendInvitations(Event event, List<EventAttendee> eventAttendees, AgendaEventModification eventModifications) {
-    NotificationContext ctx = NotificationContextImpl.cloneInstance();
+    NotificationContext ctx = notificationService.createNotificationContextInstance();
     ctx.append(EVENT_AGENDA, event);
     ctx.append(EVENT_ATTENDEE, eventAttendees);
     ctx.append(EVENT_MODIFIER, eventModifications.getModifierId());

@@ -103,6 +103,7 @@ public class ReminderTemplateBuilder extends AbstractTemplateBuilder {
           || agendaUserSettings.getTimeZoneId() == null ? ZoneOffset.UTC : ZoneId.of(agendaUserSettings.getTimeZoneId());
 
       TemplateContext templateContext = buildTemplateReminderParameters(getSpaceService(),
+                                                                        getIdentityManager(),
                                                                         templateProvider,
                                                                         notification,
                                                                         timeZone);

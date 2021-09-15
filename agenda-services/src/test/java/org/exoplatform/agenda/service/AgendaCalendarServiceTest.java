@@ -17,7 +17,7 @@
 package org.exoplatform.agenda.service;
 
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import java.time.ZonedDateTime;
@@ -35,10 +35,9 @@ import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.container.xml.ValuesParam;
+import org.exoplatform.social.core.activity.model.ActivityStream;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.model.Profile;
-import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
-import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
@@ -72,7 +71,7 @@ public class AgendaCalendarServiceTest {
     long calendarOwnerId = 2;
 
     String username = "testuser";
-    Identity calendarOwnerIdentity = new Identity(OrganizationIdentityProvider.NAME, username);
+    Identity calendarOwnerIdentity = new Identity(ActivityStream.ORGANIZATION_PROVIDER_ID, username);
     calendarOwnerIdentity.setId(String.valueOf(calendarOwnerId));
     Profile calendarOwnerProfile = new Profile();
     calendarOwnerProfile.setProperty(Profile.FULL_NAME, username);
@@ -122,7 +121,7 @@ public class AgendaCalendarServiceTest {
     long calendarOwnerId = 2;
 
     String username = "testuser";
-    Identity calendarOwnerIdentity = new Identity(OrganizationIdentityProvider.NAME, username);
+    Identity calendarOwnerIdentity = new Identity(ActivityStream.ORGANIZATION_PROVIDER_ID, username);
     calendarOwnerIdentity.setId(String.valueOf(calendarOwnerId));
     when(identityManager.getIdentity(eq(String.valueOf(calendarOwnerId)))).thenReturn(calendarOwnerIdentity);
     when(agendaCalendarStorage.countCalendarsByOwners(any())).thenReturn(0);
@@ -138,7 +137,7 @@ public class AgendaCalendarServiceTest {
     long calendarOwnerId = 2;
 
     String username = "testuser";
-    Identity calendarOwnerIdentity = new Identity(OrganizationIdentityProvider.NAME, username);
+    Identity calendarOwnerIdentity = new Identity(ActivityStream.ORGANIZATION_PROVIDER_ID, username);
     calendarOwnerIdentity.setId(String.valueOf(calendarOwnerId));
     when(identityManager.getIdentity(eq(String.valueOf(calendarOwnerId)))).thenReturn(calendarOwnerIdentity);
     when(agendaCalendarStorage.countCalendarsByOwners(any())).thenReturn(1);
@@ -169,7 +168,7 @@ public class AgendaCalendarServiceTest {
     long calendarOwnerId = 2;
 
     String username = "testuser";
-    Identity calendarOwnerIdentity = new Identity(OrganizationIdentityProvider.NAME, username);
+    Identity calendarOwnerIdentity = new Identity(ActivityStream.ORGANIZATION_PROVIDER_ID, username);
     calendarOwnerIdentity.setId(String.valueOf(calendarOwnerId));
     Profile calendarOwnerProfile = new Profile();
     calendarOwnerProfile.setProperty(Profile.FULL_NAME, username);
@@ -231,7 +230,7 @@ public class AgendaCalendarServiceTest {
 
     // 4. When a member user is accessing space calendar, no error
     // should be thrown and the ACL.canEdit should equal to false
-    calendarOwnerIdentity.setProviderId(SpaceIdentityProvider.NAME);
+    calendarOwnerIdentity.setProviderId(ActivityStream.SPACE_PROVIDER_ID);
     String spacePrettyName = "spacetest";
     calendarOwnerIdentity.setRemoteId(spacePrettyName);
     Space space = new Space();
@@ -294,7 +293,7 @@ public class AgendaCalendarServiceTest {
     long calendarId = 1;
 
     long calendarOwnerId = 2;
-    Identity calendarOwnerIdentity = new Identity(OrganizationIdentityProvider.NAME, "test");
+    Identity calendarOwnerIdentity = new Identity(ActivityStream.ORGANIZATION_PROVIDER_ID, "test");
     calendarOwnerIdentity.setId(String.valueOf(calendarOwnerId));
 
     Calendar calendar = new Calendar(0,
@@ -359,7 +358,7 @@ public class AgendaCalendarServiceTest {
       fail("Shouldn't allow to create calendar with not managed providerId for calendar owner");
     } catch (IllegalStateException e) {
       // Expected
-      calendarOwnerIdentity.setProviderId(OrganizationIdentityProvider.NAME);
+      calendarOwnerIdentity.setProviderId(ActivityStream.ORGANIZATION_PROVIDER_ID);
     }
     // 2. Should be able to create calendar and put a new id
     Calendar createdCalendar = agendaCalendarService.createCalendar(calendar);
@@ -378,7 +377,7 @@ public class AgendaCalendarServiceTest {
 
     long calendarOwnerId = 2;
     String username = "test";
-    Identity calendarOwnerIdentity = new Identity(OrganizationIdentityProvider.NAME, username);
+    Identity calendarOwnerIdentity = new Identity(ActivityStream.ORGANIZATION_PROVIDER_ID, username);
     calendarOwnerIdentity.setId(String.valueOf(calendarOwnerId));
 
     Calendar calendar = new Calendar(0,
@@ -451,7 +450,7 @@ public class AgendaCalendarServiceTest {
       fail("Shouldn't allow to create calendar with not managed providerId for calendar owner");
     } catch (IllegalStateException e) {
       // Expected
-      calendarOwnerIdentity.setProviderId(OrganizationIdentityProvider.NAME);
+      calendarOwnerIdentity.setProviderId(ActivityStream.ORGANIZATION_PROVIDER_ID);
     }
 
     when(agendaCalendarStorage.getCalendarById(eq(calendarId))).thenReturn(calendar);
@@ -468,7 +467,7 @@ public class AgendaCalendarServiceTest {
 
     // 3. Shouldn't be able to create calendar of space if user isn't manager or
     // super manager
-    calendarOwnerIdentity.setProviderId(SpaceIdentityProvider.NAME);
+    calendarOwnerIdentity.setProviderId(ActivityStream.SPACE_PROVIDER_ID);
     String spacePrettyName = "spacetest";
     calendarOwnerIdentity.setRemoteId(spacePrettyName);
     Space space = new Space();
@@ -516,7 +515,7 @@ public class AgendaCalendarServiceTest {
 
     long calendarOwnerId = 2;
     String username = "test";
-    Identity calendarOwnerIdentity = new Identity(OrganizationIdentityProvider.NAME, username);
+    Identity calendarOwnerIdentity = new Identity(ActivityStream.ORGANIZATION_PROVIDER_ID, username);
     calendarOwnerIdentity.setId(String.valueOf(calendarOwnerId));
 
     Calendar calendar = new Calendar(calendarId,
@@ -579,7 +578,7 @@ public class AgendaCalendarServiceTest {
 
     long calendarOwnerId = 2;
     String username = "test";
-    Identity calendarOwnerIdentity = new Identity(OrganizationIdentityProvider.NAME, username);
+    Identity calendarOwnerIdentity = new Identity(ActivityStream.ORGANIZATION_PROVIDER_ID, username);
     calendarOwnerIdentity.setId(String.valueOf(calendarOwnerId));
 
     Calendar calendar = new Calendar(calendarId,
@@ -647,7 +646,7 @@ public class AgendaCalendarServiceTest {
       fail("Shouldn't allow to update calendar with not managed providerId for calendar owner");
     } catch (IllegalStateException e) {
       // Expected
-      calendarOwnerIdentity.setProviderId(OrganizationIdentityProvider.NAME);
+      calendarOwnerIdentity.setProviderId(ActivityStream.ORGANIZATION_PROVIDER_ID);
     }
 
     // 3. Should be able to update calendar
@@ -657,7 +656,7 @@ public class AgendaCalendarServiceTest {
 
     // 4. Shouldn't be able to update calendar of space if user isn't manager or
     // super manager
-    calendarOwnerIdentity.setProviderId(SpaceIdentityProvider.NAME);
+    calendarOwnerIdentity.setProviderId(ActivityStream.SPACE_PROVIDER_ID);
     String spacePrettyName = "spacetest";
     calendarOwnerIdentity.setRemoteId(spacePrettyName);
     Space space = new Space();
@@ -736,7 +735,7 @@ public class AgendaCalendarServiceTest {
     long calendarId = 1;
     long calendarOwnerId = 2;
     String username = "test";
-    Identity calendarOwnerIdentity = new Identity(OrganizationIdentityProvider.NAME, username);
+    Identity calendarOwnerIdentity = new Identity(ActivityStream.ORGANIZATION_PROVIDER_ID, username);
     calendarOwnerIdentity.setId(String.valueOf(calendarOwnerId));
 
     Calendar calendar = new Calendar(calendarId,
@@ -802,7 +801,7 @@ public class AgendaCalendarServiceTest {
 
     // 5. Shouldn't be able to delete calendar of space if user isn't manager or
     // super manager
-    calendarOwnerIdentity.setProviderId(SpaceIdentityProvider.NAME);
+    calendarOwnerIdentity.setProviderId(ActivityStream.SPACE_PROVIDER_ID);
     String spacePrettyName = "spacetest";
     calendarOwnerIdentity.setRemoteId(spacePrettyName);
     Space space = new Space();
@@ -860,11 +859,11 @@ public class AgendaCalendarServiceTest {
     // 2. Retrieve calendars with pagination
     String username = "testuser";
     long calendarOwnerId = 2;
-    Identity calendarOwnerIdentity = new Identity(OrganizationIdentityProvider.NAME, username);
+    Identity calendarOwnerIdentity = new Identity(ActivityStream.ORGANIZATION_PROVIDER_ID, username);
     calendarOwnerIdentity.setId(String.valueOf(calendarOwnerId));
     when(identityManager.getIdentity(String.valueOf(calendarOwnerId))).thenReturn(calendarOwnerIdentity);
     when(identityManager.getOrCreateUserIdentity(username)).thenReturn(calendarOwnerIdentity);
-    when(identityManager.getOrCreateIdentity(eq(OrganizationIdentityProvider.NAME), eq(username))).thenReturn(calendarOwnerIdentity);
+    when(identityManager.getOrCreateIdentity(eq(ActivityStream.ORGANIZATION_PROVIDER_ID), eq(username))).thenReturn(calendarOwnerIdentity);
     when(spaceService.getMemberSpaces(eq(username))).thenAnswer(new Answer<ListAccess<Space>>() {
       @Override
       public ListAccess<Space> answer(InvocationOnMock invocation) throws Throwable {
@@ -887,11 +886,11 @@ public class AgendaCalendarServiceTest {
               spaces[i].setId(String.valueOf(spaceIdentityIndex));
               spaces[i].setPrettyName(prettyName);
               Identity spaceIdentity = new Identity(String.valueOf(spaceIdentityIndex));
-              spaceIdentity.setProviderId(SpaceIdentityProvider.NAME);
+              spaceIdentity.setProviderId(ActivityStream.SPACE_PROVIDER_ID);
               spaceIdentity.setRemoteId(prettyName);
               when(identityManager.getIdentity(spaceIdentity.getId())).thenReturn(spaceIdentity);
               when(identityManager.getOrCreateSpaceIdentity(eq(prettyName))).thenReturn(spaceIdentity);
-              when(identityManager.getOrCreateIdentity(eq(SpaceIdentityProvider.NAME), eq(prettyName))).thenReturn(spaceIdentity);
+              when(identityManager.getOrCreateIdentity(eq(ActivityStream.SPACE_PROVIDER_ID), eq(prettyName))).thenReturn(spaceIdentity);
               when(spaceService.getSpaceByPrettyName(eq(prettyName))).thenReturn(spaces[i]);
               when(spaceService.isMember(eq(spaces[i]), eq(username))).thenReturn(true);
             }
@@ -968,11 +967,11 @@ public class AgendaCalendarServiceTest {
     // 2. Count calendars for a user
     String username = "testuser";
     long calendarOwnerId = 2;
-    Identity calendarOwnerIdentity = new Identity(OrganizationIdentityProvider.NAME, username);
+    Identity calendarOwnerIdentity = new Identity(ActivityStream.ORGANIZATION_PROVIDER_ID, username);
     calendarOwnerIdentity.setId(String.valueOf(calendarOwnerId));
     when(identityManager.getIdentity(eq(String.valueOf(calendarOwnerId)))).thenReturn(calendarOwnerIdentity);
     when(identityManager.getOrCreateUserIdentity(eq(username))).thenReturn(calendarOwnerIdentity);
-    when(identityManager.getOrCreateIdentity(eq(OrganizationIdentityProvider.NAME), eq(username))).thenReturn(calendarOwnerIdentity);
+    when(identityManager.getOrCreateIdentity(eq(ActivityStream.ORGANIZATION_PROVIDER_ID), eq(username))).thenReturn(calendarOwnerIdentity);
     when(spaceService.getMemberSpaces(eq(username))).thenAnswer(new Answer<ListAccess<Space>>() {
       @Override
       public ListAccess<Space> answer(InvocationOnMock invocation) throws Throwable {
@@ -995,10 +994,10 @@ public class AgendaCalendarServiceTest {
               spaces[i].setId(String.valueOf(spaceIdentityIndex));
               spaces[i].setPrettyName(prettyName);
               Identity spaceIdentity = new Identity(String.valueOf(spaceIdentityIndex));
-              spaceIdentity.setProviderId(SpaceIdentityProvider.NAME);
+              spaceIdentity.setProviderId(ActivityStream.SPACE_PROVIDER_ID);
               spaceIdentity.setRemoteId(prettyName);
               when(identityManager.getOrCreateSpaceIdentity(eq(prettyName))).thenReturn(spaceIdentity);
-              when(identityManager.getOrCreateIdentity(eq(SpaceIdentityProvider.NAME), eq(prettyName))).thenReturn(spaceIdentity);
+              when(identityManager.getOrCreateIdentity(eq(ActivityStream.SPACE_PROVIDER_ID), eq(prettyName))).thenReturn(spaceIdentity);
             }
             return spaces;
           }
@@ -1034,14 +1033,14 @@ public class AgendaCalendarServiceTest {
 
     // 2. Try to retrieve calendars of another user
     long calendarOwnerId = 2;
-    Identity calendarOwnerIdentity = new Identity(OrganizationIdentityProvider.NAME, username);
+    Identity calendarOwnerIdentity = new Identity(ActivityStream.ORGANIZATION_PROVIDER_ID, username);
     calendarOwnerIdentity.setId(String.valueOf(calendarOwnerId));
     when(identityManager.getIdentity(eq(String.valueOf(calendarOwnerId)))).thenReturn(calendarOwnerIdentity);
     when(identityManager.getOrCreateUserIdentity(eq(username))).thenReturn(calendarOwnerIdentity);
 
     long anotherCalendarOwnerId = 3;
     String anotherUser = "username2";
-    Identity anotherCalendarOwnerIdentity = new Identity(OrganizationIdentityProvider.NAME, anotherUser);
+    Identity anotherCalendarOwnerIdentity = new Identity(ActivityStream.ORGANIZATION_PROVIDER_ID, anotherUser);
     anotherCalendarOwnerIdentity.setId(String.valueOf(anotherCalendarOwnerId));
     when(identityManager.getIdentity(eq(String.valueOf(anotherCalendarOwnerId)))).thenReturn(anotherCalendarOwnerIdentity);
     when(identityManager.getOrCreateUserIdentity(eq(anotherUser))).thenReturn(anotherCalendarOwnerIdentity);

@@ -50,7 +50,6 @@ import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.rest.resource.ResourceContainer;
 import org.exoplatform.social.core.identity.model.Identity;
-import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
 
 import io.swagger.annotations.*;
@@ -88,7 +87,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
 
   private String                       defaultSite         = null;
 
-  public AgendaEventRest(IdentityManager identityManager,
+  public AgendaEventRest(IdentityManager identityManager, // NOSONAR
                          PortalConfigService portalConfigService,
                          AgendaCalendarService agendaCalendarService,
                          AgendaEventService agendaEventService,
@@ -227,7 +226,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       Map<Long, List<EventDateOptionEntity>> dateOptionsByParentEventId = new HashMap<>();
       Map<Long, RemoteEvent> remoteEventByParentEventId = new HashMap<>();
       List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
-                                                                  : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
+                                                                  : Arrays.asList(StringUtils.split(expand.replace(" ", ""),
                                                                                                     ","));
       List<EventEntity> eventEntities = events.stream().map(event -> {
         EventEntity eventEntity = RestEntityBuilder.fromEvent(agendaCalendarService,
@@ -300,7 +299,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
           cleanupAttachedEntitiesIds(eventEntity);
         }
         return eventEntity;
-      }).filter(eventEntity -> eventEntity != null).collect(Collectors.toList());
+      }).filter(Objects::nonNull).collect(Collectors.toList());
 
       EventList eventList = new EventList();
       eventList.setEvents(eventEntities);
@@ -361,7 +360,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
     String currentUser = RestUtils.getCurrentUser();
     try {
       List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
-                                                                  : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
+                                                                  : Arrays.asList(StringUtils.split(expand.replace(" ", ""),
                                                                                                     ","));
       ZoneId userTimeZone = StringUtils.isBlank(timeZoneId) ? ZoneOffset.UTC : ZoneId.of(timeZoneId);
       EventEntity eventEntity = getEventByIdAndUser(identityManager,
@@ -438,7 +437,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
 
     try {
       List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
-                                                                  : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
+                                                                  : Arrays.asList(StringUtils.split(expand.replace(" ", ""),
                                                                                                     ","));
       ZoneId userTimeZone = StringUtils.isBlank(timeZoneId) ? ZoneOffset.UTC : ZoneId.of(timeZoneId);
       long identityId = RestUtils.getCurrentUserIdentityId(identityManager);
@@ -509,7 +508,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                                  )
                                                  String timeZoneId) {
     List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
-                                                                : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
+                                                                : Arrays.asList(StringUtils.split(expand.replace(" ", ""),
                                                                                                   ","));
     long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
     try {
@@ -1420,7 +1419,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
         identity = agendaEventAttendeeService.decryptUserIdentity(eventId, token, response);
         currentUser = identity.getRemoteId();
       } else if (StringUtils.isNotBlank(currentUser)) {
-        identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, currentUser);
+        identity = identityManager.getOrCreateUserIdentity(currentUser);
       }
       if (identity == null) {
         return Response.status(Status.FORBIDDEN).build();
@@ -1514,7 +1513,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       return Response.status(Status.BAD_REQUEST).entity("Limit must be positive").build();
     }
     List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
-                                                                : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
+                                                                : Arrays.asList(StringUtils.split(expand.replace(" ", ""),
                                                                                                   ","));
     long currentUserId = RestUtils.getCurrentUserIdentityId(identityManager);
     ZoneId userTimeZone = StringUtils.isBlank(timeZoneId) ? ZoneOffset.UTC : ZoneId.of(timeZoneId);
@@ -1631,7 +1630,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
 
       List<Event> events = agendaEventService.getEventDatePolls(eventFilter, userTimeZone, userIdentityId);
       List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
-                                                                  : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
+                                                                  : Arrays.asList(StringUtils.split(expand.replace(" ", ""),
                                                                                                     ","));
       List<EventEntity> eventEntities = events.stream()
                                               .map(event -> getEventEntity(identityManager,
@@ -1718,7 +1717,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                                                  offset,
                                                                  limit);
         List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
-                                                                    : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
+                                                                    : Arrays.asList(StringUtils.split(expand.replace(" ", ""),
                                                                                                       ","));
         List<EventEntity> eventEntities = events.stream()
                                                 .map(event -> getEventEntity(identityManager,

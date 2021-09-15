@@ -23,7 +23,6 @@ import org.exoplatform.agenda.constant.EventAvailability;
 import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.model.EventConference;
 import org.exoplatform.agenda.model.EventPermission;
-import org.exoplatform.social.rest.entity.IdentityEntity;
 
 import lombok.*;
 

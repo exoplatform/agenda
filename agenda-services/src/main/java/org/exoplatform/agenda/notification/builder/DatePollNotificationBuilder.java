@@ -19,6 +19,7 @@ import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
+import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.spi.SpaceService;
 
 import groovy.text.GStringTemplateEngine;
@@ -30,6 +31,8 @@ public class DatePollNotificationBuilder extends AbstractTemplateBuilder {
   private AgendaEventService agendaEventService;
 
   private SpaceService       spaceService;
+
+  private IdentityManager    identityManager;
 
   private TemplateProvider   templateProvider;
 
@@ -86,7 +89,10 @@ public class DatePollNotificationBuilder extends AbstractTemplateBuilder {
       }
       String pushNotificationURL = isPushNotification ? notificationURL : null;
 
-      TemplateContext templateContext = buildTemplateDatePollParameters(getSpaceService(), templateProvider, notification);
+      TemplateContext templateContext = buildTemplateDatePollParameters(getSpaceService(),
+                                                                        getIdentityManager(),
+                                                                        templateProvider,
+                                                                        notification);
       MessageInfo messageInfo = buildMessageSubjectAndBody(templateContext, notification, pushNotificationURL);
       Throwable exception = templateContext.getException();
       logException(notification, exception);
@@ -145,5 +151,12 @@ public class DatePollNotificationBuilder extends AbstractTemplateBuilder {
       spaceService = this.container.getComponentInstanceOfType(SpaceService.class);
     }
     return spaceService;
+  }
+
+  private IdentityManager getIdentityManager() {
+    if (identityManager == null) {
+      identityManager = this.container.getComponentInstanceOfType(IdentityManager.class);
+    }
+    return identityManager;
   }
 }

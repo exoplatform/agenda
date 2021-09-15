@@ -34,9 +34,7 @@ import org.exoplatform.agenda.service.*;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.social.core.identity.model.Identity;
-import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
-import org.exoplatform.social.rest.entity.IdentityEntity;
 
 public class RestUtils {
 
@@ -49,12 +47,12 @@ public class RestUtils {
 
   public static final Identity getCurrentUserIdentity(IdentityManager identityManager) {
     String currentUser = getCurrentUser();
-    return identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, currentUser);
+    return identityManager.getOrCreateUserIdentity(currentUser);
   }
 
   public static final long getCurrentUserIdentityId(IdentityManager identityManager) {
     String currentUser = getCurrentUser();
-    Identity identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, currentUser);
+    Identity identity = identityManager.getOrCreateUserIdentity(currentUser);
     return identity == null ? 0 : Long.parseLong(identity.getId());
   }
 
@@ -182,7 +180,7 @@ public class RestUtils {
     }
   }
 
-  public static EventEntity getEventByIdAndUser(IdentityManager identityManager,
+  public static EventEntity getEventByIdAndUser(IdentityManager identityManager, // NOSONAR
                                                 AgendaCalendarService agendaCalendarService,
                                                 AgendaEventService agendaEventService,
                                                 AgendaRemoteEventService agendaRemoteEventService,
@@ -218,7 +216,7 @@ public class RestUtils {
                           expandProperties);
   }
 
-  public static EventEntity getEventEntity(IdentityManager identityManager,
+  public static EventEntity getEventEntity(IdentityManager identityManager, // NOSONAR
                                            AgendaCalendarService agendaCalendarService,
                                            AgendaEventService agendaEventService,
                                            AgendaRemoteEventService agendaRemoteEventService,
@@ -279,7 +277,7 @@ public class RestUtils {
     }
   }
 
-  public static EventSearchResultEntity getEventSearchResultEntity(IdentityManager identityManager,
+  public static EventSearchResultEntity getEventSearchResultEntity(IdentityManager identityManager, // NOSONAR
                                                                    AgendaCalendarService agendaCalendarService,
                                                                    AgendaEventService agendaEventService,
                                                                    AgendaRemoteEventService agendaRemoteEventService,
@@ -567,4 +565,20 @@ public class RestUtils {
     }
   }
 
+  public static String getRestUrl(String type, String objectId1, String objectId2) {
+    String baseUrl = getBaseRestUrl();
+    return new StringBuffer(baseUrl).append("/")
+                                    .append(type)
+                                    .append("/")
+                                    .append(objectId1)
+                                    .append("/")
+                                    .append(objectId2)
+                                    .toString();
+  }
+
+  public static String getBaseRestUrl() {
+    return new StringBuffer(org.exoplatform.commons.utils.Utils.getCurrentDomain()).append("/")
+                                                                                   .append(org.exoplatform.commons.utils.Utils.getRestContextName())
+                                                                                   .toString();
+  }
 }

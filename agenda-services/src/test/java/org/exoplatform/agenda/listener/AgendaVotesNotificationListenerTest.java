@@ -8,6 +8,8 @@ import org.exoplatform.agenda.model.EventDateOption;
 import org.exoplatform.agenda.model.EventRecurrence;
 import org.exoplatform.agenda.service.BaseAgendaEventTest;
 import org.exoplatform.commons.api.notification.service.WebNotificationService;
+import org.exoplatform.commons.api.notification.service.storage.NotificationService;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -46,13 +48,14 @@ public class AgendaVotesNotificationListenerTest extends BaseAgendaEventTest {
     List<EventDateOption> dateOptions = agendaEventDatePollService.getEventDateOptions(eventId, ZoneOffset.UTC);
 
     WebNotificationService webNotificationService = container.getComponentInstanceOfType(WebNotificationService.class);
+    NotificationService notificationService  = container.getComponentInstanceOfType(NotificationService.class);
     int initialNotificationsSize = webNotificationService.getNumberOnBadge(testuser1Identity.getRemoteId());
 
     agendaEventDatePollService.saveEventVotes(createdEvent.getId(),
                                               Collections.singletonList(dateOptions.get(0).getId()),
                                               Long.parseLong(testuser2Identity.getId()));
 
-    AgendaVotesNotificationListener agendaVotesListener = new AgendaVotesNotificationListener(container);
+    AgendaVotesNotificationListener agendaVotesListener = new AgendaVotesNotificationListener(container, notificationService);
     agendaVotesListener.onEvent(new org.exoplatform.services.listener.Event<Long, Long>(null,
                                                                                         eventId,
                                                                                         Long.parseLong(testuser2Identity.getId())));

@@ -5,7 +5,7 @@ import org.exoplatform.agenda.service.AgendaEventService;
 import org.exoplatform.agenda.util.NotificationUtils;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.model.PluginKey;
-import org.exoplatform.commons.notification.impl.NotificationContextImpl;
+import org.exoplatform.commons.api.notification.service.storage.NotificationService;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
@@ -18,8 +18,11 @@ public class AgendaVotesNotificationListener extends Listener<Long, Long> {
 
   private AgendaEventService         agendaEventService;
 
-  public AgendaVotesNotificationListener(PortalContainer container) {
+  private NotificationService notificationService;
+
+  public AgendaVotesNotificationListener(PortalContainer container, NotificationService notificationService) {
     this.container = container;
+    this.notificationService = notificationService;
   }
 
   @Override
@@ -39,7 +42,7 @@ public class AgendaVotesNotificationListener extends Listener<Long, Long> {
   }
 
   public void sendVoteNotification(org.exoplatform.agenda.model.Event event, long participantId, EventAttendeeResponse response) {
-    NotificationContext ctx = NotificationContextImpl.cloneInstance();
+    NotificationContext ctx = notificationService.createNotificationContextInstance();
     ctx.append(NotificationUtils.EVENT_AGENDA, event);
     ctx.append(NotificationUtils.EVENT_PARTICIPANT_ID, participantId);
     ctx.append(NotificationUtils.EVENT_RESPONSE, response);
