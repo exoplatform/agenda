@@ -1,11 +1,23 @@
 package org.exoplatform.agenda.listener;
 
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
 
+import org.exoplatform.agenda.exception.AgendaException;
+import org.exoplatform.agenda.model.Event;
+import org.exoplatform.agenda.model.EventAttendee;
+import org.exoplatform.agenda.model.EventConference;
+import org.exoplatform.agenda.model.EventFilter;
+import org.exoplatform.agenda.service.*;
 import org.exoplatform.agenda.util.Utils;
+import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.commons.utils.Safe;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.portal.config.DataStorage;
@@ -19,6 +31,9 @@ import org.exoplatform.portal.webui.application.PortletState;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
+import org.exoplatform.social.core.identity.model.Identity;
+import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
+import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.SpaceTemplate;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.*;
@@ -54,11 +69,23 @@ public class AgendaSpaceApplicationListener implements SpaceLifeCycleListener {
 
   private SpaceTemplateService  spaceTemplateService;
 
+  private IdentityManager       identityManager;
+
   private NavigationService     navigationService;
 
   private NavigationStore       navigationStore;
 
   private DataStorage           dataStorage;
+
+  private AgendaEventService     agendaEventService ;
+
+  private AgendaEventConferenceService agendaEventConferenceService ;
+
+  private AgendaEventAttendeeService agendaEventAttendeeService ;
+
+  private AgendaEventDatePollService agendaEventDatePollService ;
+
+  private AgendaEventReminderService agendaEventReminderService;
 
   @Override
   public void applicationAdded(SpaceLifeCycleEvent event) {
@@ -113,6 +140,49 @@ public class AgendaSpaceApplicationListener implements SpaceLifeCycleListener {
   @Override
   public void spaceRenamed(SpaceLifeCycleEvent event) {
     // Not needed
+    Type eventType = event.getType();
+    if (eventType == Type.SPACE_RENAMED) {
+      Space space = event.getSpace();
+      String[] spaceManagers = space.getManagers();
+      for (String spaceManager:spaceManagers) {
+      Identity identity = getIdentityManager().getOrCreateIdentity(OrganizationIdentityProvider.NAME, spaceManager);
+      long userIdentityId = identity == null ? 0 : Long.parseLong(identity.getId());
+      EventFilter eventFilter = new EventFilter();
+      ZonedDateTime start = ZonedDateTime.now();
+      ZonedDateTime end = ZonedDateTime.now().plusMonths(1);
+      eventFilter.setStart(start);
+      eventFilter.setEnd(end);
+      ZoneId zone = ZoneOffset.UTC;
+      try {
+        List<Event> events = getEventService().getEvents(eventFilter, zone, userIdentityId);
+
+        for (Event agendaEvent : events) {
+          List<EventConference> conferences = getEventConferenceService().getEventConferences(agendaEvent.getId());
+          for (EventConference eventConference : conferences) {
+            int startIndex = (eventConference.getUrl().indexOf("_")) + 1;
+            int indIndex = eventConference.getUrl().indexOf("-");
+            String OldSpaceName = eventConference.getUrl().substring(startIndex, indIndex);
+            eventConference.setUrl(eventConference.getUrl().replace(OldSpaceName, space.getPrettyName()));
+          }
+          try {
+            Event updatedEvent = agendaEventService.updateEvent(agendaEvent,
+                    (List<EventAttendee>) getAgendaEventAttendeeService().getEventAttendees(agendaEvent.getId()),
+                    conferences,
+                    getAgendaEventReminderService().getEventReminders(agendaEvent.getId()),
+                    getAgendaEventDatePollService().getEventDateOptions(agendaEvent.getId(), zone),
+                    null,
+                    true,
+                    userIdentityId
+            );
+          } catch (ObjectNotFoundException | AgendaException e) {
+            LOG.error("Event with id={} can't be updated", agendaEvent.getId());
+          }
+        }
+      } catch (IllegalAccessException e) {
+        LOG.error("this user with id={} has no events", userIdentityId);
+      }
+     }
+    }
   }
 
   @Override
@@ -394,5 +464,40 @@ public class AgendaSpaceApplicationListener implements SpaceLifeCycleListener {
     model.setModifiable(true);
     return model;
   }
-
+  private IdentityManager getIdentityManager() {
+    if (identityManager == null) {
+      identityManager = CommonsUtils.getService(IdentityManager.class);
+    }
+    return identityManager;
+  }
+  private AgendaEventService getEventService(){
+    if(agendaEventService == null) {
+      agendaEventService = CommonsUtils.getService(AgendaEventService.class);
+    }
+    return agendaEventService;
+  }
+  private AgendaEventConferenceService getEventConferenceService () {
+    if( agendaEventConferenceService == null) {
+      agendaEventConferenceService = CommonsUtils.getService(AgendaEventConferenceService.class);
+    }
+    return agendaEventConferenceService;
+  }
+  private AgendaEventAttendeeService getAgendaEventAttendeeService () {
+    if( agendaEventAttendeeService == null) {
+      agendaEventAttendeeService = CommonsUtils.getService(AgendaEventAttendeeService.class);
+    }
+    return agendaEventAttendeeService;
+  }
+  private AgendaEventDatePollService getAgendaEventDatePollService () {
+    if (agendaEventDatePollService == null) {
+      agendaEventDatePollService = CommonsUtils.getService(AgendaEventDatePollService.class);
+    }
+    return agendaEventDatePollService ;
+  }
+  private AgendaEventReminderService getAgendaEventReminderService () {
+    if (agendaEventReminderService == null ) {
+      agendaEventReminderService = CommonsUtils.getService(AgendaEventReminderService.class);
+    }
+    return agendaEventReminderService;
+  }
 }
