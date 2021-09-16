@@ -56,7 +56,69 @@ export function getEvents(query, ownerIds, attendeeIdentityId, start, end, limit
       events = events.filter(event => Number(event.id) !== deletedEventId && (!event.parent || Number(event.parent.id) !== deletedEventId));
       data.events = events;
     }
-    return data;
+    const identityIds = new Set();
+    const calendarIds = new Set();
+
+    data.events.forEach(event => {
+      identityIds.push(event.creatorId);
+      identityIds.push(event.calendarOwnerId);
+      if (event.attendees) {
+        event.attendees.forEach(attendee => {
+          identityIds.push(attendee.identityId);
+        });
+      }
+      calendarIds.push(event.calendarId);
+    });
+
+    if (!events || !events.length) {
+      return data;
+    }
+
+    const calendarsPromises = [];
+    calendarIds.forEach(calendarId => {
+      const promise = Vue.prototype.$calendarService.getCalendarById(calendarId, true);
+      calendarsPromises.push(promise);
+    });
+    const calendarsComputingPromise = Promise.all(calendarsPromises).then(calendars => {
+      const calendarsById = {};
+      calendars.forEach(calendar => {
+        if (calendar) {
+          calendarsById[calendar.id] = calendar;
+          calendar.owner = identityIds[calendar.ownerId];
+        }
+      });
+      events.forEach(event => {
+        event.calendar = calendarsById[event.calendarId];
+      });
+    });
+
+    const identitiesPromises = [];
+    identityIds.forEach(identityId => {
+      const promise = Vue.prototype.$identityService.getIdentityById(identityId, expand, true);
+      identitiesPromises.push(promise);
+    });
+    const identitiesComputingPromise = Promise.all(identitiesPromises).then(identities => {
+      const identitiesById = {};
+      identities.forEach(identity => {
+        if (identity) {
+          identitiesById[identity.id] = identity;
+        }
+      });
+      events.forEach(event => {
+        event.creator = identitiesById[event.creatorId];
+        if (event.calendar) {
+          event.calendar.owner = identitiesById[event.calendarOwnerId];
+        }
+        if (event.attendees) {
+          event.attendees.forEach(attendee => {
+            if (attendee && attendee.identityId) {
+              attendee.identity = identitiesById[attendee.identityId];
+            }
+          });
+        }
+      });
+    });
+    return Promise.all(calendarsComputingPromise, identitiesComputingPromise).then(() => data);
   });
 }
 
@@ -93,6 +155,7 @@ export function getEventOccurrence(parentEventId, occurrenceId, expand) {
     return event;
   });
 }
+
 export function getEventExceptionalOccurrences(eventId, expand) {
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}/exceptionalOccurrences?expand=${expand || ''}&timeZoneId=${USER_TIMEZONE_ID}`, {
     method: 'GET',

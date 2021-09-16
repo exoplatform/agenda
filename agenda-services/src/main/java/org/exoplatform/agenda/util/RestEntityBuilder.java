@@ -104,8 +104,8 @@ public class RestEntityBuilder {
                                                                                                                                 eventZoneId,
                                                                                                                                 false);
     return new Event(eventEntity.getId(),
-                     eventEntity.getParent() == null ? 0l : eventEntity.getParent().getId(),
-                     eventEntity.getCalendar() == null ? 0l : eventEntity.getCalendar().getId(),
+                     eventEntity.getParentId(),
+                     eventEntity.getCalendarId(),
                      eventEntity.getCreatorId(),
                      0l,
                      AgendaDateUtils.parseRFC3339ToZonedDateTime(eventEntity.getCreated(), ZoneOffset.UTC),
@@ -260,18 +260,16 @@ public class RestEntityBuilder {
       occurrenceEntity = new EventOccurrenceEntity(AgendaDateUtils.toRFC3339Date(occurrence.getId()), occurrence.isExceptional());
     }
     long parentId = event.getParentId();
-    EventEntity parentEvent = null;
-    if (parentId > 0 && parentId != event.getId()) {
-      parentEvent = getEventEntity(agendaCalendarService, agendaEventService, identityManager, parentId, userTimeZone);
-    }
-
+    long calendarId = event.getCalendarId();
+    long calendarOwnerId = getCalendarOwnerId(agendaCalendarService, event.getCalendarId());
     if (isSearch) {
       return new EventSearchResultEntity(event.getId(),
-                                         parentEvent,
+                                         parentId,
                                          null,
                                          0l,
                                          null,
-                                         getCalendarEntity(agendaCalendarService, event.getCalendarId()),
+                                         calendarId,
+                                         calendarOwnerId,
                                          event.getCreatorId(),
                                          AgendaDateUtils.toRFC3339Date(event.getCreated()),
                                          AgendaDateUtils.toRFC3339Date(event.getUpdated()),
@@ -297,11 +295,12 @@ public class RestEntityBuilder {
                                          null);
     } else {
       return new EventEntity(event.getId(),
-                             parentEvent,
+                             parentId,
                              null,
                              0l,
                              null,
-                             getCalendarEntity(agendaCalendarService, event.getCalendarId()),
+                             calendarId,
+                             calendarOwnerId,
                              event.getCreatorId(),
                              AgendaDateUtils.toRFC3339Date(event.getCreated()),
                              AgendaDateUtils.toRFC3339Date(event.getUpdated()),
@@ -328,13 +327,12 @@ public class RestEntityBuilder {
     }
   }
 
-  private static CalendarEntity getCalendarEntity(AgendaCalendarService agendaCalendarService,
-                                                  long calendarId) {
+  private static long getCalendarOwnerId(AgendaCalendarService agendaCalendarService, long calendarId) {
     if (calendarId <= 0) {
-      return null;
+      return 0;
     }
     Calendar calendar = agendaCalendarService.getCalendarById(calendarId);
-    return fromCalendar(calendar);
+    return calendar.getOwnerId();
   }
 
   private static EventEntity getEventEntity(AgendaCalendarService agendaCalendarService,

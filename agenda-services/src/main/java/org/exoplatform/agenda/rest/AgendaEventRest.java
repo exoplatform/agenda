@@ -87,7 +87,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
 
   private String                       defaultSite         = null;
 
-  public AgendaEventRest(IdentityManager identityManager,
+  public AgendaEventRest(IdentityManager identityManager, // NOSONAR
                          PortalConfigService portalConfigService,
                          AgendaCalendarService agendaCalendarService,
                          AgendaEventService agendaEventService,
@@ -224,10 +224,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       Map<Long, List<EventConference>> conferencesByParentEventId = new HashMap<>();
       Map<Long, List<EventReminder>> remindersByParentEventId = new HashMap<>();
       Map<Long, List<EventDateOptionEntity>> dateOptionsByParentEventId = new HashMap<>();
-      Map<Long, RemoteEvent> remoteEventByParentEventId = new HashMap<>();
-      List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
-                                                                  : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
-                                                                                                    ","));
+      List<String> expandProperties = computeExpandList(expand);
       List<EventEntity> eventEntities = events.stream().map(event -> {
         EventEntity eventEntity = RestEntityBuilder.fromEvent(agendaCalendarService,
                                                               agendaEventService,
@@ -290,14 +287,11 @@ public class AgendaEventRest implements ResourceContainer, Startable {
           }
         }
         fillRemoteEvent(agendaRemoteEventService, eventEntity, userIdentityId);
-        if (eventEntity.getParent() != null) {
-          fillRemoteEvent(agendaRemoteEventService, eventEntity.getParent(), userIdentityId, remoteEventByParentEventId);
-        }
         if (isComputedOccurrence(eventEntity)) {
           cleanupAttachedEntitiesIds(eventEntity);
         }
         return eventEntity;
-      }).filter(eventEntity -> eventEntity != null).collect(Collectors.toList());
+      }).filter(Objects::nonNull).collect(Collectors.toList());
 
       EventList eventList = new EventList();
       eventList.setEvents(eventEntities);
@@ -357,9 +351,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
 
     String currentUser = RestUtils.getCurrentUser();
     try {
-      List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
-                                                                  : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
-                                                                                                    ","));
+      List<String> expandProperties = computeExpandList(expand);
       ZoneId userTimeZone = StringUtils.isBlank(timeZoneId) ? ZoneOffset.UTC : ZoneId.of(timeZoneId);
       EventEntity eventEntity = getEventByIdAndUser(identityManager,
                                                     agendaCalendarService,
@@ -434,9 +426,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
     }
 
     try {
-      List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
-                                                                  : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
-                                                                                                    ","));
+      List<String> expandProperties = computeExpandList(expand);
       ZoneId userTimeZone = StringUtils.isBlank(timeZoneId) ? ZoneOffset.UTC : ZoneId.of(timeZoneId);
       long identityId = RestUtils.getCurrentUserIdentityId(identityManager);
       ZonedDateTime occurrenceDate = AgendaDateUtils.parseRFC3339ToZonedDateTime(occurrenceId, ZoneOffset.UTC);
@@ -505,9 +495,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                                    "timeZoneId"
                                                  )
                                                  String timeZoneId) {
-    List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
-                                                                : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
-                                                                                                  ","));
+    List<String> expandProperties = computeExpandList(expand);
     long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
     try {
       ZoneId userTimeZone = StringUtils.isBlank(timeZoneId) ? ZoneOffset.UTC : ZoneId.of(timeZoneId);
@@ -559,7 +547,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
     if (eventEntity == null) {
       return Response.status(Status.BAD_REQUEST).entity(AgendaExceptionType.EVENT_MANDATORY.getCompleteMessage()).build();
     }
-    if (eventEntity.getCalendar() == null || eventEntity.getCalendar().getOwnerId() <= 0) {
+    if (eventEntity.getCalendarOwnerId() <= 0) {
       return Response.status(Status.BAD_REQUEST).entity(AgendaExceptionType.CALENDAR_OWNER_NOT_FOUND).build();
     }
 
@@ -574,7 +562,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
     } catch (IllegalAccessException e) {
       LOG.warn("User '{}' attempts to create an event in calendar '{}'",
                RestUtils.getCurrentUser(),
-               eventEntity.getCalendar(),
+               eventEntity.getCalendarId(),
                e);
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (AgendaException e) {
@@ -1507,9 +1495,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
     if (limit < 0) {
       return Response.status(Status.BAD_REQUEST).entity("Limit must be positive").build();
     }
-    List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
-                                                                : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
-                                                                                                  ","));
+    List<String> expandProperties = computeExpandList(expand);
     long currentUserId = RestUtils.getCurrentUserIdentityId(identityManager);
     ZoneId userTimeZone = StringUtils.isBlank(timeZoneId) ? ZoneOffset.UTC : ZoneId.of(timeZoneId);
     List<EventSearchResult> searchResults = agendaEventService.search(currentUserId, userTimeZone, query, offset, limit);
@@ -1624,9 +1610,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                                                                                limit);
 
       List<Event> events = agendaEventService.getEventDatePolls(eventFilter, userTimeZone, userIdentityId);
-      List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
-                                                                  : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
-                                                                                                    ","));
+      List<String> expandProperties = computeExpandList(expand);
       List<EventEntity> eventEntities = events.stream()
                                               .map(event -> getEventEntity(identityManager,
                                                                            agendaCalendarService,
@@ -1711,9 +1695,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                                                  userTimeZone,
                                                                  offset,
                                                                  limit);
-        List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
-                                                                    : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""),
-                                                                                                      ","));
+        List<String> expandProperties = computeExpandList(expand);
         List<EventEntity> eventEntities = events.stream()
                                                 .map(event -> getEventEntity(identityManager,
                                                                              agendaCalendarService,
@@ -1736,6 +1718,12 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       LOG.warn("Error retrieving list of pending events", e);
       return Response.serverError().entity(e.getMessage()).build();
     }
+  }
+
+  private List<String> computeExpandList(String expand) {
+    return StringUtils.isBlank(expand) ? Collections.emptyList()
+                                       : Arrays.asList(StringUtils.split(expand.replace(" ", ""),
+                                                                         ","));
   }
 
 }

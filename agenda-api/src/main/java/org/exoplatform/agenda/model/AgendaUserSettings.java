@@ -48,7 +48,7 @@ public class AgendaUserSettings implements Cloneable {
 
   private List<String>                 webConferenceProviders  = null;
 
-  public AgendaUserSettings(String cometdToken,
+  public AgendaUserSettings(String cometdToken, // NOSONAR
                             String agendaDefaultView,
                             String agendaWeekStartOn,
                             boolean showWorkingTime,

@@ -30,6 +30,8 @@ public class EventList implements Serializable {
 
   private List<EventEntity> events;
 
+  private List<EventEntity> parentEvents;
+
   private String            start;
 
   private String            end;

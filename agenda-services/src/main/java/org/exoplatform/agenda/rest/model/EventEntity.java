@@ -45,7 +45,7 @@ public class EventEntity implements Serializable, Cloneable {
    * duplicated in user calendar only.</li>
    * </ul>
    */
-  private EventEntity                 parent;
+  private long                        parentId;
 
   /**
    * External Event technical identifier if imported from external Store. This
@@ -64,7 +64,9 @@ public class EventEntity implements Serializable, Cloneable {
    */
   private String                      remoteProviderName;
 
-  private CalendarEntity              calendar;
+  private long                        calendarId;
+
+  private long                        calendarOwnerId;
 
   private long                        creatorId;
 
@@ -155,11 +157,12 @@ public class EventEntity implements Serializable, Cloneable {
   @Override
   public EventEntity clone() {// NOSONAR
     return new EventEntity(id,
-                           parent,
+                           parentId,
                            remoteId,
                            remoteProviderId,
                            remoteProviderName,
-                           calendar,
+                           calendarId,
+                           calendarOwnerId,
                            creatorId,
                            created,
                            updated,

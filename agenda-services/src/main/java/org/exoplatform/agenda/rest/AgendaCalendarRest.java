@@ -127,7 +127,7 @@ public class AgendaCalendarRest implements ResourceContainer {
         }
       }
       List<CalendarEntity> calendarEntities = calendars.stream()
-                                                       .map(calendar -> RestEntityBuilder.fromCalendar(calendar))
+                                                       .map(RestEntityBuilder::fromCalendar)
                                                        .collect(Collectors.toList());
       calendarList.setCalendars(calendarEntities);
 

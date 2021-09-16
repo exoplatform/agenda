@@ -16,12 +16,13 @@ public class EventSearchResultEntity extends EventEntity {
 
   private static final long serialVersionUID = 5124367759439151153L;
 
-  public EventSearchResultEntity(final long id,
-                                 final EventEntity parent,
+  public EventSearchResultEntity(final long id, // NOSONAR
+                                 final long parentId,
                                  final String remoteId,
                                  final long remoteProviderId,
                                  final String remoteProviderName,
-                                 final CalendarEntity calendar,
+                                 final long calendarId,
+                                 final long calendarOwnerId,
                                  final long creatorId,
                                  final String created,
                                  final String updated,
@@ -46,11 +47,12 @@ public class EventSearchResultEntity extends EventEntity {
                                  final boolean sendInvitation,
                                  List<String> excerpts) {
     super(id,
-          parent,
+          parentId,
           remoteId,
           remoteProviderId,
           remoteProviderName,
-          calendar,
+          calendarId,
+          calendarOwnerId,
           creatorId,
           created,
           updated,

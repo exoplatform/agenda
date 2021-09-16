@@ -130,17 +130,21 @@ public class RestUtils {
 
   public static void checkCalendar(AgendaCalendarService agendaCalendarService,
                                    EventEntity eventEntity) throws AgendaException {
-    long ownerId = eventEntity.getCalendar().getOwnerId();
-    if (ownerId <= 0) {
-      throw new AgendaException(AgendaExceptionType.CALENDAR_OWNER_NOT_FOUND);
+    long ownerId = eventEntity.getCalendarOwnerId();
+    Calendar calendar;
+    if (ownerId > 0) {
+      calendar = agendaCalendarService.getOrCreateCalendarByOwnerId(ownerId);
+    } else {
+      long calendarId = eventEntity.getCalendarId();
+      if (calendarId <= 0) {
+        throw new AgendaException(AgendaExceptionType.CALENDAR_OWNER_NOT_FOUND);
+      }
+      calendar = agendaCalendarService.getCalendarById(calendarId);
     }
-    Calendar calendar = agendaCalendarService.getOrCreateCalendarByOwnerId(ownerId);
     if (calendar == null) {
       throw new AgendaException(AgendaExceptionType.CALENDAR_NOT_FOUND);
-    } else if (eventEntity.getCalendar() == null) {
-      eventEntity.setCalendar(RestEntityBuilder.fromCalendar(calendar));
     } else {
-      eventEntity.getCalendar().setId(calendar.getId());
+      eventEntity.setCalendarId(calendar.getId());
     }
   }
 
@@ -224,16 +228,6 @@ public class RestUtils {
       }
       fillRemoteEvent(agendaRemoteEventService, eventEntity, userIdentityId);
       boolean isComputedOccurrence = isComputedOccurrence(eventEntity);
-      EventEntity parentEventEntity = eventEntity.getParent();
-      if (parentEventEntity != null) {
-        fillRemoteEvent(agendaRemoteEventService, parentEventEntity, userIdentityId);
-
-        if (expandProperties.contains("parentAll") && !isComputedOccurrence) {
-          boolean isEventAttendee = agendaEventAttendeeService.isEventAttendee(parentEventEntity.getId(), userIdentityId);
-          boolean canUpdateEvent = isEventAttendee && eventEntity.getAcl().isCanEdit();
-          parentEventEntity.setAcl(new EventPermission(canUpdateEvent, isEventAttendee));
-        }
-      }
       if (isComputedOccurrence) {
         cleanupAttachedEntitiesIds(eventEntity);
       }
@@ -278,9 +272,6 @@ public class RestUtils {
         fillDateOptions(agendaEventDatePollService, eventSearchResultEntity, userTimeZone);
       }
       fillRemoteEvent(agendaRemoteEventService, eventSearchResultEntity, userIdentityId);
-      if (eventSearchResultEntity.getParent() != null) {
-        fillRemoteEvent(agendaRemoteEventService, eventSearchResultEntity.getParent(), userIdentityId);
-      }
       if (isComputedOccurrence(eventSearchResultEntity)) {
         cleanupAttachedEntitiesIds(eventSearchResultEntity);
       }
@@ -294,7 +285,7 @@ public class RestUtils {
                                    Map<Long, EventAttendeeList> attendeesByParentEventId,
                                    long userIdentityId) {
     boolean computedOccurrence = isComputedOccurrence(eventEntity);
-    long eventId = computedOccurrence ? eventEntity.getParent().getId()
+    long eventId = computedOccurrence ? eventEntity.getParentId()
                                       : eventEntity.getId();
     if (computedOccurrence && attendeesByParentEventId.containsKey(eventId)) {
       EventAttendeeList eventAttendeeList = attendeesByParentEventId.get(eventId);
@@ -318,7 +309,7 @@ public class RestUtils {
                                                  ZonedDateTime occurrenceId,
                                                  long userIdentityId) {
     boolean computedOccurrence = isComputedOccurrence(eventEntity);
-    long eventId = computedOccurrence ? eventEntity.getParent().getId()
+    long eventId = computedOccurrence ? eventEntity.getParentId()
                                       : eventEntity.getId();
     EventAttendeeList eventAttendeeList = agendaEventAttendeeService.getEventAttendees(eventId);
     if (userIdentityId > 0) {
@@ -341,7 +332,7 @@ public class RestUtils {
   public static void fillConferences(AgendaEventConferenceService agendaEventConferenceService,
                                      EventEntity eventEntity,
                                      Map<Long, List<EventConference>> conferencesByParentEventId) {
-    long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParent().getId()
+    long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParentId()
                                                      : eventEntity.getId();
     if (conferencesByParentEventId.containsKey(eventId)) {
       eventEntity.setConferences(conferencesByParentEventId.get(eventId));
@@ -353,7 +344,7 @@ public class RestUtils {
 
   private static void fillConferences(AgendaEventConferenceService agendaEventConferenceService,
                                       EventEntity eventEntity) {
-    long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParent().getId()
+    long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParentId()
                                                      : eventEntity.getId();
     List<EventConference> eventConferences = agendaEventConferenceService.getEventConferences(eventId);
     eventEntity.setConferences(eventConferences);
@@ -363,7 +354,7 @@ public class RestUtils {
                                    EventEntity eventEntity,
                                    long userIdentityId,
                                    Map<Long, List<EventReminder>> remindersByParentEventId) {
-    long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParent().getId()
+    long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParentId()
                                                      : eventEntity.getId();
     if (remindersByParentEventId.containsKey(eventId)) {
       List<EventReminder> reminders = remindersByParentEventId.get(eventId);
@@ -391,7 +382,7 @@ public class RestUtils {
                                      EventEntity eventEntity,
                                      ZoneId userTimeZone,
                                      Map<Long, List<EventDateOptionEntity>> dateOptionsByParentEventId) {
-    long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParent().getId()
+    long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParentId()
                                                      : eventEntity.getId();
     if (dateOptionsByParentEventId.containsKey(eventId)) {
       eventEntity.setDateOptions(dateOptionsByParentEventId.get(eventId));
@@ -454,7 +445,7 @@ public class RestUtils {
                                    EventEntity eventEntity,
                                    long userIdentityId) {
     boolean computedOccurrence = isComputedOccurrence(eventEntity);
-    long eventId = computedOccurrence ? eventEntity.getParent().getId()
+    long eventId = computedOccurrence ? eventEntity.getParentId()
                                       : eventEntity.getId();
     List<EventReminder> reminders = agendaEventReminderService.getEventReminders(eventId, userIdentityId);
     if (computedOccurrence) {
@@ -478,7 +469,7 @@ public class RestUtils {
   private static void fillDateOptions(AgendaEventDatePollService agendaEventDatePollService,
                                       EventEntity eventEntity,
                                       ZoneId userTimeZone) {
-    long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParent().getId()
+    long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParentId()
                                                      : eventEntity.getId();
     List<EventDateOption> dateOptions = agendaEventDatePollService.getEventDateOptions(eventId, userTimeZone);
     List<EventDateOptionEntity> dateOptionEntities = dateOptions == null ? Collections.emptyList()
@@ -490,7 +481,7 @@ public class RestUtils {
   }
 
   public static boolean isComputedOccurrence(EventEntity eventEntity) {
-    return eventEntity.getId() == 0 && eventEntity.getParent() != null;
+    return eventEntity.getId() == 0 && eventEntity.getParentId() > 0;
   }
 
   public static void cleanupAttachedEntitiesIds(EventEntity eventEntity) {
