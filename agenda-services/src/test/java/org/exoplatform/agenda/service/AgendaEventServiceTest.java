@@ -787,6 +787,54 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
   }
 
   @Test
+  public void testSaveEventExceptionalOccurrenceWithDST() throws Exception { // NOSONAR
+    ZoneId dstTimeZone = ZoneId.of("Europe/Paris");
+    ZonedDateTime start = ZonedDateTime.of(2021, 9, 15, 10, 0, 0, 0, dstTimeZone);
+    Event event = newEventInstance(start, start.plusHours(1), false);
+    event.setTimeZoneId(dstTimeZone);
+    EventRecurrence recurrence = new EventRecurrence(0,
+                                                     null,
+                                                     0,
+                                                     EventRecurrenceType.WEEKLY,
+                                                     EventRecurrenceFrequency.WEEKLY,
+                                                     1,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null);
+    event.setRecurrence(recurrence);
+
+    event = createEvent(event, Long.parseLong(testuser1Identity.getId()), testuser1Identity, testuser2Identity);
+
+    ZonedDateTime periodStart = ZonedDateTime.of(2021, 12, 3, 0, 0, 0, 0, dstTimeZone);
+    List<Event> eventOccurrencesInPeriod = agendaEventService.getEventOccurrencesInPeriod(event, periodStart, periodStart.plusWeeks(1), dstTimeZone, 0);
+    assertNotNull(eventOccurrencesInPeriod);
+    assertEquals(1, eventOccurrencesInPeriod.size());
+    Event occurrence = eventOccurrencesInPeriod.get(0);
+    assertNotNull(occurrence);
+    assertNotNull(occurrence.getOccurrence());
+
+    Event exceptionalOccurrence = agendaEventService.saveEventExceptionalOccurrence(event.getId(), occurrence.getOccurrence().getId());
+    ZonedDateTime exceptionalEventStart = exceptionalOccurrence.getStart().withZoneSameInstant(dstTimeZone);
+
+    assertNotNull(exceptionalOccurrence);
+    assertNotNull(exceptionalOccurrence.getOccurrence());
+    assertEquals(LocalDate.of(2021, 12, 8),
+                 exceptionalEventStart.toLocalDate());
+    assertEquals(start.getHour(),
+                 exceptionalEventStart.getHour());
+    assertEquals(start.getMinute(),
+                 exceptionalEventStart.getMinute());
+  }
+
+  @Test
   public void testGetParentRecurrentEvents() throws Exception { // NOSONAR
     ZonedDateTime start = getDate().withNano(0);
 
