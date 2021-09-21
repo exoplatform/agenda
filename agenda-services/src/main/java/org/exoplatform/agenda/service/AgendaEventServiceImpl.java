@@ -442,9 +442,12 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                              .withMonth(occurrenceStartTime.getMonthValue())
                              .withDayOfMonth(occurrenceStartTime.getDayOfMonth());
     } else {
-      occurrenceStart = start.withYear(occurrenceId.getYear())
-                             .withMonth(occurrenceId.getMonthValue())
-                             .withDayOfMonth(occurrenceId.getDayOfMonth());
+      ZonedDateTime startStartTime = start.withZoneSameInstant(parentEvent.getTimeZoneId());
+      occurrenceStart = startStartTime.withYear(occurrenceId.getYear())
+                                      .withMonth(occurrenceId.getMonthValue())
+                                      .withDayOfMonth(occurrenceId.getDayOfMonth())
+                                      .withHour(startStartTime.getHour())
+                                      .withMinute(startStartTime.getMinute());
     }
     ZonedDateTime occurrenceEnd = occurrenceStart.plusSeconds(diffInSeconds);
     exceptionalEvent.setStart(occurrenceStart);
