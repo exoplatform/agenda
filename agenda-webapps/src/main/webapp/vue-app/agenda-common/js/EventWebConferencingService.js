@@ -96,7 +96,7 @@ function updateConference(event, conference) {
       const endDate = event.endDate && new Date(event.endDate) || event.recurrence && event.recurrence.until && new Date(event.recurrence.until) || null;
       return global.webConferencing.updateCall(callId, {
         title: event.title,
-        owner: event.calendar.owner.remoteId,
+        owner: event.calendar.owner.id,
         ownerType: 'space_event',
         provider: conference.type,
         participants: participants && participants.join(';') || null,
