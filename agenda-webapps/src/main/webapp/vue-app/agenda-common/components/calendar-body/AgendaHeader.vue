@@ -41,7 +41,7 @@
           :title="$t('agenda.settings.drawer.title')"
           class="d-none d-sm-inline text-header-title"
           @click="$root.$emit('user-settings-agenda-drawer-open')">
-          <v-icon>mdi-settings</v-icon>
+          <v-icon>mdi-cog</v-icon>
         </v-btn>
       </v-col>
     </v-row>
