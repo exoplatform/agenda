@@ -268,7 +268,7 @@ export default {
     saveEvent() {
       this.event.start = this.event.startDate && this.$agendaUtils.toRFC3339(this.event.startDate) || this.$agendaUtils.toRFC3339(new Date());
       this.event.end = this.event.endDate && this.$agendaUtils.toRFC3339(this.event.endDate) || this.$agendaUtils.toRFC3339(new Date());
-
+      this.event.calendar.owner.id = this.selectedCalendar.owner.id;
       this.$root.$emit('agenda-event-save', this.event);
     },
     nextStep() {
