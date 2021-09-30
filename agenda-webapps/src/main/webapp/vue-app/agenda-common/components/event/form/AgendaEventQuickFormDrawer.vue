@@ -271,6 +271,7 @@ export default {
 
       this.event.start = this.$agendaUtils.toRFC3339(this.event.startDate);
       this.event.end = this.$agendaUtils.toRFC3339(this.event.endDate);
+      this.event.calendar.owner.id = this.currentCalendar.owner.id;
 
       delete this.event.startDate;
       delete this.event.endDate;
