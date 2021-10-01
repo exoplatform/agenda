@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2021 eXo Platform SAS
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
 <template>
   <v-app class="agenda-application border-box-sizing" flat>
     <v-main class="white">

@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2021 eXo Platform SAS
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
 <template>
   <div v-if="isWebConferencingEnabled" class="white rounded-lg pb-5">
     <h4 class="py-5 font-weight-bold">

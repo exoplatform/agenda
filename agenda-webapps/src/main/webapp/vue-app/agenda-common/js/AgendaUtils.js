@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2021 eXo Platform SAS
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import TIMEZONE_IDS from '../json/timezones.json';
 
 export const USER_TIMEZONE_ID = new window.Intl.DateTimeFormat().resolvedOptions().timeZone;

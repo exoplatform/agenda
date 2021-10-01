@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2021 eXo Platform SAS
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
 <template>
   <div v-if="!isPastEvent" class="d-flex flex-column">
     <div class="title d-md-none mt-2 mb-3 mx-4">

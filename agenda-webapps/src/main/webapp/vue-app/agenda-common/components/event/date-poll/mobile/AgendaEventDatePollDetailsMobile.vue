@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2021 eXo Platform SAS
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
 <template>
   <v-flex class="agenda-date-poll-details-mobile">
     <div class="ms-3 mt-5 mb-3 grey--text text-subtitle-2">

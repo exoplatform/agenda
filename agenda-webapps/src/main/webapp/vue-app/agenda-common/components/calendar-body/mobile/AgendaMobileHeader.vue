@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2021 eXo Platform SAS
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
 <template>
   <v-flex class="agenda-mobile-header d-flex flex-row pa-2 border-radius border-color">
     <agenda-create-event-button

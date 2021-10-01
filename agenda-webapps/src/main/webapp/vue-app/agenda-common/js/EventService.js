@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2021 eXo Platform SAS
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import {toRFC3339, getDayNameFromDate, getMonthNumberFromDate, toDate, USER_TIMEZONE_ID} from './AgendaUtils.js';
 import {deleteEventWebConferencing, saveEventWebConferencing} from './EventWebConferencingService.js';
 

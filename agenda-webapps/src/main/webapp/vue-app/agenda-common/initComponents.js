@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2021 eXo Platform SAS
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import AgendaHeader from './components/calendar-body/AgendaHeader.vue';
 import AgendaBody from './components/calendar-body/AgendaBody.vue';
 import AgendaCalendar from './components/calendar-body/AgendaCalendar.vue';

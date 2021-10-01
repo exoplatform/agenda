@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2021 eXo Platform SAS
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 export function getCalendars(offset, limit, returnSize, spaceIdentityIds) {
   let params = {
     offset: offset,

@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2021 eXo Platform SAS
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
 <template>
   <v-app class="connectorsAdminSettings">
     <v-main class="white rounded-lg ma-5 px-7 pb-2">

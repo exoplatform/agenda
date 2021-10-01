@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2021 eXo Platform SAS
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 export function computeVoters(event) {
   const dateOptions = event && event.dateOptions || [];
   const attendees = event && event.attendees || [];

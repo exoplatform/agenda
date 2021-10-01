@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2021 eXo Platform SAS
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
 <template>
   <div class="event-details-body overflow-auto flex-grow-1 d-flex flex-column flex-md-row pa-4 mt-5">
     <div class="flex-grow-1 flex-shrink-0 d-flex event-details-body-left">

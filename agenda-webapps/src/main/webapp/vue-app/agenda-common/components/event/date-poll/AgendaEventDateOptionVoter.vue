@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2021 eXo Platform SAS
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
 <template>
   <tr>
     <th :class="!voter.profile && 'no-vote' || ''" class="event-date-options-voter-cell justify-center">

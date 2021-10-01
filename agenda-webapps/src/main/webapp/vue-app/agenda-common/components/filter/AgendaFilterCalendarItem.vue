@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2021 eXo Platform SAS
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
 <template>
   <v-list-item class="agenda-calendar-settings px-0">
     <v-list-item-content :title="calendarDisplayName" class="flex-grow-1 pa-0">

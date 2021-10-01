@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2021 eXo Platform SAS
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
 <template>
   <div v-if="event" class="d-flex flex-column flex-grow-1">
     <slot name="startDateLabel"></slot>

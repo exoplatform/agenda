@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2021 eXo Platform SAS
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
 <template>
   <v-row class="event-details-header d-flex align-center flex-nowrap text-left col-12 mx-0">
     <v-col :title="event.summary" class="event-title title text-truncate col-auto ps-4 mx-2">

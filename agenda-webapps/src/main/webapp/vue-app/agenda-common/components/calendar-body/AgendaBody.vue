@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2021 eXo Platform SAS
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
 <template>
   <v-flex class="d-flex flex-column agenda-body">
     <agenda-toolbar :period-title="periodTitle" />
