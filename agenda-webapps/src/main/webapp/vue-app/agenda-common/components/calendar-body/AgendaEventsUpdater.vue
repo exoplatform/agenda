@@ -31,7 +31,7 @@ export default {
     },
   },
   created() {
-    this.$agendaWebSocket.initCometd(this.settings.cometdContext, this.settings.cometdToken, this.handleAgendaUpdates);
+    this.$agendaWebSocket.initCometd(this.settings.cometdContextName, this.settings.cometdToken, this.handleAgendaUpdates);
   },
   methods: {
     handleAgendaUpdates(wsEventName, eventModifications) {
