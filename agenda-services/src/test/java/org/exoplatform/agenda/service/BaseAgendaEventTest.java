@@ -84,6 +84,8 @@ public abstract class BaseAgendaEventTest {
 
   protected Identity                                        spaceIdentity;
 
+  protected Identity                                        rootIdentity;
+
   protected Identity                                        testuser1Identity;
 
   protected Identity                                        testuser2Identity;
@@ -175,6 +177,7 @@ public abstract class BaseAgendaEventTest {
   protected void injectData() throws ObjectNotFoundException {
     purgeData();
 
+    rootIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, "root");
     testuser1Identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, "testuser1");
     testuser2Identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, "testuser2");
     testuser3Identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, "testuser3");
