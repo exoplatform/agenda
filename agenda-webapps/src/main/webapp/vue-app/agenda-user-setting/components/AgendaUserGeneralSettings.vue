@@ -24,7 +24,10 @@
                   v-if="agendaWorkingTime"
                   class="ma-2"
                   color="primary">
+                  <span v-if="isMobile" class="mobile-chip-ellipsis">
                   {{ agendaWorkingTime }}
+                  </span>
+                  <span v-else>{{ agendaWorkingTime }}</span>
                 </v-chip>
                 <template v-if="settings.reminders">
                   <v-chip
@@ -33,8 +36,12 @@
                     class="ma-2"
                     color="primary">
                     <template v-if="reminder.before">
+                      <span v-if="isMobile" class="mobile-chip-ellipsis">
                       {{ $t('agenda.label.notifyMeBefore', {0: reminder.before, 1: $t(`agenda.option.${reminder.beforePeriodType.toLowerCase()}s`).toLowerCase()}) }}
-                    </template>
+                      </span>
+                      <span v-else>
+                        {{ $t('agenda.label.notifyMeBefore', {0: reminder.before, 1: $t(`agenda.option.${reminder.beforePeriodType.toLowerCase()}s`).toLowerCase()}) }}
+                      </span>                    </template>
                     <template v-else>
                       {{ $t('agenda.label.notifyMeWhenEventStarts') }}
                     </template>
@@ -72,6 +79,9 @@ export default {
       .toString()}`,
   }),
   computed: {
+    isMobile() {
+      return this.$vuetify && this.$vuetify.breakpoint && this.$vuetify.breakpoint.name === 'xs';
+    },
     DAY_NAME_BY_ABBREVIATION () {
       return {
         'MO': this.getDayFromAbbreviation('MO'),
