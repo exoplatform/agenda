@@ -35,12 +35,10 @@
                     class="ma-2"
                     color="primary">
                     <template v-if="reminder.before">
-                      <span v-if="isMobile" class="mobile-chip-ellipsis">
-                      {{ $t('agenda.label.notifyMeBefore', {0: reminder.before, 1: $t(`agenda.option.${reminder.beforePeriodType.toLowerCase()}s`).toLowerCase()}) }}
-                      </span>
-                      <span v-else>
+                      <span class="{ mobile-chip-ellipsis : isMobile }">
                         {{ $t('agenda.label.notifyMeBefore', {0: reminder.before, 1: $t(`agenda.option.${reminder.beforePeriodType.toLowerCase()}s`).toLowerCase()}) }}
-                      </span>                    </template>
+                      </span>                   
+                      </template>
                     <template v-else>
                       {{ $t('agenda.label.notifyMeWhenEventStarts') }}
                     </template>
