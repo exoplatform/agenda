@@ -24,10 +24,9 @@
                   v-if="agendaWorkingTime"
                   class="ma-2"
                   color="primary">
-                  <span v-if="isMobile" class="mobile-chip-ellipsis">
+                  <span class="{ mobile-chip-ellipsis : isMobile }">
                   {{ agendaWorkingTime }}
                   </span>
-                  <span v-else>{{ agendaWorkingTime }}</span>
                 </v-chip>
                 <template v-if="settings.reminders">
                   <v-chip
