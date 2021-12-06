@@ -13,20 +13,27 @@
                   class="ma-2"
                   color="primary">
                   <span class="text-capitalize">{{ agendaSelectedView }}</span>
-                  <span class="ps-1">{{ $t('agenda.view') }}</span>
+                  <span class="ps-1">
+                    <span :class="[isMobile ? ['d-inline-block','text-truncate'] : ''] " :style= "isMobile ? {'max-width':'130px'} : {}">
+                    {{ $t('agenda.view') }}
+                    </span>
+                  </span>
                 </v-chip>
                 <v-chip
                   class="ma-2"
                   color="primary">
-                  {{ agendaWeekStartOnLabel }}
+                  <span :class="[isMobile ? ['d-inline-block','text-truncate'] : ''] " :style= "isMobile ? {'max-width':'130px'} : {}">
+                   {{ agendaWeekStartOnLabel }}
+                  </span>
                 </v-chip>
                 <v-chip
                   v-if="agendaWorkingTime"
                   class="ma-2"
                   color="primary">
-                  <span class="{ mobile-chip-ellipsis : isMobile }">
+                  <span :class="[isMobile ? ['d-inline-block','text-truncate'] : ''] " :style= "isMobile ? {'max-width':'130px'} : {}">
                   {{ agendaWorkingTime }}
                   </span>
+                
                 </v-chip>
                 <template v-if="settings.reminders">
                   <v-chip
@@ -35,9 +42,9 @@
                     class="ma-2"
                     color="primary">
                     <template v-if="reminder.before">
-                      <span class="{ mobile-chip-ellipsis : isMobile }">
-                        {{ $t('agenda.label.notifyMeBefore', {0: reminder.before, 1: $t(`agenda.option.${reminder.beforePeriodType.toLowerCase()}s`).toLowerCase()}) }}
-                      </span>                   
+                      <span :class="[isMobile ? ['d-inline-block','text-truncate'] : ''] " :style= "isMobile ? {'max-width':'140px'} : {}">
+                       {{ $t('agenda.label.notifyMeBefore', {0: reminder.before, 1: $t(`agenda.option.${reminder.beforePeriodType.toLowerCase()}s`).toLowerCase()}) }}
+                      </span>
                       </template>
                     <template v-else>
                       {{ $t('agenda.label.notifyMeWhenEventStarts') }}
