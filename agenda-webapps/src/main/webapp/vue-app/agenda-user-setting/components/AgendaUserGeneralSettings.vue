@@ -11,26 +11,29 @@
               <template>
                 <v-chip
                   class="ma-2"
-                  color="primary">
-                  <span class="text-capitalize">{{ agendaSelectedView }}</span>
-                  <span class="ps-1">
-                    <span :class="[isMobile ? ['d-inline-block','text-truncate'] : ''] " :style= "isMobile ? {'max-width':'130px'} : {}">
-                    {{ $t('agenda.view') }}
-                    </span>
+                  color="primary"
+                  style="max-width:calc(100% - 40px)">
+                  <span class="text-truncate">
+                    <span class="text-capitalize">{{ agendaSelectedView }}</span>
+                    <span class="ps-1">{{ $t('agenda.view') }} </span>
                   </span>
                 </v-chip>
                 <v-chip
                   class="ma-2"
-                  color="primary">
-                  <span :class="[isMobile ? ['d-inline-block','text-truncate'] : ''] " :style= "isMobile ? {'max-width':'130px'} : {}">
+                  color="primary"
+                  style="max-width:calc(100% - 40px)"
+                  >
+                  <span class="text-truncate" >
                    {{ agendaWeekStartOnLabel }}
                   </span>
                 </v-chip>
                 <v-chip
                   v-if="agendaWorkingTime"
                   class="ma-2"
-                  color="primary">
-                  <span :class="[isMobile ? ['d-inline-block','text-truncate'] : ''] " :style= "isMobile ? {'max-width':'130px'} : {}">
+                  color="primary"
+                  style="max-width:calc(100% - 40px)"
+                  >
+                  <span class="text-truncate">
                   {{ agendaWorkingTime }}
                   </span>
                 
@@ -40,15 +43,19 @@
                     v-for="(reminder, index) in settings.reminders"
                     :key="index"
                     class="ma-2"
-                    color="primary">
+                    color="primary"
+                    style="max-width:calc(100% - 40px)">
                     <template v-if="reminder.before">
-                      <span :class="[isMobile ? ['d-inline-block','text-truncate'] : ''] " :style= "isMobile ? {'max-width':'130px'} : {}">
+                      <span class="text-truncate">
                        {{ $t('agenda.label.notifyMeBefore', {0: reminder.before, 1: $t(`agenda.option.${reminder.beforePeriodType.toLowerCase()}s`).toLowerCase()}) }}
                       </span>
                       </template>
                     <template v-else>
+                      <span class="text-truncate">
                       {{ $t('agenda.label.notifyMeWhenEventStarts') }}
+                       </span>
                     </template>
+                    
                   </v-chip>
                 </template>
               </template>
