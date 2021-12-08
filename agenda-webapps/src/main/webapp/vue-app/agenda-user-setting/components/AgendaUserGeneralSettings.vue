@@ -90,9 +90,6 @@ export default {
       .toString()}`,
   }),
   computed: {
-    isMobile() {
-      return this.$vuetify && this.$vuetify.breakpoint && this.$vuetify.breakpoint.name === 'xs';
-    },
     DAY_NAME_BY_ABBREVIATION () {
       return {
         'MO': this.getDayFromAbbreviation('MO'),
