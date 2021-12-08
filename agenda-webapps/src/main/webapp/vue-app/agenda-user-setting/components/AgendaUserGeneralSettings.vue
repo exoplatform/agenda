@@ -42,7 +42,7 @@
                     class="ma-2"
                     color="primary">
                     <template v-if="reminder.before">
-                      <span :class="[isMobile ? ['d-inline-block','text-truncate'] : ''] " :style= "isMobile ? {'max-width':'140px'} : {}">
+                      <span :class="[isMobile ? ['d-inline-block','text-truncate'] : ''] " :style= "isMobile ? {'max-width':'130px'} : {}">
                        {{ $t('agenda.label.notifyMeBefore', {0: reminder.before, 1: $t(`agenda.option.${reminder.beforePeriodType.toLowerCase()}s`).toLowerCase()}) }}
                       </span>
                       </template>
