@@ -4,65 +4,45 @@
       <v-list-item-title class="title text-color">
         {{ $t('agenda') }}
       </v-list-item-title>
-      <v-list-item-subtitle class="text-sub-title">
-        <v-list-item v-if="settings" dense>
-          <v-list-item-content class="pa-0">
-            <v-list-item-title class="text-wrap">
-              <template>
-                <v-chip
-                  class="ma-2"
-                  color="primary"
-                  style="max-width:calc(100% - 40px)">
-                  <span class="text-truncate">
-                    <span class="text-capitalize">{{ agendaSelectedView }}</span>
-                    <span class="ps-1">{{ $t('agenda.view') }} </span>
-                  </span>
-                </v-chip>
-                <v-chip
-                  class="ma-2"
-                  color="primary"
-                  style="max-width:calc(100% - 40px)"
-                  >
-                  <span class="text-truncate" >
-                   {{ agendaWeekStartOnLabel }}
-                  </span>
-                </v-chip>
-                <v-chip
-                  v-if="agendaWorkingTime"
-                  class="ma-2"
-                  color="primary"
-                  style="max-width:calc(100% - 40px)"
-                  >
-                  <span class="text-truncate">
-                  {{ agendaWorkingTime }}
-                  </span>
-                
-                </v-chip>
-                <template v-if="settings.reminders">
-                  <v-chip
-                    v-for="(reminder, index) in settings.reminders"
-                    :key="index"
-                    class="ma-2"
-                    color="primary"
-                    style="max-width:calc(100% - 40px)">
-                    <template v-if="reminder.before">
-                      <span class="text-truncate">
-                       {{ $t('agenda.label.notifyMeBefore', {0: reminder.before, 1: $t(`agenda.option.${reminder.beforePeriodType.toLowerCase()}s`).toLowerCase()}) }}
-                      </span>
-                      </template>
-                    <template v-else>
-                      <span class="text-truncate">
-                      {{ $t('agenda.label.notifyMeWhenEventStarts') }}
-                       </span>
-                    </template>
-                    
-                  </v-chip>
-                </template>
+      <v-flex v-if="settings" class="d-flex flex-wrap">
+        <v-chip
+          class="ma-2"
+          color="primary">
+          <span class="text-capitalize">{{ agendaSelectedView }}</span>
+          <span class="ps-1">{{ $t('agenda.view') }}</span>
+        </v-chip>
+        <v-chip
+          class="ma-2"
+          color="primary">
+          <div class="text-truncate">
+            {{ agendaWeekStartOnLabel }}
+          </div>
+        </v-chip>
+        <v-chip
+          v-if="agendaWorkingTime"
+          class="ma-2"
+          color="primary">
+          <div class="text-truncate">
+            {{ agendaWorkingTime }}
+          </div>
+        </v-chip>
+        <template v-if="settings.reminders">
+          <v-chip
+            v-for="(reminder, index) in settings.reminders"
+            :key="index"
+            class="ma-2"
+            color="primary">
+            <div class="text-truncate">
+              <template v-if="reminder.before">
+                {{ $t('agenda.label.notifyMeBefore', {0: reminder.before, 1: $t(`agenda.option.${reminder.beforePeriodType.toLowerCase()}s`).toLowerCase()}) }}
+               </template>
+               <template v-else>
+                {{ $t('agenda.label.notifyMeWhenEventStarts') }}
               </template>
-            </v-list-item-title>
-          </v-list-item-content>
-        </v-list-item>
-      </v-list-item-subtitle>
+            </div>
+          </v-chip>
+        </template>
+      </v-flex>
     </v-list-item-content>
     <v-list-item-action>
       <v-btn
