@@ -189,7 +189,7 @@ export default {
       }
     },
     eventOwner(newVal) {
-      if (newVal.providerId) {
+      if (newVal && newVal.providerId) {
         this.$identityService.getIdentityByProviderIdAndRemoteId(newVal.providerId, newVal.remoteId)
           .then(identity => {
             this.event.calendar.owner.id = identity.id;
