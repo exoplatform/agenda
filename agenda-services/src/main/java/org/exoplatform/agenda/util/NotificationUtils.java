@@ -720,11 +720,12 @@ public class NotificationUtils {
   private static final void setSpaceName(NotificationInfo notification, TemplateContext templateContext) {
     String ownerId = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_OWNER_ID);
     IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
+    SpaceService spaceService = ExoContainerContext.getService(SpaceService.class);
     Identity identity = identityManager.getIdentity(ownerId);
     if (identity == null) {
       templateContext.put(TEMPLATE_VARIABLE_AGENDA_NAME, "");
     } else {
-      String spaceName = identity.getRemoteId();
+      String spaceName = spaceService.getSpaceByPrettyName(identity.getRemoteId()).getDisplayName();
       templateContext.put(TEMPLATE_VARIABLE_AGENDA_NAME, spaceName);
     }
   }
