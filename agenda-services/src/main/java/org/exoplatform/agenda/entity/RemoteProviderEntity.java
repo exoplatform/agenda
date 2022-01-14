@@ -38,7 +38,7 @@ public class RemoteProviderEntity implements Serializable {
   private static final long serialVersionUID = -5031970577705728288L;
 
   @Id
-  @SequenceGenerator(name = "SEQ_AGENDA_PROVIDER_ID", sequenceName = "SEQ_AGENDA_PROVIDER_ID")
+  @SequenceGenerator(name = "SEQ_AGENDA_PROVIDER_ID", sequenceName = "SEQ_AGENDA_PROVIDER_ID", allocationSize = 1)
   @GeneratedValue(strategy = GenerationType.AUTO, generator = "SEQ_AGENDA_PROVIDER_ID")
   @Column(name = "AGENDA_PROVIDER_ID")
   private Long              id;

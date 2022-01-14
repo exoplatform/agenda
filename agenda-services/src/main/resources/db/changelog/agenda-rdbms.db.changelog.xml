@@ -350,4 +350,19 @@
     <addUniqueConstraint tableName="EXO_AGENDA_ATTENDEE" columnNames="EVENT_ID,IDENTITY_ID,FROM_OCCURRENCE_ID" constraintName="UK_EXO_AGENDA_ATTENDEE" />
   </changeSet>
 
+  <changeSet author="agenda" id="1.0.0-27" dbms="hsqldb">
+    <createSequence sequenceName="SEQ_AGENDA_CALENDAR_ID" startValue="1" />
+    <createSequence sequenceName="SEQ_AGENDA_EVENT_ID" startValue="1" />
+    <createSequence sequenceName="SEQ_AGENDA_EVENT_ATTACHMENT_ID" startValue="1" />
+    <createSequence sequenceName="SEQ_AGENDA_EVENT_ATTENDEE_ID" startValue="1" />
+    <createSequence sequenceName="SEQ_AGENDA_EVENT_CONFERENCE_ID" startValue="1" />
+    <createSequence sequenceName="SEQ_AGENDA_EVENT_RECURRENCE_ID" startValue="1" />
+    <createSequence sequenceName="SEQ_AGENDA_EVENT_REMINDER_ID" startValue="1" />
+    <createSequence sequenceName="SEQ_AGENDA_PROVIDER_ID" startValue="1" />
+    <createSequence sequenceName="SEQ_AGENDA_REMOTE_EVENT_ID" startValue="1" />
+    <createSequence sequenceName="SEQ_AGENDA_EVENT_DATE_POLL_ID" startValue="1" />
+    <createSequence sequenceName="SEQ_AGENDA_EVENT_DATE_OPTION_ID" startValue="1" />
+    <createSequence sequenceName="SEQ_AGENDA_EVENT_DATE_VOTE_ID" startValue="1" /> 
+  </changeSet>
+
 </databaseChangeLog>

@@ -56,7 +56,7 @@ public class EventReminderEntity implements Serializable {
   private static final long  serialVersionUID = 6460217989840428489L;
 
   @Id
-  @SequenceGenerator(name = "SEQ_AGENDA_EVENT_REMINDER_ID", sequenceName = "SEQ_AGENDA_EVENT_REMINDER_ID")
+  @SequenceGenerator(name = "SEQ_AGENDA_EVENT_REMINDER_ID", sequenceName = "SEQ_AGENDA_EVENT_REMINDER_ID", allocationSize = 1)
   @GeneratedValue(strategy = GenerationType.AUTO, generator = "SEQ_AGENDA_EVENT_REMINDER_ID")
   @Column(name = "EVENT_REMINDER_ID")
   private Long               id;
