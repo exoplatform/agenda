@@ -57,7 +57,7 @@ function createConference(event, conference) {
   return getAllIdentities(event.attendees)
     .then(identities => {
       const participants = identities.filter(identity => identity && identity.providerId === 'organization').map(identity => identity.remoteId);
-      const spaces = identities.filter(identity => identity && identity.providerId === 'space').map(identity => identity.id);
+      const spaces = identities.filter(identity => identity && identity.providerId === 'space').map(identity => identity.remoteId);
       const startDate = new Date(event.startDate);
       const endDate = event.endDate && new Date(event.endDate) || event.recurrence && event.recurrence.until && new Date(event.recurrence.until) || null;
       return global.webConferencing.addCall({
@@ -91,7 +91,7 @@ function updateConference(event, conference) {
     .then(identities => {
       // FIXME : Web conferencing uses userName for users and Space Identity id for spaces
       const participants = identities.filter(identity => identity && identity.providerId === 'organization').map(identity => identity.remoteId);
-      const spaces = identities.filter(identity => identity && identity.providerId === 'space').map(identity => identity.id);
+      const spaces = identities.filter(identity => identity && identity.providerId === 'space').map(identity => identity.remoteId);
       const startDate = new Date(event.startDate);
       const endDate = event.endDate && new Date(event.endDate) || event.recurrence && event.recurrence.until && new Date(event.recurrence.until) || null;
       return global.webConferencing.updateCall(callId, {
