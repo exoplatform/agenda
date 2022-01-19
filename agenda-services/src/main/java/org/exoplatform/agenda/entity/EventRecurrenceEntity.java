@@ -43,7 +43,7 @@ public class EventRecurrenceEntity implements Serializable {
   private static final long   serialVersionUID = -4214007539857435152L;
 
   @Id
-  @SequenceGenerator(name = "SEQ_AGENDA_EVENT_RECURRENCE_ID", sequenceName = "SEQ_AGENDA_EVENT_RECURRENCE_ID")
+  @SequenceGenerator(name = "SEQ_AGENDA_EVENT_RECURRENCE_ID", sequenceName = "SEQ_AGENDA_EVENT_RECURRENCE_ID", allocationSize = 1)
   @GeneratedValue(strategy = GenerationType.AUTO, generator = "SEQ_AGENDA_EVENT_RECURRENCE_ID")
   @Column(name = "EVENT_RECURRENCE_ID")
   private Long                id;

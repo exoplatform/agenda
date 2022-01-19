@@ -50,7 +50,7 @@ public class EventDateVoteEntity implements Serializable {
   private static final long serialVersionUID = -6015331866476045556L;
 
   @Id
-  @SequenceGenerator(name = "SEQ_AGENDA_EVENT_DATE_VOTE_ID", sequenceName = "SEQ_AGENDA_EVENT_DATE_VOTE_ID")
+  @SequenceGenerator(name = "SEQ_AGENDA_EVENT_DATE_VOTE_ID", sequenceName = "SEQ_AGENDA_EVENT_DATE_VOTE_ID", allocationSize = 1)
   @GeneratedValue(strategy = GenerationType.AUTO, generator = "SEQ_AGENDA_EVENT_DATE_VOTE_ID")
   @Column(name = "EVENT_DATE_VOTE_ID")
   private Long              id;
