@@ -43,7 +43,7 @@ public class CalendarEntity implements Serializable {
   private static final long serialVersionUID = -5042089789130151840L;
 
   @Id
-  @SequenceGenerator(name = "SEQ_AGENDA_CALENDAR_ID", sequenceName = "SEQ_AGENDA_CALENDAR_ID")
+  @SequenceGenerator(name = "SEQ_AGENDA_CALENDAR_ID", sequenceName = "SEQ_AGENDA_CALENDAR_ID", allocationSize = 1)
   @GeneratedValue(strategy = GenerationType.AUTO, generator = "SEQ_AGENDA_CALENDAR_ID")
   @Column(name = "CALENDAR_ID")
   private Long              id;

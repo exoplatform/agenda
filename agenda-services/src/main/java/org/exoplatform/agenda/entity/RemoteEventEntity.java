@@ -46,7 +46,7 @@ public class RemoteEventEntity implements Serializable {
   private static final long serialVersionUID = 6095103528261973968L;
 
   @Id
-  @SequenceGenerator(name = "SEQ_AGENDA_REMOTE_EVENT_ID", sequenceName = "SEQ_AGENDA_REMOTE_EVENT_ID")
+  @SequenceGenerator(name = "SEQ_AGENDA_REMOTE_EVENT_ID", sequenceName = "SEQ_AGENDA_REMOTE_EVENT_ID", allocationSize = 1)
   @GeneratedValue(strategy = GenerationType.AUTO, generator = "SEQ_AGENDA_REMOTE_EVENT_ID")
   @Column(name = "REMOTE_EVENT_ID")
   private Long              id;

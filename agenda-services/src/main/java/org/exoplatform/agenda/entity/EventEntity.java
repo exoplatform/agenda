@@ -228,7 +228,7 @@ public class EventEntity implements Serializable {
   private static final long         serialVersionUID = -597472315530960636L;
 
   @Id
-  @SequenceGenerator(name = "SEQ_AGENDA_EVENT_ID", sequenceName = "SEQ_AGENDA_EVENT_ID")
+  @SequenceGenerator(name = "SEQ_AGENDA_EVENT_ID", sequenceName = "SEQ_AGENDA_EVENT_ID", allocationSize = 1)
   @GeneratedValue(strategy = GenerationType.AUTO, generator = "SEQ_AGENDA_EVENT_ID")
   @Column(name = "EVENT_ID")
   private Long                      id;
