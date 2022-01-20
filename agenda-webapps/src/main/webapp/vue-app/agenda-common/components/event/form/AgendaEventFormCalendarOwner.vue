@@ -10,7 +10,6 @@
     class="user-suggester calendarOwnerAutocomplete"
     include-spaces
     only-redactor
-    only-manager
     required />
 </template>
 
