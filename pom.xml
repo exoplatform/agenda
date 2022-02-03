@@ -29,10 +29,7 @@
     <!-- 3rd party libraries versions -->
     <org.exoplatform.social.version>6.3.x-SNAPSHOT</org.exoplatform.social.version>
     <org.exoplatform.platform-ui.version>6.3.x-SNAPSHOT</org.exoplatform.platform-ui.version>
-
-    <!-- Used to generate default methods for POJO -->
-    <org.lombok.version>1.18.2</org.lombok.version>
-    <org.lombok.plugin.version>1.18.0.0</org.lombok.plugin.version>
+    <addon.exo.analytics.version>1.2.x-SNAPSHOT</addon.exo.analytics.version>
 
     <!-- ical4j dependencies -->
     <org.mnode.ical4j.version>3.0.21</org.mnode.ical4j.version>
@@ -56,6 +53,13 @@
         <groupId>org.exoplatform.platform-ui</groupId>
         <artifactId>platform-ui</artifactId>
         <version>${org.exoplatform.platform-ui.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.exoplatform.addons.analytics</groupId>
+        <artifactId>analytics-parent</artifactId>
+        <version>${addon.exo.analytics.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -92,13 +96,6 @@
       </dependency>
 
       <dependency>
-        <groupId>org.projectlombok</groupId>
-        <artifactId>lombok</artifactId>
-        <version>${org.lombok.version}</version>
-        <scope>provided</scope>
-      </dependency>
-
-      <dependency>
         <groupId>backport-util-concurrent</groupId>
         <artifactId>backport-util-concurrent</artifactId>
         <version>${backport-util-concurrent.version}</version>
@@ -118,32 +115,6 @@
 
     </dependencies>
   </dependencyManagement>
-  <build>
-    <pluginManagement>
-      <plugins>
-        <!-- Maven Plugin for JS and CSS bundling and Unit Test execution -->
-        <plugin>
-          <groupId>com.github.eirslett</groupId>
-          <artifactId>frontend-maven-plugin</artifactId>
-          <version>${com.github.eirslett.frontend.version}</version>
-        </plugin>
-        <!-- Maven Plugin for generating contracts JAVA sources -->
-        <plugin>
-          <groupId>org.projectlombok</groupId>
-          <artifactId>lombok-maven-plugin</artifactId>
-          <version>${org.lombok.plugin.version}</version>
-          <executions>
-            <execution>
-              <phase>generate-sources</phase>
-              <goals>
-                <goal>delombok</goal>
-              </goals>
-            </execution>
-          </executions>
-        </plugin>
-      </plugins>
-    </pluginManagement>
-  </build>
   
   <!-- This profile is used to allow github action to build branches. The github action is used for sonar analysis -->
   <profiles>
