@@ -52,7 +52,7 @@
           <description>Search connector for events</description>
           <object type="org.exoplatform.social.core.search.SearchConnector">
             <field name="name">
-              <string>agenda</string>
+              <string>events</string>
             </field>
             <field name="uri">
               <string><![CDATA[/portal/rest/v1/agenda/events/search?limit={limit}&query={keyword}&expand=response]]></string>
