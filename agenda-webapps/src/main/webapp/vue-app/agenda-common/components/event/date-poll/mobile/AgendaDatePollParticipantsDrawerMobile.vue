@@ -58,13 +58,11 @@
             :space="voter.space"
             :labels="labels"
             class="d-inline-block" />
-          <exo-user-avatar
+          <exo-user
             v-else-if="voter"
-            :username="voter.username"
-            :fullname="voter.fullname"
-            :title="voter.fullname"
-            :labels="labels"
-            class="d-inline-block date-poll-participant" />
+            :identity="voter"
+            class="d-inline-block date-poll-participant"
+            link-style />
         </v-list-item>
       </v-list>
     </template>

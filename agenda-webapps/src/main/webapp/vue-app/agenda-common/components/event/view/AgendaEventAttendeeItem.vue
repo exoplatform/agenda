@@ -1,15 +1,13 @@
 <template>
-  <exo-user-avatar
+  <exo-user
     v-if="isAttendeeUser"
-    :title="attendeeProfileDisplayName"
-    :username="attendeeRemoteId"
-    :fullname="attendeeProfileDisplayName"
+    :identity="attendeeIdentity"
     :url="attendeeProfileLink"
     :size="32"
-    :avatar-url="attendeeProfileAvatarUrl"
-    :labels="labels"
     avatar-class="border-color"
-    class="attendee">
+    class="attendee"
+    popover
+    link-style>
     <template slot="actions">
       <div
         :title="responseIconTooltip"
@@ -24,7 +22,7 @@
         <span :class="responseIconResponse"></span>
       </div>
     </template>
-  </exo-user-avatar>
+  </exo-user>
   <div v-else-if="isAttendeeSpace" class="flex-nowrap d-flex flex-shrink-0 align-center attendee">
     <exo-space-avatar
       :space="attendeeSpace"
@@ -83,14 +81,8 @@ export default {
       }
       return '';
     },
-    attendeeRemoteId() {
-      return this.attendee && this.attendee.identity && this.attendee.identity.remoteId;
-    },
-    attendeeProfileAvatarUrl() {
-      return this.attendee.identity.space ? this.attendee.identity.space.avatarUrl : this.attendee.identity.profile ? this.attendee.identity.profile.avatar : '';
-    },
-    attendeeProfileDisplayName() {
-      return this.attendee.identity.space ? this.attendee.identity.space.displayName : this.attendee.identity.profile ? this.attendee.identity.profile.fullname : '';
+    attendeeIdentity() {
+      return this.attendee && this.attendee.identity && this.attendee.identity.profile;
     },
     labels() {
       return {

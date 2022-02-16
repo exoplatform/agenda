@@ -35,8 +35,8 @@
             <div class="text-truncate">
               <template v-if="reminder.before">
                 {{ $t('agenda.label.notifyMeBefore', {0: reminder.before, 1: $t(`agenda.option.${reminder.beforePeriodType.toLowerCase()}s`).toLowerCase()}) }}
-               </template>
-               <template v-else>
+              </template>
+              <template v-else>
                 {{ $t('agenda.label.notifyMeWhenEventStarts') }}
               </template>
             </div>
