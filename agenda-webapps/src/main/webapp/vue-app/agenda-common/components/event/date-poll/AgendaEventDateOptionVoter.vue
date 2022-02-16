@@ -11,15 +11,11 @@
             :space="voter.space"
             :labels="labels"
             class="d-inline-block" />
-          <exo-user-avatar
+          <exo-user
             v-else-if="voter.profile"
-            :username="voter.profile.username"
-            :fullname="voter.profile.fullname"
-            :title="voter.profile.fullname"
-            :external="voter.profile.dataEntity.external"
-            :retrieve-extra-information="false"
-            :labels="labels"
-            class="d-inline-block date-poll-participant" />
+            :identity="voter.profile"
+            class="d-inline-block date-poll-participant"
+            link-style />
         </div>
         <v-icon
           v-if="isCreator"
