@@ -23,12 +23,11 @@
       </div>
     </template>
   </exo-user>
-  <div v-else-if="isAttendeeSpace" class="flex-nowrap d-flex flex-shrink-0 align-center attendee">
+  <div v-else-if="isAttendeeSpace" class="attendee">
     <exo-space-avatar
       :space="attendeeSpace"
       :size="32"
-      :labels="labels"
-      class="flex-grow-1" />
+      popover />
     <span
       :title="responseIconTooltip"
       :class="responseIconResponse"
