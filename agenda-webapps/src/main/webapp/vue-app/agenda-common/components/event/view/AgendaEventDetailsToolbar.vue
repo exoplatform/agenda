@@ -10,8 +10,7 @@
       <exo-space-avatar
         :space="ownerProfile"
         :size="32"
-        :labels="labels"
-        class="align-center text-truncate flex-grow-0 flex" />
+        popover />
     </v-col>
     <v-col class="px-0 flex-grow-1 flex-shrink-0 mx-2">
       <template v-if="!isTentativeEvent && isAttendee && !isMobile">

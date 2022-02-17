@@ -56,8 +56,7 @@
           <exo-space-avatar
             v-if="voter.space"
             :space="voter.space"
-            :labels="labels"
-            class="d-inline-block" />
+            popover />
           <exo-user
             v-else-if="voter"
             :identity="voter"

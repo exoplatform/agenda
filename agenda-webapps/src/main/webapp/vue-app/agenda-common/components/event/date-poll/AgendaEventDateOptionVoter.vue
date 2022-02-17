@@ -8,9 +8,7 @@
           class="my-auto text-center text-truncate pa-3">
           <exo-space-avatar
             v-if="voter.space"
-            :space="voter.space"
-            :labels="labels"
-            class="d-inline-block" />
+            :space="voter.space" />
           <exo-user
             v-else-if="voter.profile"
             :identity="voter.profile"
