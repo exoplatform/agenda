@@ -1,11 +1,11 @@
 <template>
-  <exo-user
+  <exo-user-avatar
     v-if="isAttendeeUser"
     :identity="attendeeIdentity"
     :url="attendeeProfileLink"
     :size="32"
     avatar-class="border-color"
-    class="attendee"
+    extra-class="attendee mb-4"
     popover
     link-style>
     <template slot="actions">
@@ -22,13 +22,12 @@
         <span :class="responseIconResponse"></span>
       </div>
     </template>
-  </exo-user>
-  <div v-else-if="isAttendeeSpace" class="flex-nowrap d-flex flex-shrink-0 align-center attendee">
+  </exo-user-avatar>
+  <div v-else-if="isAttendeeSpace" class="attendee">
     <exo-space-avatar
       :space="attendeeSpace"
       :size="32"
-      :labels="labels"
-      class="flex-grow-1" />
+      popover />
     <span
       :title="responseIconTooltip"
       :class="responseIconResponse"
