@@ -802,7 +802,11 @@ public class NotificationUtils {
 
   private static final String getEventNotificationCreatorOrModifierUserName(Identity identity) {
     String[] splited = identity.getProfile().getFullName().split(" ");
-    String fullName = StringUtils.capitalize(splited[0]).concat(" ").concat(StringUtils.capitalize(splited[1]));
+    String fullName = "";
+    for (int i=0;i<splited.length;i++){
+        fullName += StringUtils.capitalize(splited[i]).concat(" ");
+    }
+    fullName=fullName.substring(0,fullName.length()-1);
     if(Utils.isExternal(identity.getRemoteId())) {
       fullName += " " + "(" + Utils.getResourceBundleLabel(new Locale(Utils.getUserLanguage(identity.getRemoteId())), "external.label.tag") + ")";
     }
