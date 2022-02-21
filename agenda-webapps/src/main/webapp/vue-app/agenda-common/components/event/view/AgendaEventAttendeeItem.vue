@@ -5,7 +5,7 @@
     :url="attendeeProfileLink"
     :size="32"
     avatar-class="border-color"
-    class="attendee"
+    extra-class="attendee mb-4"
     popover
     link-style>
     <template slot="actions">

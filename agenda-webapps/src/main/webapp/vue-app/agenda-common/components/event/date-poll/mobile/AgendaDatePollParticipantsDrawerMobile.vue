@@ -60,8 +60,9 @@
           <exo-user
             v-else-if="voter"
             :identity="voter"
-            class="d-inline-block date-poll-participant"
-            link-style />
+            extra-class="d-inline-block date-poll-participant"
+            link-style
+            popover />
         </v-list-item>
       </v-list>
     </template>

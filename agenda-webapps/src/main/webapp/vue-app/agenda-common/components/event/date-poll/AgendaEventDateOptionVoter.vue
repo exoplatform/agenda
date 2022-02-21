@@ -8,12 +8,14 @@
           class="my-auto text-center text-truncate pa-3">
           <exo-space-avatar
             v-if="voter.space"
-            :space="voter.space" />
+            :space="voter.space"
+            popover />
           <exo-user
             v-else-if="voter.profile"
             :identity="voter.profile"
-            class="d-inline-block date-poll-participant"
-            link-style />
+            extra-class="d-inline-block date-poll-participant"
+            link-style
+            popover />
         </div>
         <v-icon
           v-if="isCreator"
