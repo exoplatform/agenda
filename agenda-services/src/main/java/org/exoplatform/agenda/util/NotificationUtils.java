@@ -823,7 +823,9 @@ public class NotificationUtils {
 
   private static String getFullUserName(Set<String> participants, IdentityManager identityManager) {
     if (participants.size() > 3) {
-      List<String> showParticipants = participants.stream().limit(3).collect(Collectors.toList());
+      List<String> showParticipants = participants.stream().limit(3).map(participant -> {
+        return Utils.getIdentityById(identityManager, participant).getProfile().getFullName();
+      }).collect(Collectors.toList());
       return String.join(", ", showParticipants).concat("...");
     } else {
       List<String> showParticipants = participants.stream().map(participant -> {
