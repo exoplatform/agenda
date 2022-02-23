@@ -826,10 +826,9 @@ public class NotificationUtils {
             Utils.getIdentityById(identityManager, participant).getProfile().getFullName()
     ).collect( Collectors.joining( ", " ) );
     if (participants.size() > 3) {
-      return showParticipants.concat("...");
-    } else {
-      return showParticipants;
+      showParticipants=showParticipants.concat("...");
     }
+    return showParticipants;
   }
 
   private static String getSpaceDisplayName(Set<String> participants, SpaceService spaceService) {
