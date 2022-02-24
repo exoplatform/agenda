@@ -822,11 +822,14 @@ public class NotificationUtils {
   }
 
   private static String getFullUserName(Set<String> participants, IdentityManager identityManager) {
-    String showParticipants = participants.stream().limit(3).map(participant ->
-            Utils.getIdentityById(identityManager, participant).getProfile().getFullName()
-    ).collect( Collectors.joining( ", " ) );
+    String showParticipants = participants.stream()
+                                          .limit(3)
+                                          .map(participant -> Utils.getIdentityById(identityManager, participant)
+                                                                   .getProfile()
+                                                                   .getFullName())
+                                          .collect(Collectors.joining(", "));
     if (participants.size() > 3) {
-      showParticipants=showParticipants.concat("...");
+      showParticipants = showParticipants.concat("...");
     }
     return showParticipants;
   }
