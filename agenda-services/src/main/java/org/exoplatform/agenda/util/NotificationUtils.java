@@ -801,8 +801,9 @@ public class NotificationUtils {
   }
 
   private static final String getEventNotificationCreatorOrModifierUserName(Identity identity) {
-    String[] splited = identity.getProfile().getFullName().split(" ");
-    String fullName = StringUtils.capitalize(splited[0]).concat(" ").concat(StringUtils.capitalize(splited[1]));
+    String fullName = Arrays.stream(identity.getProfile().getFullName().split(" "))
+            .map(t -> t.substring(0, 1).toUpperCase() + t.substring(1))
+            .collect(Collectors.joining(" "));
     if(Utils.isExternal(identity.getRemoteId())) {
       fullName += " " + "(" + Utils.getResourceBundleLabel(new Locale(Utils.getUserLanguage(identity.getRemoteId())), "external.label.tag") + ")";
     }
