@@ -56,15 +56,13 @@
           <exo-space-avatar
             v-if="voter.space"
             :space="voter.space"
-            :labels="labels"
-            class="d-inline-block" />
+            popover />
           <exo-user-avatar
             v-else-if="voter"
-            :username="voter.username"
-            :fullname="voter.fullname"
-            :title="voter.fullname"
-            :labels="labels"
-            class="d-inline-block date-poll-participant" />
+            :identity="voter"
+            extra-class="d-inline-block date-poll-participant"
+            link-style
+            popover />
         </v-list-item>
       </v-list>
     </template>

@@ -9,17 +9,13 @@
           <exo-space-avatar
             v-if="voter.space"
             :space="voter.space"
-            :labels="labels"
-            class="d-inline-block" />
+            popover />
           <exo-user-avatar
             v-else-if="voter.profile"
-            :username="voter.profile.username"
-            :fullname="voter.profile.fullname"
-            :title="voter.profile.fullname"
-            :external="voter.profile.dataEntity.external"
-            :retrieve-extra-information="false"
-            :labels="labels"
-            class="d-inline-block date-poll-participant" />
+            :identity="voter.profile"
+            extra-class="d-inline-block date-poll-participant"
+            link-style
+            popover />
         </div>
         <v-icon
           v-if="isCreator"
