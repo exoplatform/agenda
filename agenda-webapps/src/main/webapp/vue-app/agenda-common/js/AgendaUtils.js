@@ -84,8 +84,8 @@ export function initEventForm(agendaEvent, deleteDates) {
 
 export function getUserTimezone() {
   const timeZoneOffset = - (new Date().getTimezoneOffset());
-  let timezoneHours = timeZoneOffset / 60;
-  let timezoneMinutes = timeZoneOffset % 60;
+  let timezoneHours = Math.abs(parseInt(timeZoneOffset / 60));
+  let timezoneMinutes = Math.abs(parseInt(timeZoneOffset % 60));
   timezoneHours = timezoneHours < 10 ? `0${timezoneHours}` : timezoneHours;
   timezoneMinutes = timezoneMinutes < 10 ? `0${timezoneMinutes}` : timezoneMinutes;
   const timezoneSign = timeZoneOffset >= 0 ? '+' : '-';
