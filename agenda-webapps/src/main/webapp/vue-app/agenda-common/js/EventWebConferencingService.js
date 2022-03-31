@@ -73,7 +73,7 @@ function createConference(event, conference) {
       });
     })
     .then(callDetails => {
-      conference.url = callDetails.url;
+      conference.url = `${callDetails.url}?inviteId=${callDetails.inviteId}`;
       return conference;
     });
 }
