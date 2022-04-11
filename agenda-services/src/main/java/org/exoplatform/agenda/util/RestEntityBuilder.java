@@ -234,7 +234,12 @@ public class RestEntityBuilder {
                                             ZoneId userTimeZone) {
     return fromEvent(agendaCalendarService, agendaEventService, identityManager, event, userTimeZone, false);
   }
-
+  public static final GuestUser toGuestUser(long eventId,GuestUserEntity guestUserEntity){
+    return new GuestUser(guestUserEntity.getId(),guestUserEntity.getGuestEmail(),eventId);
+  }
+  public static final GuestUserEntity fromGuestUser(GuestUser guestUser){
+    return new GuestUserEntity(guestUser.getId(),guestUser.getGuestEmail(),guestUser.getEventId());
+  }
   private static final EventEntity fromEvent(AgendaCalendarService agendaCalendarService,
                                              AgendaEventService agendaEventService,
                                              IdentityManager identityManager,
@@ -306,6 +311,7 @@ public class RestEntityBuilder {
                                          null,
                                          null,
                                          null,
+                                         null,
                                          event.isAllowAttendeeToUpdate(),
                                          event.isAllowAttendeeToInvite(),
                                          false,
@@ -333,6 +339,7 @@ public class RestEntityBuilder {
                              recurrenceEntity,
                              occurrenceEntity,
                              event.getAcl(),
+                             null,
                              null,
                              null,
                              null,

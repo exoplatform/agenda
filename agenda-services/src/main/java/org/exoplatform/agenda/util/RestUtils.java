@@ -140,6 +140,15 @@ public class RestUtils {
       }
     }
 
+    List<GuestUserEntity> guestUserEntities = eventEntity.getGuestUsers();
+    List<GuestUser> guestUsers = null;
+    if (guestUserEntities != null && !guestUserEntities.isEmpty()) {
+      guestUsers = new ArrayList<>();
+      for (GuestUserEntity guestUserEntity : guestUserEntities) {
+        guestUsers.add(RestEntityBuilder.toGuestUser(eventEntity.getId(), guestUserEntity));
+      }
+    }
+
     RemoteEvent remoteEvent = getRemoteEvent(eventEntity, userIdentityId);
 
     String userTimeZoneId = timeZoneId == null ? eventEntity.getTimeZoneId() : timeZoneId;
@@ -154,6 +163,7 @@ public class RestUtils {
 
     return agendaEventService.createEvent(RestEntityBuilder.toEvent(eventEntity),
                                           attendees,
+                                          guestUsers,
                                           eventEntity.getConferences(),
                                           reminders,
                                           dateOptions,
@@ -190,6 +200,7 @@ public class RestUtils {
                                                 AgendaEventReminderService agendaEventReminderService,
                                                 AgendaEventConferenceService agendaEventConferenceService,
                                                 AgendaEventAttendeeService agendaEventAttendeeService,
+                                                AgendaEventGuestService agendaEventGuestService,
                                                 long eventId,
                                                 boolean firstOccurrence,
                                                 long identityId,
@@ -212,6 +223,7 @@ public class RestUtils {
                           agendaEventReminderService,
                           agendaEventConferenceService,
                           agendaEventAttendeeService,
+                          agendaEventGuestService,
                           event,
                           occurrenceId,
                           userTimeZone,
@@ -226,6 +238,7 @@ public class RestUtils {
                                            AgendaEventReminderService agendaEventReminderService,
                                            AgendaEventConferenceService agendaEventConferenceService,
                                            AgendaEventAttendeeService agendaEventAttendeeService,
+                                           AgendaEventGuestService agendaEventGuestService,
                                            Event event,
                                            ZonedDateTime occurrenceId,
                                            ZoneId userTimeZone,
@@ -256,6 +269,9 @@ public class RestUtils {
       }
       if (expandProperties.contains("all") || expandProperties.contains("reminders")) {
         fillReminders(agendaEventReminderService, eventEntity, userIdentityId);
+      }
+      if (expandProperties.contains("all") || expandProperties.contains("guests")) {
+        fillGuests(agendaEventGuestService,eventEntity);
       }
       if (expandProperties.contains("all") || expandProperties.contains("dateOptions")) {
         fillDateOptions(agendaEventDatePollService, eventEntity, userTimeZone);
@@ -380,6 +396,20 @@ public class RestUtils {
       eventEntity.setAttendees(eventAttendeeEntities);
     }
     return eventAttendeeList;
+  }
+
+  private static void fillGuests(AgendaEventGuestService agendaEventGuestService,
+                                                 EventEntity eventEntity){
+    boolean computedOccurrence = isComputedOccurrence(eventEntity);
+    long eventId = computedOccurrence ? eventEntity.getParent().getId()
+            : eventEntity.getId();
+    List<GuestUser> guestUserList = agendaEventGuestService.getEventGuests(eventId);
+    List<GuestUserEntity> guestUserEntities = new ArrayList<>();
+    for (GuestUser guestUser : guestUserList) {
+      guestUserEntities.add(RestEntityBuilder.fromGuestUser(guestUser));
+    }
+
+    eventEntity.setGuestUsers(guestUserEntities);
   }
 
   public static void fillConferences(AgendaEventConferenceService agendaEventConferenceService,
