@@ -477,6 +477,20 @@ public class EntityMapper {
     return eventAttendeeEntity;
   }
 
+  public static GuestUserEntity toEntity(GuestUser guestUser,EventEntity eventEntity) {
+    GuestUserEntity guestUserEntity = new GuestUserEntity();
+    guestUserEntity.setId(guestUser.getId());
+    guestUserEntity.setGuestEmail(guestUser.getGuestEmail());
+    guestUserEntity.setEvent(eventEntity);
+    return guestUserEntity;
+  }
+  public static GuestUser fromEntity(GuestUserEntity guestUserEntity, long eventId) {
+    return new GuestUser(guestUserEntity.getId(),
+            guestUserEntity.getGuestEmail(),
+            eventId);
+  }
+
+
   public static EventConference fromEntity(EventConferenceEntity eventConferenceEntity) {
     return new EventConference(eventConferenceEntity.getId(),
                                eventConferenceEntity.getEvent().getId(),
