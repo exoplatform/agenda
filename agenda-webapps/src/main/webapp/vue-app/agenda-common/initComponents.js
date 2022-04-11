@@ -69,6 +69,7 @@ import AgendaEventRecurrence from './components/event/view/AgendaEventRecurrence
 import AgendaEventAttendeeButtons from './components/event/view/AgendaEventAttendeeButtons.vue';
 import AgendaEventAttendees from './components/event/view/AgendaEventAttendees.vue';
 import AgendaEventAttendeeItem from './components/event/view/AgendaEventAttendeeItem.vue';
+import AgendaEventGuests from './components/event/view/AgendaEventGuests.vue';
 import AgendaEventRemindersDrawer from './components/event/view/AgendaEventRemindersDrawer.vue';
 
 import AgendaRecurrentEventSaveConfirmDialog from './components/event/confirm-dialog/AgendaRecurrentEventSaveConfirmDialog.vue';
@@ -121,6 +122,7 @@ const components = {
   'agenda-event-recurrence': AgendaEventRecurrence,
   'agenda-event-attendees': AgendaEventAttendees,
   'agenda-event-attendee-item': AgendaEventAttendeeItem,
+  'agenda-event-guests': AgendaEventGuests,
   'agenda-event-attendee-buttons': AgendaEventAttendeeButtons,
   'agenda-event-reminder-drawer': AgendaEventRemindersDrawer,
   'agenda-recurrent-event-delete-confirm-dialog': AgendaRecurrentEventDeleteConfirmDialog,
