@@ -74,6 +74,8 @@ public class AgendaEventRest implements ResourceContainer, Startable {
 
   private AgendaEventAttendeeService   agendaEventAttendeeService;
 
+  private AgendaEventGuestService      agendaEventGuestService;
+
   private AgendaEventConferenceService agendaEventConferenceService;
 
   private AgendaRemoteEventService     agendaRemoteEventService;
@@ -97,12 +99,15 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                          AgendaEventDatePollService agendaEventDatePollService,
                          AgendaEventReminderService agendaEventReminderService,
                          AgendaEventAttendeeService agendaEventAttendeeService,
-                         PortalContainer container) {
+                         AgendaEventGuestService agendaEventGuestService,
+
+  PortalContainer container) {
     this.identityManager = identityManager;
     this.agendaCalendarService = agendaCalendarService;
     this.agendaEventService = agendaEventService;
     this.agendaEventReminderService = agendaEventReminderService;
     this.agendaEventAttendeeService = agendaEventAttendeeService;
+    this.agendaEventGuestService = agendaEventGuestService;
     this.agendaEventConferenceService = agendaEventConferenceService;
     this.agendaRemoteEventService = agendaRemoteEventService;
     this.agendaEventDatePollService = agendaEventDatePollService;
@@ -372,6 +377,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                                     agendaEventReminderService,
                                                     agendaEventConferenceService,
                                                     agendaEventAttendeeService,
+                                                    agendaEventGuestService,
                                                     eventId,
                                                     firstOccurrence,
                                                     RestUtils.getCurrentUserIdentityId(identityManager),
@@ -455,6 +461,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                                agendaEventReminderService,
                                                agendaEventConferenceService,
                                                agendaEventAttendeeService,
+                                               agendaEventGuestService,
                                                event,
                                                occurrenceDate,
                                                userTimeZone,
@@ -524,6 +531,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                                                            agendaEventReminderService,
                                                                            agendaEventConferenceService,
                                                                            agendaEventAttendeeService,
+                                                                           agendaEventGuestService,
                                                                            event,
                                                                            null,
                                                                            userTimeZone,
@@ -643,6 +651,15 @@ public class AgendaEventRest implements ResourceContainer, Startable {
         }
       }
 
+      List<GuestUserEntity> guestUserEntities = eventEntity.getGuestUsers();
+      List<GuestUser> guestUsers = null;
+      if (guestUserEntities != null && !guestUserEntities.isEmpty()) {
+        guestUsers = new ArrayList<>();
+        for (GuestUserEntity guestUserEntity : guestUserEntities) {
+          guestUsers.add(RestEntityBuilder.toGuestUser(eventEntity.getId(), guestUserEntity));
+        }
+      }
+
       RemoteEvent remoteEvent = getRemoteEvent(eventEntity, userIdentityId);
 
       String userTimeZoneId = timeZoneId == null ? event.getTimeZoneId().getId() : timeZoneId;
@@ -657,6 +674,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
 
       agendaEventService.updateEvent(event,
                                      attendees,
+                                     guestUsers,
                                      eventEntity.getConferences(),
                                      reminders,
                                      dateOptions,
@@ -778,6 +796,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                                     agendaEventReminderService,
                                                     agendaEventConferenceService,
                                                     agendaEventAttendeeService,
+                                                    agendaEventGuestService,
                                                     eventId,
                                                     false,
                                                     userIdentityId,
@@ -844,6 +863,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                                     agendaEventReminderService,
                                                     agendaEventConferenceService,
                                                     agendaEventAttendeeService,
+                                                    agendaEventGuestService,
                                                     eventId,
                                                     false,
                                                     userIdentityId,
@@ -1642,6 +1662,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                                                            agendaEventReminderService,
                                                                            agendaEventConferenceService,
                                                                            agendaEventAttendeeService,
+                                                                           agendaEventGuestService,
                                                                            event,
                                                                            null,
                                                                            userTimeZone,
@@ -1729,6 +1750,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                                                              agendaEventReminderService,
                                                                              agendaEventConferenceService,
                                                                              agendaEventAttendeeService,
+                                                                             agendaEventGuestService,
                                                                              event,
                                                                              null,
                                                                              userTimeZone,
