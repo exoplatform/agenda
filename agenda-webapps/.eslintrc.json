@@ -5,5 +5,9 @@
   "globals": {
     "gapi": true,
     "webConferencing": true
+  },
+  "rules": {
+    "vue/multi-word-component-names": "off",
+    "vue/no-mutating-props": "warn"
   }
 }

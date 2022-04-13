@@ -107,7 +107,7 @@ export function getEventExceptionalOccurrences(eventId, expand) {
 }
 
 export function createEvent(event) {
-  if (!event.hasOwnProperty('sendInvitation')) {
+  if (!Object.prototype.hasOwnProperty.call(event, 'sendInvitation')) {
     event.sendInvitation = true;
   }
   event = formatEventToSave(event);
@@ -139,7 +139,7 @@ export function createEvent(event) {
 }
 
 export function updateEvent(event) {
-  if (!event.hasOwnProperty('sendInvitation')) {
+  if (!Object.prototype.hasOwnProperty.call(event, 'sendInvitation')) {
     event.sendInvitation = true;
   }
   event = formatEventToSave(event);

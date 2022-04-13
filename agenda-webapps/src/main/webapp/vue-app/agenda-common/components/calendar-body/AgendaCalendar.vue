@@ -42,7 +42,7 @@
         :style="currentTimeStyle">
       </div>
     </template>
-    <template #event="{ event, timed, eventSummary }">
+    <template #event="{ event, timed }">
       <div :class="getEventClass(event)">
         <strong
           :title="event.summary"

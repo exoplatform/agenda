@@ -29,7 +29,7 @@ export default {
       default: () => null,
     },
     offsetX: {
-      type: Object,
+      type: Number,
       default: () => 18,
     },
     offsetY: {

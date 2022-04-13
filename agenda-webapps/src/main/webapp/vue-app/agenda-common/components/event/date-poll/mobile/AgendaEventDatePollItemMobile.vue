@@ -9,7 +9,7 @@
         :key="index"
         :disabled="!canSelectDate && !isVoting"
         @click="$root.$emit('agenda-select-date-option', dateOption, index)">
-        <template v-slot:default="{ active }">
+        <template #default="{ active }">
           <agenda-event-date-option-vote
             v-if="currentUserVotes"
             class="my-auto"

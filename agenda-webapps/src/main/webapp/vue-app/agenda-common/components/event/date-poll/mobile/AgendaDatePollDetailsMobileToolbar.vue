@@ -24,7 +24,7 @@
         bottom
         left
         offset-y>
-        <template v-slot:activator="{ on, attrs }">
+        <template #activator="{ on, attrs }">
           <v-btn
             icon
             class="my-auto me-2"

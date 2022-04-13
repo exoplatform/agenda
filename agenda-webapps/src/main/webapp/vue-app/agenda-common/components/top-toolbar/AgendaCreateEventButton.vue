@@ -34,7 +34,7 @@ export default {
       default: false,
     },
     offsetX: {
-      type: Object,
+      type: Number,
       default: () => 18,
     },
     offsetY: {
