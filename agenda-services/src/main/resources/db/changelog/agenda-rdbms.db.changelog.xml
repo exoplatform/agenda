@@ -362,7 +362,7 @@
     <createSequence sequenceName="SEQ_AGENDA_REMOTE_EVENT_ID" startValue="1" />
     <createSequence sequenceName="SEQ_AGENDA_EVENT_DATE_POLL_ID" startValue="1" />
     <createSequence sequenceName="SEQ_AGENDA_EVENT_DATE_OPTION_ID" startValue="1" />
-    <createSequence sequenceName="SEQ_AGENDA_EVENT_DATE_VOTE_ID" startValue="1" /> 
+    <createSequence sequenceName="SEQ_AGENDA_EVENT_DATE_VOTE_ID" startValue="1" />
   </changeSet>
   <changeSet author="agenda" id="1.0.0-28">
     <createTable tableName="EXO_AGENDA_GUESTS">
@@ -379,6 +379,12 @@
     <modifySql dbms="mysql">
       <append value=" ENGINE=INNODB CHARSET=UTF8 COLLATE utf8_general_ci" />
     </modifySql>
+  </changeSet>
+  <changeSet author="agenda" id="1.0.0-29" dbms="hsqldb">
+  <createSequence sequenceName="EVENT_GUEST_ID" startValue="1" />
+  </changeSet>
+  <changeSet author="agenda" id="1.0.0-30" dbms="oracle,postgresql">
+  <createSequence sequenceName="EVENT_GUEST_ID" startValue="1" />
   </changeSet>
 
 </databaseChangeLog>
