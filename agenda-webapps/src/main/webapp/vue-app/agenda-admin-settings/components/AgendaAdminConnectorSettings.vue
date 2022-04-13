@@ -42,10 +42,10 @@
                 :placeholder="$t('agenda.connectorClientApiKey')"
                 class="mx-2 pa-0"
                 dense>
-                <template v-slot:prepend>
+                <template #prepend>
                   <i class="uiIcon uiIconLock primary--text mt-1"></i>
                 </template>
-                <template v-slot:append-outer>
+                <template #append-outer>
                   <v-slide-x-reverse-transition mode="out-in">
                     <i
                       :key="`icon-${props.item.editing}`"
@@ -86,7 +86,6 @@ export default {
     connectors: [],
     headers: [],
     itemsPerPage: 10,
-    settings: null,
   }),
   computed: {
     hideFooter() {
