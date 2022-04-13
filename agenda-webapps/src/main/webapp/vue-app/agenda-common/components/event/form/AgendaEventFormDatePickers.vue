@@ -93,7 +93,7 @@ export default {
         return;
       }
       const date = this.$agendaUtils.toDate(this.startDate);
-      const newDate = this.$agendaUtils.toDate(this.event.startDate);
+      const newDate = this.$agendaUtils.toDate(date);
       newDate.setFullYear(date.getFullYear());
       newDate.setMonth(date.getMonth());
       newDate.setDate(date.getDate());
