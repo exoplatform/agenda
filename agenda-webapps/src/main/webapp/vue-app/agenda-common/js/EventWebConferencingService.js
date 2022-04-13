@@ -73,7 +73,7 @@ function createConference(event, conference) {
       });
     })
     .then(callDetails => {
-      conference.url = callDetails.url;
+      conference.url = `${callDetails.url}?inviteId=${callDetails.inviteId}`;
       return conference;
     });
 }
@@ -107,7 +107,7 @@ function updateConference(event, conference) {
       });
     })
     .then(callDetails => {
-      conference.url = callDetails.url;
+      conference.url = callDetails.inviteId ? `${callDetails.url}?inviteId=${callDetails.inviteId}` : conference.url;
       return conference;
     })
     .catch(() => createConference(event, conference));
