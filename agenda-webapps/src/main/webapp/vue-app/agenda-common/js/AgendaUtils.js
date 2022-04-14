@@ -98,7 +98,7 @@ export function getTimeZones() {
   }
   const dateObj = new Date(0);
   TIMEZONE_IDS.forEach((timeZone) => {
-    const dateFormat = new Intl.DateTimeFormat(eXo.env.portal.language, {
+    const dateFormat = new Intl.DateTimeFormat(eXo.env.portal.language.replace('_', '-'), {
       timeZoneName: 'long',
       second: 'numeric',
       timeZone: timeZone,
@@ -114,7 +114,7 @@ export function getTimeZones() {
 
 export function getTimeZoneNameFromTimeZoneId(timeZone) {
   const dateObj = new Date(0);
-  const dateFormat = new Intl.DateTimeFormat(eXo.env.portal.language, {
+  const dateFormat = new Intl.DateTimeFormat(eXo.env.portal.language.replace('_', '-'), {
     timeZoneName: 'long',
     second: 'numeric',
     timeZone: timeZone,
@@ -226,7 +226,7 @@ export function getDayNameFromDate(date, lang) {
   } else {
     d = new Date();
   }
-  return d.toLocaleDateString(lang || 'en', options);
+  return d.toLocaleDateString(formatLang(lang) || 'en', options);
 }
 
 const DAYS_ABBREVIATIONS = ['SU', 'MO','TU','WE','TH','FR', 'SA'];
@@ -235,7 +235,7 @@ export function getDayNameFromDayAbbreviation(day, lang) {
   const date = new Date(1584226800000);
   const dayNum = DAYS_ABBREVIATIONS.indexOf(day);
   date.setDate(dayNum + 1);
-  return date.toLocaleDateString(lang || 'en', {weekday: 'long'});
+  return date.toLocaleDateString(formatLang(lang) || 'en', {weekday: 'long'});
 }
 
 export function getDayNumberFromDate(date) {
@@ -256,14 +256,18 @@ export function getMonthFromDate(date, lang) {
   } else {
     d = new Date();
   }
-  return d.toLocaleDateString(lang || 'en', options);
+  return d.toLocaleDateString(formatLang(lang) || 'en', options);
 }
 
 export function getMonthNameFromMonthNumber(monthNumber, lang) {
   const options = { month: 'long' };
   const d = new Date();
   d.setMonth(monthNumber);
-  return d.toLocaleDateString(lang || 'en', options);
+  return d.toLocaleDateString(formatLang(lang) || 'en', options);
+}
+
+export function formatLang(lang) {
+  return lang ? lang.replace('_', '-') : lang;
 }
 
 export function getMonthNumberFromDate(date) {
