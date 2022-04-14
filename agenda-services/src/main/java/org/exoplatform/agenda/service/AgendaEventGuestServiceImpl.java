@@ -48,6 +48,11 @@ public class AgendaEventGuestServiceImpl implements AgendaEventGuestService{
        agendaEventGuestStorage.deleteEventGuests(eventId);
     }
 
+    @Override
+    public boolean isGuest(String user,String guests,long eventId) {
+        return guests.contains(user);
+    }
+
     public void processGuestsToCreate(List<GuestUser> oldGuests,List<GuestUser> newGuests,Long eventId){
         newGuests.stream().filter(guest -> !oldGuests.contains(guest)).forEach(guest -> agendaEventGuestStorage.saveEventGuestUser(guest, eventId));
     }

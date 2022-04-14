@@ -70,6 +70,8 @@ public interface AgendaEventAttendeeService {
    */
   public void sendInvitations(Event event,
                               List<EventAttendee> eventAttendees,
+                              List<GuestUser> guestUsers,
+                              List<EventConference> conferences,
                               AgendaEventModification eventModifications);
 
   /**
@@ -89,6 +91,8 @@ public interface AgendaEventAttendeeService {
    */
   Set<AgendaEventModificationType> saveEventAttendees(Event event,
                                                       List<EventAttendee> attendees,
+                                                      List<GuestUser> guestUsers,
+                                                      List<EventConference> conferences,
                                                       long creatorIdentityId,
                                                       boolean sendInvitations,
                                                       boolean resetResponses,
