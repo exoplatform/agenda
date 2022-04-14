@@ -381,6 +381,6 @@
     </modifySql>
   </changeSet>
   <changeSet author="agenda" id="1.0.0-29" dbms="oracle,postgresql,hsqldb">
-    <createSequence sequenceName="EVENT_GUEST_ID" startValue="1" />
+    <createSequence sequenceName="SEQ_AGENDA_EVENT_GUEST_ID" startValue="1" />
   </changeSet>
 </databaseChangeLog>
