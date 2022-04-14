@@ -41,7 +41,7 @@ export function saveEventWebConferencing(event, conference) {
   }
 }
 
-function deleteConference(provider, url) {
+function deleteConference(url) {
   return global.webConferencing.getCallId(url)
     .then(callId => {
       if (!callId) {
