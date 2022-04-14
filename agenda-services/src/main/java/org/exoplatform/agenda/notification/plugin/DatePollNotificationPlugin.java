@@ -2,6 +2,7 @@ package org.exoplatform.agenda.notification.plugin;
 
 import static org.exoplatform.agenda.util.NotificationUtils.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.commons.lang.StringUtils;
@@ -65,6 +66,7 @@ public class DatePollNotificationPlugin extends BaseNotificationPlugin {
   public NotificationInfo makeNotification(NotificationContext ctx) {
     @SuppressWarnings("unchecked")
     List<EventAttendee> eventAttendees = ctx.value(EVENT_ATTENDEE);
+    List<GuestUser> guestUsers = ctx.value(EVENT_GUEST)==null ? new ArrayList<>():ctx.value(EVENT_GUEST);
     Event event = ctx.value(EVENT_AGENDA);
     Long modifierId = ctx.value(EVENT_MODIFIER);
     if (modifierId == null) {
@@ -80,7 +82,7 @@ public class DatePollNotificationPlugin extends BaseNotificationPlugin {
     NotificationInfo notification = NotificationInfo.instance();
     notification.key(getId());
     if (event.getId() > 0) {
-      setNotificationRecipients(identityManager, notification, spaceService, eventAttendees, event, typeModification, modifierId);
+      setNotificationRecipients(identityManager, notification, spaceService, eventAttendees,guestUsers, event, typeModification, modifierId);
     }
     if (notification.getSendToUserIds() == null || notification.getSendToUserIds().isEmpty()) {
       LOG.debug("Notification type '{}' doesn't have a recipient", getId());

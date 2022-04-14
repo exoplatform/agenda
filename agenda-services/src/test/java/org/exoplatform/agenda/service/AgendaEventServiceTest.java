@@ -2647,8 +2647,12 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(event.getId()).getEventAttendees();
     eventAttendees.add(new EventAttendee(0, event.getId(), Long.parseLong(spaceIdentity.getId()), null));
+    List<GuestUser> guestUsers = agendaEventGuestService.getEventGuests(event.getId());
+    List<EventConference> conferences= agendaEventConferenceService.getEventConferences(event.getId());
     agendaEventAttendeeService.saveEventAttendees(event,
                                                   eventAttendees,
+                                                  guestUsers,
+                                                  conferences,
                                                   testuser1Id,
                                                   false,
                                                   false,
@@ -2767,8 +2771,13 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(event.getId()).getEventAttendees();
     eventAttendees.add(new EventAttendee(0, event.getId(), Long.parseLong(spaceIdentity.getId()), null));
+
+    List<GuestUser> guestUsers = agendaEventGuestService.getEventGuests(event.getId());
+    List<EventConference> conferences= agendaEventConferenceService.getEventConferences(event.getId());
     agendaEventAttendeeService.saveEventAttendees(event,
                                                   eventAttendees,
+                                                  guestUsers,
+                                                  conferences,
                                                   testuser1Id,
                                                   false,
                                                   false,
@@ -2805,6 +2814,8 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     eventAttendees.add(new EventAttendee(0, event.getId(), Long.parseLong(testuser4Identity.getId()), null));
     agendaEventAttendeeService.saveEventAttendees(event,
                                                   eventAttendees,
+                                                  guestUsers,
+                                                  conferences,
                                                   testuser1Id,
                                                   false,
                                                   false,

@@ -652,9 +652,8 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       }
 
       List<GuestUserEntity> guestUserEntities = eventEntity.getGuestUsers();
-      List<GuestUser> guestUsers = null;
+      List<GuestUser> guestUsers = new ArrayList<>();
       if (guestUserEntities != null && !guestUserEntities.isEmpty()) {
-        guestUsers = new ArrayList<>();
         for (GuestUserEntity guestUserEntity : guestUserEntities) {
           guestUsers.add(RestEntityBuilder.toGuestUser(eventEntity.getId(), guestUserEntity));
         }

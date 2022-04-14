@@ -126,6 +126,25 @@ public interface AgendaEventService {
                                          ZonedDateTime occurrenceId) throws AgendaException;
 
   /**
+   * Create a new exceptional occurrence for a parent recurrent event
+   *
+   * @param eventId technical identifier of parent recurrent event
+   * @param attendees {@link List} of attendees
+   * @param guestUsers {@link List} of guestUsers
+   * @param conferences {@link List} of conferences
+   * @param reminders {@link List} of reminders
+   * @param occurrenceId event occurent identifier
+   * @return newly created {@link Event}
+   * @throws AgendaException when the event attributes aren't valid
+   */
+  Event createEventExceptionalOccurrence(long eventId,
+                                         List<EventAttendee> attendees,
+                                         List<GuestUser> guestUsers,
+                                         List<EventConference> conferences,
+                                         List<EventReminder> reminders,
+                                         ZonedDateTime occurrenceId) throws AgendaException;
+
+  /**
    * Creates an exceptional occurrence for a recurrent event and occurrence ID
    * 
    * @param eventId parent recurrent event identifier
