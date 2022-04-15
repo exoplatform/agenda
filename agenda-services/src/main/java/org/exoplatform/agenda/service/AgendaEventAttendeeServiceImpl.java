@@ -82,6 +82,8 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
   @Override
   public Set<AgendaEventModificationType> saveEventAttendees(Event event,
                                                              List<EventAttendee> attendees,
+                                                             List<GuestUser> guestUsers,
+                                                             List<EventConference> conferences,
                                                              long creatorUserId,
                                                              boolean sendInvitations,
                                                              boolean resetResponses,
@@ -97,7 +99,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     processAttendeesToDelete(oldAttendees, newAttendees, eventModificationTypes);
     processAttendeesToCreate(eventId, eventStatus, oldAttendees, newAttendees, resetResponses, eventModificationTypes);
     processAttendeesToUpdate(eventId, oldAttendees, newAttendees, resetResponses);
-    processSendingInvitation(event, attendees, sendInvitations, eventModifications);
+    processSendingInvitation(event, attendees,guestUsers,conferences, sendInvitations, eventModifications);
 
     Utils.broadcastEvent(listenerService, "exo.agenda.event.attendees.saved", eventId, 0);
 
@@ -337,9 +339,15 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    * {@inheritDoc}
    */
   @Override
-  public void sendInvitations(Event event, List<EventAttendee> eventAttendees, AgendaEventModification eventModifications) {
+  public void sendInvitations(Event event, List<EventAttendee> eventAttendees,List<GuestUser> eventGuests,List<EventConference> conferences, AgendaEventModification eventModifications) {
     NotificationContext ctx = NotificationContextImpl.cloneInstance();
     ctx.append(EVENT_AGENDA, event);
+    if(!conferences.isEmpty()){
+      ctx.append(WEBCONFERENCE_LINK,conferences.get(0).getUrl());
+    }
+    if(eventGuests != null){
+      ctx.append(EVENT_GUEST, eventGuests);
+    }
     ctx.append(EVENT_ATTENDEE, eventAttendees);
     ctx.append(EVENT_MODIFIER, eventModifications.getModifierId());
 
@@ -444,13 +452,15 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
 
   private void processSendingInvitation(Event event,
                                         List<EventAttendee> attendees,
+                                        List<GuestUser> guestUsers,
+                                        List<EventConference> conferences,
                                         boolean sendInvitations,
                                         AgendaEventModification eventModifications) {
     if (sendInvitations) {
       if (event.getStatus() == EventStatus.CANCELLED) {
         eventModifications.setModificationTypes(Collections.singleton(AgendaEventModificationType.DELETED));
       }
-      sendInvitations(event, attendees, eventModifications);
+      sendInvitations(event, attendees,guestUsers,conferences, eventModifications);
     }
   }
 

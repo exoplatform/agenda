@@ -39,6 +39,8 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
 
   private AgendaUserSettingsService  agendaUserSettingsService;
 
+  private AgendaEventGuestService    agendaEventGuestService;
+
   private SpaceService               spaceService;
 
   private IdentityManager            identityManager;
@@ -109,6 +111,7 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
       TemplateContext templateContext = buildTemplateParameters(username,
                                                                 getSpaceService(),
                                                                 getAgendaEventAttendeeService(),
+                                                                getAgendaEventGuestService(),
                                                                 templateProvider,
                                                                 notification,
                                                                 timeZone);
@@ -174,7 +177,12 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
     }
     return agendaEventAttendeeService;
   }
-
+  private AgendaEventGuestService getAgendaEventGuestService() {
+    if (agendaEventGuestService == null) {
+      agendaEventGuestService = this.container.getComponentInstanceOfType(AgendaEventGuestService.class);
+    }
+    return agendaEventGuestService;
+  }
   private IdentityManager getIdentityManager() {
     if (identityManager == null) {
       identityManager = this.container.getComponentInstanceOfType(IdentityManager.class);
