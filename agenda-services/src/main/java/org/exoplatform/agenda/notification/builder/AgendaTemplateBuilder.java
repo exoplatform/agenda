@@ -2,9 +2,13 @@ package org.exoplatform.agenda.notification.builder;
 
 import static org.exoplatform.agenda.util.NotificationUtils.*;
 
+import java.io.ByteArrayInputStream;
 import java.io.Writer;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.Date;
 
 import org.apache.commons.lang.StringUtils;
 
@@ -12,6 +16,8 @@ import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.model.AgendaUserSettings;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.service.*;
+import org.exoplatform.agenda.util.AgendaDateUtils;
+import org.exoplatform.agenda.util.NotificationUtils;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.channel.template.AbstractTemplateBuilder;
@@ -20,14 +26,19 @@ import org.exoplatform.commons.api.notification.model.*;
 import org.exoplatform.commons.api.notification.service.template.TemplateContext;
 import org.exoplatform.commons.notification.template.TemplateUtils;
 import org.exoplatform.container.ExoContainer;
+import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
+import org.exoplatform.services.mail.Attachment;
+import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.spi.SpaceService;
 
 import groovy.text.GStringTemplateEngine;
 import groovy.text.Template;
+
+import javax.ws.rs.core.MediaType;
 
 public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
 
@@ -116,6 +127,7 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
                                                                 notification,
                                                                 timeZone);
       MessageInfo messageInfo = buildMessageSubjectAndBody(templateContext, notification, pushNotificationURL);
+      addIcsFile(notification, messageInfo);
       Throwable exception = templateContext.getException();
       logException(notification, exception);
       ctx.setException(exception);
@@ -128,6 +140,45 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
     } finally {
       RequestLifeCycle.end();
     }
+  }
+
+  private void addIcsFile(NotificationInfo notification, MessageInfo messageInfo) {
+    Attachment attachment = new Attachment();
+    String icsContent = "BEGIN:VCALENDAR\n";
+    icsContent += "VERSION:2.0\n";
+    icsContent += "PRODID:-//eXo Plaform//EN\n";
+    icsContent += "CALSCALE:GREGORIAN\n";
+    icsContent += "METHOD:PUBLISH\n";
+    icsContent += "BEGIN:VEVENT\n";
+    DateFormat dateFormat = new SimpleDateFormat("yyyyMMdd'T'HHmmss");
+    Date startDate = AgendaDateUtils.parseRFC3339Date(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_START_DATE));
+    icsContent += "DTSTART:" + dateFormat.format(startDate) + "\n";
+    Date endDate = AgendaDateUtils.parseRFC3339Date(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_END_DATE));
+    icsContent += "DTEND:" + dateFormat.format(endDate) + "\n";
+    String description = "";
+    if (notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_DESCRIPTION) != null) {
+      description = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_DESCRIPTION).replace("\n", "\\n");
+    }
+    if (notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_CONFERENCE) != null) {
+      if (!description.isEmpty()) {
+        description += "\\n";
+      }
+      description += "Webconference : " + notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_CONFERENCE);
+    }
+    if (!description.isEmpty()) {
+      icsContent += "DESCRIPTION:" + description + "\n";
+    }
+    if (notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_LOCATION) != null) {
+      icsContent += "LOCATION:" + notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_LOCATION) + "\n";
+    }
+    icsContent += "ORGANIZER;CN=" + notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_CREATOR)
+        + ":MAILTO:noreply@noreply.com\n";
+    icsContent += "SUMMARY:" + notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_TITLE) + "\n";
+    icsContent += "END:VEVENT\n";
+    icsContent += "END:VCALENDAR";
+    attachment.setInputStream(new ByteArrayInputStream(icsContent.getBytes()));
+    attachment.setMimeType("text/calendar;charset=utf-8;method=PUBLISH");
+    messageInfo.addAttachment(attachment);
   }
 
   @Override
