@@ -193,7 +193,11 @@ export function toDate(date) {
     return new Date(date);
   } else if (typeof date === 'string') {
     if (date.indexOf('T') === 10 && date.length > 19) {
-      date = date.substring(0, 19);
+      // Delete TimeZone information
+      return new Date(date.substring(0, 19));
+    } else if (date.length === 10) {
+      // Ensure that TimeZone information doesn't alter the real day of the event
+      return new Date(`${date} 00:00:00`);
     }
     return new Date(date);
   } else if (typeof date === 'object') {
