@@ -94,9 +94,11 @@ export default {
       }
       const date = this.$agendaUtils.toDate(this.startDate);
       const newDate = this.$agendaUtils.toDate(this.event.startDate);
-      newDate.setFullYear(date.getFullYear());
+      const day = date.getDate();
+      newDate.setDate(1);
       newDate.setMonth(date.getMonth());
-      newDate.setDate(date.getDate());
+      newDate.setFullYear(date.getFullYear());
+      newDate.setDate(day);
       this.event.startDate = newDate;
       this.event.start = this.$agendaUtils.toRFC3339(this.event.startDate);
       this.endDate = this.$agendaUtils.toDate(newDate.getTime() + this.duration);
