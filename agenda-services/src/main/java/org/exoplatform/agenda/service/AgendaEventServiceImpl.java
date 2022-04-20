@@ -356,19 +356,18 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       remoteEvent.setEventId(createdEvent.getId());
       remoteEventService.saveRemoteEvent(remoteEvent);
     }
-    if (guestUsers != null && !guestUsers.isEmpty()) {
-      agendaEventGuestService.saveEventGuests(eventId, guestUsers);
-    }
     if (attendees != null && !attendees.isEmpty()) {
       attendeeService.saveEventAttendees(createdEvent,
                                          attendees,
-                                         guestUsers,
-                                         conferences,
                                          userIdentityId,
                                          sendInvitation,
                                          false,
                                          eventModifications);
     }
+    if (guestUsers != null && !guestUsers.isEmpty()) {
+      agendaEventGuestService.saveEventGuests(eventId, guestUsers);
+    }
+
     if (createdEvent.getStatus() == EventStatus.TENTATIVE) {
       Utils.broadcastEvent(listenerService, Utils.POST_CREATE_AGENDA_EVENT_POLL, eventModifications, null);
     } else if (createdEvent.getStatus() == EventStatus.CONFIRMED) {
@@ -412,15 +411,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                                 List<EventConference> conferences,
                                                 List<EventReminder> reminders,
                                                 ZonedDateTime occurrenceId) throws AgendaException {
-    return createEventExceptionalOccurrence(eventId,attendees,new ArrayList<>(),conferences,reminders,occurrenceId);
-  }
-
-  public Event createEventExceptionalOccurrence(long eventId,
-                                                List<EventAttendee> attendees,
-                                                List<GuestUser> guestUsers,
-                                                List<EventConference> conferences,
-                                                List<EventReminder> reminders,
-                                                ZonedDateTime occurrenceId) throws AgendaException {
     Event parentEvent = agendaEventStorage.getEventById(eventId);
     if (parentEvent == null) {
       throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
@@ -433,17 +423,17 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     occurrenceId = Utils.getOccurrenceId(allDay, occurrenceId, parentEvent.getTimeZoneId());
     LocalDate occurrenceDateUTC = occurrenceId.toLocalDate();
     LocalDate overallStartDate = parentEvent.getRecurrence()
-            .getOverallStart()
-            .withZoneSameInstant(ZoneOffset.UTC)
-            .toLocalDate();
+                                            .getOverallStart()
+                                            .withZoneSameInstant(ZoneOffset.UTC)
+                                            .toLocalDate();
     if (overallStartDate.minusDays(1).isAfter(occurrenceDateUTC)) {
       throw new IllegalStateException("Event with id " + eventId + " doesn't have an occurrence with id " + occurrenceDateUTC
-              + ". Recurrent Event overall start equals to " + overallStartDate);
+          + ". Recurrent Event overall start equals to " + overallStartDate);
     }
     ZonedDateTime overallEnd = parentEvent.getRecurrence().getOverallEnd();
     LocalDate overAllEndDate = overallEnd == null ? null
-            : overallEnd.withZoneSameInstant(ZoneOffset.UTC)
-            .toLocalDate();
+                                                  : overallEnd.withZoneSameInstant(ZoneOffset.UTC)
+                                                              .toLocalDate();
     if (overAllEndDate != null && overAllEndDate.isBefore(occurrenceDateUTC)) {
       throw new IllegalStateException("Event with id " + eventId + " doesn't have an occurrence with id " + occurrenceId);
     }
@@ -499,13 +489,11 @@ public class AgendaEventServiceImpl implements AgendaEventService {
         attendee.setEventId(exceptionalEventId);
       });
       attendeeService.saveEventAttendees(exceptionalEvent,
-                                        attendees,
-                                        guestUsers,
-                                        conferences,
-                                        0,
-                                        false,
-                                        exceptionalEvent.getStatus() != EventStatus.CONFIRMED,
-                                        null);
+                                         attendees,
+                                         0,
+                                         false,
+                                         exceptionalEvent.getStatus() != EventStatus.CONFIRMED,
+                                         null);
     }
     return exceptionalEvent;
   }
@@ -661,11 +649,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     boolean resetResponses =
                            (updatedEvent.getStatus() == EventStatus.TENTATIVE || storedEvent.getStatus() == EventStatus.TENTATIVE)
                                && updatedEvent.getStatus() != storedEvent.getStatus();
-    conferences = conferences==null ? new ArrayList<>() : conferences;
     Set<AgendaEventModificationType> attendeeModifications = attendeeService.saveEventAttendees(updatedEvent,
                                                                                                 attendees,
-                                                                                                guestUsers,
-                                                                                                conferences,
                                                                                                 userIdentityId,
                                                                                                 sendInvitation,
                                                                                                 resetResponses,
@@ -769,9 +754,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
     if (sendInvitations) {
       List<EventAttendee> eventAttendees = attendeeService.getEventAttendees(eventId).getEventAttendees();
-      List<GuestUser> guestUsers = agendaEventGuestService.getEventGuests(eventId);
-      List<EventConference> conferences= conferenceService.getEventConferences(eventId);
-      attendeeService.sendInvitations(event, eventAttendees,guestUsers,conferences, eventModifications);
+      attendeeService.sendInvitations(event, eventAttendees, eventModifications);
     }
 
     Utils.broadcastEvent(listenerService, Utils.POST_UPDATE_AGENDA_EVENT_EVENT, eventModifications, null);
@@ -796,16 +779,14 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       throw new IllegalAccessException("User " + userIdentityId + " hasn't enough privileges to delete event with id " + eventId);
     }
     EventAttendeeList eventAttendeeList = attendeeService.getEventAttendees(event.getId());
-    List<GuestUser> guestUsers = agendaEventGuestService.getEventGuests(eventId);
 
-    List<EventConference> conferences= conferenceService.getEventConferences(eventId);
     agendaEventStorage.deleteEventById(eventId);
 
     event.setModifierId(userIdentityId);
 
     AgendaEventModification eventModifications = new AgendaEventModification(eventId, event.getCalendarId(), userIdentityId);
     eventModifications.addModificationType(AgendaEventModificationType.DELETED);
-    attendeeService.sendInvitations(event, eventAttendeeList.getEventAttendees(),guestUsers,conferences, eventModifications);
+    attendeeService.sendInvitations(event, eventAttendeeList.getEventAttendees(), eventModifications);
     Utils.broadcastEvent(listenerService, Utils.POST_DELETE_AGENDA_EVENT_EVENT, eventModifications, null);
     return event;
   }
@@ -1086,7 +1067,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
     attendeeService.sendEventResponse(eventId, userIdentityId, EventAttendeeResponse.ACCEPTED);
     datePollService.selectEventDateOption(dateOptionId);
-    List<GuestUser> guestUsers = agendaEventGuestService.getEventGuests(eventId);
+
     Set<AgendaEventModificationType> modificationTypes = new HashSet<>();
     modificationTypes.add(AgendaEventModificationType.UPDATED);
     modificationTypes.add(AgendaEventModificationType.DATE_OPTION_SELECTED);
@@ -1095,8 +1076,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                                                              event.getCalendarId(),
                                                                              userIdentityId,
                                                                              modificationTypes);
-    List<EventConference> conferences= conferenceService.getEventConferences(eventId);
-    attendeeService.sendInvitations(event, eventAttendees,guestUsers,conferences, eventModifications);
+    attendeeService.sendInvitations(event, eventAttendees, eventModifications);
     Utils.broadcastEvent(listenerService, Utils.POST_UPDATE_AGENDA_EVENT_EVENT, eventModifications, null);
   }
 
