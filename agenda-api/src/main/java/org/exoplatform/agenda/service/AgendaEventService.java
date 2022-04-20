@@ -141,37 +141,6 @@ public interface AgendaEventService {
    * 
    * @param event {@link Event} to create
    * @param attendees event attendees of type {@link EventAttendee}
-   * @param guestUsers event attendees of type {@link GuestUser}
-   * @param conferences event conferences of type {@link EventConference}
-   * @param reminders {@link List} of preferred user reminders of type
-   *          {@link EventReminder}
-   * @param dateOptions {@link List} of {@link EventDateOption} of corresponding
-   *          event
-   * @param remoteEvent {@link RemoteEvent} of synchronized event by user to
-   *          remote connector
-   * @param sendInvitation whether send invitation to attendees or not
-   * @param userIdentityId user {@link Identity} identifier
-   * @return Created {@link Event} with technichal identifier
-   * @throws IllegalAccessException when user is not allowed to create event on
-   *           calendar
-   * @throws AgendaException when the event attributes aren't valid
-   */
-  Event createEvent(Event event,
-                    List<EventAttendee> attendees,
-                    List<GuestUser> guestUsers,
-                    List<EventConference> conferences,
-                    List<EventReminder> reminders,
-                    List<EventDateOption> dateOptions,
-                    RemoteEvent remoteEvent,
-                    boolean sendInvitation,
-                    long userIdentityId) throws IllegalAccessException, AgendaException;
-
-  /**
-   * Creates an event in designated calendar or in user personal calendar if
-   * null
-   *
-   * @param event {@link Event} to create
-   * @param attendees event attendees of type {@link EventAttendee}
    * @param conferences event conferences of type {@link EventConference}
    * @param reminders {@link List} of preferred user reminders of type
    *          {@link EventReminder}
@@ -200,39 +169,6 @@ public interface AgendaEventService {
    * {@link Calendar}, else this will duplicate the event and add it into his
    * personal calendar
    * 
-   * @param event {@link Event} to create
-   * @param attendees event attendees of type {@link EventAttendee}
-   * @param guestUsers event attendees of type {@link GuestUser}
-   * @param conferences event conferences of type {@link EventConference}
-   * @param reminders {@link List} of preferred user reminders of type
-   *          {@link EventReminder}
-   * @param dateOptions {@link List} of {@link EventDateOption} of corresponding
-   *          event
-   * @param remoteEvent {@link RemoteEvent} of synchronized event by user to
-   *          remote connector
-   * @param sendInvitation whether re-send invitation to attendees or not
-   * @param userIdentityId user {@link Identity} identifier
-   * @return Updated {@link Event}
-   * @throws IllegalAccessException when user is not allowed to update event
-   * @throws ObjectNotFoundException when the event identified by its technical
-   *           identifier is not found
-   * @throws AgendaException when the event attributes aren't valid
-   */
-  Event updateEvent(Event event,
-                    List<EventAttendee> attendees,
-                    List<GuestUser> guestUsers,
-                    List<EventConference> conferences,
-                    List<EventReminder> reminders,
-                    List<EventDateOption> dateOptions,
-                    RemoteEvent remoteEvent,
-                    boolean sendInvitation,
-                    long userIdentityId) throws IllegalAccessException, ObjectNotFoundException, AgendaException;
-
-  /**
-   * Updates an existing event in-place when the user is owner of parent
-   * {@link Calendar}, else this will duplicate the event and add it into his
-   * personal calendar
-   *
    * @param event {@link Event} to create
    * @param attendees event attendees of type {@link EventAttendee}
    * @param conferences event conferences of type {@link EventConference}
