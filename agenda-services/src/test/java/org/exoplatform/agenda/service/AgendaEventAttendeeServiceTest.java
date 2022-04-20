@@ -20,7 +20,6 @@ import static org.junit.Assert.*;
 
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -293,13 +292,10 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
     eventAttendee = eventAttendee.clone();
     eventAttendee.setId(0);
     eventAttendees.add(eventAttendee);
-    List<GuestUser> guestUsers = agendaEventGuestService.getEventGuests(eventId);
-    List<EventConference> conferences= agendaEventConferenceService.getEventConferences(eventId);
+
     long userIdentityId = Long.parseLong(testuser5Identity.getId());
     agendaEventAttendeeService.saveEventAttendees(event,
                                                   eventAttendees,
-                                                  guestUsers,
-                                                  conferences,
                                                   userIdentityId,
                                                   true,
                                                   true,
@@ -318,8 +314,6 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
 
     agendaEventAttendeeService.saveEventAttendees(event,
                                                   eventAttendees,
-                                                  guestUsers,
-                                                  conferences,
                                                   userIdentityId,
                                                   true,
                                                   true,
@@ -332,8 +326,6 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
     assertEquals(2, eventAttendees.size());
 
     agendaEventAttendeeService.saveEventAttendees(event,
-                                                  Collections.emptyList(),
-                                                  Collections.emptyList(),
                                                   Collections.emptyList(),
                                                   userIdentityId,
                                                   true,
