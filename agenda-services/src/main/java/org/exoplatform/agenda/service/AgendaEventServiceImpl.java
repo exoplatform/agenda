@@ -50,8 +50,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
   private AgendaEventAttendeeService   attendeeService;
 
-  private AgendaEventGuestService      agendaEventGuestService;
-
   private AgendaEventConferenceService conferenceService;
 
   private AgendaEventReminderService   reminderService;
@@ -72,7 +70,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
   public AgendaEventServiceImpl(AgendaCalendarService agendaCalendarService,
                                 AgendaEventAttendeeService attendeeService,
-                                AgendaEventGuestService agendaEventGuestService,
                                 AgendaEventConferenceService conferenceService,
                                 AgendaEventReminderService reminderService,
                                 AgendaRemoteEventService remoteEventService,
@@ -84,7 +81,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                 ListenerService listenerService) {
     this.agendaCalendarService = agendaCalendarService;
     this.attendeeService = attendeeService;
-    this.agendaEventGuestService = agendaEventGuestService;
     this.conferenceService = conferenceService;
     this.reminderService = reminderService;
     this.remoteEventService = remoteEventService;
@@ -237,11 +233,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                            RemoteEvent remoteEvent,
                            boolean sendInvitation,
                            long userIdentityId) throws IllegalAccessException, AgendaException {
-    return createEvent(event,attendees,new ArrayList<> (),conferences,reminders,dateOptions,remoteEvent,sendInvitation,userIdentityId);
-  }
-
-  @Override
-  public Event createEvent(Event event, List<EventAttendee> attendees, List<GuestUser> guestUsers, List<EventConference> conferences, List<EventReminder> reminders, List<EventDateOption> dateOptions, RemoteEvent remoteEvent, boolean sendInvitation, long userIdentityId) throws IllegalAccessException, AgendaException {
     if (userIdentityId <= 0) {
       throw new IllegalArgumentException("userIdentityId is mandatory");
     }
@@ -363,9 +354,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                          sendInvitation,
                                          false,
                                          eventModifications);
-    }
-    if (guestUsers != null && !guestUsers.isEmpty()) {
-      agendaEventGuestService.saveEventGuests(eventId, guestUsers);
     }
 
     if (createdEvent.getStatus() == EventStatus.TENTATIVE) {
@@ -509,14 +497,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                            List<EventDateOption> dateOptions,
                            RemoteEvent remoteEvent,
                            boolean sendInvitation,
-                           long userIdentityId) throws AgendaException, IllegalAccessException, ObjectNotFoundException {
-
-    return updateEvent(event,attendees,new ArrayList<> (),conferences,reminders,dateOptions,remoteEvent,sendInvitation,userIdentityId);
-
-  }
-
-  @Override
-  public Event updateEvent(Event event, List<EventAttendee> attendees, List<GuestUser> guestUsers, List<EventConference> conferences, List<EventReminder> reminders, List<EventDateOption> dateOptions, RemoteEvent remoteEvent, boolean sendInvitation, long userIdentityId) throws IllegalAccessException, ObjectNotFoundException, AgendaException {
+                           long userIdentityId) throws AgendaException, IllegalAccessException {
     if (userIdentityId <= 0) {
       throw new IllegalArgumentException("userIdentityId is mandatory");
     }
@@ -667,12 +648,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       eventModifications.addModificationTypes(dateOptionModifications);
       eventModifications.removeModification(AgendaEventModificationType.START_DATE_UPDATED);
       eventModifications.removeModification(AgendaEventModificationType.END_DATE_UPDATED);
-    }
-    if (guestUsers != null && !guestUsers.isEmpty()) {
-      agendaEventGuestService.saveEventGuests(eventId,
-              guestUsers);
-    }else {
-      agendaEventGuestService.deleteEventGuests(eventId);
     }
 
     Utils.broadcastEvent(listenerService, Utils.POST_UPDATE_AGENDA_EVENT_EVENT, eventModifications, null);

@@ -35,8 +35,6 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
 
   private EventAttendeeDAO   eventAttendeeDAO;
 
-  private GuestUserDAO       guestUserDAO;
-
   private EventReminderDAO   eventReminderDAO;
 
   private EventRecurrenceDAO eventRecurrenceDAO;
@@ -49,7 +47,6 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
 
   public EventDAO(EventConferenceDAO eventConferenceDAO,
                   EventAttendeeDAO eventAttendeeDAO,
-                  GuestUserDAO guestUserDAO,
                   EventReminderDAO eventReminderDAO,
                   EventRecurrenceDAO eventRecurrenceDAO,
                   RemoteEventDAO remoteEventDAO,
@@ -57,7 +54,6 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
                   EventDatePollDAO datePollDAO) {
     this.eventConferenceDAO = eventConferenceDAO;
     this.eventAttendeeDAO = eventAttendeeDAO;
-    this.guestUserDAO = guestUserDAO;
     this.eventReminderDAO = eventReminderDAO;
     this.eventRecurrenceDAO = eventRecurrenceDAO;
     this.remoteEventDAO = remoteEventDAO;
@@ -119,7 +115,6 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
 
     this.eventConferenceDAO.deleteEventConferences(eventId);
     this.eventAttendeeDAO.deleteEventAttendees(eventId);
-    this.guestUserDAO.deleteEventGuests(eventId);
     this.eventReminderDAO.deleteEventReminders(eventId);
     this.remoteEventDAO.deleteRemoteEvents(eventId);
 
