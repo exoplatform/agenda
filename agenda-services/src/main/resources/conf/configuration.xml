@@ -10,19 +10,7 @@
       <properties-param>
         <name>AgendaDatePollFeatureProperties</name>
         <description>Agenda Date Poll Feature enablement flag</description>
-        <property name="exo.feature.agenda.datePoll.enabled" value="${exo.feature.agenda.datePoll.enabled:false}"/>
-      </properties-param>
-    </init-params>
-  </component>
-
-  <component>
-    <key>AgendaGuestInEventFeatureProperties</key>
-    <type>org.exoplatform.container.ExtendedPropertyConfigurator</type>
-    <init-params>
-      <properties-param>
-        <name>AgendaGuestInEventFeatureProperties</name>
-        <description>Agenda Guest In Event Feature enablement flag</description>
-        <property name="exo.feature.agenda.guestInEvent.enabled" value="${exo.feature.agenda.guestInEvent.enabled:false}"/>
+        <property name="exo.feature.agenda.datePoll.enabled" value="${exo.feature.agenda.datePoll.enabled:false}" />
       </properties-param>
     </init-params>
   </component>
