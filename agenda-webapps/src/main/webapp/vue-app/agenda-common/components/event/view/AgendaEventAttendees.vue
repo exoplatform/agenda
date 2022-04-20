@@ -12,20 +12,11 @@
         :creator="event.creator"
         class="mb-4" />
     </div>
-    <div v-if="guestUsers.length > 0" class="ps-5 ms-7 mt-2 flex-column">
-      <agenda-event-guests
-        v-for="guest in guestUsers"
-        :key="guest"
-        :guest="guest"
-        class="mb-4" />
-    </div>
   </div>
 </template>
 
 <script>
-import AgendaEventGuests from './AgendaEventGuests.vue';
 export default {
-  components: { AgendaEventGuests },
   props: {
     event: {
       type: Object,
@@ -33,9 +24,6 @@ export default {
     },
   },
   computed: {
-    guestUsers() {
-      return this.event && this.event.guestUsers || [];
-    },
     attendees() {
       return this.event && this.event.attendees || [];
     },
