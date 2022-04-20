@@ -40,6 +40,6 @@ public interface AgendaEventGuestService {
 
     void deleteEventGuests(long eventId);
 
-    boolean isGuest(String user,String guests,long eventId);
+
 
 }
