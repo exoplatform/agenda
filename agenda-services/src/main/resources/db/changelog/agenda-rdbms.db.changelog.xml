@@ -364,23 +364,5 @@
     <createSequence sequenceName="SEQ_AGENDA_EVENT_DATE_OPTION_ID" startValue="1" />
     <createSequence sequenceName="SEQ_AGENDA_EVENT_DATE_VOTE_ID" startValue="1" /> 
   </changeSet>
-  <changeSet author="agenda" id="1.0.0-28">
-    <createTable tableName="EXO_AGENDA_GUESTS">
-      <column name="EVENT_GUEST_ID" type="BIGINT" autoIncrement="${autoIncrement}" startWith="1">
-        <constraints nullable="false" primaryKey="true" primaryKeyName="PK_AGENDA_GUEST" />
-      </column>
-      <column name="EVENT_ID" type="BIGINT">
-        <constraints nullable="false" foreignKeyName="FK_AGENDA_EVENT_GUEST" references="EXO_AGENDA_EVENT(EVENT_ID)" />
-      </column>
-      <column name="GUEST_EMAIL" type="NVARCHAR(200)">
-        <constraints nullable="false" />
-      </column>
-    </createTable>
-    <modifySql dbms="mysql">
-      <append value=" ENGINE=INNODB CHARSET=UTF8 COLLATE utf8_general_ci" />
-    </modifySql>
-  </changeSet>
-  <changeSet author="agenda" id="1.0.0-29" dbms="oracle,postgresql,hsqldb">
-    <createSequence sequenceName="SEQ_AGENDA_EVENT_GUEST_ID" startValue="1" />
-  </changeSet>
+
 </databaseChangeLog>
