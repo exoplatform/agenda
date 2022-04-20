@@ -140,8 +140,6 @@ public class EventEntity implements Serializable, Cloneable {
 
   private List<EventAttendeeEntity>   attendees;
 
-  private List<GuestUserEntity>   guestUsers;
-
   private List<EventConference>       conferences;
 
   /**
@@ -181,7 +179,6 @@ public class EventEntity implements Serializable, Cloneable {
                            acl,
                            dateOptions,
                            attendees,
-                           guestUsers,
                            conferences,
                            reminders,
                            allowAttendeeToUpdate,
