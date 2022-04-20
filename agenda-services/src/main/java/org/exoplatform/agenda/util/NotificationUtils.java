@@ -14,7 +14,6 @@ import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.service.AgendaEventAttendeeService;
-import org.exoplatform.agenda.service.AgendaEventGuestService;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.NotificationMessageUtils;
 import org.exoplatform.commons.api.notification.channel.template.TemplateProvider;
@@ -49,13 +48,6 @@ public class NotificationUtils {
   @SuppressWarnings("rawtypes")
   public static final ArgumentLiteral<List>                  EVENT_ATTENDEE                                 =
                                                                             new ArgumentLiteral<>(List.class, "eventAttendee");
-  @SuppressWarnings("rawtypes")
-  public static final ArgumentLiteral<List>                  EVENT_GUEST                                 =
-                                                                            new ArgumentLiteral<>(List.class, "eventGuest");
-
-  public static final ArgumentLiteral<String>                  WEBCONFERENCE_LINK                                =
-                                                                                new ArgumentLiteral<>(String.class, "webconferenceLink");
-
 
   public static final ArgumentLiteral<Long>                  EVENT_MODIFIER                                 =
                                                                             new ArgumentLiteral<>(Long.class, "eventModifier");
@@ -158,10 +150,6 @@ public class NotificationUtils {
 
   public static final String                                 STORED_PARAMETER_EVENT_ATTENDEES               = "attendees";
 
-  public static final String                                 STORED_PARAMETER_EVENT_GUEST                   = "guests";
-
-  public static final String                                 STORED_PARAMETER_EVENT_CONFERENCE              = "conference";
-
   public static final String                                 STORED_PARAMETER_EVENT_RECURRENT_DETAILS       = "recurrenceDetails";
 
   public static final String                                 STORED_PARAMETER_EVENT_PARTICIPANT_NAME        = "participantName";
@@ -199,10 +187,6 @@ public class NotificationUtils {
   private static final String                                TEMPLATE_VARIABLE_EVENT_CREATOR                = "creatorName";
 
   private static final String                                TEMPLATE_VARIABLE_EVENT_ATTENDEES              = "attendees";
-
-  private static final String                                TEMPLATE_VARIABLE_EVENT_IS_GUEST              = "isGuest";
-
-  private static final String                                TEMPLATE_VARIABLE_EVENT_CONFERENCE              = "conference";
 
   private static final String                                TEMPLATE_VARIABLE_EVENT_TIMEZONE_NAME          = "timeZoneName";
 
@@ -246,7 +230,6 @@ public class NotificationUtils {
                                                      NotificationInfo notification,
                                                      SpaceService spaceService,
                                                      List<EventAttendee> eventAttendees,
-                                                     List<GuestUser> guestUsers,
                                                      Event event,
                                                      String typeModification,
                                                      long modifierId) {
@@ -275,22 +258,8 @@ public class NotificationUtils {
         participants.add(identity.getId());
       }
     }
-
     String showParticipants = getFullUserName(participants, identityManager);
-    String guests = guestUsers.stream().map(GuestUser::getGuestEmail).collect(Collectors.joining(", "));
-    List<String> listeEmails = guestUsers.stream().map(GuestUser::getGuestEmail).collect(Collectors.toList());
-    for (String email : listeEmails) {
-      recipients.add(email);
-      List<String> allParticipants = List.of(showParticipants.split(","));
-      if (!showParticipants.contains("...") && allParticipants.size() < 3) {
-        showParticipants = showParticipants.concat(", ").concat(email);
-      }else if(!showParticipants.contains("...")){
-        showParticipants = showParticipants.concat("...");
-      }
-    }
-
     notification.with(STORED_PARAMETER_EVENT_ATTENDEES, showParticipants);
-    notification.with(STORED_PARAMETER_EVENT_GUEST, guests);
 
     // After computing all usernames, to whom, notifications will be sent,
     // this deletes the username of modifier/creator user
@@ -302,15 +271,6 @@ public class NotificationUtils {
       }
     }
     notification.to(new ArrayList<>(recipients));
-  }
-
-  public static final void setWebconferenceLink(NotificationInfo notification,
-                                                     String webconferenceLink,
-                                                     Event event) {
-    if (event == null) {
-      throw new IllegalArgumentException("event is null");
-    }
-    notification.with(STORED_PARAMETER_EVENT_CONFERENCE, webconferenceLink);
   }
 
   public static final void setEventReminderNotificationRecipients(IdentityManager identityManager,
@@ -447,34 +407,26 @@ public class NotificationUtils {
   public static final TemplateContext buildTemplateParameters(String username,
                                                               SpaceService spaceService,
                                                               AgendaEventAttendeeService agendaEventAttendeeService,
-                                                              AgendaEventGuestService agendaEventGuestService,
                                                               TemplateProvider templateProvider,
                                                               NotificationInfo notification,
                                                               ZoneId timeZone) {
     String notificationReceiverUserName = notification.getTo();
-
     String language = NotificationPluginUtils.getLanguage(notificationReceiverUserName);
     TemplateContext templateContext = getTemplateContext(templateProvider, notification, language);
 
+    setFooter(notification, templateContext);
     setRead(notification, templateContext);
     setNotificationId(notification, templateContext);
     setLasModifiedTime(notification, templateContext, language);
+
     setIdentityNameAndAvatar(spaceService, notification, templateContext);
     setSpaceName(notification, templateContext);
     setEventDetails(templateContext, notification, timeZone);
-    boolean isGuest = agendaEventGuestService.isGuest(notification.getTo(),notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_GUEST), Long.parseLong(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_ID)));
-    if(isGuest){
-      templateContext.put("FIRSTNAME", notification.getTo());
-    }else {
-      setFooter(notification, templateContext);
-    }
     String modificationStoredType = notification.getValueOwnerParameter(STORED_EVENT_MODIFICATION_TYPE);
     templateContext.put(TEMPLATE_VARIABLE_EVENT_MODIFICATION_TYPE, modificationStoredType);
     templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_CREATOR, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_CREATOR));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_ATTENDEES, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_ATTENDEES));
-    templateContext.put(TEMPLATE_VARIABLE_EVENT_IS_GUEST,isGuest);
-    templateContext.put(TEMPLATE_VARIABLE_EVENT_CONFERENCE, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_CONFERENCE));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_TIMEZONE_NAME,
                         notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_TIMEZONE_NAME));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_STATUS, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_STATUS));
