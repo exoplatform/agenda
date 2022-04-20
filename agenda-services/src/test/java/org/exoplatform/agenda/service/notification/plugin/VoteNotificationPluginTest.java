@@ -33,16 +33,12 @@ public class VoteNotificationPluginTest extends BaseAgendaEventTest {
     event = createEvent(event, modifierId, testuser2Identity, testuser5Identity);
 
     List<EventAttendee> eventAttendees = agendaEventAttendeeService.getEventAttendees(event.getId()).getEventAttendees();
-    List<GuestUser> guestUsers = agendaEventGuestService.getEventGuests(event.getId());
-    List<EventConference> conferences= agendaEventConferenceService.getEventConferences(event.getId());
     eventAttendees.add(new EventAttendee(0,
                                          event.getId(),
                                          Long.parseLong(testuser2Identity.getId()),
                                          EventAttendeeResponse.ACCEPTED));
     agendaEventAttendeeService.saveEventAttendees(event,
                                                   eventAttendees,
-                                                  guestUsers,
-                                                  conferences,
                                                   modifierId,
                                                   false,
                                                   true,
