@@ -19,7 +19,7 @@
         {{ $t('agenda.suggesterRequired') }}
       </span>
     </form>
-        <agenda-notification-alerts v-if="displayAlert" name="event-form" />
+    <agenda-notification-alerts v-if="displayAlert" name="event-form" />
 
     <div v-if="event.attendees" class="identitySuggester no-border mt-0">
       <agenda-event-form-attendee-item
