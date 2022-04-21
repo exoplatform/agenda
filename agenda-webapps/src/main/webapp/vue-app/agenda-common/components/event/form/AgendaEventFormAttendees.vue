@@ -1,20 +1,25 @@
 <template>
   <v-flex class="user-suggester text-truncate">
-    <exo-identity-suggester
-      ref="invitedAttendeeAutoComplete"
-      v-model="invitedAttendee"
-      :labels="participantSuggesterLabels"
-      :title="suggesterStatus"
-      :disabled="disableAttendeeSuggester"
-      :ignore-items="ignoredMembers"
-      :search-options="searchOptions"
-      name="inviteAttendee"
-      no-redactor-space
-      include-users
-      include-spaces />
-    <span v-if="disableAttendeeSuggester" class="error--text">
-      {{ $t('agenda.suggesterRequired') }}
-    </span>
+    <form
+      ref="form"
+      @keypress="checkGuestInvitation($event)">
+      <exo-identity-suggester
+        ref="invitedAttendeeAutoComplete"
+        v-model="invitedAttendee"
+        :labels="participantSuggesterLabels"
+        :title="suggesterStatus"
+        :disabled="disableAttendeeSuggester"
+        :ignore-items="ignoredMembers"
+        :search-options="searchOptions"
+        name="inviteAttendee"
+        no-redactor-space
+        include-users
+        include-spaces />
+      <span v-if="disableAttendeeSuggester" class="error--text">
+        {{ $t('agenda.suggesterRequired') }}
+      </span>
+    </form>
+    <agenda-notification-alerts v-if="displayAlert" name="event-form" />
     <div v-if="event.attendees" class="identitySuggester no-border mt-0">
       <agenda-event-form-attendee-item
         v-for="attendee in event.attendees"
@@ -136,6 +141,43 @@ export default {
       if (index >= 0) {
         this.event.attendees.splice(index, 1);
       }
+    },
+    checkGuestInvitation(evt) {
+      const self=this;
+      $('form').on('focusout', function(event) {
+        setTimeout(function() {
+          if (!event.delegateTarget.contains(document.activeElement)) {
+            self.saveGuestEmail(event);
+          }
+        }, 1);
+      });
+      // eslint-disable-next-line eqeqeq
+      if (evt.key == 'Enter') {
+        evt.preventDefault();
+        this.saveGuestEmail(evt);   }
+      // eslint-disable-next-line eqeqeq
+      if (evt.keyCode == '32') {
+        this.saveGuestEmail(evt);
+      }
+    },
+    saveGuestEmail() {
+      const reg = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[\d]{1,3}\.[\d]{1,3}\.[\d]{1,3}\.[\d]{1,3}])|(([\w]+\.)+[a-zA-Z]{2,24}))$/;
+      const input = this.$refs.invitedAttendeeAutoComplete.searchTerm;
+      const words = input!== null ? input.split(' ') : '';
+      const email = words[words.length - 1];
+      if (reg.test(email)) {
+        this.event.attendees.push({identity: {
+          id: `${email}`,
+          remoteId: email,
+          identityId: email,
+          providerId: 'GUEST_USER',
+          profile: {
+            fullName: email,
+            avatarUrl: '/portal/rest/v1/social/users/default-image/avatar',
+          },
+        }});
+      }
+      this.$refs.invitedAttendeeAutoComplete.clear();
     },
   }
 };

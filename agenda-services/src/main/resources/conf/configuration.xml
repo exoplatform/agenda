@@ -3,18 +3,6 @@
    xsi:schemaLocation="http://www.exoplatform.org/xml/ns/kernel_1_2.xsd http://www.exoplatform.org/xml/ns/kernel_1_2.xsd"
    xmlns="http://www.exoplatform.org/xml/ns/kernel_1_2.xsd">
 
-  <component>
-    <key>AgendaDatePollFeatureProperties</key>
-    <type>org.exoplatform.container.ExtendedPropertyConfigurator</type>
-    <init-params>
-      <properties-param>
-        <name>AgendaDatePollFeatureProperties</name>
-        <description>Agenda Date Poll Feature enablement flag</description>
-        <property name="exo.feature.agenda.datePoll.enabled" value="${exo.feature.agenda.datePoll.enabled:false}" />
-      </properties-param>
-    </init-params>
-  </component>
-
   <external-component-plugins>
     <target-component>org.exoplatform.commons.api.persistence.DataInitializer</target-component>
     <component-plugin>
