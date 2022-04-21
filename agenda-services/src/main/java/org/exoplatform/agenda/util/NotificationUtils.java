@@ -13,7 +13,9 @@ import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.model.Calendar;
+import org.exoplatform.agenda.plugin.AgendaGuestUserIdentityProvider;
 import org.exoplatform.agenda.service.AgendaEventAttendeeService;
+import org.exoplatform.agenda.service.AgendaEventConferenceService;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.NotificationMessageUtils;
 import org.exoplatform.commons.api.notification.channel.template.TemplateProvider;
@@ -150,6 +152,8 @@ public class NotificationUtils {
 
   public static final String                                 STORED_PARAMETER_EVENT_ATTENDEES               = "attendees";
 
+  public static final String                                 STORED_PARAMETER_EVENT_CONFERENCE              = "conference";
+
   public static final String                                 STORED_PARAMETER_EVENT_RECURRENT_DETAILS       = "recurrenceDetails";
 
   public static final String                                 STORED_PARAMETER_EVENT_PARTICIPANT_NAME        = "participantName";
@@ -187,6 +191,10 @@ public class NotificationUtils {
   private static final String                                TEMPLATE_VARIABLE_EVENT_CREATOR                = "creatorName";
 
   private static final String                                TEMPLATE_VARIABLE_EVENT_ATTENDEES              = "attendees";
+
+  private static final String                                TEMPLATE_VARIABLE_EVENT_IS_GUEST               = "isGuest";
+
+  private static final String                                TEMPLATE_VARIABLE_EVENT_CONFERENCE             = "conference";
 
   private static final String                                TEMPLATE_VARIABLE_EVENT_TIMEZONE_NAME          = "timeZoneName";
 
@@ -253,7 +261,8 @@ public class NotificationUtils {
         if (memberSpace != null) {
           recipients.addAll(memberSpace);
         }
-      } else if (identity.getProviderId().equals(OrganizationIdentityProvider.NAME)) {
+      } else if (identity.getProviderId().equals(OrganizationIdentityProvider.NAME)
+          || identity.getProviderId().equals(AgendaGuestUserIdentityProvider.NAME)) {
         recipients.add(identity.getRemoteId());
         participants.add(identity.getId());
       }
@@ -323,6 +332,11 @@ public class NotificationUtils {
       identity = Utils.getIdentityById(identityManager, modifierId);
       notification.with(STORED_PARAMETER_EVENT_MODIFIER, getEventNotificationCreatorOrModifierUserName(identity))
                   .with(STORED_PARAMETER_MODIFIER_IDENTITY_ID, String.valueOf(modifierId));
+    }
+
+    String webConferenceLink = getWebConferenceLink(event);
+    if (webConferenceLink != null) {
+      notification.with(STORED_PARAMETER_EVENT_CONFERENCE, webConferenceLink);
     }
   }
 
@@ -422,6 +436,7 @@ public class NotificationUtils {
     setIdentityNameAndAvatar(spaceService, notification, templateContext);
     setSpaceName(notification, templateContext);
     setEventDetails(templateContext, notification, timeZone);
+    setIsGuest(username, templateContext);
     String modificationStoredType = notification.getValueOwnerParameter(STORED_EVENT_MODIFICATION_TYPE);
     templateContext.put(TEMPLATE_VARIABLE_EVENT_MODIFICATION_TYPE, modificationStoredType);
     templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
@@ -452,6 +467,11 @@ public class NotificationUtils {
           || StringUtils.equals("0", identityId) ? "" : getUserAbsoluteURI(identityId);
       templateContext.put(TEMPLATE_VARIABLE_MODIFIER_IDENTITY_URL, userAbsoluteURI);
     }
+    if (notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_CONFERENCE) != null) {
+      templateContext.put(TEMPLATE_VARIABLE_EVENT_CONFERENCE,
+                          notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_CONFERENCE));
+    }
+
     return templateContext;
   }
 
@@ -713,6 +733,16 @@ public class NotificationUtils {
     templateContext.put(TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR, avatarUrl);
   }
 
+  private static final void setIsGuest(String username, TemplateContext templateContext) {
+    IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
+    Identity identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+    if (identity == null) {
+      identity = identityManager.getOrCreateIdentity(AgendaGuestUserIdentityProvider.NAME, username);
+    }
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_IS_GUEST,
+                        identity != null && identity.getProviderId().equals(AgendaGuestUserIdentityProvider.NAME));
+  }
+
   private static final String setParticipantAvatarUrl(Identity identity) {
     return identity.getProfile().getAvatarUrl();
   }
@@ -841,6 +871,18 @@ public class NotificationUtils {
       showParticipants.add(displaySpaceName);
     }
     return String.join(", ", showParticipants);
+  }
+
+  public static String getWebConferenceLink(Event event) {
+    AgendaEventConferenceService agendaEventConferenceService =
+                                                              ExoContainerContext.getService(AgendaEventConferenceService.class);
+    List<EventConference> webConferences = agendaEventConferenceService.getEventConferences(event.getId());
+    if (webConferences != null && !webConferences.isEmpty()) {
+      return webConferences.get(0).getUrl();
+    } else {
+      return null;
+    }
+
   }
 
 }
