@@ -194,6 +194,25 @@
     <type>org.exoplatform.agenda.dao.EventDateVoteDAO</type>
   </component>
 
+  <component>
+    <type>org.exoplatform.agenda.plugin.AgendaGuestUserIdentityProvider</type>
+  </component>
+
+  <external-component-plugins>
+    <target-component>org.exoplatform.social.core.manager.IdentityManager</target-component>
+    <component-plugin>
+      <name>AgendaGuestUserIdentityProvider plugin</name>
+      <set-method>registerIdentityProviders</set-method>
+      <type>org.exoplatform.social.core.identity.IdentityProviderPlugin</type>
+      <init-params>
+        <values-param>
+          <name>providers</name>
+          <value>org.exoplatform.agenda.plugin.AgendaGuestUserIdentityProvider</value>
+        </values-param>
+      </init-params>
+    </component-plugin>
+  </external-component-plugins>
+
   <external-component-plugins>
     <target-component>org.exoplatform.social.core.space.spi.SpaceService</target-component>
     <component-plugin>

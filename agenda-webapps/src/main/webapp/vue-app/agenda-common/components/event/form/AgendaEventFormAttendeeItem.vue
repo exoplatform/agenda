@@ -34,7 +34,7 @@ export default {
     },
     avatarUrl() {
       const profile = this.attendee.identity && (this.attendee.identity.profile || this.attendee.identity.space);
-      return profile && (profile.avatarUrl || profile.avatar);
+      return profile && (profile.avatarUrl || profile.avatar || '/portal/rest/v1/social/users/default-image/avatar');
     },
     displayName() {
       const profile = this.attendee.identity && (this.attendee.identity.profile || this.attendee.identity.space);
