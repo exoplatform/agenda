@@ -89,7 +89,7 @@ export default {
         ...this.tentativeResponses,
         ...this.refusedResponses,
         ...this.needsActionResponses,
-        ...this.participatingSpaceAttendees
+        ...this.participatingSpaceAttendees,
       ];
       return displayedAttendees;
     },

@@ -33,6 +33,18 @@
       :class="responseIconResponse"
       class="my-auto text-right"></span>
   </div>
+  <div v-else-if="isAttendeeGuest" class="attendee">
+    <v-avatar
+      left
+      size="32"
+      class="mx-0 my-auto ">
+      <v-img
+        src="/portal/rest/v1/social/users/default-image/avatar" />
+    </v-avatar>
+    <span class="mx-1 my-auto primary--text">
+      {{ this.attendee.identity.remoteId }} ({{ $t('agenda.label.guest') }})
+    </span>
+  </div>
 </template>
 <script>
 export default {
@@ -61,6 +73,9 @@ export default {
     },
     isAttendeeSpace() {
       return this.attendee && this.attendee.identity && this.attendee.identity.providerId === 'space';
+    },
+    isAttendeeGuest() {
+      return this.attendee && this.attendee.identity && this.attendee.identity.providerId === 'GUEST_USER';
     },
     attendeeSpace() {
       if (!this.isAttendeeSpace) {
