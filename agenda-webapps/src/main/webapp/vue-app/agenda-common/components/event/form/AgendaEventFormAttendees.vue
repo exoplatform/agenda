@@ -1,20 +1,26 @@
 <template>
   <v-flex class="user-suggester text-truncate">
-    <exo-identity-suggester
-      ref="invitedAttendeeAutoComplete"
-      v-model="invitedAttendee"
-      :labels="participantSuggesterLabels"
-      :title="suggesterStatus"
-      :disabled="disableAttendeeSuggester"
-      :ignore-items="ignoredMembers"
-      :search-options="searchOptions"
-      name="inviteAttendee"
-      no-redactor-space
-      include-users
-      include-spaces />
-    <span v-if="disableAttendeeSuggester" class="error--text">
-      {{ $t('agenda.suggesterRequired') }}
-    </span>
+    <form
+      ref="form"
+      @keypress="checkGuestInvitation($event)">
+      <exo-identity-suggester
+        ref="invitedAttendeeAutoComplete"
+        v-model="invitedAttendee"
+        :labels="participantSuggesterLabels"
+        :title="suggesterStatus"
+        :disabled="disableAttendeeSuggester"
+        :ignore-items="ignoredMembers"
+        :search-options="searchOptions"
+        name="inviteAttendee"
+        no-redactor-space
+        include-users
+        include-spaces />
+      <span v-if="disableAttendeeSuggester" class="error--text">
+        {{ $t('agenda.suggesterRequired') }}
+      </span>
+    </form>
+    <agenda-notification-alerts v-if="displayAlert" name="event-form" />
+
     <div v-if="event.attendees" class="identitySuggester no-border mt-0">
       <agenda-event-form-attendee-item
         v-for="attendee in event.attendees"
