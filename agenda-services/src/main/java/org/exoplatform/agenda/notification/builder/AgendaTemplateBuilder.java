@@ -134,8 +134,6 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
     }
   }
 
-
-
   @Override
   protected boolean makeDigest(NotificationContext notificationContext, Writer writer) {
     return false;
