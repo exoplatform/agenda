@@ -104,11 +104,12 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
       long identityId = Utils.getIdentityIdByUsername(getIdentityManager(), username);
       AgendaUserSettings agendaUserSettings = getAgendaUserSettingsService().getAgendaUserSettings(identityId);
       ZoneId timeZone;
-      if (agendaUserSettings == null || agendaUserSettings.getTimeZoneId() == null) {
-        assert event != null;
+      if (agendaUserSettings != null && agendaUserSettings.getTimeZoneId() != null) {
+        timeZone = ZoneId.of(agendaUserSettings.getTimeZoneId());
+      } else if (event != null) {
         timeZone = event.getTimeZoneId();
       } else {
-        timeZone = ZoneId.of(agendaUserSettings.getTimeZoneId());
+        timeZone = ZoneOffset.UTC;
       }
 
       TemplateContext templateContext = buildTemplateParameters(username,
