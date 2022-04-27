@@ -1,12 +1,23 @@
 package org.exoplatform.agenda.util;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.time.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import net.fortuna.ical4j.data.CalendarOutputter;
+import net.fortuna.ical4j.model.DateTime;
+import net.fortuna.ical4j.model.component.VEvent;
+import net.fortuna.ical4j.model.parameter.Cn;
+import net.fortuna.ical4j.model.property.*;
+import net.fortuna.ical4j.util.RandomUidGenerator;
+import net.fortuna.ical4j.util.UidGenerator;
 import org.apache.commons.lang.StringUtils;
 
 import org.exoplatform.agenda.constant.AgendaEventModificationType;
@@ -28,6 +39,7 @@ import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
+import org.exoplatform.services.mail.Attachment;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
@@ -38,6 +50,8 @@ import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.social.notification.LinkProviderUtils;
 import org.exoplatform.social.notification.plugin.SocialNotificationUtils;
 import org.exoplatform.webui.utils.TimeConvertUtils;
+
+import static org.exoplatform.agenda.util.Utils.getICalTimeZone;
 
 public class NotificationUtils {
 
@@ -755,7 +769,8 @@ public class NotificationUtils {
     if (identity == null) {
       templateContext.put(TEMPLATE_VARIABLE_AGENDA_NAME, "");
     } else {
-      String spaceName = spaceService.getSpaceByPrettyName(identity.getRemoteId()).getDisplayName();
+      Space space = spaceService.getSpaceByPrettyName(identity.getRemoteId());
+      String spaceName = space == null ? null : space.getDisplayName();
       templateContext.put(TEMPLATE_VARIABLE_AGENDA_NAME, spaceName);
     }
   }
@@ -883,6 +898,44 @@ public class NotificationUtils {
       return null;
     }
 
+  }
+  public static final void addIcsFile(NotificationInfo notification, MessageInfo messageInfo, ZoneId timeZone) {
+    Attachment attachment = new Attachment();
+    /* Generate unique identifier */
+    UidGenerator ug = new RandomUidGenerator();
+    Uid uid = ug.generateUid();
+    /* Create the event */
+    String eventSummary = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_TITLE);
+    String startDateRFC3339 = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_START_DATE);
+    String endDateRFC3339 = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_END_DATE);
+    ZonedDateTime startDate = ZonedDateTime.parse(startDateRFC3339).withZoneSameInstant(timeZone);
+    ZonedDateTime endDate = ZonedDateTime.parse(endDateRFC3339).withZoneSameInstant(timeZone);
+    net.fortuna.ical4j.model.TimeZone ical4jTimezone = getICalTimeZone(timeZone);
+    DateTime startDateTime = new DateTime(Date.from(startDate.toInstant()), ical4jTimezone);
+    DateTime endDateTime = new DateTime(Date.from(endDate.toInstant()), ical4jTimezone);
+    VEvent vEvent = new VEvent(startDateTime, endDateTime, eventSummary);
+    vEvent.getProperties().add(uid);
+    /* Create calendar */
+    net.fortuna.ical4j.model.Calendar calendar = new net.fortuna.ical4j.model.Calendar();
+    calendar.getProperties().add(new ProdId("PRODID:-//eXo Plaform//EN"));
+    calendar.getProperties().add(Version.VERSION_2_0);
+    calendar.getProperties().add(CalScale.GREGORIAN);
+    Organizer organizer = new Organizer(URI.create("noreply@noreply.com"));
+    organizer.getParameters().add(new Cn(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_CREATOR)));
+    calendar.getProperties().add(organizer);
+    /* Add event to calendar */
+    calendar.getComponents().add(vEvent);
+    CalendarOutputter outputter = new CalendarOutputter();
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+    try {
+      outputter.output(calendar, output);
+      byte[] bytes = output.toByteArray();
+      attachment.setInputStream(new ByteArrayInputStream(bytes));
+      attachment.setMimeType("text/calendar;charset=utf-8;method=PUBLISH");
+      messageInfo.addAttachment(attachment);
+    } catch (IOException e) {
+      throw new IllegalStateException("Unable to convert event '" + eventSummary + "' to iCal format", e);
+    }
   }
 
 }
