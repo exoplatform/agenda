@@ -16,10 +16,16 @@
 */
 package org.exoplatform.agenda.service;
 
+import static org.exoplatform.agenda.util.NotificationUtils.*;
 import static org.junit.Assert.*;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.*;
 import java.util.*;
+
+import org.exoplatform.commons.api.notification.model.MessageInfo;
+import org.exoplatform.commons.api.notification.model.NotificationInfo;
 
 import org.junit.Test;
 
@@ -3279,5 +3285,42 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                   agendaEventService.getPendingEvents(ownerIds, Long.parseLong(testuser3Identity.getId()), ZoneOffset.UTC, 0, 10);
     assertEquals(1, pendingEvents.size());
     assertEquals(exceptionalOccurrenceEvent.getId(), pendingEvents.get(0).getId());
+  }
+
+  @Test
+  public void testAddIcsFile() throws IOException {
+    ZonedDateTime start = getDate();
+    ZonedDateTime end = start.plusHours(1);
+    ZoneId dstTimeZone = ZoneId.of("Europe/Paris");
+
+    NotificationInfo notification = new NotificationInfo();
+    notification.with(STORED_PARAMETER_EVENT_TITLE, "eventSummary")
+            .with(STORED_PARAMETER_EVENT_CREATOR, "Root Root")
+            .with(STORED_PARAMETER_EVENT_START_DATE, AgendaDateUtils.toRFC3339Date(start))
+            .with(STORED_PARAMETER_EVENT_END_DATE, AgendaDateUtils.toRFC3339Date(end));
+
+    MessageInfo messageInfo = new MessageInfo();
+    addIcsFile(notification, messageInfo, dstTimeZone);
+    assertNotNull(messageInfo.getAttachment());
+    assertEquals(1, messageInfo.getAttachment().size());
+    String text = new String(messageInfo.getAttachment().get(0).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+    List<String> lines = text.contains("\r\n") ? List.of(text.split("\r\n")) : List.of(text.split("\n"));
+    String dtStart = lines.stream().filter(s -> s.contains("DTSTART")).findAny().get();
+    String dtEnd = lines.stream().filter(s -> s.contains("DTEND")).findAny().get();
+    assertNotNull(dtStart);
+    assertNotNull(dtEnd);
+    String icsStartDate = dtStart.substring(dtStart.indexOf(":") + 1);
+    String icsEndDate = dtEnd.substring(dtEnd.indexOf(":") + 1);
+
+    String startDateRFC3339 = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_START_DATE);
+    ZonedDateTime startDate = ZonedDateTime.parse(startDateRFC3339).withZoneSameInstant(dstTimeZone);
+    String startDateFormatted = AgendaDateUtils.formatDateTimeWithSeconds(startDate);
+
+    String endDateRFC3339 = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_END_DATE);
+    ZonedDateTime endDate = ZonedDateTime.parse(endDateRFC3339).withZoneSameInstant(dstTimeZone);
+    String endDateFormatted = AgendaDateUtils.formatDateTimeWithSeconds(endDate);
+
+    assertEquals(icsStartDate, startDateFormatted);
+    assertEquals(icsEndDate, endDateFormatted);
   }
 }
