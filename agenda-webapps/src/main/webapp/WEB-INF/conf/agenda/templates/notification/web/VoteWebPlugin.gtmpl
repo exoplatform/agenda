@@ -8,7 +8,7 @@
             <div class="contentSmall" data-link="<%= eventURL %>">
                 <div class="status">
                     <%
-                    String eventTitle = "<span style=\"color: #578dc9; text-decoration: none;font-weight:bold; font-family: 'HelveticaNeue Bold', Helvetica, Arial, sans-serif\" >" + eventTitle + "</span>";
+                    String eventTitle = "<span style=\"color: #476A9C; text-decoration: none;font-weight:bold; font-family: 'HelveticaNeue Bold', Helvetica, Arial, sans-serif\" >" + eventTitle + "</span>";
                     String agendaName = "<a style=\"text-decoration: none; font-weight:bold;font-family: 'HelveticaNeue Bold', Helvetica, Arial, sans-serif\" >" + agendaName +"</a>";
                     String participantName = "<a style=\" text-decoration: none; font-weight:bold;font-family: 'HelveticaNeue Bold', Helvetica, Arial, sans-serif\" >" + participantName +"</a>";
                     %>
