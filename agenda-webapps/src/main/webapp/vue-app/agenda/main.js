@@ -24,7 +24,7 @@ const lang = eXo && eXo.env.portal.language || 'en';
 const url = `${eXo.env.portal.context}/${eXo.env.portal.rest}/i18n/bundle/locale.portlet.Agenda-${lang}.json`;
 
 //used only in mobile statistics
-eXo.env.portal.mainApplicationName = 'Agenda';
+eXo.env.portal.mainApplicationName = 'agenda';
 
 export function init() {
   exoi18n.loadLanguageAsync(lang, url).then(i18n => {
