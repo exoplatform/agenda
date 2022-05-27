@@ -1,25 +1,28 @@
 <template>
-  <div class="d-flex flex-row py-2">
-    <v-avatar
-      height="32"
-      min-height="32"
-      width="32"
-      min-width="32"
-      max-width="32"
-      size="32"
-      class="mx-3 my-auto spaceAvatar space-avatar-header">
-      <v-img :src="ownerAvatarUrl" />
-    </v-avatar>
-    <div class="d-flex flex-grow-1 flex-column align-left">
-      <strong :title="event.summary" class="event-header-title text-truncate">
+<v-container>
+  <v-row align="start" no-gutters >
+    <v-col cols="1" class="mt-1 ml-n2">
+      <v-avatar
+        height="32"
+        min-height="32"
+        width="32"
+        min-width="32"
+        max-width="32"
+        size="32"
+        class="mx-3 my-auto spaceAvatar space-avatar-header">
+        <v-img :src="ownerAvatarUrl" />
+      </v-avatar>
+    </v-col>
+    <v-col cols="8" class="text-truncate ml-6">
+      <strong :title="event.summary" class="event-header-title">
         {{ event.summary }}
       </strong>
       <div class="text-truncate d-flex">
         <span>{{ $t('agenda.label.in') }}</span>
         <a :href="calendarOwnerLink" class="text-truncate calendar-owner-link ps-1">{{ ownerDisplayName }}</a>
       </div>
-    </div>
-    <div class="d-flex flex-grow-0">
+    </v-col>
+    <v-col cols="1">
       <v-menu
         v-if="canEdit"
         bottom
@@ -47,8 +50,8 @@
           </v-list-item>
         </v-list>
       </v-menu>
-    </div>
-    <div class="d-flex flex-grow-0">
+    </v-col>
+    <v-col cols="1" class="ml-n2 mr-2">
       <v-btn
         class="my-auto me-2"
         color="grey"
@@ -58,8 +61,9 @@
           mdi-close
         </v-icon>
       </v-btn>
-    </div>
-  </div>
+    </v-col>
+  </v-row>
+  </v-container>
 </template>
 <script>
 export default {
