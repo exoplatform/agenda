@@ -23,6 +23,8 @@ public class AgendaRemoteEventServiceImpl implements AgendaRemoteEventService {
 
   private static final Log         LOG = ExoLogger.getLogger(AgendaRemoteEventServiceImpl.class);
 
+  private static final String      EXCHANGE_CONNECTOR_NAME = "agenda.exchangeCalendar";
+
   private PortalContainer          portalContainer;
 
   private AgendaRemoteEventStorage remoteEventStorage;
@@ -71,8 +73,9 @@ public class AgendaRemoteEventServiceImpl implements AgendaRemoteEventService {
   @Override
   public RemoteProvider saveRemoteProvider(RemoteProvider remoteProvider) {
     if (remoteProvider.isEnabled() && StringUtils.isBlank(remoteProvider.getApiKey())) {
-      LOG.info("Turning off Agenda remote provider '{}' because no API Key is provided yet", remoteProvider.getName());
-      remoteProvider.setEnabled(false);
+      if(!remoteProvider.getName().equals("agenda.exchangeCalendar"))
+        LOG.info("Turning off Agenda remote provider '{}' because no API Key is provided yet", remoteProvider.getName());
+      remoteProvider.setEnabled(remoteProvider.getName().equals("agenda.exchangeCalendar"));
     }
     return remoteEventStorage.saveRemoteProvider(remoteProvider);
   }
@@ -167,9 +170,9 @@ public class AgendaRemoteEventServiceImpl implements AgendaRemoteEventService {
       remoteProvider = saveRemoteProvider(remoteProvider);
     } else if (StringUtils.isBlank(remoteProvider.getApiKey())) {
       if (StringUtils.isBlank(plugin.getConnectorAPIKey())) {
-        LOG.warn("Agenda connector {} has an empty API key, thus the connector will be disabled",
+        LOG.warn("Agenda connector {} has an empty API key, thus the connector will be disabled except for exchange connector",
                  plugin.getConnectorName());
-        remoteProvider.setEnabled(false);
+        remoteProvider.setEnabled(remoteProvider.getName().equals("agenda.exchangeCalendar"));
       } else {
         remoteProvider.setApiKey(plugin.getConnectorAPIKey());
       }
