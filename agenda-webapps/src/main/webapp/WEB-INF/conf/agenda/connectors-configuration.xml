@@ -67,4 +67,27 @@
     </component-plugin>
   </external-component-plugins>
 
+  <external-component-plugins>
+    <target-component>org.exoplatform.agenda.service.AgendaRemoteEventService</target-component>
+    <component-plugin>
+      <name>Exchange 2016 Remote Connector</name>
+      <set-method>addRemoteProvider</set-method>
+      <type>org.exoplatform.agenda.plugin.RemoteProviderDefinitionPlugin</type>
+      <init-params>
+        <value-param>
+          <name>connectorName</name>
+          <value>agenda.exchangeCalendar</value>
+        </value-param>
+        <value-param>
+          <name>connectorEnabled</name>
+          <value>${exo.agenda.exchange.connector.enabled:true}</value>
+        </value-param>
+        <value-param>
+          <name>connectorAPIKey</name>
+          <value>${exo.agenda.exchange.connector.key:}</value>
+        </value-param>
+      </init-params>
+    </component-plugin>
+  </external-component-plugins>
+
 </configuration> 
