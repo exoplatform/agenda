@@ -92,7 +92,7 @@ public class AgendaRemoteEventServiceImpl implements AgendaRemoteEventService {
     if (remoteProvider == null) {
       throw new IllegalStateException("Remote provider not found with name " + remoteProviderName);
     }
-    if (enabled && StringUtils.isBlank(remoteProvider.getApiKey())) {
+    if (enabled && StringUtils.isBlank(remoteProvider.getApiKey()) && !remoteProvider.getName().equals(EXCHANGE_CONNECTOR_NAME)) {
       throw new IllegalStateException("Can't enable connector " + remoteProviderName + " since it doesn't have an API Key");
     }
     remoteProvider.setEnabled(enabled);
