@@ -23,8 +23,6 @@ public class AgendaRemoteEventServiceImpl implements AgendaRemoteEventService {
 
   private static final Log         LOG = ExoLogger.getLogger(AgendaRemoteEventServiceImpl.class);
 
-  private static final String      EXCHANGE_CONNECTOR_NAME = "agenda.exchangeCalendar";
-
   private PortalContainer          portalContainer;
 
   private AgendaRemoteEventStorage remoteEventStorage;
@@ -72,10 +70,9 @@ public class AgendaRemoteEventServiceImpl implements AgendaRemoteEventService {
    */
   @Override
   public RemoteProvider saveRemoteProvider(RemoteProvider remoteProvider) {
-    if (remoteProvider.isEnabled() && StringUtils.isBlank(remoteProvider.getApiKey())) {
-      if(!remoteProvider.getName().equals(EXCHANGE_CONNECTOR_NAME))
-        LOG.info("Turning off Agenda remote provider '{}' because no API Key is provided yet", remoteProvider.getName());
-      remoteProvider.setEnabled(remoteProvider.getName().equals(EXCHANGE_CONNECTOR_NAME));
+    if (remoteProvider.isEnabled() && StringUtils.isBlank(remoteProvider.getApiKey()) && remoteProvider.isOauth()) {
+      LOG.info("Turning off Agenda remote provider '{}' because no API Key is provided yet", remoteProvider.getName());
+      remoteProvider.setEnabled(false);
     }
     return remoteEventStorage.saveRemoteProvider(remoteProvider);
   }
@@ -84,7 +81,7 @@ public class AgendaRemoteEventServiceImpl implements AgendaRemoteEventService {
    * {@inheritDoc}
    */
   @Override
-  public RemoteProvider saveRemoteProviderStatus(String remoteProviderName, boolean enabled) {
+  public RemoteProvider saveRemoteProviderStatus(String remoteProviderName, boolean enabled, boolean isOauth) {
     if (StringUtils.isBlank(remoteProviderName)) {
       throw new IllegalStateException("remoteProviderName is mandatory");
     }
@@ -92,7 +89,7 @@ public class AgendaRemoteEventServiceImpl implements AgendaRemoteEventService {
     if (remoteProvider == null) {
       throw new IllegalStateException("Remote provider not found with name " + remoteProviderName);
     }
-    if (enabled && StringUtils.isBlank(remoteProvider.getApiKey()) && !remoteProvider.getName().equals(EXCHANGE_CONNECTOR_NAME)) {
+    if (enabled && StringUtils.isBlank(remoteProvider.getApiKey()) && isOauth) {
       throw new IllegalStateException("Can't enable connector " + remoteProviderName + " since it doesn't have an API Key");
     }
     remoteProvider.setEnabled(enabled);
@@ -166,13 +163,14 @@ public class AgendaRemoteEventServiceImpl implements AgendaRemoteEventService {
       remoteProvider = new RemoteProvider(0,
                                           plugin.getConnectorName(),
                                           plugin.getConnectorAPIKey(),
-                                          plugin.isEnabled());
+                                          plugin.isEnabled(),
+                                          plugin.isConnectorOauth());
       remoteProvider = saveRemoteProvider(remoteProvider);
-    } else if (StringUtils.isBlank(remoteProvider.getApiKey())) {
+    } else if (StringUtils.isBlank(remoteProvider.getApiKey()) && plugin.isConnectorOauth()) {
       if (StringUtils.isBlank(plugin.getConnectorAPIKey())) {
         LOG.warn("Agenda connector {} has an empty API key, thus the connector will be disabled except for exchange connector",
                  plugin.getConnectorName());
-        remoteProvider.setEnabled(remoteProvider.getName().equals(EXCHANGE_CONNECTOR_NAME));
+        remoteProvider.setEnabled(false);
       } else {
         remoteProvider.setApiKey(plugin.getConnectorAPIKey());
       }

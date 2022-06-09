@@ -40,6 +40,10 @@
           <name>connectorAPIKey</name>
           <value>${exo.agenda.google.connector.key:}</value>
         </value-param>
+        <value-param>
+          <name>connectorOauth</name>
+          <value>${exo.agenda.google.connector.oauth:true}</value>
+        </value-param>
       </init-params>
     </component-plugin>
   </external-component-plugins>
@@ -63,6 +67,10 @@
           <name>connectorAPIKey</name>
           <value>${exo.agenda.office.connector.key:}</value>
         </value-param>
+        <value-param>
+          <name>connectorOauth</name>
+          <value>${exo.agenda.office.connector.oauth:true}</value>
+        </value-param>
       </init-params>
     </component-plugin>
   </external-component-plugins>
@@ -85,6 +93,10 @@
         <value-param>
           <name>connectorAPIKey</name>
           <value>${exo.agenda.exchange.connector.key:}</value>
+        </value-param>
+        <value-param>
+          <name>connectorOauth</name>
+          <value>${exo.agenda.exchange.connector.oauth:false}</value>
         </value-param>
       </init-params>
     </component-plugin>

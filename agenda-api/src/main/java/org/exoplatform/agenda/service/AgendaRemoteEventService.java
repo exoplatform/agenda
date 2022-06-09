@@ -41,9 +41,10 @@ public interface AgendaRemoteEventService {
    * 
    * @param remoteProviderName Remote provider name
    * @param enabled whether enabled (true) or disabled (false)
+   * @param isOauth whatever the connector uses oAuth or not
    * @return saved {@link RemoteProvider}
    */
-  RemoteProvider saveRemoteProviderStatus(String remoteProviderName, boolean enabled);
+  RemoteProvider saveRemoteProviderStatus(String remoteProviderName, boolean enabled, boolean isOauth);
 
   /**
    * Save {@link RemoteProvider} Client API Key
