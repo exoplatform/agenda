@@ -133,7 +133,7 @@ export default {
     },
     enableDisableConnector(connector) {
       connector.loading = true;
-      this.$settingsService.saveRemoteProviderStatus(connector.name, connector.enabled)
+      this.$settingsService.saveRemoteProviderStatus(connector.name, connector.enabled, connector.isOauth)
         .then(result => Object.assign(connector, result))
         .catch(() => connector.enabled = !connector.enabled)
         .finally(() => connector.loading = false);

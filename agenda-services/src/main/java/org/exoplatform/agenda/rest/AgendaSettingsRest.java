@@ -192,7 +192,7 @@ public class AgendaSettingsRest implements ResourceContainer {
                                                 value = "Remote connector uses Oauth or not",
                                                 required = true
                                            )
-                                           @FormParam("oauth")
+                                           @FormParam("isOauth")
                                            boolean isOauth) {
     if (StringUtils.isBlank(connectorName)) {
       return Response.status(Status.BAD_REQUEST).entity("'connectorName' parameter is mandatory").build();
