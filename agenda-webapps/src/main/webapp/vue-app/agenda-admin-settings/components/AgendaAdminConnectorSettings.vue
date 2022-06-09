@@ -39,13 +39,15 @@
                 :ref="`${props.item.name}Input`"
                 v-model="props.item.apiKey"
                 :readonly="!props.item.editing"
-                :placeholder="$t('agenda.connectorClientApiKey')"
+                :placeholder="!props.item.isOauth ? $t('agenda.noConnectorClientApiKey') : $t('agenda.connectorClientApiKey')"
                 class="mx-2 pa-0"
                 dense>
                 <template #prepend>
-                  <i class="uiIcon uiIconLock primary--text mt-1"></i>
+                  <i 
+                  :class="!props.item.isOauth ? 'uiIcon uiIconLock grey--text mt-1':'uiIcon uiIconLock primary--text mt-1'">
+                  </i>
                 </template>
-                <template #append-outer>
+                <template v-if="props.item.isOauth" #append-outer >
                   <v-slide-x-reverse-transition mode="out-in">
                     <i
                       :key="`icon-${props.item.editing}`"
@@ -60,7 +62,7 @@
             <div class="d-flex flex-column align-center">
               <v-switch
                 v-model="props.item.enabled"
-                :disabled="props.item.loading || props.item.editing || !props.item.apiKey"
+                :disabled="props.item.isOauth && (props.item.loading || props.item.editing || !props.item.apiKey)"
                 :loading="props.item.loading"
                 :ripple="false"
                 color="primary"
