@@ -40,7 +40,7 @@
                 v-model="props.item.apiKey"
                 :readonly="!props.item.editing"
                 :placeholder="!props.item.isOauth ? $t('agenda.noConnectorClientApiKey') : $t('agenda.connectorClientApiKey')"
-                class="mx-2 pa-0"
+                :class="props.item.isOauth ? 'mx-2 pa-0' : 'mx-2 pa-0 me-8' "
                 dense>
                 <template #prepend>
                   <i 
