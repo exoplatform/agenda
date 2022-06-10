@@ -42,7 +42,7 @@ public class AgendaRemoteEventServiceTest extends BaseAgendaEventTest {
     assertNotNull(remoteProviders);
     int initialisize = remoteProviders.size();
 
-    RemoteProvider remoteProviderToSave = new RemoteProvider(0, "testProvider", "Client API Key", false);
+    RemoteProvider remoteProviderToSave = new RemoteProvider(0, "testProvider", "Client API Key", false, true);
     RemoteProvider remoteProviderSaved = agendaRemoteEventService.saveRemoteProvider(remoteProviderToSave);
     assertNotNull(remoteProviderSaved);
     assertTrue(remoteProviderSaved.getId() > 0);
@@ -56,12 +56,12 @@ public class AgendaRemoteEventServiceTest extends BaseAgendaEventTest {
 
   @Test
   public void testSaveRemoteProviderStatus() throws Exception { // NOSONAR
-    RemoteProvider remoteProviderToSave = new RemoteProvider(0, "testProvider222", "Client API Key", false);
+    RemoteProvider remoteProviderToSave = new RemoteProvider(0, "testProvider222", "Client API Key", false, true);
     RemoteProvider remoteProviderSaved = agendaRemoteEventService.saveRemoteProvider(remoteProviderToSave);
     assertNotNull(remoteProviderSaved);
     assertFalse(remoteProviderSaved.isEnabled());
 
-    agendaRemoteEventService.saveRemoteProviderStatus(remoteProviderSaved.getName(), false);
+    agendaRemoteEventService.saveRemoteProviderStatus(remoteProviderSaved.getName(), false, true);
     RemoteProvider remoteProvider = agendaRemoteEventService.getRemoteProviders()
                                                             .stream()
                                                             .filter(provider -> StringUtils.equals(provider.getName(),
@@ -71,7 +71,7 @@ public class AgendaRemoteEventServiceTest extends BaseAgendaEventTest {
     assertNotNull(remoteProvider);
     assertFalse(remoteProvider.isEnabled()); // NOSONAR
 
-    agendaRemoteEventService.saveRemoteProviderStatus(remoteProviderSaved.getName(), true);
+    agendaRemoteEventService.saveRemoteProviderStatus(remoteProviderSaved.getName(), true, true);
     remoteProvider = agendaRemoteEventService.getRemoteProviders()
                                              .stream()
                                              .filter(provider -> StringUtils.equals(provider.getName(),
