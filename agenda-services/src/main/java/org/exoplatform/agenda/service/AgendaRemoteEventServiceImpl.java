@@ -70,7 +70,7 @@ public class AgendaRemoteEventServiceImpl implements AgendaRemoteEventService {
    */
   @Override
   public RemoteProvider saveRemoteProvider(RemoteProvider remoteProvider) {
-    if (remoteProvider.isEnabled() && StringUtils.isBlank(remoteProvider.getApiKey()) && remoteProvider.isOauth()) {
+    if (remoteProvider.isEnabled() && StringUtils.isBlank(remoteProvider.getApiKey()) && remoteProvider.getOauth()) {
       LOG.info("Turning off Agenda remote provider '{}' because no API Key is provided yet", remoteProvider.getName());
       remoteProvider.setEnabled(false);
     }
