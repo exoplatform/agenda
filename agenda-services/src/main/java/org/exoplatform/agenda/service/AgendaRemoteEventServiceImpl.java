@@ -168,7 +168,7 @@ public class AgendaRemoteEventServiceImpl implements AgendaRemoteEventService {
       remoteProvider = saveRemoteProvider(remoteProvider);
     } else if (StringUtils.isBlank(remoteProvider.getApiKey()) && plugin.isConnectorOauth()) {
       if (StringUtils.isBlank(plugin.getConnectorAPIKey())) {
-        LOG.warn("Agenda connector {} has an empty API key, thus the connector will be disabled except for exchange connector",
+        LOG.warn("Agenda connector {} has an empty API key, thus the connector will be disabled",
                  plugin.getConnectorName());
         remoteProvider.setEnabled(false);
       } else {
