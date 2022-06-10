@@ -14,7 +14,7 @@
         <v-list-item
           v-for="connector in enabledConnectors"
           :key="connector.name">
-          <v-list-item-avatar>
+          <v-list-item-avatar class="rounded-0">
             <v-avatar tile size="40">
               <img :src="connector.avatar">
             </v-avatar>
@@ -60,7 +60,7 @@
         <v-list-item>
           <v-list-item-content>
             <div class="d-flex">
-              <span class="my-auto ms-auto pt-4 pe-2">
+              <span class="my-auto pe-4">
                 <i class="uiIconColorWarning"></i>
               </span>
               <span class="my-auto me-auto">
