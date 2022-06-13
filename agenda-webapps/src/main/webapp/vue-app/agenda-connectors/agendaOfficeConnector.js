@@ -1,6 +1,7 @@
 export default {
   name: 'agenda.officeCalendar',
   avatar: '/agenda/skin/images/office365.png',
+  isOauth: true,
   config: {
     auth: {
       clientId: null,
