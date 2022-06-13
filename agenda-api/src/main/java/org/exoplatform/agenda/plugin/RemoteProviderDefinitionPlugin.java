@@ -38,6 +38,10 @@ public class RemoteProviderDefinitionPlugin extends BaseComponentPlugin {
   @Setter
   private boolean enabled;
 
+  @Getter
+  @Setter
+  private boolean connectorOauth;
+
   public RemoteProviderDefinitionPlugin(InitParams params) {
     if (params == null || !params.containsKey("connectorName")) {
       throw new IllegalStateException("Init parameter 'connectorName' is mandatory");
@@ -52,5 +56,8 @@ public class RemoteProviderDefinitionPlugin extends BaseComponentPlugin {
         || Boolean.parseBoolean(params.getValueParam("connectorEnabled").getValue());
 
     this.connectorAPIKey = params.containsKey("connectorAPIKey") ? params.getValueParam("connectorAPIKey").getValue() : null;
+
+    this.connectorOauth = !params.containsKey("connectorOauth")
+            || Boolean.parseBoolean(params.getValueParam("connectorOauth").getValue());
   }
 }

@@ -70,7 +70,7 @@ public class AgendaRemoteEventServiceImpl implements AgendaRemoteEventService {
    */
   @Override
   public RemoteProvider saveRemoteProvider(RemoteProvider remoteProvider) {
-    if (remoteProvider.isEnabled() && StringUtils.isBlank(remoteProvider.getApiKey())) {
+    if (remoteProvider.isEnabled() && StringUtils.isBlank(remoteProvider.getApiKey()) && Boolean.TRUE.equals(remoteProvider.getOauth())) {
       LOG.info("Turning off Agenda remote provider '{}' because no API Key is provided yet", remoteProvider.getName());
       remoteProvider.setEnabled(false);
     }
@@ -81,7 +81,7 @@ public class AgendaRemoteEventServiceImpl implements AgendaRemoteEventService {
    * {@inheritDoc}
    */
   @Override
-  public RemoteProvider saveRemoteProviderStatus(String remoteProviderName, boolean enabled) {
+  public RemoteProvider saveRemoteProviderStatus(String remoteProviderName, boolean enabled, boolean isOauth) {
     if (StringUtils.isBlank(remoteProviderName)) {
       throw new IllegalStateException("remoteProviderName is mandatory");
     }
@@ -89,7 +89,7 @@ public class AgendaRemoteEventServiceImpl implements AgendaRemoteEventService {
     if (remoteProvider == null) {
       throw new IllegalStateException("Remote provider not found with name " + remoteProviderName);
     }
-    if (enabled && StringUtils.isBlank(remoteProvider.getApiKey())) {
+    if (enabled && StringUtils.isBlank(remoteProvider.getApiKey()) && isOauth) {
       throw new IllegalStateException("Can't enable connector " + remoteProviderName + " since it doesn't have an API Key");
     }
     remoteProvider.setEnabled(enabled);
@@ -163,9 +163,10 @@ public class AgendaRemoteEventServiceImpl implements AgendaRemoteEventService {
       remoteProvider = new RemoteProvider(0,
                                           plugin.getConnectorName(),
                                           plugin.getConnectorAPIKey(),
-                                          plugin.isEnabled());
+                                          plugin.isEnabled(),
+                                          plugin.isConnectorOauth());
       remoteProvider = saveRemoteProvider(remoteProvider);
-    } else if (StringUtils.isBlank(remoteProvider.getApiKey())) {
+    } else if (StringUtils.isBlank(remoteProvider.getApiKey()) && plugin.isConnectorOauth()) {
       if (StringUtils.isBlank(plugin.getConnectorAPIKey())) {
         LOG.warn("Agenda connector {} has an empty API key, thus the connector will be disabled",
                  plugin.getConnectorName());
