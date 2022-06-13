@@ -28,7 +28,6 @@ const config = {
     agendaSettings: './src/main/webapp/vue-app/agenda-user-setting/main.js',
     agendaTimeline: './src/main/webapp/vue-app/agenda-timeline/main.js',
     agendaSearchCard: './src/main/webapp/vue-app/agenda-search/main.js',
-    agendaConnectors: './src/main/webapp/vue-app/agenda-connectors/main.js',
     agendaAdminSettings: './src/main/webapp/vue-app/agenda-admin-settings/main.js',
   },
   output: {

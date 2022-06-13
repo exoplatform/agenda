@@ -212,16 +212,7 @@
     </depends>
   </module>
 
-  <module>
-    <name>agendaConnectors</name>
-    <script>
-      <minify>false</minify>
-      <path>/js/agendaConnectors.bundle.js</path>
-    </script>
-    <depends>
-      <module>extensionRegistry</module>
-    </depends>
-  </module>
+
 
   <portlet>
     <name>agendaAdminSettings</name>
