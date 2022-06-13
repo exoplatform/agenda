@@ -69,7 +69,7 @@
               fa-info-circle
             </v-icon>
               </span>
-              <span class="my-auto me-auto grey--text">
+              <span class="my-auto me-auto grey--text font-italic">
                 {{ $t('agenda.allowedToConnectOnlyOneConnector') }}
               </span>
             </div>
