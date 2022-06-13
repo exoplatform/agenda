@@ -62,14 +62,13 @@
             <div class="d-flex">
               <span class="my-auto pe-4">
                 <v-icon
-              size="18"
-              class=""
-              color="grey"
-              depressed>
-              fa-info-circle
-            </v-icon>
+                    size="16"
+                    class="text-light-color"
+                    depressed>
+                  fa-info-circle
+                </v-icon>
               </span>
-              <span class="my-auto me-auto grey--text font-italic">
+              <span class="my-auto me-auto font-italic text-light-color">
                 {{ $t('agenda.allowedToConnectOnlyOneConnector') }}
               </span>
             </div>
