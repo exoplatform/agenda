@@ -15,4 +15,6 @@ public class RemoteProvider {
 
   private boolean enabled;
 
+  private Boolean oauth;
+
 }
