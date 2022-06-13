@@ -61,9 +61,15 @@
           <v-list-item-content>
             <div class="d-flex">
               <span class="my-auto pe-4">
-                <i class="uiIconColorWarning"></i>
+                <v-icon
+              size="18"
+              class=""
+              color="grey"
+              depressed>
+              fa-info-circle
+            </v-icon>
               </span>
-              <span class="my-auto me-auto">
+              <span class="my-auto me-auto grey--text">
                 {{ $t('agenda.allowedToConnectOnlyOneConnector') }}
               </span>
             </div>
