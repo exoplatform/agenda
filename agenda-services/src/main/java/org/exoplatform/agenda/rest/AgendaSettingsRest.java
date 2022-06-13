@@ -187,13 +187,19 @@ public class AgendaSettingsRest implements ResourceContainer {
                                                required = true
                                            )
                                            @FormParam("enabled")
-                                           boolean enabled) {
+                                           boolean enabled,
+                                           @ApiParam(
+                                                value = "Remote connector uses Oauth or not",
+                                                required = true
+                                           )
+                                           @FormParam("isOauth")
+                                           boolean isOauth) {
     if (StringUtils.isBlank(connectorName)) {
       return Response.status(Status.BAD_REQUEST).entity("'connectorName' parameter is mandatory").build();
     }
 
     try {
-      RemoteProvider remoteProvider = agendaRemoteEventService.saveRemoteProviderStatus(connectorName, enabled);
+      RemoteProvider remoteProvider = agendaRemoteEventService.saveRemoteProviderStatus(connectorName, enabled, isOauth);
       return Response.ok(remoteProvider).build();
     } catch (Exception e) {
       LOG.warn("Error saving connector '{}' status", connectorName, e);

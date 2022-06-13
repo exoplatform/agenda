@@ -16,10 +16,11 @@ export function saveUserSettings(settings) {
   });
 }
 
-export function saveRemoteProviderStatus(connectorName, connectorStatus) {
+export function saveRemoteProviderStatus(connectorName, connectorStatus, isOauth) {
   const formData = new FormData();
   formData.append('connectorName', connectorName);
   formData.append('enabled', !!connectorStatus);
+  formData.append('isOauth', isOauth);
 
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/settings/connector/status`, {
     method: 'POST',
