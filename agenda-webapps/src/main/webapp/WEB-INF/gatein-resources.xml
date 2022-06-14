@@ -77,6 +77,9 @@
         <module>agendaConnectors</module>
       </depends>
       <depends>
+        <module>exchangeConnector</module>
+      </depends>
+      <depends>
         <module>commonVueComponents</module>
       </depends>
       <depends>
@@ -177,6 +180,9 @@
       <module>agendaConnectors</module>
     </depends>
     <depends>
+      <module>exchangeConnector</module>
+    </depends>
+    <depends>
       <module>commons-cometd3</module>
       <as>cCometd</as>
     </depends>
@@ -212,7 +218,16 @@
     </depends>
   </module>
 
-
+  <module>
+    <name>exchangeConnector</name>
+    <script>
+      <minify>false</minify>
+      <path>/js/exchangeConnector.bundle.js</path>
+    </script>
+    <depends>
+      <module>extensionRegistry</module>
+    </depends>
+  </module>
 
   <portlet>
     <name>agendaAdminSettings</name>
@@ -239,6 +254,9 @@
       </depends>
       <depends>
         <module>agendaConnectors</module>
+      </depends>
+      <depends>
+        <module>exchangeConnector</module>
       </depends>
       <depends>
         <module>AgendaCommon</module>
