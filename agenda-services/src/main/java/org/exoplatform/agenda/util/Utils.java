@@ -424,7 +424,7 @@ public class Utils {
       boolean isManager = space != null && spaceService.isManager(space, userIdentity.getRemoteId());
       boolean isRedactor = space != null && spaceService.isRedactor(space, userIdentity.getRemoteId());
       boolean spaceHasARedactor = space != null && space.getRedactors() != null && space.getRedactors().length > 0;
-      return (!spaceHasARedactor || isRedactor) && (superManager || isManager);
+      return (spaceHasARedactor && isRedactor) || superManager || isManager;
     } else {
       return false;
     }
