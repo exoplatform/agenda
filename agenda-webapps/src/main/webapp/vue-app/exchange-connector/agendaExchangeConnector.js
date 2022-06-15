@@ -21,7 +21,7 @@ export default {
   isOauth: false,
   canConnect: true,
   canPush: false,
-  initialized: false,
+  initialized: true,
   isSignedIn: false,
   pushing: false,
 };
