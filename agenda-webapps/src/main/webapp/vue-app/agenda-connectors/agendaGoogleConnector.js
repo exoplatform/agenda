@@ -2,6 +2,7 @@ export default {
   name: 'agenda.googleCalendar',
   description: 'agenda.googleCalendar.description',
   avatar: '/agenda/skin/images/Google.png',
+  isOauth: true,
   CLIENT_ID: null,
   DISCOVERY_DOCS: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
   SCOPE_WRITE: 'https://www.googleapis.com/auth/calendar.events',
