@@ -186,6 +186,26 @@ export default {
   mounted() {
     this.reset();
   },
+  watch: {
+    conferenceURL(newVal) {
+      if (!newVal) {
+        this.event.conferences = [];
+      } else {
+        this.event.conferences = [{
+          url: newVal,
+          type: 'manual',
+        }];
+      }
+    },
+    eventOwner(newVal) {
+      if (newVal && newVal.providerId && !this.event.calendar.owner.id ) {
+        this.$identityService.getIdentityByProviderIdAndRemoteId(newVal.providerId, newVal.remoteId)
+          .then(identity => {
+            this.event.calendar.owner.id = identity.id;
+          });
+      }
+    }
+  },
   methods: {
     close() {
       this.$emit('close');
