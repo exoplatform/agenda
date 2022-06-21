@@ -32,6 +32,7 @@ export default {
   initialized: false,
   isSignedIn: false,
   pushing: false,
+  rank: 20,
   init(connectionStatusChangedCallback, loadingCallback, apiKey) {
     if (!apiKey) {
       throw new Error('Office connector can\'t be enabled with empty Client API Key.');

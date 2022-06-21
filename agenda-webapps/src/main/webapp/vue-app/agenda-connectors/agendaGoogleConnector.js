@@ -11,6 +11,7 @@ export default {
   initialized: false,
   isSignedIn: false,
   pushing: false,
+  rank: 10,
   init(connectionStatusChangedCallback, loadingCallback, apiKey) {
     if (!apiKey) {
       throw new Error('Google connector can\'t be enabled with empty Client API Key.');
