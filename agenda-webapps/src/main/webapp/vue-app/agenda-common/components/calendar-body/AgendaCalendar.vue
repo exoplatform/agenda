@@ -130,6 +130,9 @@ export default {
           const eventToDisplay = JSON.parse(JSON.stringify(event));
           eventToDisplay.startDate = this.$agendaUtils.toDate(event.startDate);
           eventToDisplay.endDate = this.$agendaUtils.toDate(event.endDate);
+          if (event.allDay){
+            eventToDisplay.endDate.setDate(eventToDisplay.endDate.getDate() + 1);
+          }
           eventToDisplay.endDate = new Date(eventToDisplay.endDate.getTime() - 60000);
           eventsToDisplay.push(eventToDisplay);
         } else {
