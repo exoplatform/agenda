@@ -74,9 +74,6 @@
         <module>AgendaCommon</module>
       </depends>
       <depends>
-        <module>agendaConnectors</module>
-      </depends>
-      <depends>
         <module>commonVueComponents</module>
       </depends>
       <depends>
@@ -174,9 +171,6 @@
       <module>iePolyfills</module>
     </depends>
     <depends>
-      <module>agendaConnectors</module>
-    </depends>
-    <depends>
       <module>commons-cometd3</module>
       <as>cCometd</as>
     </depends>
@@ -234,9 +228,6 @@
       </depends>
       <depends>
         <module>extensionRegistry</module>
-      </depends>
-      <depends>
-        <module>agendaConnectors</module>
       </depends>
       <depends>
         <module>AgendaCommon</module>
