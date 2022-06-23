@@ -30,7 +30,7 @@
               <v-list-item-title>
                 {{ $t('agenda.connectedAccountWith') }}:
               </v-list-item-title>
-              <v-list-item-subtitle>
+              <v-list-item-subtitle :title="connector.user">
                 {{ connector.user }}
               </v-list-item-subtitle>
             </template>
