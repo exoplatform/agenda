@@ -118,10 +118,10 @@ export default {
     },
     confirmConnectDialogLabels() {
       return {
-        title: this.$t('agenda.confirmConnectDialog.title'),
-        message: this.$t('agenda.confirmConnectDialog.message'),
-        ok: this.$t('agenda.confirmConnectDialog.okButton'),
-        cancel: this.$t('agenda.confirmConnectDialog.cancelButton')
+        title: this.$t('agenda.agendaConnectors.confirmConnectDialog.title'),
+        message: this.$t('agenda.agendaConnectors.confirmConnectDialog.message'),
+        ok: this.$t('agenda.agendaConnectors.confirmConnectDialog.ok'),
+        cancel: this.$t('agenda.agendaConnectors.confirmConnectDialog.cancel')
       };
     },
   },
@@ -152,7 +152,7 @@ export default {
     connect(connector) {
       this.connectionInProgress = true;
       this.selectedConnector = connector;
-      if (this.enabledConnectors.some(connector => connector.isSignedIn && connector.user)) {
+      if (this.enabledConnectors.some(c => c.isSignedIn && c.user)) {
         this.$refs.confirmConnectDialog.open();
       }
       else {
