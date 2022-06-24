@@ -90,34 +90,34 @@
                                 <table border="0" cellpadding="0" cellspacing="0" width="100%"  align="left">
                                     <tbody>
                                     <tr>
-                                        <td style="color:#999999; font-size:13px;font-family:HelveticaNeue,arial,tahoma,serif; font-weight:bold"><%=_ctx.appRes("Notification.agenda.event.space.name")%></td>
+                                        <td style="color:#767676; font-size:13px;font-family:HelveticaNeue,arial,tahoma,serif; font-weight:bold"><%=_ctx.appRes("Notification.agenda.event.space.name")%></td>
                                         <td align="left"><%= agendaName %></td>
                                     </tr>
                                     <tr>
-                                        <td style="color:#999999; font-size:13px;font-family:HelveticaNeue,arial,tahoma,serif; font-weight:bold"><%=_ctx.appRes("Notification.agenda.event.date")%></td>
+                                        <td style="color:#767676; font-size:13px;font-family:HelveticaNeue,arial,tahoma,serif; font-weight:bold"><%=_ctx.appRes("Notification.agenda.event.date")%></td>
                                         <td align="left" ><%= _ctx.appRes("Notification.agenda.event.mail.body.date", monthYearDate, startDate, endDate) %> (<%= timeZoneName %>)</td>
                                     </tr>
                                     <tr>
-                                        <td style="color:#999999; font-size:13px;font-family:HelveticaNeue,arial,tahoma,serif; font-weight:bold"></td>
-                                        <td align="left" style="color:#999999; font-size:11px;font-family:HelveticaNeue,arial,tahoma,serif" ><%= recurrenceDetails %></td>
+                                        <td style="color:#767676; font-size:13px;font-family:HelveticaNeue,arial,tahoma,serif; font-weight:bold"></td>
+                                        <td align="left" style="color:#767676; font-size:11px;font-family:HelveticaNeue,arial,tahoma,serif" ><%= recurrenceDetails %></td>
                                     </tr>
                                     <tr>
-                                        <td style="color:#999999; font-size:13px;font-family:HelveticaNeue,arial,tahoma,serif; font-weight:bold"><%=_ctx.appRes("Notification.agenda.event.location")%></td>
+                                        <td style="color:#767676; font-size:13px;font-family:HelveticaNeue,arial,tahoma,serif; font-weight:bold"><%=_ctx.appRes("Notification.agenda.event.location")%></td>
                                         <td align="left"><%= eventLocation %></td>
                                     </tr>
                                     <tr>
-                                        <td style="color:#999999; font-size:13px;font-family:HelveticaNeue,arial,tahoma,serif;font-weight:bold"><%=_ctx.appRes("Notification.agenda.event.description")%></td>
+                                        <td style="color:#767676; font-size:13px;font-family:HelveticaNeue,arial,tahoma,serif;font-weight:bold"><%=_ctx.appRes("Notification.agenda.event.description")%></td>
                                         <td align="left"><%= eventDescription %></td>
                                     </tr>
                                     <tr>
-                                        <td style="color:#999999; font-size:13px;font-family:HelveticaNeue,arial,tahoma,serif; font-weight:bold"><%=_ctx.appRes("Notification.agenda.event.attendees")%></td>
+                                        <td style="color:#767676; font-size:13px;font-family:HelveticaNeue,arial,tahoma,serif; font-weight:bold"><%=_ctx.appRes("Notification.agenda.event.attendees")%></td>
                                         <td align="left"><%= attendees %></td>
                                     </tr>
                                     </tbody>
                                 </table>
                                 <tr>
                                     <td align="left" bgcolor="#ffffff" style="background-color: #ffffff;padding: 10px 0;">
-                                        <p style="margin:30px 0 10px 0; color: #999999;font-size:13px;font-family:HelveticaNeue,arial,tahoma,serif">
+                                        <p style="margin:30px 0 10px 0; color: #767676;font-size:13px;font-family:HelveticaNeue,arial,tahoma,serif">
                                             <%=_ctx.appRes("Notification.label.footer", FOOTER_LINK)%>
                                         </p>
                                     </td>
