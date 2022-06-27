@@ -196,13 +196,13 @@ export default {
         this.loading = true;
         connector.getEvents(startDateRFC3359, endDateRFC3359)
           .then(events => {
-            if (events) {
-              events.forEach(event => {
+            if (events.events) {
+              events.events.forEach(event => {
                 event.startDate = event.start && this.$agendaUtils.toDate(event.start) || null;
                 event.endDate = event.end && this.$agendaUtils.toDate(event.end) || null;
               });
             }
-            this.remoteEvents = events || [];
+            this.remoteEvents = events.events || [];
             this.loading = false;
           }).catch(error => {
             this.remoteEvents = [];
