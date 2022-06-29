@@ -195,7 +195,7 @@ export default {
       return `top: ${this.currentTimeTop}px;`;
     },
     connectedConnector() {
-      return this.connectors.find(connector => connector.isSignedIn);
+      return this.connectors.find(connector => connector.connected);
     },
     connectedConnectorAvatar() {
       return this.connectedConnector && this.connectedConnector.avatar || '';
