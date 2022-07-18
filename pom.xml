@@ -78,6 +78,13 @@
         <version>${project.version}</version>
         <scope>provided</scope>
       </dependency>
+	  
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>agenda-services</artifactId>
+        <version>${project.version}</version>
+        <type>test-jar</type>
+      </dependency>
 
       <dependency>
         <groupId>${project.groupId}</groupId>
