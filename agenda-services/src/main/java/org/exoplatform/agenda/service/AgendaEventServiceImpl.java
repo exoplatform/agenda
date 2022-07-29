@@ -754,6 +754,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       throw new IllegalAccessException("User " + userIdentityId + " hasn't enough privileges to delete event with id " + eventId);
     }
     EventAttendeeList eventAttendeeList = attendeeService.getEventAttendees(event.getId());
+    Utils.broadcastEvent(listenerService, Utils.PRE_DELETE_AGENDA_EVENT_EVENT, event.getId(), userIdentityId);
 
     agendaEventStorage.deleteEventById(eventId);
 
