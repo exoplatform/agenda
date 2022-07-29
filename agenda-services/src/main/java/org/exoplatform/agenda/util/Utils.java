@@ -64,6 +64,8 @@ public class Utils {
 
   public static final String            POST_DELETE_AGENDA_EVENT_EVENT = "exo.agenda.event.deleted";
 
+  public static final String            PRE_DELETE_AGENDA_EVENT_EVENT = "exo.agenda.event.pre.deleted";
+
   public static final String            POST_EVENT_RESPONSE_SENT       = "exo.agenda.event.responseSent";
 
   public static final String            POST_EVENT_RESPONSE_SAVED      = "exo.agenda.event.responseSaved";
