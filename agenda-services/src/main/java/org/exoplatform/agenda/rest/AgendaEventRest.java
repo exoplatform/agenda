@@ -1343,7 +1343,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
   }
 
   @Path("{eventId}/response/send")
-  @GET
+  @POST
   @ApiOperation(
       value = "Send event invitation response for currently authenticated user (using token or effectively authenticated).",
       httpMethod = "GET",
