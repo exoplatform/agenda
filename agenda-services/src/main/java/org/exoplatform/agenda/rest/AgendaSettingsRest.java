@@ -22,7 +22,7 @@ import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 
 import io.swagger.annotations.*;
-import io.swagger.jaxrs.PATCH;
+import org.exoplatform.services.rest.http.PATCH;
 
 @Path("/v1/agenda/settings")
 @Api(value = "/v1/agenda/settings", description = "Manages agenda settings associated to users") // NOSONAR
