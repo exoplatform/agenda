@@ -29,6 +29,12 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.*;
 import javax.ws.rs.core.Response.Status;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.picocontainer.Startable;
@@ -40,7 +46,6 @@ import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.rest.model.*;
 import org.exoplatform.agenda.service.*;
 import org.exoplatform.agenda.util.*;
-import org.exoplatform.common.http.HTTPStatus;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
@@ -53,11 +58,10 @@ import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
 
-import io.swagger.annotations.*;
 import org.exoplatform.services.rest.http.PATCH;
 
 @Path("/v1/agenda/events")
-@Api(value = "/v1/agenda/events", description = "Manages agenda events associated to users and spaces") // NOSONAR
+@Tag(name = "/v1/agenda/events", description = "Manages agenda events associated to users and spaces")
 public class AgendaEventRest implements ResourceContainer, Startable {
 
   private static final String          AGENDA_APP_URI      = "agenda";
@@ -129,61 +133,57 @@ public class AgendaEventRest implements ResourceContainer, Startable {
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(
-      value = "Retrieves the list of events available for an owner of type user or space, identitifed by its identity technical identifier."
-          + " If no designated owner, all events available for authenticated user will be retrieved.",
-      httpMethod = "GET",
-      response = Response.class,
-      produces = "application/json"
+  @Operation(
+          summary = "Retrieves the list of events available for an owner of type user or space",
+          description = "Retrieves the list of events available for an owner of type user or space, identitifed by its identity technical identifier."
+               + " If no designated owner, all events available for authenticated user will be retrieved.",
+           method = "GET"
   )
   @ApiResponses(
       value = {
-          @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+          @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"),
       }
   )
   public Response getEvents(
-                            @ApiParam(value = "Identity technical identifiers of calendar owners", required = false)
+                            @Parameter(description = "Identity technical identifiers of calendar owners")
                             @QueryParam(
                               "ownerIds"
                             )
                             List<Long> ownerIds,
-                            @ApiParam(
-                                value = "Attendee identity identifier to filter on events where user is attendee",
+                            @Parameter(
+                                description = "Attendee identity identifier to filter on events where user is attendee",
                                 required = true
                             )
                             @QueryParam("attendeeIdentityId")
                             long attendeeIdentityId,
-                            @ApiParam(value = "Properties to expand", required = false)
+                            @Parameter(description = "Properties to expand", required = false)
                             @QueryParam(
                               "expand"
                             )
                             String expand,
-                            @ApiParam(value = "Start datetime using RFC-3339 representation", required = true)
+                            @Parameter(description = "Start datetime using RFC-3339 representation", required = true)
                             @QueryParam(
                               "start"
                             )
                             String start,
-                            @ApiParam(value = "End datetime using RFC-3339 representation", required = false)
+                            @Parameter(description = "End datetime using RFC-3339 representation", required = false)
                             @QueryParam(
                               "end"
                             )
                             String end,
-                            @ApiParam(value = "IANA Time zone identitifer", required = false)
+                            @Parameter(description = "IANA Time zone identitifer", required = false)
                             @QueryParam(
                               "timeZoneId"
                             )
                             String timeZoneId,
-                            @ApiParam(
-                                value = "Limit of results to return, used only when end date isn't set",
-                                required = false,
-                                defaultValue = "10"
-                            )
+                            @Parameter(
+                                description = "Limit of results to return, used only when end date isn't set") @Schema(defaultValue = "10")
                             @QueryParam("limit")
                             int limit,
-                            @ApiParam(
-                                value = "Attendee Response statuses to filter events by attendee response",
+                            @Parameter(
+                                description = "Attendee Response statuses to filter events by attendee response",
                                 required = false
                             )
                             @QueryParam("responseTypes")
@@ -321,35 +321,34 @@ public class AgendaEventRest implements ResourceContainer, Startable {
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(
-      value = "Retrieves an event identified by its technical identifier.",
-      httpMethod = "GET",
-      response = Response.class,
-      produces = "application/json"
+  @Operation(
+      summary = "Retrieves an event identified by its technical identifier",
+      description = "Retrieves an event identified by its technical identifier",
+      method = "GET"
   )
   @ApiResponses(
-      value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+      value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"), }
   )
   public Response getEventById(
-                               @ApiParam(value = "Event technical identifier", required = true)
+                               @Parameter(description = "Event technical identifier", required = true)
                                @PathParam(
                                  "eventId"
                                )
                                long eventId,
-                               @ApiParam(value = "Properties to expand", required = false)
+                               @Parameter(description= "Properties to expand")
                                @QueryParam(
                                  "expand"
                                )
                                String expand,
-                               @ApiParam(value = "IANA Time zone identitifer", required = false)
+                               @Parameter(description= "IANA Time zone identitifer")
                                @QueryParam(
                                  "timeZoneId"
                                )
                                String timeZoneId,
-                               @ApiParam(value = "Whether to retrieve first occurrence or not", required = false)
+                               @Parameter(description= "Whether to retrieve first occurrence or not")
                                @QueryParam(
                                  "firstOccurrence"
                                )
@@ -396,35 +395,34 @@ public class AgendaEventRest implements ResourceContainer, Startable {
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(
-      value = "Retrieves an event identified by its technical identifier.",
-      httpMethod = "GET",
-      response = Response.class,
-      produces = "application/json"
+  @Operation(
+      summary = "Retrieves an event identified by its technical identifier",
+      description = "Retrieves an event identified by its technical identifier",
+      method = "GET"
   )
   @ApiResponses(
-      value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+      value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"), }
   )
   public Response getEventOccurrence(
-                                     @ApiParam(value = "Event technical identifier", required = true)
+                                     @Parameter(description= "Event technical identifier", required = true)
                                      @PathParam(
                                        "parentEventId"
                                      )
                                      long parentEventId,
-                                     @ApiParam(value = "Event technical identifier", required = true)
+                                     @Parameter(description= "Event technical identifier", required = true)
                                      @PathParam(
                                        "occurrenceId"
                                      )
                                      String occurrenceId,
-                                     @ApiParam(value = "Properties to expand", required = false)
+                                     @Parameter(description= "Properties to expand")
                                      @QueryParam(
                                        "expand"
                                      )
                                      String expand,
-                                     @ApiParam(value = "IANA Time zone identitifer", required = false)
+                                     @Parameter(description= "IANA Time zone identitifer")
                                      @QueryParam(
                                        "timeZoneId"
                                      )
@@ -481,29 +479,28 @@ public class AgendaEventRest implements ResourceContainer, Startable {
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(
-      value = "Retrieves the list of exceptional occurrences of an event.",
-      httpMethod = "GET",
-      response = Response.class,
-      produces = "application/json"
+  @Operation(
+      summary = "Retrieves the list of exceptional occurrences of an event",
+      description = "Retrieves the list of exceptional occurrences of an event",
+      method = "GET"
   )
   @ApiResponses(
-      value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+      value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"), }
   )
   public Response getEventExceptionalOccurrences(
-                                                 @ApiParam(value = "Event technical identifier", required = true)
+                                                 @Parameter(description= "Event technical identifier", required = true)
                                                  @PathParam(
                                                    "eventId"
                                                  )
                                                  long parentEventId,
-                                                 @ApiParam(value = "Properties to expand", required = false)
+                                                 @Parameter(description= "Properties to expand")
                                                  @QueryParam(
                                                    "expand"
                                                  )
                                                  String expand,
-                                                 @ApiParam(value = "IANA Time zone identitifer", required = false)
+                                                 @Parameter(description = "IANA Time zone identitifer")
                                                  @QueryParam(
                                                    "timeZoneId"
                                                  )
@@ -543,21 +540,21 @@ public class AgendaEventRest implements ResourceContainer, Startable {
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(value = "Create a new event", httpMethod = "POST", response = Response.class, consumes = "application/json")
+  @Operation(summary = "Create a new event", description = "Create a new event", method = "POST")
   @ApiResponses(
-      value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+      value = { @ApiResponse(responseCode = "204", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"),
       }
   )
   public Response createEvent(
-                              @ApiParam(value = "IANA Time zone identitifer", required = false)
+                              @Parameter(description= "IANA Time zone identitifer")
                               @QueryParam(
                                 "timeZoneId"
                               )
                               String timeZoneId,
-                              @ApiParam(value = "Event object to create", required = true)
+                              @Parameter(description = "Event object to create", required = true)
                               EventEntity eventEntity) {
     if (eventEntity == null) {
       return Response.status(Status.BAD_REQUEST).entity(AgendaExceptionType.EVENT_MANDATORY.getCompleteMessage()).build();
@@ -594,19 +591,19 @@ public class AgendaEventRest implements ResourceContainer, Startable {
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(value = "Update an existing event", httpMethod = "PUT", response = Response.class, consumes = "application/json")
+  @Operation(summary = "Update an existing event", description = "Update an existing event", method = "PUT")
   @ApiResponses(
-      value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object not found"),
-          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+      value = { @ApiResponse(responseCode = "204", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "404", description = "Object not found"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"),
       }
   )
   public Response updateEvent(
-                              @ApiParam(value = "Event object to update", required = true)
+                              @Parameter(description= "Event object to update", required = true)
                               EventEntity eventEntity,
-                              @ApiParam(value = "IANA Time zone identitifer", required = false)
+                              @Parameter(description= "IANA Time zone identitifer")
                               @QueryParam(
                                 "timeZoneId"
                               )
@@ -681,44 +678,40 @@ public class AgendaEventRest implements ResourceContainer, Startable {
   @Consumes("application/x-www-form-urlencoded")
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(value = "Update an attribute of an existing event", httpMethod = "PATCH", response = Response.class)
+  @Operation(summary = "Update an attribute of an existing event", description = "Update an attribute of an existing event", method = "PATCH")
   @ApiResponses(
       value = {
-          @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object not found"),
-          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+          @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "404", description = "Object not found"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"),
       }
   )
   public Response updateEventFields(
-                                    @ApiParam(
-                                        value = "Event technical identifier",
+                                    @Parameter(
+                                        description = "Event technical identifier",
                                         required = true
                                     )
                                     @PathParam("eventId")
                                     long eventId,
-                                    @ApiParam(
-                                        value = "Update all event occurrences or only parent occurrence",
-                                        required = false,
-                                        defaultValue = "false"
-                                    )
+                                    @Parameter(
+                                        description = "Update all event occurrences or only parent occurrence")
+                                    @Schema(defaultValue = "false")
                                     @QueryParam("updateAllOccurrences")
                                     boolean updateAllOccurrences,
-                                    @ApiParam(
-                                        value = "Whether notify attendees about the modification or not",
-                                        required = false,
-                                        defaultValue = "false"
-                                    )
+                                    @Parameter(
+                                        description = "Whether notify attendees about the modification or not")
+                                    @Schema(defaultValue = "false")
                                     @QueryParam("sendInvitations")
                                     boolean sendInvitations,
-                                    @ApiParam(value = "IANA Time zone identitifer", required = false)
+                                    @Parameter(description= "IANA Time zone identitifer", required = false)
                                     @QueryParam(
                                       "timeZoneId"
                                     )
                                     String timeZoneId,
-                                    @ApiParam(
-                                        value = "Event fields to patch",
+                                    @Parameter(
+                                        description = "Event fields to patch",
                                         required = true
                                     )
                                     MultivaluedMap<String, String> eventFields) {
@@ -801,30 +794,28 @@ public class AgendaEventRest implements ResourceContainer, Startable {
   @Path("{eventId}")
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(
-      value = "Delete an existing event or delay deleting an existing event with a fixed period.",
-      httpMethod = "DELETE",
-      response = Response.class
-  )
+  @Operation(
+      summary = "Delete an existing event or delay deleting an existing event with a fixed period.",
+      method = "DELETE")
   @ApiResponses(
-      value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object not found"),
-          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+      value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "404", description = "Object not found"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"), }
   )
   public Response deleteEvent(
-                              @ApiParam(value = "Event technical identifier", required = true)
+                              @Parameter(description= "Event technical identifier", required = true)
                               @PathParam(
                                 "eventId"
                               )
                               long eventId,
-                              @ApiParam(value = "Time to effectively delete event", required = false)
+                              @Parameter(description= "Time to effectively delete event", required = false)
                               @QueryParam(
                                 "delay"
                               )
                               long delay,
-                              @ApiParam(value = "IANA Time zone identitifer", required = false)
+                              @Parameter(description= "IANA Time zone identitifer", required = false)
                               @QueryParam(
                                 "timeZoneId"
                               )
@@ -888,21 +879,20 @@ public class AgendaEventRest implements ResourceContainer, Startable {
   @Path("{eventId}/undoDelete")
   @POST
   @RolesAllowed("users")
-  @ApiOperation(
-      value = "Undo deleting event if not yet effectively deleted.",
-      httpMethod = "POST",
-      response = Response.class
-  )
+  @Operation(
+      summary = "Undo deleting event if not yet effectively deleted",
+      description = "Undo deleting event if not yet effectively deleted",
+      method = "POST")
   @ApiResponses(
       value = {
-          @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-          @ApiResponse(code = HTTPStatus.FORBIDDEN, message = "Forbidden operation"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+          @ApiResponse(responseCode = "204", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "403", description = "Forbidden operation"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"), }
   )
   public Response undoDeleteEvent(
-                                  @ApiParam(value = "Event technical identifier", required = true)
+                                  @Parameter(description= "Event technical identifier", required = true)
                                   @PathParam(
                                     "eventId"
                                   )
@@ -929,27 +919,26 @@ public class AgendaEventRest implements ResourceContainer, Startable {
   @POST
   @Path("{eventId}/selectDateOption/{dateOptionId}")
   @RolesAllowed("users")
-  @ApiOperation(
-      value = "Select an Date Option for an event having multiple dates options",
-      httpMethod = "POST",
-      response = Response.class
-  )
+  @Operation(
+      summary = "Select an Date Option for an event having multiple dates options",
+      description = "Select an Date Option for an event having multiple dates options",
+      method = "POST")
   @ApiResponses(
       value = {
-          @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object not found"),
-          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+          @ApiResponse(responseCode = "204", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "404", description = "Object not found"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"),
       }
   )
   public Response selectEventDateOption(
-                                        @ApiParam(value = "Event technical identifier", required = true)
+                                        @Parameter(description= "Event technical identifier", required = true)
                                         @PathParam(
                                           "eventId"
                                         )
                                         long eventId,
-                                        @ApiParam(value = "Event date option technical identifier", required = true)
+                                        @Parameter(description= "Event date option technical identifier", required = true)
                                         @PathParam(
                                           "dateOptionId"
                                         )
@@ -988,20 +977,18 @@ public class AgendaEventRest implements ResourceContainer, Startable {
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(
-      value = "Retrieve preferred reminders for currently authenticated user for an event identified by its technical identifier.",
-      httpMethod = "GET",
-      response = Response.class,
-      produces = "application/json"
-  )
+  @Operation(
+      summary = "Retrieve preferred reminders for currently authenticated user for an event",
+      description = "Retrieve preferred reminders for currently authenticated user for an event identified by its technical identifier.",
+      method = "GET")
   @ApiResponses(
-      value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+      value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"), }
   )
   public Response getEventRemindersById(
-                                        @ApiParam(value = "Event technical identifier", required = true)
+                                        @Parameter(description= "Event technical identifier", required = true)
                                         @PathParam(
                                           "eventId"
                                         )
@@ -1027,39 +1014,38 @@ public class AgendaEventRest implements ResourceContainer, Startable {
   @PUT
   @Consumes(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(
-      value = "Update the list of preferred reminders for authenticated user on a selected event.",
-      httpMethod = "PUT",
-      response = Response.class,
-      consumes = "application/json"
+  @Operation(
+      summary = "Update the list of preferred reminders for authenticated user on a selected event.",
+      description = "Update the list of preferred reminders for authenticated user on a selected event",
+      method = "PUT"
   )
   @ApiResponses(
-      value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+      value = { @ApiResponse(responseCode = "204", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"), }
   )
   public Response saveEventReminders(
-                                     @ApiParam(value = "Event technical identifier", required = true)
+                                     @Parameter(description= "Event technical identifier", required = true)
                                      @PathParam(
                                        "eventId"
                                      )
                                      long eventId,
-                                     @ApiParam(value = "Event occurrence identifier", required = true)
+                                     @Parameter(description= "Event occurrence identifier", required = true)
                                      @QueryParam(
                                        "occurrenceId"
                                      )
                                      String occurrenceId,
-                                     @ApiParam(
-                                         value = "Whether apply on Event occurrence and its upcoming or not",
+                                     @Parameter(
+                                         description = "Whether apply on Event occurrence and its upcoming or not",
                                          required = true
                                      )
                                      @QueryParam(
                                        "upcoming"
                                      )
                                      boolean upcoming,
-                                     @ApiParam(
-                                         value = "List of reminders to store on event for currently authenticated user",
+                                     @Parameter(
+                                         description = "List of reminders to store on event for currently authenticated user",
                                          required = true
                                      )
                                      List<EventReminder> reminders) {
@@ -1103,34 +1089,32 @@ public class AgendaEventRest implements ResourceContainer, Startable {
   @Path("{eventId}/response")
   @GET
   @Produces(MediaType.TEXT_PLAIN)
-  @ApiOperation(
-      value = "Retrieves currently authenticated (using token or effectively authenticated) user response to an event.",
-      httpMethod = "GET",
-      response = Response.class,
-      produces = "text/plain"
+  @Operation(
+      summary = "Retrieves currently authenticated user response to an event",
+      description = "Retrieves currently authenticated (using token or effectively authenticated) user response to an event.",
+      method = "GET"
   )
   @ApiResponses(
-      value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-          @ApiResponse(code = HTTPStatus.FORBIDDEN, message = "Forbidden operation"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+      value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "403", description = "Forbidden operation"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"), }
   )
   public Response getEventResponse(
-                                   @ApiParam(value = "Event technical identifier", required = true)
+                                   @Parameter(description= "Event technical identifier", required = true)
                                    @PathParam(
                                      "eventId"
                                    )
                                    long eventId,
-                                   @ApiParam(
-                                       value = "Event occurrence identifier",
-                                       required = false
+                                   @Parameter(
+                                       description = "Event occurrence identifier"
                                    )
                                    @QueryParam(
                                      "occurrenceId"
                                    )
                                    String occurrenceId,
-                                   @ApiParam(value = "User token to ", required = false)
+                                   @Parameter(description= "User token to ", required = false)
                                    @QueryParam("token")
                                    String token) {
     if (eventId <= 0) {
@@ -1172,25 +1156,24 @@ public class AgendaEventRest implements ResourceContainer, Startable {
   @POST
   @Consumes("application/x-www-form-urlencoded")
   @RolesAllowed("users")
-  @ApiOperation(
-      value = "Registers voted date poll options for currently authenticated user",
-      httpMethod = "POST",
-      response = Response.class
-  )
+  @Operation(
+          summary = "Registers voted date poll options for currently authenticated user",
+          description = "Registers voted date poll options for currently authenticated user",
+          method = "POST")
   @ApiResponses(
-      value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-          @ApiResponse(code = HTTPStatus.FORBIDDEN, message = "Forbidden operation"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+      value = { @ApiResponse(responseCode = "204", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "403", description = "Forbidden operation"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"), }
   )
   public Response voteEvent(
-                            @ApiParam(value = "Event technical identifier", required = true)
+                            @Parameter(description= "Event technical identifier", required = true)
                             @PathParam(
                               "eventId"
                             )
                             long eventId,
-                            @ApiParam(value = "Accepted event date options technical identifier", required = false)
+                            @Parameter(description= "Accepted event date options technical identifier")
                             @FormParam(
                               "dateOptionId"
                             )
@@ -1229,25 +1212,24 @@ public class AgendaEventRest implements ResourceContainer, Startable {
   @Path("{eventId}/votes/{dateOptionId}")
   @POST
   @RolesAllowed("users")
-  @ApiOperation(
-      value = "Registers voted date poll option for currently authenticated user",
-      httpMethod = "POST",
-      response = Response.class
-  )
+  @Operation(
+      summary = "Registers voted date poll option for currently authenticated user",
+      description = "Registers voted date poll option for currently authenticated user",
+      method = "POST")
   @ApiResponses(
-      value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-          @ApiResponse(code = HTTPStatus.FORBIDDEN, message = "Forbidden operation"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+      value = { @ApiResponse(responseCode = "204", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "403", description = "Forbidden operation"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"), }
   )
   public Response voteEventDateOption(
-                                      @ApiParam(value = "Event technical identifier", required = true)
+                                      @Parameter(description= "Event technical identifier", required = true)
                                       @PathParam(
                                         "eventId"
                                       )
                                       long eventId,
-                                      @ApiParam(value = "Event date option technical identifier", required = true)
+                                      @Parameter(description= "Event date option technical identifier", required = true)
                                       @PathParam(
                                         "dateOptionId"
                                       )
@@ -1290,25 +1272,24 @@ public class AgendaEventRest implements ResourceContainer, Startable {
   @Path("{eventId}/votes/{dateOptionId}")
   @DELETE
   @RolesAllowed("users")
-  @ApiOperation(
-      value = "Dismisses vote on date poll option for currently authenticated user",
-      httpMethod = "DELETE",
-      response = Response.class
-  )
+  @Operation(
+      summary = "Dismisses vote on date poll option for currently authenticated user",
+      description = "Dismisses vote on date poll option for currently authenticated user",
+      method = "DELETE")
   @ApiResponses(
-      value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-          @ApiResponse(code = HTTPStatus.FORBIDDEN, message = "Forbidden operation"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+      value = { @ApiResponse(responseCode = "204", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "403", description = "Forbidden operation"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"), }
   )
   public Response dismissEventDateOption(
-                                         @ApiParam(value = "Event technical identifier", required = true)
+                                         @Parameter(description= "Event technical identifier", required = true)
                                          @PathParam(
                                            "eventId"
                                          )
                                          long eventId,
-                                         @ApiParam(value = "Event date option technical identifier", required = true)
+                                         @Parameter(description= "Event date option technical identifier", required = true)
                                          @PathParam(
                                            "dateOptionId"
                                          )
@@ -1344,57 +1325,51 @@ public class AgendaEventRest implements ResourceContainer, Startable {
 
   @Path("{eventId}/response/send")
   @GET
-  @ApiOperation(
-      value = "Send event invitation response for currently authenticated user (using token or effectively authenticated).",
-      httpMethod = "GET",
-      response = Response.class
-  )
+  @Operation(
+      summary = "Send event invitation response for currently authenticated user",
+      description = "Send event invitation response for currently authenticated user (using token or effectively authenticated)",
+      method = "GET")
   @ApiResponses(
       value = {
-          @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+          @ApiResponse(responseCode = "204", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"), }
   )
   public Response sendEventResponse(
-                                    @ApiParam(value = "Event technical identifier", required = true)
+                                    @Parameter(description= "Event technical identifier", required = true)
                                     @PathParam(
                                       "eventId"
                                     )
                                     long eventId,
-                                    @ApiParam(
-                                        value = "Event occurrence identifier",
-                                        required = false
+                                    @Parameter(
+                                        description = "Event occurrence identifier"
                                     )
                                     @QueryParam(
                                       "occurrenceId"
                                     )
                                     String occurrenceId,
-                                    @ApiParam(
-                                        value = "Response to event invitation. Possible values: ACCEPTED, DECLINED or TENTATIVE.",
+                                    @Parameter(
+                                        description = "Response to event invitation. Possible values: ACCEPTED, DECLINED or TENTATIVE.",
                                         required = true
                                     )
                                     @QueryParam("response")
                                     String responseString,
-                                    @ApiParam(
-                                        value = "Whether apply response on upcoming event of a recurrent event or not",
-                                        required = false
+                                    @Parameter(
+                                        description = "Whether apply response on upcoming event of a recurrent event or not"
                                     )
                                     @QueryParam("upcoming")
                                     boolean upcoming,
-                                    @ApiParam(
-                                        value = "User token used to identify user and his response to apply new reponse even when user is not authenticated",
-                                        required = false
+                                    @Parameter(
+                                        description = "User token used to identify user and his response to apply new reponse even when user is not authenticated"
                                     )
                                     @QueryParam(
                                       "token"
                                     )
                                     String token,
-                                    @ApiParam(
-                                        value = "Whether redirect to Event details after applying new response or not",
-                                        required = false,
-                                        defaultValue = "false"
-                                    )
+                                    @Parameter(
+                                        description = "Whether redirect to Event details after applying new response or not")
+                                    @Schema(defaultValue = "false")
                                     @QueryParam(
                                       "redirect"
                                     )
@@ -1469,40 +1444,38 @@ public class AgendaEventRest implements ResourceContainer, Startable {
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(
-      value = "Search the list of events available with query for an owner of type user or space, identified by its identity technical identifier."
-          + " If no designated owner, all events available for authenticated user will be retrieved.",
-      httpMethod = "GET",
-      response = Response.class,
-      produces = "application/json"
-  )
+  @Operation(
+          summary = "Search the list of events available with query for an owner of type user or space",
+          description = "Search the list of events available with query for an owner of type user or space, identified by its identity technical identifier."
+             + " If no designated owner, all events available for authenticated user will be retrieved.",
+          method = "GET")
   @ApiResponses(
-      value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), }
+      value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"), }
   )
   public Response search(
-                         @ApiParam(value = "Term to search", required = true)
+                         @Parameter(description= "Term to search", required = true)
                          @QueryParam(
                            "query"
                          )
                          String query,
-                         @ApiParam(value = "IANA Time zone identitifer", required = false)
+                         @Parameter(description= "IANA Time zone identitifer")
                          @QueryParam(
                            "timeZoneId"
                          )
                          String timeZoneId,
-                         @ApiParam(value = "Properties to expand", required = false)
+                         @Parameter(description= "Properties to expand")
                          @QueryParam(
                            "expand"
                          )
                          String expand,
-                         @ApiParam(value = "Offset", required = false, defaultValue = "0")
+                         @Parameter(description= "Offset") @Schema(defaultValue = "0")
                          @QueryParam(
                            "offset"
                          )
                          int offset,
-                         @ApiParam(value = "Limit", required = false, defaultValue = "20")
+                         @Parameter(description= "Limit") @Schema(defaultValue = "20")
                          @QueryParam(
                            "limit"
                          )
@@ -1540,52 +1513,49 @@ public class AgendaEventRest implements ResourceContainer, Startable {
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(
-      value = "Retrieves the list of pending date polls for currently authenticated user.",
-      httpMethod = "GET",
-      response = Response.class,
-      produces = "application/json"
-  )
+  @Operation(
+      summary = "Retrieves the list of pending date polls for currently authenticated user",
+      description = "Retrieves the list of pending date polls for currently authenticated user.",
+      method = "GET")
   @ApiResponses(
       value = {
-          @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.FORBIDDEN, message = "Forbidden operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+          @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "403", description = "Forbidden operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"),
       }
   )
   public Response getDatePolls(
-                               @ApiParam(value = "Identity technical identifiers of calendar owners", required = false)
+                               @Parameter(description= "Identity technical identifiers of calendar owners")
                                @QueryParam(
                                  "ownerIds"
                                )
                                List<Long> ownerIds,
-                               @ApiParam(value = "Offset", required = false, defaultValue = "0")
+                               @Parameter(description= "Offset") @Schema(defaultValue = "0")
                                @QueryParam(
                                  "offset"
                                )
                                int offset,
-                               @ApiParam(
-                                   value = "Limit of results to return",
-                                   required = false
+                               @Parameter(
+                                   description = "Limit of results to return"
                                )
                                @QueryParam("limit")
                                int limit,
-                               @ApiParam(value = "Start datetime using RFC-3339 representation", required = true)
+                               @Parameter(description= "Start datetime using RFC-3339 representation", required = true)
                                @QueryParam(
                                  "start"
                                )
                                String start,
-                               @ApiParam(value = "End datetime using RFC-3339 representation", required = false)
+                               @Parameter(description= "End datetime using RFC-3339 representation")
                                @QueryParam(
                                  "end"
                                )
                                String end,
-                               @ApiParam(value = "IANA Time zone identitifer", required = false)
+                               @Parameter(description= "IANA Time zone identitifer")
                                @QueryParam(
                                  "timeZoneId"
                                )
                                String timeZoneId,
-                               @ApiParam(value = "Properties to expand", required = false)
+                               @Parameter(description= "Properties to expand")
                                @QueryParam(
                                  "expand"
                                )
@@ -1660,42 +1630,40 @@ public class AgendaEventRest implements ResourceContainer, Startable {
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(
-      value = "Retrieves the list of pending events for currently authenticated user.",
-      httpMethod = "GET",
-      response = Response.class,
-      produces = "application/json"
+  @Operation(
+      summary = "Retrieves the list of pending events for currently authenticated user",
+      description = "Retrieves the list of pending events for currently authenticated user.",
+      method = "GET"
   )
   @ApiResponses(
       value = {
-          @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.FORBIDDEN, message = "Forbidden operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+          @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "403", description = "Forbidden operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"),
       }
   )
   public Response getPendingEvents(
-                                   @ApiParam(value = "Identity technical identifiers of calendar owners", required = false)
+                                   @Parameter(description= "Identity technical identifiers of calendar owners")
                                    @QueryParam(
                                      "ownerIds"
                                    )
                                    List<Long> ownerIds,
-                                   @ApiParam(value = "Offset", required = false, defaultValue = "0")
+                                   @Parameter(description= "Offset") @Schema(defaultValue = "0")
                                    @QueryParam(
                                      "offset"
                                    )
                                    int offset,
-                                   @ApiParam(
-                                       value = "Limit of results to return",
-                                       required = false
+                                   @Parameter(
+                                       description = "Limit of results to return"
                                    )
                                    @QueryParam("limit")
                                    int limit,
-                                   @ApiParam(value = "IANA Time zone identitifer", required = false)
+                                   @Parameter(description= "IANA Time zone identitifer")
                                    @QueryParam(
                                      "timeZoneId"
                                    )
                                    String timeZoneId,
-                                   @ApiParam(value = "Properties to expand", required = false)
+                                   @Parameter(description= "Properties to expand")
                                    @QueryParam(
                                      "expand"
                                    )
