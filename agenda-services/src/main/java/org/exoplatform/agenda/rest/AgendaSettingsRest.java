@@ -8,24 +8,27 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.model.AgendaUserSettings;
 import org.exoplatform.agenda.model.RemoteProvider;
 import org.exoplatform.agenda.service.*;
 import org.exoplatform.agenda.util.RestUtils;
-import org.exoplatform.common.http.HTTPStatus;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.rest.resource.ResourceContainer;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 
-import io.swagger.annotations.*;
 import org.exoplatform.services.rest.http.PATCH;
 
 @Path("/v1/agenda/settings")
-@Api(value = "/v1/agenda/settings", description = "Manages agenda settings associated to users") // NOSONAR
+@Tag(name = "/v1/agenda/settings", description = "Manages agenda settings associated to users") // NOSONAR
 public class AgendaSettingsRest implements ResourceContainer {
   private static final Log             LOG = ExoLogger.getLogger(AgendaSettingsRest.class);
 
@@ -54,17 +57,15 @@ public class AgendaSettingsRest implements ResourceContainer {
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(
-      value = "Get User agenda settings",
-      httpMethod = "GET",
-      response = Response.class,
-      produces = "application/json"
+  @Operation(
+      summary = "Get User agenda settings",
+      method = "GET"
   )
   @ApiResponses(
       value = {
-          @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+          @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"),
       }
   )
   public Response getUserSettings() {
@@ -85,23 +86,22 @@ public class AgendaSettingsRest implements ResourceContainer {
   @PUT
   @Consumes(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(
-      value = "Saves agenda settings for authenticated user",
-      httpMethod = "PUT",
-      response = Response.class,
-      consumes = "application/json"
+  @Operation(
+      summary = "Saves agenda settings for authenticated user",
+      description = "Saves agenda settings for authenticated user",
+      method = "PUT"
   )
   @ApiResponses(
       value = {
-          @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Bad request"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+          @ApiResponse(responseCode = "204", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Bad request"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"),
       }
   )
   public Response saveUserSettings(
-                                   @ApiParam(
-                                       value = "User agenda settings to update",
+                                   @Parameter(
+                                       description = "User agenda settings to update",
                                        required = true
                                    )
                                    AgendaUserSettings agendaUserSettings) {
@@ -121,22 +121,21 @@ public class AgendaSettingsRest implements ResourceContainer {
   @Path("timeZone")
   @PATCH
   @RolesAllowed("users")
-  @ApiOperation(
-      value = "Saves agenda time zone setting for authenticated user",
-      httpMethod = "PUT",
-      response = Response.class
-  )
+  @Operation(
+      summary = "Saves agenda time zone setting for authenticated user",
+      description = "Saves agenda time zone setting for authenticated user",
+      method = "PUT")
   @ApiResponses(
       value = {
-          @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Bad request"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+          @ApiResponse(responseCode = "204", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Bad request"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"),
       }
   )
   public Response saveUserTimeZoneSetting(
-                                          @ApiParam(
-                                              value = "User preferred time zone",
+                                          @Parameter(
+                                              description = "User preferred time zone",
                                               required = true
                                           )
                                           @FormParam("timeZoneId")
@@ -161,35 +160,33 @@ public class AgendaSettingsRest implements ResourceContainer {
   @POST
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("administrators")
-  @ApiOperation(
-      value = "Saves agenda connector status whether enabled or disabled for all users",
-      httpMethod = "POST",
-      response = Response.class,
-      produces = "application/json"
-  )
+  @Operation(
+      summary = "Saves agenda connector status whether enabled or disabled for all users",
+      description = "Saves agenda connector status whether enabled or disabled for all users",
+      method = "POST")
   @ApiResponses(
       value = {
-          @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Bad request"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+          @ApiResponse(responseCode = "204", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Bad request"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"),
       }
   )
   public Response saveRemoteProviderStatus(
-                                           @ApiParam(
-                                               value = "Remote connector name",
+                                           @Parameter(
+                                               description = "Remote connector name",
                                                required = true
                                            )
                                            @FormParam("connectorName")
                                            String connectorName,
-                                           @ApiParam(
-                                               value = "Remote connector status",
+                                           @Parameter(
+                                               description = "Remote connector status",
                                                required = true
                                            )
                                            @FormParam("enabled")
                                            boolean enabled,
-                                           @ApiParam(
-                                                value = "Remote connector uses Oauth or not",
+                                           @Parameter(
+                                                description = "Remote connector uses Oauth or not",
                                                 required = true
                                            )
                                            @FormParam("isOauth")
@@ -211,29 +208,28 @@ public class AgendaSettingsRest implements ResourceContainer {
   @POST
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("administrators")
-  @ApiOperation(
-      value = "Saves agenda connector Client API Key that will be accessible by all users to access connector remote API",
-      httpMethod = "POST",
-      response = Response.class,
-      produces = "application/json"
+  @Operation(
+      summary = "Saves agenda connector Client API Key that will be accessible by all users to access connector remote API",
+      description = "Saves agenda connector Client API Key that will be accessible by all users to access connector remote API",
+      method = "POST"
   )
   @ApiResponses(
       value = {
-          @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Bad request"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+          @ApiResponse(responseCode = "204", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Bad request"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"),
       }
   )
   public Response saveRemoteProviderApiKey(
-                                           @ApiParam(
-                                               value = "Remote connector name",
+                                           @Parameter(
+                                               description = "Remote connector name",
                                                required = true
                                            )
                                            @FormParam("connectorName")
                                            String connectorName,
-                                           @ApiParam(
-                                               value = "Remote connector Api Key",
+                                           @Parameter(
+                                               description = "Remote connector Api Key",
                                                required = true
                                            )
                                            @FormParam("apiKey")
@@ -254,21 +250,20 @@ public class AgendaSettingsRest implements ResourceContainer {
   @Path("webConferencing")
   @POST
   @RolesAllowed("administrators")
-  @ApiOperation(
-      value = "Saves enabled web conferencing provider to use for all users",
-      httpMethod = "PUT",
-      response = Response.class
-  )
+  @Operation(
+      summary = "Saves enabled web conferencing provider to use for all users",
+      description = "Saves enabled web conferencing provider to use for all users",
+      method = "PUT")
   @ApiResponses(
       value = {
-          @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+          @ApiResponse(responseCode = "204", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"),
       }
   )
   public Response saveEnabledWebConferencing(
-                                             @ApiParam(
-                                                 value = "Web conferencing provider name",
+                                             @Parameter(
+                                                 description = "Web conferencing provider name",
                                                  required = true
                                              )
                                              @FormParam("providerName")
@@ -290,28 +285,27 @@ public class AgendaSettingsRest implements ResourceContainer {
   @Path("connector")
   @PATCH
   @RolesAllowed("users")
-  @ApiOperation(
-      value = "Saves agenda connector settings for authenticated user",
-      httpMethod = "PUT",
-      response = Response.class
-  )
+  @Operation(
+      summary = "Saves agenda connector settings for authenticated user",
+      description = "Saves agenda connector settings for authenticated user",
+      method = "PUT")
   @ApiResponses(
       value = {
-          @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Bad request"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+          @ApiResponse(responseCode = "204", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Bad request"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"),
       }
   )
   public Response saveUserConnectorSettings(
-                                            @ApiParam(
-                                                value = "User connector name",
+                                            @Parameter(
+                                                description = "User connector name",
                                                 required = true
                                             )
                                             @FormParam("connectorName")
                                             String connectorName,
-                                            @ApiParam(
-                                                value = "User connector identifier",
+                                            @Parameter(
+                                                description = "User connector identifier",
                                                 required = true
                                             )
                                             @FormParam("connectorUserId")
@@ -336,17 +330,16 @@ public class AgendaSettingsRest implements ResourceContainer {
   @Path("connector")
   @DELETE
   @RolesAllowed("users")
-  @ApiOperation(
-      value = "Deletes agenda connector settings for authenticated user",
-      httpMethod = "DELETE",
-      response = Response.class
-  )
+  @Operation(
+      summary = "Deletes agenda connector settings for authenticated user",
+      description = "Deletes agenda connector settings for authenticated user",
+      method = "DELETE")
   @ApiResponses(
       value = {
-          @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Bad request"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),
+          @ApiResponse(responseCode = "204", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Bad request"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"),
       }
   )
   public Response deleteUserConnectorSettings() {
