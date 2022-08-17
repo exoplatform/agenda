@@ -1324,11 +1324,11 @@ public class AgendaEventRest implements ResourceContainer, Startable {
   }
 
   @Path("{eventId}/response/send")
-  @GET
+  @POST
   @Operation(
       summary = "Send event invitation response for currently authenticated user",
       description = "Send event invitation response for currently authenticated user (using token or effectively authenticated)",
-      method = "GET")
+      method = "POST")
   @ApiResponses(
       value = {
           @ApiResponse(responseCode = "204", description = "Request fulfilled"),
