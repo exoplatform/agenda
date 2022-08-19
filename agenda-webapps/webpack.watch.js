@@ -3,10 +3,15 @@ const { merge } = require('webpack-merge');
 
 const webpackProductionConfig = require('./webpack.prod.js');
 
-module.exports = merge(webpackProductionConfig, {
-  mode: 'development',
+const app = 'agenda';
+
+const exoServerPath = "/exo-server";
+
+let config = merge(webpackProductionConfig, {
   output: {
-    path: '/exo-server/webapps/agenda/',
-    filename: 'js/[name].bundle.js'
-  }
+    path: path.resolve(`${exoServerPath}/webapps/${app}/`)
+  },
+  mode: 'development',
+  devtool: 'eval-source-map'
 });
+module.exports = config;
