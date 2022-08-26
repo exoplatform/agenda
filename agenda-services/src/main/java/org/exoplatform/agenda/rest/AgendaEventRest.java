@@ -1324,11 +1324,12 @@ public class AgendaEventRest implements ResourceContainer, Startable {
   }
 
   @Path("{eventId}/response/send")
-  @POST
+  @GET
+  // This query modify data, and use GET verb. It is used in mail notification to accept events with a link, and it is not possible to make a POST by this way. So we keep GET here and assume that it will not be protected by CSRF protection
   @Operation(
       summary = "Send event invitation response for currently authenticated user",
       description = "Send event invitation response for currently authenticated user (using token or effectively authenticated)",
-      method = "POST")
+      method = "GET")
   @ApiResponses(
       value = {
           @ApiResponse(responseCode = "204", description = "Request fulfilled"),
