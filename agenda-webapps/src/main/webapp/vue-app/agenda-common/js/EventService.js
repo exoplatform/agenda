@@ -198,7 +198,7 @@ export function updateEventFields(eventId, eventFields, updateAllOccurrences, se
 
 export function sendEventResponse(eventId, occurrenceId, response, upcoming) {
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}/response/send?response=${response}&occurrenceId=${occurrenceId || ''}&upcoming=${upcoming || false}`, {
-    method: 'POST',
+    method: 'GET',
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json'

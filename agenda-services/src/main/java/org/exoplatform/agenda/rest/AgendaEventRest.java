@@ -1324,11 +1324,13 @@ public class AgendaEventRest implements ResourceContainer, Startable {
   }
 
   @Path("{eventId}/response/send")
-  @POST
+  @GET
+  // This query modify data, but to accept events, so the risk of attack via this bias is low.
+  // a hacker will not delete or modify important data via this request.
   @Operation(
       summary = "Send event invitation response for currently authenticated user",
       description = "Send event invitation response for currently authenticated user (using token or effectively authenticated)",
-      method = "POST")
+      method = "GET")
   @ApiResponses(
       value = {
           @ApiResponse(responseCode = "204", description = "Request fulfilled"),
