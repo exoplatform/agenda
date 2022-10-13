@@ -57,6 +57,12 @@ export default {
     isPastEvent() {
       if (!this.event) {
         return true;
+      } else if (!this.event.id) {
+        if (this.recurrence?.until) {
+          const endDate = this.$agendaUtils.toDate(this.recurrence?.until);
+          return endDate.getTime() < Date.now();
+        }
+        return false;
       } else if (this.event.start && this.event.end) {
         const endDate = this.$agendaUtils.toDate(this.event.end);
         return endDate.getTime() < Date.now();
@@ -72,6 +78,9 @@ export default {
     },
     eventResponse() {
       return this.userAttendee && this.userAttendee.response || 'NEEDS_ACTION';
+    },
+    recurrence() {
+      return this.event?.recurrence || this.event?.parent?.recurrence;
     },
   },
   methods: {
