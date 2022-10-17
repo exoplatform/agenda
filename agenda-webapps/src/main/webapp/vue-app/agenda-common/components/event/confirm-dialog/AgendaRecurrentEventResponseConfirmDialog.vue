@@ -81,15 +81,12 @@ export default {
       }
       if (this.recurrenceResponseType === 'single') {
         this.confirmOccurrenceEvent();
-      } else if (this.recurrenceResponseType === 'all') {
+      } else if (this.recurrenceResponseType === 'all' || this.recurrenceResponseType === 'upcoming') {
         this.confirmRecurrentEvent();
-      } else if (this.recurrenceResponseType === 'upcoming') {
-        this.confirmUpcomingEvent();
       }
     },
-    confirmUpcomingEvent() {
-      this.loading = true;
-      this.$eventService.sendEventResponse(this.event.parent.id, this.event.occurrence.id, this.eventResponse, true)
+    confirmUpcomingEvent(occurrence) {
+      this.$eventService.sendEventResponse(this.event.parent.id, occurrence, this.eventResponse, true)
         .then(() => {
           this.$root.$emit('agenda-event-response-sent', this.event.parent, null, this.eventResponse);
           this.dialog = false;
@@ -98,12 +95,18 @@ export default {
     },
     confirmRecurrentEvent() {
       this.loading = true;
-      this.$eventService.sendEventResponse(this.event.parent.id, null, this.eventResponse)
-        .then(() => {
-          this.$root.$emit('agenda-event-response-sent', this.event.parent, null, this.eventResponse);
-          this.dialog = false;
-        })
-        .finally(() => this.loading = false);
+      if (this.isPastEvent()) {
+        const occurrence = `${this.$agendaUtils.toRFC3339(new Date(this.event.parent.start).toISOString(), false, false)}Z`;
+        this.confirmUpcomingEvent(occurrence);
+      } else {
+        this.$eventService.sendEventResponse(this.event.parent.id, null, this.eventResponse)
+          .then(() => {
+            this.$root.$emit('agenda-event-response-sent', this.event.parent, null, this.eventResponse);
+            this.dialog = false;
+          })
+          .finally(() => this.loading = false);
+      }
+
     },
     confirmOccurrenceEvent() {
       this.loading = true;
@@ -122,6 +125,15 @@ export default {
     open(eventResponse) {
       this.eventResponse = eventResponse;
       this.dialog = true;
+    },
+    isPastEvent() {
+      if (!this.event.id) {
+        if (this.recurrence?.until) {
+          const endDate = this.$agendaUtils.toDate(this.recurrence?.until);
+          return endDate.getTime() < Date.now() && this.eventResponse !== 'NEEDS_ACTION';
+        }
+        return true;
+      }
     },
   },
 };

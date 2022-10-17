@@ -60,9 +60,9 @@ export default {
       } else if (!this.event.id) {
         if (this.recurrence?.until) {
           const endDate = this.$agendaUtils.toDate(this.recurrence?.until);
-          return endDate.getTime() < Date.now();
+          return endDate.getTime() < Date.now() && this.eventResponse !== 'NEEDS_ACTION';
         }
-        return false;
+        return this.eventResponse !== 'NEEDS_ACTION';
       } else if (this.event.start && this.event.end) {
         const endDate = this.$agendaUtils.toDate(this.event.end);
         return endDate.getTime() < Date.now();
