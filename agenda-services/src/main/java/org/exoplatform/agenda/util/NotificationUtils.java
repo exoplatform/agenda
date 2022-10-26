@@ -681,21 +681,12 @@ public class NotificationUtils {
             return "Each " + eventRecurrence.getInterval() + "days";
           }
         case "WEEKLY":
-          if (eventRecurrence.getInterval() == 1 && event.getRecurrence().getByDay().size() == 1) {
-            String dayNumber = eventRecurrence.getByDay().get(0);
-            DayOfWeek dayName = DayOfWeek.of(Integer.parseInt(dayNumber));
-            return "Weekly on " + StringUtils.lowerCase(String.valueOf(dayName)) + "";
-          } else if (eventRecurrence.getInterval() == 1 && eventRecurrence.getByDay().size() > 1) {
+          if (eventRecurrence.getInterval() == 1) {
             List<String> dayNamesAbbreviations = eventRecurrence.getByDay();
             return "Weekly on " + AgendaDateUtils.getDayNameFromDayAbbreviation(dayNamesAbbreviations);
-          } else if (eventRecurrence.getByDay().size() == 1) {
-            String dayNumber = eventRecurrence.getByDay().get(0);
-            DayOfWeek dayName = DayOfWeek.of(Integer.parseInt(dayNumber));
-            return "Each Week " + eventRecurrence.getInterval() + " on " + StringUtils.lowerCase(String.valueOf(dayName));
           } else {
             List<String> dayNamesAbbreviations = eventRecurrence.getByDay();
-            return "Each Week " + eventRecurrence.getInterval() + " on "
-                + AgendaDateUtils.getDayNameFromDayAbbreviation(dayNamesAbbreviations);
+            return "Each Week " + eventRecurrence.getInterval() + " on " + AgendaDateUtils.getDayNameFromDayAbbreviation(dayNamesAbbreviations);
           }
         case "MONTHLY":
           if (eventRecurrence.getInterval() == 1) {
