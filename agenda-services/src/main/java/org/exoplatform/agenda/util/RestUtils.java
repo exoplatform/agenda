@@ -198,7 +198,8 @@ public class RestUtils {
                                                 List<String> expandProperties) throws IllegalAccessException {
     Event event = agendaEventService.getEventById(eventId, userTimeZone, identityId);
     if (event.getRecurrence() != null && firstOccurrence) {
-      List<Event> occurrences = Utils.getOccurrences(event, event.getStart().minusDays(1).toLocalDate(), null, 1);
+      LocalDate occurrencesFromDate = event.getStart().toLocalTime().isAfter(ZonedDateTime.now().toLocalTime()) ? LocalDate.from(ZonedDateTime.now()) : LocalDate.from(ZonedDateTime.now()).plusDays(1);
+      List<Event> occurrences = Utils.getOccurrences(event, occurrencesFromDate, null, 1);
       if (CollectionUtils.isNotEmpty(occurrences)) {
         event = occurrences.get(0);
         occurrenceId = event.getOccurrence().getId();
