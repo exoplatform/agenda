@@ -86,6 +86,7 @@ export default {
       });
 
       this.$set(connector, 'loading', true);
+      console.log(disconnectPromises);
       return Promise.all(disconnectPromises)
         .then(() => connector.connect(this.settings && this.settings.automaticPushEvents))
         .then((userId) => {
