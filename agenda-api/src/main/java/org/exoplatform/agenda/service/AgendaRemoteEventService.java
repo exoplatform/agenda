@@ -57,6 +57,16 @@ public interface AgendaRemoteEventService {
   RemoteProvider saveRemoteProviderApiKey(String remoteProviderName, String apiKey);
 
   /**
+   * Save {@link RemoteProvider} Client Secret Key
+   *
+   * @param remoteProviderName Remote provider name
+   * @param secretKey Client Secret Key used in authorization flow to refresh access tokens qnd
+   *               allow users access remote connector API to retrieve and change events on their accounts
+   * @return saved {@link RemoteProvider}
+   */
+  RemoteProvider saveRemoteProviderSecretKey(String remoteProviderName, String secretKey);
+
+  /**
    * Creates or updates {@link RemoteEvent} of user
    * 
    * @param eventId technical identifier {@link Event} to attach to remote

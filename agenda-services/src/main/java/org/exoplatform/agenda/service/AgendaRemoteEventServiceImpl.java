@@ -119,6 +119,22 @@ public class AgendaRemoteEventServiceImpl implements AgendaRemoteEventService {
    * {@inheritDoc}
    */
   @Override
+  public RemoteProvider saveRemoteProviderSecretKey(String remoteProviderName, String secretKey) {
+    if (StringUtils.isBlank(remoteProviderName)) {
+      throw new IllegalStateException("remoteProviderName is mandatory");
+    }
+    RemoteProvider remoteProvider = remoteEventStorage.getRemoteProviderByName(remoteProviderName);
+    if (remoteProvider == null) {
+      throw new IllegalStateException("Remote provider not found with name " + remoteProviderName);
+    }
+    remoteProvider.setSecretKey(secretKey);
+    return remoteEventStorage.saveRemoteProvider(remoteProvider);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
   public RemoteEvent saveRemoteEvent(RemoteEvent remoteEvent) {
     return remoteEventStorage.saveRemoteEvent(remoteEvent);
   }
@@ -163,6 +179,7 @@ public class AgendaRemoteEventServiceImpl implements AgendaRemoteEventService {
       remoteProvider = new RemoteProvider(0,
                                           plugin.getConnectorName(),
                                           plugin.getConnectorAPIKey(),
+                                          plugin.getConnectorSecretKey(),
                                           plugin.isEnabled(),
                                           plugin.isConnectorOauth());
       remoteProvider = saveRemoteProvider(remoteProvider);

@@ -59,6 +59,27 @@ export function saveRemoteProviderApiKey(connectorName, apiKey) {
   });
 }
 
+export function saveRemoteProviderSecretKey(connectorName, secretKey) {
+  const formData = new FormData();
+  formData.append('connectorName', connectorName);
+  formData.append('secretKey', secretKey || '');
+
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/settings/connector/secretKey`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams(formData).toString(),
+  }).then(resp => {
+    if (resp && resp.ok) {
+      return resp.json();
+    } else {
+      throw new Error('Error while saving connector secretKey');
+    }
+  });
+}
+
 export function saveEnabledWebConferencingProvider(providerName) {
   const formData = new FormData();
   formData.append('providerName', providerName);

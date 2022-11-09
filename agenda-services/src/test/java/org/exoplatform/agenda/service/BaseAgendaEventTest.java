@@ -223,6 +223,7 @@ public abstract class BaseAgendaEventTest {
       remoteProvider = agendaRemoteEventService.saveRemoteProvider(new RemoteProvider(0,
                                                                                       "newRemoteProvider",
                                                                                       "Client API Key",
+                                                                                      "client secret key",
                                                                                       true,
                                                                                         true));
     }

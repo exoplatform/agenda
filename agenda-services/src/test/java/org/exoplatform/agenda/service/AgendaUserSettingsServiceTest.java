@@ -75,7 +75,7 @@ public class AgendaUserSettingsServiceTest extends BaseAgendaEventTest {
   public void testSaveUserConnector() throws Exception { // NOSONAR
     long identityId = 2223l;
 
-    RemoteProvider remoteProvider = new RemoteProvider(0, "connectorName", "Client API Key", true, true);
+    RemoteProvider remoteProvider = new RemoteProvider(0, "connectorName", "Client API Key", "Client Secret Key", true, true);
     remoteProvider = agendaRemoteEventService.saveRemoteProvider(remoteProvider);
     assertNotNull(remoteProvider);
 
