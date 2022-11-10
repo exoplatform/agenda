@@ -13,6 +13,8 @@ public class RemoteProvider {
 
   private String  apiKey;
 
+  private String  secretKey;
+
   private boolean enabled;
 
   private Boolean oauth;

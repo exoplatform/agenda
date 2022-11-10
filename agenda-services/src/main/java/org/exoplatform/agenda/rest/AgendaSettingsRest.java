@@ -247,6 +247,34 @@ public class AgendaSettingsRest implements ResourceContainer {
     }
   }
 
+  @Path("connector/secretKey")
+  @POST
+  @Produces(MediaType.APPLICATION_JSON)
+  @RolesAllowed("administrators")
+  @Operation(summary = "Saves agenda connector Client Secret Key that will be accessible by all users to access connector remote API",
+             description = "Saves agenda connector Client Secret Key that will be accessible by all users to access connector remote API",
+             method = "POST")
+  @ApiResponses(value = { @ApiResponse(responseCode = "204", description = "Request fulfilled"),
+      @ApiResponse(responseCode = "204", description = "Request fulfilled"),
+      @ApiResponse(responseCode = "400", description = "Bad request"),
+      @ApiResponse(responseCode = "500", description = "Internal server error"), })
+  public Response saveRemoteProviderSecretKey(@Parameter(description = "Remote connector name", required = true)
+                                              @FormParam("connectorName") String connectorName,
+                                              @Parameter(description = "Remote connector Secret Key", required = true)
+                                              @FormParam("secretKey") String secretKey) {
+    if (StringUtils.isBlank(connectorName)) {
+      return Response.status(Status.BAD_REQUEST).entity("'connectorName' parameter is mandatory").build();
+    }
+
+    try {
+      RemoteProvider remoteProvider = agendaRemoteEventService.saveRemoteProviderSecretKey(connectorName, secretKey);
+      return Response.ok(remoteProvider).build();
+    } catch (Exception e) {
+      LOG.warn("Error saving connector '{}' secretKey", connectorName, e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+  
   @Path("webConferencing")
   @POST
   @RolesAllowed("administrators")

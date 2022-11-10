@@ -42,7 +42,7 @@ public class AgendaRemoteEventServiceTest extends BaseAgendaEventTest {
     assertNotNull(remoteProviders);
     int initialisize = remoteProviders.size();
 
-    RemoteProvider remoteProviderToSave = new RemoteProvider(0, "testProvider", "Client API Key", false, true);
+    RemoteProvider remoteProviderToSave = new RemoteProvider(0, "testProvider", "Client API Key", "client secret key", false, true);
     RemoteProvider remoteProviderSaved = agendaRemoteEventService.saveRemoteProvider(remoteProviderToSave);
     assertNotNull(remoteProviderSaved);
     assertTrue(remoteProviderSaved.getId() > 0);
@@ -56,7 +56,7 @@ public class AgendaRemoteEventServiceTest extends BaseAgendaEventTest {
 
   @Test
   public void testSaveRemoteProviderStatus() throws Exception { // NOSONAR
-    RemoteProvider remoteProviderToSave = new RemoteProvider(0, "testProvider222", "Client API Key", false, true);
+    RemoteProvider remoteProviderToSave = new RemoteProvider(0, "testProvider222", "Client API Key", "client secret key", false, true);
     RemoteProvider remoteProviderSaved = agendaRemoteEventService.saveRemoteProvider(remoteProviderToSave);
     assertNotNull(remoteProviderSaved);
     assertFalse(remoteProviderSaved.isEnabled());
@@ -145,5 +145,20 @@ public class AgendaRemoteEventServiceTest extends BaseAgendaEventTest {
     assertNotNull(foundRemoteEvent5);
 
     assertNotEquals(foundRemoteEvent1.getId(), foundRemoteEvent5.getId());
+  }
+
+  @Test
+  public void saveRemoteProviderApiKey() {
+    Throwable exception1 = assertThrows(IllegalStateException.class, () -> agendaRemoteEventService.saveRemoteProviderApiKey(null, "key"));
+    assertEquals("remoteProviderName is mandatory", exception1.getMessage());
+
+    Throwable exception2 = assertThrows(IllegalStateException.class, () -> agendaRemoteEventService.saveRemoteProviderApiKey("notExistProvider", "key"));
+    assertEquals("Remote provider not found with name notExistProvider", exception2.getMessage());
+
+    RemoteProvider remoteProviderToSave = new RemoteProvider(0, "testProviderSecretKey", "Client API Key", "", true, true);
+    agendaRemoteEventService.saveRemoteProvider(remoteProviderToSave);
+    RemoteProvider remoteProvider = agendaRemoteEventService.saveRemoteProviderApiKey("testProviderSecretKey", "secret key");
+    assertNotNull(remoteProvider);
+    assertEquals("secret key", remoteProvider.getApiKey());
   }
 }

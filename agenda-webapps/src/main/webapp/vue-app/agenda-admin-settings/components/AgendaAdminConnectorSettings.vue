@@ -36,27 +36,50 @@
           <td>
             <div class="align-center">
               <v-text-field
-                :ref="`${props.item.name}Input`"
+                :ref="`${props.item.name}ApiInput`"
                 v-model="props.item.apiKey"
-                :readonly="!props.item.editing"
+                :readonly="!props.item.apiEditing"
                 :placeholder="!props.item.isOauth ? $t('agenda.noConnectorClientApiKey') : $t('agenda.connectorClientApiKey')"
                 :class="props.item.isOauth ? 'mx-2 pa-0' : 'mx-2 pa-0 me-8' "
                 dense>
                 <template #prepend>
                   <i 
-                  :class="!props.item.isOauth ? 'uiIcon uiIconLock grey--text mt-1':'uiIcon uiIconLock primary--text mt-1'">
+                    :class="!props.item.isOauth ? 'uiIcon uiIconLock grey--text mt-1':'uiIcon uiIconLock primary--text mt-1'">
                   </i>
                 </template>
-                <template v-if="props.item.isOauth" #append-outer >
+                <template v-if="props.item.isOauth" #append-outer>
                   <v-slide-x-reverse-transition mode="out-in">
                     <i
-                      :key="`icon-${props.item.editing}`"
-                      :class="props.item.editing ? 'uiIcon uiIconTick clickable success--text mt-1' : 'uiIcon uiIconEdit clickable primary--text mt-1'"
+                      :key="`icon-${props.item.apiEditing}`"
+                      :class="props.item.apiEditing ? 'uiIcon uiIconTick clickable success--text mt-1' : 'uiIcon uiIconEdit clickable primary--text mt-1'"
                       @click="editApiKey(props.item)"></i>
                   </v-slide-x-reverse-transition>
                 </template>
               </v-text-field>
             </div>
+          </td>
+          <td>
+            <v-text-field
+              :ref="`${props.item.name}SecretInput`"
+              v-model="props.item.secretKey"
+              :readonly="!props.item.secretEditing"
+              :placeholder="!props.item.mandatorySecretKey ? $t('agenda.noConnectorClientSecretKey') : $t('agenda.connectorSecretApiKey')"
+              :class="props.item.mandatorySecretKey ? 'mx-2 pa-0' : 'mx-2 pa-0 me-8' "
+              dense>
+              <template #prepend>
+                <em
+                  :class="!props.item.mandatorySecretKey ? 'uiIcon uiIconLock grey--text mt-1':'uiIcon uiIconLock primary--text mt-1'">
+                </em>
+              </template>
+              <template v-if="props.item.mandatorySecretKey" #append-outer>
+                <v-slide-x-reverse-transition mode="out-in">
+                  <em
+                    :key="`icon-${props.item.secretEditing}`"
+                    :class="props.item.secretEditing ? 'uiIcon uiIconTick clickable success--text mt-1' : 'uiIcon uiIconEdit clickable primary--text mt-1'"
+                    @click="editSecretKey(props.item)"></em>
+                </v-slide-x-reverse-transition>
+              </template>
+            </v-text-field>
           </td>
           <td>
             <div class="d-flex flex-column align-center">
@@ -109,6 +132,7 @@ export default {
       { text: this.$t('agenda.name'), align: 'center' },
       { text: this.$t('agenda.description'), align: 'center' },
       { text: this.$t('agenda.connectorClientApiKey'), align: 'center', width: '40%' },
+      { text: this.$t('agenda.connectorSecretApiKey'), align: 'center', width: '15%' },
       { text: this.$t('agenda.active'), align: 'center' }
     ];
     // Retrieving list of registered connectors from extensionRegistry
@@ -123,8 +147,10 @@ export default {
           const connectorObj = this.settings.remoteProviders.find(connectorSettings => connectorSettings.name === connector.name);
           connector.enabled = connectorObj && connectorObj.enabled || false;
           connector.apiKey = connectorObj && connectorObj.apiKey || '';
+          connector.secretKey = connectorObj && connectorObj.secretKey || '';
           connector.loading = false;
-          connector.editing = false;
+          connector.apiEditing = false;
+          connector.secretEditing = false;
         });
       } else {
         connectors.forEach(connector => connector.enabled = false);
@@ -139,14 +165,29 @@ export default {
         .finally(() => connector.loading = false);
     },
     editApiKey(connector) {
-      if (connector.editing) {
+      if (connector.apiEditing) {
         this.$settingsService.saveRemoteProviderApiKey(connector.name, connector.apiKey)
           .then(result => Object.assign(connector, result))
-          .finally(() => connector.editing = false);
+          .finally(() => connector.apiEditing = false);
       } else {
-        connector.editing = true;
+        connector.apiEditing = true;
         this.$nextTick(() => {
-          const $input = this.$refs[`${connector.name}Input`];
+          const $input = this.$refs[`${connector.name}ApiInput`];
+          if ($input) {
+            $input.focus();
+          }
+        });
+      }
+    },
+    editSecretKey(connector) {
+      if (connector.secretEditing) {
+        this.$settingsService.saveRemoteProviderSecretKey(connector.name, connector.secretKey)
+          .then(result => Object.assign(connector, result))
+          .finally(() => connector.secretEditing = false);
+      } else {
+        connector.secretEditing = true;
+        this.$nextTick(() => {
+          const $input = this.$refs[`${connector.name}SecretInput`];
           if ($input) {
             $input.focus();
           }

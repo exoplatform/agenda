@@ -502,6 +502,7 @@ public class EntityMapper {
     return new RemoteProvider(remoteProviderEntity.getId(),
                               remoteProviderEntity.getName(),
                               remoteProviderEntity.getApiKey(),
+                              remoteProviderEntity.getSecretKey(),
                               remoteProviderEntity.isEnabled(),
                         null);
   }
@@ -511,6 +512,7 @@ public class EntityMapper {
     remoteProviderEntity.setId(remoteProvider.getId() <= 0 ? null : remoteProvider.getId());
     remoteProviderEntity.setName(remoteProvider.getName());
     remoteProviderEntity.setApiKey(remoteProvider.getApiKey());
+    remoteProviderEntity.setSecretKey(remoteProvider.getSecretKey());
     remoteProviderEntity.setEnabled(remoteProvider.isEnabled());
     return remoteProviderEntity;
   }
