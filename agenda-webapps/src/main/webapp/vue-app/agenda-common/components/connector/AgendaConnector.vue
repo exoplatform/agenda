@@ -56,6 +56,7 @@ export default {
             const connectorObj = this.remoteProviders.find(connectorSettings => connectorSettings.name === connector.name);
             connector.enabled = connectorObj && connectorObj.enabled || false;
             connector.apiKey = connectorObj && connectorObj.apiKey || '';
+            connector.secretKey = connectorObj && connectorObj.secretKey || '';
             connector.connected = connector.enabled && this.settings.connectedRemoteProvider === connectorObj.name;
             connector.user = connector.connected && this.settings.connectedRemoteUserId || '';
           });
@@ -71,7 +72,7 @@ export default {
       this.connectors
         .forEach(connector => {
           if (connector.init && !connector.initialized && connector.enabled && connector.apiKey) {
-            connector.init(this.connectionStatusChanged, this.connectionLoading, connector.apiKey);
+            connector.init(this.connectionStatusChanged, this.connectionLoading, connector.apiKey, connector.secretKey);
           }
         });
     },
