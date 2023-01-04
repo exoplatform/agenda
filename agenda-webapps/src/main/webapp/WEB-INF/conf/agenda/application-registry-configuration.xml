@@ -96,12 +96,12 @@
       <description>this listener init the portlets are registered in PortletRegister</description>
       <init-params>
         <value-param>
-          <name>merge</name>
+          <name>system</name>
           <value>true</value>
         </value-param>
         <object-param>
-             <name>tools</name>
-            <description>description</description>
+            <name>tools</name>
+            <description>Tools application category</description>
             <object type="org.exoplatform.application.registry.ApplicationCategory">
               <field name="name"><string>Tools</string></field>
               <field name="displayName"><string>Tools</string></field>
