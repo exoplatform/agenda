@@ -83,17 +83,21 @@ public class EventReplyNotificationPlugin extends BaseNotificationPlugin {
     NotificationInfo notification = NotificationInfo.instance();
     notification.key(getId());
     if (event.getId() > 0) {
-      List<EventAttendee> eventAttendees = eventAttendeeService.getEventAttendees(event.getId(),
-                                                                                  occurrenceId,
-                                                                                  EventAttendeeResponse.ACCEPTED,
-                                                                                  EventAttendeeResponse.TENTATIVE);
-      Set<Long> eventAttendeeIds = eventAttendees.stream().map(EventAttendee::getIdentityId).collect(Collectors.toSet());
-      eventAttendeeIds = new HashSet<>(eventAttendeeIds);
-      eventAttendeeIds.add(event.getCreatorId());
-      eventAttendeeIds.remove(eventParticipantId);
-      setEventReminderNotificationRecipients(identityManager,
-                                             notification,
-                                             eventAttendeeIds.toArray(new Long[eventAttendeeIds.size()]));
+      Set<Long> receivers = new HashSet<>();
+      if (eventParticipantId != event.getCreatorId()) {
+        receivers.add(event.getCreatorId());
+      } else if (EventAttendeeResponse.DECLINED.equals(eventResponse) && eventParticipantId == event.getCreatorId()) {
+        List<EventAttendee> eventAttendees = eventAttendeeService.getEventAttendees(event.getId(),
+                                                                                    occurrenceId,
+                                                                                    EventAttendeeResponse.ACCEPTED,
+                                                                                    EventAttendeeResponse.TENTATIVE);
+        Set<Long> eventAttendeeIds = eventAttendees.stream().map(EventAttendee::getIdentityId).collect(Collectors.toSet());
+        eventAttendeeIds = new HashSet<>(eventAttendeeIds);
+        eventAttendeeIds.add(event.getCreatorId());
+        eventAttendeeIds.remove(eventParticipantId);
+        receivers = eventAttendeeIds;
+      }
+      setEventReminderNotificationRecipients(identityManager, notification, receivers.toArray(new Long[receivers.size()]));
     }
     if (notification.getSendToUserIds() == null || notification.getSendToUserIds().isEmpty()) {
       LOG.debug("Notification type '{}' doesn't have a recipient", getId());
