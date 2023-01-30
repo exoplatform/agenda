@@ -21,6 +21,7 @@ import java.util.*;
 import java.util.Date;
 import java.util.stream.Collectors;
 
+import net.fortuna.ical4j.model.Month;
 import org.apache.commons.lang.ObjectUtils;
 import org.apache.commons.lang.StringUtils;
 
@@ -270,8 +271,8 @@ public class Utils {
       recurBuilder.weekNoList(list);
     }
     if (recurrence.getByMonth() != null && !recurrence.getByMonth().isEmpty()) {
-      NumberList list = new NumberList();
-      recurrence.getByMonth().forEach(month -> list.add(Integer.parseInt(month)));
+      MonthList list = new MonthList();
+      recurrence.getByMonth().forEach(month -> list.add(new Month(Integer.parseInt(month))));
       recurBuilder.monthList(list);
     }
     if (recurrence.getBySetPos() != null && !recurrence.getBySetPos().isEmpty()) {
