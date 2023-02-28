@@ -127,10 +127,18 @@ export default {
 
     this.spaceId = eXo.env.portal.spaceId;
 
+    document.addEventListener('drawerOpened', () => this.$el.closest('#stickyBlockDesktop').style.position = 'static');
+    document.addEventListener('drawerClosed', () => this.$el.closest('#stickyBlockDesktop').style.position = 'sticky');
+
     // Asynchronously load settings to use it in dialogs,
     // not needed for main screen display
     this.initSettings();
   },
+  beforeDestroy() {
+    document.removeEventListener('drawerOpened', () => this.$el.closest('#stickyBlockDesktop').style.position = 'static');
+    document.removeEventListener('drawerClosed', () => this.$el.closest('#stickyBlockDesktop').style.position = 'sticky');
+  }
+
   methods: {
     initSettings(userSettings) {
       if (userSettings) {
