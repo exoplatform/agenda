@@ -20,15 +20,6 @@
 <configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.exoplatform.org/xml/ns/kernel_1_2.xsd http://www.exoplatform.org/xml/ns/kernel_1_2.xsd" xmlns="http://www.exoplatform.org/xml/ns/kernel_1_2.xsd">
 
   <component>
-    <type>org.exoplatform.web.security.codec.CodecInitializer</type>
-    <init-params>
-      <value-param>
-        <name>gatein.conf.dir</name>
-        <value>jar:/conf</value>
-      </value-param>
-    </init-params>
-  </component>
-  <component>
     <type>org.exoplatform.ws.frameworks.cometd.ContinuationService</type>
   </component>
   <component>
