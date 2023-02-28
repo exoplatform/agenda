@@ -3,69 +3,8 @@
   for more details. You should have received a copy of the GNU Lesser General Public License along with this software; if not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA, or see the FSF site: http://www.fsf.org. -->
 <configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.exoplatform.org/xml/ns/kernel_1_2.xsd http://www.exoplatform.org/xml/ns/kernel_1_2.xsd" xmlns="http://www.exoplatform.org/xml/ns/kernel_1_2.xsd">
 
-  <component>
-    <key>org.exoplatform.commons.api.persistence.DataInitializer</key>
-    <type>org.exoplatform.commons.persistence.impl.LiquibaseDataInitializer</type>
-    <init-params>
-      <value-param>
-        <name>liquibase.datasource</name>
-        <value>java:/comp/env/exo-jpa_portal</value>
-      </value-param>
-      <value-param>
-        <name>liquibase.contexts</name>
-        <value>${exo.liquibase.contexts}</value>
-      </value-param>
-    </init-params>
-  </component>
-
-  <component>
-    <key>org.exoplatform.services.database.HibernateService</key>
-    <jmx-name>database:type=HibernateService</jmx-name>
-    <type>org.exoplatform.services.organization.idm.CustomHibernateServiceImpl</type>
-    <init-params>
-      <properties-param>
-        <name>hibernate.properties</name>
-        <description>Default Hibernate Service</description>
-        <property name="hibernate.hbm2ddl.auto" value="create-drop"/>
-        <property name="hibernate.show_sql" value="false"/>
-        <property name="hibernate.current_session_context_class" value="thread"/>
-        <property name="hibernate.cache.use_second_level_cache" value="false"/>
-        <property name="hibernate.cache.use_query_cache" value="false"/>
-        <property name="hibernate.connection.datasource" value="java:/comp/env/exo-jpa_portal"/>
-        <property name="hibernate.c3p0.min_size" value="5"/>
-        <property name="hibernate.c3p0.max_size" value="20"/>
-        <property name="hibernate.c3p0.timeout" value="1800"/>
-        <property name="hibernate.c3p0.max_statements" value="50"/>
-        <property name="hibernate.enable_lazy_load_no_trans" value="true"/>
-      </properties-param>
-    </init-params>
-  </component>
-
-  <component>
-    <type>org.exoplatform.agenda.search.AgendaSearchConnector</type>
-    <init-params>
-      <value-param>
-        <name>query.file.path</name>
-        <value>${exo.agenda.es.query.path:jar:/agenda-search-query.json}</value>
-      </value-param>
-      <properties-param>
-        <name>constructor.params</name>
-        <property name="searchType" value="event" />
-        <property name="index" value="event_alias" />
-      </properties-param>
-    </init-params>
-  </component>
-
-  <!-- Commons Services -->
-  <component>
-    <type>org.exoplatform.commons.persistence.impl.EntityManagerService</type>
-  </component>
-
   <import>jar:/conf/exo.agenda.service-dependencies-configuration.xml</import>
   <import>jar:/conf/exo.agenda.service-configuration.xml</import>
   <import>jar:/conf/exo.agenda.service-local-configuration.xml</import>
 
-  <remove-configuration>org.exoplatform.services.naming.InitialContextInitializer</remove-configuration>
-  <remove-configuration>org.exoplatform.commons.search.index.IndexingOperationProcessor</remove-configuration>
-  <remove-configuration>org.exoplatform.commons.search.rest.IndexingManagementRestServiceV1</remove-configuration>
 </configuration>
