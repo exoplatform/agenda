@@ -137,7 +137,7 @@ export default {
   beforeDestroy() {
     document.removeEventListener('drawerOpened', () => this.$el.closest('#stickyBlockDesktop').style.position = 'static');
     document.removeEventListener('drawerClosed', () => this.$el.closest('#stickyBlockDesktop').style.position = 'sticky');
-  }
+  },
 
   methods: {
     initSettings(userSettings) {
