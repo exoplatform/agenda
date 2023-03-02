@@ -1,6 +1,6 @@
 <template>
   <v-app v-if="displayed">
-    <v-card class="ma-4 border-radius" flat>
+    <v-card class="my-4 border-radius" flat>
       <v-list two-line>
         <agenda-user-general-settings :settings="settings" />
         <agenda-user-connector-settings :settings="settings" />
