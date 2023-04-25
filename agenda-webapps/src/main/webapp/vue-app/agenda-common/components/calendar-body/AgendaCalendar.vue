@@ -490,6 +490,10 @@ export default {
           this.$eventService.getEventById(this.dragEvent.id, 'all')
           :this.$eventService.getEventOccurrence(this.dragEvent.parent.id, this.dragEvent.occurrence.id, 'all');
         return retrieveEvent.then(event => {
+          if (this.calendarType === 'month') {
+            this.dragEvent.startDate.setHours(this.originalDragedEvent.startDate.getHours(), this.originalDragedEvent.startDate.getMinutes(), this.originalDragedEvent.startDate.getSeconds());
+            this.dragEvent.endDate.setHours(this.originalDragedEvent.endDate.getHours(), this.originalDragedEvent.endDate.getMinutes(), this.originalDragedEvent.endDate.getSeconds());
+          }
           event.start = this.$agendaUtils.toRFC3339(this.dragEvent.startDate);
           event.end = this.$agendaUtils.toRFC3339(this.dragEvent.endDate);
           event.timeZoneId = this.$agendaUtils.USER_TIMEZONE_ID;
