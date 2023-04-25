@@ -107,6 +107,13 @@ export default {
               .then(() => {
                 recurrentEvent.start = this.event.start;
                 recurrentEvent.end = this.event.end;
+                recurrentEvent.attachments = this.event.attachments;
+                recurrentEvent.attendees = this.event.attendees;
+                recurrentEvent.conferences = this.event.conferences;
+                recurrentEvent.description = this.event.description;
+                recurrentEvent.location = this.event.location;
+                recurrentEvent.summary = this.event.summary;
+
                 const eventRecurrence = this.event && this.event.recurrence || this.event.parent && this.event.parent.recurrence;
                 const recurrenceType = eventRecurrence && eventRecurrence.type || 'NO_REPEAT';
                 if (recurrenceType === 'WEEKLY') {
