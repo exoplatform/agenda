@@ -114,7 +114,6 @@ export default {
                   const dayNameFromDate  = this.$agendaUtils.getDayNameFromDate(this.event.start);
                   recurrentEvent.recurrence.byDay = [dayNameFromDate.substring(0, 2).toUpperCase()];
                 }
-                this.$agendaUtils.getDayNameFromDate(day, eXo.env.portal.language);
                 delete recurrentEvent.id;
                 return this.$eventService.createEvent(recurrentEvent);
               })
