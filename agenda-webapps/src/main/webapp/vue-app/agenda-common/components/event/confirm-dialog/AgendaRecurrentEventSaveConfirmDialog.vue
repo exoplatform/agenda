@@ -107,6 +107,12 @@ export default {
               .then(() => {
                 recurrentEvent.start = this.event.start;
                 recurrentEvent.end = this.event.end;
+                const eventRecurrence = this.event && this.event.recurrence || this.event.parent && this.event.parent.recurrence;
+                const recurrenceType = eventRecurrence && eventRecurrence.type || 'NO_REPEAT';
+                if (recurrenceType === 'WEEKLY') {
+                  const dayNameFromDate  = this.$agendaUtils.getDayNameFromDate(this.event.start);
+                  recurrentEvent.recurrence.byDay = [dayNameFromDate.substring(0, 2).toUpperCase()];
+                }
                 delete recurrentEvent.id;
                 return this.$eventService.createEvent(recurrentEvent);
               })
