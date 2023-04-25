@@ -300,7 +300,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
           cleanupAttachedEntitiesIds(eventEntity);
         }
         return eventEntity;
-      }).filter(eventEntity -> eventEntity != null).collect(Collectors.toList());
+      }).filter(Objects::nonNull).toList();
 
       EventList eventList = new EventList();
       eventList.setEvents(eventEntities);

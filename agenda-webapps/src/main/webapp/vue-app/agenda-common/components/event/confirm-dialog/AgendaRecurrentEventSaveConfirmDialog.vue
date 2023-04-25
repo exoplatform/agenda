@@ -107,6 +107,14 @@ export default {
               .then(() => {
                 recurrentEvent.start = this.event.start;
                 recurrentEvent.end = this.event.end;
+                const day = this.event.start;
+                const eventRecurrence = this.event && this.event.recurrence || this.event.parent && this.event.parent.recurrence;
+                const recurrenceType = eventRecurrence && eventRecurrence.type || 'NO_REPEAT';
+                if (recurrenceType === 'WEEKLY') {
+                  const dayNameFromDate  = this.$agendaUtils.getDayNameFromDate(this.event.start);
+                  recurrentEvent.recurrence.byDay = [dayNameFromDate.substring(0, 2).toUpperCase()];
+                }
+                this.$agendaUtils.getDayNameFromDate(day, eXo.env.portal.language);
                 delete recurrentEvent.id;
                 return this.$eventService.createEvent(recurrentEvent);
               })
