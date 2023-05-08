@@ -113,8 +113,17 @@ export default {
                 recurrentEvent.description = this.event.description;
                 recurrentEvent.location = this.event.location;
                 recurrentEvent.summary = this.event.summary;
+                if (this.event.recurrence) {
+                  recurrentEvent.recurrence = this.event.recurrence;
+                } else {
+                  const eventRecurrence = this.event && this.event.recurrence || this.event.parent && this.event.parent.recurrence;
+                  const recurrenceType = eventRecurrence && eventRecurrence.type || 'NO_REPEAT';
+                  if (recurrenceType === 'WEEKLY') {
+                    const dayNameFromDate = this.$agendaUtils.getDayNameFromDate(this.event.start);
+                    recurrentEvent.recurrence.byDay = [dayNameFromDate.substring(0, 2).toUpperCase()];
+                  }
 
-                recurrentEvent.recurrence = this.event.recurrence;
+                }
                 delete recurrentEvent.id;
                 return this.$eventService.createEvent(recurrentEvent);
               })
