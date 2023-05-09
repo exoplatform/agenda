@@ -116,8 +116,8 @@ export default {
                 if (this.event.recurrence) {
                   recurrentEvent.recurrence = this.event.recurrence;
                 } else {
-                  const eventRecurrence = this.event && this.event.recurrence || this.event.parent && this.event.parent.recurrence;
-                  const recurrenceType = eventRecurrence && eventRecurrence.type || 'NO_REPEAT';
+                  const eventRecurrence = this.event?.recurrence || this.event?.parent?.recurrence;
+                  const recurrenceType = eventRecurrence?.type || 'NO_REPEAT';
                   if (recurrenceType === 'WEEKLY') {
                     const dayNameFromDate = this.$agendaUtils.getDayNameFromDate(this.event.start);
                     recurrentEvent.recurrence.byDay = [dayNameFromDate.substring(0, 2).toUpperCase()];
