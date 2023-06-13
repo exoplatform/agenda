@@ -33,11 +33,11 @@
   </external-component-plugins>
 
   <external-component-plugins>
-    <target-component>org.exoplatform.addons.gamification.service.setting.rule.RuleRegistry</target-component>
+    <target-component>io.meeds.gamification.service.RuleRegistry</target-component>
     <component-plugin>
       <name>rule.CreateEvent</name>
       <set-method>addPlugin</set-method>
-      <type>org.exoplatform.addons.gamification.service.setting.rule.model.RuleConfig</type>
+      <type>io.meeds.gamification.plugin.RuleConfigPlugin</type>
       <init-params>
         <value-param>
           <name>rule-title</name>
@@ -64,7 +64,7 @@
     <component-plugin>
       <name>rule.UpdateEvent</name>
       <set-method>addPlugin</set-method>
-      <type>org.exoplatform.addons.gamification.service.setting.rule.model.RuleConfig</type>
+      <type>io.meeds.gamification.plugin.RuleConfigPlugin</type>
       <init-params>
         <value-param>
           <name>rule-title</name>
@@ -91,7 +91,7 @@
     <component-plugin>
       <name>rule.ReplyToEvent</name>
       <set-method>addPlugin</set-method>
-      <type>org.exoplatform.addons.gamification.service.setting.rule.model.RuleConfig</type>
+      <type>io.meeds.gamification.plugin.RuleConfigPlugin</type>
       <init-params>
         <value-param>
           <name>rule-title</name>
@@ -118,7 +118,7 @@
     <component-plugin>
       <name>rule.CreateDatePoll</name>
       <set-method>addPlugin</set-method>
-      <type>org.exoplatform.addons.gamification.service.setting.rule.model.RuleConfig</type>
+      <type>io.meeds.gamification.plugin.RuleConfigPlugin</type>
       <init-params>
         <value-param>
           <name>rule-title</name>
@@ -145,7 +145,7 @@
     <component-plugin>
       <name>rule.VoteDatePoll</name>
       <set-method>addPlugin</set-method>
-      <type>org.exoplatform.addons.gamification.service.setting.rule.model.RuleConfig</type>
+      <type>io.meeds.gamification.plugin.RuleConfigPlugin</type>
       <init-params>
         <value-param>
           <name>rule-title</name>
