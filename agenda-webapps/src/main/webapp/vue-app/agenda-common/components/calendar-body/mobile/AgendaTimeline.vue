@@ -137,7 +137,7 @@ export default {
 
         let periodStartDate = new Date(this.periodStartDate);
         periodStartDate = new Date(periodStartDate.getFullYear(), periodStartDate.getMonth(), periodStartDate.getDate());
-        if (new Date(eventStartDate.startDate).getTime() > new Date(periodStartDate).getTime()) {
+        if (new Date(eventStartDate.startDate).getTime() > new Date(periodStartDate).getTime() || (new Date(eventStartDate.startDate).getTime() === new Date(periodStartDate).getTime() && event.allDay)) {
           count = this.addEventByDateInMap(eventStartDate, event.startDate, eventsByDates, count);
         }
 
