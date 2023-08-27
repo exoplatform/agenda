@@ -3,7 +3,7 @@
   <parent>
     <groupId>org.exoplatform.agenda</groupId>
     <artifactId>agenda-parent</artifactId>
-    <version>1.4.x-SNAPSHOT</version>
+    <version>1.4.0-20230827</version>
   </parent>
   <artifactId>agenda-api</artifactId>
   <name>eXo Agenda - API</name>
