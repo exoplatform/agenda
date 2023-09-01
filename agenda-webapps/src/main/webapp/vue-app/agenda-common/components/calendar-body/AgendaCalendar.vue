@@ -503,7 +503,7 @@ export default {
           // and the event is an all day event,
           // or the event is in custom recurrence type
           // when moving event, it shouldn't show the popin
-          const ignoreRecurrentPopin = event.allDay || event.parent.recurrence.type === 'CUSTOM';
+          const ignoreRecurrentPopin = event.allDay || event.parent?.recurrence.type === 'CUSTOM';
           const changeDatesOnly = true;
           this.$root.$emit('agenda-event-save', event, ignoreRecurrentPopin, changeDatesOnly);
         });
