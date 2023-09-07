@@ -48,8 +48,6 @@ public class AgendaEventReminderComputingListener extends Listener<AgendaEventMo
         ZonedDateTime occurrenceId = occurrence.getOccurrence().getId();
         getAgendaEventService().saveEventExceptionalOccurrence(eventId, occurrenceId);
       }
-      //Remove the event reminder from the parent event to avoid redundancy at the first occurrence
-      getAgendaEventReminderService().removeEventReminders(eventId);
     }
   }
 
