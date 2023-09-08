@@ -257,6 +257,47 @@
         </object-param>
       </init-params>
     </component-plugin>
+
+    <!--  EventReminderNotificationPlugin -->
+    <component-plugin>
+      <name>notification.plugins</name>
+      <set-method>addPlugin</set-method>
+      <type>org.exoplatform.agenda.notification.plugin.EventReminderNotificationPlugin</type>
+      <init-params>
+        <value-param>
+          <name>agenda.notification.plugin.key</name>
+          <value>EventReminderNotificationPlugin</value>
+        </value-param>
+        <object-param>
+          <name>template.EventReminderNotificationPlugin</name>
+          <description>The template of EventReminderNotificationPlugin</description>
+          <object type="org.exoplatform.commons.api.notification.plugin.config.PluginConfig">
+            <field name="pluginId">
+              <string>EventReminderNotificationPlugin</string>
+            </field>
+            <field name="resourceBundleKey">
+              <string>UINotification.label.EventReminderNotificationPlugin</string>
+            </field>
+            <field name="order">
+              <string>6</string>
+            </field>
+            <field name="defaultConfig">
+              <collection type="java.util.ArrayList">
+                <value>
+                  <string>Instantly</string>
+                </value>
+              </collection>
+            </field>
+            <field name="groupId">
+              <string>agenda</string>
+            </field>
+            <field name="bundlePath">
+              <string>locale.notification.AgendaNotification</string>
+            </field>
+          </object>
+        </object-param>
+      </init-params>
+    </component-plugin>
   </external-component-plugins>
 
   <external-component-plugins>
