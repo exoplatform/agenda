@@ -388,6 +388,7 @@ public class AgendaEventReminderServiceTest extends BaseAgendaEventTest {
 
   @Test
   public void sendRemindersTest() throws Exception {
+    TimeZone.setDefault(TimeZone.getTimeZone("Tunisia"));
     ZonedDateTime start = ZonedDateTime.now().withNano(0).plusMinutes(1);
     ZonedDateTime end = start.plusMinutes(15);
     boolean allDay = false;
