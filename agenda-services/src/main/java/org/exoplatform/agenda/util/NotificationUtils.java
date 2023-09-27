@@ -179,6 +179,8 @@ public class NotificationUtils {
 
   public static final String                                 STORED_PARAMETER_EVENT_STATUS                  = "eventStatus";
 
+  private static final String                                 STORED_PARAMETER_EVENT_IS_CREATOR = "isCreator";
+
   private static final String                                TEMPLATE_VARIABLE_EVENT_START_DATE             = "startDate";
 
   private static final String                                TEMPLATE_VARIABLE_EVENT_END_DATE               = "endDate";
@@ -364,6 +366,7 @@ public class NotificationUtils {
                 .with(STORED_PARAMETER_EVENT_URL, getEventURL(event))
                 .with(STORED_PARAMETER_EVENT_START_DATE, AgendaDateUtils.toRFC3339Date(event.getStart()))
                 .with(STORED_PARAMETER_EVENT_END_DATE, AgendaDateUtils.toRFC3339Date((event.getEnd())));
+
   }
 
   public static final void storeEventParameters(IdentityManager identityManager,
@@ -409,6 +412,14 @@ public class NotificationUtils {
                 .with(STORED_PARAMETER_EVENT_RECURRENT_DETAILS, getRecurrenceDetails(event))
                 .with(STORED_PARAMETER_EVENT_TIMEZONE_NAME, timeZoneName)
                 .with(STORED_PARAMETER_EVENT_ATTENDEES, showParticipants);
+
+
+    String username = notification.getTo();
+    long identityId = Utils.getIdentityIdByUsername(identityManager, username);
+    boolean isCreator = event.getCreatorId() == identityId;
+    notification.with(STORED_PARAMETER_EVENT_IS_CREATOR,String.valueOf(isCreator));
+
+
     if (occurrenceId == null && event.getOccurrence() != null) {
       occurrenceId = event.getOccurrence().getId();
     }

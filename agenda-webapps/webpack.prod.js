@@ -29,6 +29,7 @@ const config = {
     agendaTimeline: './src/main/webapp/vue-app/agenda-timeline/main.js',
     agendaSearchCard: './src/main/webapp/vue-app/agenda-search/main.js',
     agendaAdminSettings: './src/main/webapp/vue-app/agenda-admin-settings/main.js',
+    agendaNotificationsExtension: './src/main/webapp/vue-app/agenda-notifications/main.js',
   },
   output: {
     path: path.join(__dirname, 'target/agenda/'),

@@ -304,17 +304,6 @@
     <component-plugin>
       <name>web.channel.agenda.template</name>
       <set-method>registerTemplateProvider</set-method>
-      <type>org.exoplatform.agenda.notification.provider.WebTemplateProvider</type>
-      <init-params>
-        <value-param>
-          <name>channel-id</name>
-          <value>WEB_CHANNEL</value>
-        </value-param>
-      </init-params>
-    </component-plugin>
-    <component-plugin>
-      <name>web.channel.agenda.template</name>
-      <set-method>registerTemplateProvider</set-method>
       <type>org.exoplatform.agenda.notification.provider.MailTemplateProvider</type>
       <init-params>
         <value-param>
