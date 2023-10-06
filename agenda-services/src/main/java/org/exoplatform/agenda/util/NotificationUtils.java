@@ -179,7 +179,7 @@ public class NotificationUtils {
 
   public static final String                                 STORED_PARAMETER_EVENT_STATUS                  = "eventStatus";
 
-  private static final String                                 STORED_PARAMETER_EVENT_IS_CREATOR = "isCreator";
+  private static final String                                STORED_PARAMETER_EVENT_IS_CREATOR = "isCreator";
 
   private static final String                                TEMPLATE_VARIABLE_EVENT_START_DATE             = "startDate";
 

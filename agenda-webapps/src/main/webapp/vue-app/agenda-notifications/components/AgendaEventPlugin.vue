@@ -71,30 +71,28 @@ export default {
     },
     message() {
       const eventTitle = this.notification?.parameters?.eventTitle;
-      let message = '';
       const agendaName = this.spaceName;
-
+      let key = 'Notification.agenda.event.';
       if (this.notification?.parameters?.EVENT_MODIFICATION_TYPE === 'ADDED') {
-        message = this.$t('Notification.agenda.event.created', {0: `<span class="font-weight-bold">${eventTitle}</span>`, 1: `<a class="space-name font-weight-bold">${agendaName}</a>`});
+        key = key.concat('created');
       } else if (this.notification?.parameters?.EVENT_MODIFICATION_TYPE === 'DATES_UPDATED' && this.notification?.parameters?.eventStatus === 'CONFIRMED') {
-        message = this.$t('Notification.agenda.event.dates.updated', {0: `<span class="font-weight-bold">${eventTitle}</span>`, 1: `<a class="space-name font-weight-bold">${agendaName}</a>`});
+        key = key.concat('dates.updated');
       } else if (this.notification?.parameters?.EVENT_MODIFICATION_TYPE === 'DATES_UPDATED' && this.notification?.parameters?.eventStatus === 'TENTATIVE'){
-        message = this.$t('Notification.agenda.event.datePoll.dates.updated', {0: `<span class="font-weight-bold">${eventTitle}</span>`, 1: `<a class="space-name font-weight-bold">${agendaName}</a>`});
+        key = key.concat('datePoll.dates.updated');
       } else if (this.notification?.parameters?.EVENT_MODIFICATION_TYPE === 'UPDATED' && this.notification?.parameters?.eventStatus === 'TENTATIVE'){
-        message = this.$t('Notification.agenda.event.datePoll.updated', {0: `<span class="font-weight-bold">${eventTitle}</span>`, 1: `<a class="space-name font-weight-bold">${agendaName}</a>`});
+        key = key.concat('datePoll.updated');
       } else if (this.notification?.parameters?.EVENT_MODIFICATION_TYPE === 'SWITCHED_EVENT_TO_DATE_POLL') {
-        message = this.$t('Notification.agenda.event.switchedToDatePoll', {0: `<span class="font-weight-bold">${eventTitle}</span>`, 1: `<a class="space-name font-weight-bold">${agendaName}</a>`});
+        key = key.concat('switchedToDatePoll');
       } else if (this.notification?.parameters?.EVENT_MODIFICATION_TYPE === 'SWITCHED_DATE_POLL_TO_EVENT') {
-        message = this.$t('Notification.agenda.event.switchedToEvent', {0: `<span class="font-weight-bold">${eventTitle}</span>`, 1: `<a class="space-name font-weight-bold">${agendaName}</a>`});
+        key = key.concat('switchedToEvent');
       } else if (this.notification?.parameters?.EVENT_MODIFICATION_TYPE === 'UPDATED') {
-        message = this.$t('Notification.agenda.event.updated', {0: `<span class="font-weight-bold">${eventTitle}</span>`, 1: `<a class="space-name font-weight-bold">${agendaName}</a>`});
+        key = key.concat('updated');
       } else if (this.notification?.parameters?.EVENT_MODIFICATION_TYPE === 'DELETED' && this.notification?.parameters?.eventStatus === 'TENTATIVE'){
-        message = this.$t('Notification.agenda.event.mail.body.datePoll.deleted', {0: `<span class="font-weight-bold">${eventTitle}</span>`, 1: `<a class="space-name font-weight-bold">${agendaName}</a>`});
+        key = key.concat('mail.body.datePoll.deleted');
       } else {
-        message = this.$t('Notification.agenda.event.canceled', {0: `<span class="font-weight-bold">${eventTitle}</span>`, 1: `<a class="space-name font-weight-bold">${agendaName}</a>`});
+        key = key.concat('canceled');
       }
-
-      return message;
+      return this.computeMessage(key, eventTitle,agendaName);
     },
     buttonText() {
       let button = '';
@@ -113,6 +111,14 @@ export default {
       }
       return button;
 
+    },
+    methods: {
+      computeMessage(key, eventTitle, agendaName) {
+        return this.$t(key, {
+          0: `<span class="font-weight-bold">${eventTitle}</span>`,
+          1: `<a class="space-name font-weight-bold">${agendaName}</a>`
+        });
+      }
     }
   },
 };

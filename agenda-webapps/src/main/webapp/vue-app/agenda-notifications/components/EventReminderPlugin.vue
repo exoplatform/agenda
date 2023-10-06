@@ -53,7 +53,6 @@ export default {
     },
   },
   created() {
-    console.log(this.notification);
     this.$identityService.getIdentityById(this.notification?.parameters?.ownerId).then(identity => {
       if (identity?.space) {
         this.space = identity.space;
