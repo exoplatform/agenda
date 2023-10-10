@@ -112,14 +112,14 @@ export default {
       return button;
 
     },
-    methods: {
-      computeMessage(key, eventTitle, agendaName) {
-        return this.$t(key, {
-          0: `<span class="font-weight-bold">${eventTitle}</span>`,
-          1: `<a class="space-name font-weight-bold">${agendaName}</a>`
-        });
-      }
-    }
   },
+  methods: {
+    computeMessage(key, eventTitle, agendaName) {
+      return this.$t(key, {
+        0: `<span class="font-weight-bold">${eventTitle}</span>`,
+        1: `<a class="space-name font-weight-bold">${agendaName}</a>`
+      });
+    }
+  }
 };
 </script>
