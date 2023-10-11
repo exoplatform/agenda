@@ -50,11 +50,15 @@ export default {
     },
   },
   created() {
-    this.$identityService.getIdentityById(this.notification?.parameters?.ownerId).then(identity => {
-      if (identity?.space) {
-        this.space = identity.space;
-      }
-    });
+    if (this.notification?.space) {
+      this.space = this.notification?.space;
+    } else {
+      this.$identityService.getIdentityById(this.notification?.parameters?.ownerId).then(identity => {
+        if (identity?.space) {
+          this.space = identity.space;
+        }
+      });
+    }
   },
   computed: {
     eventUrl() {
@@ -67,7 +71,7 @@ export default {
       return this.notification?.parameters?.participantAvatarUrl;
     },
     spaceName() {
-      return this.space?.prettyName;
+      return this.space?.displayName;
     },
     message() {
       const eventTitle = this.notification?.parameters?.eventTitle;
