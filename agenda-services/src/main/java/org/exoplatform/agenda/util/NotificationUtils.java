@@ -741,6 +741,7 @@ public class NotificationUtils {
     } else {
       if (SpaceIdentityProvider.NAME.equals(identity.getProviderId())) {
         Space space = spaceService.getSpaceByPrettyName(identity.getRemoteId());
+        notification.setSpaceId(Long.parseLong(space.getId()));
         avatarUrl = LinkProviderUtils.getSpaceAvatarUrl(space);
       } else {
         avatarUrl = LinkProviderUtils.getUserAvatarUrl(identity.getProfile());
