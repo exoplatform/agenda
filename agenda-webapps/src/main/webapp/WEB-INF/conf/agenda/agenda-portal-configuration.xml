@@ -65,6 +65,7 @@
       <set-method>initListener</set-method>
       <type>org.exoplatform.portal.config.NewPortalConfigListener</type>
       <description>this listener init the portal configuration</description>
+      <priority>660</priority>
       <init-params>
         <object-param>
           <name>portal.configuration</name>
