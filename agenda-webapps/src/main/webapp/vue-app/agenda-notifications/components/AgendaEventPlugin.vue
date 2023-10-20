@@ -29,10 +29,14 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       </div>
       <div v-if="buttonText!=''" class="mt-1">
         <v-btn
-          class="btn primary px-2"
-          outlined
-          small>
-          {{ buttonText }}
+          :href="eventUrl"
+          color="primary"
+          elevation="0"
+          small
+          outlined>
+          <span class="text-none">
+            {{ buttonText }}
+          </span>
         </v-btn>
       </div>
     </template>
