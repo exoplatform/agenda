@@ -56,6 +56,9 @@
                     <field name="uri">
                       <string>agenda</string>
                     </field>
+                    <field name="icon">
+                      <string>fas fa-calendar-alt</string>
+                    </field>
                   </object>
                 </value>
               </collection>
@@ -97,6 +100,9 @@
                     </field>
                     <field name="uri">
                       <string>agenda</string>
+                    </field>
+                    <field name="icon">
+                      <string>fas fa-calendar-alt</string>
                     </field>
                   </object>
                 </value>
@@ -140,6 +146,9 @@
                     <field name="uri">
                       <string>agenda</string>
                     </field>
+                    <field name="icon">
+                      <string>fas fa-calendar-alt</string>
+                    </field>
                   </object>
                 </value>
               </collection>
@@ -181,6 +190,9 @@
                     </field>
                     <field name="uri">
                       <string>agenda</string>
+                    </field>
+                    <field name="icon">
+                      <string>fas fa-calendar-alt</string>
                     </field>
                   </object>
                 </value>
