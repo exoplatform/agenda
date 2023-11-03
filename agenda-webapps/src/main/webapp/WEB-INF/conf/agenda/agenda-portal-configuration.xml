@@ -33,31 +33,6 @@
             </field>
           </object>
         </object-param>
-        <object-param>
-          <name>group.configuration</name>
-          <description>description</description>
-          <object type="org.exoplatform.portal.config.NewPortalConfig">
-            <field name="predefinedOwner">
-              <collection type="java.util.HashSet">
-                <value>
-                  <string>/platform/administrators</string>
-                </value>
-              </collection>
-            </field>
-            <field name="ownerType">
-              <string>group</string>
-            </field>
-            <field name="override">
-              <boolean>${exo.agenda.portalConfig.metadata.override:true}</boolean>
-            </field>
-            <field name="importMode">
-              <string>${exo.agenda.portalConfig.metadata.importmode:insert}</string>
-            </field>
-            <field name="templateLocation">
-              <string>war:/conf/agenda/portal</string>
-            </field>
-          </object>
-        </object-param>
       </init-params>
     </component-plugin>
     <component-plugin>
