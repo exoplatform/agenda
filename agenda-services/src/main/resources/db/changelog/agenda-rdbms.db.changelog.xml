@@ -397,4 +397,10 @@
       <column name="SECRET_KEY" type="NVARCHAR(2000)" />
     </addColumn>
   </changeSet>
+
+  <changeSet author="agenda" id="1.0.0-33">
+    <addColumn tableName="EXO_AGENDA_REMOTE_PROVIDER">
+      <column name="SERVER_URL" type="NVARCHAR(1000)" />
+    </addColumn>
+  </changeSet>
 </databaseChangeLog>
