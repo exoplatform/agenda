@@ -54,6 +54,9 @@ public class RemoteProviderEntity implements Serializable {
   @Column(name = "ENABLED")
   private boolean           enabled;
 
+  @Column(name = "SERVER_URL")
+  private String            serverUrl;
+
   public Long getId() {
     return id;
   }
@@ -92,5 +95,13 @@ public class RemoteProviderEntity implements Serializable {
 
   public void setSecretKey(String secretKey) {
     this.secretKey = secretKey;
+  }
+
+  public String getServerUrl() {
+    return serverUrl;
+  }
+
+  public void setServerUrl(String serverUrl) {
+    this.serverUrl = serverUrl;
   }
 }
