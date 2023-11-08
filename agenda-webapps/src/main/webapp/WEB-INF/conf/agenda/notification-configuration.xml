@@ -67,6 +67,9 @@
               <field name="bundlePath">
                 <string>locale.notification.AgendaNotification</string>
               </field>
+              <field name="mutable">
+                <boolean>false</boolean>
+              </field>
             </object>
           </object-param>
       </init-params>
@@ -107,6 +110,9 @@
             </field>
             <field name="bundlePath">
               <string>locale.notification.AgendaNotification</string>
+            </field>
+            <field name="mutable">
+              <boolean>false</boolean>
             </field>
           </object>
         </object-param>
@@ -149,6 +155,9 @@
             <field name="bundlePath">
               <string>locale.notification.AgendaNotification</string>
             </field>
+            <field name="mutable">
+              <boolean>false</boolean>
+            </field>
           </object>
         </object-param>
       </init-params>
@@ -189,6 +198,9 @@
             </field>
             <field name="bundlePath">
               <string>locale.notification.AgendaNotification</string>
+            </field>
+            <field name="mutable">
+              <boolean>false</boolean>
             </field>
           </object>
         </object-param>
@@ -231,6 +243,9 @@
             <field name="bundlePath">
               <string>locale.notification.AgendaNotification</string>
             </field>
+            <field name="mutable">
+              <boolean>false</boolean>
+            </field>
           </object>
         </object-param>
       </init-params>
@@ -271,6 +286,9 @@
             </field>
             <field name="bundlePath">
               <string>locale.notification.AgendaNotification</string>
+            </field>
+            <field name="mutable">
+              <boolean>false</boolean>
             </field>
           </object>
         </object-param>
@@ -313,6 +331,9 @@
             <field name="bundlePath">
               <string>locale.notification.AgendaNotification</string>
             </field>
+            <field name="mutable">
+              <boolean>false</boolean>
+            </field>
           </object>
         </object-param>
       </init-params>
@@ -321,17 +342,6 @@
 
   <external-component-plugins>
     <target-component>org.exoplatform.commons.api.notification.channel.ChannelManager</target-component>
-    <component-plugin>
-      <name>web.channel.agenda.template</name>
-      <set-method>registerTemplateProvider</set-method>
-      <type>org.exoplatform.agenda.notification.provider.WebTemplateProvider</type>
-      <init-params>
-        <value-param>
-          <name>channel-id</name>
-          <value>WEB_CHANNEL</value>
-        </value-param>
-      </init-params>
-    </component-plugin>
     <component-plugin>
       <name>mail.channel.agenda.template</name>
       <set-method>registerTemplateProvider</set-method>

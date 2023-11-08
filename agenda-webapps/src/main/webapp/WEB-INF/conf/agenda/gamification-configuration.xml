@@ -33,142 +33,111 @@
   </external-component-plugins>
 
   <external-component-plugins>
-    <target-component>org.exoplatform.addons.gamification.service.setting.rule.RuleRegistry</target-component>
+    <target-component>io.meeds.gamification.service.EventRegistry</target-component>
     <component-plugin>
-      <name>rule.CreateEvent</name>
+      <name>CreateEvent</name>
       <set-method>addPlugin</set-method>
-      <type>org.exoplatform.addons.gamification.service.setting.rule.model.RuleConfig</type>
+      <type>io.meeds.gamification.plugin.EventConfigPlugin</type>
       <init-params>
-        <value-param>
-          <name>rule-title</name>
-          <value>CreateEvent</value>
-        </value-param>
-        <value-param>
-          <name>rule-description</name>
-          <value>Create an event</value>
-        </value-param>
-        <value-param>
-          <name>rule-score</name>
-          <value>15</value>
-        </value-param>
-        <value-param>
-          <name>rule-zone</name>
-          <value>Teamwork</value>
-        </value-param>
-        <value-param>
-          <name>rule-enable</name>
-          <value>true</value>
-        </value-param>
+        <object-param>
+          <name>event</name>
+          <object type="io.meeds.gamification.model.EventDTO">
+            <field name="title">
+              <string>CreateEvent</string>
+            </field>
+            <field name="type">
+              <string>exoplatform</string>
+            </field>
+            <field name="trigger">
+              <string>CreateEvent</string>
+            </field>
+          </object>
+        </object-param>
       </init-params>
     </component-plugin>
     <component-plugin>
-      <name>rule.UpdateEvent</name>
+      <name>UpdateEvent</name>
       <set-method>addPlugin</set-method>
-      <type>org.exoplatform.addons.gamification.service.setting.rule.model.RuleConfig</type>
+      <type>io.meeds.gamification.plugin.EventConfigPlugin</type>
       <init-params>
-        <value-param>
-          <name>rule-title</name>
-          <value>UpdateEvent</value>
-        </value-param>
-        <value-param>
-          <name>rule-description</name>
-          <value>Update an event</value>
-        </value-param>
-        <value-param>
-          <name>rule-score</name>
-          <value>5</value>
-        </value-param>
-        <value-param>
-          <name>rule-zone</name>
-          <value>Teamwork</value>
-        </value-param>
-        <value-param>
-          <name>rule-enable</name>
-          <value>true</value>
-        </value-param>
+        <object-param>
+          <name>event</name>
+          <object type="io.meeds.gamification.model.EventDTO">
+            <field name="title">
+              <string>UpdateEvent</string>
+            </field>
+            <field name="type">
+              <string>exoplatform</string>
+            </field>
+            <field name="trigger">
+              <string>UpdateEvent</string>
+            </field>
+          </object>
+        </object-param>
       </init-params>
     </component-plugin>
     <component-plugin>
-      <name>rule.ReplyToEvent</name>
+      <name>ReplyToEvent</name>
       <set-method>addPlugin</set-method>
-      <type>org.exoplatform.addons.gamification.service.setting.rule.model.RuleConfig</type>
+      <type>io.meeds.gamification.plugin.EventConfigPlugin</type>
       <init-params>
-        <value-param>
-          <name>rule-title</name>
-          <value>ReplyToEvent</value>
-        </value-param>
-        <value-param>
-          <name>rule-description</name>
-          <value>Reply to an event</value>
-        </value-param>
-        <value-param>
-          <name>rule-score</name>
-          <value>10</value>
-        </value-param>
-        <value-param>
-          <name>rule-zone</name>
-          <value>Teamwork</value>
-        </value-param>
-        <value-param>
-          <name>rule-enable</name>
-          <value>true</value>
-        </value-param>
+        <object-param>
+          <name>event</name>
+          <object type="io.meeds.gamification.model.EventDTO">
+            <field name="title">
+              <string>ReplyToEvent</string>
+            </field>
+            <field name="type">
+              <string>exoplatform</string>
+            </field>
+            <field name="trigger">
+              <string>ReplyToEvent</string>
+            </field>
+          </object>
+        </object-param>
       </init-params>
     </component-plugin>
     <component-plugin>
-      <name>rule.CreateDatePoll</name>
+      <name>CreateDatePoll</name>
       <set-method>addPlugin</set-method>
-      <type>org.exoplatform.addons.gamification.service.setting.rule.model.RuleConfig</type>
+      <type>io.meeds.gamification.plugin.EventConfigPlugin</type>
       <init-params>
-        <value-param>
-          <name>rule-title</name>
-          <value>CreateDatePoll</value>
-        </value-param>
-        <value-param>
-          <name>rule-description</name>
-          <value>Create Date Poll</value>
-        </value-param>
-        <value-param>
-          <name>rule-score</name>
-          <value>10</value>
-        </value-param>
-        <value-param>
-          <name>rule-zone</name>
-          <value>Teamwork</value>
-        </value-param>
-        <value-param>
-          <name>rule-enable</name>
-          <value>true</value>
-        </value-param>
+        <object-param>
+          <name>event</name>
+          <object type="io.meeds.gamification.model.EventDTO">
+            <field name="title">
+              <string>CreateDatePoll</string>
+            </field>
+            <field name="type">
+              <string>exoplatform</string>
+            </field>
+            <field name="trigger">
+              <string>CreateDatePoll</string>
+            </field>
+          </object>
+        </object-param>
       </init-params>
     </component-plugin>
     <component-plugin>
-      <name>rule.VoteDatePoll</name>
+      <name>VoteDatePoll</name>
       <set-method>addPlugin</set-method>
-      <type>org.exoplatform.addons.gamification.service.setting.rule.model.RuleConfig</type>
+      <type>io.meeds.gamification.plugin.EventConfigPlugin</type>
       <init-params>
-        <value-param>
-          <name>rule-title</name>
-          <value>VoteDatePoll</value>
-        </value-param>
-        <value-param>
-          <name>rule-description</name>
-          <value>Vote in a Date Poll</value>
-        </value-param>
-        <value-param>
-          <name>rule-score</name>
-          <value>5</value>
-        </value-param>
-        <value-param>
-          <name>rule-zone</name>
-          <value>Teamwork</value>
-        </value-param>
-        <value-param>
-          <name>rule-enable</name>
-          <value>true</value>
-        </value-param>
+        <object-param>
+          <name>event</name>
+          <object type="io.meeds.gamification.model.EventDTO">
+            <field name="title">
+              <string>VoteDatePoll</string>
+            </field>
+            <field name="type">
+              <string>exoplatform</string>
+            </field>
+            <field name="trigger">
+              <string>VoteDatePoll</string>
+            </field>
+          </object>
+        </object-param>
       </init-params>
     </component-plugin>
   </external-component-plugins>
-
 </configuration>

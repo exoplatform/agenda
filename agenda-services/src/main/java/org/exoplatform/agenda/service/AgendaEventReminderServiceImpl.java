@@ -223,7 +223,11 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
 
     List<EventReminder> reminders = reminderStorage.getEventReminders(currentMinute, endCurrentMinute);
     for (EventReminder eventReminder : reminders) {
-      sendReminderNotification(eventReminder);
+      Event event = eventStorage.getEventById(eventReminder.getEventId());
+      // do not send a reminder notification of the Recurrent parent event.
+      if (event.getRecurrence() == null) {
+        sendReminderNotification(eventReminder);
+      }
     }
   }
 

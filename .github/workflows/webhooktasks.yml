@@ -1,4 +1,4 @@
-name: eXo PR Task Webhook
+name: eXo Pull Request Tribe Notifications
 
 on:
   pull_request:
@@ -7,7 +7,15 @@ on:
     types: [submitted]
 
 jobs:
-  check_tasks:
-    name: Check for eXo tasks identifiers
-    uses: exoplatform/swf-scripts/.github/workflows/ghawebhooktasks.yml@master
-    secrets: inherit
+  notify_tasks:
+    name: Check for tasks identifiers
+    runs-on: ubuntu-latest
+    steps:
+      - name: eXo Tasks Webhook
+        uses: Green-Hub-Tools/notifs-task@v1
+        with:
+          SERVER_URL: 'https://community.exoplatform.com'
+          SERVER_DEFAULT_SITENAME: 'dw'
+          SERVER_USERNAME: ${{ secrets.TRIBE_USERNAME }}
+          SERVER_PASSWORD: ${{ secrets.TRIBE_PASSWORD }}
+          TASKS_REGEX_FILTER: '(task|maint|exo)((-|_)[0-9]{4,})+' 

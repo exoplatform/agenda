@@ -7,21 +7,20 @@
     <type>org.exoplatform.agenda.service.AgendaWebSocketService</type>
   </component>
 
-  <external-component-plugins>
-    <target-component>org.exoplatform.commons.api.persistence.DataInitializer</target-component>
-    <component-plugin>
-      <name>AgendaRDBMSChangeLogsPlugin</name>
-      <set-method>addChangeLogsPlugin</set-method>
-      <type>org.exoplatform.commons.persistence.impl.ChangeLogsPlugin</type>
-      <init-params>
-        <values-param>
-          <name>changelogs</name>
-          <description>Change logs of Agenda RDBMS</description>
-          <value>db/changelog/agenda-rdbms.db.changelog.xml</value>
-        </values-param>
-      </init-params>
-    </component-plugin>
-  </external-component-plugins>
+  <component>
+    <type>org.exoplatform.agenda.search.AgendaSearchConnector</type>
+    <init-params>
+      <value-param>
+        <name>query.file.path</name>
+        <value>${exo.agenda.es.query.path:jar:/agenda-search-query.json}</value>
+      </value-param>
+      <properties-param>
+        <name>constructor.params</name>
+        <property name="searchType" value="event" />
+        <property name="index" value="event_alias" />
+      </properties-param>
+    </init-params>
+  </component>
 
   <external-component-plugins>
     <target-component>org.exoplatform.commons.api.notification.service.setting.PluginSettingService</target-component>
@@ -257,21 +256,51 @@
         </object-param>
       </init-params>
     </component-plugin>
+
+    <!--  EventReminderNotificationPlugin -->
+    <component-plugin>
+      <name>notification.plugins</name>
+      <set-method>addPlugin</set-method>
+      <type>org.exoplatform.agenda.notification.plugin.EventReminderNotificationPlugin</type>
+      <init-params>
+        <value-param>
+          <name>agenda.notification.plugin.key</name>
+          <value>EventReminderNotificationPlugin</value>
+        </value-param>
+        <object-param>
+          <name>template.EventReminderNotificationPlugin</name>
+          <description>The template of EventReminderNotificationPlugin</description>
+          <object type="org.exoplatform.commons.api.notification.plugin.config.PluginConfig">
+            <field name="pluginId">
+              <string>EventReminderNotificationPlugin</string>
+            </field>
+            <field name="resourceBundleKey">
+              <string>UINotification.label.EventReminderNotificationPlugin</string>
+            </field>
+            <field name="order">
+              <string>6</string>
+            </field>
+            <field name="defaultConfig">
+              <collection type="java.util.ArrayList">
+                <value>
+                  <string>Instantly</string>
+                </value>
+              </collection>
+            </field>
+            <field name="groupId">
+              <string>agenda</string>
+            </field>
+            <field name="bundlePath">
+              <string>locale.notification.AgendaNotification</string>
+            </field>
+          </object>
+        </object-param>
+      </init-params>
+    </component-plugin>
   </external-component-plugins>
 
   <external-component-plugins>
     <target-component>org.exoplatform.commons.api.notification.channel.ChannelManager</target-component>
-    <component-plugin>
-      <name>web.channel.agenda.template</name>
-      <set-method>registerTemplateProvider</set-method>
-      <type>org.exoplatform.agenda.notification.provider.WebTemplateProvider</type>
-      <init-params>
-        <value-param>
-          <name>channel-id</name>
-          <value>WEB_CHANNEL</value>
-        </value-param>
-      </init-params>
-    </component-plugin>
     <component-plugin>
       <name>web.channel.agenda.template</name>
       <set-method>registerTemplateProvider</set-method>

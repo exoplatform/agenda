@@ -72,17 +72,31 @@ public class AgendaSpaceApplicationListener implements SpaceLifeCycleListener {
 
   @Override
   public void applicationRemoved(SpaceLifeCycleEvent event) {
-    uninstallAgendaApplication(event);
+    uninstallAgendaTimelineApplication(event);
   }
 
   @Override
   public void applicationDeactivated(SpaceLifeCycleEvent event) {
-    uninstallAgendaApplication(event);
+    uninstallAgendaTimelineApplication(event);
   }
 
   @Override
   public void spaceCreated(SpaceLifeCycleEvent event) {
-    // Not needed
+    Space space = event.getSpace();
+    SpaceTemplate spaceTemplate = getSpaceTemplateService().getSpaceTemplateByName(space.getTemplate());
+    if (spaceTemplate != null && spaceTemplate.getSpaceApplicationList() != null) {
+      boolean agendaAppInstalled = spaceTemplate.getSpaceApplicationList()
+                                                .stream()
+                                                .anyMatch(app -> StringUtils.equals(app.getPortletName(),
+                                                                                    AGENDA_AGENDA_PORTLET_ID));
+      if (agendaAppInstalled) {
+        try {
+          installAgendaTimelineApplication(space, event.getType());
+        } catch (Exception e) {
+          LOG.warn("Error installing AgendaTimeline widget in space {}", space.getDisplayName(), e);
+        }
+      }
+    }
   }
 
   @Override
@@ -150,14 +164,14 @@ public class AgendaSpaceApplicationListener implements SpaceLifeCycleListener {
     if (StringUtils.isNotBlank(appId) && StringUtils.equals(getPortletId(appId), AGENDA_AGENDA_PORTLET_ID)) {
       Space space = event.getSpace();
       try {
-        installAgendaApplication(space, event.getType());
+        installAgendaTimelineApplication(space, event.getType());
       } catch (Exception e) {
         LOG.warn("Error installing AgendaTimeline widget in space {}", space.getDisplayName(), e);
       }
     }
   }
 
-  private void installAgendaApplication(Space space, Type type) throws Exception {
+  private void installAgendaTimelineApplication(Space space, Type type) throws Exception {
     boolean applicationExists = timelineApplicationAddedInHomePage(space);
     if (!applicationExists) {
       Page spaceHomePage = getSpaceHomePage(space);
@@ -174,7 +188,7 @@ public class AgendaSpaceApplicationListener implements SpaceLifeCycleListener {
     }
   }
 
-  private void uninstallAgendaApplication(SpaceLifeCycleEvent event) {
+  private void uninstallAgendaTimelineApplication(SpaceLifeCycleEvent event) {
     String appId = event.getTarget();
     if (StringUtils.isNotBlank(appId) && StringUtils.equals(getPortletId(appId), AGENDA_AGENDA_PORTLET_ID)) {
       try {

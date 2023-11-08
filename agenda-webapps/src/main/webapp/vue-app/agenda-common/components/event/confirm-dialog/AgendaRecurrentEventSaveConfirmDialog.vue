@@ -107,6 +107,23 @@ export default {
               .then(() => {
                 recurrentEvent.start = this.event.start;
                 recurrentEvent.end = this.event.end;
+                recurrentEvent.attachments = this.event.attachments;
+                recurrentEvent.attendees = this.event.attendees;
+                recurrentEvent.conferences = this.event.conferences;
+                recurrentEvent.description = this.event.description;
+                recurrentEvent.location = this.event.location;
+                recurrentEvent.summary = this.event.summary;
+                if (this.event.recurrence) {
+                  recurrentEvent.recurrence = this.event.recurrence;
+                } else {
+                  const eventRecurrence = this.event?.recurrence || this.event?.parent?.recurrence;
+                  const recurrenceType = eventRecurrence?.type || 'NO_REPEAT';
+                  if (recurrenceType === 'WEEKLY') {
+                    const dayNameFromDate = this.$agendaUtils.getDayNameFromDate(this.event.start);
+                    recurrentEvent.recurrence.byDay = [dayNameFromDate.substring(0, 2).toUpperCase()];
+                  }
+
+                }
                 delete recurrentEvent.id;
                 return this.$eventService.createEvent(recurrentEvent);
               })

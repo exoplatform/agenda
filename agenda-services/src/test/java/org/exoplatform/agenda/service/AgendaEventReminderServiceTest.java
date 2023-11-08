@@ -22,10 +22,12 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.*;
 
+import org.exoplatform.commons.api.notification.service.WebNotificationService;
 import org.junit.Test;
 
 import org.exoplatform.agenda.constant.*;
 import org.exoplatform.agenda.model.*;
+
 
 public class AgendaEventReminderServiceTest extends BaseAgendaEventTest {
 
@@ -382,6 +384,75 @@ public class AgendaEventReminderServiceTest extends BaseAgendaEventTest {
 
     eventReminders = agendaEventReminderService.getEventReminders(eventId, user4IdentityId);
     assertEquals(0, eventReminders.size());
+  }
+
+  @Test
+  public void sendRemindersTest() throws Exception {
+    TimeZone.setDefault(TimeZone.getTimeZone("Tunisia"));
+    ZonedDateTime start = ZonedDateTime.now().withNano(0).plusMinutes(1);
+    ZonedDateTime end = start.plusMinutes(15);
+    boolean allDay = false;
+    long userIdentityId = Long.parseLong(testuser1Identity.getId());
+    WebNotificationService webNotificationService = container.getComponentInstanceOfType(WebNotificationService.class);
+
+    Event reccurrentEvent = newEventInstance(start, end, allDay);
+    EventRecurrence recurrence = new EventRecurrence(0,
+            start.plusDays(2).toLocalDate(),
+            0,
+            EventRecurrenceType.DAILY,
+            EventRecurrenceFrequency.DAILY,
+            1,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null);
+    reccurrentEvent.setRecurrence(recurrence);
+
+    reccurrentEvent = createEvent(reccurrentEvent.clone(), Long.parseLong(testuser1Identity.getId()), testuser1Identity, testuser2Identity);
+
+    long recEventId = reccurrentEvent.getId();
+
+    agendaEventService.saveEventExceptionalOccurrence(recEventId, start);
+    agendaEventService.saveEventExceptionalOccurrence(recEventId, start.plusDays(1));
+    List<Event> exceptionalOccurrence =  agendaEventService.getExceptionalOccurrenceEvents(recEventId, TimeZone.getTimeZone("Tunisia").toZoneId() , userIdentityId);
+
+    assertNotNull(exceptionalOccurrence);
+    long firstExceptionalOccurrenceId = exceptionalOccurrence.get(0).getId();
+    List<EventReminder>  eventReminders = agendaEventReminderService.getEventReminders(recEventId, userIdentityId);
+    assertNotNull(eventReminders);
+    assertEquals(1, eventReminders.size());
+
+    List<EventReminder> exceptionalOccurrenceReminders = agendaEventReminderService.getEventReminders(firstExceptionalOccurrenceId,
+            userIdentityId);
+    assertNotNull(exceptionalOccurrenceReminders);
+    assertEquals(1, exceptionalOccurrenceReminders.size());
+    webNotificationService.resetNumberOnBadge(testuser1Identity.getRemoteId());
+    agendaEventReminderService.sendReminders();
+    // Assert receive only one reminder notification of the first recurrence.
+    int notificationSize  = webNotificationService.getNumberOnBadge(testuser1Identity.getRemoteId());
+    assertEquals(1, notificationSize);
+    webNotificationService.resetNumberOnBadge(testuser1Identity.getRemoteId());
+
+    //
+    Event event = newEventInstance(start, start, allDay);
+    event.setRecurrence(null);
+    event = createEvent(event.clone(), Long.parseLong(testuser1Identity.getId()), testuser1Identity);
+    long eventId = event.getId();
+    eventReminders = agendaEventReminderService.getEventReminders(eventId, userIdentityId);
+    assertNotNull(eventReminders);
+    assertEquals(1, eventReminders.size());
+    EventReminder eventReminder = eventReminders.get(0);
+    assertNotNull(eventReminder);
+    agendaEventReminderService.sendReminders();
+    // Assert receiving the reminder notification for the non-recurring event.
+    assertEquals(notificationSize + 1, webNotificationService.getNumberOnBadge(testuser1Identity.getRemoteId()));
   }
 
 }

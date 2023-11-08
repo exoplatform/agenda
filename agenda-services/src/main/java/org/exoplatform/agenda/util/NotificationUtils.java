@@ -179,6 +179,8 @@ public class NotificationUtils {
 
   public static final String                                 STORED_PARAMETER_EVENT_STATUS                  = "eventStatus";
 
+  private static final String                                STORED_PARAMETER_EVENT_IS_CREATOR = "isCreator";
+
   private static final String                                TEMPLATE_VARIABLE_EVENT_START_DATE             = "startDate";
 
   private static final String                                TEMPLATE_VARIABLE_EVENT_END_DATE               = "endDate";
@@ -364,6 +366,7 @@ public class NotificationUtils {
                 .with(STORED_PARAMETER_EVENT_URL, getEventURL(event))
                 .with(STORED_PARAMETER_EVENT_START_DATE, AgendaDateUtils.toRFC3339Date(event.getStart()))
                 .with(STORED_PARAMETER_EVENT_END_DATE, AgendaDateUtils.toRFC3339Date((event.getEnd())));
+
   }
 
   public static final void storeEventParameters(IdentityManager identityManager,
@@ -409,6 +412,14 @@ public class NotificationUtils {
                 .with(STORED_PARAMETER_EVENT_RECURRENT_DETAILS, getRecurrenceDetails(event))
                 .with(STORED_PARAMETER_EVENT_TIMEZONE_NAME, timeZoneName)
                 .with(STORED_PARAMETER_EVENT_ATTENDEES, showParticipants);
+
+
+    String username = notification.getTo();
+    long identityId = Utils.getIdentityIdByUsername(identityManager, username);
+    boolean isCreator = event.getCreatorId() == identityId;
+    notification.with(STORED_PARAMETER_EVENT_IS_CREATOR,String.valueOf(isCreator));
+
+
     if (occurrenceId == null && event.getOccurrence() != null) {
       occurrenceId = event.getOccurrence().getId();
     }
@@ -681,21 +692,12 @@ public class NotificationUtils {
             return "Each " + eventRecurrence.getInterval() + "days";
           }
         case "WEEKLY":
-          if (eventRecurrence.getInterval() == 1 && event.getRecurrence().getByDay().size() == 1) {
-            String dayNumber = eventRecurrence.getByDay().get(0);
-            DayOfWeek dayName = DayOfWeek.of(Integer.parseInt(dayNumber));
-            return "Weekly on " + StringUtils.lowerCase(String.valueOf(dayName)) + "";
-          } else if (eventRecurrence.getInterval() == 1 && eventRecurrence.getByDay().size() > 1) {
+          if (eventRecurrence.getInterval() == 1) {
             List<String> dayNamesAbbreviations = eventRecurrence.getByDay();
             return "Weekly on " + AgendaDateUtils.getDayNameFromDayAbbreviation(dayNamesAbbreviations);
-          } else if (eventRecurrence.getByDay().size() == 1) {
-            String dayNumber = eventRecurrence.getByDay().get(0);
-            DayOfWeek dayName = DayOfWeek.of(Integer.parseInt(dayNumber));
-            return "Each Week " + eventRecurrence.getInterval() + " on " + StringUtils.lowerCase(String.valueOf(dayName));
           } else {
             List<String> dayNamesAbbreviations = eventRecurrence.getByDay();
-            return "Each Week " + eventRecurrence.getInterval() + " on "
-                + AgendaDateUtils.getDayNameFromDayAbbreviation(dayNamesAbbreviations);
+            return "Each Week " + eventRecurrence.getInterval() + " on " + AgendaDateUtils.getDayNameFromDayAbbreviation(dayNamesAbbreviations);
           }
         case "MONTHLY":
           if (eventRecurrence.getInterval() == 1) {
@@ -739,6 +741,7 @@ public class NotificationUtils {
     } else {
       if (SpaceIdentityProvider.NAME.equals(identity.getProviderId())) {
         Space space = spaceService.getSpaceByPrettyName(identity.getRemoteId());
+        notification.setSpaceId(Long.parseLong(space.getId()));
         avatarUrl = LinkProviderUtils.getSpaceAvatarUrl(space);
       } else {
         avatarUrl = LinkProviderUtils.getUserAvatarUrl(identity.getProfile());
