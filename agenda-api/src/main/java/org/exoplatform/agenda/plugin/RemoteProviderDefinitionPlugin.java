@@ -40,6 +40,10 @@ public class RemoteProviderDefinitionPlugin extends BaseComponentPlugin {
 
   @Getter
   @Setter
+  private String  connectorUrl;
+
+  @Getter
+  @Setter
   private boolean enabled;
 
   @Getter
@@ -62,6 +66,8 @@ public class RemoteProviderDefinitionPlugin extends BaseComponentPlugin {
     this.connectorAPIKey = params.containsKey("connectorAPIKey") ? params.getValueParam("connectorAPIKey").getValue() : null;
 
     this.connectorSecretKey = params.containsKey("connectorSecretKey") ? params.getValueParam("connectorSecretKey").getValue() : null;
+
+    this.connectorUrl = params.containsKey("connectorUrl") ? params.getValueParam("connectorUrl").getValue() : null;
 
     this.connectorOauth = !params.containsKey("connectorOauth")
             || Boolean.parseBoolean(params.getValueParam("connectorOauth").getValue());
