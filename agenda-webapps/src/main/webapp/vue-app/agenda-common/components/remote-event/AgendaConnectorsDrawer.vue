@@ -89,6 +89,7 @@
         </div>
       </template>
     </exo-drawer>
+    <div id="agendaConnectorSettingsDrawer" />
     <exo-confirm-dialog
       ref="confirmConnectDialog"
       :title="confirmConnectDialogLabels.title"

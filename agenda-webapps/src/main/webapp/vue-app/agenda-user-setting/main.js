@@ -37,5 +37,5 @@ export function init() {
       vuetify,
       i18n
     }, appElement, 'User Settings Agenda');
-  });
+  }).finally(() => Vue.prototype.$utils.includeExtensions('ConnectorsExtensions'));
 }
