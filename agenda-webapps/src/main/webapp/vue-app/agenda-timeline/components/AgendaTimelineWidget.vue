@@ -1,6 +1,6 @@
 <template>
-  <v-app class="agenda-application border-box-sizing" flat>
-    <v-main class="white">
+  <v-app class="agenda-application" flat>
+    <v-card class="white pa-5 card-border-radius" flat>
       <agenda-timeline-header
         :current-space="currentSpace"
         :current-calendar="currentCalendar"
@@ -11,7 +11,7 @@
         :agenda-base-link="agendaBaseLink"
         :loading="loading || !initialized"
         :limit="limit" />
-    </v-main>
+    </v-card>
     <agenda-event-dialog
       ref="eventFormDialog"
       :current-space="currentSpace"
