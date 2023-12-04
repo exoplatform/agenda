@@ -8,18 +8,18 @@
         min-height="auto"
         min-width="100%"
         dense>
-        <v-list-item class="agenda-timeline-month-title" dense>
-          <v-list-item-action class="event-timeline-day" />
-          <v-list-item-action-text class="subtitle-1 me-2 text-capitalize">
+        <v-list-item class="agenda-timeline-month-title px-0" dense>
+          <v-list-item-action-text class="subtitle-1 text-capitalize text-color">
             <date-format :value="month" :format="monthFormat" />
           </v-list-item-action-text>
-          <v-list-item-content>
+          <v-list-item-content class="ms-2">
             <v-divider />
           </v-list-item-content>
         </v-list-item>
         <v-list-item
           v-for="eventDay in eventsDaysByMonth[month]"
           :key="eventDay"
+          class="px-0"
           dense>
           <v-list-item-action
             :class="toDay === eventDay && 'primary--text'"
