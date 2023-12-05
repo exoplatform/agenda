@@ -7,13 +7,13 @@
           :current-calendar="currentCalendar"
           :owner-ids="ownerIds"
           :period="period"
-          class="mt-2" />
+          class="mt-2 pa-5 card-border-radius" />
         <agenda-timeline
           :events="events"
           :period-start-date="period.start"
           :loading="loading"
           :limit="limit"
-          class="mt-2" />
+          class="mt-2 pa-5 card-border-radius" />
         <v-flex v-if="hasMore" class="d-flex py-4 border-box-sizing">
           <v-btn
             :loading="loading"

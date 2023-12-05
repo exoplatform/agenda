@@ -1,14 +1,16 @@
 <template>
-  <v-flex class="d-flex flex-column agenda-body">
-    <agenda-toolbar :period-title="periodTitle" />
-    <agenda-calendar
-      :events="events"
-      :current-calendar="currentCalendar"
-      :calendar-type="calendarType"
-      :weekdays="weekdays"
-      :working-time="workingTime"
-      class="flex-grow-1" />
-  </v-flex>
+  <v-card class="card-border-radius pa-5" flat>
+    <v-flex class="d-flex flex-column agenda-body">
+      <agenda-toolbar :period-title="periodTitle" class="mb-5" />
+      <agenda-calendar
+        :events="events"
+        :current-calendar="currentCalendar"
+        :calendar-type="calendarType"
+        :weekdays="weekdays"
+        :working-time="workingTime"
+        class="flex-grow-1" />
+    </v-flex>
+  </v-card>
 </template>
 
 <script>

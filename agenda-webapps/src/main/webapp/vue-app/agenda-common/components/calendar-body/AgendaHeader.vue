@@ -1,13 +1,14 @@
 <template>
   <v-toolbar
-    color="white"
+    color="white card-border-radius"
+    height="60"
     flat
     dense>
-    <v-row>
+    <v-row class="pa-5">
       <v-col
         cols="2"
         sm="4"
-        class="align-start my-auto">
+        class="align-start my-auto px-0">
         <agenda-create-event-button
           :current-space="currentSpace"
           :can-create-event="canCreateEvent"
@@ -17,13 +18,13 @@
         cols="8"
         sm="4"
         align="center"
-        class="d-flex flex-row align-center justify-start flex-nowrap">
+        class="d-flex flex-row align-center justify-start flex-nowrap px-0">
         <agenda-switch-view :calendar-type="calendarType" />
       </v-col>
       <v-col
         cols="2"
         sm="4"
-        class="d-flex flex-row justify-end my-auto flex-nowrap">
+        class="d-flex flex-row justify-end my-auto flex-nowrap px-0">
         <select
           v-model="eventType"
           class="width-auto my-auto ms-4 subtitle-1 ignore-vuetify-classes d-none d-sm-inline"
