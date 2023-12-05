@@ -1,5 +1,5 @@
 <template>
-  <v-flex class="agenda-mobile-header d-flex flex-row pa-2 border-radius border-color">
+  <v-flex class="agenda-mobile-header d-flex flex-row pa-2 border-color">
     <agenda-create-event-button
       :current-space="currentSpace"
       :can-create-event="canCreateEvent"
