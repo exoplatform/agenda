@@ -82,9 +82,6 @@ import AgendaConnectorContemporaryEvents from './components/remote-event/AgendaC
 import AgendaConnectorRemoteEventItem from './components/remote-event/AgendaConnectorRemoteEventItem.vue';
 import AgendaConnectorsDrawer from './components/remote-event/AgendaConnectorsDrawer.vue';
 
-import AgendaNotificationAlert from './components/snackbar/AgendaNotificationAlert.vue';
-import AgendaNotificationAlerts from './components/snackbar/AgendaNotificationAlerts.vue';
-
 const components = {
   'agenda-header': AgendaHeader,
   'agenda-body': AgendaBody,
@@ -158,8 +155,6 @@ const components = {
   'agenda-connector-contemporary-events': AgendaConnectorContemporaryEvents,
   'agenda-connector-remote-event-item': AgendaConnectorRemoteEventItem,
   'agenda-time-zone-select-box': AgendaTimeZoneSelectBox,
-  'agenda-notification-alert': AgendaNotificationAlert,
-  'agenda-notification-alerts': AgendaNotificationAlerts,
 };
 
 for (const key in components) {
