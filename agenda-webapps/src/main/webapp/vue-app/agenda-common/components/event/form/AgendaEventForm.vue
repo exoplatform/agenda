@@ -196,15 +196,9 @@ export default {
     eventDateOptionsLength(newVal, oldVal) {
       if (newVal !== oldVal) {
         if (newVal === 1 && oldVal > 1) {
-          this.$root.$emit('agenda-notification-alert', {
-            message: this.$t('agenda.datePollSwitchedToEvent'),
-            type: 'info',
-          }, 'event-form');
+          this.$root.$emit('alert-message', this.$t('agenda.datePollSwitchedToEvent'), 'info');
         } else if (oldVal === 1 && newVal > 1) {
-          this.$root.$emit('agenda-notification-alert', {
-            message: this.$t('agenda.eventSwitchedToDatePoll'),
-            type: 'info',
-          }, 'event-form');
+          this.$root.$emit('alert-message', this.$t('agenda.eventSwitchedToDatePoll'), 'info');
         }
       }
     },
