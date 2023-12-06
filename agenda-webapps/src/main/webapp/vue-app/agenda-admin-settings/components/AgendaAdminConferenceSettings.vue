@@ -21,13 +21,6 @@
         color="primary"
         size="20"
         class="ms-3 my-auto" />
-      <v-alert
-        v-model="saved"
-        type="success"
-        class="my-auto"
-        dismissible>
-        {{ $t('agenda.webConferencingProviderSaved') }}
-      </v-alert>
     </div>
   </div>
 </template>
@@ -42,7 +35,6 @@ export default {
   },
   data: () => ({
     loading: false,
-    saved: false,
     isWebConferencingEnabled: false,
     emptyConferenceProvider: {
       type: '',
@@ -98,7 +90,6 @@ export default {
       });
     },
     saveSelectedProvider() {
-      this.saved = false;
       this.loading = true;
       this.$settingsService.saveEnabledWebConferencingProvider(this.selectedProviderType)
         .then(() => this.settings.webConferenceProviders = [this.selectedProviderType])
@@ -106,8 +97,7 @@ export default {
         .finally(() => {
           window.setTimeout(() => {
             this.loading = false;
-            this.saved = true;
-            window.setTimeout(() => this.saved = false, 5000);
+            this.$root.$emit('alert-message', this.$t('agenda.webConferencingProviderSaved'), 'success');
           },200);
         });
     }

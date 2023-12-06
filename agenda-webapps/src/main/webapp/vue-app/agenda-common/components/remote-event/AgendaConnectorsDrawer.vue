@@ -75,11 +75,6 @@
               </div>
             </v-list-item-content>
           </v-list-item>
-          <v-card-text v-show="errorMessage" class="errorMessage">
-            <v-alert type="error">
-              {{ errorMessage }}
-            </v-alert>
-          </v-card-text>
         </v-list>
         <div
           v-else
@@ -110,7 +105,6 @@ export default {
   },
   data: () => ({
     connectionInProgress: false,
-    errorMessage: '',
     selectedConnector: null
   }),
   computed: {
