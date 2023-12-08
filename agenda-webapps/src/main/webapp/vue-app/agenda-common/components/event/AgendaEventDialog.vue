@@ -53,17 +53,7 @@
         :weekdays="weekdays"
         :connectors="connectors"
         @refresh-event="openEventById(event.id)"
-        @close="close">
-        <template slot="top-bar-message">
-          <v-alert
-            v-model="hasMessage"
-            :type="messageType"
-            class="mb-0"
-            dismissible>
-            {{ message }}
-          </v-alert>
-        </template>
-      </agenda-event-details>
+        @close="close" />
     </template>
   </v-dialog>
 </template>
@@ -108,9 +98,6 @@ export default {
       event: null,
       parentDialogSelector: null,
       loadingMessage: false,
-      hasMessage: null,
-      message: null,
-      messageType: null,
       originalEventString: null,
       isForm: false,
       displayTimeInForm: false,
@@ -360,11 +347,7 @@ export default {
       window.history.replaceState('', window.document.title, window.location.pathname);
     },
     displayMessage(type, message) {
-      this.messageType = type;
-      this.message = message;
-      this.hasMessage = true;
-
-      window.setTimeout(() => this.hasMessage = false, 5000);
+      this.$root.$emit('alert-message', message, type);
     }
   },
 };
