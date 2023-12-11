@@ -24,14 +24,6 @@
           @change="handleFileUpload($refs.uploadInput.files)">
       </div>
     </v-list-item>
-    <v-list-item v-if="errors.length" class="flex-column">
-      <v-alert
-        v-for="(error, index) in errors"
-        :key="index"
-        type="error">
-        {{ error }}
-      </v-alert>
-    </v-list-item>
   </v-list>
 </template>
 
@@ -46,7 +38,6 @@ export default {
   data: () => ({
     maxFilesCount: 5, // TODO: get from settings
     maxFileSize: 10, // TODO: get from settings
-    errors: [],
   }),
   computed: {
     attachments() {
@@ -137,13 +128,7 @@ export default {
       }, 200);
     },
     addError(error){
-      this.errors.push(String(error));
-      window.setTimeout(() => {
-        const index = this.errors.indexOf(error);
-        if (index >= 0) {
-          this.errors.splice(index, 1);
-        }
-      }, 5000);
+      this.$root.$emit('alert-message', error, 'error');
     },
   }
 };
