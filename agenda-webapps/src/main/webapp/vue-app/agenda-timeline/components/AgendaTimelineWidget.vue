@@ -1,5 +1,5 @@
 <template>
-  <v-app class="agenda-application" flat>
+  <v-app class="agenda-application border-box-sizing" flat>
     <v-card class="white pa-5 card-border-radius" flat>
       <agenda-timeline-header
         :current-space="currentSpace"
