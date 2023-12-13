@@ -7,13 +7,13 @@
           :current-calendar="currentCalendar"
           :owner-ids="ownerIds"
           :period="period"
-          class="mt-2" />
+          class="mt-2 pa-5 card-border-radius" />
         <agenda-timeline
           :events="events"
           :period-start-date="period.start"
           :loading="loading"
           :limit="limit"
-          class="mt-2" />
+          class="mt-2 pa-5 card-border-radius" />
         <v-flex v-if="hasMore" class="d-flex py-4 border-box-sizing">
           <v-btn
             :loading="loading"
@@ -184,10 +184,10 @@ export default {
     this.$root.$on('agenda-event-limit-increment', () => this.limit += this.pageSize);
     this.$root.$on('agenda-change-period-type', calendarType => this.calendarType = calendarType);
     this.$root.$on('agenda-search', searchTerm => this.searchTerm = searchTerm);
-    this.$root.$on('agenda-event-saved', this.retrieveEvents);
+    this.$root.$on('agenda-event-saved', this.savedEvent);
     this.$root.$on('agenda-refresh', this.retrieveEvents);
     this.$root.$on('agenda-event-type-changed', eventType => this.eventType = eventType);
-    this.$root.$on('agenda-event-deleted', this.retrieveEvents);
+    this.$root.$on('agenda-event-deleted', this.deletedEvent);
     this.$root.$on('agenda-event-response-sent', this.retrieveEvents);
     this.spaceId = eXo.env.portal.spaceId;
     this.$root.$on('agenda-settings-refresh', this.initSettings);
@@ -281,6 +281,54 @@ export default {
     updateSettings(settings) {
       this.settings = settings;
     },
+    savedEvent(event) {
+      if (event && event.id) {
+        const isDatePoll = event.status === 'TENTATIVE';
+        const isNew = !event.updated;
+        const message = isDatePoll && (isNew && this.$t('agenda.datePollCreationSuccess') || this.$t('agenda.datePollUpdateSuccess'))
+                     || (isNew && this.$t('agenda.eventCreationSuccess') || this.$t('agenda.eventUpdateSuccess'));
+        const clickMessage = isDatePoll && this.$t('agenda.viewDatePoll') || this.$t('agenda.viewEvent');
+        document.dispatchEvent(new CustomEvent('alert-message', {detail: {
+          alertType: 'success',
+          alertMessage: message,
+          alertLinkText: clickMessage,
+          alertLinkCallback: () => this.$root.$emit('agenda-event-details', event),
+        }}));
+      }
+    },
+    deletedEvent(event, untilDateRecurrenceUpdated) {
+      if (event && event.id) {
+        const isDatePoll = event.status === 'TENTATIVE';
+        const message = isDatePoll
+                        && this.$t('agenda.datePollDeleteSuccess')
+                        || (untilDateRecurrenceUpdated && this.$t('agenda.eventRecurrenceUntilDateUpdated'))
+                        || this.$t('agenda.eventDeleteSuccess');     
+        const deleteEventAlert = {detail: {
+          alertType: 'success',
+          alertMessage: message,
+        }};
+        if (isDatePoll || !untilDateRecurrenceUpdated) {
+          deleteEventAlert.detail.alertLinkText = this.$t('agenda.undoRemoveEvent');
+          deleteEventAlert.detail.alertLinkCallback = () => this.undoDeleteEvent(event);
+        }
+        document.dispatchEvent(new CustomEvent('alert-message', deleteEventAlert));
+      }
+    },
+    undoDeleteEvent(event) {
+      if (event.occurrence && event.occurrence.id) {
+        return this.$eventService.updateEventFields(event.id, {status: 'CONFIRMED'}, false, true)
+          .then(() => {
+            this.$root.$emit('agenda-refresh', event);
+            this.$root.$emit('alert-message', this.$t('agenda.eventDeletionCanceled'), 'success');
+          });
+      } else {
+        return this.$eventService.undoDeleteEvent(event.id)
+          .then(() => {
+            this.$root.$emit('agenda-refresh', event);
+            this.$root.$emit('alert-message', this.$t('agenda.eventDeletionCanceled'), 'success');
+          });
+      }
+    }
   },
 };
 </script>
