@@ -1,6 +1,6 @@
 <template>
-  <div class="white rounded-lg">
-    <h4 class="py-5 font-weight-bold">
+  <div class="white">
+    <h4 class="pb-5 font-weight-bold">
       {{ $t('agenda.agendaConnectors') }}
     </h4>
     <v-divider />

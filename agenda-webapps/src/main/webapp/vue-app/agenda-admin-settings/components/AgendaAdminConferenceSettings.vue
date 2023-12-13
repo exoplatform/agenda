@@ -1,6 +1,6 @@
 <template>
-  <div v-if="isWebConferencingEnabled" class="white rounded-lg pb-5">
-    <h4 class="py-5 font-weight-bold">
+  <div v-if="isWebConferencingEnabled" class="white">
+    <h4 class="pt-5 font-weight-bold">
       {{ $t('agenda.agendaConferences') }}
     </h4>
     <div class="d-flex flex-row">
