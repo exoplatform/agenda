@@ -125,12 +125,16 @@ export default {
 
                 }
                 delete recurrentEvent.id;
-                return this.$eventService.createEvent(recurrentEvent);
-              })
-              .then(() => {
-                this.close();
-                this.$root.$emit('agenda-event-saved', recurrentEvent);
-              });
+                setTimeout(() => {
+                  return this.$eventService.createEvent(recurrentEvent).then((event)=> {
+                    recurrentEvent = event;
+                  })
+                    .then(() => {
+                      this.close();
+                      this.$root.$emit('agenda-event-saved', recurrentEvent);
+                    });
+                }, 200);
+              });           
           }
         });
     },
