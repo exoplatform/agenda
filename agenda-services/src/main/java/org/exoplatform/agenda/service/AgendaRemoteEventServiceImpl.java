@@ -2,8 +2,6 @@ package org.exoplatform.agenda.service;
 
 import java.util.List;
 
-import javax.servlet.ServletContext;
-
 import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.entity.RemoteEventEntity;
@@ -18,6 +16,8 @@ import org.exoplatform.container.RootContainer.PortalContainerPostCreateTask;
 import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
+
+import jakarta.servlet.ServletContext;
 
 public class AgendaRemoteEventServiceImpl implements AgendaRemoteEventService {
 
