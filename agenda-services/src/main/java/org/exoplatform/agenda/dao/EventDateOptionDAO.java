@@ -3,7 +3,7 @@ package org.exoplatform.agenda.dao;
 import java.util.Collections;
 import java.util.List;
 
-import javax.persistence.TypedQuery;
+import jakarta.persistence.TypedQuery;
 
 import org.exoplatform.agenda.entity.EventDateOptionEntity;
 import org.exoplatform.commons.persistence.impl.GenericDAOJPAImpl;

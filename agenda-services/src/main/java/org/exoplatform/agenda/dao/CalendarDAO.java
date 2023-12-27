@@ -18,7 +18,7 @@ package org.exoplatform.agenda.dao;
 
 import java.util.*;
 
-import javax.persistence.TypedQuery;
+import jakarta.persistence.TypedQuery;
 
 import org.exoplatform.agenda.entity.CalendarEntity;
 import org.exoplatform.commons.api.persistence.ExoTransactional;

@@ -435,6 +435,7 @@ public class AgendaEventReminderServiceTest extends BaseAgendaEventTest {
     assertEquals(1, exceptionalOccurrenceReminders.size());
     webNotificationService.resetNumberOnBadge(testuser1Identity.getRemoteId());
     agendaEventReminderService.sendReminders();
+    restartTransaction();
     // Assert receive only one reminder notification of the first recurrence.
     int notificationSize  = webNotificationService.getNumberOnBadge(testuser1Identity.getRemoteId());
     assertEquals(1, notificationSize);

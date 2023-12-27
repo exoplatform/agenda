@@ -3,7 +3,7 @@ package org.exoplatform.agenda.dao;
 import java.util.Collections;
 import java.util.List;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 import org.exoplatform.agenda.entity.EventDateVoteEntity;
 import org.exoplatform.commons.api.persistence.ExoTransactional;

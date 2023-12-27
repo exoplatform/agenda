@@ -3,7 +3,7 @@ package org.exoplatform.agenda.listener;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.model.AgendaEventModification;

@@ -18,7 +18,7 @@ package org.exoplatform.agenda.service;
 
 import java.util.*;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.mortbay.cometd.continuation.EXoContinuationBayeux;
 
 import org.exoplatform.agenda.model.AgendaEventModification;
