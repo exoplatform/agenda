@@ -28,12 +28,14 @@ import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
 import org.exoplatform.agenda.model.*;
+import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.storage.*;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.command.NotificationCommand;
 import org.exoplatform.commons.api.notification.model.PluginKey;
 import org.exoplatform.commons.notification.impl.NotificationContextImpl;
+import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.container.xml.ValueParam;
 import org.exoplatform.services.listener.ListenerService;
@@ -224,8 +226,10 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
     List<EventReminder> reminders = reminderStorage.getEventReminders(currentMinute, endCurrentMinute);
     for (EventReminder eventReminder : reminders) {
       Event event = eventStorage.getEventById(eventReminder.getEventId());
+      Calendar calendar = ExoContainerContext.getService(AgendaCalendarService.class).getCalendarById(event.getCalendarId());
       // do not send a reminder notification of the Recurrent parent event.
-      if (event.getRecurrence() == null) {
+      // do not send a reminder notification if the calendar is removed!
+      if (event.getRecurrence() == null && calendar != null && !calendar.isDeleted()) {
         sendReminderNotification(eventReminder);
       }
     }
