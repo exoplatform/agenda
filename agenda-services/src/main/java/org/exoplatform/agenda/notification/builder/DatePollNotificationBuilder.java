@@ -4,7 +4,7 @@ import static org.exoplatform.agenda.util.NotificationUtils.*;
 
 import java.io.Writer;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.service.AgendaEventService;

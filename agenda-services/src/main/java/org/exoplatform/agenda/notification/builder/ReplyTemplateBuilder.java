@@ -2,7 +2,7 @@ package org.exoplatform.agenda.notification.builder;
 
 import groovy.text.GStringTemplateEngine;
 import groovy.text.Template;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.exoplatform.agenda.model.AgendaUserSettings;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.service.AgendaEventService;

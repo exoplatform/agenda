@@ -19,7 +19,7 @@ package org.exoplatform.agenda.dao;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.constant.EventStatus;

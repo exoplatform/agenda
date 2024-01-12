@@ -8,7 +8,7 @@ import java.io.ByteArrayInputStream;
 import java.time.*;
 import java.util.*;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.*;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
