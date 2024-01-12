@@ -22,6 +22,7 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.*;
 
+import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.commons.api.notification.service.WebNotificationService;
 import org.junit.Test;
 
@@ -454,6 +455,12 @@ public class AgendaEventReminderServiceTest extends BaseAgendaEventTest {
     agendaEventReminderService.sendReminders();
     // Assert receiving the reminder notification for the non-recurring event.
     assertEquals(notificationSize + 1, webNotificationService.getNumberOnBadge(testuser1Identity.getRemoteId()));
+    webNotificationService.resetNumberOnBadge(testuser1Identity.getRemoteId());
+    //
+    calendar.setDeleted(true);
+    agendaEventReminderService.sendReminders();
+    // assert no more notifications
+    assertEquals(2 , webNotificationService.getNumberOnBadge(testuser1Identity.getRemoteId()));
   }
 
 }
