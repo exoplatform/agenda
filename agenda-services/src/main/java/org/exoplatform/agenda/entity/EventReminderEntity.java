@@ -19,7 +19,7 @@ package org.exoplatform.agenda.entity;
 import java.io.Serializable;
 import java.util.Date;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 import org.exoplatform.agenda.constant.ReminderPeriodType;
 import org.exoplatform.commons.api.persistence.ExoEntity;

@@ -6,7 +6,7 @@ import java.io.Writer;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.model.AgendaUserSettings;
 import org.exoplatform.agenda.model.Event;

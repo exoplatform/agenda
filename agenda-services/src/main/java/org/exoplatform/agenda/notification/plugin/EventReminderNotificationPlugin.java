@@ -2,7 +2,7 @@ package org.exoplatform.agenda.notification.plugin;
 
 import static org.exoplatform.agenda.util.NotificationUtils.*;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.service.AgendaCalendarService;

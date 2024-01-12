@@ -16,7 +16,7 @@
 */
 package org.exoplatform.agenda.dao;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 import org.exoplatform.agenda.entity.RemoteEventEntity;
 import org.exoplatform.commons.api.persistence.ExoTransactional;

@@ -16,7 +16,7 @@
 */
 package org.exoplatform.agenda.dao;
 
-import javax.persistence.Query;
+import jakarta.persistence.Query;
 
 import org.exoplatform.agenda.entity.EventRecurrenceEntity;
 import org.exoplatform.commons.api.persistence.ExoTransactional;

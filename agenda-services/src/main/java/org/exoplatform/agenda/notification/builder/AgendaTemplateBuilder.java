@@ -5,7 +5,7 @@ import static org.exoplatform.agenda.util.NotificationUtils.*;
 import java.io.*;
 import java.time.*;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.model.AgendaUserSettings;

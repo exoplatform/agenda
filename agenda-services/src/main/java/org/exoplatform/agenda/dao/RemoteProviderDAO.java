@@ -16,8 +16,8 @@
 */
 package org.exoplatform.agenda.dao;
 
-import javax.persistence.NoResultException;
-import javax.persistence.TypedQuery;
+import jakarta.persistence.NoResultException;
+import jakarta.persistence.TypedQuery;
 
 import org.exoplatform.agenda.entity.RemoteProviderEntity;
 import org.exoplatform.commons.persistence.impl.GenericDAOJPAImpl;
