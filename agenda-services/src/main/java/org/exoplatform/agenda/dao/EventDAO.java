@@ -215,8 +215,17 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
                               : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
   }
 
+  public List<Long> getUserEventCalenderIds(Long userIdentityId) {
+    TypedQuery<Tuple> query = getEntityManager().createNamedQuery("AgendaEvent.getUserEventCalenderIds", Tuple.class);
+    query.setParameter("userIdentityId", userIdentityId);
+    List<Tuple> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList()
+                              : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
+  }
+
   public List<Long> getPendingEventIds(Long userIdentityId,
                                        List<Long> attendeeIds,
+                                       List<Long> calenderIds,
                                        Date fromDate,
                                        int offset,
                                        int limit) {
@@ -225,6 +234,7 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     query.setParameter("response", EventAttendeeResponse.NEEDS_ACTION);
     query.setParameter("userIdentityId", userIdentityId);
     query.setParameter("attendeeIds", attendeeIds);
+    query.setParameter("calenderIds", calenderIds);
     query.setParameter("date", fromDate);
     if (offset >= 0) {
       query.setFirstResult(offset);
@@ -243,12 +253,14 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
 
   public Long countPendingEvents(Long userIdentityId,
                                  List<Long> attendeeIds,
+                                 List<Long> calenderIds,
                                  Date fromDate) {
     TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaEvent.countPendingEvents", Long.class);
     query.setParameter("status", EventStatus.CONFIRMED);
     query.setParameter("response", EventAttendeeResponse.NEEDS_ACTION);
     query.setParameter("userIdentityId", userIdentityId);
     query.setParameter("attendeeIds", attendeeIds);
+    query.setParameter("calenderIds", calenderIds);
     query.setParameter("date", fromDate);
     try {
       Long count = query.getSingleResult();

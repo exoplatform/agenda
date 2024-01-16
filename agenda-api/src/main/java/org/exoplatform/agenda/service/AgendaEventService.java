@@ -352,7 +352,7 @@ public interface AgendaEventService {
                                long userIdentityId,
                                ZoneId userTimeZone,
                                int offset,
-                               int limit) throws IllegalAccessException;
+                               int limit) throws Exception;
 
   /**
    * Count pending events that the selected user didn't answered yet
@@ -363,6 +363,6 @@ public interface AgendaEventService {
    * @throws IllegalAccessException when user is not an allowed to access one of
    *           ownerIds events
    */
-  long countPendingEvents(List<Long> ownerIds, long userIdentityId) throws IllegalAccessException;
+  long countPendingEvents(List<Long> ownerIds, long userIdentityId) throws Exception;
 
 }
