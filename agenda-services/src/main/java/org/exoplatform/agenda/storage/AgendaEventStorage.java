@@ -69,11 +69,12 @@ public class AgendaEventStorage {
   public List<Long> getPendingEventIds(Long userIdentityId,
                                        List<Long> ownerIds,
                                        List<Long> attendeeIds,
+                                       List<Long> calenderIds,
                                        int offset,
                                        int limit) {
     Date now = getNowDate();
     if (ownerIds == null || ownerIds.isEmpty()) {
-      return this.eventDAO.getPendingEventIds(userIdentityId, attendeeIds, now, offset, limit);
+      return this.eventDAO.getPendingEventIds(userIdentityId, attendeeIds, calenderIds, now, offset, limit);
     } else {
       return this.eventDAO.getPendingEventIdsByOwnerIds(userIdentityId, ownerIds, attendeeIds, now, offset, limit);
     }
@@ -81,13 +82,18 @@ public class AgendaEventStorage {
 
   public long countPendingEvents(Long userIdentityId,
                                  List<Long> ownerIds,
-                                 List<Long> attendeeIds) {
+                                 List<Long> attendeeIds,
+                                 List<Long> calenderIds) {
     Date now = getNowDate();
     if (ownerIds == null || ownerIds.isEmpty()) {
-      return this.eventDAO.countPendingEvents(userIdentityId, attendeeIds, now);
+      return this.eventDAO.countPendingEvents(userIdentityId, attendeeIds, calenderIds, now);
     } else {
       return this.eventDAO.countPendingEventsByOwnerIds(userIdentityId, ownerIds, attendeeIds, now);
     }
+  }
+
+  public List<Long> getUserEventCalenderIds(Long userIdentityId) {
+    return this.eventDAO.getUserEventCalenderIds(userIdentityId);
   }
 
   public List<Long> getEventDatePollIds(Long userIdentityId,

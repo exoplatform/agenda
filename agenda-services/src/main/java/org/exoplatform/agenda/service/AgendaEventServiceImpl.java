@@ -1060,7 +1060,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                       long userIdentityId,
                                       ZoneId userTimeZone,
                                       int offset,
-                                      int limit) throws IllegalAccessException {
+                                      int limit) throws Exception {
     Identity userIdentity = identityManager.getIdentity(String.valueOf(userIdentityId));
     if (userIdentity == null) {
       throw new IllegalStateException("User with identity id " + userIdentityId + " doesn't exist");
@@ -1076,16 +1076,18 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
 
     List<Long> attendeeIds = Utils.getCalendarOwnersOfUser(spaceService, identityManager, userIdentity);
+    List<Long> calenderIds = getUserCalenders(userIdentity);
     List<Long> eventIds = this.agendaEventStorage.getPendingEventIds(userIdentityId,
                                                                      ownerIds,
                                                                      attendeeIds,
+                                                                     calenderIds,
                                                                      offset,
                                                                      limit);
     return computeEventsProperties(eventIds, null, null, userTimeZone, true, limit, userIdentity, null, null);
   }
 
   @Override
-  public long countPendingEvents(List<Long> ownerIds, long userIdentityId) throws IllegalAccessException {
+  public long countPendingEvents(List<Long> ownerIds, long userIdentityId) throws Exception {
     Identity userIdentity = identityManager.getIdentity(String.valueOf(userIdentityId));
     if (userIdentity == null) {
       throw new IllegalStateException("User with identity id " + userIdentityId + " doesn't exist");
@@ -1100,7 +1102,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       }
     }
     List<Long> attendeeIds = Utils.getCalendarOwnersOfUser(spaceService, identityManager, userIdentity);
-    return this.agendaEventStorage.countPendingEvents(userIdentityId, ownerIds, attendeeIds);
+    List<Long> calenderIds = getUserCalenders(userIdentity);
+    return this.agendaEventStorage.countPendingEvents(userIdentityId, ownerIds, attendeeIds, calenderIds);
   }
 
   @Override
@@ -1297,6 +1300,24 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       events = events.subList(0, limit);
     }
     return events;
+  }
+
+  private List<Long> getUserCalenders(Identity userIdentity) throws Exception {
+    List<Long> calenderIds = this.agendaEventStorage.getUserEventCalenderIds(Long.parseLong(userIdentity.getId()));
+    calenderIds.addAll(this.agendaCalendarService.getCalendars(0,
+                                                               this.agendaCalendarService.countCalendars(userIdentity.getRemoteId()),
+                                                               userIdentity.getRemoteId())
+                                                 .stream()
+                                                 .map(Calendar::getId)
+                                                 .toList());
+    return filterUserCalenders(calenderIds);
+  }
+
+  private List<Long> filterUserCalenders(List<Long> calendersIds) {
+    return calendersIds.stream().distinct().filter(id -> {
+      Calendar calendar = agendaCalendarService.getCalendarById(id);
+      return calendar != null && !calendar.isDeleted();
+    }).collect(Collectors.toList());
   }
 
   private void updateEventField(Event event, String fieldName, String fieldValue) throws AgendaException {

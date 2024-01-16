@@ -83,6 +83,7 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
           name = "AgendaEvent.getPendingEventIds",
           query = "SELECT DISTINCT(ev.id), ev.updatedDate FROM AgendaEvent ev"
               + " INNER JOIN ev.attendees att"
+              + " INNER JOIN ev.calendar cal"
               + " WHERE ev.status = :status"
               + " AND (ev.endDate IS NULL OR ev.endDate > :date)"
               + " AND ("
@@ -91,6 +92,7 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
               + " )"
               + " AND att.identityId IN (:attendeeIds)"
               + " AND att.response = :response"
+              + " AND cal.id IN (:calenderIds)"
               + " AND NOT EXISTS("
               + "   SELECT att2.id FROM AgendaEventAttendee att2"
               + "   WHERE att2.event.id = ev.id"
@@ -103,6 +105,7 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
           name = "AgendaEvent.countPendingEvents",
           query = "SELECT count(DISTINCT ev.id) FROM AgendaEvent ev"
               + " INNER JOIN ev.attendees att"
+              + " INNER JOIN ev.calendar cal"
               + " WHERE ev.status = :status"
               + " AND (ev.endDate IS NULL OR ev.endDate > :date)"
               + " AND ("
@@ -111,6 +114,7 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
               + " )"
               + " AND att.identityId IN (:attendeeIds)"
               + " AND att.response = :response"
+              + " AND cal.id IN (:calenderIds)"
               + " AND NOT EXISTS("
               + "   SELECT att2.id FROM AgendaEventAttendee att2"
               + "   WHERE att2.event.id = ev.id"
@@ -220,6 +224,13 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
               + " AND (ev.endDate IS NULL OR ev.endDate > :date)"
               + " AND att.identityId IN (:attendeeIds)"
               + " AND cal.ownerId IN (:ownerIds)"
+      ),
+      @NamedQuery(
+          name = "AgendaEvent.getUserEventCalenderIds",
+          query = "SELECT DISTINCT cal.id FROM AgendaEvent ev"
+              + " INNER JOIN ev.attendees att"
+              + " INNER JOIN ev.calendar cal"
+              + " WHERE att.identityId = :userIdentityId "
       ),
   }
 )
