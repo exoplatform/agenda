@@ -51,6 +51,7 @@ export default {
     saved(event) {
       this.$refs.recurrentEventConfirm.close();
       this.$root.$emit('agenda-event-saved', event);
+      this.$root.$emit('agenda-refresh');
     },
   },
 };
