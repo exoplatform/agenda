@@ -287,7 +287,10 @@ export default {
           this.$root.$emit('agenda-event-saved', event);
           this.close();
         })
-        .finally(() => this.saving = false);
+        .finally(() => {
+          this.saving = false;
+          this.$root.$emit('agenda-refresh');
+        });
     },
   }
 };
