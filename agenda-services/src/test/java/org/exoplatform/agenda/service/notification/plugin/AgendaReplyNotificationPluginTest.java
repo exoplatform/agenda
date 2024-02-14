@@ -73,8 +73,8 @@ public class AgendaReplyNotificationPluginTest extends BaseAgendaEventTest {
                             .concat("portal/classic/agenda?eventId=")
                             .concat(String.valueOf(event.getId()));
 
-    String avatarUrl = "/portal/rest/v1/social/users/default-image/";
     Identity identity = identityManager.getIdentity(String.valueOf(testuser2Identity.getId()));
+    String avatarUrl = "/portal/rest/v1/social/users/"+ identity.getId() + "/avatar";
 
     // When
     NotificationInfo notificationInfo = replyNotificationPlugin.makeNotification(ctx);
