@@ -166,16 +166,23 @@ export default {
       const words = input!== null ? input.split(' ') : '';
       const email = words[words.length - 1];
       if (reg.test(email)) {
-        this.event.attendees.push({identity: {
-          id: `${email}`,
-          remoteId: email,
-          identityId: email,
-          providerId: 'GUEST_USER',
-          profile: {
-            fullName: email,
-            avatarUrl: '/portal/rest/v1/social/users/default-image/avatar',
-          },
-        }});
+        this.$userService.getUserByEmail(email)
+          .then(user => {
+            if (user.remoteId){
+              this.event.attendees.push({identity: user});
+            } else {
+              this.event.attendees.push({identity: {
+                id: `${email}`,
+                remoteId: email,
+                identityId: email,
+                providerId: 'GUEST_USER',
+                profile: {
+                  fullName: email,
+                  avatarUrl: '/portal/rest/v1/social/users/default-image/avatar',
+                },
+              }});
+            }
+          });
       }
       this.$refs.invitedAttendeeAutoComplete.clear();
     },
