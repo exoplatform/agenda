@@ -177,6 +177,9 @@
     <depends>
       <module>AgendaConnectorsExtensions</module>
     </depends>
+    <depends>
+      <module>webConferencing</module>
+    </depends>
   </module>
 
   <module>

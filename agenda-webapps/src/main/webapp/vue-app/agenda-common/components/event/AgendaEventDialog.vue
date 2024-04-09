@@ -313,6 +313,7 @@ export default {
       } else if (this.event.parent && this.event.parent.id && this.event.occurrence && this.event.occurrence.id) {
         eventDetailsPath = `${eventDetailsPath}?parentId=${this.event.parent.id}&occurrenceId=${this.event.occurrence.id}`;
       }
+      this.$root.$emit('agenda-event-change-owner',agendaEvent.calendar.owner.remoteId);
       window.history.replaceState('', window.document.title, eventDetailsPath);
       this.dialog = true;
     },

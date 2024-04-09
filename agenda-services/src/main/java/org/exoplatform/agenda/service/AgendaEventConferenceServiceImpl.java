@@ -82,19 +82,4 @@ public class AgendaEventConferenceServiceImpl implements AgendaEventConferenceSe
     return conferenceStorage.getEventConferences(eventId);
   }
 
-  @Override
-  public void saveEnabledWebConferenceProviders(List<String> enabledProviders) {
-    SettingValue<?> webConferencingSetting = SettingValue.create(StringUtils.join(enabledProviders, ","));
-    this.settingService.set(AGENDA_CONTEXT, AGENDA_SCOPE, AGENDA_WEB_CONFERENCING_KEY, webConferencingSetting);
-  }
-
-  @Override
-  public List<String> getEnabledWebConferenceProviders() {
-    SettingValue<?> webConferencingSetting = this.settingService.get(AGENDA_CONTEXT, AGENDA_SCOPE, AGENDA_WEB_CONFERENCING_KEY);
-    if (webConferencingSetting == null || webConferencingSetting.getValue() == null) {
-      return defaultEnabledWebConferences;
-    }
-    return Arrays.asList(StringUtils.split(webConferencingSetting.getValue().toString(), ","));
-  }
-
 }
