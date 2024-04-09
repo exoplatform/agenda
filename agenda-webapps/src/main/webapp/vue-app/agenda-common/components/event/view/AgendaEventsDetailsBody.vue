@@ -85,10 +85,11 @@
           </v-btn>
         </div>
         <div v-if="isConferenceEnabled" class="event-conference flex d-flex flex-grow-0 flex-shrink-1 pb-5">
-          <i class="uiIconVideo darkGreyIcon uiIcon32x32 pe-5"></i>
+          <v-icon class="pe-5 darkGreyIcon" size="32px">fa-video</v-icon>
           <v-btn
             :title="eventConferenceUrl"
-            :href="eventConferenceUrl"
+            :href="!eventConferenceUrl.match(/^(https?:\/\/|\/portal\/)/) ? `//${eventConferenceUrl}` : eventConferenceUrl"
+            target="_blank"
             link
             text
             class="text-lowercase text-truncate primary--text flex-shrink-1 flex-grow-1 d-inline pt-2">

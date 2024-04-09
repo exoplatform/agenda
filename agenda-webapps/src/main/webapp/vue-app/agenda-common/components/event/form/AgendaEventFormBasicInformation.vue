@@ -59,7 +59,7 @@
           </div>
         </div>
         <div class="d-flex flex-row">
-          <i class="uiIconVideo darkGreyIcon uiIcon32x32 uiIcon32x32 my-3 me-11"></i>
+          <v-icon class="my-3 me-10 darkGreyIcon" size="32px">fa-video</v-icon>
           <div class="d-flex flex-column">
             <agenda-event-form-conference
               :event="event"
