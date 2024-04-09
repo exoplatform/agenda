@@ -107,10 +107,17 @@ export default {
         }];
       }
     },
+    conferenceProvider() {
+      this.conferenceURL=null;
+      this.$set(this.event, 'conferences', []);
+    },
   },
   mounted() {
-    if (this.event && this.event.conferences && this.event.conferences.length) {
+    if (this.isConferenceEnabled && this.event && this.event.conferences && this.event.conferences.length) {
       this.conferenceURL = this.event.conferences[0].url;
+    } else {
+      this.conferenceURL = null;
+      this.event.conferences = [];
     }
   },
   methods: {

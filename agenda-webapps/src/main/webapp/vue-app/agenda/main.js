@@ -32,5 +32,9 @@ export function init() {
       vuetify,
       i18n
     }, `#${appId}`, 'Agenda');
-  }).finally(() => Vue.prototype.$utils.includeExtensions('ConnectorsExtensions'));
+  }).finally(() => {
+    Vue.prototype.$utils.includeExtensions('VisioConnector');
+    Vue.prototype.$utils.includeExtensions('ConnectorsExtensions');
+  });
+
 }
