@@ -89,8 +89,6 @@ public class AgendaUserSettingsServiceImpl implements AgendaUserSettingsService 
       agendaUserSettings.setRemoteProviders(remoteProviders);
     }
 
-    List<String> enabledWebConferenceProviders = agendaEventConferenceService.getEnabledWebConferenceProviders();
-    agendaUserSettings.setWebConferenceProviders(enabledWebConferenceProviders);
     return agendaUserSettings;
   }
 

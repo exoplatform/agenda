@@ -2,9 +2,9 @@ export function checkWebConferencingEnabled() {
   return loadWebContferencing();
 }
 
-export function getAllProviders() {
+export function getAllProviders(spaceIdentityId) {
   return checkWebConferencingEnabled()
-    .then(enabled => enabled && global.webConferencing.getAllProviders() || null);
+    .then(enabled => enabled && global.webConferencing.getAllProviders(spaceIdentityId) || null);
 }
 
 export function deleteEventWebConferencing(conference) {
@@ -73,7 +73,7 @@ function createConference(event, conference) {
       });
     })
     .then(callDetails => {
-      conference.url = `${callDetails.url}?inviteId=${callDetails.inviteId}`;
+      conference.url = callDetails.inviteId ? `${callDetails.url}?inviteId=${callDetails.inviteId}` : callDetails.url;
       return conference;
     });
 }

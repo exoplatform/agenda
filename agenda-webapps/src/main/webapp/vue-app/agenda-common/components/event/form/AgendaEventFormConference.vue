@@ -107,6 +107,10 @@ export default {
         }];
       }
     },
+    conferenceProvider() {
+      this.eventConferenceUrl=null;
+      this.event.conferences = [];
+    },
   },
   mounted() {
     if (this.event && this.event.conferences && this.event.conferences.length) {

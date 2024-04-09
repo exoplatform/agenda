@@ -43,7 +43,7 @@ export default {
   watch: {
     calendarOwner() {
       this.resetCustomValidity();
-
+      this.$root.$emit('agenda-event-change-owner',this.calendarOwner?.remoteId);
       if (this.calendarOwner) {
         this.event.calendar.owner = {
           remoteId: this.calendarOwner.remoteId,

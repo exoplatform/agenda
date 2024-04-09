@@ -88,7 +88,8 @@
           <i class="uiIconVideo darkGreyIcon uiIcon32x32 pe-5"></i>
           <v-btn
             :title="eventConferenceUrl"
-            :href="eventConferenceUrl"
+            :href="!eventConferenceUrl.match(/^(https?:\/\/|\/portal\/)/) ? `//${eventConferenceUrl}` : eventConferenceUrl"
+            target="_blank"
             link
             text
             class="text-lowercase text-truncate primary--text flex-shrink-1 flex-grow-1 d-inline pt-2">
