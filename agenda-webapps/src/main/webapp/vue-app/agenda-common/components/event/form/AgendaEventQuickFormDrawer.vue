@@ -65,7 +65,7 @@
           </div>
           <div class="d-flex flex-row">
             <v-flex class="flex-grow-0 my-auto mx-3">
-              <i class="uiIconVideo darkGreyIcon uiIcon32x32"></i>
+              <v-icon class="darkGreyIcon" size="32px">fa-video</v-icon>
             </v-flex>
             <agenda-event-form-conference
               v-if="isConferenceEnabled"

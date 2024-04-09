@@ -34,8 +34,6 @@ public class AgendaSettingsRest implements ResourceContainer {
 
   private AgendaUserSettingsService    agendaUserSettingsService;
 
-  private AgendaEventConferenceService agendaEventConferenceService;
-
   private AgendaRemoteEventService     agendaRemoteEventService;
 
   private AgendaWebSocketService       agendaWebSocketService;
@@ -43,12 +41,10 @@ public class AgendaSettingsRest implements ResourceContainer {
   private IdentityManager              identityManager;
 
   public AgendaSettingsRest(AgendaUserSettingsService agendaUserSettingsService,
-                            AgendaEventConferenceService agendaEventConferenceService,
                             AgendaRemoteEventService agendaRemoteEventService,
                             AgendaWebSocketService agendaWebSocketService,
                             IdentityManager identityManager) {
     this.agendaUserSettingsService = agendaUserSettingsService;
-    this.agendaEventConferenceService = agendaEventConferenceService;
     this.agendaRemoteEventService = agendaRemoteEventService;
     this.agendaWebSocketService = agendaWebSocketService;
     this.identityManager = identityManager;
@@ -271,41 +267,6 @@ public class AgendaSettingsRest implements ResourceContainer {
       return Response.ok(remoteProvider).build();
     } catch (Exception e) {
       LOG.warn("Error saving connector '{}' secretKey", connectorName, e);
-      return Response.serverError().entity(e.getMessage()).build();
-    }
-  }
-  
-  @Path("webConferencing")
-  @POST
-  @RolesAllowed("administrators")
-  @Operation(
-      summary = "Saves enabled web conferencing provider to use for all users",
-      description = "Saves enabled web conferencing provider to use for all users",
-      method = "PUT")
-  @ApiResponses(
-      value = {
-          @ApiResponse(responseCode = "204", description = "Request fulfilled"),
-          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
-          @ApiResponse(responseCode = "500", description = "Internal server error"),
-      }
-  )
-  public Response saveEnabledWebConferencing(
-                                             @Parameter(
-                                                 description = "Web conferencing provider name",
-                                                 required = true
-                                             )
-                                             @FormParam("providerName")
-                                             String providerName) {
-    try {
-      if (providerName == null) {
-        providerName = "";
-      } else {
-        providerName = providerName.trim();
-      }
-      agendaEventConferenceService.saveEnabledWebConferenceProviders(Collections.singletonList(providerName));
-      return Response.noContent().build();
-    } catch (Exception e) {
-      LOG.warn("Error saving enabled web conferencing provider '{}' status", providerName, e);
       return Response.serverError().entity(e.getMessage()).build();
     }
   }

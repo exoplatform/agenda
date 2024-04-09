@@ -27,15 +27,5 @@ public interface AgendaEventConferenceService {
    */
   Set<AgendaEventModificationType> saveEventConferences(long eventId, List<EventConference> conferences);
 
-  /**
-   * @return {@link List} of enabled web conferencing providers
-   */
-  List<String> getEnabledWebConferenceProviders();
-
-  /**
-   * @param enabledProviders {@link List} of enabled web conferencing providers
-   *          types
-   */
-  void saveEnabledWebConferenceProviders(List<String> enabledProviders);
 
 }

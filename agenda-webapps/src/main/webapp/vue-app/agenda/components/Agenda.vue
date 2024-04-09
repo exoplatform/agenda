@@ -120,12 +120,12 @@ export default {
   computed: {
     enabledConferenceProviderName() {
       return this.settings
-          && this.settings.webConferenceProviders
-          && this.settings.webConferenceProviders.length
-          && this.settings.webConferenceProviders[0];
+          && this.conferenceProviders
+          && this.conferenceProviders.length > 0
+          && this.conferenceProviders.find((provider) => provider.configured);
     },
     conferenceProvider() {
-      return this.conferenceProviders && this.enabledConferenceProviderName && this.conferenceProviders.find(provider => provider.isInitialized && provider.linkSupported && provider.groupSupported && this.enabledConferenceProviderName === provider.getType());
+      return this.conferenceProviders && this.enabledConferenceProviderName && this.conferenceProviders.find(provider => provider.isInitialized && provider.linkSupported && provider.groupSupported && this.enabledConferenceProviderName.getType() === provider.getType());
     },
     isMobile() {
       return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
@@ -191,6 +191,7 @@ export default {
     this.$root.$on('agenda-event-response-sent', this.retrieveEvents);
     this.spaceId = eXo.env.portal.spaceId;
     this.$root.$on('agenda-settings-refresh', this.initSettings);
+    this.$root.$on('agenda-event-change-owner', this.refreshProviders);
     this.initSettings();
   },
   methods: {
@@ -203,16 +204,22 @@ export default {
             if (settings) {
               this.settings = settings;
               this.calendarType = this.settings && this.settings.agendaDefaultView;
+              this.refreshProviders(eXo.env.portal.spaceName);
             }
-            return this.$webConferencingService.getAllProviders();
-          })
-          .then(providers => {
-            this.conferenceProviders = providers;
-            return this.$nextTick();
           })
           .finally(() => {
             this.settingsLoaded = true;
           });
+      }
+    },
+    refreshProviders(spacePrettyName) {
+      if (spacePrettyName) {
+        this.$webConferencingService.getAllProviders(spacePrettyName).then(providers => {
+          this.conferenceProviders = providers;
+          return this.$nextTick();
+        });
+      } else {
+        this.conferenceProviders = null;
       }
     },
     retrieveEvents() {
