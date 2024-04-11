@@ -99,17 +99,17 @@ export default {
   watch: {
     conferenceURL(newVal) {
       if (!newVal) {
-        this.event.conferences = [];
+        this.$set(this.event, 'conferences', null);
       } else {
-        this.event.conferences = [{
+        this.$set(this.event, 'conferences', [{
           url: newVal,
           type: 'manual',
-        }];
+        }]);
       }
     },
     conferenceProvider() {
       this.conferenceURL=null;
-      this.$set(this.event, 'conferences', []);
+      this.$set(this.event, 'conferences', null);
     },
   },
   mounted() {
@@ -117,7 +117,7 @@ export default {
       this.conferenceURL = this.event.conferences[0].url;
     } else {
       this.conferenceURL = null;
-      this.event.conferences = [];
+      this.$set(this.event, 'conferences', null);
     }
   },
   methods: {
