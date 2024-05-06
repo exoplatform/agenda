@@ -11,8 +11,8 @@
             :space="voter.space"
             popover />
           <exo-user-avatar
-            v-else-if="voter.profile"
-            :identity="voter.profile"
+            v-else-if="voter.providerId==='organization'"
+            :profile-id="voter.remoteId"
             extra-class="d-inline-block date-poll-participant"
             link-style
             popover />
