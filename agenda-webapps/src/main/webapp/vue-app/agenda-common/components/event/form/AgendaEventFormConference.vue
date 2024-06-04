@@ -106,11 +106,7 @@ export default {
           type: 'manual',
         }]);
       }
-    },
-    conferenceProvider() {
-      this.conferenceURL=null;
-      this.$set(this.event, 'conferences', null);
-    },
+    }
   },
   mounted() {
     if (this.isConferenceEnabled && this.event && this.event.conferences && this.event.conferences.length) {
