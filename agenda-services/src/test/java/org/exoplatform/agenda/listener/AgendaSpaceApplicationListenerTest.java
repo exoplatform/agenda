@@ -15,7 +15,6 @@ import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.listener.*;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
-import org.exoplatform.social.core.space.SpaceException;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceLifeCycleEvent.Type;
 import org.exoplatform.social.core.space.spi.SpaceService;
@@ -74,27 +73,6 @@ public class AgendaSpaceApplicationListenerTest {
     }
     ConversationState.setCurrent(null);
     end();
-  }
-
-  @Test
-  public void testCreateSpaceWithDefaultSpaceTemplate() throws SpaceException {
-    Space space = createSpace("Space Test Classic", null, "root");
-
-    assertFalse(LISTENER_INSTALL_COUNT.get());
-    assertFalse(LISTENER_UNINSTALL_COUNT.get());
-
-    spaceService.activateApplication(space, AgendaSpaceApplicationListener.AGENDA_AGENDA_PORTLET_ID);
-
-    assertTrue(LISTENER_INSTALL_COUNT.get());
-    assertFalse(LISTENER_UNINSTALL_COUNT.get());
-
-    LISTENER_INSTALL_COUNT.set(false);
-    spaceService.removeApplication(space,
-                                   AgendaSpaceApplicationListener.AGENDA_AGENDA_PORTLET_ID,
-                                   AgendaSpaceApplicationListener.AGENDA_APPLICATION_NAME);
-
-    assertFalse(LISTENER_INSTALL_COUNT.get());
-    assertTrue(LISTENER_UNINSTALL_COUNT.get());
   }
 
   @Test

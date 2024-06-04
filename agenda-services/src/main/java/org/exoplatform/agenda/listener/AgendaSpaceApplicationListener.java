@@ -15,7 +15,6 @@ import org.exoplatform.portal.mop.SiteKey;
 import org.exoplatform.portal.mop.navigation.*;
 import org.exoplatform.portal.mop.page.PageKey;
 import org.exoplatform.portal.pom.spi.portlet.Portlet;
-import org.exoplatform.portal.webui.application.PortletState;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -397,9 +396,7 @@ public class AgendaSpaceApplicationListener implements SpaceLifeCycleListener {
 
   private static Application<Portlet> getAgendaTimelinePortletModel() {
     PortletApplication model = new PortletApplication();
-    PortletState<Portlet> state = new PortletState<>(new TransientApplicationState<Portlet>(AGENDA_AGENDA_TIMELINE_COMPLETE_ID),
-                                                     ApplicationType.PORTLET);
-    model.setState(state.getApplicationState());
+    model.setState(new TransientApplicationState<Portlet>(AGENDA_AGENDA_TIMELINE_COMPLETE_ID));
     model.setTitle(AGENDA_AGENDA_TIMELINE_PORTLET_ID);
     model.setShowInfoBar(false);
     model.setShowApplicationState(false);
