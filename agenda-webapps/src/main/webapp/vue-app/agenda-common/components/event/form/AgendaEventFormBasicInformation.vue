@@ -58,17 +58,13 @@
               class="text-wrap ms-2" />
           </div>
         </div>
-        <div class="d-flex flex-row">
-          <v-icon class="my-3 me-10 darkGreyIcon" size="32px">fa-video</v-icon>
-          <div class="d-flex flex-column">
-            <agenda-event-form-conference
-              :event="event"
-              :settings="settings"
-              :current-space="currentSpace"
-              :conference-provider="conferenceProvider"
-              class="my-auto" />
-          </div>
-        </div>
+        <agenda-event-form-conference
+          :event="event"
+          :settings="settings"
+          :current-space="currentSpace"
+          :conference-provider="conferenceProvider"
+          class="my-auto"
+          icon-class="me-10"/>
         <div class="d-flex flex-row">
           <v-flex class="flex-grow-0">
             <i class="uiIconDescription darkGreyIcon uiIcon32x32 my-3 me-11"></i>
