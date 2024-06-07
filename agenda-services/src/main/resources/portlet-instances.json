@@ -1,0 +1,39 @@
+{
+  "descriptors":[
+    {
+      "nameId":"Agenda",
+      "categoryNameId":"spaces",
+      "portletName":"Agenda",
+      "names":{
+        "en":"layout.portletInstance.Agenda.name"
+      },
+      "descriptions":{
+        "en":"layout.portletInstance.Agenda.description"
+      },
+      "illustrationPath":"war:/../skin/DefaultSkin/portletIcons/Agenda.png",
+      "preferences":[
+        
+      ],
+      "permissions":[
+        "*:/platform/users"
+      ],
+      "system":true
+    },
+    {
+      "nameId":"AgendaTimeline",
+      "categoryNameId":"tools",
+      "portletName":"AgendaTimeline",
+      "names":{
+        "en":"layout.portletInstance.AgendaTimeline.name"
+      },
+      "descriptions":{
+        "en":"layout.portletInstance.AgendaTimeline.description"
+      },
+      "illustrationPath":"war:/../skin/DefaultSkin/portletIcons/AgendaTimeline.png",
+      "permissions":[
+        "*:/platform/users"
+      ],
+      "system":true
+    }
+  ]
+}
