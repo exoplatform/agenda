@@ -63,27 +63,12 @@
               name="locationEvent"
               class="ignore-vuetify-classes my-3 location-event-input">
           </div>
-          <div class="d-flex flex-row">
-            <v-flex class="flex-grow-0 my-auto mx-3">
-              <v-icon class="darkGreyIcon" size="32px">fa-video</v-icon>
-            </v-flex>
-            <agenda-event-form-conference
-              v-if="isConferenceEnabled"
-              :event="event"
-              :settings="settings"
-              :current-space="currentSpace"
-              :conference-provider="conferenceProvider"
-              class="me-3" />
-            <input
-              v-else
-              id="eventConference"
-              ref="eventConference"
-              v-model="conferenceURL"
-              :placeholder="$t('agenda.webConferenceURL')"
-              type="text"
-              name="locationEvent"
-              class="ignore-vuetify-classes my-3 location-event-input">
-          </div>
+          <agenda-event-form-conference
+            :event="event"
+            :settings="settings"
+            :current-space="currentSpace"
+            :conference-provider="conferenceProvider"
+            icon-class="mx-3"/>
           <div class="d-flex flex-row">
             <v-flex class="flex-grow-0">
               <i class="uiIconGroup darkGreyIcon uiIcon32x32 mt-4 mx-3"></i>
