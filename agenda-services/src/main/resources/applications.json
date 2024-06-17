@@ -1,0 +1,22 @@
+{
+    "descriptors": [
+        {
+            "name": "Agenda",
+            "imagePath": "war:/../images/Agenda.png",
+            "override": false,
+            "enabled": true,
+            "application": {
+                "title": "Agenda",
+                "description": "Agenda application",
+                "url": "./agenda",
+                "active": true,
+                "mandatory": true,
+                "mobile": true,
+                "permissions": [
+                    "*:/platform/users",
+                    "*:/platform/externals"
+                ]
+            }
+        }
+    ]
+}
