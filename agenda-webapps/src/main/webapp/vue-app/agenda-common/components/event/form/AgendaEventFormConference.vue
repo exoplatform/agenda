@@ -3,15 +3,20 @@
     <v-icon :class="`darkGreyIcon my-auto ${this.iconClass}`" size="32px">fa-video</v-icon>
     <template v-if="isConferenceEnabled">
       <template v-if="eventConference">
-        <input
-            id="eventCallURL"
-            ref="eventCallURL"
-            v-model="conferenceURL"
-            :placeholder="$t('agenda.webConferenceURL')"
-            type="text"
-            name="webConferenceEvent"
-            class="my-3 ignore-vuetify-classes webconference-event-input"
-            v-if="eventConferenceUrl && this.conferenceProvider.canModifyEventUrl">
+        <span class="my-3 mx-0 webconference-event-span" v-if="eventConferenceUrl && this.conferenceProvider.canModifyEventUrl">
+          <input
+              id="eventCallURL"
+              ref="eventCallURL"
+              v-model="conferenceURL"
+              :placeholder="$t('agenda.webConferenceURL')"
+              type="text"
+              name="webConferenceEvent"
+              class="ignore-vuetify-classes webconference-event-input mb-0 max-width-fit">
+          <div class="flex-row grey--text">
+            <i class="fas fa-exclamation-triangle primary--text"></i>
+            {{ $t('agenda.webConferenceURL.warning') }}
+          </div>
+        </span>
         <span
           v-else-if="eventConferenceUrl"
           v-autolinker="eventConferenceUrl"
@@ -37,6 +42,7 @@
             mdi-close
           </v-icon>
         </v-btn>
+
       </template>
       <v-btn
         v-else
