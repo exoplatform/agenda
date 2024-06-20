@@ -78,6 +78,7 @@ export default {
     this.$root.$on('current-user',user => {
       this.currentUser = user;
     });
+    this.reset();
   },
   methods: {
     resetCustomValidity() {
