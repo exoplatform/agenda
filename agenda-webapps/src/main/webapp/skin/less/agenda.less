@@ -106,8 +106,11 @@
     .location-event-input {
       width: 500px;
     }
-    .webconference-event-input {
+    .webconference-event-input,.webconference-event-span {
       width: 500px;
+    }
+    .max-width-fit {
+      max-width: 100% !important;
     }
 
     label {
@@ -234,6 +237,9 @@
   .quick-add {
     input, textarea {
       max-width: ~"calc(100% - 64px)";
+    }
+    .webconference-event-span {
+      max-width: ~"calc(100% - 105px)";
     }
     #eventTitle {
       min-width: ~"calc(100% - 20px)";
