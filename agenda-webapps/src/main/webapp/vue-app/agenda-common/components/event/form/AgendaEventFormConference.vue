@@ -1,6 +1,6 @@
 <template>
   <div class="d-flex flex-row">
-    <v-icon :class="`darkGreyIcon my-auto ${this.iconClass}`" size="32px">fa-video</v-icon>
+    <v-icon :class="`darkGreyIcon my-auto ${this.iconClass}`" size="32px" v-if="!isMobile">fa-video</v-icon>
     <template v-if="isConferenceEnabled">
       <template v-if="eventConference">
         <span class="my-3 mx-0 webconference-event-span" v-if="eventConferenceUrl && this.conferenceProvider.canModifyEventUrl">
@@ -94,6 +94,9 @@ export default {
     conferenceURL: null,
   }),
   computed: {
+    isMobile() {
+      return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
+    },
     isConferenceEnabled() {
       return this.conferenceProvider && (!this.eventConferenceType || this.conferenceProvider.getType() === this.eventConferenceType || this.eventConferenceType === 'manual');
     },
