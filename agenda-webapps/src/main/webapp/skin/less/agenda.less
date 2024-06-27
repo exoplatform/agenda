@@ -109,6 +109,12 @@
     .webconference-event-input,.webconference-event-span {
       width: 500px;
     }
+    @media (max-width: @maxMobileWidth) {
+      .webconference-event-span {
+        max-width: ~"calc(100% - 36px)";
+      }
+
+    }
     .max-width-fit {
       max-width: 100% !important;
     }
@@ -240,6 +246,9 @@
     }
     .webconference-event-span {
       max-width: ~"calc(100% - 105px)";
+    }
+    .webconference-event-span-without-cross {
+      max-width: ~"calc(100% - 64px)";
     }
     #eventTitle {
       min-width: ~"calc(100% - 20px)";
