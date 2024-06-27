@@ -1,9 +1,9 @@
 <template>
   <div class="d-flex flex-row">
-    <v-icon :class="`darkGreyIcon my-auto ${this.iconClass}`" size="32px" v-if="!isMobile">fa-video</v-icon>
+    <v-icon :class="`darkGreyIcon my-auto ${this.iconClass} mt-4`" size="32px" v-if="!isMobile">fa-video</v-icon>
     <template v-if="isConferenceEnabled">
       <template v-if="eventConference">
-        <span class="my-3 mx-0 webconference-event-span" v-if="eventConferenceUrl && this.conferenceProvider.canModifyEventUrl">
+        <span :class="`${this.marginClass} mx-0 webconference-event-span`" v-if="eventConferenceUrl && this.conferenceProvider.canModifyEventUrl">
           <input
               id="eventCallURL"
               ref="eventCallURL"
@@ -24,7 +24,7 @@
         <v-chip
           v-else
           color="primary"
-          class="my-auto my-3"
+          :class="`${this.marginClass} my-auto`"
           outlined>
           <span class="primary--text">
             {{ $t('agenda.webConferenceScheduled') }}
@@ -36,7 +36,7 @@
           color="grey"
           icon
           dark
-          class="my-3"
+          :class="`${this.marginClass}`"
           @click="deleteCallURL">
           <v-icon>
             mdi-close
@@ -47,12 +47,13 @@
       <v-btn
         v-else
         :loading="loading"
-        class="btn btn-primary border-radius my-3"
+        :class="`${this.marginClass} btn btn-primary border-radius`"
         @click="createCallUrl">
         {{ $t('agenda.createEventConference') }}
       </v-btn>
     </template>
     <template v-else>
+      <span :class="`${this.marginClass} mx-0 webconference-event-span-without-cross`">
       <input
         id="eventCallURL"
         ref="eventCallURL"
@@ -60,7 +61,8 @@
         :placeholder="$t('agenda.webConferenceURL')"
         type="text"
         name="webConferenceEvent"
-        class="my-3 ignore-vuetify-classes webconference-event-input">
+        class="ignore-vuetify-classes webconference-event-input max-width-fit">
+      </span>
     </template>
   </div>
 </template>
@@ -96,6 +98,9 @@ export default {
   computed: {
     isMobile() {
       return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
+    },
+    marginClass() {
+      return this.isMobile ? 'my-0' : 'my-3';
     },
     isConferenceEnabled() {
       return this.conferenceProvider && (!this.eventConferenceType || this.conferenceProvider.getType() === this.eventConferenceType || this.eventConferenceType === 'manual');
