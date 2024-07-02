@@ -1,15 +1,15 @@
 <template>
   <v-list-item>
     <v-list-item-content>
-      <v-list-item-title class="title text-color">
-        <div>
-          {{ $t('agenda.connectYourPersonalAgenda') }}
-        </div>
+      <v-list-item-title class="text-header">
+        {{ $t('agenda.connectYourPersonalAgenda') }}
       </v-list-item-title>
-      <v-list-item-subtitle class="my-3 text-sub-title font-italic">
+      <v-list-item-subtitle class="my-3">
         <agenda-connector-status :connectors="connectors">
           <template slot="connectButton">
-            {{ $t('agenda.connectYourPersonalAgendaSubTitle') }}
+            <span class="text-subtitle">
+              {{ $t('agenda.connectYourPersonalAgendaSubTitle') }}
+            </span>
           </template>
         </agenda-connector-status>
       </v-list-item-subtitle>

@@ -9,7 +9,7 @@
           class="uiIconClose pull-right"
           aria-hidden="true"
           @click="close"></a>
-        <span class="ignore-vuetify-classes PopupTitle popupTitle text-truncate">
+        <span class="ignore-vuetify-classes PopupTitle popupTitle text-title text-truncate">
           {{ $t('agenda.confirmCancelRecurrentEventTitle') }}
         </span>
       </div>

@@ -1,6 +1,6 @@
 <template>
   <v-app class="connectorsAdminSettings">
-    <v-main class="white pa-5 card-border-radius">
+    <v-main class="application-body pa-5">
       <agenda-admin-connector-settings :settings="settings" />
     </v-main>
   </v-app>

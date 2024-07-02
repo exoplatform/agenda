@@ -6,7 +6,7 @@
       v-if="!reminders || !reminders.length"
       class="px-0 reminder-list-item"
       dense>
-      <label class="text-sub-title font-italic mx-auto">
+      <label class="text-subtitle mx-auto">
         {{ $t('agenda.noRemindersYet') }}
       </label>
     </v-list-item>
@@ -19,7 +19,7 @@
       v-if="canAddReminder"
       class="ps-0 my-auto reminder-list-item"
       dense>
-      <a class="text-subtitle-1 font-weight-regular add-notification-link" @click="addReminder">
+      <a class="add-notification-link" @click="addReminder">
         {{ $t('agenda.addReminder') }}
       </a>
     </v-list-item>

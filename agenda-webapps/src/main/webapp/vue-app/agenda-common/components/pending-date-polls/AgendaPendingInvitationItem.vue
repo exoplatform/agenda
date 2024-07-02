@@ -18,7 +18,7 @@
         class="white--text text-truncate subtitle-1">
         {{ invitedEvent.summary }}
       </v-list-item-title>
-      <v-list-item-subtitle class="text-truncate d-flex caption mt-1">
+      <v-list-item-subtitle class="text-truncate d-flex mt-1">
         <span v-if="isDatePoll" :style="textStyle">
           {{ $t('agenda.ongoingDatePoll') }} - {{ displayVoteStatus }}
         </span>

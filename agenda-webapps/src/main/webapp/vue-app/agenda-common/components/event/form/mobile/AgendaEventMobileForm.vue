@@ -1,7 +1,7 @@
 <template>
   <v-card flat class="d-flex flex-column">
     <div class="d-flex flex-nowrap py-3">
-      <div class="title text-truncate flex-grow-1 px-0 pt-1 mx-2">
+      <div class="text-title text-truncate flex-grow-1 px-0 pt-1 mx-2">
         {{ $t('agenda.scheduleEvent') }}
       </div>
       <div class="flex-grow-0 flex-shrink-0 px-0 me-2">

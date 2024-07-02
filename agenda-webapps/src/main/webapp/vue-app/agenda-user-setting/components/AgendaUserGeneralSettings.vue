@@ -1,7 +1,7 @@
 <template>
   <v-list-item>
     <v-list-item-content>
-      <v-list-item-title class="title text-color">
+      <v-list-item-title class="text-title">
         {{ $t('agenda') }}
       </v-list-item-title>
       <v-flex v-if="settings" class="d-flex flex-wrap">

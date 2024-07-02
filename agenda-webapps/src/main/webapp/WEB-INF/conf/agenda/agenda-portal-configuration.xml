@@ -51,53 +51,6 @@
         </value-param>
         <value-param>
           <name>containerName</name>
-          <value>agenda-container</value>
-        </value-param>
-        <object-param>
-          <name>agenda-portlet</name>
-          <description></description>
-          <object type="org.exoplatform.commons.addons.PortletModel">
-            <field name="contentId">
-              <string>agenda/Agenda</string>
-            </field>
-            <field name="permissions">
-              <collection type="java.util.ArrayList">
-                <value>
-                  <string>*:/platform/users</string>
-                </value>
-                <value>
-                  <string>*:/platform/externals</string>
-                </value>
-              </collection>
-            </field>
-            <field name="title">
-              <string>>Agenda Portlet</string>
-            </field>
-            <field name="showInfoBar">
-              <boolean>false</boolean>
-            </field>
-            <field name="showApplicationState">
-              <boolean>false</boolean>
-            </field>
-            <field name="showApplicationMode">
-              <boolean>false</boolean>
-            </field>
-          </object>
-        </object-param>
-      </init-params>
-    </component-plugin>
-    <component-plugin>
-      <name>addPlugin</name>
-      <set-method>addPlugin</set-method>
-      <type>org.exoplatform.commons.addons.AddOnPluginImpl</type>
-      <description></description>
-      <init-params>
-        <value-param>
-          <name>priority</name>
-          <value>1</value>
-        </value-param>
-        <value-param>
-          <name>containerName</name>
           <value>settings-bottom-container</value>
         </value-param>
         <object-param>
@@ -128,6 +81,59 @@
             </field>
             <field name="showApplicationMode">
               <boolean>false</boolean>
+            </field>
+          </object>
+        </object-param>
+      </init-params>
+    </component-plugin>
+  </external-component-plugins>
+  <external-component-plugins>
+    <target-component>org.exoplatform.commons.upgrade.UpgradeProductService</target-component>
+    <component-plugin>
+      <name>AgendaApplicationGlobalLayoutUpgrade</name>
+      <set-method>addUpgradePlugin</set-method>
+      <type>io.meeds.social.upgrade.LayoutUpgradePlugin</type>
+      <init-params>
+        <value-param>
+          <name>product.group.id</name>
+          <value>org.exoplatform.social</value>
+        </value-param>
+        <value-param>
+          <name>plugin.execution.order</name>
+          <value>120</value>
+        </value-param>
+        <value-param>
+          <name>plugin.upgrade.execute.once</name>
+          <value>true</value>
+        </value-param>
+        <value-param>
+          <name>enabled</name>
+          <value>true</value>
+        </value-param>
+        <object-param>
+          <name>global.upgrade</name>
+          <object type="io.meeds.social.upgrade.model.LayoutUpgrade">
+            <field name="updatePageLayout">
+              <boolean>true</boolean>
+            </field>
+            <field name="configPath">
+              <string>war:/conf/agenda/portal</string>
+            </field>
+            <field name="portalType">
+              <string>portal</string>
+            </field>
+            <field name="portalName">
+              <string>global</string>
+            </field>
+            <field name="importMode">
+              <string>merge</string>
+            </field>
+            <field name="pageNames">
+              <collection type="java.util.ArrayList" item-type="java.lang.String">
+                <value>
+                  <string>agenda</string>
+                </value>
+              </collection>
             </field>
           </object>
         </object-param>

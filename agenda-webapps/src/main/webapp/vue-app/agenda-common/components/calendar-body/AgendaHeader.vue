@@ -1,6 +1,6 @@
 <template>
   <v-toolbar
-    color="white card-border-radius"
+    color="application-body"
     height="60"
     flat
     dense>

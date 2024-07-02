@@ -31,12 +31,12 @@
                 <v-list-item-title>
                   {{ $t('agenda.connectedAccountWith') }}:
                 </v-list-item-title>
-                <v-list-item-subtitle :title="connector.user" class="font-italic">
+                <v-list-item-subtitle :title="connector.user">
                   {{ connector.user }}
                 </v-list-item-subtitle>
               </template>
               <template v-else>
-                <v-list-item-title class="title">
+                <v-list-item-title>
                   {{ $t(connector.name) }}
                 </v-list-item-title>
               </template>
@@ -69,7 +69,7 @@
                     fa-info-circle
                   </v-icon>
                 </span>
-                <span class="my-auto me-auto font-italic text-light-color">
+                <span class="my-auto me-auto text-subtitle">
                   {{ $t('agenda.allowedToConnectOnlyOneConnector') }}
                 </span>
               </div>
@@ -84,7 +84,7 @@
         </div>
       </template>
     </exo-drawer>
-    <div id="agendaConnectorSettingsDrawer" />
+    <div id="agendaConnectorSettingsDrawer"></div>
     <exo-confirm-dialog
       ref="confirmConnectDialog"
       :title="confirmConnectDialogLabels.title"
