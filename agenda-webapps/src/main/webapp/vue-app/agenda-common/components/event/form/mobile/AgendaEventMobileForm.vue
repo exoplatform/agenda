@@ -77,24 +77,11 @@
         <label class="font-weight-bold my-2">
           {{ $t('agenda.conference') }}
         </label>
-        <div class="d-flex flex-row">
-          <agenda-event-form-conference
-            v-if="isConferenceEnabled"
-            :event="event"
-            :settings="settings"
-            :current-space="currentSpace"
-            :conference-provider="conferenceProvider"
-            class="me-3" />
-          <input
-            v-else
-            id="eventConference"
-            ref="eventConference"
-            v-model="conferenceURL"
-            :placeholder="$t('agenda.webConferenceURL')"
-            type="text"
-            name="locationEvent"
-            class="ignore-vuetify-classes my-3 location-event-input">
-        </div>
+        <agenda-event-form-conference
+          :event="event"
+          :settings="settings"
+          :current-space="currentSpace"
+          :conference-provider="conferenceProvider"/>
         <label class="font-weight-bold my-2">
           {{ $t('agenda.participants') }}
         </label>
