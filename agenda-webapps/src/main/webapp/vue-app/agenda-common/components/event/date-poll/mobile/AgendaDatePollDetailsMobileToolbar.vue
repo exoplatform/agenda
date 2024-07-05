@@ -10,7 +10,7 @@
       class="mx-3 my-auto spaceAvatar space-avatar-header">
       <v-img :src="ownerAvatarUrl" />
     </v-avatar>
-    <div class="event-header-title d-flex flex-grow-1 flex-column align-left">
+    <div class="event-header-title text-title d-flex flex-grow-1 flex-column align-left">
       <strong class="text-truncate">
         {{ event.summary }}
       </strong>

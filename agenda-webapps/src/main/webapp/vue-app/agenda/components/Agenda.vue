@@ -1,19 +1,19 @@
 <template>
-  <v-app class="agenda-application border-box-sizing transparent" flat>
+  <v-app class="agenda-application border-box-sizing" flat>
     <template v-if="settingsLoaded">
-      <v-main v-if="isMobile" class="pt-2 px-1">
+      <v-main v-if="isMobile" class="application-body pt-2 px-1">
         <agenda-mobile-header
           :current-space="currentSpace"
           :current-calendar="currentCalendar"
           :owner-ids="ownerIds"
           :period="period"
-          class="mt-2 pa-5 card-border-radius" />
+          class="mt-2 pa-5" />
         <agenda-timeline
           :events="events"
           :period-start-date="period.start"
           :loading="loading"
           :limit="limit"
-          class="mt-2 pa-5 card-border-radius" />
+          class="mt-2 pa-5" />
         <v-flex v-if="hasMore" class="d-flex py-4 border-box-sizing">
           <v-btn
             :loading="loading"
@@ -24,7 +24,7 @@
           </v-btn>
         </v-flex>
       </v-main>
-      <v-main v-else class="pa-5">
+      <v-main v-else class="application-body">
         <agenda-header
           :calendar-type="calendarType"
           :event-type="eventType"

@@ -33,7 +33,7 @@
       </v-btn>
     </v-list-item>
     <v-list-item class="ps-0 my-auto">
-      <a class="text-subtitle-1 font-weight-regular add-notification-link" @click="addReminder">{{ $t('agenda.addReminder') }}</a>
+      <a class="add-notification-link" @click="addReminder">{{ $t('agenda.addReminder') }}</a>
     </v-list-item>
   </v-list>
 </template>

@@ -1,8 +1,8 @@
 <template>
-  <div class="white">
-    <h4 class="pb-5 font-weight-bold">
+  <div>
+    <div class="pb-5 text-title">
       {{ $t('agenda.agendaConnectors') }}
-    </h4>
+    </div>
     <v-divider />
     <v-data-table
       :headers="headers"

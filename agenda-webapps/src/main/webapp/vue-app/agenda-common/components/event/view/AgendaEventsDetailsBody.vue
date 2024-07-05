@@ -50,7 +50,7 @@
             class="py-0 text-truncate"
             dense>
             <v-list-item v-if="!event.reminders || !event.reminders.length">
-              <label class="text-sub-title font-italic mx-auto">
+              <label class="text-subtitle mx-auto">
                 {{ $t('agenda.noRemindersYet') }}
               </label>
             </v-list-item>

@@ -9,7 +9,7 @@
         min-width="100%"
         dense>
         <v-list-item class="agenda-timeline-month-title px-0" dense>
-          <v-list-item-action-text class="subtitle-1 text-capitalize text-color">
+          <v-list-item-action-text class="text-capitalize">
             <date-format :value="month" :format="monthFormat" />
           </v-list-item-action-text>
           <v-list-item-content class="ms-2">

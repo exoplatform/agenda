@@ -26,6 +26,7 @@
         </a>
         <a
           v-else
+          class="text-subtitle"
           @click="openPersonalCalendarDrawer">
           {{ $t('agenda.connectYourPersonalAgendaSubTitle') }}
         </a>
