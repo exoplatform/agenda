@@ -129,20 +129,15 @@
         <agenda-event-attendees
           ref="agendaAttendees"
           :event="event" />
-        <div :class="{ 'd-flex flex-row-reverse': enabledconnectors }">
-          <agenda-ics
-            v-if="addToMyAgenda"
-            :settings="settings"
-            :event="event"
-            :connectors="enabledconnectors"/>
-          <agenda-connector-contemporary-events
-            v-if="enabledconnectors"
-            :settings="settings"
-            :event="event"
-            :connectors="connectors"
-            :class="!isAcceptedEvent && 'agenda-hidden-connectors'"
-            class="mt-5" />
-        </div>
+        <agenda-ics
+          :settings="settings"
+          :event="event"/>
+        <agenda-connector-contemporary-events
+          :settings="settings"
+          :event="event"
+          :connectors="connectors"
+          :class="!isAcceptedEvent && 'agenda-hidden-connectors'"
+          class="mt-5" />
       </div>
     </div>
     <agenda-event-reminder-drawer

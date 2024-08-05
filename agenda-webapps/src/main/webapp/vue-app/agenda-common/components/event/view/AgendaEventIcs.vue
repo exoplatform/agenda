@@ -119,7 +119,6 @@ export default {
     },
     async downloadICS() {
       const icsContent = await this.generateICS(this.event);
-
       const blob = new Blob([icsContent], { type: 'text/calendar' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
