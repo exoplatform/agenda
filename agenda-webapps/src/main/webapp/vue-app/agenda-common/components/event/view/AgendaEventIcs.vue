@@ -25,7 +25,7 @@ export default {
     },
   },
   methods: {
-    generateICS(event) {
+    async generateICS(event) {
       const formatDate = (date) => {
         return date ? `${new Date(date).toISOString().replace(/[-:]/g, '').split('.')[0]}Z` : '';
       };
@@ -41,15 +41,16 @@ export default {
         return result + line;
       };
 
-      const htmlDescription = `Invitation transmise par <b>${this.event.creator.dataEntity.profile.lastname} ${this.event.creator.dataEntity.profile.firstname}</b> dans l'espace <b>${this.event.calendar.title}</b>.
-      ${event.conferences[0].url ? `<br><b>Lien de visio</b> : <a href="${event.conferences[0].url}">${event.conferences[0].url}</a><br>` : ''}
-      ${event.description ? `<br><b>Détail de l'évènement :</b><br>${event.description}` : ''}
+      const htmlDescription = `${this.$t('agenda.invitationText')} <b>${event.creator.dataEntity.profile.fullname}</b> ${this.$t('agenda.inSpace')} <b>${event.calendar.title}.</b>
+      ${event.conferences[0].url ? `<br><b>${this.$t('agenda.visioLink')}</b> <a href="${event.conferences[0].url}">${event.conferences[0].url}</a>` : ''}
+      ${event.description ? `<br><br><b>${this.$t('agenda.eventDetail')}</b><br>${event.description}` : ''}
       `.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
 
+      const brandingInformation = await this.$brandingService.getBrandingInformation();
       const icsContent = 'BEGIN:VCALENDAR\r\n' +
         'CALSCALE:GREGORIAN\r\n' +
         'METHOD:PUBLISH\r\n' +
-        'PRODID:-//eXo Platform//eXo calendar//EN\r\n' +
+        `PRODID:-//${brandingInformation.siteName}//EN\r\n` +
         'VERSION:2.0\r\n' +
         'BEGIN:VEVENT\r\n' +
         `UID:${event.id || ''}\r\n` +
@@ -61,19 +62,18 @@ export default {
         `X-ALT-DESC;FMTTYPE=text/html:${htmlDescription}\r\n` +
         `LOCATION:${event.location || ''}\r\n` +
         `URL:${event.conferences[0].url || ''}\r\n` +
-        `ORGANIZER;CN=${this.event.creator.dataEntity.profile.lastname} ${this.event.creator.dataEntity.profile.firstname}:MAILTO:${this.event.creator.dataEntity.profile.email}\r\n` +
+        `ORGANIZER;CN=${event.creator.dataEntity.profile.fullname}:MAILTO:${event.creator.dataEntity.profile.email}\r\n` +
         'END:VEVENT\r\n' +
         'END:VCALENDAR\r\n';
       return icsContent.split('\r\n').map(foldLine).join('\r\n');
     },
-    downloadICS() {
-      const event = this.event;
-      const icsContent = this.generateICS(event);
+    async downloadICS() {
+      const icsContent = await this.generateICS(this.event);
 
       const blob = new Blob([icsContent], { type: 'text/calendar' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = `${event.summary}.ics`;
+      link.download = `${this.event.summary}.ics`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

@@ -77,7 +77,6 @@ import AgendaRecurrentEventResponseConfirmDialog from './components/event/confir
 import AgendaRecurrentEventReminderConfirmDialog from './components/event/confirm-dialog/AgendaRecurrentEventReminderConfirmDialog.vue';
 
 import AgendaEventIcs from './components/event/view/AgendaEventIcs.vue';
-
 import AgendaConnector from './components/connector/AgendaConnector.vue';
 import AgendaConnectorStatus from './components/connector/AgendaConnectorStatus.vue';
 import AgendaConnectorContemporaryEvents from './components/remote-event/AgendaConnectorContemporaryEvents.vue';
