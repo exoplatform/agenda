@@ -76,6 +76,8 @@ import AgendaRecurrentEventDeleteConfirmDialog from './components/event/confirm-
 import AgendaRecurrentEventResponseConfirmDialog from './components/event/confirm-dialog/AgendaRecurrentEventResponseConfirmDialog.vue';
 import AgendaRecurrentEventReminderConfirmDialog from './components/event/confirm-dialog/AgendaRecurrentEventReminderConfirmDialog.vue';
 
+import AgendaEventIcs from './components/event/view/AgendaEventIcs.vue';
+
 import AgendaConnector from './components/connector/AgendaConnector.vue';
 import AgendaConnectorStatus from './components/connector/AgendaConnectorStatus.vue';
 import AgendaConnectorContemporaryEvents from './components/remote-event/AgendaConnectorContemporaryEvents.vue';
@@ -150,6 +152,7 @@ const components = {
   'agenda-reminder-user-setting-item': AgendaReminderUserSettingItem,
   'agenda-date-option-conflict-drawer': AgendaDateOptionConflictDrawer,
   'agenda-date-option-conflict-item': AgendaDateOptionConflictItem,
+  'agenda-ics': AgendaEventIcs,
   'agenda-connector': AgendaConnector,
   'agenda-connector-status': AgendaConnectorStatus,
   'agenda-connector-contemporary-events': AgendaConnectorContemporaryEvents,

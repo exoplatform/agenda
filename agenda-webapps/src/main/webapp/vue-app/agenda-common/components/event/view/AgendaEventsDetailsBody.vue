@@ -129,6 +129,9 @@
         <agenda-event-attendees
           ref="agendaAttendees"
           :event="event" />
+        <agenda-ics
+          :settings="settings"
+          :event="event"/>
         <agenda-connector-contemporary-events
           :settings="settings"
           :event="event"
