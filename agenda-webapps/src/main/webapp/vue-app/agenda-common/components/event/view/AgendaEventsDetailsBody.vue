@@ -130,6 +130,7 @@
           ref="agendaAttendees"
           :event="event" />
         <agenda-ics
+          v-if="addToMyAgenda"
           :settings="settings"
           :event="event"/>
         <agenda-connector-contemporary-events
