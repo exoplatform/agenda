@@ -102,10 +102,10 @@ export default {
         `DTSTART:${formatDate(event.startDate)}\r\n` +
         `DTEND:${formatDate(event.endDate)}\r\n` +
         `SUMMARY:${event.summary || ''}\r\n` +
-        `DESCRIPTION:${plainTextDescription || ''}\r\n` +
+        `DESCRIPTION:${htmlDescription || ''}\r\n` +
         `X-ALT-DESC;FMTTYPE=text/html:${htmlDescription}\r\n` +
         `LOCATION:${event.location || ''}\r\n` +
-        `URL:${confurl}\r\n` +
+        `URL:${event.conferences[0].url || ''}\r\n` +
         `ORGANIZER;CN=${event.creator.dataEntity.profile.fullname}:MAILTO:${event.creator.dataEntity.profile.email}\r\n` +
         'END:VEVENT\r\n' +
         'END:VCALENDAR\r\n';
