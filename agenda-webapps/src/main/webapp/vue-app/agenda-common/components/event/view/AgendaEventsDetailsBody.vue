@@ -129,7 +129,6 @@
         <agenda-event-attendees
           ref="agendaAttendees"
           :event="event" />
-<<<<<<< HEAD
         <div :class="{ 'd-flex flex-row-reverse': enabledconnectors }">
           <agenda-ics
             v-if="addToMyAgenda"
@@ -144,18 +143,6 @@
             :class="!isAcceptedEvent && 'agenda-hidden-connectors'"
             class="mt-5" />
         </div>
-=======
-        <agenda-ics
-          v-if="addToMyAgenda"
-          :settings="settings"
-          :event="event"/>
-        <agenda-connector-contemporary-events
-          :settings="settings"
-          :event="event"
-          :connectors="connectors"
-          :class="!isAcceptedEvent && 'agenda-hidden-connectors'"
-          class="mt-5" />
->>>>>>> 7a3ba826 (Improvment : Adding download button and logic for ics file - EXO-73522 (#673))
       </div>
     </div>
     <agenda-event-reminder-drawer
