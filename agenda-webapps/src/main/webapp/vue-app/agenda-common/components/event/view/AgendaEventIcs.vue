@@ -41,8 +41,9 @@ export default {
         return result + line;
       };
 
+      const confurl = (event.conferences && event.conferences.length > 0) ? event.conferences[0].url : '';
       const htmlDescription = `${this.$t('agenda.invitationText')} <b>${event.creator.dataEntity.profile.fullname}</b> ${this.$t('agenda.inSpace')} <b>${event.calendar.title}.</b>
-      ${event.conferences[0].url ? `<br><b>${this.$t('agenda.visioLink')}</b> <a href="${event.conferences[0].url}">${event.conferences[0].url}</a>` : ''}
+      ${confurl ? `<br><b>${this.$t('agenda.visioLink')}</b> <a href="${confurl}">${confurl}</a>` : ''}
       ${event.description ? `<br><br><b>${this.$t('agenda.eventDetail')}</b><br>${event.description}` : ''}
       `.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
 
@@ -61,7 +62,7 @@ export default {
         `DESCRIPTION:${htmlDescription || ''}\r\n` +
         `X-ALT-DESC;FMTTYPE=text/html:${htmlDescription}\r\n` +
         `LOCATION:${event.location || ''}\r\n` +
-        `URL:${event.conferences[0].url || ''}\r\n` +
+        `URL:${confurl}\r\n` +
         `ORGANIZER;CN=${event.creator.dataEntity.profile.fullname}:MAILTO:${event.creator.dataEntity.profile.email}\r\n` +
         'END:VEVENT\r\n' +
         'END:VCALENDAR\r\n';
