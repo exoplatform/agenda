@@ -120,15 +120,6 @@ export default {
     async downloadICS() {
       const icsContent = await this.generateICS(this.event);
 
-      const processAndFoldText = (text) => {
-        const lines = text.split('\n');
-        const foldedLines = lines.map(line => foldLine(line)).join('\n');
-        return foldedLines;
-      };
-      return processAndFoldText(icsContent);
-    },
-    async downloadICS() {
-      const icsContent = await this.generateICS(this.event);
       const blob = new Blob([icsContent], { type: 'text/calendar' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
