@@ -105,7 +105,7 @@ export default {
         `DESCRIPTION:${plainTextDescription || ''}\r\n` +
         `X-ALT-DESC;FMTTYPE=text/html:${htmlDescription}\r\n` +
         `LOCATION:${event.location || ''}\r\n` +
-        `URL:${event.conferences[0].url || ''}\r\n` +
+        `URL:${confurl}\r\n` +
         `ORGANIZER;CN=${event.creator.dataEntity.profile.fullname}:MAILTO:${event.creator.dataEntity.profile.email}\r\n` +
         'END:VEVENT\r\n' +
         'END:VCALENDAR\r\n';
