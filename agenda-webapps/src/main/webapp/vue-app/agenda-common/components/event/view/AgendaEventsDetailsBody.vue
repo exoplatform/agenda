@@ -129,6 +129,10 @@
         <agenda-event-attendees
           ref="agendaAttendees"
           :event="event" />
+        <agenda-ics
+          v-if="addToMyAgenda"
+          :settings="settings"
+          :event="event"/>
         <agenda-connector-contemporary-events
           :settings="settings"
           :event="event"
@@ -166,6 +170,7 @@ export default {
   },
   data() {
     return {
+      addToMyAgenda: false,
       fullDateFormat: {
         year: 'numeric',
         month: 'short',
@@ -286,6 +291,7 @@ export default {
     },
   },
   created() {
+    this.$featureService.isFeatureEnabled('addToMyAgenda').then(enabled => {this.addToMyAgenda = enabled;});
     this.timeZoneName = this.$agendaUtils.getTimeZoneNameFromTimeZoneId(this.$agendaUtils.USER_TIMEZONE_ID);
   },
   methods: {
