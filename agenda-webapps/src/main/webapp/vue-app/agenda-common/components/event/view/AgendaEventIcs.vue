@@ -55,6 +55,7 @@ export default {
         'VERSION:2.0\r\n' +
         'BEGIN:VEVENT\r\n' +
         `UID:${event.id || ''}\r\n` +
+        `UID:X:${event.id || ''}\r\n` +
         `DTSTAMP:${formatDate(new Date())}\r\n` +
         `DTSTART:${formatDate(event.startDate)}\r\n` +
         `DTEND:${formatDate(event.endDate)}\r\n` +
