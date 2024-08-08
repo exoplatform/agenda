@@ -183,6 +183,7 @@ export default {
     }
   },
   created() {
+
     this.$root.$on('agenda-event-quick-form', event => {
       this.event = null;
       this.$nextTick().then(() => {
