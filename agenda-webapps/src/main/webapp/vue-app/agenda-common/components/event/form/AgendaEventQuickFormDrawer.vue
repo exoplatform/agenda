@@ -198,6 +198,8 @@ export default {
     }
   },
   created() {
+
+    console.log('providers',this.conferenceProvider);
     this.$root.$on('agenda-event-quick-form', event => {
       this.event = null;
       this.$nextTick().then(() => {
