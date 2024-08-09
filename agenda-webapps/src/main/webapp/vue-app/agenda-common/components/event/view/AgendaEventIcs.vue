@@ -102,7 +102,7 @@ export default {
         `DTSTART:${formatDate(event.startDate)}\r\n` +
         `DTEND:${formatDate(event.endDate)}\r\n` +
         `SUMMARY:${event.summary || ''}\r\n` +
-        `DESCRIPTION:${htmlDescription || ''}\r\n` +
+        `DESCRIPTION:${plainTextDescription || ''}\r\n` +
         `X-ALT-DESC;FMTTYPE=text/html:${htmlDescription}\r\n` +
         `LOCATION:${event.location || ''}\r\n` +
         `URL:${event.conferences[0].url || ''}\r\n` +
