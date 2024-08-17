@@ -288,13 +288,13 @@ public class NotificationUtils {
 
     // After computing all usernames, to whom, notifications will be sent,
     // this deletes the username of modifier/creator user
-    long userIdentityToExclude = StringUtils.equals(typeModification, "ADDED") ? event.getCreatorId() : modifierId;
+    /*long userIdentityToExclude = StringUtils.equals(typeModification, "ADDED") ? event.getCreatorId() : modifierId;
     if (userIdentityToExclude > 0) {
       Identity identityToExclude = identityManager.getIdentity(String.valueOf(userIdentityToExclude));
       if (identityToExclude != null) {
         recipients.remove(identityToExclude.getRemoteId());
       }
-    }
+    }*/
     notification.to(new ArrayList<>(recipients));
   }
 
@@ -481,7 +481,8 @@ public class NotificationUtils {
     templateContext.put(TEMPLATE_VARIABLE_RESPONSE_TENTATIVE,
                         getResponseURL(agendaEventAttendeeService, eventId, username, EventAttendeeResponse.TENTATIVE));
 
-    if (StringUtils.equals(modificationStoredType, AgendaEventModificationType.UPDATED.name())
+    if (StringUtils.equals(modificationStoredType, AgendaEventModificationType.ADDED.name())
+        || StringUtils.equals(modificationStoredType, AgendaEventModificationType.UPDATED.name())
         || StringUtils.equals(modificationStoredType, AgendaEventModificationType.DATES_UPDATED.name())
         || StringUtils.equals(modificationStoredType, AgendaEventModificationType.SWITCHED_DATE_POLL_TO_EVENT.name())
         || StringUtils.equals(modificationStoredType, AgendaEventModificationType.SWITCHED_EVENT_TO_DATE_POLL.name())
@@ -491,6 +492,8 @@ public class NotificationUtils {
       String userAbsoluteURI = StringUtils.isBlank(identityId)
           || StringUtils.equals("0", identityId) ? "" : getUserAbsoluteURI(identityId);
       templateContext.put(TEMPLATE_VARIABLE_MODIFIER_IDENTITY_URL, userAbsoluteURI);
+      Identity identity = identityManager.getIdentity(identityId);
+      templateContext.put(TEMPLATE_VARIABLE_IS_CREATOR, notificationReceiverUserName.equals(identity.getRemoteId()));
     }
     if (notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_CONFERENCE) != null) {
       templateContext.put(TEMPLATE_VARIABLE_EVENT_CONFERENCE,

@@ -1,8 +1,12 @@
 <table border="0" cellpadding="0" cellspacing="0" width="600" bgcolor="#ffffff" align="center" style="background-color: #ffffff; font-size: 12px;color:#333333;line-height: 18px;font-family: HelveticaNeue, Helvetica, Arial, sans-serif;">
     <%
       String headerTitle = "";
-      if(org.exoplatform.agenda.constant.AgendaEventModificationType.ADDED.name().equals(modificationType)){
+      if(org.exoplatform.agenda.constant.AgendaEventModificationType.ADDED.name().equals(modificationType) && isCreator){
+        headerTitle = _ctx.appRes("Notification.title.AgendaInvitationPlugin.created", eventTitle);
+      } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.ADDED.name().equals(modificationType)){
         headerTitle = _ctx.appRes("Notification.title.AgendaInvitationPlugin", eventTitle);
+      } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.UPDATED.name().equals(modificationType) && isCreator){
+        headerTitle = _ctx.appRes("Notification.title.AgendaInvitationPlugin.updateForUpdater", eventTitle);
       } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.UPDATED.name().equals(modificationType)){
         headerTitle = _ctx.appRes("Notification.title.AgendaInvitationPlugin.update", eventTitle);
       } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.DELETED.name().equals(modificationType)){
@@ -40,9 +44,16 @@
                                                     <%
                                                     String eventTitle = "<span style=\"color: #2f5e92; text-decoration: none; font-family: 'HelveticaNeue Bold', Helvetica, Arial, sans-serif\" >" + _ctx.escapeHTML(eventTitle) + "</span>";
                                                     String creatorName = "<span style=\"color: #2f5e92; text-decoration: none; font-family: 'HelveticaNeue Bold', Helvetica, Arial, sans-serif\" >" + _ctx.escapeHTML(creatorName) + "</span>";
-                                                    if (org.exoplatform.agenda.constant.AgendaEventModificationType.ADDED.name().equals(modificationType)) { %>
+                                                    if (org.exoplatform.agenda.constant.AgendaEventModificationType.ADDED.name().equals(modificationType) && isCreator) { %>
+                                                      <%= _ctx.appRes("Notification.agenda.event.createdForCreator", eventTitle, creatorName) %>
+                                                    <% } else if (org.exoplatform.agenda.constant.AgendaEventModificationType.ADDED.name().equals(modificationType)) { %>
                                                       <%= _ctx.appRes("Notification.agenda.event.created", eventTitle, creatorName) %>
-                                                    <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.UPDATED.name().equals(modificationType) && org.exoplatform.agenda.constant.EventStatus.CONFIRMED.name().equals(eventStatus)){ %>
+                                                      <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.UPDATED.name().equals(modificationType) && org.exoplatform.agenda.constant.EventStatus.CONFIRMED.name().equals(eventStatus) && isCreator){ %>
+                                                      <%
+                                                        String profileModifierUrl = "<a target=\"_blank\" style=\"color: #2f5e92; font-size: 13px; text-decoration: none; font-family: 'HelveticaNeue Bold', Helvetica, Arial, sans-serif\" href=\""+ modifierProfileUrl + "\">" + _ctx.escapeHTML(modifierName) + "</a>";
+                                                      %>
+                                                      <%= _ctx.appRes("Notification.agenda.event.mail.body.updatedForUpdater", eventTitle, profileModifierUrl) %>
+                                                      <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.UPDATED.name().equals(modificationType) && org.exoplatform.agenda.constant.EventStatus.CONFIRMED.name().equals(eventStatus)){ %>
                                                       <%
                                                         String profileModifierUrl = "<a target=\"_blank\" style=\"color: #2f5e92; font-size: 13px; text-decoration: none; font-family: 'HelveticaNeue Bold', Helvetica, Arial, sans-serif\" href=\""+ modifierProfileUrl + "\">" + _ctx.escapeHTML(modifierName) + "</a>";
                                                       %>
@@ -51,7 +62,12 @@
                                                          <%= _ctx.appRes("Notification.agenda.event.canceled", eventTitle) %>
                                                       <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.DELETED.name().equals(modificationType) && org.exoplatform.agenda.constant.EventStatus.TENTATIVE.name().equals(eventStatus)){ %>
                                                         <%= _ctx.appRes("Notification.agenda.event.mail.body.datePoll.deleted", eventTitle) %>
-                                                      <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.DATES_UPDATED.name().equals(modificationType)){ %>
+                                                      <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.DATES_UPDATED.name().equals(modificationType) && isCreator){ %>
+                                                      <%
+                                                        String profileModifierUrl = "<a target=\"_blank\" style=\"color: #2f5e92; font-size: 13px; text-decoration: none; font-family: 'HelveticaNeue Bold', Helvetica, Arial, sans-serif\" href=\""+ modifierProfileUrl + "\">" + _ctx.escapeHTML(modifierName) + "</a>";
+                                                      %>
+                                                      <%= _ctx.appRes("Notification.agenda.event.mail.body.updatedForUpdater", eventTitle) %>
+                                                                <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.DATES_UPDATED.name().equals(modificationType)){ %>
                                                       <%
                                                         String profileModifierUrl = "<a target=\"_blank\" style=\"color: #2f5e92; font-size: 13px; text-decoration: none; font-family: 'HelveticaNeue Bold', Helvetica, Arial, sans-serif\" href=\""+ modifierProfileUrl + "\">" + _ctx.escapeHTML(modifierName) + "</a>";
                                                       %>
@@ -74,7 +90,7 @@
                                                 </p>
                                                 <br/>
                                                 <%
-                                                if (!org.exoplatform.agenda.constant.AgendaEventModificationType.DELETED.name().equals(modificationType) && !isGuest) { %>
+                                                if (!org.exoplatform.agenda.constant.AgendaEventModificationType.DELETED.name().equals(modificationType) && !isGuest && !isCreator) { %>
                                                 <p style="margin: 0 0 20px;">
                                                     <a target="_blank" style="
                                                         display: inline-block;
@@ -102,7 +118,7 @@
                                                         vertical-align: middle;"
                                                         href="<%= declinedResponseURL %>">
                                                         <%
-                                                         if (!org.exoplatform.agenda.constant.AgendaEventModificationType.DELETED.name().equals(modificationType)) { %>
+                                                         if (!org.exoplatform.agenda.constant.AgendaEventModificationType.DELETED.name().equals(modificationType) && !isCreator) { %>
                                                           <%= _ctx.appRes("Notification.agenda.event.declined") %>
                                                         <% } %>
                                                     </a>
@@ -119,7 +135,7 @@
                                                         vertical-align: middle;"
                                                         href="<%= tentativeResponseURL %>">
                                                         <%
-                                                        if (!org.exoplatform.agenda.constant.AgendaEventModificationType.DELETED.name().equals(modificationType)) { %>
+                                                        if (!org.exoplatform.agenda.constant.AgendaEventModificationType.DELETED.name().equals(modificationType) && !isCreator) { %>
                                                           <%= _ctx.appRes("Notification.agenda.event.tentative") %>
                                                          <% } %>
                                                     </a>
@@ -137,7 +153,7 @@
                                                         vertical-align: middle;"
                                                         href="<%= eventURL %>">
                                                         <%
-                                                        if (org.exoplatform.agenda.constant.AgendaEventModificationType.ADDED.name().equals(modificationType)) { %>
+                                                        if (org.exoplatform.agenda.constant.AgendaEventModificationType.ADDED.name().equals(modificationType) && !isCreator) { %>
                                                           <%= _ctx.appRes("Notification.agenda.event.reply") %>
                                                         <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.UPDATED.name().equals(modificationType)){ %>
                                                           <%= _ctx.appRes("Notification.agenda.event.view") %>
