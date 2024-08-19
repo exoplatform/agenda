@@ -483,6 +483,7 @@ public class NotificationUtils {
       String userAbsoluteURI = StringUtils.isBlank(identityId)
           || StringUtils.equals("0", identityId) ? "" : getUserAbsoluteURI(identityId);
       templateContext.put(TEMPLATE_VARIABLE_MODIFIER_IDENTITY_URL, userAbsoluteURI);
+      IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
       Identity identity = identityManager.getIdentity(identityId);
       templateContext.put(TEMPLATE_VARIABLE_IS_CREATOR, notificationReceiverUserName.equals(identity.getRemoteId()));
     }
