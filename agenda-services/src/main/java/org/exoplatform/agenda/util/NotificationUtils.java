@@ -286,15 +286,6 @@ public class NotificationUtils {
     String showParticipants = getFullUserName(participants, identityManager);
     notification.with(STORED_PARAMETER_EVENT_ATTENDEES, showParticipants);
 
-    // After computing all usernames, to whom, notifications will be sent,
-    // this deletes the username of modifier/creator user
-    /*long userIdentityToExclude = StringUtils.equals(typeModification, "ADDED") ? event.getCreatorId() : modifierId;
-    if (userIdentityToExclude > 0) {
-      Identity identityToExclude = identityManager.getIdentity(String.valueOf(userIdentityToExclude));
-      if (identityToExclude != null) {
-        recipients.remove(identityToExclude.getRemoteId());
-      }
-    }*/
     notification.to(new ArrayList<>(recipients));
   }
 
