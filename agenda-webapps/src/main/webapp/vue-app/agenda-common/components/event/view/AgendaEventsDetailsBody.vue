@@ -137,12 +137,12 @@
             :connectors="enabledconnectors"/>
           <agenda-connector-contemporary-events
             v-if="enabledconnectors"
-          :settings="settings"
-          :event="event"
-          :connectors="connectors"
-          :class="!isAcceptedEvent && 'agenda-hidden-connectors'"
-          class="mt-5" />
-          </div>
+            :settings="settings"
+            :event="event"
+            :connectors="connectors"
+            :class="!isAcceptedEvent && 'agenda-hidden-connectors'"
+            class="mt-5" />
+        </div>
       </div>
     </div>
     <agenda-event-reminder-drawer
