@@ -1,35 +1,39 @@
 <template>
   <div>
     <div class="d-flex">
-      <v-avatar
+      <div class="d-flex flex-column">
+        <div class="d-flex text-no-wrap text-truncate font-weight-bold text-title-color">
+          {{ $t('agenda.personalCalendar') }}
+        </div>
+        <div :class="{ 'd-flex': enabledconnectors }">
+        <v-avatar
         v-if="connectedConnector"
         tile
         class="me-2 pt-1"
-        size="32">
+        size="16">
         <img :src="connectedConnectorAvatar">
-      </v-avatar>
-      <i v-else class="uiIconCalRemoteCalendar darkGreyIcon uiIcon24x24 pe-2 pt-2"></i>
-      <div class="d-flex flex-column">
-        <div class="d-flex text-no-wrap text-truncate">
-          {{ $t('agenda.personalCalendar') }}
-          {{ ' ( ' }}
-          <date-format
-            :value="event.startDate"
-            :format="fullDateFormat"
-            class="me-1 text-wrap center" />
-          {{ ' ) ' }}
-        </div>
+        </v-avatar>
         <a
           v-if="connectedConnector"
-          @click="openPersonalCalendarDrawer">
+          @click="openPersonalCalendarDrawer"
+          class="icon-small-size">
           {{ connectedConnectorUser }}
         </a>
         <a
           v-else
-          class="text-subtitle"
-          @click="openPersonalCalendarDrawer">
-          {{ $t('agenda.connectYourPersonalAgendaSubTitle') }}
+          class="text-subtitle d-block">
+          <div>
+            {{ $t('agenda.synchronizeEventsWithPersonalCalendarSubTitle') }}
+          </div>
+          <div class="text-center">
+            <v-btn
+            class="btn remote-event mt-3 justify-content-center"
+            @click="openPersonalCalendarDrawer">
+            {{ $t('agenda.connect') }}
+          </v-btn>
+          </div>
         </a>
+        </div>
         <template v-if="loading || connectedConnectorLoading">
           <v-progress-linear indeterminate />
         </template>

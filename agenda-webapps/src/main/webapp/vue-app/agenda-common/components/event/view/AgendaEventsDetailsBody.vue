@@ -129,16 +129,20 @@
         <agenda-event-attendees
           ref="agendaAttendees"
           :event="event" />
-        <agenda-ics
-          v-if="addToMyAgenda"
-          :settings="settings"
-          :event="event"/>
-        <agenda-connector-contemporary-events
+        <div :class="{ 'd-flex flex-row-reverse': enabledconnectors }">
+          <agenda-ics
+            v-if="addToMyAgenda"
+            :settings="settings"
+            :event="event"
+            :connectors="enabledconnectors"/>
+          <agenda-connector-contemporary-events
+            v-if="enabledconnectors"
           :settings="settings"
           :event="event"
           :connectors="connectors"
           :class="!isAcceptedEvent && 'agenda-hidden-connectors'"
           class="mt-5" />
+          </div>
       </div>
     </div>
     <agenda-event-reminder-drawer
@@ -190,6 +194,9 @@ export default {
   computed: {
     connectedConnector() {
       return this.connectors && this.connectors.find(connector => connector.connected);
+    },
+    enabledconnectors() {
+      return this.connectors.find(connector => connector.enabled);
     },
     isMobile() {
       return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
@@ -298,6 +305,9 @@ export default {
     closeDialog() {
       this.$emit('close');
     },
+  },
+  mounted() {
+    console.log("Connected Connector:", this.enabledconnectors);
   }
 };
 </script>
