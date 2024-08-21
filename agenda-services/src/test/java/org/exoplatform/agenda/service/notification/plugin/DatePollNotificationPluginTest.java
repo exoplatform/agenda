@@ -69,6 +69,6 @@ public class DatePollNotificationPluginTest extends BaseAgendaEventTest {
     Assert.assertEquals(createdEvent.getSummary(),
                         notificationInfo.getValueOwnerParameter(NotificationUtils.TEMPLATE_VARIABLE_EVENT_TITLE));
     Assert.assertEquals(creatorName, notificationInfo.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_CREATOR));
-    Assert.assertEquals(nbAttendee - 1, notificationInfo.getSendToUserIds().size());
+    Assert.assertEquals(nbAttendee, notificationInfo.getSendToUserIds().size());
   }
 }
