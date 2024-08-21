@@ -6,33 +6,33 @@
           {{ $t('agenda.personalCalendar') }}
         </div>
         <div :class="{ 'd-flex': enabledconnectors }">
-        <v-avatar
-        v-if="connectedConnector"
-        tile
-        class="me-2 pt-1"
-        size="16">
-        <img :src="connectedConnectorAvatar">
-        </v-avatar>
-        <a
-          v-if="connectedConnector"
-          @click="openPersonalCalendarDrawer"
-          class="icon-small-size">
-          {{ connectedConnectorUser }}
-        </a>
-        <a
-          v-else
-          class="text-subtitle d-block">
-          <div>
-            {{ $t('agenda.synchronizeEventsWithPersonalCalendarSubTitle') }}
-          </div>
-          <div class="text-center">
-            <v-btn
-            class="btn remote-event mt-3 justify-content-center"
-            @click="openPersonalCalendarDrawer">
-            {{ $t('agenda.connect') }}
-          </v-btn>
-          </div>
-        </a>
+          <v-avatar
+            v-if="connectedConnector"
+            tile
+            class="me-1"
+            size="16">
+          <img :src="connectedConnectorAvatar">
+          </v-avatar>
+          <a
+            v-if="connectedConnector"
+            @click="openPersonalCalendarDrawer"
+            class="icon-small-size">
+            {{ connectedConnectorUser }}
+          </a>
+          <a
+            v-else
+            class="text-subtitle d-block">
+            <div>
+              {{ $t('agenda.synchronizeEventsWithPersonalCalendarSubTitle') }}
+            </div>
+            <div class="text-center">
+              <v-btn
+                class="btn remote-event mt-3 justify-content-center"
+                @click="openPersonalCalendarDrawer">
+                {{ $t('agenda.connect') }}
+              </v-btn>
+           </div>
+          </a>
         </div>
         <template v-if="loading || connectedConnectorLoading">
           <v-progress-linear indeterminate />
