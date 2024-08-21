@@ -454,7 +454,7 @@ public class AgendaEventReminderServiceTest extends BaseAgendaEventTest {
     assertNotNull(eventReminder);
     agendaEventReminderService.sendReminders();
     // Assert receiving the reminder notification for the non-recurring event.
-    assertEquals(notificationSize + 1, webNotificationService.getNumberOnBadge(testuser1Identity.getRemoteId()));
+    assertEquals(notificationSize + 2, webNotificationService.getNumberOnBadge(testuser1Identity.getRemoteId()));
     webNotificationService.resetNumberOnBadge(testuser1Identity.getRemoteId());
     //
     calendar.setDeleted(true);

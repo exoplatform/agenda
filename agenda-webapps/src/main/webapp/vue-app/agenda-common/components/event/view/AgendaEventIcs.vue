@@ -42,9 +42,14 @@ export default {
       };
 
       const confurl = (event.conferences && event.conferences.length > 0) ? event.conferences[0].url : '';
-      const htmlDescription = `${this.$t('agenda.invitationText')} <b>${event.creator.dataEntity.profile.fullname}</b> ${this.$t('agenda.inSpace')} <b>${event.calendar.title}.</b>
+      const htmlDescription = `<html><body>${this.$t('agenda.invitationText')} <b>${event.creator.dataEntity.profile.fullname}</b> ${this.$t('agenda.inSpace')} <b>${event.calendar.title}.</b>
       ${confurl ? `<br><b>${this.$t('agenda.visioLink')}</b> <a href="${confurl}">${confurl}</a>` : ''}
-      ${event.description ? `<br><br><b>${this.$t('agenda.eventDetail')}</b><br>${event.description}` : ''}
+      ${event.description ? `<br><br><b>${this.$t('agenda.eventDetail')}</b><br>${event.description}</body></html>` : ''}
+      `.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+
+      const plainTextDescription = `${this.$t('agenda.invitationText')} ${event.creator.dataEntity.profile.fullname} ${this.$t('agenda.inSpace')} ${event.calendar.title}.
+      ${confurl ? `${this.$t('agenda.visioLink')} ${confurl}` : ''}
+      ${event.description ? `\n${this.$t('agenda.eventDetail')}\n${event.description}` : ''}
       `.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
 
       const brandingInformation = await this.$brandingService.getBrandingInformation();
@@ -60,7 +65,7 @@ export default {
         `DTSTART:${formatDate(event.startDate)}\r\n` +
         `DTEND:${formatDate(event.endDate)}\r\n` +
         `SUMMARY:${event.summary || ''}\r\n` +
-        `DESCRIPTION:${htmlDescription || ''}\r\n` +
+        `DESCRIPTION:${plainTextDescription || ''}\r\n` +
         `X-ALT-DESC;FMTTYPE=text/html:${htmlDescription}\r\n` +
         `LOCATION:${event.location || ''}\r\n` +
         `URL:${confurl}\r\n` +
