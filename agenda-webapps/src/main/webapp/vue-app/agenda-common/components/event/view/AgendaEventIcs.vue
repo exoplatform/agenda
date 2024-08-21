@@ -1,13 +1,18 @@
 <template>
   <div>
-    <div class="d-flex justify-center">
+    <div v-if="!connectors" class="d-flex justify-center">
       <v-btn outlined color="primary" class="btn border-radius v-btn v-btn--contained v-size--default v-chip v-chip--outlined theme--light
          primary primary--text mt-4 mb-2 me-5" @click="downloadICS">
-        <v-icon size="20" class="uiIcon24x24 pe-2" depressed>
+        <v-icon class="uiIcon20x20 pe-2" depressed>
           fa-calendar-plus
         </v-icon>
         {{ $t('agenda.icsbutton') }}
       </v-btn>
+    </div>
+    <div v-else @click="downloadICS" :class="{ 'mt-5': connectors }">
+      <v-icon class="uiIcon20x20 clickable" depressed>
+        fa-calendar-plus
+      </v-icon>
     </div>
   </div>
 </template>
@@ -17,6 +22,10 @@ export default {
   props: {
     settings: {
       type: Object,
+      default: () => null
+    },
+    connectors: {
+      type: Array,
       default: () => null
     },
     event: {
