@@ -147,7 +147,7 @@ export default {
       return this.event && this.event.summary;
     },
     eventTitleValid() {
-      return this.eventTitle && this.eventTitle.length >= 5 && this.eventTitle.length < 1024;
+      return this.eventTitle && this.eventTitle.length >= 1 && this.eventTitle.length < 1024;
     },
     eventOwner() {
       return this.event && this.event.calendar && this.event.calendar.owner;
@@ -241,7 +241,7 @@ export default {
 
       if (!this.event.summary) {
         this.$refs.eventTitle.setCustomValidity(this.$t('agenda.message.missingEventTitle'));
-      } else if (this.event.summary.trim().length < 5 || this.event.summary.trim().length > 1024) {
+      } else if (this.event.summary.trim().length < 1 || this.event.summary.trim().length > 1024) {
         this.$refs.eventTitle.setCustomValidity(this.$t('agenda.message.missingLengthEventTitle'));
       }
 

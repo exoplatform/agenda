@@ -137,7 +137,7 @@ export default {
       return this.event && this.event.summary;
     },
     eventTitleValid() {
-      return this.eventTitle && this.eventTitle.length >= 5 && this.eventTitle.length < 1024;
+      return this.eventTitle && this.eventTitle.length >= 1 && this.eventTitle.length < 1024;
     },
     eventCalendar() {
       return this.event && this.event.calendar;
