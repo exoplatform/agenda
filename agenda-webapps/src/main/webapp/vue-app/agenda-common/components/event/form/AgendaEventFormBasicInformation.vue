@@ -224,7 +224,7 @@ export default {
 
       if (!this.event.summary) {
         this.$refs.eventTitle.setCustomValidity(this.$t('agenda.message.missingEventTitle'));
-      } else if (this.event.summary.length < 5 || this.event.summary.length > 1024) {
+      } else if (this.event.summary.length < 1 || this.event.summary.length > 1024) {
         this.$refs.eventTitle.setCustomValidity(this.$t('agenda.message.missingLengthEventTitle'));
       }
 
