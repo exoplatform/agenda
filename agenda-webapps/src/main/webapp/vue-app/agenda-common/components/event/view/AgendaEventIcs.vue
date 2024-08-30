@@ -109,7 +109,13 @@ export default {
         `ORGANIZER;CN=${event.creator.dataEntity.profile.fullname}:MAILTO:${event.creator.dataEntity.profile.email}\r\n` +
         'END:VEVENT\r\n' +
         'END:VCALENDAR\r\n';
-      return icsContent.split('\r\n').map(foldLine).join('\r\n');
+
+      const processAndFoldText = (text) => {
+        const lines = text.split('\n');
+        const foldedLines = lines.map(line => foldLine(line)).join('\n');
+        return foldedLines;
+      };
+      return processAndFoldText(icsContent);
     },
     async downloadICS() {
       const icsContent = await this.generateICS(this.event);
