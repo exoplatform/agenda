@@ -66,13 +66,14 @@ export default {
           const words = line.split(' ');
           words.forEach(word => {
             if (currentLine.length + word.length + 1 > maxLength) {
-              result += currentLine.trim() + '\n';
-              currentLine = word + ' ';
+              result += `${currentLine.trim()}\n`;
+              currentLine = `${word} `;
             } else {
-              currentLine += word + ' ';
+              currentLine += `${word} `;
             }
           });
-          result += currentLine.trim() + '\n';
+
+          result += `${currentLine.trim()}\n`;
         });
         return result.trim();
       };
