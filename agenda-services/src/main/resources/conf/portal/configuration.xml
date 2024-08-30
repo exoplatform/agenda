@@ -46,6 +46,49 @@
   </component>
 
   <component>
+    <type>org.exoplatform.agenda.notification.pwa.AgendaCreatedNotificationPwaPlugin</type>
+    <init-params>
+      <value-param>
+        <name>agenda.notification.plugin.key</name>
+        <value>EventAddedNotificationPlugin</value>
+      </value-param>
+    </init-params>
+  </component>
+  <component>
+    <type>org.exoplatform.agenda.notification.pwa.AgendaUpdatedNotificationPwaPlugin</type>
+    <init-params>
+      <value-param>
+        <name>agenda.notification.plugin.key</name>
+        <value>EventModifiedNotificationPlugin</value>
+      </value-param>
+    </init-params>
+  </component>
+  <component>
+    <type>org.exoplatform.agenda.notification.pwa.AgendaCancelledNotificationPwaPlugin</type>
+    <init-params>
+      <value-param>
+        <name>agenda.notification.plugin.key</name>
+        <value>EventCancelledNotificationPlugin</value>
+      </value-param>
+    </init-params>
+  </component>
+
+  <component>
+    <type>org.exoplatform.agenda.notification.pwa.DatePollNotificationPwaPlugin</type>
+  </component>
+
+  <component>
+    <type>org.exoplatform.agenda.notification.pwa.EventReminderNotificationPwaPlugin</type>
+  </component>
+
+  <component>
+    <type>org.exoplatform.agenda.notification.pwa.EventReplyNotificationPwaPlugin</type>
+  </component>
+
+  <component>
+    <type>org.exoplatform.agenda.notification.pwa.EventVoteNotificationPwaPlugin</type>
+  </component>
+  <component>
     <key>org.exoplatform.agenda.service.AgendaCalendarService</key>
     <type>org.exoplatform.agenda.service.AgendaCalendarServiceImpl</type>
     <init-params>
