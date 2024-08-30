@@ -19,7 +19,7 @@
             class="icon-small-size">
             {{ connectedConnectorUser }}
           </a>
-          <a
+          <div
             v-else
             class="text-subtitle d-block">
             <div>
@@ -32,7 +32,7 @@
                 {{ $t('agenda.connect') }}
               </v-btn>
            </div>
-          </a>
+          </div>
         </div>
         <template v-if="loading || connectedConnectorLoading">
           <v-progress-linear indeterminate />

@@ -39,6 +39,13 @@ export default {
         return date ? `${new Date(date).toISOString().replace(/[-:]/g, '').split('.')[0]}Z` : '';
       };
 
+      const replaceHtmlTags = (html) => {
+        html = html.replace(/<a\s+href="([^"]+)"[^>]*>(.*?)<\/a>/gi, '$2 ($1)');
+        html = html.replace(/<\/?[^>]+(>|$)/g, '');
+        html = html.replace(/\n{2,}/g, '\n').trim();
+        return html;
+      };
+
       const foldLine = (line) => {
         const maxLength = 70;
         if (line.length <= maxLength) { return line; }
@@ -50,15 +57,36 @@ export default {
         return result + line;
       };
 
+      const foldDescription = (text) => {
+        const maxLength = 60;
+        const lines = text.split('\n');
+        let result = '';
+        lines.forEach(line => {
+          let currentLine = '';
+          const words = line.split(' ');
+          words.forEach(word => {
+            if (currentLine.length + word.length + 1 > maxLength) {
+              result += currentLine.trim() + '\n';
+              currentLine = word + ' ';
+            } else {
+              currentLine += word + ' ';
+            }
+          });
+          result += currentLine.trim() + '\n';
+        });
+        return result.trim();
+      };
+
       const confurl = (event.conferences && event.conferences.length > 0) ? event.conferences[0].url : '';
       const htmlDescription = `<html><body>${this.$t('agenda.invitationText')} <b>${event.creator.dataEntity.profile.fullname}</b> ${this.$t('agenda.inSpace')} <b>${event.calendar.title}.</b>
       ${confurl ? `<br><b>${this.$t('agenda.visioLink')}</b> <a href="${confurl}">${confurl}</a>` : ''}
       ${event.description ? `<br><br><b>${this.$t('agenda.eventDetail')}</b><br>${event.description}</body></html>` : ''}
       `.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
 
+      const plainTextEventDescription = event.description ? replaceHtmlTags(event.description) : '';
       const plainTextDescription = `${this.$t('agenda.invitationText')} ${event.creator.dataEntity.profile.fullname} ${this.$t('agenda.inSpace')} ${event.calendar.title}.
       ${confurl ? `${this.$t('agenda.visioLink')} ${confurl}` : ''}
-      ${event.description ? `\n${this.$t('agenda.eventDetail')}\n${event.description}` : ''}
+      ${event.description ? `\n${this.$t('agenda.eventDetail')}\n${foldDescription(plainTextEventDescription)}` : ''}
       `.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
 
       const brandingInformation = await this.$brandingService.getBrandingInformation();
@@ -81,7 +109,13 @@ export default {
         `ORGANIZER;CN=${event.creator.dataEntity.profile.fullname}:MAILTO:${event.creator.dataEntity.profile.email}\r\n` +
         'END:VEVENT\r\n' +
         'END:VCALENDAR\r\n';
-      return icsContent.split('\r\n').map(foldLine).join('\r\n');
+
+      const processAndFoldText = (text) => {
+        const lines = text.split('\n');
+        const foldedLines = lines.map(line => foldLine(line)).join('\n');
+        return foldedLines;
+      };
+      return processAndFoldText(icsContent);
     },
     async downloadICS() {
       const icsContent = await this.generateICS(this.event);
