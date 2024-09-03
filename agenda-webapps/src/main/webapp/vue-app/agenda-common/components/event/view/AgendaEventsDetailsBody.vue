@@ -192,6 +192,11 @@ export default {
     };
   },
   computed: {
+  /*  bodyElement() {
+      return {
+        template: this.ExtendedDomPurify.purify(`<div>${this.body}</div>`) || '',
+      };
+    },*/
     connectedConnector() {
       return this.connectors && this.connectors.find(connector => connector.connected);
     },
