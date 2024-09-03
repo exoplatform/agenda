@@ -45,7 +45,6 @@ export default {
         html = html.replace(/\n{2,}/g, '\n').trim();
         return html;
       };
-
       const foldLine = (line) => {
         const maxLength = 70;
         if (line.length <= maxLength) { return line; }
