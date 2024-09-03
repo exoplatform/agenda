@@ -213,6 +213,7 @@
                                             <td style="color:#999999; font-size:13px;font-family:HelveticaNeue,arial,tahoma,serif; font-weight:bold"><%=_ctx.appRes("Notification.agenda.event.attendees")%></td>
                                             <td align="left"><%= attendees %></td>
                                         </tr>
+                                        <% try { %>
                                         <% if (conference != null) { %>
                                           <tr>
                                               <td style="color:#999999; font-size:13px;font-family:HelveticaNeue,arial,tahoma,serif; font-weight:bold"><%=_ctx.appRes("Notification.agenda.event.webconference")%></td>
@@ -221,6 +222,8 @@
                                                  href="<%= conference %>"><%=_ctx.appRes("Notification.agenda.event.webconference.link")%></a>
                                               </td>
                                           </tr>
+                                        <% } %>
+                                        <% } catch (MissingPropertyException e) { %>
                                         <% } %>
                                         </tbody>
                                     </table>
