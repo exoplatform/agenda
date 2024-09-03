@@ -69,13 +69,14 @@
           <v-flex class="flex-grow-0">
             <i class="uiIconDescription darkGreyIcon uiIcon32x32 my-3 me-11"></i>
           </v-flex>
-          <extended-textarea
+          <rich-editor
             id="eventDescription"
             ref="eventDescription"
             v-model="event.description"
             :placeholder="$t('agenda.descriptionPlaceholder')"
             :max-length="eventDescriptionTextLength"
-            class="pt-2" />
+            :tag-enabled="true"
+            class="pt-2 width-full"/>
         </div>
       </div>
       <div class="d-none d-md-flex flex-column mx-5 event-form-body-divider ">

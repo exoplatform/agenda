@@ -104,7 +104,7 @@
         </div>
         <div v-if="event.description" class="event-description d-flex flex-grow-0 flex-shrink-1 pb-5">
           <i class="uiIconDescription darkGreyIcon uiIcon32x32 pe-5"></i>
-          <span v-autolinker:[autolinkerArgs]="event.description" class="mt-1 align-self-center text-wrap text-left text-break"></span>
+          <span v-sanitized-html="event.description" class="mt-1 me-4 align-self-center text-wrap text-left text-break rich-editor-content"></span>
         </div>
         <div
           v-if="event.attachments && event.attachments.length !== 0"
@@ -192,6 +192,11 @@ export default {
     };
   },
   computed: {
+  /*  bodyElement() {
+      return {
+        template: this.ExtendedDomPurify.purify(`<div>${this.body}</div>`) || '',
+      };
+    },*/
     connectedConnector() {
       return this.connectors && this.connectors.find(connector => connector.connected);
     },
