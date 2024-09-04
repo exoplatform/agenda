@@ -1,7 +1,7 @@
 <template>
   <div class="event-details-body overflow-auto flex-grow-1 d-flex flex-column flex-md-row pa-4 mt-5">
     <div class="flex-grow-1 flex-shrink-0 event-details-body-left " :class="{ 'd-flex' : !isMobile }">
-      <div class="mx-auto">
+      <div :class="{'mx-auto' : isMobile}">
         <div class="event-date align-center d-flex pb-5">
           <i class="uiIconDatePicker darkGreyIcon uiIcon32x32 pe-5"></i>
           <div class="d-inline-flex">
@@ -104,7 +104,7 @@
         </div>
         <div v-if="event.description" class="event-description d-flex flex-grow-0 flex-shrink-1 pb-5">
           <i class="uiIconDescription darkGreyIcon uiIcon32x32 pe-5"></i>
-          <span v-sanitized-html="event.description" class="mt-1 me-4 align-self-center text-wrap text-left text-break rich-editor-content"></span>
+          <span v-sanitized-html="event.description" class="mt-1 align-self-center text-wrap text-left text-break rich-editor-content"></span>
         </div>
         <div
           v-if="event.attachments && event.attachments.length !== 0"
@@ -125,11 +125,11 @@
       <v-divider vertical class="event-details-body-divider" />
     </div>
     <div class="flex-grow-1 flex-shrink-0 d-flex event-details-body-right">
-      <div class="mx-10">
+      <div class="mr-1 width-full" >
         <agenda-event-attendees
           ref="agendaAttendees"
           :event="event" />
-        <div :class="{ 'd-flex flex-row-reverse': enabledconnectors }">
+        <div :class="{ 'd-flex flex-row-reverse': enabledconnectors}" class="justify-content-left">
           <agenda-ics
             v-if="addToMyAgenda"
             :settings="settings"
@@ -141,7 +141,7 @@
             :event="event"
             :connectors="connectors"
             :class="!isAcceptedEvent && 'agenda-hidden-connectors'"
-            class="mt-5" />
+            class="mt-4 mr-auto width-full" />
         </div>
       </div>
     </div>
@@ -192,11 +192,6 @@ export default {
     };
   },
   computed: {
-  /*  bodyElement() {
-      return {
-        template: this.ExtendedDomPurify.purify(`<div>${this.body}</div>`) || '',
-      };
-    },*/
     connectedConnector() {
       return this.connectors && this.connectors.find(connector => connector.connected);
     },
