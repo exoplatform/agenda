@@ -112,8 +112,7 @@ export default {
         'END:VCALENDAR\r\n';
 
       const processAndFoldText = (text) => {
-        let lines = text.split('\n');
-        lines = lines.filter(line => !line.startsWith('X-ALT-DESC;FMTTYPE=text/html'));
+        const lines = text.split('\n');
         const foldedLines = lines.map(line => foldLine(line)).join('\n');
         return foldedLines;
       };

@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 
 import net.fortuna.ical4j.data.CalendarOutputter;
 import net.fortuna.ical4j.model.DateTime;
+import net.fortuna.ical4j.model.ParameterList;
 import net.fortuna.ical4j.model.component.VEvent;
 import net.fortuna.ical4j.model.parameter.Cn;
 import net.fortuna.ical4j.model.property.*;
@@ -898,12 +899,21 @@ public class NotificationUtils {
 
   }
   public static final void addIcsFile(NotificationInfo notification, MessageInfo messageInfo, ZoneId timeZone) {
-    Attachment attachment = new Attachment();
+    IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
+    SpaceService spaceService = ExoContainerContext.getService(SpaceService.class);
+    String ownerId = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_OWNER_ID);
+    Identity identity = identityManager.getIdentity(ownerId);
+    Space space = identity!=null ? spaceService.getSpaceByPrettyName(identity.getRemoteId()) : null;
+    String spaceName = space == null ? null : space.getDisplayName();
+    String eventConference = notification.getValueOwnerParameter(TEMPLATE_VARIABLE_EVENT_CONFERENCE);
+    String eventCreator = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_CREATOR);
+      Attachment attachment = new Attachment();
     /* Generate unique identifier */
     UidGenerator ug = new RandomUidGenerator();
     Uid uid = ug.generateUid();
     /* Create the event */
     String eventSummary = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_TITLE);
+    String eventDescription = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_DESCRIPTION);
     String startDateRFC3339 = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_START_DATE);
     String endDateRFC3339 = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_END_DATE);
     ZonedDateTime startDate = ZonedDateTime.parse(startDateRFC3339).withZoneSameInstant(timeZone);
@@ -919,8 +929,33 @@ public class NotificationUtils {
     calendar.getProperties().add(Version.VERSION_2_0);
     calendar.getProperties().add(CalScale.GREGORIAN);
     Organizer organizer = new Organizer(URI.create("noreply@noreply.com"));
-    organizer.getParameters().add(new Cn(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_CREATOR)));
+    organizer.getParameters().add(new Cn(eventCreator));
     calendar.getProperties().add(organizer);
+
+    String plainTextContent = "Invitation sent by " + eventCreator +
+            " in space " + spaceName + ". \n"
+            + (eventConference != null ? "Video conference link: " +  eventConference : "");
+    String htmlContent = "<html><body>" +
+            "Invitation sent by " + " <b>" + eventCreator
+            + "</b> in space" + " <b>" + spaceName + "</b>. "
+            + "<br><b>" + "Video conference link: " + "</b> "
+            + ( eventConference != null ? "<a href=\""+ eventConference + "\">"
+            + eventConference + "</a>" :"");
+
+    if (eventDescription != null && !eventDescription.isEmpty()) {
+      plainTextContent = plainTextContent + "\n \n Event details: \n" +
+              eventDescription.replaceAll("<a\\s+href=\"([^\"]+)\"[^>]*>(.*?)</a>", "$2 ($1)")
+                      .replaceAll("</?[^>]+(>|$)", "")
+                      .replaceAll("\\n{2,}", "\n").trim();
+      htmlContent = htmlContent + "<br><br>Event details:<br>" + eventDescription;
+    }
+    vEvent.getProperties().add(new Description(plainTextContent));
+    htmlContent = htmlContent + "</body></html>";
+    ParameterList parameters = new ParameterList();
+    parameters.add(new net.fortuna.ical4j.model.parameter.XParameter("FMTTYPE", "text/html"));
+    XProperty xProperty = new XProperty("X-ALT-DESC", parameters, htmlContent);
+    vEvent.getProperties().add(xProperty);
+
     /* Add event to calendar */
     calendar.getComponents().add(vEvent);
     CalendarOutputter outputter = new CalendarOutputter();
