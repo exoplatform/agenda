@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="d-flex">
-      <div class="d-flex flex-column">
+      <div class="d-flex flex-column width-full">
         <div class="d-flex text-no-wrap text-truncate font-weight-bold text-title-color">
           {{ $t('agenda.personalCalendar') }}
         </div>
@@ -27,7 +27,7 @@
             </div>
             <div class="text-center">
               <v-btn
-                class="btn remote-event mt-3 justify-content-center"
+                class="btn primary-border-color primary--text remote-event mt-3 justify-content-center"
                 @click="openPersonalCalendarDrawer">
                 {{ $t('agenda.connect') }}
               </v-btn>

@@ -1,15 +1,16 @@
 <template>
   <div>
     <div v-if="!connectors" class="d-flex justify-center">
-      <v-btn outlined color="primary" class="btn border-radius v-btn v-btn--contained v-size--default v-chip v-chip--outlined theme--light
-         primary primary--text mt-4 mb-2 me-5" @click="downloadICS">
-        <v-icon class="uiIcon20x20 pe-2" depressed>
+      <v-btn outlined color="primary"
+        class="pl-2 pr-2 text-body-1 btn border-radius v-chip v-chip--outlined theme--light primary primary--text mt-4 mb-2"
+        @click="downloadICS">
+        <v-icon class="uiIcon20x20 pe-3">
           fa-calendar-plus
         </v-icon>
         {{ $t('agenda.icsbutton') }}
       </v-btn>
     </div>
-    <div v-else @click="downloadICS" :class="{ 'mt-5': connectors }">
+    <div v-else @click="downloadICS" :class="{ 'mt-4': connectors, 'ml-n7': connectors }">
       <v-icon class="uiIcon20x20 clickable" depressed>
         fa-calendar-plus
       </v-icon>
