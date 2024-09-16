@@ -22,6 +22,7 @@ import java.util.Date;
 import java.util.stream.Collectors;
 
 import net.fortuna.ical4j.model.Month;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 
@@ -611,8 +612,15 @@ public class Utils {
   }
 
   public static String getResourceBundleLabel(Locale locale, String label) {
-    ResourceBundleService resourceBundleService =  ExoContainerContext.getService(ResourceBundleService.class);
-    return resourceBundleService.getResourceBundle(resourceBundleService.getSharedResourceBundleNames(), locale).getString(label);
+    ResourceBundleService resourceBundleService = ExoContainerContext.getService(ResourceBundleService.class);
+    try {
+      return resourceBundleService.getResourceBundle(ArrayUtils.addAll(resourceBundleService.getSharedResourceBundleNames(),
+                                                                       "locale.portlet.Agenda"),
+                                                     locale)
+                                  .getString(label);
+    } catch (MissingResourceException mre) {
+      return label;
+    }
   }
 
   /**
