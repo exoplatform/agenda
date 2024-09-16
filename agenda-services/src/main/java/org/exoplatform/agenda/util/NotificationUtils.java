@@ -53,6 +53,7 @@ import org.exoplatform.social.notification.plugin.SocialNotificationUtils;
 import org.exoplatform.webui.utils.TimeConvertUtils;
 
 import static org.exoplatform.agenda.util.Utils.getICalTimeZone;
+import static org.exoplatform.agenda.util.Utils.getResourceBundleLabel;
 
 public class NotificationUtils {
 
@@ -849,7 +850,7 @@ public class NotificationUtils {
             .map(t -> t.substring(0, 1).toUpperCase() + t.substring(1))
             .collect(Collectors.joining(" "));
     if(Utils.isExternal(identity.getRemoteId())) {
-      fullName += " " + "(" + Utils.getResourceBundleLabel(new Locale(Utils.getUserLanguage(identity.getRemoteId())), "external.label.tag") + ")";
+      fullName += " " + "(" + getResourceBundleLabel(new Locale(Utils.getUserLanguage(identity.getRemoteId())), "external.label.tag") + ")";
     }
     return fullName;
   }
@@ -932,22 +933,22 @@ public class NotificationUtils {
     organizer.getParameters().add(new Cn(eventCreator));
     calendar.getProperties().add(organizer);
 
-    String plainTextContent = "Invitation sent by " + eventCreator +
-            " in space " + spaceName + ". \n"
-            + (eventConference != null ? "Video conference link: " +  eventConference : "");
+    Locale userLocale = Locale.of(Utils.getUserLanguage(notification.getTo()));
+    String plainTextContent = getResourceBundleLabel(userLocale, "agenda.invitationText") + " " + eventCreator +
+            " " + getResourceBundleLabel(userLocale, "agenda.inSpace") + " " + spaceName + ". \n"
+            + (eventConference != null ? getResourceBundleLabel(userLocale, "agenda.visioLink") + " " +  eventConference : "");
     String htmlContent = "<html><body>" +
-            "Invitation sent by " + " <b>" + eventCreator
-            + "</b> in space" + " <b>" + spaceName + "</b>. "
-            + "<br><b>" + "Video conference link: " + "</b> "
-            + ( eventConference != null ? "<a href=\""+ eventConference + "\">"
+            getResourceBundleLabel(userLocale, "agenda.invitationText") + " " + " <b>" + eventCreator
+            + "</b> " +  getResourceBundleLabel(userLocale, "agenda.inSpace") + " <b>" + spaceName + "</b>. "
+            + ( eventConference != null ? "<br><b>" + getResourceBundleLabel(userLocale, "agenda.visioLink") + " " + "</b> "
+            +  "<a href=\""+ eventConference + "\">"
             + eventConference + "</a>" :"");
-
     if (eventDescription != null && !eventDescription.isEmpty()) {
-      plainTextContent = plainTextContent + "\n \n Event details: \n" +
+      plainTextContent = plainTextContent + "\n \n " + getResourceBundleLabel(userLocale, "agenda.eventDetail") + ": \n" +
               eventDescription.replaceAll("<a\\s+href=\"([^\"]+)\"[^>]*>(.*?)</a>", "$2 ($1)")
                       .replaceAll("</?[^>]+(>|$)", "")
                       .replaceAll("\\n{2,}", "\n").trim();
-      htmlContent = htmlContent + "<br><br>Event details:<br>" + eventDescription;
+      htmlContent = htmlContent + "<br><br>" + getResourceBundleLabel(userLocale, "agenda.eventDetail") + "<br>" + eventDescription;
     }
     vEvent.getProperties().add(new Description(plainTextContent));
     htmlContent = htmlContent + "</body></html>";
