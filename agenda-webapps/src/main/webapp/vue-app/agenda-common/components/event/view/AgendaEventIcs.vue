@@ -104,6 +104,7 @@ export default {
         `DTEND:${formatDate(event.endDate)}\r\n` +
         `SUMMARY:${event.summary || ''}\r\n` +
         `DESCRIPTION:${plainTextDescription || ''}\r\n` +
+        `DESCRIPTION,ALTREP:"data:text/html,${encodeURI(htmlDescription)}":${plainTextDescription}\r\n` +
         `X-ALT-DESC;FMTTYPE=text/html:${htmlDescription}\r\n` +
         `LOCATION:${event.location || ''}\r\n` +
         `URL:${confurl}\r\n` +

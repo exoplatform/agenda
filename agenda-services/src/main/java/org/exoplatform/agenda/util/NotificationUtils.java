@@ -7,6 +7,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.time.*;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -15,6 +16,7 @@ import net.fortuna.ical4j.data.CalendarOutputter;
 import net.fortuna.ical4j.model.DateTime;
 import net.fortuna.ical4j.model.ParameterList;
 import net.fortuna.ical4j.model.component.VEvent;
+import net.fortuna.ical4j.model.parameter.AltRep;
 import net.fortuna.ical4j.model.parameter.Cn;
 import net.fortuna.ical4j.model.property.*;
 import net.fortuna.ical4j.util.RandomUidGenerator;
@@ -956,6 +958,13 @@ public class NotificationUtils {
     parameters.add(new net.fortuna.ical4j.model.parameter.XParameter("FMTTYPE", "text/html"));
     XProperty xProperty = new XProperty("X-ALT-DESC", parameters, htmlContent);
     vEvent.getProperties().add(xProperty);
+    try {
+      ParameterList params = new ParameterList();
+      params.add(new AltRep("data:text/html," + URLEncoder.encode(htmlContent, StandardCharsets.UTF_8)));
+      vEvent.getProperties().add(new Description(params, plainTextContent));
+    } catch (Exception e) {
+      LOG.error("Could not add the Altrep property for description field", e);
+    }
 
     /* Add event to calendar */
     calendar.getComponents().add(vEvent);
