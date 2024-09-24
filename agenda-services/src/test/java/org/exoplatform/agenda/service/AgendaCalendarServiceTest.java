@@ -89,8 +89,7 @@ public class AgendaCalendarServiceTest {
                                      null);
     when(agendaCalendarStorage.getCalendarById(eq(calendarId))).thenReturn(calendar);
     when(identityManager.getIdentity(eq(String.valueOf(calendarOwnerId)))).thenReturn(calendarOwnerIdentity);
-    when(identityManager.getOrCreateIdentity(eq(OrganizationIdentityProvider.NAME),
-                                             eq(username))).thenReturn(calendarOwnerIdentity);
+    when(identityManager.getOrCreateUserIdentity(eq(username))).thenReturn(calendarOwnerIdentity);
 
     // 0. Arguments validation tests
     try {
@@ -187,8 +186,7 @@ public class AgendaCalendarServiceTest {
                                      null);
     when(agendaCalendarStorage.getCalendarById(eq(calendarId))).thenReturn(calendar);
     when(identityManager.getIdentity(eq(String.valueOf(calendarOwnerId)))).thenReturn(calendarOwnerIdentity);
-    when(identityManager.getOrCreateIdentity(eq(OrganizationIdentityProvider.NAME),
-                                             eq(username))).thenReturn(calendarOwnerIdentity);
+    when(identityManager.getOrCreateUserIdentity(eq(username))).thenReturn(calendarOwnerIdentity);
 
     // 0. Arguments validation tests
     try {
@@ -233,14 +231,17 @@ public class AgendaCalendarServiceTest {
 
     // 4. When a member user is accessing space calendar, no error
     // should be thrown and the ACL.canEdit should equal to false
-    calendarOwnerIdentity.setProviderId(SpaceIdentityProvider.NAME);
     String spacePrettyName = "spacetest";
-    calendarOwnerIdentity.setRemoteId(spacePrettyName);
+    calendarOwnerIdentity = new Identity(SpaceIdentityProvider.NAME, spacePrettyName);
+    calendarOwnerIdentity.setId(String.valueOf(++calendarOwnerId));
+    calendar.setOwnerId(calendarOwnerId);
+    when(identityManager.getIdentity(calendarOwnerIdentity.getId())).thenReturn(calendarOwnerIdentity);
+
     Space space = new Space();
     when(spaceService.getSpaceByPrettyName(eq(spacePrettyName))).thenReturn(space);
 
     // 4.1 when user is not member
-    when(spaceService.isMember(eq(space), eq(username))).thenReturn(false);
+    when(spaceService.canViewSpace(eq(space), eq(username))).thenReturn(false);
     try {
       agendaCalendarService.getCalendarById(calendarId, username);
       fail("User shouldn't acces calendar of a space where he don't belong");
@@ -249,7 +250,7 @@ public class AgendaCalendarServiceTest {
     }
 
     // 4.2 when user is member only of the space
-    when(spaceService.isMember(eq(space), eq(username))).thenReturn(true);
+    when(spaceService.canViewSpace(eq(space), eq(username))).thenReturn(true);
     retrievedCalendar = agendaCalendarService.getCalendarById(calendarId, username);
     assertNotNull("User should be able to access his own calendar", retrievedCalendar);
 
@@ -262,23 +263,8 @@ public class AgendaCalendarServiceTest {
     assertEquals("Retrieved calendar should be the same as the retrieved from storage", calendar, retrievedCalendar);
 
     // 4.3 when user is member and manager of the space
-    when(spaceService.isManager(eq(space), eq(username))).thenReturn(true);
-    retrievedCalendar = agendaCalendarService.getCalendarById(calendarId, username);
-    assertNotNull("User should be able to access his own calendar", retrievedCalendar);
-
-    // check ACL
-    assertNotNull("ACL of calendar should have been computed", retrievedCalendar.getAcl());
-    assertTrue("User should be able to modify calendar", retrievedCalendar.getAcl().isCanEdit());
-
-    // Check retrieved attributes
-    retrievedCalendar.setAcl(null);
-    assertEquals("Retrieved calendar should be the same as the retrieved from storage", calendar, retrievedCalendar);
-
-    // 4.4 when user is super spaces manager but not member neither manager of
-    // the space itself
-    when(spaceService.isMember(eq(space), eq(username))).thenReturn(false);
-    when(spaceService.isManager(eq(space), eq(username))).thenReturn(false);
-    when(spaceService.isSuperManager(eq(username))).thenReturn(true);
+    when(spaceService.canViewSpace(eq(space), eq(username))).thenReturn(true);
+    when(spaceService.canManageSpace(eq(space), eq(username))).thenReturn(true);
     retrievedCalendar = agendaCalendarService.getCalendarById(calendarId, username);
     assertNotNull("User should be able to access his own calendar", retrievedCalendar);
 
@@ -444,9 +430,8 @@ public class AgendaCalendarServiceTest {
       calendar.setOwnerId(calendarOwnerId);
     }
 
-    when(identityManager.getIdentity(eq(String.valueOf(calendarOwnerId)))).thenReturn(calendarOwnerIdentity);
-    when(identityManager.getOrCreateIdentity(eq(OrganizationIdentityProvider.NAME),
-                                             eq(username))).thenReturn(calendarOwnerIdentity);
+    when(identityManager.getIdentity(calendarOwnerIdentity.getId())).thenReturn(calendarOwnerIdentity);
+    when(identityManager.getOrCreateUserIdentity(username)).thenReturn(calendarOwnerIdentity);
 
     try {
       calendarOwnerIdentity.setProviderId("NotManagerProviderByCalendarAPI");
@@ -471,14 +456,17 @@ public class AgendaCalendarServiceTest {
 
     // 3. Shouldn't be able to create calendar of space if user isn't manager or
     // super manager
-    calendarOwnerIdentity.setProviderId(SpaceIdentityProvider.NAME);
     String spacePrettyName = "spacetest";
-    calendarOwnerIdentity.setRemoteId(spacePrettyName);
+    calendarOwnerIdentity = new Identity(SpaceIdentityProvider.NAME, spacePrettyName);
+    calendarOwnerIdentity.setId(String.valueOf(++calendarOwnerId));
+    calendar.setOwnerId(calendarOwnerId);
+    when(identityManager.getIdentity(calendarOwnerIdentity.getId())).thenReturn(calendarOwnerIdentity);
+
     Space space = new Space();
     when(spaceService.getSpaceByPrettyName(eq(spacePrettyName))).thenReturn(space);
 
     // 3.1 when user is not member
-    when(spaceService.isMember(eq(space), eq(username))).thenReturn(false);
+    when(spaceService.canViewSpace(eq(space), eq(username))).thenReturn(false);
     try {
       agendaCalendarService.createCalendar(calendar, username);
       fail("User shouldn't be able to create space calendar");
@@ -486,7 +474,7 @@ public class AgendaCalendarServiceTest {
       // Expected
     }
     // 3.2 When user is member only
-    when(spaceService.isMember(eq(space), eq(username))).thenReturn(true);
+    when(spaceService.canViewSpace(eq(space), eq(username))).thenReturn(true);
     try {
       agendaCalendarService.createCalendar(calendar, username);
       fail("User shouldn't be able to create space calendar even when member");
@@ -494,7 +482,8 @@ public class AgendaCalendarServiceTest {
       // Expected
     }
     // 3.3 When user is manager of the space
-    when(spaceService.isManager(eq(space), eq(username))).thenReturn(true);
+    when(spaceService.canViewSpace(eq(space), eq(username))).thenReturn(true);
+    when(spaceService.canManageSpace(eq(space), eq(username))).thenReturn(true);
     createdCalendar = agendaCalendarService.createCalendar(calendar, username);
     assertNotNull(createdCalendar);
     assertEquals(calendarId, createdCalendar.getId());
@@ -503,14 +492,6 @@ public class AgendaCalendarServiceTest {
     createdCalendar.setCreated(null);
     createdCalendar.setId(0);
     assertEquals(calendar, createdCalendar);
-    // 3.3 When user is super manager
-    when(spaceService.isMember(eq(space), eq(username))).thenReturn(false);
-    when(spaceService.isManager(eq(space), eq(username))).thenReturn(false);
-    when(spaceService.isSuperManager(eq(username))).thenReturn(true);
-    createdCalendar = agendaCalendarService.createCalendar(calendar, username);
-    assertNotNull(createdCalendar);
-    assertEquals(calendarId, createdCalendar.getId());
-    assertNotNull(createdCalendar.getCreated());
   }
 
   @Test
@@ -667,7 +648,7 @@ public class AgendaCalendarServiceTest {
     when(spaceService.getSpaceByPrettyName(eq(spacePrettyName))).thenReturn(space);
 
     // 4.1 when user is not member
-    when(spaceService.isMember(eq(space), eq(username))).thenReturn(false);
+    when(spaceService.canViewSpace(eq(space), eq(username))).thenReturn(false);
     try {
       agendaCalendarService.updateCalendar(calendar, username);
       fail("User shouldn't be able to update space calendar");
@@ -675,7 +656,7 @@ public class AgendaCalendarServiceTest {
       // Expected
     }
     // 4.2 When user is member only
-    when(spaceService.isMember(eq(space), eq(username))).thenReturn(true);
+    when(spaceService.canViewSpace(eq(space), eq(username))).thenReturn(true);
     try {
       agendaCalendarService.updateCalendar(calendar, username);
       fail("User shouldn't be able to update space calendar even when member");
@@ -683,15 +664,7 @@ public class AgendaCalendarServiceTest {
       // Expected
     }
     // 4.3 When user is manager of the space
-    when(spaceService.isManager(eq(space), eq(username))).thenReturn(true);
-    calendar.setUpdated(null);
-    agendaCalendarService.updateCalendar(calendar, username);
-    assertNotNull(calendar.getUpdated());
-
-    // 4.3 When user is super manager
-    when(spaceService.isMember(eq(space), eq(username))).thenReturn(false);
-    when(spaceService.isManager(eq(space), eq(username))).thenReturn(false);
-    when(spaceService.isSuperManager(eq(username))).thenReturn(true);
+    when(spaceService.canManageSpace(eq(space), eq(username))).thenReturn(true);
     calendar.setUpdated(null);
     agendaCalendarService.updateCalendar(calendar, username);
     assertNotNull(calendar.getUpdated());
@@ -812,7 +785,7 @@ public class AgendaCalendarServiceTest {
     when(spaceService.getSpaceByPrettyName(eq(spacePrettyName))).thenReturn(space);
 
     // 5.1 when user is not member
-    when(spaceService.isMember(eq(space), eq(username))).thenReturn(false);
+    when(spaceService.canViewSpace(eq(space), eq(username))).thenReturn(false);
     try {
       agendaCalendarService.deleteCalendarById(calendarId, username);
       fail("User shouldn't be able to delete space calendar");
@@ -821,7 +794,7 @@ public class AgendaCalendarServiceTest {
     }
 
     // 5.2 When user is member only
-    when(spaceService.isMember(eq(space), eq(username))).thenReturn(true);
+    when(spaceService.canViewSpace(eq(space), eq(username))).thenReturn(true);
     try {
       agendaCalendarService.deleteCalendarById(calendarId, username);
       fail("User shouldn't be able to delete space calendar even when member");
@@ -830,14 +803,12 @@ public class AgendaCalendarServiceTest {
     }
 
     // 5.3 When user is manager of the space
-    when(spaceService.isManager(eq(space), eq(username))).thenReturn(true);
+    when(spaceService.canManageSpace(eq(space), eq(username))).thenReturn(true);
     agendaCalendarService.deleteCalendarById(calendarId, username);
     verify(agendaCalendarStorage, times(2)).deleteCalendarById(eq(calendarId));
 
     // 5.4 When user is super manager
-    when(spaceService.isMember(eq(space), eq(username))).thenReturn(false);
-    when(spaceService.isManager(eq(space), eq(username))).thenReturn(false);
-    when(spaceService.isSuperManager(eq(username))).thenReturn(true);
+    when(spaceService.canViewSpace(eq(space), eq(username))).thenReturn(false);
     agendaCalendarService.deleteCalendarById(calendarId, username);
     verify(agendaCalendarStorage, times(3)).deleteCalendarById(eq(calendarId));
   }
@@ -866,8 +837,7 @@ public class AgendaCalendarServiceTest {
     Identity calendarOwnerIdentity = new Identity(OrganizationIdentityProvider.NAME, username);
     calendarOwnerIdentity.setId(String.valueOf(calendarOwnerId));
     when(identityManager.getIdentity(eq(String.valueOf(calendarOwnerId)))).thenReturn(calendarOwnerIdentity);
-    when(identityManager.getOrCreateIdentity(eq(OrganizationIdentityProvider.NAME),
-                                             eq(username))).thenReturn(calendarOwnerIdentity);
+    when(identityManager.getOrCreateUserIdentity(eq(username))).thenReturn(calendarOwnerIdentity);
     when(spaceService.getMemberSpaces(eq(username))).thenAnswer(new Answer<ListAccess<Space>>() {
       @Override
       public ListAccess<Space> answer(InvocationOnMock invocation) throws Throwable {
@@ -896,7 +866,7 @@ public class AgendaCalendarServiceTest {
                                                        eq(prettyName))).thenReturn(spaceIdentity);
               when(identityManager.getIdentity(spaceIdentity.getId())).thenReturn(spaceIdentity);
               when(spaceService.getSpaceByPrettyName(eq(prettyName))).thenReturn(spaces[i]);
-              when(spaceService.isMember(eq(spaces[i]), eq(username))).thenReturn(true);
+              when(spaceService.canViewSpace(eq(spaces[i]), eq(username))).thenReturn(true);
             }
             return spaces;
           }
@@ -974,8 +944,7 @@ public class AgendaCalendarServiceTest {
     Identity calendarOwnerIdentity = new Identity(OrganizationIdentityProvider.NAME, username);
     calendarOwnerIdentity.setId(String.valueOf(calendarOwnerId));
     when(identityManager.getIdentity(eq(String.valueOf(calendarOwnerId)))).thenReturn(calendarOwnerIdentity);
-    when(identityManager.getOrCreateIdentity(eq(OrganizationIdentityProvider.NAME),
-                                             eq(username))).thenReturn(calendarOwnerIdentity);
+    when(identityManager.getOrCreateUserIdentity(eq(username))).thenReturn(calendarOwnerIdentity);
     when(spaceService.getMemberSpaces(eq(username))).thenAnswer(new Answer<ListAccess<Space>>() {
       @Override
       public ListAccess<Space> answer(InvocationOnMock invocation) throws Throwable {
@@ -1040,16 +1009,14 @@ public class AgendaCalendarServiceTest {
     Identity calendarOwnerIdentity = new Identity(OrganizationIdentityProvider.NAME, username);
     calendarOwnerIdentity.setId(String.valueOf(calendarOwnerId));
     when(identityManager.getIdentity(eq(String.valueOf(calendarOwnerId)))).thenReturn(calendarOwnerIdentity);
-    when(identityManager.getOrCreateIdentity(eq(OrganizationIdentityProvider.NAME),
-                                             eq(username))).thenReturn(calendarOwnerIdentity);
+    when(identityManager.getOrCreateUserIdentity(eq(username))).thenReturn(calendarOwnerIdentity);
 
     long anotherCalendarOwnerId = 3;
     String anotherUser = "username2";
     Identity anotherCalendarOwnerIdentity = new Identity(OrganizationIdentityProvider.NAME, anotherUser);
     anotherCalendarOwnerIdentity.setId(String.valueOf(anotherCalendarOwnerId));
     when(identityManager.getIdentity(eq(String.valueOf(anotherCalendarOwnerId)))).thenReturn(anotherCalendarOwnerIdentity);
-    when(identityManager.getOrCreateIdentity(eq(OrganizationIdentityProvider.NAME),
-                                             eq(anotherUser))).thenReturn(anotherCalendarOwnerIdentity);
+    when(identityManager.getOrCreateUserIdentity(eq(anotherUser))).thenReturn(anotherCalendarOwnerIdentity);
 
     // 3. Retrieve calendars with pagination
     when(agendaCalendarStorage.getCalendarIdsByOwnerIds(anyInt(), anyInt(), anyVararg())).thenAnswer(new Answer<List<Long>>() {
