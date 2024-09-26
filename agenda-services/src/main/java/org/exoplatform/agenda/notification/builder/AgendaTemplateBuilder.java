@@ -119,15 +119,8 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
                                                                 notification,
                                                                 timeZone);
       MessageInfo messageInfo = new MessageInfo();
-      long creatorIdentityId = event.getCreatorId();
-      long modifierIdentityId = event.getModifierId();
-      if((StringUtils.equals(eventModificationType, AgendaEventModificationType.ADDED.name()) && identityId == creatorIdentityId)
-              || (StringUtils.equals(eventModificationType, AgendaEventModificationType.UPDATED.name()) && identityId == modifierIdentityId)){
-        messageInfo.subject(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_TITLE));
-        messageInfo.body(TemplateUtils.processGroovy(templateContext));
-      } else {
-        messageInfo = buildMessageSubjectAndBody(templateContext, notification, pushNotificationURL);
-      }
+      messageInfo.subject(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_TITLE));
+      messageInfo.body(TemplateUtils.processGroovy(templateContext));
       addIcsFile(notification, messageInfo, timeZone);
       Throwable exception = templateContext.getException();
       logException(notification, exception);
