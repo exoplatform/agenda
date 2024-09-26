@@ -61,7 +61,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     if (username == null) {
       throw new IllegalArgumentException("Username is mandatory");
     }
-    Identity identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+    Identity identity = identityManager.getOrCreateUserIdentity(username);
     if (identity == null) {
       throw new IllegalStateException("User with name " + username + " is not found");
     }
@@ -89,7 +89,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     if (username == null) {
       throw new IllegalArgumentException("Username is mandatory");
     }
-    Identity identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+    Identity identity = identityManager.getOrCreateUserIdentity(username);
     if (identity == null) {
       throw new IllegalStateException("User with name " + username + " is not found");
     }
@@ -115,7 +115,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     if (username == null) {
       throw new IllegalArgumentException("Username is mandatory");
     }
-    Identity identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+    Identity identity = identityManager.getOrCreateUserIdentity(username);
     if (identity == null) {
       throw new IllegalStateException("User with name " + username + " is not found");
     }
@@ -137,7 +137,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     if (username == null) {
       throw new IllegalArgumentException("Username is mandatory");
     }
-    Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+    Identity userIdentity = identityManager.getOrCreateUserIdentity(username);
     if (userIdentity == null) {
       throw new IllegalStateException("User with name " + username + " is not found");
     }
@@ -151,11 +151,25 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
       calendar.setDeleted(true);
       calendar.setAcl(new CalendarPermission());
     } else {
-      boolean canEditCalendar = Utils.checkAclByCalendarOwner(identityManager, spaceService, ownerId, username, true);
-      boolean canCreateEvent = Utils.canCreateEvent(identityManager, spaceService, ownerId, Long.parseLong(userIdentity.getId()));
-      boolean hasRedactor = Utils.canInviteeEdit(identityManager, spaceService, ownerId);
-      calendar.setAcl(new CalendarPermission(canCreateEvent, canEditCalendar, hasRedactor));
-      fillCalendarTitleByOwnerName(calendar);
+      long userIdentityId = Long.parseLong(userIdentity.getId());
+      if (!Utils.canAccessCalendar(identityManager, spaceService, ownerId, userIdentityId)) {
+        throw new IllegalAccessException("User " + username + " is not allowed to retrieve calendar data of space "
+            + calendar.getTitle());
+      } else {
+        boolean canEditCalendar = Utils.canEditCalendar(identityManager,
+                                                        spaceService,
+                                                        ownerId,
+                                                        Long.parseLong(userIdentity.getId()));
+        boolean canCreateEvent = Utils.canCreateEvent(identityManager,
+                                                      spaceService,
+                                                      ownerId,
+                                                      Long.parseLong(userIdentity.getId()));
+        boolean hasRedactor = Utils.canInviteeEdit(identityManager,
+                                                   spaceService,
+                                                   ownerId);
+        calendar.setAcl(new CalendarPermission(canCreateEvent, canEditCalendar, hasRedactor));
+        fillCalendarTitleByOwnerName(calendar);
+      }
     }
     return calendar;
   }
@@ -247,13 +261,13 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     if (ownerId <= 0) {
       // Automatically set owner of calendar, the currently authenticated user
       // if no owner has been specified
-      Identity userIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username);
+      Identity userIdentity = identityManager.getOrCreateUserIdentity(username);
       if (userIdentity == null) {
         throw new IllegalStateException("User with name " + username + " is not found");
       }
       calendar.setOwnerId(Long.parseLong(userIdentity.getId()));
     } else {
-      Utils.checkAclByCalendarOwner(identityManager, spaceService, calendar.getOwnerId(), username, false);
+      Utils.checkAclByCalendarOwner(identityManager, spaceService, calendar.getOwnerId(), username);
     }
 
     // User had created the calendar manually
@@ -309,7 +323,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     // Refill readonly fields from Database to avoid letting users modifying
     // data using UI or REST calls
     refillReadOnlyFields(calendar);
-    Utils.checkAclByCalendarOwner(identityManager, spaceService, calendar.getOwnerId(), username, false);
+    Utils.checkAclByCalendarOwner(identityManager, spaceService, calendar.getOwnerId(), username);
     agendaCalendarStorage.updateCalendar(calendar);
   }
 
@@ -346,7 +360,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     if (calendar.isSystem()) {
       throw new IllegalStateException("Calendar with id " + calendarId + " is a system calendar, thus it couldn't be deleted");
     }
-    Utils.checkAclByCalendarOwner(identityManager, spaceService, calendar.getOwnerId(), username, false);
+    Utils.checkAclByCalendarOwner(identityManager, spaceService, calendar.getOwnerId(), username);
     deleteCalendarById(calendarId);
   }
 

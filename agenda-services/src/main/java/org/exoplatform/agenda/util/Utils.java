@@ -22,7 +22,6 @@ import java.util.Date;
 import java.util.stream.Collectors;
 
 import net.fortuna.ical4j.model.Month;
-import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.constant.AgendaEventModificationType;
@@ -288,45 +287,29 @@ public class Utils {
    * @param spaceService {@link SpaceService} service instance
    * @param ownerId calendar owner {@link Identity} technical identifier
    * @param username name of user accessing calendar data
-   * @param readonly whether the access is to read or to write
-   * @return true if user can modify calendar, else return false
    * @throws IllegalAccessException when the user ACL fails
    */
-  public static boolean checkAclByCalendarOwner(IdentityManager identityManager,
-                                                SpaceService spaceService,
-                                                long ownerId,
-                                                String username,
-                                                boolean readonly) throws IllegalAccessException {
+  public static void checkAclByCalendarOwner(IdentityManager identityManager,
+                                             SpaceService spaceService,
+                                             long ownerId,
+                                             String username) throws IllegalAccessException {
     Identity requestedOwner = identityManager.getIdentity(String.valueOf(ownerId));
     if (requestedOwner == null) {
       throw new IllegalStateException("Calendar owner with id " + ownerId + " wasn't found");
-    }
-
-    if (StringUtils.equals(OrganizationIdentityProvider.NAME, requestedOwner.getProviderId())) {
+    } else if (requestedOwner.isUser()) {
       if (!StringUtils.equals(requestedOwner.getRemoteId(), username)) {
-        throw new IllegalAccessException("User " + username + " is not allowed to retrieve calendar data of user "
-            + requestedOwner.getRemoteId());
+        throw new IllegalAccessException("User " + username + " is not allowed to retrieve calendar data of user " +
+            requestedOwner.getRemoteId());
       }
-      return true;
-    } else if (StringUtils.equals(SpaceIdentityProvider.NAME, requestedOwner.getProviderId())) {
-      if (spaceService.isSuperManager(username)) {
-        return true;
-      } else {
-        Space space = spaceService.getSpaceByPrettyName(requestedOwner.getRemoteId());
-        if (!spaceService.isMember(space, username)) {
-          throw new IllegalAccessException("User " + username + " is not allowed to retrieve calendar data of space "
-              + requestedOwner.getRemoteId());
-        }
-        boolean isManager = spaceService.isManager(space, username);
-        if (!readonly && !isManager) {
-          throw new IllegalAccessException("User " + username + " is not allowed to write calendar data of space "
-              + space.getDisplayName());
-        }
-        return isManager;
+    } else if (requestedOwner.isSpace()) {
+      Space space = spaceService.getSpaceByPrettyName(requestedOwner.getRemoteId());
+      if (!spaceService.canManageSpace(space, username)) {
+        throw new IllegalAccessException("User " + username + " is not allowed to write calendar data of space " +
+            space.getDisplayName());
       }
     } else {
-      throw new IllegalStateException("Identity with provider type '" + requestedOwner.getProviderId()
-          + "' is not managed in calendar owner field");
+      throw new IllegalStateException("Identity with provider type '" + requestedOwner.getProviderId() +
+          "' is not managed in calendar owner field");
     }
   }
 
@@ -349,23 +332,11 @@ public class Utils {
     Identity userIdentity = identityManager.getIdentity(String.valueOf(userIdentityId));
     if (userIdentity == null) {
       throw new IllegalStateException("User with id " + userIdentity + " wasn't found");
-    }
-
-    if (StringUtils.equals(OrganizationIdentityProvider.NAME, requestedOwner.getProviderId())) {
+    } else if (requestedOwner.isUser()) {
       return userIdentityId == Long.parseLong(requestedOwner.getId());
-    } else if (StringUtils.equals(SpaceIdentityProvider.NAME, requestedOwner.getProviderId())) {
-      boolean superManager = spaceService.isSuperManager(userIdentity.getRemoteId());
+    } else if (requestedOwner.isSpace()) {
       Space space = spaceService.getSpaceByPrettyName(requestedOwner.getRemoteId());
-      if (spaceService.isSuperManager(userIdentity.getRemoteId())) {
-        return true;
-      } else if (space == null) {
-        return false;
-      }
-      boolean isManager = space != null && spaceService.isManager(space, userIdentity.getRemoteId());
-      boolean isMember = space != null && spaceService.isMember(space, userIdentity.getRemoteId());
-      boolean isRedactor = space != null && spaceService.isRedactor(space, userIdentity.getRemoteId());
-      boolean spaceHasARedactor = space != null && space.getRedactors() != null && space.getRedactors().length > 0;
-      return isMember && (!spaceHasARedactor || isRedactor || isManager);
+      return spaceService.canRedactOnSpace(space, userIdentity.getRemoteId());
     } else {
       return false;
     }
@@ -386,9 +357,9 @@ public class Utils {
       return false;
     }
 
-    if (StringUtils.equals(OrganizationIdentityProvider.NAME, requestedOwner.getProviderId())) {
+    if (requestedOwner.isUser()) {
       return false;
-    } else if (StringUtils.equals(SpaceIdentityProvider.NAME, requestedOwner.getProviderId())) {
+    } else if (requestedOwner.isSpace()) {
       Space space = spaceService.getSpaceByPrettyName(requestedOwner.getRemoteId());
       return space != null && (space.getRedactors() == null || space.getRedactors().length == 0);
     } else {
@@ -417,15 +388,11 @@ public class Utils {
       throw new IllegalStateException("User with id " + userIdentity + " wasn't found");
     }
 
-    if (StringUtils.equals(OrganizationIdentityProvider.NAME, requestedOwner.getProviderId())) {
+    if (requestedOwner.isUser()) {
       return userIdentityId == Long.parseLong(requestedOwner.getId());
-    } else if (StringUtils.equals(SpaceIdentityProvider.NAME, requestedOwner.getProviderId())) {
-      boolean superManager = spaceService.isSuperManager(userIdentity.getRemoteId());
+    } else if (requestedOwner.isSpace()) {
       Space space = spaceService.getSpaceByPrettyName(requestedOwner.getRemoteId());
-      boolean isManager = space != null && spaceService.isManager(space, userIdentity.getRemoteId());
-      boolean isRedactor = space != null && spaceService.isRedactor(space, userIdentity.getRemoteId());
-      boolean spaceHasARedactor = space != null && space.getRedactors() != null && space.getRedactors().length > 0;
-      return (spaceHasARedactor && isRedactor) || superManager || isManager;
+      return spaceService.canManageSpace(space, userIdentity.getRemoteId());
     } else {
       return false;
     }
@@ -451,17 +418,11 @@ public class Utils {
     Identity userIdentity = identityManager.getIdentity(String.valueOf(userIdentityId));
     if (userIdentity == null) {
       throw new IllegalStateException("User with id " + userIdentity + " wasn't found");
-    }
-
-    if (StringUtils.equals(OrganizationIdentityProvider.NAME, requestedOwner.getProviderId())) {
+    } else if (requestedOwner.isUser()) {
       return userIdentityId == Long.parseLong(requestedOwner.getId());
-    } else if (StringUtils.equals(SpaceIdentityProvider.NAME, requestedOwner.getProviderId())) {
-      if (spaceService.isSuperManager(userIdentity.getRemoteId())) {
-        return true;
-      } else {
-        Space space = spaceService.getSpaceByPrettyName(requestedOwner.getRemoteId());
-        return space != null && spaceService.isMember(space, userIdentity.getRemoteId());
-      }
+    } else if (requestedOwner.isSpace()) {
+      Space space = spaceService.getSpaceByPrettyName(requestedOwner.getRemoteId());
+      return spaceService.canViewSpace(space, userIdentity.getRemoteId());
     } else {
       return false;
     }
@@ -511,25 +472,22 @@ public class Utils {
     Identity userIdentity = identityManager.getIdentity(String.valueOf(identityId));
     if (userIdentity == null) {
       return false;
+    } else {
+      return eventAttendees != null
+             && eventAttendees.stream()
+                              .anyMatch(eventAttendee -> {
+                                if (identityId == eventAttendee.getIdentityId()) {
+                                  return true;
+                                } else if (userIdentity.isUser()) {
+                                  Identity identity = identityManager.getIdentity(String.valueOf(eventAttendee.getIdentityId()));
+                                  if (identity.isSpace()) {
+                                    Space space = spaceService.getSpaceByPrettyName(identity.getRemoteId());
+                                    return spaceService.canViewSpace(space, userIdentity.getRemoteId());
+                                  }
+                                }
+                                return false;
+                              });
     }
-
-    return eventAttendees != null
-        && eventAttendees.stream().anyMatch(eventAttendee -> {
-          if (identityId == eventAttendee.getIdentityId()) {
-            return true;
-          } else if (StringUtils.equals(userIdentity.getProviderId(), OrganizationIdentityProvider.NAME)) {
-            Identity identity = identityManager.getIdentity(String.valueOf(eventAttendee.getIdentityId()));
-            if (StringUtils.equals(identity.getProviderId(), SpaceIdentityProvider.NAME)) {
-              if (spaceService.isSuperManager(userIdentity.getRemoteId())) {
-                return true;
-              } else {
-                Space space = spaceService.getSpaceByPrettyName(identity.getRemoteId());
-                return spaceService.isMember(space, userIdentity.getRemoteId());
-              }
-            }
-          }
-          return false;
-        });
   }
 
   public static net.fortuna.ical4j.model.TimeZone getICalTimeZone(ZoneId zoneId) {
@@ -605,7 +563,7 @@ public class Utils {
     if (!newEvent.getTimeZoneId().equals(oldEvent.getTimeZoneId())) {
       eventModification.addModificationType(AgendaEventModificationType.TIMEZONE_UPDATED);
     }
-    if (!ObjectUtils.equals(newEvent.getRecurrence(), oldEvent.getRecurrence())) {
+    if (!Objects.equals(newEvent.getRecurrence(), oldEvent.getRecurrence())) {
       eventModification.addModificationType(AgendaEventModificationType.RECURRENCE_UPDATED);
     }
   }
