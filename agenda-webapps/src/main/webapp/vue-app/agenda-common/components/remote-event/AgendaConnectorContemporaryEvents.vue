@@ -2,8 +2,20 @@
   <div>
     <div class="d-flex">
       <div class="d-flex flex-column width-full">
-        <div class="d-flex text-no-wrap text-truncate font-weight-bold text-title-color">
-          {{ $t('agenda.personalCalendar') }}
+        <div class="d-flex">
+          <div class="text-no-wrap text-truncate font-weight-bold text-title-color">
+            {{ $t('agenda.personalCalendar') }}
+          </div>
+          <div v-if="!connectedConnector" class="text-right flex-grow-1" @click="openPersonalCalendarDrawer">
+            <v-icon class="uiIcon20x20 clickable" depressed>
+              fa-external-link-alt
+            </v-icon>
+          </div>
+          <div v-else class="text-right flex-grow-1" @click="downloadICS">
+            <v-icon class="uiIcon20x20 clickable" depressed>
+              fa-calendar-plus
+            </v-icon>
+          </div>
         </div>
         <div :class="{ 'd-flex': enabledconnectors }">
           <v-avatar
@@ -21,17 +33,10 @@
           </a>
           <div
             v-else
-            class="text-subtitle d-block">
-            <div>
+            class="text-subtitle d-flex">
+            <div class="pe-6">
               {{ $t('agenda.synchronizeEventsWithPersonalCalendarSubTitle') }}
             </div>
-            <div class="text-center">
-              <v-btn
-                class="btn primary-border-color primary--text remote-event mt-3 justify-content-center"
-                @click="openPersonalCalendarDrawer">
-                {{ $t('agenda.connect') }}
-              </v-btn>
-           </div>
           </div>
         </div>
         <template v-if="loading || connectedConnectorLoading">
@@ -218,6 +223,9 @@ export default {
         this.remoteEvents = [];
       }
     },
+    downloadICS() {
+      this.$emit('download-ics', this.event);
+    }
   }
 };
 </script>
