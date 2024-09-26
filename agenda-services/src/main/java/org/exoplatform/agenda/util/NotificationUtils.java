@@ -848,7 +848,7 @@ public class NotificationUtils {
   }
 
   private static final String getEventNotificationCreatorOrModifierUserName(Identity identity) {
-    String fullName = Arrays.stream(identity.getProfile().getFullName().split(" "))
+    String fullName = Arrays.stream(identity.getProfile().getFullName().split(" +"))
             .map(t -> t.substring(0, 1).toUpperCase() + t.substring(1))
             .collect(Collectors.joining(" "));
     if(Utils.isExternal(identity.getRemoteId())) {
