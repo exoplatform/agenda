@@ -144,8 +144,13 @@
       min-height: 40px;
     }
 
-    .event-form-body > * {
-      max-width: ~"calc(50% - 21px)";
+    .event-form-body-left {
+      min-width: ~"calc(100% - 404px)";
+      max-width: ~"calc(100% - 404px)";
+    }
+    .event-form-body-right {
+      min-width: 404px;
+      max-width: 404px;
     }
 
     .event-form-body-left > * {
@@ -837,6 +842,19 @@
         .event-details-body-right {
           min-width: 404px !important;
         }
+       .event-details-body-left {
+         min-width: 100% !important;
+       }
+      }
+    }
+    .event-form  {
+      .event-form-body-left {
+        min-width: 100%;
+        max-width: 100%;
+      }
+      .event-form-body-right {
+        min-width: 404px;
+        max-width: 100%;
       }
     }
   }
