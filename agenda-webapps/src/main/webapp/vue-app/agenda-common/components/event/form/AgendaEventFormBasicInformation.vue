@@ -75,7 +75,7 @@
             v-model="event.description"
             :placeholder="$t('agenda.descriptionPlaceholder')"
             :max-length="eventDescriptionTextLength"
-            :tag-enabled="true"
+            :tag-enabled="false"
             class="pt-2 width-full"/>
         </div>
       </div>
