@@ -124,6 +124,8 @@ export default {
     this.$root.$on('agenda-refresh', this.retrieveEvents);
     this.$root.$on('agenda-event-saved', this.retrieveEvents);
     this.$root.$on('agenda-event-deleted', this.retrieveEvents);
+    this.$root.$on('agenda-event-change-owner', this.refreshProviders);
+
 
     this.spaceId = eXo.env.portal.spaceId;
 
