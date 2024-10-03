@@ -448,9 +448,6 @@
   }
 
   .event-details-body {
-    .event-details-body-right{
-      max-width: 404px !important;
-    }
     .event-time {
       .uiIconClock.uiIcon32x32:before {
         font-size: 26px;
@@ -828,14 +825,20 @@
     .event-details {
       .event-details-body {
         .event-details-body-right {
-          min-width: 404px !important;
+          min-width: 384px !important;
+        }
+        .event-details-body-left {
+          min-width: ~"calc(100% - 424px)";
         }
       }
     }
     .event-form {
       .event-form-body {
         .event-form-body-right {
-          max-width: 396px !important;
+          min-width: 376px !important;
+        }
+        .event-form-body-left {
+          min-width: ~"calc(100% - 416px)";
         }
       }
     }
