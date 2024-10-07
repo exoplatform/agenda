@@ -516,6 +516,11 @@
       border-right: 2px solid #fff;
       box-sizing: border-box;
       margin-right: -2px;
+      text-align: ~'left;  /** orientation=lt */ ';
+      text-align: ~'right;  /** orientation=rt */ ';
+      em {
+        font-style: normal;
+      }
     }
     th, td {
       -webkit-user-select: none;
@@ -829,6 +834,7 @@
         }
         .event-details-body-left {
           min-width: ~"calc(100% - 424px)";
+          max-width: calc(100% - 424px);
         }
       }
     }
