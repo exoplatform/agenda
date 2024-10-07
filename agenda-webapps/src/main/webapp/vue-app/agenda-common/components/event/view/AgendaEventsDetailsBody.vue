@@ -139,7 +139,7 @@
             class="mt-4 mr-auto width-full"
             @download-ics="downloadICS"/>
           <agenda-ics
-            v-if="addToMyAgenda"
+            v-if="addToMyAgenda && !connectedConnector"
             :settings="settings"
             :event="event"
             :connectors="enabledconnectors"
