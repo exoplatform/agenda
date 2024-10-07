@@ -8,7 +8,7 @@
         class="event-date-options-table mx-auto">
         <caption>
           <em v-if="event.description">
-            <div v-sanitized-html="event.description" class="text-center font-italic subtitle-1 text-wrap pb-4 rich-editor-content">
+            <div v-sanitized-html="event.description" class="subtitle-1 text-wrap pb-4 rich-editor-content">
               {{ event.description }}
             </div>
           </em>
