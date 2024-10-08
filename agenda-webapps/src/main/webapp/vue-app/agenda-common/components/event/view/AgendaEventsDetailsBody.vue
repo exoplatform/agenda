@@ -317,61 +317,28 @@ export default {
         return date ? `${new Date(date).toISOString().replace(/[-:]/g, '').split('.')[0]}Z` : '';
       };
 
-      const replaceHtmlTags = (html) => {
-        html = html.replace(/<a\s+href="([^"]+)"[^>]*>(.*?)<\/a>/gi, '$2 ($1)');
-        html = html.replace(/<\/?[^>]+(>|$)/g, '');
-        html = html.replace(/\n{2,}/g, '\n').trim();
-        return html;
-      };
       const foldLine = (line) => {
         const maxLength = 70;
         if (line.length <= maxLength) { return line; }
         let result = '';
         while (line.length > maxLength) {
-          result += `${line.substring(0, maxLength)}\r\n `;
-          line = line.substring(maxLength);
+          result += `${line.substring(0, maxLength)}\n`;
+          line = ` ${line.substring(maxLength)}`;
         }
         return result + line;
       };
 
-      const foldDescription = (text) => {
-        const maxLength = 60;
-        const lines = text.split('\n');
-        let result = '';
-        lines.forEach(line => {
-          let currentLine = '';
-          const words = line.split(' ');
-          words.forEach(word => {
-            if (currentLine.length + word.length + 1 > maxLength) {
-              result += `${currentLine.trim()}\n`;
-              currentLine = `${word} `;
-            } else {
-              currentLine += `${word} `;
-            }
-          });
-
-          result += `${currentLine.trim()}\n`;
-        });
-        return result.trim();
-      };
-
       const confurl = (event.conferences && event.conferences.length > 0) ? event.conferences[0].url : '';
-      const htmlDescription = `<html><body>${this.$t('agenda.invitationText')} <b>${event.creator.dataEntity.profile.fullname}</b> ${this.$t('agenda.inSpace')} <b>${event.calendar.title}.</b>
-      ${confurl ? `<br><b>${this.$t('agenda.visioLink')}</b> <a href="${confurl}">${confurl}</a>` : ''}
-      ${event.description ? `<br><br><b>${this.$t('agenda.eventDetail')}</b><br>${event.description}</body></html>` : ''}
-      `.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
-
-      const plainTextEventDescription = event.description ? replaceHtmlTags(event.description) : '';
-      const plainTextDescription = `${this.$t('agenda.invitationText')} ${event.creator.dataEntity.profile.fullname} ${this.$t('agenda.inSpace')} ${event.calendar.title}.
-      ${confurl ? `${this.$t('agenda.visioLink')} ${confurl}` : ''}
-      ${event.description ? `\n${this.$t('agenda.eventDetail')}\n${foldDescription(plainTextEventDescription)}` : ''}
-      `.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+      const htmlDescription = `<html><body>${this.$t('agenda.invitationText')} <b>${event.creator.dataEntity.profile.fullname}</b> ${this.$t('agenda.inSpace')} <b>${event.calendar.title}.</b>\
+      ${confurl ? `<br><br><b>${this.$t('agenda.visioLink')}</b> <a href="${confurl}">${confurl}</a>` : ''}\
+      ${event.description ? `<br><br><b>${this.$t('agenda.eventDetail')}</b><br>${event.description.replaceAll('\n', '')}</body></html>` : ''}`
+        .trim().replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
 
       const brandingInformation = await this.$brandingService.getBrandingInformation();
       const icsContent = 'BEGIN:VCALENDAR\r\n' +
         'CALSCALE:GREGORIAN\r\n' +
         'METHOD:PUBLISH\r\n' +
-        `PRODID:-//${brandingInformation.siteName}//EN\r\n` +
+        `PRODID:-//${brandingInformation.siteName}//${brandingInformation.companyName}//EN\r\n` +
         'VERSION:2.0\r\n' +
         'BEGIN:VEVENT\r\n' +
         `UID:${event.id || ''}\r\n` +
@@ -380,10 +347,9 @@ export default {
         `DTSTART:${formatDate(event.startDate)}\r\n` +
         `DTEND:${formatDate(event.endDate)}\r\n` +
         `SUMMARY:${event.summary || ''}\r\n` +
-        `DESCRIPTION:${plainTextDescription || ''}\r\n` +
-        `DESCRIPTION,ALTREP:"data:text/html,${encodeURI(htmlDescription)}":${plainTextDescription}` +
-        `X-ALT-DESC;FMTTYPE=text/html:${htmlDescription}` +
-        `LOCATION:${event.location || ''}` +
+        `DESCRIPTION:${htmlDescription || ''}\r\n` +
+        `X-ALT-DESC;FMTTYPE=text/html:${htmlDescription}\n` +
+        `LOCATION:${event.location || ''}\n` +
         `URL:${confurl}\r\n` +
         `ORGANIZER;CN=${event.creator.dataEntity.profile.fullname}:MAILTO:${event.creator.dataEntity.profile.email}\r\n` +
         'END:VEVENT\r\n' +
