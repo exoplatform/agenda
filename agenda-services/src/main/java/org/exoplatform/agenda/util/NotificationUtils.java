@@ -7,7 +7,6 @@ import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.time.*;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -16,7 +15,6 @@ import net.fortuna.ical4j.data.CalendarOutputter;
 import net.fortuna.ical4j.model.DateTime;
 import net.fortuna.ical4j.model.ParameterList;
 import net.fortuna.ical4j.model.component.VEvent;
-import net.fortuna.ical4j.model.parameter.AltRep;
 import net.fortuna.ical4j.model.parameter.Cn;
 import net.fortuna.ical4j.model.property.*;
 import net.fortuna.ical4j.util.RandomUidGenerator;
@@ -38,6 +36,7 @@ import org.exoplatform.commons.api.notification.plugin.NotificationPluginUtils;
 import org.exoplatform.commons.api.notification.service.template.TemplateContext;
 import org.exoplatform.commons.notification.template.TemplateUtils;
 import org.exoplatform.commons.utils.CommonsUtils;
+import org.exoplatform.commons.utils.HTMLEntityEncoder;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.services.log.ExoLogger;
@@ -935,36 +934,24 @@ public class NotificationUtils {
     organizer.getParameters().add(new Cn(eventCreator));
     calendar.getProperties().add(organizer);
 
+    HTMLEntityEncoder htmlEntityEncoder = HTMLEntityEncoder.getInstance();
     Locale userLocale = Locale.of(Utils.getUserLanguage(notification.getTo()));
-    String plainTextContent = getResourceBundleLabel(userLocale, "agenda.invitationText") + " " + eventCreator +
-            " " + getResourceBundleLabel(userLocale, "agenda.inSpace") + " " + spaceName + ". \n"
-            + (eventConference != null ? getResourceBundleLabel(userLocale, "agenda.visioLink") + " " +  eventConference : "");
     String htmlContent = "<html><body>" +
-            getResourceBundleLabel(userLocale, "agenda.invitationText") + " " + " <b>" + eventCreator
-            + "</b> " +  getResourceBundleLabel(userLocale, "agenda.inSpace") + " <b>" + spaceName + "</b>. "
-            + ( eventConference != null ? "<br><b>" + getResourceBundleLabel(userLocale, "agenda.visioLink") + " " + "</b> "
+            htmlEntityEncoder.encodeHTML(getResourceBundleLabel(userLocale, "agenda.invitationText")) + " " + " <b>" + eventCreator
+            + "</b> " +  htmlEntityEncoder.encodeHTML(getResourceBundleLabel(userLocale, "agenda.inSpace")) + " <b>" + spaceName + "</b>. "
+            + ( eventConference != null ? "<br><br><b>" + htmlEntityEncoder.encodeHTML(getResourceBundleLabel(userLocale, "agenda.visioLink")) + " " + "</b> "
             +  "<a href=\""+ eventConference + "\">"
             + eventConference + "</a>" :"");
     if (eventDescription != null && !eventDescription.isEmpty()) {
-      plainTextContent = plainTextContent + "\n \n " + getResourceBundleLabel(userLocale, "agenda.eventDetail") + ": \n" +
-              eventDescription.replaceAll("<a\\s+href=\"([^\"]+)\"[^>]*>(.*?)</a>", "$2 ($1)")
-                      .replaceAll("</?[^>]+(>|$)", "")
-                      .replaceAll("\\n{2,}", "\n").trim();
-      htmlContent = htmlContent + "<br><br>" + getResourceBundleLabel(userLocale, "agenda.eventDetail") + "<br>" + eventDescription;
+      htmlContent = htmlContent + "<br><br>" + htmlEntityEncoder.encodeHTML(getResourceBundleLabel(userLocale, "agenda.eventDetail")) + "<br>" + escapeEmoticons(eventDescription);
     }
-    vEvent.getProperties().add(new Description(plainTextContent));
+
     htmlContent = htmlContent + "</body></html>";
+    vEvent.getProperties().add(new Description(htmlContent));
     ParameterList parameters = new ParameterList();
     parameters.add(new net.fortuna.ical4j.model.parameter.XParameter("FMTTYPE", "text/html"));
     XProperty xProperty = new XProperty("X-ALT-DESC", parameters, htmlContent);
     vEvent.getProperties().add(xProperty);
-    try {
-      ParameterList params = new ParameterList();
-      params.add(new AltRep("data:text/html," + URLEncoder.encode(htmlContent, StandardCharsets.UTF_8)));
-      vEvent.getProperties().add(new Description(params, plainTextContent));
-    } catch (Exception e) {
-      LOG.error("Could not add the Altrep property for description field", e);
-    }
 
     /* Add event to calendar */
     calendar.getComponents().add(vEvent);
@@ -979,6 +966,13 @@ public class NotificationUtils {
     } catch (IOException e) {
       throw new IllegalStateException("Unable to convert event '" + eventSummary + "' to iCal format", e);
     }
+  }
+
+  public static String escapeEmoticons(String text) {
+    return text.codePoints()
+            .mapToObj(codePoint -> codePoint > 127 ? "&#x" + Integer.toHexString(codePoint) + ";"
+                                                   : new String(Character.toChars(codePoint)))
+            .collect(Collectors.joining());
   }
 
 }
