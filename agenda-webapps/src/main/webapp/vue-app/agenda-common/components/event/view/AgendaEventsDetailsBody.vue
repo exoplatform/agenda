@@ -363,6 +363,7 @@ export default {
       return processAndFoldText(icsContent);
     },
     downloadICS(event) {
+      event = this.$agendaUtils.convertDates(event);
       return this.generateICS(event).then(icsContent => {
         const blob = new Blob([icsContent], { type: 'text/calendar' });
         const link = document.createElement('a');
