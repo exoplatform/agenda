@@ -8,8 +8,7 @@
           </div>
           <div v-if="!connectedConnector" class="text-right flex-grow-1" @click="openPersonalCalendarDrawer"
                :title="$t('agenda.connectYourPersonalAgenda')"
-               :aria-label="$t('agenda.icsbutton')"
-               >
+               :aria-label="$t('agenda.connectYourPersonalAgenda')">
             <v-icon class="uiIcon20x20 clickable" depressed>
               fa-external-link-alt
             </v-icon>
