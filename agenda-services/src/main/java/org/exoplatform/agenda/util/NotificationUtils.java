@@ -4,8 +4,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.net.URI;
-import java.net.URLEncoder;
+import java.net.*;
 import java.nio.charset.Charset;
 import java.time.*;
 import java.util.*;
@@ -38,6 +37,7 @@ import org.exoplatform.commons.notification.template.TemplateUtils;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.commons.utils.HTMLEntityEncoder;
 import org.exoplatform.container.ExoContainerContext;
+import org.exoplatform.portal.branding.BrandingService;
 import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -902,13 +902,13 @@ public class NotificationUtils {
   }
   public static final void addIcsFile(NotificationInfo notification, MessageInfo messageInfo, ZoneId timeZone) {
     IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
+    BrandingService brandingService = ExoContainerContext.getService(BrandingService.class);
     SpaceService spaceService = ExoContainerContext.getService(SpaceService.class);
     String ownerId = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_OWNER_ID);
     Identity identity = identityManager.getIdentity(ownerId);
     Space space = identity!=null ? spaceService.getSpaceByPrettyName(identity.getRemoteId()) : null;
     String spaceName = space == null ? null : space.getDisplayName();
     String eventConference = notification.getValueOwnerParameter(TEMPLATE_VARIABLE_EVENT_CONFERENCE);
-    String eventCreator = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_CREATOR);
       Attachment attachment = new Attachment();
     /* Generate unique identifier */
     UidGenerator ug = new RandomUidGenerator();
@@ -927,13 +927,32 @@ public class NotificationUtils {
     vEvent.getProperties().add(uid);
     /* Create calendar */
     net.fortuna.ical4j.model.Calendar calendar = new net.fortuna.ical4j.model.Calendar();
-    calendar.getProperties().add(new ProdId("PRODID:-//eXo Plaform//EN"));
+    calendar.getProperties().add(new ProdId("PRODID:-//"+ brandingService.getSiteName() + "//" + brandingService.getCompanyName() + "//EN"));
     calendar.getProperties().add(Version.VERSION_2_0);
     calendar.getProperties().add(CalScale.GREGORIAN);
-    Organizer organizer = new Organizer(URI.create("noreply@noreply.com"));
-    organizer.getParameters().add(new Cn(eventCreator));
-    calendar.getProperties().add(organizer);
 
+    String eventModifierId = notification.getValueOwnerParameter(STORED_PARAMETER_MODIFIER_IDENTITY_ID);
+    String eventCreator = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_CREATOR);
+    Identity eventCreatorIdentity = identityManager.getIdentity(eventModifierId);
+    if(eventCreatorIdentity != null) {
+      Organizer organizer = new Organizer(URI.create(eventCreatorIdentity.getProfile().getEmail()));
+      organizer.getParameters().add(new Cn(eventCreatorIdentity.getProfile().getFullName()));
+      vEvent.getProperties().add(organizer);
+    }
+    String location = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_LOCATION);
+    if(StringUtils.isNotBlank(location)) {
+      vEvent.getProperties().add(new Location(location));
+    }
+    URI eventUrl;
+    String eventURIParam = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL);
+    if(StringUtils.isNotBlank(eventURIParam)) {
+      try {
+        eventUrl = new URI(eventURIParam);
+        vEvent.getProperties().add(new Url(eventUrl));
+      } catch (URISyntaxException use) {
+        // Nothing to do, we simply ignore the URL
+      }
+    }
     HTMLEntityEncoder htmlEntityEncoder = HTMLEntityEncoder.getInstance();
     Locale userLocale = Locale.of(Utils.getUserLanguage(notification.getTo()));
     String htmlContent = "<html><body>" +
