@@ -46,10 +46,8 @@ import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
-import org.exoplatform.social.core.service.LinkProvider;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
-import org.exoplatform.social.notification.LinkProviderUtils;
 import org.exoplatform.social.notification.plugin.SocialNotificationUtils;
 import org.exoplatform.webui.utils.TimeConvertUtils;
 
@@ -452,7 +450,7 @@ public class NotificationUtils {
     setNotificationId(notification, templateContext);
     setLasModifiedTime(notification, templateContext, language);
 
-    setIdentityNameAndAvatar(spaceService, notification, templateContext);
+    setIdentityName(spaceService, notification);
     setSpaceName(notification, templateContext);
     setEventDetails(templateContext, notification, timeZone);
     setIsGuest(username, templateContext);
@@ -510,7 +508,7 @@ public class NotificationUtils {
     setNotificationId(notification, templateContext);
     setLasModifiedTime(notification, templateContext, language);
 
-    setIdentityNameAndAvatar(spaceService, notification, templateContext);
+    setIdentityName(spaceService, notification);
     setEventDetails(templateContext, notification, timeZone);
 
     templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
@@ -547,7 +545,7 @@ public class NotificationUtils {
     setNotificationId(notification, templateContext);
     setLasModifiedTime(notification, templateContext, language);
     setSpaceName(notification, templateContext);
-    setIdentityNameAndAvatar(spaceService, notification, templateContext);
+    setIdentityName(spaceService, notification);
     setEventDatePollDetails(templateContext, notification);
 
     templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
@@ -727,25 +725,15 @@ public class NotificationUtils {
     }
   }
 
-  private static final void setIdentityNameAndAvatar(SpaceService spaceService,
-                                                     NotificationInfo notification,
-                                                     TemplateContext templateContext) {
+  private static final void setIdentityName(SpaceService spaceService,
+                                            NotificationInfo notification) {
     String ownerId = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_OWNER_ID);
     IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
     Identity identity = identityManager.getIdentity(ownerId);
-    String avatarUrl = null;
-    if (identity == null) {
-      avatarUrl = LinkProvider.SPACE_DEFAULT_AVATAR_URL;
-    } else {
-      if (SpaceIdentityProvider.NAME.equals(identity.getProviderId())) {
-        Space space = spaceService.getSpaceByPrettyName(identity.getRemoteId());
-        notification.setSpaceId(Long.parseLong(space.getId()));
-        avatarUrl = LinkProviderUtils.getSpaceAvatarUrl(space);
-      } else {
-        avatarUrl = LinkProviderUtils.getUserAvatarUrl(identity.getProfile());
-      }
+    if (identity != null && SpaceIdentityProvider.NAME.equals(identity.getProviderId())) {
+      Space space = spaceService.getSpaceByPrettyName(identity.getRemoteId());
+      notification.setSpaceId(Long.parseLong(space.getId()));
     }
-    templateContext.put(TEMPLATE_VARIABLE_SUFFIX_IDENTITY_AVATAR, avatarUrl);
   }
 
   private static final void setIsGuest(String username, TemplateContext templateContext) {
