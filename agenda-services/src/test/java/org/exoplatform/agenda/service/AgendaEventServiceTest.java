@@ -3297,7 +3297,8 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     notification.with(STORED_PARAMETER_EVENT_TITLE, "eventSummary")
             .with(STORED_PARAMETER_EVENT_CREATOR, "Root Root")
             .with(STORED_PARAMETER_EVENT_START_DATE, AgendaDateUtils.toRFC3339Date(start))
-            .with(STORED_PARAMETER_EVENT_END_DATE, AgendaDateUtils.toRFC3339Date(end));
+            .with(STORED_PARAMETER_EVENT_END_DATE, AgendaDateUtils.toRFC3339Date(end))
+            .with(STORED_PARAMETER_EVENT_LOCATION, "eXo office, Earth");
 
     MessageInfo messageInfo = new MessageInfo();
     addIcsFile(notification, messageInfo, dstTimeZone);
