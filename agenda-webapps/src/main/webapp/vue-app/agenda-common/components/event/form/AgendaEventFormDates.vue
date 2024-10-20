@@ -461,7 +461,7 @@ export default {
       ownerIdentityPromise
         .then(ownerIdentity => {
           const ownerIds = ownerIdentity && ownerIdentity.id ? [ownerIdentity.id] : [];
-          return this.$eventService.getEvents(null, ownerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, true), this.$agendaUtils.toRFC3339(this.period.end), this.limit, null);
+          return this.$eventService.getEvents(null, ownerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, true), this.$agendaUtils.toRFC3339(this.period.end), this.limit, null, 'attendees, conferences');
         })
         .then(data => {
           const events = data && data.events || [];
