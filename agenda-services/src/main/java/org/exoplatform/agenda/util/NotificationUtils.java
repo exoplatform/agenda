@@ -1,9 +1,6 @@
 package org.exoplatform.agenda.util;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.net.*;
 import java.nio.charset.Charset;
 import java.time.*;
@@ -41,7 +38,6 @@ import org.exoplatform.portal.branding.BrandingService;
 import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
-import org.exoplatform.services.mail.Attachment;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
@@ -888,98 +884,6 @@ public class NotificationUtils {
     }
 
   }
-  public static final void addIcsFile(NotificationInfo notification, MessageInfo messageInfo, ZoneId timeZone) {
-    IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
-    BrandingService brandingService = ExoContainerContext.getService(BrandingService.class);
-    SpaceService spaceService = ExoContainerContext.getService(SpaceService.class);
-    String ownerId = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_OWNER_ID);
-    Identity identity = identityManager.getIdentity(ownerId);
-    Space space = identity!=null ? spaceService.getSpaceByPrettyName(identity.getRemoteId()) : null;
-    String spaceName = space == null ? null : space.getDisplayName();
-    String eventConference = notification.getValueOwnerParameter(TEMPLATE_VARIABLE_EVENT_CONFERENCE);
-      Attachment attachment = new Attachment();
-    /* Generate unique identifier */
-    UidGenerator ug = new RandomUidGenerator();
-    Uid uid = ug.generateUid();
-    /* Create the event */
-    String eventSummary = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_TITLE);
-    String eventDescription = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_DESCRIPTION);
-    String startDateRFC3339 = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_START_DATE);
-    String endDateRFC3339 = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_END_DATE);
-    ZonedDateTime startDate = ZonedDateTime.parse(startDateRFC3339).withZoneSameInstant(timeZone);
-    ZonedDateTime endDate = ZonedDateTime.parse(endDateRFC3339).withZoneSameInstant(timeZone);
-    net.fortuna.ical4j.model.TimeZone ical4jTimezone = getICalTimeZone(timeZone);
-    DateTime startDateTime = new DateTime(Date.from(startDate.toInstant()), ical4jTimezone);
-    DateTime endDateTime = new DateTime(Date.from(endDate.toInstant()), ical4jTimezone);
-    VEvent vEvent = new VEvent(startDateTime, endDateTime, eventSummary);
-    vEvent.getProperties().add(uid);
-    /* Create calendar */
-    net.fortuna.ical4j.model.Calendar calendar = new net.fortuna.ical4j.model.Calendar();
-    calendar.getProperties().add(new ProdId("PRODID:-//"+ brandingService.getSiteName() + "//" + brandingService.getCompanyName() + "//EN"));
-    calendar.getProperties().add(Version.VERSION_2_0);
-    calendar.getProperties().add(CalScale.GREGORIAN);
 
-    String eventModifierId = notification.getValueOwnerParameter(STORED_PARAMETER_MODIFIER_IDENTITY_ID);
-    String eventCreator = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_CREATOR);
-    Identity eventCreatorIdentity = identityManager.getIdentity(eventModifierId);
-    if(eventCreatorIdentity != null) {
-      Organizer organizer = new Organizer(URI.create(eventCreatorIdentity.getProfile().getEmail()));
-      organizer.getParameters().add(new Cn(eventCreatorIdentity.getProfile().getFullName()));
-      vEvent.getProperties().add(organizer);
-    }
-    String location = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_LOCATION);
-    if(StringUtils.isNotBlank(location)) {
-      vEvent.getProperties().add(new Location(location));
-    }
-    URI eventUrl;
-    String eventURIParam = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL);
-    if(StringUtils.isNotBlank(eventURIParam)) {
-      try {
-        eventUrl = new URI(eventURIParam);
-        vEvent.getProperties().add(new Url(eventUrl));
-      } catch (URISyntaxException use) {
-        // Nothing to do, we simply ignore the URL
-      }
-    }
-    HTMLEntityEncoder htmlEntityEncoder = HTMLEntityEncoder.getInstance();
-    Locale userLocale = Locale.of(Utils.getUserLanguage(notification.getTo()));
-    String htmlContent = "<html><body>" +
-            htmlEntityEncoder.encodeHTML(getResourceBundleLabel(userLocale, "agenda.invitationText")) + " " + " <b>" + eventCreator
-            + "</b> " +  htmlEntityEncoder.encodeHTML(getResourceBundleLabel(userLocale, "agenda.inSpace")) + " <b>" + spaceName + "</b>. "
-            + ( eventConference != null ? "<br><br><b>" + htmlEntityEncoder.encodeHTML(getResourceBundleLabel(userLocale, "agenda.visioLink")) + " " + "</b> "
-            +  "<a href=\""+ eventConference + "\">"
-            + eventConference + "</a>" :"");
-    if (eventDescription != null && !eventDescription.isEmpty()) {
-      htmlContent = htmlContent + "<br><br>" + htmlEntityEncoder.encodeHTML(getResourceBundleLabel(userLocale, "agenda.eventDetail")) + "<br>" + escapeEmoticons(eventDescription);
-    }
-
-    htmlContent = htmlContent + "</body></html>";
-    vEvent.getProperties().add(new Description(htmlContent));
-    ParameterList parameters = new ParameterList();
-    parameters.add(new net.fortuna.ical4j.model.parameter.XParameter("FMTTYPE", "text/html"));
-    XProperty xProperty = new XProperty("X-ALT-DESC", parameters, htmlContent);
-    vEvent.getProperties().add(xProperty);
-
-    /* Add event to calendar */
-    calendar.getComponents().add(vEvent);
-    CalendarOutputter outputter = new CalendarOutputter();
-    ByteArrayOutputStream output = new ByteArrayOutputStream();
-    try {
-      outputter.output(calendar, output);
-      byte[] bytes = output.toByteArray();
-      attachment.setInputStream(new ByteArrayInputStream(bytes));
-      attachment.setMimeType("text/calendar;charset=utf-8;method=PUBLISH");
-      messageInfo.addAttachment(attachment);
-    } catch (IOException e) {
-      throw new IllegalStateException("Unable to convert event '" + eventSummary + "' to iCal format", e);
-    }
-  }
-
-  public static String escapeEmoticons(String text) {
-    return text.codePoints()
-            .mapToObj(codePoint -> codePoint > 127 ? "&#x" + Integer.toHexString(codePoint) + ";"
-                                                   : new String(Character.toChars(codePoint)))
-            .collect(Collectors.joining());
-  }
 
 }

@@ -1,9 +1,11 @@
 package org.exoplatform.agenda.notification.builder;
 
 import static org.exoplatform.agenda.util.NotificationUtils.*;
+import static org.exoplatform.agenda.util.Utils.generateIcsFile;
 
 import java.io.*;
 import java.time.*;
+import java.util.Locale;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -22,6 +24,7 @@ import org.exoplatform.container.ExoContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
+import org.exoplatform.services.mail.Attachment;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.spi.SpaceService;
 
@@ -121,7 +124,35 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
       MessageInfo messageInfo = new MessageInfo();
       messageInfo.subject(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_TITLE));
       messageInfo.body(TemplateUtils.processGroovy(templateContext));
-      addIcsFile(notification, messageInfo, timeZone);
+
+      String ownerId = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_OWNER_ID);
+      String eventSummary = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_TITLE);
+      String eventDescription = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_DESCRIPTION);
+      String startDateRFC3339 = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_START_DATE);
+      String endDateRFC3339 = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_END_DATE);
+      String eventConference = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_CONFERENCE);
+      String eventModifierId = notification.getValueOwnerParameter(STORED_PARAMETER_MODIFIER_IDENTITY_ID);
+      String eventCreator = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_CREATOR);
+      String location = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_LOCATION);
+      Locale userLocale = Locale.of(Utils.getUserLanguage(notification.getTo()));
+
+      Attachment attachment = new Attachment();
+      byte[] icsFileBytes = generateIcsFile(ownerId,
+                                       eventSummary,
+                                       eventDescription,
+                                       startDateRFC3339,
+                                       endDateRFC3339,
+                                       eventConference,
+                                       eventModifierId,
+                                       eventCreator,
+                                       location,
+                                       userLocale,
+                                       timeZone);
+      attachment.setInputStream(new ByteArrayInputStream(icsFileBytes));
+      attachment.setMimeType("text/calendar;charset=utf-8;method=PUBLISH");
+      messageInfo.addAttachment(attachment);
+
+
       Throwable exception = templateContext.getException();
       logException(notification, exception);
       ctx.setException(exception);

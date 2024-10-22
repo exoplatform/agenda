@@ -17,8 +17,10 @@
 package org.exoplatform.agenda.service;
 
 import static org.exoplatform.agenda.util.NotificationUtils.*;
+import static org.exoplatform.agenda.util.Utils.generateIcsFile;
 import static org.junit.Assert.*;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.*;
@@ -27,6 +29,7 @@ import java.util.*;
 import org.exoplatform.commons.api.notification.model.MessageInfo;
 import org.exoplatform.commons.api.notification.model.NotificationInfo;
 
+import org.exoplatform.services.mail.Attachment;
 import org.junit.Test;
 
 import org.exoplatform.agenda.constant.*;
@@ -3301,7 +3304,22 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
             .with(STORED_PARAMETER_EVENT_LOCATION, "eXo office, Earth");
 
     MessageInfo messageInfo = new MessageInfo();
-    addIcsFile(notification, messageInfo, dstTimeZone);
+    Attachment attachment = new Attachment();
+
+    byte[] icsContent = generateIcsFile("ownerId",
+            "eventSummary",
+            "eventDescription",
+            AgendaDateUtils.toRFC3339Date(start),
+            AgendaDateUtils.toRFC3339Date(end),
+            "eventConference",
+            "eventModifierId",
+            "eventCreator",
+            "location",
+            Locale.getDefault(),
+            dstTimeZone);
+    attachment.setMimeType("text/calendar;charset=utf-8;method=PUBLISH");
+    attachment.setInputStream(new ByteArrayInputStream(icsContent));
+    messageInfo.addAttachment(attachment);
     assertNotNull(messageInfo.getAttachment());
     assertEquals(1, messageInfo.getAttachment().size());
     String text = new String(messageInfo.getAttachment().get(0).getInputStream().readAllBytes(), StandardCharsets.UTF_8);

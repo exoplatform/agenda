@@ -487,6 +487,18 @@ export function countPendingEvents(ownerId) {
   });
 }
 
+export function generateICS(eventId, identityId, timeZoneId) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/ics?eventId=${eventId}&identityId=${identityId}&timeZoneId=${timeZoneId}`, {
+    method: 'GET',
+    credentials: 'include',
+  }).then((resp) => {
+    if (resp && resp.ok) {
+      return resp.text();
+    } else {
+      throw new Error(`Error getting ICS content for event ${eventId}`);
+    }
+  });
+}
 function formatRecurrenceObject(event) {
   if (event.recurrence) {
     const recurrence = event.recurrence;
