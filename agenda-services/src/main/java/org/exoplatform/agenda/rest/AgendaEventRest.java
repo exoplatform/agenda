@@ -19,6 +19,7 @@ package org.exoplatform.agenda.rest;
 import static org.exoplatform.agenda.util.RestUtils.*;
 
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.time.*;
 import java.util.*;
 import java.util.concurrent.*;
@@ -1710,6 +1711,80 @@ public class AgendaEventRest implements ResourceContainer, Startable {
     } catch (Exception e) {
       LOG.warn("Error retrieving list of pending events", e);
       return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
+
+  @Path("ics")
+  @GET
+  @Produces(MediaType.TEXT_PLAIN)
+  @RolesAllowed("users")
+  @Operation(
+          summary = "Returns the ICS file generated from this event",
+          description = "Returns the ICS file generated from this event.",
+          method = "GET"
+  )
+  @ApiResponses(
+          value = {
+                  @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+                  @ApiResponse(responseCode = "400", description = "Invalid query parameters"),
+                  @ApiResponse(responseCode = "500", description = "Internal server error"),
+          }
+  )
+  public Response getICSOfEvent(
+          @Parameter(description= "The event Id")
+          @QueryParam(
+                  "eventId"
+          )
+          long eventId,
+          @Parameter(description= "the identity ID of the target user")
+          @QueryParam(
+                  "identityId"
+          )
+          long identityId,
+          @Parameter(description= "the timezone ID of the target user")
+          @QueryParam(
+                  "timeZoneId"
+          )
+          String timeZoneId) {
+    try {
+      if (eventId <= 0) {
+        return Response.status(Status.BAD_REQUEST).entity("the eventId param is required").build();
+      }
+      if (identityId <= 0) {
+        return Response.status(Status.BAD_REQUEST).entity("the identityId param is required").build();
+      }
+      if (StringUtils.isBlank(timeZoneId)) {
+        timeZoneId = TimeZone.getDefault().getID();
+      }
+
+      Identity targetUserIdentity = identityManager.getIdentity(String.valueOf(identityId));
+      Event event = agendaEventService.getEventById(eventId, ZoneId.of(timeZoneId), identityId);
+      String eventCreator = "";
+      Identity eventCreatorIdentity = identityManager.getIdentity(String.valueOf(event.getCreatorId()));
+      if (eventCreatorIdentity != null) {
+        eventCreator = eventCreatorIdentity.getProfile().getFullName();
+      }
+      List<EventConference> eventConferences = agendaEventConferenceService.getEventConferences(event.getId());
+      String conferenceURL = "";
+      if(eventConferences != null && !eventConferences.isEmpty()) {
+        conferenceURL = eventConferences.getFirst().getUrl();
+      }
+      byte[] iCSContent = Utils.generateIcsFile(String.valueOf(agendaCalendarService.getCalendarById(event.getCalendarId()).getOwnerId()),
+              event.getSummary(),
+              event.getDescription(),
+              AgendaDateUtils.toRFC3339Date(event.getStart()),
+              AgendaDateUtils.toRFC3339Date(event.getEnd()),
+              conferenceURL,
+              String.valueOf(event.getModifierId()),
+              eventCreator,
+              event.getLocation(),
+              Locale.of(Utils.getUserLanguage(targetUserIdentity.getRemoteId())),
+              ZoneId.of(timeZoneId));
+      return Response.ok(new String(iCSContent, StandardCharsets.UTF_8)).build();
+    } catch (Exception e) {
+      LOG.error("Could not generate ICS for event {}", eventId, e);
+      return Response.serverError().entity("Could not generate ICS for event " + eventId + " : " + e.getMessage()).build();
     }
   }
 

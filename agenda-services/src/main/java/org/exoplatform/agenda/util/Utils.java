@@ -16,12 +16,21 @@
 */
 package org.exoplatform.agenda.util;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.time.*;
 import java.util.*;
 import java.util.Date;
 import java.util.stream.Collectors;
 
+import net.fortuna.ical4j.data.CalendarOutputter;
 import net.fortuna.ical4j.model.Month;
+import net.fortuna.ical4j.model.parameter.Cn;
+import net.fortuna.ical4j.model.property.*;
+import net.fortuna.ical4j.util.RandomUidGenerator;
+import net.fortuna.ical4j.util.UidGenerator;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -30,8 +39,10 @@ import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.commons.utils.CommonsUtils;
+import org.exoplatform.commons.utils.HTMLEntityEncoder;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.container.ExoContainerContext;
+import org.exoplatform.portal.branding.BrandingService;
 import org.exoplatform.portal.localization.LocaleContextInfoUtils;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
@@ -52,7 +63,6 @@ import net.fortuna.ical4j.model.Period;
 import net.fortuna.ical4j.model.Recur.Frequency;
 import net.fortuna.ical4j.model.TimeZone;
 import net.fortuna.ical4j.model.component.VEvent;
-import net.fortuna.ical4j.model.property.RRule;
 
 public class Utils {
 
@@ -605,4 +615,97 @@ public class Utils {
             OrganizationIdentityProvider.NAME, userId);
     return userIdentity.getProfile() != null && userIdentity.getProfile().getProperty(Profile.EXTERNAL) != null && userIdentity.getProfile().getProperty(Profile.EXTERNAL).equals("true");
   }
+
+  public static byte[] generateIcsFile(String ownerId,
+                                       String eventSummary,
+                                       String eventDescription,
+                                       String startDateRFC3339,
+                                       String endDateRFC3339,
+                                       String eventConference,
+                                       String eventModifierId,
+                                       String eventCreatorFullName,
+                                       String location,
+                                       Locale userLocale,
+                                       ZoneId timeZone) {
+    IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
+    BrandingService brandingService = ExoContainerContext.getService(BrandingService.class);
+    SpaceService spaceService = ExoContainerContext.getService(SpaceService.class);
+
+    Identity identity = identityManager.getIdentity(ownerId);
+    Space space = identity!=null ? spaceService.getSpaceByPrettyName(identity.getRemoteId()) : null;
+    String spaceName = space == null ? null : space.getDisplayName();
+
+    /* Generate unique identifier */
+    UidGenerator ug = new RandomUidGenerator();
+    Uid uid = ug.generateUid();
+    ZonedDateTime startDate = ZonedDateTime.parse(startDateRFC3339).withZoneSameInstant(timeZone);
+    ZonedDateTime endDate = ZonedDateTime.parse(endDateRFC3339).withZoneSameInstant(timeZone);
+    net.fortuna.ical4j.model.TimeZone ical4jTimezone = getICalTimeZone(timeZone);
+    DateTime startDateTime = new DateTime(Date.from(startDate.toInstant()), ical4jTimezone);
+    DateTime endDateTime = new DateTime(Date.from(endDate.toInstant()), ical4jTimezone);
+    VEvent vEvent = new VEvent(startDateTime, endDateTime, eventSummary);
+    vEvent.getProperties().add(uid);
+    /* Create calendar */
+    net.fortuna.ical4j.model.Calendar calendar = new net.fortuna.ical4j.model.Calendar();
+    calendar.getProperties().add(new ProdId("PRODID:-//"+ brandingService.getSiteName() + "//" + brandingService.getCompanyName() + "//EN"));
+    calendar.getProperties().add(Version.VERSION_2_0);
+    calendar.getProperties().add(CalScale.GREGORIAN);
+
+    Identity eventOrganozerIdentity = identityManager.getIdentity(eventModifierId);
+    if(eventOrganozerIdentity != null) {
+      Organizer organizer = new Organizer(URI.create(eventOrganozerIdentity.getProfile().getEmail()));
+      organizer.getParameters().add(new Cn(eventOrganozerIdentity.getProfile().getFullName()));
+      vEvent.getProperties().add(organizer);
+    }
+    if(StringUtils.isNotBlank(location)) {
+      vEvent.getProperties().add(new Location(location));
+    }
+    URI eventUrl;
+    if(StringUtils.isNotBlank(eventConference)) {
+      try {
+        eventUrl = new URI(eventConference);
+        vEvent.getProperties().add(new Url(eventUrl));
+      } catch (URISyntaxException use) {
+        // Nothing to do, we simply ignore the URL
+      }
+    }
+    HTMLEntityEncoder htmlEntityEncoder = HTMLEntityEncoder.getInstance();
+    String htmlContent = "<html><body>" +
+            htmlEntityEncoder.encodeHTML(getResourceBundleLabel(userLocale, "agenda.invitationText")) + " " + " <b>" + eventCreatorFullName
+            + "</b> " +  htmlEntityEncoder.encodeHTML(getResourceBundleLabel(userLocale, "agenda.inSpace")) + " <b>" + spaceName + "</b>. "
+            + ( eventConference != null ? "<br><br><b>" + htmlEntityEncoder.encodeHTML(getResourceBundleLabel(userLocale, "agenda.visioLink")) + " " + "</b> "
+            +  "<a href=\""+ eventConference + "\">"
+            + eventConference + "</a>" :"");
+    if (eventDescription != null && !eventDescription.isEmpty()) {
+      htmlContent = htmlContent + "<br><br>" + htmlEntityEncoder.encodeHTML(getResourceBundleLabel(userLocale, "agenda.eventDetail")) + "<br>" + escapeEmoticons(eventDescription);
+    }
+
+    htmlContent = htmlContent + "</body></html>";
+    //trim and remove all line breaks
+    htmlContent = htmlContent.trim().replace("\n", "");
+    vEvent.getProperties().add(new Description(htmlContent));
+    ParameterList parameters = new ParameterList();
+    parameters.add(new net.fortuna.ical4j.model.parameter.XParameter("FMTTYPE", "text/html"));
+    XProperty xProperty = new XProperty("X-ALT-DESC", parameters, htmlContent);
+    vEvent.getProperties().add(xProperty);
+
+    /* Add event to calendar */
+    calendar.getComponents().add(vEvent);
+    CalendarOutputter outputter = new CalendarOutputter();
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+    try {
+      outputter.output(calendar, output);
+      return output.toByteArray();
+    } catch (IOException e) {
+      throw new IllegalStateException("Unable to convert event '" + eventSummary + "' to iCal format", e);
+    }
+  }
+
+  public static String escapeEmoticons(String text) {
+    return text.codePoints()
+            .mapToObj(codePoint -> codePoint > 127 ? "&#x" + Integer.toHexString(codePoint) + ";"
+                    : new String(Character.toChars(codePoint)))
+            .collect(Collectors.joining());
+  }
+
 }
