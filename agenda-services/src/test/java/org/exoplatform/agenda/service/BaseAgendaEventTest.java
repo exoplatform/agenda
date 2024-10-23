@@ -4,6 +4,7 @@ import java.time.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.RandomUtils;
 import org.junit.After;
 import org.junit.Before;
@@ -23,6 +24,7 @@ import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.social.core.space.SpaceUtils;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 
@@ -191,10 +193,10 @@ public abstract class BaseAgendaEventTest {
                                                                  CALENDAR_COLOR,
                                                                  null));
 
-    String displayName = "testSpaceAgenda" + RandomUtils.nextInt();
-    space = spaceService.getSpaceByDisplayName(displayName);
+    String prettyName = SpaceUtils.cleanString("testSpaceAgenda" + RandomUtils.nextInt());
+    space = spaceService.getSpaceByPrettyName(prettyName);
     if (space == null) {
-      space = createSpace(displayName,
+      space = createSpace(prettyName,
                           testuser1Identity.getRemoteId(),
                           testuser2Identity.getRemoteId(),
                           testuser3Identity.getRemoteId());
@@ -364,10 +366,13 @@ public abstract class BaseAgendaEventTest {
     newSpace.setDisplayName(displayName);
     newSpace.setPrettyName(displayName);
     newSpace.setManagers(new String[] { "root" });
-    newSpace.setMembers(members);
     newSpace.setRegistration(Space.OPEN);
     newSpace.setVisibility(Space.PRIVATE);
-    return spaceService.createSpace(newSpace, "root");
+    Space createdSpace = spaceService.createSpace(newSpace, "root");
+    if (ArrayUtils.isNotEmpty(members)) {
+      Arrays.asList(members).forEach(m -> spaceService.addMember(createdSpace, m));
+    }
+    return createdSpace;
   }
 
   protected Map<String, List<String>> getFields(String fieldName, String fieldValue) {
