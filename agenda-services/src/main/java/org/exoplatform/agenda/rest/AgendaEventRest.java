@@ -111,8 +111,8 @@ public class AgendaEventRest implements ResourceContainer, Startable {
     this.agendaRemoteEventService = agendaRemoteEventService;
     this.agendaEventDatePollService = agendaEventDatePollService;
     this.container = container;
-    if (portalConfigService != null && portalConfigService.getDefaultPortal() != null) {
-      this.defaultSite = portalConfigService.getDefaultPortal();
+    if (portalConfigService != null && portalConfigService.getMetaPortal() != null) {
+      this.defaultSite = portalConfigService.getMetaPortal();
     } else {
       this.defaultSite = "dw";
     }
