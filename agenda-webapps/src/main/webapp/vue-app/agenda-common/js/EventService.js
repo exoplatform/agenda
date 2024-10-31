@@ -487,8 +487,8 @@ export function countPendingEvents(ownerId) {
   });
 }
 
-export function generateICS(eventId, identityId, timeZoneId) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/ics?eventId=${eventId}&identityId=${identityId}&timeZoneId=${timeZoneId}`, {
+export function generateICS(eventId, timeZoneId) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/ics?eventId=${eventId}&timeZoneId=${timeZoneId}`, {
     method: 'GET',
     credentials: 'include',
   }).then((resp) => {

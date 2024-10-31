@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 eXo Platform SAS.
+ * Copyright (C) 2024 eXo Platform SAS.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License
@@ -36,6 +36,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.picocontainer.Startable;
@@ -1732,16 +1733,13 @@ public class AgendaEventRest implements ResourceContainer, Startable {
           }
   )
   public Response getICSOfEvent(
+          @Context
+          HttpServletRequest request,
           @Parameter(description= "The event Id")
           @QueryParam(
                   "eventId"
           )
           long eventId,
-          @Parameter(description= "the identity ID of the target user")
-          @QueryParam(
-                  "identityId"
-          )
-          long identityId,
           @Parameter(description= "the timezone ID of the target user")
           @QueryParam(
                   "timeZoneId"
@@ -1751,15 +1749,15 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       if (eventId <= 0) {
         return Response.status(Status.BAD_REQUEST).entity("the eventId param is required").build();
       }
-      if (identityId <= 0) {
-        return Response.status(Status.BAD_REQUEST).entity("the identityId param is required").build();
-      }
       if (StringUtils.isBlank(timeZoneId)) {
         timeZoneId = TimeZone.getDefault().getID();
       }
+      Identity currentUserIdentity = this.identityManager.getOrCreateUserIdentity(request.getRemoteUser());
+      if(currentUserIdentity == null) {
+        return Response.status(Status.UNAUTHORIZED).entity("the identity Id is not the one of the current user").build();
+      }
 
-      Identity targetUserIdentity = identityManager.getIdentity(String.valueOf(identityId));
-      Event event = agendaEventService.getEventById(eventId, ZoneId.of(timeZoneId), identityId);
+      Event event = agendaEventService.getEventById(eventId, ZoneId.of(timeZoneId), Long.parseLong(currentUserIdentity.getId()));
       String eventCreator = "";
       Identity eventCreatorIdentity = identityManager.getIdentity(String.valueOf(event.getCreatorId()));
       if (eventCreatorIdentity != null) {
@@ -1779,7 +1777,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
               String.valueOf(event.getModifierId()),
               eventCreator,
               event.getLocation(),
-              Locale.of(Utils.getUserLanguage(targetUserIdentity.getRemoteId())),
+              Locale.of(Utils.getUserLanguage(request.getRemoteUser())),
               ZoneId.of(timeZoneId));
       return Response.ok(new String(iCSContent, StandardCharsets.UTF_8)).build();
     } catch (Exception e) {

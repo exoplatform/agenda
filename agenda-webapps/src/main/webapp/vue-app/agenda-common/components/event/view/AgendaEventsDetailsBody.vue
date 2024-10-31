@@ -363,7 +363,7 @@ export default {
       return processAndFoldText(icsContent);
     },
     downloadICS(event) {
-      return this.$eventService.generateICS(event.id, eXo.env.portal.userIdentityId, this.$agendaUtils.USER_TIMEZONE_ID).then(icsContent => {
+      return this.$eventService.generateICS(event.id, this.$agendaUtils.USER_TIMEZONE_ID).then(icsContent => {
         const blob = new Blob([icsContent], { type: 'text/calendar' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
