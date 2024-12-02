@@ -52,15 +52,19 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
 
   private boolean                    isPushNotification;
 
+  private boolean                    isWebNotification;
+
   private PluginKey                  key;
 
   public AgendaTemplateBuilder(TemplateProvider templateProvider,
                                ExoContainer container,
                                PluginKey key,
-                               boolean pushNotification) {
+                               boolean pushNotification,
+                               boolean webNotification) {
     this.templateProvider = templateProvider;
     this.container = container;
     this.isPushNotification = pushNotification;
+    this.isWebNotification = webNotification;
     this.key = key;
   }
 
@@ -101,10 +105,15 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
       if (StringUtils.isBlank(notificationURL)) {
         notificationURL = getEventURL(event);
       }
-      String pushNotificationURL = isPushNotification ? notificationURL : null;
 
       String username = notification.getTo();
       long identityId = Utils.getIdentityIdByUsername(getIdentityManager(), username);
+
+      String modifierIdentityId = notification.getValueOwnerParameter(STORED_PARAMETER_MODIFIER_IDENTITY_ID);
+
+      if((isPushNotification || isWebNotification) && StringUtils.isNotBlank(modifierIdentityId) && modifierIdentityId.equals(String.valueOf(identityId))) {
+        return null;
+      }
       AgendaUserSettings agendaUserSettings = getAgendaUserSettingsService().getAgendaUserSettings(identityId);
       ZoneId timeZone;
       if (agendaUserSettings != null && agendaUserSettings.getTimeZoneId() != null) {

@@ -1,13 +1,13 @@
 package org.exoplatform.agenda.notification.provider;
 
+import static org.exoplatform.agenda.util.NotificationUtils.*;
+
 import org.exoplatform.agenda.notification.builder.*;
 import org.exoplatform.commons.api.notification.annotation.TemplateConfig;
 import org.exoplatform.commons.api.notification.annotation.TemplateConfigs;
 import org.exoplatform.commons.api.notification.channel.template.TemplateProvider;
 import org.exoplatform.container.ExoContainer;
 import org.exoplatform.container.xml.InitParams;
-
-import static org.exoplatform.agenda.util.NotificationUtils.*;
 
 @TemplateConfigs(templates = {
     @TemplateConfig(pluginId = AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/push/EventPushPlugin.gtmpl"),
@@ -18,15 +18,15 @@ import static org.exoplatform.agenda.util.NotificationUtils.*;
     @TemplateConfig(pluginId = AGENDA_DATE_POLL_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/push/DatePollPushPlugin.gtmpl"),
     @TemplateConfig(pluginId = AGENDA_VOTE_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/push/VotePushPlugin.gtmpl")}
     )
-public class MobilePushTemplateProvider extends TemplateProvider {
-  public MobilePushTemplateProvider(ExoContainer container, InitParams initParams) {
+public class WebTemplateProvider extends TemplateProvider {
+  public WebTemplateProvider(ExoContainer container, InitParams initParams) {
     super(initParams);
-    this.templateBuilders.put(EVENT_ADDED_KEY, new AgendaTemplateBuilder(this, container, EVENT_ADDED_KEY, true, false));
-    this.templateBuilders.put(EVENT_MODIFIED_KEY, new AgendaTemplateBuilder(this, container, EVENT_MODIFIED_KEY, true, false));
-    this.templateBuilders.put(EVENT_CANCELLED_KEY, new AgendaTemplateBuilder(this, container, EVENT_CANCELLED_KEY, true, false));
-    this.templateBuilders.put(EVENT_REMINDER_KEY, new ReminderTemplateBuilder(this, container, EVENT_REMINDER_KEY, true));
-    this.templateBuilders.put(EVENT_REPLY_KEY, new ReplyTemplateBuilder(this, container, EVENT_REPLY_KEY, true));
-    this.templateBuilders.put(EVENT_DATE_POLL_KEY, new DatePollNotificationBuilder(this, container, EVENT_DATE_POLL_KEY, true));
-    this.templateBuilders.put(EVENT_DATE_VOTE_KEY, new VoteTemplateBuilder(this, container, EVENT_DATE_VOTE_KEY, true));
+    this.templateBuilders.put(EVENT_ADDED_KEY, new AgendaTemplateBuilder(this, container, EVENT_ADDED_KEY, false, true));
+    this.templateBuilders.put(EVENT_MODIFIED_KEY, new AgendaTemplateBuilder(this, container, EVENT_MODIFIED_KEY, false, true));
+    this.templateBuilders.put(EVENT_CANCELLED_KEY, new AgendaTemplateBuilder(this, container, EVENT_CANCELLED_KEY, false, true));
+    this.templateBuilders.put(EVENT_REMINDER_KEY, new ReminderTemplateBuilder(this, container, EVENT_REMINDER_KEY, false));
+    this.templateBuilders.put(EVENT_REPLY_KEY, new ReplyTemplateBuilder(this, container, EVENT_REPLY_KEY, false));
+    this.templateBuilders.put(EVENT_DATE_POLL_KEY, new DatePollNotificationBuilder(this, container, EVENT_DATE_POLL_KEY, false));
+    this.templateBuilders.put(EVENT_DATE_VOTE_KEY, new VoteTemplateBuilder(this, container, EVENT_DATE_VOTE_KEY, false));
   }
 }
