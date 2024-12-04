@@ -106,6 +106,7 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
         notificationURL = getEventURL(event);
       }
 
+      String pushNotificationURL = isPushNotification ? notificationURL : null;
       String username = notification.getTo();
       long identityId = Utils.getIdentityIdByUsername(getIdentityManager(), username);
 
@@ -131,7 +132,11 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
                                                                 notification,
                                                                 timeZone);
       MessageInfo messageInfo = new MessageInfo();
-      messageInfo.subject(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_TITLE));
+      if (pushNotificationURL != null) {
+        messageInfo.subject(pushNotificationURL);
+      } else {
+        messageInfo.subject(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_TITLE));
+      }
       messageInfo.body(TemplateUtils.processGroovy(templateContext));
 
       String ownerId = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_OWNER_ID);
