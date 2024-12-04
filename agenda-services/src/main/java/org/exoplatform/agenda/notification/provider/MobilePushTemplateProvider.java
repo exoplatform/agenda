@@ -21,9 +21,9 @@ import static org.exoplatform.agenda.util.NotificationUtils.*;
 public class MobilePushTemplateProvider extends TemplateProvider {
   public MobilePushTemplateProvider(ExoContainer container, InitParams initParams) {
     super(initParams);
-    this.templateBuilders.put(EVENT_ADDED_KEY, new AgendaTemplateBuilder(this, container, EVENT_ADDED_KEY, true));
-    this.templateBuilders.put(EVENT_MODIFIED_KEY, new AgendaTemplateBuilder(this, container, EVENT_MODIFIED_KEY, true));
-    this.templateBuilders.put(EVENT_CANCELLED_KEY, new AgendaTemplateBuilder(this, container, EVENT_CANCELLED_KEY, true));
+    this.templateBuilders.put(EVENT_ADDED_KEY, new AgendaTemplateBuilder(this, container, EVENT_ADDED_KEY, true, false));
+    this.templateBuilders.put(EVENT_MODIFIED_KEY, new AgendaTemplateBuilder(this, container, EVENT_MODIFIED_KEY, true, false));
+    this.templateBuilders.put(EVENT_CANCELLED_KEY, new AgendaTemplateBuilder(this, container, EVENT_CANCELLED_KEY, true, false));
     this.templateBuilders.put(EVENT_REMINDER_KEY, new ReminderTemplateBuilder(this, container, EVENT_REMINDER_KEY, true));
     this.templateBuilders.put(EVENT_REPLY_KEY, new ReplyTemplateBuilder(this, container, EVENT_REPLY_KEY, true));
     this.templateBuilders.put(EVENT_DATE_POLL_KEY, new DatePollNotificationBuilder(this, container, EVENT_DATE_POLL_KEY, true));
