@@ -164,6 +164,7 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
                                        timeZone);
       attachment.setInputStream(new ByteArrayInputStream(icsFileBytes));
       attachment.setMimeType("text/calendar;charset=utf-8;method=PUBLISH");
+      attachment.setName("event.ics");
       messageInfo.addAttachment(attachment);
 
 
