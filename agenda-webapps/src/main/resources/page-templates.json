@@ -1,0 +1,18 @@
+{
+   "descriptors":[
+      {
+         "id":"spaceAgenda",
+         "order":110,
+         "names":{
+            "en":"layout.pageTemplate.spaceAgenda.title"
+         },
+         "descriptions":{
+            "en":"layout.pageTemplate.spaceAgenda.description"
+         },
+         "category": "default",
+         "system": true,
+         "illustrationPath":"war:/../images/spaceAgenda.png",
+         "layoutPath":"war:/conf/agenda/portal/template/pages/spaceAgenda/page.xml"
+      }
+   ]
+}
