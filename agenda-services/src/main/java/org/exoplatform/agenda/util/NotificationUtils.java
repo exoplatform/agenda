@@ -935,6 +935,7 @@ public class NotificationUtils {
       byte[] bytes = output.toByteArray();
       attachment.setInputStream(new ByteArrayInputStream(bytes));
       attachment.setMimeType("text/calendar;charset=utf-8;method=PUBLISH");
+      attachment.setName("event.ics");
       messageInfo.addAttachment(attachment);
     } catch (IOException e) {
       throw new IllegalStateException("Unable to convert event '" + eventSummary + "' to iCal format", e);
