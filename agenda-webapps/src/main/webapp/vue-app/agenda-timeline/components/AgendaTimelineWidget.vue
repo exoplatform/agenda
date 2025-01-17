@@ -178,9 +178,7 @@ export default {
             this.currentSpace = space;
             if (space && space.identity && space.identity.id) {
               this.ownerIds = [space.identity.id];
-              const spaceGroupUri = this.currentSpace.groupId.replace(/\//g, ':');
-              this.agendaBaseLink = `${eXo.env.portal.context}/g/${spaceGroupUri}/${this.currentSpace.prettyName}/agenda`;
-
+              this.agendaBaseLink = `${eXo.env.portal.context}/s/${eXo.env.portal.spaceId}/agenda`;
               return this.$calendarService.getCalendars(0, 1, false, this.ownerIds);
             } else {
               this.agendaBaseLink = `${eXo.env.portal.context}/${eXo.env.portal.portalName}/agenda`;
