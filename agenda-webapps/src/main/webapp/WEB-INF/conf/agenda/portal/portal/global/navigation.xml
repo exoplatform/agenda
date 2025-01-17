@@ -33,5 +33,16 @@
             <visibility>SYSTEM</visibility>
             <page-reference>portal::global::agenda</page-reference>
         </node>
+        <node>
+        <name>home</name>
+        <label>#{portal.global.spaceHome}</label>
+        <visibility>SYSTEM</visibility>
+            <node>
+                <name>agenda</name>
+                <label>#{addon.agenda.navigation.node.label}</label>
+                <visibility>SYSTEM</visibility>
+                <page-reference>portal::global::agenda</page-reference>
+            </node>
+        </node>
     </page-nodes>
 </node-navigation>
