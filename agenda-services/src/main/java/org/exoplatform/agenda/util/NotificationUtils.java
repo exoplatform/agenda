@@ -108,6 +108,8 @@ public class NotificationUtils {
 
   private static final String                                TEMPLATE_VARIABLE_EVENT_URL                    = "eventURL";
 
+  private static final String                                TEMPLATE_VARIABLE_PUSH_EVENT_URL                    = "pushEventURL";
+
   private static final String                                TEMPLATE_VARIABLE_IS_CREATOR                   = "isCreator";
 
   public static final PluginKey                              EVENT_ADDED_KEY                                =
@@ -146,6 +148,8 @@ public class NotificationUtils {
   public static final String                                 STORED_PARAMETER_EVENT_CREATOR                 = "eventCreator";
 
   public static final String                                 STORED_PARAMETER_EVENT_URL                     = "Url";
+
+  public static final String                                 STORED_PARAMETER_PUSH_EVENT_URL                     = "pushUrl";
 
   public static final String                                 STORED_PARAMETER_EVENT_OCCURRENCE_ID           = "eventOccurrenceId";
 
@@ -317,6 +321,7 @@ public class NotificationUtils {
                 .with(STORED_PARAMETER_EVENT_TITLE, event.getSummary())
                 .with(STORED_PARAMETER_EVENT_OWNER_ID, String.valueOf(calendar.getOwnerId()))
                 .with(STORED_PARAMETER_EVENT_URL, getEventURL(event))
+                .with(STORED_PARAMETER_PUSH_EVENT_URL, getPushEventURL(event,null))
                 .with(STORED_PARAMETER_EVENT_CREATOR, getEventNotificationCreatorOrModifierUserName(identity))
                 .with(STORED_EVENT_MODIFICATION_TYPE, typeModification)
                 .with(STORED_PARAMETER_EVENT_START_DATE, AgendaDateUtils.toRFC3339Date(event.getStart()))
@@ -352,6 +357,7 @@ public class NotificationUtils {
                 .with(STORED_PARAMETER_EVENT_TITLE, event.getSummary())
                 .with(STORED_PARAMETER_EVENT_OWNER_ID, String.valueOf(calendar.getOwnerId()))
                 .with(STORED_PARAMETER_EVENT_URL, getEventURL(event))
+                .with(STORED_PARAMETER_PUSH_EVENT_URL, getPushEventURL(event,null))
                 .with(STORED_PARAMETER_EVENT_START_DATE, AgendaDateUtils.toRFC3339Date(event.getStart()))
                 .with(STORED_PARAMETER_EVENT_END_DATE, AgendaDateUtils.toRFC3339Date((event.getEnd())));
 
@@ -392,6 +398,7 @@ public class NotificationUtils {
                 .with(STORED_PARAMETER_EVENT_TITLE, event.getSummary())
                 .with(STORED_PARAMETER_EVENT_PARTICIPANT_AVATAR_URL, setParticipantAvatarUrl(identity))
                 .with(STORED_PARAMETER_EVENT_URL, getEventURL(event, occurrenceId))
+                .with(STORED_PARAMETER_PUSH_EVENT_URL, getPushEventURL(event, occurrenceId))
                 .with(STORED_PARAMETER_EVENT_OWNER_ID, String.valueOf(calendar.getOwnerId()))
                 .with(STORED_PARAMETER_EVENT_RESPONSE, String.valueOf(response))
                 .with(STORED_PARAMETER_EVENT_PARTICIPANT_NAME, getEventNotificationCreatorOrModifierUserName(identity))
@@ -453,6 +460,7 @@ public class NotificationUtils {
     String modificationStoredType = notification.getValueOwnerParameter(STORED_EVENT_MODIFICATION_TYPE);
     templateContext.put(TEMPLATE_VARIABLE_EVENT_MODIFICATION_TYPE, modificationStoredType);
     templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
+    templateContext.put(TEMPLATE_VARIABLE_PUSH_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_PUSH_EVENT_URL));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_CREATOR, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_CREATOR));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_ATTENDEES, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_ATTENDEES));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_TIMEZONE_NAME,
@@ -508,6 +516,7 @@ public class NotificationUtils {
     setEventDetails(templateContext, notification, timeZone);
 
     templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
+    templateContext.put(TEMPLATE_VARIABLE_PUSH_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_PUSH_EVENT_URL));
     return templateContext;
   }
 
@@ -527,6 +536,7 @@ public class NotificationUtils {
     setEventReplyDetails(templateContext, notification, timeZone);
 
     templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
+    templateContext.put(TEMPLATE_VARIABLE_PUSH_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_PUSH_EVENT_URL));
     return templateContext;
   }
 
@@ -545,6 +555,7 @@ public class NotificationUtils {
     setEventDatePollDetails(templateContext, notification);
 
     templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
+    templateContext.put(TEMPLATE_VARIABLE_PUSH_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_PUSH_EVENT_URL));
     return templateContext;
   }
 
@@ -642,6 +653,23 @@ public class NotificationUtils {
     }
     return notificationURL;
   }
+
+  public static String getPushEventURL(Event event, ZonedDateTime occurrenceId) {
+    String currentSite = getDefaultSite();
+    String notificationURL = "";
+    if (event != null) {
+      if (occurrenceId == null) {
+        notificationURL = "/portal/" + currentSite + "/agenda?eventId=" + event.getId();
+      } else {
+        notificationURL = "/portal/" + currentSite + "/agenda?parentId=" + event.getId() + "&occurrenceId="
+                + AgendaDateUtils.toRFC3339Date(occurrenceId, ZoneOffset.UTC);
+      }
+    } else {
+      notificationURL = "/portal/" + currentSite + "/agenda";
+    }
+    return notificationURL;
+  }
+
 
   public static String getEventURL(Event event) {
     return getEventURL(event, null);
