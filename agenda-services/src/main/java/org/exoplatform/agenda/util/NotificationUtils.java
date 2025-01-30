@@ -659,13 +659,13 @@ public class NotificationUtils {
     String notificationURL = "";
     if (event != null) {
       if (occurrenceId == null) {
-        notificationURL = "/portal/" + currentSite + "/agenda?eventId=" + event.getId();
+        notificationURL = "/portal/" + currentSite + "/agendaa?eventId=" + event.getId();
       } else {
-        notificationURL = "/portal/" + currentSite + "/agenda?parentId=" + event.getId() + "&occurrenceId="
+        notificationURL = "/portal/" + currentSite + "/agendaa?parentId=" + event.getId() + "&occurrenceId="
                 + AgendaDateUtils.toRFC3339Date(occurrenceId, ZoneOffset.UTC);
       }
     } else {
-      notificationURL = "/portal/" + currentSite + "/agenda";
+      notificationURL = "/portal/" + currentSite + "/agendaa";
     }
     return notificationURL;
   }
