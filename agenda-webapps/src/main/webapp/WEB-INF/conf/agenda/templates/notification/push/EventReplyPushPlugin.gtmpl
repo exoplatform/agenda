@@ -3,7 +3,7 @@
   isCreator = "true".equals(isCreator);
 %>
 <div>
-    <div class="contentSmall" data-link="<%= pushEventURL %>">
+    <div class="contentSmall" data-link="<%= eventURL %>">
         <div class="status">
             <%
             String eventTitle = "<span class=\"user-name text-bold\">"+ eventTitle +"</span>";

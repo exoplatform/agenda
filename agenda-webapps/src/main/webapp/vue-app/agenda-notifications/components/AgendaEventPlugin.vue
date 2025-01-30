@@ -66,7 +66,7 @@ export default {
   },
   computed: {
     eventUrl() {
-      return this.notification?.parameters?.Url;
+      return this.notification?.parameters?.webUrl;
     },
     eventTitle() {
       return this.notification?.parameters?.eventTitle;
