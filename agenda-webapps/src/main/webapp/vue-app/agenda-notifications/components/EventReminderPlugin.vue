@@ -69,7 +69,7 @@ export default {
   },
   computed: {
     eventUrl() {
-      return this.notification?.parameters?.Url;
+      return this.notification?.parameters?.webUrl;
     },
     avatarUrl() {
       return this.space?.avatarUrl;
