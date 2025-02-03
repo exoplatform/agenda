@@ -110,6 +110,9 @@ export default {
       }
     },
   },
+  mounted() {
+    this.$root.$emit('agenda-calendar-owners-drawer-open');
+  },
   methods: {
     reset() {
       if (!this.calendars || !this.calendars.length) {
