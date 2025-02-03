@@ -56,7 +56,7 @@ export default {
     open() {
       this.$refs.calendarOwnersFilters.open();
       this.$nextTick().then(() => {
-        this.$refs.filterCalendarList.reset();
+        this.$refs.filterCalendarList?.reset();
       });
     },
   },
