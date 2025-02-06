@@ -1,17 +1,22 @@
 <template>
   <div class="d-flex flex-row">
-    <v-icon :class="`darkGreyIcon my-auto ${this.iconClass} mt-4`" size="32px" v-if="!isMobile">fa-video</v-icon>
+    <v-icon
+      :class="`darkGreyIcon my-auto ${this.iconClass} mt-4`"
+      size="32px"
+      v-if="!isMobile">
+      fa-video
+    </v-icon>
     <template v-if="isConferenceEnabled">
       <template v-if="eventConference">
         <span :class="`${this.marginClass} mx-0 webconference-event-span`" v-if="eventConferenceUrl && this.conferenceProvider.canModifyEventUrl">
           <input
-              id="eventCallURL"
-              ref="eventCallURL"
-              v-model="conferenceURL"
-              :placeholder="$t('agenda.webConferenceURL')"
-              type="text"
-              name="webConferenceEvent"
-              class="ignore-vuetify-classes webconference-event-input mb-0 max-width-fit">
+            id="eventCallURL"
+            ref="eventCallURL"
+            v-model="conferenceURL"
+            :placeholder="$t('agenda.webConferenceURL')"
+            type="text"
+            name="webConferenceEvent"
+            class="ignore-vuetify-classes webconference-event-input mb-0 max-width-fit">
           <div class="flex-row grey--text">
             <i class="fas fa-exclamation-triangle primary--text"></i>
             {{ $t('agenda.webConferenceURL.warning') }}
@@ -42,7 +47,6 @@
             mdi-close
           </v-icon>
         </v-btn>
-
       </template>
       <v-btn
         v-else
@@ -54,14 +58,14 @@
     </template>
     <template v-else>
       <span :class="`${this.marginClass} mx-0 webconference-event-span-without-cross`">
-      <input
-        id="eventCallURL"
-        ref="eventCallURL"
-        v-model="conferenceURL"
-        :placeholder="$t('agenda.webConferenceURL')"
-        type="text"
-        name="webConferenceEvent"
-        class="ignore-vuetify-classes webconference-event-input max-width-fit">
+        <input
+          id="eventCallURL"
+          ref="eventCallURL"
+          v-model="conferenceURL"
+          :placeholder="$t('agenda.webConferenceURL')"
+          type="text"
+          name="webConferenceEvent"
+          class="ignore-vuetify-classes webconference-event-input max-width-fit">
       </span>
     </template>
   </div>

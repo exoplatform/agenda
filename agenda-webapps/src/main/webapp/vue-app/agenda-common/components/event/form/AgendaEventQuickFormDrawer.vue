@@ -68,7 +68,7 @@
             :settings="settings"
             :current-space="currentSpace"
             :conference-provider="conferenceProvider"
-            icon-class="mx-3"/>
+            icon-class="mx-3" />
           <div class="d-flex flex-row">
             <v-flex class="flex-grow-0">
               <i class="uiIconGroup darkGreyIcon uiIcon32x32 mt-4 mx-3"></i>

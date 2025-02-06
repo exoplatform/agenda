@@ -3,8 +3,8 @@
     ref="eventDialog"
     v-model="dialog"
     :retain-focus="false"
-    :attach="parentDialogSelector"
     content-class="agendaEventDialog"
+    attach="#vuetify-apps"
     persistent
     fullscreen
     hide-overlay>
@@ -96,7 +96,6 @@ export default {
       dialog: false,
       saving: false,
       event: null,
-      parentDialogSelector: null,
       loadingMessage: false,
       originalEventString: null,
       isForm: false,
@@ -143,26 +142,6 @@ export default {
     },
   },
   created() {
-    if (this.isMobile) {
-      this.parentDialogSelector = '#vuetify-apps';
-    } else {
-      const parentElementSelector = '#left-topNavigation-container .VuetifyApp .v-application';
-      const $parentDialog = $(parentElementSelector);
-      if ($parentDialog.length) {
-        this.parentDialogSelector = parentElementSelector;
-      } else {
-        if ($('#left-topNavigation-container').length) {
-          const directionClass = eXo.env.portal.orientation === 'rtl' && 'v-application--is-rtl' || 'v-application--is-ltr';
-          $('#left-topNavigation-container').html(`
-              <div class="VuetifyApp">
-                <div data-app="true" class="v-application ${directionClass} transparent theme--light">
-                </div>
-              </div>`);
-          this.parentDialogSelector = parentElementSelector;
-        }
-      }
-    }
-
     const search = document.location.search.substring(1);
     if (search) {
       const parameters = JSON.parse(
