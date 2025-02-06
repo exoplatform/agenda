@@ -6,15 +6,25 @@
           <div class="text-no-wrap text-truncate font-weight-bold text-title-color">
             {{ $t('agenda.personalCalendar') }}
           </div>
-          <div v-if="!connectedConnector" class="text-right flex-grow-1" @click="openPersonalCalendarDrawer"
-               :title="$t('agenda.connectYourPersonalAgenda')"
-               :aria-label="$t('agenda.connectYourPersonalAgenda')">
+          <div
+            v-if="!connectedConnector"
+            class="text-right flex-grow-1"
+            @click="openPersonalCalendarDrawer"
+            :title="$t('agenda.connectYourPersonalAgenda')"
+            :aria-label="$t('agenda.connectYourPersonalAgenda')">
             <v-icon class="uiIcon20x20 clickable" depressed>
               fa-external-link-alt
             </v-icon>
           </div>
-          <div v-else class="text-right flex-grow-1" @click="downloadICS">
-            <v-icon class="uiIcon20x20 clickable" depressed :aria-label="$t('agenda.icsbutton')" :title="$t('agenda.icsbutton')">
+          <div
+            v-else
+            class="text-right flex-grow-1"
+            @click="downloadICS">
+            <v-icon
+              class="uiIcon20x20 clickable"
+              depressed
+              :aria-label="$t('agenda.icsbutton')"
+              :title="$t('agenda.icsbutton')">
               fa-calendar-plus
             </v-icon>
           </div>
@@ -25,7 +35,7 @@
             tile
             class="me-1"
             size="16">
-          <img :src="connectedConnectorAvatar">
+            <img :src="connectedConnectorAvatar">
           </v-avatar>
           <a
             v-if="connectedConnector"

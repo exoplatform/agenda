@@ -64,7 +64,7 @@
           :current-space="currentSpace"
           :conference-provider="conferenceProvider"
           class="my-auto"
-          icon-class="me-10"/>
+          icon-class="me-10" />
         <div class="d-flex flex-row">
           <v-flex class="flex-grow-0">
             <i class="uiIconDescription darkGreyIcon uiIcon32x32 my-3 me-11"></i>
@@ -76,7 +76,7 @@
             :placeholder="$t('agenda.descriptionPlaceholder')"
             :max-length="eventDescriptionTextLength"
             :tag-enabled="false"
-            class="pt-2 width-full"/>
+            class="pt-2 width-full" />
         </div>
       </div>
       <div class="d-none d-md-flex flex-column mx-5 event-form-body-divider ">

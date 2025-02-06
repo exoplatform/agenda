@@ -1,7 +1,7 @@
 <template>
   <div class="event-details-body overflow-auto flex-grow-1 d-flex flex-column flex-md-row pa-4 mt-5">
     <div class="flex-grow-1 flex-shrink-0 event-details-body-left " :class="{ 'd-flex' : !isMobile }">
-      <div class ="full-width" :class="{'mx-auto' : isMobile}">
+      <div class="full-width" :class="{'mx-auto' : isMobile}">
         <div class="event-date align-center d-flex pb-5">
           <i class="uiIconDatePicker darkGreyIcon uiIcon32x32 pe-5"></i>
           <div class="d-inline-flex">
@@ -125,7 +125,7 @@
       <v-divider vertical class="event-details-body-divider" />
     </div>
     <div class="flex-grow-1 flex-shrink-0 d-flex event-details-body-right">
-      <div class="mr-1 width-full" >
+      <div class="mr-1 width-full">
         <agenda-event-attendees
           ref="agendaAttendees"
           :event="event" />
@@ -137,13 +137,13 @@
             :connectors="connectors"
             :class="!isAcceptedEvent && 'agenda-hidden-connectors'"
             class="mt-4 mr-auto width-full"
-            @download-ics="downloadICS"/>
+            @download-ics="downloadICS" />
           <agenda-ics
             v-if="addToMyAgenda && !connectedConnector"
             :settings="settings"
             :event="event"
             :connectors="enabledconnectors"
-            @download-ics="downloadICS"/>
+            @download-ics="downloadICS" />
         </div>
       </div>
     </div>
