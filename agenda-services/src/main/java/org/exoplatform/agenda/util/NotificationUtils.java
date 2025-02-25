@@ -33,6 +33,7 @@ import org.exoplatform.commons.api.notification.service.template.TemplateContext
 import org.exoplatform.commons.notification.template.TemplateUtils;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.commons.utils.HTMLEntityEncoder;
+import org.exoplatform.commons.utils.TimeConvertUtils;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.portal.branding.BrandingService;
 import org.exoplatform.portal.config.UserPortalConfigService;
@@ -45,7 +46,6 @@ import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.social.notification.plugin.SocialNotificationUtils;
-import org.exoplatform.webui.utils.TimeConvertUtils;
 
 import static org.exoplatform.agenda.util.Utils.getICalTimeZone;
 import static org.exoplatform.agenda.util.Utils.getResourceBundleLabel;
