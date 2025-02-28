@@ -152,7 +152,7 @@ export default {
       return this.event && this.event.description || '';
     },
     eventDescriptionValid() {
-      return this.eventDescription.length <= 1300;
+      return this.$utils.htmlToText(this.eventDescription).length <= 1300;
     },
     eventDateOptions() {
       return this.event && this.event.dateOptions || [];
