@@ -51,15 +51,6 @@
         <module>jquery</module>
         <as>$</as>
       </depends>
-      <depends>
-        <module>fetchPolyfill</module>
-      </depends>
-      <depends>
-        <module>customEventPolyfill</module>
-      </depends>
-      <depends>
-        <module>iePolyfills</module>
-      </depends>
     </module>
   </portlet>
 
@@ -124,15 +115,6 @@
         <module>jquery</module>
         <as>$</as>
       </depends>
-      <depends>
-        <module>fetchPolyfill</module>
-      </depends>
-      <depends>
-        <module>customEventPolyfill</module>
-      </depends>
-      <depends>
-        <module>iePolyfills</module>
-      </depends>
     </module>
   </portlet>
 
@@ -160,15 +142,6 @@
     <depends>
       <module>jquery</module>
       <as>$</as>
-    </depends>
-    <depends>
-      <module>fetchPolyfill</module>
-    </depends>
-    <depends>
-      <module>customEventPolyfill</module>
-    </depends>
-    <depends>
-      <module>iePolyfills</module>
     </depends>
     <depends>
       <module>commons-cometd3</module>
