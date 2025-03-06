@@ -1,6 +1,7 @@
 <template>
   <exo-drawer
     ref="conflictEventsDrawer"
+    class="conflictEventsDrawer"
     right>
     <template slot="title">
       {{ $t('agenda.schedulingConflict') }}
