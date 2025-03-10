@@ -81,7 +81,7 @@ public class AgendaEventGamificationIntegrationListener extends Listener<Object,
           try {
             Map<String, String> gam = new HashMap<>();
             gam.put("ruleTitle", ruleTitle);
-            gam.put("object", eventURL);
+            gam.put("objectId", eventURL);
             gam.put("senderId", String.valueOf(earnerId)); // matches the
                                                            // gamification's
                                                            // earner id
@@ -95,7 +95,7 @@ public class AgendaEventGamificationIntegrationListener extends Listener<Object,
           try {
             Map<String, String> gam = new HashMap<>();
             gam.put("ruleTitle", ruleTitle);
-            gam.put("object", eventURL);
+            gam.put("objectId", eventURL);
             gam.put("senderId", String.valueOf(earnerId)); // matches the
                                                            // gamification's
                                                            // earner id
@@ -126,7 +126,7 @@ public class AgendaEventGamificationIntegrationListener extends Listener<Object,
         try {
           Map<String, String> gam = new HashMap<>();
           gam.put("ruleTitle", ruleTitle);
-          gam.put("object", eventURL);
+          gam.put("objectId", eventURL);
           gam.put("senderId", String.valueOf(earnerId)); // matches the
                                                          // gamification's
                                                          // earner id
