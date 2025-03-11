@@ -57,7 +57,7 @@ public class AgendaEventAttendeeGamificationIntegrationListener extends Listener
         try {
           Map<String, String> gam = new HashMap<>();
           gam.put("ruleTitle", GAMIFICATION_REPLY_TO_EVENT_RULE_TITLE);
-          gam.put("object", eventURL);
+          gam.put("objectId", eventURL);
           gam.put("senderId", String.valueOf(earnerId)); // matches the
                                                          // gamification's
                                                          // earner id
