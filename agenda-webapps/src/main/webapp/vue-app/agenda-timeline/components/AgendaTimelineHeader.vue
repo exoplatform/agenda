@@ -17,11 +17,10 @@
       <v-btn
         :disabled="!canCreateEvent"
         :title="$t('agenda.button.addEvent')"
-        class="primary--text"
         icon
         text
         @click="openEventForm">
-        <v-icon>mdi-plus</v-icon>
+        <v-icon>fas fa-plus</v-icon>
       </v-btn>
     </div>
   </v-flex>
