@@ -8,7 +8,7 @@
     <p
       :title="remoteEvent.summary"
       :class="textClass"
-      class="text-truncate my-auto ms-2 caption font-weight-bold">
+      class="text-truncate-2 my-auto ms-2 caption font-weight-bold">
       {{ remoteEvent.summary }}
     </p>
     <template v-if="!displayEventDate">
