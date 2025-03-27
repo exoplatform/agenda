@@ -1,6 +1,6 @@
 <template>
-  <v-flex class="agenda-timeline fill-height">
-    <template v-if="events && events.length">
+  <v-flex v-if="events && events.length" class="agenda-timeline">
+    <template>
       <v-list
         v-for="month in eventsMonths"
         :key="month"
@@ -65,8 +65,8 @@
         </v-list-item>
       </v-list>
     </template>
-    <agenda-empty-timeline v-else-if="!loading" />
   </v-flex>
+  <agenda-empty-timeline v-else-if="!loading" />
 </template>
 <script>
 export default {
