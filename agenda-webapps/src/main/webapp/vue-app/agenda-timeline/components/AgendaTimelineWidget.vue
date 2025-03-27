@@ -1,6 +1,6 @@
 <template>
-  <v-app class="agenda-application border-box-sizing" flat>
-    <v-card class="pa-5 application-body" flat>
+  <v-app class="agenda-application" flat>
+    <v-card class="d-flex flex-column application-body position-static pa-5 border-box-sizing" flat>
       <agenda-timeline-header
         :current-space="currentSpace"
         :current-calendar="currentCalendar"
