@@ -1,7 +1,7 @@
 <template>
-  <v-flex class="agenda-timeline-header d-flex mb-5">
+  <div class="agenda-timeline-header d-flex align-center justify-space-between">
     <div class="d-flex align-center">
-      <a :href="agendaBaseLink" class="widget-text-header text-capitalize-first-letter">
+      <a :href="agendaBaseLink" class="widget-text-header my-auto me-auto">
         {{ $t('agenda') }}
       </a>
       <agenda-pending-invitation-badge
@@ -13,18 +13,20 @@
     <div
       v-if="displayButton"
       :title="addEventButtonTooltip"
-      class="d-inline-block">
+      class="d-flex align-center">
       <v-btn
         :disabled="!canCreateEvent"
         :title="$t('agenda.button.addEvent')"
-        class="primary--text"
         icon
-        text
+        class="ms-auto"
+        small
         @click="openEventForm">
-        <v-icon>mdi-plus</v-icon>
+        <v-icon size="18" class="icon-default-color icon-default-size">
+          fas fa-plus
+        </v-icon>
       </v-btn>
     </div>
-  </v-flex>
+  </div>
 </template>
 <script>
 export default {
