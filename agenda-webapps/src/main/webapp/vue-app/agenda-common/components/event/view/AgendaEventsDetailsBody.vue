@@ -81,7 +81,7 @@
             transparent
             class="mb-auto border-box-sizing"
             @click="$refs.reminders.open()">
-            <i class="uiIconEditInfo uiIcon16x16 darkGreyIcon pt-2"></i>
+            <i class="uiIconEdit uiIcon16x16 darkGreyIcon pt-2"></i>
           </v-btn>
         </div>
         <div v-if="isConferenceEnabled" class="event-conference flex d-flex flex-grow-0 flex-shrink-1 pb-5">
