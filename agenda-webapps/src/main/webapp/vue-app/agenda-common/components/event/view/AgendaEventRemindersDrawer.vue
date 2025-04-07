@@ -1,6 +1,7 @@
 <template>
   <exo-drawer
     ref="drawer"
+    class="agendaEventRemindersDrawer"
     :confirm-close="confirmClose"
     :confirm-close-labels="confirmCloseLabels"
     body-classes="hide-scroll decrease-z-index-more"
