@@ -32,7 +32,11 @@
           transparent
           class="ma-auto border-box-sizing"
           @click="$root.$emit('agenda-date-poll-change-vote')">
-          <i class="uiIconEditInfo uiIcon16x16 darkGreyIcon pb-2"></i>
+          <v-icon
+            :size="16"
+            class="icon-default-color icon-default-size pb-2">
+            fas fa-edit
+          </v-icon>
         </v-btn>
       </v-card>
     </th>
