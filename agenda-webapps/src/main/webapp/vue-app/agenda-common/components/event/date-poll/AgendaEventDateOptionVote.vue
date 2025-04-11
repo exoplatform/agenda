@@ -10,7 +10,12 @@
         @change="$emit('change', vote)" />
       <template v-else>
         <span v-if="!hasVoted"></span>
-        <i v-else-if="vote" class="uiIcon py-1 uiIconColorValidate"></i>
+        <v-icon
+          v-else-if="vote"
+          :size="18"
+          class="success--text icon-default-size py-1">
+          fas fa-check
+        </v-icon>
         <i v-else class="uiIcon py-1 uiIconColorError"></i>
       </template>
     </div>
