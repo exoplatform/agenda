@@ -31,6 +31,8 @@ import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.rest.entity.IdentityEntity;
 
+import io.meeds.social.html.utils.HtmlUtils;
+
 public class RestEntityBuilder {
 
   private static final String IDENTITIES_REST_PATH = "/v1/social/identities"; // NOSONAR
@@ -291,7 +293,7 @@ public class RestEntityBuilder {
                                          AgendaDateUtils.toRFC3339Date(event.getCreated()),
                                          AgendaDateUtils.toRFC3339Date(event.getUpdated()),
                                          event.getSummary(),
-                                         event.getDescription(),
+                                         HtmlUtils.transform(event.getDescription(), null),
                                          event.getLocation(),
                                          event.getColor(),
                                          null,
@@ -321,7 +323,7 @@ public class RestEntityBuilder {
                              AgendaDateUtils.toRFC3339Date(event.getCreated()),
                              AgendaDateUtils.toRFC3339Date(event.getUpdated()),
                              event.getSummary(),
-                             event.getDescription(),
+                             HtmlUtils.transform(event.getDescription(), null),
                              event.getLocation(),
                              event.getColor(),
                              userTimeZone.getId(),
