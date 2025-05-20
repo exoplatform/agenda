@@ -179,6 +179,7 @@ export default {
         }
       }
     });
+    this.$root.$on('agenda-event-details-by-id', this.openEventById);
     this.$root.$on('agenda-event-details', agendaEvent => {
       if (agendaEvent.id) {
         this.openEventDetails(agendaEvent.id);
