@@ -254,4 +254,16 @@
       <module>extensionRegistry</module>
     </depends>
   </module>
+
+  <module>
+    <name>agendaEventContentLinkExtension</name>
+    <load-group>contentLinkGRP</load-group>
+    <script>
+      <path>/js/agendaEventContentLinkExtension.bundle.js</path>
+    </script>
+    <depends>
+      <module>extensionRegistry</module>
+    </depends>
+  </module>
+
 </gatein-resources>
