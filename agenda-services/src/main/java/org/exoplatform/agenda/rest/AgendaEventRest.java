@@ -30,6 +30,9 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.*;
 import javax.ws.rs.core.Response.Status;
 
+import io.meeds.social.html.model.HtmlTransformerContext;
+import io.meeds.social.html.utils.HtmlUtils;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -1770,7 +1773,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       }
       byte[] iCSContent = Utils.generateIcsFile(String.valueOf(agendaCalendarService.getCalendarById(event.getCalendarId()).getOwnerId()),
               event.getSummary(),
-              event.getDescription(),
+              HtmlUtils.transform(event.getDescription(), null),
               AgendaDateUtils.toRFC3339Date(event.getStart()),
               AgendaDateUtils.toRFC3339Date(event.getEnd()),
               conferenceURL,

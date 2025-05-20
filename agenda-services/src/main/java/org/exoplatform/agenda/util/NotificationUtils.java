@@ -1,44 +1,55 @@
 package org.exoplatform.agenda.util;
 
-import java.io.*;
-import java.net.*;
+import static org.exoplatform.agenda.util.Utils.getResourceBundleLabel;
+
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.nio.charset.Charset;
-import java.time.*;
-import java.util.*;
+import java.time.Month;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.TimeZone;
 import java.util.stream.Collectors;
 
-import net.fortuna.ical4j.data.CalendarOutputter;
-import net.fortuna.ical4j.model.DateTime;
-import net.fortuna.ical4j.model.ParameterList;
-import net.fortuna.ical4j.model.component.VEvent;
-import net.fortuna.ical4j.model.parameter.Cn;
-import net.fortuna.ical4j.model.property.*;
-import net.fortuna.ical4j.util.RandomUidGenerator;
-import net.fortuna.ical4j.util.UidGenerator;
 import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
-import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.model.Calendar;
+import org.exoplatform.agenda.model.Event;
+import org.exoplatform.agenda.model.EventAttendee;
+import org.exoplatform.agenda.model.EventConference;
+import org.exoplatform.agenda.model.EventRecurrence;
+import org.exoplatform.agenda.model.EventReminder;
 import org.exoplatform.agenda.plugin.AgendaGuestUserIdentityProvider;
 import org.exoplatform.agenda.service.AgendaEventAttendeeService;
 import org.exoplatform.agenda.service.AgendaEventConferenceService;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.NotificationMessageUtils;
 import org.exoplatform.commons.api.notification.channel.template.TemplateProvider;
-import org.exoplatform.commons.api.notification.model.*;
+import org.exoplatform.commons.api.notification.model.ArgumentLiteral;
+import org.exoplatform.commons.api.notification.model.ChannelKey;
+import org.exoplatform.commons.api.notification.model.MessageInfo;
+import org.exoplatform.commons.api.notification.model.NotificationInfo;
+import org.exoplatform.commons.api.notification.model.PluginKey;
 import org.exoplatform.commons.api.notification.plugin.NotificationPluginUtils;
 import org.exoplatform.commons.api.notification.service.template.TemplateContext;
 import org.exoplatform.commons.notification.template.TemplateUtils;
 import org.exoplatform.commons.utils.CommonsUtils;
-import org.exoplatform.commons.utils.HTMLEntityEncoder;
 import org.exoplatform.commons.utils.TimeConvertUtils;
 import org.exoplatform.container.ExoContainerContext;
-import org.exoplatform.portal.branding.BrandingService;
+import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
+import org.exoplatform.services.resources.ResourceBundleService;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
@@ -47,8 +58,8 @@ import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.social.notification.plugin.SocialNotificationUtils;
 
-import static org.exoplatform.agenda.util.Utils.getICalTimeZone;
-import static org.exoplatform.agenda.util.Utils.getResourceBundleLabel;
+import io.meeds.social.html.model.HtmlTransformerContext;
+import io.meeds.social.html.utils.HtmlUtils;
 
 public class NotificationUtils {
 
@@ -331,7 +342,17 @@ public class NotificationUtils {
                 .with(STORED_PARAMETER_EVENT_STATUS, event.getStatus().name());
 
     if (StringUtils.isNotBlank(event.getDescription())) {
-      notification.with(STORED_PARAMETER_EVENT_DESCRIPTION, event.getDescription());
+      String description = event.getDescription();
+      String username = notification.getTo();
+      if (StringUtils.isNotBlank(username)) {
+        String language = NotificationPluginUtils.getLanguage(username);
+        Locale locale = language == null ? ResourceBundleService.DEFAULT_CROWDIN_LOCALE : Locale.forLanguageTag(language);
+        HtmlTransformerContext context = new HtmlTransformerContext(ExoContainerContext.getService(UserACL.class)
+                                                                                       .getUserIdentity(username),
+                                                                    locale);
+        description = HtmlUtils.transform(description, context);
+      }
+      notification.with(STORED_PARAMETER_EVENT_DESCRIPTION, description);
     }
     if (StringUtils.isNotBlank(event.getLocation())) {
       notification.with(STORED_PARAMETER_EVENT_LOCATION, event.getLocation());
@@ -422,7 +443,16 @@ public class NotificationUtils {
       notification.with(STORED_PARAMETER_EVENT_OCCURRENCE_ID, AgendaDateUtils.toRFC3339Date(occurrenceId, ZoneOffset.UTC));
     }
     if (StringUtils.isNotBlank(event.getDescription())) {
-      notification.with(STORED_PARAMETER_EVENT_DESCRIPTION, event.getDescription());
+      String description = event.getDescription();
+      if (StringUtils.isNotBlank(username)) {
+        String language = NotificationPluginUtils.getLanguage(username);
+        Locale locale = language == null ? ResourceBundleService.DEFAULT_CROWDIN_LOCALE : Locale.forLanguageTag(language);
+        HtmlTransformerContext context = new HtmlTransformerContext(ExoContainerContext.getService(UserACL.class)
+                                                                                       .getUserIdentity(username),
+                                                                    locale);
+        description = HtmlUtils.transform(description, context);
+      }
+      notification.with(STORED_PARAMETER_EVENT_DESCRIPTION, description);
     }
     if (StringUtils.isNotBlank(event.getLocation())) {
       notification.with(STORED_PARAMETER_EVENT_LOCATION, event.getLocation());
