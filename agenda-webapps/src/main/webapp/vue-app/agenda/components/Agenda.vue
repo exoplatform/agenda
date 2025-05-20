@@ -1,6 +1,6 @@
 <template>
   <v-app class="agenda-application border-box-sizing" flat>
-    <template v-if="settingsLoaded">
+    <template v-if="settingsLoaded && !hideApp">
       <v-main v-if="isMobile" class="application-body pt-2 px-1">
         <agenda-mobile-header
           :current-space="currentSpace"
@@ -86,6 +86,10 @@ export default {
       type: String,
       // allEvents, declinedEvent or myEvents
       default: () => 'myEvents',
+    },
+    hideApp: {
+      type: Boolean,
+      default: false,
     },
   },
   data: () => ({
