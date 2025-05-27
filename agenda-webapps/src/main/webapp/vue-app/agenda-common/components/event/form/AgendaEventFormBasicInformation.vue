@@ -76,7 +76,8 @@
             :placeholder="$t('agenda.descriptionPlaceholder')"
             :max-length="eventDescriptionTextLength"
             :tag-enabled="false"
-            class="pt-2 width-full" />
+            class="pt-2 width-full"
+            content-link-enabled />
         </div>
       </div>
       <div class="d-none d-md-flex flex-column mx-5 event-form-body-divider ">

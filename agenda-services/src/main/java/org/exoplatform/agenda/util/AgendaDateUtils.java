@@ -171,8 +171,9 @@ public class AgendaDateUtils {
 
   public static final String getDayNameFromDayAbbreviation(List<String> dayNames) {
     List<String> daysFinal = new ArrayList<>();
-    for (String name : dayNames) {
-      switch (name) { // NOSONAR
+    if (dayNames != null) {
+      for (String name : dayNames) {
+        switch (name) { // NOSONAR
         case "MO":
           daysFinal.add(StringUtils.lowerCase(String.valueOf(DayOfWeek.of(1))));
           break;
@@ -194,6 +195,7 @@ public class AgendaDateUtils {
         case "SU":
           daysFinal.add(StringUtils.lowerCase(String.valueOf(DayOfWeek.of(7))));
           break;
+        }
       }
     }
     return StringUtils.join(daysFinal, ",");

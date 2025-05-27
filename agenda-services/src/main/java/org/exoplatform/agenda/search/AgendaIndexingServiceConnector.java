@@ -34,11 +34,17 @@ import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 
+import io.meeds.social.html.model.HtmlTransformerContext;
+import io.meeds.social.html.utils.HtmlUtils;
+
 public class AgendaIndexingServiceConnector extends ElasticIndexingServiceConnector {
 
-  public static final String          INDEX            = "event";
+  public static final String                  INDEX                    = "event";
 
-  private static final Log            LOG              = ExoLogger.getLogger(AgendaIndexingServiceConnector.class);
+  private static final Log                    LOG                      =
+                                                  ExoLogger.getLogger(AgendaIndexingServiceConnector.class);
+
+  private static final HtmlTransformerContext HTML_TRANSFORMER_CONTEXT = new HtmlTransformerContext(true, null);
 
   private final AgendaCalendarService agendaCalendarService;                                                       // NOSONAR
 
@@ -138,9 +144,9 @@ public class AgendaIndexingServiceConnector extends ElasticIndexingServiceConnec
       fields.put("status", event.getStatus().name());
     }
 
-    String description = null;
-    if (StringUtils.isNotBlank(event.getDescription())) {
-      description = event.getDescription();
+    String description = event.getDescription();
+    if (StringUtils.isNotBlank(description)) {
+      description = HtmlUtils.transform(description, HTML_TRANSFORMER_CONTEXT);
       fields.put("description", description);
     }
 
