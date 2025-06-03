@@ -28,7 +28,7 @@ import java.util.*;
 
 import org.exoplatform.commons.api.notification.model.MessageInfo;
 import org.exoplatform.commons.api.notification.model.NotificationInfo;
-
+import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.mail.Attachment;
 import org.junit.Test;
 
@@ -2210,6 +2210,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
       assertNotNull(event);
     }
 
+    RequestLifeCycle.restartTransaction();
     agendaEventService.deleteEventById(eventId, Long.parseLong(testuser1Identity.getId()));
     AgendaEventModification eventModification = eventDeletionReference.get();
     assertNotNull(eventModification);

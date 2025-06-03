@@ -99,6 +99,7 @@ public class EventDAOTest extends TestCase {
       assertEquals(endDate, eventEntity.getEndDate());
     } finally {
       eventDAO.deleteCalendarEvents(calendarEntity.getId());
+      RequestLifeCycle.restartTransaction();
       calendarDAO.delete(calendarEntity);
     }
   }

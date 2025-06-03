@@ -25,6 +25,7 @@ import org.exoplatform.agenda.dao.CalendarDAO;
 import org.exoplatform.agenda.entity.CalendarEntity;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.util.Utils;
+import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.listener.ListenerService;
 
 public class AgendaCalendarStorage {
@@ -74,6 +75,7 @@ public class AgendaCalendarStorage {
       return;
     }
     this.agendaEventStorage.deleteCalendarEvents(calendarId);
+    RequestLifeCycle.restartTransaction();
     calendarDAO.delete(calendarEntity);
     Utils.broadcastEvent(listenerService, "exo.agenda.calendar.deleted", fromEntity(calendarEntity), null);
   }
