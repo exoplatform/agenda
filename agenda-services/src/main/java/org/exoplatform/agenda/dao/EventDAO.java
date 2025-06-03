@@ -120,6 +120,7 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
 
     if (eventEntity.getRecurrence() != null) {
       this.eventRecurrenceDAO.delete(eventEntity.getRecurrence());
+      eventEntity.setRecurrence(null);
     }
 
     delete(eventEntity);

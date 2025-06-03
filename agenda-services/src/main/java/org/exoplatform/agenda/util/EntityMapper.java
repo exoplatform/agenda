@@ -95,7 +95,7 @@ public class EntityMapper {
 
   public static EventReminderEntity toEntity(EventReminder eventReminder) {
     EventReminderEntity eventReminderEntity = new EventReminderEntity();
-    eventReminderEntity.setId(eventReminder.getId());
+    eventReminderEntity.setId(eventReminder.getId() == 0 ? null : eventReminder.getId());
     eventReminderEntity.setBefore(eventReminder.getBefore());
     eventReminderEntity.setBeforeType(eventReminder.getBeforePeriodType());
     eventReminderEntity.setReceiverId(eventReminder.getReceiverId());
@@ -176,7 +176,7 @@ public class EntityMapper {
     TimeZone ical4jTimezone = Utils.getICalTimeZone(iCal4jZoneId);
 
     EventEntity eventEntity = new EventEntity();
-    eventEntity.setId(event.getId());
+    eventEntity.setId(event.getId() == 0 ? null : event.getId());
     eventEntity.setAllDay(event.isAllDay());
     eventEntity.setAvailability(event.getAvailability());
     eventEntity.setColor(event.getColor());
@@ -454,7 +454,7 @@ public class EntityMapper {
     // given by the user
     eventRecurrenceEntity.setStartDate(AgendaDateUtils.toDate(event.getStart()));
     eventRecurrenceEntity.setEndDate(AgendaDateUtils.toDate(event.getEnd()));
-    eventRecurrenceEntity.setId(recurrence.getId());
+    eventRecurrenceEntity.setId(recurrence.getId() == 0l ? null : recurrence.getId());
     return eventRecurrenceEntity;
   }
 
@@ -469,7 +469,7 @@ public class EntityMapper {
 
   public static EventAttendeeEntity toEntity(EventAttendee eventAttendee) {
     EventAttendeeEntity eventAttendeeEntity = new EventAttendeeEntity();
-    eventAttendeeEntity.setId(eventAttendee.getId());
+    eventAttendeeEntity.setId(eventAttendee.getId() == 0 ? null : eventAttendee.getId());
     eventAttendeeEntity.setIdentityId(eventAttendee.getIdentityId());
     eventAttendeeEntity.setResponse(eventAttendee.getResponse());
     eventAttendeeEntity.setFromOccurrenceId(AgendaDateUtils.toDate(eventAttendee.getFromOccurrenceId()));
@@ -489,7 +489,7 @@ public class EntityMapper {
 
   public static EventConferenceEntity toEntity(EventConference eventConference) {
     EventConferenceEntity eventConferenceEntity = new EventConferenceEntity();
-    eventConferenceEntity.setId(eventConference.getId());
+    eventConferenceEntity.setId(eventConference.getId() == 0 ? null : eventConference.getId());
     eventConferenceEntity.setAccessCode(eventConference.getAccessCode());
     eventConferenceEntity.setDescription(eventConference.getDescription());
     eventConferenceEntity.setPhone(eventConference.getPhone());
