@@ -186,6 +186,7 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
     } else {
       for (EventReminder eventReminder : reminders) {
         eventReminder.setId(0);
+        eventReminder.setEventId(eventId);
         eventReminder.setFromOccurrenceId(occurrenceId);
         eventReminder.setUntilOccurrenceId(null);
       }
@@ -308,6 +309,7 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
         eventReminder = eventReminder.clone();
 
         ZonedDateTime reminderDate = computeReminderDateTime(event, eventReminder);
+        eventReminder.setId(0);
         eventReminder.setDatetime(reminderDate);
         eventReminder.setReceiverId(identityId);
         eventReminder.setEventId(eventId);

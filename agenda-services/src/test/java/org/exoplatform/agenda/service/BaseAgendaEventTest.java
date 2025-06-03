@@ -236,6 +236,7 @@ public abstract class BaseAgendaEventTest {
       agendaCalendarService.deleteCalendarById(spaceCalendar.getId());
       spaceCalendar = null;
     }
+    restartTransaction();
     if (calendar != null) {
       agendaCalendarService.deleteCalendarById(calendar.getId());
       calendar = null;
