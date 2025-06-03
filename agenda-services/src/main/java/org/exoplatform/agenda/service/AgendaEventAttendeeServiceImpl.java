@@ -411,7 +411,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
           attendeeStorage.saveEventAttendee(eventAttendee, eventId);
         }
       }
-      attendee = new EventAttendee(identityId, eventId, identityId, occurrenceId, null, response);
+      attendee = new EventAttendee(0, eventId, identityId, occurrenceId, null, response);
       attendeeStorage.saveEventAttendee(attendee, eventId);
     }
 
