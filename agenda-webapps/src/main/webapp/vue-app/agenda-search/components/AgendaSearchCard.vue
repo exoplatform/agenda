@@ -94,7 +94,7 @@ export default {
       return this.result && this.result.excerpts;
     },
     excerptHtml() {
-      return this.excerpts && this.excerpts.join('\r\n...');
+      return this.excerpts.length && this.excerpts.join('\r\n...') || this.eventDescription;
     },
     excerptText() {
       return this.excerpts.length ? this.$utils.htmlToText(this.excerptHtml) : this.eventDescription;
