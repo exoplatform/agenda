@@ -1,7 +1,9 @@
 import AgendaSearchCard from './components/AgendaSearchCard.vue';
+import AgendaEventRecurrence from '../agenda-common/components/event/view/AgendaEventRecurrence.vue';
 
 const components = {
   'agenda-search-card': AgendaSearchCard,
+  'agenda-event-recurrence': AgendaEventRecurrence
 };
 
 for (const key in components) {

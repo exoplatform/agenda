@@ -302,7 +302,7 @@ public class RestEntityBuilder {
                                          event.isAllDay(),
                                          event.getAvailability(),
                                          event.getStatus(),
-                                         recurrenceEntity,
+                                         ((EventSearchResult) event).isRecurrent() && recurrenceEntity == null ? getEventEntity(agendaCalendarService, agendaEventService, identityManager, event.getId(), userTimeZone).getRecurrence() : recurrenceEntity,
                                          occurrenceEntity,
                                          event.getAcl(),
                                          null,
