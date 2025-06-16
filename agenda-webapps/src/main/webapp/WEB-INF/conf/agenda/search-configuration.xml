@@ -72,6 +72,9 @@
             <field name="uiComponent">
               <string>agenda-search-card</string>
             </field>
+            <field name="icon">
+              <string>fas fa-calendar-alt</string>
+            </field>
           </object>
         </object-param>
       </init-params>
