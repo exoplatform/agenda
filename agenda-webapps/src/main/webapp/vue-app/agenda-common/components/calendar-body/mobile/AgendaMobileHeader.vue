@@ -8,7 +8,7 @@
       class="my-auto agenda-toolbar-left" />
     <date-picker
       v-model="periodStart"
-      class="d-flex flex-grow-1 ma-auto agenda-header-date-picker" />
+      class="d-flex flex-grow-1 ma-auto agenda-header-date-picker z-index-two" />
     <agenda-calendar-filter-button
       :current-space="currentSpace"
       :owner-ids="ownerIds" />
