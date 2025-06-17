@@ -285,8 +285,8 @@ export default {
         agendaEvent.attendees = [];
       }
       this.event = agendaEvent;
-
-      let eventDetailsPath = `${window.location.pathname}`;
+      const spaceSiteKeyName = eXo.env.portal.siteKeyName.replace(/\//g, ':');
+      let eventDetailsPath = window.location.pathname.includes('spaces') ? `/portal/g/${spaceSiteKeyName}/home/agenda` : `/portal/${eXo.env.portal.siteKeyName}/home/agenda`;
       if (this.event.id) {
         eventDetailsPath = `${eventDetailsPath}?eventId=${this.event.id}`;
       } else if (this.event.parent && this.event.parent.id && this.event.occurrence && this.event.occurrence.id) {
