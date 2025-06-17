@@ -1,5 +1,5 @@
 <template>
-  <v-sheet class="d-flex flex-column justify-center align-center fill-height" max-height="100%">
+  <v-sheet class="d-flex flex-column justify-center align-center fill-height z-index-one" max-height="100%">
     <v-icon
       color="secondary"
       size="60"
