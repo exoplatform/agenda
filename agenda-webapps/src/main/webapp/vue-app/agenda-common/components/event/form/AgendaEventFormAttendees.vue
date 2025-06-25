@@ -162,7 +162,7 @@ export default {
     },
     saveGuestEmail() {
       const reg = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[\d]{1,3}\.[\d]{1,3}\.[\d]{1,3}\.[\d]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,24}))$/;
-      const input = this.$refs.invitedAttendeeAutoComplete.searchTerm;
+      const input = this.$refs?.invitedAttendeeAutoComplete?.searchTerm?.toLowerCase();
       const words = input!== null ? input.split(' ') : '';
       const email = words[words.length - 1];
       if (reg.test(email)) {
