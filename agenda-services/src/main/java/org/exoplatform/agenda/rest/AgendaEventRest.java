@@ -30,7 +30,6 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.*;
 import javax.ws.rs.core.Response.Status;
 
-import io.meeds.social.html.model.HtmlTransformerContext;
 import io.meeds.social.html.utils.HtmlUtils;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -42,6 +41,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.exoplatform.social.core.space.SpaceUtils;
 import org.picocontainer.Startable;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
@@ -1476,6 +1476,11 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                            "expand"
                          )
                          String expand,
+                         @Parameter(description= "Space identifier used to search event")
+                         @QueryParam(
+                           "spaceId"
+                         )
+                         String spaceId,
                          @Parameter(description= "Offset") @Schema(defaultValue = "0")
                          @QueryParam(
                            "offset"
@@ -1497,7 +1502,13 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                                                                                   ","));
     long currentUserId = RestUtils.getCurrentUserIdentityId(identityManager);
     ZoneId userTimeZone = StringUtils.isBlank(timeZoneId) ? ZoneOffset.UTC : ZoneId.of(timeZoneId);
-    List<EventSearchResult> searchResults = agendaEventService.search(currentUserId, userTimeZone, query, offset, limit);
+    List<Long> spaceIdentityIds = StringUtils.isBlank(spaceId) ? Collections.emptyList()
+                                                               : SpaceUtils.getSpaceIdentityIds(getCurrentUser(),
+                                                                                                Arrays.asList(spaceId))
+                                                                           .stream()
+                                                                           .map(Long::parseLong)
+                                                                           .toList();
+    List<EventSearchResult> searchResults = agendaEventService.search(new AgendaEventSearchFilter(currentUserId, userTimeZone, query, spaceIdentityIds, offset, limit));
     List<EventSearchResultEntity> results = searchResults.stream()
                                                          .map(searchResult -> getEventSearchResultEntity(identityManager,
                                                                                                          agendaCalendarService,

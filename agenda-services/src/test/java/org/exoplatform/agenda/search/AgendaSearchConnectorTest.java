@@ -9,6 +9,7 @@ import java.time.*;
 import java.util.*;
 
 import org.apache.commons.lang3.StringUtils;
+import org.exoplatform.agenda.model.AgendaEventSearchFilter;
 import org.junit.*;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -100,7 +101,7 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
 
     String term = "searchTerm";
     try {
-      agendaSearchConnector.search(-1, ZoneId.of("US/Hawaii"), term, 0, 10);
+      agendaSearchConnector.search(new AgendaEventSearchFilter(-1, ZoneId.of("US/Hawaii"), term, null,  0, 10));
       fail("Should throw IllegalArgumentException: viewer identity id is mandatory");
     } catch (IllegalArgumentException e) {
       // Expected
@@ -108,19 +109,19 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
     Identity identity = mock(Identity.class);
     when(identity.getId()).thenReturn("1");
     try {
-      agendaSearchConnector.search(Long.parseLong(identity.getId()), ZoneId.of("US/Hawaii"), null, 0, 10);
+      agendaSearchConnector.search(new AgendaEventSearchFilter(Long.parseLong(identity.getId()), ZoneId.of("US/Hawaii"), null, null, 0, 10));
       fail("Should throw IllegalArgumentException: filter is mandatory");
     } catch (IllegalArgumentException e) {
       // Expected
     }
     try {
-      agendaSearchConnector.search(Long.parseLong(identity.getId()), ZoneId.of("US/Hawaii"), term, -1, 10);
+      agendaSearchConnector.search(new AgendaEventSearchFilter(Long.parseLong(identity.getId()), ZoneId.of("US/Hawaii"), term, null, -1, 10));
       fail("Should throw IllegalArgumentException: offset should be positive");
     } catch (IllegalArgumentException e) {
       // Expected
     }
     try {
-      agendaSearchConnector.search(Long.parseLong(identity.getId()), ZoneId.of("US/Hawaii"), term, 0, -1);
+      agendaSearchConnector.search(new AgendaEventSearchFilter(Long.parseLong(identity.getId()), ZoneId.of("US/Hawaii"), term, null, 0, -1));
       fail("Should throw IllegalArgumentException: limit should be positive");
     } catch (IllegalArgumentException e) {
       // Expected
@@ -170,11 +171,12 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
       }
     });
 
-    List<EventSearchResult> result = agendaSearchConnector.search(Long.parseLong(identity.getId()),
-                                                                  ZoneId.of("US/Hawaii"),
-                                                                  term,
-                                                                  0,
-                                                                  10);
+    List<EventSearchResult> result = agendaSearchConnector.search(new AgendaEventSearchFilter(Long.parseLong(identity.getId()),
+                                                                                        ZoneId.of("US/Hawaii"),
+                                                                                        term,
+                                                                                        null,
+                                                                                        0,
+                                                                                        10));
     assertNotNull(result);
     assertEquals(0, result.size());
   }
@@ -234,11 +236,12 @@ public class AgendaSearchConnectorTest extends BaseAgendaEventTest {
       }
     });
 
-    List<EventSearchResult> result = agendaSearchConnector.search(Long.parseLong(identity.getId()),
-                                                                  ZoneId.of("US/Hawaii"),
-                                                                  term,
-                                                                  0,
-                                                                  10);
+    List<EventSearchResult> result = agendaSearchConnector.search(new AgendaEventSearchFilter(Long.parseLong(identity.getId()),
+                                                                                        ZoneId.of("US/Hawaii"),
+                                                                                        term,
+                                                                                        null,
+                                                                                        0,
+                                                                                        10));
     assertNotNull(result);
     assertEquals(1, result.size());
 

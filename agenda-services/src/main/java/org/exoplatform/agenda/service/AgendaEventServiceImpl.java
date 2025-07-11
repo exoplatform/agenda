@@ -918,13 +918,13 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * {@inheritDoc}
    */
   @Override
-  public List<EventSearchResult> search(long userIdentityId, ZoneId userTimeZone, String query, int offset, int limit) {
-    if (userTimeZone == null) {
-      userTimeZone = ZoneOffset.UTC;
+  public List<EventSearchResult> search(AgendaEventSearchFilter filter) {
+    if (filter.getUserTimeZone() == null) {
+      filter.setUserTimeZone(ZoneOffset.UTC);
     }
 
-    List<EventSearchResult> searchResults = agendaSearchConnector.search(userIdentityId, userTimeZone, query, offset, limit);
-    final ZoneId timeZone = userTimeZone;
+    List<EventSearchResult> searchResults = agendaSearchConnector.search(filter);
+    final ZoneId timeZone = filter.getUserTimeZone();
     return searchResults.stream().map(event -> {
       if (event.isRecurrent()) {
         Event recurrentEvent = agendaEventStorage.getEventById(event.getId());
