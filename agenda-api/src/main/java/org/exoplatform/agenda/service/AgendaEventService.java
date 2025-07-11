@@ -265,18 +265,10 @@ public interface AgendaEventService {
   /**
    * Search the list of events available with query for the currentUser
    * 
-   * @param userIdentityId user {@link Identity} identifier
-   * @param userTimeZone used user timezone
-   * @param query Term to search
-   * @param offset offset
-   * @param limit Limit of events to retrieve
+   * @param filter {@link AgendaEventSearchFilter} used to filter the events
    * @return {@link List} of {@link EventSearchResult}
    */
-  List<EventSearchResult> search(long userIdentityId,
-                                 ZoneId userTimeZone,
-                                 String query,
-                                 int offset,
-                                 int limit);
+  List<EventSearchResult> search(AgendaEventSearchFilter filter);
 
   /**
    * Retrieves occurrences, without exceptional, of a recurrent event in a given

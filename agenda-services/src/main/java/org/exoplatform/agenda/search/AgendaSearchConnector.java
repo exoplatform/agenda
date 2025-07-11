@@ -22,7 +22,9 @@ import java.time.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.exoplatform.agenda.model.AgendaEventSearchFilter;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -90,30 +92,33 @@ public class AgendaSearchConnector {
     }
   }
 
-  public List<EventSearchResult> search(long userIdentityId, ZoneId userTimeZone, String term, long offset, long limit) {
-    if (offset < 0) {
+  public List<EventSearchResult> search(AgendaEventSearchFilter filter) {
+    if (filter.getOffset() < 0) {
       throw new IllegalArgumentException("Offset must be positive");
     }
-    if (limit < 0) {
+    if (filter.getLimit() < 0) {
       throw new IllegalArgumentException("Limit must be positive");
     }
-    if (StringUtils.isBlank(term)) {
+    if (StringUtils.isBlank(filter.getTerm())) {
       throw new IllegalArgumentException("Filter term is mandatory");
     }
-    if (userIdentityId < 0) {
+    if (filter.getCurrentUserId() < 0) {
       throw new IllegalArgumentException("User identity id must be positive");
     }
 
-    Identity userIdentity = Utils.getIdentityById(identityManager, userIdentityId);
+    Identity userIdentity = Utils.getIdentityById(identityManager, filter.getCurrentUserId());
     Set<Long> calendarOwnersOfUser = Optional.ofNullable(Utils.getCalendarOwnersOfUser(spaceService,
                                                                                        identityManager,
                                                                                        userIdentity))
                                              .map(HashSet::new)
                                              .orElse(new HashSet<>());
-    calendarOwnersOfUser.add(userIdentityId);
-    String esQuery = buildQueryStatement(calendarOwnersOfUser, term, offset, limit);
+    calendarOwnersOfUser.add(filter.getCurrentUserId());
+    if(!CollectionUtils.isEmpty(filter.getSpaceIdentityIds())){
+      calendarOwnersOfUser.retainAll(filter.getSpaceIdentityIds());
+    }
+    String esQuery = buildQueryStatement(calendarOwnersOfUser, filter.getTerm(), filter.getOffset(), filter.getLimit());
     String jsonResponse = this.client.sendRequest(esQuery, this.index);
-    return buildResult(jsonResponse, userTimeZone);
+    return buildResult(jsonResponse, filter.getUserTimeZone());
   }
 
   private String buildQueryStatement(Set<Long> calendarOwnersOfUser, String term, long offset, long limit) {
