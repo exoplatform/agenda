@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Locale;
 
 import org.apache.commons.collections4.CollectionUtils;
+import org.exoplatform.agenda.model.AgendaEventSearchFilter;
 import org.jsoup.Jsoup;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -86,11 +87,12 @@ public class AgendaEventContentLinkPlugin implements ContentLinkPlugin {
     if (userAcl.isAnonymousUser(identity)) {
       return Collections.emptyList();
     }
-    List<EventSearchResult> events = agendaEventService.search(getUserIdentityId(identity.getUserId()),
-                                                               null,
-                                                               keyword,
-                                                               offset,
-                                                               limit);
+    List<EventSearchResult> events = agendaEventService.search(new AgendaEventSearchFilter(getUserIdentityId(identity.getUserId()),
+                                                                                     null,
+                                                                                     keyword,
+                                                                                     null,
+                                                                                     offset,
+                                                                                     limit));
     return CollectionUtils.isEmpty(events) ? Collections.emptyList() :
                                            events.stream()
                                                  .map(this::toContentLink)
