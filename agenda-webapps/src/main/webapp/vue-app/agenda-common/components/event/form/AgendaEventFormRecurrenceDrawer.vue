@@ -189,7 +189,9 @@ export default {
         return;
       }
       if (this.recurrentEventDate === 'date') {
-        this.eventRecurrence.until = this.$agendaUtils.toRFC3339(this.untilDate);
+        const endDate = new Date(this.untilDate);
+        endDate.setHours(23, 59, 59, 999);
+        this.eventRecurrence.until = this.$agendaUtils.toRFC3339(endDate);
         this.eventRecurrence.count = '';
       } else if (this.recurrentEventDate === 'count') {
         this.eventRecurrence.until = null;
