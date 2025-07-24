@@ -1480,7 +1480,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                          @QueryParam(
                            "spaceId"
                          )
-                         String spaceId,
+                         List<Long> spaceIds,
                          @Parameter(description= "Offset") @Schema(defaultValue = "0")
                          @QueryParam(
                            "offset"
@@ -1502,13 +1502,8 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                                                                                   ","));
     long currentUserId = RestUtils.getCurrentUserIdentityId(identityManager);
     ZoneId userTimeZone = StringUtils.isBlank(timeZoneId) ? ZoneOffset.UTC : ZoneId.of(timeZoneId);
-    List<Long> spaceIdentityIds = StringUtils.isBlank(spaceId) ? Collections.emptyList()
-                                                               : SpaceUtils.getSpaceIdentityIds(getCurrentUser(),
-                                                                                                Arrays.asList(spaceId))
-                                                                           .stream()
-                                                                           .map(Long::parseLong)
-                                                                           .toList();
-    List<EventSearchResult> searchResults = agendaEventService.search(new AgendaEventSearchFilter(currentUserId, userTimeZone, query, spaceIdentityIds, offset, limit));
+
+    List<EventSearchResult> searchResults = agendaEventService.search(new AgendaEventSearchFilter(currentUserId, userTimeZone, query, getSpaceIdentityIds(spaceIds), offset, limit));
     List<EventSearchResultEntity> results = searchResults.stream()
                                                          .map(searchResult -> getEventSearchResultEntity(identityManager,
                                                                                                          agendaCalendarService,
@@ -1798,6 +1793,14 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       LOG.error("Could not generate ICS for event {}", eventId, e);
       return Response.serverError().entity("Could not generate ICS for event " + eventId + " : " + e.getMessage()).build();
     }
+  }
+  
+  private List<Long> getSpaceIdentityIds(List<Long> spaceIds) {
+    if (CollectionUtils.isEmpty(spaceIds)) {
+      return Collections.emptyList();
+    }
+    List<String> spaceIdsString = spaceIds.stream().map(String::valueOf).toList();
+    return SpaceUtils.getSpaceIdentityIds(getCurrentUser(), spaceIdsString).stream().map(Long::valueOf).toList();
   }
 
 }
