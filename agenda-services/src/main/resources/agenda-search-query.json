@@ -39,10 +39,6 @@
         "pre_tags" : ["<span class='searchMatchExcerpt'>"],
         "post_tags" : ["</span>"]
       },
-      "summary" : {
-        "pre_tags" : ["<span class='searchMatchExcerpt'>"],
-        "post_tags" : ["</span>"]
-      },
       "location" : {
         "pre_tags" : ["<span class='searchMatchExcerpt'>"],
         "post_tags" : ["</span>"]
