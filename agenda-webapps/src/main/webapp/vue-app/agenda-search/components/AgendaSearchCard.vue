@@ -16,7 +16,7 @@
           <v-list-item-content>
             <v-list-item-title class="d-flex flex-row full-width align-center">
               <h1
-                class="flex-grow-1 title font-weight-bold primary--text pt-1 mb-0 ps-0 my-auto align-center text-start text-truncate"
+                class="flex-grow-1 title primary--text pt-1 mb-0 ps-0 my-auto align-center text-start text-truncate"
                 :aria-label="eventTitleText"
                 v-sanitized-html="eventTitle"></h1>
             </v-list-item-title>
