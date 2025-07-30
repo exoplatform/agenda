@@ -3324,8 +3324,8 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(1, messageInfo.getAttachment().size());
     String text = new String(messageInfo.getAttachment().get(0).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
     List<String> lines = text.contains("\r\n") ? List.of(text.split("\r\n")) : List.of(text.split("\n"));
-    String dtStart = lines.stream().filter(s -> s.contains("DTSTART")).findAny().get();
-    String dtEnd = lines.stream().filter(s -> s.contains("DTEND")).findAny().get();
+    String dtStart = lines.stream().filter(s -> s.contains("DTSTART;TZID")).findAny().get();
+    String dtEnd = lines.stream().filter(s -> s.contains("DTEND;TZID")).findAny().get();
     assertNotNull(dtStart);
     assertNotNull(dtEnd);
     String icsStartDate = dtStart.substring(dtStart.indexOf(":") + 1);
