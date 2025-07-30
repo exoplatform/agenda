@@ -650,6 +650,8 @@ public class Utils {
     calendar.getProperties().add(new ProdId("PRODID:-//"+ brandingService.getSiteName() + "//" + brandingService.getCompanyName() + "//EN"));
     calendar.getProperties().add(Version.VERSION_2_0);
     calendar.getProperties().add(CalScale.GREGORIAN);
+    // Explicitly add VTIMEZONE component
+    calendar.getComponents().add(ical4jTimezone.getVTimeZone());
 
     Identity eventOrganozerIdentity = identityManager.getIdentity(eventModifierId);
     if(eventOrganozerIdentity != null) {
