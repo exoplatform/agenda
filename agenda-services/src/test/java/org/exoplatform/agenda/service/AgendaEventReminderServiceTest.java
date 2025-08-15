@@ -24,6 +24,8 @@ import java.util.*;
 
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.commons.api.notification.service.WebNotificationService;
+import org.exoplatform.container.component.RequestLifeCycle;
+
 import org.junit.Test;
 
 import org.exoplatform.agenda.constant.*;
@@ -248,8 +250,8 @@ public class AgendaEventReminderServiceTest extends BaseAgendaEventTest {
 
     long eventId = event.getId();
 
-    EventReminder upcomingEventsReminder = new EventReminder(5000l,
-                                                             10000l,
+    EventReminder upcomingEventsReminder = new EventReminder(0l,
+                                                             event.getId(),
                                                              testuser1Id,
                                                              5,
                                                              ReminderPeriodType.HOUR);
@@ -260,9 +262,9 @@ public class AgendaEventReminderServiceTest extends BaseAgendaEventTest {
     assertEquals(1, eventReminders.size());
 
     agendaEventService.saveEventExceptionalOccurrence(eventId, start.plusDays(4));
-
+    RequestLifeCycle.restartTransaction();
     agendaEventReminderService.saveUpcomingEventReminders(eventId, start.plusDays(5), upcomingEventsReminders, testuser1Id);
-
+    RequestLifeCycle.restartTransaction();
     Event exceptionalOccurrence = agendaEventService.saveEventExceptionalOccurrence(eventId, start.plusDays(10));
 
     assertNotNull(exceptionalOccurrence);
