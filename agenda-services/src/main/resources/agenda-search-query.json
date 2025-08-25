@@ -29,6 +29,9 @@
       }
     }
   },
+  "sort": [
+    @sortQuery@
+  ],
   "highlight" : {
     "number_of_fragments" : 2,
     "fragment_size" : 150,

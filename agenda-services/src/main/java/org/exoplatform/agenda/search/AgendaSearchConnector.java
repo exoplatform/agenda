@@ -18,19 +18,25 @@ package org.exoplatform.agenda.search;
 
 import java.io.InputStream;
 import java.text.Normalizer;
-import java.time.*;
-import java.util.*;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.exoplatform.agenda.model.AgendaEventSearchFilter;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
 import org.exoplatform.agenda.constant.EventStatus;
+import org.exoplatform.agenda.model.AgendaEventSearchFilter;
 import org.exoplatform.agenda.model.EventSearchResult;
 import org.exoplatform.agenda.storage.AgendaEventStorage;
 import org.exoplatform.agenda.util.Utils;
@@ -67,6 +73,23 @@ public class AgendaSearchConnector {
   private String                       searchQueryFilePath;
 
   private String                       searchQuery;
+
+  private static final String           DEFAULT_SORTING_QUERY        = """
+          {
+            "_score": {
+              "order": "desc"
+            }
+          }
+      """;
+
+  private static final String           SORTING_QUERY                = """
+          {
+            "@sortField@": {
+              "order": "@sortOrder@"
+            }
+          },
+          "_score"
+      """;
 
   public AgendaSearchConnector(ConfigurationManager configurationManager,
                                IdentityManager identityManager,
@@ -116,13 +139,13 @@ public class AgendaSearchConnector {
     if(!CollectionUtils.isEmpty(filter.getSpaceIdentityIds())){
       calendarOwnersOfUser.retainAll(filter.getSpaceIdentityIds());
     }
-    String esQuery = buildQueryStatement(calendarOwnersOfUser, filter.getTerm(), filter.getOffset(), filter.getLimit());
+    String esQuery = buildQueryStatement(calendarOwnersOfUser, filter);
     String jsonResponse = this.client.sendRequest(esQuery, this.index);
     return buildResult(jsonResponse, filter.getUserTimeZone());
   }
 
-  private String buildQueryStatement(Set<Long> calendarOwnersOfUser, String term, long offset, long limit) {
-    term = removeSpecialCharacters(term);
+  private String buildQueryStatement(Set<Long> calendarOwnersOfUser, AgendaEventSearchFilter filter) {
+    String term = removeSpecialCharacters(filter.getTerm());
     List<String> termsQuery = Arrays.stream(term.split(" ")).filter(StringUtils::isNotBlank).map(word -> {
       word = word.trim();
       if (word.length() > 5) {
@@ -131,11 +154,13 @@ public class AgendaSearchConnector {
       return word;
     }).collect(Collectors.toList());
     String termQuery = StringUtils.join(termsQuery, " AND ");
+    String sortQuery = buildSortQueryStatement(filter);
     return retrieveSearchQuery().replace("@term@", term)
                                 .replace("@term_query@", termQuery)
                                 .replace("@permissions@", StringUtils.join(calendarOwnersOfUser, ","))
-                                .replace("@offset@", String.valueOf(offset))
-                                .replace("@limit@", String.valueOf(limit));
+                                .replace("@sortQuery@", sortQuery)
+                                .replace("@offset@", String.valueOf(filter.getOffset()))
+                                .replace("@limit@", String.valueOf(filter.getLimit()));
   }
 
   @SuppressWarnings("rawtypes")
@@ -230,5 +255,18 @@ public class AgendaSearchConnector {
     string = Normalizer.normalize(string, Normalizer.Form.NFD);
     string = string.replaceAll("[\\p{InCombiningDiacriticalMarks}]", "").replace("'", " ");
     return string;
+  }
+
+  private String buildSortQueryStatement(AgendaEventSearchFilter filter) {
+    String sortFiled = filter.getSortFiled();
+    String sortDirection = filter.getSortDirection();
+
+    if (StringUtils.isBlank(sortFiled)) {
+      return DEFAULT_SORTING_QUERY;
+    }
+    return switch (sortFiled) {
+    case "date" -> SORTING_QUERY.replace("@sortField@", "lastUpdatedDate").replace("@sortOrder@", sortDirection);
+    default -> DEFAULT_SORTING_QUERY;
+    };
   }
 }
