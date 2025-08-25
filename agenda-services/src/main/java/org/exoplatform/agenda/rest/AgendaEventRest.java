@@ -1481,6 +1481,16 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                            "spaceId"
                          )
                          List<Long> spaceIds,
+                         @Parameter(description = "Sort filed")
+                         @QueryParam(
+                           "sortField"
+                         )
+                         String sortField,
+                         @Parameter(description = "Sort order (asc or desc)")
+                         @QueryParam(
+                           "sortDirection"
+                         )
+                         String sortDirection,
                          @Parameter(description= "Offset") @Schema(defaultValue = "0")
                          @QueryParam(
                            "offset"
@@ -1503,7 +1513,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
     long currentUserId = RestUtils.getCurrentUserIdentityId(identityManager);
     ZoneId userTimeZone = StringUtils.isBlank(timeZoneId) ? ZoneOffset.UTC : ZoneId.of(timeZoneId);
 
-    List<EventSearchResult> searchResults = agendaEventService.search(new AgendaEventSearchFilter(currentUserId, userTimeZone, query, getSpaceIdentityIds(spaceIds), offset, limit));
+    List<EventSearchResult> searchResults = agendaEventService.search(new AgendaEventSearchFilter(currentUserId, userTimeZone, query, getSpaceIdentityIds(spaceIds), sortField, sortDirection, offset, limit));
     List<EventSearchResultEntity> results = searchResults.stream()
                                                          .map(searchResult -> getEventSearchResultEntity(identityManager,
                                                                                                          agendaCalendarService,

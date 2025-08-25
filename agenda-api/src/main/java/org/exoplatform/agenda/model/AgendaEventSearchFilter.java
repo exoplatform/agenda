@@ -34,6 +34,10 @@ public class AgendaEventSearchFilter {
 
   private List<Long> spaceIdentityIds;
 
+  private String     sortFiled;
+
+  private String     sortDirection;
+
   private int        offset;
 
   private int        limit;

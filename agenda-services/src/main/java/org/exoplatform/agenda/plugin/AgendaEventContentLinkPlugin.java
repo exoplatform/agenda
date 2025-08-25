@@ -91,6 +91,8 @@ public class AgendaEventContentLinkPlugin implements ContentLinkPlugin {
                                                                                      null,
                                                                                      keyword,
                                                                                      null,
+                                                                                     null,
+                                                                                     null,
                                                                                      offset,
                                                                                      limit));
     return CollectionUtils.isEmpty(events) ? Collections.emptyList() :
