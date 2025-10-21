@@ -378,12 +378,16 @@ export default {
     eventMouseMove(params) {
       if (this.dragEvent) {
         if (this.eventExtended) {
-          const newDate = this.$agendaUtils.toDateTime(params, false);
-          if (newDate >= this.$agendaUtils.toDate(this.dragEvent.startDate).getTime()) {
-            this.dragEvent.endDate = this.$agendaUtils.toDateTime(params, true);
+          const newTimeMs = this.$agendaUtils.toDateTime(params, false);
+          const start = this.$agendaUtils.toDate(this.dragEvent.startDate).getTime();
+          const minEndTimeMs = start + this.$agendaUtils.MINIMUM_TIME_INTERVAL_MS;
+          let finalEndTimeMs;
+          if (newTimeMs > minEndTimeMs) {
+            finalEndTimeMs = this.$agendaUtils.toDateTime(params, true);
           } else {
-            this.dragEvent.endDate = this.dragEvent.startDate;
+            finalEndTimeMs = minEndTimeMs;
           }
+          this.dragEvent.endDate = new Date(finalEndTimeMs);
         } else {
           const newTime = this.$agendaUtils.toDateTime(params, false);
           if (!Number.isNaN(newTime)) {
