@@ -3,7 +3,7 @@
   <parent>
     <groupId>org.exoplatform.agenda</groupId>
     <artifactId>agenda-parent</artifactId>
-    <version>7.1.x-SNAPSHOT</version>
+    <version>7.1.0-20251023</version>
   </parent>
   <artifactId>agenda-webapps</artifactId>
   <packaging>war</packaging>
