@@ -6,7 +6,7 @@
       class="d-inline-block">
       <v-btn
         :disabled="!canCreateEvent"
-        class="btn btn-primary px-0"
+        class="btn btn-primary px-0 me-2"
         min-width="36"
         max-width="36"
         @click="openNewEventForm">
@@ -19,6 +19,11 @@
       :current-space="currentSpace"
       :offset-x="offsetX"
       :offset-y="offsetY" />
+    <v-btn
+      class="btn me-2"
+      @click="setToday">
+      {{ $t('agenda.toDay') }}
+    </v-btn>
   </div>
 </template>
 <script>
@@ -74,6 +79,10 @@ export default {
         attendees: [],
       });
     },
+    setToday() {
+      this.$root.$emit('agenda-display-calendar-atDate');
+    },
   },
+  
 };
 </script>
