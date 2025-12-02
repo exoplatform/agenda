@@ -19,6 +19,12 @@
           :event="event" />
       </template>
     </v-col>
+    <extension-registry-components
+      :params="params"
+      name="AgendaEvent"
+      type="agenda-event-header"
+      parent-element="div"
+      element="div" />
     <v-col class="px-0 flex-grow-0 flex-shrink-0 text-right mx-2">
       <v-menu
         v-if="canEdit"
@@ -124,6 +130,13 @@ export default {
     },
     isTentativeEvent() {
       return this.event && this.event.status === 'TENTATIVE';
+    },
+    params() {
+      return {
+        event: this.event,
+        isAttendee: this.isAttendee,
+        connectedConnector: this.connectedConnector,
+      };
     },
   },
   mounted() {

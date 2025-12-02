@@ -120,6 +120,7 @@
 
   <module>
     <name>AgendaCommon</name>
+    <load-group>AgendaGrp</load-group>
     <script>
       <minify>false</minify>
       <path>/js/agendaCommon.bundle.js</path>

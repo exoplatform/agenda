@@ -21,6 +21,12 @@
           color="primary"
           size="20"
           class="ms-3 my-auto" />
+        <extension-registry-components
+          :params="params"
+          name="AgendaEventForm"
+          type="agenda-event-form-toolbar"
+          parent-element="div"
+          element="div" />
       </div>
       <v-row
         align="center"
@@ -216,6 +222,12 @@ export default {
         });
       }
       return remoteEventsToDisplay;
+    },
+    params() {
+      return {
+        event: this.event,
+        events: this.eventsToDisplay,
+      };
     },
   },
   watch: {
