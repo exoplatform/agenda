@@ -20,6 +20,7 @@
       :offset-x="offsetX"
       :offset-y="offsetY" />
     <v-btn
+      v-if="!$root.isMobile"
       class="btn me-2"
       @click="setToday">
       {{ $t('agenda.toDay') }}
@@ -50,11 +51,8 @@ export default {
     initialized: false,
   }),
   computed: {
-    isMobile() {
-      return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
-    },
     displayButton() {
-      return (!this.isMobile || this.canCreateEvent) && (this.initialized || !eXo.env.portal.spaceId);
+      return (!this.$root.isMobile || this.canCreateEvent) && (this.initialized || !eXo.env.portal.spaceId);
     },
     addEventButtonTooltip() {
       if (!this.canCreateEvent) {

@@ -9,7 +9,7 @@
         @click="changeSelection" />
     </v-list-item-content>
     <v-list-item-action
-      v-if="!isMobile"
+      v-if="!$root.isMobile"
       :id="calendarMenuId"
       class="calendarSettingActions">
       <v-menu
@@ -79,9 +79,6 @@ export default {
     checked: false,
   }),
   computed: {
-    isMobile() {
-      return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
-    },
     selected() {
       return this.selectedOwnerIds !== false && (!this.selectedOwnerIds.length || this.selectedOwnerIds.find(ownerId => ownerId === this.calendarOwnerId));
     },

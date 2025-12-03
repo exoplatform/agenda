@@ -3,7 +3,7 @@
     <v-icon
       :class="`darkGreyIcon my-auto ${this.iconClass} mt-4`"
       size="32px"
-      v-if="!isMobile">
+      v-if="!$root.isMobile">
       fa-video
     </v-icon>
     <template v-if="isConferenceEnabled">
@@ -100,11 +100,8 @@ export default {
     conferenceURL: null,
   }),
   computed: {
-    isMobile() {
-      return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
-    },
     marginClass() {
-      return this.isMobile ? 'my-0' : 'my-3';
+      return this.$root.isMobile ? 'my-0' : 'my-3';
     },
     isConferenceEnabled() {
       return this.conferenceProvider && (!this.eventConferenceType || this.conferenceProvider.getType() === this.eventConferenceType || this.eventConferenceType === 'manual');

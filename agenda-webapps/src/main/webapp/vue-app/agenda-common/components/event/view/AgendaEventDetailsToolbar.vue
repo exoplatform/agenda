@@ -13,7 +13,7 @@
         popover />
     </v-col>
     <v-col class="px-0 flex-grow-1 flex-shrink-0 mx-2">
-      <template v-if="!isTentativeEvent && isAttendee && !isMobile">
+      <template v-if="!isTentativeEvent && isAttendee && !$root.isMobile">
         <agenda-event-attendee-buttons
           ref="eventAttendeeButtons"
           :event="event" />
@@ -87,9 +87,6 @@ export default {
     eventMenu: null,
   }),
   computed: {
-    isMobile() {
-      return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
-    },
     calendarOwnerLink() {
       if (this.owner) {
         if (this.owner.providerId === 'organization') {
