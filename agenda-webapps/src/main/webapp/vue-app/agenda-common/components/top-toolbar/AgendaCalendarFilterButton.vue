@@ -5,7 +5,7 @@
     class="primary--text"
     @click="$root.$emit('agenda-calendar-owners-drawer-open',currentSpace)">
     <template>
-      <i class="uiIcon uiIcon24x24 settingsIcon text-color"></i>
+      <i class="uiIcon uiIcon24x24 settingsIcon icon-default-color"></i>
     </template>
   </v-btn>
 </template>
