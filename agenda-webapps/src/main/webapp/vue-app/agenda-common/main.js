@@ -9,3 +9,5 @@ if (extensionRegistry) {
     });
   }
 }
+
+Vue?.prototype?.$utils?.includeExtensions?.('AgendaExtension');

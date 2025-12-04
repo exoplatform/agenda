@@ -27,7 +27,7 @@
         class="d-flex flex-row justify-end my-auto flex-nowrap px-0">
         <select
           v-model="eventType"
-          class="width-auto my-auto ms-4 subtitle-1 ignore-vuetify-classes d-none d-sm-inline"
+          class="width-auto my-auto ms-4 me-2 subtitle-1 ignore-vuetify-classes d-none d-sm-inline"
           @change="$root.$emit('agenda-event-type-changed', eventType)">
           <option value="myEvents">{{ $t('agenda.myEvent') }}</option>
           <option value="declinedEvent">{{ $t('agenda.declinedEvent') }}</option>
@@ -35,8 +35,14 @@
         </select>
         <agenda-calendar-filter-button
           :current-space="currentSpace"
-          :owner-ids="ownerIds"
-          class="ms-2" />
+          :owner-ids="ownerIds" />
+        <extension-registry-components
+          :params="params"
+          name="AgendaApp"
+          type="agenda-app-toolbar"
+          parent-element="div"
+          element="div"
+          class="my-auto" />
         <v-btn
           icon
           :title="$t('agenda.settings.drawer.title')"
@@ -75,6 +81,13 @@ export default {
   computed: {
     canCreateEvent() {
       return !this.currentCalendar || !this.currentCalendar.acl || this.currentCalendar.acl.canCreate;
+    },
+    params() {
+      return {
+        space: this.currentSpace,
+        calendar: this.currentCalendar,
+        ownerIds: this.ownerIds,
+      };
     },
   },
 };
