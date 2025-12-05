@@ -1,5 +1,5 @@
 <template>
-  <v-card class="application-body pa-5" flat>
+  <v-card class="application-body pa-4" flat>
     <v-flex class="d-flex flex-column agenda-body">
       <agenda-calendar
         :events="events"
