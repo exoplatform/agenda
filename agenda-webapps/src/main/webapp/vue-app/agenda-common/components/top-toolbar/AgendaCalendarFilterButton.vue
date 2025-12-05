@@ -1,17 +1,13 @@
 <template>
   <v-btn
-    v-if="!currentSpace"
     :title="$t('agenda.filterAgendaTooltip')"
     icon
-    class="primary--text"
-    @click="$root.$emit('agenda-calendar-owners-drawer-open')">
-    <template v-if="ownerIds && ownerIds.length">
-      <i class="uiIcon uiIcon24x24 settingsIcon primary--text"></i>
-      ({{ ownerIds.length }})
-    </template>
-    <template v-else>
-      <i class="uiIcon uiIcon24x24 settingsIcon text-color"></i>
-    </template>
+    max-width="36"
+    max-height="36"
+    @click="$root.$emit('agenda-calendar-owners-drawer-open',currentSpace)">
+    <v-icon dark size="20">
+      fa-sliders-h
+    </v-icon>
   </v-btn>
 </template>
 <script>
