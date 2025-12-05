@@ -10,6 +10,32 @@
           :can-create-event="canCreateEvent" />
       </div>
     </template>
+    <template #center>
+      <div class="d-flex">
+        <v-btn
+          max-width="36"
+          max-height="36"
+          icon
+          @click="prevDate">
+          <v-icon size="20">
+            fa-chevron-left
+          </v-icon>
+        </v-btn>
+        <v-btn
+          max-width="36"
+          max-height="36"
+          icon
+          @click="nextDate">
+          <v-icon size="20">
+            fa-chevron-right
+          </v-icon>
+        </v-btn>
+        <div class="period-title text-uppercase my-auto ms-2">
+          {{ periodTitle }}
+        </div>
+      </div>
+      <!-- <agenda-switch-view :calendar-type="calendarType" /> -->
+    </template>
     <template #right>
       <agenda-switch-view :calendar-type="calendarType" />
       <agenda-calendar-filter-button
@@ -50,6 +76,10 @@ export default {
       type: Array,
       default: null
     },
+    periodTitle: {
+      type: String,
+      default: null
+    },
   },
   computed: {
     canCreateEvent() {
@@ -62,6 +92,14 @@ export default {
         ownerIds: this.ownerIds,
       };
     },
+  },
+  methods: {
+    nextDate() {
+      this.$root.$emit('agenda-display-calendar-next');
+    },
+    prevDate() {
+      this.$root.$emit('agenda-display-calendar-previous');
+    }
   },
 };
 </script>

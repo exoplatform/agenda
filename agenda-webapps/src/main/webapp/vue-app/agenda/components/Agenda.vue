@@ -30,11 +30,11 @@
           :event-type="eventType"
           :current-space="currentSpace"
           :current-calendar="currentCalendar"
-          :owner-ids="ownerIds" />
+          :owner-ids="ownerIds"
+          :period-title="periodTitle" />
         <agenda-body
           :events="events"
           :current-calendar="currentCalendar"
-          :period-title="periodTitle"
           :calendar-type="calendarType"
           :weekdays="weekdays"
           :working-time="workingTime" />
