@@ -6,14 +6,13 @@
       class="d-inline-block">
       <v-btn
         :disabled="!canCreateEvent"
-        class="btn btn-primary"
+        class="btn btn-primary px-0"
+        min-width="36"
+        max-width="36"
         @click="openNewEventForm">
-        <v-icon dark>
-          mdi-plus
+        <v-icon dark size="18">
+          fa-plus
         </v-icon>
-        <span class="ms-2 d-none d-lg-inline">
-          {{ $t('agenda.button.addEvent') }}
-        </span>
       </v-btn>
     </div>
     <agenda-pending-invitation-badge
@@ -56,7 +55,7 @@ export default {
       if (!this.canCreateEvent) {
         return this.$t('agenda.onlySpaceRedactorCanCreateEvent');
       }
-      return '';
+      return this.$t('agenda.button.addEvent');
     },
   },
   created() {
