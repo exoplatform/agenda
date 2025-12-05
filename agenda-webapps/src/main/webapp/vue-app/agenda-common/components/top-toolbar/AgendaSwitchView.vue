@@ -1,11 +1,12 @@
 <template>
-  <div class="d-flex ms-5 my-auto">
+  <div class="d-flex my-auto">
     <v-menu v-model="menu" offset-y>
       <template #activator="{ on, attrs }">
         <v-btn
           id="agendaDisplayOptions"
           elevation="0"
           class="px-0"
+          min-width="53"
           v-bind="attrs"
           v-on="on">
           <v-icon

@@ -8,10 +8,6 @@
         <agenda-create-event-button
           :current-space="currentSpace"
           :can-create-event="canCreateEvent" />
-      </div>
-    </template>
-    <template #center>
-      <div class="d-flex">
         <v-btn
           max-width="36"
           max-height="36"
@@ -39,8 +35,7 @@
       <agenda-switch-view :calendar-type="calendarType" />
       <agenda-calendar-filter-button
         :current-space="currentSpace"
-        :owner-ids="ownerIds"
-        class="ms-2" />
+        :owner-ids="ownerIds" />
       <extension-registry-components
         :params="params"
         name="AgendaApp"
