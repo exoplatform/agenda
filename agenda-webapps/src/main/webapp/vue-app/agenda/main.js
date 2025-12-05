@@ -28,6 +28,11 @@ export function init() {
     // init Vue app when locale ressources are ready
     const eventType = eXo.env.portal.spaceId ? 'allEvents' : 'myEvents';
     Vue.createApp({
+      computed: {
+        isMobile() {
+          return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
+        },
+      },
       template: `<agenda id="${appId}" event-type="${eventType}" />`,
       vuetify,
       i18n

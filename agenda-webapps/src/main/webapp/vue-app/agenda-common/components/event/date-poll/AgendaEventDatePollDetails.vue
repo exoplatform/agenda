@@ -5,7 +5,7 @@
     flat
     class="event-details event-poll-details d-flex flex-column">
     <agenda-event-date-poll-details-mobile
-      v-if="isMobile"
+      v-if="$root.isMobile"
       :event="event"
       :voted-date-polls="votedDatePolls"
       :date-options="dateOptions"
@@ -99,9 +99,6 @@ export default {
     },
     currentUserVotes() {
       return this.currentUserAttendee && this.currentUserAttendee.identity;
-    },
-    isMobile() {
-      return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
     },
   },
   watch: {

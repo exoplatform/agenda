@@ -11,7 +11,7 @@
     <template v-if="event && dialog">
       <template v-if="isForm">
         <agenda-event-mobile-form
-          v-if="isMobile"
+          v-if="$root.isMobile"
           ref="eventForm"
           :event="event"
           :current-space="currentSpace"
@@ -103,9 +103,6 @@ export default {
     };
   },
   computed: {
-    isMobile() {
-      return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
-    },
     isModified() {
       return !this.saving && this.isForm && this.event && this.originalEventString && this.originalEventString !== JSON.stringify(this.event);
     },
@@ -130,7 +127,7 @@ export default {
   watch: {
     dialog() {
       if (this.dialog) {
-        if (!this.isMobile) {
+        if (!this.$root.isMobile) {
           $('body').addClass('hide-scroll');
         }
       } else {

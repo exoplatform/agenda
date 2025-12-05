@@ -4,6 +4,7 @@
     icon
     max-width="36"
     max-height="36"
+    class="me-2"
     @click="openPendingInvitationsDrawer()">
     <v-badge
       :value="pendingInvitationsCount"
