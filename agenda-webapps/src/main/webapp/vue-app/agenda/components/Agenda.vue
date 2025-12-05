@@ -30,8 +30,7 @@
           :event-type="eventType"
           :current-space="currentSpace"
           :current-calendar="currentCalendar"
-          :owner-ids="ownerIds"
-          class="mb-5" />
+          :owner-ids="ownerIds" />
         <agenda-body
           :events="events"
           :current-calendar="currentCalendar"
