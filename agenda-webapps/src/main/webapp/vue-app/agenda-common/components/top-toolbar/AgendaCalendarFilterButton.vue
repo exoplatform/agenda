@@ -2,11 +2,12 @@
   <v-btn
     :title="$t('agenda.filterAgendaTooltip')"
     icon
-    class="primary--text"
+    max-width="36"
+    max-height="36"
     @click="$root.$emit('agenda-calendar-owners-drawer-open',currentSpace)">
-    <template>
-      <i class="uiIcon uiIcon24x24 settingsIcon icon-default-color"></i>
-    </template>
+    <v-icon dark size="20">
+      fa-sliders-h
+    </v-icon>
   </v-btn>
 </template>
 <script>
