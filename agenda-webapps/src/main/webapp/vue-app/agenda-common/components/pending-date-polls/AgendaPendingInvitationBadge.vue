@@ -2,7 +2,8 @@
   <v-btn
     :title="$t('agenda.pendingInvitations')"
     icon
-    small
+    max-width="36"
+    max-height="36"
     @click="openPendingInvitationsDrawer()">
     <v-badge
       :value="pendingInvitationsCount"
@@ -16,7 +17,7 @@
       top
       right
       color="#F8B121">
-      <v-icon size="18">fa-history</v-icon>
+      <v-icon size="20">fa-history</v-icon>
     </v-badge>
   </v-btn>
 </template>
