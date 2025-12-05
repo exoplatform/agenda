@@ -1,17 +1,8 @@
 <template>
   <v-toolbar flat color="white">
     <v-row>
-      <v-col cols="2" class="my-auto">
-        <v-btn
-          outlined
-          class="btn me-4"
-          color="grey darken-2"
-          @click="setToday">
-          {{ $t('agenda.toDay') }}
-        </v-btn>
-      </v-col>
       <v-col
-        cols="8"
+        cols="10"
         align="center"
         class="d-flex flex-row align-center justify-center flex-nowrap">
         <v-btn
@@ -43,9 +34,6 @@ export default {
     },
   },
   methods: {
-    setToday() {
-      this.$root.$emit('agenda-display-calendar-atDate');
-    },
     nextDate() {
       this.$root.$emit('agenda-display-calendar-next');
     },

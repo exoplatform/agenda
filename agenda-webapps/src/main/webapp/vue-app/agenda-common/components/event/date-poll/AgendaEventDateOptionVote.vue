@@ -23,9 +23,9 @@
       <v-btn
         v-show="conflictWithOtherEvent"
         :title="$t('agenda.conflictWithOtherEvent')"
-        :absolute="!isMobile"
-        :small="isMobile"
-        :class="isMobile && 'ms-2 mb-3' || 'ms-8'"
+        :absolute="!$root.isMobile"
+        :small="$root.isMobile"
+        :class="$root.isMobile && 'ms-2 mb-3' || 'ms-8'"
         class="event-conflicted"
         icon
         @click="$root.$emit('agenda-conflict-events-drawer-open', dateOption, conflictEvents, conflictingDatePolls)">
@@ -95,9 +95,6 @@ export default {
         });
       }
       return conflictingDatePolls;
-    },
-    isMobile() {
-      return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
     },
   },
   mounted() {

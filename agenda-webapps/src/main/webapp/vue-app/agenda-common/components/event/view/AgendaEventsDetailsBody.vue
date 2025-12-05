@@ -1,7 +1,7 @@
 <template>
   <div class="event-details-body overflow-auto flex-grow-1 d-flex flex-column flex-md-row pa-4 mt-5">
-    <div class="flex-grow-1 flex-shrink-0 event-details-body-left " :class="{ 'd-flex' : !isMobile }">
-      <div class="full-width" :class="{'mx-auto' : isMobile}">
+    <div class="flex-grow-1 flex-shrink-0 event-details-body-left " :class="{ 'd-flex' : !$root.isMobile }">
+      <div class="full-width" :class="{'mx-auto' : $root.isMobile}">
         <div class="event-date align-center d-flex pb-5">
           <i class="uiIconDatePicker darkGreyIcon uiIcon32x32 pe-5"></i>
           <div class="d-inline-flex">
@@ -204,9 +204,6 @@ export default {
     },
     enabledconnectors() {
       return this.connectors.find(connector => connector.enabled);
-    },
-    isMobile() {
-      return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
     },
     isConferenceEnabled() {
       return this.eventConferenceType === 'manual' || (this.conferenceProvider && this.eventConferenceType && this.conferenceProvider.getType() === this.eventConferenceType);
