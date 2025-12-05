@@ -8,48 +8,48 @@
         <agenda-create-event-button
           :current-space="currentSpace"
           :can-create-event="canCreateEvent" />
-      </template>
-      <template #center>
-        <div class="d-flex">
-          <v-btn
-            max-width="36"
-            max-height="36"
-            icon
-            @click="prevDate">
-            <v-icon size="20">
-              fa-chevron-left
-            </v-icon>
-          </v-btn>
-          <v-btn
-            max-width="36"
-            max-height="36"
-            icon
-            @click="nextDate">
-            <v-icon size="20">
-              fa-chevron-right
-            </v-icon>
-          </v-btn>
-          <div class="period-title text-uppercase my-auto ms-2">
-            {{ periodTitle }}
-          </div>
+      </div>
+    </template>
+    <template #center>
+      <div class="d-flex">
+        <v-btn
+          max-width="36"
+          max-height="36"
+          icon
+          @click="prevDate">
+          <v-icon size="20">
+            fa-chevron-left
+          </v-icon>
+        </v-btn>
+        <v-btn
+          max-width="36"
+          max-height="36"
+          icon
+          @click="nextDate">
+          <v-icon size="20">
+            fa-chevron-right
+          </v-icon>
+        </v-btn>
+        <div class="period-title text-uppercase my-auto ms-2">
+          {{ periodTitle }}
         </div>
-      </template>
-      <template #right>
-        <agenda-switch-view :calendar-type="calendarType" />
-        <agenda-calendar-filter-button
-          :current-space="currentSpace"
-          :owner-ids="ownerIds"
-          class="ms-2" />
-        <extension-registry-components
-          :params="params"
-          name="AgendaApp"
-          type="agenda-app-toolbar"
-          parent-element="div"
-          element="div"
-          class="my-auto" />
-      </template>
-    </application-toolbar>
-  </div>
+      </div>
+    </template>
+    <template #right>
+      <agenda-switch-view :calendar-type="calendarType" />
+      <agenda-calendar-filter-button
+        :current-space="currentSpace"
+        :owner-ids="ownerIds"
+        class="ms-2" />
+      <extension-registry-components
+        :params="params"
+        name="AgendaApp"
+        type="agenda-app-toolbar"
+        parent-element="div"
+        element="div"
+        class="my-auto" />
+    </template>
+  </application-toolbar>
 </template>
 
 <script>

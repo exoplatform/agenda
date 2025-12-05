@@ -4,7 +4,6 @@
       <template #activator="{ on, attrs }">
         <v-btn
           id="agendaDisplayOptions"
-          small
           elevation="0"
           class="px-0"
           v-bind="attrs"
