@@ -1,6 +1,6 @@
 <template>
   <exo-drawer
-    ref="calendarOwnersFilters"
+    ref="calendarFilters"
     right
     @opened="drawer = true"
     @closed="drawer = false">
@@ -8,56 +8,48 @@
       {{ $t('agenda.filterAgendaTitle') }}
     </template>
     <template slot="content">
-      <agenda-filter-calendar-list
-        ref="filterCalendarList"
-        v-model="selectedOwnerIds"
-        class="calendar-owners-filters me-4"
-        @start-loading="$refs.calendarOwnersFilters.startLoading()"
-        @end-loading="$refs.calendarOwnersFilters.endLoading()" />
+      <div class="radio-group-container ps-4">
+        <v-radio-group
+          v-model="eventType"
+          @change="$root.$emit('agenda-event-type-changed', eventType)">
+          <v-radio
+            :label="$t('agenda.myEvent')"
+            value="myEvent" />
+          <v-radio
+            :label="$t('agenda.declinedEvent')"
+            value="declinedEvent" />
+          <v-radio
+            :label="$t('agenda.allEvent')"
+            value="allEvent" />
+        </v-radio-group>
+      </div>
     </template>
   </exo-drawer>
 </template>
-
 <script>
 export default {
-  props: {
-    ownerIds: {
-      type: Array,
-      default: () => [],
-    },
-  },
+
   data: () => ({
     drawer: false,
-    selectedOwnerIds: [],
+    eventType: '',
   }),
-  computed: {
-    calendarOwnersSuggesterLabels() {
-      return {
-        placeholder: this.$t('agenda.filterAgendaPlaceholder'),
-        noDataLabel: this.$t('agenda.noDataLabel'),
-      };
-    },
-  },
-  watch: {
-    selectedOwnerIds() {
-      this.applyFilters();
-    },
-  },
   created() {
     this.$root.$on('agenda-calendar-owners-drawer-open', this.open);
   },
+  computed: {
+    canCreateEvent() {
+      return !this.currentCalendar || !this.currentCalendar.acl || this.currentCalendar.acl.canCreate;
+    },
+  },
   methods: {
-    applyFilters() {
-      this.$emit('changed', this.selectedOwnerIds);
-    },
     close() {
-      this.$refs.calendarOwnersFilters.close();
+      this.$refs.calendarFilters.close();
     },
-    open() {
-      this.$refs.calendarOwnersFilters.open();
-      this.$nextTick().then(() => {
-        this.$refs.filterCalendarList?.reset();
-      });
+    open(currentSpace) {
+      if (!this.eventType){
+        this.eventType = currentSpace ? 'allEvent' : 'myEvent';
+      }
+      this.$refs.calendarFilters.open();
     },
   },
 };
