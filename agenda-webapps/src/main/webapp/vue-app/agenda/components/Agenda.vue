@@ -1,7 +1,7 @@
 <template>
   <v-app class="agenda-application border-box-sizing" flat>
     <template v-if="settingsLoaded && !hideApp">
-      <v-main v-if="isMobile" class="application-body pt-2 px-1">
+      <v-main v-if="$root.isMobile" class="application-body pt-2 px-1">
         <agenda-mobile-header
           :current-space="currentSpace"
           :current-calendar="currentCalendar"
@@ -129,9 +129,6 @@ export default {
     },
     conferenceProvider() {
       return this.conferenceProviders && this.enabledConferenceProviderName && this.conferenceProviders.find(provider => provider.isInitialized && provider.linkSupported && provider.groupSupported && this.enabledConferenceProviderName.getType() === provider.getType());
-    },
-    isMobile() {
-      return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
     },
     enabledConnectors() {
       return this.connectors && this.connectors.filter(connector => connector.initialized && connector.enabled) || [];
