@@ -1,59 +1,32 @@
 <template>
-  <v-toolbar
-    color="application-body"
-    height="60"
-    flat
-    dense>
-    <v-row class="pa-5">
-      <v-col
-        cols="2"
-        sm="4"
-        class="align-start my-auto px-0">
+  <application-toolbar
+    class="mb-0"
+    cols-auto="true"
+    ref="applicationToolbar">
+    <template #left>
+      <div class="d-flex">
         <agenda-create-event-button
           :current-space="currentSpace"
-          :can-create-event="canCreateEvent"
-          class="agenda-toolbar-left me-2" />
-      </v-col>
-      <v-col
-        cols="8"
-        sm="4"
-        align="center"
-        class="d-flex flex-row align-center justify-start flex-nowrap px-0">
-        <agenda-switch-view :calendar-type="calendarType" />
-      </v-col>
-      <v-col
-        cols="2"
-        sm="4"
-        class="d-flex flex-row justify-end my-auto flex-nowrap px-0">
-        <select
-          v-model="eventType"
-          class="width-auto my-auto ms-4 me-2 subtitle-1 ignore-vuetify-classes d-none d-sm-inline"
-          @change="$root.$emit('agenda-event-type-changed', eventType)">
-          <option value="myEvents">{{ $t('agenda.myEvent') }}</option>
-          <option value="declinedEvent">{{ $t('agenda.declinedEvent') }}</option>
-          <option value="allEvents">{{ $t('agenda.allEvent') }}</option>
-        </select>
-        <agenda-calendar-filter-button
-          :current-space="currentSpace"
-          :owner-ids="ownerIds" />
-        <extension-registry-components
-          :params="params"
-          name="AgendaApp"
-          type="agenda-app-toolbar"
-          parent-element="div"
-          element="div"
-          class="my-auto" />
-        <v-btn
-          icon
-          :title="$t('agenda.settings.drawer.title')"
-          class="d-none d-sm-inline text-header-title"
-          @click="$root.$emit('user-settings-agenda-drawer-open')">
-          <v-icon>mdi-cog</v-icon>
-        </v-btn>
-      </v-col>
-    </v-row>
-  </v-toolbar>
+          :can-create-event="canCreateEvent" />
+      </div>
+    </template>
+    <template #right>
+      <agenda-switch-view :calendar-type="calendarType" />
+      <agenda-calendar-filter-button
+        :current-space="currentSpace"
+        :owner-ids="ownerIds"
+        class="ms-2" />
+      <extension-registry-components
+        :params="params"
+        name="AgendaApp"
+        type="agenda-app-toolbar"
+        parent-element="div"
+        element="div"
+        class="my-auto" />
+    </template>
+  </application-toolbar>
 </template>
+
 <script>
 export default {
   props: {
