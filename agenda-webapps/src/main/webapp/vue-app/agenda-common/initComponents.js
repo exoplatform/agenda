@@ -1,7 +1,6 @@
 import AgendaHeader from './components/calendar-body/AgendaHeader.vue';
 import AgendaBody from './components/calendar-body/AgendaBody.vue';
 import AgendaCalendar from './components/calendar-body/AgendaCalendar.vue';
-import AgendaToolbar from './components/calendar-body/AgendaToolbar.vue';
 import AgendaPreviewEventDialog from './components/calendar-body/AgendaPreviewEventDialog.vue';
 import AgendaTimeZoneSelectBox from './components/calendar-body/AgendaTimeZoneSelectBox.vue';
 import AgendaEventsUpdater from './components/calendar-body/AgendaEventsUpdater.vue';
@@ -100,7 +99,6 @@ const components = {
   'agenda-calendar-filter-button': AgendaCalendarFilterButton,
   'agenda-event-dialog': AgendaEventDialog,
   'agenda-event-form': AgendaEventForm,
-  'agenda-toolbar': AgendaToolbar,
   'agenda-event-preview-dialog': AgendaPreviewEventDialog,
   'agenda-event-save': AgendaEventSave,
   'agenda-switch-view': AgendaSwitchView,
