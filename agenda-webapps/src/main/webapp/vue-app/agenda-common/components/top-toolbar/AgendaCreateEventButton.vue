@@ -6,7 +6,7 @@
       class="d-inline-block">
       <v-btn
         :disabled="!canCreateEvent"
-        class="btn btn-primary px-0"
+        class="btn btn-primary px-0 me-2"
         min-width="36"
         max-width="36"
         @click="openNewEventForm">
@@ -19,6 +19,12 @@
       :current-space="currentSpace"
       :offset-x="offsetX"
       :offset-y="offsetY" />
+    <v-btn
+      v-if="!$root.isMobile"
+      class="btn me-2"
+      @click="setToday">
+      {{ $t('agenda.toDay') }}
+    </v-btn>
   </div>
 </template>
 <script>
@@ -45,11 +51,8 @@ export default {
     initialized: false,
   }),
   computed: {
-    isMobile() {
-      return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
-    },
     displayButton() {
-      return (!this.isMobile || this.canCreateEvent) && (this.initialized || !eXo.env.portal.spaceId);
+      return (!this.$root.isMobile || this.canCreateEvent) && (this.initialized || !eXo.env.portal.spaceId);
     },
     addEventButtonTooltip() {
       if (!this.canCreateEvent) {
@@ -74,6 +77,10 @@ export default {
         attendees: [],
       });
     },
+    setToday() {
+      this.$root.$emit('agenda-display-calendar-atDate');
+    },
   },
+  
 };
 </script>
