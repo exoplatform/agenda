@@ -1,7 +1,6 @@
 <template>
   <v-card class="application-body pa-5" flat>
     <v-flex class="d-flex flex-column agenda-body">
-      <agenda-toolbar :period-title="periodTitle" class="mb-5" />
       <agenda-calendar
         :events="events"
         :current-calendar="currentCalendar"
