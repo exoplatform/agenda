@@ -52,8 +52,7 @@
       :working-time="workingTime" />
     <agenda-event-preview-dialog />
     <agenda-filter-calendar-drawer
-      :owner-ids="ownerIds"
-      @changed="changeDisplayedOwnerIds" />
+      :current-space="currentSpace" />
     <agenda-user-setting-drawer :settings="settings" />
     <agenda-event-quick-form-drawer
       :current-space="currentSpace"
@@ -228,6 +227,7 @@ export default {
         this.$spaceService.getSpaceById(spaceId, 'identity')
           .then((space) => {
             this.currentSpace = space;
+            this.eventType = space ? 'allEvents' : 'myEvents';
             if (space && space.identity && space.identity.id) {
               this.ownerIds = [space.identity.id];
             }

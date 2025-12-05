@@ -37,7 +37,6 @@
       <!-- <agenda-switch-view :calendar-type="calendarType" /> -->
     </template>
     <template #right>
-      <agenda-switch-view :calendar-type="calendarType" />
       <agenda-calendar-filter-button
         :current-space="currentSpace"
         :owner-ids="ownerIds"
