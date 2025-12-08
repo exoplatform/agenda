@@ -13,7 +13,7 @@
           max-height="36"
           icon
           @click="prevDate">
-          <v-icon size="20">
+          <v-icon size="20" class="text-light-color">
             fa-chevron-left
           </v-icon>
         </v-btn>
@@ -22,7 +22,7 @@
           max-height="36"
           icon
           @click="nextDate">
-          <v-icon size="20">
+          <v-icon size="20" class="text-light-color">
             fa-chevron-right
           </v-icon>
         </v-btn>
