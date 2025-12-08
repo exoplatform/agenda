@@ -7,8 +7,7 @@
       <v-btn
         :disabled="!canCreateEvent"
         class="btn btn-primary px-0 me-3"
-        min-width="36"
-        max-width="36"
+        min-width="34"
         @click="openNewEventForm">
         <v-icon dark size="18">
           fa-plus
@@ -22,6 +21,7 @@
     <v-btn
       v-if="!$root.isMobile"
       class="btn me-3"
+      max-height="34"
       @click="setToday">
       {{ $t('agenda.toDay') }}
     </v-btn>
