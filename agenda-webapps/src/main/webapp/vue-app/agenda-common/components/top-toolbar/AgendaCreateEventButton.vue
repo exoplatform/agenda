@@ -6,7 +6,7 @@
       class="d-inline-block">
       <v-btn
         :disabled="!canCreateEvent"
-        class="btn btn-primary px-0 me-2"
+        class="btn btn-primary px-0 me-3"
         min-width="36"
         max-width="36"
         @click="openNewEventForm">
@@ -21,7 +21,7 @@
       :offset-y="offsetY" />
     <v-btn
       v-if="!$root.isMobile"
-      class="btn me-2"
+      class="btn me-3"
       @click="setToday">
       {{ $t('agenda.toDay') }}
     </v-btn>
