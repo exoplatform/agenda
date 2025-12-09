@@ -1,20 +1,26 @@
 <template>
   <div class="d-flex my-auto">
-    <v-menu v-model="menu" offset-y>
+    <v-menu
+      v-model="menu"
+      transition="slide-x-transition"
+      content-class="agendaPeriodMenu"
+      offset-y
+      close-on-click>
       <template #activator="{ on, attrs }">
         <v-btn
           id="agendaDisplayOptions"
           elevation="0"
           class="px-0"
-          min-width="53"
+          small
+          min-height="36"
           v-bind="attrs"
           v-on="on">
           <v-icon
             v-if="selectedDispalyOption"
             :class="selectedDispalyOption.icon"
-            class="icon-default-color"
+            class="text-light-color ps-2"
             size="20" />
-          <v-icon class="ms-1" size="13">mdi-chevron-down</v-icon>
+          <v-icon class="px-2 text-light-color" size="13">fa-chevron-down</v-icon>
         </v-btn>
       </template>
       <v-list class="pa-0">
@@ -25,7 +31,7 @@
           @click="setDisplayOption(item)">
           <v-list-item-icon class="me-2 my-0 align-self-center">
             <v-icon
-              :class="[item.icon, item.value === viewType ? 'primary--text' : 'icon-default-color']"
+              :class="[item.icon, item.value === viewType ? 'primary--text' : 'text-light-color']"
               size="16" />
           </v-list-item-icon>
           <div :class="item.value === viewType && 'primary--text'">{{ item.label }}</div>
@@ -44,7 +50,17 @@ export default {
   },
   data: () => ({
     menu: false,
+    waitTimeUntilCloseMenu: 100,
   }),
+  created() {
+    $(document).on('mousedown', () => {      
+      if (this.menu) {
+        window.setTimeout(() => {
+          this.menu = false;
+        }, this.waitTimeUntilCloseMenu);
+      }
+    });
+  },
   computed: {
     dispalyOptions() {
       return [
@@ -64,6 +80,6 @@ export default {
       this.$root.$emit('agenda-change-period-type', this.calendarType);
       this.menu = false;
     },
-  }
+  },
 };
 </script>
