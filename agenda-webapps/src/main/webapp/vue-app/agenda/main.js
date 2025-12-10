@@ -32,6 +32,9 @@ export function init() {
         isMobile() {
           return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
         },
+        isTablet() {
+          return this.$vuetify.breakpoint.name === 'md';
+        },
       },
       template: `<agenda id="${appId}" event-type="${eventType}" />`,
       vuetify,
