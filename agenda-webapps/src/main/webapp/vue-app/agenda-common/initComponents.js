@@ -4,7 +4,6 @@ import AgendaCalendar from './components/calendar-body/AgendaCalendar.vue';
 import AgendaPreviewEventDialog from './components/calendar-body/AgendaPreviewEventDialog.vue';
 import AgendaTimeZoneSelectBox from './components/calendar-body/AgendaTimeZoneSelectBox.vue';
 import AgendaEventsUpdater from './components/calendar-body/AgendaEventsUpdater.vue';
-import AgendaMobileHeader from './components/calendar-body/mobile/AgendaMobileHeader.vue';
 import AgendaTimeline from './components/calendar-body/mobile/AgendaTimeline.vue';
 import AgendaEmptyTimeline from './components/calendar-body/mobile/AgendaEmptyTimeline.vue';
 
@@ -12,6 +11,7 @@ import AgendaEventMobileForm from './components/event/form/mobile/AgendaEventMob
 
 import AgendaCreateEventButton from './components/top-toolbar/AgendaCreateEventButton.vue';
 import AgendaCalendarFilterButton from './components/top-toolbar/AgendaCalendarFilterButton.vue';
+import AgendaPeriodSelector from './components/top-toolbar/AgendaPeriodSelector.vue';
 
 import AgendaFilterCalendarDrawer from './components/filter/AgendaFilterCalendarDrawer.vue';
 import AgendaFilterCalendarList from './components/filter/AgendaFilterCalendarList.vue';
@@ -86,7 +86,6 @@ const components = {
   'agenda-header': AgendaHeader,
   'agenda-body': AgendaBody,
   'agenda-calendar': AgendaCalendar,
-  'agenda-mobile-header': AgendaMobileHeader,
   'agenda-timeline': AgendaTimeline,
   'agenda-empty-timeline': AgendaEmptyTimeline,
   'agenda-events-updater': AgendaEventsUpdater,
@@ -97,6 +96,7 @@ const components = {
   'agenda-filter-calendar-search': AgendaFilterCalendarSearch,
   'agenda-create-event-button': AgendaCreateEventButton,
   'agenda-calendar-filter-button': AgendaCalendarFilterButton,
+  'agenda-period-selector': AgendaPeriodSelector,
   'agenda-event-dialog': AgendaEventDialog,
   'agenda-event-form': AgendaEventForm,
   'agenda-event-preview-dialog': AgendaPreviewEventDialog,
