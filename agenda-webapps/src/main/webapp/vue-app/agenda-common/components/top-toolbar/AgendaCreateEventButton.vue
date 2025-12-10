@@ -7,6 +7,7 @@
       <v-btn
         :disabled="!canCreateEvent"
         class="btn btn-primary px-0 me-2"
+        max-height="34"
         min-width="34"
         @click="openNewEventForm">
         <v-icon dark size="18">
