@@ -18,7 +18,7 @@
       top
       right
       color="#F8B121">
-      <v-icon size="20">fa-history</v-icon>
+      <v-icon size="20" class="text-light-color">fa-history</v-icon>
     </v-badge>
   </v-btn>
 </template>
