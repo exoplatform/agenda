@@ -6,7 +6,7 @@
       class="d-inline-block">
       <v-btn
         :disabled="!canCreateEvent"
-        class="btn btn-primary px-0 me-3"
+        class="btn btn-primary px-0 me-2"
         min-width="34"
         @click="openNewEventForm">
         <v-icon dark size="18">
