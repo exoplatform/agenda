@@ -1,38 +1,25 @@
 <template>
   <application-toolbar
-    class="mb-0"
+    class="agenda-header mb-0"
     cols-auto="true"
+    hide-cone-button="true"
     ref="applicationToolbar">
     <template #left>
       <div class="d-flex">
         <agenda-create-event-button
           :current-space="currentSpace"
           :can-create-event="canCreateEvent" />
-        <v-btn
-          max-width="36"
-          max-height="36"
-          icon
-          @click="prevDate">
-          <v-icon size="20" class="text-light-color">
-            fa-chevron-left
-          </v-icon>
-        </v-btn>
-        <v-btn
-          max-width="36"
-          max-height="36"
-          icon
-          @click="nextDate">
-          <v-icon size="20" class="text-light-color">
-            fa-chevron-right
-          </v-icon>
-        </v-btn>
-        <div class="period-title text-uppercase my-auto ms-2">
-          {{ periodTitle }}
-        </div>
+        <date-picker
+          v-if="$root.isMobile || $root.isTablet"
+          v-model="periodStart"
+          class="agenda-header-date-picker z-index-two" />  
+        <agenda-period-selector
+          v-else
+          :period-title="periodTitle" />  
       </div>
     </template>
     <template #right>
-      <agenda-switch-view :calendar-type="calendarType" />
+      <agenda-switch-view :calendar-type="calendarType" v-if="!$root.isMobile" />
       <agenda-calendar-filter-button
         :current-space="currentSpace"
         :owner-ids="ownerIds" />
@@ -75,6 +62,23 @@ export default {
       default: null
     },
   },
+  data: () => ({
+    periodStart: null,
+  }),
+  watch: {
+    periodStart(newVal, oldVal) {
+      if (!oldVal || !newVal) {
+        return;
+      }
+      if (this.$agendaUtils.toRFC3339(oldVal, true) !== this.$agendaUtils.toRFC3339(newVal, true)) {
+        this.period.start = this.periodStart;
+        this.$root.$emit('agenda-refresh');
+      }
+    },
+  },
+  created() {
+    this.periodStart = this.period && this.period.start || new Date();
+  },
   computed: {
     canCreateEvent() {
       return !this.currentCalendar || !this.currentCalendar.acl || this.currentCalendar.acl.canCreate;
@@ -86,14 +90,6 @@ export default {
         ownerIds: this.ownerIds,
       };
     },
-  },
-  methods: {
-    nextDate() {
-      this.$root.$emit('agenda-display-calendar-next');
-    },
-    prevDate() {
-      this.$root.$emit('agenda-display-calendar-previous');
-    }
   },
 };
 </script>

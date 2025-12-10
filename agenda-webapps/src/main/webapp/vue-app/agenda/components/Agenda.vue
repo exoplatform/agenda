@@ -1,20 +1,29 @@
 <template>
   <v-app class="agenda-application border-box-sizing" flat>
     <template v-if="settingsLoaded && !hideApp">
-      <v-main v-if="$root.isMobile" class="application-body pt-2 px-1">
-        <agenda-mobile-header
+      <v-main class="application-body" :class="$root.isMobile ? 'pt-2 px-1' : ''">
+        <agenda-header
+          :calendar-type="calendarType"
+          :event-type="eventType"
           :current-space="currentSpace"
           :current-calendar="currentCalendar"
           :owner-ids="ownerIds"
-          :period="period"
-          class="mt-2 pa-5" />
+          :period-title="periodTitle" />
         <agenda-timeline
+          v-if="$root.isMobile"
           :events="events"
           :period-start-date="period.start"
           :loading="loading"
           :limit="limit"
           class="mt-2 pa-5" />
-        <v-flex v-if="hasMore" class="d-flex py-4 border-box-sizing">
+        <agenda-body
+          v-else
+          :events="events"
+          :current-calendar="currentCalendar"
+          :calendar-type="calendarType"
+          :weekdays="weekdays"
+          :working-time="workingTime" />  
+        <v-flex v-if="$root.isMobile && hasMore" class="d-flex py-4 border-box-sizing">
           <v-btn
             :loading="loading"
             :disabled="loading"
@@ -23,21 +32,6 @@
             {{ $t('agenda.button.loadMore') }}
           </v-btn>
         </v-flex>
-      </v-main>
-      <v-main v-else class="application-body">
-        <agenda-header
-          :calendar-type="calendarType"
-          :event-type="eventType"
-          :current-space="currentSpace"
-          :current-calendar="currentCalendar"
-          :owner-ids="ownerIds"
-          :period-title="periodTitle" />
-        <agenda-body
-          :events="events"
-          :current-calendar="currentCalendar"
-          :calendar-type="calendarType"
-          :weekdays="weekdays"
-          :working-time="workingTime" />
       </v-main>
     </template>
 

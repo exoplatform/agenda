@@ -261,7 +261,7 @@
 
   .datePickerComponent {
     &::after {
-      display: none;
+      display: none !important;
     }
     input {
       margin: auto;
@@ -274,6 +274,7 @@
     max-width: 50%;
     padding: 5px;
     text-align: center;
+    min-height: 36px !important;
   }
 
   .customRecurrentEventDrawer {
@@ -649,8 +650,7 @@
   }
 }
 
-.agenda-mobile-header {
-  background-color: #FFFFFF;
+.agenda-header {
 
   .agenda-header-date-picker {
     input {
