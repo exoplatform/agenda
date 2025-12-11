@@ -111,7 +111,7 @@ export default {
     },
   },
   mounted() {
-    this.$root.$emit('agenda-calendar-owners-drawer-open');
+    this.$root.$emit('agenda-filter-drawer-open');
   },
   methods: {
     reset() {
