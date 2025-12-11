@@ -1,29 +1,38 @@
 <template>
-  <v-list
-    class="flex-grow-1 d-flex flex-column pa-0"
-    dense>
-    <v-list-item
-      v-if="!reminders || !reminders.length"
-      class="px-0 reminder-list-item"
+  <div>
+    <div class="d-flex mt-6 mb-4 ">
+      <div class="text-header ma-auto ">{{ $t('agenda.label.defaultReminders') }}</div>
+      <v-spacer />
+      <v-btn
+        v-if="canAddReminder"
+        :title="$t('agenda.addReminder')"
+        class="btn btn-primary ma-auto px-0 me-2"
+        max-height="34"
+        min-width="34"
+        @click="addReminder">
+        <v-icon size="18">
+          fa-plus
+        </v-icon>
+      </v-btn>
+    </div>
+    <v-list
+      class="flex-grow-1 d-flex flex-column pa-0"
       dense>
-      <label class="text-subtitle mx-auto">
-        {{ $t('agenda.noRemindersYet') }}
-      </label>
-    </v-list-item>
-    <agenda-reminder-user-setting-item
-      v-for="(reminder, index) in reminders"
-      :key="index"
-      :reminder="reminder"
-      @remove="removeReminder(reminder)" />
-    <v-list-item
-      v-if="canAddReminder"
-      class="ps-0 my-auto reminder-list-item"
-      dense>
-      <a class="add-notification-link" @click="addReminder">
-        {{ $t('agenda.addReminder') }}
-      </a>
-    </v-list-item>
-  </v-list>
+      <v-list-item
+        v-if="!reminders || !reminders.length"
+        class="px-0 reminder-list-item"
+        dense>
+        <label class="text-subtitle mx-auto">
+          {{ $t('agenda.noRemindersYet') }}
+        </label>
+      </v-list-item>
+      <agenda-reminder-user-setting-item
+        v-for="(reminder, index) in reminders"
+        :key="index"
+        :reminder="reminder"
+        @remove="removeReminder(reminder)" />
+    </v-list>
+  </div>
 </template>
 
 <script>
