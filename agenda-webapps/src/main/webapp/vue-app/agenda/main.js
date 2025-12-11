@@ -30,10 +30,10 @@ export function init() {
     Vue.createApp({
       computed: {
         isMobile() {
-          return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
+          return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';          
         },
         isTablet() {
-          return this.$vuetify.breakpoint.name === 'md';
+          return this.$vuetify.breakpoint.width < this.$vuetify.breakpoint.thresholds.md && this.$vuetify.breakpoint.width >= this.$vuetify.breakpoint.thresholds.sm;
         },
       },
       template: `<agenda id="${appId}" event-type="${eventType}" />`,
