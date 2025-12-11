@@ -9,6 +9,7 @@
       <template #activator="{ on, attrs }">
         <v-btn
           id="agendaDisplayOptions"
+          :title="$t('agenda.displayOptionsTooltip')"
           elevation="0"
           class="px-0"
           small
@@ -20,7 +21,7 @@
             :class="selectedDispalyOption.icon"
             class="text-light-color ps-2"
             size="20" />
-          <v-icon class="px-2 text-light-color" size="13">fa-chevron-down</v-icon>
+          <v-icon class="px-2 text-light-color" size="12">fa-chevron-down</v-icon>
         </v-btn>
       </template>
       <v-list class="pa-0">
