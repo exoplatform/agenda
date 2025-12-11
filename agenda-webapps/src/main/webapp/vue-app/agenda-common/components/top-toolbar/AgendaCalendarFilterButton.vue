@@ -4,8 +4,8 @@
     icon
     max-width="36"
     max-height="36"
-    @click="$root.$emit('agenda-calendar-owners-drawer-open',currentSpace)">
-    <v-icon dark size="20">
+    @click="$root.$emit('agenda-filter-drawer-open',currentSpace)">
+    <v-icon size="20" class="text-light-color">
       fa-sliders-h
     </v-icon>
   </v-btn>
