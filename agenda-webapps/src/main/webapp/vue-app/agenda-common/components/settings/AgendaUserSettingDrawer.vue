@@ -16,14 +16,25 @@
         flat>
         <v-layout class="ma-5 d-flex flex-column">
           <div class="d-flex flex-column mb-5">
-            <label class="switch-label-text mt-1 text-subtitle-1">{{ $t('agenda.settings.drawer.label.DefaultView') }}:</label>
-            <select v-model="userSettingsForm.agendaDefaultView" class="width-auto my-auto pe-2 ignore-vuetify-classes d-none d-sm-inline">
-              <option value="day">{{ $t('agenda.label.viewDay') }}</option>
-              <option value="week">{{ $t('agenda.label.viewWeek') }}</option>
-              <option value="month">{{ $t('agenda.label.viewMonth') }}</option>
-            </select>
+            <div class="mb-2 text-header">{{ $t('agenda.settings.drawer.label.displayOptions') }}</div>
+            <div class="mb-2 font-weight-bold">{{ $t('agenda.settings.drawer.label.DefaultView') }}</div>
+            <v-radio-group
+              v-model="userSettingsForm.agendaDefaultView"
+              class="pa-0 ma-0 ms-n1 full-width"
+              mandatory>
+              <v-radio
+                :label="$t('agenda.label.viewDay')"
+                value="day" />
+              <v-radio
+                :label="$t('agenda.label.viewWeek')"
+                value="week" />
+              <v-radio
+                :label="$t('agenda.label.viewMonth')"
+                value="month" />
+            </v-radio-group>
           </div>
           <div class="d-flex flex-column mb-5">
+            <div class="mb-2 font-weight-bold">{{ $t('agenda.settings.drawer.label.weekDisplayOption') }}</div>
             <label class="switch-label-text mt-1 text-subtitle-1">{{ $t('agenda.settings.drawer.label.WeekStartOn') }}:</label>
             <select v-model="userSettingsForm.agendaWeekStartOn" class="width-auto my-auto pe-2 ignore-vuetify-classes d-none d-sm-inline">
               <option
@@ -34,7 +45,6 @@
               </option>
             </select>
           </div>
-
           <div class="d-flex flex-row">
             <label class="switch-label-text mt-1 text-subtitle-1">{{ $t('agenda.settings.drawer.label.showWorkingTime') }}:</label>
             <v-switch v-model="userSettingsForm.showWorkingTime" class="mt-0 ms-4" />
@@ -48,9 +58,6 @@
               v-model="userSettingsForm.workingTimeEnd"
               :interval-minutes="$agendaUtils.MINIMUM_TIME_INTERVAL" />
           </div>
-          <label class="subtitle-1 float-left mt-5 me-4">
-            {{ $t('agenda.label.defaultReminders') }}
-          </label>
           <agenda-reminder-user-settings ref="reminders" :reminders="userSettingsForm.reminders" />
         </v-layout>
       </v-form>
