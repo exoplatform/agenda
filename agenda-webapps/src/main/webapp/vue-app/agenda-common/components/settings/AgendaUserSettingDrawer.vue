@@ -15,8 +15,8 @@
         class="flex"
         flat>
         <v-layout class="ma-5 d-flex flex-column">
-          <div class="d-flex flex-column mb-5">
-            <div class="mb-2 text-header">{{ $t('agenda.settings.drawer.label.displayOptions') }}</div>
+          <div class="d-flex flex-column mb-1">
+            <div class="mb-3 text-header">{{ $t('agenda.settings.drawer.label.displayOptions') }}</div>
             <div class="mb-2 font-weight-bold">{{ $t('agenda.settings.drawer.label.DefaultView') }}</div>
             <v-radio-group
               v-model="userSettingsForm.agendaDefaultView"
@@ -33,8 +33,8 @@
                 value="month" />
             </v-radio-group>
           </div>
-          <div class="d-flex flex-column mb-5">
-            <div class="mb-2 font-weight-bold">{{ $t('agenda.settings.drawer.label.weekDisplayOption') }}</div>
+          <div class="d-flex flex-column mb-1">
+            <div class="mb-1 font-weight-bold">{{ $t('agenda.settings.drawer.label.weekDisplayOption') }}</div>
             <label class="switch-label-text mt-1 text-subtitle-1">{{ $t('agenda.settings.drawer.label.WeekStartOn') }}:</label>
             <select v-model="userSettingsForm.agendaWeekStartOn" class="width-auto my-auto pe-2 ignore-vuetify-classes d-none d-sm-inline">
               <option

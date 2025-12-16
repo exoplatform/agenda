@@ -1,14 +1,14 @@
 <template>
   <div>
-    <div class="d-flex mt-6 mb-4 ">
+    <div class="d-flex mt-6 mb-3 ">
       <div class="text-header ma-auto ">{{ $t('agenda.label.defaultReminders') }}</div>
       <v-spacer />
       <v-btn
         v-if="canAddReminder"
         :title="$t('agenda.addReminder')"
-        class="btn btn-primary ma-auto px-0 me-2"
-        max-height="34"
-        min-width="34"
+        class="btn btn-primary ma-auto px-0"
+        max-height="36"
+        min-width="36"
         @click="addReminder">
         <v-icon size="18">
           fa-plus

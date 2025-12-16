@@ -19,9 +19,10 @@
     <span class="ms-4">
       {{ $t('agenda.label.beforeStart') }}
     </span>
+    <v-spacer />
     <v-btn
       icon
-      class="ms-auto"
+      class="me-n1"
       @click="$emit('remove')">
       <v-icon size="21" class="error-color">
         fa-trash
