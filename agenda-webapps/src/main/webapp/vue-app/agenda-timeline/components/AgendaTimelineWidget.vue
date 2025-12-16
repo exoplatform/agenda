@@ -78,7 +78,7 @@ export default {
       return this.conferenceProviders && this.enabledConferenceProviderName && this.conferenceProviders.find(provider => provider.isInitialized && provider.linkSupported && provider.groupSupported && this.enabledConferenceProviderName.getType() === provider.getType());
     },
     weekdays() {
-      return this.settings && this.$agendaUtils.getWeekSequenceFromDay(this.settings.agendaWeekStartOn);
+      return this.settings && this.$agendaUtils.getWeekSequenceFromDay(this.settings);
     },
     workingTime() {
       return this.settings && {

@@ -9,8 +9,7 @@
     <select
       ref="periodTypeInput"
       v-model="reminder.beforePeriodType"
-      class="reminder-period-type width-auto my-auto ms-2 pe-2 ignore-vuetify-classes"
-      max-height="34"
+      class="agenda-settings-input width-auto my-auto ms-2 pe-2 ignore-vuetify-classes"
       required>
       <option value="MINUTE">{{ $t('agenda.option.minutes') }}</option>
       <option value="HOUR">{{ $t('agenda.option.hours') }}</option>
