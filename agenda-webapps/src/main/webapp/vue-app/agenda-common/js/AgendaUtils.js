@@ -330,25 +330,34 @@ export function areDatesOnSameDay(firstDate, secondDate) {
   firstDate.getDate() === secondDate.getDate();
 }
 
-export function getWeekSequenceFromDay(day) {
-  switch (day) {
+export function getWeekSequenceFromDay(settings, calendarType) {
+  let workedDays = [1, 2, 3, 4, 5, 6, 0];
+  switch (settings.agendaWeekStartOn) {
   case 'MO':
-    return [1, 2, 3, 4, 5, 6, 0];
+    workedDays = [1, 2, 3, 4, 5, 6, 0];
+    break;
   case 'TU':
-    return [2, 3, 4, 5, 6, 0, 1];
+    workedDays = [2, 3, 4, 5, 6, 0, 1];
+    break;
   case 'WE':
-    return [3, 4, 5, 6, 0, 1, 2];
+    workedDays = [3, 4, 5, 6, 0, 1, 2];
+    break;
   case 'TH':
-    return [4, 5, 6, 0, 1, 2, 3,];
+    workedDays = [4, 5, 6, 0, 1, 2, 3,];
+    break;
   case 'FR':
-    return [5, 6, 0, 1, 2, 3, 4];
+    workedDays = [5, 6, 0, 1, 2, 3, 4];
+    break;
   case 'SA':
-    return [6, 0, 1, 2, 3, 4, 5];
+    workedDays = [6, 0, 1, 2, 3, 4, 5];
+    break;
   case 'SU':
-    return [0, 1, 2, 3, 4, 5, 6];
+    workedDays = [0, 1, 2, 3, 4, 5, 6];
+    break;
   default:
-    return [1, 2, 3, 4, 5, 6, 0];
+    workedDays = [1, 2, 3, 4, 5, 6, 0];
   }
+  return calendarType && calendarType === 'week' && settings.showWorkingTime && settings.workedDaysNumber ? workedDays.slice(0, settings.workedDaysNumber) : workedDays;
 }
 
 export function areSameObjects(object1, object2) {
