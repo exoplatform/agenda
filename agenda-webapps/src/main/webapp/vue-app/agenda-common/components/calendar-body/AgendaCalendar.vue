@@ -12,6 +12,8 @@
     :interval-height="40"
     :event-overlap-threshold="30"
     :locale="lang"
+    :start="getStartDate()"
+    :end="getEndDate()"
     event-overlap-mode="stack"
     event-name="summary"
     event-start="startDate"
@@ -144,8 +146,12 @@ export default {
     nowTimeOptions() {
       return this.nowDate && {hour: this.nowDate.getHours(), minute: this.nowDate.getMinutes()};
     },
+    startDayTimeY() {
+      const startTime =  {hour: Number(this.workingTime.workingTimeStart.split(':')[0])-2, minute: Number(this.workingTime.workingTimeStart.split(':')[1])};
+      return startTime && this.$refs && this.$refs.calendar && startTime && this.$refs.calendar.timeToY(startTime);
+    },
     currentTimeTop() {
-      return this.nowDate && this.$refs && this.$refs.calendar && this.nowTimeOptions && this.$refs.calendar.timeToY(this.nowTimeOptions);
+      return this.nowTimeOptions && this.$refs && this.$refs.calendar && this.nowTimeOptions && this.$refs.calendar.timeToY(this.nowTimeOptions);
     },
     currentTimeStyle() {
       return this.nowDate && this.currentTimeTop && `top: ${this.currentTimeTop}px;`;
@@ -248,7 +254,7 @@ export default {
       this.$nextTick().then(() => {
         const dailyScrollElement = document.querySelector('.v-calendar-daily__scroll-area');
         if (dailyScrollElement) {
-          const scrollY = this.currentTimeTop - dailyScrollElement.offsetHeight / 2;
+          const scrollY = this.startDayTimeY;
           dailyScrollElement.scrollTo(0, scrollY);
         }
       });
@@ -568,6 +574,41 @@ export default {
         }
       } else {
         return null;
+      }
+    },
+    daysNumberToDisplay() {
+      if (this.workingTime.showWorkingTime) {
+        return this.workingTime.workedDaysNumber;
+      } else {
+        return '7';
+      }
+    },
+    getStartDate() {
+      if (this.calendarType === 'week' && this.workingTime.showWorkingTime && this.workingTime.workedDaysNumber && this.workingTime.workedDaysNumber < 7) {
+        const d = new Date(this.selectedDate || new Date());
+        const currentDay = d.getDay();
+        const targetDay = this.weekdays[0];
+        let diff = currentDay - targetDay;
+        if (diff < 0) {diff += 7;}
+        d.setDate(d.getDate() - diff);
+        return d.toISOString().split('T')[0];      
+      } else {
+        // eslint-disable-next-line no-undefined
+        return undefined;
+      }
+    },
+    getEndDate() {
+      if (this.calendarType === 'week' && this.workingTime.showWorkingTime && this.workingTime.workedDaysNumber && this.workingTime.workedDaysNumber < 7) {
+        const d = new Date(this.selectedDate || new Date());
+        const currentDay = d.getDay();
+        const targetDay = this.weekdays[this.weekdays.length - 1];
+        let diff = targetDay - currentDay;
+        if (diff < 0) {diff += 7;}
+        d.setDate(d.getDate() + diff);
+        return d.toISOString().split('T')[0];
+      } else {
+        // eslint-disable-next-line no-undefined
+        return undefined;
       }
     },
     isShortEvent(event) {
