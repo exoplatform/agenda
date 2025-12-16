@@ -127,13 +127,14 @@ export default {
       return this.connectors && this.connectors.filter(connector => connector.initialized && connector.enabled) || [];
     },
     weekdays() {
-      return this.settings && this.$agendaUtils.getWeekSequenceFromDay(this.settings.agendaWeekStartOn);
+      return this.settings && this.$agendaUtils.getWeekSequenceFromDay(this.settings, this.calendarType);
     },
     workingTime() {
       return this.settings && {
         showWorkingTime: this.settings.showWorkingTime,
         workingTimeStart: this.settings.workingTimeStart,
-        workingTimeEnd: this.settings.workingTimeEnd
+        workingTimeEnd: this.settings.workingTimeEnd,
+        workedDaysNumber: this.settings.workedDaysNumber,
       };
     },
   },
