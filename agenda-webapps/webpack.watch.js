@@ -6,7 +6,7 @@ const webpackProductionConfig = require('./webpack.prod.js');
 module.exports = merge(webpackProductionConfig, {
   mode: 'development',
   output: {
-    path: 'D:\\\eXo\\servers\\platform-7.2.0-M03/webapps/agenda/',
+    path: '/exo-server/webapps/agenda/',
     filename: 'js/[name].bundle.js'
   }
 });
