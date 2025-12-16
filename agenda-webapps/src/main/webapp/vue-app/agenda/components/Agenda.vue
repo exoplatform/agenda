@@ -42,7 +42,7 @@
       :settings="settings"
       :connectors="enabledConnectors"
       :conference-provider="conferenceProvider"
-      :weekdays="weekdays"
+      :weekdays="fullWeekdays"
       :working-time="workingTime" />
     <agenda-event-preview-dialog />
     <agenda-filter-calendar-drawer
@@ -127,13 +127,17 @@ export default {
       return this.connectors && this.connectors.filter(connector => connector.initialized && connector.enabled) || [];
     },
     weekdays() {
-      return this.settings && this.$agendaUtils.getWeekSequenceFromDay(this.settings.agendaWeekStartOn);
+      return this.settings && this.$agendaUtils.getWeekSequenceFromDay(this.settings, this.calendarType, false);
+    },
+    fullWeekdays() {
+      return this.settings && this.$agendaUtils.getWeekSequenceFromDay(this.settings, this.calendarType, true);
     },
     workingTime() {
       return this.settings && {
         showWorkingTime: this.settings.showWorkingTime,
         workingTimeStart: this.settings.workingTimeStart,
-        workingTimeEnd: this.settings.workingTimeEnd
+        workingTimeEnd: this.settings.workingTimeEnd,
+        workedDaysNumber: this.settings.workedDaysNumber,
       };
     },
   },
