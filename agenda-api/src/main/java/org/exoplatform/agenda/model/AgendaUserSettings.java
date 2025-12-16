@@ -30,6 +30,7 @@ public class AgendaUserSettings implements Cloneable {
 
   private String                       connectedRemoteUserId   = null;
 
+
   @Exclude
   @lombok.EqualsAndHashCode.Exclude
   private String                       cometdToken             = null;
@@ -48,6 +49,8 @@ public class AgendaUserSettings implements Cloneable {
 
   private List<String>                 webConferenceProviders  = null;
 
+  private String                       workedDaysNumber   = null;
+
   public AgendaUserSettings(String cometdToken,
                             String agendaDefaultView,
                             String agendaWeekStartOn,
@@ -57,7 +60,8 @@ public class AgendaUserSettings implements Cloneable {
                             String connectedRemoteProvider,
                             String connectedRemoteUserId,
                             boolean automaticPushEvents,
-                            String timeZoneId) {
+                            String timeZoneId,
+                            String workedDaysNumber) {
     this.cometdToken = cometdToken;
     this.agendaDefaultView = agendaDefaultView;
     this.agendaWeekStartOn = agendaWeekStartOn;
@@ -68,6 +72,7 @@ public class AgendaUserSettings implements Cloneable {
     this.connectedRemoteUserId = connectedRemoteUserId;
     this.automaticPushEvents = automaticPushEvents;
     this.timeZoneId = timeZoneId;
+    this.workedDaysNumber = workedDaysNumber;
   }
 
   @Override
@@ -103,7 +108,8 @@ public class AgendaUserSettings implements Cloneable {
                                   connectedRemoteProvider,
                                   connectedRemoteUserId,
                                   automaticPushEvents,
-                                  timeZoneId);
+                                  timeZoneId,
+                                  workedDaysNumber);
   }
 
 }
