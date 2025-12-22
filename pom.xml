@@ -27,7 +27,7 @@
   </scm>
   <properties>
     <!-- 3rd party libraries versions -->
-    <org.exoplatform.commons-exo.version>7.2.x-SNAPSHOT</org.exoplatform.commons-exo.version>
+    <org.exoplatform.commons-exo.version>7.2.0-20251222</org.exoplatform.commons-exo.version>
 
     <!-- ical4j dependencies -->
     <org.mnode.ical4j.version>3.2.19</org.mnode.ical4j.version>
