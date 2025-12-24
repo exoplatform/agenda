@@ -76,6 +76,7 @@
             :placeholder="$t('agenda.descriptionPlaceholder')"
             :max-length="eventDescriptionTextLength"
             :tag-enabled="false"
+            ck-editor-type="agendaEventDescription"
             class="pt-2 width-full"
             content-link-enabled />
         </div>
