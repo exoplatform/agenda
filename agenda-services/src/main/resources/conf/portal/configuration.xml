@@ -177,6 +177,9 @@
           <field name="automaticPushEvents">
             <boolean>${exo.agenda.settings.automaticPushEvents:true}</boolean>
           </field>
+          <field name="workedDaysNumber">
+            <string>${exo.agenda.settings.workedDaysNumber:5}</string>
+          </field>
         </object>
       </object-param>
       <object-param>
