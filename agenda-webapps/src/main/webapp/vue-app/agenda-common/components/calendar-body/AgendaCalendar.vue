@@ -9,7 +9,7 @@
     :type="calendarType"
     :weekdays="weekdays"
     :interval-style="agendaIntervalStyle"
-    :interval-height="40"
+    :interval-height="agendaIntervalHeight"
     :event-overlap-threshold="30"
     :locale="lang"
     :start="getStartDate()"
@@ -121,7 +121,8 @@ export default {
     timeFormat: {
       hour: '2-digit',
       minute: '2-digit',
-    }
+    },
+    agendaIntervalHeight: 40,
   }),
   computed: {
     // A workaround to display events that finishes at midnight the same day
@@ -182,6 +183,7 @@ export default {
     workingTime() {
       this.scrollToTime();
     }
+
   },
   created() {
     document.body.onmousedown = () => ++this.mouseIsPressed;
@@ -228,6 +230,16 @@ export default {
     };
 
     this.nowDate = new Date();
+    const dailyElement = document.querySelector('.v-calendar-daily__body');
+    if (dailyElement && this.workingTime.showWorkingTime) {
+      if (this.workingTime.workingTimeStart && this.workingTime.workingTimeEnd) {
+        const dayDuration = this.workingTime.workingTimeEnd.split(':')[0] - this.workingTime.workingTimeStart.split(':')[0]+4;
+        const agendaIntervalHeight = dailyElement.offsetHeight/dayDuration;
+        if (agendaIntervalHeight > 40) {
+          this.agendaIntervalHeight = agendaIntervalHeight;
+        } 
+      }
+    }
     this.$nextTick().then(() => this.scrollToTime());
 
     window.setTimeout(() => {
@@ -559,9 +571,7 @@ export default {
     agendaIntervalStyle(interval) {
       if (this.workingTime.showWorkingTime) {
         if (this.workingTime.workingTimeStart && this.workingTime.workingTimeEnd) {
-          const inactive = interval.weekday === 0 ||
-              interval.weekday === 6 ||
-              interval.time < this.workingTime.workingTimeStart ||
+          const inactive = interval.time < this.workingTime.workingTimeStart ||
               interval.time >= this.workingTime.workingTimeEnd;
           const startOfHour = interval.minute === 0;
           const dark = this.dark;
