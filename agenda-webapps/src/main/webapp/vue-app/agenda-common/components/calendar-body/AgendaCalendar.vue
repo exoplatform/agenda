@@ -234,10 +234,7 @@ export default {
     if (dailyElement && this.workingTime.showWorkingTime) {
       if (this.workingTime.workingTimeStart && this.workingTime.workingTimeEnd) {
         const dayDuration = this.workingTime.workingTimeEnd.split(':')[0] - this.workingTime.workingTimeStart.split(':')[0]+4;
-        const agendaIntervalHeight = dailyElement.offsetHeight/dayDuration;
-        if (agendaIntervalHeight > 40) {
-          this.agendaIntervalHeight = agendaIntervalHeight;
-        } 
+        this.agendaIntervalHeight = dailyElement.offsetHeight/dayDuration;
       }
     }
     this.$nextTick().then(() => this.scrollToTime());
