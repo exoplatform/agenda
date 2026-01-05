@@ -1,11 +1,11 @@
 <template>
   <v-list-item class="px-0 reminder-list-item" dense>
     <number-input
-      class="ms-n3"
       ref="beforeInput" 
       v-model="reminder.before"
       :step="1"
-      :min="0" />  
+      :min="0"
+      editable />  
     <select
       ref="periodTypeInput"
       v-model="reminder.beforePeriodType"
