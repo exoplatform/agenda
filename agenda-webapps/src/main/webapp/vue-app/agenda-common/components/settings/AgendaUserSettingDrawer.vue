@@ -14,9 +14,9 @@
         ref="agendaSettingsForm"
         class="flex"
         flat>
-        <v-layout class="ma-5 d-flex flex-column">
-          <div class="d-flex flex-column mb-5">
-            <div class="mb-2 text-header">{{ $t('agenda.settings.drawer.label.displayOptions') }}</div>
+        <v-layout class="ma-5 mt-4 d-flex flex-column">
+          <div class="d-flex flex-column mb-1">
+            <div class="mb-3 text-header">{{ $t('agenda.settings.drawer.label.displayOptions') }}</div>
             <div class="mb-2 font-weight-bold">{{ $t('agenda.settings.drawer.label.DefaultView') }}</div>
             <v-radio-group
               v-model="userSettingsForm.agendaDefaultView"
@@ -33,13 +33,13 @@
                 value="month" />
             </v-radio-group>
           </div>
-          <div class="d-flex flex-column mb-5">
-            <div class="mb-2 font-weight-bold">{{ $t('agenda.settings.drawer.label.weekDisplayOption') }}</div>
+          <div class="d-flex flex-column mb-1">
+            <div class="mb-1 font-weight-bold">{{ $t('agenda.settings.drawer.label.weekDisplayOption') }}</div>
             <label class="switch-label-text mt-1 text-subtitle-1">{{ $t('agenda.settings.drawer.label.WeekStartOn') }}:</label>
             <select
               v-model="userSettingsForm.agendaWeekStartOn"
               max-height="34"
-              class="width-auto agenda-settings-input my-auto pe-2 ignore-vuetify-classes d-none d-sm-inline">
+              class="width-auto agenda-settings-input my-auto pe-2 ignore-vuetify-classes">
               <option
                 v-for="day in DAYS_ABBREVIATIONS"
                 :key="day"
@@ -51,7 +51,7 @@
           <div class="d-flex flex-row mt-3">
             <label class="switch-label-text text-subtitle-1">{{ $t('agenda.settings.drawer.label.showWorkingTime') }}:</label>
             <v-spacer />
-            <v-switch v-model="userSettingsForm.showWorkingTime" class="mt-0 agenda-settings-input" />
+            <v-switch v-model="userSettingsForm.showWorkingTime" class="mt-0 me-n1 agenda-settings-input" />
           </div>
           <div v-if="userSettingsForm.showWorkingTime" class="d-flex flex-row">
             <label class="switch-label-text text-subtitle-1">{{ $t('agenda.settings.drawer.label.workedDaysNumber') }}:</label>
@@ -60,23 +60,24 @@
               v-model="userSettingsForm.workedDaysNumber"
               :step="1"
               :min="1" 
-              :max="7" /> 
+              :max="7"
+              editable /> 
           </div>
           <div v-if="userSettingsForm.showWorkingTime">
-            <label class="switch-label-text mt-1 text-subtitle-1">{{ $t('agenda.settings.label.workHours') }}:</label>
+            <label class="switch-label-text text-subtitle-1">{{ $t('agenda.settings.label.workHours') }}:</label>
             <div class="workingTime d-flex flex-row align-center">
               <div class="ms-n4">
                 <time-picker
                   class="agenda-settings-input"
                   v-model="userSettingsForm.workingTimeStart"
-                  :interval-minutes="$agendaUtils.MINIMUM_TIME_INTERVAL" />
+                  :interval-minutes="60" />
               </div>
               <label class="switch-label-text mx-3 text-subtitle-1">{{ $t('agenda.label.to') }}</label>
               <div class="ms-n4">
                 <time-picker
                   class="agenda-settings-input"
                   v-model="userSettingsForm.workingTimeEnd"
-                  :interval-minutes="$agendaUtils.MINIMUM_TIME_INTERVAL" />
+                  :interval-minutes="60" />
               </div>
             </div>
           </div>
