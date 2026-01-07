@@ -8,7 +8,8 @@
           :current-space="currentSpace"
           :current-calendar="currentCalendar"
           :owner-ids="ownerIds"
-          :period-title="periodTitle" />
+          :period-title="periodTitle"
+          :settings="settings" />
         <agenda-timeline
           v-if="$root.isMobile"
           :events="events"
@@ -186,6 +187,7 @@ export default {
     this.spaceId = eXo.env.portal.spaceId;
     this.$root.$on('agenda-settings-refresh', this.initSettings);
     this.$root.$on('agenda-event-change-owner', this.refreshProviders);
+    this.$root.$on('agenda-show-working-changed', showWorkingTime => this.settings.showWorkingTime = showWorkingTime);
     this.initSettings();
   },
   methods: {

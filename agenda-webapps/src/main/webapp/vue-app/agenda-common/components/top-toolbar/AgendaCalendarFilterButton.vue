@@ -4,7 +4,7 @@
     icon
     max-width="36"
     max-height="36"
-    @click="$root.$emit('agenda-filter-drawer-open',currentSpace)">
+    @click="$root.$emit('agenda-filter-drawer-open',currentSpace,settings)">
     <v-icon size="20" class="text-light-color">
       fa-sliders-h
     </v-icon>
@@ -24,6 +24,10 @@ export default {
     ownerIds: {
       type: Array,
       default: null
+    },
+    settings: {
+      type: Object,
+      default: () => null
     },
   },
 };
