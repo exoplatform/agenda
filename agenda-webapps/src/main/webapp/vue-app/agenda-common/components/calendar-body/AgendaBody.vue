@@ -6,6 +6,7 @@
         :current-calendar="currentCalendar"
         :calendar-type="calendarType"
         :weekdays="weekdays"
+        :full-weekdays="fullWeekdays"
         :working-time="workingTime"
         class="flex-grow-1" />
     </v-flex>
@@ -28,6 +29,10 @@ export default {
       default: null
     },
     weekdays: {
+      type: Array,
+      default: () => null
+    },
+    fullWeekdays: {
       type: Array,
       default: () => null
     },

@@ -8,7 +8,8 @@
           :current-space="currentSpace"
           :current-calendar="currentCalendar"
           :owner-ids="ownerIds"
-          :period-title="periodTitle" />
+          :period-title="periodTitle"
+          :settings="settings" />
         <agenda-timeline
           v-if="$root.isMobile"
           :events="events"
@@ -22,6 +23,7 @@
           :current-calendar="currentCalendar"
           :calendar-type="calendarType"
           :weekdays="weekdays"
+          :full-weekdays="fullWeekdays"
           :working-time="workingTime" />  
         <v-flex v-if="$root.isMobile && hasMore" class="d-flex py-4 border-box-sizing">
           <v-btn

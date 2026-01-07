@@ -22,7 +22,8 @@
       <agenda-switch-view :calendar-type="calendarType" v-if="!$root.isMobile" />
       <agenda-calendar-filter-button
         :current-space="currentSpace"
-        :owner-ids="ownerIds" />
+        :owner-ids="ownerIds"
+        :settings="settings" />
       <extension-registry-components
         :params="params"
         name="AgendaApp"
@@ -50,6 +51,10 @@ export default {
       default: null
     },
     currentCalendar: {
+      type: Object,
+      default: () => null
+    },
+    settings: {
       type: Object,
       default: () => null
     },

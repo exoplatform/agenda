@@ -7,7 +7,7 @@
     :event-text-color="getEventTextColor"
     :event-timed="isEventTimed"
     :type="calendarType"
-    :weekdays="weekdays"
+    :weekdays="showAllWeek ? fullWeekdays : weekdays"
     :interval-style="agendaIntervalStyle"
     :interval-height="agendaIntervalHeight"
     :event-overlap-threshold="30"
@@ -97,6 +97,10 @@ export default {
       type: Array,
       default: () => null
     },
+    fullWeekdays: {
+      type: Array,
+      default: () => null
+    },
     workingTime: {
       type: Object,
       default: () => null
@@ -123,6 +127,7 @@ export default {
       minute: '2-digit',
     },
     agendaIntervalHeight: 40,
+    showAllWeek: false,
   }),
   computed: {
     // A workaround to display events that finishes at midnight the same day
@@ -188,6 +193,7 @@ export default {
   created() {
     document.body.onmousedown = () => ++this.mouseIsPressed;
     document.body.onmouseup = () => --this.mouseIsPressed;
+    this.$root.$on('agenda-show-working-changed', showAllWeek => this.showAllWeek = !showAllWeek);
   },
   mounted() {
     this.$root.$on('agenda-display-calendar-atDate', date => {
@@ -566,9 +572,9 @@ export default {
       this.originalDragedEvent = null;
     },
     agendaIntervalStyle(interval) {
-      if (this.workingTime.showWorkingTime) {
+      if (this.workingTime.showWorkingTime || this.showAllWeek) {
         if (this.workingTime.workingTimeStart && this.workingTime.workingTimeEnd) {
-          const inactive = interval.time < this.workingTime.workingTimeStart ||
+          const inactive = (this.showAllWeek && !this.weekdays.includes(interval.weekday)) || interval.time < this.workingTime.workingTimeStart ||
               interval.time >= this.workingTime.workingTimeEnd;
           const startOfHour = interval.minute === 0;
           const dark = this.dark;
