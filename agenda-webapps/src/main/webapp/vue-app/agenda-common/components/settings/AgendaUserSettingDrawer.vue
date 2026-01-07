@@ -39,7 +39,7 @@
             <select
               v-model="userSettingsForm.agendaWeekStartOn"
               max-height="34"
-              class="width-auto agenda-settings-input my-auto pe-2 ignore-vuetify-classes d-none d-sm-inline">
+              class="width-auto agenda-settings-input my-auto pe-2 ignore-vuetify-classes">
               <option
                 v-for="day in DAYS_ABBREVIATIONS"
                 :key="day"
@@ -51,7 +51,7 @@
           <div class="d-flex flex-row mt-3">
             <label class="switch-label-text text-subtitle-1">{{ $t('agenda.settings.drawer.label.showWorkingTime') }}:</label>
             <v-spacer />
-            <v-switch v-model="userSettingsForm.showWorkingTime" class="mt-0 agenda-settings-input" />
+            <v-switch v-model="userSettingsForm.showWorkingTime" class="mt-0 me-n1 agenda-settings-input" />
           </div>
           <div v-if="userSettingsForm.showWorkingTime" class="d-flex flex-row">
             <label class="switch-label-text text-subtitle-1">{{ $t('agenda.settings.drawer.label.workedDaysNumber') }}:</label>
@@ -60,7 +60,8 @@
               v-model="userSettingsForm.workedDaysNumber"
               :step="1"
               :min="1" 
-              :max="7" /> 
+              :max="7"
+              editable /> 
           </div>
           <div v-if="userSettingsForm.showWorkingTime">
             <label class="switch-label-text text-subtitle-1">{{ $t('agenda.settings.label.workHours') }}:</label>
@@ -69,14 +70,14 @@
                 <time-picker
                   class="agenda-settings-input"
                   v-model="userSettingsForm.workingTimeStart"
-                  :interval-minutes="$agendaUtils.MINIMUM_TIME_INTERVAL" />
+                  :interval-minutes="60" />
               </div>
               <label class="switch-label-text mx-3 text-subtitle-1">{{ $t('agenda.label.to') }}</label>
               <div class="ms-n4">
                 <time-picker
                   class="agenda-settings-input"
                   v-model="userSettingsForm.workingTimeEnd"
-                  :interval-minutes="$agendaUtils.MINIMUM_TIME_INTERVAL" />
+                  :interval-minutes="60" />
               </div>
             </div>
           </div>
