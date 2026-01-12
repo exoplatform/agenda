@@ -7,6 +7,7 @@
     class="me-2"
     @click="openPendingInvitationsDrawer()">
     <v-badge
+      v-if="pendingInvitationsCount > 0"
       :value="pendingInvitationsCount"
       :content="pendingInvitationsCount"
       :offset-x="offsetX"
@@ -46,7 +47,7 @@ export default {
   }),
   computed: {
     pendingInvitationsCount() {
-      return this.datePollsCount + this.pendingEventsCount;
+      return 0;
     },
     spaceRetrieved() {
       return !eXo.env.portal.spaceId || this.currentSpace;
