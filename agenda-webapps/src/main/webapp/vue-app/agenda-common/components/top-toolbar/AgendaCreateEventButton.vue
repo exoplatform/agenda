@@ -15,10 +15,6 @@
         </v-icon>
       </v-btn>
     </div>
-    <agenda-pending-invitation-badge
-      :current-space="currentSpace"
-      :offset-x="offsetX"
-      :offset-y="offsetY" />
     <v-btn
       v-if="!$root.isMobile"
       class="btn me-3"
@@ -31,21 +27,9 @@
 <script>
 export default {
   props: {
-    currentSpace: {
-      type: Object,
-      default: null
-    },
     canCreateEvent: {
       type: Boolean,
       default: false,
-    },
-    offsetX: {
-      type: Number,
-      default: () => 18,
-    },
-    offsetY: {
-      type: Number,
-      default: () => 22,
     },
   },
   data: () => ({

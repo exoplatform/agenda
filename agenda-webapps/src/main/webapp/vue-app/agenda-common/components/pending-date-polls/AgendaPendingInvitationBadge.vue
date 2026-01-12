@@ -7,6 +7,7 @@
     class="me-2"
     @click="openPendingInvitationsDrawer()">
     <v-badge
+      v-if="pendingInvitationsCount > 0"
       :value="pendingInvitationsCount"
       :content="pendingInvitationsCount"
       :offset-x="offsetX"
