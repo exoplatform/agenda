@@ -330,7 +330,7 @@ export function areDatesOnSameDay(firstDate, secondDate) {
   firstDate.getDate() === secondDate.getDate();
 }
 
-export function getWeekSequenceFromDay(settings, calendarType) {
+export function getWeekSequenceFromDay(settings, calendarType, allDays) {
   let workedDays = [1, 2, 3, 4, 5, 6, 0];
   switch (settings.agendaWeekStartOn) {
   case 'MO':
@@ -357,7 +357,7 @@ export function getWeekSequenceFromDay(settings, calendarType) {
   default:
     workedDays = [1, 2, 3, 4, 5, 6, 0];
   }
-  return calendarType && calendarType === 'week' && settings.showWorkingTime && settings.workedDaysNumber ? workedDays.slice(0, settings.workedDaysNumber) : workedDays;
+  return calendarType && calendarType === 'week' && settings.showWorkingTime && settings.workedDaysNumber && !allDays? workedDays.slice(0, settings.workedDaysNumber) : workedDays;
 }
 
 export function areSameObjects(object1, object2) {
