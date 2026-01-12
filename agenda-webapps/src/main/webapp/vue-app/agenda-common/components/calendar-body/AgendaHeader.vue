@@ -19,6 +19,10 @@
       </div>
     </template>
     <template #right>
+      <agenda-pending-invitation-badge
+        :current-space="currentSpace"
+        :offset-x="offsetX"
+        :offset-y="offsetY" />
       <agenda-switch-view :calendar-type="calendarType" v-if="!$root.isMobile" />
       <agenda-calendar-filter-button
         :current-space="currentSpace"
@@ -65,6 +69,14 @@ export default {
     periodTitle: {
       type: String,
       default: null
+    },
+    offsetX: {
+      type: Number,
+      default: () => 18,
+    },
+    offsetY: {
+      type: Number,
+      default: () => 22,
     },
   },
   data: () => ({
