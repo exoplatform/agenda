@@ -123,6 +123,7 @@ export default {
       minute: '2-digit',
     },
     agendaIntervalHeight: 40,
+    showWorkingHours: false,
   }),
   computed: {
     // A workaround to display events that finishes at midnight the same day
@@ -188,6 +189,7 @@ export default {
   created() {
     document.body.onmousedown = () => ++this.mouseIsPressed;
     document.body.onmouseup = () => --this.mouseIsPressed;
+    this.$root.$on('agenda-show-working-changed', showWorkingTime => this.showWorkingHours = !showWorkingTime);
   },
   mounted() {
     this.$root.$on('agenda-display-calendar-atDate', date => {
@@ -566,7 +568,7 @@ export default {
       this.originalDragedEvent = null;
     },
     agendaIntervalStyle(interval) {
-      if (this.workingTime.showWorkingTime) {
+      if (this.workingTime.showWorkingTime || this.showWorkingHours) {
         if (this.workingTime.workingTimeStart && this.workingTime.workingTimeEnd) {
           const inactive = interval.time < this.workingTime.workingTimeStart ||
               interval.time >= this.workingTime.workingTimeEnd;
