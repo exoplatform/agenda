@@ -29,13 +29,14 @@
           v-for="item in dispalyOptions"
           :key="item.value"
           dense
+          :class="item.value === calendarType && 'background-grey-primary'"
           @click="setDisplayOption(item)">
           <v-list-item-icon class="me-2 my-0 align-self-center">
             <v-icon
-              :class="[item.icon, item.value === viewType ? 'primary--text' : 'text-light-color']"
+              :class="[item.icon, 'text-light-color']"
               size="16" />
           </v-list-item-icon>
-          <div :class="item.value === viewType && 'primary--text'">{{ item.label }}</div>
+          <div>{{ item.label }}</div>
         </v-list-item>
       </v-list>
     </v-menu>
