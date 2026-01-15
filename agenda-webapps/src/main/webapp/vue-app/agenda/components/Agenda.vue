@@ -23,6 +23,7 @@
           :current-calendar="currentCalendar"
           :calendar-type="calendarType"
           :weekdays="weekdays"
+          :full-weekdays="fullWeekdays"
           :working-time="workingTime" />  
         <v-flex v-if="$root.isMobile && hasMore" class="d-flex py-4 border-box-sizing">
           <v-btn
@@ -190,7 +191,6 @@ export default {
     this.spaceId = eXo.env.portal.spaceId;
     this.$root.$on('agenda-settings-refresh', this.initSettings);
     this.$root.$on('agenda-event-change-owner', this.refreshProviders);
-    this.$root.$on('agenda-show-working-changed', showWorkingTime => this.settings.showWorkingTime = showWorkingTime);
     this.initSettings();
   },
   methods: {
