@@ -27,10 +27,11 @@
       </div>
       <div class="d-flex flex-column mx-4 my-1">
         <div class="font-weight-bold">{{ $t('agenda.filter.label.advancedOptions') }}</div>
-        <div class="d-flex mt-1">
+        <div class="d-flex mt-1" :title="displayWholeWeekTooltip">
           <v-checkbox
             class="my-auto ms-n1"
             ripple="false"
+            :disabled="defaultShowWholeWeek"
             dense
             v-model="showWholeWeek" />
           <label class="switch-label-text text-subtitle-1 my-auto">{{ $t('agenda.filter.label.displayWholeWeek') }}</label>
@@ -77,6 +78,14 @@ export default {
   }),
   created() {
     this.$root.$on('agenda-filter-drawer-open', this.open);
+  },
+  computed: {
+    displayWholeWeekTooltip() {
+      if (this.defaultShowWholeWeek) {
+        return this.$t('agenda.filter.disabledDisplayWholeWeekTooltip');
+      }
+      return this.$t('agenda.filter.displayWholeWeekTooltip');
+    },
   },
   methods: {
     cancel() {
