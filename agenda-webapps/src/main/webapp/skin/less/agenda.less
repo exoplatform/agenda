@@ -39,21 +39,49 @@
     }
   }
 
+  .v-calendar-daily{
+    border-top: none !important;
+    border-left: @primaryBackground 1px solid !important;
+    .v-calendar-daily__intervals-head {
+      border-top: @primaryBackground 1px solid;
+      border-bottom: @primaryBackground 1px solid;
+      border-right: @primaryBackground 1px solid !important;
+    }
+  }
+
   .v-calendar-daily_head-day {
-    .v-calendar-daily_head-day-label > button {
-      width: 40px;
-      height: 40px;
+    border-top: @primaryBackground 1px solid;
+    border-right: @primaryBackground 1px solid !important;
+    border-bottom: @primaryBackground 1px solid !important;
+    .v-calendar-daily_head-day-label {
+      .primary {
+        width: 38px;
+        height: 38px;
+      }
+      .transparent {
+        width: 36px;
+        height: 36px;
+      }
+    }
+  }
+  .v-calendar-daily_head-day.v-past {
+    .v-calendar-daily_head-weekday{
+      color: @blackColor !important;
     }
   }
   .agenda-application {
     .agenda-body {
-      height: ~"calc(100vh - 166px)";
       max-height: ~"calc(100vh - 166px)";
-
+      border-bottom: @primaryBackground 1px solid;
       .v-calendar {
-        min-height: ~"calc(100% - 64px)";
-        max-height: ~"calc(100% - 64px)";
-
+        min-height: ~"calc(100% - 20px)";
+        max-height: ~"calc(100% - 20px)";
+        .v-calendar-daily__interval-text {
+          font-size: 12px;
+        }
+        .v-calendar-daily_head-weekday {
+          font-size: 12px;
+        }  
         .v-event {
           border: 1px solid !important;
         }
