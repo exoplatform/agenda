@@ -244,7 +244,10 @@ export default {
       }
     }
     this.$nextTick().then(() => this.scrollToTime());
-
+    this.$nextTick().then(() => {
+      const el = document.querySelector('.v-calendar-daily__scroll-area');
+      if (el) {el.classList.add('specific-scrollbar');}
+    });
     window.setTimeout(() => {
       // Refresh current time each 3 minutes
       const dailyScrollElement = document.querySelector('.v-calendar-daily__scroll-area');
@@ -577,12 +580,9 @@ export default {
           const inactive = (this.showAllWeek && !this.weekdays.includes(interval.weekday)) || interval.time < this.workingTime.workingTimeStart ||
               interval.time >= this.workingTime.workingTimeEnd;
           const startOfHour = interval.minute === 0;
-          const dark = this.dark;
-          const mid = dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
-
           return {
-            backgroundColor: inactive ? dark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.05)' : null,
-            borderTop: startOfHour ? null : `1px dashed ${mid}`,
+            backgroundColor: inactive ? '#f8f8f8' : null,
+            borderTop: startOfHour ? null : '1px dashed rgba(0,0,0,0.1)',
           };
         }
       } else {
