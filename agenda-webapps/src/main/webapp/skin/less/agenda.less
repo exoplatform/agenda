@@ -59,6 +59,8 @@
     border-top: @primaryBackground 1px solid;
     border-right: @primaryBackground 1px solid !important;
     border-bottom: @primaryBackground 1px solid !important;
+    padding-right: 2px !important;
+    padding-left: 2px !important;
     .v-calendar-daily_head-day-label {
       padding: 0px 0px 8px 0px;
       button {
@@ -66,12 +68,49 @@
         height: 36px;
       }
     }
+    .v-event{
+      width: 100% !important;
+    }
   }
   .v-calendar-daily_head-day.v-past {
     .v-calendar-daily_head-weekday{
       color: @blackColor !important;
     }
   }
+
+  .v-calendar-weekly {
+    border-top: @primaryBackground 1px solid !important;
+    border-left: @primaryBackground 1px solid !important;
+    .v-calendar-weekly__day, .v-calendar-weekly__weeknumber {
+      border-right: @primaryBackground 1px solid !important;
+      border-bottom: @primaryBackground 1px solid !important;
+    }
+    .v-calendar-weekly__weeknumber {
+      background-color: @primaryBackground !important;
+    }
+    .v-calendar-weekly__head-weekday.v-past {
+      color: @blackColor !important;
+    }
+    .v-calendar-weekly__head-weeknumber, .v-calendar-weekly__head-weekday {
+      border-right: @primaryBackground 1px solid !important;
+    }
+    .v-calendar-weekly__head-weekday {
+      font-size: 12px;
+    }
+    .v-calendar-weekly__day.v-outside {
+      background-color: @inaActiveAreaBackgroundColor !important;
+    }
+    .v-calendar-weekly__head-weekday.v-outside {
+      background-color: @inaActiveAreaBackgroundColor !important;
+    }
+    .v-calendar-weekly__day {
+      .v-calendar-weekly__day-label button {
+        width: 36px;
+        height: 36px;
+      }
+    }
+  }
+   
   .agenda-application {
     .agenda-body {
       min-height: ~"calc(100vh - 200px)";
@@ -87,9 +126,31 @@
         .v-calendar-daily_head-weekday {
           padding: 8px 0px 0px 0px;
           font-size: 12px;
-        }  
-        .v-event {
-          border: 1px solid !important;
+        } 
+        .v-calendar-weekly__day {
+          padding-right: 2px !important;
+          padding-left: 2px !important;
+          .v-event {
+            border: 1px solid !important;
+            max-width: 100%;
+            width: 100%!important;
+          }
+        } 
+        .v-event-timed-container{
+          margin-right: 2px !important;
+          margin-left: 2px;
+          .v-event-timed {
+            max-width: 100%;
+          }
+        }
+        
+        .v-calendar-weekly__weeknumber {
+          justify-content: center;
+          align-items: center;
+          padding-top: 0px;
+          small {
+          font-size: 12px !important;
+          }
         }
       }
     }
