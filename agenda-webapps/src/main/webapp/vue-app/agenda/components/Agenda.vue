@@ -48,7 +48,9 @@
       :working-time="workingTime" />
     <agenda-event-preview-dialog />
     <agenda-filter-calendar-drawer
-      :current-space="currentSpace" />
+      :current-space="currentSpace"
+      :settings="settings"
+      :calendar-type="calendarType" />
     <agenda-user-setting-drawer :settings="settings" />
     <agenda-event-quick-form-drawer
       :current-space="currentSpace"

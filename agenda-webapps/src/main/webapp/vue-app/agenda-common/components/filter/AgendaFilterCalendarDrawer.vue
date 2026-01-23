@@ -31,7 +31,7 @@
           <v-checkbox
             class="my-auto ms-n1"
             ripple="false"
-            :disabled="defaultShowWholeWeek"
+            :disabled="disableShowAllWeek"
             dense
             v-model="showWholeWeek" />
           <label class="switch-label-text text-subtitle-1 my-auto">{{ $t('agenda.filter.label.displayWholeWeek') }}</label>
@@ -68,10 +68,23 @@
 </template>
 <script>
 export default {
+  props: {
+    currentSpace: {
+      type: Object,
+      default: null
+    },
+    settings: {
+      type: Object,
+      default: () => null
+    },
+    calendarType: {
+      type: String,
+      default: null
+    },
+  },
   data: () => ({
     drawer: false,
     eventType: '',
-    currentSpace: '',
     defaultShowWholeWeek: null,
     showWholeWeek: true,
     lastShowWholeWeek: true
@@ -81,10 +94,16 @@ export default {
   },
   computed: {
     displayWholeWeekTooltip() {
+      if (this.calendarType === 'day'|| this.calendarType === 'month') {
+        return this.$t('agenda.filter.cantChangeViewAllOptionTooltip');
+      }
       if (this.defaultShowWholeWeek) {
         return this.$t('agenda.filter.disabledDisplayWholeWeekTooltip');
       }
       return this.$t('agenda.filter.displayWholeWeekTooltip');
+    },
+    disableShowAllWeek() {
+      return this.defaultShowWholeWeek || this.calendarType === 'day'|| this.calendarType === 'month';
     },
   },
   methods: {
@@ -92,15 +111,16 @@ export default {
       this.showWholeWeek = this.lastShowWholeWeek;
       this.$refs.calendarFilters.close();
     },
-    open(currentSpace,settings) {
-      this.currentSpace = currentSpace;
+    open() {
       if (this.defaultShowWholeWeek === null){
-        this.defaultShowWholeWeek = !settings.showWorkingTime;
-        this.showWholeWeek = !settings.showWorkingTime;
+        this.defaultShowWholeWeek = !this.settings.showWorkingTime;
+        this.showWholeWeek = !this.settings.showWorkingTime;
       }
+      if (this.calendarType === 'day') {this.showWholeWeek = false;}
+      if (this.calendarType === 'month') {this.showWholeWeek = true;}
       this.lastShowWholeWeek = this.showWholeWeek;
       if (!this.eventType){
-        this.eventType = currentSpace ? 'allEvent' : 'myEvent';
+        this.eventType = this.currentSpace ? 'allEvent' : 'myEvent';
       }
       this.$refs.calendarFilters.open();
     },
