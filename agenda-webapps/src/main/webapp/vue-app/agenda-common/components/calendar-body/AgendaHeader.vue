@@ -24,10 +24,7 @@
         :offset-x="offsetX"
         :offset-y="offsetY" />
       <agenda-switch-view :calendar-type="calendarType" v-if="!$root.isMobile" />
-      <agenda-calendar-filter-button
-        :current-space="currentSpace"
-        :owner-ids="ownerIds"
-        :settings="settings" />
+      <agenda-calendar-filter-button />
       <extension-registry-components
         :params="params"
         name="AgendaApp"
