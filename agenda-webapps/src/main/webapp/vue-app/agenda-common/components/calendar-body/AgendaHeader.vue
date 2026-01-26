@@ -23,7 +23,7 @@
         :current-space="currentSpace"
         :offset-x="offsetX"
         :offset-y="offsetY" />
-      <agenda-switch-view :calendar-type="calendarType" v-if="!$root.isMobile" />
+      <agenda-switch-view :calendar-type="calendarType" v-if="!$root.isMobile && !responsiveMode" />
       <agenda-calendar-filter-button />
       <extension-registry-components
         :params="params"
@@ -103,7 +103,7 @@ export default {
         calendar: this.currentCalendar,
         ownerIds: this.ownerIds,
       };
-    },
+    }
   },
 };
 </script>

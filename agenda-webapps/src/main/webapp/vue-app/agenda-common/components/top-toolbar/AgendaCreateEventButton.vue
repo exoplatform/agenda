@@ -30,7 +30,7 @@ export default {
     canCreateEvent: {
       type: Boolean,
       default: false,
-    },
+    }
   },
   data: () => ({
     initialized: false,
