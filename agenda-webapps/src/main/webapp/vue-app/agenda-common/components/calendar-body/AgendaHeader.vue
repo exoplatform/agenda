@@ -24,15 +24,15 @@
         :current-space="currentSpace"
         :offset-x="offsetX"
         :offset-y="offsetY" />
-      <agenda-switch-view :calendar-type="calendarType" v-if="!$root.isMobile && !responsiveMode" />
-      <agenda-calendar-filter-button />
       <extension-registry-components
         :params="params"
         name="AgendaApp"
         type="agenda-app-toolbar"
         parent-element="div"
         element="div"
-        class="my-auto" />
+        class="my-auto" />  
+      <agenda-switch-view :calendar-type="calendarType" v-if="!$root.isMobile && !responsiveMode" />
+      <agenda-calendar-filter-button />
     </template>
   </application-toolbar>
 </template>
