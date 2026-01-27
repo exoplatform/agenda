@@ -244,10 +244,6 @@ export default {
       }
     }
     this.$nextTick().then(() => this.scrollToTime());
-    this.$nextTick().then(() => {
-      const el = document.querySelector('.v-calendar-daily__scroll-area');
-      if (el) {el.classList.add('specific-scrollbar');}
-    });
     window.setTimeout(() => {
       // Refresh current time each 3 minutes
       const dailyScrollElement = document.querySelector('.v-calendar-daily__scroll-area');
@@ -274,6 +270,7 @@ export default {
         if (dailyScrollElement) {
           const scrollY = this.startDayTimeY;
           dailyScrollElement.scrollTo(0, scrollY);
+          dailyScrollElement.classList.add('specific-scrollbar');
         }
       });
     },
