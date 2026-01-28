@@ -25,7 +25,7 @@
           </v-radio-group>
         </div>
       </div>
-      <div class="d-flex flex-column mx-4 my-1">
+      <div v-if="!$root.isMobile" class="d-flex flex-column mx-4 my-1">
         <div class="font-weight-bold">{{ $t('agenda.filter.label.advancedOptions') }}</div>
         <div class="d-flex mt-1" :title="displayWholeWeekTooltip">
           <v-checkbox
