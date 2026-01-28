@@ -33,6 +33,7 @@
       :connectors="connectors"
       @connectors-loaded="connectors = $event" />
     <agenda-pending-invitation-drawer :current-space="currentSpace" />
+    <agenda-connectors-drawer :connectors="connectors" />
   </v-app>
 </template>
 <script>
