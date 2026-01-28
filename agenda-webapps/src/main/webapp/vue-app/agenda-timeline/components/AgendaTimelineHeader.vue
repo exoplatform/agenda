@@ -10,6 +10,7 @@
         :offset-x="12" />
     </div>
     <v-spacer />
+    <agenda-connect-to-remote :connectors="connectors" />
     <div
       v-if="displayButton"
       :title="addEventButtonTooltip"
@@ -42,6 +43,10 @@ export default {
     agendaBaseLink: {
       type: String,
       default: null
+    },
+    connectors: {
+      type: Array,
+      default: () => null,
     },
   },
   data: () => ({
@@ -78,6 +83,9 @@ export default {
         attachments: [],
         attendees: [],
       });
+    },
+    openPersonalCalendarDrawer() {
+      this.$root.$emit('agenda-connectors-drawer-open');
     },
   },
 };
