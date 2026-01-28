@@ -4,7 +4,8 @@
       <agenda-timeline-header
         :current-space="currentSpace"
         :current-calendar="currentCalendar"
-        :agenda-base-link="agendaBaseLink" />
+        :agenda-base-link="agendaBaseLink"
+        :connectors="enabledConnectors" />
       <agenda-timeline
         :events="events"
         :period-start-date="periodStart"

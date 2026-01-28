@@ -11,6 +11,20 @@
     </div>
     <v-spacer />
     <div
+      v-if="connectors.length > 0 && !connectedConnector"
+      class="d-flex align-center">
+      <v-btn
+        :title="$t('agenda.button.openConnectionDrawer')"
+        icon
+        class="ms-auto"
+        small
+        @click="openPersonalCalendarDrawer">
+        <v-icon size="18" class="icon-default-color icon-default-size">
+          fas fa-plug
+        </v-icon>
+      </v-btn>
+    </div>
+    <div
       v-if="displayButton"
       :title="addEventButtonTooltip"
       class="d-flex align-center">
@@ -26,6 +40,7 @@
         </v-icon>
       </v-btn>
     </div>
+    <agenda-connectors-drawer :connectors="connectors" />
   </div>
 </template>
 <script>
@@ -43,6 +58,10 @@ export default {
       type: String,
       default: null
     },
+    connectors: {
+      type: Array,
+      default: () => null,
+    },
   },
   data: () => ({
     initialized: false,
@@ -59,6 +78,9 @@ export default {
         return this.$t('agenda.onlySpaceRedactorCanCreateEvent');
       }
       return '';
+    },
+    connectedConnector() {
+      return this.connectors && this.connectors.find(connector => connector.connected);
     },
   },
   created() {
@@ -78,6 +100,9 @@ export default {
         attachments: [],
         attendees: [],
       });
+    },
+    openPersonalCalendarDrawer() {
+      this.$root.$emit('agenda-connectors-drawer-open');
     },
   },
 };
