@@ -75,6 +75,10 @@ export default {
       type: Number,
       default: () => 22,
     },
+    period: {
+      type: Object,
+      default: null,
+    },
   },
   data: () => ({
     periodStart: null,
