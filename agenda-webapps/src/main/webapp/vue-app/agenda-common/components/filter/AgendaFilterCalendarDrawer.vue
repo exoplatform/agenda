@@ -33,8 +33,8 @@
             ripple="false"
             :disabled="disableShowAllWeek"
             dense
-            v-model="showWholeWeek" />
-          <label class="switch-label-text text-subtitle-1 my-auto">{{ $t('agenda.filter.label.displayWholeWeek') }}</label>
+            v-model="showWholeWeek"
+            :label="$t('agenda.filter.label.displayWholeWeek')" />
         </div>
       </div>
     </template>
