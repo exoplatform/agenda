@@ -8,10 +8,9 @@
       <div class="d-flex">
         <agenda-create-event-button
           :current-space="currentSpace"
-          :can-create-event="canCreateEvent"
-          :responsive-mode="responsiveMode" />
+          :can-create-event="canCreateEvent" />
         <date-picker
-          v-if="$root.isMobile || $root.isTablet || responsiveMode"
+          v-if="$root.isMobile || $root.isTablet"
           v-model="periodStart"
           class="agenda-header-date-picker z-index-two" />  
         <agenda-period-selector
@@ -31,7 +30,7 @@
         parent-element="div"
         element="div"
         class="my-auto" />  
-      <agenda-switch-view :calendar-type="calendarType" v-if="!$root.isMobile && !responsiveMode" />
+      <agenda-switch-view :calendar-type="calendarType" v-if="!$root.isMobile" />
       <agenda-calendar-filter-button />
     </template>
   </application-toolbar>
@@ -104,11 +103,7 @@ export default {
         calendar: this.currentCalendar,
         ownerIds: this.ownerIds,
       };
-    },
-    responsiveMode() {
-      const bodyElement = document.querySelector('.agenda-application');
-      return bodyElement.offsetWidth < this.$vuetify.breakpoint.thresholds.sm;
-    },
+    }
   },
 };
 </script>

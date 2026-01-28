@@ -16,7 +16,7 @@
       </v-btn>
     </div>
     <v-btn
-      v-if="!$root.isMobile && !responsiveMode"
+      v-if="!$root.isMobile"
       class="btn me-3"
       max-height="34"
       @click="setToday">
@@ -30,18 +30,14 @@ export default {
     canCreateEvent: {
       type: Boolean,
       default: false,
-    },
-    responsiveMode: {
-      type: Boolean,
-      default: false,
-    },
+    }
   },
   data: () => ({
     initialized: false,
   }),
   computed: {
     displayButton() {
-      return (!this.$root.isMobile || !this.responsiveMode || this.canCreateEvent) && (this.initialized || !eXo.env.portal.spaceId);
+      return (!this.$root.isMobile || this.canCreateEvent) && (this.initialized || !eXo.env.portal.spaceId);
     },
     addEventButtonTooltip() {
       if (!this.canCreateEvent) {

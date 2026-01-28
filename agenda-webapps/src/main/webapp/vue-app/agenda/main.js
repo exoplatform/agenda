@@ -30,7 +30,9 @@ export function init() {
     Vue.createApp({
       computed: {
         isMobile() {
-          return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';          
+          const bodyElement = document.querySelector('#AgendaApplication');
+          const resposiveMode = bodyElement.offsetWidth < this.$vuetify.breakpoint.thresholds.sm;
+          return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm' || resposiveMode;          
         },
         isTablet() {
           return this.$vuetify.breakpoint.width < this.$vuetify.breakpoint.thresholds.md && this.$vuetify.breakpoint.width >= this.$vuetify.breakpoint.thresholds.sm;
