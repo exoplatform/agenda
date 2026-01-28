@@ -10,20 +10,7 @@
         :offset-x="12" />
     </div>
     <v-spacer />
-    <div
-      v-if="connectors.length > 0 && !connectedConnector"
-      class="d-flex align-center">
-      <v-btn
-        :title="$t('agenda.button.openConnectionDrawer')"
-        icon
-        class="ms-auto"
-        small
-        @click="openPersonalCalendarDrawer">
-        <v-icon size="18" class="icon-default-color icon-default-size">
-          fas fa-plug
-        </v-icon>
-      </v-btn>
-    </div>
+    <agenda-connect-to-remote :connectors="connectors" />
     <div
       v-if="displayButton"
       :title="addEventButtonTooltip"
@@ -78,9 +65,6 @@ export default {
         return this.$t('agenda.onlySpaceRedactorCanCreateEvent');
       }
       return '';
-    },
-    connectedConnector() {
-      return this.connectors && this.connectors.find(connector => connector.connected);
     },
   },
   created() {
