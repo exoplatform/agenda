@@ -9,7 +9,8 @@
           :current-calendar="currentCalendar"
           :owner-ids="ownerIds"
           :period-title="periodTitle"
-          :settings="settings" />
+          :settings="settings"
+          :period="period" />
         <agenda-timeline
           v-if="$root.isMobile"
           :events="events"
