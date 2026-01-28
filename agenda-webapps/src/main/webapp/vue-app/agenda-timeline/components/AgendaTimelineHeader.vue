@@ -27,7 +27,6 @@
         </v-icon>
       </v-btn>
     </div>
-    <agenda-connectors-drawer :connectors="connectors" />
   </div>
 </template>
 <script>
