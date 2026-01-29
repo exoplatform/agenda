@@ -13,7 +13,7 @@
             :title="$t('agenda.connectYourPersonalAgenda')"
             :aria-label="$t('agenda.connectYourPersonalAgenda')">
             <v-icon class="uiIcon20x20 clickable" depressed>
-              fa-external-link-alt
+              fas fa-plug
             </v-icon>
           </div>
           <div
