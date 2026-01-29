@@ -30,6 +30,11 @@
         parent-element="div"
         element="div"
         class="my-auto" />  
+      <agenda-connect-to-remote
+        :connectors="connectors"
+        height="36"
+        width="36"
+        size="20" />  
       <agenda-switch-view :calendar-type="calendarType" v-if="!$root.isMobile" />
       <agenda-calendar-filter-button />
     </template>
@@ -78,6 +83,10 @@ export default {
     period: {
       type: Object,
       default: null,
+    },
+    connectors: {
+      type: Array,
+      default: () => null,
     },
   },
   data: () => ({

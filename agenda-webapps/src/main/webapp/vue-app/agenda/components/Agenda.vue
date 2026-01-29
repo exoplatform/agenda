@@ -10,7 +10,8 @@
           :owner-ids="ownerIds"
           :period-title="periodTitle"
           :settings="settings"
-          :period="period" />
+          :period="period"
+          :connectors="enabledConnectors" />
         <agenda-timeline
           v-if="$root.isMobile"
           :events="events"
@@ -74,6 +75,7 @@
       :period="period"
       :limit="limit" />
     <agenda-pending-invitation-drawer :current-space="currentSpace" />
+    <agenda-connectors-drawer :connectors="connectors" />
   </v-app>
 </template>
 <script>

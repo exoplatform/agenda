@@ -3,7 +3,7 @@
     v-if="connectors.length > 0 && !connectedConnector"
     class="d-flex align-center">
     <v-btn
-      :title="$t('agenda.button.openConnectionDrawer')"
+      :title="$t('agenda.connectYourPersonalAgenda')"
       icon
       :max-width="width"
       :max-height="height" 
@@ -44,6 +44,7 @@ export default {
 
   methods: {
     openPersonalCalendarDrawer() {
+      console.log('openPersonalCalendarDrawer');
       this.$root.$emit('agenda-connectors-drawer-open');
     },
   },
