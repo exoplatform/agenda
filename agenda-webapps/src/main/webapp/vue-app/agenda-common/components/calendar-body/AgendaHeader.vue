@@ -30,7 +30,12 @@
         parent-element="div"
         element="div"
         class="my-auto" />  
-      <agenda-switch-view :calendar-type="calendarType" v-if="!$root.isMobile && !responsiveMode" />
+      <agenda-connect-to-remote
+        :connectors="connectors"
+        height="36"
+        width="36"
+        size="20" />
+      <agenda-switch-view :calendar-type="calendarType" v-if="!$root.isMobile" />
       <agenda-calendar-filter-button />
     </template>
   </application-toolbar>
