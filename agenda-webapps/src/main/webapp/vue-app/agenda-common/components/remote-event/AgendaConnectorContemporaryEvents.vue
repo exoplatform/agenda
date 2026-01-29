@@ -3,31 +3,34 @@
     <div class="d-flex">
       <div class="d-flex flex-column width-full">
         <div class="d-flex">
-          <div class="text-no-wrap text-truncate font-weight-bold text-title-color">
+          <div class=" my-auto text-no-wrap text-truncate font-weight-bold text-title-color">
             {{ $t('agenda.personalCalendar') }}
           </div>
-          <div
+          <v-spacer/>
+          <v-btn
             v-if="!connectedConnector"
-            class="text-right flex-grow-1"
-            @click="openPersonalCalendarDrawer"
             :title="$t('agenda.connectYourPersonalAgenda')"
-            :aria-label="$t('agenda.connectYourPersonalAgenda')">
-            <v-icon class="uiIcon20x20 clickable" depressed>
-              fa-external-link-alt
+            :aria-label="$t('agenda.connectYourPersonalAgenda')"
+            icon
+            max-width="36"
+            max-height="36" 
+            @click="openPersonalCalendarDrawer">
+            <v-icon size=20 class="text-light-color">
+              fas fa-plug
             </v-icon>
-          </div>
-          <div
+          </v-btn>
+          <v-btn
             v-else
-            class="text-right flex-grow-1"
+            :aria-label="$t('agenda.icsbutton')"
+            :title="$t('agenda.icsbutton')"
+            icon
+            max-width="36"
+            max-height="36" 
             @click="downloadICS">
-            <v-icon
-              class="uiIcon20x20 clickable"
-              depressed
-              :aria-label="$t('agenda.icsbutton')"
-              :title="$t('agenda.icsbutton')">
+            <v-icon size=20 class="text-light-color">
               fa-calendar-plus
             </v-icon>
-          </div>
+          </v-btn>
         </div>
         <div :class="{ 'd-flex': enabledconnectors }">
           <v-avatar
