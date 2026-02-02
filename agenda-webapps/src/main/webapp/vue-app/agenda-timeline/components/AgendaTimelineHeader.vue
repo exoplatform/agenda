@@ -10,7 +10,7 @@
         :offset-x="12" />
     </div>
     <v-spacer />
-    <agenda-connect-to-remote :connectors="connectors" />
+    <agenda-connect-to-remote-button :connectors="connectors" />
     <div
       v-if="displayButton"
       :title="addEventButtonTooltip"
