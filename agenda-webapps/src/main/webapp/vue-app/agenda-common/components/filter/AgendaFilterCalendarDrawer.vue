@@ -3,7 +3,7 @@
     ref="calendarFilters"
     right
     @opened="drawer = true"
-    @closed="drawer = false">
+    @closed="cancel">
     <template slot="title">
       {{ $t('agenda.filterAgendaTitle') }}
     </template>
@@ -127,6 +127,7 @@ export default {
     confirm() {
       this.$root.$emit('agenda-event-type-changed', this.eventType);
       this.$root.$emit('agenda-show-working-changed', !this.showWholeWeek);
+      this.lastShowWholeWeek = this.showWholeWeek;
       this.$refs.calendarFilters.close();
     },
     init() {
