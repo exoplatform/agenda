@@ -14,19 +14,21 @@
           :connectors="enabledConnectors" />
         <agenda-timeline
           v-if="$root.isMobile"
-          :events="events"
+          :events="displayedEvent"
           :period-start-date="period.start"
           :loading="loading"
           :limit="limit"
+          :connected-connector-avatar="connectedConnectorAvatar"
           class="mt-2 pa-5" />
         <agenda-body
           v-else
-          :events="events"
+          :events="displayedEvent"
           :current-calendar="currentCalendar"
           :calendar-type="calendarType"
           :weekdays="weekdays"
           :full-weekdays="fullWeekdays"
-          :working-time="workingTime" />  
+          :working-time="workingTime"
+          :connected-connector-avatar="connectedConnectorAvatar" />  
         <v-flex v-if="$root.isMobile && hasMore" class="d-flex py-4 border-box-sizing">
           <v-btn
             :loading="loading"
@@ -110,6 +112,7 @@ export default {
       end: null,
     },
     events: [],
+    remoteEvents: [],
     settings: {
       agendaDefaultView: 'week',
       agendaWeekStartOn: 'MO',
@@ -119,6 +122,7 @@ export default {
     },
     hasMore: false,
     settingsLoaded: false,
+    remoteEventsLoaded: false,
   }),
   computed: {
     enabledConferenceProviderName() {
@@ -133,6 +137,23 @@ export default {
     enabledConnectors() {
       return this.connectors && this.connectors.filter(connector => connector.initialized && connector.enabled) || [];
     },
+    connectedConnector() {
+      return this.connectors && this.connectors.find(connector => connector.connected);
+    },
+    signedInConnector() {
+      return this.connectedConnector && this.connectedConnector.isSignedIn;
+    },
+    connectorStatus() {
+      if (this.connectedConnector) {
+        if (this.connectedConnector.isSignedIn) {
+          return 1;
+        } else {
+          return 2;
+        }
+      } else {
+        return 0;
+      }
+    },
     weekdays() {
       return this.settings && this.$agendaUtils.getWeekSequenceFromDay(this.settings, this.calendarType, false);
     },
@@ -146,6 +167,15 @@ export default {
         workingTimeEnd: this.settings.workingTimeEnd,
         workedDaysNumber: this.settings.workedDaysNumber,
       };
+    },
+    displayedEvent() {
+      if (this.settings.showRemoteEventsForAgenda){
+        return  this.events.concat(this.remoteEvents);
+      }
+      return  this.events;
+    },
+    connectedConnectorAvatar() {
+      return this.connectedConnector && this.connectedConnector.avatar || '';
     },
   },
   watch: {
@@ -162,6 +192,9 @@ export default {
     },
     period() {
       this.retrieveEvents();
+      if (this.settings.showRemoteEventsForAgenda && this.signedInConnector) {
+        this.retrieveRemoteEvents();
+      }
     },
     searchTerm() {
       this.retrieveEvents();
@@ -174,6 +207,11 @@ export default {
         document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
       }
     },
+    signedInConnector() {
+      if (this.signedInConnector && this.settings.showRemoteEventsForAgenda) {
+        this.retrieveRemoteEvents();
+      }
+    }
   },
   created() {
     // Ensure that localStorage doesn't have a deleted event
@@ -196,6 +234,7 @@ export default {
     this.spaceId = eXo.env.portal.spaceId;
     this.$root.$on('agenda-settings-refresh', this.initSettings);
     this.$root.$on('agenda-event-change-owner', this.refreshProviders);
+    this.$root.$on('agenda-show-remote-change', this.showRemoteEvents);
     this.initSettings();
   },
   methods: {
@@ -224,6 +263,15 @@ export default {
         });
       } else {
         this.conferenceProviders = null;
+      }
+    },
+    showRemoteEvents(showRemoteEvents) {
+      if (this.settings.showRemoteEventsForAgenda !== showRemoteEvents){
+        this.settings.showRemoteEventsForAgenda = showRemoteEvents;
+        this.$settingsService.saveUserSettings(this.settings);
+        if (showRemoteEvents && !this.remoteEventsLoaded) {
+          this.retrieveRemoteEvents();
+        }
       }
     },
     retrieveEvents() {
@@ -340,7 +388,33 @@ export default {
             this.$root.$emit('alert-message', this.$t('agenda.eventDeletionCanceled'), 'success');
           });
       }
-    }
+    },
+    retrieveRemoteEvents() {
+      if (this.connectorStatus === 1) {
+        const startDateRFC3359 = this.$agendaUtils.toRFC3339(this.period.start, false, true);
+        const endDateRFC3359 = this.$agendaUtils.toRFC3339(this.period.end, false, true);
+        this.loading = true;
+        this.connectedConnector.getEvents(startDateRFC3359, endDateRFC3359)
+          .then(events => {
+            if (events) {
+              events.forEach(event => {
+                event.startDate = event.start && this.$agendaUtils.toDate(event.start) || null;
+                event.endDate = event.end && this.$agendaUtils.toDate(event.end) || null;
+              });
+            }
+            const remoteEvents = events;
+            this.remoteEvents = remoteEvents && remoteEvents.slice() || [];
+            this.loading = false;
+            this.remoteEventsLoaded = true;
+          }).catch(error => {
+            this.remoteEvents = [];
+            this.loading = false;
+            console.error('Error retrieving remote events', error);
+          });
+      } else {
+        this.remoteEvents = [];
+      }
+    },
   },
 };
 </script>
