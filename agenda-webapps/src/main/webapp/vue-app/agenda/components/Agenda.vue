@@ -18,6 +18,7 @@
           :period-start-date="period.start"
           :loading="loading"
           :limit="limit"
+          :connected-connector-avatar="connectedConnectorAvatar"
           class="mt-2 pa-5" />
         <agenda-body
           v-else
