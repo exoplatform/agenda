@@ -33,15 +33,19 @@
                 :key="i"
                 :title="event.summary"
                 :style="{background: event.color || event.calendar.color}"
+                :class="event.type === 'remoteEvent' && 'remote-event'"
                 class="event-timeline-detail d-flex flex-column white--text px-2 py-0 mb-2 border-radius"
                 dark
-                @click="$root.$emit('agenda-event-details', event)">
+                @click="openEventDetails(event)">
                 <v-list-item-content class="event-timeline-detail-content">
-                  <strong class="text-truncate">{{ event.summary }}</strong>
+                  <strong class="text-truncate" :class="event.type === 'remoteEvent' && 'primary--text'">{{ event.summary }}</strong>
                   <div v-if="event.allDay">
                     {{ $t('agenda.allDay') }}
                   </div>
-                  <div v-else class="d-flex flex-row">
+                  <div
+                    v-else
+                    class="d-flex flex-row"
+                    :class="event.type === 'remoteEvent' && 'primary--text'">
                     <div v-if="event.startsOnBeginningOfDay">
                       {{ $t('agenda.beginningOfTheDay') }}
                     </div>
@@ -57,6 +61,13 @@
                       v-else
                       :value="event.endDate"
                       :format="timeFormat" />
+                    <v-avatar
+                      v-if="event.type === 'remoteEvent'"
+                      tile
+                      class="white ms-auto me-1"
+                      size="16">
+                      <img :src="connectedConnectorAvatar">
+                    </v-avatar>  
                   </div>
                 </v-list-item-content>
               </v-list-item>
@@ -90,6 +101,10 @@ export default {
     agendaBaseLink: {
       type: String,
       default: null,
+    },
+    connectedConnectorAvatar: {
+      type: String,
+      default: null
     },
   },
   data: () => ({
@@ -195,6 +210,12 @@ export default {
       }
       return count;
     },
+    openEventDetails(event) {
+      if (event.type === 'remoteEvent') {
+        return;
+      }
+      this.$root.$emit('agenda-event-details', event);
+    }  
   }
 };
 </script>

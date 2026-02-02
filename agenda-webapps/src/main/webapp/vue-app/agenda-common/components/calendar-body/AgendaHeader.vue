@@ -30,8 +30,9 @@
         parent-element="div"
         element="div"
         class="my-auto" />  
-      <agenda-connect-to-remote
+      <agenda-connect-to-remote-button
         :connectors="connectors"
+        :settings="settings"
         height="36"
         width="36"
         size="20" />
