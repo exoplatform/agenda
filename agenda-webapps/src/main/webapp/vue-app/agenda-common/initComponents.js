@@ -11,7 +11,6 @@ import AgendaEventMobileForm from './components/event/form/mobile/AgendaEventMob
 
 import AgendaCreateEventButton from './components/top-toolbar/AgendaCreateEventButton.vue';
 import AgendaCalendarFilterButton from './components/top-toolbar/AgendaCalendarFilterButton.vue';
-import AgendaConnectToRemote from './components/top-toolbar/AgendaConnectToRemote.vue';
 import AgendaPeriodSelector from './components/top-toolbar/AgendaPeriodSelector.vue';
 
 import AgendaFilterCalendarDrawer from './components/filter/AgendaFilterCalendarDrawer.vue';
@@ -82,6 +81,7 @@ import AgendaConnectorStatus from './components/connector/AgendaConnectorStatus.
 import AgendaConnectorContemporaryEvents from './components/remote-event/AgendaConnectorContemporaryEvents.vue';
 import AgendaConnectorRemoteEventItem from './components/remote-event/AgendaConnectorRemoteEventItem.vue';
 import AgendaConnectorsDrawer from './components/remote-event/AgendaConnectorsDrawer.vue';
+import AgendaConnectToRemoteButton from './components/remote-event/AgendaConnectToRemoteButton.vue';
 
 const components = {
   'agenda-header': AgendaHeader,
@@ -98,7 +98,7 @@ const components = {
   'agenda-create-event-button': AgendaCreateEventButton,
   'agenda-calendar-filter-button': AgendaCalendarFilterButton,
   'agenda-period-selector': AgendaPeriodSelector,
-  'agenda-connect-to-remote': AgendaConnectToRemote,
+  'agenda-connect-to-remote-button': AgendaConnectToRemoteButton,
   'agenda-event-dialog': AgendaEventDialog,
   'agenda-event-form': AgendaEventForm,
   'agenda-event-preview-dialog': AgendaPreviewEventDialog,

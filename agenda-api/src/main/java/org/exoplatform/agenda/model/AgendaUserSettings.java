@@ -51,6 +51,8 @@ public class AgendaUserSettings implements Cloneable {
 
   private String                       workedDaysNumber   = null;
 
+  private boolean                      showRemoteEventsForAgenda         = false;
+
   public AgendaUserSettings(String cometdToken,
                             String agendaDefaultView,
                             String agendaWeekStartOn,
@@ -61,7 +63,8 @@ public class AgendaUserSettings implements Cloneable {
                             String connectedRemoteUserId,
                             boolean automaticPushEvents,
                             String timeZoneId,
-                            String workedDaysNumber) {
+                            String workedDaysNumber,
+                            boolean showRemoteEventsForAgenda) {
     this.cometdToken = cometdToken;
     this.agendaDefaultView = agendaDefaultView;
     this.agendaWeekStartOn = agendaWeekStartOn;
@@ -73,6 +76,7 @@ public class AgendaUserSettings implements Cloneable {
     this.automaticPushEvents = automaticPushEvents;
     this.timeZoneId = timeZoneId;
     this.workedDaysNumber = workedDaysNumber;
+    this.showRemoteEventsForAgenda = showRemoteEventsForAgenda;
   }
 
   @Override
@@ -109,7 +113,8 @@ public class AgendaUserSettings implements Cloneable {
                                   connectedRemoteUserId,
                                   automaticPushEvents,
                                   timeZoneId,
-                                  workedDaysNumber);
+                                  workedDaysNumber,
+                                  showRemoteEventsForAgenda);
   }
 
 }

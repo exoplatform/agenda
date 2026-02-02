@@ -13,6 +13,20 @@
       </v-icon>
     </v-btn>
   </div>
+  <div
+    v-else
+    class="d-flex align-center">
+    <v-btn
+      :title="showREvents ? $t('agenda.hideRemoteEvents') : $t('agenda.showRemoteEvents')"
+      icon
+      :max-width="width"
+      :max-height="height"
+      @click="showRemoteEvents">
+      <v-icon :size="size" :color="showREvents ? 'primary' : 'text-light-color'">
+        fas fa-calendar-check
+      </v-icon>
+    </v-btn>
+  </div>
 </template>
 
 <script>
@@ -34,18 +48,27 @@ export default {
       type: Array,
       default: () => null,
     },
+    settings: {
+      type: Object,
+      default: () => null,
+    },
   },
 
   computed: {
     connectedConnector() {
       return this.connectors && this.connectors.find(connector => connector.connected);
     },
+    showREvents() {
+      return this.settings && this.settings.showRemoteEventsForAgenda;
+    },
   },
 
   methods: {
     openPersonalCalendarDrawer() {
-      console.log('openPersonalCalendarDrawer');
       this.$root.$emit('agenda-connectors-drawer-open');
+    },
+    showRemoteEvents() {
+      this.$root.$emit('agenda-show-remote-change',!this.showREvents);
     },
   },
 };

@@ -98,6 +98,7 @@ export default {
         .then(() => {
           this.$set(connector, 'loading', false);
           this.$root.$emit('agenda-settings-refresh');
+          this.refreshConnectorsList();
         })
         .catch(error => {
           console.error('Connected - error', connector.name, error);
@@ -126,6 +127,7 @@ export default {
           this.$set(connector, 'user', null);
           this.$set(connector, 'canPush', false);
           this.$root.$emit('agenda-settings-refresh');
+          this.refreshConnectorsList();
         })
         .finally(() => {
           this.$set(connector, 'loading', false);
