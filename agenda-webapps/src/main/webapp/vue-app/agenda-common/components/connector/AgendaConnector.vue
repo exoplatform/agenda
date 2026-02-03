@@ -66,6 +66,7 @@ export default {
       this.initConnectors();
 
       this.$emit('connectors-loaded', connectors);
+      this.$root.$emit('connectors-loaded', connectors);
     },
     initConnectors() {
       this.connectors

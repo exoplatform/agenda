@@ -170,7 +170,11 @@ export default {
     },
     displayedEvent() {
       if (this.settings.showRemoteEventsForAgenda){
-        return  this.events.concat(this.remoteEvents);
+        return  this.events.concat(this.remoteEvents).sort((event1, event2) => {
+          const eventStart1 = this.$agendaUtils.toDate(event1.start || event1.startDate).getTime();
+          const eventStart2 = this.$agendaUtils.toDate(event2.start || event2.startDate).getTime();
+          return eventStart1 - eventStart2;
+        });
       }
       return  this.events;
     },
