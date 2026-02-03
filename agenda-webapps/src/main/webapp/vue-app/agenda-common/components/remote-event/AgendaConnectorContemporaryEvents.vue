@@ -6,7 +6,7 @@
           <div class=" my-auto text-no-wrap text-truncate font-weight-bold text-title-color">
             {{ $t('agenda.personalCalendar') }}
           </div>
-          <v-spacer/>
+          <v-spacer />
           <v-btn
             v-if="!connectedConnector"
             :title="$t('agenda.connectYourPersonalAgenda')"
@@ -15,7 +15,7 @@
             max-width="36"
             max-height="36" 
             @click="openPersonalCalendarDrawer">
-            <v-icon size=20 class="text-light-color">
+            <v-icon size="20" class="text-light-color">
               fas fa-plug
             </v-icon>
           </v-btn>
@@ -27,7 +27,7 @@
             max-width="36"
             max-height="36" 
             @click="downloadICS">
-            <v-icon size=20 class="text-light-color">
+            <v-icon size="20" class="text-light-color">
               fa-calendar-plus
             </v-icon>
           </v-btn>

@@ -1,8 +1,7 @@
 <template>
-  <div
-    v-if="connectors.length > 0 && !connectedConnector"
-    class="d-flex align-center">
+  <div v-if="connectorsLoaded" class="d-flex align-center">
     <v-btn
+      v-if="!connectedConnector"
       :title="$t('agenda.connectYourPersonalAgenda')"
       icon
       :max-width="width"
@@ -12,11 +11,8 @@
         fas fa-plug
       </v-icon>
     </v-btn>
-  </div>
-  <div
-    v-else
-    class="d-flex align-center">
     <v-btn
+      v-else
       :title="showDefaultRemoteEvents ? $t('agenda.hideRemoteEvents') : $t('agenda.showRemoteEvents')"
       icon
       :max-width="width"
@@ -56,6 +52,16 @@ export default {
       type: Boolean,
       default: false,
     },
+  },
+
+  data() {
+    return {
+      connectorsLoaded: false,
+    };
+  },
+
+  created() {
+    this.$root.$on('connectors-loaded', this.connectorsLoaded = true);
   },
 
   computed: {
