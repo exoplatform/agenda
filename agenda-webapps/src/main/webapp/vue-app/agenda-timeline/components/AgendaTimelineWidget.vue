@@ -5,13 +5,15 @@
         :current-space="currentSpace"
         :current-calendar="currentCalendar"
         :agenda-base-link="agendaBaseLink"
-        :connectors="enabledConnectors" />
+        :connectors="enabledConnectors"
+        :settings="settings" />
       <agenda-timeline
-        :events="events"
+        :events="displayedEvent"
         :period-start-date="periodStart"
         :agenda-base-link="agendaBaseLink"
         :loading="loading || !initialized"
-        :limit="limit" />
+        :limit="limit"
+        :connected-connector-avatar="connectedConnectorAvatar" />
     </v-card>
     <agenda-event-dialog
       ref="eventFormDialog"
@@ -42,7 +44,7 @@ export default {
     eventType: {
       type: String,
       default: () => 'myEvents',
-    },
+    }
   },
   data: () => ({
     initialized: false,
@@ -65,9 +67,11 @@ export default {
       workingTimeEnd: '18:00',
     },
     events: [],
+    remoteEvents: [],
     agendaBaseLink: null,
     conferenceProviders: null,
     selectedProviderType: null,
+    remoteEventsLoaded: false,
   }),
   computed: {
     enabledConferenceProviderName() {
@@ -92,6 +96,32 @@ export default {
     enabledConnectors() {
       return this.connectors && this.connectors.filter(connector => connector.initialized && connector.enabled) || [];
     },
+    connectedConnector() {
+      return this.connectors && this.connectors.find(connector => connector.connected);
+    },
+    signedInConnector() {
+      return this.connectedConnector && this.connectedConnector.isSignedIn;
+    },
+    connectorStatus() {
+      if (this.connectedConnector) {
+        if (this.connectedConnector.isSignedIn) {
+          return 1;
+        } else {
+          return 2;
+        }
+      } else {
+        return 0;
+      }
+    },
+    displayedEvent() {
+      if (this.settings.showRemoteEventsForAgenda){
+        return  this.events.concat(this.remoteEvents);
+      }
+      return  this.events;
+    },
+    connectedConnectorAvatar() {
+      return this.connectedConnector && this.connectedConnector.avatar || '';
+    },
   },
   watch: {
     limit() {
@@ -107,6 +137,9 @@ export default {
     },
     period() {
       this.retrieveEvents();
+      if (this.settings.showRemoteEventsForAgenda && this.signedInConnector) {
+        this.retrieveRemoteEvents();
+      }
     },
     loading() {
       if (this.loading) {
@@ -116,6 +149,11 @@ export default {
         this.$root.$applicationLoaded();
       }
     },
+    signedInConnector() {
+      if (this.signedInConnector && this.settings.showRemoteEventsForAgenda) {
+        this.retrieveRemoteEvents();
+      }
+    }
   },
   created() {
     if (eXo.env.portal.spaceId) {
@@ -127,6 +165,7 @@ export default {
     this.$root.$on('agenda-event-saved', this.retrieveEvents);
     this.$root.$on('agenda-event-deleted', this.retrieveEvents);
     this.$root.$on('agenda-event-change-owner', this.refreshProviders);
+    this.$root.$on('agenda-show-remote-change', this.showRemoteEvents);
 
 
     this.spaceId = eXo.env.portal.spaceId;
@@ -170,6 +209,15 @@ export default {
         });
       } else {
         this.conferenceProviders = null;
+      }
+    },
+    showRemoteEvents(showRemoteEvents) {
+      if (this.settings.showRemoteEventsForAgenda !== showRemoteEvents){
+        this.settings.showRemoteEventsForAgenda = showRemoteEvents;
+        this.$settingsService.saveUserSettings(this.settings);
+        if (showRemoteEvents && !this.remoteEventsLoaded) {
+          this.retrieveRemoteEvents();
+        }
       }
     },
     retrieveEvents() {
@@ -220,6 +268,32 @@ export default {
           this.initialized = true;
           this.loading = false;
         });
+    },
+    retrieveRemoteEvents() {
+      if (this.connectorStatus === 1) {
+        const startDateRFC3359 = this.$agendaUtils.toRFC3339(this.period.start, false, true);
+        const endDateRFC3359 = this.$agendaUtils.toRFC3339(this.period.end, false, true);
+        this.loading = true;
+        this.connectedConnector.getEvents(startDateRFC3359, endDateRFC3359)
+          .then(events => {
+            if (events) {
+              events.forEach(event => {
+                event.startDate = event.start && this.$agendaUtils.toDate(event.start) || null;
+                event.endDate = event.end && this.$agendaUtils.toDate(event.end) || null;
+              });
+            }
+            const remoteEvents = events;
+            this.remoteEvents = remoteEvents && remoteEvents.slice() || [];
+            this.loading = false;
+            this.remoteEventsLoaded = true;
+          }).catch(error => {
+            this.remoteEvents = [];
+            this.loading = false;
+            console.error('Error retrieving remote events', error);
+          });
+      } else {
+        this.remoteEvents = [];
+      }
     },
   },
 };
