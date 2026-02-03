@@ -35,7 +35,8 @@
         :settings="settings"
         height="36"
         width="36"
-        size="20" />
+        size="20"
+        :show-default-remote-events="showDefaultRemoteEvents" />
       <agenda-switch-view :calendar-type="calendarType" v-if="!$root.isMobile" />
       <agenda-calendar-filter-button />
     </template>
@@ -85,6 +86,10 @@ export default {
       type: Object,
       default: null,
     },
+    connectors: {
+      type: Array,
+      default: () => null,
+    },
   },
   data: () => ({
     periodStart: null,
@@ -106,6 +111,9 @@ export default {
   computed: {
     canCreateEvent() {
       return !this.currentCalendar || !this.currentCalendar.acl || this.currentCalendar.acl.canCreate;
+    },
+    showDefaultRemoteEvents() {
+      return this.settings && this.settings.showRemoteEventsForAgenda;
     },
     params() {
       return {

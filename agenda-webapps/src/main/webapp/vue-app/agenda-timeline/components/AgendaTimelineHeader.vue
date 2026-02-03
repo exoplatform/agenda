@@ -10,7 +10,10 @@
         :offset-x="12" />
     </div>
     <v-spacer />
-    <agenda-connect-to-remote-button :connectors="connectors" />
+    <agenda-connect-to-remote-button
+      :connectors="connectors"
+      :settings="settings"
+      :show-default-remote-events="showDefaultRemoteEvents" /> 
     <div
       v-if="displayButton"
       :title="addEventButtonTooltip"
@@ -47,6 +50,14 @@ export default {
     connectors: {
       type: Array,
       default: () => null,
+    },
+    settings: {
+      type: Object,
+      default: () => null
+    },
+    showDefaultRemoteEvents: {
+      type: Boolean,
+      default: false,
     },
   },
   data: () => ({

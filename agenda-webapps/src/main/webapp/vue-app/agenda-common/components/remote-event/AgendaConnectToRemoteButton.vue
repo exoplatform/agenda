@@ -17,12 +17,12 @@
     v-else
     class="d-flex align-center">
     <v-btn
-      :title="showREvents ? $t('agenda.hideRemoteEvents') : $t('agenda.showRemoteEvents')"
+      :title="showDefaultRemoteEvents ? $t('agenda.hideRemoteEvents') : $t('agenda.showRemoteEvents')"
       icon
       :max-width="width"
       :max-height="height"
       @click="showRemoteEvents">
-      <v-icon :size="size" :color="showREvents ? 'primary' : 'text-light-color'">
+      <v-icon :size="size" :color="showDefaultRemoteEvents ? 'primary' : 'text-light-color'">
         fas fa-calendar-check
       </v-icon>
     </v-btn>
@@ -52,14 +52,15 @@ export default {
       type: Object,
       default: () => null,
     },
+    showDefaultRemoteEvents: {
+      type: Boolean,
+      default: false,
+    },
   },
 
   computed: {
     connectedConnector() {
       return this.connectors && this.connectors.find(connector => connector.connected);
-    },
-    showREvents() {
-      return this.settings && this.settings.showRemoteEventsForAgenda;
     },
   },
 
@@ -68,7 +69,7 @@ export default {
       this.$root.$emit('agenda-connectors-drawer-open');
     },
     showRemoteEvents() {
-      this.$root.$emit('agenda-show-remote-change',!this.showREvents);
+      this.$root.$emit('agenda-show-remote-change',!this.showDefaultRemoteEvents);
     },
   },
 };
