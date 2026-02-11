@@ -1,5 +1,5 @@
 <template>
-  <div v-if="connectorsLoaded" class="d-flex align-center">
+  <div v-if="showButton" class="d-flex align-center">
     <v-btn
       v-if="!connectedConnector"
       :title="$t('agenda.connectYourPersonalAgenda')"
@@ -54,17 +54,11 @@ export default {
     },
   },
 
-  data() {
-    return {
-      connectorsLoaded: false,
-    };
-  },
-
-  created() {
-    this.$root.$on('connectors-loaded', this.connectorsLoaded = true);
-  },
 
   computed: {
+    showButton() {
+      return this.connectors && this.connectors.length > 0;
+    }, 
     connectedConnector() {
       return this.connectors && this.connectors.find(connector => connector.connected);
     },
@@ -76,7 +70,7 @@ export default {
     },
     showRemoteEvents() {
       this.$root.$emit('agenda-show-remote-change',!this.showDefaultRemoteEvents);
-    },
+    }
   },
 };
 </script>
