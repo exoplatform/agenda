@@ -277,7 +277,12 @@ export default {
     retrieveRemoteEvents() {
       if (this.connectorStatus === 1) {
         const startDateRFC3359 = this.$agendaUtils.toRFC3339(this.period.start, false, true);
-        const endDateRFC3359 = this.$agendaUtils.toRFC3339(this.period.end, false, true);
+        let endDate = this.period.end ;
+        if (!endDate){
+          const date = new Date(this.period.start);        
+          endDate =  date.setFullYear(date.getFullYear() + 1); 
+        }
+        const endDateRFC3359 = this.$agendaUtils.toRFC3339(endDate, false, true);
         this.loading = true;
         this.connectedConnector.getEvents(startDateRFC3359, endDateRFC3359)
           .then(events => {
