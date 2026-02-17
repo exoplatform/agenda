@@ -135,7 +135,7 @@
             :settings="settings"
             :event="event"
             :connectors="connectors"
-            :class="!isAcceptedEvent && 'agenda-hidden-connectors'"
+            :class="!isAcceptedEvent && !isRemoteEvent && 'agenda-hidden-connectors'"
             class="mt-4 mr-auto width-full"
             @download-ics="downloadICS" />
           <agenda-ics
@@ -235,6 +235,9 @@ export default {
     },
     hasRecurrence() {
       return this.event.recurrence || this.event.parent && this.event.parent.recurrence;
+    },
+    isRemoteEvent(){
+      return this.event.type === 'remoteEvent';
     },
     isAttendee() {
       return this.event.acl && this.event.acl.attendee;

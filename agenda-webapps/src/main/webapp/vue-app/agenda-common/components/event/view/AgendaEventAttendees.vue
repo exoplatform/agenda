@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div class="event-attendees-responses align-center d-flex">
+    <div v-if="!isRemoteEvent" class="event-attendees-responses align-center d-flex">
       <i class="uiIconGroup darkGreyIcon uiIcon32x32 pe-5"></i>
       <span>{{ attendeesResponsesTitle }}</span>
     </div>
@@ -100,6 +100,9 @@ export default {
         2: this.needsActionResponsesCount,
         3: this.tentativeResponsesCount,
       });
+    },
+    isRemoteEvent(){
+      return this.event.type === 'remoteEvent';
     },
   },
   methods: {
