@@ -107,10 +107,10 @@ export default {
       return !this.saving && this.isForm && this.event && this.originalEventString && this.originalEventString !== JSON.stringify(this.event);
     },
     isConfirmedEvent() {
-      return this.event && this.event.status === 'CONFIRMED';
+      return this.event && this.event.status.toUpperCase() === 'CONFIRMED';
     },
     isTentativeEvent() {
-      return this.event && this.event.status === 'TENTATIVE';
+      return this.event && this.event.status.toUpperCase() === 'TENTATIVE';
     },
     confirmCloseLabels() {
       return {
@@ -178,11 +178,15 @@ export default {
     });
     this.$root.$on('agenda-event-details-by-id', this.openEventById);
     this.$root.$on('agenda-event-details', agendaEvent => {
-      if (agendaEvent.id) {
-        this.openEventDetails(agendaEvent.id);
-      } else if (agendaEvent.occurrence && agendaEvent.occurrence.id) {
-        this.openEventDetails(agendaEvent.parent.id, agendaEvent.occurrence.id);
+      if (agendaEvent.type === 'remoteEvent') {
+        this.openRemoteEventDetails(agendaEvent);
       }
+      else {
+        if (agendaEvent.id) {
+          this.openEventDetails(agendaEvent.id);
+        } else if (agendaEvent.occurrence && agendaEvent.occurrence.id) {
+          this.openEventDetails(agendaEvent.parent.id, agendaEvent.occurrence.id);
+        }}
     });
     this.$root.$on('agenda-event-deleted', () => this.close());
     this.$root.$on('agenda-event-save', () => this.saving = true);
@@ -236,6 +240,15 @@ export default {
       this.isForm = true;
       this.openEventById(eventId, occurrenceId);
     },
+    openRemoteEventDetails(event) {
+      if (!event ||  (event.status.toUpperCase() !== 'TENTATIVE' && event.status.toUpperCase() !== 'CONFIRMED')) {
+        return ;
+      }
+      event.startDate = event.startDate || this.$agendaUtils.toDate(event.start);
+      event.endDate = event.endDate || this.$agendaUtils.toDate(event.end);
+      this.openDialog(event);
+      return event;
+    },
     openEventDetails(eventId, occurrenceId) {
       this.isForm = false;
       return this.openEventById(eventId, occurrenceId);
@@ -283,15 +296,17 @@ export default {
         agendaEvent.attendees = [];
       }
       this.event = agendaEvent;
-      const spaceSiteKeyName = eXo.env.portal.siteKeyName.replace(/\//g, ':');
-      let eventDetailsPath = window.location.pathname.includes('spaces') ? `/portal/g/${spaceSiteKeyName}/home/agenda` : `/portal/${eXo.env.portal.siteKeyName}/home/agenda`;
-      if (this.event.id) {
-        eventDetailsPath = `${eventDetailsPath}?eventId=${this.event.id}`;
-      } else if (this.event.parent && this.event.parent.id && this.event.occurrence && this.event.occurrence.id) {
-        eventDetailsPath = `${eventDetailsPath}?parentId=${this.event.parent.id}&occurrenceId=${this.event.occurrence.id}`;
-      }
-      this.$root.$emit('agenda-event-change-owner',agendaEvent.calendar.owner.remoteId);
-      window.history.replaceState('', window.document.title, eventDetailsPath);
+      if (agendaEvent.type !== 'remoteEvent') {
+        const spaceSiteKeyName = eXo.env.portal.siteKeyName.replace(/\//g, ':');
+        let eventDetailsPath = window.location.pathname.includes('spaces') ? `/portal/g/${spaceSiteKeyName}/home/agenda` : `/portal/${eXo.env.portal.siteKeyName}/home/agenda`;
+        if (this.event.id) {
+          eventDetailsPath = `${eventDetailsPath}?eventId=${this.event.id}`;
+        } else if (this.event.parent && this.event.parent.id && this.event.occurrence && this.event.occurrence.id) {
+          eventDetailsPath = `${eventDetailsPath}?parentId=${this.event.parent.id}&occurrenceId=${this.event.occurrence.id}`;
+        }
+        this.$root.$emit('agenda-event-change-owner',agendaEvent.calendar.owner.remoteId);
+        window.history.replaceState('', window.document.title, eventDetailsPath);      
+      } 
       this.dialog = true;
     },
     close(event) {
