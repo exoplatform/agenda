@@ -211,9 +211,6 @@ export default {
       return count;
     },
     openEventDetails(event) {
-      if (event.type === 'remoteEvent') {
-        return;
-      }
       this.$root.$emit('agenda-event-details', event);
     }  
   }
