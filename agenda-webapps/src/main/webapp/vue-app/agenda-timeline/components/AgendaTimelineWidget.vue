@@ -123,7 +123,10 @@ export default {
     },
     displayedEvent() {
       if (this.showDefaultRemoteEvents){
-        return  this.events.concat(this.remoteEvents).sort((event1, event2) => {
+        // Avoid to have same event from remote and local store (pushed events from local store)
+        const filtredRemoteEvents = this.filterRemoteEvents(this.events, this.remoteEvents);
+        const events = this.events.concat(filtredRemoteEvents);
+        return  events.sort((event1, event2) => {
           const eventStart1 = this.$agendaUtils.toDate(event1.start || event1.startDate).getTime();
           const eventStart2 = this.$agendaUtils.toDate(event2.start || event2.startDate).getTime();
           return eventStart1 - eventStart2;
@@ -298,6 +301,17 @@ export default {
         this.remoteEvents = [];
       }
     },
+    filterRemoteEvents(localEvents, remoteEvents) {
+      return remoteEvents.filter(remote => {
+        const isMatched = localEvents.some(local => {
+          const sameId = remote.id === local.remoteId;
+          const sameDates =  new Date(remote.startDate).getTime() === new Date(local.startDate).getTime() && new Date(remote.endDate).getTime() === new Date(local.endDate).getTime();
+          const sameRecurring = remote.recurringEventId === local.parent?.remoteId;
+          return sameId || (sameRecurring && sameDates);
+        });
+        return !isMatched;
+      });
+    }
   },
 };
 </script>
