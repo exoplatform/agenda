@@ -8,9 +8,21 @@
     </v-col>
     <v-col class="flex-grow-1 text-truncate flex-shrink-0 d-flex px-0 mx-2">
       <exo-space-avatar
+        v-if="!isRemoteEvent"
         :space="ownerProfile"
         :size="32"
         popover />
+      <div v-else class="d-flex">
+        <v-avatar
+          tile
+          class="spaceAvatar my-auto me-3"
+          size="32">
+          <img :src="connectedConnector.avatar">
+        </v-avatar>
+        <div class="flex-grow-0 flex-shrink-0 my-auto">
+          {{ $t('agenda.personalCalendar') }}
+        </div>
+      </div>
     </v-col>
     <v-col class="px-0 flex-grow-1 flex-shrink-0 mx-2">
       <template v-if="!isTentativeEvent && isAttendee && !$root.isMobile">
@@ -111,6 +123,9 @@ export default {
     },
     ownerDisplayName() {
       return this.ownerProfile && (this.ownerProfile.displayName || this.ownerProfile.fullname || this.ownerProfile.fullName);
+    },
+    isRemoteEvent(){
+      return this.event.type === 'remoteEvent';
     },
     labels() {
       return {

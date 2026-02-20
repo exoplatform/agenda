@@ -336,9 +336,6 @@ export default {
       return event && !event.allDay;
     },
     showEvent(eventObj) {
-      if (eventObj.event.type === 'remoteEvent') {
-        return;
-      }
       if (this.eventDragged || this.eventExtended) {
         this.cancelEventModification();
         return;
@@ -356,9 +353,6 @@ export default {
       return false;
     },
     showDay(eventObj) {
-      if (eventObj.event.type === 'remoteEvent') {
-        return;
-      }
       if (eventObj.nativeEvent) {
         eventObj.nativeEvent.preventDefault();
         eventObj.nativeEvent.stopPropagation();
@@ -368,10 +362,10 @@ export default {
       this.$root.$emit('agenda-change-period-type', 'day');
     },
     extendEventEndDate(eventObj) {
-      if (eventObj.event.type === 'remoteEvent') {
+      const dragEvent = eventObj && eventObj.event || eventObj;
+      if (dragEvent.type === 'remoteEvent') {
         return;
       }
-      const dragEvent = eventObj && eventObj.event || eventObj;
       if (!dragEvent || !dragEvent.acl || !dragEvent.acl.canEdit) {
         return;
       }
@@ -384,9 +378,6 @@ export default {
       }
     },
     eventMouseDown(eventObj) {
-      if (eventObj.type === 'remoteEvent') {
-        return;
-      }
       if (eventObj && eventObj.nativeEvent) {
         eventObj.nativeEvent.preventDefault();
         eventObj.nativeEvent.stopPropagation();
@@ -409,9 +400,6 @@ export default {
       }, 500);
     },
     eventMouseUp(eventObj) {
-      if (eventObj.type === 'remoteEvent') {
-        return;
-      }
       this.mouseDown = false;
       if (this.eventDragged || this.eventExtended) {
         if (eventObj && eventObj.nativeEvent) {

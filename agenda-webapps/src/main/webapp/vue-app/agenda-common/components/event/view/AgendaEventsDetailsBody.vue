@@ -121,10 +121,10 @@
         </div>
       </div>
     </div>
-    <div class="flex-grow-0 mx-5 d-none d-md-block">
+    <div v-if="!isRemoteEvent" class="flex-grow-0 mx-5 d-none d-md-block">
       <v-divider vertical class="event-details-body-divider" />
     </div>
-    <div class="flex-grow-1 flex-shrink-0 d-flex event-details-body-right">
+    <div v-if="!isRemoteEvent"  class="flex-grow-1 flex-shrink-0 d-flex event-details-body-right">
       <div class="mr-1 width-full">
         <agenda-event-attendees
           ref="agendaAttendees"
@@ -235,6 +235,9 @@ export default {
     },
     hasRecurrence() {
       return this.event.recurrence || this.event.parent && this.event.parent.recurrence;
+    },
+    isRemoteEvent(){
+      return this.event.type === 'remoteEvent';
     },
     isAttendee() {
       return this.event.acl && this.event.acl.attendee;
