@@ -113,7 +113,7 @@ export default {
       return this.event && this.event.status === 'CONFIRMED';
     },
     isTentativeEvent() {
-      return this.event && this.event === 'TENTATIVE';
+      return this.event && this.event.status === 'TENTATIVE';
     },
     confirmCloseLabels() {
       return {
