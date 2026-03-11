@@ -15,13 +15,13 @@
             v-model="eventType">
             <v-radio
               :label="$t('agenda.myEvent')"
-              value="myEvent" />
+              value="myEvents" />
             <v-radio
               :label="$t('agenda.declinedEvent')"
               value="declinedEvent" />
             <v-radio
-              :label="$t('agenda.allEvent')"
-              value="allEvent" />
+              :label="$t('agenda.allEvents')"
+              value="allEvents" />
           </v-radio-group>
         </div>
       </div>
@@ -120,7 +120,7 @@ export default {
       if (this.calendarType === 'month') {this.showWholeWeek = true;}
       this.lastShowWholeWeek = this.showWholeWeek;
       if (!this.eventType){
-        this.eventType = this.currentSpace ? 'allEvent' : 'myEvent';
+        this.eventType = this.currentSpace ? 'allEvents' : 'myEvents';
       }
       this.$refs.calendarFilters.open();
     },
@@ -131,7 +131,7 @@ export default {
       this.$refs.calendarFilters.close();
     },
     init() {
-      this.eventType = this.currentSpace ? 'allEvent' : 'myEvent';
+      this.eventType = this.currentSpace ? 'allEvents' : 'myEvents';
       this.showWholeWeek = this.defaultShowWholeWeek;
       this.confirm();
     },
