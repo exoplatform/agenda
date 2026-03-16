@@ -113,6 +113,7 @@ export default {
     },
     events: [],
     remoteEvents: [],
+    displayedEvent: [],
     settings: {
       agendaDefaultView: 'week',
       agendaWeekStartOn: 'MO',
@@ -168,19 +169,6 @@ export default {
         workedDaysNumber: this.settings.workedDaysNumber,
       };
     },
-    displayedEvent() {
-      if (this.settings.showRemoteEventsForAgenda){
-        // Avoid to have same event from remote and local store (pushed events from local store)
-        const filtredRemoteEvents = this.filterRemoteEvents(this.events, this.remoteEvents);
-        const events = this.events.concat(filtredRemoteEvents);
-        return  events.sort((event1, event2) => {
-          const eventStart1 = this.$agendaUtils.toDate(event1.start || event1.startDate).getTime();
-          const eventStart2 = this.$agendaUtils.toDate(event2.start || event2.startDate).getTime();
-          return eventStart1 - eventStart2;
-        });
-      }
-      return  this.events;
-    },
     connectedConnectorAvatar() {
       return this.connectedConnector && this.connectedConnector.avatar || '';
     },
@@ -218,7 +206,17 @@ export default {
       if (this.signedInConnector && this.settings.showRemoteEventsForAgenda) {
         this.retrieveRemoteEvents();
       }
-    }
+    },
+    events: {
+      handler: 'updateDisplayedEvents',
+      deep: true,
+      immediate: true
+    },
+    remoteEvents: {
+      handler: 'updateDisplayedEvents',
+      deep: true
+    },
+    'settings.showRemoteEventsForAgenda': 'updateDisplayedEvents'
   },
   created() {
     // Ensure that localStorage doesn't have a deleted event
@@ -270,6 +268,21 @@ export default {
         });
       } else {
         this.conferenceProviders = null;
+      }
+    },
+    updateDisplayedEvents() {
+      if (this.settings.showRemoteEventsForAgenda) {
+        // Avoid to have same event from remote and local store (pushed events from local store)
+        const filtered = this.filterRemoteEvents(this.events, this.remoteEvents);
+        const merged = [...this.events, ...filtered];
+        merged.sort((a, b) => {
+          const s1 = this.$agendaUtils.toDate(a.start || a.startDate).getTime();
+          const s2 = this.$agendaUtils.toDate(b.start || b.startDate).getTime();
+          return s1 - s2;
+        });
+        this.displayedEvent = merged;
+      } else {
+        this.displayedEvent = [...this.events];
       }
     },
     showRemoteEvents(showRemoteEvents) {
