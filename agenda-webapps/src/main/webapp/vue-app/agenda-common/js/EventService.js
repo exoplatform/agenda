@@ -169,45 +169,40 @@ export function updateEvent(event) {
     });
 }
 
-export function updateEventFields(eventId, eventFields, updateAllOccurrences, sendInvitations) {
+export function updateEventFields(event, eventFields, updateAllOccurrences, sendInvitations) {
+  const eventId = event.id;
   eventFields = formatEventToSave(eventFields);
 
-  const formData = new FormData();
-  Object.keys(eventFields).forEach(fieldName => {
-    formData.append(fieldName, eventFields[fieldName]);
-  });
+  const saveWebConferencePromises = getSaveAllWebConferencesPromises(event);
 
-  updateAllOccurrences = !!updateAllOccurrences;
-  sendInvitations = !!sendInvitations;
+  return Promise.all(saveWebConferencePromises)
+    .catch(e => {
+      console.error('Error updating web conferencing, delete them', e);
+    })
+    .then(() => {
+      const formData = new FormData();
+      Object.keys(eventFields).forEach(fieldName => {
+        formData.append(fieldName, eventFields[fieldName]);
+      });
 
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}?updateAllOccurrences=${updateAllOccurrences}&timeZoneId=${USER_TIMEZONE_ID}&sendInvitations=${sendInvitations}`, {
-    method: 'PATCH',
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams(formData).toString(),
-  }).then((resp) => {
-    if (resp && resp.ok) {
-      return resp.json();
-    } else {
-      throw new Error('Error patching event');
-    }
-  });
-}
+      updateAllOccurrences = !!updateAllOccurrences;
+      sendInvitations = !!sendInvitations;
 
-export function sendEventResponse(eventId, occurrenceId, response, upcoming) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}/response/send?response=${response}&occurrenceId=${occurrenceId || ''}&upcoming=${upcoming || false}`, {
-    method: 'GET',
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-  }).then((resp) => {
-    if (!resp || !resp.ok) {
-      throw new Error('Error sending event response');
-    }
-  });
+      return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}?updateAllOccurrences=${updateAllOccurrences}&timeZoneId=${USER_TIMEZONE_ID}&sendInvitations=${sendInvitations}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams(formData).toString(),
+      });
+    }).then((resp) => {
+      if (resp && resp.ok) {
+        return resp.json();
+      } else {
+        throw new Error('Error updating event');
+      }
+    });
 }
 
 export function getUserReminderSettings() {

@@ -7,15 +7,17 @@ export function getAllProviders(spaceIdentityId) {
     .then(enabled => enabled && global.webConferencing.getAllProviders(spaceIdentityId,true) || null);
 }
 
-export function deleteEventWebConferencing(conference) {
+export function deleteEventWebConferencing(event,conference) {
   const providerType = conference && conference.type;
   if (!providerType || !global.webConferencing || !global.webConferencing.deleteCall || !conference.url) {
     return Promise.resolve(null);
   }
-  return deleteConference(conference.url);
+  return deleteConference(event, conference);
 }
 
 export function saveEventWebConferencing(event, conference) {
+  console.debug('Saving event web conferencing', event, conference);
+
   const providerType = conference && conference.type;
   if (!providerType) {
     return Promise.resolve(null);
@@ -41,14 +43,14 @@ export function saveEventWebConferencing(event, conference) {
   }
 }
 
-function deleteConference(url) {
-  return global.webConferencing.getCallId(url)
+function deleteConference(event, conference) {
+  return global.webConferencing.findCallId(conference.url, conference.type)
     .then(callId => {
       if (!callId) {
         // The call is already deleted or inexistant
         return;
       }
-      return global.webConferencing.deleteCall(callId);
+      return global.webConferencing.deleteCall(callId, conference.type);
     });
 }
 
@@ -58,8 +60,9 @@ function createConference(event, conference) {
     .then(identities => {
       const participants = identities.filter(identity => identity && identity.providerId === 'organization' && identity?.profile?.dataEntity?.enabled).map(identity => identity.remoteId);
       const spaces = identities.filter(identity => identity && identity.providerId === 'space').map(identity => identity.remoteId);
-      const startDate = new Date(event.startDate);
-      const endDate = event.endDate && new Date(event.endDate) || event.recurrence && event.recurrence.until && new Date(event.recurrence.until) || null;
+      const startDate = new Date(event.start);
+      const endDate = event.endDate && new Date(event.end) || event.recurrence && event.recurrence.until && new Date(event.recurrence.until) || null;
+      console.log('Creating conference with recurrence ' , event.recurrence);
       return global.webConferencing.addCall({
         title: event.title,
         owner: event.calendar.owner.id,
@@ -70,6 +73,7 @@ function createConference(event, conference) {
         group: true,
         startDate,
         endDate,
+        recurrence: event.recurrence
       });
     })
     .then(callDetails => {
@@ -92,8 +96,8 @@ function updateConference(event, conference) {
       // FIXME : Web conferencing uses userName for users and Space Identity id for spaces
       const participants = identities.filter(identity => identity && identity.providerId === 'organization').map(identity => identity.remoteId);
       const spaces = identities.filter(identity => identity && identity.providerId === 'space').map(identity => identity.remoteId);
-      const startDate = new Date(event.startDate);
-      const endDate = event.endDate && new Date(event.endDate) || event.recurrence && event.recurrence.until && new Date(event.recurrence.until) || null;
+      const startDate = new Date(event.start);
+      const endDate = event.end && new Date(event.end) || event.recurrence && event.recurrence.until && new Date(event.recurrence.until) || null;
       return global.webConferencing.updateCall(callId, {
         title: event.title,
         owner: event.calendar.owner.id,

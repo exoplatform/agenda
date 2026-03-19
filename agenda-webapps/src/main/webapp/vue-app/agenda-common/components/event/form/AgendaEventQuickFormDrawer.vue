@@ -262,10 +262,8 @@ export default {
       }
       this.saving = true;
 
-      this.event.start = this.$agendaUtils.toRFC3339(this.event.startDate);
-      this.event.end = this.$agendaUtils.toRFC3339(this.event.endDate);
-      delete this.event.startDate;
-      delete this.event.endDate;
+      this.event.startDate = this.$agendaUtils.toRFC3339(this.event.startDate);
+      this.event.endDate = this.$agendaUtils.toRFC3339(this.event.endDate);
 
       this.$eventService.createEvent(this.event)
         .then(event => {

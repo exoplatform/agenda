@@ -394,7 +394,7 @@ export default {
     },
     undoDeleteEvent(event) {
       if (event.occurrence && event.occurrence.id) {
-        return this.$eventService.updateEventFields(event.id, {status: 'CONFIRMED'}, false, true)
+        return this.$eventService.updateEventFields(event, {status: 'CONFIRMED'}, false, true)
           .then(() => {
             this.$root.$emit('agenda-refresh', event);
             this.$root.$emit('alert-message', this.$t('agenda.eventDeletionCanceled'), 'success');
