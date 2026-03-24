@@ -120,6 +120,7 @@ export default {
         space: this.currentSpace,
         calendar: this.currentCalendar,
         ownerIds: this.ownerIds,
+        timeZoneId: this.$agendaUtils.USER_TIMEZONE_ID,
       };
     }
   },
