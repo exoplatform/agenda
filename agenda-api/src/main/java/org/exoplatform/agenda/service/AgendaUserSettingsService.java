@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.exoplatform.agenda.model.AgendaUserSettings;
 import org.exoplatform.agenda.model.EventReminderParameter;
+import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.social.core.identity.model.Identity;
 
 public interface AgendaUserSettingsService {
@@ -39,5 +40,15 @@ public interface AgendaUserSettingsService {
    *         reminders
    */
   List<EventReminderParameter> getDefaultReminders();
+
+
+  /**
+   * Update the user TimeZONE
+   *
+   * @param userName  userName
+   * @param timeZone  timeZone
+   * @throws ObjectNotFoundException when user profile is not found
+   */
+  void updateUserTimeZone(String userName, String timeZone) throws ObjectNotFoundException;
 
 }

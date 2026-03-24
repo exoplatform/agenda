@@ -1,16 +1,24 @@
 package org.exoplatform.agenda.service;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
-
-import org.exoplatform.agenda.model.*;
+import org.exoplatform.agenda.model.AgendaUserSettings;
+import org.exoplatform.agenda.model.EventReminderParameter;
+import org.exoplatform.agenda.model.RemoteProvider;
 import org.exoplatform.commons.api.settings.SettingService;
 import org.exoplatform.commons.api.settings.SettingValue;
 import org.exoplatform.commons.api.settings.data.Context;
 import org.exoplatform.commons.api.settings.data.Scope;
+import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.container.xml.ObjectParameter;
+import org.exoplatform.services.organization.OrganizationService;
+import org.exoplatform.services.organization.UserProfile;
+import org.exoplatform.services.organization.UserProfileHandler;
 
 public class AgendaUserSettingsServiceImpl implements AgendaUserSettingsService {
 
@@ -20,11 +28,15 @@ public class AgendaUserSettingsServiceImpl implements AgendaUserSettingsService 
 
   private static final String          AGENDA_USER_SETTING_KEY        = "AgendaSettings";
 
+  private static final String          TIMEZONE                   = "user.timeZone";
+
   private AgendaEventConferenceService agendaEventConferenceService;
 
   private AgendaRemoteEventService     agendaRemoteEventService;
 
   private SettingService               settingService;
+
+  private OrganizationService          organizationService;
 
   private AgendaUserSettings           defaultUserSettings            = null;
 
@@ -33,10 +45,12 @@ public class AgendaUserSettingsServiceImpl implements AgendaUserSettingsService 
   public AgendaUserSettingsServiceImpl(AgendaEventConferenceService agendaEventConferenceService,
                                        AgendaRemoteEventService agendaRemoteEventService,
                                        SettingService settingService,
+                                       OrganizationService organizationService,
                                        InitParams initParams) {
     this.agendaEventConferenceService = agendaEventConferenceService;
     this.agendaRemoteEventService = agendaRemoteEventService;
     this.settingService = settingService;
+    this.organizationService = organizationService;
 
     Iterator<ObjectParameter> objectParamIterator = initParams.getObjectParamIterator();
     if (objectParamIterator != null) {
@@ -119,6 +133,18 @@ public class AgendaUserSettingsServiceImpl implements AgendaUserSettingsService 
     agendaUserSettings.setConnectedRemoteUserId(connectorUserId);
     agendaUserSettings.setConnectedRemoteProvider(connectorName);
     saveAgendaUserSettings(userIdentityId, agendaUserSettings);
+  }
+
+  @Override
+  public void updateUserTimeZone(String userName, String timeZone) throws ObjectNotFoundException {
+    try {
+      UserProfileHandler userProfileHandler = organizationService.getUserProfileHandler();
+      UserProfile userProfile = userProfileHandler.findUserProfileByName(userName);
+      userProfile.setAttribute(TIMEZONE, timeZone);
+      userProfileHandler.saveUserProfile(userProfile, true);
+    } catch (Exception e) {
+      throw new ObjectNotFoundException("User profile wasn't found");
+    }
   }
 
   @Override

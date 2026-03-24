@@ -21,12 +21,17 @@ import static org.junit.Assert.*;
 import java.util.Collections;
 
 import org.apache.commons.lang3.StringUtils;
+import org.exoplatform.agenda.constant.ReminderPeriodType;
+import org.exoplatform.agenda.model.AgendaUserSettings;
+import org.exoplatform.agenda.model.EventReminderParameter;
+import org.exoplatform.agenda.model.RemoteProvider;
+import org.exoplatform.commons.utils.CommonsUtils;
+import org.exoplatform.services.organization.OrganizationService;
+import org.exoplatform.services.organization.UserProfile;
 import org.junit.Test;
 
-import org.exoplatform.agenda.constant.ReminderPeriodType;
-import org.exoplatform.agenda.model.*;
-
 public class AgendaUserSettingsServiceTest extends BaseAgendaEventTest {
+
 
   @Test
   public void testDefaultSettings() throws Exception { // NOSONAR
@@ -93,6 +98,14 @@ public class AgendaUserSettingsServiceTest extends BaseAgendaEventTest {
     } catch (Exception e) {
       // Expected
     }
+  }
+
+  @Test
+  public void testupdateUserTimeZone() throws Exception { // NOSONAR
+    String timeZone = "UTC";
+    agendaUserSettingsService.updateUserTimeZone("testuser1", timeZone);
+    UserProfile userProfile = CommonsUtils.getService(OrganizationService.class).getUserProfileHandler().findUserProfileByName("testuser1");
+    assertEquals("UTC", userProfile.getAttribute("user.timeZone"));
   }
 
 }

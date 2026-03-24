@@ -269,5 +269,12 @@
       <module>extensionRegistry</module>
     </depends>
   </module>
+  <module>
+    <name>agendaBaseExtension</name>
+    <load-group>baseGRP</load-group>
+    <script>
+      <path>/js/agendaBaseExtension.bundle.js</path>
+    </script>
+  </module>
 
 </gatein-resources>
