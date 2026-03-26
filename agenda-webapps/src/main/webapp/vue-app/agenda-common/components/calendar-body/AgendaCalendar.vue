@@ -12,6 +12,7 @@
     :interval-height="40"
     :event-overlap-threshold="30"
     :locale="lang"
+    :locale-first-day-of-year="4"
     event-overlap-mode="stack"
     event-name="summary"
     event-start="startDate"
