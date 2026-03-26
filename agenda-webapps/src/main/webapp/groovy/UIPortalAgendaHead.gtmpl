@@ -1,0 +1,12 @@
+<%
+  import org.exoplatform.container.ExoContainerContext;
+  import org.exoplatform.services.security.ConversationState;
+  import org.exoplatform.services.organization.OrganizationService;
+
+  OrganizationService organizationService = ExoContainerContext.getService(OrganizationService.class);
+  String userName = ConversationState.getCurrent().getIdentity().getUserId();
+  String userTimezone = organizationService.getUserProfileHandler().findUserProfileByName(userName).getAttribute("user.timeZone");
+
+%><script type="text/javascript">
+  eXo.env.portal.userTimezone=<%= userTimezone == null ? "null" : "'%s'".formatted(userTimezone) %>;
+</script>
