@@ -13,6 +13,7 @@
     :event-overlap-threshold="30"
     :locale="lang"
     :start="getStartDate()"
+    :locale-first-day-of-year="4"
     :end="getEndDate()"
     event-overlap-mode="stack"
     event-name="summary"
