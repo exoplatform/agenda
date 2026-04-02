@@ -62,7 +62,7 @@ function updateEventRemoteInformation(connector, event, connectorEvent) {
   const remoteProviderName = connectorEvent && connector && connector.name || '';
 
   if (eventId) {
-    return updateEventFields(eventId, {
+    return updateEventFields(event, {
       remoteId,
       remoteProviderName,
     })

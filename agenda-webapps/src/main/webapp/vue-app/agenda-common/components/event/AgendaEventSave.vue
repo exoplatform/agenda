@@ -28,7 +28,7 @@ export default {
     save(eventToSave, changeDatesOnly) {
       this.saving = true;
       if (eventToSave.id && changeDatesOnly) {
-        this.$eventService.updateEventFields(eventToSave.id, {
+        this.$eventService.updateEventFields(eventToSave, {
           start: this.$agendaUtils.toRFC3339(eventToSave.start, false, true),
           end: this.$agendaUtils.toRFC3339(eventToSave.end, false, true),
           timeZoneId: this.$agendaUtils.USER_TIMEZONE_ID,
