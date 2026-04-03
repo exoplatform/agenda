@@ -32,10 +32,10 @@
                 {{ $t('agenda.space.settings.eventColor') }}
               </v-list-item-title>
             </v-list-item-content>
-            <v-list-item-action>
+            <v-list-item-action class="mb-0">
               <v-list-item-action
                 :id="calendarColourMenuId"
-                class="me-1">
+                class="me-1 mb-0">
                 <v-menu
                   ref="menu"
                   v-model="menu"
@@ -56,7 +56,9 @@
                     <v-color-picker
                       v-model="newCalendarColor"
                       class="ma-2"
-                      hide-inputs
+                      :swatches="swatches"
+                      mode="hexa"
+                      show-swatches 
                       flat />
                     <v-card-actions>
                       <v-spacer />
@@ -93,6 +95,13 @@ export default {
     calendar: {},
     saving: false,
     menu: false,
+    swatches: [
+      ['#FF0000', '#319ab3', '#f97575'],
+      ['#98cc81', '#4273c8', '#cea6ac'],
+      ['#bc99e7', '#9ee4f5', '#774ea9'],
+      ['#ffa500', '#bed67e', '#0E100F'],
+      ['#ffaacc', '#0000AA', '#000055'],
+    ],
   }),
   computed: {
     calendarOwnerId() {
