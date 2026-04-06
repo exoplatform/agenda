@@ -12,27 +12,32 @@
       <form
         ref="form"
         class="ma-5">
-        <div class="flex d-flex flex-row">
-          <label class="text-subtitle-1 my-auto">
+        <div class="d-flex flex-row">
+          <label class="text-subtitle-1 flex-shrink-0 my-auto">
             {{ $t('agenda.label.repeatEvery') }}
           </label>
-          <input
+          <v-text-field
             v-model="eventRecurrence.interval"
             type="Number"
             min="1"
             name="recurrenceInterval"
-            class="recurrenceInterval ignore-vuetify-classes my-auto recurrence-interval mx-4"
-            autofocus
-            required>
-          <select v-model="eventRecurrence.frequency" class="flex-end ignore-vuetify-classes width-auto my-auto">
-            <option value="DAILY">{{ $t('agenda.day') }}</option>
-            <option value="WEEKLY">{{ $t('agenda.week') }}</option>
-            <option value="MONTHLY">{{ $t('agenda.month') }}</option>
-            <option value="YEARLY">{{ $t('agenda.year') }}</option>
-          </select>
+            class="mx-4 flex-shrink-1 pt-0"
+            dense
+            outlined
+            required />
+          <v-select
+            v-model="eventRecurrence.frequency"
+            :items="frequencies"
+            item-text="label"
+            item-value="value"
+            class="flex-grow-0 pt-0"
+            outlined
+            dense
+            hide-details />
         </div>
-
-        <div v-if="eventRecurrence.frequency === 'WEEKLY'" class="d-flex flex-column recurrenceDays mt-4">
+        <div
+          v-if="eventRecurrence.frequency === 'WEEKLY'"
+          class="d-flex flex-column mt-4">
           <label class="float-left text-subtitle-1 d-none d-md-inline">
             {{ $t('agenda.label.repeatOn') }}
           </label>
@@ -42,7 +47,7 @@
             next-icon=""
             prev-icon=""
             active-class="primary white--text"
-            class="mx-auto"
+            class="mx-auto d-block no-max-width"
             multiple
             mandatory>
             <v-chip
@@ -73,13 +78,17 @@
                         {{ $t('agenda.label.after') }}
                       </div>
                       <div class="ps-5 pe-2">
-                        <input
+                        <v-text-field
                           v-model="eventRecurrence.count"
                           :disabled="recurrentEventDate !== 'count'"
-                          type="Number"
-                          class="recurrenceCount ignore-vuetify-classes"
+                          :class="{'background-grey-primary': recurrentEventDate !== 'count'}"
+                          type="number"
                           min="1"
-                          required>
+                          class="mx-3 pt-0 flex-shrink-1"
+                          outlined
+                          dense
+                          hide-details
+                          required />
                       </div>
                       <div class="ps-0">
                         {{ $t('agenda.label.events') }}
@@ -96,6 +105,7 @@
                       <div class="ps-5 pe-2">
                         <date-picker
                           v-model="untilDate"
+                          class="background-grey-primary"
                           :disabled="recurrentEventDate !== 'date'" />
                       </div>
                     </div>
@@ -136,6 +146,14 @@ export default {
   computed: {
     eventRecurrenceByDay() {
       return this.eventRecurrence && this.eventRecurrence.byDay;
+    },
+    frequencies() {
+      return [
+        { label: this.$t('agenda.day'),   value: 'DAILY'   },
+        { label: this.$t('agenda.week'),  value: 'WEEKLY'  },
+        { label: this.$t('agenda.month'), value: 'MONTHLY' },
+        { label: this.$t('agenda.year'),  value: 'YEARLY'  },
+      ];
     },
     days() {
       return [{
