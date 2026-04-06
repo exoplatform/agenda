@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<gatein-resources xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.exoplatform.org/xml/ns/gatein_resources_1_4 http://www.exoplatform.org/xml/ns/gatein_resources_1_4" xmlns="http://www.exoplatform.org/xml/ns/gatein_resources_1_4">
+<gatein-resources xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.exoplatform.org/xml/ns/gatein_resources_1_5 http://www.exoplatform.org/xml/ns/gatein_resources_1_5" xmlns="http://www.exoplatform.org/xml/ns/gatein_resources_1_5">
 
   <portlet-skin>
     <application-name>agenda</application-name>
@@ -275,6 +275,29 @@
     <script>
       <path>/js/agendaBaseExtension.bundle.js</path>
     </script>
+  </module>
+
+  <module>
+    <name>agendaPublicationExtensions</name>
+    <load-group>NotesGRP</load-group>
+    <script>
+      <path>/js/contentPublishExtensions.bundle.js</path>
+    </script>
+    <depends>
+      <module>AgendaCommon</module>
+    </depends>
+    <depends>
+      <module>vue</module>
+    </depends>
+    <depends>
+      <module>vuetify</module>
+    </depends>
+    <depends>
+      <module>eXoVueI18n</module>
+    </depends>
+    <depends>
+      <module>extensionRegistry</module>
+    </depends>
   </module>
 
 </gatein-resources>

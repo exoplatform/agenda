@@ -1,9 +1,9 @@
 <template>
   <div class="d-flex flex-row">
     <v-icon
+      v-if="showIcon && !$root.isMobile"
       :class="`darkGreyIcon my-auto ${this.iconClass} mt-4`"
-      size="32px"
-      v-if="!$root.isMobile">
+      size="32px">
       fa-video
     </v-icon>
     <template v-if="isConferenceEnabled">
@@ -57,7 +57,7 @@
       </v-btn>
     </template>
     <template v-else>
-      <span :class="`${this.marginClass} mx-0 webconference-event-span-without-cross`">
+      <span :class="`${this.marginClass} d-flex flex-grow-1 mx-0 webconference-event-span-without-cross`">
         <input
           id="eventCallURL"
           ref="eventCallURL"
@@ -65,7 +65,7 @@
           :placeholder="$t('agenda.webConferenceURL')"
           type="text"
           name="webConferenceEvent"
-          class="ignore-vuetify-classes webconference-event-input max-width-fit">
+          class="ignore-vuetify-classes webconference-event-input width-full">
       </span>
     </template>
   </div>
@@ -94,6 +94,10 @@ export default {
       type: Object,
       default: () => null,
     },
+    showIcon: {
+      type: Boolean,
+      default: true
+    }
   },
   data: () => ({
     loading: false,
