@@ -169,6 +169,20 @@ export function updateEvent(event) {
     });
 }
 
+export function sendEventResponse(eventId, occurrenceId, response, upcoming) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}/response/send?response=${response}&occurrenceId=${occurrenceId || ''}&upcoming=${upcoming || false}`, {
+    method: 'GET',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+  }).then((resp) => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error sending event response');
+    }
+  });
+}
+
 export function updateEventFields(event, eventFields, updateAllOccurrences, sendInvitations) {
   const eventId = event.id;
   eventFields = formatEventToSave(eventFields);
