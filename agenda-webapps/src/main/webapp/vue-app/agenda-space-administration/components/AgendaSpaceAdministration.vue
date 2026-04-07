@@ -22,20 +22,20 @@
         id="agendaSpaceSetting"
         class="card-border-radius"
         flat>
+        <div class="text-title">
+          {{ $t('agenda.space.settings.title') }}
+        </div>
         <v-list class="pa-0">
-          <v-list-item class="pa-0">
+          <v-list-item class="pa-0 mt-n2">
             <v-list-item-content>
-              <v-list-item-title class="text-title">
-                {{ $t('agenda.space.settings.title') }}
-              </v-list-item-title>
-              <v-list-item-title class="pt-2">
+              <v-list-item-title>
                 {{ $t('agenda.space.settings.eventColor') }}
               </v-list-item-title>
             </v-list-item-content>
-            <v-list-item-action class="mb-0">
+            <v-list-item-action>
               <v-list-item-action
                 :id="calendarColourMenuId"
-                class="me-1 mb-0">
+                class="me-1 my-auto">
                 <v-menu
                   ref="menu"
                   v-model="menu"
