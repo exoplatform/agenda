@@ -19,13 +19,47 @@ export function registerExtensions() {
     id: 'content-event',
     vueComponent: Vue.options.components['content-event-form'],
     rank: 1,
-    execute: async (event) => {
-      const createdEvent = await Vue.prototype.$eventService.createEvent(event);
+    execute: async (event, content) => {
+      const existEventId = !!content?.parameters?.['eventId'];
+      if (!event && existEventId ) {
+        await Vue.prototype.$eventService.deleteEvent(content.parameters['eventId']);
+        return {
+          data: { eventId: null },
+        };
+      }
+      if (!event) {
+        return;
+      }
+      event.summary = content.title;
+      event.description = generateContentActionLink({
+        objectType: 'news',
+        objectId: 40,
+        activityId: 32,
+        iconClass: 'fa-newspaper',
+        text: content.title,
+      });
+
+      const eventRequest = !event?.id ? Vue.prototype.$eventService.createEvent(event)
+        : Vue.prototype.$eventService.updateEvent(event);
+      const savedEvent = await eventRequest;
       return {
-        eventId: createdEvent.id,
+        data: { eventId: savedEvent.id },
       };
     }
   });
 
   document.dispatchEvent(new CustomEvent('content-publication-extensions-updated'));
+}
+
+function generateContentActionLink({ objectType, objectId, activityId, iconClass, text }) {
+  return `<a 
+           data-object="${objectType}:${objectId}" 
+           data-content-link="true" contenteditable="false" 
+           class="content-link" 
+           href="/portal/dw/activity?id=${activityId}">
+           <i aria-hidden="true" 
+           class="v-icon notranslate fa fa ${iconClass} theme--light icon-default-color" 
+           style="font-size: 16px; margin: 0 4px;"></i>
+           ${text}
+          </a>`;
 }
