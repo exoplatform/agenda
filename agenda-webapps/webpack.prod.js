@@ -33,6 +33,8 @@ const config = {
     engagementCenterExtensions: './src/main/webapp/vue-app/engagementCenterExtensions/extensions.js',
     agendaEventContentLinkExtension: './src/main/webapp/vue-app/content-link/extensions.js',
     agendaBaseExtension: './src/main/webapp/vue-app/agenda-base-extension/main.js',
+    agendaSpaceAdministration: './src/main/webapp/vue-app/agenda-space-administration/main.js'
+
   },
   output: {
     path: path.join(__dirname, 'target/agenda/'),
