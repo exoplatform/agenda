@@ -31,14 +31,28 @@ import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.rest.model.*;
 import org.exoplatform.agenda.service.*;
+import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.social.metadata.MetadataService;
+import org.exoplatform.social.metadata.model.MetadataItem;
+import org.exoplatform.social.metadata.model.MetadataKey;
+import org.exoplatform.social.metadata.model.MetadataObject;
+import org.exoplatform.social.metadata.model.MetadataType;
 import org.exoplatform.social.rest.entity.IdentityEntity;
 
 public class RestUtils {
+
+  public static final String EVENT_METADATA_NAME       = "agendaEvent";
+
+  public static final MetadataType EVENT_METADATA_TYPE = new MetadataType(1100, EVENT_METADATA_NAME);
+
+  public static final MetadataKey NEWS_METADATA_KEY    = new MetadataKey(EVENT_METADATA_TYPE.getName(), EVENT_METADATA_NAME, 0);
+
+  private static MetadataService metadataService;
 
   private RestUtils() {
   }
@@ -246,6 +260,14 @@ public class RestUtils {
                                                             identityManager,
                                                             event,
                                                             userTimeZone);
+
+      MetadataObject metadataObject = new MetadataObject(EVENT_METADATA_NAME, String.valueOf(eventEntity.getId()));
+      List<MetadataItem> metadataItems = getMetadataService().getMetadataItemsByMetadataAndObject(NEWS_METADATA_KEY, metadataObject);
+      if (CollectionUtils.isNotEmpty(metadataItems)) {
+        MetadataItem metadataItem = metadataItems.getFirst();
+        eventEntity.setParameters(metadataItem.getProperties());
+      }
+
       long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
       if (expandProperties.contains("all") || expandProperties.contains("attendees")) {
         fillAttendees(identityManager, agendaEventAttendeeService, eventEntity, occurrenceId, 0);
@@ -566,6 +588,13 @@ public class RestUtils {
       }).collect(Collectors.toList());
       eventEntity.setReminders(reminders);
     }
+  }
+
+  private static MetadataService getMetadataService() {
+    if (metadataService == null) {
+      metadataService = CommonsUtils.getService(MetadataService.class);
+    }
+    return metadataService;
   }
 
 }
