@@ -62,12 +62,24 @@ import net.fortuna.ical4j.model.Period;
 import net.fortuna.ical4j.model.Recur.Frequency;
 import net.fortuna.ical4j.model.TimeZone;
 import net.fortuna.ical4j.model.component.VEvent;
+import org.exoplatform.social.metadata.model.MetadataKey;
+import org.exoplatform.social.metadata.model.MetadataType;
 
 public class Utils {
 
   private static final Log              LOG                            = ExoLogger.getLogger(Utils.class);
 
   private static final TimeZoneRegistry ICAL4J_TIME_ZONE_REGISTRY      = TimeZoneRegistryFactory.getInstance().createRegistry();
+
+  public static final String EVENT_METADATA_NAME                       = "agendaEvent";
+
+  public static final MetadataType EVENT_METADATA_TYPE                 = new MetadataType(1100, EVENT_METADATA_NAME);
+
+  public static final MetadataKey EVENT_METADATA_KEY                   = new MetadataKey(EVENT_METADATA_TYPE.getName(), EVENT_METADATA_NAME, 0);
+
+  public static final String EVENT_ID                                  = "eventId";
+
+  public static final String CONTENT_ID                                = "contentId";
 
   public static final String            POST_CREATE_AGENDA_EVENT_EVENT = "exo.agenda.event.created";
 

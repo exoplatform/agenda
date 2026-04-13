@@ -1,6 +1,7 @@
 package org.exoplatform.agenda.rest.model;
 
 import java.util.List;
+import java.util.Map;
 
 import org.exoplatform.agenda.constant.EventAvailability;
 import org.exoplatform.agenda.constant.EventStatus;
@@ -44,6 +45,7 @@ public class EventSearchResultEntity extends EventEntity {
                                  final List<EventReminderEntity> reminders,
                                  final boolean allowAttendeeToUpdate,
                                  final boolean allowAttendeeToInvite,
+                                 final Map<String, String> parameters,
                                  final boolean sendInvitation,
                                  List<String> excerpts) {
     super(id,
@@ -74,6 +76,7 @@ public class EventSearchResultEntity extends EventEntity {
           reminders,
           allowAttendeeToUpdate,
           allowAttendeeToInvite,
+          parameters,
           sendInvitation);
     this.excerpts = excerpts;
   }

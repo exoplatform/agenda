@@ -311,6 +311,7 @@ public class RestEntityBuilder {
                                          null,
                                          event.isAllowAttendeeToUpdate(),
                                          event.isAllowAttendeeToInvite(),
+                                         null,
                                          false,
                                          null);
     } else {
@@ -342,6 +343,7 @@ public class RestEntityBuilder {
                              null,
                              event.isAllowAttendeeToUpdate(),
                              event.isAllowAttendeeToInvite(),
+                             null,
                              false);
     }
   }

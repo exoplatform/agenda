@@ -18,6 +18,7 @@ package org.exoplatform.agenda.rest.model;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Map;
 
 import org.exoplatform.agenda.constant.EventAvailability;
 import org.exoplatform.agenda.constant.EventStatus;
@@ -151,6 +152,8 @@ public class EventEntity implements Serializable, Cloneable {
 
   private boolean                     allowAttendeeToInvite;
 
+  private Map<String, String>         parameters;
+
   private transient boolean           sendInvitation;
 
   @Override
@@ -183,6 +186,7 @@ public class EventEntity implements Serializable, Cloneable {
                            reminders,
                            allowAttendeeToUpdate,
                            allowAttendeeToInvite,
+                           parameters,
                            sendInvitation);
   }
 }

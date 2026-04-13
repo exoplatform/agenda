@@ -104,6 +104,18 @@ export default {
     },
   },
   watch: {
+    'event.recurrence': {
+      immediate: true,
+      handler(newVal) {
+        const type = newVal?.type
+            || this.event?.parent?.recurrence?.type
+            || 'NO_REPEAT';
+        if (this.recurrenceType !== type) {
+          this.recurrenceType = null;
+          this.$nextTick(() => { this.recurrenceType = type; });
+        }
+      }
+    },
     recurrenceType(newVal, oldVal) {
       if (newVal && oldVal && newVal !== oldVal) {
         if (this.recurrenceType === 'CUSTOM') {
