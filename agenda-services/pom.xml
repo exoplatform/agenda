@@ -38,6 +38,12 @@
     </dependency>
 
     <dependency>
+      <groupId>io.meeds.content</groupId>
+      <artifactId>content-service</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
       <groupId>org.mnode.ical4j</groupId>
       <artifactId>ical4j</artifactId>
       <exclusions>

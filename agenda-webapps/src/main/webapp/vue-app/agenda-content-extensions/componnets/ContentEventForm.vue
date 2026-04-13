@@ -30,7 +30,7 @@
     </div>
     <div
       v-if="eventTypeEnabled"
-      class="mt-5 width-fit-content">
+      class="mt-5 full-width">
       <p :class="{'mb-3': !expanded}">
         {{ $t('contentEvent.hours.label') }}
       </p>
@@ -147,7 +147,9 @@
         <span class="my-auto mb-2">
           {{ $t('contentEvent.recurrence.label') }}
         </span>
-        <agenda-event-form-recurrence :event="event" />
+        <agenda-event-form-recurrence
+          :event="event"
+          class="mt-3" />
       </div>
       <div class="mt-4">
         <span class="my-auto mb-2">
@@ -184,6 +186,7 @@
 </template>
 
 <script>
+
 export default {
   data() {
     const timeSlot = 15;
@@ -191,6 +194,8 @@ export default {
     const todayStr = today.toISOString().split('T')[0];
     const {startTime, endTime} = this.initStartAndEndTime(timeSlot);
     return {
+      expand: 'attendees,reminders,recurrence,conferences',
+      isInitializing: false,
       currentSpace: null,
       conferenceProviders: null,
       event: {
@@ -198,7 +203,7 @@ export default {
         end: null,
         allDay: false,
         location: '',
-        recurrence: {},
+        recurrence: null,
         calendar: {
           owner: {}
         },
@@ -227,17 +232,35 @@ export default {
     expanded: {
       type: Boolean,
       default: false
+    },
+    content: {
+      type: Object,
+      default: null
     }
   },
+  inject: ['registerExtensionContext', 'notifyExtensionUpdated'],
   created() {
-    this.initCalendarOwner();
+    this.init();
   },
   mounted() {
-    this.fillEventObject();
+    this.registerExtensionContext('extension_content-event', this);
+    if (!this.eventId) {
+      this.fillEventObject();
+    }
   },
   watch: {
+    eventTypeEnabled() {
+      if (this.eventTypeEnabled) {
+        this.initCalendarOwner();
+        this.fillEventObject();
+      }
+      this.notifyExtensionUpdated();
+    },
     startTime() {
-      if (this.startDate === this.endDate) {
+      if (this.isInitializing) {
+        return;
+      }
+      if (this.startDate === this.endDate && this.startTime >= this.endTime) {
         const newEnd = this.addMinutes(this.startTime, this.timeSlot);
         if (this.endTime !== newEnd) {
           this.endTime = newEnd;
@@ -249,6 +272,9 @@ export default {
     endTime: 'updateEvent',
     startDate: 'updateEvent',
     endDate: 'updateEvent',
+    'event.conferences': 'notifyExtensionUpdated',
+    'event.location': 'notifyExtensionUpdated',
+    'event.attendees': 'notifyExtensionUpdated',
     'event.allDay': function (allDay) {
       if (allDay) {
         this.startTime = '';
@@ -262,6 +288,9 @@ export default {
     }
   },
   computed: {
+    eventId() {
+      return this.content?.parameters?.eventId;
+    },
     formattedStartDate() {
       return this.startDate && this.formatDate(this.startDate) || '';
     },
@@ -282,6 +311,47 @@ export default {
     },
   },
   methods: {
+    async init() {
+      if (!this.eventId) {
+        this.initCalendarOwner();
+        return;
+      }
+      const event = await this.$eventService.getEventById(this.eventId, this.expand);
+      this.event = event;
+      this.eventTypeEnabled = !!event;
+
+      if (event?.start && event?.end) {
+        const start = new Date(event.start);
+        const end = new Date(event.end);
+
+        this.isInitializing = true;
+
+        this.startDate = this.toLocalDateString(start);
+        this.endDate = this.toLocalDateString(end);
+
+        this.startTime = this.formatTime(start);
+        this.endTime = this.formatTime(end);
+
+        this.updateMinStartTime();
+        this.updateEndMinTime();
+
+        this.$nextTick(() => {
+          this.isInitializing = false;
+        });
+      }
+    },
+    getContext() {
+      if (!this.eventTypeEnabled) {
+        return null;
+      }
+      return {
+        ...this.event,
+        timeZoneId: this.$agendaUtils.USER_TIMEZONE_ID
+      };
+    },
+    reset() {
+      this.init();
+    },
     loadWebconferencingProviders(spacePrettyName) {
       if (spacePrettyName) {
         this.$webConferencingService.getAllProviders(spacePrettyName).then(providers => {
@@ -293,6 +363,9 @@ export default {
       }
     },
     initCalendarOwner() {
+      if (this.eventId) {
+        return;
+      }
       this.$spaceService.getSpaceById(this.spaceId, 'identity').then((space) => {
         this.currentSpace = space;
         this.loadWebconferencingProviders(this.currentSpace.prettyName);
@@ -308,6 +381,9 @@ export default {
       });
     },
     initStartAndEndTime(timeSlot) {
+      if (this.eventId || this?.event?.allDay) {
+        return;
+      }
       timeSlot ??= this.timeSlot;
       const today = new Date();
       const startTime = this.roundUpToSlot(today, timeSlot);
@@ -316,6 +392,7 @@ export default {
     },
     updateEvent() {
       this.fillEventObject();
+      this.notifyExtensionUpdated();
     },
     fillEventObject() {
       this.event.start = this.computeDateTime(this.startDate, this.startTime);
@@ -334,30 +411,44 @@ export default {
       const total = h * 60 + m + minutes;
       return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
     },
+    toLocalDateString(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    },
     formatDate(date) {
       const options = {year: 'numeric', month: 'long', day: 'numeric'};
       return date && new Intl.DateTimeFormat(this.locale, options).format(new Date(date));
+    },
+    formatTime(date) {
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      return `${hours}:${minutes}`;
     },
     computeDateTime(date, time) {
       if (!date && !time) {
         return null;
       }
-      const computedDate = new Date(date);
+      let hours = 0;
+      let minutes = 0;
       if (time) {
-        let hours;
-        let minutes;
         if (time instanceof Date) {
-          const dateTime = new Date(time);
-          hours = dateTime.getHours();
-          minutes = dateTime.getMinutes();
+          hours = time.getHours();
+          minutes = time.getMinutes();
         } else {
           [hours, minutes] = time.split(':').map(Number);
         }
-        computedDate.setHours(hours);
-        computedDate.setMinutes(minutes);
-        computedDate.setSeconds(0);
       }
-      return computedDate.toISOString();
+      if (isNaN(hours)) {
+        hours = 0;
+      }
+      if (isNaN(minutes)) {
+        minutes = 0;
+      }
+      const [year, month, day] = date.split('-').map(Number);
+      const utcDate = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0));
+      return utcDate.toISOString();
     },
     updateMinStartTime() {
       const todayStr = new Date().toISOString().split('T')[0];
@@ -386,7 +477,7 @@ export default {
       if (this.minEndTime && this.endTime < this.minEndTime) {
         this.endTime = this.minEndTime;
       }
-    },
+    }
   },
 };
 </script>

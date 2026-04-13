@@ -28,7 +28,7 @@ import io.meeds.spring.kernel.PortalApplicationContextInitializer;
   AgendaApplication.MODULE_NAME,
   AvailableIntegration.KERNEL_MODULE,
   AvailableIntegration.JPA_MODULE,
-  AvailableIntegration.WEB_MODULE,
+  AvailableIntegration.WEB_MODULE
 }, exclude = {
   LiquibaseAutoConfiguration.class,
 })
