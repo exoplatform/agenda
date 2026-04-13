@@ -141,6 +141,7 @@ export default {
       eventRecurrence: {},
       recurrentEventDate: 'never',
       untilDate: null,
+      isOpening: false
     };
   },
   computed: {
@@ -182,9 +183,15 @@ export default {
   },
   watch: {
     eventRecurrenceByDay() {
+      if (this.isOpening) {
+        return;
+      }
       this.$root.$forceUpdate();
     },
     recurrentEventDate() {
+      if (this.isOpening) {
+        return;
+      }
       if (this.recurrentEventDate === 'date') {
         this.eventRecurrence.count = '';
       } else if (this.recurrentEventDate === 'count') {
@@ -224,23 +231,26 @@ export default {
       this.$refs.customRecurrentEventDrawer.close();
     },
     open(eventRecurrence) {
-      this.eventRecurrence = eventRecurrence || {};
+      this.isOpening = true;
+      this.eventRecurrence = structuredClone(eventRecurrence);
       if (this.eventRecurrence.until) {
         this.recurrentEventDate = 'date';
         this.untilDate = this.$agendaUtils.toDate(this.eventRecurrence.until);
         this.eventRecurrence.count = null;
       } else if (this.eventRecurrence.count > 0) {
         this.recurrentEventDate = 'count';
-        if (!this.eventRecurrence.count) {
-          this.eventRecurrence.count = 1;
-        }
         this.eventRecurrence.until = null;
       } else {
         this.recurrentEventDate = 'never';
         this.eventRecurrence.until = null;
         this.eventRecurrence.count = null;
+        this.untilDate = null;
       }
-      this.$refs.customRecurrentEventDrawer.open();
+
+      this.$nextTick(() => {
+        this.$refs.customRecurrentEventDrawer.open();
+        this.isOpening = false;
+      });
     },
   }
 };
