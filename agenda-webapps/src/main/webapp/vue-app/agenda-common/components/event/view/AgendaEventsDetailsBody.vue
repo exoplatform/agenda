@@ -124,7 +124,7 @@
     <div v-if="!isRemoteEvent" class="flex-grow-0 mx-5 d-none d-md-block">
       <v-divider vertical class="event-details-body-divider" />
     </div>
-    <div v-if="!isRemoteEvent"  class="flex-grow-1 flex-shrink-0 d-flex event-details-body-right">
+    <div v-if="!isRemoteEvent" class="flex-grow-1 flex-shrink-0 d-flex event-details-body-right">
       <div class="mr-1 width-full">
         <agenda-event-attendees
           ref="agendaAttendees"
