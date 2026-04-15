@@ -16,10 +16,10 @@ export default {
   },
   computed: {
     recurrence() {
-      return this.event.recurrence || this.event.parent && this.event.parent.recurrence;
+      return this.event?.recurrence || this.event?.parent && this.event?.parent?.recurrence;
     },
     recurrenceFrequency() {
-      return this.recurrence && this.recurrence.frequency;
+      return this.recurrence && this.recurrence?.frequency;
     },
     endLabel() {
       if (this.recurrence) {

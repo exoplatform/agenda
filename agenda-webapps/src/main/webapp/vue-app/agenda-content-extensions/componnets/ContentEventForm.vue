@@ -280,7 +280,9 @@ export default {
         this.startTime = '';
         this.endTime = '';
       } else {
-        const { startTime, endTime } = this.initStartAndEndTime();
+        const now = new Date();
+        const startTime = this.roundUpToSlot(now, this.timeSlot);
+        const endTime = this.addMinutes(startTime, this.timeSlot);
         this.startTime = startTime;
         this.endTime = endTime;
       }

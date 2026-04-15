@@ -15,9 +15,11 @@
  along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 import ContentEventForm from './componnets/ContentEventForm.vue';
+import ContentEventDisplayReminder from './componnets/ContentEventDisplayReminder.vue';
 
 const components = {
   'content-event-form': ContentEventForm,
+  'content-event-display-reminder': ContentEventDisplayReminder
 };
 
 for (const key in components) {
