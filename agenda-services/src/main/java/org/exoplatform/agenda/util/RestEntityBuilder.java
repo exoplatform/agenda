@@ -27,6 +27,7 @@ import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.rest.model.*;
 import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.agenda.service.AgendaEventService;
+import org.exoplatform.commons.utils.HTMLSanitizer;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.rest.entity.IdentityEntity;
@@ -119,7 +120,7 @@ public class RestEntityBuilder {
                      AgendaDateUtils.parseRFC3339ToZonedDateTime(eventEntity.getCreated(), ZoneOffset.UTC),
                      AgendaDateUtils.parseRFC3339ToZonedDateTime(eventEntity.getUpdated(), ZoneOffset.UTC),
                      eventEntity.getSummary(),
-                     eventEntity.getDescription(),
+                     HTMLSanitizer.sanitize(eventEntity.getDescription()),
                      eventEntity.getLocation(),
                      eventEntity.getColor(),
                      eventZoneId,
