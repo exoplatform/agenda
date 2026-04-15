@@ -39,12 +39,27 @@ export function registerExtensions() {
         text: content.title,
       });
 
-      const eventRequest = !event?.id ? Vue.prototype.$eventService.createEvent(event)
-        : Vue.prototype.$eventService.updateEvent(event);
+      const updateEvent = !!event?.id;
+      const eventRequest = updateEvent ? Vue.prototype.$eventService.updateEvent(event)
+        : Vue.prototype.$eventService.createEvent(event);
       const savedEvent = await eventRequest;
+      document.dispatchEvent(
+        new CustomEvent(`content-event-${updateEvent? 'updated': 'created'}`, {
+          detail: { event: savedEvent }
+        })
+      );
       return {
         data: { eventId: savedEvent.id },
       };
+    }
+  });
+
+  extensionRegistry.registerComponent('ContentDetails', 'content-event-detail', {
+    id: 'content-event-reminder',
+    vueComponent: Vue.options.components['content-event-display-reminder'],
+    rank: 1,
+    isEnabled: (params) => {
+      return !!params?.eventId;
     }
   });
 
