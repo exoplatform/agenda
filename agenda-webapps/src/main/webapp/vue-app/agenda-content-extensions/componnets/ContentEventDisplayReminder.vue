@@ -44,9 +44,9 @@
       </div>
       <div
         :class="{
-          'd-flex justify-space-between': !mdAndUp && !smAndDown
+          'd-flex gap-2 justify-space-between': !mdAndUp && !smAndDown
           }">
-        <div class="mb-3 flex-shrink-1 overflow-hidden">
+        <div class="mb-3 flex-grow-1 flex-basis-0 overflow-hidden">
           <div class="text-color text-font-size font-weight-bold mb-5">
             {{ $t('contentEvent.reminder.highlights.label') }}
           </div>
@@ -89,7 +89,7 @@
             <span>{{ locationHighlight }}</span>
           </div>
         </div>
-        <div class="flex-shrink-0">
+        <div class="flex-grow-1 flex-basis-0 overflow-hidden">
           <div class="text-color text-font-size font-weight-bold mb-5">
             {{ $t('contentEvent.reminder.Details.label') }}
           </div>
@@ -129,7 +129,7 @@
                 fas fa-map-marker-alt
               </v-icon>
             </v-sheet>
-            <span class="text-truncate">
+            <span class="text-truncate no-min-width">
               {{ eventLocation }}
             </span>
             <v-spacer />
@@ -138,7 +138,7 @@
               target="_blank">
               <v-icon
                 size="20"
-                class="icon-default-color">
+                class="icon-default-color ms-2">
                 fas fa-directions
               </v-icon>
             </a>
@@ -205,14 +205,18 @@ export default {
     eventId: {
       type: Object,
       default: null
+    },
+    customBreakPointThreshold: {
+      type: Number,
+      default: 0
     }
   },
   computed: {
     mdAndUp () {
-      return this.$vuetify.breakpoint.width >= this.$vuetify.breakpoint.thresholds.md;
+      return this.$vuetify.breakpoint.width >= this.$vuetify.breakpoint.thresholds.md - this.customBreakPointThreshold;
     },
     smAndDown () {
-      return this.$vuetify.breakpoint.width <= this.$vuetify.breakpoint.thresholds.sm;
+      return this.$vuetify.breakpoint.width <= this.$vuetify.breakpoint.thresholds.sm + this.customBreakPointThreshold;
     },
     mapEmbedUrl() {
       return `https://maps.google.com/maps?q=${encodeURIComponent(this.eventLocation)}&output=embed`;
