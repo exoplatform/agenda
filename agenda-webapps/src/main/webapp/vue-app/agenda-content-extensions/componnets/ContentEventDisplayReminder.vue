@@ -17,7 +17,7 @@
 
 <template>
   <v-card
-    class="pa-5 white border-box-sizing border-radius box-shadow mt-8"
+    class="pa-5 white border-box-sizing border-radius box-shadow"
     :class="{
       'full-width': !mdAndUp,
       'ms-5': mdAndUp
@@ -44,19 +44,19 @@
       </div>
       <div
         :class="{
-          'd-flex justify-space-between': !mdAndUp && !smAndDown
+          'd-flex gap-2 justify-space-between': !mdAndUp && !smAndDown
           }">
-        <div class="mb-3 flex-shrink-1 overflow-hidden">
+        <div class="mb-3 flex-grow-1 flex-basis-0 overflow-hidden">
           <div class="text-color text-font-size font-weight-bold mb-5">
             {{ $t('contentEvent.reminder.highlights.label') }}
           </div>
           <div class="d-flex align-center mb-3">
             <v-sheet
-              class="me-4 d-flex align-center justify-center"
-              width="18">
+              class="me-4 flex-shrink-0 d-flex align-center justify-center"
+              width="26">
               <v-icon
                 size="20"
-                class="icon-default-color">
+                class="mx-auto icon-default-color">
                 far fa-clock
               </v-icon>
             </v-sheet>
@@ -66,11 +66,11 @@
             v-if="hasRecurrence"
             class="d-flex mb-3">
             <v-sheet
-              class="me-4 d-flex align-center justify-center"
-              width="18">
+              class="me-4 d-flex flex-shrink-0 align-center justify-center"
+              width="26">
               <v-icon
                 size="20"
-                class="icon-default-color">
+                class="mx-auto icon-default-color">
                 fas fa-sync-alt
               </v-icon>
             </v-sheet>
@@ -78,28 +78,28 @@
           </div>
           <div v-if="locationHighlight" class="d-flex align-center">
             <v-sheet
-              class="me-4 d-flex align-center justify-center"
-              width="18">
+              class="me-4 d-flex flex-shrink-0 align-center justify-center"
+              width="26">
               <v-icon
                 :size="20"
-                class="icon-default-color">
+                class="mx-auto icon-default-color">
                 fas fa-map-marker-alt
               </v-icon>
             </v-sheet>
             <span>{{ locationHighlight }}</span>
           </div>
         </div>
-        <div class="flex-shrink-0">
+        <div class="flex-grow-1 flex-basis-0 overflow-hidden">
           <div class="text-color text-font-size font-weight-bold mb-5">
             {{ $t('contentEvent.reminder.Details.label') }}
           </div>
           <div class="d-flex align-center mb-3">
             <v-sheet
-              class="me-4 d-flex align-center justify-center"
-              width="18">
+              class="me-4 flex-shrink-0 d-flex align-center justify-center"
+              width="26">
               <v-icon
                 size="20"
-                class="icon-default-color">
+                class="max-auto icon-default-color">
                 far fa-calendar-alt
               </v-icon>
             </v-sheet>
@@ -121,15 +121,15 @@
             v-if="eventLocation"
             class="d-flex align-center mb-3">
             <v-sheet
-              class="me-4 d-flex align-center justify-center"
-              width="18">
+              class="me-4 d-flex flex-shrink-0 align-center justify-center"
+              width="26">
               <v-icon
                 size="20"
-                class="icon-default-color">
+                class="mx-auto icon-default-color">
                 fas fa-map-marker-alt
               </v-icon>
             </v-sheet>
-            <span class="text-truncate">
+            <span class="text-truncate no-min-width">
               {{ eventLocation }}
             </span>
             <v-spacer />
@@ -137,8 +137,8 @@
               :href="mapsUrl"
               target="_blank">
               <v-icon
-                size="20"
-                class="icon-default-color">
+                size="26"
+                class="icon-default-color ms-2">
                 fas fa-directions
               </v-icon>
             </a>
@@ -147,11 +147,11 @@
             v-if="webConferenceLink"
             class="d-flex align-center">
             <v-sheet
-              class="me-4 d-flex align-center justify-center"
-              width="18">
+              class="me-4 d-flex flex-shrink-0 align-center justify-center"
+              width="26">
               <v-icon
                 size="20"
-                class="icon-default-color">
+                class="mx-auto icon-default-color">
                 fas fa-video
               </v-icon>
             </v-sheet>
@@ -205,14 +205,18 @@ export default {
     eventId: {
       type: Object,
       default: null
+    },
+    customBreakPointThreshold: {
+      type: Number,
+      default: 0
     }
   },
   computed: {
     mdAndUp () {
-      return this.$vuetify.breakpoint.width >= this.$vuetify.breakpoint.thresholds.md;
+      return this.$vuetify.breakpoint.width >= this.$vuetify.breakpoint.thresholds.md - this.customBreakPointThreshold;
     },
     smAndDown () {
-      return this.$vuetify.breakpoint.width <= this.$vuetify.breakpoint.thresholds.sm;
+      return this.$vuetify.breakpoint.width <= this.$vuetify.breakpoint.thresholds.sm + this.customBreakPointThreshold;
     },
     mapEmbedUrl() {
       return `https://maps.google.com/maps?q=${encodeURIComponent(this.eventLocation)}&output=embed`;
