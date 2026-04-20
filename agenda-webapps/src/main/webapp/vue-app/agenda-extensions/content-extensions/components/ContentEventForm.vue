@@ -18,10 +18,18 @@
 <template>
   <div>
     <div class="d-flex justify-space-between">
-      <span class="my-auto">
+      <span 
+        v-if="!isEventEditor"  
+        class="my-auto">
         {{ $t('contentEvent.add.event.label') }}
       </span>
+      <span 
+        v-else
+        class="my-auto">
+        {{ $t('contentEvent.event.characteristics.label') }}
+      </span>
       <v-switch
+        v-if="!isEventEditor"
         v-model="eventTypeEnabled"
         :ripple="false"
         color="primary"
@@ -222,6 +230,7 @@ export default {
       endTime,
       minStartTime: startTime,
       minEndTime: endTime,
+      isEventEditor: false
     };
   },
   props: {
@@ -240,6 +249,7 @@ export default {
   },
   inject: ['registerExtensionContext', 'notifyExtensionUpdated'],
   created() {
+    this.updateEditorExtensionFlag();
     this.init();
   },
   mounted() {
@@ -479,7 +489,12 @@ export default {
       if (this.minEndTime && this.endTime < this.minEndTime) {
         this.endTime = this.minEndTime;
       }
+    },
+    updateEditorExtensionFlag() {
+      const params = new URLSearchParams(window.location.search);
+      this.isEventEditor = params.get('extensionType') === 'event';
+      this.eventTypeEnabled = this.isEventEditor;
     }
-  },
+  }
 };
 </script>

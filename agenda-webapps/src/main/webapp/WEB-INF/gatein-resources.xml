@@ -325,4 +325,52 @@
     </depends>
   </module>
 
+  <module>
+    <name>AgendaActivityStreamExtensions</name>
+    <load-group>ActivityStreamGRP</load-group>
+      <script>
+      <minify>false</minify>
+      <path>/js/eventActivityStreamExtensions.bundle.js</path>
+    </script>
+    <depends>
+      <module>vue</module>
+    </depends>
+    <depends>
+      <module>vuetify</module>
+    </depends>
+    <depends>
+      <module>eXoVueI18n</module>
+    </depends>
+    <depends>
+      <module>extensionRegistry</module>
+    </depends>
+    <depends>
+      <module>commonVueComponents</module>
+    </depends>
+  </module>
+
+  <module>
+    <name>AgendaContentEditorExtensions</name>
+    <load-group>NotesGRP</load-group>
+    <script>
+      <minify>false</minify>
+      <path>/js/eventContentEditorExtensions.bundle.js</path>
+    </script>
+    <depends>
+      <module>vue</module>
+    </depends>
+    <depends>
+      <module>vuetify</module>
+    </depends>
+    <depends>
+      <module>eXoVueI18n</module>
+    </depends>
+    <depends>
+      <module>extensionRegistry</module>
+    </depends>
+    <depends>
+      <module>commonVueComponents</module>
+    </depends>
+  </module>
+
 </gatein-resources>
