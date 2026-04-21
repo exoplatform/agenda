@@ -39,18 +39,13 @@ import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvide
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.metadata.MetadataService;
 import org.exoplatform.social.metadata.model.MetadataItem;
-import org.exoplatform.social.metadata.model.MetadataKey;
 import org.exoplatform.social.metadata.model.MetadataObject;
-import org.exoplatform.social.metadata.model.MetadataType;
 import org.exoplatform.social.rest.entity.IdentityEntity;
 
+import static org.exoplatform.agenda.util.Utils.EVENT_METADATA_KEY;
+import static org.exoplatform.agenda.util.Utils.EVENT_METADATA_NAME;
+
 public class RestUtils {
-
-  public static final String EVENT_METADATA_NAME       = "agendaEvent";
-
-  public static final MetadataType EVENT_METADATA_TYPE = new MetadataType(1100, EVENT_METADATA_NAME);
-
-  public static final MetadataKey NEWS_METADATA_KEY    = new MetadataKey(EVENT_METADATA_TYPE.getName(), EVENT_METADATA_NAME, 0);
 
   private static MetadataService metadataService;
 
@@ -261,8 +256,9 @@ public class RestUtils {
                                                             event,
                                                             userTimeZone);
 
-      MetadataObject metadataObject = new MetadataObject(EVENT_METADATA_NAME, String.valueOf(eventEntity.getId()));
-      List<MetadataItem> metadataItems = getMetadataService().getMetadataItemsByMetadataAndObject(NEWS_METADATA_KEY, metadataObject);
+      Long objectId = eventEntity.getParent() != null ? eventEntity.getParent().getId() : eventEntity.getId();
+      MetadataObject metadataObject = new MetadataObject(EVENT_METADATA_NAME, String.valueOf(objectId));
+      List<MetadataItem> metadataItems = getMetadataService().getMetadataItemsByMetadataAndObject(EVENT_METADATA_KEY, metadataObject);
       if (CollectionUtils.isNotEmpty(metadataItems)) {
         MetadataItem metadataItem = metadataItems.getFirst();
         eventEntity.setParameters(metadataItem.getProperties());

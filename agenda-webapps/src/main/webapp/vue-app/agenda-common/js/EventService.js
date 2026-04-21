@@ -508,6 +508,18 @@ export function generateICS(eventId, timeZoneId) {
     }
   });
 }
+
+export function deleteContent(contentId, delay) {
+  return fetch(`/content/rest/contents/${contentId}?type=article&delay=${delay || 0}`, {
+    credentials: 'include',
+    method: 'DELETE'
+  }).then((resp) => {
+    if (!resp?.ok) {
+      throw new Error('Error when deleting content');
+    }
+  });
+}
+
 function formatRecurrenceObject(event) {
   if (event.recurrence) {
     const recurrence = event.recurrence;

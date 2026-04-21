@@ -58,10 +58,24 @@
       :ok-label="$t('agenda.button.ok')"
       :cancel-label="$t('agenda.button.cancel')"
       @ok="deleteEvent" />
+    <exo-confirm-dialog
+      v-if="isContentEvent"
+      ref="deleteContentConfirmDialog"
+      :message="$t('agenda.event.content.deletion.message')"
+      :title="$t('agenda.event.deletion.title')"
+      :ok-label="$t('agenda.button.ok')"
+      :cancel-label="$t('agenda.button.cancel')"
+      @closed="cancelContentDelete"
+      @ok="deleteContent" />
   </v-card>
 </template>
 <script>
 export default {
+  data() {
+    return {
+      confirmDialogMessage: this.$t('agenda.message.confirmDeleteEvent')
+    };
+  },
   props: {
     settings: {
       type: Object,
@@ -81,6 +95,12 @@ export default {
     },
   },
   computed: {
+    isContentEvent() {
+      return !!this.eventContentId;
+    },
+    eventContentId() {
+      return this.event?.parameters?.contentId;
+    },
     connectedConnector() {
       return this.connectors && this.connectors.find(connector => connector.connected);
     },
@@ -93,12 +113,23 @@ export default {
   },
   methods: {
     deleteConfirmDialog() {
-      this.$refs.deleteConfirmDialog.open();
+      if (this.isContentEvent) {
+        this.$refs.deleteContentConfirmDialog.open();
+      } else {
+        this.$refs.deleteConfirmDialog.open();
+      }
     },
     deleteEvent() {
       this.$eventService.deleteEvent(this.event.id, 10)
         .then(() => this.$root.$emit('agenda-event-deleted', this.event));
     },
+    cancelContentDelete() {
+      this.$refs.deleteConfirmDialog.open();
+    },
+    async deleteContent() {
+      await this.$eventService.deleteContent(this.eventContentId);
+      this.$refs.deleteConfirmDialog.open();
+    }
   },
 };
 </script>
