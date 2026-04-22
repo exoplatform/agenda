@@ -17,6 +17,7 @@
 
 <template>
   <v-card
+    v-if="event"
     class="pa-5 white border-box-sizing border-radius box-shadow"
     :class="{
       'full-width': !mdAndUp,
@@ -38,14 +39,14 @@
         <v-btn
           min-width="36"
           class="btn btn-primary"
-          :href="eventUrl" >
+          :href="eventUrl">
           {{ $t('contentEvent.reminder.replay.label') }}
         </v-btn>
       </div>
       <div
         :class="{
           'd-flex gap-2 justify-space-between': !mdAndUp && !smAndDown
-          }">
+        }">
         <div class="mb-3 flex-grow-1 flex-basis-0 overflow-hidden">
           <div class="text-color text-font-size font-weight-bold mb-5">
             {{ $t('contentEvent.reminder.highlights.label') }}
@@ -303,11 +304,16 @@ export default {
   created() {
     this.init();
     document.addEventListener('content-event-updated', this.init);
+    document.addEventListener('content-event-removed', this.eventRemoved);
   },
   beforeDestroy() {
     document.removeEventListener('content-event-updated', this.init);
+    document.removeEventListener('content-event-removed', this.eventRemoved);
   },
   methods: {
+    eventRemoved() {
+      this.event = null;
+    },
     async init() {
       this.loading = true;
       this.event = null;
