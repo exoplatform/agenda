@@ -190,6 +190,13 @@
           :event="event" />
       </div>
     </div>
+    <exo-confirm-dialog
+      ref="eventFormConfirmDialog"
+      :message="$t('contentEvent.event.deletion.message')"
+      :title="$t('contentEvent.event.deletion.title')"
+      :ok-label="$t('contentEvent.confirm.label')"
+      :cancel-label="$t('contentEvent.cancel.label')"
+      @ok="confirmEventDeletion" />
   </div>
 </template>
 
@@ -230,7 +237,8 @@ export default {
       endTime,
       minStartTime: startTime,
       minEndTime: endTime,
-      isEventEditor: false
+      isEventEditor: false,
+      eventToDelete: false
     };
   },
   props: {
@@ -251,6 +259,10 @@ export default {
   created() {
     this.updateEditorExtensionFlag();
     this.init();
+    document.addEventListener('content-event-removed', this.eventRemoved);
+  },
+  beforeDestroy() {
+    document.removeEventListener('content-event-removed', this.eventRemoved);
   },
   mounted() {
     this.registerExtensionContext('extension_content-event', this);
@@ -264,6 +276,7 @@ export default {
         this.initCalendarOwner();
         this.fillEventObject();
       }
+      this.checkDeletionConfirmation();
       this.notifyExtensionUpdated();
     },
     startTime() {
@@ -323,6 +336,17 @@ export default {
     },
   },
   methods: {
+    eventRemoved() {
+      this.event.id = null;
+    },
+    checkDeletionConfirmation() {
+      if (!this.eventTypeEnabled && !!this.eventId) {
+        this.$refs.eventFormConfirmDialog.open();
+      }
+    },
+    confirmEventDeletion() {
+      this.eventToDelete = !this.eventToDelete;
+    },
     async init() {
       if (!this.eventId) {
         this.initCalendarOwner();
@@ -353,16 +377,24 @@ export default {
       }
     },
     getContext() {
+      const params = { eventToDelete: this.eventToDelete };
       if (!this.eventTypeEnabled) {
-        return null;
+        return {
+          data: null,
+          params
+        };
       }
       return {
-        ...this.event,
-        timeZoneId: this.$agendaUtils.USER_TIMEZONE_ID
+        data: {
+          ...this.event,
+          timeZoneId: this.$agendaUtils.USER_TIMEZONE_ID
+        },
+        params
       };
     },
     reset() {
       this.init();
+      this.eventToDelete = false;
     },
     loadWebconferencingProviders(spacePrettyName) {
       if (spacePrettyName) {

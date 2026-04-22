@@ -19,10 +19,15 @@ export function registerExtensions() {
     id: 'content-event',
     vueComponent: Vue.options.components['content-event-form'],
     rank: 1,
-    execute: async (event, content) => {
+    execute: async (context, content) => {
+      const eventToDelete =  context?.params?.eventToDelete;
+      const event = context?.data;
       const existEventId = !!content?.parameters?.['eventId'];
       if (!event && existEventId ) {
-        await Vue.prototype.$eventService.deleteEvent(content.parameters['eventId']);
+        if (eventToDelete) {
+          await Vue.prototype.$eventService.deleteEvent(content.parameters['eventId']);
+        }
+        document.dispatchEvent(new CustomEvent('content-event-removed'));
         return {
           data: { eventId: null },
         };
