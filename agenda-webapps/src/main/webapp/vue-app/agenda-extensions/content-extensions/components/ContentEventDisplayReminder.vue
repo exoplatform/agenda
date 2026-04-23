@@ -134,15 +134,22 @@
               {{ eventLocation }}
             </span>
             <v-spacer />
-            <a
+            <v-btn
               :href="mapsUrl"
-              target="_blank">
+              :aria-label="$t('contentEvent.reminder.location.aria.label')"
+              :title="$t('contentEvent.reminder.location.aria.label')"
+              target="_blank"
+              width="30"
+              min-width="30"
+              height="30"
+              class="ms-2"
+              icon>
               <v-icon
                 size="26"
-                class="icon-default-color ms-2">
+                class="icon-default-color">
                 fas fa-directions
               </v-icon>
-            </a>
+            </v-btn>
           </div>
           <div
             v-if="webConferenceLink"
