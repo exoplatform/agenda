@@ -139,13 +139,13 @@
               :aria-label="$t('contentEvent.reminder.location.aria.label')"
               :title="$t('contentEvent.reminder.location.aria.label')"
               target="_blank"
-              width="30"
-              min-width="30"
-              height="30"
+              width="28"
+              min-width="28"
+              height="28"
               class="ms-2"
               icon>
               <v-icon
-                size="26"
+                size="20"
                 class="icon-default-color">
                 fas fa-directions
               </v-icon>
@@ -165,6 +165,7 @@
             </v-sheet>
             <v-btn
               :href="webConferenceLink"
+              :aria-label="$t('contentEvent.reminder.meeting.aria.label')"
               height="24"
               class="btn btn-primary border-radius-16 px-3"
               target="_blank"
