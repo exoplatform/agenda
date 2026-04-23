@@ -165,6 +165,7 @@
             </v-sheet>
             <v-btn
               :href="webConferenceLink"
+              :aria-label="$t('contentEvent.reminder.meeting.aria.label')"
               height="24"
               class="btn btn-primary border-radius-16 px-3"
               target="_blank"
