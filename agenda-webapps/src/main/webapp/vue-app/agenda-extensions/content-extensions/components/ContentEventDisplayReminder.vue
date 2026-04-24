@@ -16,187 +16,197 @@
 -->
 
 <template>
-  <v-card
-    v-if="event"
-    class="pa-5 white border-box-sizing border-radius box-shadow"
-    :class="{
-      'full-width': !mdAndUp,
-      'ms-5': mdAndUp
-    }"
-    :width="mdAndUp && 330"
-    outlined>
-    <template v-if="loading">
-      <v-skeleton-loader type="heading" class="mb-3" />
-      <v-skeleton-loader type="text" class="mb-2" />
-      <v-skeleton-loader type="text" class="mb-2" />
-      <v-skeleton-loader type="text" class="mb-2" />
-    </template>
-    <template v-else-if="event">
-      <div class="d-flex align-center justify-space-between mb-3">
-        <span class="text-header text-header-color font-weight-medium">
-          {{ $t('contentEvent.reminder.title.label') }}
-        </span>
-        <v-btn
-          min-width="36"
-          class="btn btn-primary"
-          :href="eventUrl">
-          {{ $t('contentEvent.reminder.replay.label') }}
-        </v-btn>
-      </div>
-      <div
-        :class="{
-          'd-flex gap-2 justify-space-between': !mdAndUp && !smAndDown
-        }">
-        <div class="mb-3 flex-grow-1 flex-basis-0 overflow-hidden">
-          <div class="text-color text-font-size font-weight-bold mb-5">
-            {{ $t('contentEvent.reminder.highlights.label') }}
-          </div>
-          <div class="d-flex align-center mb-3">
-            <v-sheet
-              class="me-4 flex-shrink-0 d-flex align-center justify-center"
-              width="26">
-              <v-icon
-                size="20"
-                class="mx-auto icon-default-color">
-                far fa-clock
-              </v-icon>
-            </v-sheet>
-            <span>{{ duration }}</span>
-          </div>
-          <div
-            v-if="hasRecurrence"
-            class="d-flex mb-3">
-            <v-sheet
-              class="me-4 d-flex flex-shrink-0 align-center justify-center"
-              width="26">
-              <v-icon
-                size="20"
-                class="mx-auto icon-default-color">
-                fas fa-sync-alt
-              </v-icon>
-            </v-sheet>
-            <agenda-event-recurrence :event="event" />
-          </div>
-          <div v-if="locationHighlight" class="d-flex align-center">
-            <v-sheet
-              class="me-4 d-flex flex-shrink-0 align-center justify-center"
-              width="26">
-              <v-icon
-                :size="20"
-                class="mx-auto icon-default-color">
-                fas fa-map-marker-alt
-              </v-icon>
-            </v-sheet>
-            <span>{{ locationHighlight }}</span>
-          </div>
+  <div>
+    <v-card
+      v-if="event"
+      class="pa-5 white border-box-sizing border-radius box-shadow"
+      :class="{
+        'full-width': !mdAndUp,
+        'ms-5': mdAndUp
+      }"
+      :width="mdAndUp && 330"
+      outlined>
+      <template v-if="loading">
+        <v-skeleton-loader type="heading" class="mb-3" />
+        <v-skeleton-loader type="text" class="mb-2" />
+        <v-skeleton-loader type="text" class="mb-2" />
+        <v-skeleton-loader type="text" class="mb-2" />
+      </template>
+      <template v-else-if="event">
+        <div class="d-flex align-center justify-space-between mb-3">
+          <span class="text-header text-header-color font-weight-medium">
+            {{ $t('contentEvent.reminder.title.label') }}
+          </span>
+          <v-btn
+            min-width="36"
+            class="btn btn-primary"
+            :href="eventUrl">
+            {{ $t('contentEvent.reminder.replay.label') }}
+          </v-btn>
         </div>
-        <div class="flex-grow-1 flex-basis-0 overflow-hidden">
-          <div class="text-color text-font-size font-weight-bold mb-5">
-            {{ $t('contentEvent.reminder.Details.label') }}
-          </div>
-          <div class="d-flex align-center mb-3">
-            <v-sheet
-              class="me-4 flex-shrink-0 d-flex align-center justify-center"
-              width="26">
-              <v-icon
-                size="20"
-                class="max-auto icon-default-color">
-                far fa-calendar-alt
-              </v-icon>
-            </v-sheet>
-            <div class="d-flex flex-nowrap align-center">
-              <date-format
-                :value="eventStart"
-                :format="fullDateFormat" />
-              <div
-                v-if="!isAllDayEvent"
-                class="d-flex flex-nowrap align-center">
-                <span class="mx-1">·</span>
-                <date-format
-                  :value="eventStart"
-                  :format="timeFormat" />
-              </div>
+        <div
+          :class="{
+            'd-flex gap-2 justify-space-between': !mdAndUp && !smAndDown
+          }">
+          <div class="mb-3 flex-grow-1 flex-basis-0 overflow-hidden">
+            <div class="text-color text-font-size font-weight-bold mb-5">
+              {{ $t('contentEvent.reminder.highlights.label') }}
+            </div>
+            <div class="d-flex align-center mb-3">
+              <v-sheet
+                class="me-4 flex-shrink-0 d-flex align-center justify-center"
+                width="26">
+                <v-icon
+                  size="20"
+                  class="mx-auto icon-default-color">
+                  far fa-clock
+                </v-icon>
+              </v-sheet>
+              <span>{{ duration }}</span>
+            </div>
+            <div
+              v-if="hasRecurrence"
+              class="d-flex mb-3">
+              <v-sheet
+                class="me-4 d-flex flex-shrink-0 align-center justify-center"
+                width="26">
+                <v-icon
+                  size="20"
+                  class="mx-auto icon-default-color">
+                  fas fa-sync-alt
+                </v-icon>
+              </v-sheet>
+              <agenda-event-recurrence :event="event" />
+            </div>
+            <div v-if="locationHighlight" class="d-flex align-center">
+              <v-sheet
+                class="me-4 d-flex flex-shrink-0 align-center justify-center"
+                width="26">
+                <v-icon
+                  :size="20"
+                  class="mx-auto icon-default-color">
+                  fas fa-map-marker-alt
+                </v-icon>
+              </v-sheet>
+              <span>{{ locationHighlight }}</span>
             </div>
           </div>
-          <div
-            v-if="eventLocation"
-            class="d-flex align-center mb-3">
-            <v-sheet
-              class="me-4 d-flex flex-shrink-0 align-center justify-center"
-              width="26">
-              <v-icon
-                size="20"
-                class="mx-auto icon-default-color">
-                fas fa-map-marker-alt
-              </v-icon>
-            </v-sheet>
-            <span class="text-truncate no-min-width">
-              {{ eventLocation }}
-            </span>
-            <v-spacer />
-            <v-btn
-              :href="mapsUrl"
-              :aria-label="$t('contentEvent.reminder.location.aria.label')"
-              :title="$t('contentEvent.reminder.location.aria.label')"
-              target="_blank"
-              width="28"
-              min-width="28"
-              height="28"
-              class="ms-2"
-              icon>
-              <v-icon
-                size="20"
-                class="icon-default-color">
-                fas fa-directions
-              </v-icon>
-            </v-btn>
-          </div>
-          <div
-            v-if="webConferenceLink"
-            class="d-flex align-center">
-            <v-sheet
-              class="me-4 d-flex flex-shrink-0 align-center justify-center"
-              width="26">
-              <v-icon
-                size="20"
-                class="mx-auto icon-default-color">
-                fas fa-video
-              </v-icon>
-            </v-sheet>
-            <v-btn
-              :href="webConferenceLink"
-              :aria-label="$t('contentEvent.reminder.meeting.aria.label')"
-              height="24"
-              class="btn btn-primary border-radius-16 px-3"
-              target="_blank"
-              x-small
-              outlined>
-              {{ $t('contentEvent.reminder.join.label') }}
-            </v-btn>
-          </div>
-          <div
-            v-if="eventLocation && mdAndUp"
-            class="mt-3 position-relative">
-            <v-skeleton-loader
-              v-if="!mapLoaded"
-              type="image"
-              height="200"
-              class="border-radius" />
-            <iframe
-              v-if="event && eventLocation"
-              :src="mapEmbedUrl"
-              :title="$t('contentEvent.location.label')"
-              :class="mapLoaded ? '' : 'position-absolute t-0'"
-              class="border-radius no-border"
-              width="100%"
-              height="200"
-              loading="lazy"
-              @load="mapLoaded = true"></iframe>
+          <div class="flex-grow-1 flex-basis-0 overflow-hidden">
+            <div class="text-color text-font-size font-weight-bold mb-5">
+              {{ $t('contentEvent.reminder.Details.label') }}
+            </div>
+            <div class="d-flex align-center mb-3">
+              <v-sheet
+                class="me-4 flex-shrink-0 d-flex align-center justify-center"
+                width="26">
+                <v-icon
+                  size="20"
+                  class="max-auto icon-default-color">
+                  far fa-calendar-alt
+                </v-icon>
+              </v-sheet>
+              <div class="d-flex flex-nowrap align-center">
+                <date-format
+                  :value="eventStart"
+                  :format="fullDateFormat" />
+                <div
+                  v-if="!isAllDayEvent"
+                  class="d-flex flex-nowrap align-center">
+                  <span class="mx-1">·</span>
+                  <date-format
+                    :value="eventStart"
+                    :format="timeFormat" />
+                </div>
+              </div>
+            </div>
+            <div
+              v-if="eventLocation"
+              class="d-flex align-center mb-3">
+              <v-sheet
+                class="me-4 d-flex flex-shrink-0 align-center justify-center"
+                width="26">
+                <v-icon
+                  size="20"
+                  class="mx-auto icon-default-color">
+                  fas fa-map-marker-alt
+                </v-icon>
+              </v-sheet>
+              <span class="text-truncate no-min-width">
+                {{ eventLocation }}
+              </span>
+              <v-spacer />
+              <v-btn
+                :href="mapsUrl"
+                :aria-label="$t('contentEvent.reminder.location.aria.label')"
+                :title="$t('contentEvent.reminder.location.aria.label')"
+                target="_blank"
+                width="28"
+                min-width="28"
+                height="28"
+                class="ms-2"
+                icon>
+                <v-icon
+                  size="20"
+                  class="icon-default-color">
+                  fas fa-directions
+                </v-icon>
+              </v-btn>
+            </div>
+            <div
+              v-if="webConferenceLink"
+              class="d-flex align-center">
+              <v-sheet
+                class="me-4 d-flex flex-shrink-0 align-center justify-center"
+                width="26">
+                <v-icon
+                  size="20"
+                  class="mx-auto icon-default-color">
+                  fas fa-video
+                </v-icon>
+              </v-sheet>
+              <v-btn
+                :href="webConferenceLink"
+                :aria-label="$t('contentEvent.reminder.meeting.aria.label')"
+                height="24"
+                class="btn btn-primary border-radius-16 px-3"
+                target="_blank"
+                x-small
+                outlined>
+                {{ $t('contentEvent.reminder.join.label') }}
+              </v-btn>
+            </div>
+            <div
+              v-if="eventLocation && mdAndUp"
+              class="mt-3 position-relative">
+              <v-skeleton-loader
+                v-if="!mapLoaded"
+                type="image"
+                height="200"
+                class="border-radius" />
+              <iframe
+                v-if="event && eventLocation"
+                :src="mapEmbedUrl"
+                :title="$t('contentEvent.location.label')"
+                :class="mapLoaded ? '' : 'position-absolute t-0'"
+                class="border-radius no-border"
+                width="100%"
+                height="200"
+                loading="lazy"
+                @load="mapLoaded = true"></iframe>
+            </div>
           </div>
         </div>
-      </div>
-    </template>
-  </v-card>
+      </template>
+    </v-card>
+    <exo-confirm-dialog
+      ref="eventDeleteConfirmDialog"
+      :message="$t('contentEvent.event.deletion.from.content.message')"
+      :title="$t('contentEvent.event.deletion.title')"
+      :ok-label="$t('contentEvent.confirm.label')"
+      :cancel-label="$t('contentEvent.cancel.label')"
+      @ok="confirmEventDeletion"
+      @closed="cancelEventDeletion" />
+  </div>
 </template>
 
 <script>
@@ -207,7 +217,8 @@ export default {
       expand: 'attendees,reminders,recurrence,conferences',
       event: null,
       mapLoaded: false,
-      loading: false
+      loading: false,
+      eventToDelete: false
     };
   },
   props: {
@@ -220,6 +231,7 @@ export default {
       default: 0
     }
   },
+  inject: ['registerDeleteInterceptor', 'unregisterDeleteInterceptor'],
   computed: {
     mdAndUp () {
       return this.$vuetify.breakpoint.width >= this.$vuetify.breakpoint.thresholds.md - this.customBreakPointThreshold;
@@ -311,14 +323,45 @@ export default {
   },
   created() {
     this.init();
+    this.$root.$on('confirm-news-deletion', this.deleteEvent);
+
     document.addEventListener('content-event-updated', this.init);
     document.addEventListener('content-event-removed', this.eventRemoved);
   },
   beforeDestroy() {
+    this.$root.$off('confirm-news-deletion', this.deleteEvent);
+
+    this.unregisterDeleteInterceptor(this.preDeleteInterceptor);
     document.removeEventListener('content-event-updated', this.init);
     document.removeEventListener('content-event-removed', this.eventRemoved);
   },
+  mounted() {
+    this.registerDeleteInterceptor(this.preDeleteInterceptor.bind(this));
+  },
   methods: {
+    async deleteEvent() {
+      if (this.eventToDelete) {
+        await this.$eventService.deleteEvent(this.eventId);
+      }
+    },
+    preDeleteInterceptor({ content }) {
+      const eventId = content?.parameters?.eventId;
+      if (!eventId) {
+        return true;
+      }
+      return new Promise((resolve) => {
+        this._preDeleteResolve = resolve;
+        this.$refs.eventDeleteConfirmDialog.open();
+      });
+    },
+    confirmEventDeletion() {
+      this.eventToDelete = true;
+      this._preDeleteResolve?.(true);
+    },
+    cancelEventDeletion() {
+      this.eventToDelete = false;
+      this._preDeleteResolve?.(true);
+    },
     eventRemoved() {
       this.event = null;
     },
