@@ -8,6 +8,9 @@
         :current-space="currentSpace"
         :offset-y="18"
         :offset-x="12" />
+      <agenda-period-selector
+        v-if="!$root.isMobile"
+        :period-title="periodTitle" />  
     </div>
     <v-spacer />
     <agenda-connect-to-remote-button
@@ -44,6 +47,10 @@ export default {
       default: null
     },
     agendaBaseLink: {
+      type: String,
+      default: null
+    },
+    periodTitle: {
       type: String,
       default: null
     },

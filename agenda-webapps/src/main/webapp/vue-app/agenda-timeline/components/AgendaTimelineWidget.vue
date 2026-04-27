@@ -7,14 +7,25 @@
         :agenda-base-link="agendaBaseLink"
         :connectors="enabledConnectors"
         :settings="settings"
+        :period-title="periodTitle"
         :show-default-remote-events="showDefaultRemoteEvents" />
       <agenda-timeline
+        v-if="$root.isMobile"
         :events="displayedEvent"
         :period-start-date="periodStart"
         :agenda-base-link="agendaBaseLink"
         :loading="loading || !initialized"
         :limit="limit"
         :connected-connector-avatar="connectedConnectorAvatar" />
+      <agenda-body
+        v-else
+        :events="displayedEvent"
+        :current-calendar="currentCalendar"
+        :calendar-type="calendarType"
+        :weekdays="weekdays"
+        :full-weekdays="fullWeekdays"
+        :working-time="workingTime"
+        :connected-connector-avatar="connectedConnectorAvatar" />  
     </v-card>
     <agenda-event-dialog
       ref="eventFormDialog"
@@ -54,6 +65,7 @@ export default {
     loading: false,
     ownerIds: [],
     connectors: [],
+    displayedEvent: [],
     periodStart: new Date(),
     limit: 10,
     period: {
@@ -73,6 +85,8 @@ export default {
     conferenceProviders: null,
     selectedProviderType: null,
     remoteEventsLoaded: false,
+    calendarType: 'week',
+    periodTitle: '',
   }),
   computed: {
     enabledConferenceProviderName() {
@@ -93,6 +107,9 @@ export default {
         workingTimeStart: this.settings.workingTimeStart,
         workingTimeEnd: this.settings.workingTimeEnd
       };
+    },
+    fullWeekdays() {
+      return this.settings && this.$agendaUtils.getWeekSequenceFromDay(this.settings, this.calendarType, true);
     },
     enabledConnectors() {
       return this.connectors && this.connectors.filter(connector => connector.initialized && connector.enabled) || [];
@@ -120,19 +137,6 @@ export default {
     },
     showDefaultRemoteEvents() {
       return this.settings && this.settings.showRemoteEventsForTimeLine;
-    },
-    displayedEvent() {
-      if (this.showDefaultRemoteEvents){
-        // Avoid to have same event from remote and local store (pushed events from local store)
-        const filtredRemoteEvents = this.filterRemoteEvents(this.events, this.remoteEvents);
-        const events = this.events.concat(filtredRemoteEvents);
-        return  events.sort((event1, event2) => {
-          const eventStart1 = this.$agendaUtils.toDate(event1.start || event1.startDate).getTime();
-          const eventStart2 = this.$agendaUtils.toDate(event2.start || event2.startDate).getTime();
-          return eventStart1 - eventStart2;
-        });
-      }
-      return  this.events;
     },
   },
   watch: {
@@ -165,9 +169,23 @@ export default {
       if (this.signedInConnector && this.settings.showRemoteEventsForTimeLine) {
         this.retrieveRemoteEvents();
       }
-    }
+    },
+    events: {
+      handler: 'updateDisplayedEvents',
+      deep: true,
+      immediate: true
+    },
+    remoteEvents: {
+      handler: 'updateDisplayedEvents',
+      deep: true
+    },
+    'showDefaultRemoteEvents': 'updateDisplayedEvents'
   },
   created() {
+    this.$root.$on('agenda-change-period', period => {
+      this.period = period;
+      this.periodTitle = this.generateCalendarTitle(period);
+    });
     if (eXo.env.portal.spaceId) {
       this.limit = 5;
     }
@@ -201,6 +219,24 @@ export default {
             this.settingsLoaded = true;
           });
       }
+    },
+    updateDisplayedEvents() {
+      if (this.showDefaultRemoteEvents) {
+        // Avoid to have same event from remote and local store (pushed events from local store)
+        const filtered = this.filterRemoteEvents(this.events, this.remoteEvents);
+        const merged = [...this.events, ...filtered];
+        merged.sort((a, b) => {
+          const s1 = this.$agendaUtils.toDate(a.start || a.startDate).getTime();
+          const s2 = this.$agendaUtils.toDate(b.start || b.startDate).getTime();
+          return s1 - s2;
+        });
+        this.displayedEvent = merged;
+      } else {
+        this.displayedEvent = [...this.events];
+      }
+    },
+    generateCalendarTitle(period) {
+      return this.$agendaUtils.generateCalendarTitle(this.calendarType, this.$agendaUtils.toDate(period.start), period.title, this.$t('agenda.week'));
     },
     refreshProviders(spacePrettyName) {
       if (spacePrettyName) {
