@@ -28,6 +28,32 @@ export function init() {
   // init Vue app when locale ressources are ready
     const eventType = eXo.env.portal.spaceId ? 'allEvents' : 'myEvents';
     Vue.createApp({
+      data() {
+        return {
+          bodyElementWidth: 0,
+        };
+      },
+      mounted() {
+        const el = document.querySelector('#AgendaTimelineApplication');
+        this.resizeObserver = new ResizeObserver((entries) => {
+          for (const entry of entries) {
+            const { width } = entry.contentRect;
+            this.bodyElementWidth = width;
+          }
+        });
+        this.resizeObserver.observe(el);
+      },
+      beforeUnmount() {
+        if (this.resizeObserver) {
+          this.resizeObserver.disconnect();
+        }
+      },
+      computed: {
+        isMobile() {
+          const resposiveMode = this.bodyElementWidth < this.$vuetify.breakpoint.thresholds.sm;
+          return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm' || resposiveMode;          
+        }
+      },
       template: `<agenda-timeline-widget id="${appId}" event-type="${eventType}" />`,
       vuetify,
       i18n
