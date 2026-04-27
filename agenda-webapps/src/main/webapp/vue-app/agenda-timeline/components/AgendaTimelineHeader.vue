@@ -4,12 +4,15 @@
       <a :href="agendaBaseLink" class="widget-text-header my-auto me-auto">
         {{ $t('agenda') }}
       </a>
-      <agenda-pending-invitation-badge
+      <agenda-period-selector
+        v-if="!$root.isMobile"
+        :period-title="periodTitle" />  
+    </div>
+    <v-spacer />
+    <agenda-pending-invitation-badge
         :current-space="currentSpace"
         :offset-y="18"
         :offset-x="12" />
-    </div>
-    <v-spacer />
     <agenda-connect-to-remote-button
       :connectors="connectors"
       :settings="settings"
@@ -44,6 +47,10 @@ export default {
       default: null
     },
     agendaBaseLink: {
+      type: String,
+      default: null
+    },
+    periodTitle: {
       type: String,
       default: null
     },
