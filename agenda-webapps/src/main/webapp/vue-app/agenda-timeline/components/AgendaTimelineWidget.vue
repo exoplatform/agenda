@@ -1,32 +1,34 @@
 <template>
   <v-app class="agenda-application" flat>
-    <v-card class="d-flex flex-column application-body position-static pa-5 border-box-sizing" flat>
-      <agenda-timeline-header
-        :current-space="currentSpace"
-        :current-calendar="currentCalendar"
-        :agenda-base-link="agendaBaseLink"
-        :connectors="enabledConnectors"
-        :settings="settings"
-        :period-title="periodTitle"
-        :show-default-remote-events="showDefaultRemoteEvents" />
-      <agenda-timeline
-        v-if="$root.isMobile"
-        :events="displayedEvent"
-        :period-start-date="periodStart"
-        :agenda-base-link="agendaBaseLink"
-        :loading="loading || !initialized"
-        :limit="limit"
-        :connected-connector-avatar="connectedConnectorAvatar" />
-      <agenda-body
-        v-else
-        :events="displayedEvent"
-        :current-calendar="currentCalendar"
-        :calendar-type="calendarType"
-        :weekdays="weekdays"
-        :full-weekdays="fullWeekdays"
-        :working-time="workingTime"
-        :connected-connector-avatar="connectedConnectorAvatar" />  
-    </v-card>
+    <v-hover v-model="$root.hover">
+      <v-card class="d-flex flex-column application-body position-static pa-5 border-box-sizing" flat>
+        <agenda-timeline-header
+          :current-space="currentSpace"
+          :current-calendar="currentCalendar"
+          :agenda-base-link="agendaBaseLink"
+          :connectors="enabledConnectors"
+          :settings="settings"
+          :period-title="periodTitle"
+          :show-default-remote-events="showDefaultRemoteEvents" />
+        <agenda-timeline
+          v-if="$root.isTimelineView"
+          :events="displayedEvent"
+          :period-start-date="periodStart"
+          :agenda-base-link="agendaBaseLink"
+          :loading="loading || !initialized"
+          :limit="limit"
+          :connected-connector-avatar="connectedConnectorAvatar" />
+        <agenda-body
+          v-else
+          :events="displayedEvent"
+          :current-calendar="currentCalendar"
+          :calendar-type="calendarType"
+          :weekdays="weekdays"
+          :full-weekdays="fullWeekdays"
+          :working-time="workingTime"
+          :connected-connector-avatar="connectedConnectorAvatar" />  
+      </v-card>
+    </v-hover>
     <agenda-event-dialog
       ref="eventFormDialog"
       :current-space="currentSpace"
@@ -48,6 +50,7 @@
       @connectors-loaded="connectors = $event" />
     <agenda-pending-invitation-drawer :current-space="currentSpace" />
     <agenda-connectors-drawer :connectors="connectors" />
+    <agenda-timeline-settings-drawer />
   </v-app>
 </template>
 <script>
@@ -196,6 +199,7 @@ export default {
     this.$root.$on('agenda-event-deleted', this.retrieveEvents);
     this.$root.$on('agenda-event-change-owner', this.refreshProviders);
     this.$root.$on('agenda-show-remote-change', this.showRemoteEvents);
+    this.$root.$on('timeline-settings-updated', this.retrieveEvents);
     this.spaceId = eXo.env.portal.spaceId;
     // Asynchronously load settings to use it in dialogs,
     // not needed for main screen display
@@ -256,7 +260,13 @@ export default {
       }
     },
     retrieveEvents() {
-      if (!this.initialized && eXo.env.portal.spaceId) {
+      if (this.$root.timelineSettings.agendaSource === 'selectedSpaces') {
+        this.ownerIds = this.$root.timelineSettings.selectedSpaces.map(space => space.identityId).filter(id => !!id);
+        return this.retrieveEventsFromStore();
+      } else if (this.$root.timelineSettings.agendaSource === 'allUsersSpaces'){
+        this.ownerIds = [];
+        return this.retrieveEventsFromStore();
+      } else if (!this.initialized && eXo.env.portal.spaceId) {
         const spaceId = eXo.env.portal.spaceId;
         return this.$spaceService.getSpaceById(spaceId, 'identity')
           .then((space) => {
