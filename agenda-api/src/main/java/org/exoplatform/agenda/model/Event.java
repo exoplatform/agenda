@@ -18,6 +18,7 @@ package org.exoplatform.agenda.model;
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.Map;
 
 import org.exoplatform.agenda.constant.EventAvailability;
 import org.exoplatform.agenda.constant.EventStatus;
@@ -96,6 +97,54 @@ public class Event implements Cloneable {
 
   private boolean           allowAttendeeToInvite;
 
+  private Map<String, String> parameters;
+
+  public Event(long id,
+               long parentId,
+               long calendarId,
+               long creatorId,
+               long modifierId,
+               ZonedDateTime created,
+               ZonedDateTime updated,
+               String summary,
+               String description,
+               String location,
+               String color,
+               ZoneId timeZoneId,
+               ZonedDateTime start,
+               ZonedDateTime end,
+               boolean allDay,
+               EventAvailability availability,
+               EventStatus status,
+               EventRecurrence recurrence,
+               EventOccurrence occurrence,
+               EventPermission acl,
+               boolean allowAttendeeToUpdate,
+               boolean allowAttendeeToInvite) {
+    this.id = id;
+    this.parentId = parentId;
+    this.calendarId = calendarId;
+    this.creatorId = creatorId;
+    this.modifierId = modifierId;
+    this.created = created;
+    this.updated = updated;
+    this.summary = summary;
+    this.description = description;
+    this.location = location;
+    this.color = color;
+    this.timeZoneId = timeZoneId;
+    this.start = start;
+    this.end = end;
+    this.allDay = allDay;
+    this.availability = availability;
+    this.status = status;
+    this.recurrence = recurrence;
+    this.occurrence = occurrence;
+    this.acl = acl;
+    this.allowAttendeeToUpdate = allowAttendeeToUpdate;
+    this.allowAttendeeToInvite = allowAttendeeToInvite;
+  }
+
   @Override
   public Event clone() { // NOSONAR
     return new Event(id,
@@ -119,6 +168,7 @@ public class Event implements Cloneable {
                      occurrence == null ? null : occurrence.clone(),
                      acl == null ? null : acl.clone(),
                      allowAttendeeToUpdate,
-                     allowAttendeeToInvite);
+                     allowAttendeeToInvite,
+                     parameters);
   }
 }
