@@ -171,6 +171,14 @@
           dense
           hide-details
           required />
+        <v-switch
+          v-if="event?.location?.length"
+          v-model="showLocationMap"
+          :label="$t('contentEvent.display.embedded.map.label')"
+          :ripple="false"
+          color="primary"
+          class="mt-2"
+          hide-details />
       </div>
       <div class="mt-4">
         <span class="my-auto mb-2">
@@ -222,7 +230,10 @@ export default {
         calendar: {
           owner: {}
         },
-        attendees: []
+        attendees: [],
+        parameters: {
+          showLocationMap: true
+        }
       },
       locale: eXo?.env?.portal?.language,
       timeSlot,
@@ -313,6 +324,15 @@ export default {
     }
   },
   computed: {
+    showLocationMap: {
+      get() {
+        const value = this.event?.parameters?.showLocationMap;
+        return value === true || value === 'true';
+      },
+      set(value) {
+        this.event.parameters.showLocationMap = value;
+      }
+    },
     eventId() {
       return this.content?.parameters?.eventId;
     },
