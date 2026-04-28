@@ -176,7 +176,7 @@
               </v-btn>
             </div>
             <div
-              v-if="eventLocation && mdAndUp"
+              v-if="eventLocation && mdAndUp && showLocationMap"
               class="mt-3 position-relative">
               <v-skeleton-loader
                 v-if="!mapLoaded"
@@ -233,6 +233,9 @@ export default {
   },
   inject: ['registerDeleteInterceptor', 'unregisterDeleteInterceptor'],
   computed: {
+    showLocationMap() {
+      return this.event?.parameters?.showLocationMap === 'true';
+    },
     mdAndUp () {
       return this.$vuetify.breakpoint.width >= this.$vuetify.breakpoint.thresholds.md - this.customBreakPointThreshold;
     },

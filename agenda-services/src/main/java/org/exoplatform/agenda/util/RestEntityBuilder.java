@@ -133,7 +133,8 @@ public class RestEntityBuilder {
                      occurrence,
                      eventEntity.getAcl(),
                      eventEntity.isAllowAttendeeToUpdate(),
-                     eventEntity.isAllowAttendeeToInvite());
+                     eventEntity.isAllowAttendeeToInvite(),
+                     eventEntity.getParameters());
   }
 
   public static EventDateOption toEventDateOption(EventDateOptionEntity dateOptionEntity, ZoneId userTimeZone) {

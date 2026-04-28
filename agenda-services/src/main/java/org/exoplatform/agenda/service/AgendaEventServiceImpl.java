@@ -21,6 +21,7 @@ import java.util.*;
 import java.util.Map.Entry;
 import java.util.stream.Collectors;
 
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 
@@ -41,6 +42,12 @@ import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.spi.SpaceService;
+import org.exoplatform.social.metadata.MetadataService;
+import org.exoplatform.social.metadata.model.MetadataItem;
+import org.exoplatform.social.metadata.model.MetadataObject;
+
+import static org.exoplatform.agenda.util.Utils.*;
+import static org.exoplatform.agenda.util.Utils.EVENT_METADATA_KEY;
 
 public class AgendaEventServiceImpl implements AgendaEventService {
 
@@ -68,6 +75,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
   private ListenerService              listenerService;
 
+  private MetadataService              metadataService;
+
   public AgendaEventServiceImpl(AgendaCalendarService agendaCalendarService,
                                 AgendaEventAttendeeService attendeeService,
                                 AgendaEventConferenceService conferenceService,
@@ -78,7 +87,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                 AgendaEventStorage agendaEventStorage,
                                 IdentityManager identityManager,
                                 SpaceService spaceService,
-                                ListenerService listenerService) {
+                                ListenerService listenerService,
+                                MetadataService metadataService) {
     this.agendaCalendarService = agendaCalendarService;
     this.attendeeService = attendeeService;
     this.conferenceService = conferenceService;
@@ -90,6 +100,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     this.identityManager = identityManager;
     this.spaceService = spaceService;
     this.listenerService = listenerService;
+    this.metadataService = metadataService;
   }
 
   /**
@@ -324,7 +335,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                     event.isAllowAttendeeToInvite());
 
     Event createdEvent = agendaEventStorage.createEvent(eventToCreate);
+    createOrUpdateEventProperties(event.getParameters(), createdEvent);
     long eventId = createdEvent.getId();
+
     createdEvent = getEventById(eventId, event.getTimeZoneId(), userIdentityId);
 
     AgendaEventModification eventModifications =
@@ -616,7 +629,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       eventToUpdate.getOccurrence().setDatesModified(true);
     }
     Event updatedEvent = agendaEventStorage.updateEvent(eventToUpdate);
-
+    createOrUpdateEventProperties(event.getParameters(), updatedEvent);
     Set<AgendaEventModificationType> conferenceModifications = conferenceService.saveEventConferences(eventId, conferences);
     eventModifications.addModificationTypes(conferenceModifications);
 
@@ -1602,6 +1615,34 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                       .max((option1, option2) -> ObjectUtils.compare(option1.getEnd(), option2.getEnd()))
                       .map(EventDateOption::getEnd)
                       .orElse(null);
+  }
+
+  private void createOrUpdateEventProperties(Map<String, String> properties, Event event) {
+    if (properties == null) {
+      properties = new HashMap<>();
+    }
+    MetadataObject metadataObject = new MetadataObject(EVENT_METADATA_NAME, String.valueOf(event.getId()));
+    List<MetadataItem> metadataItems =
+        metadataService.getMetadataItemsByMetadataAndObject(EVENT_METADATA_KEY, metadataObject);
+    if (CollectionUtils.isEmpty(metadataItems)) {
+      try {
+        metadataService.createMetadataItem(metadataObject, EVENT_METADATA_KEY, properties, event.getCreatorId());
+      } catch (Exception e) {
+        LOG.error("Failed to save metadata for eventId={}, creatorId={}, properties={}. Operation continues without metadata.",
+                  event.getId(),
+                  event.getCreatorId(),
+                  properties,
+                  e);
+      }
+    } else {
+      MetadataItem metadataItem = metadataItems.getFirst();
+      Map<String, String> existingProperties = metadataItem.getProperties() != null
+          ? new HashMap<>(metadataItem.getProperties())
+          : new HashMap<>();
+      existingProperties.putAll(properties);
+      metadataItem.setProperties(existingProperties);
+      metadataService.updateMetadataItem(metadataItem, event.getModifierId());
+    }
   }
 
 }

@@ -1128,6 +1128,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     try {
       Event event = new Event();
+      event.setParameters(createdEvent.getParameters());
       event.setId(eventId);
       agendaEventService.updateEvent(event,
                                      Collections.emptyList(),
