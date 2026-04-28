@@ -28,13 +28,11 @@
    <portlet>
     <portlet-name>AgendaTimeline</portlet-name>
     <display-name xml:lang="EN">Agenda Timeline</display-name>
-    <portlet-class>org.exoplatform.commons.api.portlet.GenericDispatchedViewPortlet</portlet-class>
+    <portlet-class>org.exoplatform.agenda.portlet.AgendaTimelinePortlet</portlet-class>
     <init-param>
     <name>portlet-view-dispatched-file-path</name>
-    <value>/html/agenda-timeline.html</value>
+    <value>/WEB-INF/jsp/agendaTimeline.jsp</value>
     </init-param>
-    <expiration-cache>-1</expiration-cache>
-    <cache-scope>PUBLIC</cache-scope>
     <supports>
     <mime-type>text/html</mime-type>
     </supports>
@@ -44,6 +42,17 @@
       <title>Agenda Timeline</title>
       <keywords>Agenda Timeline</keywords>
     </portlet-info>
+       <portlet-preferences>
+           <preference>
+               <name>settings</name>
+               <value>
+                   {
+                   "selectedSpaces":[],
+                   "agendaSource":"",
+                   }
+               </value>
+           </preference>
+       </portlet-preferences>
    </portlet>
 
    <portlet>
