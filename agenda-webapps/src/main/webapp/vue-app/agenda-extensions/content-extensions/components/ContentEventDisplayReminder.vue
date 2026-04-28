@@ -176,15 +176,15 @@
               </v-btn>
             </div>
             <div
-              v-if="eventLocation && mdAndUp && showLocationMap"
+              v-if="showMap"
               class="mt-3 position-relative">
               <v-skeleton-loader
-                v-if="!mapLoaded"
+                v-if="geocoding || !mapLoaded"
                 type="image"
                 height="200"
                 class="border-radius" />
               <iframe
-                v-if="event && eventLocation"
+                v-if="mapEmbedUrl"
                 :src="mapEmbedUrl"
                 :title="$t('contentEvent.location.label')"
                 :class="mapLoaded ? '' : 'position-absolute t-0'"
@@ -218,7 +218,11 @@ export default {
       event: null,
       mapLoaded: false,
       loading: false,
-      eventToDelete: false
+      eventToDelete: false,
+      coords: null,
+      bbox: null,
+      geocoding: true,
+      geocodingFailed: false,
     };
   },
   props: {
@@ -233,6 +237,9 @@ export default {
   },
   inject: ['registerDeleteInterceptor', 'unregisterDeleteInterceptor'],
   computed: {
+    showMap() {
+      return !!this.eventLocation && this.mdAndUp && this.showLocationMap && !this.geocodingFailed && !this.geocoding;
+    },
     showLocationMap() {
       return this.event?.parameters?.showLocationMap === 'true';
     },
@@ -243,7 +250,14 @@ export default {
       return this.$vuetify.breakpoint.width <= this.$vuetify.breakpoint.thresholds.sm + this.customBreakPointThreshold;
     },
     mapEmbedUrl() {
-      return `https://maps.google.com/maps?q=${encodeURIComponent(this.eventLocation)}&output=embed`;
+      return this.coords
+        ? `https://www.openstreetmap.org/export/embed.html?bbox=${this.bbox}&layer=mapnik&marker=${this.coords.lat},${this.coords.lon}`
+        : null;
+    },
+    mapsUrl() {
+      return this.coords
+        ? `https://www.openstreetmap.org/?mlat=${this.coords.lat}&mlon=${this.coords.lon}#map=15/${this.coords.lat}/${this.coords.lon}`
+        : `https://www.openstreetmap.org/search?query=${encodeURIComponent(this.eventLocation)}`;
     },
     eventStart() {
       return this.event?.start;
@@ -312,9 +326,6 @@ export default {
       }
       return null;
     },
-    mapsUrl() {
-      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(this?.event.location)}`;
-    },
     eventUrl() {
       return `${eXo.env.portal.context}/${eXo.env.portal.portalName}/agenda?eventId=${this.event?.id}`;
     }
@@ -322,6 +333,16 @@ export default {
   watch: {
     eventLocation() {
       this.mapLoaded = false;
+      this.coords = null;
+      this.geocodingFailed = false;
+      if (this.eventLocation) {
+        this.geocode(this.eventLocation);
+      }
+    },
+    mapEmbedUrl(newVal) {
+      if (newVal) {
+        this.mapLoaded = false;
+      }
     }
   },
   created() {
@@ -342,6 +363,29 @@ export default {
     this.registerDeleteInterceptor(this.preDeleteInterceptor.bind(this));
   },
   methods: {
+    async geocode(location) {
+      this.geocoding = true;
+      this.geocodingFailed = false;
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1`;
+        const res = await fetch(url, {
+          headers: {'Accept-Language': eXo.env.portal.language}
+        });
+        const data = await res.json();
+        if (data?.length) {
+          const {lat, lon, boundingbox} = data[0];
+          this.coords = {
+            lat: parseFloat(lat),
+            lon: parseFloat(lon)
+          };
+          this.bbox = `${parseFloat(boundingbox[2])},${parseFloat(boundingbox[0])},${parseFloat(boundingbox[3])},${parseFloat(boundingbox[1])}`;
+        } else {
+          this.geocodingFailed = true;
+        }
+      } finally {
+        this.geocoding = false;
+      }
+    },
     async deleteEvent() {
       if (this.eventToDelete) {
         await this.$eventService.deleteEvent(this.eventId);
@@ -373,6 +417,9 @@ export default {
       this.event = null;
       try {
         this.event = await this.$eventService.getEventById(this.eventId, this.expand);
+        if (this.eventLocation) {
+          this.geocode(this.eventLocation);
+        }
       } finally {
         this.loading = false;
       }
