@@ -9,6 +9,29 @@
         :period-title="periodTitle" />  
     </div>
     <v-spacer />
+    <v-tooltip
+      v-if="!$root.isMobile && $root.hover && $root.canEdit"
+      max-width="300"
+      bottom>
+      <template #activator="{ on, attrs }">
+        <v-btn
+          id="agendaTimeLineSettingsButton"
+          small
+          icon
+          v-bind="attrs"
+          v-on="on"
+          @click="$root.$emit('open-agenda-timeline-settings')">
+          <v-icon size="20">fa-cog</v-icon>
+        </v-btn>
+      </template>
+      <span>
+        {{ $t('agenda.settings.button.tooltip') }}
+      </span>
+    </v-tooltip>
+    <agenda-pending-invitation-badge
+      :current-space="currentSpace"
+      :offset-y="18"
+      :offset-x="12" />
     <agenda-pending-invitation-badge
         :current-space="currentSpace"
         :offset-y="18"
