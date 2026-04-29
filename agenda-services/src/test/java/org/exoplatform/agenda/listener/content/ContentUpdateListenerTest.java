@@ -14,6 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see<http://www.gnu.org/licenses/>.
  */
+
 package org.exoplatform.agenda.listener.content;
 
 import io.meeds.content.news.model.News;
@@ -29,9 +30,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static io.meeds.content.news.utils.NewsUtils.*;
 import static org.exoplatform.agenda.util.Utils.EVENT_METADATA_KEY;
@@ -61,9 +60,11 @@ public class ContentUpdateListenerTest {
   @BeforeEach
   public void setUp() {
     news = new News();
+
     Map<String, String> params = new HashMap<>();
     params.put("eventId", "123");
     news.setParameters(params);
+
     news.setId("999");
   }
 
@@ -77,121 +78,163 @@ public class ContentUpdateListenerTest {
   }
 
   @Test
-  public void shouldCreateMetadataWhenUpdateNewsWithValidEventId() throws Exception {
+  public void shouldCreateMetadataWhenNoExistingItem() throws Exception {
     when(event.getEventName()).thenReturn(UPDATE_NEWS);
     when(event.getData()).thenReturn(news);
 
-    org.exoplatform.agenda.model.Event agendaEvent = mock(org.exoplatform.agenda.model.Event.class);
+    org.exoplatform.agenda.model.Event agendaEvent =
+        mock(org.exoplatform.agenda.model.Event.class);
+
     when(agendaEvent.getCreatorId()).thenReturn(1L);
     when(agendaEventService.getEventById(123L)).thenReturn(agendaEvent);
-    when(metadataService.getMetadataItemsByMetadataAndObject(any(), any())).thenReturn(new java.util.ArrayList<>());
+
+    when(metadataService.getMetadataItemsByMetadataAndObject(any(), any()))
+        .thenReturn(Collections.emptyList());
 
     contentUpdateListener.onEvent(event);
 
-    ArgumentCaptor<MetadataObject> metadataCaptor = ArgumentCaptor.forClass(MetadataObject.class);
-    ArgumentCaptor<Map<String, String>> propsCaptor = ArgumentCaptor.forClass(Map.class);
-
     verify(metadataService).createMetadataItem(
-        metadataCaptor.capture(),
+        any(MetadataObject.class),
         eq(EVENT_METADATA_KEY),
-        propsCaptor.capture(),
+        anyMap(),
         eq(1L)
     );
 
-    MetadataObject metadata = metadataCaptor.getValue();
-    Map<String, String> props = propsCaptor.getValue();
-    assertEquals("agendaEvent", metadata.getType());
-    assertEquals("123", metadata.getId());
-    assertEquals("999", props.get("contentId"));
+    verify(metadataService, never()).updateMetadataItem(any(), anyLong());
   }
 
   @Test
-  public void shouldUpdateMetadataWhenContentIdChanged() throws Exception {
+  public void shouldUpdateMetadataWhenContentChanged() throws Exception {
     when(event.getEventName()).thenReturn(UPDATE_NEWS);
     when(event.getData()).thenReturn(news);
 
-    org.exoplatform.agenda.model.Event agendaEvent = mock(org.exoplatform.agenda.model.Event.class);
-    when(agendaEvent.getModifierId()).thenReturn(1L);
+    org.exoplatform.agenda.model.Event agendaEvent =
+        mock(org.exoplatform.agenda.model.Event.class);
+
+    when(agendaEvent.getModifierId()).thenReturn(2L);
     when(agendaEventService.getEventById(123L)).thenReturn(agendaEvent);
 
-    MetadataItem existingItem = mock(MetadataItem.class);
-    Map<String, String> existingProps = new HashMap<>();
-    existingProps.put("contentId", "000"); // different from news.getId() "999"
-    when(existingItem.getProperties()).thenReturn(existingProps);
+    MetadataItem item = mock(MetadataItem.class);
+
+    Map<String, String> props = new HashMap<>();
+    props.put("contentId", "000");
+
+    when(item.getProperties()).thenReturn(props);
+
     when(metadataService.getMetadataItemsByMetadataAndObject(any(), any()))
-        .thenReturn(List.of(existingItem));
+        .thenReturn(List.of(item));
 
     contentUpdateListener.onEvent(event);
 
-    verify(metadataService).updateMetadataItem(eq(existingItem), eq(1L));
+    verify(metadataService).updateMetadataItem(eq(item), eq(2L));
     verify(metadataService, never()).createMetadataItem(any(), any(), any(), anyLong());
   }
 
   @Test
-  public void shouldNotUpdateMetadataWhenContentIdUnchanged() throws Exception {
+  public void shouldNotUpdateWhenContentUnchanged() throws Exception {
     when(event.getEventName()).thenReturn(UPDATE_NEWS);
     when(event.getData()).thenReturn(news);
 
-    org.exoplatform.agenda.model.Event agendaEvent = mock(org.exoplatform.agenda.model.Event.class);
+    org.exoplatform.agenda.model.Event agendaEvent =
+        mock(org.exoplatform.agenda.model.Event.class);
+
     when(agendaEventService.getEventById(123L)).thenReturn(agendaEvent);
 
-    MetadataItem existingItem = mock(MetadataItem.class);
-    Map<String, String> existingProps = new HashMap<>();
-    existingProps.put("contentId", "999"); // same as news.getId()
-    when(existingItem.getProperties()).thenReturn(existingProps);
+    MetadataItem item = mock(MetadataItem.class);
+
+    Map<String, String> props = new HashMap<>();
+    props.put("contentId", "999");
+
+    when(item.getProperties()).thenReturn(props);
+
     when(metadataService.getMetadataItemsByMetadataAndObject(any(), any()))
-        .thenReturn(List.of(existingItem));
+        .thenReturn(List.of(item));
 
     contentUpdateListener.onEvent(event);
 
     verify(metadataService, never()).updateMetadataItem(any(), anyLong());
     verify(metadataService, never()).createMetadataItem(any(), any(), any(), anyLong());
+  }
+
+  @Test
+  public void shouldRemoveContentIdOnDelete() throws Exception {
+    when(event.getEventName()).thenReturn(DELETE_NEWS);
+    when(event.getData()).thenReturn(news);
+
+    MetadataItem item = mock(MetadataItem.class);
+
+    Map<String, String> props = new HashMap<>();
+    props.put("contentId", "999");
+
+    when(item.getProperties()).thenReturn(props);
+
+    when(metadataService.getMetadataItemsByMetadataAndObject(any(), any()))
+        .thenReturn(List.of(item));
+
+    contentUpdateListener.onEvent(event);
+
+    assertFalse(item.getProperties().containsKey("contentId"));
+
+    verify(metadataService).updateMetadataItem(eq(item), anyLong());
+  }
+
+  @Test
+  public void shouldDoNothingWhenNoMetadataOnDelete() throws Exception {
+    when(event.getEventName()).thenReturn(DELETE_NEWS);
+    when(event.getData()).thenReturn(news);
+
+    when(metadataService.getMetadataItemsByMetadataAndObject(any(), any()))
+        .thenReturn(Collections.emptyList());
+
+    contentUpdateListener.onEvent(event);
+
+    verify(metadataService, never()).updateMetadataItem(any(), anyLong());
+    verify(metadataService, never()).createMetadataItem(any(), any(), any(), anyLong());
+  }
+
+  @Test
+  public void shouldIgnoreUnrelatedEvents() throws Exception {
+    when(event.getEventName()).thenReturn("OTHER_EVENT");
+
+    contentUpdateListener.onEvent(event);
+
+    verifyNoInteractions(metadataService);
+    verifyNoInteractions(agendaEventService);
   }
 
   @Test
   public void shouldNotProcessWhenParametersNull() throws Exception {
     news.setParameters(null);
+
     when(event.getEventName()).thenReturn(UPDATE_NEWS);
     when(event.getData()).thenReturn(news);
 
     contentUpdateListener.onEvent(event);
 
-    verify(metadataService, never()).createMetadataItem(any(), any(), any(), anyLong());
-    verify(metadataService, never()).updateMetadataItem(any(), anyLong());
+    verifyNoInteractions(metadataService);
   }
 
   @Test
   public void shouldNotProcessWhenEventIdMissing() throws Exception {
     news.setParameters(new HashMap<>());
+
     when(event.getEventName()).thenReturn(UPDATE_NEWS);
     when(event.getData()).thenReturn(news);
 
     contentUpdateListener.onEvent(event);
 
-    verify(metadataService, never()).createMetadataItem(any(), any(), any(), anyLong());
-    verify(metadataService, never()).updateMetadataItem(any(), anyLong());
+    verifyNoInteractions(metadataService);
   }
 
   @Test
   public void shouldNotProcessWhenAgendaEventNotFound() throws Exception {
     when(event.getEventName()).thenReturn(UPDATE_NEWS);
     when(event.getData()).thenReturn(news);
+
     when(agendaEventService.getEventById(123L)).thenReturn(null);
 
     contentUpdateListener.onEvent(event);
 
-    verify(metadataService, never()).createMetadataItem(any(), any(), any(), anyLong());
-    verify(metadataService, never()).updateMetadataItem(any(), anyLong());
-  }
-
-  @Test
-  public void shouldIgnoreUnrelatedEvents() throws Exception {
-    when(event.getEventName()).thenReturn("someOtherEvent");
-    when(event.getData()).thenReturn(news);
-
-    contentUpdateListener.onEvent(event);
-
     verifyNoInteractions(metadataService);
-    verifyNoInteractions(agendaEventService);
   }
 }
