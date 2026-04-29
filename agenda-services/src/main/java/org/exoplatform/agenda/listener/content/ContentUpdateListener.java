@@ -28,14 +28,13 @@ import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.social.metadata.MetadataService;
 import org.exoplatform.social.metadata.model.MetadataItem;
 import org.exoplatform.social.metadata.model.MetadataObject;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
 
-import static io.meeds.content.news.utils.NewsUtils.UPDATE_NEWS;
 import static io.meeds.content.news.utils.NewsUtils.DELETE_NEWS;
+import static io.meeds.content.news.utils.NewsUtils.UPDATE_NEWS;
 import static org.exoplatform.agenda.util.Utils.*;
 
 @Asynchronous
@@ -60,32 +59,69 @@ public class ContentUpdateListener extends Listener<String, News> {
 
   @Override
   public void onEvent(Event<String, News> event) throws Exception {
+    String eventName = event.getEventName();
+    if (!eventName.equalsIgnoreCase(UPDATE_NEWS) && !eventName.equalsIgnoreCase(DELETE_NEWS)) {
+      return;
+    }
+
     News news = event.getData();
-    if (event.getEventName().equalsIgnoreCase(UPDATE_NEWS)) {
-      Map<String, String> parameters = news.getParameters();
-      if (parameters == null || !parameters.containsKey(EVENT_ID)) {
+    Map<String, String> parameters = news.getParameters();
+    if (parameters == null || !parameters.containsKey(EVENT_ID)) {
+      return;
+    }
+
+    long eventId = Long.parseLong(parameters.get(EVENT_ID));
+    MetadataObject metadataObject = new MetadataObject(EVENT_METADATA_NAME, String.valueOf(eventId));
+
+    if (eventName.equalsIgnoreCase(DELETE_NEWS)) {
+      List<MetadataItem> metadataItems =
+          metadataService.getMetadataItemsByMetadataAndObject(EVENT_METADATA_KEY, metadataObject);
+      handleDeleteNews(news, metadataItems);
+    } else {
+      org.exoplatform.agenda.model.Event agendaEvent = agendaEventService.getEventById(eventId);
+      if (agendaEvent == null) {
         return;
       }
-      long eventId = Long.parseLong(parameters.get(EVENT_ID));
-      org.exoplatform.agenda.model.Event agendaEvent = agendaEventService.getEventById(eventId);
-      if (agendaEvent != null) {
-        MetadataObject metadataObject = new MetadataObject(EVENT_METADATA_NAME, String.valueOf(eventId));
-        Map<String, String> properties = Map.of(CONTENT_ID, String.valueOf(news.getId()));
-        List<MetadataItem> metadataItems =
-            metadataService.getMetadataItemsByMetadataAndObject(EVENT_METADATA_KEY, metadataObject);
-        if (CollectionUtils.isEmpty(metadataItems)) {
-          metadataService.createMetadataItem(metadataObject, EVENT_METADATA_KEY, properties, agendaEvent.getCreatorId());
-        } else {
-          MetadataItem metadataItem = metadataItems.getFirst();
-          Map<String, String> existingProperties = metadataItem.getProperties();
-          if (!existingProperties.containsKey(CONTENT_ID)
-              || !existingProperties.get(CONTENT_ID).equals(String.valueOf(news.getId()))) {
-            existingProperties.putAll(properties);
-            metadataItem.setProperties(existingProperties);
-            metadataService.updateMetadataItem(metadataItem, agendaEvent.getModifierId());
-          }
-        }
+      List<MetadataItem> metadataItems =
+          metadataService.getMetadataItemsByMetadataAndObject(EVENT_METADATA_KEY, metadataObject);
+      handleUpdateNews(news, agendaEvent, metadataObject, metadataItems);
+    }
+  }
+
+  private void handleUpdateNews(News news,
+                                org.exoplatform.agenda.model.Event agendaEvent,
+                                MetadataObject metadataObject,
+                                List<MetadataItem> metadataItems) throws Exception {
+    Map<String, String> properties = Map.of(CONTENT_ID, String.valueOf(news.getId()));
+    if (CollectionUtils.isEmpty(metadataItems)) {
+      metadataService.createMetadataItem(metadataObject, EVENT_METADATA_KEY, properties, agendaEvent.getCreatorId());
+    } else {
+      MetadataItem metadataItem = metadataItems.getFirst();
+      Map<String, String> existingProperties = metadataItem.getProperties();
+      if (!existingProperties.containsKey(CONTENT_ID)
+          || !existingProperties.get(CONTENT_ID).equals(String.valueOf(news.getId()))) {
+        existingProperties.putAll(properties);
+        metadataItem.setProperties(existingProperties);
+        metadataService.updateMetadataItem(metadataItem, getModifierOrCreatorId(agendaEvent));
       }
     }
+  }
+
+  private void handleDeleteNews(News news, List<MetadataItem> metadataItems) throws Exception {
+    if (CollectionUtils.isEmpty(metadataItems)) {
+      return;
+    }
+    MetadataItem metadataItem = metadataItems.getFirst();
+    Map<String, String> existingProperties = metadataItem.getProperties();
+    if (existingProperties.containsKey(CONTENT_ID)
+        && existingProperties.get(CONTENT_ID).equals(String.valueOf(news.getId()))) {
+      existingProperties.remove(CONTENT_ID);
+      metadataItem.setProperties(existingProperties);
+      metadataService.updateMetadataItem(metadataItem, metadataItem.getCreatorId());
+    }
+  }
+
+  private long getModifierOrCreatorId(org.exoplatform.agenda.model.Event agendaEvent) {
+    return agendaEvent.getModifierId() != 0 ? agendaEvent.getModifierId() : agendaEvent.getCreatorId();
   }
 }
