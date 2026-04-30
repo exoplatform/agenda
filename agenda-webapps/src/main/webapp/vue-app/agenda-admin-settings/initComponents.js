@@ -1,9 +1,12 @@
 import AgendaAdminSettings from './components/AgendaAdminSettings.vue';
 import AgendaAdminConnectorSettings from './components/AgendaAdminConnectorSettings.vue';
+import AgendaAdminEmbedMapSettings from './components/AgendaAdminEmbedMapSettings.vue';
+
 
 const components = {
   'agenda-admin-settings': AgendaAdminSettings,
   'agenda-admin-connector-settings': AgendaAdminConnectorSettings,
+  'agenda-admin-embed-map-settings': AgendaAdminEmbedMapSettings
 };
 
 for (const key in components) {

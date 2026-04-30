@@ -28,7 +28,9 @@ public class AgendaUserSettingsServiceImpl implements AgendaUserSettingsService 
 
   private static final String          AGENDA_USER_SETTING_KEY        = "AgendaSettings";
 
-  private static final String          TIMEZONE                   = "user.timeZone";
+  private static final String          TIMEZONE                       = "user.timeZone";
+
+  private static final String          EMBED_MAP_PROVIDER_KEY         = "embedMapProvider";
 
   private AgendaEventConferenceService agendaEventConferenceService;
 
@@ -150,6 +152,34 @@ public class AgendaUserSettingsServiceImpl implements AgendaUserSettingsService 
   @Override
   public List<EventReminderParameter> getDefaultReminders() {
     return Collections.unmodifiableList(defaultReminders);
+  }
+
+  @Override
+  public String getEmbedMapProvider() {
+    SettingValue<?> settingValue = this.settingService.get(Context.GLOBAL,
+                                                           AGENDA_USER_SETTING_SCOPE,
+                                                           EMBED_MAP_PROVIDER_KEY);
+    return settingValue != null && settingValue.getValue() != null
+        ? settingValue.getValue().toString()
+        : null;
+  }
+
+  @Override
+  public void saveEmbedMapProvider(String providerId) {
+    if (StringUtils.isBlank(providerId)) {
+      throw new IllegalArgumentException("providerId is mandatory");
+    }
+    this.settingService.set(Context.GLOBAL,
+                            AGENDA_USER_SETTING_SCOPE,
+                            EMBED_MAP_PROVIDER_KEY,
+                            SettingValue.create(providerId));
+  }
+
+  @Override
+  public void removeEmbedMapProvider() {
+    this.settingService.remove(Context.GLOBAL,
+                               AGENDA_USER_SETTING_SCOPE,
+                               EMBED_MAP_PROVIDER_KEY);
   }
 
 }
