@@ -51,4 +51,27 @@ public interface AgendaUserSettingsService {
    */
   void updateUserTimeZone(String userName, String timeZone) throws ObjectNotFoundException;
 
+  /**
+   * Retrieves the globally configured embed map provider identifier.
+   * This setting is shared across all users of the platform.
+   *
+   * @return the provider id (e.g. {@code "google-maps"} or {@code "openStreet-map"}),
+   *         or {@code null} if no provider has been explicitly configured
+   */
+  String getEmbedMapProvider();
+
+  /**
+   * Saves the globally configured embed map provider identifier.
+   * This setting is shared across all users of the platform.
+   *
+   * @param providerId the identifier of the map provider to use, must not be blank
+   * @throws IllegalArgumentException if {@code providerId} is blank
+   */
+  void saveEmbedMapProvider(String providerId);
+
+  /**
+   * Removes the globally configured embed map provider setting.
+   * After this call, {@link #getEmbedMapProvider()} will return {@code null}.
+   */
+  void removeEmbedMapProvider();
 }

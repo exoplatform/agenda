@@ -14,17 +14,6 @@
  You should have received a copy of the GNU Affero General Public License
  along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
-import './initComponents.js';
 import {registerExtensions} from './extensions.js';
 
-const lang = eXo && eXo.env.portal.language || 'en';
-
-const urls = [
-  `/agenda/i18n/locale.portlet.Agenda?lang=${lang}`,
-  `/agenda/i18n/locale.portlet.ContentExtension?lang=${lang}`];
-
-export async function init() {
-  await exoi18n.loadLanguageAsync(lang, urls);
-  registerExtensions();
-  Vue.prototype.$utils.includeExtensions('EmbedMapExtensions');
-}
+registerExtensions();

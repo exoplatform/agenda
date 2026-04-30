@@ -223,6 +223,8 @@ export default {
       bbox: null,
       geocoding: true,
       geocodingFailed: false,
+      geocodeResult: null,
+      activeMapProvider: null,
     };
   },
   props: {
@@ -238,7 +240,12 @@ export default {
   inject: ['registerDeleteInterceptor', 'unregisterDeleteInterceptor'],
   computed: {
     showMap() {
-      return !!this.eventLocation && this.mdAndUp && this.showLocationMap && !this.geocodingFailed && !this.geocoding;
+      return !!this.activeMapProvider
+          && !!this.eventLocation
+          && this.mdAndUp
+          && this.showLocationMap
+          && !this.geocodingFailed
+          && !this.geocoding;
     },
     showLocationMap() {
       return this.event?.parameters?.showLocationMap === 'true';
@@ -250,14 +257,16 @@ export default {
       return this.$vuetify.breakpoint.width <= this.$vuetify.breakpoint.thresholds.sm + this.customBreakPointThreshold;
     },
     mapEmbedUrl() {
-      return this.coords
-        ? `https://www.openstreetmap.org/export/embed.html?bbox=${this.bbox}&layer=mapnik&marker=${this.coords.lat},${this.coords.lon}`
-        : null;
+      if (!this.activeMapProvider || !this.geocodeResult) {
+        return null;
+      }
+      return this.activeMapProvider.mapEmbedUrl(this.geocodeResult);
     },
     mapsUrl() {
-      return this.coords
-        ? `https://www.openstreetmap.org/?mlat=${this.coords.lat}&mlon=${this.coords.lon}#map=15/${this.coords.lat}/${this.coords.lon}`
-        : `https://www.openstreetmap.org/search?query=${encodeURIComponent(this.eventLocation)}`;
+      if (!this.activeMapProvider) {
+        return null;
+      }
+      return this.activeMapProvider.mapsUrl(this.geocodeResult || { location: this.eventLocation });
     },
     eventStart() {
       return this.event?.start;
@@ -334,6 +343,7 @@ export default {
     eventLocation() {
       this.mapLoaded = false;
       this.coords = null;
+      this.geocodeResult = null;
       this.geocodingFailed = false;
       if (this.eventLocation) {
         this.geocode(this.eventLocation);
@@ -345,7 +355,8 @@ export default {
       }
     }
   },
-  created() {
+  async created() {
+    await this.loadActiveMapProvider();
     this.init();
     this.$root.$on('confirm-news-deletion', this.deleteEvent);
 
@@ -363,22 +374,28 @@ export default {
     this.registerDeleteInterceptor(this.preDeleteInterceptor.bind(this));
   },
   methods: {
+    async loadActiveMapProvider() {
+      const settings = await this.$settingsService.getUserSettings();
+      const savedProviderId = settings?.embedMapProvider;
+
+      const providers = extensionRegistry.loadExtensions('EmbedMapProviders', 'embedMapProviders');
+      const sorted = providers
+        .filter(p => p.enabled())
+        .sort((a, b) => a.rank - b.rank);
+
+      this.activeMapProvider = (savedProviderId
+              && sorted.find(p => p.id === savedProviderId)) || null;
+    },
     async geocode(location) {
+      if (!this.activeMapProvider?.geocode) {
+        return;
+      }
       this.geocoding = true;
       this.geocodingFailed = false;
       try {
-        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1`;
-        const res = await fetch(url, {
-          headers: {'Accept-Language': eXo.env.portal.language}
-        });
-        const data = await res.json();
-        if (data?.length) {
-          const {lat, lon, boundingbox} = data[0];
-          this.coords = {
-            lat: parseFloat(lat),
-            lon: parseFloat(lon)
-          };
-          this.bbox = `${parseFloat(boundingbox[2])},${parseFloat(boundingbox[0])},${parseFloat(boundingbox[3])},${parseFloat(boundingbox[1])}`;
+        const result = await this.activeMapProvider.geocode(location, eXo.env.portal.language);
+        if (result) {
+          this.geocodeResult = result;
         } else {
           this.geocodingFailed = true;
         }

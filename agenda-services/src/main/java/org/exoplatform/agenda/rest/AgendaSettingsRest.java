@@ -69,6 +69,7 @@ public class AgendaSettingsRest implements ResourceContainer {
     try {
       long identityId = Long.parseLong(currentUserIdentity.getId());
       AgendaUserSettings agendaUserSettings = agendaUserSettingsService.getAgendaUserSettings(identityId);
+      agendaUserSettings.setEmbedMapProvider(agendaUserSettingsService.getEmbedMapProvider());
       String cometdToken = agendaWebSocketService.getUserToken(currentUserIdentity.getRemoteId());
       agendaUserSettings.setCometdToken(cometdToken);
       agendaUserSettings.setCometdContextName(agendaWebSocketService.getCometdContextName());
@@ -341,6 +342,50 @@ public class AgendaSettingsRest implements ResourceContainer {
       return Response.noContent().build();
     } catch (Exception e) {
       LOG.warn("Error deleting agenda connector settings for user with id '{}'", identityId, e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
+  @Path("embedMapProvider")
+  @PATCH
+  @RolesAllowed("administrators")
+  @Operation(
+    summary = "Saves the embed map provider to use globally",
+    method = "PATCH")
+  @ApiResponses(
+    value = {
+      @ApiResponse(responseCode = "204", description = "Request fulfilled"),
+      @ApiResponse(responseCode = "400", description = "Bad request"),
+      @ApiResponse(responseCode = "500", description = "Internal server error"),
+    })
+  public Response saveEmbedMapProvider(@Parameter(description = "Map provider id", required = true)
+                                       @FormParam("providerId") String providerId) {
+    if (StringUtils.isBlank(providerId)) {
+      return Response.status(Status.BAD_REQUEST).entity("'providerId' parameter is mandatory").build();
+    }
+    try {
+      agendaUserSettingsService.saveEmbedMapProvider(providerId);
+      return Response.noContent().build();
+    } catch (Exception e) {
+      LOG.warn("Error saving embed map provider '{}'", providerId, e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
+  @Path("embedMapProvider")
+  @DELETE
+  @RolesAllowed("administrators")
+  @Operation(summary = "Removes the globally configured embed map provider", method = "DELETE")
+  @ApiResponses(value = {
+    @ApiResponse(responseCode = "204", description = "Request fulfilled"),
+    @ApiResponse(responseCode = "500", description = "Internal server error"),
+  })
+  public Response removeEmbedMapProvider() {
+    try {
+      agendaUserSettingsService.removeEmbedMapProvider();
+      return Response.noContent().build();
+    } catch (Exception e) {
+      LOG.warn("Error removing embed map provider", e);
       return Response.serverError().entity(e.getMessage()).build();
     }
   }

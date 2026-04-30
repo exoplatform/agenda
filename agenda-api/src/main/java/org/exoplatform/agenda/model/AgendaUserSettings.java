@@ -55,6 +55,8 @@ public class AgendaUserSettings implements Cloneable {
 
   private boolean                      showRemoteEventsForTimeLine         = false;
 
+  private String                       embedMapProvider;
+
   public AgendaUserSettings(String cometdToken,
                             String agendaDefaultView,
                             String agendaWeekStartOn,
