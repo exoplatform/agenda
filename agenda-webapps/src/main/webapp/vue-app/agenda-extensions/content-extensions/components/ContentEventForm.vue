@@ -172,7 +172,7 @@
           hide-details
           required />
         <v-switch
-          v-if="event?.location?.length"
+          v-if="hasActiveMapProvider && event?.location?.length"
           v-model="showLocationMap"
           :label="$t('contentEvent.display.embedded.map.label')"
           :ripple="false"
@@ -249,7 +249,8 @@ export default {
       minStartTime: startTime,
       minEndTime: endTime,
       isEventEditor: false,
-      eventToDelete: false
+      eventToDelete: false,
+      activeMapProvider: null,
     };
   },
   props: {
@@ -268,6 +269,7 @@ export default {
   },
   inject: ['registerExtensionContext', 'notifyExtensionUpdated'],
   created() {
+    this.loadActiveMapProvider();
     this.updateEditorExtensionFlag();
     this.init();
     document.addEventListener('content-event-removed', this.eventRemoved);
@@ -324,6 +326,9 @@ export default {
     }
   },
   computed: {
+    hasActiveMapProvider() {
+      return !!this.activeMapProvider;
+    },
     showLocationMap: {
       get() {
         const value = this.event?.parameters?.showLocationMap;
@@ -546,6 +551,10 @@ export default {
       const params = new URLSearchParams(window.location.search);
       this.isEventEditor = params.get('extensionType') === 'event';
       this.eventTypeEnabled = this.isEventEditor;
+    },
+    async loadActiveMapProvider() {
+      const settings = await this.$settingsService.getUserSettings();
+      this.activeMapProvider = settings?.embedMapProvider;
     }
   }
 };

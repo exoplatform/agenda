@@ -37,6 +37,7 @@ const config = {
     contentPublishExtensions: './src/main/webapp/vue-app/agenda-extensions/content-extensions/main.js',
     eventActivityStreamExtensions: './src/main/webapp/vue-app/agenda-extensions/activity-stream-extensions/main.js',
     eventContentEditorExtensions: './src/main/webapp/vue-app/agenda-extensions/editor-extensions/main.js',
+    agendaEmbedMapExtensions: './src/main/webapp/vue-app/agenda-extensions/embed-map-extensions/main.js'
   },
   output: {
     path: path.join(__dirname, 'target/agenda/'),

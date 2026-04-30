@@ -34,5 +34,6 @@ export function init() {
   }).finally(() => {
     Vue.prototype.$utils.includeExtensions('VisioConnector');
     Vue.prototype.$utils.includeExtensions('ConnectorsExtensions');
+    Vue.prototype.$utils.includeExtensions('EmbedMapExtensions');
   });
 }

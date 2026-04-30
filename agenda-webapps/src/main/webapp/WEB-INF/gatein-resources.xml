@@ -373,4 +373,28 @@
     </depends>
   </module>
 
+  <module>
+    <name>AgendaEmbedMapExtensions</name>
+    <load-group>baseGRP</load-group>
+    <script>
+      <minify>false</minify>
+      <path>/js/agendaEmbedMapExtensions.bundle.js</path>
+    </script>
+    <depends>
+      <module>vue</module>
+    </depends>
+    <depends>
+      <module>vuetify</module>
+    </depends>
+    <depends>
+      <module>eXoVueI18n</module>
+    </depends>
+    <depends>
+      <module>extensionRegistry</module>
+    </depends>
+    <depends>
+      <module>commonVueComponents</module>
+    </depends>
+  </module>
+
 </gatein-resources>

@@ -25,13 +25,21 @@ import org.exoplatform.agenda.constant.ReminderPeriodType;
 import org.exoplatform.agenda.model.AgendaUserSettings;
 import org.exoplatform.agenda.model.EventReminderParameter;
 import org.exoplatform.agenda.model.RemoteProvider;
+import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.services.organization.OrganizationService;
 import org.exoplatform.services.organization.UserProfile;
+import org.junit.After;
 import org.junit.Test;
 
 public class AgendaUserSettingsServiceTest extends BaseAgendaEventTest {
 
+  @After
+  @Override
+  public void tearDown() throws ObjectNotFoundException {
+    super.tearDown();
+    agendaUserSettingsService.removeEmbedMapProvider();
+  }
 
   @Test
   public void testDefaultSettings() throws Exception { // NOSONAR
@@ -108,4 +116,35 @@ public class AgendaUserSettingsServiceTest extends BaseAgendaEventTest {
     assertEquals("UTC", userProfile.getAttribute("user.timeZone"));
   }
 
+  @Test
+  public void testGetEmbedMapProviderWhenNotSet() {
+    String embedMapProvider = agendaUserSettingsService.getEmbedMapProvider();
+    assertNull(embedMapProvider);
+  }
+
+  @Test
+  public void testSaveAndGetEmbedMapProvider() {
+    agendaUserSettingsService.saveEmbedMapProvider("google-maps");
+
+    String storedProviderId = agendaUserSettingsService.getEmbedMapProvider();
+    assertEquals("google-maps", storedProviderId);
+  }
+
+  @Test
+  public void testSaveEmbedMapProviderOverridesExisting() {
+    agendaUserSettingsService.saveEmbedMapProvider("google-maps");
+    agendaUserSettingsService.saveEmbedMapProvider("openStreet-map");
+
+    String storedProviderId = agendaUserSettingsService.getEmbedMapProvider();
+    assertEquals("openStreet-map", storedProviderId);
+  }
+
+  @Test
+  public void testRemoveEmbedMapProvider() {
+    agendaUserSettingsService.saveEmbedMapProvider("google-maps");
+    agendaUserSettingsService.removeEmbedMapProvider();
+
+    String storedProviderId = agendaUserSettingsService.getEmbedMapProvider();
+    assertNull(storedProviderId);
+  }
 }
