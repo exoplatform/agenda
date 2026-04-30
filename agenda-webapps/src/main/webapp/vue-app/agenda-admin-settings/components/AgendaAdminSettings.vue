@@ -1,6 +1,7 @@
 <template>
   <v-app class="connectorsAdminSettings">
     <v-main class="application-body pa-5">
+      <agenda-admin-embed-map-settings :settings="settings" />
       <agenda-admin-connector-settings :settings="settings" />
     </v-main>
   </v-app>

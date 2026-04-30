@@ -170,3 +170,32 @@ export function getUserSettings() {
     return resp;
   });
 }
+
+export function saveEmbedMapProvider(providerId) {
+  const formData = new FormData();
+  formData.append('providerId', providerId);
+
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/settings/embedMapProvider`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams(formData).toString(),
+  }).then(resp => {
+    if (!resp?.ok) {
+      throw new Error('Response code indicates a server error', resp);
+    }
+  });
+}
+
+export function removeEmbedMapProvider() {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/settings/embedMapProvider`, {
+    method: 'DELETE',
+    credentials: 'include',
+  }).then(resp => {
+    if (!resp || !resp.ok) {
+      throw new Error('Response code indicates a server error', resp);
+    }
+  });
+}
