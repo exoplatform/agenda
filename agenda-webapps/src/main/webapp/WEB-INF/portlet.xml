@@ -49,6 +49,7 @@
                    {
                    "selectedSpaces":[],
                    "agendaSource":"",
+                   "customHeader":false,
                    }
                </value>
            </preference>

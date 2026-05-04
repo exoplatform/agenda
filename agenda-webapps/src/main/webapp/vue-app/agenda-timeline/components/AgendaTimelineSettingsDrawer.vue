@@ -30,6 +30,34 @@
     <template v-if="drawer" #content>
       <div class="pa-5" flat>
         <div class="d-flex flex-column mb-1">
+          <div class="mb-3 text-header">{{ $t('agenda.timeline.settings.drawer.label.displayOptions') }}</div>
+          <div class="mb-2 font-weight-bold">{{ $t('agenda.timeline.settings.drawer.label.headerOptions') }}</div>
+          <div class="d-flex my-2 align-center justify-space-between">
+            <label class="v-label text-color align-start">
+              {{ $t('agenda.timeline.settings.drawer.label.updateHeader') }}
+            </label>
+            <div class="align-end">
+              <v-switch
+                v-model="timelineSettings.customHeader"
+                color="primary"
+                class="pa-0 my-auto"
+                hide-details />
+            </div>
+          </div>
+          <translation-text-field
+            v-if="timelineSettings.customHeader"
+            :object-id="$root.settingName"
+            :object-type="objectType"
+            :field-name="fieldName"
+            :field-value="displayedValue"
+            :drawer-title="$t('agenda.timeline.settings.header.translation.title')"
+            class="mt-2"
+            no-expand-icon
+            back-icon
+            required
+            @input="translationUpdated" />
+        </div>
+        <div class="d-flex flex-column mb-1">
           <div class="mb-3 text-header">{{ $t('agenda.timeline.settings.drawer.label.management') }}</div>
           <div class="mb-2 font-weight-bold">{{ $t('agenda.settings.drawer.label.source') }}</div>
           <v-radio-group
@@ -83,14 +111,22 @@ export default {
   data: () => ({
     drawer: false,
     saving: false,
+    objectType: 'agendaTimeline',
+    fieldName: 'headerTitle',
+    translations: [],
+    userLocale: eXo.env.portal.language,
+    translationsInitialized: false,
+    transUpdated: false,
+    currentTranslations: [],
     timelineSettings: {
       agendaSource: 'allUsersSpaces',
-      selectedSpaces: []
+      selectedSpaces: [],
+      customHeader: false,
     },
   }),
   computed: {
     modified() {
-      return JSON.stringify(this.timelineSettings) !== JSON.stringify(this.$root.timelineSettings) && (this.timelineSettings.agendaSource === 'selectedSpaces' ? this.timelineSettings.selectedSpaces.length > 0 : true);
+      return JSON.stringify(this.timelineSettings) !== JSON.stringify(this.$root.timelineSettings) && (this.timelineSettings.agendaSource === 'selectedSpaces' ? this.timelineSettings.selectedSpaces.length > 0 : true) || this.transUpdated;
     },
     showSuggester() {
       return this.timelineSettings.agendaSource === 'selectedSpaces';
@@ -101,7 +137,10 @@ export default {
         placeholder: this.$t('agenda.chooseCalendar'),
         noDataLabel: this.$t('agenda.noDataLabel'),
       };
-    }
+    },
+    displayedValue() {
+      return this.translations?.[this.userLocale];
+    },
   },
   created() {
     this.$root.$on('open-agenda-timeline-settings', this.open);
@@ -147,6 +186,7 @@ export default {
     },
     async save() {
       this.saving = true;
+      this.saveHeaderTranslations();
       try { 
         if (this.timelineSettings.agendaSource === 'allUsersSpaces') {
           this.timelineSettings.selectedSpaces = [];
@@ -172,6 +212,22 @@ export default {
         }
       } finally {
         this.saving = false;
+        this.transUpdated = false;
+      }
+    },
+    async saveHeaderTranslations() {
+      if (this.timelineSettings.customHeader) {
+        await this.$translationService.saveTranslations(this.objectType, this.$root.settingName, this.fieldName, this.translations);
+        this.currentTranslations = structuredClone(this.translations);
+      }
+    },
+    translationUpdated(translations) {
+      this.translations = translations;
+      if (!this.translationsInitialized) {
+        this.currentTranslations = structuredClone(this.translations);
+        this.translationsInitialized = true;
+      } else {
+        this.transUpdated=true;
       }
     },
   },
