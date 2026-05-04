@@ -2,7 +2,7 @@
   <div class="agenda-timeline-header d-flex align-center justify-space-between">
     <div class="d-flex align-center">
       <a :href="agendaBaseLink" class="widget-text-header my-auto me-auto">
-        {{ $t('agenda') }}
+        {{ headerTitle }}
       </a>
       <agenda-period-selector
         v-if="!$root.isTimelineView"
@@ -29,9 +29,9 @@
       </span>
     </v-tooltip>
     <agenda-pending-invitation-badge
-        :current-space="currentSpace"
-        :offset-y="18"
-        :offset-x="12" />
+      :current-space="currentSpace"
+      :offset-y="18"
+      :offset-x="12" />
     <agenda-connect-to-remote-button
       :connectors="connectors"
       :settings="settings"
@@ -90,6 +90,9 @@ export default {
     initialized: false,
   }),
   computed: {
+    headerTitle() {
+      return this.$root.timelineSettings.customHeader && this.$root.headerTitle!=='null' ? this.$root.headerTitle : this.$t('agenda');
+    },
     displayButton() {
       return (!this.$root.isMobile || this.canCreateEvent) && (this.initialized || !eXo.env.portal.spaceId);
     },
