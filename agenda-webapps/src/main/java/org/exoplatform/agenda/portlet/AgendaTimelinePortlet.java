@@ -20,6 +20,8 @@ import java.io.IOException;
 
 import javax.portlet.*;
 
+import io.meeds.social.portlet.CMSPortlet;
+import io.meeds.social.translation.service.TranslationService;
 import org.exoplatform.commons.api.portlet.GenericDispatchedViewPortlet;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.portal.config.UserACL;
@@ -30,14 +32,32 @@ import org.exoplatform.social.core.space.model.Space;
 
 import io.meeds.social.space.plugin.SpaceAclPlugin;
 
-public class AgendaTimelinePortlet extends GenericDispatchedViewPortlet {
+public class AgendaTimelinePortlet extends CMSPortlet {
 
+  private static final String OBJECT_TYPE       = "agendaTimeline";
+  private static final String HEADER_FIELD_NAME = "headerTitle";
   private UserACL userAcl;
 
+  private TranslationService translationService;
+
   @Override
-  protected void doView(RenderRequest request, RenderResponse response) throws PortletException, IOException {
+  public void init(PortletConfig config) throws PortletException {
+    super.init(config);
+    this.contentType = OBJECT_TYPE;
+  }
+
+  @Override
+  public void doView(RenderRequest request, RenderResponse response) throws PortletException, IOException {
     boolean canModifySettings = canModifySettings();
     request.setAttribute("canEdit", canModifySettings);
+    String name = request.getPreferences().getValue("name", null);
+    String headerTitle = getTranslationService().getTranslationLabelOrDefault(OBJECT_TYPE,
+            name,
+            HEADER_FIELD_NAME,
+            request.getLocale());
+    if (headerTitle != null) {
+      request.setAttribute(HEADER_FIELD_NAME, headerTitle);
+    }
     super.doView(request, response);
   }
 
@@ -73,6 +93,13 @@ public class AgendaTimelinePortlet extends GenericDispatchedViewPortlet {
       userAcl = ExoContainerContext.getService(UserACL.class);
     }
     return userAcl;
+  }
+
+  public TranslationService getTranslationService() {
+    if (translationService == null) {
+      translationService = ExoContainerContext.getService(TranslationService.class);
+    }
+    return translationService;
   }
 
 }
