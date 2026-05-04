@@ -21,7 +21,7 @@ const lang = eXo && eXo.env.portal.language || 'en';
 //should expose the locale ressources as REST API 
 const url = `${eXo.env.portal.context}/${eXo.env.portal.rest}/i18n/bundle/locale.portlet.Agenda-${lang}.json`;
 
-export function init(appId, canEdit, settings, settingsSaveUrl) {
+export function init(appId, canEdit, settings, settingsSaveUrl, settingName, headerTitle) {
   exoi18n.loadLanguageAsync(lang, url).then(i18n => {
   // init Vue app when locale ressources are ready
     const eventType = eXo.env.portal.spaceId ? 'allEvents' : 'myEvents';
@@ -33,6 +33,8 @@ export function init(appId, canEdit, settings, settingsSaveUrl) {
           timelineSettings: settings,
           settingsSaveUrl,
           canEdit,
+          settingName,
+          headerTitle
         };
       },
       mounted() {
@@ -52,8 +54,8 @@ export function init(appId, canEdit, settings, settingsSaveUrl) {
       },
       computed: {
         isMobile() {
-          return this.$vuetify.breakpoint.smAndDown;          
-        },       
+          return this.$vuetify.breakpoint.smAndDown;
+        },
         isTimelineView() {
           return this.isMobile ? true : this.bodyElementWidth < this.$vuetify.breakpoint.thresholds.sm;
         },
