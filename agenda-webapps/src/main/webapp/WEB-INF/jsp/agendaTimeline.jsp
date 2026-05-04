@@ -16,6 +16,10 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 %>
+<%@ page import="javax.portlet.PortletPreferences" %>
+<%@ page import="org.exoplatform.portal.localization.LocaleContextInfoUtils" %>
+<%@ page import="org.apache.commons.text.StringEscapeUtils" %>
+
 <%@taglib uri="http://java.sun.com/portlet_2_0" prefix="portlet" %>
 <portlet:defineObjects />
 <portlet:actionURL var="saveSettingsUrl" />
@@ -25,6 +29,9 @@
   String domId = "AgendaTimelineApplication" + portletId;
   boolean canEdit = (boolean) request.getAttribute("canEdit");
   Object settings = (String[]) request.getAttribute("settings");
+  String settingName = (String) request.getAttribute("settingName");
+  String headerTitle = (String) request.getAttribute("headerTitle");
+  headerTitle = headerTitle == null ? null : String.format("'%s'", StringEscapeUtils.escapeJava(headerTitle).replace("\\\"", "\"").replace("\\\\\"", "\\\""));
   if (settings != null) {
     settings = ((String[]) settings)[0];
   }
@@ -34,7 +41,7 @@
 <div class="VuetifyApp">
   <div id="<%=domId%>">
     <script type="text/javascript">
-      require(['PORTLET/agenda/AgendaTimeline'], app => app.init('<%=domId%>', <%=canEdit%>, <%=settings%>, '<%=saveSettingsUrl%>'));
+      require(['PORTLET/agenda/AgendaTimeline'], app => app.init('<%=domId%>', <%=canEdit%>, <%=settings%>, '<%=saveSettingsUrl%>', '<%=settingName%>', <%=headerTitle%>));
     </script>
   </div>
 </div>
