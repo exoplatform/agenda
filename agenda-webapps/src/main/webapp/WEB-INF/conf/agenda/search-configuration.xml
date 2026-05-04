@@ -54,6 +54,9 @@
             <field name="name">
               <string>events</string>
             </field>
+            <field name="contentType">
+              <string>agendaEvent</string>
+            </field>
             <field name="uri">
               <string><![CDATA[/portal/rest/v1/agenda/events/search?limit={limit}&query={keyword}&expand=response]]></string>
             </field>
