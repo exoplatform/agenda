@@ -52,6 +52,7 @@
                    "customHeader":false,
                    "displaySeeMore":false,
                    "seeMoreUrl":"",
+                   "displayPending":true,
                    }
                </value>
            </preference>
