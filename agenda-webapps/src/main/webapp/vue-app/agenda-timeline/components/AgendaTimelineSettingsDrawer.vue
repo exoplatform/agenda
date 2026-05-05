@@ -76,6 +76,19 @@
             class="mb-1 pt-2"
             outlined
             dense />
+          <div class="d-flex my-2 align-center justify-space-between">
+            <label for="displayPendingSwitch" class="v-label text-color align-start">
+              {{ $t('agenda.timeline.settings.drawer.label.displayPending') }}
+            </label>
+            <div class="align-end">
+              <v-switch
+                id="displayPendingSwitch"
+                v-model="timelineSettings.displayPending"
+                color="primary"
+                class="pa-0 my-auto"
+                hide-details />
+            </div>
+          </div>  
         </div>
         <div class="d-flex flex-column mb-1">
           <div class="mb-3 text-header">{{ $t('agenda.timeline.settings.drawer.label.management') }}</div>
@@ -198,6 +211,9 @@ export default {
         }  else {
           this.timelineSettings.agendaSource =   'allUsersSpaces';
         }     
+      }
+      if (this.timelineSettings.displayPending !== false) {
+        this.timelineSettings.displayPending = true;
       }
       this.$refs.drawer.open();
     },

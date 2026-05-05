@@ -3,9 +3,8 @@
     v-if="pendingInvitationsCount > 0"
     :title="$t('agenda.pendingInvitations')"
     icon
-    max-width="36"
-    max-height="36"
-    class="me-2"
+    max-width="28"
+    max-height="28"
     @click="openPendingInvitationsDrawer()">
     <v-badge
       :value="pendingInvitationsCount"
