@@ -50,6 +50,8 @@
                    "selectedSpaces":[],
                    "agendaSource":"",
                    "customHeader":false,
+                   "displaySeeMore":false,
+                   "seeMoreUrl":"",
                    }
                </value>
            </preference>
