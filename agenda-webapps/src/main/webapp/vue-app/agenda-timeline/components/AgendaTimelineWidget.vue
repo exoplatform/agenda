@@ -1,7 +1,7 @@
 <template>
   <v-app class="agenda-application" flat>
     <v-hover v-model="$root.hover">
-      <v-card class="d-flex flex-column application-body position-static pa-5 border-box-sizing" flat>
+      <v-card class="d-flex flex-column application-body position-static border-box-sizing" flat>
         <agenda-timeline-header
           :current-space="currentSpace"
           :current-calendar="currentCalendar"

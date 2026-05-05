@@ -1,9 +1,9 @@
 <template>
-  <div class="agenda-timeline-header d-flex align-center justify-space-between">
+  <div class="agenda-timeline-header d-flex align-center justify-space-between px-5 pt-5">
     <div class="d-flex align-center">
-      <a :href="agendaBaseLink" class="widget-text-header my-auto me-auto">
+      <div class="widget-text-header my-auto me-auto">
         {{ headerTitle }}
-      </a>
+      </div>
       <agenda-period-selector
         v-if="!$root.isTimelineView"
         :period-title="periodTitle" />  
@@ -21,11 +21,30 @@
           v-bind="attrs"
           v-on="on"
           @click="$root.$emit('open-agenda-timeline-settings')">
-          <v-icon size="20">fa-cog</v-icon>
+          <v-icon size="18">fa-cog</v-icon>
         </v-btn>
       </template>
       <span>
         {{ $t('agenda.settings.button.tooltip') }}
+      </span>
+    </v-tooltip>
+    <v-tooltip
+      v-if="!$root.isMobile && $root.hover && displaySeeMore"
+      max-width="300"
+      bottom>
+      <template #activator="{ on, attrs }">
+        <v-btn
+          id="agendaTimeLinerxtarnalLinkButton"
+          small
+          icon
+          v-bind="attrs"
+          v-on="on"
+          @click="openSeeMoreLink">
+          <v-icon size="18">fa-external-link-alt</v-icon>
+        </v-btn>
+      </template>
+      <span>
+        {{ $t('agenda.timeline.openExternalLink') }}
       </span>
     </v-tooltip>
     <agenda-pending-invitation-badge
@@ -52,6 +71,16 @@
         </v-icon>
       </v-btn>
     </div>
+    <v-btn
+      v-if="displaySeeMore && ($root.isMobile || !$root.hover)"
+      ref="moreButton"
+      class="flex-shrink-0 flex-grow-0 px-0 ps-3"
+      color="primary"
+      height="28"
+      text
+      @click="openSeeMoreLink">
+      {{ $t('agenda.timeline.seeMore') }}
+    </v-btn>
   </div>
 </template>
 <script>
@@ -96,6 +125,9 @@ export default {
     displayButton() {
       return (!this.$root.isMobile || this.canCreateEvent) && (this.initialized || !eXo.env.portal.spaceId);
     },
+    displaySeeMore() {
+      return this.$root.timelineSettings.displaySeeMore && this.$root.timelineSettings.seeMoreUrl;
+    },
     canCreateEvent() {
       return !this.currentCalendar || !this.currentCalendar.acl || this.currentCalendar.acl.canCreate;
     },
@@ -126,6 +158,12 @@ export default {
     },
     openPersonalCalendarDrawer() {
       this.$root.$emit('agenda-connectors-drawer-open');
+    },
+    openSeeMoreLink () {
+      const url = this.$root.timelineSettings.seeMoreUrl;
+      if (url) {
+        window.open(url, '_blank');
+      }
     },
   },
 };
