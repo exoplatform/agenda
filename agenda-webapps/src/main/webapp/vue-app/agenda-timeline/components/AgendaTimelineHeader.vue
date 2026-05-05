@@ -16,12 +16,13 @@
       <template #activator="{ on, attrs }">
         <v-btn
           id="agendaTimeLineSettingsButton"
-          small
+          max-width="36"
+          max-height="36"
           icon
           v-bind="attrs"
           v-on="on"
           @click="$root.$emit('open-agenda-timeline-settings')">
-          <v-icon size="18">fa-cog</v-icon>
+          <v-icon size="20">fa-cog</v-icon>
         </v-btn>
       </template>
       <span>
@@ -35,12 +36,13 @@
       <template #activator="{ on, attrs }">
         <v-btn
           id="agendaTimeLinerxtarnalLinkButton"
-          small
           icon
+          max-width="36"
+          max-height="36"
           v-bind="attrs"
           v-on="on"
           @click="openSeeMoreLink">
-          <v-icon size="18">fa-external-link-alt</v-icon>
+          <v-icon size="20">fa-external-link-alt</v-icon>
         </v-btn>
       </template>
       <span>
@@ -48,10 +50,14 @@
       </span>
     </v-tooltip>
     <agenda-pending-invitation-badge
+      v-if="displayPendingEvents"
       :current-space="currentSpace"
       :offset-y="18"
       :offset-x="12" />
     <agenda-connect-to-remote-button
+      width="36"
+      height="36"
+      size="20"
       :connectors="connectors"
       :settings="settings"
       :show-default-remote-events="showDefaultRemoteEvents" /> 
@@ -64,9 +70,10 @@
         :title="$t('agenda.button.addEvent')"
         icon
         class="ms-auto"
-        small
+        max-width="36"
+        max-height="36"
         @click="openEventForm">
-        <v-icon size="18" class="icon-default-color icon-default-size">
+        <v-icon size="20" class="icon-default-color icon-default-size">
           fas fa-plus
         </v-icon>
       </v-btn>
@@ -127,6 +134,9 @@ export default {
     },
     displaySeeMore() {
       return this.$root.timelineSettings.displaySeeMore && this.$root.timelineSettings.seeMoreUrl;
+    },
+    displayPendingEvents() {
+      return this.$root.timelineSettings.displayPending;
     },
     canCreateEvent() {
       return !this.currentCalendar || !this.currentCalendar.acl || this.currentCalendar.acl.canCreate;
