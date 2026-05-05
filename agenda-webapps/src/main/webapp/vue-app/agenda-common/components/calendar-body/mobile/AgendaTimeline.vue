@@ -1,5 +1,5 @@
 <template>
-  <v-flex v-if="events && events.length" class="agenda-timeline">
+  <v-flex v-if="events && events.length" class="agenda-timeline pa-5">
     <template>
       <v-list
         v-for="month in eventsMonths"
