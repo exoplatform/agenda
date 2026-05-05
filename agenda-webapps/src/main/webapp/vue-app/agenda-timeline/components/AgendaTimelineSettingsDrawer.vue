@@ -56,6 +56,26 @@
             back-icon
             required
             @input="translationUpdated" />
+            
+          <div class="d-flex my-2 align-center justify-space-between">
+            <label class="v-label text-color align-start">
+              {{ $t('agenda.timeline.settings.drawer.label.seeMore') }}
+            </label>
+            <div class="align-end">
+              <v-switch
+                v-model="timelineSettings.displaySeeMore"
+                color="primary"
+                class="pa-0 my-auto"
+                hide-details />
+            </div>
+          </div>
+          <v-text-field
+            v-if="timelineSettings.displaySeeMore"
+            v-model="timelineSettings.seeMoreUrl"
+            type="text"
+            class="mb-1 pt-2"
+            outlined
+            dense />
         </div>
         <div class="d-flex flex-column mb-1">
           <div class="mb-3 text-header">{{ $t('agenda.timeline.settings.drawer.label.management') }}</div>
