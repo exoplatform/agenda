@@ -73,6 +73,8 @@
           <v-text-field
             v-if="timelineSettings.displaySeeMore"
             v-model="timelineSettings.seeMoreUrl"
+            :placeholder="$t('agenda.timeline.settings.drawer.seeMoreUrl.placeholder')"
+            :rules="rules.url"
             type="text"
             class="mb-1 pt-2"
             outlined
@@ -129,7 +131,7 @@
           {{ $t('agenda.button.cancel') }}
         </v-btn>
         <v-btn
-          :disabled="!modified"
+          :disabled="disabled"
           :loading="saving"
           class="btn btn-primary"
           elevation="0"
@@ -157,8 +159,12 @@ export default {
       selectedSpaces: [],
       customHeader: false,
     },
+    valid: true,
   }),
   computed: {
+    disabled() {
+      return (this.timelineSettings.displaySeeMore && !this.isValidLink) || !this.modified;
+    },
     modified() {
       return JSON.stringify(this.timelineSettings) !== JSON.stringify(this.$root.timelineSettings) && (this.timelineSettings.agendaSource === 'selectedSpaces' ? this.timelineSettings.selectedSpaces.length > 0 : true) || this.transUpdated;
     },
@@ -174,6 +180,24 @@ export default {
     },
     displayedValue() {
       return this.translations?.[this.userLocale];
+    },
+    isValidLink() {
+      try {
+        return this.timelineSettings.seeMoreUrl && this.timelineSettings.seeMoreUrl !=='' && this.$utils.toLinkUrl(this.timelineSettings.seeMoreUrl, {
+          urls: true,
+          email: true,
+          phone: true,
+        })?.length;
+      } catch (e) {
+        return false;
+      }
+    },
+    rules() {
+      return {
+        url: [
+          () => this.isValidLink || this.$t('agenda.timeline.settings.drawer.invalidLink'),
+        ],
+      };
     },
   },
   created() {
