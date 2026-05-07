@@ -34,7 +34,7 @@
           <div class="mb-2 font-weight-bold">{{ $t('agenda.timeline.settings.drawer.label.headerOptions') }}</div>
           <div class="d-flex my-2 align-center justify-space-between">
             <label class="v-label text-color align-start">
-              {{ $t('agenda.timeline.settings.drawer.label.addTitle') }}
+              {{ $t('agenda.timeline.settings.drawer.label.updateTitle') }}
             </label>
             <div class="align-end">
               <v-switch
@@ -46,6 +46,7 @@
           </div>
           <translation-text-field
             v-if="timelineSettings.customHeader"
+            :placeholder="$t('agenda.timeline.settings.drawer.title.placeholder')"
             :object-id="$root.settingName"
             :object-type="objectType"
             :field-name="fieldName"

@@ -8,47 +8,31 @@
         v-if="!$root.isTimelineView"
         :period-title="periodTitle" />  
     </div>
-    <v-spacer />
-    <v-tooltip
+    <v-spacer />   
+    <v-btn
       v-if="!$root.isMobile && $root.hover && $root.canEdit"
-      max-width="300"
-      bottom>
-      <template #activator="{ on, attrs }">
-        <v-btn
-          id="agendaTimeLineSettingsButton"
-          max-width="28"
-          max-height="28"
-          icon
-          v-bind="attrs"
-          v-on="on"
-          @click="$root.$emit('open-agenda-timeline-settings')">
-          <v-icon size="20">fa-cog</v-icon>
-        </v-btn>
-      </template>
-      <span>
-        {{ $t('agenda.settings.button.tooltip') }}
-      </span>
-    </v-tooltip>
-    <v-tooltip
+      id="agendaTimeLineSettingsButton"
+      :title="$t('agenda.settings.button.tooltip')"
+      max-width="28"
+      max-height="28"
+      icon
+      v-bind="attrs"
+      v-on="on"
+      @click="$root.$emit('open-agenda-timeline-settings')">
+      <v-icon size="20">fa-cog</v-icon>
+    </v-btn>
+    <v-btn
       v-if="!$root.isMobile && $root.hover && displaySeeMore"
-      max-width="300"
-      bottom>
-      <template #activator="{ on, attrs }">
-        <v-btn
-          id="agendaTimeLinerxtarnalLinkButton"
-          icon
-          max-width="28"
-          max-height="28"
-          v-bind="attrs"
-          v-on="on"
-          @click="openSeeMoreLink">
-          <v-icon size="20">fa-external-link-alt</v-icon>
-        </v-btn>
-      </template>
-      <span>
-        {{ $t('agenda.timeline.openExternalLink') }}
-      </span>
-    </v-tooltip>
+      id="agendaTimeLinerxtarnalLinkButton"
+      :title="$t('agenda.timeline.openExternalLink')"
+      icon
+      max-width="28"
+      max-height="28"
+      v-bind="attrs"
+      v-on="on"
+      @click="openSeeMoreLink">
+      <v-icon size="20">fa-external-link-alt</v-icon>
+    </v-btn>
     <agenda-pending-invitation-badge
       v-if="displayPendingEvents"
       :current-space="currentSpace"
