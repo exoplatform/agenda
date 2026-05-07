@@ -68,6 +68,15 @@ export function registerExtensions() {
     }
   });
 
+  extensionRegistry.registerComponent('ContentList', 'content-event-date', {
+    id: 'content-card-event-date',
+    vueComponent: Vue.options.components['content-card-event-date-chip'],
+    rank: 1,
+    isEnabled: (params) => {
+      return !!params?.eventId;
+    }
+  });
+
   document.dispatchEvent(new CustomEvent('content-publication-extensions-updated'));
 }
 

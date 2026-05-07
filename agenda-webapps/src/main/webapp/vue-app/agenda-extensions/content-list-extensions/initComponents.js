@@ -14,12 +14,10 @@
  You should have received a copy of the GNU Affero General Public License
  along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
-import ContentEventForm from './components/ContentEventForm.vue';
-import ContentEventDisplayReminder from './components/ContentEventDisplayReminder.vue';
+import ContentCardEventDateChip from './components/ContentCardEventDateChip.vue';
 
 const components = {
-  'content-event-form': ContentEventForm,
-  'content-event-display-reminder': ContentEventDisplayReminder
+  'content-card-event-date-chip': ContentCardEventDateChip,
 };
 
 for (const key in components) {
