@@ -14,14 +14,14 @@
  You should have received a copy of the GNU Affero General Public License
  along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
-import '../content-publication-extensions/initComponents.js';
-import {registerExtensions} from './extensions.js';
-
-const lang = eXo && eXo.env.portal.language || 'en';
-
-const url = `/agenda/i18n/locale.portlet.ContentEditorExtension?lang=${lang}`;
-
-export async function init() {
-  const i18n = await exoi18n.loadLanguageAsync(lang, url);
-  registerExtensions(i18n);
+export function registerExtensions() {
+  extensionRegistry.registerComponent('ContentList', 'content-event-date', {
+    id: 'content-card-event-date',
+    vueComponent: Vue.options.components['content-card-event-date-chip'],
+    rank: 1,
+    isEnabled: () => {
+      return true;
+    }
+  });
 }
+
