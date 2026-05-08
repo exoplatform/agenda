@@ -397,4 +397,27 @@
     </depends>
   </module>
 
+  <module>
+    <name>agendaContentListExtensions</name>
+    <load-group>contentGRP</load-group>
+    <script>
+      <path>/js/contentListExtensions.bundle.js</path>
+    </script>
+    <depends>
+      <module>AgendaCommon</module>
+    </depends>
+    <depends>
+      <module>vue</module>
+    </depends>
+    <depends>
+      <module>vuetify</module>
+    </depends>
+    <depends>
+      <module>eXoVueI18n</module>
+    </depends>
+    <depends>
+      <module>extensionRegistry</module>
+    </depends>
+  </module>
+
 </gatein-resources>
