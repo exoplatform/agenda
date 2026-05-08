@@ -34,10 +34,11 @@ const config = {
     agendaEventContentLinkExtension: './src/main/webapp/vue-app/content-link/extensions.js',
     agendaBaseExtension: './src/main/webapp/vue-app/agenda-base-extension/main.js',
     agendaSpaceAdministration: './src/main/webapp/vue-app/agenda-space-administration/main.js',
-    contentPublishExtensions: './src/main/webapp/vue-app/agenda-extensions/content-extensions/main.js',
+    contentPublishExtensions: './src/main/webapp/vue-app/agenda-extensions/content-publication-extensions/main.js',
     eventActivityStreamExtensions: './src/main/webapp/vue-app/agenda-extensions/activity-stream-extensions/main.js',
     eventContentEditorExtensions: './src/main/webapp/vue-app/agenda-extensions/editor-extensions/main.js',
-    agendaEmbedMapExtensions: './src/main/webapp/vue-app/agenda-extensions/embed-map-extensions/main.js'
+    agendaEmbedMapExtensions: './src/main/webapp/vue-app/agenda-extensions/embed-map-extensions/main.js',
+    contentListExtensions: './src/main/webapp/vue-app/agenda-extensions/content-list-extensions/main.js',
   },
   output: {
     path: path.join(__dirname, 'target/agenda/'),
