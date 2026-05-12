@@ -2,10 +2,12 @@
   <exo-identity-suggester
     ref="calendarOwnerSuggester"
     v-model="calendarOwner"
+    :items="selectedSpaces"
     :labels="calendarSuggesterLabels"
     :include-users="false"
-    :disabled="currentSpace"
+    :disabled="currentSpace || selectedSpaces.length === 1"
     :width="220"
+    :include-only-items="selectedSpaces.length > 1"
     name="calendarOwnerAutocomplete"
     class="user-suggester calendarOwnerAutocomplete"
     include-spaces
@@ -32,6 +34,9 @@ export default {
     };
   },
   computed: {
+    selectedSpaces() {
+      return this.$root.timelineSettings?.agendaSource === 'selectedSpaces' && this.$root.timelineSettings?.selectedSpaces?.length > 0 ? this.$root.timelineSettings?.selectedSpaces : [];
+    },
     calendarSuggesterLabels() {
       return {
         searchPlaceholder: this.$t('agenda.searchPlaceholder'),
@@ -105,6 +110,12 @@ export default {
           this.$emit('initialized');
         }, 200);
       } else { // In case of new event
+        if (this.$root.timelineSettings?.agendaSource === 'selectedSpaces' && this.$root.timelineSettings?.selectedSpaces?.length === 1) {
+          this.calendarOwner = this.$root.timelineSettings.selectedSpaces[0];
+          if (this.$refs.calendarOwnerSuggester) {
+            this.$refs.calendarOwnerSuggester.items = [this.calendarOwner];
+          }
+        } else
         if (this.currentSpace) {
           this.calendarOwner = this.event.calendar.owner = {
             id: `space:${this.currentSpace.prettyName}`,
