@@ -298,6 +298,9 @@ export default {
       this.loading = true;
       const userIdentityId = this.eventType === 'myEvents' && eXo.env.portal.userIdentityId || null;
       const responseTypes = ['ACCEPTED','TENTATIVE'];
+      if (!this.$root.isTimelineView){
+        this.limit = null;
+      }
       return this.$eventService.getEvents(this.searchTerm, this.ownerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, false), this.$agendaUtils.toRFC3339(this.period.end), this.limit, responseTypes, 'attendees,conferences')
         .then(data => {
           const events = data && data.events || [];
