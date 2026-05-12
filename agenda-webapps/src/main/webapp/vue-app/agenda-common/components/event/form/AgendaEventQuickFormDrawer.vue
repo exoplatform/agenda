@@ -265,6 +265,13 @@ export default {
       this.event.startDate = this.$agendaUtils.toRFC3339(this.event.startDate);
       this.event.endDate = this.$agendaUtils.toRFC3339(this.event.endDate);
 
+      if (!this.event.start) {
+        this.event.start = this.event.startDate || this.$agendaUtils.toRFC3339(new Date());
+      }
+      if (!this.event.end) {
+        this.event.end = this.event.endDate || this.$agendaUtils.toRFC3339(new Date());
+      }
+
       this.$eventService.createEvent(this.event)
         .then(event => {
           this.$root.$emit('agenda-event-saved', event);

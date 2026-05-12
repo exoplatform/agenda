@@ -441,7 +441,7 @@ export default {
       }
     },
     calendarMouseDown(params) {
-      if (!params || params.event || !this.canCreateEvent) {
+      if (!params || params.event || !this.canCreateEvent || (this.$root.timelineSettings && this.$root.timelineSettings.displayAddEvent === false)) {
         return;
       }
       if (this.dragEvent) {
@@ -487,6 +487,7 @@ export default {
     },
     calendarMouseUp() {
       this.mouseDown = false;
+
       if (this.quickEvent) {
         if (!this.quickEvent.added) {
           this.quickEvent.added = true;
