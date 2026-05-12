@@ -408,7 +408,7 @@ export default {
       }
     },
     retrieveRemoteEvents() {
-      if (this.connectorStatus === 1) {
+      if (this.settingsLoaded && this.connectorStatus === 1) {
         const startDateRFC3359 = this.$agendaUtils.toRFC3339(this.period.start, false, true);
         const endDateRFC3359 = this.$agendaUtils.toRFC3339(this.period.end, false, true);
         this.loading = true;
