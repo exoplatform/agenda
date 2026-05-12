@@ -111,7 +111,7 @@ export default {
       return this.$root.timelineSettings.customHeader && this.$root.headerTitle!=='null' ? this.$root.headerTitle : this.$t('agenda');
     },
     displayButton() {
-      return (!this.$root.isMobile || this.canCreateEvent) && (this.initialized || !eXo.env.portal.spaceId);
+      return this.$root.timelineSettings.displayAddEvent !== false  &&  (!this.$root.isMobile || this.canCreateEvent) && (this.initialized || !eXo.env.portal.spaceId);
     },
     displaySeeMore() {
       return this.$root.timelineSettings.displaySeeMore && this.$root.timelineSettings.seeMoreUrl;
