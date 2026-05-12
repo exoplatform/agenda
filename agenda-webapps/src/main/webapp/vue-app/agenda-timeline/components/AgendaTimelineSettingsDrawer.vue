@@ -91,6 +91,18 @@
                 class="pa-0 my-auto"
                 hide-details />
             </div>
+          </div>
+          <div class="d-flex my-2 align-center justify-space-between">
+            <label class="v-label text-color align-start">
+              {{ $t('agenda.timeline.settings.drawer.label.displayAddEvent') }}
+            </label>
+            <div class="align-end">
+              <v-switch
+                v-model="timelineSettings.displayAddEvent"
+                color="primary"
+                class="pa-0 my-auto"
+                hide-details />
+            </div>
           </div>  
         </div>
         <div class="d-flex flex-column mb-1">
@@ -159,7 +171,6 @@ export default {
       selectedSpaces: [],
       customHeader: false,
     },
-    valid: true,
   }),
   computed: {
     disabled() {
@@ -239,6 +250,9 @@ export default {
       }
       if (this.timelineSettings.displayPending !== false) {
         this.timelineSettings.displayPending = true;
+      }
+      if (this.timelineSettings.displayAddEvent !== false) {
+        this.timelineSettings.displayAddEvent = true;
       }
       this.$refs.drawer.open();
     },
