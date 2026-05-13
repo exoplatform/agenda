@@ -294,6 +294,8 @@ export default {
       if (this.timelineSettings.customHeader) {
         await this.$translationService.saveTranslations(this.objectType, this.$root.settingName, this.fieldName, this.translations);
         this.currentTranslations = structuredClone(this.translations);
+        const lang = eXo && eXo.env.portal.language || 'en';
+        this.$root.headerTitle = this.translations?.[lang] || this.translations?.['en'] || '';
       }
     },
     translationUpdated(translations) {
