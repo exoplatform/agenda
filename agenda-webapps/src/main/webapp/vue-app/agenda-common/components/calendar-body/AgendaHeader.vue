@@ -22,7 +22,9 @@
       <agenda-pending-invitation-badge
         :current-space="currentSpace"
         :offset-x="offsetX"
-        :offset-y="offsetY" />
+        :offset-y="offsetY"
+        width="36"
+        height="36"/>
       <extension-registry-components
         :params="params"
         name="AgendaApp"
