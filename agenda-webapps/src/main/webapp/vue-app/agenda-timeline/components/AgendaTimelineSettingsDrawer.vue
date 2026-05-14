@@ -121,16 +121,16 @@
         </div>
         <div class="d-flex flex-column mb-1">
           <div class="mb-3 text-header">{{ $t('agenda.timeline.settings.drawer.label.management') }}</div>
-          <div class="mb-2 font-weight-bold">{{ $t('agenda.settings.drawer.label.source') }}</div>
+          <div class="mb-2 font-weight-bold">{{ $t('agenda.timeline.settings.drawer.label.source') }}</div>
           <v-radio-group
             v-model="timelineSettings.agendaSource"
             class="pa-0 ma-0 ms-n1 full-width"
             mandatory>
             <v-radio
-              :label="$t('agenda.label.allUsersSpaces')"
+              :label="$t('agenda.timeline.settings.label.allUsersSpaces')"
               value="allUsersSpaces" />
             <v-radio
-              :label="$t('agenda.label.selectedSpaces')"
+              :label="$t('agenda.timeline.settings.label.selectedSpaces')"
               value="selectedSpaces" />
           </v-radio-group>
           <exo-identity-suggester
@@ -145,6 +145,18 @@
             include-spaces
             multiple
             only-redactor />
+          <div class="mb-2 font-weight-bold">{{ $t('agenda.timeline.settings.drawer.label.agendaFilter') }}</div>
+          <v-radio-group
+            v-model="timelineSettings.agendaFilter"
+            class="pa-0 ma-0 ms-n1 full-width"
+            mandatory>
+            <v-radio
+              :label="$t('agenda.timeline.settings.label.allEvents')"
+              value="allEvents" />
+            <v-radio
+              :label="$t('agenda.timeline.settings.label.acceptedEvents')"
+              value="acceptedEvents" />
+          </v-radio-group>  
         </div>
       </div>
     </template>
