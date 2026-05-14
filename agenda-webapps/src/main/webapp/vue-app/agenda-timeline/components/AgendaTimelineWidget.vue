@@ -55,12 +55,6 @@
 </template>
 <script>
 export default {
-  props: {
-    eventType: {
-      type: String,
-      default: () => 'myEvents',
-    }
-  },
   data: () => ({
     initialized: false,
     currentSpace: null,
@@ -146,9 +140,6 @@ export default {
   },
   watch: {
     limit() {
-      this.retrieveEvents();
-    },
-    eventType() {
       this.retrieveEvents();
     },
     initialized() {
@@ -295,8 +286,8 @@ export default {
     },
     retrieveEventsFromStore() {
       this.loading = true;
-      const userIdentityId = this.eventType === 'myEvents' && eXo.env.portal.userIdentityId || null;
-      const responseTypes = ['ACCEPTED','TENTATIVE'];
+      const userIdentityId = this.$root.timelineSettings.agendaFilter === 'acceptedEvents' && eXo.env.portal.userIdentityId || null;
+      const responseTypes = this.$root.timelineSettings.agendaFilter === 'acceptedEvents' ? ['ACCEPTED'] : ['ACCEPTED', 'NEEDS_ACTION', 'TENTATIVE'];
       return this.$eventService.getEvents(this.searchTerm, this.ownerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, false), this.$agendaUtils.toRFC3339(this.period.end), this.limit, responseTypes, 'attendees,conferences')
         .then(data => {
           const events = data && data.events || [];
