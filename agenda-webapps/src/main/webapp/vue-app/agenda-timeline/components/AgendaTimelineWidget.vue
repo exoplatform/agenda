@@ -70,7 +70,6 @@ export default {
     connectors: [],
     displayedEvent: [],
     periodStart: new Date(),
-    limit: 10,
     period: {
       start: new Date(),
       end: null,
@@ -141,6 +140,9 @@ export default {
     showDefaultRemoteEvents() {
       return this.settings && this.settings.showRemoteEventsForTimeLine;
     },
+    limit() {
+      return !this.$root.isTimelineView ? null : this.$root.timelineSettings?.itemsNumber ? this.$root.timelineSettings.itemsNumber : eXo.env.portal.spaceId ? 5 : 10;
+    },
   },
   watch: {
     limit() {
@@ -189,9 +191,6 @@ export default {
       this.period = period;
       this.periodTitle = this.generateCalendarTitle(period);
     });
-    if (eXo.env.portal.spaceId) {
-      this.limit = 5;
-    }
     this.retrieveEvents().finally(() => document.dispatchEvent(new CustomEvent('hideTopBarLoading')));
     this.$root.$on('agenda-settings-refresh', this.initSettings);
     this.$root.$on('agenda-refresh', this.retrieveEvents);
@@ -298,9 +297,6 @@ export default {
       this.loading = true;
       const userIdentityId = this.eventType === 'myEvents' && eXo.env.portal.userIdentityId || null;
       const responseTypes = ['ACCEPTED','TENTATIVE'];
-      if (!this.$root.isTimelineView){
-        this.limit = null;
-      }
       return this.$eventService.getEvents(this.searchTerm, this.ownerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, false), this.$agendaUtils.toRFC3339(this.period.end), this.limit, responseTypes, 'attendees,conferences')
         .then(data => {
           const events = data && data.events || [];
