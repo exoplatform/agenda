@@ -16,30 +16,32 @@
 -->
 
 <template>
-  <div class="d-flex align-center position-relative width-fit-content">
+  <div
+    :class="parentExtraClass"
+    class="d-flex align-center position-relative width-fit-content">
     <template v-for="(date, i) in dates">
       <v-sheet
         :key="i"
-        width="48"
-        height="48"
-        class="d-flex flex-column align-center pa-2"
-        :class="{
+        :width="chipSize"
+        :height="chipSize"
+        class="d-flex flex-column align-center"
+        :class="[chipExtraClass, {
           'primary white--text': i === 0 ,
-          'background-grey-primary': i === 1,
+          'background-grey-primary text-color': i === 1,
           'rounded-tr': i === 1 || dates?.length === 1
-        }">
-        <span class="text-font-size font-weight-bold">
+        }]">
+        <span class="font-weight-bold">
           {{ date.day }}
         </span>
-        <span class="caption text-capitalize">
+        <span class="text-subtitle-font-size text-capitalize">
           {{ date.month }}
         </span>
       </v-sheet>
       <v-icon
         v-if="i === 0 && dates.length > 1"
         :key="`chevron-${i}`"
-        class="absolute-all-center white-background border-radius-circle text-color"
-        small>
+        :size="chipArrowSize"
+        class="absolute-all-center white-background border-radius-circle text-color">
         mdi-chevron-right
       </v-icon>
     </template>
@@ -59,6 +61,22 @@ export default {
       type: Object,
       default: null,
     },
+    chipSize: {
+      type: Number,
+      default: 48,
+    },
+    chipExtraClass: {
+      type: String,
+      default: 'text-font-size pa-2'
+    },
+    chipArrowSize: {
+      type: Number,
+      default: 16
+    },
+    parentExtraClass: {
+      type: String,
+      default: ''
+    }
   },
   created() {
     this.init();
