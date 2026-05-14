@@ -31,7 +31,7 @@
       <div class="pa-5" flat>
         <div class="d-flex flex-column mb-1">
           <div class="mb-3 text-header">{{ $t('agenda.timeline.settings.drawer.label.displayOptions') }}</div>
-          <div class="mb-2 font-weight-bold">{{ $t('agenda.timeline.settings.drawer.label.headerOptions') }}</div>
+          <div class="font-weight-bold">{{ $t('agenda.timeline.settings.drawer.label.headerOptions') }}</div>
           <div class="d-flex my-2 align-center justify-space-between">
             <label class="v-label text-color align-start">
               {{ $t('agenda.timeline.settings.drawer.label.updateTitle') }}
@@ -104,6 +104,20 @@
                 hide-details />
             </div>
           </div>  
+          <div class="pt-3 font-weight-bold">{{ $t('agenda.timeline.settings.drawer.label.timelineOptions') }}</div>
+          <div class="d-flex mb-2 align-center justify-space-between">
+            <label class="v-label text-color align-start">
+              {{ $t('agenda.timeline.settings.drawer.label.itemsNumber') }}
+            </label>
+            <div class="align-end">
+              <number-input
+                v-model="timelineSettings.itemsNumber"
+                :min="0"
+                :max="100"
+                :step="1"
+                editable />
+            </div>
+          </div>
         </div>
         <div class="d-flex flex-column mb-1">
           <div class="mb-3 text-header">{{ $t('agenda.timeline.settings.drawer.label.management') }}</div>
@@ -253,6 +267,9 @@ export default {
       }
       if (this.timelineSettings.displayAddEvent !== false) {
         this.timelineSettings.displayAddEvent = true;
+      }
+      if (!this.timelineSettings.itemsNumber) {
+        this.timelineSettings.itemsNumber = eXo.env.portal.spaceId ? 5 : 10;
       }
       this.$refs.drawer.open();
     },
