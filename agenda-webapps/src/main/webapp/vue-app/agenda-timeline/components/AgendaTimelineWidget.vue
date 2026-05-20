@@ -135,7 +135,7 @@ export default {
       return this.settings && this.settings.showRemoteEventsForTimeLine;
     },
     limit() {
-      return !this.$root.isTimelineView ? null : this.$root.timelineSettings?.itemsNumber ? this.$root.timelineSettings.itemsNumber : eXo.env.portal.spaceId ? 5 : 10;
+      return !this.$root.isTimelineView ? null : this.$root.timelineSettings?.itemsNumber ? this.$root.timelineSettings.itemsNumber : 10;
     },
   },
   watch: {
