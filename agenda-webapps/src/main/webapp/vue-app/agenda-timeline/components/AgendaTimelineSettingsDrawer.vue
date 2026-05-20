@@ -281,7 +281,7 @@ export default {
         this.timelineSettings.displayAddEvent = true;
       }
       if (!this.timelineSettings.itemsNumber) {
-        this.timelineSettings.itemsNumber = eXo.env.portal.spaceId ? 5 : 10;
+        this.timelineSettings.itemsNumber = 10;
       }
       this.$refs.drawer.open();
     },
