@@ -18,36 +18,37 @@ package org.exoplatform.agenda.entity;
 
 import java.io.Serializable;
 
-import jakarta.persistence.*;
+import io.meeds.common.persistence.PortableSequence;
 
-import org.exoplatform.commons.api.persistence.ExoEntity;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.NamedQuery;
+import jakarta.persistence.Table;
 
 @Entity(name = "AgendaEventConference")
-@ExoEntity
 @Table(name = "EXO_AGENDA_CONFERENCE")
-@NamedQueries(
-  {
-      @NamedQuery(
-          name = "AgendaEventConference.deleteCalendarConferences",
-          query = "DELETE FROM AgendaEventConference a WHERE a.event.id IN (SELECT evt.id FROM AgendaEvent evt WHERE evt.calendar.id = :calendarId)"
-      ),
-      @NamedQuery(
-          name = "AgendaEventConference.deleteEventConferences",
-          query = "DELETE FROM AgendaEventConference a WHERE a.event.id = :eventId"
-      ),
-      @NamedQuery(
-          name = "AgendaEventConference.getEventConferencesByEventId",
-          query = "SELECT a FROM AgendaEventConference a WHERE a.event.id = :eventId"
-      ),
-  }
+@NamedQuery(
+  name = "AgendaEventConference.deleteCalendarConferences",
+  query = "DELETE FROM AgendaEventConference a WHERE a.event.id IN (SELECT evt.id FROM AgendaEvent evt WHERE evt.calendar.id = :calendarId)"
+)
+@NamedQuery(
+  name = "AgendaEventConference.deleteEventConferences",
+  query = "DELETE FROM AgendaEventConference a WHERE a.event.id = :eventId"
+)
+@NamedQuery(
+  name = "AgendaEventConference.getEventConferencesByEventId",
+  query = "SELECT a FROM AgendaEventConference a WHERE a.event.id = :eventId"
 )
 public class EventConferenceEntity implements Serializable {
 
   private static final long serialVersionUID = -2825448569914546772L;
 
   @Id
-  @SequenceGenerator(name = "SEQ_AGENDA_EVENT_CONFERENCE_ID", sequenceName = "SEQ_AGENDA_EVENT_CONFERENCE_ID", allocationSize = 1)
-  @GeneratedValue(strategy = GenerationType.AUTO, generator = "SEQ_AGENDA_EVENT_CONFERENCE_ID")
+  @PortableSequence(name = "SEQ_AGENDA_EVENT_CONFERENCE_ID")
   @Column(name = "EVENT_CONFERENCE_ID")
   private Long              id;
 

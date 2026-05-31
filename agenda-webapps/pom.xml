@@ -97,10 +97,9 @@
         <artifactId>frontend-maven-plugin</artifactId>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-war-plugin</artifactId>
         <configuration>
-          <packagingExcludes>**/*.less,**/less/**,**/*.vue,css/lib/*,vue-app/**,js/mock/**/*,**-dev.*</packagingExcludes>
+          <packagingExcludes>WEB-INF/lib/**,**/*.less,**/less/**,**/*.vue,css/lib/*,vue-app/**,js/mock/**/*,**-dev.*</packagingExcludes>
         </configuration>
       </plugin>
     </plugins>

@@ -20,227 +20,231 @@ import java.io.Serializable;
 import java.util.Date;
 import java.util.List;
 
-import jakarta.persistence.*;
-
 import org.exoplatform.agenda.constant.EventAvailability;
 import org.exoplatform.agenda.constant.EventStatus;
-import org.exoplatform.commons.api.persistence.ExoEntity;
+
+import io.meeds.common.persistence.PortableSequence;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.NamedQuery;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
 
 @Entity(name = "AgendaEvent")
-@ExoEntity
 @Table(name = "EXO_AGENDA_EVENT")
-@NamedQueries(
-  {
-      @NamedQuery(
-          name = "AgendaEvent.deleteCalendarEvents",
-          query = "DELETE FROM AgendaEvent ev WHERE ev.calendar.id = :calendarId"
-      ),
-      @NamedQuery(
-          name = "AgendaEvent.getCalendarEventIds",
-          query = "SELECT ev.id FROM AgendaEvent ev WHERE ev.calendar.id = :calendarId"
-      ),
-      @NamedQuery(
-          name = "AgendaEvent.getExceptionalOccurenceIdsByPeriod",
-          query = "SELECT ev.id FROM AgendaEvent ev"
-              + " WHERE ev.parent.id = :parentEventId"
-              + " AND ev.occurrenceId <= :end"
-              + " AND ev.occurrenceId >= :start"
-      ),
-      @NamedQuery(
-          name = "AgendaEvent.getExceptionalOccurenceIdsByStart",
-          query = "SELECT ev.id FROM AgendaEvent ev"
-              + " WHERE ev.parent.id = :parentEventId"
-              + " AND ev.occurrenceId >= :start"
-      ),
-      @NamedQuery(
-          name = "AgendaEvent.getExceptionalOccurenceIds",
-          query = "SELECT ev.id, ev.startDate FROM AgendaEvent ev"
-              + " WHERE ev.parent.id = :parentEventId"
-              + " AND ev.occurrenceId IS NOT NULL"
-              + " ORDER BY ev.startDate ASC"
-      ),
-      @NamedQuery(
-          name = "AgendaEvent.getExceptionalOccurences",
-          query = "SELECT ev FROM AgendaEvent ev"
-              + " WHERE ev.parent.id = :parentEventId"
-              + " AND ev.occurrenceId IS NOT NULL"
-      ),
-      @NamedQuery(
-          name = "AgendaEvent.getChildEvents",
-          query = "SELECT ev.id FROM AgendaEvent ev"
-              + " WHERE ev.parent.id = :parentEventId"
-      ),
-      @NamedQuery(
-          name = "AgendaEvent.getParentRecurrentEventIds",
-          query = "SELECT ev FROM AgendaEvent ev"
-              + " WHERE ev.status = :status"
-              + " AND ev.recurrence.id > 0"
-              + " AND ev.occurrenceId IS NULL"
-              + " AND ev.startDate < :end"
-              + " AND (ev.endDate IS NULL OR ev.endDate >= :start)"
-      ),
-      @NamedQuery(
-          name = "AgendaEvent.getPendingEventIds",
-          query = "SELECT DISTINCT(ev.id), ev.updatedDate FROM AgendaEvent ev"
-              + " INNER JOIN ev.attendees att"
-              + " INNER JOIN ev.calendar cal"
-              + " WHERE ev.status = :status"
-              + " AND (ev.endDate IS NULL OR ev.endDate > :date)"
-              + " AND ("
-              + "   ev.occurrencePeriodChanged = TRUE"
-              + "   OR ev.parent IS NULL"
-              + " )"
-              + " AND att.identityId IN (:attendeeIds)"
-              + " AND att.response = :response"
-              + " AND cal.id IN (:calenderIds)"
-              + " AND NOT EXISTS("
-              + "   SELECT att2.id FROM AgendaEventAttendee att2"
-              + "   WHERE att2.event.id = ev.id"
-              + "         AND att2.identityId = :userIdentityId"
-              + "         AND att2.response != :response"
-              + " )"
-              + " ORDER BY ev.updatedDate DESC"
-      ),
-      @NamedQuery(
-          name = "AgendaEvent.countPendingEvents",
-          query = "SELECT count(DISTINCT ev.id) FROM AgendaEvent ev"
-              + " INNER JOIN ev.attendees att"
-              + " INNER JOIN ev.calendar cal"
-              + " WHERE ev.status = :status"
-              + " AND (ev.endDate IS NULL OR ev.endDate > :date)"
-              + " AND ("
-              + "   ev.occurrencePeriodChanged = TRUE"
-              + "   OR ev.parent IS NULL"
-              + " )"
-              + " AND att.identityId IN (:attendeeIds)"
-              + " AND att.response = :response"
-              + " AND cal.id IN (:calenderIds)"
-              + " AND NOT EXISTS("
-              + "   SELECT att2.id FROM AgendaEventAttendee att2"
-              + "   WHERE att2.event.id = ev.id"
-              + "         AND att2.identityId = :userIdentityId"
-              + "         AND att2.response != :response"
-              + " )"
-      ),
-      @NamedQuery(
-          name = "AgendaEvent.countPendingEventsByOwnerIds",
-          query = "SELECT count(DISTINCT ev.id) FROM AgendaEvent ev"
-              + " INNER JOIN ev.attendees att"
-              + " INNER JOIN ev.calendar cal"
-              + " WHERE ev.status = :status"
-              + " AND (ev.endDate IS NULL OR ev.endDate > :date)"
-              + " AND ("
-              + "   ev.occurrencePeriodChanged = TRUE"
-              + "   OR ev.parent IS NULL"
-              + " )"
-              + " AND cal.ownerId IN (:ownerIds)"
-              + " AND att.identityId IN (:attendeeIds)"
-              + " AND att.response = :response"
-              + " AND NOT EXISTS("
-              + "   SELECT att2.id FROM AgendaEventAttendee att2"
-              + "   WHERE att2.event.id = ev.id"
-              + "         AND att2.identityId = :userIdentityId"
-              + "         AND att2.response != :response"
-              + " )"
-      ),
-      @NamedQuery(
-          name = "AgendaEvent.getPendingEventIdsByOwnerIds",
-          query = "SELECT DISTINCT(ev.id), ev.updatedDate FROM AgendaEvent ev"
-              + " INNER JOIN ev.attendees att"
-              + " INNER JOIN ev.calendar cal"
-              + " WHERE ev.status = :status"
-              + " AND (ev.endDate IS NULL OR ev.endDate > :date)"
-              + " AND ("
-              + "   ev.occurrencePeriodChanged = TRUE"
-              + "   OR ev.parent IS NULL"
-              + " )"
-              + " AND cal.ownerId IN (:ownerIds)"
-              + " AND att.identityId IN (:attendeeIds)"
-              + " AND att.response = :response"
-              + " AND NOT EXISTS("
-              + "   SELECT att2.id FROM AgendaEventAttendee att2"
-              + "   WHERE att2.event.id = ev.id"
-              + "         AND att2.identityId = :userIdentityId"
-              + "         AND att2.response != :response"
-              + " )"
-              + " ORDER BY ev.updatedDate DESC"
-      ),
-      @NamedQuery(
-          name = "AgendaEvent.getPendingDatePollIds",
-          query = "SELECT DISTINCT(ev.id), ev.updatedDate FROM AgendaEvent ev"
-              + " INNER JOIN ev.attendees att"
-              + " WHERE ev.status = :status"
-              + " AND (ev.endDate IS NULL OR ev.endDate > :date OR ev.creatorId = :userIdentityId)"
-              + " AND att.identityId IN (:attendeeIds)"
-              + " ORDER BY ev.updatedDate DESC"
-      ),
-      @NamedQuery(
-          name = "AgendaEvent.getDatePollIdsByDates",
-          query = "SELECT DISTINCT(ev.id), ev.updatedDate FROM AgendaEvent ev"
-              + " INNER JOIN ev.attendees att"
-              + " WHERE ev.status = :status"
-              + " AND (ev.endDate IS NULL OR ev.endDate > :start)"
-              + " AND (ev.startDate < :end)"
-              + " AND att.identityId IN (:attendeeIds)"
-              + " ORDER BY ev.updatedDate DESC"
-      ),
-      @NamedQuery(
-          name = "AgendaEvent.countPendingDatePoll",
-          query = "SELECT count(DISTINCT ev.id) FROM AgendaEvent ev"
-              + " INNER JOIN ev.attendees att"
-              + " WHERE ev.status = :status"
-              + " AND (ev.endDate IS NULL OR ev.endDate > :date)"
-              + " AND att.identityId IN (:attendeeIds)"
-      ),
-      @NamedQuery(
-          name = "AgendaEvent.getDatePollIdsByOwnerIdsAndDates",
-          query = "SELECT DISTINCT(ev.id), ev.updatedDate FROM AgendaEvent ev"
-              + " INNER JOIN ev.attendees att"
-              + " INNER JOIN ev.calendar cal"
-              + " WHERE ev.status = :status"
-              + " AND (ev.endDate IS NULL OR ev.endDate > :start)"
-              + " AND (ev.startDate < :end)"
-              + " AND att.identityId IN (:attendeeIds)"
-              + " AND cal.ownerId IN (:ownerIds)"
-              + " ORDER BY ev.updatedDate DESC"
-      ),
-      @NamedQuery(
-          name = "AgendaEvent.getPendingDatePollIdsByOwnerIds",
-          query = "SELECT DISTINCT(ev.id), ev.updatedDate FROM AgendaEvent ev"
-              + " INNER JOIN ev.attendees att"
-              + " INNER JOIN ev.calendar cal"
-              + " WHERE ev.status = :status"
-              + " AND (ev.endDate IS NULL OR ev.endDate > :date OR ev.creatorId = :userIdentityId)"
-              + " AND att.identityId IN (:attendeeIds)"
-              + " AND cal.ownerId IN (:ownerIds)"
-              + " ORDER BY ev.updatedDate DESC"
-      ),
-      @NamedQuery(
-          name = "AgendaEvent.countPendingDatePollByOwnerIds",
-          query = "SELECT count(DISTINCT ev.id) FROM AgendaEvent ev"
-              + " INNER JOIN ev.attendees att"
-              + " INNER JOIN ev.calendar cal"
-              + " WHERE ev.status = :status"
-              + " AND (ev.endDate IS NULL OR ev.endDate > :date)"
-              + " AND att.identityId IN (:attendeeIds)"
-              + " AND cal.ownerId IN (:ownerIds)"
-      ),
-      @NamedQuery(
-          name = "AgendaEvent.getUserEventCalenderIds",
-          query = "SELECT DISTINCT cal.id FROM AgendaEvent ev"
-              + " INNER JOIN ev.attendees att"
-              + " INNER JOIN ev.calendar cal"
-              + " WHERE att.identityId = :userIdentityId "
-      ),
-  }
+@NamedQuery(
+    name = "AgendaEvent.deleteCalendarEvents",
+    query = "DELETE FROM AgendaEvent ev WHERE ev.calendar.id = :calendarId"
+)
+@NamedQuery(
+    name = "AgendaEvent.getCalendarEventIds",
+    query = "SELECT ev.id FROM AgendaEvent ev WHERE ev.calendar.id = :calendarId"
+)
+@NamedQuery(
+    name = "AgendaEvent.getExceptionalOccurenceIdsByPeriod",
+    query = "SELECT ev.id FROM AgendaEvent ev"
+        + " WHERE ev.parent.id = :parentEventId"
+        + " AND ev.occurrenceId <= :end"
+        + " AND ev.occurrenceId >= :start"
+)
+@NamedQuery(
+    name = "AgendaEvent.getExceptionalOccurenceIdsByStart",
+    query = "SELECT ev.id FROM AgendaEvent ev"
+        + " WHERE ev.parent.id = :parentEventId"
+        + " AND ev.occurrenceId >= :start"
+)
+@NamedQuery(
+    name = "AgendaEvent.getExceptionalOccurenceIds",
+    query = "SELECT ev.id, ev.startDate FROM AgendaEvent ev"
+        + " WHERE ev.parent.id = :parentEventId"
+        + " AND ev.occurrenceId IS NOT NULL"
+        + " ORDER BY ev.startDate ASC"
+)
+@NamedQuery(
+    name = "AgendaEvent.getExceptionalOccurences",
+    query = "SELECT ev FROM AgendaEvent ev"
+        + " WHERE ev.parent.id = :parentEventId"
+        + " AND ev.occurrenceId IS NOT NULL"
+)
+@NamedQuery(
+    name = "AgendaEvent.getChildEvents",
+    query = "SELECT ev.id FROM AgendaEvent ev"
+        + " WHERE ev.parent.id = :parentEventId"
+)
+@NamedQuery(
+    name = "AgendaEvent.getParentRecurrentEventIds",
+    query = "SELECT ev FROM AgendaEvent ev"
+        + " WHERE ev.status = :status"
+        + " AND ev.recurrence.id > 0"
+        + " AND ev.occurrenceId IS NULL"
+        + " AND ev.startDate < :end"
+        + " AND (ev.endDate IS NULL OR ev.endDate >= :start)"
+)
+@NamedQuery(
+    name = "AgendaEvent.getPendingEventIds",
+    query = "SELECT DISTINCT(ev.id), ev.updatedDate FROM AgendaEvent ev"
+        + " INNER JOIN ev.attendees att"
+        + " INNER JOIN ev.calendar cal"
+        + " WHERE ev.status = :status"
+        + " AND (ev.endDate IS NULL OR ev.endDate > :date)"
+        + " AND ("
+        + "   ev.occurrencePeriodChanged = TRUE"
+        + "   OR ev.parent IS NULL"
+        + " )"
+        + " AND att.identityId IN (:attendeeIds)"
+        + " AND att.response = :response"
+        + " AND cal.id IN (:calenderIds)"
+        + " AND NOT EXISTS("
+        + "   SELECT att2.id FROM AgendaEventAttendee att2"
+        + "   WHERE att2.event.id = ev.id"
+        + "         AND att2.identityId = :userIdentityId"
+        + "         AND att2.response != :response"
+        + " )"
+        + " ORDER BY ev.updatedDate DESC"
+)
+@NamedQuery(
+    name = "AgendaEvent.countPendingEvents",
+    query = "SELECT count(DISTINCT ev.id) FROM AgendaEvent ev"
+        + " INNER JOIN ev.attendees att"
+        + " INNER JOIN ev.calendar cal"
+        + " WHERE ev.status = :status"
+        + " AND (ev.endDate IS NULL OR ev.endDate > :date)"
+        + " AND ("
+        + "   ev.occurrencePeriodChanged = TRUE"
+        + "   OR ev.parent IS NULL"
+        + " )"
+        + " AND att.identityId IN (:attendeeIds)"
+        + " AND att.response = :response"
+        + " AND cal.id IN (:calenderIds)"
+        + " AND NOT EXISTS("
+        + "   SELECT att2.id FROM AgendaEventAttendee att2"
+        + "   WHERE att2.event.id = ev.id"
+        + "         AND att2.identityId = :userIdentityId"
+        + "         AND att2.response != :response"
+        + " )"
+)
+@NamedQuery(
+    name = "AgendaEvent.countPendingEventsByOwnerIds",
+    query = "SELECT count(DISTINCT ev.id) FROM AgendaEvent ev"
+        + " INNER JOIN ev.attendees att"
+        + " INNER JOIN ev.calendar cal"
+        + " WHERE ev.status = :status"
+        + " AND (ev.endDate IS NULL OR ev.endDate > :date)"
+        + " AND ("
+        + "   ev.occurrencePeriodChanged = TRUE"
+        + "   OR ev.parent IS NULL"
+        + " )"
+        + " AND cal.ownerId IN (:ownerIds)"
+        + " AND att.identityId IN (:attendeeIds)"
+        + " AND att.response = :response"
+        + " AND NOT EXISTS("
+        + "   SELECT att2.id FROM AgendaEventAttendee att2"
+        + "   WHERE att2.event.id = ev.id"
+        + "         AND att2.identityId = :userIdentityId"
+        + "         AND att2.response != :response"
+        + " )"
+)
+@NamedQuery(
+    name = "AgendaEvent.getPendingEventIdsByOwnerIds",
+    query = "SELECT DISTINCT(ev.id), ev.updatedDate FROM AgendaEvent ev"
+        + " INNER JOIN ev.attendees att"
+        + " INNER JOIN ev.calendar cal"
+        + " WHERE ev.status = :status"
+        + " AND (ev.endDate IS NULL OR ev.endDate > :date)"
+        + " AND ("
+        + "   ev.occurrencePeriodChanged = TRUE"
+        + "   OR ev.parent IS NULL"
+        + " )"
+        + " AND cal.ownerId IN (:ownerIds)"
+        + " AND att.identityId IN (:attendeeIds)"
+        + " AND att.response = :response"
+        + " AND NOT EXISTS("
+        + "   SELECT att2.id FROM AgendaEventAttendee att2"
+        + "   WHERE att2.event.id = ev.id"
+        + "         AND att2.identityId = :userIdentityId"
+        + "         AND att2.response != :response"
+        + " )"
+        + " ORDER BY ev.updatedDate DESC"
+)
+@NamedQuery(
+    name = "AgendaEvent.getPendingDatePollIds",
+    query = "SELECT DISTINCT(ev.id), ev.updatedDate FROM AgendaEvent ev"
+        + " INNER JOIN ev.attendees att"
+        + " WHERE ev.status = :status"
+        + " AND (ev.endDate IS NULL OR ev.endDate > :date OR ev.creatorId = :userIdentityId)"
+        + " AND att.identityId IN (:attendeeIds)"
+        + " ORDER BY ev.updatedDate DESC"
+)
+@NamedQuery(
+    name = "AgendaEvent.getDatePollIdsByDates",
+    query = "SELECT DISTINCT(ev.id), ev.updatedDate FROM AgendaEvent ev"
+        + " INNER JOIN ev.attendees att"
+        + " WHERE ev.status = :status"
+        + " AND (ev.endDate IS NULL OR ev.endDate > :start)"
+        + " AND (ev.startDate < :end)"
+        + " AND att.identityId IN (:attendeeIds)"
+        + " ORDER BY ev.updatedDate DESC"
+)
+@NamedQuery(
+    name = "AgendaEvent.countPendingDatePoll",
+    query = "SELECT count(DISTINCT ev.id) FROM AgendaEvent ev"
+        + " INNER JOIN ev.attendees att"
+        + " WHERE ev.status = :status"
+        + " AND (ev.endDate IS NULL OR ev.endDate > :date)"
+        + " AND att.identityId IN (:attendeeIds)"
+)
+@NamedQuery(
+    name = "AgendaEvent.getDatePollIdsByOwnerIdsAndDates",
+    query = "SELECT DISTINCT(ev.id), ev.updatedDate FROM AgendaEvent ev"
+        + " INNER JOIN ev.attendees att"
+        + " INNER JOIN ev.calendar cal"
+        + " WHERE ev.status = :status"
+        + " AND (ev.endDate IS NULL OR ev.endDate > :start)"
+        + " AND (ev.startDate < :end)"
+        + " AND att.identityId IN (:attendeeIds)"
+        + " AND cal.ownerId IN (:ownerIds)"
+        + " ORDER BY ev.updatedDate DESC"
+)
+@NamedQuery(
+    name = "AgendaEvent.getPendingDatePollIdsByOwnerIds",
+    query = "SELECT DISTINCT(ev.id), ev.updatedDate FROM AgendaEvent ev"
+        + " INNER JOIN ev.attendees att"
+        + " INNER JOIN ev.calendar cal"
+        + " WHERE ev.status = :status"
+        + " AND (ev.endDate IS NULL OR ev.endDate > :date OR ev.creatorId = :userIdentityId)"
+        + " AND att.identityId IN (:attendeeIds)"
+        + " AND cal.ownerId IN (:ownerIds)"
+        + " ORDER BY ev.updatedDate DESC"
+)
+@NamedQuery(
+    name = "AgendaEvent.countPendingDatePollByOwnerIds",
+    query = "SELECT count(DISTINCT ev.id) FROM AgendaEvent ev"
+        + " INNER JOIN ev.attendees att"
+        + " INNER JOIN ev.calendar cal"
+        + " WHERE ev.status = :status"
+        + " AND (ev.endDate IS NULL OR ev.endDate > :date)"
+        + " AND att.identityId IN (:attendeeIds)"
+        + " AND cal.ownerId IN (:ownerIds)"
+)
+@NamedQuery(
+    name = "AgendaEvent.getUserEventCalenderIds",
+    query = "SELECT DISTINCT cal.id FROM AgendaEvent ev"
+        + " INNER JOIN ev.attendees att"
+        + " INNER JOIN ev.calendar cal"
+        + " WHERE att.identityId = :userIdentityId "
 )
 public class EventEntity implements Serializable {
 
   private static final long         serialVersionUID = -597472315530960636L;
 
   @Id
-  @SequenceGenerator(name = "SEQ_AGENDA_EVENT_ID", sequenceName = "SEQ_AGENDA_EVENT_ID", allocationSize = 1)
-  @GeneratedValue(strategy = GenerationType.AUTO, generator = "SEQ_AGENDA_EVENT_ID")
+  @PortableSequence(name = "SEQ_AGENDA_EVENT_ID")
   @Column(name = "EVENT_ID")
   private Long                      id;
 

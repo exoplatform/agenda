@@ -18,40 +18,38 @@ package org.exoplatform.agenda.entity;
 
 import java.io.Serializable;
 
-import jakarta.persistence.*;
+import io.meeds.common.persistence.PortableSequence;
 
-import org.exoplatform.commons.api.persistence.ExoEntity;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.NamedQuery;
+import jakarta.persistence.Table;
 
 @Entity(name = "AgendaEventDateVote")
-@ExoEntity
 @Table(name = "EXO_AGENDA_EVENT_DATE_VOTE")
-@NamedQueries(
-  {
-      @NamedQuery(
-          name = "AgendaEventDateVote.deleteVotesByOptionId",
-          query = "DELETE from AgendaEventDateVote dateVote WHERE dateVote.dateOptionId = :dateOptionId"
-      ),
-      @NamedQuery(
-          name = "AgendaEventDateVote.deleteVotesByOptionIds",
-          query = "DELETE from AgendaEventDateVote dateVote WHERE dateVote.dateOptionId in (:dateOptionIds)"
-      ),
-      @NamedQuery(
-          name = "AgendaEventDateVote.findVotersByDateOptionId",
-          query = "SELECT dateVote from AgendaEventDateVote dateVote WHERE dateVote.dateOptionId = :dateOptionId"
-      ),
-      @NamedQuery(
-          name = "AgendaEventDateVote.findVoteByOptionAndIdentity",
-          query = "SELECT dateVote from AgendaEventDateVote dateVote WHERE dateVote.dateOptionId = :dateOptionId AND dateVote.identityId = :identityId"
-      ),
-  }
+@NamedQuery(
+  name = "AgendaEventDateVote.deleteVotesByOptionId",
+  query = "DELETE from AgendaEventDateVote dateVote WHERE dateVote.dateOptionId = :dateOptionId"
+)
+@NamedQuery(
+  name = "AgendaEventDateVote.deleteVotesByOptionIds",
+  query = "DELETE from AgendaEventDateVote dateVote WHERE dateVote.dateOptionId in (:dateOptionIds)"
+)
+@NamedQuery(
+  name = "AgendaEventDateVote.findVotersByDateOptionId",
+  query = "SELECT dateVote from AgendaEventDateVote dateVote WHERE dateVote.dateOptionId = :dateOptionId"
+)
+@NamedQuery(
+  name = "AgendaEventDateVote.findVoteByOptionAndIdentity",
+  query = "SELECT dateVote from AgendaEventDateVote dateVote WHERE dateVote.dateOptionId = :dateOptionId AND dateVote.identityId = :identityId"
 )
 public class EventDateVoteEntity implements Serializable {
 
   private static final long serialVersionUID = -6015331866476045556L;
 
   @Id
-  @SequenceGenerator(name = "SEQ_AGENDA_EVENT_DATE_VOTE_ID", sequenceName = "SEQ_AGENDA_EVENT_DATE_VOTE_ID", allocationSize = 1)
-  @GeneratedValue(strategy = GenerationType.AUTO, generator = "SEQ_AGENDA_EVENT_DATE_VOTE_ID")
+  @PortableSequence(name = "SEQ_AGENDA_EVENT_DATE_VOTE_ID")
   @Column(name = "EVENT_DATE_VOTE_ID")
   private Long              id;
 

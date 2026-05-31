@@ -19,28 +19,26 @@ package org.exoplatform.agenda.entity;
 import java.io.Serializable;
 import java.util.Date;
 
-import jakarta.persistence.*;
+import io.meeds.common.persistence.PortableSequence;
 
-import org.exoplatform.commons.api.persistence.ExoEntity;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.NamedQuery;
+import jakarta.persistence.Table;
 
 @Entity(name = "AgendaEventDateOption")
-@ExoEntity
 @Table(name = "EXO_AGENDA_EVENT_DATE_OPTION")
-@NamedQueries(
-  {
-      @NamedQuery(
-          name = "AgendaEventDateOption.findDateOptionsByEventId",
-          query = "SELECT dateOption from AgendaEventDateOption dateOption WHERE dateOption.eventId = :eventId"
-      ),
-  }
+@NamedQuery(
+  name = "AgendaEventDateOption.findDateOptionsByEventId",
+  query = "SELECT dateOption from AgendaEventDateOption dateOption WHERE dateOption.eventId = :eventId"
 )
 public class EventDateOptionEntity implements Serializable {
 
   private static final long serialVersionUID = -508194709102103065L;
 
   @Id
-  @SequenceGenerator(name = "SEQ_AGENDA_EVENT_DATE_OPTION_ID", sequenceName = "SEQ_AGENDA_EVENT_DATE_OPTION_ID", allocationSize = 1)
-  @GeneratedValue(strategy = GenerationType.AUTO, generator = "SEQ_AGENDA_EVENT_DATE_OPTION_ID")
+  @PortableSequence(name = "SEQ_AGENDA_EVENT_DATE_OPTION_ID")
   @Column(name = "EVENT_DATE_OPTION_ID")
   private Long              id;
 

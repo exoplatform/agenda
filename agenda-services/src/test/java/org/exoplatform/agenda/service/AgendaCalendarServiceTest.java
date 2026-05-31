@@ -17,7 +17,7 @@
 package org.exoplatform.agenda.service;
 
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import java.time.ZonedDateTime;
@@ -899,7 +899,7 @@ public class AgendaCalendarServiceTest {
       }
     });
 
-    when(agendaCalendarStorage.getCalendarIdsByOwnerIds(anyInt(), anyInt(), anyVararg())).thenAnswer(new Answer<List<Long>>() {
+    when(agendaCalendarStorage.getCalendarIdsByOwnerIds(anyInt(), anyInt(), any(Long[].class))).thenAnswer(new Answer<List<Long>>() {
       @Override
       public List<Long> answer(InvocationOnMock invocation) throws Throwable {
         Object[] args = invocation.getArguments();
@@ -1003,7 +1003,7 @@ public class AgendaCalendarServiceTest {
       }
     });
 
-    when(agendaCalendarStorage.countCalendarsByOwners(anyVararg())).thenReturn(45);
+    when(agendaCalendarStorage.countCalendarsByOwners(any(Long[].class))).thenReturn(45);
     long calendarsCount = agendaCalendarService.countCalendars(username);
     assertEquals(45, calendarsCount);
   }
@@ -1043,7 +1043,7 @@ public class AgendaCalendarServiceTest {
     when(identityManager.getOrCreateUserIdentity(eq(anotherUser))).thenReturn(anotherCalendarOwnerIdentity);
 
     // 3. Retrieve calendars with pagination
-    when(agendaCalendarStorage.getCalendarIdsByOwnerIds(anyInt(), anyInt(), anyVararg())).thenAnswer(new Answer<List<Long>>() {
+    when(agendaCalendarStorage.getCalendarIdsByOwnerIds(anyInt(), anyInt(), any(Long[].class))).thenAnswer(new Answer<List<Long>>() {
       @Override
       public List<Long> answer(InvocationOnMock invocation) throws Throwable {
         Object[] args = invocation.getArguments();

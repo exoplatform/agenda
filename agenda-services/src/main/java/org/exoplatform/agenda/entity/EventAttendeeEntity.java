@@ -19,48 +19,50 @@ package org.exoplatform.agenda.entity;
 import java.io.Serializable;
 import java.util.Date;
 
-import jakarta.persistence.*;
-
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
-import org.exoplatform.commons.api.persistence.ExoEntity;
+
+import io.meeds.common.persistence.PortableSequence;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.NamedQuery;
+import jakarta.persistence.Table;
 
 @Entity(name = "AgendaEventAttendee")
-@ExoEntity
 @Table(name = "EXO_AGENDA_ATTENDEE")
-@NamedQueries(
-  {
-      @NamedQuery(
-          name = "AgendaEventAttendee.deleteCalendarAttendees",
-          query = "DELETE FROM AgendaEventAttendee a WHERE a.event.id IN (SELECT evt.id FROM AgendaEvent evt WHERE evt.calendar.id = :calendarId)"
-      ),
-      @NamedQuery(
-          name = "AgendaEventAttendee.deleteEventAttendees",
-          query = "DELETE FROM AgendaEventAttendee a WHERE a.event.id = :eventId"
-      ),
-      @NamedQuery(
-          name = "AgendaEventAttendee.getEventAttendee",
-          query = "SELECT a FROM AgendaEventAttendee a WHERE a.event.id = :eventId AND  a.identityId = :identityId"
-      ),
-      @NamedQuery(
-          name = "AgendaEventAttendee.getEventAttendeesByEventId",
-          query = "SELECT a FROM AgendaEventAttendee a"
-              + "  WHERE a.event.id = :eventId"
-      ),
-      @NamedQuery(
-          name = "AgendaEventAttendee.getEventAttendeesByEventIdAndByResponses",
-          query = "SELECT a FROM AgendaEventAttendee a"
-              + "  WHERE a.event.id = :eventId"
-              + "  AND a.response in (:responses)"
-      ),
-  }
+@NamedQuery(
+    name = "AgendaEventAttendee.deleteCalendarAttendees",
+    query = "DELETE FROM AgendaEventAttendee a WHERE a.event.id IN (SELECT evt.id FROM AgendaEvent evt WHERE evt.calendar.id = :calendarId)"
+)
+@NamedQuery(
+    name = "AgendaEventAttendee.deleteEventAttendees",
+    query = "DELETE FROM AgendaEventAttendee a WHERE a.event.id = :eventId"
+)
+@NamedQuery(
+    name = "AgendaEventAttendee.getEventAttendee",
+    query = "SELECT a FROM AgendaEventAttendee a WHERE a.event.id = :eventId AND  a.identityId = :identityId"
+)
+@NamedQuery(
+    name = "AgendaEventAttendee.getEventAttendeesByEventId",
+    query = "SELECT a FROM AgendaEventAttendee a"
+        + "  WHERE a.event.id = :eventId"
+)
+@NamedQuery(
+    name = "AgendaEventAttendee.getEventAttendeesByEventIdAndByResponses",
+    query = "SELECT a FROM AgendaEventAttendee a"
+        + "  WHERE a.event.id = :eventId"
+        + "  AND a.response in (:responses)"
 )
 public class EventAttendeeEntity implements Serializable {
 
   private static final long     serialVersionUID = 8633143729031653190L;
 
   @Id
-  @SequenceGenerator(name = "SEQ_AGENDA_EVENT_ATTENDEE_ID", sequenceName = "SEQ_AGENDA_EVENT_ATTENDEE_ID", allocationSize = 1)
-  @GeneratedValue(strategy = GenerationType.AUTO, generator = "SEQ_AGENDA_EVENT_ATTENDEE_ID")
+  @PortableSequence(name = "SEQ_AGENDA_EVENT_ATTENDEE_ID")
   @Column(name = "EVENT_ATTENDEE_ID")
   private Long                  id;
 
