@@ -255,7 +255,7 @@ export default {
         this.retrieveEventsFromStore();
         return this.$calendarService.getCalendars(0, 1, false, this.ownerIds)
           .then(data => {
-            this.currentCalendar = data && data.calendars || [];
+            this.calendars = data?.calendars || [];
           }).catch(() => this.currentCalendar = []);
         
       } else if (this.$root.timelineSettings.agendaSource === 'allUsersSpaces'){
