@@ -120,7 +120,9 @@ export default {
       return this.$root.timelineSettings.displayPending;
     },
     canCreateEvent() {
-      return !this.currentCalendar || !this.currentCalendar.acl || this.currentCalendar.acl.canCreate;
+      return !this.currentCalendar || (this.currentCalendar.length > 0 && this.currentCalendar.every(
+        calendar => calendar?.acl?.canCreate === true
+      ));
     },
     addEventButtonTooltip() {
       if (!this.canCreateEvent) {

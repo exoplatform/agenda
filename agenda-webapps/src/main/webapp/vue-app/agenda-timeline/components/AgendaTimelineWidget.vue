@@ -252,7 +252,12 @@ export default {
     retrieveEvents() {
       if (this.$root.timelineSettings.agendaSource === 'selectedSpaces') {
         this.ownerIds = this.$root.timelineSettings.selectedSpaces.map(space => space.identityId).filter(id => !!id);
-        return this.retrieveEventsFromStore();
+        this.retrieveEventsFromStore();
+        return this.$calendarService.getCalendars(0, 1, false, this.ownerIds)
+          .then(data => {
+            this.currentCalendar = data && data.calendars || [];
+          }).catch(() => this.currentCalendar = []);
+        
       } else if (this.$root.timelineSettings.agendaSource === 'allUsersSpaces'){
         this.ownerIds = [];
         return this.retrieveEventsFromStore();
