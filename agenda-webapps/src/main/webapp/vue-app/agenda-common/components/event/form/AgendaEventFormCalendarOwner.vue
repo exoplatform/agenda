@@ -44,8 +44,7 @@ export default {
     allowedSpaces() {
       return  this.selectedSpaces.filter(space =>
         this.calendars.some(calendar =>
-          calendar?.owner?.space?.id === space.spaceId &&
-          calendar?.acl?.canCreate === true
+          calendar?.owner?.space?.id === space.spaceId &&  calendar?.acl?.canCreate
         )
       );
     },
