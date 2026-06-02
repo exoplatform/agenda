@@ -193,17 +193,43 @@ export default {
     transUpdated: false,
     currentTranslations: [],
     timelineSettings: {
-      agendaSource: 'allUsersSpaces',
       selectedSpaces: [],
+      agendaSource: 'allUsersSpaces',
       customHeader: false,
+      displaySeeMore: true,
+      seeMoreUrl: '',
+      displayPending: true,
+      displayAddEvent: true,
+      agendaFilter: 'allEvents',
+      itemsNumber: 10
+    },
+    defaultTimelineSettings: {
+      selectedSpaces: [],
+      agendaSource: 'allUsersSpaces',
+      customHeader: false,
+      displaySeeMore: true,
+      seeMoreUrl: '',
+      displayPending: true,
+      displayAddEvent: true,
+      agendaFilter: 'allEvents',
+      itemsNumber: 10
     },
   }),
+  watch: {
+    timelineSettings: {
+      deep: true,
+      handler(val) {
+        console.log('timelineSettings changed:', JSON.stringify(val));
+        console.log('modified:', this.modified);
+      }
+    }
+  },
   computed: {
     disabled() {
-      return (this.timelineSettings.displaySeeMore && !this.isValidLink) || !this.modified;
+      return (this.timelineSettings.displaySeeMore && this.timelineSettings.seeMoreUrl !=='' && !this.isValidLink && (this.timelineSettings.agendaSource === 'selectedSpaces' ? this.timelineSettings.selectedSpaces.length > 0 : true) )  || !this.modified;
     },
     modified() {
-      return JSON.stringify(this.timelineSettings) !== JSON.stringify(this.$root.timelineSettings) && (this.timelineSettings.agendaSource === 'selectedSpaces' ? this.timelineSettings.selectedSpaces.length > 0 : true) || this.transUpdated;
+      return JSON.stringify(this.timelineSettings) !== JSON.stringify(this.defaultTimelineSettings) || this.transUpdated;
     },
     showSuggester() {
       return this.timelineSettings.agendaSource === 'selectedSpaces';
@@ -268,6 +294,7 @@ export default {
                   },
                 };
                 this.timelineSettings.selectedSpaces = [space];
+                this.defaultTimelineSettings.selectedSpaces = [space];
               }
             });
         }  else {
@@ -283,6 +310,10 @@ export default {
       if (!this.timelineSettings.itemsNumber) {
         this.timelineSettings.itemsNumber = 10;
       }
+      if (!this.timelineSettings.agendaFilter) {
+        this.timelineSettings.agendaFilter = 'allEvents';
+      }
+      this.defaultTimelineSettings = JSON.parse(JSON.stringify(this.timelineSettings));
       this.$refs.drawer.open();
     },
     close() {

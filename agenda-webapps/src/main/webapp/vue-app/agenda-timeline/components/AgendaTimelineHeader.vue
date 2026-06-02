@@ -114,7 +114,7 @@ export default {
       return this.$root.timelineSettings.displayAddEvent !== false  &&  (!this.$root.isMobile || this.canCreateEvent) && (this.initialized || !eXo.env.portal.spaceId);
     },
     displaySeeMore() {
-      return this.$root.timelineSettings.displaySeeMore && this.$root.timelineSettings.seeMoreUrl;
+      return this.$root.timelineSettings.displaySeeMore !== false ;
     },
     displayPendingEvents() {
       return this.$root.timelineSettings.displayPending;
@@ -151,11 +151,17 @@ export default {
       this.$root.$emit('agenda-connectors-drawer-open');
     },
     openSeeMoreLink () {
-      const url = this.$root.timelineSettings.seeMoreUrl;
-      if (url) {
-        window.open(url, '_blank');
+      let url = this.$root.timelineSettings.seeMoreUrl;
+      if (!url) {
+        if (eXo.env.portal.spaceId) {    
+          url = `${eXo.env.portal.context}/s/${eXo.env.portal.spaceId}/agenda`;
+        } else {
+          url = `${eXo.env.portal.context}/${eXo.env.portal.portalName}/agenda`;
+        }
       }
-    },
+      window.open(url, '_blank');
+
+    }, 
   },
 };
 </script>
