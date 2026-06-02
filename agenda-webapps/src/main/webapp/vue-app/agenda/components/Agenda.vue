@@ -23,7 +23,7 @@
         <agenda-body
           v-else
           :events="displayedEvent"
-          :current-calendar="currentCalendar"
+          :calendars="[currentCalendar]"
           :calendar-type="calendarType"
           :weekdays="weekdays"
           :full-weekdays="fullWeekdays"
@@ -44,7 +44,7 @@
     <agenda-event-dialog
       ref="eventFormDialog"
       :current-space="currentSpace"
-      :current-calendar="currentCalendar"
+      :calendars="[currentCalendar]"
       :settings="settings"
       :connectors="enabledConnectors"
       :conference-provider="conferenceProvider"
@@ -58,7 +58,7 @@
     <agenda-user-setting-drawer :settings="settings" />
     <agenda-event-quick-form-drawer
       :current-space="currentSpace"
-      :current-calendar="currentCalendar"
+      :calendars="[currentCalendar]"
       :settings="settings"
       :conference-provider="conferenceProvider" />
     <agenda-event-save />

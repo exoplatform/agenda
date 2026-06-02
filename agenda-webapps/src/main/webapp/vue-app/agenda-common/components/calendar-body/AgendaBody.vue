@@ -3,7 +3,7 @@
     <v-flex class="d-flex flex-column agenda-body">
       <agenda-calendar
         :events="events"
-        :current-calendar="currentCalendar"
+        :calendars="calendars"
         :calendar-type="calendarType"
         :weekdays="weekdays"
         :full-weekdays="fullWeekdays"
@@ -21,9 +21,9 @@ export default {
       type: String,
       default: () => null
     },
-    currentCalendar: {
-      type: Object,
-      default: () => null
+    calendars: {
+      type: Array,
+      default: () => []
     },
     calendarType: {
       type: String,

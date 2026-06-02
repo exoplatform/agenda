@@ -4,7 +4,7 @@
       <v-card class="d-flex flex-column application-body position-static border-box-sizing" flat>
         <agenda-timeline-header
           :current-space="currentSpace"
-          :current-calendar="currentCalendar"
+          :calendars="calendars"
           :agenda-base-link="agendaBaseLink"
           :connectors="enabledConnectors"
           :settings="settings"
@@ -21,7 +21,7 @@
         <agenda-body
           v-else
           :events="displayedEvent"
-          :current-calendar="currentCalendar"
+          :calendars="calendars"
           :calendar-type="calendarType"
           :weekdays="weekdays"
           :full-weekdays="fullWeekdays"
@@ -32,7 +32,7 @@
     <agenda-event-dialog
       ref="eventFormDialog"
       :current-space="currentSpace"
-      :current-calendar="currentCalendar"
+      :calendars="calendars"
       :settings="settings"
       :connectors="enabledConnectors"
       :conference-provider="conferenceProvider"
@@ -40,7 +40,7 @@
       :working-time="workingTime" />
     <agenda-event-quick-form-drawer
       :current-space="currentSpace"
-      :current-calendar="currentCalendar"
+      :calendars="calendars"
       :settings="settings"
       :conference-provider="conferenceProvider" />
     <agenda-event-save />
@@ -58,7 +58,7 @@ export default {
   data: () => ({
     initialized: false,
     currentSpace: null,
-    currentCalendar: null,
+    calendars: [],
     loading: false,
     ownerIds: [],
     connectors: [],
@@ -256,7 +256,7 @@ export default {
         return this.$calendarService.getCalendars(0, 1, false, this.ownerIds)
           .then(data => {
             this.calendars = data?.calendars || [];
-          }).catch(() => this.currentCalendar = []);
+          }).catch(() => this.calendars = []);
         
       } else if (this.$root.timelineSettings.agendaSource === 'allUsersSpaces'){
         this.ownerIds = [];
@@ -275,7 +275,7 @@ export default {
             }
           })
           .then(data => {
-            this.currentCalendar = data && data.calendars && data.calendars.length && data.calendars[0] || null;
+            this.calendars = data && data.calendars && data.calendars.length && data.calendars || [];
           })
           .finally(() => {
             this.initialized = true;
