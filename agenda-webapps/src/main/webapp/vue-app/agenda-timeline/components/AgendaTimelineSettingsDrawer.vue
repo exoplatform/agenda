@@ -215,15 +215,6 @@ export default {
       itemsNumber: 10
     },
   }),
-  watch: {
-    timelineSettings: {
-      deep: true,
-      handler(val) {
-        console.log('timelineSettings changed:', JSON.stringify(val));
-        console.log('modified:', this.modified);
-      }
-    }
-  },
   computed: {
     disabled() {
       return (this.timelineSettings.displaySeeMore && this.timelineSettings.seeMoreUrl !=='' && !this.isValidLink && (this.timelineSettings.agendaSource === 'selectedSpaces' ? this.timelineSettings.selectedSpaces.length > 0 : true) )  || !this.modified;
