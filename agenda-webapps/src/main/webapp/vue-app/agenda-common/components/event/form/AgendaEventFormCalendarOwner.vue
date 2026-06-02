@@ -2,12 +2,12 @@
   <exo-identity-suggester
     ref="calendarOwnerSuggester"
     v-model="calendarOwner"
-    :items="selectedSpaces"
+    :items="allowedSpaces"
     :labels="calendarSuggesterLabels"
     :include-users="false"
-    :disabled="currentSpace || selectedSpaces.length === 1"
+    :disabled="currentSpace || allowedSpaces.length === 1"
     :width="220"
-    :include-only-items="selectedSpaces.length > 1"
+    :include-only-items="allowedSpaces.length > 1"
     name="calendarOwnerAutocomplete"
     class="user-suggester calendarOwnerAutocomplete"
     include-spaces
@@ -26,6 +26,10 @@ export default {
       type: Object,
       default: () => null,
     },
+    calendars: {
+      type: Array,
+      default: () => []
+    },
   },
   data() {
     return {
@@ -36,6 +40,14 @@ export default {
   computed: {
     selectedSpaces() {
       return this.$root.timelineSettings?.agendaSource === 'selectedSpaces' && this.$root.timelineSettings?.selectedSpaces?.length > 0 ? this.$root.timelineSettings?.selectedSpaces : [];
+    },
+    allowedSpaces() {
+      return  this.selectedSpaces.filter(space =>
+        this.calendars.some(calendar =>
+          calendar?.owner?.space?.id === space.spaceId &&
+          calendar?.acl?.canCreate === true
+        )
+      );
     },
     calendarSuggesterLabels() {
       return {
@@ -110,8 +122,8 @@ export default {
           this.$emit('initialized');
         }, 200);
       } else { // In case of new event
-        if (this.$root.timelineSettings?.agendaSource === 'selectedSpaces' && this.$root.timelineSettings?.selectedSpaces?.length === 1) {
-          this.calendarOwner = this.$root.timelineSettings.selectedSpaces[0];
+        if (this.allowedSpaces.length === 1) {
+          this.calendarOwner = this.allowedSpaces[0];
           if (this.$refs.calendarOwnerSuggester) {
             this.$refs.calendarOwnerSuggester.items = [this.calendarOwner];
           }

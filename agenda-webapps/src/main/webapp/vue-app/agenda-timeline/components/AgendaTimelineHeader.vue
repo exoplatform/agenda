@@ -78,9 +78,9 @@ export default {
       type: Object,
       default: null
     },
-    currentCalendar: {
-      type: Object,
-      default: null
+    calendars: {
+      type: Array,
+      default: () => []
     },
     agendaBaseLink: {
       type: String,
