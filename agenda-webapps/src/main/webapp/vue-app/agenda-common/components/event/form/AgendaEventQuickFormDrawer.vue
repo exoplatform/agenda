@@ -202,7 +202,7 @@ export default {
       this.$refs.quickAddEventDrawer.close();
     },
     open() {
-      if (!this.calendars?.length || (this.calendars[0] && !this.calendars.some(c => c?.acl?.canCreate))) {
+      if (this.$root.timelineSettings && this.$root.timelineSettings.agendaSource === 'selectedSpaces' && (!this.calendars?.length || (this.calendars[0] && !this.calendars.some(c => c?.acl?.canCreate)))) {
         return;
       }
       this.resetCustomValidity();
