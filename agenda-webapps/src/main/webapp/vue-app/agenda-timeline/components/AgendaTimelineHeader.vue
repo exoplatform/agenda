@@ -78,9 +78,9 @@ export default {
       type: Object,
       default: null
     },
-    currentCalendar: {
-      type: Object,
-      default: null
+    calendars: {
+      type: Array,
+      default: () => []
     },
     agendaBaseLink: {
       type: String,
@@ -120,7 +120,7 @@ export default {
       return this.$root.timelineSettings.displayPending;
     },
     canCreateEvent() {
-      return !this.currentCalendar || !this.currentCalendar.acl || this.currentCalendar.acl.canCreate;
+      return this.calendars?.length  && this.calendars.some(c => c?.acl?.canCreate);
     },
     addEventButtonTooltip() {
       if (!this.canCreateEvent) {
