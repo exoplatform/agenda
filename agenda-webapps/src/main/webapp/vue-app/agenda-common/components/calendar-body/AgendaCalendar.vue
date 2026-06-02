@@ -174,7 +174,7 @@ export default {
       return this.nowDate && this.currentTimeTop && `top: ${this.currentTimeTop}px;`;
     },
     canCreateEvent() {
-      return this.calendars?.length && ( !this.calendars[0]  || this.calendars.some(c => c?.acl?.canCreate));
+      return !this.$root.timelineSettings || this.$root.timelineSettings.agendaSource === 'allUsersSpaces' || (this.calendars?.length && this.calendars.some(c => c?.acl?.canCreate));
     },
   },
   watch: {
