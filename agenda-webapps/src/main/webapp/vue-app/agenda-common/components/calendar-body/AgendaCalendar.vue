@@ -92,9 +92,9 @@ export default {
       type: Array,
       default: null
     },
-    currentCalendar: {
-      type: Object,
-      default: () => null
+    calendars: {
+      type: Array,
+      default: () => []
     },
     calendarType: {
       type: String,
@@ -174,7 +174,7 @@ export default {
       return this.nowDate && this.currentTimeTop && `top: ${this.currentTimeTop}px;`;
     },
     canCreateEvent() {
-      return !this.currentCalendar || !this.currentCalendar.acl || this.currentCalendar.acl.canCreate;
+      return this.calendars?.length && ( !this.calendars[0]  || this.calendars.some(c => c?.acl?.canCreate));
     },
   },
   watch: {

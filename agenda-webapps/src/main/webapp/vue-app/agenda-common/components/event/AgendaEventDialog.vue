@@ -77,9 +77,9 @@ export default {
       type: Object,
       default: () => null
     },
-    currentCalendar: {
-      type: Object,
-      default: () => null
+    calendars: {
+      type: Array,
+      default: () => []
     },
     connectors: {
       type: Array,
@@ -163,7 +163,7 @@ export default {
     this.$root.$on('agenda-event-form', (agendaEvent, displayTimeInForm) => {
       this.isNew = agendaEvent.id ? !agendaEvent.id : !agendaEvent.parent || !agendaEvent.parent.id;
       if (this.isNew) {
-        if (this.currentCalendar && this.currentCalendar.acl && !this.currentCalendar.acl.canCreate) {
+        if (!this.calendars?.length || (this.calendars[0] && !this.calendars.some(c => c?.acl?.canCreate))) {
           return;
         }
         this.isForm = true;
