@@ -254,11 +254,15 @@ export default {
       if (this.$root.timelineSettings.agendaSource === 'selectedSpaces') {
         this.ownerIds = this.$root.timelineSettings.selectedSpaces.map(space => space.identityId).filter(id => !!id);
         this.retrieveEventsFromStore();
-        return this.$calendarService.getCalendars(0, 1, false, this.ownerIds)
-          .then(data => {
-            this.calendars = data?.calendars || [];
-          }).catch(() => this.calendars = []);
-        
+        const results = await Promise.allSettled(
+          this.ownerIds.map(ownerId =>
+            this.$calendarService.getCalendars(0, 1, false, [ownerId])
+          )
+        );
+        const calendars = results
+          .filter(result => result.status === 'fulfilled')
+          .flatMap(result => result.value?.calendars || []);
+        this.calendars = calendars;
       } else if (this.$root.timelineSettings.agendaSource === 'allUsersSpaces'){
         this.ownerIds = [];
         return this.retrieveEventsFromStore();
