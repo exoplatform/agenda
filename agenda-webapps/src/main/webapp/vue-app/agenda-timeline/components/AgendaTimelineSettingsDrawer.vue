@@ -292,6 +292,13 @@ export default {
           this.timelineSettings.agendaSource =   'allUsersSpaces';
         }     
       }
+      if (this.timelineSettings.seeMoreUrl === '') {
+        if (eXo.env.portal.spaceId) {    
+          this.timelineSettings.seeMoreUrl = `${eXo.env.portal.context}/s/${eXo.env.portal.spaceId}/agenda`;
+        } else {
+          this.timelineSettings.seeMoreUrl = `${eXo.env.portal.context}/${eXo.env.portal.portalName}/agenda`;
+        }
+      }
       if (this.timelineSettings.displayPending !== false) {
         this.timelineSettings.displayPending = true;
       }
