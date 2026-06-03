@@ -120,7 +120,7 @@ export default {
       return this.$root.timelineSettings.displayPending;
     },
     canCreateEvent() {
-      return this.$root?.timelineSettings?.agendaSource === 'allUsersSpaces' || (this.calendars?.length && this.calendars.some(c => c?.acl?.canCreate));
+      return (this.$root?.timelineSettings && this.$root.timelineSettings.agendaSource !== 'selectedSpaces') || (this.calendars?.length && this.calendars.some(c => c?.acl?.canCreate));
     },
     addEventButtonTooltip() {
       if (!this.canCreateEvent) {
