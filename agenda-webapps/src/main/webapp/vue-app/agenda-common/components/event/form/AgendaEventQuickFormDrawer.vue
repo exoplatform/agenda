@@ -39,6 +39,7 @@
               ref="calendarOwner"
               :event="event"
               :current-space="currentSpace"
+              :calendars="calendars"
               class="ms-1 pe-1"
               @initialized="formInitialized" />
           </div>
@@ -112,9 +113,9 @@ export default {
       type: Object,
       default: () => null,
     },
-    currentCalendar: {
-      type: Object,
-      default: () => null
+    calendars: {
+      type: Array,
+      default: () => []
     },
     settings: {
       type: Object,
@@ -201,7 +202,7 @@ export default {
       this.$refs.quickAddEventDrawer.close();
     },
     open() {
-      if (this.currentCalendar && this.currentCalendar.acl && !this.currentCalendar.acl.canCreate) {
+      if (this.$root.timelineSettings && this.$root.timelineSettings.agendaSource === 'selectedSpaces' && (!this.calendars?.length || (this.calendars[0] && !this.calendars.some(c => c?.acl?.canCreate)))) {
         return;
       }
       this.resetCustomValidity();

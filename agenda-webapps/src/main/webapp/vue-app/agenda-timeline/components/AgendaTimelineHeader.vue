@@ -26,7 +26,6 @@
       :title="addEventButtonTooltip"
       class="d-flex align-center">
       <v-btn
-        :disabled="!canCreateEvent"
         :title="$t('agenda.button.addEvent')"
         icon
         class="ms-auto"
@@ -78,9 +77,9 @@ export default {
       type: Object,
       default: null
     },
-    currentCalendar: {
-      type: Object,
-      default: null
+    calendars: {
+      type: Array,
+      default: () => []
     },
     agendaBaseLink: {
       type: String,
@@ -111,7 +110,7 @@ export default {
       return this.$root.timelineSettings.customHeader && this.$root.headerTitle!=='null' ? this.$root.headerTitle : this.$t('agenda');
     },
     displayButton() {
-      return this.$root.timelineSettings.displayAddEvent !== false  &&  (!this.$root.isMobile || this.canCreateEvent) && (this.initialized || !eXo.env.portal.spaceId);
+      return (this.initialized || !eXo.env.portal.spaceId) && !this.$root.isMobile && this.canCreateEvent &&  this.$root.timelineSettings.displayAddEvent !== false;
     },
     displaySeeMore() {
       return this.$root.timelineSettings.displaySeeMore && this.$root.timelineSettings.seeMoreUrl;
@@ -120,7 +119,7 @@ export default {
       return this.$root.timelineSettings.displayPending;
     },
     canCreateEvent() {
-      return !this.currentCalendar || !this.currentCalendar.acl || this.currentCalendar.acl.canCreate;
+      return (this.$root?.timelineSettings && this.$root.timelineSettings.agendaSource !== 'selectedSpaces') || (this.calendars?.length && this.calendars.some(c => c?.acl?.canCreate));
     },
     addEventButtonTooltip() {
       if (!this.canCreateEvent) {
