@@ -77,7 +77,7 @@
       </v-list>
     </template>
   </v-flex>
-  <agenda-empty-timeline v-else-if="!loading" />
+  <agenda-empty-timeline v-else-if="!loading" :can-create-event="canCreateEvent" />
 </template>
 <script>
 export default {
@@ -105,6 +105,10 @@ export default {
     connectedConnectorAvatar: {
       type: String,
       default: null
+    },
+    canCreateEvent: {
+      type: Boolean,
+      default: false,
     },
   },
   data: () => ({

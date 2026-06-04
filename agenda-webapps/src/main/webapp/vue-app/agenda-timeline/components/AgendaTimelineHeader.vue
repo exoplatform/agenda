@@ -77,6 +77,10 @@ export default {
       type: Object,
       default: null
     },
+    eventsCount: {
+      type: Number,
+      default: 0,
+    },
     calendars: {
       type: Array,
       default: () => []
@@ -101,6 +105,10 @@ export default {
       type: Boolean,
       default: false,
     },
+    canCreateEvent: {
+      type: Boolean,
+      default: false,
+    },
   },
   data: () => ({
     initialized: false,
@@ -110,16 +118,13 @@ export default {
       return this.$root.timelineSettings.customHeader && this.$root.headerTitle!=='null' ? this.$root.headerTitle : this.$t('agenda');
     },
     displayButton() {
-      return (this.initialized || !eXo.env.portal.spaceId) && !this.$root.isMobile && this.canCreateEvent &&  this.$root.timelineSettings.displayAddEvent !== false;
+      return this.eventsCount > 0 && (this.initialized || !eXo.env.portal.spaceId) && !this.$root.isMobile && this.canCreateEvent &&  this.$root.timelineSettings.displayAddEvent !== false;
     },
     displaySeeMore() {
       return this.$root.timelineSettings.displaySeeMore !== false ;
     },
     displayPendingEvents() {
       return this.$root.timelineSettings.displayPending;
-    },
-    canCreateEvent() {
-      return (this.$root?.timelineSettings && this.$root.timelineSettings.agendaSource !== 'selectedSpaces') || (this.calendars?.length && this.calendars.some(c => c?.acl?.canCreate));
     },
     addEventButtonTooltip() {
       if (!this.canCreateEvent) {
