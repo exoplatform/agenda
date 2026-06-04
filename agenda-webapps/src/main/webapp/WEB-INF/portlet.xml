@@ -50,9 +50,12 @@
                    "selectedSpaces":[],
                    "agendaSource":"",
                    "customHeader":false,
-                   "displaySeeMore":false,
+                   "displaySeeMore":true,
                    "seeMoreUrl":"",
                    "displayPending":true,
+                   "displayAddEvent": true,
+                   "agendaFilter": 'allEvents',
+                   "itemsNumber": 10
                    }
                </value>
            </preference>
