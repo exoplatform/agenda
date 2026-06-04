@@ -24,7 +24,7 @@
         :offset-x="offsetX"
         :offset-y="offsetY"
         width="36"
-        height="36"/>
+        height="36" />
       <extension-registry-components
         :params="params"
         name="AgendaApp"
@@ -102,8 +102,12 @@ export default {
         return;
       }
       if (this.$agendaUtils.toRFC3339(oldVal, true) !== this.$agendaUtils.toRFC3339(newVal, true)) {
-        this.period.start = this.periodStart;
-        this.$root.$emit('agenda-refresh');
+        if (this.$root.isMobile) {
+          this.period.start = this.periodStart;
+          this.$root.$emit('agenda-refresh');
+        } else {
+          this.$root.$emit('agenda-display-calendar-atDate', this.$agendaUtils.toRFC3339(newVal, true));
+        }
       }
     },
   },
