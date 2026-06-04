@@ -212,11 +212,13 @@ export default {
     });
     this.$root.$on('agenda-display-calendar-next', () => {
       if (this.$refs.calendar) {
+        this.events = [];
         this.$refs.calendar.next();
       }
     });
     this.$root.$on('agenda-display-calendar-previous', () => {
       if (this.$refs.calendar) {
+        this.events = [];
         this.$refs.calendar.prev();
       }
     });
