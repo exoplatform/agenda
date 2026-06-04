@@ -4,7 +4,9 @@
       <v-card class="d-flex flex-column application-body position-static border-box-sizing" flat>
         <agenda-timeline-header
           :current-space="currentSpace"
+          :events-count="displayedEvent.length"
           :calendars="calendars"
+          :can-create-event="canCreateEvent"
           :agenda-base-link="agendaBaseLink"
           :connectors="enabledConnectors"
           :settings="settings"
@@ -15,6 +17,7 @@
           :events="displayedEvent"
           :period-start-date="periodStart"
           :agenda-base-link="agendaBaseLink"
+          :can-create-event="canCreateEvent"
           :loading="loading || !initialized"
           :limit="limit"
           :connected-connector-avatar="connectedConnectorAvatar" />
@@ -85,6 +88,9 @@ export default {
     periodTitle: '',
   }),
   computed: {
+    canCreateEvent() {
+      return (this.$root?.timelineSettings && this.$root.timelineSettings.agendaSource !== 'selectedSpaces') || (this.calendars?.length && this.calendars.some(c => c?.acl?.canCreate));
+    },
     enabledConferenceProviderName() {
       return this.settings
               && this.conferenceProviders
