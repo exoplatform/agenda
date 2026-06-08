@@ -35,7 +35,7 @@
         fa-chevron-right
       </v-icon>
     </v-btn>
-    <div class="period-title text-uppercase my-auto ms-2">
+    <div class="period-title text-uppercase my-auto ms-2 text-no-wrap">
       {{ periodTitle }}
     </div>
   </div>
