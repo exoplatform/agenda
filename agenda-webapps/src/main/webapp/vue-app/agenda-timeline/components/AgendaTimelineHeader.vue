@@ -1,7 +1,7 @@
 <template>
   <div class="agenda-timeline-header d-flex align-center justify-space-between px-5 pt-5">
     <div class="d-flex col-8">
-      <div class="widget-text-header text-truncate">
+      <div class="widget-text-header my-auto text-truncate">
         {{ headerTitle }}
       </div>
       <agenda-period-selector
