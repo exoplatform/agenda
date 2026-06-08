@@ -186,6 +186,7 @@ export default {
       }
     },
     period() {
+      this.events = [];
       this.retrieveEvents();
       if (this.settings.showRemoteEventsForAgenda && this.signedInConnector) {
         this.retrieveRemoteEvents();
