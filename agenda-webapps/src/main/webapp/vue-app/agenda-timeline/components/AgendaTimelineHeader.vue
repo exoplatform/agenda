@@ -163,8 +163,11 @@ export default {
           url = `${eXo.env.portal.context}/${eXo.env.portal.portalName}/agenda`;
         }
       }
-      window.open(url, '_blank');
-
+      if (url.startsWith(eXo.env.portal.context)) {
+        window.open(url, '_self');
+      } else {
+        window.open(url, '_blank');
+      }
     }, 
   },
 };
