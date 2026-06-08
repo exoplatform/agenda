@@ -16,10 +16,12 @@
 */
 import ActivityWriteEventComposer from './components/ActivityWriteEventComposer.vue';
 import ActivityWriteEventToolbarAction from './components/ActivityWriteEventToolbarAction.vue';
+import ContentActivityEventDate from './components/ContentActivityEventDate.vue';
 
 const components = {
   'activity-write-event-composer': ActivityWriteEventComposer,
   'activity-write-event-toolbar-action': ActivityWriteEventToolbarAction,
+  'content-activity-event-date': ContentActivityEventDate
 };
 
 for (const key in components) {
