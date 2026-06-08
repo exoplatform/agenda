@@ -154,6 +154,7 @@ export default {
       }
     },
     period() {
+      this.events = [];
       this.retrieveEvents();
       if (this.settings.showRemoteEventsForTimeLine && this.signedInConnector) {
         this.retrieveRemoteEvents();
