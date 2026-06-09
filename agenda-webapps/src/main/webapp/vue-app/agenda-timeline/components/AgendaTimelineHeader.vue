@@ -1,6 +1,6 @@
 <template>
   <div class="agenda-timeline-header d-flex align-center justify-space-between px-5 pt-5">
-    <div class="d-flex col-8">
+    <div class="d-flex col-8 pa-0">
       <div class="widget-text-header my-auto text-truncate">
         {{ headerTitle }}
       </div>
@@ -8,7 +8,7 @@
         v-if="!$root.isTimelineView"
         :period-title="periodTitle" />  
     </div>
-    <div class="d-flex justify-end col-4">
+    <div class="d-flex justify-end col-4 pa-0">
       <agenda-pending-invitation-badge
         v-if="displayPendingEvents"
         :current-space="currentSpace"
