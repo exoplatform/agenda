@@ -6,7 +6,7 @@
       class="mb-2">
       fas fa-calendar
     </v-icon>
-    <div class="d-flex flex-grow-1 my-3 align-center justify-center">
+    <div class="d-flex flex-grow-1 mt-3 align-center justify-center">
       <v-btn
         v-if="displayAddEvent"
         class="btn btn-primary"
