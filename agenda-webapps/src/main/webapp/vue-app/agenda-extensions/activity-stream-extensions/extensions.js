@@ -27,4 +27,9 @@ export function initExtensions() {
     rank: 40,
     isEnabled: () => !!eXo?.env?.portal?.spaceId
   });
+  extensionRegistry.registerComponent('ActivityLinkBottomLeft', 'activity-link-extension', {
+    id: 'contentActivityEventDate',
+    vueComponent: Vue.options.components['content-activity-event-date'],
+    rank: 10
+  });
 }
