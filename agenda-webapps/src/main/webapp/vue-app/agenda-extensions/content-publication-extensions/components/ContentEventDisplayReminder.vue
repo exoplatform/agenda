@@ -105,18 +105,61 @@
                   far fa-calendar-alt
                 </v-icon>
               </v-sheet>
-              <div class="d-flex flex-nowrap align-center">
-                <date-format
-                  :value="eventStart"
-                  :format="fullDateFormat" />
-                <div
-                  v-if="!isAllDayEvent"
-                  class="d-flex flex-nowrap align-center">
-                  <span class="mx-1">·</span>
+              <div class="d-flex flex-column align-start">
+                <template v-if="isSameDay">
+                  <div class="d-flex flex-wrap align-center gap-1">
+                    <date-format
+                      class="flex-shrink-0"
+                      :value="eventStart"
+                      :format="fullDateFormat" />
+                    <template v-if="!isAllDayEvent">
+                      <span class="flex-shrink-0">·</span>
+                      <date-format
+                        class="flex-shrink-0"
+                        :value="eventStart"
+                        :format="timeFormat" />
+                    </template>
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="d-flex flex-wrap align-center gap-1">
+                    <span class="flex-shrink-0">{{ $t('contentEvent.date.from.label') }}</span>
+                    <date-format
+                      class="flex-shrink-0"
+                      :value="eventStart"
+                      :format="fullDateFormat" />
+                  </div>
                   <date-format
+                    v-if="!isAllDayEvent"
+                    class="flex-shrink-0"
                     :value="eventStart"
                     :format="timeFormat" />
+                </template>
+              </div>
+            </div>
+            <div v-if="!isSameDay" class="d-flex align-center mb-3">
+              <v-sheet
+                class="me-4 flex-shrink-0 d-flex align-center justify-center"
+                width="26">
+                <v-icon
+                  size="20"
+                  class="max-auto icon-default-color">
+                  far fa-calendar-alt
+                </v-icon>
+              </v-sheet>
+              <div class="d-flex flex-column align-start">
+                <div class="d-flex flex-wrap align-center gap-1">
+                  <span class="flex-shrink-0">{{ $t('contentEvent.date.to.label') }}</span>
+                  <date-format
+                    class="flex-shrink-0"
+                    :value="eventEnd"
+                    :format="fullDateFormat" />
                 </div>
+                <date-format
+                  v-if="!isAllDayEvent"
+                  class="flex-shrink-0"
+                  :value="eventEnd"
+                  :format="timeFormat" />
               </div>
             </div>
             <div
@@ -240,6 +283,16 @@ export default {
   },
   inject: ['registerDeleteInterceptor', 'unregisterDeleteInterceptor'],
   computed: {
+    isSameDay() {
+      if (!this.eventStart || !this.eventEnd) {
+        return true;
+      }
+      const start = new Date(this.eventStart);
+      const end = new Date(this.eventEnd);
+      return start.getFullYear() === end.getFullYear()
+          && start.getMonth() === end.getMonth()
+          && start.getDate() === end.getDate();
+    },
     showMap() {
       return !!this.activeMapProvider
           && !!this.eventLocation
@@ -308,16 +361,21 @@ export default {
         return this.$t('agenda.allDay');
       }
       const ms = new Date(this.eventEnd) - new Date(this.eventStart);
-      const h = Math.floor(ms / 3600000);
-      const m = Math.floor((ms % 3600000) / 60000);
-      if (h && m) {
-        return `${h} ${this.$t(`contentEvent.reminder.hour${h > 1 ? 's' : ''}.label`)} ${m}
-         ${this.$t('contentEvent.reminder.minutes.label')}`;
+      const totalMinutes = Math.floor(ms / 60000);
+      const d = Math.floor(totalMinutes / 1440);
+      const h = Math.floor((totalMinutes % 1440) / 60);
+      const m = totalMinutes % 60;
+      const parts = [];
+      if (d) {
+        parts.push(`${d} ${this.$t(`contentEvent.reminder.day${d > 1 ? 's' : ''}.label`)}`);
       }
       if (h) {
-        return `${h} ${this.$t(`contentEvent.reminder.hour${h > 1 ? 's' : ''}.label`)}`;
+        parts.push(`${h} ${this.$t(`contentEvent.reminder.hour${h > 1 ? 's' : ''}.label`)}`);
       }
-      return `${m} ${this.$t('contentEvent.reminder.minutes.label')}`;
+      if (m) {
+        parts.push(`${m} ${this.$t('contentEvent.reminder.minutes.label')}`);
+      }
+      return parts.join(' ');
     },
     hasRecurrence() {
       return  this.event?.recurrence;
