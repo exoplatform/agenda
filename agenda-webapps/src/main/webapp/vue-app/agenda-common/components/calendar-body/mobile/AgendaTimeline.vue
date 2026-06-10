@@ -29,7 +29,7 @@
           <v-list-item-content class="pa-0">
             <v-list class="pa-0">
               <v-list-item
-                v-for="(event, i) in eventsByDates[month][eventDay]"
+                v-for="(event, i) in limitedEventsByDates[month][eventDay]"
                 :key="i"
                 :title="event.summary"
                 :style="{background: event.color || event.calendar.color}"
@@ -131,15 +131,15 @@ export default {
       return String(new Date(toDay.getFullYear(), toDay.getMonth(), toDay.getDate()));
     },
     eventsMonths() {
-      return Object.keys(this.eventsByDates).sort((d1, d2) => new Date(d1).getTime() - new Date(d2).getTime());
+      return Object.keys(this.limitedEventsByDates).sort((d1, d2) => new Date(d1).getTime() - new Date(d2).getTime());
     },
     eventsDaysByMonth() {
       if (!this.events || !this.events.length) {
         return {};
       }
       const eventsDaysByMonth = {};
-      Object.keys(this.eventsByDates).forEach(eventMonth => {
-        eventsDaysByMonth[eventMonth] = Object.keys(this.eventsByDates[eventMonth]).sort((d1, d2) => new Date(d1).getTime() - new Date(d2).getTime());
+      Object.keys(this.limitedEventsByDates).forEach(eventMonth => {
+        eventsDaysByMonth[eventMonth] = Object.keys(this.limitedEventsByDates[eventMonth]).sort((d1, d2) => new Date(d1).getTime() - new Date(d2).getTime());
       });
       return eventsDaysByMonth;
     },
@@ -148,7 +148,6 @@ export default {
         return {};
       }
       const eventsByDates = {};
-      let count = 0;
       this.events.forEach(event => {
         const eventStartDate = JSON.parse(JSON.stringify(event));
         eventStartDate.startDate = new Date(event.startDate);
@@ -157,7 +156,7 @@ export default {
         let periodStartDate = new Date(this.periodStartDate);
         periodStartDate = new Date(periodStartDate.getFullYear(), periodStartDate.getMonth(), periodStartDate.getDate());
         if (new Date(eventStartDate.startDate).getTime() > new Date(periodStartDate).getTime() || (new Date(eventStartDate.startDate).getTime() === new Date(periodStartDate).getTime() && event.allDay)) {
-          count = this.addEventByDateInMap(eventStartDate, event.startDate, eventsByDates, count);
+          this.addEventByDateInMap(eventStartDate, event.startDate, eventsByDates);
         }
 
         if (!this.$agendaUtils.areDatesOnSameDay(event.startDate, event.endDate)) {
@@ -179,7 +178,7 @@ export default {
               if (periodStartDate.getTime() > eventAllDay.startDate.getTime()) {
                 continue;
               }
-              count = this.addEventByDateInMap(eventAllDay, eventAllDay.startDate, eventsByDates, count);
+              this.addEventByDateInMap(eventAllDay, eventAllDay.startDate, eventsByDates);
               startOfDayOfNextStartDay.setDate(startOfDayOfNextStartDay.getDate() + 1);
             }
           }
@@ -188,20 +187,44 @@ export default {
           eventEndDate.startDate = new Date(event.startDate);
           eventEndDate.endDate = new Date(event.endDate);
           eventEndDate.startsOnBeginningOfDay = true;
-          count = this.addEventByDateInMap(eventEndDate, event.endDate, eventsByDates, count);
+          this.addEventByDateInMap(eventEndDate, event.endDate, eventsByDates);
         }
       });
       return eventsByDates;
+    },
+    limitedEventsByDates() {
+      if (!this.events?.length) {
+        return {};
+      }
+      const limitedEventsByDates = {};
+      let count = 0;
+      for (const [month, days] of Object.entries(this.eventsByDates)) {
+        for (const [day, events] of Object.entries(days)) {
+          const remaining = this.limit - count;
+          if (remaining <= 0) {
+            return limitedEventsByDates;
+          }
+          const sliced = events.slice(0, remaining);
+          if (sliced.length) {
+            if (!limitedEventsByDates[month]) {
+              limitedEventsByDates[month] = {};
+            }
+            limitedEventsByDates[month][day] = sliced;
+            count += sliced.length;
+          }
+          if (count >= this.limit) {
+            return limitedEventsByDates;
+          }
+        }
+      }
+      return limitedEventsByDates;
     },
   },
   created() {
     this.$root.$emit('agenda-event-limit-increment');
   },
   methods: {
-    addEventByDateInMap(event, date, map, count) {
-      if (++count > this.limit) {
-        return --count;
-      }
+    addEventByDateInMap(event, date, map) {
       const monthDate = new Date(date.getFullYear(), date.getMonth());
       if (!map[monthDate]) {
         map[monthDate] = {};
@@ -212,7 +235,6 @@ export default {
       } else {
         map[monthDate][dayDate].push(event);
       }
-      return count;
     },
     openEventDetails(event) {
       this.$root.$emit('agenda-event-details', event);
