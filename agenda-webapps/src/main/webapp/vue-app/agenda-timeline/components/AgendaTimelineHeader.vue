@@ -1,14 +1,15 @@
 <template>
-  <div class="agenda-timeline-header d-flex align-center justify-space-between px-5 pt-5">
-    <div class="d-flex col-8 pa-0">
-      <div class="widget-text-header my-auto text-truncate">
+  <div class="agenda-timeline-header d-flex align-center widget-text-header justify-space-between px-5 pt-5">
+    <div class="d-flex widget-text-header text-truncate pa-0">
+      <div class="text-truncate">
         {{ headerTitle }}
       </div>
       <agenda-period-selector
         v-if="!$root.isTimelineView"
         :period-title="periodTitle" />  
     </div>
-    <div class="d-flex justify-end col-4 pa-0">
+    <v-spacer />  
+    <div class="d-flex pa-0">
       <agenda-pending-invitation-badge
         v-if="displayPendingEvents"
         :current-space="currentSpace"
