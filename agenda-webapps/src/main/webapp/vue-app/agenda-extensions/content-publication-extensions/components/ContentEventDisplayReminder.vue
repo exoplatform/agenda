@@ -489,6 +489,9 @@ export default {
       this.event = null;
     },
     async init() {
+      if (!this.eventId) {
+        return;
+      }
       this.loading = true;
       this.event = null;
       try {

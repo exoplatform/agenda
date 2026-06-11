@@ -62,6 +62,9 @@ export default {
   },
   methods: {
     async init() {
+      if (!this.eventId) {
+        return;
+      }
       this.loading = true;
       this.event = null;
       try {
