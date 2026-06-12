@@ -16,10 +16,18 @@
  */
 package org.exoplatform.agenda.listener;
 
-import io.meeds.content.news.service.NewsService;
-import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
+import static org.exoplatform.agenda.util.Utils.CONTENT_ID;
+import static org.exoplatform.agenda.util.Utils.EVENT_ID;
+import static org.exoplatform.agenda.util.Utils.EVENT_METADATA_KEY;
+import static org.exoplatform.agenda.util.Utils.EVENT_METADATA_NAME;
+import static org.exoplatform.agenda.util.Utils.POST_DELETE_AGENDA_EVENT_EVENT;
+
+import java.util.List;
+import java.util.Objects;
+
 import org.apache.commons.collections4.CollectionUtils;
+import org.springframework.stereotype.Component;
+
 import org.exoplatform.agenda.model.AgendaEventModification;
 import org.exoplatform.services.listener.Asynchronous;
 import org.exoplatform.services.listener.Event;
@@ -28,12 +36,11 @@ import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.social.metadata.MetadataService;
 import org.exoplatform.social.metadata.model.MetadataItem;
 import org.exoplatform.social.metadata.model.MetadataObject;
-import org.springframework.stereotype.Component;
 
-import java.util.List;
-import java.util.Map;
+import io.meeds.content.news.service.NewsService;
 
-import static org.exoplatform.agenda.util.Utils.*;
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 
 @Asynchronous
 @Component
@@ -46,7 +53,7 @@ public class AgendaEventMetadataListener extends Listener<AgendaEventModificatio
 
   private final ListenerService listenerService;
 
-  private final NewsService newsService;
+  private final NewsService     newsService;
 
   @PostConstruct
   public void init() {
@@ -60,16 +67,18 @@ public class AgendaEventMetadataListener extends Listener<AgendaEventModificatio
     AgendaEventModification agendaEventModification = event.getSource();
     Long eventId = agendaEventModification.getEventId();
     MetadataObject metadataObject = new MetadataObject(EVENT_METADATA_NAME, String.valueOf(eventId));
-    List<MetadataItem> metadataItems =
-        metadataService.getMetadataItemsByMetadataAndObject(EVENT_METADATA_KEY, metadataObject);
+    List<MetadataItem> metadataItems = metadataService.getMetadataItemsByMetadataAndObject(EVENT_METADATA_KEY, metadataObject);
     if (CollectionUtils.isNotEmpty(metadataItems)) {
-      MetadataItem metadataItem = metadataItems.getFirst();
-      Map<String, String> properties = metadataItem.getProperties();
-      if (properties.containsKey(CONTENT_ID)) {
-        String contentId = properties.get(CONTENT_ID);
-        newsService.removeArticleMetadataProperty(contentId, EVENT_ID, agendaEventModification.getModifierId());
-        metadataService.deleteMetadataItemsByObject(metadataObject);
-      }
+      metadataItems.stream()
+                   .map(MetadataItem::getProperties)
+                   .filter(Objects::nonNull)
+                   .filter(p -> p.containsKey(CONTENT_ID))
+                   .findFirst()
+                   .ifPresent(properties -> {
+                     String contentId = properties.get(CONTENT_ID);
+                     newsService.removeArticleMetadataProperty(contentId, EVENT_ID, agendaEventModification.getModifierId());
+                     metadataService.deleteMetadataItemsByObject(metadataObject);
+                   });
     }
   }
 }
