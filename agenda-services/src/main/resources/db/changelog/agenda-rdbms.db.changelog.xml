@@ -410,4 +410,10 @@
     </sql>
   </changeSet>
 
+  <changeSet author="agenda" id="1.0.0-35" dbms="mysql">
+    <sql>
+      ALTER TABLE EXO_AGENDA_EVENT MODIFY SUMMARY TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    </sql>
+  </changeSet>
+
 </databaseChangeLog>
