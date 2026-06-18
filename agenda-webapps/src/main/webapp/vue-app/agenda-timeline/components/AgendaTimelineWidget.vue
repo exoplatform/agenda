@@ -302,8 +302,16 @@ export default {
     },
     retrieveEventsFromStore() {
       this.loading = true;
-      const userIdentityId = this.$root.timelineSettings.agendaFilter === 'acceptedEvents' && eXo.env.portal.userIdentityId || null;
-      const responseTypes = this.$root.timelineSettings.agendaFilter === 'acceptedEvents' ? ['ACCEPTED'] : ['ACCEPTED', 'NEEDS_ACTION', 'TENTATIVE'];
+      let agendaFilter = this.$root.timelineSettings.agendaFilter;
+      if (!agendaFilter) {
+        if (eXo.env.portal.spaceId) {  
+          agendaFilter = 'allEvents';
+        } else {
+          agendaFilter = 'acceptedEvents';
+        }
+      }
+      const userIdentityId = agendaFilter === 'acceptedEvents' && eXo.env.portal.userIdentityId || null;
+      const responseTypes = agendaFilter === 'acceptedEvents' ? ['ACCEPTED'] : ['ACCEPTED', 'NEEDS_ACTION', 'TENTATIVE'];
       return this.$eventService.getEvents(this.searchTerm, this.ownerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, false), this.$agendaUtils.toRFC3339(this.period.end), this.limit, responseTypes, 'attendees,conferences')
         .then(data => {
           const events = data && data.events || [];
