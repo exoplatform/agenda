@@ -309,7 +309,11 @@ export default {
         this.timelineSettings.itemsNumber = 10;
       }
       if (!this.timelineSettings.agendaFilter) {
-        this.timelineSettings.agendaFilter = 'allEvents';
+        if (eXo.env.portal.spaceId) {  
+          this.timelineSettings.agendaFilter = 'allEvents';
+        } else {
+          this.timelineSettings.agendaFilter = 'acceptedEvents';
+        }
       }
       this.defaultTimelineSettings = JSON.parse(JSON.stringify(this.timelineSettings));
       this.$refs.drawer.open();
