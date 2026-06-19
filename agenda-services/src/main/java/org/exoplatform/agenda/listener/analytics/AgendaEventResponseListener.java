@@ -77,8 +77,8 @@ public class AgendaEventResponseListener  extends Listener<Long, Object> {
     if (userId > 0) {
       statisticData.setUserId(userId);
     }
-    statisticData.addParameter("eventId", agendaEvent.getId());
-    statisticData.addParameter("eventResponse", eventResponse);
+    statisticData.addLong("eventId", agendaEvent.getId());
+    statisticData.addKeyword("eventResponse", eventResponse);
     AnalyticsUtils.addStatisticData(statisticData);
   }
 

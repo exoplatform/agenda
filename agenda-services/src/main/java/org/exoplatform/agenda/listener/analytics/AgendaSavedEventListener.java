@@ -83,15 +83,15 @@ public class AgendaSavedEventListener extends Listener<AgendaEventModification, 
     statisticData.setSubModule("event");
     statisticData.setOperation(operation);
     statisticData.setUserId(userId);
-    statisticData.addParameter("eventId", event.getId());
-    statisticData.addParameter("parentId", event.getParentId());
-    statisticData.addParameter("calendarOwnerIdentityId", calendarOwnerId);
-    statisticData.addParameter("creatorId", event.getCreatorId());
-    statisticData.addParameter("modifierId", event.getModifierId());
-    statisticData.addParameter("eventStatus", event.getStatus());
-    statisticData.addParameter("isRecurrent", event.getRecurrence() != null);
-    statisticData.addParameter("isExceptionalOccurrence", event.getOccurrence() != null);
-    statisticData.addParameter("eventModificationTypes", eventModification.getModificationTypes());
+    statisticData.addKeyword("eventId", event.getId());
+    statisticData.addKeyword("eventParentId", event.getParentId());
+    statisticData.addKeyword("calendarOwnerIdentityId", calendarOwnerId);
+    statisticData.addKeyword("creatorId", event.getCreatorId());
+    statisticData.addKeyword("modifierId", event.getModifierId());
+    statisticData.addKeyword("eventStatus", event.getStatus());
+    statisticData.addBoolean("isRecurrent", event.getRecurrence() != null);
+    statisticData.addBoolean("isExceptionalOccurrence", event.getOccurrence() != null);
+    statisticData.addKeyword("eventModificationTypes", eventModification.getModificationTypes());
     AnalyticsUtils.addStatisticData(statisticData);
   }
 
