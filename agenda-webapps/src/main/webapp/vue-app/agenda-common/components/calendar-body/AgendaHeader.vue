@@ -12,6 +12,7 @@
         <date-picker
           v-if="$root.isMobile || $root.isTablet"
           v-model="periodStart"
+          :attach="false"
           class="agenda-header-date-picker z-index-two" />  
         <agenda-period-selector
           v-else
