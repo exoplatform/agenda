@@ -1,5 +1,5 @@
 const timeZoneId = new window.Intl.DateTimeFormat().resolvedOptions().timeZone;
-if (eXo.env.portal.userTimezone !== timeZoneId) {
+if (eXo.env.portal.userName && eXo.env.portal.userTimezone !== timeZoneId) {
   fetch('/agenda/rest/timezone', {
     headers: {
       'Content-Type': 'text/plain',
