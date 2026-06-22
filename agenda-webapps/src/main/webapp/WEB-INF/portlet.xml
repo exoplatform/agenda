@@ -54,7 +54,7 @@
                    "seeMoreUrl":"",
                    "displayPending":true,
                    "displayAddEvent": true,
-                   "agendaFilter": 'allEvents',
+                   "agendaFilter": '',
                    "itemsNumber": 10
                    }
                </value>
