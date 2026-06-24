@@ -130,7 +130,7 @@ export default {
       return this.settings
           && this.conferenceProviders
           && this.conferenceProviders.length > 0
-          && this.conferenceProviders.find((provider) => provider.configured);
+          && this.conferenceProviders.find((provider) => provider.isInitialized && provider.configured);
     },
     conferenceProvider() {
       return this.conferenceProviders && this.enabledConferenceProviderName && this.conferenceProviders.find(provider => provider.isInitialized && provider.linkSupported && provider.groupSupported && this.enabledConferenceProviderName.getType() === provider.getType());
