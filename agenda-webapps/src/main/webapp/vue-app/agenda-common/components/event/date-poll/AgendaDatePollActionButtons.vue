@@ -89,6 +89,13 @@ export default {
         .then(() => {
           this.$root.$emit('agenda-refresh');
           window.setTimeout(() => this.$root.$emit('agenda-event-details', this.event), 200);
+          this.$eventService.getEventById(dateOption.eventId, 'all')
+            .then(event => {
+              if (!event) {
+                return;
+              }
+              this.$root.$emit('agenda-event-response-updated', event, null, 'ACCEPTED');
+            });
         })
         .finally(() => {
           window.setTimeout(() => {
