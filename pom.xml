@@ -5,11 +5,11 @@
   <parent>
     <artifactId>maven-exo-parent-pom</artifactId>
     <groupId>org.exoplatform</groupId>
-    <version>30-M01</version>
+    <version>30-devx-SNAPSHOT</version>
   </parent>
   <groupId>org.exoplatform.agenda</groupId>
   <artifactId>agenda-parent</artifactId>
-  <version>7.3.x-SNAPSHOT</version>
+  <version>7.3.x-devx-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>eXo Agenda - Parent POM</name>
   <description>eXo Agenda Addon</description>
@@ -27,8 +27,8 @@
   </scm>
   <properties>
     <!-- 3rd party libraries versions -->
-    <org.exoplatform.commons-exo.version>7.3.x-SNAPSHOT</org.exoplatform.commons-exo.version>
-    <io.meeds.mcp-server.version>7.3.x-SNAPSHOT</io.meeds.mcp-server.version>
+    <org.exoplatform.commons-exo.version>7.3.x-devx-SNAPSHOT</org.exoplatform.commons-exo.version>
+    <io.meeds.mcp-server.version>7.3.x-devx-SNAPSHOT</io.meeds.mcp-server.version>
 
     <!-- ical4j dependencies -->
     <org.mnode.ical4j.version>3.2.19</org.mnode.ical4j.version>
