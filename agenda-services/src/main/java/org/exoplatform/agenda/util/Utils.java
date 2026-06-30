@@ -246,18 +246,16 @@ public class Utils {
   public static Recur getICalendarRecur(EventRecurrence recurrence, ZoneId zoneId) {
     Recur.Builder recurBuilder = new Recur.Builder();
     recurBuilder.frequency(Frequency.valueOf(recurrence.getFrequency().name()));
-    recurBuilder.count(recurrence.getCount() > 0 ? recurrence.getCount() : 0);
     recurBuilder.interval(recurrence.getInterval());
     if (recurrence.getCount() > 0) {
       recurBuilder.count(recurrence.getCount() > 0 ? recurrence.getCount() : 0);
     } else if (recurrence.getUntil() != null) {
       ZoneId effectiveZoneId = zoneId != null ? zoneId : ZoneOffset.UTC;
       DateTime dateTime = new DateTime(AgendaDateUtils.toDate(recurrence.getUntil()
-                                                                        .atStartOfDay(zoneId)
-                                                                        .plusDays(1)
-                                                                        .minusSeconds(1)));
-      TimeZone ical4jTimezone = getICalTimeZone(zoneId == null ? ZoneOffset.UTC : zoneId);
-      dateTime.setTimeZone(ical4jTimezone);
+        .atStartOfDay(effectiveZoneId)
+        .plusDays(1)
+        .minusSeconds(1)));
+      dateTime.setUtc(true);
       recurBuilder.until(dateTime);
     }
     if (recurrence.getBySecond() != null && !recurrence.getBySecond().isEmpty()) {
