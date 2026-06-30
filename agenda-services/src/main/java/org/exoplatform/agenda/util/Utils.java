@@ -247,7 +247,9 @@ public class Utils {
     Recur.Builder recurBuilder = new Recur.Builder();
     recurBuilder.frequency(Frequency.valueOf(recurrence.getFrequency().name()));
     recurBuilder.interval(recurrence.getInterval());
-    if (recurrence.getUntil() != null) {
+    if (recurrence.getCount() > 0) {
+      recurBuilder.count(recurrence.getCount() > 0 ? recurrence.getCount() : 0);
+    } else if (recurrence.getUntil() != null) {
       ZoneId effectiveZoneId = zoneId != null ? zoneId : ZoneOffset.UTC;
       DateTime dateTime = new DateTime(AgendaDateUtils.toDate(recurrence.getUntil()
         .atStartOfDay(effectiveZoneId)
