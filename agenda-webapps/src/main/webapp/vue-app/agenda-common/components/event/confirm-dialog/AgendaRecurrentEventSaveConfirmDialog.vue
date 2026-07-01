@@ -113,6 +113,7 @@ export default {
                 recurrentEvent.description = this.event.description;
                 recurrentEvent.location = this.event.location;
                 recurrentEvent.summary = this.event.summary;
+                recurrentEvent.dateOptions = this.event.dateOptions || [];
                 if (this.event.recurrence) {
                   recurrentEvent.recurrence = this.event.recurrence;
                 } else {
