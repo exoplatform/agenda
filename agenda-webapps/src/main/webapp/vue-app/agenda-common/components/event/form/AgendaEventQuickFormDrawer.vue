@@ -18,7 +18,8 @@
         flat
         @submit="createEvent">
         <div class="d-flex flex-column flex-grow-1">
-          <div class="d-flex flex-row">
+          <div class="d-flex flex-row width-max-content">
+            <v-icon size="20" class="icon-default-color my-auto mx-3">far fa-calendar</v-icon>
             <input
               id="eventTitle"
               ref="eventTitle"
@@ -26,35 +27,31 @@
               :placeholder="$t('agenda.eventTitle')"
               type="text"
               name="title"
-              class="ignore-vuetify-classes my-3"
+              class="ignore-vuetify-classes my-3 ms-2 event-input"
               required
               autofocus
               @change="resetCustomValidity">
           </div>
           <div class="d-flex flex-row">
-            <v-flex class="flex-grow-0">
-              <i class="uiIconPLFEventTask darkGreyIcon uiIcon32x32 mt-4 mx-3"></i>
-            </v-flex>
+            <v-icon size="20" class="icon-default-color mt-4 mx-3">fas fa-calendar-alt</v-icon>
             <agenda-event-form-calendar-owner
               ref="calendarOwner"
               :event="event"
               :current-space="currentSpace"
               :calendars="calendars"
-              class="ms-1 pe-1"
+              class="ms-2 pe-1"
               @initialized="formInitialized" />
           </div>
           <div class="d-flex flex-row">
-            <v-flex class="flex-grow-0 pt-4 my-2 mx-3">
-              <i class="uiIconClock darkGreyIcon uiIcon32x32"></i>
-            </v-flex>
+            <v-icon size="20" class="icon-default-color mb-auto pt-9 mx-3">fas fa-clock</v-icon>
             <agenda-event-form-date-pickers
               :event="event"
-              class="pt-3 my-4 me-3"
+              class="pt-3 my-4 me-3 ms-2"
               @changed="updateEventDates"
               @initialized="formInitialized" />
           </div>
           <div class="d-flex flex-row">
-            <i class="uiIconLocation darkGreyIcon uiIcon32x32 mt-4 mx-3"></i>
+            <v-icon size="20" class="icon-default-color my-auto mx-3">fas fa-map-marker-alt</v-icon>
             <input
               id="eventLocation"
               ref="eventLocation"
@@ -62,21 +59,19 @@
               :placeholder="$t('agenda.eventLocation')"
               type="text"
               name="locationEvent"
-              class="ignore-vuetify-classes my-3 location-event-input">
+              class="ignore-vuetify-classes my-3 ms-3 event-input">
           </div>
           <agenda-event-form-conference
             :event="event"
             :settings="settings"
             :current-space="currentSpace"
             :conference-provider="conferenceProvider"
-            icon-class="mx-3" />
+            icon-class="ms-3 me-4" />
           <div class="d-flex flex-row">
-            <v-flex class="flex-grow-0">
-              <i class="uiIconGroup darkGreyIcon uiIcon32x32 mt-4 mx-3"></i>
-            </v-flex>
+            <v-icon size="20" class="icon-default-color mb-auto pt-6 ms-3 me-4">fas fa-users</v-icon>
             <agenda-event-form-attendees
               :event="event"
-              class="pe-1"
+              class="ml-n2px pe-1"
               @initialized="formInitialized" />
           </div>
         </div>
