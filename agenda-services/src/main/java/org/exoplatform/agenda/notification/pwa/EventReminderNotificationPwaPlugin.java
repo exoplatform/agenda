@@ -33,6 +33,7 @@ import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.resources.LocaleConfig;
 import org.exoplatform.services.resources.ResourceBundleService;
+import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.spi.SpaceService;
 
 import static org.exoplatform.agenda.util.NotificationUtils.STORED_PARAMETER_EVENT_OWNER_ID;
@@ -46,16 +47,16 @@ public class EventReminderNotificationPwaPlugin implements PwaNotificationPlugin
   private static final String   TITLE_LABEL_KEY = "pwa.notification.EventReminderNotificationPwaPlugin.title";
 
   private ResourceBundleService resourceBundleService;
-  private SpaceService spaceService;
+  private IdentityManager identityManager;
 
-  public EventReminderNotificationPwaPlugin(ResourceBundleService resourceBundleService, SpaceService spaceService) {
-    this.spaceService = spaceService;
+  public EventReminderNotificationPwaPlugin(ResourceBundleService resourceBundleService, IdentityManager identityManager) {
+    this.identityManager = identityManager;
     this.resourceBundleService = resourceBundleService;
   }
 
   @Override
-  public SpaceService getSpaceService() {
-    return this.spaceService;
+  public IdentityManager getIdentityManager() {
+    return this.identityManager;
   }
 
   @Override
@@ -68,10 +69,9 @@ public class EventReminderNotificationPwaPlugin implements PwaNotificationPlugin
     PwaNotificationMessage notificationMessage = new PwaNotificationMessage();
 
     String key = TITLE_LABEL_KEY;
-    String spaceId = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_OWNER_ID);
+    String spaceIdentityId = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_OWNER_ID);
     String title = resourceBundleService.getSharedString(key, localeConfig.getLocale())
-                                        .replace("{0}",getSpaceName(spaceId));
-
+                                        .replace("{0}",getIdentityManager().getIdentity(Long.parseLong(spaceIdentityId)).getProfile().getFullName());
     notificationMessage.setTitle(title);
     notificationMessage.setBody(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_TITLE));
 
