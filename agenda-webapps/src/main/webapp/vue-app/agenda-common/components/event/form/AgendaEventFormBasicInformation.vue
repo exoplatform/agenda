@@ -5,9 +5,7 @@
     flat
     @submit="$emit('next-step')">
     <div class="d-flex flex-column flex-md-row">
-      <label class="create-event-label float-left mt-5 me-6 text-subtitle-1 d-none d-md-inline">
-        {{ $t('agenda.label.create') }}
-      </label>
+      <v-icon size="20" class="icon-default-color my-auto me-12 d-none d-md-inline">far fa-calendar</v-icon>
       <input
         id="eventTitle"
         ref="eventTitle"
@@ -30,7 +28,7 @@
     <div class="d-flex flex-column flex-md-row mt-1 event-form-body">
       <div class="d-flex flex-column flex-grow-1 event-form-body-left">
         <div v-if="displayTimeInForm && eventDateOption" class="d-flex flex-row">
-          <i class="uiIconClock darkGreyIcon uiIcon32x32 mt-4 me-11"></i>
+          <v-icon size="20" class="icon-default-color mb-auto pt-6 me-11">fas fa-clock</v-icon>
           <agenda-event-form-date-pickers
             :event="eventDateOption"
             class="event-form-datetimes my-4"
@@ -38,7 +36,7 @@
             @initialized="formInitialized" />
         </div>
         <div class="d-flex flex-row">
-          <i class="uiIconLocation darkGreyIcon uiIcon32x32 mt-4 me-11"></i>
+          <v-icon size="20" class="icon-default-color my-auto me-12">fas fa-map-marker-alt</v-icon>
           <input
             id="eventLocation"
             ref="eventLocation"
@@ -46,10 +44,12 @@
             :placeholder="$t('agenda.eventLocation')"
             type="text"
             name="locationEvent"
-            class="ignore-vuetify-classes my-3 location-event-input">
+            class="ignore-vuetify-classes my-3 event-input">
         </div>
         <div class="d-flex flex-row">
-          <i class="uiIconRecurrence darkGreyIcon uiIcon32x32 my-auto me-11"></i>
+          <div :class="hasRecurrence ? 'flex-grow-0 pt-2' : 'my-auto'">
+            <v-icon size="20" class="icon-default-color me-11">fas fa-redo</v-icon>
+          </div>
           <div class="d-flex flex-column">
             <agenda-event-form-recurrence :event="event" class="my-auto" />
             <agenda-event-recurrence
@@ -67,7 +67,7 @@
           icon-class="me-10" />
         <div class="d-flex flex-row">
           <v-flex class="flex-grow-0">
-            <i class="uiIconDescription darkGreyIcon uiIcon32x32 my-3 me-11"></i>
+            <v-icon size="20" class="icon-default-color mt-3 me-11">fas fa-align-left</v-icon>
           </v-flex>
           <rich-editor
             id="eventDescription"
@@ -77,7 +77,7 @@
             :max-length="eventDescriptionTextLength"
             :tag-enabled="false"
             ck-editor-type="agendaEventDescription"
-            class="pt-2 width-full"
+            class="pt-3 width-full"
             content-link-enabled />
         </div>
       </div>
@@ -87,7 +87,7 @@
       <div class="d-flex flex-column flex-grow-1 event-form-body-right">
         <div class="d-flex flex-row">
           <v-flex class="flex-grow-0 me-2 mt-1">
-            <i class="uiIconGroup darkGreyIcon uiIcon32x32 my-3"></i>
+            <v-icon size="20" class="icon-default-color m-auto">fas fa-users</v-icon>
           </v-flex>
           <agenda-event-form-attendees
             :event="event"
