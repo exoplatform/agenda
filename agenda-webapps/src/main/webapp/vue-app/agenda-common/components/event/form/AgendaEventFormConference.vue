@@ -2,8 +2,8 @@
   <div class="d-flex flex-row">
     <v-icon
       v-if="showIcon && !$root.isMobile"
-      :class="`darkGreyIcon my-auto ${this.iconClass} mt-4`"
-      size="32px">
+      :class="`icon-default-color my-auto ${this.iconClass}`"
+      size="20px">
       fa-video
     </v-icon>
     <template v-if="isConferenceEnabled">
@@ -105,7 +105,7 @@ export default {
   }),
   computed: {
     marginClass() {
-      return this.$root.isMobile ? 'my-0' : 'my-3';
+      return this.$root.isMobile ? 'my-0' : 'my-auto';
     },
     isConferenceEnabled() {
       return this.conferenceProvider && (!this.eventConferenceType || this.conferenceProvider.getType() === this.eventConferenceType || this.eventConferenceType === 'manual');

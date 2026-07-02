@@ -3,7 +3,7 @@
     <div class="flex-grow-1 flex-shrink-0 event-details-body-left " :class="{ 'd-flex' : !$root.isMobile }">
       <div class="full-width" :class="{'mx-auto' : $root.isMobile}">
         <div class="event-date align-center d-flex pb-5">
-          <i class="uiIconDatePicker darkGreyIcon uiIcon32x32 pe-5"></i>
+          <v-icon size="20" class="icon-default-color pe-5">fas fa-calendar-alt</v-icon>
           <div class="d-inline-flex">
             <date-format
               :value="event.startDate"
@@ -19,7 +19,7 @@
           </div>
         </div>
         <div class="event-time align-center d-flex pb-5">
-          <i class="uiIconClock darkGreyIcon uiIcon32x32 pe-5"></i>
+          <v-icon size="20" class="icon-default-color pe-5">fas fa-clock</v-icon>
           <div class="d-inline-flex">
             <template v-if="event.allDay">
               {{ $t('agenda.allDay') }}
@@ -40,12 +40,14 @@
             </template>
           </div>
         </div>
-        <div v-if="hasRecurrence" class="event-recurrence align-center d-flex ps-1 pb-5 text-truncate">
-          <i class="uiIconRefresh darkGreyIcon uiIcon32x32 pe-5"></i>
+        <div v-if="hasRecurrence" class="event-recurrence align-center d-flex pb-5 text-truncate">
+          <v-icon size="20" class="icon-default-color pe-5">fas fa-redo</v-icon>
           <agenda-event-recurrence :event="event" class="text-wrap text-left" />
         </div>
-        <div v-if="canAddReminders" class="event-reminders align-center d-flex pb-5 text-truncate">
-          <i class="uiIcon32x32 notifIcon darkGreyIcon pe-5 mt-1 mb-auto"></i>
+        <div 
+          v-if="canAddReminders"
+          class="event-reminders align-center d-flex text-truncate pb-5">
+          <v-icon size="20" class="icon-default-color pe-5 mt-2 mb-auto">fas fa-bell</v-icon>
           <v-list
             class="py-0 text-truncate"
             dense>
@@ -61,7 +63,7 @@
                 class="ps-0"
                 dense>
                 <v-chip
-                  class="mt-1 mb-2 me-2"
+                  class="me-2"
                   color="primary"
                   outlined>
                   <span class="text--primary text-truncate">
@@ -81,35 +83,47 @@
             transparent
             class="mb-auto border-box-sizing"
             @click="$refs.reminders.open()">
-            <i class="uiIconEdit uiIcon16x16 darkGreyIcon pt-2"></i>
+            <v-icon size="20" class="icon-default-color pt-2">fas fa-pen</v-icon>
           </v-btn>
         </div>
-        <div v-if="isConferenceEnabled" class="event-conference flex d-flex flex-grow-0 flex-shrink-1 pb-5">
-          <v-icon class="pe-5 darkGreyIcon" size="32px">fa-video</v-icon>
-          <v-btn
-            :title="eventConferenceUrl"
-            :href="!eventConferenceUrl.match(/^(https?:\/\/|\/portal\/)/) ? `//${eventConferenceUrl}` : eventConferenceUrl"
-            target="_blank"
-            link
-            text
-            class="text-lowercase text-truncate primary--text flex-shrink-1 flex-grow-1 d-inline pt-2">
-            <template slot="default">
-              {{ eventConferenceUrl }}
-            </template>
-          </v-btn>
+        <div v-if="isConferenceEnabled" class="event-conference d-flex flex-grow-0 flex-shrink-1 pb-5">
+          <v-icon size="20" class="icon-default-color pe-4 align-self-start mt-2">fas fa-video</v-icon>
+          <div class="d-flex flex-column flex-shrink-1 flex-grow-1">
+            <div class="d-flex align-center">
+              <v-btn
+                target="_blank"
+                class="btn btn-primary border-radius me-2"
+                @click="openConferenceLink">
+                {{ $t('agenda.button.joinMeeting') }}
+              </v-btn>
+              <v-tooltip bottom>
+                <template #activator="{ on }">
+                  <v-btn
+                    icon
+                    small
+                    v-on="on"
+                    @click="copyConferenceLink">
+                    <v-icon size="16">fas fa-copy</v-icon>
+                  </v-btn>
+                </template>
+                <span>{{ $t('agenda.tooltip.meeting.copyLink') }}</span>
+              </v-tooltip>
+            </div>
+            <span class="text-subtitle text-truncate mt-1">{{ eventConferenceUrl }}</span>
+          </div>
         </div>
         <div v-if="event.location" class="event-location d-flex flex-grow-0 flex-shrink-1 pb-5">
-          <i class="uiIconCheckin darkGreyIcon uiIcon32x32 pe-5"></i>
+          <v-icon size="20" class="icon-default-color pe-6">fas fa-map-marker-alt</v-icon>
           <span v-autolinker="event.location" class="align-self-center text-break"></span>
         </div>
         <div v-if="event.description" class="event-description d-flex flex-grow-0 flex-shrink-1 pb-5">
-          <i class="uiIconDescription darkGreyIcon uiIcon32x32 pe-5"></i>
-          <span v-sanitized-html="event.description" class="mt-1 align-self-center text-wrap text-left text-break rich-editor-content"></span>
+          <v-icon size="20" class="icon-default-color align-self-start mt-2 pe-5">fas fa-align-left</v-icon>
+          <span v-sanitized-html="event.description" class="align-self-center text-wrap text-left text-break rich-editor-content pt-1"></span>
         </div>
         <div
           v-if="event.attachments && event.attachments.length !== 0"
           class="event-attachments align-center d-flex pb-5">
-          <i class="uiIconAttach darkGreyIcon uiIcon32x32 pe-5"></i>
+          <v-icon size="20" class="icon-default-color pe-5">fas fa-paperclip</v-icon>
           <div
             v-for="attachedFile in event.attachments"
             :key="attachedFile.name"
@@ -223,6 +237,10 @@ export default {
     eventConferenceUrl() {
       return this.eventConference && this.eventConference.url;
     },
+    conferenceHref() {
+      if (!this.eventConferenceUrl) { return '#'; }
+      return !this.eventConferenceUrl.match(/^(https?:\/\/|\/portal\/)/) ? `//${this.eventConferenceUrl}` : this.eventConferenceUrl;
+    },
     calendarOwnerLink() {
       if (this.owner) {
         if (this.owner.providerId === 'organization') {
@@ -311,6 +329,19 @@ export default {
   methods: {
     closeDialog() {
       this.$emit('close');
+    },
+    openConferenceLink() {
+      window.open(this.conferenceHref, '_blank');
+    },
+    copyConferenceLink() {
+      navigator.clipboard.writeText(this.eventConferenceUrl).then(() => {
+        document.dispatchEvent(new CustomEvent('alert-message', {
+          detail: {
+            alertType: 'success',
+            alertMessage: this.$t('agenda.message.meetingLinkCopied'),
+          }
+        }));
+      });
     },
     async generateICS(event) {
       const formatDate = (date) => {
