@@ -61,7 +61,7 @@ function createConference(event, conference) {
       const participants = identities.filter(identity => identity && identity.providerId === 'organization' && identity?.profile?.dataEntity?.enabled).map(identity => identity.remoteId);
       const spaces = identities.filter(identity => identity && identity.providerId === 'space').map(identity => identity.remoteId);
       const startDate = new Date(event.start);
-      const endDate = event.endDate && new Date(event.end) || event.recurrence && event.recurrence.until && new Date(event.recurrence.until) || null;
+      const endDate = event.end && new Date(event.end) || event.recurrence && event.recurrence.until && new Date(event.recurrence.until) || null;
       return global.webConferencing.addCall({
         title: event.title,
         owner: event.calendar.owner.id,

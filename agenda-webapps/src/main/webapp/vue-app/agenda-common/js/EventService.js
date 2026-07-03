@@ -346,6 +346,11 @@ export function selectEventDate(eventId, dateOptionId) {
     .then((resp) => {
       if (!resp || !resp.ok) {
         throw new Error('Error selecting an event date');
+      } else {
+        getEventById(eventId,'all').then(event => {
+          const saveWebConferencePromises = getSaveAllWebConferencesPromises(event);
+          return Promise.all(saveWebConferencePromises);
+        });
       }
     });
 }
