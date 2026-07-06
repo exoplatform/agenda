@@ -16,493 +16,131 @@
 -->
 
 <template>
-  <div>
-    <v-card
-      v-if="event"
-      class="pa-5 white border-box-sizing border-radius box-shadow"
-      :class="{
-        'full-width': !mdAndUp,
-        'ms-5': mdAndUp
-      }"
-      :width="mdAndUp && 330"
-      outlined>
-      <template v-if="loading">
-        <v-skeleton-loader type="heading" class="mb-3" />
-        <v-skeleton-loader type="text" class="mb-2" />
-        <v-skeleton-loader type="text" class="mb-2" />
-        <v-skeleton-loader type="text" class="mb-2" />
-      </template>
-      <template v-else-if="event">
-        <div class="d-flex align-center justify-space-between mb-3">
-          <span class="text-header text-header-color font-weight-medium">
-            {{ $t('contentEvent.reminder.title.label') }}
-          </span>
-          <v-btn
-            min-width="36"
-            class="btn btn-primary"
-            :href="eventUrl">
-            {{ $t('contentEvent.reminder.replay.label') }}
-          </v-btn>
-        </div>
-        <div
-          :class="{
-            'd-flex gap-2 justify-space-between': !mdAndUp && !smAndDown
-          }">
-          <div class="mb-3 flex-grow-1 flex-basis-0 overflow-hidden">
-            <div class="text-color text-font-size font-weight-bold mb-5">
-              {{ $t('contentEvent.reminder.highlights.label') }}
-            </div>
-            <div class="d-flex align-center mb-3">
-              <v-sheet
-                class="me-4 flex-shrink-0 d-flex align-center justify-center"
-                width="26">
-                <v-icon
-                  size="20"
-                  class="mx-auto icon-default-color">
-                  far fa-clock
-                </v-icon>
-              </v-sheet>
-              <span>{{ duration }}</span>
-            </div>
-            <div
-              v-if="hasRecurrence"
-              class="d-flex mb-3">
-              <v-sheet
-                class="me-4 d-flex flex-shrink-0 align-center justify-center"
-                width="26">
-                <v-icon
-                  size="20"
-                  class="mx-auto icon-default-color">
-                  fas fa-sync-alt
-                </v-icon>
-              </v-sheet>
-              <agenda-event-recurrence :event="event" />
-            </div>
-            <div v-if="locationHighlight" class="d-flex align-center">
-              <v-sheet
-                class="me-4 d-flex flex-shrink-0 align-center justify-center"
-                width="26">
-                <v-icon
-                  :size="20"
-                  class="mx-auto icon-default-color">
-                  fas fa-map-marker-alt
-                </v-icon>
-              </v-sheet>
-              <span>{{ locationHighlight }}</span>
-            </div>
-          </div>
-          <div class="flex-grow-1 flex-basis-0 overflow-hidden">
-            <div class="text-color text-font-size font-weight-bold mb-5">
-              {{ $t('contentEvent.reminder.Details.label') }}
-            </div>
-            <div class="d-flex align-center mb-3">
-              <v-sheet
-                class="me-4 flex-shrink-0 d-flex align-center justify-center"
-                width="26">
-                <v-icon
-                  size="20"
-                  class="max-auto icon-default-color">
-                  far fa-calendar-alt
-                </v-icon>
-              </v-sheet>
-              <div class="d-flex flex-column align-start">
-                <template v-if="isSameDay">
-                  <div class="d-flex flex-wrap align-center gap-1">
-                    <date-format
-                      class="flex-shrink-0"
-                      :value="eventStart"
-                      :format="fullDateFormat" />
-                    <template v-if="!isAllDayEvent">
-                      <span class="flex-shrink-0">·</span>
-                      <date-format
-                        class="flex-shrink-0"
-                        :value="eventStart"
-                        :format="timeFormat" />
-                    </template>
-                  </div>
-                </template>
-                <template v-else>
-                  <div class="d-flex flex-wrap align-center gap-1">
-                    <span class="flex-shrink-0">{{ $t('contentEvent.date.from.label') }}</span>
-                    <date-format
-                      class="flex-shrink-0"
-                      :value="eventStart"
-                      :format="fullDateFormat" />
-                  </div>
-                  <date-format
-                    v-if="!isAllDayEvent"
-                    class="flex-shrink-0"
-                    :value="eventStart"
-                    :format="timeFormat" />
-                </template>
-              </div>
-            </div>
-            <div v-if="!isSameDay" class="d-flex align-center mb-3">
-              <v-sheet
-                class="me-4 flex-shrink-0 d-flex align-center justify-center"
-                width="26">
-                <v-icon
-                  size="20"
-                  class="max-auto icon-default-color">
-                  far fa-calendar-alt
-                </v-icon>
-              </v-sheet>
-              <div class="d-flex flex-column align-start">
-                <div class="d-flex flex-wrap align-center gap-1">
-                  <span class="flex-shrink-0">{{ $t('contentEvent.date.to.label') }}</span>
-                  <date-format
-                    class="flex-shrink-0"
-                    :value="eventEnd"
-                    :format="fullDateFormat" />
-                </div>
-                <date-format
-                  v-if="!isAllDayEvent"
-                  class="flex-shrink-0"
-                  :value="eventEnd"
-                  :format="timeFormat" />
-              </div>
-            </div>
-            <div
-              v-if="eventLocation"
-              class="d-flex align-center mb-3">
-              <v-sheet
-                class="me-4 d-flex flex-shrink-0 align-center justify-center"
-                width="26">
-                <v-icon
-                  size="20"
-                  class="mx-auto icon-default-color">
-                  fas fa-map-marker-alt
-                </v-icon>
-              </v-sheet>
-              <span class="text-truncate no-min-width">
-                {{ eventLocation }}
-              </span>
-              <v-spacer />
-              <v-btn
-                v-if="activeMapProvider"
-                :href="mapsUrl"
-                :aria-label="$t('contentEvent.reminder.location.aria.label')"
-                :title="$t('contentEvent.reminder.location.aria.label')"
-                target="_blank"
-                width="28"
-                min-width="28"
-                height="28"
-                class="ms-2"
-                icon>
-                <v-icon
-                  size="20"
-                  class="icon-default-color">
-                  fas fa-directions
-                </v-icon>
-              </v-btn>
-            </div>
-            <div
-              v-if="webConferenceLink"
-              class="d-flex align-center">
-              <v-sheet
-                class="me-4 d-flex flex-shrink-0 align-center justify-center"
-                width="26">
-                <v-icon
-                  size="20"
-                  class="mx-auto icon-default-color">
-                  fas fa-video
-                </v-icon>
-              </v-sheet>
-              <v-btn
-                :href="webConferenceLink"
-                :aria-label="$t('contentEvent.reminder.meeting.aria.label')"
-                height="24"
-                class="text-none btn btn-primary border-radius-16 px-3"
-                target="_blank"
-                x-small
-                outlined>
-                {{ $t('contentEvent.reminder.join.label') }}
-              </v-btn>
-            </div>
-            <div
-              v-if="showMap"
-              class="mt-3 position-relative">
-              <v-skeleton-loader
-                v-if="geocoding || !mapLoaded"
-                type="image"
-                height="200"
-                class="border-radius" />
-              <iframe
-                v-if="mapEmbedUrl"
-                :src="mapEmbedUrl"
-                :title="$t('contentEvent.location.label')"
-                :class="mapLoaded ? '' : 'position-absolute t-0'"
-                class="border-radius no-border"
-                width="100%"
-                height="200"
-                loading="lazy"
-                @load="mapLoaded = true"></iframe>
-            </div>
-          </div>
-        </div>
-      </template>
-    </v-card>
-    <exo-confirm-dialog
-      ref="eventDeleteConfirmDialog"
-      :message="$t('contentEvent.event.deletion.from.content.message')"
-      :title="$t('contentEvent.event.deletion.title')"
-      :ok-label="$t('contentEvent.confirm.label')"
-      :cancel-label="$t('contentEvent.cancel.label')"
-      @ok="confirmEventDeletion"
-      @closed="cancelEventDeletion" />
+  <div class="d-flex align-center flex-grow-1 flex-wrap">
+    <v-icon size="16" class="icon-default-color me-2">fas fa-users</v-icon>
+    <span class="body-2 me-2">{{ $t('agenda.participants') }}</span>
+    <v-btn
+      :title="$t('agenda.addParticipants')"
+      icon
+      x-small
+      @click="openDrawer">
+      <v-icon size="16" class="icon-default-color">fas fa-plus</v-icon>
+    </v-btn>
+    <div
+      v-if="sortedAttendees.length"
+      class="d-flex align-center ms-2 agenda-attendees-strip"
+      @mouseenter="showSeeMore = true"
+      @mouseleave="showSeeMore = false"
+      @focusin="showSeeMore = true"
+      @focusout="showSeeMore = false">
+      <v-tooltip
+        v-for="attendee in visibleAttendees"
+        :key="attendee.identity.id"
+        bottom>
+        <template #activator="{ on }">
+          <v-avatar
+            :tile="attendee.identity.providerId === 'space'"
+            size="26"
+            class="me-1"
+            style="cursor:pointer"
+            v-on="on"
+            @click="openDrawer">
+            <v-img :src="getAvatarUrl(attendee)" :lazy-src="defaultAvatarUrl" />
+          </v-avatar>
+        </template>
+        <span>{{ getDisplayName(attendee) }}</span>
+      </v-tooltip>
+      <v-btn
+        v-if="overflowCount > 0 && !showSeeMore"
+        x-small
+        text
+        class="caption px-1 min-width-unset"
+        @click="openDrawer">
+        +{{ overflowCount }}
+      </v-btn>
+      <v-btn
+        v-if="showSeeMore"
+        x-small
+        text
+        class="caption px-1"
+        @click="openDrawer">
+        {{ $t('agenda.timeline.seeMore') }}
+      </v-btn>
+    </div>
+    <agenda-event-form-attendees-drawer
+      ref="attendeesDrawer"
+      :event="event"
+      @initialized="$emit('initialized')" />
   </div>
 </template>
 
 <script>
-
 export default {
+  props: {
+    event: {
+      type: Object,
+      default: () => ({}),
+    },
+  },
   data() {
     return {
-      expand: 'attendees,reminders,recurrence,conferences',
-      event: null,
-      mapLoaded: false,
-      loading: false,
-      eventToDelete: false,
-      coords: null,
-      bbox: null,
-      geocoding: true,
-      geocodingFailed: false,
-      geocodeResult: null,
-      activeMapProvider: null,
+      showSeeMore: false,
+      maxVisible: 3,
     };
   },
-  props: {
-    eventId: {
-      type: Object,
-      default: null
-    },
-    customBreakPointThreshold: {
-      type: Number,
-      default: 0
-    }
-  },
-  inject: ['registerDeleteInterceptor', 'unregisterDeleteInterceptor'],
   computed: {
-    isSameDay() {
-      if (!this.eventStart || !this.eventEnd) {
-        return true;
-      }
-      const start = new Date(this.eventStart);
-      const end = new Date(this.eventEnd);
-      return start.getFullYear() === end.getFullYear()
-          && start.getMonth() === end.getMonth()
-          && start.getDate() === end.getDate();
+    defaultAvatarUrl() {
+      return '/portal/rest/v1/social/users/default-image/avatar';
     },
-    showMap() {
-      return !!this.activeMapProvider
-          && !!this.eventLocation
-          && this.mdAndUp
-          && this.showLocationMap
-          && !this.geocodingFailed
-          && !this.geocoding;
+    sortedAttendees() {
+      if (!this.event.attendees) { return []; }
+      const creatorId = this.event.creator && this.event.creator.id;
+      const ownerId = creatorId || eXo.env.portal.userIdentityId;
+      const owner = this.event.attendees.find(a => Number(a.identity.id) === Number(ownerId));
+      const others = this.event.attendees
+        .filter(a => a !== owner)
+        .sort((a, b) => (this.getDisplayName(a) || '').localeCompare(this.getDisplayName(b) || ''));
+      return owner ? [owner, ...others] : others;
     },
-    showLocationMap() {
-      return this.event?.parameters?.showLocationMap === 'true';
+    visibleAttendees() {
+      return this.sortedAttendees.slice(0, this.maxVisible);
     },
-    mdAndUp () {
-      return this.$vuetify.breakpoint.width >= this.$vuetify.breakpoint.thresholds.md - this.customBreakPointThreshold;
+    overflowCount() {
+      return Math.max(0, this.sortedAttendees.length - this.maxVisible);
     },
-    smAndDown () {
-      return this.$vuetify.breakpoint.width <= this.$vuetify.breakpoint.thresholds.sm + this.customBreakPointThreshold;
-    },
-    mapEmbedUrl() {
-      if (!this.activeMapProvider || !this.geocodeResult) {
-        return null;
-      }
-      return this.activeMapProvider.mapEmbedUrl(this.geocodeResult);
-    },
-    mapsUrl() {
-      if (!this.activeMapProvider) {
-        return null;
-      }
-      return this.activeMapProvider.mapsUrl(this.geocodeResult || { location: this.eventLocation });
-    },
-    eventStart() {
-      return this.event?.start;
-    },
-    eventEnd() {
-      return this.event?.end;
-    },
-    tz() {
-      return this.event?.timeZoneId || 'UTC';
-    },
-    fullDateFormat() {
-      return {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        timeZone: this.tz,
-      };
-    },
-    timeFormat() {
-      return {
-        hour: '2-digit',
-        minute: '2-digit',
-        timeZoneName: 'short',
-        timeZone: this.tz,
-      };
-    },
-    webConferenceLink() {
-      return this.event?.conferences?.[0]?.url;
-    },
-    eventLocation() {
-      return this.event?.location;
-    },
-    isAllDayEvent() {
-      return this.event?.allDay;
-    },
-    duration() {
-      if (this.isAllDayEvent) {
-        return this.$t('agenda.allDay');
-      }
-      const ms = new Date(this.eventEnd) - new Date(this.eventStart);
-      const totalMinutes = Math.floor(ms / 60000);
-      const d = Math.floor(totalMinutes / 1440);
-      const h = Math.floor((totalMinutes % 1440) / 60);
-      const m = totalMinutes % 60;
-      const parts = [];
-      if (d) {
-        parts.push(`${d} ${this.$t(`contentEvent.reminder.day${d > 1 ? 's' : ''}.label`)}`);
-      }
-      if (h) {
-        parts.push(`${h} ${this.$t(`contentEvent.reminder.hour${h > 1 ? 's' : ''}.label`)}`);
-      }
-      if (m) {
-        parts.push(`${m} ${this.$t('contentEvent.reminder.minutes.label')}`);
-      }
-      return parts.join(' ');
-    },
-    hasRecurrence() {
-      return  this.event?.recurrence;
-    },
-    locationHighlight() {
-      const hasConference = !!this.webConferenceLink;
-      const hasLocation = !!this.eventLocation;
-      if (hasLocation && hasConference) {
-        return `${this.$t('contentEvent.reminder.online.label')} · ${this.$t('contentEvent.reminder.inperson.label')}`;
-      }
-      if (hasConference) {
-        return this.$t('contentEvent.reminder.online.label');
-      }
-      if (hasLocation) {
-        return this.$t('contentEvent.reminder.inperson.label');
-      }
-      return null;
-    },
-    eventUrl() {
-      return `${eXo.env.portal.context}/${eXo.env.portal.portalName}/agenda?eventId=${this.event?.id}`;
-    }
-  },
-  watch: {
-    eventLocation() {
-      this.mapLoaded = false;
-      this.coords = null;
-      this.geocodeResult = null;
-      this.geocodingFailed = false;
-      if (this.eventLocation) {
-        this.geocode(this.eventLocation);
-      }
-    },
-    mapEmbedUrl(newVal) {
-      if (newVal) {
-        this.mapLoaded = false;
-      }
-    }
-  },
-  async created() {
-    await this.loadActiveMapProvider();
-    this.init();
-    this.$root.$on('confirm-news-deletion', this.deleteEvent);
-
-    document.addEventListener('content-event-updated', this.init);
-    document.addEventListener('content-event-removed', this.eventRemoved);
-  },
-  beforeDestroy() {
-    this.$root.$off('confirm-news-deletion', this.deleteEvent);
-
-    this.unregisterDeleteInterceptor(this.preDeleteInterceptor);
-    document.removeEventListener('content-event-updated', this.init);
-    document.removeEventListener('content-event-removed', this.eventRemoved);
   },
   mounted() {
-    this.registerDeleteInterceptor(this.preDeleteInterceptor.bind(this));
+    this.$userService.getUser(eXo.env.portal.userName).then(user => {
+      this.$root.$emit('current-user', user);
+      if (!this.event.id && !this.event.occurrence && (!this.event.attendees || !this.event.attendees.length)) {
+        this.event.attendees = [{
+          identity: {
+            id: eXo.env.portal.userIdentityId,
+            providerId: 'organization',
+            remoteId: eXo.env.portal.userName,
+            profile: {
+              avatar: user.avatar,
+              fullname: user.fullname,
+              external: user.external === 'true',
+            },
+          },
+        }];
+      }
+      this.$emit('initialized');
+    });
   },
   methods: {
-    async loadActiveMapProvider() {
-      const settings = await this.$settingsService.getUserSettings();
-      const savedProviderId = settings?.embedMapProvider;
-
-      const providers = extensionRegistry.loadExtensions('EmbedMapProviders', 'embedMapProviders');
-      const sorted = providers
-        .filter(p => p.enabled())
-        .sort((a, b) => a.rank - b.rank);
-
-      this.activeMapProvider = (savedProviderId
-              && sorted.find(p => p.id === savedProviderId)) || null;
+    openDrawer() {
+      this.$refs.attendeesDrawer.open();
     },
-    async geocode(location) {
-      if (!this.activeMapProvider?.geocode) {
-        return;
-      }
-      this.geocoding = true;
-      this.geocodingFailed = false;
-      try {
-        const result = await this.activeMapProvider.geocode(location, eXo.env.portal.language);
-        if (result) {
-          this.geocodeResult = result;
-        } else {
-          this.geocodingFailed = true;
-        }
-      } finally {
-        this.geocoding = false;
-      }
+    getAvatarUrl(attendee) {
+      const profile = attendee.identity && (attendee.identity.profile || attendee.identity.space);
+      return profile && (profile.avatarUrl || profile.avatar) || this.defaultAvatarUrl;
     },
-    async deleteEvent() {
-      if (this.eventToDelete) {
-        await this.$eventService.deleteEvent(this.eventId);
-      }
+    getDisplayName(attendee) {
+      const profile = attendee.identity && (attendee.identity.profile || attendee.identity.space);
+      return profile && (profile.displayName || profile.fullname || profile.fullName) || attendee.identity.remoteId;
     },
-    preDeleteInterceptor({ content }) {
-      const eventId = content?.parameters?.eventId;
-      if (!eventId) {
-        return true;
-      }
-      return new Promise((resolve) => {
-        this._preDeleteResolve = resolve;
-        this.$refs.eventDeleteConfirmDialog.open();
-      });
-    },
-    confirmEventDeletion() {
-      this.eventToDelete = true;
-      this._preDeleteResolve?.(true);
-    },
-    cancelEventDeletion() {
-      this.eventToDelete = false;
-      this._preDeleteResolve?.(true);
-    },
-    eventRemoved() {
-      this.event = null;
-    },
-    async init() {
-      if (!this.eventId) {
-        return;
-      }
-      this.loading = true;
-      this.event = null;
-      try {
-        this.event = await this.$eventService.getEventById(this.eventId, this.expand);
-        if (this.eventLocation) {
-          this.geocode(this.eventLocation);
-        }
-      } finally {
-        this.loading = false;
-      }
-    }
-  }
+  },
 };
 </script>
