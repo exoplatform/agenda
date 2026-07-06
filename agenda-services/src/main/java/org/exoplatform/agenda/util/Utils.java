@@ -69,7 +69,9 @@ public class Utils {
 
   private static final Log              LOG                            = ExoLogger.getLogger(Utils.class);
 
-  private static final TimeZoneRegistry ICAL4J_TIME_ZONE_REGISTRY      = TimeZoneRegistryFactory.getInstance().createRegistry();
+  private static class ICal4jTimeZoneRegistryHolder {
+    private static final TimeZoneRegistry INSTANCE = TimeZoneRegistryFactory.getInstance().createRegistry();
+  }
 
   public static final String EVENT_METADATA_NAME                       = "agendaEvent";
 
@@ -515,7 +517,7 @@ public class Utils {
   }
 
   public static net.fortuna.ical4j.model.TimeZone getICalTimeZone(ZoneId zoneId) {
-    return ICAL4J_TIME_ZONE_REGISTRY.getTimeZone(zoneId.getId());
+    return ICal4jTimeZoneRegistryHolder.INSTANCE.getTimeZone(zoneId.getId());
   }
 
   public static ZonedDateTime toDateTime(String dateTimeString, ZoneId userTimeZone) {
