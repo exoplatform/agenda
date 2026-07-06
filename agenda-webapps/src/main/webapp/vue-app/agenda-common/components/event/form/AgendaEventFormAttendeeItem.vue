@@ -1,15 +1,57 @@
 <template>
-  <v-chip
-    :close="canRemoveAttendee"
-    class="identitySuggesterItem me-4 mt-4"
-    @click:close="$emit('remove-attendee', attendee)">
-    <v-avatar left>
-      <v-img :src="avatarUrl" />
-    </v-avatar>
-    <span class="text-truncate">
-      {{ displayName }}
-    </span>
-  </v-chip>
+  <v-list-item class="px-0">
+    <v-list-item-avatar
+      :tile="isSpace"
+      :class="isSpace && 'rounded'"
+      size="36"
+      class="me-2 my-1 flex-shrink-0">
+      <v-img
+        :src="avatarUrl"
+        :lazy-src="defaultAvatarUrl" />
+    </v-list-item-avatar>
+    <v-list-item-content class="py-1">
+      <v-list-item-title>
+        <span class="text-truncate">{{ displayName }}</span>
+      </v-list-item-title>
+    </v-list-item-content>
+    <v-list-item-action class="d-flex flex-row align-center my-0">
+      <v-tooltip v-if="isOwner" bottom>
+        <template #activator="{ on }">
+          <v-icon
+            size="14"
+            class="me-1 yellow--text text--darken-2"
+            v-on="on">
+            fas fa-crown
+          </v-icon>
+        </template>
+        <span>{{ $t('agenda.eventCreator') }}</span>
+      </v-tooltip>
+      <v-tooltip v-if="attendee.response" bottom>
+        <template #activator="{ on }">
+          <v-icon :color="responseColor" size="18" class="me-1" v-on="on">
+            {{ responseIcon }}
+          </v-icon>
+        </template>
+        <span>{{ responseLabel }}</span>
+      </v-tooltip>
+      <v-tooltip v-if="editable" bottom>
+        <template #activator="{ on }">
+          <span v-on="on">
+            <v-btn
+              :disabled="isOwner"
+              icon
+              x-small
+              @click="!isOwner && $emit('remove-attendee', attendee)">
+              <v-icon size="16" :color="isOwner ? 'grey lighten-1' : 'red'">
+                fas fa-trash-alt
+              </v-icon>
+            </v-btn>
+          </span>
+        </template>
+        <span>{{ isOwner ? $t('agenda.tooltip.cannotRemoveOwner') : $t('agenda.tooltip.removeParticipant') }}</span>
+      </v-tooltip>
+    </v-list-item-action>
+  </v-list-item>
 </template>
 
 <script>
@@ -23,18 +65,27 @@ export default {
       type: Object,
       default: () => ({}),
     },
+    editable: {
+      type: Boolean,
+      default: true,
+    },
   },
   computed: {
-    canRemoveAttendee() {
+    defaultAvatarUrl() {
+      return '/portal/rest/v1/social/users/default-image/avatar';
+    },
+    isSpace() {
+      return !!(this.attendee.identity && this.attendee.identity.providerId === 'space');
+    },
+    isOwner() {
       if (this.creator && this.creator.id) {
-        return Number(this.attendee.identity.id) !== Number(this.creator.id);
-      } else {
-        return Number(this.attendee.identity.id) !== Number(eXo.env.portal.userIdentityId);
+        return Number(this.attendee.identity.id) === Number(this.creator.id);
       }
+      return Number(this.attendee.identity.id) === Number(eXo.env.portal.userIdentityId);
     },
     avatarUrl() {
       const profile = this.attendee.identity && (this.attendee.identity.profile || this.attendee.identity.space);
-      return profile && (profile.avatarUrl || profile.avatar || '/portal/rest/v1/social/users/default-image/avatar');
+      return profile && (profile.avatarUrl || profile.avatar) || this.defaultAvatarUrl;
     },
     displayName() {
       const profile = this.attendee.identity && (this.attendee.identity.profile || this.attendee.identity.space);
@@ -42,8 +93,32 @@ export default {
       return this.isExternal ? `${fullName} (${this.$t('profile.External')})` : fullName;
     },
     isExternal() {
-      const profile = this.attendee.identity && this.attendee.identity.profile ;
+      const profile = this.attendee.identity && this.attendee.identity.profile;
       return profile && (profile.dataEntity && profile.dataEntity.external === 'true' || profile.external);
+    },
+    responseIcon() {
+      switch (this.attendee.response) {
+      case 'ACCEPTED': return 'fas fa-check-circle';
+      case 'TENTATIVE': return 'fas fa-question-circle';
+      case 'DECLINED': return 'fas fa-times-circle';
+      default: return 'fas fa-question-circle';
+      }
+    },
+    responseColor() {
+      switch (this.attendee.response) {
+      case 'ACCEPTED': return 'success';
+      case 'TENTATIVE': return 'blue';
+      case 'DECLINED': return 'error';
+      default: return 'grey';
+      }
+    },
+    responseLabel() {
+      switch (this.attendee.response) {
+      case 'ACCEPTED': return this.$t('agenda.accepted');
+      case 'TENTATIVE': return this.$t('agenda.tentative');
+      case 'DECLINED': return this.$t('agenda.declined');
+      default: return this.$t('agenda.needs_action');
+      }
     },
   },
 };
