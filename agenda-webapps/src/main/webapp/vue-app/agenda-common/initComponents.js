@@ -40,6 +40,8 @@ import AgendaEventFormAttendees from './components/event/form/AgendaEventFormAtt
 import AgendaEventFormAttendeeItem from './components/event/form/AgendaEventFormAttendeeItem.vue';
 import AgendaEventFormCalendarOwner from './components/event/form/AgendaEventFormCalendarOwner.vue';
 import AgendaEventFormConference from './components/event/form/AgendaEventFormConference.vue';
+import AgendaEventFormAttendeesDrawer from './components/event/form/AgendaEventFormAttendeesDrawer.vue';
+import AgendaEventAttendeesAvatars from './components/event/common/AgendaEventAttendeesAvatars.vue';
 
 import AgendaEventDatePollDetails from './components/event/date-poll/AgendaEventDatePollDetails.vue';
 import AgendaEventDatePollDetailsMobile from './components/event/date-poll/mobile/AgendaEventDatePollDetailsMobile.vue';
@@ -157,6 +159,9 @@ const components = {
   'agenda-connector-contemporary-events': AgendaConnectorContemporaryEvents,
   'agenda-connector-remote-event-item': AgendaConnectorRemoteEventItem,
   'agenda-time-zone-select-box': AgendaTimeZoneSelectBox,
+  'agenda-event-form-attendees-drawer': AgendaEventFormAttendeesDrawer,
+  'agenda-event-attendees-avatars': AgendaEventAttendeesAvatars,
+  
 };
 
 for (const key in components) {
