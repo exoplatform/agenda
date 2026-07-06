@@ -1,34 +1,29 @@
 <template>
-  <v-flex class="user-suggester text-truncate">
-    <form
-      ref="form"
-      @keypress="checkGuestInvitation($event)">
-      <exo-identity-suggester
-        ref="invitedAttendeeAutoComplete"
-        v-model="invitedAttendee"
-        :labels="participantSuggesterLabels"
-        :title="suggesterStatus"
-        :disabled="disableAttendeeSuggester"
-        :ignore-items="ignoredMembers"
-        :search-options="searchOptions"
-        name="inviteAttendee"
-        no-redactor-space
-        include-users
-        include-spaces />
-      <span v-if="disableAttendeeSuggester" class="error--text">
-        {{ $t('agenda.suggesterRequired') }}
-      </span>
-    </form>
-    <agenda-notification-alerts v-if="displayAlert" name="event-form" />
-    <div v-if="event.attendees" class="identitySuggester no-border mt-0">
-      <agenda-event-form-attendee-item
-        v-for="attendee in event.attendees"
-        :key="attendee.identity.id"
-        :attendee="attendee"
-        :creator="event.creator"
-        @remove-attendee="removeAttendee" />
+  <div class="d-flex align-center flex-grow-1">
+    <span class="subtitle-2 me-4">{{ $t('agenda.participants') }}</span>
+    <v-btn
+      :class="sortedAttendees.length > 1 && !event.id || event.id ? '' : 'ms-auto'"
+      :title="$t('agenda.addParticipants')"
+      icon
+      x-small
+      @click="openDrawer">
+      <v-icon class="icon-default-color" size="18">fas fa-plus</v-icon>
+    </v-btn>
+    <div
+      v-if="sortedAttendees.length > 1 && !event.id || event.id"
+      class="ms-auto d-flex align-center">
+      <agenda-event-attendees-avatars
+        v-if="!showSeeMore"
+        :attendees="sortedAttendees"
+        :max="3"
+        :size="34" 
+        @open="openDrawer" />
     </div>
-  </v-flex>
+    <agenda-event-form-attendees-drawer
+      ref="attendeesDrawer"
+      :event="event"
+      @initialized="$emit('initialized')" />
+  </div>
 </template>
 
 <script>
@@ -39,146 +34,46 @@ export default {
       default: () => ({}),
     },
   },
-  data() {
-    return {
-      currentUser: null,
-      invitedAttendee: [],
-    };
-  },
   computed: {
-    searchOptions() {
-      return {
-        currentUser: '',
-        spaceURL: this.event
-          && this.event.calendar
-          && this.event.calendar.owner
-          && this.event.calendar.owner.remoteId,
-      };
-    },
-    participantSuggesterLabels() {
-      return {
-        searchPlaceholder: this.$t('agenda.searchPlaceholder'),
-        placeholder: this.$t('agenda.addParticipants'),
-        noDataLabel: this.$t('agenda.noDataLabel'),
-      };
-    },
-    ignoredMembers() {
-      return this.event.attendees.map(attendee => `${attendee.identity.providerId}:${attendee.identity.remoteId}`);
-    },
-    disableAttendeeSuggester() {
-      if (!this.event.calendar || !this.event.calendar.owner || !this.event.calendar.owner.remoteId) {
-        return true;
-      } else {
-        return false;
-      }
-    },
-    suggesterStatus(){
-      if (this.disableAttendeeSuggester) {
-        return this.$t('agenda.suggesterRequired.tooltip');
-      } else {
-        return '';
-      }
-    }
-  },
-  watch: {
-    currentUser() {
-      this.reset();
-    },
-    invitedAttendee() {
-      if (!this.invitedAttendee) {
-        this.$nextTick(this.$refs.invitedAttendeeAutoComplete.$refs.selectAutoComplete.deleteCurrentItem);
-        return;
-      }
-      if (!this.event.attendees) {
-        this.event.attendees = [];
-      }
-
-      const found = this.event.attendees.find(attendee => {
-        return attendee.identity.remoteId === this.invitedAttendee.remoteId
-          && attendee.identity.providerId === this.invitedAttendee.providerId;
-      });
-      if (!found) {
-        this.event.attendees.push({
-          identity: this.$suggesterService.convertSuggesterItemToIdentity(this.invitedAttendee),
-        });
-      }
-      this.invitedAttendee = null;
+    sortedAttendees() {
+      if (!this.event.attendees) { return []; }
+      const creatorId = this.event.creator && this.event.creator.id;
+      const ownerId = creatorId || eXo.env.portal.userIdentityId;
+      const owner = this.event.attendees.find(a => Number(a.identity.id) === Number(ownerId));
+      const others = this.event.attendees
+        .filter(a => a !== owner)
+        .sort((a, b) => (this.getDisplayName(a) || '').localeCompare(this.getDisplayName(b) || ''));
+      return owner ? [owner, ...others] : others;
     },
   },
-  mounted(){
-    this.reset();
+  mounted() {
     this.$userService.getUser(eXo.env.portal.userName).then(user => {
-      this.currentUser = user;
-      this.$root.$emit('current-user',this.currentUser);
-    });
-  },
-  methods: {
-    reset() {
-      if (!this.event.id && !this.event.occurrence && (!this.event.attendees || !this.event.attendees.length)) { // In case of edit existing event
-        // Add current user as default attendee
-        if (this.currentUser) {
-          this.event.attendees = [{identity: {
+      this.$root.$emit('current-user', user);
+      if (!this.event.id && !this.event.occurrence && (!this.event.attendees || !this.event.attendees.length)) {
+        this.event.attendees = [{
+          identity: {
             id: eXo.env.portal.userIdentityId,
             providerId: 'organization',
             remoteId: eXo.env.portal.userName,
             profile: {
-              avatar: this.currentUser.avatar,
-              fullname: this.currentUser.fullname,
-              external: this.currentUser.external === 'true',
+              avatar: user.avatar,
+              fullname: user.fullname,
+              external: user.external === 'true',
             },
-          }}];
-        } else {
-          this.event.attendees = [];
-        }
+          },
+        }];
       }
       this.$emit('initialized');
+    });
+  },
+  methods: {
+    openDrawer() {
+      this.$refs.attendeesDrawer.open();
     },
-    removeAttendee(attendee) {
-      const index = this.event.attendees.findIndex(addedAttendee => {
-        return attendee.identity.remoteId === addedAttendee.identity.remoteId
-        && attendee.identity.providerId === addedAttendee.identity.providerId;
-      });
-      if (index >= 0) {
-        this.event.attendees.splice(index, 1);
-      }
+    getDisplayName(attendee) {
+      const profile = attendee.identity && (attendee.identity.profile || attendee.identity.space);
+      return profile && (profile.displayName || profile.fullname || profile.fullName) || attendee.identity.remoteId;
     },
-    checkGuestInvitation(evt) {
-      const self=this;
-      $('form').on('focusout', function(event) {
-        setTimeout(function() {
-          if (!event.delegateTarget.contains(document.activeElement)) {
-            self.saveGuestEmail(event);
-          }
-        }, 1);
-      });
-      // eslint-disable-next-line eqeqeq
-      if (evt.key == 'Enter') {
-        evt.preventDefault();
-        this.saveGuestEmail(evt);   }
-      // eslint-disable-next-line eqeqeq
-      if (evt.keyCode == '32') {
-        this.saveGuestEmail(evt);
-      }
-    },
-    saveGuestEmail() {
-      const reg = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[\d]{1,3}\.[\d]{1,3}\.[\d]{1,3}\.[\d]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,24}))$/;
-      const input = this.$refs?.invitedAttendeeAutoComplete?.searchTerm?.toLowerCase();
-      const words = input!== null ? input.split(' ') : '';
-      const email = words[words.length - 1];
-      if (reg.test(email)) {
-        this.event.attendees.push({identity: {
-          id: `${email}`,
-          remoteId: email,
-          identityId: email,
-          providerId: 'GUEST_USER',
-          profile: {
-            fullName: email,
-            avatarUrl: '/portal/rest/v1/social/users/default-image/avatar',
-          },
-        }});
-      }
-      this.$refs.invitedAttendeeAutoComplete.clear();
-    },
-  }
+  },
 };
 </script>

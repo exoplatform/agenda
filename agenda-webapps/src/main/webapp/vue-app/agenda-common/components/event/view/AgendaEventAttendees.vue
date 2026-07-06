@@ -1,17 +1,67 @@
 <template>
-  <div>
-    <div class="event-attendees-responses align-center d-flex">
-      <i class="uiIconGroup darkGreyIcon uiIcon32x32 pe-5"></i>
-      <span>{{ attendeesResponsesTitle }}</span>
+  <div class="d-flex align-center full-width">
+    <v-icon size="20" class="icon-default-color me-2 flex-shrink-0">fas fa-users</v-icon>
+    <div class="d-flex align-center ms-7 flex-grow-1 attendee-status-badges">
+      <v-tooltip v-if="acceptedResponsesCount" bottom>
+        <template #activator="{ on }">
+          <v-badge
+            :content="acceptedResponsesCount"
+            :value="acceptedResponsesCount"
+            color="#F8B121"
+            offset-x="9"
+            offset-y="8"
+            class="me-9">
+            <v-btn icon x-small v-on="on" @click="openDrawer">
+              <v-icon size="20" color="success">fas fa-check-circle</v-icon>
+            </v-btn>
+          </v-badge>
+        </template>
+        <span>{{ $t('agenda.accepted') }}: {{ acceptedResponsesCount }}</span>
+      </v-tooltip>
+      <v-tooltip v-if="needsActionResponsesCount" bottom>
+        <template #activator="{ on }">
+          <v-badge
+            :content="needsActionResponsesCount"
+            :value="needsActionResponsesCount"
+            color="#F8B121"
+            offset-x="9"
+            offset-y="8"
+            class="me-9">
+            <v-btn icon x-small v-on="on" @click="openDrawer">
+              <v-icon size="20" color="blue">fas fa-question-circle</v-icon>
+            </v-btn>
+          </v-badge>
+        </template>
+        <span>{{ $t('agenda.needs_action') }}: {{ needsActionResponsesCount }}</span>
+      </v-tooltip>
+      <v-tooltip v-if="refusedResponsesCount" bottom>
+        <template #activator="{ on }">
+          <v-badge
+            :content="refusedResponsesCount"
+            :value="refusedResponsesCount"
+            color="#F8B121"
+            offset-x="9"
+            offset-y="8"
+            class="me-9">
+            <v-btn icon x-small v-on="on" @click="openDrawer">
+              <v-icon size="20" color="error">fas fa-times-circle</v-icon>
+            </v-btn>
+          </v-badge>
+        </template>
+        <span>{{ $t('agenda.declined') }}: {{ refusedResponsesCount }}</span>
+      </v-tooltip>
     </div>
-    <div class="event-attendees mt-2 flex-column full-width">
-      <agenda-event-attendee-item
-        v-for="attendee in displayedAttendees"
-        :key="attendee"
-        :attendee="attendee"
-        :creator="event.creator"
-        class="mb-4" />
-    </div>
+    <agenda-event-attendees-avatars
+      v-if="displayedAttendees.length"
+      :attendees="displayedAttendees"
+      :max="3"
+      :size="32"
+      @open="openDrawer" />
+    <agenda-event-form-attendees-drawer
+      ref="attendeesDrawer"
+      :event="event"
+      :editable="canEdit"
+      @closed="saveAttendeesIfEditable" />
   </div>
 </template>
 
@@ -24,6 +74,9 @@ export default {
     },
   },
   computed: {
+    canEdit() {
+      return !!(this.event && this.event.acl && this.event.acl.canEdit);
+    },
     attendees() {
       return this.event && this.event.attendees || [];
     },
@@ -93,16 +146,40 @@ export default {
       ];
       return displayedAttendees;
     },
-    attendeesResponsesTitle() {
-      return this.$t('agenda.attendeesResponsesOverview', {
-        0: this.acceptedResponsesCount,
-        1: this.refusedResponsesCount,
-        2: this.needsActionResponsesCount,
-        3: this.tentativeResponsesCount,
+    visibleIdentities() {
+      return this.displayedAttendees.slice(0, 3).map(a => {
+        const identity = a.identity;
+        const profile = identity.profile || identity.space || {};
+        return {
+          ...identity,
+          username: identity.remoteId,
+          fullname: profile.fullname || profile.fullName || profile.displayName || identity.remoteId,
+          avatar: profile.avatar || profile.avatarUrl,
+        };
       });
     },
   },
+  data() {
+    return {
+      attendeesSnapshot: null,
+    };
+  },
   methods: {
+    openDrawer() {
+      this.attendeesSnapshot = (this.event && this.event.attendees || [])
+        .map(a => a.identity.remoteId).sort().join(',');
+      this.$refs.attendeesDrawer.open();
+    },
+    saveAttendeesIfEditable() {
+      if (!this.canEdit || !this.event) {
+        return;
+      }
+      const current = (this.event.attendees || [])
+        .map(a => a.identity.remoteId).sort().join(',');
+      if (current !== this.attendeesSnapshot) {
+        this.$eventService.updateEvent(this.event);
+      }
+    },
     sortAttendees(attendee1, attendee2) {
       const displayName1 = (attendee1.identity.profile && attendee1.identity.profile.fullname)
         || (attendee1.identity.space && attendee1.identity.space.displayName) || '';
