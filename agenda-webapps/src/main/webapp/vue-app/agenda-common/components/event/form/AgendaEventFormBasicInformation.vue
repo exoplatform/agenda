@@ -4,29 +4,29 @@
     class="flex"
     flat
     @submit="$emit('next-step')">
-    <div class="d-flex flex-column flex-md-row">
-      <v-icon size="20" class="icon-default-color my-auto me-12 d-none d-md-inline">far fa-calendar</v-icon>
-      <input
-        id="eventTitle"
-        ref="eventTitle"
-        v-model="event.summary"
-        :placeholder="$t('agenda.eventTitle')"
-        type="text"
-        name="title"
-        class="ignore-vuetify-classes my-3"
-        required
-        @change="resetCustomValidity">
-      <label class="mt-5 ms-4 me-4 text-subtitle-1 font-weight-bold d-none d-md-inline">
-        {{ $t('agenda.label.in') }}
-      </label>
-      <agenda-event-form-calendar-owner
-        ref="calendarOwner"
-        :event="event"
-        :current-space="currentSpace"
-        @initialized="$emit('initialized')" />
-    </div>
     <div class="d-flex flex-column flex-md-row mt-1 event-form-body">
       <div class="d-flex flex-column flex-grow-1 event-form-body-left">
+        <div class="d-flex flex-row">
+          <v-icon size="20" class="icon-default-color my-auto me-12 d-none d-md-inline">far fa-calendar</v-icon>
+          <input
+            id="eventTitle"
+            ref="eventTitle"
+            v-model="event.summary"
+            :placeholder="$t('agenda.eventTitle')"
+            type="text"
+            name="title"
+            class="ignore-vuetify-classes my-3"
+            required
+            @change="resetCustomValidity">
+          <label class="mt-5 ms-4 me-4 text-subtitle-1 font-weight-bold d-none d-md-inline">
+            {{ $t('agenda.label.in') }}
+          </label>
+          <agenda-event-form-calendar-owner
+            ref="calendarOwner"
+            :event="event"
+            :current-space="currentSpace"
+            @initialized="$emit('initialized')" />
+        </div>
         <div v-if="displayTimeInForm && eventDateOption" class="d-flex flex-row">
           <v-icon size="20" class="icon-default-color mb-auto pt-6 me-11">fas fa-clock</v-icon>
           <agenda-event-form-date-pickers
@@ -84,9 +84,9 @@
       <div class="d-none d-md-flex flex-column mx-5 event-form-body-divider ">
         <v-divider vertical />
       </div>
-      <div class="d-flex flex-column flex-grow-1 event-form-body-right">
+      <div class="d-flex flex-column flex-shrink-0 event-form-body-right">
         <div class="d-flex flex-row">
-          <v-flex class="flex-grow-0 me-2 mt-1">
+          <v-flex class="flex-grow-0 me-2 mt-2">
             <v-icon size="20" class="icon-default-color m-auto">fas fa-users</v-icon>
           </v-flex>
           <agenda-event-form-attendees
