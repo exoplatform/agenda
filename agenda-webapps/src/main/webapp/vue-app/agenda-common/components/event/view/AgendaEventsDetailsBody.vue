@@ -96,18 +96,14 @@
                 @click="openConferenceLink">
                 {{ $t('agenda.button.joinMeeting') }}
               </v-btn>
-              <v-tooltip bottom>
-                <template #activator="{ on }">
-                  <v-btn
-                    icon
-                    small
-                    v-on="on"
-                    @click="copyConferenceLink">
-                    <v-icon size="16">fas fa-copy</v-icon>
-                  </v-btn>
-                </template>
-                <span>{{ $t('agenda.tooltip.meeting.copyLink') }}</span>
-              </v-tooltip>
+              <v-btn
+                :title="$t('agenda.tooltip.meeting.copyLink')"
+                icon
+                small
+                v-on="on"
+                @click="copyConferenceLink">
+                <v-icon size="16">fas fa-copy</v-icon>
+              </v-btn>
             </div>
             <span class="text-subtitle text-truncate mt-1">{{ eventConferenceUrl }}</span>
           </div>
