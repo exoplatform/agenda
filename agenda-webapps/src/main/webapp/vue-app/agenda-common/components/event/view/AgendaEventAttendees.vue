@@ -136,15 +136,8 @@ export default {
       return this.needsActionResponses.length + (this.creatorAttendeeResponse === 'NEEDS_ACTION' && 1 || 0);
     },
     displayedAttendees() {
-      const displayedAttendees = [
-        this.creatorAttendee,
-        ...this.acceptedResponses,
-        ...this.tentativeResponses,
-        ...this.refusedResponses,
-        ...this.needsActionResponses,
-        ...this.participatingSpaceAttendees,
-      ];
-      return displayedAttendees;
+      const others = this.participatingAttendees.slice().sort(this.sortAttendees);
+      return [this.creatorAttendee, ...others].filter(Boolean);
     },
     visibleIdentities() {
       return this.displayedAttendees.slice(0, 3).map(a => {
