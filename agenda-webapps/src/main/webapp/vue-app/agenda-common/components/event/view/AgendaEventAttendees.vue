@@ -18,11 +18,11 @@
         </template>
         <span>{{ $t('agenda.accepted') }}: {{ acceptedResponsesCount }}</span>
       </v-tooltip>
-      <v-tooltip v-if="needsActionResponsesCount" bottom>
+      <v-tooltip v-if="tentativeResponsesCount" bottom>
         <template #activator="{ on }">
           <v-badge
-            :content="needsActionResponsesCount"
-            :value="needsActionResponsesCount"
+            :content="tentativeResponsesCount"
+            :value="tentativeResponsesCount"
             color="#F8B121"
             offset-x="9"
             offset-y="8"
@@ -32,7 +32,7 @@
             </v-btn>
           </v-badge>
         </template>
-        <span>{{ $t('agenda.needs_action') }}: {{ needsActionResponsesCount }}</span>
+        <span>{{ $t('agenda.tentative') }}: {{ tentativeResponsesCount }}</span>
       </v-tooltip>
       <v-tooltip v-if="refusedResponsesCount" bottom>
         <template #activator="{ on }">
