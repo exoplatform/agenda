@@ -8,7 +8,8 @@
     @mouseenter="showSeeMore = true"
     @mouseleave="showSeeMore = false"
     @focusin="showSeeMore = true"
-    @focusout="showSeeMore = false">
+    @focusout="showSeeMore = false"
+    @keydown.enter="$emit('open')">
     <div v-if="!showSeeMore" class="d-flex align-center">
       <v-avatar
         v-for="(attendee, index) in visibleAttendees"
