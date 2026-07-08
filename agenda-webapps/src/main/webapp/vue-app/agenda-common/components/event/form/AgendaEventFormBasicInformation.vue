@@ -86,7 +86,7 @@
       </div>
       <div class="d-flex flex-column flex-shrink-0 event-form-body-right">
         <div class="d-flex flex-row">
-          <v-flex class="flex-grow-0 me-2 mt-2">
+          <v-flex class="flex-grow-0 me-2 my-2">
             <v-icon size="20" class="icon-default-color m-auto">fas fa-users</v-icon>
           </v-flex>
           <agenda-event-form-attendees
