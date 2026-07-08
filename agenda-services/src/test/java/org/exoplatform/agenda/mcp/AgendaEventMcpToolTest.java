@@ -72,6 +72,10 @@ class AgendaEventMcpToolTest {
 
   private AgendaEventAttendeeService         agendaEventAttendeeService;
 
+  private org.exoplatform.agenda.service.AgendaEventDatePollService agendaEventDatePollService;
+
+  private org.exoplatform.agenda.service.AgendaEventReminderService agendaEventReminderService;
+
   private AgendaUserSettingsService          agendaUserSettingsService;
 
   private UserPortalConfigService            portalConfigService;
@@ -96,6 +100,8 @@ class AgendaEventMcpToolTest {
     agendaEventService = Mockito.mock(AgendaEventService.class);
     agendaEventConferenceService = Mockito.mock(AgendaEventConferenceService.class);
     agendaEventAttendeeService = Mockito.mock(AgendaEventAttendeeService.class);
+    agendaEventDatePollService = Mockito.mock(org.exoplatform.agenda.service.AgendaEventDatePollService.class);
+    agendaEventReminderService = Mockito.mock(org.exoplatform.agenda.service.AgendaEventReminderService.class);
     agendaUserSettingsService = Mockito.mock(AgendaUserSettingsService.class);
     portalConfigService = Mockito.mock(UserPortalConfigService.class);
     profilePropertyService = Mockito.mock(ProfilePropertyService.class);
@@ -116,6 +122,8 @@ class AgendaEventMcpToolTest {
                                   agendaEventService,
                                   agendaEventConferenceService,
                                   agendaEventAttendeeService,
+                                  agendaEventDatePollService,
+                                  agendaEventReminderService,
                                   agendaUserSettingsService,
                                   portalConfigService,
                                   profilePropertyService,
@@ -168,7 +176,7 @@ class AgendaEventMcpToolTest {
   @Test
   void createAgendaEventWithoutSpaceIdFails() throws Exception {
     assertThrows(IllegalArgumentException.class,
-                 () -> tool.createAgendaEvent(null, "summary", null, null, null, null, null));
+                 () -> tool.createAgendaEvent(null, "summary", null, null, null, null, null, null, null, null, null, null));
   }
 
   @Test
@@ -178,7 +186,7 @@ class AgendaEventMcpToolTest {
                                any(),
                                any(org.exoplatform.services.security.Identity.class))).thenReturn(false);
     assertThrows(IllegalAccessException.class,
-                 () -> tool.createAgendaEvent(SPACE_ID, "summary", null, null, null, null, null));
+                 () -> tool.createAgendaEvent(SPACE_ID, "summary", null, null, null, null, null, null, null, null, null, null));
   }
 
   // --- update_agenda_event -------------------------------------------------
@@ -186,14 +194,14 @@ class AgendaEventMcpToolTest {
   @Test
   void updateAgendaEventWithoutEventIdFails() throws Exception {
     assertThrows(IllegalArgumentException.class,
-                 () -> tool.updateAgendaEvent(null, "summary", null, null, null, null));
+                 () -> tool.updateAgendaEvent(null, "summary", null, null, null, null, null, null, null, null, null));
   }
 
   @Test
   void updateAgendaEventWithoutPermissionFails() throws Exception {
     when(userAcl.hasEditPermission(any(), eq(String.valueOf(EVENT_ID)), any(org.exoplatform.services.security.Identity.class))).thenReturn(false);
     assertThrows(IllegalAccessException.class,
-                 () -> tool.updateAgendaEvent(EVENT_ID, "summary", null, null, null, null));
+                 () -> tool.updateAgendaEvent(EVENT_ID, "summary", null, null, null, null, null, null, null, null, null));
   }
 
   // --- delete_agenda_event -------------------------------------------------
@@ -237,7 +245,7 @@ class AgendaEventMcpToolTest {
   @Test
   void declineAgendaEventInvitationSucceeds() throws Exception {
     when(userAcl.hasAccessPermission(any(), eq(String.valueOf(EVENT_ID)), any(org.exoplatform.services.security.Identity.class))).thenReturn(true);
-    tool.declineAgendaEventInvitation(EVENT_ID);
+    tool.declineAgendaEventInvitation(EVENT_ID, null);
     verify(agendaEventAttendeeService, times(1)).sendEventResponse(EVENT_ID,
                                                                    USER_IDENTITY_ID,
                                                                    EventAttendeeResponse.DECLINED);
@@ -246,7 +254,7 @@ class AgendaEventMcpToolTest {
   @Test
   void cancelAgendaEventDelegatesToDecline() throws Exception {
     when(userAcl.hasAccessPermission(any(), eq(String.valueOf(EVENT_ID)), any(org.exoplatform.services.security.Identity.class))).thenReturn(true);
-    tool.cancelAgendaEvent(EVENT_ID);
+    tool.cancelAgendaEvent(EVENT_ID, null);
     verify(agendaEventAttendeeService, times(1)).sendEventResponse(EVENT_ID,
                                                                    USER_IDENTITY_ID,
                                                                    EventAttendeeResponse.DECLINED);
@@ -276,6 +284,56 @@ class AgendaEventMcpToolTest {
   void inviteSpaceToAgendaEventWithoutPermissionFails() throws Exception {
     when(userAcl.hasEditPermission(any(), eq(String.valueOf(EVENT_ID)), any(org.exoplatform.services.security.Identity.class))).thenReturn(false);
     assertThrows(IllegalAccessException.class, () -> tool.inviteSpaceToAgendaEvent(EVENT_ID, SPACE_ID));
+  }
+
+  // --- new scheduling tools ------------------------------------------------
+
+  @Test
+  void createDatePollWithoutSlotsFails() throws Exception {
+    when(userAcl.hasPermission(any(),
+                               eq(String.valueOf(SPACE_ID)),
+                               any(),
+                               any(org.exoplatform.services.security.Identity.class))).thenReturn(true);
+    assertThrows(IllegalArgumentException.class,
+                 () -> tool.createDatePoll(SPACE_ID, "poll", Collections.emptyList(), null, null, false));
+  }
+
+  @Test
+  void getDatePollResultsWithoutEventIdFails() {
+    assertThrows(IllegalArgumentException.class, () -> tool.getDatePollResults(0L));
+  }
+
+  @Test
+  void confirmDatePollWithoutOptionIdFails() {
+    assertThrows(IllegalArgumentException.class, () -> tool.confirmDatePoll(null));
+  }
+
+  @Test
+  void getAvailabilityWithoutUsernamesFails() {
+    assertThrows(IllegalArgumentException.class, () -> tool.getAvailability(Collections.emptyList(), "2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z"));
+  }
+
+  @Test
+  void suggestMeetingTimeWithoutDurationFails() {
+    assertThrows(IllegalArgumentException.class,
+                 () -> tool.suggestMeetingTime(List.of("john"), 0, "2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z", null));
+  }
+
+  @Test
+  void respondToAgendaEventWithInvalidResponseFails() throws Exception {
+    when(userAcl.hasAccessPermission(any(), eq(String.valueOf(EVENT_ID)), any(org.exoplatform.services.security.Identity.class))).thenReturn(true);
+    assertThrows(IllegalArgumentException.class, () -> tool.respondToAgendaEvent(EVENT_ID, "MAYBE", null));
+  }
+
+  @Test
+  void setEventConferenceWithoutPermissionFails() throws Exception {
+    when(userAcl.hasEditPermission(any(), eq(String.valueOf(EVENT_ID)), any(org.exoplatform.services.security.Identity.class))).thenReturn(false);
+    assertThrows(IllegalAccessException.class, () -> tool.setEventConference(EVENT_ID, "https://meet.example/x", null));
+  }
+
+  @Test
+  void searchAgendaEventsWithoutQueryFails() {
+    assertThrows(IllegalArgumentException.class, () -> tool.searchAgendaEvents(" ", null, null, null));
   }
 
   @SuppressWarnings("unused")

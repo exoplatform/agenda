@@ -70,4 +70,7 @@ public class AgendaEventModel {
 
   private UserModel                      creator;
 
+  // Optional conflict report populated on conflict-aware create/update; omitted (null) on plain reads
+  private ConflictsModel                 conflicts;
+
 }
