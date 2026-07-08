@@ -260,6 +260,26 @@ class AgendaEventMcpToolTest {
                                                                    EventAttendeeResponse.DECLINED);
   }
 
+  @Test
+  void cancelSingleOccurrenceMaterializesExceptionalAndCancelsIt() throws Exception {
+    when(userAcl.hasEditPermission(any(), eq(String.valueOf(EVENT_ID)), any(org.exoplatform.services.security.Identity.class))).thenReturn(true);
+    Event exceptional = Mockito.mock(Event.class);
+    when(exceptional.getId()).thenReturn(99L);
+    when(agendaEventService.saveEventExceptionalOccurrence(eq(EVENT_ID), any())).thenReturn(exceptional);
+
+    tool.cancelAgendaEvent(EVENT_ID, "2026-07-20T09:00:00Z");
+
+    // Cancelling one occurrence must NOT decline (which used to drop this-and-future)
+    verify(agendaEventAttendeeService, never()).sendUpcomingEventResponse(anyLong(), any(), anyLong(), any());
+    verify(agendaEventService, times(1)).saveEventExceptionalOccurrence(eq(EVENT_ID), any());
+    verify(agendaEventService, times(1)).updateEventFields(eq(99L),
+                                                           eq(java.util.Collections.singletonMap("status",
+                                                                                                 java.util.Collections.singletonList("CANCELLED"))),
+                                                           eq(false),
+                                                           eq(false),
+                                                           eq(USER_IDENTITY_ID));
+  }
+
   // --- invite_users / invite_space -----------------------------------------
 
   @Test

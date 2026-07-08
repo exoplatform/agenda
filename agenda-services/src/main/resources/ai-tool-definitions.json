@@ -241,7 +241,7 @@
     {
       "name": "decline_agenda_event_invitation",
       "title": "Decline an agenda event invitation",
-      "description": "Decline an agenda event invitation by the current user.",
+      "description": "Decline an agenda event invitation by the current user. With occurrence_id this is a 'this-and-following' decline (that occurrence AND all subsequent occurrences). To cancel only ONE date of a series, use cancel_agenda_event with occurrence_id instead.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -251,7 +251,7 @@
           },
           "occurrence_id": {
             "type": "string",
-            "description": "Optional occurrence date (RFC3339) of a recurring event; when set, only that occurrence and upcoming ones are declined."
+            "description": "Optional occurrence date (RFC3339) of a recurring event; when set, declines that occurrence AND every following one (this-and-future), not just that single date."
           }
         },
         "required": [
@@ -269,7 +269,7 @@
     {
       "name": "cancel_agenda_event",
       "title": "Cancel an agenda event",
-      "description": "Cancel an agenda event by the current user",
+      "description": "Cancel an agenda event. Without occurrence_id the whole event is declined for the current user. With occurrence_id, ONLY that single occurrence of a recurring series is removed; occurrences before AND after that date are kept.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -279,7 +279,7 @@
           },
           "occurrence_id": {
             "type": "string",
-            "description": "Optional occurrence date (RFC3339) of a recurring event; when set, only that occurrence and upcoming ones are cancelled."
+            "description": "Optional occurrence date (RFC3339) of a recurring event; when set, cancels ONLY that single occurrence (the rest of the series, before and after, is preserved)."
           }
         },
         "required": [

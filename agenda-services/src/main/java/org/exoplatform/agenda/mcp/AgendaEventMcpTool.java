@@ -306,7 +306,9 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     return model;
   }
 
-  // Decline an event invitation; when occurrence_id is given, only that single occurrence (and upcoming ones) is declined.
+  // Decline an event invitation for the current user. When occurrence_id is given this is a "this-and-following"
+  // decline: it declines that occurrence AND every subsequent one of the series (it does not cancel a single date;
+  // for cancelling only one date use cancel_agenda_event with occurrence_id).
   public void declineAgendaEventInvitation(Long eventId, String occurrenceId) throws IllegalAccessException,
                                                                               ObjectNotFoundException {
     if (eventId == null || eventId == 0) {
@@ -326,9 +328,42 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     }
   }
 
-  // Cancel (decline) participation in an event; supports single-occurrence cancellation via occurrence_id.
-  public void cancelAgendaEvent(Long eventId, String occurrenceId) throws IllegalAccessException, ObjectNotFoundException {
-    declineAgendaEventInvitation(eventId, occurrenceId);
+  // Cancel an event. Without occurrence_id, the whole event is declined for the current user.
+  // With occurrence_id, ONLY that single occurrence of a recurring series is removed (occurrences before AND after are
+  // kept), using the canonical eXo pattern: materialize the occurrence as an exceptional occurrence, then mark it
+  // CANCELLED so the series expansion skips exactly that one date.
+  public void cancelAgendaEvent(Long eventId, String occurrenceId) throws IllegalAccessException,
+                                                                   ObjectNotFoundException,
+                                                                   AgendaException {
+    if (eventId == null || eventId == 0) {
+      throw new IllegalArgumentException(MSG_PARAMETER_EVENT_ID_MADATORY);
+    }
+    if (StringUtils.isBlank(occurrenceId)) {
+      declineAgendaEventInvitation(eventId, null);
+      return;
+    }
+    if (!userAcl.hasEditPermission(AgendaEventAclPlugin.OBJECT_TYPE, String.valueOf(eventId), getCurrentUserAclIdentity())) {
+      throw new IllegalAccessException(MSG_USER_NOT_ALLOWED_TO_UPDATE.formatted(eventId));
+    }
+    cancelSingleOccurrence(eventId, toZonedDateTime(occurrenceId), getCurrentUserIdentityId());
+  }
+
+  // Cancel a single occurrence of a recurring event: create the exceptional occurrence for that date, then set its
+  // status to CANCELLED. The computed occurrence for that date is then skipped (an exceptional occurrence exists) and
+  // the cancelled exceptional itself is hidden (event listing only returns CONFIRMED), while every other occurrence
+  // (before and after) is preserved.
+  private void cancelSingleOccurrence(long eventId,
+                                      ZonedDateTime occurrenceId,
+                                      long userIdentityId) throws AgendaException,
+                                                           IllegalAccessException,
+                                                           ObjectNotFoundException {
+    Event exceptionalOccurrence = agendaEventService.saveEventExceptionalOccurrence(eventId, occurrenceId);
+    agendaEventService.updateEventFields(exceptionalOccurrence.getId(),
+                                         Collections.singletonMap("status",
+                                                                  Collections.singletonList(EventStatus.CANCELLED.name())),
+                                         false,
+                                         false,
+                                         userIdentityId);
   }
 
   public void acceptAgendaEventInvitation(Long eventId) throws IllegalAccessException, ObjectNotFoundException {
