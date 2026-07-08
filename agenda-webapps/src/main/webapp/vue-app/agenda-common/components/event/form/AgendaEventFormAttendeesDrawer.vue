@@ -13,11 +13,13 @@
           <div v-if="!showSuggester">
             <v-btn
               color="primary"
+              class="mb-4 ms-1"
+              elevation="0"
               small
-              class="mb-4"
+              width="94px"
               @click="showSuggester = true">
-              <v-icon size="12" class="me-1">fas fa-plus</v-icon>
-              {{ $t('agenda.label.addParticipants') }}
+              <v-icon size="14" class="me-1">fas fa-plus</v-icon>
+              <span class="text-font-size">{{ $t('agenda.label.addParticipants') }}</span>
             </v-btn>
           </div>
           <form
