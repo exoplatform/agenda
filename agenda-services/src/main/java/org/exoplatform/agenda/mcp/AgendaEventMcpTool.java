@@ -25,6 +25,7 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
@@ -84,6 +85,7 @@ import org.exoplatform.agenda.service.AgendaUserSettingsService;
 import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.CommonsUtils;
+import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.social.core.identity.model.Identity;
@@ -115,8 +117,6 @@ public class AgendaEventMcpTool implements McpToolPlugin {
 
   private static final String                MSG_USER_NOT_ALLOWED_TO_ACCESS_EVENT =
                                                                                   "User isn't allowed to access event with id %s";
-
-  private static final String                MSG_PARAMETER_SPACE_ID_MANDATORY     = "parameter 'space_id' is mandatory";
 
   private static final String                MSG_PARAMETER_EVENT_ID_MADATORY      = "Parameter 'event_id' is madatory";
 
@@ -235,8 +235,9 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     return toAgendaEventModel(event);
   }
 
-  // Create an agenda event, optionally recurrent, with a server-side conflict report over its attendees.
-  // When fail_on_conflict is true and at least one attendee is busy/tentative in the window, creation is aborted.
+  // Create an agenda event in a space calendar, optionally recurrent, with a server-side conflict report over its
+  // attendees. When fail_on_conflict is true and at least one attendee is busy/tentative in the window, creation is
+  // aborted. Every event must belong to a space: pass either space_id or a space name via the 'space' parameter.
   public AgendaEventModel createAgendaEvent(Long spaceId,
                                             String summary,
                                             String description,
@@ -248,18 +249,14 @@ public class AgendaEventMcpTool implements McpToolPlugin {
                                             Integer recurrenceInterval,
                                             String recurrenceUntil,
                                             Integer recurrenceCount,
-                                            Boolean failOnConflict) throws IllegalAccessException,
-                                                                    ObjectNotFoundException,
-                                                                    AgendaException {
-    if (spaceId == null || spaceId == 0) {
-      throw new IllegalArgumentException(MSG_PARAMETER_SPACE_ID_MANDATORY);
-    } else if (!userAcl.hasPermission(SpaceAclPlugin.OBJECT_TYPE,
-                                      String.valueOf(spaceId),
-                                      SpaceAclPlugin.REDACT_PERMISSION_TYPE,
-                                      getCurrentUserAclIdentity())) {
-      throw new IllegalAccessException(MSG_USER_NOT_ALLOWED_TO_CREATE_EVENT.formatted(spaceId));
-    }
+                                            Boolean failOnConflict,
+                                            String space) throws IllegalAccessException,
+                                                          ObjectNotFoundException,
+                                                          AgendaException {
+    long resolvedSpaceId = resolveSpaceId(spaceId, space);
+    checkSpaceCreatePermission(resolvedSpaceId);
     long userIdentityId = getCurrentUserIdentityId();
+    long calendarId = getSpaceCalendarId(resolvedSpaceId);
     ZonedDateTime startDate = toZonedDateTime(start);
     ZonedDateTime endDate = toZonedDateTime(end);
     List<EventAttendee> attendees = toEventAttendees(attendeeUsernames, true);
@@ -273,7 +270,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
 
     Event event = new Event(0l,
                             0l,
-                            getSpaceCalendarId(spaceId),
+                            calendarId,
                             userIdentityId,
                             0l,
                             ZonedDateTime.now(),
@@ -554,19 +551,15 @@ public class AgendaEventMcpTool implements McpToolPlugin {
                                       List<String> proposedSlots,
                                       List<String> attendeeUsernames,
                                       String description,
-                                      Boolean rankSlotsByAvailability) throws IllegalAccessException,
-                                                                       ObjectNotFoundException,
-                                                                       AgendaException {
-    if (spaceId == null || spaceId == 0) {
-      throw new IllegalArgumentException(MSG_PARAMETER_SPACE_ID_MANDATORY);
-    } else if (CollectionUtils.isEmpty(proposedSlots)) {
+                                      Boolean rankSlotsByAvailability,
+                                      String space) throws IllegalAccessException,
+                                                    ObjectNotFoundException,
+                                                    AgendaException {
+    if (CollectionUtils.isEmpty(proposedSlots)) {
       throw new IllegalArgumentException("Parameter 'proposed_slots' is mandatory (at least one '<start>|<end>' slot)");
-    } else if (!userAcl.hasPermission(SpaceAclPlugin.OBJECT_TYPE,
-                                      String.valueOf(spaceId),
-                                      SpaceAclPlugin.REDACT_PERMISSION_TYPE,
-                                      getCurrentUserAclIdentity())) {
-      throw new IllegalAccessException(MSG_USER_NOT_ALLOWED_TO_CREATE_EVENT.formatted(spaceId));
     }
+    long resolvedSpaceId = resolveSpaceId(spaceId, space);
+    checkSpaceCreatePermission(resolvedSpaceId);
     long userIdentityId = getCurrentUserIdentityId();
     List<EventAttendee> attendees = toEventAttendees(attendeeUsernames, true);
     List<EventDateOption> dateOptions = new ArrayList<>();
@@ -896,21 +889,22 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     }
   }
 
-  // Query the given user's own calendar in [start,end] and return their busy intervals (availability != FREE),
-  // clipped to the window. Reads the target user's calendar acting as that user; only time ranges are used.
+  // Query the given user's calendar in [start,end] and return their busy intervals, clipped to the window.
+  // "Busy" = events the user has ACCEPTED (the creator is auto-accepted, so owned events are included); merely
+  // invited (NEEDS_ACTION), tentative or declined events do NOT make the user busy. Only time ranges are used.
+  // NOTE: connected remote/CalDAV calendars are NOT included here (see class report) — there is no server-side API
+  // to enumerate another user's remote free/busy; those events are only fetched client-side with the user's creds.
   private List<BusyInterval> getBusyIntervals(long identityId, ZonedDateTime start, ZonedDateTime end) throws IllegalAccessException {
     EventFilter filter = new EventFilter(identityId,
                                          null,
-                                         List.of(EventAttendeeResponse.ACCEPTED,
-                                                 EventAttendeeResponse.TENTATIVE,
-                                                 EventAttendeeResponse.NEEDS_ACTION),
+                                         List.of(EventAttendeeResponse.ACCEPTED),
                                          start,
                                          end,
                                          BUSY_QUERY_LIMIT);
     List<Event> events = agendaEventService.getEvents(filter, TIMEZONE, identityId);
     List<BusyInterval> intervals = new ArrayList<>();
     for (Event event : events) {
-      if (event.getAvailability() == EventAvailability.FREE || event.getStart() == null || event.getEnd() == null) {
+      if (event.getStart() == null || event.getEnd() == null) {
         continue;
       }
       ZonedDateTime clippedStart = event.getStart().isBefore(start) ? start : event.getStart();
@@ -1169,6 +1163,71 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     Identity ownerIdentity = identityManager.getOrCreateSpaceIdentity(space.getPrettyName());
     Calendar agendaCalendar = agendaCalendarService.getOrCreateCalendarByOwnerId(ownerIdentity.getIdentityId());
     return agendaCalendar.getId();
+  }
+
+  // Resolve the target space id from an explicit space_id or a space name. Every event must belong to a space, so a
+  // clear, actionable error (listing the user's spaces) is raised when neither an id nor a resolvable name is given.
+  private long resolveSpaceId(Long spaceId, String spaceName) {
+    if (spaceId != null && spaceId != 0) {
+      return spaceId;
+    }
+    if (StringUtils.isNotBlank(spaceName)) {
+      Space space = findUserSpaceByName(spaceName.trim());
+      if (space != null) {
+        return space.getSpaceId();
+      }
+      throw new IllegalArgumentException("Space '%s' wasn't found among the spaces you belong to. %s".formatted(spaceName.trim(),
+                                                                                                               mySpacesHint()));
+    }
+    throw new IllegalArgumentException("An event must belong to a space. Please tell me which space to use. %s".formatted(mySpacesHint()));
+  }
+
+  // Find one of the current user's member spaces by pretty name or (case-insensitive) display name.
+  private Space findUserSpaceByName(String spaceName) {
+    Space space = spaceService.getSpaceByPrettyName(spaceName);
+    if (space != null && spaceService.isMember(space, getCurrentUserName())) {
+      return space;
+    }
+    for (Space memberSpace : listUserSpaces(100)) {
+      if (StringUtils.equalsIgnoreCase(memberSpace.getDisplayName(), spaceName)
+          || StringUtils.equalsIgnoreCase(memberSpace.getPrettyName(), spaceName)) {
+        return memberSpace;
+      }
+    }
+    return null;
+  }
+
+  // Short hint listing up to 10 of the current user's spaces to guide the model/user toward picking one.
+  private String mySpacesHint() {
+    List<Space> spaces = listUserSpaces(10);
+    if (spaces.isEmpty()) {
+      return "You don't seem to be a member of any space yet.";
+    }
+    return "You're a member of: " + String.join(", ", spaces.stream().map(Space::getDisplayName).toList()) + ".";
+  }
+
+  // Load up to 'limit' of the current user's member spaces.
+  @SneakyThrows
+  private List<Space> listUserSpaces(int limit) {
+    ListAccess<Space> memberSpaces = spaceService.getMemberSpaces(getCurrentUserName());
+    if (memberSpaces == null) {
+      return Collections.emptyList();
+    }
+    int size = memberSpaces.getSize();
+    if (size <= 0) {
+      return Collections.emptyList();
+    }
+    return Arrays.asList(memberSpaces.load(0, Math.min(size, limit)));
+  }
+
+  // Verify the current user is allowed to create events in the given space (REDACT permission on the space).
+  private void checkSpaceCreatePermission(long spaceId) throws IllegalAccessException {
+    if (!userAcl.hasPermission(SpaceAclPlugin.OBJECT_TYPE,
+                               String.valueOf(spaceId),
+                               SpaceAclPlugin.REDACT_PERMISSION_TYPE,
+                               getCurrentUserAclIdentity())) {
+      throw new IllegalAccessException(MSG_USER_NOT_ALLOWED_TO_CREATE_EVENT.formatted(spaceId));
+    }
   }
 
   private List<Long> getSpaceIdentityIds(List<Long> spaceIds) {

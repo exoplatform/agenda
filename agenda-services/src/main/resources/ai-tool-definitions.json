@@ -57,12 +57,17 @@
     {
       "name": "create_agenda_event",
       "title": "Create an agenda event",
-      "description": "Create a new agenda event in a space calendar / agenda.",
+      "description": "Create a new agenda event in a space calendar. Every event MUST belong to a space: provide either space_id or the space name via 'space'. If the user didn't say which space, ASK them (or list the spaces they belong to) instead of calling without one.",
       "input_schema": {
         "type": "object",
         "properties": {
           "space_id": {
-            "type": "integer"
+            "type": "integer",
+            "description": "Space id where the event is created. Optional if 'space' (a space name) is given; one of the two is required."
+          },
+          "space": {
+            "type": "string",
+            "description": "Space name (display or pretty name) to resolve to a space, e.g. 'EVA Space'. Used when space_id isn't known. Must be a space the user belongs to."
           },
           "summary": {
             "type": "string",
@@ -113,7 +118,6 @@
           }
         },
         "required": [
-          "space_id",
           "summary",
           "start",
           "end"
@@ -355,13 +359,17 @@
     {
       "name": "create_date_poll",
       "title": "Create a date poll",
-      "description": "Create a date poll: a tentative event with several proposed time slots that attendees can vote on to pick a final date.",
+      "description": "Create a date poll: a tentative event with several proposed time slots that attendees can vote on to pick a final date. Every poll MUST belong to a space: provide either space_id or the space name via 'space'. If the user didn't say which space, ASK them (or list their spaces) instead of calling without one.",
       "input_schema": {
         "type": "object",
         "properties": {
           "space_id": {
             "type": "integer",
-            "description": "Space id where the poll (event) is created."
+            "description": "Space id where the poll (event) is created. Optional if 'space' (a space name) is given; one of the two is required."
+          },
+          "space": {
+            "type": "string",
+            "description": "Space name (display or pretty name) to resolve to a space, e.g. 'EVA Space'. Used when space_id isn't known. Must be a space the user belongs to."
           },
           "title": {
             "type": "string",
@@ -391,7 +399,6 @@
           }
         },
         "required": [
-          "space_id",
           "title",
           "proposed_slots"
         ]

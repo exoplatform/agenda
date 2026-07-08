@@ -19,6 +19,7 @@ package org.exoplatform.agenda.mcp;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -176,7 +177,7 @@ class AgendaEventMcpToolTest {
   @Test
   void createAgendaEventWithoutSpaceIdFails() throws Exception {
     assertThrows(IllegalArgumentException.class,
-                 () -> tool.createAgendaEvent(null, "summary", null, null, null, null, null, null, null, null, null, null));
+                 () -> tool.createAgendaEvent(null, "summary", null, null, null, null, null, null, null, null, null, null, null));
   }
 
   @Test
@@ -186,7 +187,7 @@ class AgendaEventMcpToolTest {
                                any(),
                                any(org.exoplatform.services.security.Identity.class))).thenReturn(false);
     assertThrows(IllegalAccessException.class,
-                 () -> tool.createAgendaEvent(SPACE_ID, "summary", null, null, null, null, null, null, null, null, null, null));
+                 () -> tool.createAgendaEvent(SPACE_ID, "summary", null, null, null, null, null, null, null, null, null, null, null));
   }
 
   // --- update_agenda_event -------------------------------------------------
@@ -315,7 +316,32 @@ class AgendaEventMcpToolTest {
                                any(),
                                any(org.exoplatform.services.security.Identity.class))).thenReturn(true);
     assertThrows(IllegalArgumentException.class,
-                 () -> tool.createDatePoll(SPACE_ID, "poll", Collections.emptyList(), null, null, false));
+                 () -> tool.createDatePoll(SPACE_ID, "poll", Collections.emptyList(), null, null, false, null));
+  }
+
+  @Test
+  void createAgendaEventResolvesSpaceByName() throws Exception {
+    // A space name (no space_id) must resolve to the space; here permission is denied on the resolved id, which proves
+    // the name was resolved to SPACE_ID and the flow proceeded to the space create-permission check.
+    org.exoplatform.social.core.space.model.Space space = Mockito.mock(org.exoplatform.social.core.space.model.Space.class);
+    when(space.getSpaceId()).thenReturn(SPACE_ID);
+    when(spaceService.getSpaceByPrettyName("EVA Space")).thenReturn(space);
+    when(spaceService.isMember(space, USERNAME)).thenReturn(true);
+    when(userAcl.hasPermission(any(),
+                               eq(String.valueOf(SPACE_ID)),
+                               any(),
+                               any(org.exoplatform.services.security.Identity.class))).thenReturn(false);
+    assertThrows(IllegalAccessException.class,
+                 () -> tool.createAgendaEvent(null, "summary", null, null, "2026-07-20T14:00:00Z", "2026-07-20T15:00:00Z",
+                                              null, null, null, null, null, null, "EVA Space"));
+  }
+
+  @Test
+  void createAgendaEventWithoutSpaceOrNameGivesGuidance() {
+    IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                 () -> tool.createAgendaEvent(null, "summary", null, null, "2026-07-20T14:00:00Z", "2026-07-20T15:00:00Z",
+                                              null, null, null, null, null, null, null));
+    assertTrue(ex.getMessage().toLowerCase().contains("space"));
   }
 
   @Test

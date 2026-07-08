@@ -844,6 +844,35 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
   }
 
   @Test
+  public void testBusyEventsAreOnlyAcceptedOnes() throws Exception { // NOSONAR
+    // Backs the MCP free/busy primitive (get_availability / suggest_meeting_time / conflicts): a user is busy only for
+    // events they ACCEPTED. An invited-but-not-yet-accepted event must NOT make them busy; accepting flips it to busy.
+    ZonedDateTime start = getDate().withNano(0);
+    Event event = newEventInstance(start, start.plusHours(1), false);
+    event.setRecurrence(null); // single (non-recurring) event
+    event = createEvent(event.clone(),
+                        Long.parseLong(testuser1Identity.getId()),
+                        testuser1Identity,
+                        testuser2Identity);
+
+    long user2 = Long.parseLong(testuser2Identity.getId());
+    EventFilter acceptedFilter = new EventFilter(user2,
+                                                 null,
+                                                 Collections.singletonList(EventAttendeeResponse.ACCEPTED),
+                                                 start.minusHours(1),
+                                                 start.plusHours(2),
+                                                 10);
+    // testuser2 was only invited -> NEEDS_ACTION -> not busy
+    List<Event> before = agendaEventService.getEvents(acceptedFilter.clone(), ZoneOffset.UTC, user2);
+    assertTrue("an invited-but-not-accepted event must NOT count as busy", before.isEmpty());
+
+    // testuser2 accepts -> now busy
+    agendaEventAttendeeService.sendEventResponse(event.getId(), user2, EventAttendeeResponse.ACCEPTED);
+    List<Event> after = agendaEventService.getEvents(acceptedFilter.clone(), ZoneOffset.UTC, user2);
+    assertEquals("an accepted event must count as busy", 1, after.size());
+  }
+
+  @Test
   public void testCancelSingleOccurrenceKeepsSurroundingOccurrences() throws Exception { // NOSONAR
     // Regression for EXO-88461: cancelling ONE occurrence of a recurring series must remove only that date and keep
     // every occurrence before AND after it (the MCP cancel_agenda_event(occurrence_id) bug used to drop this-and-future).
