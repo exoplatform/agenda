@@ -18,8 +18,8 @@
       <v-tooltip v-if="isOwner" bottom>
         <template #activator="{ on }">
           <v-icon
-            size="14"
-            class="me-1 yellow--text text--darken-2"
+            size="20"
+            class="me-2 grey-lighten1"
             v-on="on">
             fas fa-crown
           </v-icon>
@@ -28,7 +28,7 @@
       </v-tooltip>
       <v-tooltip v-if="attendee.response" bottom>
         <template #activator="{ on }">
-          <v-icon :color="responseColor" size="18" class="me-1" v-on="on">
+          <v-icon :color="responseColor" size="20" class="me-1" v-on="on">
             {{ responseIcon }}
           </v-icon>
         </template>
@@ -40,10 +40,10 @@
             <v-btn
               :disabled="isOwner"
               icon
-              x-small
+              small
               @click="!isOwner && $emit('remove-attendee', attendee)">
-              <v-icon size="16" :color="isOwner ? 'grey lighten-1' : 'red'">
-                fas fa-trash-alt
+              <v-icon size="19" :color="isOwner ? 'grey lighten-1' : 'red'">
+                fas fa-trash
               </v-icon>
             </v-btn>
           </span>

@@ -1,17 +1,21 @@
 <template>
   <div class="d-flex align-center full-width">
     <v-icon size="20" class="icon-default-color me-2 flex-shrink-0">fas fa-users</v-icon>
-    <div class="d-flex align-center ms-7 flex-grow-1 attendee-status-badges">
+    <div class="d-flex align-center ms-6 flex-grow-1 attendee-status-badges">
       <v-tooltip v-if="acceptedResponsesCount" bottom>
         <template #activator="{ on }">
           <v-badge
             :content="acceptedResponsesCount"
             :value="acceptedResponsesCount"
-            color="#F8B121"
-            offset-x="9"
-            offset-y="8"
-            class="me-9">
-            <v-btn icon x-small v-on="on" @click="openDrawer">
+            offset-x="13"
+            color="orange-background"
+            offset-y="12"
+            class="me-8">
+            <v-btn
+              v-on="on"
+              icon 
+              small 
+              @click="openDrawer">
               <v-icon size="20" color="success">fas fa-check-circle</v-icon>
             </v-btn>
           </v-badge>
@@ -23,11 +27,15 @@
           <v-badge
             :content="tentativeResponsesCount"
             :value="tentativeResponsesCount"
-            color="#F8B121"
-            offset-x="9"
-            offset-y="8"
-            class="me-9">
-            <v-btn icon x-small v-on="on" @click="openDrawer">
+            color="orange-background"
+            offset-x="13"
+            offset-y="12"
+            class="me-8">
+            <v-btn 
+              v-on="on"
+              icon 
+              small 
+              @click="openDrawer">
               <v-icon size="20" color="blue">fas fa-question-circle</v-icon>
             </v-btn>
           </v-badge>
@@ -39,11 +47,15 @@
           <v-badge
             :content="refusedResponsesCount"
             :value="refusedResponsesCount"
-            color="#F8B121"
-            offset-x="9"
-            offset-y="8"
-            class="me-9">
-            <v-btn icon x-small v-on="on" @click="openDrawer">
+            color="orange-background"
+            offset-x="13"
+            offset-y="12"
+            class="me-8">
+            <v-btn 
+              v-on="on"
+              icon
+              small 
+              @click="openDrawer">
               <v-icon size="20" color="error">fas fa-times-circle</v-icon>
             </v-btn>
           </v-badge>
