@@ -31,7 +31,7 @@
         value="TENTATIVE"
         class="btn border-radius"
         @click="changeResponse('TENTATIVE')">
-        <v-icon size="20" class="me-4">fas fa-info-circle</v-icon>
+        <v-icon size="20" class="me-4">fas fa-question-circle</v-icon>
         {{ $t('agenda.button.maybe') }}
       </v-btn>
       <agenda-recurrent-event-response-confirm-dialog
