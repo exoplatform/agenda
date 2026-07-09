@@ -68,7 +68,7 @@
             :conference-provider="conferenceProvider"
             icon-class="ms-3 me-4" />
           <div class="d-flex flex-row">
-            <v-icon size="20" class="icon-default-color mb-auto pt-6 ms-3 me-4">fas fa-users</v-icon>
+            <v-icon size="20" class="icon-default-color my-auto ms-3 me-4">fas fa-users</v-icon>
             <agenda-event-form-attendees
               :event="event"
               class="ml-n2px pe-1"
