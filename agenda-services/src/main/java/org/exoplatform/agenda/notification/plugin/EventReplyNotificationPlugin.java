@@ -14,6 +14,7 @@ import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
 import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.agenda.service.AgendaEventAttendeeService;
+import org.exoplatform.agenda.service.AgendaEventService;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.model.NotificationInfo;
 import org.exoplatform.commons.api.notification.plugin.BaseNotificationPlugin;
@@ -37,17 +38,21 @@ public class EventReplyNotificationPlugin extends BaseNotificationPlugin {
 
   private AgendaEventAttendeeService eventAttendeeService;
 
+  private AgendaEventService         eventService;
+
   private SpaceService               spaceService;
 
   public EventReplyNotificationPlugin(InitParams initParams,
                                       IdentityManager identityManager,
                                       AgendaCalendarService calendarService,
                                       AgendaEventAttendeeService eventAttendeeService,
+                                      AgendaEventService eventService,
                                       SpaceService spaceService) {
     super(initParams);
     this.identityManager = identityManager;
     this.calendarService = calendarService;
     this.eventAttendeeService = eventAttendeeService;
+    this.eventService = eventService;
     this.spaceService = spaceService;
     ValueParam notificationIdParam = initParams.getValueParam(AGENDA_NOTIFICATION_PLUGIN_NAME);
     if (notificationIdParam == null || StringUtils.isBlank(notificationIdParam.getValue())) {
@@ -91,8 +96,10 @@ public class EventReplyNotificationPlugin extends BaseNotificationPlugin {
                                                                                     occurrenceId,
                                                                                     EventAttendeeResponse.ACCEPTED,
                                                                                     EventAttendeeResponse.TENTATIVE);
-        Set<Long> eventAttendeeIds = eventAttendees.stream().map(EventAttendee::getIdentityId).collect(Collectors.toSet());
-        eventAttendeeIds = new HashSet<>(eventAttendeeIds);
+        Set<Long> eventAttendeeIds = eventAttendees.stream()
+                                                   .map(EventAttendee::getIdentityId)
+                                                   .filter(identityId -> eventService.canUpdateEvent(event, identityId))
+                                                   .collect(Collectors.toSet());
         eventAttendeeIds.add(event.getCreatorId());
         eventAttendeeIds.remove(eventParticipantId);
         receivers = eventAttendeeIds;
