@@ -8,13 +8,13 @@
             :content="acceptedResponsesCount"
             :value="acceptedResponsesCount"
             offset-x="13"
-            color="orange-background"
+            color="warning-color-background"
             offset-y="12"
             class="me-8">
             <v-btn
               v-on="on"
-              icon 
-              small 
+              icon
+              small
               @click="openDrawer">
               <v-icon size="20" color="success">fas fa-check-circle</v-icon>
             </v-btn>
@@ -27,7 +27,7 @@
           <v-badge
             :content="tentativeResponsesCount"
             :value="tentativeResponsesCount"
-            color="orange-background"
+            color="warning-color-background"
             offset-x="13"
             offset-y="12"
             class="me-8">
@@ -47,7 +47,7 @@
           <v-badge
             :content="refusedResponsesCount"
             :value="refusedResponsesCount"
-            color="orange-background"
+            color="warning-color-background"
             offset-x="13"
             offset-y="12"
             class="me-8">
