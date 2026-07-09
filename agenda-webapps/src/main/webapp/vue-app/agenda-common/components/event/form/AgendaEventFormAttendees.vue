@@ -5,7 +5,7 @@
       :class="sortedAttendees.length > 1 && !event.id || event.id ? '' : 'ms-auto'"
       :title="$t('agenda.addParticipants')"
       icon
-      x-small
+      small
       @click="openDrawer">
       <v-icon class="icon-default-color" size="18">fas fa-plus</v-icon>
     </v-btn>
