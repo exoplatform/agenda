@@ -2,66 +2,54 @@
   <div class="d-flex align-center full-width">
     <v-icon size="20" class="icon-default-color me-2 flex-shrink-0">fas fa-users</v-icon>
     <div class="d-flex align-center ms-6 flex-grow-1 attendee-status-badges">
-      <v-tooltip v-if="acceptedResponsesCount" bottom>
-        <template #activator="{ on }">
-          <v-badge
-            :content="acceptedResponsesCount"
-            :value="acceptedResponsesCount"
-            offset-x="13"
-            color="warning-color-background"
-            offset-y="12"
-            class="me-8">
-            <v-btn
-              v-on="on"
-              icon
-              small
-              @click="openDrawer('ACCEPTED')">
-              <v-icon size="20" class="success-color">fas fa-check-circle</v-icon>
-            </v-btn>
-          </v-badge>
-        </template>
-        <span>{{ $t('agenda.accepted') }}: {{ acceptedResponsesCount }}</span>
-      </v-tooltip>
-      <v-tooltip v-if="tentativeResponsesCount" bottom>
-        <template #activator="{ on }">
-          <v-badge
-            :content="tentativeResponsesCount"
-            :value="tentativeResponsesCount"
-            color="warning-color-background"
-            offset-x="13"
-            offset-y="12"
-            class="me-8">
-            <v-btn
-              v-on="on"
-              icon
-              small
-              @click="openDrawer('TENTATIVE')">
-              <v-icon size="20" class="primary--text">fas fa-question-circle</v-icon>
-            </v-btn>
-          </v-badge>
-        </template>
-        <span>{{ $t('agenda.tentative') }}: {{ tentativeResponsesCount }}</span>
-      </v-tooltip>
-      <v-tooltip v-if="refusedResponsesCount" bottom>
-        <template #activator="{ on }">
-          <v-badge
-            :content="refusedResponsesCount"
-            :value="refusedResponsesCount"
-            color="warning-color-background"
-            offset-x="13"
-            offset-y="12"
-            class="me-8">
-            <v-btn
-              v-on="on"
-              icon
-              small
-              @click="openDrawer('DECLINED')">
-              <v-icon size="20" class="error-color">fas fa-times-circle</v-icon>
-            </v-btn>
-          </v-badge>
-        </template>
-        <span>{{ $t('agenda.declined') }}: {{ refusedResponsesCount }}</span>
-      </v-tooltip>
+      <v-badge
+        v-if="acceptedResponsesCount"
+        :content="acceptedResponsesCount"
+        :value="acceptedResponsesCount"
+        offset-x="13"
+        color="warning-color-background"
+        offset-y="12"
+        class="me-8">
+        <v-btn
+          icon
+          small
+          :title="$t('agenda.filter.button.title.accepted')"
+          @click="openDrawer('ACCEPTED')">
+          <v-icon size="20" class="success-color">fas fa-check-circle</v-icon>
+        </v-btn>
+      </v-badge>
+      <v-badge
+        v-if="tentativeResponsesCount"
+        :content="tentativeResponsesCount"
+        :value="tentativeResponsesCount"
+        color="warning-color-background"
+        offset-x="13"
+        offset-y="12"
+        class="me-8">
+        <v-btn
+          icon
+          small
+          :title="$t('agenda.filter.button.title.tentative')"
+          @click="openDrawer('TENTATIVE')">
+          <v-icon size="20" class="primary--text">fas fa-question-circle</v-icon>
+        </v-btn>
+      </v-badge>
+      <v-badge
+        v-if="refusedResponsesCount"
+        :content="refusedResponsesCount"
+        :value="refusedResponsesCount"
+        color="warning-color-background"
+        offset-x="13"
+        offset-y="12"
+        class="me-8">
+        <v-btn
+          icon
+          small
+          :title="$t('agenda.filter.button.title.declined')"
+          @click="openDrawer('DECLINED')">
+          <v-icon size="20" class="error-color">fas fa-times-circle</v-icon>
+        </v-btn>
+      </v-badge>
     </div>
     <agenda-event-attendees-avatars
       v-if="displayedAttendees.length"
