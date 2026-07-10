@@ -1,6 +1,6 @@
 <template>
   <div class="d-flex align-center flex-grow-1">
-    <span class="subtitle-2 me-4">{{ $t('agenda.participants') }}</span>
+    <span class="me-4">{{ $t('agenda.participants') }}</span>
     <v-btn
       :class="sortedAttendees.length > 1 && !event.id || event.id ? '' : 'ms-auto'"
       :title="$t('agenda.addParticipants')"

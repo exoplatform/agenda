@@ -15,8 +15,8 @@
               v-on="on"
               icon
               small
-              @click="openDrawer">
-              <v-icon size="20" color="success">fas fa-check-circle</v-icon>
+              @click="openDrawer('ACCEPTED')">
+              <v-icon size="20" class="success-color">fas fa-check-circle</v-icon>
             </v-btn>
           </v-badge>
         </template>
@@ -31,12 +31,12 @@
             offset-x="13"
             offset-y="12"
             class="me-8">
-            <v-btn 
+            <v-btn
               v-on="on"
-              icon 
-              small 
-              @click="openDrawer">
-              <v-icon size="20" color="blue">fas fa-question-circle</v-icon>
+              icon
+              small
+              @click="openDrawer('TENTATIVE')">
+              <v-icon size="20" class="primary--text">fas fa-question-circle</v-icon>
             </v-btn>
           </v-badge>
         </template>
@@ -51,12 +51,12 @@
             offset-x="13"
             offset-y="12"
             class="me-8">
-            <v-btn 
+            <v-btn
               v-on="on"
               icon
-              small 
-              @click="openDrawer">
-              <v-icon size="20" color="error">fas fa-times-circle</v-icon>
+              small
+              @click="openDrawer('DECLINED')">
+              <v-icon size="20" class="error-color">fas fa-times-circle</v-icon>
             </v-btn>
           </v-badge>
         </template>
@@ -170,10 +170,10 @@ export default {
     };
   },
   methods: {
-    openDrawer() {
+    openDrawer(responseFilter) {
       this.attendeesSnapshot = (this.event && this.event.attendees || [])
         .map(a => a.identity.remoteId).sort().join(',');
-      this.$refs.attendeesDrawer.open();
+      this.$refs.attendeesDrawer.open(responseFilter);
     },
     saveAttendeesIfEditable() {
       if (!this.canEdit || !this.event) {
