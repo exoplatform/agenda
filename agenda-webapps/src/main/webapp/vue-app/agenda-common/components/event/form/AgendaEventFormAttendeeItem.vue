@@ -26,37 +26,28 @@
         </template>
         <span>{{ $t('agenda.eventCreator') }}</span>
       </v-tooltip>
-      <v-tooltip v-if="attendee.response" bottom>
-        <template #activator="{ on }">
-          <v-icon
-            size="20"
-            :color="responseColor"
-            :class="['me-1', responseColorClass]"
-            v-on="on">
-            {{ responseIcon }}
-          </v-icon>
-        </template>
-        <span>{{ responseLabel }}</span>
-      </v-tooltip>
-      <v-tooltip v-if="editable" bottom>
-        <template #activator="{ on }">
-          <span v-on="on">
-            <v-btn
-              :disabled="isOwner"
-              icon
-              small
-              @click="!isOwner && $emit('remove-attendee', attendee)">
-              <v-icon
-                size="19"
-                :color="isOwner ? 'grey lighten-1' : null"
-                :class="!isOwner && 'error-color'">
-                fas fa-trash
-              </v-icon>
-            </v-btn>
-          </span>
-        </template>
-        <span>{{ isOwner ? $t('agenda.tooltip.cannotRemoveOwner') : $t('agenda.tooltip.removeParticipant') }}</span>
-      </v-tooltip>
+      <v-icon
+        v-if="attendee.response"
+        size="20"
+        :color="responseColor"
+        :class="['me-1', responseColorClass]"
+        :title="responseLabel">
+        {{ responseIcon }}
+      </v-icon>
+      <v-btn
+        v-if="editable"
+        :disabled="isOwner"
+        :title="isOwner ? $t('agenda.tooltip.cannotRemoveOwner') : $t('agenda.tooltip.removeParticipant')"
+        icon
+        small
+        @click="!isOwner && $emit('remove-attendee', attendee)">
+        <v-icon
+          size="19"
+          :color="isOwner ? 'grey lighten-1' : null"
+          :class="!isOwner && 'error-color'">
+          fas fa-trash
+        </v-icon>
+      </v-btn>
     </v-list-item-action>
   </v-list-item>
 </template>
@@ -129,10 +120,10 @@ export default {
     },
     responseLabel() {
       switch (this.attendee.response) {
-      case 'ACCEPTED': return this.$t('agenda.accepted');
-      case 'TENTATIVE': return this.$t('agenda.tentative');
-      case 'DECLINED': return this.$t('agenda.declined');
-      default: return this.$t('agenda.needs_action');
+      case 'ACCEPTED': return this.$t('agenda.attendee.title.accepted');
+      case 'TENTATIVE': return this.$t('agenda.attendee.title.tentative');
+      case 'DECLINED': return this.$t('agenda.attendee.title.declined');
+      default: return this.$t('agenda.attendee.title.needs.action');
       }
     },
   },

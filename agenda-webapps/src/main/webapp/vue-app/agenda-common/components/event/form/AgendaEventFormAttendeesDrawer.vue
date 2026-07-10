@@ -16,6 +16,7 @@
               color="primary"
               class="ms-1"
               elevation="0"
+              :title="$t('agenda.addParticipants')"
               small
               width="94px"
               @click="showSuggester = true">
@@ -100,6 +101,7 @@
                 icon
                 small
                 class="flex-shrink-0 ms-1"
+                :title="dropdownTriggerTitle"
                 v-on="on">
                 <v-icon
                   size="20"
@@ -174,11 +176,11 @@ export default {
   computed: {
     responseFilterOptions() {
       return [
-        {value: 'ALL', icon: 'fas fa-calendar-check', label: this.$t('agenda.label.all'), color: null, colorClass: null},
-        {value: 'ACCEPTED', icon: 'fas fa-check-circle', label: this.$t('agenda.accepted'), color: null, colorClass: 'success-color'},
-        {value: 'TENTATIVE', icon: 'fas fa-question-circle', label: this.$t('agenda.tentative'), color: null, colorClass: 'primary--text'},
-        {value: 'DECLINED', icon: 'fas fa-times-circle', label: this.$t('agenda.declined'), color: null, colorClass: 'error-color'},
-        {value: 'NEEDS_ACTION', icon: 'fas fa-info-circle', label: this.$t('agenda.needs_action'), color: 'grey', colorClass: null},
+        {value: 'ALL', icon: 'fas fa-calendar-check', label: this.$t('agenda.label.all'), title: this.$t('agenda.filter.title.all'), color: null, colorClass: null},
+        {value: 'ACCEPTED', icon: 'fas fa-check-circle', label: this.$t('agenda.accepted'), title: this.$t('agenda.filter.title.accepted'), color: null, colorClass: 'success-color'},
+        {value: 'TENTATIVE', icon: 'fas fa-question-circle', label: this.$t('agenda.tentative'), title: this.$t('agenda.filter.title.tentative'), color: null, colorClass: 'primary--text'},
+        {value: 'DECLINED', icon: 'fas fa-times-circle', label: this.$t('agenda.declined'), title: this.$t('agenda.filter.title.declined'), color: null, colorClass: 'error-color'},
+        {value: 'NEEDS_ACTION', icon: 'fas fa-info-circle', label: this.$t('agenda.needs_action'), title: this.$t('agenda.filter.title.needs.action'), color: 'grey', colorClass: null},
       ];
     },
     activeStatusOption() {
@@ -191,6 +193,10 @@ export default {
     },
     dropdownTriggerIcon() {
       return (this.activeStatusOption && this.activeStatusOption.icon) || 'fas fa-calendar-check';
+    },
+    dropdownTriggerTitle() {
+      const option = this.responseFilterOptions.find(item => item.value === this.responseFilter);
+      return option && option.title;
     },
     dropdownTriggerColor() {
       if (this.activeStatusOption) {
