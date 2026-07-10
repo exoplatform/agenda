@@ -9,11 +9,12 @@
     </template>
     <template slot="content">
       <div class="pa-4">
-        <template v-if="editable">
-          <div v-if="!showSuggester">
+        <div v-if="!showFilterBar" class="d-flex align-center mb-4">
+          <template v-if="editable">
             <v-btn
+              v-if="!showSuggester"
               color="primary"
-              class="mb-4 ms-1"
+              class="ms-1"
               elevation="0"
               small
               width="94px"
@@ -21,35 +22,109 @@
               <v-icon size="14" class="me-1">fas fa-plus</v-icon>
               <span class="text-font-size">{{ $t('agenda.label.addParticipants') }}</span>
             </v-btn>
+            <form
+              v-else
+              ref="form"
+              class="flex-grow-1"
+              @keypress="checkGuestInvitation($event)">
+              <div class="d-flex align-center">
+                <v-btn
+                  icon
+                  small
+                  class="me-2 flex-shrink-0"
+                  @click="showSuggester = false">
+                  <v-icon size="20" class="icon-default-color">fas fa-arrow-left</v-icon>
+                </v-btn>
+                <exo-identity-suggester
+                  ref="invitedAttendeeAutoComplete"
+                  v-model="invitedAttendee"
+                  :labels="participantSuggesterLabels"
+                  :title="suggesterStatus"
+                  :disabled="disableAttendeeSuggester"
+                  :ignore-items="ignoredMembers"
+                  :search-options="searchOptions"
+                  name="inviteAttendee"
+                  no-redactor-space
+                  include-users
+                  dense
+                  include-spaces />
+              </div>
+              <span v-if="disableAttendeeSuggester" class="error--text caption">
+                {{ $t('agenda.suggesterRequired') }}
+              </span>
+            </form>
+          </template>
+          <div v-else class="ms-1 text-color subtitle-2">
+            {{ $t('agenda.label.searchParticipant') }}
           </div>
-          <form
-            v-else
-            ref="form"
-            class="mb-4"
-            @keypress="checkGuestInvitation($event)">
-            <div class="d-flex align-center">
-              <v-btn icon x-small class="me-2 flex-shrink-0" @click="showSuggester = false">
-                <v-icon size="16" class="icon-default-color">fas fa-arrow-left</v-icon>
+          <v-spacer v-if="!showSuggester" />
+          <v-btn
+            v-if="!showSuggester"
+            icon
+            small
+            class="flex-shrink-0"
+            :title="$t('agenda.label.filterParticipants')"
+            @click="openFilterBar">
+            <v-icon
+              size="20"
+              :color="filterButtonColor"
+              :class="!filterButtonColor && 'icon-default-color'">
+              fas fa-filter
+            </v-icon>
+          </v-btn>
+        </div>
+        <div v-else class="d-flex align-center mb-4">
+          <v-btn
+            icon
+            small
+            class="me-2 flex-shrink-0"
+            @click="closeFilterBar">
+            <v-icon size="20" class="icon-default-color">fas fa-arrow-left</v-icon>
+          </v-btn>
+          <v-text-field
+            ref="filterInput"
+            v-model="filterText"
+            :placeholder="$t('agenda.label.searchParticipants')"
+            class="flex-grow-1 pa-0 ma-0"
+            dense
+            clear-icon="fa-times fa-1x primary--text position-absolute absolute-vertical-center my-0"
+            clearable
+            hide-details>
+            <template #prepend-inner>
+              <v-icon size="20" :class="filterText ? 'primary--text' : 'icon-default-color'">fas fa-filter</v-icon>
+            </template>
+          </v-text-field>
+          <v-menu offset-y>
+            <template #activator="{ on }">
+              <v-btn
+                icon
+                small
+                class="flex-shrink-0 ms-1"
+                v-on="on">
+                <v-icon
+                  size="20"
+                  :color="dropdownTriggerColor"
+                  :class="dropdownTriggerColorClass">
+                  {{ dropdownTriggerIcon }}
+                </v-icon>
               </v-btn>
-              <exo-identity-suggester
-                ref="invitedAttendeeAutoComplete"
-                v-model="invitedAttendee"
-                :labels="participantSuggesterLabels"
-                :title="suggesterStatus"
-                :disabled="disableAttendeeSuggester"
-                :ignore-items="ignoredMembers"
-                :search-options="searchOptions"
-                name="inviteAttendee"
-                no-redactor-space
-                include-users
-                dense
-                include-spaces />
-            </div>
-            <span v-if="disableAttendeeSuggester" class="error--text caption">
-              {{ $t('agenda.suggesterRequired') }}
-            </span>
-          </form>
-        </template>
+            </template>
+            <v-list dense>
+              <v-list-item
+                v-for="option in responseFilterOptions"
+                :key="option.value"
+                @click="responseFilter = option.value">
+                <v-icon
+                  size="16"
+                  :color="option.color"
+                  :class="['me-2', option.colorClass]">
+                  {{ option.icon }}
+                </v-icon>
+                <v-list-item-title>{{ option.label }}</v-list-item-title>
+              </v-list-item>
+            </v-list>
+          </v-menu>
+        </div>
         <div v-if="event && event.attendees" class="mt-2">
           <agenda-event-form-attendee-item
             v-for="attendee in displayedAttendees"
@@ -59,7 +134,10 @@
             :editable="editable"
             @remove-attendee="removeAttendee" />
           <div v-if="hasMore" class="d-flex justify-center py-2">
-            <v-btn text small @click="loadMore">
+            <v-btn
+              text
+              small
+              @click="loadMore">
               {{ $t('agenda.button.loadMore') }}
             </v-btn>
           </div>
@@ -88,9 +166,62 @@ export default {
       invitedAttendee: null,
       displayedCount: PAGE_SIZE,
       showSuggester: false,
+      showFilterBar: false,
+      filterText: '',
+      responseFilter: 'ALL',
     };
   },
   computed: {
+    responseFilterOptions() {
+      return [
+        {value: 'ALL', icon: 'fas fa-calendar-check', label: this.$t('agenda.label.all'), color: null, colorClass: null},
+        {value: 'ACCEPTED', icon: 'fas fa-check-circle', label: this.$t('agenda.accepted'), color: null, colorClass: 'success-color'},
+        {value: 'TENTATIVE', icon: 'fas fa-question-circle', label: this.$t('agenda.tentative'), color: null, colorClass: 'primary--text'},
+        {value: 'DECLINED', icon: 'fas fa-times-circle', label: this.$t('agenda.declined'), color: null, colorClass: 'error-color'},
+        {value: 'NEEDS_ACTION', icon: 'fas fa-info-circle', label: this.$t('agenda.needs_action'), color: 'grey', colorClass: null},
+      ];
+    },
+    activeStatusOption() {
+      return this.responseFilter !== 'ALL'
+        && this.responseFilterOptions.find(option => option.value === this.responseFilter)
+        || null;
+    },
+    filterButtonColor() {
+      return this.isFiltered ? 'primary' : null;
+    },
+    dropdownTriggerIcon() {
+      return (this.activeStatusOption && this.activeStatusOption.icon) || 'fas fa-calendar-check';
+    },
+    dropdownTriggerColor() {
+      if (this.activeStatusOption) {
+        return this.activeStatusOption.color;
+      }
+      return this.isFiltered ? 'primary' : null;
+    },
+    dropdownTriggerColorClass() {
+      if (this.activeStatusOption) {
+        return this.activeStatusOption.colorClass;
+      }
+      return this.dropdownTriggerColor ? null : 'icon-default-color';
+    },
+    isFiltered() {
+      return !!this.filterText || this.responseFilter !== 'ALL';
+    },
+    filteredAttendees() {
+      let attendees = this.sortedAttendees;
+      if (this.responseFilter !== 'ALL') {
+        attendees = attendees.filter(attendee => (attendee.response || 'NEEDS_ACTION') === this.responseFilter);
+      }
+      const term = this.filterText && this.filterText.trim().toLowerCase();
+      if (term) {
+        attendees = attendees.filter(attendee => {
+          const profile = attendee.identity.profile || attendee.identity.space;
+          const name = (profile && (profile.fullname || profile.fullName || profile.displayName)) || '';
+          return name.toLowerCase().includes(term);
+        });
+      }
+      return attendees;
+    },
     sortedAttendees() {
       const attendees = this.event && this.event.attendees || [];
       if (!attendees.length) {
@@ -111,10 +242,10 @@ export default {
       return owner ? [owner, ...others] : others;
     },
     displayedAttendees() {
-      return this.sortedAttendees.slice(0, this.displayedCount);
+      return this.filteredAttendees.slice(0, this.displayedCount);
     },
     hasMore() {
-      return this.sortedAttendees.length > this.displayedCount;
+      return this.filteredAttendees.length > this.displayedCount;
     },
     searchOptions() {
       return {
@@ -166,13 +297,23 @@ export default {
     },
   },
   methods: {
-    open() {
+    open(responseFilter) {
       this.displayedCount = PAGE_SIZE;
       this.showSuggester = false;
+      this.showFilterBar = false;
+      this.filterText = '';
+      this.responseFilter = responseFilter || 'ALL';
       this.$refs.attendeesDrawer.open();
     },
     loadMore() {
       this.displayedCount += PAGE_SIZE;
+    },
+    openFilterBar() {
+      this.showFilterBar = true;
+      this.$nextTick(() => this.$refs.filterInput && this.$refs.filterInput.focus());
+    },
+    closeFilterBar() {
+      this.showFilterBar = false;
     },
     removeAttendee(attendee) {
       if (!this.event || !this.event.attendees) {

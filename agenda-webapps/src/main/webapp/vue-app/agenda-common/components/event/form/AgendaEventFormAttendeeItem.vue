@@ -28,7 +28,11 @@
       </v-tooltip>
       <v-tooltip v-if="attendee.response" bottom>
         <template #activator="{ on }">
-          <v-icon :color="responseColor" size="20" class="me-1" v-on="on">
+          <v-icon
+            size="20"
+            :color="responseColor"
+            :class="['me-1', responseColorClass]"
+            v-on="on">
             {{ responseIcon }}
           </v-icon>
         </template>
@@ -42,7 +46,10 @@
               icon
               small
               @click="!isOwner && $emit('remove-attendee', attendee)">
-              <v-icon size="19" :color="isOwner ? 'grey lighten-1' : 'red'">
+              <v-icon
+                size="19"
+                :color="isOwner ? 'grey lighten-1' : null"
+                :class="!isOwner && 'error-color'">
                 fas fa-trash
               </v-icon>
             </v-btn>
@@ -101,15 +108,23 @@ export default {
       case 'ACCEPTED': return 'fas fa-check-circle';
       case 'TENTATIVE': return 'fas fa-question-circle';
       case 'DECLINED': return 'fas fa-times-circle';
-      default: return 'fas fa-question-circle';
+      default: return 'fas fa-info-circle';
       }
     },
     responseColor() {
       switch (this.attendee.response) {
-      case 'ACCEPTED': return 'success';
-      case 'TENTATIVE': return 'blue';
-      case 'DECLINED': return 'error';
+      case 'ACCEPTED': return null;
+      case 'TENTATIVE': return null;
+      case 'DECLINED': return null;
       default: return 'grey';
+      }
+    },
+    responseColorClass() {
+      switch (this.attendee.response) {
+      case 'ACCEPTED': return 'success-color';
+      case 'TENTATIVE': return 'primary--text';
+      case 'DECLINED': return 'error-color';
+      default: return null;
       }
     },
     responseLabel() {
