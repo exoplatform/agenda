@@ -337,6 +337,35 @@ class AgendaEventMcpToolTest {
   }
 
   @Test
+  void createDatePollResolvesSpaceByName() throws Exception {
+    // A date poll given only a space NAME (space_id == null) must build its event on the RESOLVED space id, not on the
+    // raw null spaceId. Pre-fix the event was built with getSpaceCalendarId(spaceId) which auto-unboxed the null Long to
+    // an NPE; post-fix it uses getSpaceCalendarId(resolvedSpaceId == SPACE_ID). We prove the resolved id flowed through
+    // by leaving getSpaceById(SPACE_ID) unstubbed: post-fix that yields a controlled ObjectNotFoundException on id 7
+    // (NOT an NPE), whereas the pre-fix code throws NPE here.
+    org.exoplatform.social.core.space.model.Space space = Mockito.mock(org.exoplatform.social.core.space.model.Space.class);
+    when(space.getSpaceId()).thenReturn(SPACE_ID);
+    when(spaceService.getSpaceByPrettyName("EVA Space")).thenReturn(space);
+    when(spaceService.isMember(space, USERNAME)).thenReturn(true);
+    when(userAcl.hasPermission(any(),
+                               eq(String.valueOf(SPACE_ID)),
+                               any(),
+                               any(org.exoplatform.services.security.Identity.class))).thenReturn(true);
+    ObjectNotFoundException ex =
+                              assertThrows(ObjectNotFoundException.class,
+                                           () -> tool.createDatePoll(null,
+                                                                     "poll",
+                                                                     List.of("2026-07-20T14:00:00Z|2026-07-20T15:00:00Z"),
+                                                                     null,
+                                                                     null,
+                                                                     false,
+                                                                     "EVA Space"));
+    // The resolved space id (7) reached getSpaceCalendarId -> getSpaceById, proving no NPE and correct resolution.
+    assertTrue(ex.getMessage().contains(String.valueOf(SPACE_ID)));
+    verify(spaceService).getSpaceById(SPACE_ID);
+  }
+
+  @Test
   void createAgendaEventWithoutSpaceOrNameGivesGuidance() {
     IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                  () -> tool.createAgendaEvent(null, "summary", null, null, "2026-07-20T14:00:00Z", "2026-07-20T15:00:00Z",

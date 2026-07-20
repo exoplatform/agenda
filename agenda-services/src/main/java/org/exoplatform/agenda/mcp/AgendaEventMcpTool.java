@@ -118,7 +118,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
   private static final String                MSG_USER_NOT_ALLOWED_TO_ACCESS_EVENT =
                                                                                   "User isn't allowed to access event with id %s";
 
-  private static final String                MSG_PARAMETER_EVENT_ID_MADATORY      = "Parameter 'event_id' is madatory";
+  private static final String                MSG_PARAMETER_EVENT_ID_MANDATORY     = "Parameter 'event_id' is mandatory";
 
   private static final String                MSG_PARAMETER_ATTENDEE_IS_MANDATORY  = "Parameter 'attendee_usernames' is mandatory";
 
@@ -230,7 +230,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
   public AgendaEventModel getAgendaEventById(long eventId) throws ObjectNotFoundException, IllegalAccessException {
     Event event = agendaEventService.getEventById(eventId, TIMEZONE, getCurrentUserIdentityId());
     if (event == null) {
-      throw new ObjectNotFoundException("Agenda Event with id %s not found");
+      throw new ObjectNotFoundException("Agenda Event with id %s not found".formatted(eventId));
     }
     return toAgendaEventModel(event);
   }
@@ -262,7 +262,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     List<EventAttendee> attendees = toEventAttendees(attendeeUsernames, true);
 
     // Compute the conflict report over the event window before writing anything
-    ConflictsModel conflicts = computeConflicts(attendees, startDate, endDate, userIdentityId);
+    ConflictsModel conflicts = computeConflicts(attendees, startDate, endDate);
     if (Boolean.TRUE.equals(failOnConflict) && !conflicts.isAllAvailable()) {
       throw new IllegalStateException("Event not created: %s attendee(s) have a conflict in the requested window"
           .formatted(conflicts.getConflicts().size()));
@@ -309,7 +309,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
   public void declineAgendaEventInvitation(Long eventId, String occurrenceId) throws IllegalAccessException,
                                                                               ObjectNotFoundException {
     if (eventId == null || eventId == 0) {
-      throw new IllegalArgumentException(MSG_PARAMETER_EVENT_ID_MADATORY);
+      throw new IllegalArgumentException(MSG_PARAMETER_EVENT_ID_MANDATORY);
     } else if (!userAcl.hasAccessPermission(AgendaEventAclPlugin.OBJECT_TYPE,
                                             String.valueOf(eventId),
                                             getCurrentUserAclIdentity())) {
@@ -333,7 +333,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
                                                                    ObjectNotFoundException,
                                                                    AgendaException {
     if (eventId == null || eventId == 0) {
-      throw new IllegalArgumentException(MSG_PARAMETER_EVENT_ID_MADATORY);
+      throw new IllegalArgumentException(MSG_PARAMETER_EVENT_ID_MANDATORY);
     }
     if (StringUtils.isBlank(occurrenceId)) {
       declineAgendaEventInvitation(eventId, null);
@@ -365,7 +365,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
 
   public void acceptAgendaEventInvitation(Long eventId) throws IllegalAccessException, ObjectNotFoundException {
     if (eventId == null || eventId == 0) {
-      throw new IllegalArgumentException(MSG_PARAMETER_EVENT_ID_MADATORY);
+      throw new IllegalArgumentException(MSG_PARAMETER_EVENT_ID_MANDATORY);
     } else if (!userAcl.hasAccessPermission(AgendaEventAclPlugin.OBJECT_TYPE,
                                             String.valueOf(eventId),
                                             getCurrentUserAclIdentity())) {
@@ -377,7 +377,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
   public AgendaEventModel inviteUsersToAgendaEvent(Long eventId, List<String> attendeeUsernames) throws IllegalAccessException,
                                                                                                  ObjectNotFoundException {
     if (eventId == null || eventId == 0) {
-      throw new IllegalArgumentException(MSG_PARAMETER_EVENT_ID_MADATORY);
+      throw new IllegalArgumentException(MSG_PARAMETER_EVENT_ID_MANDATORY);
     } else if (CollectionUtils.isEmpty(attendeeUsernames)) {
       throw new IllegalArgumentException(MSG_PARAMETER_ATTENDEE_IS_MANDATORY);
     } else if (!userAcl.hasEditPermission(AgendaEventAclPlugin.OBJECT_TYPE,
@@ -411,7 +411,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
   public AgendaEventModel inviteSpaceToAgendaEvent(Long eventId, Long spaceId) throws IllegalAccessException,
                                                                                ObjectNotFoundException {
     if (eventId == null || eventId == 0) {
-      throw new IllegalArgumentException(MSG_PARAMETER_EVENT_ID_MADATORY);
+      throw new IllegalArgumentException(MSG_PARAMETER_EVENT_ID_MANDATORY);
     } else if (spaceId == null || spaceId == 0) {
       throw new IllegalArgumentException("Parameter 'space_id' is mandatory");
     } else if (!userAcl.hasEditPermission(AgendaEventAclPlugin.OBJECT_TYPE,
@@ -464,7 +464,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
                                                                     ObjectNotFoundException,
                                                                     AgendaException {
     if (eventId == null || eventId == 0) {
-      throw new IllegalArgumentException(MSG_PARAMETER_EVENT_ID_MADATORY);
+      throw new IllegalArgumentException(MSG_PARAMETER_EVENT_ID_MANDATORY);
     } else if (!userAcl.hasEditPermission(AgendaEventAclPlugin.OBJECT_TYPE,
                                           String.valueOf(eventId),
                                           getCurrentUserAclIdentity())) {
@@ -479,7 +479,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     ZonedDateTime startDate = start != null ? toZonedDateTime(start) : existingEvent.getStart();
     ZonedDateTime endDate = end != null ? toZonedDateTime(end) : existingEvent.getEnd();
     List<EventAttendee> attendees = getExistingEventAttendees(eventId);
-    ConflictsModel conflicts = computeConflicts(attendees, startDate, endDate, userIdentityId);
+    ConflictsModel conflicts = computeConflicts(attendees, startDate, endDate);
     if (Boolean.TRUE.equals(failOnConflict) && !conflicts.isAllAvailable()) {
       throw new IllegalStateException("Event not updated: %s attendee(s) have a conflict in the requested window"
           .formatted(conflicts.getConflicts().size()));
@@ -530,7 +530,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
 
   public void deleteAgendaEvent(Long eventId) throws IllegalAccessException, ObjectNotFoundException {
     if (eventId == null || eventId == 0) {
-      throw new IllegalArgumentException(MSG_PARAMETER_EVENT_ID_MADATORY);
+      throw new IllegalArgumentException(MSG_PARAMETER_EVENT_ID_MANDATORY);
     } else if (!userAcl.hasDeletePermission(AgendaEventAclPlugin.OBJECT_TYPE,
                                             String.valueOf(eventId),
                                             getCurrentUserAclIdentity())) {
@@ -543,9 +543,12 @@ public class AgendaEventMcpTool implements McpToolPlugin {
   // Date polls (expose AgendaEventDatePollService)
   // ==========================================================================
 
-  // Create a date poll: a TENTATIVE event carrying several proposed slots that attendees can vote on.
-  // Each proposed slot is a "<startRFC3339>|<endRFC3339>" string. When rank_slots_by_availability is true,
-  // slots are ordered so the ones with the most available internal attendees come first.
+  /**
+   * Create a date poll: a TENTATIVE event carrying several proposed slots that attendees can vote on.
+   * Each proposed slot is a "&lt;startRFC3339&gt;|&lt;endRFC3339&gt;" string. When rank_slots_by_availability is
+   * true, slots are ordered so the ones with the most available internal attendees come first. Every poll must
+   * belong to a space: pass either space_id or a space name via the 'space' parameter (resolved to resolvedSpaceId).
+   */
   public DatePollModel createDatePoll(Long spaceId,
                                       String title,
                                       List<String> proposedSlots,
@@ -571,13 +574,13 @@ public class AgendaEventMcpTool implements McpToolPlugin {
       dateOptions.add(new EventDateOption(0l, 0l, toZonedDateTime(parts[0].trim()), toZonedDateTime(parts[1].trim()), false, false, null));
     }
     if (Boolean.TRUE.equals(rankSlotsByAvailability)) {
-      dateOptions = rankDateOptionsByAvailability(dateOptions, attendees, userIdentityId);
+      dateOptions = rankDateOptionsByAvailability(dateOptions, attendees);
     }
     ZonedDateTime overallStart = dateOptions.stream().map(EventDateOption::getStart).min(Comparator.naturalOrder()).orElseThrow();
     ZonedDateTime overallEnd = dateOptions.stream().map(EventDateOption::getEnd).max(Comparator.naturalOrder()).orElseThrow();
     Event event = new Event(0l,
                             0l,
-                            getSpaceCalendarId(spaceId),
+                            getSpaceCalendarId(resolvedSpaceId),
                             userIdentityId,
                             0l,
                             ZonedDateTime.now(),
@@ -612,7 +615,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
   public DatePollModel voteDatePoll(Long eventId, List<Long> acceptedSlotIds) throws ObjectNotFoundException,
                                                                               IllegalAccessException {
     if (eventId == null || eventId == 0) {
-      throw new IllegalArgumentException(MSG_PARAMETER_EVENT_ID_MADATORY);
+      throw new IllegalArgumentException(MSG_PARAMETER_EVENT_ID_MANDATORY);
     }
     if (!userAcl.hasAccessPermission(AgendaEventAclPlugin.OBJECT_TYPE, String.valueOf(eventId), getCurrentUserAclIdentity())) {
       throw new IllegalAccessException(MSG_USER_NOT_ALLOWED_TO_ACCESS_EVENT.formatted(eventId));
@@ -626,7 +629,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
   // Return the current tally of a date poll: each proposed slot with its vote count and the usernames who voted.
   public DatePollModel getDatePollResults(long eventId) throws ObjectNotFoundException, IllegalAccessException {
     if (eventId == 0) {
-      throw new IllegalArgumentException(MSG_PARAMETER_EVENT_ID_MADATORY);
+      throw new IllegalArgumentException(MSG_PARAMETER_EVENT_ID_MANDATORY);
     }
     if (!userAcl.hasAccessPermission(AgendaEventAclPlugin.OBJECT_TYPE, String.valueOf(eventId), getCurrentUserAclIdentity())) {
       throw new IllegalAccessException(MSG_USER_NOT_ALLOWED_TO_ACCESS_EVENT.formatted(eventId));
@@ -660,8 +663,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     List<EventAttendee> attendees = getExistingEventAttendees(eventId);
     ConflictsModel conflicts = computeConflicts(attendees,
                                                 dateOption.getStart(),
-                                                dateOption.getEnd(),
-                                                userIdentityId);
+                                                dateOption.getEnd());
     model.setConflicts(conflicts);
     return model;
   }
@@ -751,7 +753,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
   // List the attendees of an event together with their response (ACCEPTED/DECLINED/TENTATIVE/NEEDS_ACTION).
   public List<AgendaEventAttendeeModel> getEventAttendees(long eventId) throws IllegalAccessException {
     if (eventId == 0) {
-      throw new IllegalArgumentException(MSG_PARAMETER_EVENT_ID_MADATORY);
+      throw new IllegalArgumentException(MSG_PARAMETER_EVENT_ID_MANDATORY);
     }
     if (!userAcl.hasAccessPermission(AgendaEventAclPlugin.OBJECT_TYPE, String.valueOf(eventId), getCurrentUserAclIdentity())) {
       throw new IllegalAccessException(MSG_USER_NOT_ALLOWED_TO_ACCESS_EVENT.formatted(eventId));
@@ -764,7 +766,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
                                                String response,
                                                String comment) throws ObjectNotFoundException, IllegalAccessException {
     if (eventId == null || eventId == 0) {
-      throw new IllegalArgumentException(MSG_PARAMETER_EVENT_ID_MADATORY);
+      throw new IllegalArgumentException(MSG_PARAMETER_EVENT_ID_MANDATORY);
     }
     if (StringUtils.isBlank(response)) {
       throw new IllegalArgumentException("Parameter 'response' is mandatory (ACCEPTED, DECLINED or TENTATIVE)");
@@ -783,7 +785,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
   // Set the current user's reminders on an event; each reminder is a "<number> <MINUTE|HOUR|DAY|WEEK>" string.
   public List<String> setEventReminders(Long eventId, List<String> reminders) throws IllegalAccessException, AgendaException {
     if (eventId == null || eventId == 0) {
-      throw new IllegalArgumentException(MSG_PARAMETER_EVENT_ID_MADATORY);
+      throw new IllegalArgumentException(MSG_PARAMETER_EVENT_ID_MANDATORY);
     }
     if (!userAcl.hasAccessPermission(AgendaEventAclPlugin.OBJECT_TYPE, String.valueOf(eventId), getCurrentUserAclIdentity())) {
       throw new IllegalAccessException(MSG_USER_NOT_ALLOWED_TO_ACCESS_EVENT.formatted(eventId));
@@ -806,7 +808,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
   // Return the web-conference (e.g. Jitsi) link attached to an event, if any.
   public ConferenceModel getEventConference(long eventId) throws IllegalAccessException {
     if (eventId == 0) {
-      throw new IllegalArgumentException(MSG_PARAMETER_EVENT_ID_MADATORY);
+      throw new IllegalArgumentException(MSG_PARAMETER_EVENT_ID_MANDATORY);
     }
     if (!userAcl.hasAccessPermission(AgendaEventAclPlugin.OBJECT_TYPE, String.valueOf(eventId), getCurrentUserAclIdentity())) {
       throw new IllegalAccessException(MSG_USER_NOT_ALLOWED_TO_ACCESS_EVENT.formatted(eventId));
@@ -822,7 +824,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
   // Attach (or, when url is blank, remove) a web-conference link on an event. Defaults the type to "web".
   public ConferenceModel setEventConference(Long eventId, String url, String type) throws IllegalAccessException {
     if (eventId == null || eventId == 0) {
-      throw new IllegalArgumentException(MSG_PARAMETER_EVENT_ID_MADATORY);
+      throw new IllegalArgumentException(MSG_PARAMETER_EVENT_ID_MANDATORY);
     }
     if (!userAcl.hasEditPermission(AgendaEventAclPlugin.OBJECT_TYPE, String.valueOf(eventId), getCurrentUserAclIdentity())) {
       throw new IllegalAccessException(MSG_USER_NOT_ALLOWED_TO_UPDATE.formatted(eventId));
@@ -971,8 +973,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
   // Privacy: only busy/tentative status and the overlapping window are returned, never other users' event details.
   private ConflictsModel computeConflicts(List<EventAttendee> attendees,
                                           ZonedDateTime start,
-                                          ZonedDateTime end,
-                                          long currentUserId) throws IllegalAccessException {
+                                          ZonedDateTime end) throws IllegalAccessException {
     List<AttendeeConflictModel> conflicts = new ArrayList<>();
     if (attendees != null) {
       for (EventAttendee attendee : attendees) {
@@ -997,8 +998,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
 
   // Order date-poll slots so the ones where the most internal attendees are free come first.
   private List<EventDateOption> rankDateOptionsByAvailability(List<EventDateOption> dateOptions,
-                                                              List<EventAttendee> attendees,
-                                                              long currentUserId) throws IllegalAccessException {
+                                                              List<EventAttendee> attendees) throws IllegalAccessException {
     Map<EventDateOption, Long> availabilityCount = new LinkedHashMap<>();
     for (EventDateOption option : dateOptions) {
       long freeCount = 0;
@@ -1143,6 +1143,15 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     return attendees;
   }
 
+  /**
+   * Resolve the space id owning the given calendar, degrading gracefully to 0 when the owner identity is missing,
+   * deleted, or its space can no longer be resolved (stale pretty name / space-deletion race). This method backs
+   * {@link #toAgendaEventModel(Event)}, which every read/list tool funnels through, so a null space must not NPE and
+   * break the whole listing.
+   *
+   * @param calendarId the calendar id whose owning space id is looked up
+   * @return the owning space id, or 0 when it cannot be resolved
+   */
   private long getCalendarSpaceId(long calendarId) {
     Calendar agendaCalendar = agendaCalendarService.getCalendarById(calendarId);
     long ownerIdentityId = agendaCalendar.getOwnerId();
@@ -1151,6 +1160,9 @@ public class AgendaEventMcpTool implements McpToolPlugin {
       return 0l;
     } else {
       Space space = spaceService.getSpaceByPrettyName(ownerIdentity.getRemoteId());
+      if (space == null) {
+        return 0l;
+      }
       return space.getSpaceId();
     }
   }
