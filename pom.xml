@@ -28,6 +28,7 @@
   <properties>
     <!-- 3rd party libraries versions -->
     <org.exoplatform.commons-exo.version>7.3.x-ai-contribution-SNAPSHOT</org.exoplatform.commons-exo.version>
+    <io.meeds.mcp-server.version>7.3.x-ai-contribution-SNAPSHOT</io.meeds.mcp-server.version>
 
     <!-- ical4j dependencies -->
     <org.mnode.ical4j.version>3.2.19</org.mnode.ical4j.version>
@@ -44,6 +45,15 @@
         <groupId>org.exoplatform.commons-exo</groupId>
         <artifactId>commons-exo</artifactId>
         <version>${org.exoplatform.commons-exo.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
+      <!-- Import versions from MCP Server project (used by the agenda MCP tools exposed to the AI agent) -->
+      <dependency>
+        <groupId>io.meeds.mcp-server</groupId>
+        <artifactId>mcp-server</artifactId>
+        <version>${io.meeds.mcp-server.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
