@@ -1,0 +1,751 @@
+{
+  "tools": [
+    {
+      "name": "get_agenda_events",
+      "title": "Get agenda events",
+      "description": "Retrieve agenda events for the current user, optionally filtered by RFC3339 start/end, space, and limit.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "space_id": {
+            "type": "integer",
+            "description": "Space id to filter by. If omitted no space filter is applied."
+          },
+          "start": {
+            "type": "string",
+            "description": "RFC3339 datetime string."
+          },
+          "end": {
+            "type": "string",
+            "description": "RFC3339 datetime string."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Max number of events to return."
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "get_agenda_event_by_id",
+      "title": "Get agenda event",
+      "description": "Fetch a single agenda event by its id.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "event_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "event_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "create_agenda_event",
+      "title": "Create an agenda event",
+      "description": "Create a new agenda event in a space calendar. Every event MUST belong to a space: provide either space_id or the space name via 'space'. If the user didn't say which space, ASK them (or list the spaces they belong to) instead of calling without one.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "space_id": {
+            "type": "integer",
+            "description": "Space id where the event is created. Optional if 'space' (a space name) is given; one of the two is required."
+          },
+          "space": {
+            "type": "string",
+            "description": "Space name (display or pretty name) to resolve to a space, e.g. 'EVA Space'. Used when space_id isn't known. Must be a space the user belongs to."
+          },
+          "summary": {
+            "type": "string",
+            "description": "Event title."
+          },
+          "description": {
+            "type": "string",
+            "description": "Event description."
+          },
+          "location": {
+            "type": "string",
+            "description": "Event location."
+          },
+          "start": {
+            "type": "string",
+            "description": "Event start datetime in RFC3339 format."
+          },
+          "end": {
+            "type": "string",
+            "description": "Event end datetime in RFC3339 format."
+          },
+          "attendee_usernames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of attendee usernames to invite (the current user is added automatically)."
+          },
+          "recurrence_frequency": {
+            "type": "string",
+            "description": "Optional recurrence frequency: DAILY, WEEKLY, MONTHLY, YEARLY (also HOURLY/MINUTELY/SECONDLY). Omit for a one-off event."
+          },
+          "recurrence_interval": {
+            "type": "integer",
+            "description": "Recurrence interval (e.g. 2 = every 2 weeks). Defaults to 1 when a frequency is given."
+          },
+          "recurrence_until": {
+            "type": "string",
+            "description": "Optional recurrence end date (RFC3339 or YYYY-MM-DD); the series stops on/after this date."
+          },
+          "recurrence_count": {
+            "type": "integer",
+            "description": "Optional number of occurrences; takes precedence over recurrence_until."
+          },
+          "fail_on_conflict": {
+            "type": "boolean",
+            "description": "When true, abort creation if any attendee is busy/tentative in the window. Default false: create anyway and return the conflicts block."
+          }
+        },
+        "required": [
+          "summary",
+          "start",
+          "end"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "update_agenda_event",
+      "title": "Update an agenda event",
+      "description": "Patch / update an agenda event (only provided optional fields are updated).",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "event_id": {
+            "type": "integer"
+          },
+          "summary": {
+            "type": "string",
+            "description": "New event summary."
+          },
+          "description": {
+            "type": "string",
+            "description": "New event description."
+          },
+          "location": {
+            "type": "string",
+            "description": "New event location."
+          },
+          "start": {
+            "type": "string",
+            "description": "New event start datetime (RFC3339)."
+          },
+          "end": {
+            "type": "string",
+            "description": "New event end datetime (RFC3339)."
+          },
+          "recurrence_frequency": {
+            "type": "string",
+            "description": "Optional recurrence frequency (DAILY/WEEKLY/MONTHLY/YEARLY); setting it turns the event into (or updates) a whole recurring series."
+          },
+          "recurrence_interval": {
+            "type": "integer",
+            "description": "Recurrence interval; defaults to 1 when a frequency is given."
+          },
+          "recurrence_until": {
+            "type": "string",
+            "description": "Optional recurrence end date (RFC3339 or YYYY-MM-DD)."
+          },
+          "recurrence_count": {
+            "type": "integer",
+            "description": "Optional number of occurrences; takes precedence over recurrence_until."
+          },
+          "fail_on_conflict": {
+            "type": "boolean",
+            "description": "When true, abort the update if any attendee is busy/tentative in the (new) window. Default false: update anyway and return the conflicts block."
+          }
+        },
+        "required": [
+          "event_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "delete_agenda_event",
+      "title": "Delete an agenda event",
+      "description": "Delete an agenda event by its id.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "description": "Event id (mandatory, must be non-zero)."
+          }
+        },
+        "required": [
+          "event_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "accept_agenda_event_invitation",
+      "title": "Accept an agenda event invitation",
+      "description": "Accept an agenda event invitation by the current user.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "description": "Event id (mandatory, must be non-zero)."
+          }
+        },
+        "required": [
+          "event_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "decline_agenda_event_invitation",
+      "title": "Decline an agenda event invitation",
+      "description": "Decline an agenda event invitation by the current user. With occurrence_id this is a 'this-and-following' decline (that occurrence AND all subsequent occurrences). To cancel only ONE date of a series, use cancel_agenda_event with occurrence_id instead.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "description": "Event id (mandatory, must be non-zero)."
+          },
+          "occurrence_id": {
+            "type": "string",
+            "description": "Optional occurrence date (RFC3339) of a recurring event; when set, declines that occurrence AND every following one (this-and-future), not just that single date."
+          }
+        },
+        "required": [
+          "event_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "cancel_agenda_event",
+      "title": "Cancel an agenda event",
+      "description": "Cancel an agenda event. Without occurrence_id the whole event is declined for the current user. With occurrence_id, ONLY that single occurrence of a recurring series is removed; occurrences before AND after that date are kept.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "description": "Event id (mandatory, must be non-zero)."
+          },
+          "occurrence_id": {
+            "type": "string",
+            "description": "Optional occurrence date (RFC3339) of a recurring event; when set, cancels ONLY that single occurrence (the rest of the series, before and after, is preserved)."
+          }
+        },
+        "required": [
+          "event_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "invite_space_to_agenda_event",
+      "title": "Invite space members to an agenda event",
+      "description": "Invite space members to an agenda event",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "event_id": {
+            "type": "integer"
+          },
+          "space_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "event_id",
+          "space_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "invite_users_to_agenda_event",
+      "title": "Invite users to an agenda event",
+      "description": "Invite users to an agenda event",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "event_id": {
+            "type": "integer"
+          },
+          "attendee_usernames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of attendee usernames to invite (the current user is added automatically)."
+          }
+        },
+        "required": [
+          "event_id",
+          "attendee_usernames"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "create_date_poll",
+      "title": "Create a date poll",
+      "description": "Create a date poll: a tentative event with several proposed time slots that attendees can vote on to pick a final date. Every poll MUST belong to a space: provide either space_id or the space name via 'space'. If the user didn't say which space, ASK them (or list their spaces) instead of calling without one.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "space_id": {
+            "type": "integer",
+            "description": "Space id where the poll (event) is created. Optional if 'space' (a space name) is given; one of the two is required."
+          },
+          "space": {
+            "type": "string",
+            "description": "Space name (display or pretty name) to resolve to a space, e.g. 'EVA Space'. Used when space_id isn't known. Must be a space the user belongs to."
+          },
+          "title": {
+            "type": "string",
+            "description": "Poll / event title."
+          },
+          "proposed_slots": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Proposed slots, each as a single string '<startRFC3339>|<endRFC3339>' (e.g. '2026-02-01T14:00:00Z|2026-02-01T15:00:00Z')."
+          },
+          "attendee_usernames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Usernames invited to vote (the current user is added automatically)."
+          },
+          "description": {
+            "type": "string",
+            "description": "Optional poll description."
+          },
+          "rank_slots_by_availability": {
+            "type": "boolean",
+            "description": "When true, order proposed slots so those where the most invited internal users are free come first."
+          }
+        },
+        "required": [
+          "title",
+          "proposed_slots"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "vote_date_poll",
+      "title": "Vote on a date poll",
+      "description": "Cast the current user's votes on a date poll by listing the accepted slot (date option) ids.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "description": "Poll event id."
+          },
+          "accepted_slot_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "description": "Date option ids the current user accepts. An empty list dismisses all options."
+          }
+        },
+        "required": [
+          "event_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "get_date_poll_results",
+      "title": "Get date poll results",
+      "description": "Return each proposed slot of a date poll with its vote count and the usernames who voted for it.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "description": "Poll event id."
+          }
+        },
+        "required": [
+          "event_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "confirm_date_poll",
+      "title": "Confirm a date poll",
+      "description": "Pick the winning slot of a date poll: converts the poll into a confirmed event on that slot and returns the attendee conflict report for the confirmed window.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "date_option_id": {
+            "type": "integer",
+            "description": "Winning date option id to confirm."
+          }
+        },
+        "required": [
+          "date_option_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "get_availability",
+      "title": "Get users availability",
+      "description": "Return each user's busy and free time blocks within a window. Only time ranges are returned, never event titles or details.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "usernames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Usernames to compute availability for."
+          },
+          "start": {
+            "type": "string",
+            "description": "Window start (RFC3339)."
+          },
+          "end": {
+            "type": "string",
+            "description": "Window end (RFC3339)."
+          }
+        },
+        "required": [
+          "usernames",
+          "start",
+          "end"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "suggest_meeting_time",
+      "title": "Suggest a meeting time",
+      "description": "Suggest candidate slots of at least duration_minutes where all attendees are free within a window. Optional constraints keyword 'mornings' or 'afternoons' restricts candidate start times.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "attendees": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Usernames who must all be free."
+          },
+          "duration_minutes": {
+            "type": "integer",
+            "description": "Required meeting duration in minutes."
+          },
+          "window_start": {
+            "type": "string",
+            "description": "Earliest acceptable start (RFC3339)."
+          },
+          "window_end": {
+            "type": "string",
+            "description": "Latest acceptable end (RFC3339)."
+          },
+          "constraints": {
+            "type": "string",
+            "description": "Optional free-text constraint; 'mornings' (before 12:00) or 'afternoons' (from 12:00) are honored."
+          }
+        },
+        "required": [
+          "attendees",
+          "duration_minutes",
+          "window_start",
+          "window_end"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "get_event_attendees",
+      "title": "Get event attendees",
+      "description": "List an event's attendees together with each one's response (ACCEPTED, DECLINED, TENTATIVE or NEEDS_ACTION).",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "description": "Event id."
+          }
+        },
+        "required": [
+          "event_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "respond_to_agenda_event",
+      "title": "Respond to an agenda event",
+      "description": "Respond to an event invitation as the current user with ACCEPTED, DECLINED or TENTATIVE. The optional comment is accepted but not persisted (no backend storage for response comments).",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "description": "Event id."
+          },
+          "response": {
+            "type": "string",
+            "description": "One of ACCEPTED, DECLINED, TENTATIVE."
+          },
+          "comment": {
+            "type": "string",
+            "description": "Optional free-text comment (not persisted)."
+          }
+        },
+        "required": [
+          "event_id",
+          "response"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "set_event_reminders",
+      "title": "Set event reminders",
+      "description": "Set the current user's reminders on an event. Each reminder is a '<number> <MINUTE|HOUR|DAY|WEEK>' string (e.g. '30 MINUTE').",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "description": "Event id."
+          },
+          "reminders": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Reminders as '<number> <MINUTE|HOUR|DAY|WEEK>' strings. An empty list clears the user's reminders."
+          }
+        },
+        "required": [
+          "event_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "get_event_conference",
+      "title": "Get event conference link",
+      "description": "Return the web-conference (e.g. Jitsi) link attached to an event, if any.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "description": "Event id."
+          }
+        },
+        "required": [
+          "event_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "set_event_conference",
+      "title": "Set event conference link",
+      "description": "Attach a web-conference link to an event (defaults type to 'web'). Passing a blank url removes the conference.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "description": "Event id."
+          },
+          "url": {
+            "type": "string",
+            "description": "Conference URL to attach; blank to remove the existing conference."
+          },
+          "type": {
+            "type": "string",
+            "description": "Optional conference type label (default 'web')."
+          }
+        },
+        "required": [
+          "event_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "search_agenda_events",
+      "title": "Search agenda events",
+      "description": "Keyword search over agenda events the current user can access, optionally restricted to a space and post-filtered by a start/end date range.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Search keywords (matched against event title/description)."
+          },
+          "start": {
+            "type": "string",
+            "description": "Optional lower bound (RFC3339); events ending before this are excluded."
+          },
+          "end": {
+            "type": "string",
+            "description": "Optional upper bound (RFC3339); events starting after this are excluded."
+          },
+          "space_id": {
+            "type": "integer",
+            "description": "Optional space id to restrict the search."
+          }
+        },
+        "required": [
+          "query"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    }
+  ]
+}
