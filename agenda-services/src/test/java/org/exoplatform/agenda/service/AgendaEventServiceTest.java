@@ -844,6 +844,97 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
   }
 
   @Test
+  public void testBusyEventsAreOnlyAcceptedOnes() throws Exception { // NOSONAR
+    // Backs the MCP free/busy primitive (get_availability / suggest_meeting_time / conflicts): a user is busy only for
+    // events they ACCEPTED. An invited-but-not-yet-accepted event must NOT make them busy; accepting flips it to busy.
+    ZonedDateTime start = getDate().withNano(0);
+    Event event = newEventInstance(start, start.plusHours(1), false);
+    event.setRecurrence(null); // single (non-recurring) event
+    event = createEvent(event.clone(),
+                        Long.parseLong(testuser1Identity.getId()),
+                        testuser1Identity,
+                        testuser2Identity);
+
+    long user2 = Long.parseLong(testuser2Identity.getId());
+    EventFilter acceptedFilter = new EventFilter(user2,
+                                                 null,
+                                                 Collections.singletonList(EventAttendeeResponse.ACCEPTED),
+                                                 start.minusHours(1),
+                                                 start.plusHours(2),
+                                                 10);
+    // testuser2 was only invited -> NEEDS_ACTION -> not busy
+    List<Event> before = agendaEventService.getEvents(acceptedFilter.clone(), ZoneOffset.UTC, user2);
+    assertTrue("an invited-but-not-accepted event must NOT count as busy", before.isEmpty());
+
+    // testuser2 accepts -> now busy
+    agendaEventAttendeeService.sendEventResponse(event.getId(), user2, EventAttendeeResponse.ACCEPTED);
+    List<Event> after = agendaEventService.getEvents(acceptedFilter.clone(), ZoneOffset.UTC, user2);
+    assertEquals("an accepted event must count as busy", 1, after.size());
+  }
+
+  @Test
+  public void testCancelSingleOccurrenceKeepsSurroundingOccurrences() throws Exception { // NOSONAR
+    // Regression for EXO-88461: cancelling ONE occurrence of a recurring series must remove only that date and keep
+    // every occurrence before AND after it (the MCP cancel_agenda_event(occurrence_id) bug used to drop this-and-future).
+    ZoneId timeZone = ZoneOffset.UTC;
+    ZonedDateTime start = ZonedDateTime.of(2022, 3, 7, 10, 0, 0, 0, timeZone);
+    Event event = newEventInstance(start, start.plusHours(1), false);
+    event.setTimeZoneId(timeZone);
+    // Weekly, 6 occurrences
+    EventRecurrence recurrence = new EventRecurrence(0,
+                                                     null,
+                                                     6,
+                                                     EventRecurrenceType.WEEKLY,
+                                                     EventRecurrenceFrequency.WEEKLY,
+                                                     1,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null);
+    event.setRecurrence(recurrence);
+    event = createEvent(event, Long.parseLong(testuser1Identity.getId()), testuser1Identity, testuser2Identity);
+
+    ZonedDateTime periodStart = start.minusDays(1);
+    ZonedDateTime periodEnd = start.plusWeeks(6).plusDays(1);
+    List<Event> before = agendaEventService.getEventOccurrencesInPeriod(event, periodStart, periodEnd, timeZone, 0);
+    assertEquals("expected 6 weekly occurrences before cancellation", 6, before.size());
+    LocalDate secondDate = before.get(1).getStart().withZoneSameInstant(ZoneOffset.UTC).toLocalDate();
+    LocalDate thirdDate = before.get(2).getStart().withZoneSameInstant(ZoneOffset.UTC).toLocalDate();
+    LocalDate fourthDate = before.get(3).getStart().withZoneSameInstant(ZoneOffset.UTC).toLocalDate();
+
+    // Cancel ONLY the 3rd occurrence exactly as the MCP tool does: materialize the exceptional occurrence, then
+    // set its status to CANCELLED.
+    Event exceptional = agendaEventService.saveEventExceptionalOccurrence(event.getId(),
+                                                                          before.get(2).getOccurrence().getId());
+    agendaEventService.updateEventFields(exceptional.getId(),
+                                         Collections.singletonMap("status",
+                                                                  Collections.singletonList(EventStatus.CANCELLED.name())),
+                                         false,
+                                         false,
+                                         Long.parseLong(testuser1Identity.getId()));
+
+    // The cancelled exceptional occurrence must be persisted as CANCELLED (so it is hidden from listings)
+    assertEquals(EventStatus.CANCELLED, agendaEventService.getEventById(exceptional.getId()).getStatus());
+
+    List<Event> after = agendaEventService.getEventOccurrencesInPeriod(event, periodStart, periodEnd, timeZone, 0);
+    List<LocalDate> remainingDates = after.stream()
+                                          .map(o -> o.getStart().withZoneSameInstant(ZoneOffset.UTC).toLocalDate())
+                                          .toList();
+    assertEquals("expected 5 occurrences after cancelling one", 5, after.size());
+    assertFalse("cancelled 3rd occurrence must be gone", remainingDates.contains(thirdDate));
+    // The occurrences surrounding the cancelled one (before AND after it) must still exist
+    assertTrue("occurrence before the cancelled date must remain", remainingDates.contains(secondDate));
+    assertTrue("occurrence after the cancelled date must remain", remainingDates.contains(fourthDate));
+  }
+
+  @Test
   public void testGetParentRecurrentEvents() throws Exception { // NOSONAR
     ZonedDateTime start = getDate().withNano(0);
 
