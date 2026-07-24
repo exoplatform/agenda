@@ -272,7 +272,7 @@ export default {
       } else if (this.$root.timelineSettings.agendaSource === 'allUsersSpaces'){
         this.ownerIds = [];
         return this.retrieveEventsFromStore();
-      } else if (!this.initialized && eXo.env.portal.spaceId) {
+      } else if (!this.initialized && eXo.env.portal.spaceId && !this.$root.standalone) {
         const spaceId = eXo.env.portal.spaceId;
         return this.$spaceService.getSpaceById(spaceId, 'identity')
           .then((space) => {
@@ -294,7 +294,8 @@ export default {
             this.retrieveEventsFromStore();
           });
       } else {
-        if (!eXo.env.portal.spaceId) {
+        if (!eXo.env.portal.spaceId || this.$root.standalone) {
+          this.ownerIds = [];
           this.agendaBaseLink = `${eXo.env.portal.context}/${eXo.env.portal.portalName}/agenda`;
         }
         return this.retrieveEventsFromStore();
@@ -304,7 +305,7 @@ export default {
       this.loading = true;
       let agendaFilter = this.$root.timelineSettings.agendaFilter;
       if (!agendaFilter) {
-        if (eXo.env.portal.spaceId) {  
+        if (eXo.env.portal.spaceId && !this.$root.standalone) {
           agendaFilter = 'allEvents';
         } else {
           agendaFilter = 'acceptedEvents';

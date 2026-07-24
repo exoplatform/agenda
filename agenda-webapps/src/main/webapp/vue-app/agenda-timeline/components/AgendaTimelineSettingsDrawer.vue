@@ -237,11 +237,11 @@ export default {
     },
     isValidLink() {
       try {
-        return this.timelineSettings.seeMoreUrl && this.timelineSettings.seeMoreUrl !=='' && this.$utils.toLinkUrl(this.timelineSettings.seeMoreUrl, {
+        return !!(this.timelineSettings.seeMoreUrl && this.timelineSettings.seeMoreUrl !=='' && this.$utils.toLinkUrl(this.timelineSettings.seeMoreUrl, {
           urls: true,
           email: true,
           phone: true,
-        })?.length;
+        })?.length);
       } catch (e) {
         return false;
       }
@@ -264,7 +264,7 @@ export default {
     open() {
       this.timelineSettings = JSON.parse(JSON.stringify(this.$root.timelineSettings));
       if (this.timelineSettings.agendaSource === '') {
-        if (eXo.env.portal.spaceId){
+        if (eXo.env.portal.spaceId && !this.$root.standalone){
           this.timelineSettings.agendaSource = 'selectedSpaces';
           this.$spaceService.getSpaceById(eXo.env.portal.spaceId)
             .then((data) => {
@@ -293,7 +293,7 @@ export default {
         }     
       }
       if (this.timelineSettings.seeMoreUrl === '') {
-        if (eXo.env.portal.spaceId) {    
+        if (eXo.env.portal.spaceId && !this.$root.standalone) {
           this.timelineSettings.seeMoreUrl = `${eXo.env.portal.context}/s/${eXo.env.portal.spaceId}/agenda`;
         } else {
           this.timelineSettings.seeMoreUrl = `${eXo.env.portal.context}/${eXo.env.portal.portalName}/agenda`;
@@ -309,7 +309,7 @@ export default {
         this.timelineSettings.itemsNumber = 10;
       }
       if (!this.timelineSettings.agendaFilter) {
-        if (eXo.env.portal.spaceId) {  
+        if (eXo.env.portal.spaceId && !this.$root.standalone) {
           this.timelineSettings.agendaFilter = 'allEvents';
         } else {
           this.timelineSettings.agendaFilter = 'acceptedEvents';
