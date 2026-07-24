@@ -75,6 +75,10 @@
           name="locationEvent"
           class="ignore-vuetify-classes my-0 location-event-input">
         <label class="font-weight-bold my-2">
+          {{ $t('agenda.label.eventColor') }}
+        </label>
+        <agenda-event-form-color-picker :event="event" />
+        <label class="font-weight-bold my-2">
           {{ $t('agenda.conference') }}
         </label>
         <agenda-event-form-conference
