@@ -4,6 +4,14 @@ export const USER_TIMEZONE_ID = new window.Intl.DateTimeFormat().resolvedOptions
 export const TIMEZONES = [];
 export const MINIMUM_TIME_INTERVAL = 30;
 export const MINIMUM_TIME_INTERVAL_MS = MINIMUM_TIME_INTERVAL * 60 * 1000;
+// Same palette as the space settings' calendar color picker (AgendaSpaceAdministration.vue)
+export const EVENT_COLOR_SWATCHES = [
+  ['#FF0000', '#319ab3', '#f97575'],
+  ['#98cc81', '#4273c8', '#cea6ac'],
+  ['#bc99e7', '#9ee4f5', '#774ea9'],
+  ['#ffa500', '#bed67e', '#0E100F'],
+  ['#ffaacc', '#0000AA', '#000055'],
+];
 
 export function initEventForm(agendaEvent, deleteDates) {
   if (!agendaEvent.timeZoneId) {

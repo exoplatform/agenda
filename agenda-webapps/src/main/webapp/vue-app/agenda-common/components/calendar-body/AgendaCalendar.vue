@@ -1,6 +1,8 @@
 <template>
+<div class="d-flex flex-column flex-grow-1">
   <v-calendar
     ref="calendar"
+    class="flex-grow-1"
     v-model="selectedDate"
     :events="eventsToDisplay"
     :event-color="getEventColor"
@@ -34,7 +36,7 @@
     @mousedown:day="calendarMouseDown"
     @mousemove:day="calendarMouseMove"
     @mouseup:day="calendarMouseUp"
-    @contextmenu:event="cancelEventModification"
+    @contextmenu:event="showEventColorMenu"
     @contextmenu:time="cancelEventModification"
     @contextmenu:day="cancelEventModification"
     @change="retrievePeriodEvents">
@@ -48,7 +50,8 @@
     <template #event="{ event, timed }">
       <div
         v-if="!event || event.type !== 'remoteEvent'"
-        :class="getEventClass(event)">
+        :class="getEventClass(event)"
+        :style="{borderLeft: `5px solid ${getEventBorderColor(event)}`}">
         <strong
           :title="event.summary"
           class="text-truncate my-auto d-flex ms-2">
@@ -83,6 +86,33 @@
         @mousedown.stop="extendEventEndDate(event)"></div>
     </template>
   </v-calendar>
+  <v-menu
+    v-model="colorMenu"
+    :position-x="colorMenuX"
+    :position-y="colorMenuY"
+    :close-on-content-click="false"
+    absolute
+    offset-y>
+    <v-card v-if="colorMenuEvent">
+      <v-color-picker
+        v-model="colorMenuColor"
+        :swatches="$agendaUtils.EVENT_COLOR_SWATCHES"
+        class="ma-2"
+        mode="hexa"
+        show-swatches
+        flat />
+      <v-card-actions>
+        <v-spacer />
+        <v-btn :disabled="colorMenuSaving" class="btn ms-2" @click="closeColorMenu">
+          {{ $t('agenda.button.cancel') }}
+        </v-btn>
+        <v-btn :loading="colorMenuSaving" :disabled="colorMenuSaving" class="btn btn-primary ms-2" @click="applyColorMenu">
+          {{ $t('agenda.button.apply') }}
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-menu>
+</div>
 </template>
 
 <script>
@@ -120,6 +150,12 @@ export default {
   data: () => ({
     saving: false,
     quickEvent: null,
+    colorMenu: false,
+    colorMenuEvent: null,
+    colorMenuColor: null,
+    colorMenuX: 0,
+    colorMenuY: 0,
+    colorMenuSaving: false,
     originalDragedEvent: null,
     nowDate: null,
     lang: eXo.env.portal.language,
@@ -299,6 +335,9 @@ export default {
       period.title = this.$refs.calendar.title;
       this.$root.$emit('agenda-change-period', period);
     },
+    getEventBorderColor(event) {
+      return event && event.calendar && event.calendar.color || '#2196F3';
+    },
     getEventTextColor(event) {
       const eventColor = event && (event.color || event.calendar && event.calendar.color) || '#2196F3';
       if (!event.acl || !event.acl.attendee) {
@@ -335,6 +374,39 @@ export default {
     },
     isEventTimed(event) {
       return event && !event.allDay;
+    },
+    showEventColorMenu(eventObj) {
+      this.cancelEventModification();
+      const event = eventObj && eventObj.event || eventObj;
+      if (!event || event.type === 'remoteEvent' || !event.acl || !event.acl.canEdit) {
+        return;
+      }
+      if (eventObj.nativeEvent) {
+        eventObj.nativeEvent.preventDefault();
+        eventObj.nativeEvent.stopPropagation();
+        this.colorMenuX = eventObj.nativeEvent.clientX;
+        this.colorMenuY = eventObj.nativeEvent.clientY;
+      }
+      this.colorMenuEvent = event;
+      this.colorMenuColor = event.color || (event.calendar && event.calendar.color) || this.$agendaUtils.EVENT_COLOR_SWATCHES[0][0];
+      this.colorMenu = true;
+      return false;
+    },
+    applyColorMenu() {
+      const event = this.colorMenuEvent;
+      const newColor = this.colorMenuColor;
+      this.colorMenuSaving = true;
+      this.$eventService.updateEventFields(event, {color: newColor})
+        .then(() => this.$set(event, 'color', newColor))
+        .catch(error => console.error('Error updating event color', error))
+        .finally(() => {
+          this.colorMenuSaving = false;
+          this.closeColorMenu();
+        });
+    },
+    closeColorMenu() {
+      this.colorMenu = false;
+      this.colorMenuEvent = null;
     },
     showEvent(eventObj) {
       if (this.eventDragged || this.eventExtended) {
