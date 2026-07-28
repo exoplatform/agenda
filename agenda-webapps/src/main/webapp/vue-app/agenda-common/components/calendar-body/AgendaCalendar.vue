@@ -48,7 +48,8 @@
     <template #event="{ event, timed }">
       <div
         v-if="!event || event.type !== 'remoteEvent'"
-        :class="getEventClass(event)">
+        :class="getEventClass(event)"
+        :style="{borderLeft: `5px solid ${getEventBorderColor(event)}`}">
         <strong
           :title="event.summary"
           class="text-truncate my-auto d-flex ms-2">
@@ -298,6 +299,9 @@ export default {
       const period = this.$agendaUtils.convertVuetifyRangeToPeriod(range);
       period.title = this.$refs.calendar.title;
       this.$root.$emit('agenda-change-period', period);
+    },
+    getEventBorderColor(event) {
+      return event && event.calendar && event.calendar.color || '#2196F3';
     },
     getEventTextColor(event) {
       const eventColor = event && (event.color || event.calendar && event.calendar.color) || '#2196F3';

@@ -40,6 +40,7 @@ import AgendaEventFormAttendees from './components/event/form/AgendaEventFormAtt
 import AgendaEventFormAttendeeItem from './components/event/form/AgendaEventFormAttendeeItem.vue';
 import AgendaEventFormCalendarOwner from './components/event/form/AgendaEventFormCalendarOwner.vue';
 import AgendaEventFormConference from './components/event/form/AgendaEventFormConference.vue';
+import AgendaEventFormColorPicker from './components/event/form/AgendaEventFormColorPicker.vue';
 import AgendaEventFormAttendeesDrawer from './components/event/form/AgendaEventFormAttendeesDrawer.vue';
 import AgendaEventAttendeesAvatars from './components/event/common/AgendaEventAttendeesAvatars.vue';
 
@@ -130,6 +131,7 @@ const components = {
   'agenda-event-form-attendee-item': AgendaEventFormAttendeeItem,
   'agenda-event-form-calendar-owner': AgendaEventFormCalendarOwner,
   'agenda-event-form-conference': AgendaEventFormConference,
+  'agenda-event-form-color-picker': AgendaEventFormColorPicker,
   'agenda-event-date-poll-details': AgendaEventDatePollDetails,
   'agenda-event-date-poll-details-desktop': AgendaEventDatePollDetailsDesktop,
   'agenda-event-date-poll-details-mobile': AgendaEventDatePollDetailsMobile,
