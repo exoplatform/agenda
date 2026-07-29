@@ -31,7 +31,7 @@
   Object settings = (String[]) request.getAttribute("settings");
   String settingName = (String) request.getAttribute("settingName");
   String headerTitle = (String) request.getAttribute("headerTitle");
-  headerTitle = headerTitle == null ? null : String.format("'%s'", StringEscapeUtils.escapeJava(headerTitle).replace("\\\"", "\"").replace("\\\\\"", "\\\""));
+  headerTitle = headerTitle == null ? null : String.format("'%s'", StringEscapeUtils.escapeEcmaScript(headerTitle));
   if (settings != null) {
     settings = ((String[]) settings)[0];
   }
