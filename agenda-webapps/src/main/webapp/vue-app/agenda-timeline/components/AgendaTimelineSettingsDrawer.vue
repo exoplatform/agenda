@@ -284,8 +284,11 @@ export default {
                     membersCount: data.membersCount,
                   },
                 };
+                // Two distinct copies, else removing a space from the suggester
+                // mutates both lists and the drawer is considered as not
+                // modified, which keeps the save button disabled
+                this.defaultTimelineSettings.selectedSpaces = [structuredClone(space)];
                 this.timelineSettings.selectedSpaces = [space];
-                this.defaultTimelineSettings.selectedSpaces = [space];
               }
             });
         }  else {
@@ -331,7 +334,11 @@ export default {
         const formData = new FormData();
         formData.append('settings', JSON.stringify(this.timelineSettings));
         const urlParams = new URLSearchParams(formData).toString();
-        const response = await fetch(this.$root.settingsSaveUrl, {
+        // The action URL comes from <portlet:actionURL> which XML-escapes it,
+        // thus its parameters are separated by '&amp;'. They have to be
+        // restored, else only the first portal parameter is readable server
+        // side and the portlet action is dropped without saving anything.
+        const response = await fetch(this.$root.settingsSaveUrl.replaceAll('&amp;', '&'), {
           method: 'POST',
           credentials: 'include',
           headers: {
