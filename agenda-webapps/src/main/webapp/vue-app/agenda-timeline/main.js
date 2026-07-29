@@ -22,6 +22,12 @@ const lang = eXo && eXo.env.portal.language || 'en';
 const url = `${eXo.env.portal.context}/${eXo.env.portal.rest}/i18n/bundle/locale.portlet.Agenda-${lang}.json`;
 
 export function init(appId, canEdit, settings, settingsSaveUrl, settingName, headerTitle) {
+  // When the timeline is rendered standalone (e.g. pinned in the App Center
+  // drawer through the portlet-viewer) it is not bound to the visited space,
+  // so it must keep its own configuration instead of adopting the current
+  // space context. Such a render lives inside a navigation drawer, unlike a
+  // portlet embedded in a space page (which sits in #UISiteBody).
+  const standalone = !!document.getElementById(appId)?.closest('.v-navigation-drawer');
   exoi18n.loadLanguageAsync(lang, url).then(i18n => {
   // init Vue app when locale ressources are ready
     const eventType = eXo.env.portal.spaceId ? 'allEvents' : 'myEvents';
@@ -34,7 +40,8 @@ export function init(appId, canEdit, settings, settingsSaveUrl, settingName, hea
           settingsSaveUrl,
           canEdit,
           settingName,
-          headerTitle
+          headerTitle,
+          standalone
         };
       },
       mounted() {

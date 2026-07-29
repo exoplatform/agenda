@@ -46,6 +46,10 @@
             name="locationEvent"
             class="ignore-vuetify-classes my-3 event-input">
         </div>
+        <div class="d-flex flex-row align-center">
+          <v-icon size="20" class="icon-default-color my-auto me-12">fas fa-palette</v-icon>
+          <agenda-event-form-color-picker :event="event" />
+        </div>
         <div class="d-flex flex-row">
           <div :class="hasRecurrence ? 'flex-grow-0 pt-2' : 'my-auto'">
             <v-icon size="20" class="icon-default-color me-11">fas fa-redo</v-icon>
