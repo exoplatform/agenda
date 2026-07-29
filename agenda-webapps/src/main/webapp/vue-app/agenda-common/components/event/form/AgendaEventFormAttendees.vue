@@ -2,21 +2,20 @@
   <div class="d-flex align-center flex-grow-1">
     <span class="me-4">{{ $t('agenda.participants') }}</span>
     <v-btn
-      :class="sortedAttendees.length > 1 && !event.id || event.id ? '' : 'ms-auto'"
       :title="$t('agenda.addParticipants')"
+      class="flex-shrink-0"
       icon
       small
       @click="openDrawer">
       <v-icon class="icon-default-color" size="18">fas fa-plus</v-icon>
     </v-btn>
     <div
-      v-if="sortedAttendees.length > 1 && !event.id || event.id"
+      v-if="displayAttendeesAvatars"
       class="ms-auto d-flex align-center">
       <agenda-event-attendees-avatars
-        v-if="!showSeeMore"
         :attendees="sortedAttendees"
         :max="3"
-        :size="34" 
+        :size="34"
         @open="openDrawer" />
     </div>
     <agenda-event-form-attendees-drawer
@@ -35,6 +34,9 @@ export default {
     },
   },
   computed: {
+    displayAttendeesAvatars() {
+      return !!this.event.id || this.sortedAttendees.length > 1;
+    },
     sortedAttendees() {
       if (!this.event.attendees) { return []; }
       const creatorId = this.event.creator && this.event.creator.id;
