@@ -15,6 +15,7 @@
           ref="eventForm"
           :event="event"
           :current-space="currentSpace"
+          :calendars="calendars"
           :conference-provider="conferenceProvider"
           class="fill-height event-form"
           @close="close"

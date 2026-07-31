@@ -48,7 +48,7 @@
         </div>
         <div class="d-flex flex-row align-center">
           <v-icon size="20" class="icon-default-color my-auto me-12">fas fa-palette</v-icon>
-          <agenda-event-form-color-picker :event="event" />
+          <agenda-event-form-color-picker :event="event" :calendars="selectedCalendars" />
         </div>
         <div class="d-flex flex-row">
           <div :class="hasRecurrence ? 'flex-grow-0 pt-2' : 'my-auto'">
@@ -156,6 +156,9 @@ export default {
     },
     eventDateOptions() {
       return this.event && this.event.dateOptions || [];
+    },
+    selectedCalendars() {
+      return this.selectedCalendar && [this.selectedCalendar] || [];
     },
   },
   watch: {
