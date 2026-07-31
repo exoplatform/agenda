@@ -237,11 +237,11 @@ export default {
     },
     isValidLink() {
       try {
-        return this.timelineSettings.seeMoreUrl && this.timelineSettings.seeMoreUrl !=='' && this.$utils.toLinkUrl(this.timelineSettings.seeMoreUrl, {
+        return !!(this.timelineSettings.seeMoreUrl && this.timelineSettings.seeMoreUrl !=='' && this.$utils.toLinkUrl(this.timelineSettings.seeMoreUrl, {
           urls: true,
           email: true,
           phone: true,
-        })?.length;
+        })?.length);
       } catch (e) {
         return false;
       }
@@ -264,7 +264,7 @@ export default {
     open() {
       this.timelineSettings = JSON.parse(JSON.stringify(this.$root.timelineSettings));
       if (this.timelineSettings.agendaSource === '') {
-        if (eXo.env.portal.spaceId){
+        if (eXo.env.portal.spaceId && !this.$root.standalone){
           this.timelineSettings.agendaSource = 'selectedSpaces';
           this.$spaceService.getSpaceById(eXo.env.portal.spaceId)
             .then((data) => {
@@ -284,8 +284,11 @@ export default {
                     membersCount: data.membersCount,
                   },
                 };
+                // Two distinct copies, else removing a space from the suggester
+                // mutates both lists and the drawer is considered as not
+                // modified, which keeps the save button disabled
+                this.defaultTimelineSettings.selectedSpaces = [structuredClone(space)];
                 this.timelineSettings.selectedSpaces = [space];
-                this.defaultTimelineSettings.selectedSpaces = [space];
               }
             });
         }  else {
@@ -293,7 +296,7 @@ export default {
         }     
       }
       if (this.timelineSettings.seeMoreUrl === '') {
-        if (eXo.env.portal.spaceId) {    
+        if (eXo.env.portal.spaceId && !this.$root.standalone) {
           this.timelineSettings.seeMoreUrl = `${eXo.env.portal.context}/s/${eXo.env.portal.spaceId}/agenda`;
         } else {
           this.timelineSettings.seeMoreUrl = `${eXo.env.portal.context}/${eXo.env.portal.portalName}/agenda`;
@@ -309,7 +312,7 @@ export default {
         this.timelineSettings.itemsNumber = 10;
       }
       if (!this.timelineSettings.agendaFilter) {
-        if (eXo.env.portal.spaceId) {  
+        if (eXo.env.portal.spaceId && !this.$root.standalone) {
           this.timelineSettings.agendaFilter = 'allEvents';
         } else {
           this.timelineSettings.agendaFilter = 'acceptedEvents';
@@ -331,7 +334,11 @@ export default {
         const formData = new FormData();
         formData.append('settings', JSON.stringify(this.timelineSettings));
         const urlParams = new URLSearchParams(formData).toString();
-        const response = await fetch(this.$root.settingsSaveUrl, {
+        // The action URL comes from <portlet:actionURL> which XML-escapes it,
+        // thus its parameters are separated by '&amp;'. They have to be
+        // restored, else only the first portal parameter is readable server
+        // side and the portlet action is dropped without saving anything.
+        const response = await fetch(this.$root.settingsSaveUrl.replaceAll('&amp;', '&'), {
           method: 'POST',
           credentials: 'include',
           headers: {

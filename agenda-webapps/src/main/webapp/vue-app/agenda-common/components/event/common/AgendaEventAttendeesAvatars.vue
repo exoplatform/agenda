@@ -1,5 +1,5 @@
 <template>
-   <v-card
+  <v-card
     :min-width="avatarsWidth"
     class="transparent d-flex align-center"
     flat
