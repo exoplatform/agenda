@@ -77,7 +77,7 @@
         <label class="font-weight-bold my-2">
           {{ $t('agenda.label.eventColor') }}
         </label>
-        <agenda-event-form-color-picker :event="event" />
+        <agenda-event-form-color-picker :event="event" :calendars="calendars" />
         <label class="font-weight-bold my-2">
           {{ $t('agenda.conference') }}
         </label>
@@ -129,6 +129,10 @@ export default {
     currentSpace: {
       type: Object,
       default: () => null,
+    },
+    calendars: {
+      type: Array,
+      default: () => [],
     },
     conferenceProvider: {
       type: Object,

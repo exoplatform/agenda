@@ -164,6 +164,30 @@ public class AgendaCalendarServiceTest {
   }
 
   @Test
+  public void testCreateCalendarInstanceDefaultColorIsStable() {
+    List<String> colors = Arrays.asList("#111111", "#222222", "#333333");
+    InitParams initParams = new InitParams();
+    ValuesParam value = new ValuesParam();
+    value.setName("defaultColors");
+    value.setValues(new ArrayList<>(colors));
+    initParams.addParam(value);
+    AgendaCalendarServiceImpl calendarService = new AgendaCalendarServiceImpl(agendaCalendarStorage,
+                                                                             identityManager,
+                                                                             spaceService,
+                                                                             initParams);
+
+    // Same owner always gets the same color, so that the color of a calendar that
+    // isn't created yet is the one that will effectively be stored once created
+    Calendar calendar = calendarService.createCalendarInstance(4);
+    assertEquals(colors.get(1), calendar.getColor());
+    assertEquals(calendar.getColor(), calendarService.createCalendarInstance(4).getColor());
+
+    // Colors remain spread over the configured palette
+    assertEquals(colors.get(0), calendarService.createCalendarInstance(3).getColor());
+    assertEquals(colors.get(2), calendarService.createCalendarInstance(5).getColor());
+  }
+
+  @Test
   public void testGetCalendarByIdAndUsername() throws Exception { // NOSONAR
     long calendarId = 1;
     long calendarOwnerId = 2;
