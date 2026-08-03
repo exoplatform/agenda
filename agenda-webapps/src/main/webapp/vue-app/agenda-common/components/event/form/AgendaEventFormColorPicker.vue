@@ -152,7 +152,7 @@ export default {
       // displayed without any additional request, thus without any flickering
       const ownerCalendar = this.ownerCalendar;
       if (ownerCalendar) {
-        this.calendarColor = (Number(ownerCalendar.id) > 0 && ownerCalendar.color) || null;
+        this.calendarColor = ownerCalendar.color || null;
         this.calendarColorResolved = true;
         return;
       }
@@ -170,12 +170,11 @@ export default {
         .then(identity => identity && identity.id && this.$calendarService.getCalendars(0, 1, false, [Number(identity.id)]))
         .then(data => {
           const calendar = (data && data.calendars && data.calendars.length && data.calendars[0]) || null;
-          // A calendar that isn't persisted yet is returned with a 0 id and a random
-          // color, which isn't the one that will be assigned when the event is created,
-          // thus it must not be displayed as default color.
-          // The owner is checked as well to discard an outdated result, in case the
-          // selected calendar owner changed meanwhile
-          if (calendar && Number(calendar.id) > 0 && this.calendarOwner === owner) {
+          // The color of a calendar that isn't created yet is the one that will
+          // effectively be used once created, thus it can be displayed as well.
+          // The owner is checked to discard an outdated result, in case the selected
+          // calendar owner changed meanwhile
+          if (calendar && this.calendarOwner === owner) {
             this.calendarColor = calendar.color;
           }
         })
