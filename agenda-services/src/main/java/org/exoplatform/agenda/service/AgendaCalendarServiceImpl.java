@@ -221,7 +221,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
    */
   @Override
   public Calendar createCalendarInstance(long ownerId) {
-    return new Calendar(0, ownerId, true, null, null, null, null, getRandomDefaultColor(), null);
+    return new Calendar(0, ownerId, true, null, null, null, null, getDefaultColor(ownerId), null);
   }
 
   /**
@@ -239,7 +239,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
                         null,
                         null,
                         null,
-                        getRandomDefaultColor(),
+                        getDefaultColor(ownerId),
                         new CalendarPermission(canCreateEvent, canEditCalendar, canInviteeEdit));
   }
 
@@ -380,9 +380,19 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     agendaCalendarStorage.deleteCalendarById(calendarId);
   }
 
-  private String getRandomDefaultColor() {
+  /**
+   * Computes the default color of a calendar from its owner identifier, so that
+   * the color of a calendar that isn't created yet is stable: it's returned
+   * identically by any previous read of the calendar, and it's the one that will
+   * effectively be stored when the calendar gets created. Colors remain spread
+   * over the configured palette to keep distinguishing calendars from each other.
+   *
+   * @param ownerId technical identifier of the calendar owner identity
+   * @return default color of the calendar of the given owner
+   */
+  private String getDefaultColor(long ownerId) {
     int size = this.defaultColors.size();
-    int index = new Random().nextInt(size);
+    int index = (int) Math.abs(ownerId % size);
     return this.defaultColors.get(index);
   }
 
