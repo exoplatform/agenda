@@ -1,5 +1,5 @@
 <template>
-  <div class="agenda-timeline-header d-flex align-center widget-text-header justify-space-between px-5 pt-5">
+  <div class="agenda-timeline-header d-flex align-center justify-space-between px-5 pt-5">
     <div class="d-flex widget-text-header text-truncate pa-0">
       <div class="text-truncate">
         {{ headerTitle }}
