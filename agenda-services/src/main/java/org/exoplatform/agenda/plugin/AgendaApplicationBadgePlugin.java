@@ -18,6 +18,8 @@
  */
 package org.exoplatform.agenda.plugin;
 
+import java.util.List;
+
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -30,15 +32,21 @@ import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 
 import io.meeds.appcenter.plugin.ApplicationBadgePlugin;
+import io.meeds.appcenter.service.ApplicationBadgePluginRegistry;
+
+import jakarta.annotation.PostConstruct;
 
 /**
  * Reports how many invitations the user still has to answer, on the Agenda
  * application tile.
  * <p>
- * Carries no counting logic of its own: it reuses
- * {@link AgendaEventService#countPendingEvents(java.util.List, long)}, the very
- * same query behind the pending-invitation reminder already shown inside the
- * Agenda application, so the badge and that reminder can never disagree.
+ * Carries no counting logic of its own: it sums
+ * {@link AgendaEventService#countPendingEvents(java.util.List, long)} and
+ * {@link AgendaEventService#countEventDatePolls(java.util.List, long)}, exactly
+ * as {@code AgendaPendingInvitationBadge.vue} does for the reminder already
+ * shown inside the Agenda application — so the badge and that reminder can
+ * never disagree. Counting only pending events would silently drop date polls,
+ * which the functional specification requires ("event or datepoll").
  */
 @Component
 public class AgendaApplicationBadgePlugin implements ApplicationBadgePlugin {
@@ -48,18 +56,28 @@ public class AgendaApplicationBadgePlugin implements ApplicationBadgePlugin {
   public static final String BADGE_NAME = "agendaPendingInvitations";
 
   @Autowired
-  private AgendaEventService agendaEventService;
+  private ApplicationBadgePluginRegistry applicationBadgePluginRegistry;
+
+  @Autowired
+  private AgendaEventService             agendaEventService;
 
   @Autowired
   private IdentityManager    identityManager;
 
   /**
-   * The url of the Application Center catalog entry pointing at Agenda. Made
-   * configurable so a deployment that renamed the entry can rebind it without
-   * an administrator having to set the binding by hand.
+   * The urls of the Application Center catalog entries pointing at Agenda. Both
+   * the calendar and its timeline report the same pending invitations, so both
+   * carry the badge. Comma-separated and configurable, so a deployment that
+   * renamed or added an entry can rebind it without an administrator having to
+   * set the binding by hand.
    */
-  @Value("${agenda.badge.portletName:Agenda}")
-  private String             portletName;
+  @Value("${agenda.badge.portletNames:agenda/Agenda,agenda/AgendaTimeline}")
+  private List<String>       portletNames;
+
+  @PostConstruct
+  public void init() {
+    applicationBadgePluginRegistry.addPlugin(this);
+  }
 
   @Override
   public String getName() {
@@ -67,8 +85,8 @@ public class AgendaApplicationBadgePlugin implements ApplicationBadgePlugin {
   }
 
   @Override
-  public String getPortletName() {
-    return portletName;
+  public List<String> getPortletNames() {
+    return portletNames;
   }
 
   @Override
@@ -78,8 +96,11 @@ public class AgendaApplicationBadgePlugin implements ApplicationBadgePlugin {
       return 0;
     }
     try {
-      // A null owner list means "every calendar this user attends"
-      return agendaEventService.countPendingEvents(null, userIdentityId);
+      // A null owner list means "every calendar this user attends".
+      // Pending events and date polls are two distinct queries, and the badge
+      // reports their sum — same as the in-app reminder
+      return agendaEventService.countPendingEvents(null, userIdentityId)
+             + agendaEventService.countEventDatePolls(null, userIdentityId);
     } catch (Exception e) {
       LOG.warn("Error counting pending agenda invitations of user {}", username, e);
       return 0;

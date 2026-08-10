@@ -121,7 +121,7 @@ public class AgendaApplicationBadgeListener extends Listener<Object, Object> {
   }
 
   private String getUsername(long identityId) {
-    Identity identity = identityManager.getIdentity(String.valueOf(identityId));
+    Identity identity = identityManager.getIdentity(identityId);
     return identity == null || identity.isDeleted() || !identity.isEnable() ? null : identity.getRemoteId();
   }
 
