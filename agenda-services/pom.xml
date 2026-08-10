@@ -85,6 +85,12 @@
       <artifactId>mcp-server-tools</artifactId>
       <scope>provided</scope>
     </dependency>
+    <!-- App Center badge SPI (used to publish the pending-invitations counter) -->
+    <dependency>
+      <groupId>io.meeds.app-center</groupId>
+      <artifactId>app-center-services</artifactId>
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
   <build>
     <finalName>agenda-services</finalName>
