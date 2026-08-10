@@ -1,8 +1,8 @@
 <template>
   <div class="agenda-timeline-header d-flex align-center justify-space-between px-5 pt-5">
-    <div class="d-flex widget-text-header text-truncate pa-0">
-      <div class="text-truncate">
-        {{ headerTitle }}
+    <div class="d-flex min-width-0 pa-0">
+      <div class="text-header">
+        <span class="text-truncate">{{ headerTitle }}</span>
       </div>
       <agenda-period-selector
         v-if="!$root.isTimelineView"
