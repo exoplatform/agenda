@@ -27,7 +27,7 @@
   </scm>
   <properties>
     <!-- 3rd party libraries versions -->
-    <org.exoplatform.commons-exo.version>7.3.x-SNAPSHOT</org.exoplatform.commons-exo.version>
+    <org.exoplatform.commons-exo.version>7.3.0-20260810</org.exoplatform.commons-exo.version>
     <io.meeds.mcp-server.version>7.3.x-SNAPSHOT</io.meeds.mcp-server.version>
 
     <!-- ical4j dependencies -->
