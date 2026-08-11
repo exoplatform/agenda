@@ -79,7 +79,11 @@ public interface AgendaEventAttendeeService {
    *          event
    * @param sendInvitations whether send invitations to other attendees or not
    * @param resetResponses whether reset attendees responses or not to default
-   *          {@link EventAttendeeResponse#NEEDS_ACTION}
+   *          {@link EventAttendeeResponse#NEEDS_ACTION}. Whatever the value of
+   *          this parameter, the response of a newly added attendee is forced to
+   *          {@link EventAttendeeResponse#NEEDS_ACTION} when it isn't the
+   *          attendee designated by creatorIdentityId, since a user can only
+   *          answer an invitation for himself
    * @param eventModifications {@link AgendaEventModification} contains a
    *          {@link Set} of {@link AgendaEventModificationType} to indicate
    *          event modification types: fields modifications, creation or
