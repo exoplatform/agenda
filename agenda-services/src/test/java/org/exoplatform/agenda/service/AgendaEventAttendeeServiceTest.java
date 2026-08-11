@@ -20,6 +20,7 @@ import static org.junit.Assert.*;
 
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -337,6 +338,65 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
     eventAttendees = agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees();
     assertNotNull(eventAttendees);
     assertEquals(0, eventAttendees.size());
+  }
+
+  @Test
+  public void testCreateEventWithResponseOfOtherAttendees() throws Exception { // NOSONAR
+    ZonedDateTime start = ZonedDateTime.now().withNano(0);
+
+    long creatorIdentityId = Long.parseLong(testuser1Identity.getId());
+    long otherIdentityId = Long.parseLong(testuser5Identity.getId());
+
+    List<EventAttendee> attendees = new ArrayList<>();
+    attendees.add(new EventAttendee(0, 0, creatorIdentityId, EventAttendeeResponse.ACCEPTED));
+    attendees.add(new EventAttendee(0, 0, otherIdentityId, EventAttendeeResponse.ACCEPTED));
+
+    Event event = agendaEventService.createEvent(newEventInstance(start, start, false),
+                                                 attendees,
+                                                 null,
+                                                 null,
+                                                 null,
+                                                 null,
+                                                 false,
+                                                 creatorIdentityId);
+
+    assertEquals(EventAttendeeResponse.ACCEPTED,
+                 agendaEventAttendeeService.getEventResponse(event.getId(), null, creatorIdentityId));
+    assertEquals("A user can only answer an invitation for himself",
+                 EventAttendeeResponse.NEEDS_ACTION,
+                 agendaEventAttendeeService.getEventResponse(event.getId(), null, otherIdentityId));
+  }
+
+  @Test
+  public void testSaveEventAttendeesWithResponseOfOtherAttendees() throws Exception { // NOSONAR
+    ZonedDateTime start = ZonedDateTime.now().withNano(0);
+
+    long creatorIdentityId = Long.parseLong(testuser1Identity.getId());
+    long otherIdentityId = Long.parseLong(testuser4Identity.getId());
+
+    Event event = newEventInstance(start, start, false);
+    event = createEvent(event.clone(), creatorIdentityId, testuser5Identity);
+    long eventId = event.getId();
+
+    List<EventAttendee> attendees = agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees();
+    attendees.add(new EventAttendee(0, eventId, creatorIdentityId, EventAttendeeResponse.ACCEPTED));
+    attendees.add(new EventAttendee(0, eventId, otherIdentityId, EventAttendeeResponse.ACCEPTED));
+
+    agendaEventAttendeeService.saveEventAttendees(event,
+                                                  attendees,
+                                                  creatorIdentityId,
+                                                  false,
+                                                  false,
+                                                  new AgendaEventModification(eventId,
+                                                                              event.getCalendarId(),
+                                                                              creatorIdentityId,
+                                                                              Collections.singleton(AgendaEventModificationType.UPDATED)));
+
+    assertEquals(EventAttendeeResponse.ACCEPTED,
+                 agendaEventAttendeeService.getEventResponse(eventId, null, creatorIdentityId));
+    assertEquals("A user can only answer an invitation for himself",
+                 EventAttendeeResponse.NEEDS_ACTION,
+                 agendaEventAttendeeService.getEventResponse(eventId, null, otherIdentityId));
   }
 
   @Test

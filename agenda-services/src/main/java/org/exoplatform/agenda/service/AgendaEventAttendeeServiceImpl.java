@@ -95,7 +95,13 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     Set<AgendaEventModificationType> eventModificationTypes = new HashSet<>();
 
     processAttendeesToDelete(oldAttendees, newAttendees, eventModificationTypes);
-    processAttendeesToCreate(eventId, eventStatus, oldAttendees, newAttendees, resetResponses, eventModificationTypes);
+    processAttendeesToCreate(eventId,
+                             eventStatus,
+                             oldAttendees,
+                             newAttendees,
+                             creatorUserId,
+                             resetResponses,
+                             eventModificationTypes);
     processAttendeesToUpdate(eventId, oldAttendees, newAttendees, resetResponses);
     processSendingInvitation(event, attendees, sendInvitations, eventModifications);
 
@@ -481,6 +487,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
                                         EventStatus eventStatus,
                                         List<EventAttendee> oldAttendees,
                                         List<EventAttendee> newAttendees,
+                                        long creatorUserId,
                                         boolean resetResponses,
                                         Set<AgendaEventModificationType> eventModificationTypes) {
     List<EventAttendee> attendeesToCreate =
@@ -491,7 +498,8 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
 
     // Create new attendees
     for (EventAttendee eventAttendee : attendeesToCreate) {
-      if (resetResponses || eventAttendee.getResponse() == null || eventStatus == EventStatus.TENTATIVE) {
+      if (resetResponses || eventAttendee.getResponse() == null || eventStatus == EventStatus.TENTATIVE
+          || isOtherAttendeeResponse(eventAttendee, creatorUserId)) {
         eventAttendee.setResponse(EventAttendeeResponse.NEEDS_ACTION);
       }
       attendeeStorage.saveEventAttendee(eventAttendee, eventId);
@@ -499,6 +507,22 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     if (!attendeesToCreate.isEmpty()) {
       eventModificationTypes.add(AgendaEventModificationType.ATTENDEE_ADDED);
     }
+  }
+
+  /**
+   * A user can only answer an invitation for himself, thus a response carried by
+   * the saved event can't be applied on another attendee than the user who
+   * creates or updates the event.
+   *
+   * @param eventAttendee {@link EventAttendee} to create
+   * @param creatorUserId {@link Identity} technical identifier of the user
+   *          creating or updating the event, 0 when the attendee isn't saved on
+   *          behalf of a user (exceptional occurrence creation for example,
+   *          where responses are copied from the parent event)
+   * @return true when the response is made on behalf of another attendee
+   */
+  private boolean isOtherAttendeeResponse(EventAttendee eventAttendee, long creatorUserId) {
+    return creatorUserId > 0 && eventAttendee.getIdentityId() != creatorUserId;
   }
 
   private void processAttendeesToDelete(List<EventAttendee> oldAttendees,
