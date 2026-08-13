@@ -643,6 +643,10 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     boolean resetResponses =
                            (updatedEvent.getStatus() == EventStatus.TENTATIVE || storedEvent.getStatus() == EventStatus.TENTATIVE)
                                && updatedEvent.getStatus() != storedEvent.getStatus();
+    // Snapshotted before saving, because saving removes the rows of attendees
+    // dropped from the event: a listener reading the attendees afterwards would
+    // never see the users the invitation just disappeared for
+    List<EventAttendee> previousAttendees = attendeeService.getEventAttendees(eventId).getEventAttendees();
     Set<AgendaEventModificationType> attendeeModifications = attendeeService.saveEventAttendees(updatedEvent,
                                                                                                 attendees,
                                                                                                 userIdentityId,
@@ -663,7 +667,14 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       eventModifications.removeModification(AgendaEventModificationType.END_DATE_UPDATED);
     }
 
-    Utils.broadcastEvent(listenerService, Utils.POST_UPDATE_AGENDA_EVENT_EVENT, eventModifications, null);
+    // Carries the attendees before and after the change, so that a listener
+    // reaches both those the update invited and those it removed
+    List<EventAttendee> concernedAttendees = new ArrayList<>(previousAttendees);
+    concernedAttendees.addAll(attendeeService.getEventAttendees(eventId).getEventAttendees());
+    Utils.broadcastEvent(listenerService,
+                         Utils.POST_UPDATE_AGENDA_EVENT_EVENT,
+                         eventModifications,
+                         new EventAttendeeList(concernedAttendees));
 
     return updatedEvent;
   }

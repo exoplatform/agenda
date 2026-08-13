@@ -26,6 +26,7 @@ import java.util.stream.Stream;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.stereotype.Component;
 
 import org.exoplatform.agenda.model.AgendaEventModification;
@@ -45,6 +46,7 @@ import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 
+import io.meeds.appcenter.plugin.ApplicationBadgePlugin;
 import io.meeds.appcenter.service.ApplicationBadgeService;
 
 import jakarta.annotation.PostConstruct;
@@ -58,6 +60,7 @@ import jakarta.annotation.PostConstruct;
  */
 @Component
 @Asynchronous
+@ConditionalOnClass(ApplicationBadgePlugin.class)
 public class AgendaApplicationBadgeListener extends Listener<Object, Object> {
 
   private static final Log           LOG         = ExoLogger.getLogger(AgendaApplicationBadgeListener.class);
@@ -66,7 +69,9 @@ public class AgendaApplicationBadgeListener extends Listener<Object, Object> {
                                                            Utils.POST_UPDATE_AGENDA_EVENT_EVENT,
                                                            Utils.POST_DELETE_AGENDA_EVENT_EVENT,
                                                            Utils.POST_CREATE_AGENDA_EVENT_POLL,
-                                                           Utils.POST_EVENT_RESPONSE_SENT,
+                                                           // SAVED alone: saveEventAttendee broadcasts it on every
+                                                           // response and adds SENT on top for a user's own answer,
+                                                           // so listening to both would evict and push twice
                                                            Utils.POST_EVENT_RESPONSE_SAVED);
 
   /**
@@ -170,12 +175,14 @@ public class AgendaApplicationBadgeListener extends Listener<Object, Object> {
       return Stream.of(identity.getRemoteId());
     } else if (identity.isSpace()) {
       Space space = spaceService.getSpaceByPrettyName(identity.getRemoteId());
-      if (space != null && ArrayUtils.isEmpty(space.getMembers())) {
+      // The listener is asynchronous, so the space can be gone by the time it
+      // runs. Throwing here would abort the flatMap and drop the refresh of
+      // every remaining attendee of the event, not just this one.
+      if (space == null || ArrayUtils.isEmpty(space.getMembers())) {
         LOG.debug("No member found for space attendee {}, no badge to refresh", identity.getRemoteId());
         return Stream.empty();
-      } else {
-        return Arrays.stream(space.getMembers()); // NOSONAR
       }
+      return Arrays.stream(space.getMembers());
     } else {
       return Stream.empty();
     }
