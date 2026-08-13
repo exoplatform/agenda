@@ -32,7 +32,7 @@
                 v-for="(event, i) in limitedEventsByDates[month][eventDay]"
                 :key="i"
                 :title="event.summary"
-                :style="{background: event.color || event.calendar.color, borderLeft: `5px solid ${event.calendar.color || '#2196F3'}`}"
+                :style="{background: event?.color || event?.calendar?.color, borderLeft: `5px solid ${event?.color || event?.calendar?.color || '#2196F3'}`}"
                 :class="event.type === 'remoteEvent' && 'remote-event'"
                 class="event-timeline-detail d-flex flex-column white--text px-2 py-0 mb-2 border-radius"
                 dark
