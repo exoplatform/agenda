@@ -30,6 +30,7 @@ import org.springframework.stereotype.Component;
 
 import org.exoplatform.agenda.model.AgendaEventModification;
 import org.exoplatform.agenda.model.EventAttendee;
+import org.exoplatform.agenda.model.EventAttendeeList;
 import org.exoplatform.agenda.plugin.AgendaApplicationBadgePlugin;
 import org.exoplatform.agenda.service.AgendaEventAttendeeService;
 import org.exoplatform.agenda.util.Utils;
@@ -68,7 +69,12 @@ public class AgendaApplicationBadgeListener extends Listener<Object, Object> {
                                                            Utils.POST_EVENT_RESPONSE_SENT,
                                                            Utils.POST_EVENT_RESPONSE_SAVED);
 
-  @Autowired
+  /**
+   * Optional for the same reason as the plugin it feeds: without the
+   * Application Center there is no badge to refresh, and Agenda must still
+   * start.
+   */
+  @Autowired(required = false)
   private ApplicationBadgeService    applicationBadgeService;
 
   @Autowired
@@ -85,6 +91,10 @@ public class AgendaApplicationBadgeListener extends Listener<Object, Object> {
 
   @PostConstruct
   public void init() {
+    if (applicationBadgeService == null) {
+      LOG.debug("Application Center badge service not available, Agenda badge listener not registered");
+      return;
+    }
     EVENT_NAMES.forEach(eventName -> listenerService.addListener(eventName, this));
   }
 
@@ -109,6 +119,12 @@ public class AgendaApplicationBadgeListener extends Listener<Object, Object> {
     } else if (event.getData() instanceof EventAttendee attendee) {
       return Set.of(attendee.getIdentityId());
     } else if (source instanceof AgendaEventModification modification) {
+      // A deletion removes the attendee rows before broadcasting, so the event
+      // carries the snapshot taken before it; looking them up would find nobody
+      // and nobody's badge would ever be refreshed
+      if (event.getData() instanceof EventAttendeeList attendees) {
+        return toIdentityIds(attendees.getEventAttendees());
+      }
       return getAttendeeIdentityIds(modification.getEventId());
     }
     return Set.of();
@@ -116,15 +132,16 @@ public class AgendaApplicationBadgeListener extends Listener<Object, Object> {
 
   private Set<Long> getAttendeeIdentityIds(long eventId) {
     try {
-      return attendeeService.getEventAttendees(eventId)
-                            .getEventAttendees()
-                            .stream()
-                            .map(EventAttendee::getIdentityId)
-                            .collect(Collectors.toSet());
+      return toIdentityIds(attendeeService.getEventAttendees(eventId).getEventAttendees());
     } catch (Exception e) {
       LOG.warn("Error retrieving attendees of agenda event {} to refresh their badge", eventId, e);
       return Set.of();
     }
+  }
+
+  private Set<Long> toIdentityIds(List<EventAttendee> attendees) {
+    return attendees == null ? Set.of()
+                              : attendees.stream().map(EventAttendee::getIdentityId).collect(Collectors.toSet());
   }
 
   /**
