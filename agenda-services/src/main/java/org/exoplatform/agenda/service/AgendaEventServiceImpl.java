@@ -775,7 +775,10 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     AgendaEventModification eventModifications = new AgendaEventModification(eventId, event.getCalendarId(), userIdentityId);
     eventModifications.addModificationType(AgendaEventModificationType.DELETED);
     attendeeService.sendInvitations(event, eventAttendeeList.getEventAttendees(), eventModifications);
-    Utils.broadcastEvent(listenerService, Utils.POST_DELETE_AGENDA_EVENT_EVENT, eventModifications, null);
+    // Carries the attendees snapshotted above: the rows are deleted along with
+    // the event, so a listener that needs to reach them can no longer look them
+    // up by event id
+    Utils.broadcastEvent(listenerService, Utils.POST_DELETE_AGENDA_EVENT_EVENT, eventModifications, eventAttendeeList);
     return event;
   }
 
