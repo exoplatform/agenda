@@ -87,6 +87,7 @@ import AgendaConnectorStatus from './components/connector/AgendaConnectorStatus.
 import AgendaConnectorContemporaryEvents from './components/remote-event/AgendaConnectorContemporaryEvents.vue';
 import AgendaConnectorRemoteEventItem from './components/remote-event/AgendaConnectorRemoteEventItem.vue';
 import AgendaConnectorsDrawer from './components/remote-event/AgendaConnectorsDrawer.vue';
+import AgendaConnectorMirrorCalendarDrawer from './components/remote-event/AgendaConnectorMirrorCalendarDrawer.vue';
 import AgendaConnectToRemoteButton from './components/remote-event/AgendaConnectToRemoteButton.vue';
 
 const components = {
@@ -153,6 +154,7 @@ const components = {
   'agenda-recurrent-event-reminders-confirm-dialog': AgendaRecurrentEventReminderConfirmDialog,
   'agenda-user-setting-drawer': AgendaUserSettingDrawer,
   'agenda-connectors-drawer': AgendaConnectorsDrawer,
+  'agenda-connector-mirror-calendar-drawer': AgendaConnectorMirrorCalendarDrawer,
   'agenda-pending-invitation-drawer': AgendaPendingInvitationDrawer,
   'agenda-pending-invitation-item': AgendaPendingInvitationItem,
   'agenda-pending-invitation-badge': AgendaPendingInvitationBadge,

@@ -75,6 +75,18 @@ export default {
           }
         });
     },
+    /**
+     * Connects a connector to its remote account: disconnects any other
+     * connected connector, delegates the connection to the connector itself,
+     * then stores the connected user. Once the connection succeeded, when the
+     * connector can create a calendar on the remote server, the mirror
+     * calendar step is offered — the destination the pushed meetings will be
+     * written to — so a refused creation is dealt with at connect time, not
+     * at first push.
+     *
+     * @param {Object} connector the connector to connect
+     * @returns {Promise} resolves once the connection is established and stored
+     */
     connect(connector) {
       this.errorMessage = null;
 
@@ -99,6 +111,9 @@ export default {
           this.$set(connector, 'loading', false);
           this.$root.$emit('agenda-settings-refresh');
           this.refreshConnectorsList();
+          if (connector.canCreateCalendar) {
+            this.$root.$emit('agenda-connector-mirror-calendar-open', connector);
+          }
         })
         .catch(error => {
           console.error('Connected - error', connector.name, error);
