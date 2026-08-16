@@ -160,7 +160,8 @@ export default {
       })
         .then(() => {
           this.close();
-          this.$root.$emit('alert-message', this.$t('agenda.mirrorCalendar.saved'), 'success');
+          this.$root.$emit('agenda-connector-mirror-calendar-done');
+          this.$root.$emit('alert-message', this.$t('agenda.mirrorCalendar.saved', {0: this.calendarName}), 'success');
         })
         .catch(error => this.handleFailure(error))
         .finally(() => this.saving = false);
