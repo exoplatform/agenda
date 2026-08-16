@@ -9,6 +9,16 @@ export default {
       type: Object,
       default: () => null,
     },
+    /**
+     * Whether connecting an account should go straight on to ask where the
+     * copies are written. True in the agenda, where connecting is the task
+     * being carried out; false in the settings, where the copy switch asks
+     * for it instead.
+     */
+    offerMirrorCalendar: {
+      type: Boolean,
+      default: true,
+    },
   },
   data: () => ({
     loading: false,
@@ -111,7 +121,11 @@ export default {
           this.$set(connector, 'loading', false);
           this.$root.$emit('agenda-settings-refresh');
           this.refreshConnectorsList();
-          if (connector.canCreateCalendar) {
+          // Not offered where connecting is one preference among others: a
+          // drawer taking over the page is for the agenda, where connecting
+          // is the task at hand. In the settings the same step is reached by
+          // turning the copy switch on, which is what asks for it.
+          if (this.offerMirrorCalendar && connector.canCreateCalendar) {
             this.$root.$emit('agenda-connector-mirror-calendar-open', connector);
           }
         })

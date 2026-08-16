@@ -13,13 +13,13 @@
           a calendar of the connected account, and without saying which one a
           user has no way of knowing where their meetings went.
         -->
-        <div v-if="pushEnabled && mirrorCapableConnector" class="text-subtitle mt-2">
-          <template v-if="mirrorCalendarName">
-            {{ $t('agenda.settings.pushEventsDestination', {0: mirrorCalendarName}) }}
-          </template>
-          <template v-else>
-            {{ $t('agenda.settings.pushEventsNoDestination') }}
-          </template>
+        <!--
+          Shown only once a destination exists: turning the switch on is what
+          asks for one, so there is no state where copying is on and this has
+          nothing to name.
+        -->
+        <div v-if="mirrorCalendarName" class="text-subtitle mt-2">
+          {{ $t('agenda.settings.pushEventsDestination', {0: mirrorCalendarName}) }}
           <a
             class="ms-1"
             href="#"
@@ -103,10 +103,7 @@ export default {
     settings: {
       immediate: true,
       handler() {
-        // absent means enabled: the platform pushed by default long before
-        // this switch existed, and reading it as 'off' would silently stop
-        // copying for everyone who never opened this page
-        this.pushEnabled = !this.settings || this.settings.automaticPushEvents !== false;
+        this.refreshSwitch();
       },
     },
     connectors: {
@@ -117,10 +114,12 @@ export default {
     },
   },
   created() {
-    this.$root.$on('agenda-connector-mirror-calendar-done', this.retrieveDestination);
+    this.$root.$on('agenda-connector-mirror-calendar-done', this.destinationChosen);
+    this.$root.$on('agenda-connector-mirror-calendar-cancelled', this.destinationDeclined);
   },
   beforeDestroy() {
-    this.$root.$off('agenda-connector-mirror-calendar-done', this.retrieveDestination);
+    this.$root.$off('agenda-connector-mirror-calendar-done', this.destinationChosen);
+    this.$root.$off('agenda-connector-mirror-calendar-cancelled', this.destinationDeclined);
   },
   methods: {
     /**
@@ -130,6 +129,22 @@ export default {
      * @returns {void}
      */
     savePushSetting() {
+      // Turning it on without a destination is the state to avoid: the copies
+      // would go to whichever calendar the account happens to list first. So
+      // the step is asked for here, and the switch only stays on once it has
+      // been answered.
+      if (this.pushEnabled && this.mirrorCapableConnector && !this.mirrorCalendarName) {
+        this.configureDestination();
+        return;
+      }
+      this.storePushSetting();
+    },
+    /**
+     * Writes the setting, putting the switch back where it was if the save
+     * fails, so it never shows a state the server does not hold.
+     * @returns {void}
+     */
+    storePushSetting() {
       const settings = Object.assign({}, this.settings, {automaticPushEvents: this.pushEnabled});
       this.saving = true;
       this.$settingsService.saveUserSettings(settings)
@@ -139,6 +154,41 @@ export default {
           this.$root.$emit('alert-message', this.$t('agenda.settings.pushEventsError'), 'error');
         })
         .finally(() => this.saving = false);
+    },
+    /**
+     * A destination was chosen: the switch may now stay on, and the setting
+     * is written to match it.
+     * @returns {void}
+     */
+    destinationChosen() {
+      this.retrieveDestination();
+      this.pushEnabled = true;
+      this.storePushSetting();
+    },
+    /**
+     * The user backed out of choosing a destination, so the switch goes back
+     * off: copying was never turned on, and claiming otherwise would send the
+     * copies somewhere nobody picked.
+     * @returns {void}
+     */
+    destinationDeclined() {
+      if (!this.mirrorCalendarName) {
+        this.pushEnabled = false;
+      }
+    },
+    /**
+     * Puts the switch where the stored state says it belongs. For a connector
+     * holding a destination, on means both that copying is enabled and that a
+     * destination exists — the two halves are one thing to the user, and
+     * showing on without a destination is what sends copies astray. A
+     * connector with no destination to hold reads the setting alone.
+     * @returns {void}
+     */
+    refreshSwitch() {
+      const enabled = !this.settings || this.settings.automaticPushEvents !== false;
+      this.pushEnabled = this.mirrorCapableConnector
+        ? enabled && !!this.mirrorCalendarName
+        : enabled;
     },
     /**
      * Reads the name of the calendar the copies are written to, from the
@@ -163,6 +213,7 @@ export default {
               const mirror = (calendars || [])
                 .find(calendar => this.$remoteEventConnector.isSameCalendarHref(calendar.id, mirrorId));
               this.mirrorCalendarName = mirror && mirror.name || null;
+              this.refreshSwitch();
             });
         })
         .catch(() => this.mirrorCalendarName = null);

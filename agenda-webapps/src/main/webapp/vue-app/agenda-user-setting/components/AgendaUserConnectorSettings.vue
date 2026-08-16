@@ -26,6 +26,7 @@
     <agenda-connector
       :settings="settings"
       :connectors="connectors"
+      :offer-mirror-calendar="false"
       auto-connect
       @connectors-loaded="updateConnectors" />
   </v-list-item>
