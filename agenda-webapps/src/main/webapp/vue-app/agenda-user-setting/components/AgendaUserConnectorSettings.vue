@@ -27,7 +27,7 @@
       :settings="settings"
       :connectors="connectors"
       auto-connect
-      @connectors-loaded="connectors = $event" />
+      @connectors-loaded="updateConnectors" />
   </v-list-item>
 </template>
 
@@ -50,6 +50,18 @@ export default {
   methods: {
     openDrawer() {
       this.$root.$emit('agenda-connectors-drawer-open');
+    },
+    /**
+     * Keeps the loaded connectors and passes them up, so the push setting
+     * beside this row knows whether an account able to receive copies is
+     * connected without loading the list a second time.
+     *
+     * @param {Array} connectors the connectors the connector component loaded
+     * @returns {void}
+     */
+    updateConnectors(connectors) {
+      this.connectors = connectors;
+      this.$emit('connectors-loaded', connectors);
     },
     getDayFromAbbreviation(day) {
       return this.$agendaUtils.getDayNameFromDayAbbreviation(day, eXo.env.portal.language);
