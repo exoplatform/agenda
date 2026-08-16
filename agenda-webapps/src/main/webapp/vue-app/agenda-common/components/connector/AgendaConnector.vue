@@ -190,10 +190,31 @@ export default {
           .finally(() => this.$root.$emit('agenda-refresh'));
       }
     },
+    /**
+     * Copies an event to the connected remote calendar when it is one the user
+     * keeps: a meeting they accepted, or one they organise.
+     *
+     * Organised events used to be left out. The condition was attendance
+     * alone, and an organiser is not necessarily in their own attendee list,
+     * so an event created in eXo never reached the remote calendar — the case
+     * that matters most, since it is what other clients need in order to show
+     * the user as busy.
+     *
+     * An organiser who is in the list keeps their own answer, so declining an
+     * event one organises still removes it remotely.
+     *
+     * @param {Object} event the event to copy
+     * @returns {void}
+     */
     pushEvent(event) {
-      if (event && event.acl && event.acl.attendee) {
-        const userAttendee = event.attendees.find(user => user.identity && user.identity.id === eXo.env.portal.userIdentityId);
-        this.pushEventResponse(event, null, userAttendee && userAttendee.response);
+      if (!event) {
+        return;
+      }
+      const userAttendee = event.attendees
+        && event.attendees.find(user => user.identity && user.identity.id === eXo.env.portal.userIdentityId);
+      const organizer = String(event.creatorId) === String(eXo.env.portal.userIdentityId);
+      if (event.acl && event.acl.attendee || organizer) {
+        this.pushEventResponse(event, null, userAttendee && userAttendee.response || organizer && 'ACCEPTED' || null);
       }
     },
     pushEventResponse(event, occurrenceId, eventResponse) {
