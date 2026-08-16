@@ -93,6 +93,14 @@ export default {
             .then(() => {
               this.$set(connector, 'isSignedIn', true);
               this.$set(connector, 'user', userId);
+              // Marked connected here rather than left to the settings to say
+              // so. That flag is derived from the settings held by this page,
+              // and the refresh asked for below only replaces them later — so
+              // between connecting and that arriving, nothing counted as
+              // connected and every event saved in the meantime was silently
+              // not pushed. Disconnecting already clears the flag directly;
+              // this is the other half of it.
+              this.$set(connector, 'connected', true);
             });
         })
         .then(() => {
