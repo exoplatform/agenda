@@ -8,7 +8,11 @@
     z-index: 1060 !important;
   }
   
-  #exchangeSettingsDrawer, #caldavSettingsDrawer {
+  /* The account settings drawers, and the calendar step that follows them,
+     open while the connectors drawer is still on screen — so they sit above
+     its 1060 rather than inheriting a default that puts them underneath. */
+  #exchangeSettingsDrawer, #caldavSettingsDrawer,
+  .layout-drawer.agendaMirrorCalendarDrawer {
     z-index: 1065 !important;
   }
   
