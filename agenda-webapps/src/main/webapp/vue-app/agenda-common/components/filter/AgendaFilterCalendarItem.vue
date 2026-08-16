@@ -68,7 +68,7 @@ export default {
       default: () => [],
     },
     selectedOwnerIds: {
-      type: Array,
+      type: [Array, Boolean],
       default: () => [],
     },
   },
@@ -79,21 +79,52 @@ export default {
     checked: false,
   }),
   computed: {
+    /**
+     * Whether this calendar is selected: an empty array selection means 'all
+     * calendars', a false selection means 'no calendar'.
+     *
+     * @returns {boolean} true when the calendar is selected
+     */
     selected() {
-      return this.selectedOwnerIds !== false && (!this.selectedOwnerIds.length || this.selectedOwnerIds.find(ownerId => ownerId === this.calendarOwnerId));
+      return this.selectedOwnerIds !== false && (!this.selectedOwnerIds.length || this.selectedOwnerIds.indexOf(this.calendarOwnerId) >= 0);
     },
+    /**
+     * Identity id of the calendar owner, as a number.
+     *
+     * @returns {number} calendar owner identity id
+     */
     calendarOwnerId() {
       return Number(this.calendar.owner.id);
     },
+    /**
+     * Unique DOM id of the color picker menu of this calendar.
+     *
+     * @returns {string} menu element id
+     */
     calendarMenuId() {
       return `settingsMenu${this.calendarOwnerId}`;
     },
+    /**
+     * Color of the calendar.
+     *
+     * @returns {string} calendar color
+     */
     calendarColor() {
       return this.calendar.color;
     },
+    /**
+     * Whether the current user can edit the calendar, thus change its color.
+     *
+     * @returns {boolean} true when the calendar is editable
+     */
     canEditCalendar() {
       return this.calendar && this.calendar.acl && this.calendar.acl.canEdit;
     },
+    /**
+     * Display name of the calendar owner (space or user profile).
+     *
+     * @returns {string} calendar display name
+     */
     calendarDisplayName() {
       const owner = this.calendar.owner;
       const profile = owner.space || owner.profile;
@@ -101,67 +132,83 @@ export default {
     },
   },
   watch: {
+    /**
+     * Asks other items to close their color picker menu when this one opens.
+     * @returns {void}
+     */
     menu() {
       if (this.menu) {
         this.$root.$emit('agenda-filter-close-menu', this.calendarOwnerId);
       }
     },
+    /**
+     * Keeps the checkbox state in sync with the selection coming from the
+     * parent list.
+     * @returns {void}
+     */
     selected() {
       this.checked = this.selected;
     },
   },
   created() {
     this.selectedCalendarColor = this.calendar.color;
-
-    // Close current menu when another menu is opened
-    this.$root.$on('agenda-filter-close-menu', calendarOwnerId => {
-      if (calendarOwnerId !== this.calendarOwnerId) {
-        this.menu = false;
-      }
-    });
-
-    // Force to close other DatePicker menus when opening a new one 
-    $('.calendarSettingActions button').on('click', (e) => {
-      if (e.target && !$(e.target).parents(`#${this.calendarMenuId}`).length) {
-        this.menu = false;
-      }
-    });
-
-    // Force to close DatePickers when clicking outside
-    $(document).on('click', (e) => {
-      if (e.target && !$(e.target).parents(`.${this.calendarMenuId}`).length) {
-        this.menu = false;
-      }
-    });
+    this.$root.$on('agenda-filter-close-menu', this.closeOtherMenu);
   },
   mounted() {
     this.checked = this.selected;
   },
+  beforeDestroy() {
+    this.$root.$off('agenda-filter-close-menu', this.closeOtherMenu);
+  },
   methods: {
-    changeSelection() {
-      if (this.selectedOwnerIds) {
-        if (this.selected) {
-          if (this.selectedOwnerIds && !this.selectedOwnerIds.length) {
-            this.selectedOwnerIds = this.ownerIds.slice();
-          }
-          const index = this.selectedOwnerIds.findIndex(ownerId => ownerId === this.calendarOwnerId);
-          if (index >= 0) {
-            this.selectedOwnerIds.splice(index, 1);
-            if (!this.selectedOwnerIds.length) {
-              this.selectedOwnerIds = false;
-            }
-          }
-        } else {
-          this.selectedOwnerIds.push(this.calendarOwnerId);
-        }
-      } else if (!this.selected) {
-        this.selectedOwnerIds = [this.calendarOwnerId];
+    /**
+     * Closes the color picker menu of this item when another item opens its
+     * own menu.
+     *
+     * @param {number} calendarOwnerId owner id of the calendar whose menu just
+     *          opened
+     * @returns {void}
+     */
+    closeOtherMenu(calendarOwnerId) {
+      if (calendarOwnerId !== this.calendarOwnerId) {
+        this.menu = false;
       }
-      this.$emit('changeSelection', this.selectedOwnerIds);
     },
+    /**
+     * Toggles the selection of this calendar and emits the new selection to
+     * the parent list, without mutating the received props: unchecking the
+     * last selected calendar emits false ('no calendar'), while checking a
+     * calendar when everything is selected first materializes the full list
+     * of owner ids.
+     * @returns {void}
+     */
+    changeSelection() {
+      let newSelection;
+      if (this.selected) {
+        const currentSelection = Array.isArray(this.selectedOwnerIds) && this.selectedOwnerIds.length && this.selectedOwnerIds.slice() || this.ownerIds.slice();
+        const index = currentSelection.indexOf(this.calendarOwnerId);
+        if (index >= 0) {
+          currentSelection.splice(index, 1);
+        }
+        newSelection = currentSelection.length && currentSelection || false;
+      } else {
+        newSelection = Array.isArray(this.selectedOwnerIds) && this.selectedOwnerIds.slice() || [];
+        newSelection.push(this.calendarOwnerId);
+      }
+      this.$emit('changeSelection', newSelection);
+    },
+    /**
+     * Resets the color picker to the current calendar color.
+     * @returns {void}
+     */
     reset() {
       this.selectedCalendarColor = this.calendar.color;
     },
+    /**
+     * Saves the color chosen in the color picker on the calendar and notifies
+     * the application so displayed events switch to the new color.
+     * @returns {void}
+     */
     applyColor() {
       const calendarToSave = JSON.parse(JSON.stringify(this.calendar));
       calendarToSave.color = this.selectedCalendarColor;
@@ -174,6 +221,10 @@ export default {
         })
         .finally(() => this.saving = false);
     },
+    /**
+     * Closes the color picker menu.
+     * @returns {void}
+     */
     closeMenu() {
       this.menu = false;
     },

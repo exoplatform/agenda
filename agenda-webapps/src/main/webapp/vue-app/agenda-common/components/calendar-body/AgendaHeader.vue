@@ -6,6 +6,15 @@
     ref="applicationToolbar">
     <template #left>
       <div class="d-flex">
+        <v-btn
+          v-if="displayLeftPanelToggle"
+          :title="$t('agenda.leftPanel.toggle')"
+          :aria-label="$t('agenda.leftPanel.toggle')"
+          class="my-auto me-2"
+          icon
+          @click="toggleLeftPanel">
+          <v-icon size="20">fa-bars</v-icon>
+        </v-btn>
         <agenda-create-event-button
           :current-space="currentSpace"
           :can-create-event="canCreateEvent" />
@@ -70,7 +79,8 @@ export default {
       default: () => null
     },
     ownerIds: {
-      type: Array,
+      // false means 'no calendar selected'
+      type: [Array, Boolean],
       default: null
     },
     periodTitle: {
@@ -115,7 +125,32 @@ export default {
   created() {
     this.periodStart = this.period && this.period.start || new Date();
   },
+  methods: {
+    /**
+     * Notifies the Agenda application that the user asked to collapse or
+     * expand the left panel.
+     * @returns {void}
+     */
+    toggleLeftPanel() {
+      this.$root.$emit('agenda-left-panel-toggle');
+    },
+  },
   computed: {
+    /**
+     * Whether the left panel toggle button is displayed: desktop only, and
+     * only where the left panel itself is available (personal agenda, not
+     * inside a space).
+     *
+     * @returns {boolean} true when the toggle button must be displayed
+     */
+    displayLeftPanelToggle() {
+      return !this.$root.isMobile && !eXo.env.portal.spaceId;
+    },
+    /**
+     * Whether the current user can create an event in the displayed calendar.
+     *
+     * @returns {boolean} true when event creation is allowed
+     */
     canCreateEvent() {
       return !this.currentCalendar || !this.currentCalendar.acl || this.currentCalendar.acl.canCreate;
     },

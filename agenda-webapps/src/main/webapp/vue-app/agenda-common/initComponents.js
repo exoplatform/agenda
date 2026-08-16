@@ -13,6 +13,8 @@ import AgendaCreateEventButton from './components/top-toolbar/AgendaCreateEventB
 import AgendaCalendarFilterButton from './components/top-toolbar/AgendaCalendarFilterButton.vue';
 import AgendaPeriodSelector from './components/top-toolbar/AgendaPeriodSelector.vue';
 
+import AgendaLeftPanel from './components/left-panel/AgendaLeftPanel.vue';
+
 import AgendaFilterCalendarDrawer from './components/filter/AgendaFilterCalendarDrawer.vue';
 import AgendaFilterCalendarList from './components/filter/AgendaFilterCalendarList.vue';
 import AgendaFilterCalendarItem from './components/filter/AgendaFilterCalendarItem.vue';
@@ -94,6 +96,7 @@ const components = {
   'agenda-empty-timeline': AgendaEmptyTimeline,
   'agenda-events-updater': AgendaEventsUpdater,
   'agenda-event-mobile-form': AgendaEventMobileForm,
+  'agenda-left-panel': AgendaLeftPanel,
   'agenda-filter-calendar-drawer': AgendaFilterCalendarDrawer,
   'agenda-filter-calendar-list': AgendaFilterCalendarList,
   'agenda-filter-calendar-item': AgendaFilterCalendarItem,

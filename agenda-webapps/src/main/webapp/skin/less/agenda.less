@@ -966,3 +966,41 @@
   }
 
 }
+
+/* Agenda left panel (EXO-89389) */
+.VuetifyApp {
+  .agenda-desktop-body {
+    align-items: stretch;
+  }
+
+  .agenda-left-panel-column {
+    width: 300px;
+    min-width: 300px;
+    max-width: 300px;
+  }
+
+  /* Let the calendar column shrink when the panel is displayed:
+     a flex child's default 'min-width: auto' would make the week grid
+     overflow instead of narrowing */
+  .agenda-body-column {
+    min-width: 0;
+  }
+
+  .agenda-left-panel {
+    height: 100%;
+    /* same background as the v-card hosting the calendar body */
+    background: #ffffff;
+    border-right: 1px solid #e1e8ee;
+
+    .agenda-left-panel-calendars {
+      max-height: ~"calc(100vh - 280px)";
+      overflow-y: auto;
+    }
+  }
+
+  /* RTL: the panel border must face the calendar body */
+  .v-application--is-rtl .agenda-left-panel {
+    border-right: none;
+    border-left: 1px solid #e1e8ee;
+  }
+}

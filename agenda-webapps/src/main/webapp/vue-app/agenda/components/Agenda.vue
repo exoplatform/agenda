@@ -20,15 +20,29 @@
           :limit="limit"
           :connected-connector-avatar="connectedConnectorAvatar"
           class="mt-2 pa-5" />
-        <agenda-body
+        <v-row
           v-else
-          :events="displayedEvent"
-          :calendars="[currentCalendar]"
-          :calendar-type="calendarType"
-          :weekdays="weekdays"
-          :full-weekdays="fullWeekdays"
-          :working-time="workingTime"
-          :connected-connector-avatar="connectedConnectorAvatar" />  
+          class="agenda-desktop-body flex-nowrap"
+          no-gutters>
+          <v-col
+            v-show="displayLeftPanel"
+            v-if="leftPanelAvailable"
+            class="agenda-left-panel-column flex-grow-0 flex-shrink-0">
+            <agenda-left-panel
+              :selected-owner-ids="ownerIds"
+              :expanded="displayLeftPanel" />
+          </v-col>
+          <v-col class="agenda-body-column">
+            <agenda-body
+              :events="displayedEvent"
+              :calendars="[currentCalendar]"
+              :calendar-type="calendarType"
+              :weekdays="weekdays"
+              :full-weekdays="fullWeekdays"
+              :working-time="workingTime"
+              :connected-connector-avatar="connectedConnectorAvatar" />
+          </v-col>
+        </v-row>
         <v-flex v-if="$root.isMobile && hasMore" class="d-flex py-4 border-box-sizing">
           <v-btn
             :loading="loading"
@@ -124,8 +138,28 @@ export default {
     hasMore: false,
     settingsLoaded: false,
     remoteEventsLoaded: false,
+    leftPanelExpanded: localStorage.getItem('agendaLeftPanelExpanded') !== 'false',
   }),
   computed: {
+    /**
+     * Whether the left panel feature is available in the current context: it
+     * is a personal agenda feature, thus hidden inside a space agenda where a
+     * single space calendar is displayed.
+     *
+     * @returns {boolean} true when the left panel can be displayed
+     */
+    leftPanelAvailable() {
+      return !eXo.env.portal.spaceId;
+    },
+    /**
+     * Whether the left panel is effectively displayed: available in the
+     * current context and not collapsed by the user.
+     *
+     * @returns {boolean} true when the left panel is displayed
+     */
+    displayLeftPanel() {
+      return this.leftPanelAvailable && this.leftPanelExpanded;
+    },
     enabledConferenceProviderName() {
       return this.settings
           && this.conferenceProviders
@@ -238,6 +272,8 @@ export default {
     this.$root.$on('agenda-event-deleted', this.deletedEvent);
     this.$root.$on('agenda-event-response-sent', this.retrieveEvents);
     this.spaceId = eXo.env.portal.spaceId;
+    this.$root.$on('agenda-calendar-owners-changed', this.changeDisplayedOwnerIds);
+    this.$root.$on('agenda-left-panel-toggle', this.toggleLeftPanel);
     this.$root.$on('agenda-settings-refresh', this.initSettings);
     this.$root.$on('agenda-event-change-owner', this.refreshProviders);
     this.$root.$on('agenda-show-remote-change', this.showRemoteEvents);
@@ -353,9 +389,31 @@ export default {
     generateCalendarTitle(period) {
       return this.$agendaUtils.generateCalendarTitle(this.calendarType, this.$agendaUtils.toDate(period.start), period.title, this.$t('agenda.week'));
     },
+    /**
+     * Applies a new calendar selection coming from the left panel or the
+     * filter drawer, then reloads the displayed events accordingly.
+     *
+     * @param {Array|boolean} selectedOwnerIds selected calendar owner
+     *          identity ids: an empty array means 'all calendars', false means
+     *          'no calendar'
+     * @returns {void}
+     */
     changeDisplayedOwnerIds(selectedOwnerIds) {
       this.ownerIds = selectedOwnerIds;
       this.retrieveEvents();
+    },
+    /**
+     * Collapses or expands the left panel, persists the choice in the browser
+     * local storage, then dispatches a window resize event once the layout
+     * settled: Vuetify's v-calendar measures its own width and would otherwise
+     * keep rendering the week grid with a stale width after the panel changed
+     * the available space.
+     * @returns {void}
+     */
+    toggleLeftPanel() {
+      this.leftPanelExpanded = !this.leftPanelExpanded;
+      localStorage.setItem('agendaLeftPanelExpanded', String(this.leftPanelExpanded));
+      this.$nextTick().then(() => window.dispatchEvent(new Event('resize')));
     },
     updateSettings(settings) {
       this.settings = settings;
