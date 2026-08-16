@@ -974,9 +974,9 @@
   }
 
   .agenda-left-panel-column {
-    width: 300px;
-    min-width: 300px;
-    max-width: 300px;
+    width: 220px;
+    min-width: 220px;
+    max-width: 220px;
   }
 
   /* Let the calendar column shrink when the panel is displayed:
@@ -991,10 +991,51 @@
     /* same background as the v-card hosting the calendar body */
     background: #ffffff;
     border-right: 1px solid #e1e8ee;
+    padding-top: 12px;
+
+    /* compact section title: small, medium weight, subdued color (from
+       text-sub-title), tight spacing above the first row */
+    .agenda-left-panel-title {
+      padding: 0 16px 4px;
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 1.4;
+    }
 
     .agenda-left-panel-calendars {
+      /* horizontal padding applied once here: rows carry no own indent */
+      padding: 0 16px;
       max-height: ~"calc(100vh - 280px)";
       overflow-y: auto;
+
+      /* dense rows: ~32px high, no per-row indent on top of the panel's */
+      .v-list-item {
+        padding: 0 !important;
+        min-height: 32px;
+      }
+
+      .agenda-calendar-settings-color {
+        margin: 0 !important;
+        padding-top: 0;
+        min-width: 0;
+
+        .v-input__slot {
+          min-width: 0;
+          margin-bottom: 0;
+        }
+
+        /* long calendar names must truncate with an ellipsis instead of
+           wrapping or widening the row */
+        .v-label {
+          display: block;
+          min-width: 0;
+          max-width: 100%;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          font-size: 14px;
+        }
+      }
     }
   }
 

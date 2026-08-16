@@ -17,7 +17,7 @@
       class="agenda-left-panel-section agenda-left-panel-my-calendars"></section>
     <!-- section: Spaces -->
     <section class="agenda-left-panel-section d-flex flex-column">
-      <div class="subtitle-1 font-weight-bold px-4 pt-4">
+      <div class="agenda-left-panel-title text-sub-title">
         {{ $t('agenda.leftPanel.spaces') }}
       </div>
       <agenda-filter-calendar-list

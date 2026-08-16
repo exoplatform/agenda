@@ -28,6 +28,19 @@
         </select>
       </v-list-item-action>
     </v-list-item>
+    <!-- compact (left panel) mode: honest states while the first retrieval is
+         in flight or when it genuinely returned nothing -->
+    <v-list-item v-if="compact && loading && !calendars.length" class="justify-center">
+      <v-progress-circular
+        indeterminate
+        color="primary"
+        size="24" />
+    </v-list-item>
+    <v-list-item v-else-if="compact && initialized && !loading && !calendars.length">
+      <v-list-item-content class="text-sub-title text-truncate">
+        {{ $t('agenda.leftPanel.noCalendars') }}
+      </v-list-item-content>
+    </v-list-item>
     <agenda-filter-calendar-item
       v-for="calendar in filteredCalendars"
       :key="calendar.owner.id"
@@ -70,6 +83,7 @@ export default {
     limit: 20,
     pageSize: 20,
     totalSize: 0,
+    initialized: false,
   }),
   computed: {
     /**
@@ -253,6 +267,7 @@ export default {
      * @returns {Promise} resolved when the calendars are loaded
      */
     retrieveCalendars() {
+      this.initialized = true;
       this.loading = true;
       return this.$spaceService.getSpaces(this.query, 0, this.limit, 'member', 'identity').then(data => {
         this.spaces = data && data.spaces || [];

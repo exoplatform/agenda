@@ -6,6 +6,8 @@
         :color="calendarColor"
         :label="calendarDisplayName"
         class="agenda-calendar-settings-color ms-4"
+        dense
+        hide-details
         @click="changeSelection" />
     </v-list-item-content>
   </v-list-item>
