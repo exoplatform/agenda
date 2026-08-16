@@ -1,6 +1,9 @@
 <template>
   <v-list dense>
-    <v-list-item class="agenda-calendar-settings px-0">
+    <!-- full (drawer) header: select-all, search and selection type filter.
+         In compact mode (left panel) no header line is displayed at all: the
+         panel shows only one row per calendar under its section title -->
+    <v-list-item v-if="!compact" class="agenda-calendar-settings px-0">
       <v-list-item-action class="me-2 ms-4">
         <v-checkbox
           v-model="selectAll"
@@ -51,6 +54,10 @@ export default {
     value: {
       type: [Array, Boolean],
       default: () => [],
+    },
+    compact: {
+      type: Boolean,
+      default: false,
     },
   },
   data: () => ({

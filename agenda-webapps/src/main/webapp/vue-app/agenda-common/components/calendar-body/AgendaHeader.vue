@@ -12,8 +12,12 @@
           :aria-label="$t('agenda.leftPanel.toggle')"
           class="my-auto me-2"
           icon
+          width="36"
+          height="36"
           @click="toggleLeftPanel">
-          <v-icon size="20">fa-bars</v-icon>
+          <v-icon size="20" class="text-light-color">
+            fa-bars
+          </v-icon>
         </v-btn>
         <agenda-create-event-button
           :current-space="currentSpace"

@@ -24,6 +24,7 @@
         ref="calendarList"
         :value="selectedOwnerIds"
         class="agenda-left-panel-calendars"
+        compact
         @input="changeSelection" />
     </section>
   </aside>
