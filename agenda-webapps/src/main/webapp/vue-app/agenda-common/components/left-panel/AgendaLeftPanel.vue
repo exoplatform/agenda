@@ -1,20 +1,22 @@
 <template>
   <aside class="agenda-left-panel border-box-sizing full-height d-flex flex-column">
-    <!-- section: My Calendars (EXO-89382 slot) -->
     <!--
-      Placeholder for the 'My Calendars' section: personal calendars coming from
-      remote connectors (EXO-89382). The connector contract that lists a user's
-      personal calendars does not exist yet, so this section is gated off and
-      renders nothing today. EXO-89382 should:
-        1. turn myCalendarsSectionAvailable into a real availability check,
-        2. replace the empty <section> content with the connector calendar list,
-        3. emit the selected calendar identifiers the same way the Spaces
-           section does (through the 'agenda-calendar-owners-changed' root
-           event) so Agenda.vue keeps a single selection path.
+      The calendars of a connected remote account. The section is mounted
+      whenever a connector could answer, but hides itself until one actually
+      does: whether an account holds any calendar is only known once it has
+      been asked, and an empty heading is worse than none.
     -->
     <section
-      v-if="myCalendarsSectionAvailable"
-      class="agenda-left-panel-section agenda-left-panel-my-calendars"></section>
+      v-show="myCalendarsSectionAvailable"
+      class="agenda-left-panel-section agenda-left-panel-my-calendars d-flex flex-column">
+      <div class="agenda-left-panel-title text-sub-title">
+        {{ $t('agenda.leftPanel.myCalendars') }}
+      </div>
+      <agenda-left-panel-remote-calendars
+        v-if="hasConnectors"
+        class="agenda-left-panel-calendars"
+        @availability="myCalendarsSectionAvailable = $event" />
+    </section>
     <!-- section: Spaces -->
     <section class="agenda-left-panel-section d-flex flex-column">
       <div class="agenda-left-panel-title text-sub-title">
@@ -44,17 +46,19 @@ export default {
   },
   data: () => ({
     calendarsLoaded: false,
+    myCalendarsSectionAvailable: false,
   }),
   computed: {
     /**
-     * Availability flag of the 'My Calendars' connector section. Always false
-     * until EXO-89382 delivers the connector calendar contract, so the slot
-     * renders nothing today.
+     * Whether any connector could list calendars at all, which decides only
+     * whether it is worth mounting the section and asking. Whether the section
+     * is then shown is the answer to that question, not a prediction of it.
      *
-     * @returns {boolean} false while EXO-89382 is not implemented
+     * @returns {Boolean} true when a signed-in connector implements the contract
      */
-    myCalendarsSectionAvailable() {
-      return false;
+    hasConnectors() {
+      const connectors = extensionRegistry.loadExtensions('agenda', 'connectors') || [];
+      return connectors.some(connector => connector && connector.canListCalendars && connector.isSignedIn);
     },
   },
   watch: {
