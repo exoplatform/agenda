@@ -32,18 +32,6 @@
         </v-list-item-content>
       </v-list-item>
     </v-list>
-    <!--
-      The calendar eXo writes to is deliberately absent from the list above —
-      it holds copies of events the agenda already shows. Absent and unnamed
-      would leave the user with no way to know where their accepted meetings
-      go, so it is stated here instead.
-    -->
-    <div
-      v-if="mirrorCalendarName"
-      class="agenda-left-panel-empty text-sub-title"
-      :title="mirrorCalendarName">
-      {{ $t('agenda.leftPanel.meetingsGoTo', {0: mirrorCalendarName}) }}
-    </div>
   </div>
 </template>
 
@@ -57,7 +45,6 @@ export default {
   },
   data: () => ({
     calendars: [],
-    mirrorCalendarName: null,
     hiddenIds: [],
     loading: false,
   }),
@@ -138,38 +125,7 @@ export default {
           })
       )).then(lists => {
         this.calendars = lists.flat();
-        this.retrieveMirrorCalendarName(connectors);
       }).finally(() => this.loading = false);
-    },
-    /**
-     * Reads the name of the calendar eXo writes its copies to, so the panel
-     * can say where accepted meetings go. Read from the connector's own list
-     * rather than kept in sync separately: the name is whatever the calendar
-     * is called now, even if the user renamed it in their own client.
-     *
-     * @param {Array} connectors the connectors that answered
-     * @returns {void}
-     */
-    retrieveMirrorCalendarName(connectors) {
-      const connector = connectors.find(c => typeof c.getMirrorCalendarId === 'function');
-      if (!connector) {
-        return;
-      }
-      Promise.resolve(connector.getMirrorCalendarId())
-        .then(mirrorId => {
-          if (!mirrorId) {
-            this.mirrorCalendarName = null;
-            return;
-          }
-          return connector.listCalendars()
-            .then(all => {
-              // compared as paths, not as raw strings: the stored href and the
-              // one the server enumerates can differ in host or percent-encoding
-              const mirror = (all || []).find(calendar => this.$remoteEventConnector.isSameCalendarHref(calendar.id, mirrorId));
-              this.mirrorCalendarName = mirror && mirror.name || null;
-            });
-        })
-        .catch(() => this.mirrorCalendarName = null);
     },
     /**
      * Whether a calendar's events are currently shown. Calendars are displayed

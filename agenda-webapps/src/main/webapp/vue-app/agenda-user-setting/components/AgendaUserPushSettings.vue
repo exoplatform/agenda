@@ -13,7 +13,7 @@
           a calendar of the connected account, and without saying which one a
           user has no way of knowing where their meetings went.
         -->
-        <div v-if="pushEnabled" class="text-subtitle mt-2">
+        <div v-if="pushEnabled && mirrorCapableConnector" class="text-subtitle mt-2">
           <template v-if="mirrorCalendarName">
             {{ $t('agenda.settings.pushEventsDestination', {0: mirrorCalendarName}) }}
           </template>
@@ -72,11 +72,31 @@ export default {
     /**
      * The connected connector able to push, if any.
      *
+     * Selected on `connected`, never on `isSignedIn`: several connectors
+     * declare isSignedIn as a static true — it says the connector needs no
+     * sign-in of its own, not that an account is attached — so picking on it
+     * returns a connector nobody connected, whose destination cannot be read
+     * and whose calendar step refuses to open.
+     *
      * @returns {Object} the connector, or null when none is connected
      */
     connectedConnector() {
-      return this.connectors
-        && this.connectors.find(connector => connector && connector.isSignedIn && connector.canPush) || null;
+      return (this.connectors || [])
+        .find(connector => connector && connector.connected && connector.canPush) || null;
+    },
+    /**
+     * The connected connector that can hold a destination calendar, which is
+     * not every pushing connector: the ones predating the mirror write to the
+     * account's first calendar and have nothing to configure.
+     *
+     * @returns {Object} the connector, or null when none can
+     */
+    mirrorCapableConnector() {
+      return (this.connectors || [])
+        .find(connector => connector
+          && connector.connected
+          && connector.canCreateCalendar
+          && typeof connector.getMirrorCalendarId === 'function') || null;
     },
   },
   watch: {
@@ -127,8 +147,8 @@ export default {
      * @returns {void}
      */
     retrieveDestination() {
-      const connector = this.connectedConnector;
-      if (!connector || typeof connector.getMirrorCalendarId !== 'function') {
+      const connector = this.mirrorCapableConnector;
+      if (!connector) {
         this.mirrorCalendarName = null;
         return;
       }
@@ -154,7 +174,7 @@ export default {
      * @returns {void}
      */
     configureDestination() {
-      this.$root.$emit('agenda-connector-mirror-calendar-open', this.connectedConnector);
+      this.$root.$emit('agenda-connector-mirror-calendar-open', this.mirrorCapableConnector);
     },
   },
 };
