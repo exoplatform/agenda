@@ -95,6 +95,14 @@
       :limit="limit" />
     <agenda-pending-invitation-drawer :current-space="currentSpace" />
     <agenda-connectors-drawer :connectors="connectors" />
+    <!--
+      Mounted here rather than inside the connectors drawer. exo-drawer renders
+      its content only when first opened, so a component living inside one does
+      not exist — and cannot listen for anything — until the user has opened
+      that drawer at least once. The event asking for this step fires straight
+      after connecting, when they have not, so the step was never offered.
+    -->
+    <agenda-connector-mirror-calendar-drawer />
   </v-app>
 </template>
 <script>
