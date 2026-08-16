@@ -14,18 +14,15 @@
           user has no way of knowing where their meetings went.
         -->
         <!--
-          Shown only once a destination exists: turning the switch on is what
-          asks for one, so there is no state where copying is on and this has
-          nothing to name.
+          Shown only once a destination exists, and stating it rather than
+          offering to change it: the step creates the calendar and has no
+          other choice to make, so a control here would promise one that does
+          not exist. Turning the switch off and on again is what reopens the
+          step, which is also how a calendar deleted from another client gets
+          made again.
         -->
         <div v-if="mirrorCalendarName" class="text-subtitle mt-2">
           {{ $t('agenda.settings.pushEventsDestination', {0: mirrorCalendarName}) }}
-          <a
-            class="ms-1"
-            href="#"
-            @click.prevent="configureDestination">
-            {{ $t('agenda.settings.pushEventsConfigure') }}
-          </a>
         </div>
       </v-list-item-subtitle>
     </v-list-item-content>
