@@ -128,6 +128,10 @@ export default {
       this.loading = true;
       Promise.all(connectors.map(connector =>
         connector.listCalendars()
+          // The calendar eXo writes its copies to is left out of the list: it
+          // holds nothing but duplicates of events the agenda already shows,
+          // so displaying it would double every meeting on the grid.
+          .then(calendars => this.$remoteEventConnector.excludeMirrorCalendar(connector, calendars))
           .catch(error => {
             console.error(`cannot list the calendars of ${connector.name}`, error);
             return [];
@@ -159,7 +163,9 @@ export default {
           }
           return connector.listCalendars()
             .then(all => {
-              const mirror = (all || []).find(calendar => calendar.id === mirrorId);
+              // compared as paths, not as raw strings: the stored href and the
+              // one the server enumerates can differ in host or percent-encoding
+              const mirror = (all || []).find(calendar => this.$remoteEventConnector.isSameCalendarHref(calendar.id, mirrorId));
               this.mirrorCalendarName = mirror && mirror.name || null;
             });
         })
