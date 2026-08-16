@@ -1,21 +1,30 @@
 <template>
   <aside class="agenda-left-panel border-box-sizing full-height d-flex flex-column">
     <!--
-      The calendars of a connected remote account. The section is mounted
-      whenever a connector could answer, but hides itself until one actually
-      does: whether an account holds any calendar is only known once it has
-      been asked, and an empty heading is worse than none.
+      The calendars of a connected remote account.
+      The section is shown whether or not an account is connected: it is how a
+      user discovers that connecting one is possible at all, and the button
+      beside the title is the same control the toolbar carries, so both lead to
+      the same drawer rather than to two ways of doing one thing.
     -->
     <section
-      v-show="myCalendarsSectionAvailable"
+      v-if="connectorsAvailable"
       class="agenda-left-panel-section agenda-left-panel-my-calendars d-flex flex-column">
       <div class="agenda-left-panel-title text-sub-title">
-        {{ $t('agenda.leftPanel.myCalendars') }}
+        <span class="flex-grow-1">{{ $t('agenda.leftPanel.myCalendars') }}</span>
+        <agenda-connect-to-remote-button
+          :connectors="connectors"
+          :settings="settings"
+          :show-default-remote-events="showDefaultRemoteEvents"
+          height="24"
+          width="24"
+          size="14"
+          class="flex-grow-0"
+          :show-toggle-action="false" />
       </div>
       <agenda-left-panel-remote-calendars
-        v-if="hasConnectors"
-        class="agenda-left-panel-calendars"
-        @availability="myCalendarsSectionAvailable = $event" />
+        :connectors="connectors"
+        class="agenda-left-panel-calendars" />
     </section>
     <!-- section: Spaces -->
     <section class="agenda-left-panel-section d-flex flex-column">
@@ -43,22 +52,35 @@ export default {
       type: Boolean,
       default: false,
     },
+    connectors: {
+      type: Array,
+      default: () => [],
+    },
+    settings: {
+      type: Object,
+      default: null,
+    },
+    showDefaultRemoteEvents: {
+      type: Boolean,
+      default: false,
+    },
   },
   data: () => ({
     calendarsLoaded: false,
-    myCalendarsSectionAvailable: false,
   }),
   computed: {
     /**
-     * Whether any connector could list calendars at all, which decides only
-     * whether it is worth mounting the section and asking. Whether the section
-     * is then shown is the answer to that question, not a prediction of it.
+     * Whether the remote calendar feature exists in this deployment at all,
+     * which is what decides if the section is worth showing. Not whether an
+     * account is connected: an empty section with a way to connect is how the
+     * feature is discovered, and hiding it means a user who has never
+     * connected never learns it is there.
      *
-     * @returns {Boolean} true when a signed-in connector implements the contract
+     * @returns {Boolean} true when a connector implements the calendar contract
      */
-    hasConnectors() {
+    connectorsAvailable() {
       const connectors = extensionRegistry.loadExtensions('agenda', 'connectors') || [];
-      return connectors.some(connector => connector && connector.canListCalendars && connector.isSignedIn);
+      return connectors.some(connector => connector && connector.canListCalendars);
     },
   },
   watch: {

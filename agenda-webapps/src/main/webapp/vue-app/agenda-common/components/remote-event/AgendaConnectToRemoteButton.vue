@@ -1,7 +1,7 @@
 <template>
   <div v-if="showButton" class="d-flex align-center">
     <v-btn
-      v-if="!connectedConnector"
+      v-if="!connectedConnector && showConnectAction"
       :title="$t('agenda.connectYourPersonalAgenda')"
       icon
       :max-width="width"
@@ -12,7 +12,7 @@
       </v-icon>
     </v-btn>
     <v-btn
-      v-else
+      v-else-if="connectedConnector && showToggleAction"
       :title="showDefaultRemoteEvents ? $t('agenda.hideRemoteEvents') : $t('agenda.showRemoteEvents')"
       icon
       :max-width="width"
@@ -52,13 +52,33 @@ export default {
       type: Boolean,
       default: false,
     },
+    showConnectAction: {
+      type: Boolean,
+      default: true,
+    },
+    showToggleAction: {
+      type: Boolean,
+      default: true,
+    },
   },
 
 
   computed: {
+    /**
+     * The two actions this button carries are distinct — connecting an account,
+     * and showing or hiding remote events once one is connected — and they do
+     * not belong in the same place. On a desktop personal agenda the left panel
+     * offers connecting, beside the calendars it would fill, so the toolbar
+     * shows only the toggle; where there is no panel the toolbar carries both.
+     *
+     * @returns {Boolean} true when this instance has something to render
+     */
     showButton() {
-      return this.connectors && this.connectors.length > 0;
-    }, 
+      if (!this.connectors || !this.connectors.length) {
+        return false;
+      }
+      return this.connectedConnector ? this.showToggleAction : this.showConnectAction;
+    },
     connectedConnector() {
       return this.connectors && this.connectors.find(connector => connector.connected);
     },

@@ -16,7 +16,7 @@
           height="36"
           @click="toggleLeftPanel">
           <v-icon size="20" class="text-light-color">
-            fa-bars
+            fas fa-calendar-alt
           </v-icon>
         </v-btn>
         <agenda-create-event-button
@@ -52,7 +52,9 @@
         height="36"
         width="36"
         size="20"
-        :show-default-remote-events="showDefaultRemoteEvents" />
+        :show-default-remote-events="showDefaultRemoteEvents"
+        :show-connect-action="!leftPanelCarriesConnect"
+        :show-toggle-action="!leftPanelCarriesConnect" />
       <agenda-switch-view :calendar-type="calendarType" v-if="!$root.isMobile" />
       <agenda-calendar-filter-button />
     </template>
@@ -140,6 +142,20 @@ export default {
     },
   },
   computed: {
+    /**
+     * Whether the left panel is carrying the remote-calendar controls, in
+     * which case the toolbar shows none of them: connecting is offered beside
+     * the calendars it fills, and hiding calendars is done per calendar there
+     * rather than all at once here. The panel exists only on a desktop
+     * personal agenda, so on mobile and inside a space agenda the toolbar
+     * remains the only place for both.
+     *
+     * @returns {Boolean} true when the left panel carries these controls
+     */
+    leftPanelCarriesConnect() {
+      return !this.$root.isMobile && !eXo.env.portal.spaceId;
+    },
+
     /**
      * Whether the left panel toggle button is displayed: desktop only, and
      * only where the left panel itself is available (personal agenda, not

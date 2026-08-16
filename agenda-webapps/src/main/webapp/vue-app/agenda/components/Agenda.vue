@@ -30,7 +30,10 @@
             class="agenda-left-panel-column flex-grow-0 flex-shrink-0">
             <agenda-left-panel
               :selected-owner-ids="ownerIds"
-              :expanded="displayLeftPanel" />
+              :expanded="displayLeftPanel"
+              :connectors="enabledConnectors"
+              :settings="settings"
+              :show-default-remote-events="settings && settings.showRemoteEventsForAgenda" />
           </v-col>
           <v-col class="agenda-body-column">
             <agenda-body
@@ -127,6 +130,7 @@ export default {
     },
     events: [],
     remoteEvents: [],
+    hiddenRemoteCalendarIds: [],
     displayedEvent: [],
     settings: {
       agendaDefaultView: 'week',
@@ -274,6 +278,7 @@ export default {
     this.spaceId = eXo.env.portal.spaceId;
     this.$root.$on('agenda-calendar-owners-changed', this.changeDisplayedOwnerIds);
     this.$root.$on('agenda-left-panel-toggle', this.toggleLeftPanel);
+    this.$root.$on('agenda-remote-calendars-changed', this.changeHiddenRemoteCalendars);
     this.$root.$on('agenda-settings-refresh', this.initSettings);
     this.$root.$on('agenda-event-change-owner', this.refreshProviders);
     this.$root.$on('agenda-show-remote-change', this.showRemoteEvents);
@@ -310,7 +315,8 @@ export default {
     updateDisplayedEvents() {
       if (this.settings.showRemoteEventsForAgenda) {
         // Avoid to have same event from remote and local store (pushed events from local store)
-        const filtered = this.filterRemoteEvents(this.events, this.remoteEvents);
+        const filtered = this.filterRemoteEvents(this.events, this.remoteEvents)
+          .filter(remote => !this.hiddenRemoteCalendarIds.includes(remote.calendarId));
         const merged = [...this.events, ...filtered];
         merged.sort((a, b) => {
           const s1 = this.$agendaUtils.toDate(a.start || a.startDate).getTime();
@@ -491,6 +497,19 @@ export default {
       } else {
         this.remoteEvents = [];
       }
+    },
+    /**
+     * Records which remote calendars the user has hidden in the left panel and
+     * redraws the grid, so unchecking one takes its events off the calendar
+     * without asking the server again — the events are already in hand, only
+     * the choice of what to show has changed.
+     *
+     * @param {Array} hiddenRemoteCalendarIds identifiers of the calendars to hide
+     * @returns {void}
+     */
+    changeHiddenRemoteCalendars(hiddenRemoteCalendarIds) {
+      this.hiddenRemoteCalendarIds = hiddenRemoteCalendarIds || [];
+      this.updateDisplayedEvents();
     },
     filterRemoteEvents(localEvents, remoteEvents) {
       return remoteEvents.filter(remote => {

@@ -7,6 +7,11 @@
         width="2"
         indeterminate />
     </div>
+    <div
+      v-else-if="!calendars.length"
+      class="agenda-left-panel-empty text-sub-title">
+      {{ emptyLabel }}
+    </div>
     <v-list
       v-else
       class="pa-0"
@@ -32,11 +37,60 @@
 
 <script>
 export default {
+  props: {
+    connectors: {
+      type: Array,
+      default: () => [],
+    },
+  },
   data: () => ({
     calendars: [],
     hiddenIds: [],
     loading: false,
   }),
+  computed: {
+    /**
+     * The connectors that are connected and able to list calendars.
+     *
+     * `connected` is the runtime state and is what decides. `isSignedIn` is a
+     * static property on the CalDAV descriptor, always true whether or not an
+     * account is configured, so gating on it alone meant the section kept
+     * asking after the user had disconnected — and the request went out with a
+     * null username, drawing the browser's own credentials prompt over the
+     * agenda.
+     *
+     * @returns {Array} the connectors worth asking
+     */
+    connectedConnectors() {
+      return (this.connectors || []).filter(connector => connector
+          && connector.canListCalendars
+          && connector.connected
+          && typeof connector.listCalendars === 'function');
+    },
+    /**
+     * What to say when there is nothing to list, which is two different
+     * situations and should not read as one. No account connected is an
+     * invitation to connect one; an account holding no calendar is a statement
+     * of fact about that account.
+     *
+     * @returns {String} the message for the current empty case
+     */
+    emptyLabel() {
+      return this.connectedConnectors.length
+        ? this.$t('agenda.leftPanel.noRemoteCalendar')
+        : this.$t('agenda.leftPanel.notConnected');
+    },
+  },
+  watch: {
+    /**
+     * Reacts to an account being connected or disconnected while the agenda is
+     * open, so the list fills or empties without a reload.
+     * @returns {void}
+     */
+    connectedConnectors() {
+      this.retrieveCalendars();
+    },
+  },
   created() {
     this.retrieveCalendars();
   },
@@ -53,9 +107,9 @@ export default {
      * @returns {void}
      */
     retrieveCalendars() {
-      const connectors = this.connectedConnectors();
+      const connectors = this.connectedConnectors;
       if (!connectors.length) {
-        this.$emit('availability', false);
+        this.calendars = [];
         return;
       }
       this.loading = true;
@@ -67,24 +121,7 @@ export default {
           })
       )).then(lists => {
         this.calendars = lists.flat();
-        this.$emit('availability', this.calendars.length > 0);
       }).finally(() => this.loading = false);
-    },
-    /**
-     * The connectors that are connected, enabled and able to list calendars.
-     *
-     * Read through the bare extensionRegistry rather than through
-     * window.extensionRegistry, which is undefined: reaching for it yields an
-     * empty list and a section that silently never appears.
-     *
-     * @returns {Array} the connectors worth asking
-     */
-    connectedConnectors() {
-      const connectors = extensionRegistry.loadExtensions('agenda', 'connectors') || [];
-      return connectors.filter(connector => connector
-          && connector.canListCalendars
-          && connector.isSignedIn
-          && typeof connector.listCalendars === 'function');
     },
     /**
      * Whether a calendar's events are currently shown. Calendars are displayed
