@@ -19,54 +19,23 @@
           text>
           {{ $t('agenda.mirrorCalendar.creationRefused') }}
         </v-alert>
-        <div class="radio-group-container mt-2 ms-n1">
-          <v-radio-group v-model="mode">
-            <v-radio
-              :disabled="creationRefused"
-              value="create">
-              <template #label>
-                <span class="d-flex align-center">
-                  <v-icon
-                    :color="calendarColor"
-                    size="16"
-                    class="me-2">
-                    fa-circle
-                  </v-icon>
-                  {{ $t('agenda.mirrorCalendar.createChoice', {0: calendarName}) }}
-                </span>
-              </template>
-            </v-radio>
-            <v-radio
-              :disabled="!canPickExisting"
-              :label="$t('agenda.mirrorCalendar.pickChoice')"
-              value="existing" />
-          </v-radio-group>
-        </div>
-        <div v-if="mode === 'existing'" class="agenda-mirror-calendar-choices ms-8">
-          <v-progress-circular
-            v-if="loadingCalendars"
-            color="primary"
-            size="20"
-            width="2"
-            indeterminate />
-          <v-radio-group v-else v-model="selectedCalendarId">
-            <v-radio
-              v-for="calendar in calendars"
-              :key="calendar.id"
-              :value="calendar.id">
-              <template #label>
-                <span class="d-flex align-center text-truncate">
-                  <v-icon
-                    :color="calendar.color"
-                    size="16"
-                    class="me-2">
-                    fa-circle
-                  </v-icon>
-                  {{ calendar.name }}
-                </span>
-              </template>
-            </v-radio>
-          </v-radio-group>
+        <!--
+          Creating is the only offer. Pointing the mirror at a calendar the
+          user already keeps would push eXo's copies into it and then read them
+          back for display, showing every accepted meeting twice — once as the
+          space event, once as its own copy. Excluding that calendar from the
+          agenda instead would make a calendar they rely on quietly disappear.
+          Neither is something to hand a user who is picking from a list, and
+          most would reach for their work calendar without suspecting either.
+        -->
+        <div class="agenda-mirror-calendar-choice mt-4">
+          <v-icon
+            :color="calendarColor"
+            size="16"
+            class="me-2">
+            fa-circle
+          </v-icon>
+          <span class="font-weight-bold">{{ $t('agenda.mirrorCalendar.createChoice', {0: calendarName}) }}</span>
         </div>
       </div>
     </template>
@@ -94,11 +63,8 @@
 export default {
   data: () => ({
     connector: null,
-    mode: 'create',
     creationRefused: false,
     calendars: [],
-    selectedCalendarId: null,
-    loadingCalendars: false,
     saving: false,
     companyName: eXo.env.portal.companyName || '',
     calendarColor: '',
@@ -117,22 +83,14 @@ export default {
       return this.$t('agenda.mirrorCalendar.name', {0: this.companyName});
     },
     /**
-     * Whether the existing-calendar choice can be offered: only when the
-     * connector can enumerate calendars and the account holds at least one.
+     * Whether the apply button should be active. It is not once the server has
+     * refused to create the calendar: there is nothing left to apply, and the
+     * message explains where meetings will go instead.
      *
-     * @returns {Boolean} true when picking an existing calendar is possible
-     */
-    canPickExisting() {
-      return this.calendars.length > 0;
-    },
-    /**
-     * Whether the apply button should be active: always for a creation, only
-     * once a calendar is chosen for the existing-calendar path.
-     *
-     * @returns {Boolean} true when the current choice can be applied
+     * @returns {Boolean} true when the creation can still be applied
      */
     canApply() {
-      return this.mode === 'create' && !this.creationRefused || !!this.selectedCalendarId;
+      return !this.creationRefused;
     },
   },
   created() {
@@ -155,12 +113,8 @@ export default {
         return;
       }
       this.connector = connector;
-      this.mode = 'create';
       this.creationRefused = false;
-      this.selectedCalendarId = null;
-      this.calendars = [];
       this.retrieveBranding();
-      this.retrieveCalendars();
       if (this.$refs.mirrorCalendarDrawer) {
         this.$refs.mirrorCalendarDrawer.open();
       }
@@ -193,40 +147,17 @@ export default {
         });
     },
     /**
-     * Loads the calendars of the connected account for the existing-calendar
-     * choice, through the connector when it can enumerate them. The stored
-     * mirror, when one exists, is kept out of the list — it only holds copies
-     * of events eXo already displays.
-     *
-     * @returns {Promise} resolves once the list is loaded
-     */
-    retrieveCalendars() {
-      if (typeof this.connector.listCalendars !== 'function') {
-        return Promise.resolve();
-      }
-      this.loadingCalendars = true;
-      return this.connector.listCalendars()
-        .then(calendars => this.$remoteEventConnector.excludeMirrorCalendar(this.connector, calendars || []))
-        .then(calendars => this.calendars = calendars.filter(calendar => !calendar.readOnly))
-        .catch(error => console.error('cannot list the calendars of the connected account', error))
-        .finally(() => this.loadingCalendars = false);
-    },
-    /**
-     * Applies the choice of the user: creates the branded mirror calendar, or
-     * stores the href of the calendar the user designated.
+     * Creates the branded calendar that will receive the meetings eXo pushes.
      *
      * @returns {Promise} resolves once the mirror destination is stored
      */
     apply() {
       this.saving = true;
-      const outcome = this.mode === 'create'
-        ? this.connector.createCalendar({
-          name: this.calendarName,
-          color: this.calendarColor,
-          description: this.$t('agenda.mirrorCalendar.description', {0: this.companyName}),
-        })
-        : this.connector.setMirrorCalendar(this.selectedCalendarId);
-      return outcome
+      return this.connector.createCalendar({
+        name: this.calendarName,
+        color: this.calendarColor,
+        description: this.$t('agenda.mirrorCalendar.description', {0: this.companyName}),
+      })
         .then(() => {
           this.close();
           this.$root.$emit('alert-message', this.$t('agenda.mirrorCalendar.saved'), 'success');
@@ -235,10 +166,11 @@ export default {
         .finally(() => this.saving = false);
     },
     /**
-     * Handles a failed apply. A server refusing MKCALENDAR is not an eXo
-     * error: it is explained here, at connect time, and the flow falls back
-     * to choosing an existing calendar instead of failing at first push. Any
-     * other failure is reported as an error.
+     * Handles a failed apply. A server refusing to create a calendar is not
+     * an eXo error: it is explained here, at connect time, rather than
+     * failing silently at the first push. Meetings then go to the account's
+     * first calendar, which is what the connector does without a stored
+     * destination. Any other failure is reported as an error.
      *
      * @param {Object} error the failure raised by the connector
      * @returns {void}
@@ -246,10 +178,6 @@ export default {
     handleFailure(error) {
       if (error && error.calendarCreationRefused) {
         this.creationRefused = true;
-        this.mode = this.canPickExisting && 'existing' || 'create';
-        if (!this.canPickExisting) {
-          this.$root.$emit('alert-message', this.$t('agenda.mirrorCalendar.noUsableCalendar'), 'error');
-        }
       } else {
         console.error('cannot configure the mirror calendar', error);
         this.$root.$emit('alert-message', this.$t('agenda.mirrorCalendar.saveError'), 'error');

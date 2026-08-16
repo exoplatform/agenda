@@ -1073,6 +1073,14 @@
 }
 
 .agendaMirrorCalendarDrawer {
+  /* laid out here rather than with the d-flex/align-center utilities: in this
+     skin align-center also sets text-align, which centred the label */
+  .agenda-mirror-calendar-choice {
+    display: flex;
+    align-items: center;
+    text-align: start;
+  }
+
   .agenda-mirror-calendar-choices {
     max-height: 320px;
     overflow-y: auto;
