@@ -20,7 +20,8 @@
           width="24"
           size="14"
           class="flex-grow-0"
-          :show-toggle-action="false" />
+          :show-toggle-action="false"
+          :show-manage-action="true" />
       </div>
       <agenda-left-panel-remote-calendars
         :connectors="connectors"

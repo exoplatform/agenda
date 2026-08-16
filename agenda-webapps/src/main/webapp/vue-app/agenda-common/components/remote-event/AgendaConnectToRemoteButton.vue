@@ -12,6 +12,17 @@
       </v-icon>
     </v-btn>
     <v-btn
+      v-else-if="connectedConnector && showManageAction"
+      :title="$t('agenda.manageYourPersonalAgenda')"
+      icon
+      :max-width="width"
+      :max-height="height"
+      @click="openPersonalCalendarDrawer">
+      <v-icon :size="size" class="text-light-color">
+        fas fa-plug
+      </v-icon>
+    </v-btn>
+    <v-btn
       v-else-if="connectedConnector && showToggleAction"
       :title="showDefaultRemoteEvents ? $t('agenda.hideRemoteEvents') : $t('agenda.showRemoteEvents')"
       icon
@@ -60,6 +71,10 @@ export default {
       type: Boolean,
       default: true,
     },
+    showManageAction: {
+      type: Boolean,
+      default: false,
+    },
   },
 
 
@@ -77,7 +92,10 @@ export default {
       if (!this.connectors || !this.connectors.length) {
         return false;
       }
-      return this.connectedConnector ? this.showToggleAction : this.showConnectAction;
+      if (this.connectedConnector) {
+        return this.showToggleAction || this.showManageAction;
+      }
+      return this.showConnectAction;
     },
     connectedConnector() {
       return this.connectors && this.connectors.find(connector => connector.connected);
