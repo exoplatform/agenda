@@ -133,7 +133,14 @@ export default {
           this.$set(connector, 'isSignedIn', false);
           this.$set(connector, 'connected', false);
           this.$set(connector, 'user', null);
-          this.$set(connector, 'canPush', false);
+          // canPush is deliberately left alone. It says the connector is able
+          // to copy events, which stays true of the connector whether or not
+          // an account is attached — and the connectors are the shared
+          // objects the registry hands out, so clearing it here turned the
+          // ability off for the rest of the page's life. Disconnecting once
+          // then stopped every later push, reconnecting did not bring it
+          // back, and only a reload did. Whether to copy anything is already
+          // decided by there being a connected connector at all.
           this.$root.$emit('agenda-settings-refresh');
           this.refreshConnectorsList();
         })
