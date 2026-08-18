@@ -2,7 +2,8 @@
   <exo-drawer
     ref="mirrorCalendarDrawer"
     class="agendaMirrorCalendarDrawer"
-    right>
+    right
+    @closed="announceOutcome">
     <template slot="title">
       {{ $t('agenda.mirrorCalendar.title') }}
     </template>
@@ -66,6 +67,7 @@ export default {
     creationRefused: false,
     calendars: [],
     saving: false,
+    applied: false,
     companyName: eXo.env.portal.companyName || '',
     calendarColor: '',
   }),
@@ -114,6 +116,7 @@ export default {
       }
       this.connector = connector;
       this.creationRefused = false;
+      this.applied = false;
       this.retrieveBranding();
       if (this.$refs.mirrorCalendarDrawer) {
         this.$refs.mirrorCalendarDrawer.open();
@@ -127,6 +130,18 @@ export default {
     close() {
       if (this.$refs.mirrorCalendarDrawer) {
         this.$refs.mirrorCalendarDrawer.close();
+      }
+    },
+    /**
+     * Says how the step ended, once the drawer has actually closed. A caller
+     * that turned something on to open it — the push switch in the user
+     * settings — has to know that the user backed out, so it can put itself
+     * back rather than claim a destination that was never chosen.
+     * @returns {void}
+     */
+    announceOutcome() {
+      if (!this.applied) {
+        this.$root.$emit('agenda-connector-mirror-calendar-cancelled');
       }
     },
     /**
@@ -159,6 +174,7 @@ export default {
         description: this.$t('agenda.mirrorCalendar.description', {0: this.companyName}),
       })
         .then(() => {
+          this.applied = true;
           this.close();
           this.$root.$emit('agenda-connector-mirror-calendar-done');
           this.$root.$emit('alert-message', this.$t('agenda.mirrorCalendar.saved', {0: this.calendarName}), 'success');
