@@ -33,6 +33,7 @@
               :expanded="displayLeftPanel"
               :connectors="enabledConnectors"
               :settings="settings"
+              :period="period"
               :show-default-remote-events="settings && settings.showRemoteEventsForAgenda" />
           </v-col>
           <v-col class="agenda-body-column">
