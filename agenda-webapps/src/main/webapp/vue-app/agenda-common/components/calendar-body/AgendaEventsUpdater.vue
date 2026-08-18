@@ -14,7 +14,8 @@ export default {
       default: null
     },
     ownerIds: {
-      type: Array,
+      // false means 'no calendar selected'
+      type: [Array, Boolean],
       default: () => null,
     },
     events: {
