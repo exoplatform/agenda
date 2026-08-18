@@ -1,9 +1,9 @@
 <template>
   <div class="connector-status">
     <div v-if="connectedConnectorUser" class="connector-connected d-flex">
-      <v-avatar tile size="24">
-        <img :src="connectedConnectorAvatar">
-      </v-avatar>
+      <agenda-connector-avatar
+        :connector="connectedConnector"
+        size="24" />
       <a
         class="mx-2 my-auto"
         @click="openPersonalCalendarDrawer">
@@ -37,9 +37,6 @@ export default {
     },
     connectedConnectorUser() {
       return this.connectedConnector && this.connectedConnector.user || '';
-    },
-    connectedConnectorAvatar() {
-      return this.connectedConnector && this.connectedConnector.avatar || '';
     },
   },
   methods: {

@@ -12,12 +12,10 @@
       {{ remoteEvent.summary }}
     </p>
     <template v-if="!displayEventDate">
-      <v-avatar
+      <agenda-connector-avatar
+        :connector="connector"
         class="me-1 my-auto"
-        tile
-        size="16">
-        <img :src="avatar">
-      </v-avatar>
+        size="16" />
     </template>
     <div v-if="displayEventDate" class="d-flex">
       <date-format
@@ -31,13 +29,11 @@
         :format="timeFormat"
         :class="textClass"
         class="v-event-draggable me-2" />
-      <v-avatar
+      <agenda-connector-avatar
         v-if="!currentEvent"
-        tile
+        :connector="connector"
         class="white ms-auto me-1"
-        size="16">
-        <img :src="avatar">
-      </v-avatar>
+        size="16" />
     </div>
   </div>
 </template>
@@ -53,9 +49,9 @@ export default {
       type: Object,
       default: () => null
     },
-    avatar: {
-      type: String,
-      default: ''
+    connector: {
+      type: Object,
+      default: null
     },
     isEventsList: {
       type: Boolean,

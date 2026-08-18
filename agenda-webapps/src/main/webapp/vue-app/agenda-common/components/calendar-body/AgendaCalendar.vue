@@ -77,7 +77,7 @@
       <agenda-connector-remote-event-item
         v-else
         :remote-event="event"
-        :avatar="connectedConnectorAvatar"
+        :connector="connectedConnector"
         :style="{borderLeft: `5px solid ${getEventBorderColor(event)}`}" />
       <div
         v-if="timed && canEdit(event)"
@@ -114,8 +114,8 @@ export default {
       type: Object,
       default: () => null
     },
-    connectedConnectorAvatar: {
-      type: String,
+    connectedConnector: {
+      type: Object,
       default: null
     },
   },
