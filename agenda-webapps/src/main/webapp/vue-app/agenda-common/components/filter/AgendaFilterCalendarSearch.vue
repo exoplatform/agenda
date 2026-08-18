@@ -14,8 +14,8 @@
 export default {
   props: {
     value: {
-      type: Array,
-      default: () => [],
+      type: String,
+      default: null,
     },
   },
   data: () => ({
@@ -45,6 +45,11 @@ export default {
     },
   },
   methods: {
+    /**
+     * Debounces the keyword typing: the query is emitted to the parent only
+     * once the user stopped typing for a while.
+     * @returns {void}
+     */
     waitForEndTyping() {
       window.setTimeout(() => {
         if (Date.now() - this.startTypingKeywordTimeout > this.startSearchAfterInMilliseconds) {
