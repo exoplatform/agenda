@@ -1,11 +1,82 @@
 import {getEventExceptionalOccurrences, updateEventFields, createEvent} from './EventService.js';
 
+/**
+ * Removes an event from the remote account behind a connector.
+ *
+ * @param {Object} connector the connected connector
+ * @param {Object} event the eXo event whose remote copy must go
+ * @param {Boolean} allRecurrentEvent whether the whole recurrent series is meant
+ * @returns {Promise} resolves once the remote copy is removed
+ */
 export function removeEventFromConnector(connector, event, allRecurrentEvent) {
   return modifyEventOnConnector(connector, event, allRecurrentEvent, true);
 }
 
+/**
+ * Pushes an event to the remote account behind a connector.
+ *
+ * @param {Object} connector the connected connector
+ * @param {Object} event the eXo event to push
+ * @param {Boolean} allRecurrentEvent whether the whole recurrent series is meant
+ * @returns {Promise} resolves once the remote copy is written
+ */
 export function pushEventToConnector(connector, event, allRecurrentEvent) {
   return modifyEventOnConnector(connector, event, allRecurrentEvent, false);
+}
+
+/**
+ * Filters the mirror calendar of a connector out of a calendar list. The
+ * mirror only holds copies of meetings eXo already displays, so listing it —
+ * in the left panel, in a picker — would render every accepted meeting
+ * twice.
+ *
+ * The comparison is made on the href, never the display name: a user
+ * renaming the mirror in their own client must not bring it back, and
+ * nothing stops two collections sharing a name. Hrefs are compared as
+ * decoded paths, so an encoding difference (%40 versus @) or a changed host
+ * never breaks the match. A connector that exposes no mirror leaves the list
+ * untouched.
+ *
+ * @param {Object} connector the connector the calendars came from
+ * @param {Array} calendars the calendars to filter
+ * @returns {Promise<Array>} the calendars without the mirror
+ */
+export function excludeMirrorCalendar(connector, calendars) {
+  if (!connector || typeof connector.getMirrorCalendarId !== 'function' || !calendars || !calendars.length) {
+    return Promise.resolve(calendars || []);
+  }
+  return connector.getMirrorCalendarId()
+    .then(mirrorCalendarId => mirrorCalendarId
+      && calendars.filter(calendar => !isSameCalendarHref(calendar.id, mirrorCalendarId))
+      || calendars)
+    .catch(() => calendars);
+}
+
+/**
+ * Whether two hrefs designate the same calendar collection, compared as
+ * decoded, slash-trimmed paths.
+ *
+ * @param {String} firstHref first collection href
+ * @param {String} secondHref second collection href
+ * @returns {Boolean} true when both point at the same collection
+ */
+function isSameCalendarHref(firstHref, secondHref) {
+  return !!firstHref && !!secondHref && calendarHrefPath(firstHref) === calendarHrefPath(secondHref);
+}
+
+/**
+ * The decoded path of a collection href, without a trailing slash — the part
+ * that identifies the collection regardless of host or percent-encoding.
+ *
+ * @param {String} href collection URL or href
+ * @returns {String} its decoded, slash-trimmed path
+ */
+function calendarHrefPath(href) {
+  try {
+    return decodeURIComponent(new URL(href, window.location.origin).pathname).replace(/\/+$/, '');
+  } catch (e) {
+    return href;
+  }
 }
 
 function modifyEventOnConnector(connector, event, allRecurrentEvent, deleteEvent) {

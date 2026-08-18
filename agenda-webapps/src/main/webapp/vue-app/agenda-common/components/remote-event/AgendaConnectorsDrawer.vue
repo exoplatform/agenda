@@ -122,6 +122,10 @@ export default {
   },
   created() {
     this.$root.$on('agenda-connectors-drawer-open', this.open);
+    // The calendar step opens on top of this drawer and is the last thing the
+    // user does when connecting; once it is done there is nothing left here to
+    // come back to, so this closes with it rather than being revealed again.
+    this.$root.$on('agenda-connector-mirror-calendar-done', this.close);
     this.$root.$on('agenda-connector-connected', () => {
       // Avoiding closing the drawer automatically
       // when the user didn't pressed the connect button
