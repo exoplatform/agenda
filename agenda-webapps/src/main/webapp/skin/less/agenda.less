@@ -1001,6 +1001,55 @@
     border-right: 1px solid #e1e8ee;
     padding-top: 12px;
 
+    /* Mini month calendar. Vuetify's stock picker is sized for a dialog: a
+       fixed 242px table and 32px day buttons, both too large for a 220px
+       column where a cell is ~27px wide. Compacted here rather than scaled
+       with a transform, which would blur the text. */
+    .agenda-left-panel-mini-calendar {
+      padding: 0 4px;
+      margin-bottom: 16px;
+
+      /* the picker sits on the panel's own surface, not on a card */
+      &.v-picker,
+      .v-picker__body {
+        background: transparent;
+      }
+
+      .v-date-picker-header {
+        padding: 0 4px;
+
+        /* month label at the same size and weight as the section captions */
+        .v-date-picker-header__value button {
+          font-size: 13px;
+          font-weight: 500;
+          padding: 4px;
+        }
+
+        .v-btn {
+          width: 24px;
+          height: 24px;
+        }
+      }
+
+      .v-date-picker-table {
+        /* stock height is a fixed 242px, which leaves a gap under months
+           laid out over five rows */
+        height: auto;
+        padding: 0;
+
+        th {
+          padding: 4px 0;
+          font-size: 11px;
+        }
+
+        &--date .v-btn {
+          width: 26px;
+          height: 26px;
+          font-size: 11px;
+        }
+      }
+    }
+
     /* Sections read as separate groups rather than one long list.
        The gap belongs below My Calendars rather than above Spaces: that
        section is hidden with v-show when no remote account is connected, and
@@ -1035,7 +1084,9 @@
     .agenda-left-panel-calendars {
       /* horizontal padding applied once here: rows carry no own indent */
       padding: 0 16px;
-      max-height: ~"calc(100vh - 280px)";
+      /* the constant covers the page chrome above the panel plus the mini
+         calendar (~200px) that now sits over the sections */
+      max-height: ~"calc(100vh - 480px)";
       overflow-y: auto;
 
       /* dense rows: ~32px high, no per-row indent on top of the panel's */
