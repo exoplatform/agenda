@@ -3,9 +3,21 @@
     <v-card class="application-body" flat>
       <v-list two-line>
         <agenda-user-general-settings :settings="settings" />
-        <agenda-user-connector-settings :settings="settings" />
+        <agenda-user-connector-settings
+          :settings="settings"
+          @connectors-loaded="connectors = $event" />
+        <agenda-user-push-settings
+          :settings="settings"
+          :connectors="connectors" />
       </v-list>
     </v-card>
+    <!--
+      The step that creates the calendar receiving the copies. Mounted here
+      rather than inside the connector row: connecting from this page used to
+      have nowhere to offer it, so the account was created and the destination
+      never asked for.
+    -->
+    <agenda-connector-mirror-calendar-drawer />
   </v-app>
 </template>
 
@@ -13,6 +25,7 @@
 export default {
   data: () => ({
     displayed: true,
+    connectors: [],
     settings: {
       agendaDefaultView: 'week',
       agendaWeekStartOn: 'MO',
