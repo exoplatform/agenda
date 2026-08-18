@@ -140,7 +140,11 @@ export default {
   },
   methods: {
     refreshConnectorsList() {
-      const connectors = extensionRegistry.loadExtensions('agenda', 'connectors') || [];
+      // Multi-instance connectors (CalDAV servers) are managed in their own
+      // admin section, one row per declared server: this table keeps the
+      // single-instance OAuth connectors only.
+      const connectors = (extensionRegistry.loadExtensions('agenda', 'connectors') || [])
+        .filter(connector => !connector.multiInstance);
       if (this.settings && this.settings.remoteProviders) {
         //in case of a new connector is added.
         connectors.forEach(connector => {
