@@ -16,8 +16,22 @@
             v-for="connector in enabledConnectors"
             :key="connector.name">
             <v-list-item-avatar class="rounded-0">
+              <!-- The identity the administrator configured, in its order of
+                   precedence: an uploaded image renders through `avatar` (the
+                   descriptor points it at the image), a chosen font icon
+                   renders as an icon, and a connector carrying neither keeps
+                   its packaged default avatar. -->
               <v-avatar tile size="40">
-                <img :src="connector.avatar">
+                <v-icon
+                  v-if="connector.icon && !connector.imageUrl"
+                  size="30"
+                  class="icon-default-color">
+                  {{ connector.icon }}
+                </v-icon>
+                <img
+                  v-else
+                  :src="connector.avatar"
+                  :alt="connector.name">
               </v-avatar>
             </v-list-item-avatar>
             <v-list-item-content>
