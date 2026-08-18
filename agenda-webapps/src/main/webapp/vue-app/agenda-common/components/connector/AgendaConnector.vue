@@ -1,4 +1,15 @@
 <script>
+// How long a reported copy failure keeps the next ones quiet. One user
+// gesture rarely produces one copy: a recurring series pushes its parent and
+// each of its exceptional occurrences separately, and answering or deleting
+// several meetings in a row fires one push per meeting. When the account is
+// unreachable or its password was refused, every one of those fails for the
+// very same reason, and a message per failure would bury the one fact worth
+// reading under a column of identical toasts. Long enough to cover the burst
+// a single gesture produces, short enough that a failure the user provokes
+// again later is told again.
+const COPY_FAILURE_QUIET_PERIOD_MS = 10000;
+
 export default {
   props: {
     settings: {
@@ -22,6 +33,7 @@ export default {
   },
   data: () => ({
     loading: false,
+    copyFailureAnnouncedAt: 0,
   }),
   computed: {
     remoteProviders() {
@@ -224,9 +236,21 @@ export default {
 
       this.refreshConnectorsList();
     },
+    /**
+     * Removes the copy of a deleted event from the connected calendar.
+     *
+     * The removal is reported when it fails, because its failure is the one
+     * the user cannot see: the meeting is gone from the agenda, so nothing on
+     * screen suggests a copy of it is still standing on their phone, at a time
+     * they are no longer expected anywhere.
+     *
+     * @param {Object} event the deleted event whose copy must go
+     * @returns {Promise} resolves once the removal has been attempted
+     */
     deleteEvent(event) {
       if (this.settings && this.settings.automaticPushEvents && this.connectedConnector && this.connectedConnector.canPush) {
         return this.$remoteEventConnector.removeEventFromConnector(this.connectedConnector, event, !!event.recurrence)
+          .catch(error => this.announceCopyFailure(error, true))
           .finally(() => this.$root.$emit('agenda-refresh'));
       }
     },
@@ -257,6 +281,21 @@ export default {
         this.pushEventResponse(event, null, userAttendee && userAttendee.response || organizer && 'ACCEPTED' || null);
       }
     },
+    /**
+     * Writes the user's answer to the connected calendar: an accepted meeting
+     * is copied there, any other answer takes the copy away.
+     *
+     * Both outcomes are reported when they fail. The copy is the whole point
+     * of the feature and the user has no way of noticing it did not happen —
+     * the agenda shows the meeting either way, and the calendar that missed it
+     * is on another device. Silence here is what let a switch stay on for days
+     * while nothing was reaching the account behind it.
+     *
+     * @param {Object} event the event answered
+     * @param {String} occurrenceId the occurrence answered, when only one was
+     * @param {String} eventResponse the answer given
+     * @returns {Promise} resolves once the copy has been written or removed
+     */
     pushEventResponse(event, occurrenceId, eventResponse) {
       if (event && eventResponse && this.settings && this.settings.automaticPushEvents && this.connectedConnector && this.connectedConnector.canPush) {
         event.start = this.$agendaUtils.toRFC3339(event.start);
@@ -264,12 +303,62 @@ export default {
 
         if (eventResponse.toLowerCase()  === 'accepted') {
           return this.$remoteEventConnector.pushEventToConnector(this.connectedConnector, event, !!event.recurrence)
+            .catch(error => this.announceCopyFailure(error, false))
             .finally(() => this.$root.$emit('agenda-refresh'));
         } else {
           return this.$remoteEventConnector.removeEventFromConnector(this.connectedConnector, event, !!event.recurrence)
+            .catch(error => this.announceCopyFailure(error, true))
             .finally(() => this.$root.$emit('agenda-refresh'));
         }
       }
+    },
+    /**
+     * Says that the connected calendar did not take a change the agenda made
+     * for the user, and keeps quiet for a while afterwards.
+     *
+     * The line drawn is one message per burst, not one per failed event: a
+     * failing copy almost always fails for a reason that has nothing to do
+     * with the particular meeting — the account is unreachable, or its
+     * password was refused — so the second, third and tenth toast add nothing
+     * the first did not say, while together they hide the agenda behind them.
+     * A user who acts again once the quiet period has passed is told again,
+     * so a problem that persists is not hidden either. The raw failure always
+     * reaches the console, whether it was announced or not.
+     *
+     * @param {Object} error the failure the connector rejected with
+     * @param {Boolean} removal whether the copy was being removed, not written
+     * @returns {void}
+     */
+    announceCopyFailure(error, removal) {
+      console.error('cannot update the copy of the event in the connected calendar', error);
+
+      const now = Date.now();
+      if (now - this.copyFailureAnnouncedAt < COPY_FAILURE_QUIET_PERIOD_MS) {
+        return;
+      }
+      this.copyFailureAnnouncedAt = now;
+      this.$root.$emit('alert-message', this.$t(this.copyFailureMessageKey(error, removal)), 'error');
+    },
+    /**
+     * Chooses what the user is told about a failed copy.
+     *
+     * Refused credentials come first and drop the distinction between writing
+     * and removing a copy: nothing will work until the account is connected
+     * again, and that — not which operation happened to be running — is what
+     * the user has to act on. The code is the one the connector rejects with,
+     * read here rather than the message it carries, because tsdav turns a
+     * rejected password into "cannot find principalUrl" and a user reading
+     * that has no chance of guessing it means their password.
+     *
+     * @param {Object} error the failure the connector rejected with
+     * @param {Boolean} removal whether the copy was being removed, not written
+     * @returns {String} the translation key of the message to display
+     */
+    copyFailureMessageKey(error, removal) {
+      if (error && error.code === 'caldav.error.credentials') {
+        return 'agenda.pushEvents.copyCredentialsError';
+      }
+      return removal && 'agenda.pushEvents.copyRemovalError' || 'agenda.pushEvents.copyError';
     },
   },
 };
