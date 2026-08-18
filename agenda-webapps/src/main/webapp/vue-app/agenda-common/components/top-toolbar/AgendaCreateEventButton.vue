@@ -6,11 +6,12 @@
       class="d-inline-block">
       <v-btn
         :disabled="!canCreateEvent"
-        class="btn btn-primary px-0 me-2"
-        max-height="34"
-        min-width="34"
+        class="me-2"
+        icon
+        width="36"
+        height="36"
         @click="openNewEventForm">
-        <v-icon dark size="18">
+        <v-icon size="20" class="text-light-color">
           fa-plus
         </v-icon>
       </v-btn>
