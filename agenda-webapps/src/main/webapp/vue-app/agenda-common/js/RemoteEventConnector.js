@@ -60,7 +60,7 @@ export function excludeMirrorCalendar(connector, calendars) {
  * @param {String} secondHref second collection href
  * @returns {Boolean} true when both point at the same collection
  */
-function isSameCalendarHref(firstHref, secondHref) {
+export function isSameCalendarHref(firstHref, secondHref) {
   return !!firstHref && !!secondHref && calendarHrefPath(firstHref) === calendarHrefPath(secondHref);
 }
 
