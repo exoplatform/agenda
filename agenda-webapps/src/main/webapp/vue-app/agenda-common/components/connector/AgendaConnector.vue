@@ -162,14 +162,25 @@ export default {
           this.$set(connector, 'isSignedIn', false);
           this.$set(connector, 'connected', false);
           this.$set(connector, 'user', null);
-          // canPush is deliberately left alone. It says the connector is able
-          // to copy events, which stays true of the connector whether or not
-          // an account is attached — and the connectors are the shared
-          // objects the registry hands out, so clearing it here turned the
-          // ability off for the rest of the page's life. Disconnecting once
-          // then stopped every later push, reconnecting did not bring it
-          // back, and only a reload did. Whether to copy anything is already
-          // decided by there being a connected connector at all.
+          // canPush is not cleared from here, and not left alone either: what
+          // it means is the connector's own business.
+          //
+          // Clearing it centrally turned the ability off for the rest of the
+          // page's life — the connectors are the shared objects the registry
+          // hands out — so disconnecting once stopped every later push and
+          // only a reload brought it back. But leaving it set is wrong for the
+          // connectors where it is a permission rather than an ability: for
+          // OAuth accounts it records that write scope was granted, and the
+          // grant is exactly what disconnecting throws away. Reconnecting then
+          // saw a scope it no longer had, skipped asking for it, and the first
+          // copy failed on a token the client did not hold.
+          //
+          // So the connector is asked to reset whatever it keeps, if it keeps
+          // anything. One that reports a static ability — CalDAV can always
+          // push — implements nothing and is left untouched.
+          if (typeof connector.resetPushAbility === 'function') {
+            connector.resetPushAbility();
+          }
           this.$root.$emit('agenda-settings-refresh');
           this.refreshConnectorsList();
         })
