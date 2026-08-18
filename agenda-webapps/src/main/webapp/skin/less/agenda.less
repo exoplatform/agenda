@@ -452,7 +452,11 @@
   }
   /** Remote event **/
   .remote-event {
-    border: 1px solid @primaryColor !important;
+    /* No border of its own. This used to be a primary-blue outline marking an
+       event as remote, which now fights the colour of the calendar it came
+       from — drawn on the .v-event around it — and won, being !important. The
+       calendar's colour is the better marker, and one border per event is
+       enough. */
     &.no-date-event {
       display: flex;
       justify-content: space-between;
@@ -965,4 +969,105 @@
     }
   }
 
+}
+
+/* Agenda left panel (EXO-89389) */
+.VuetifyApp {
+  .agenda-desktop-body {
+    align-items: stretch;
+  }
+
+  .agenda-left-panel-column {
+    width: 220px;
+    min-width: 220px;
+    max-width: 220px;
+  }
+
+  /* Let the calendar column shrink when the panel is displayed:
+     a flex child's default 'min-width: auto' would make the week grid
+     overflow instead of narrowing */
+  .agenda-body-column {
+    min-width: 0;
+  }
+
+  .agenda-left-panel {
+    height: 100%;
+    /* same background as the v-card hosting the calendar body */
+    background: #ffffff;
+    border-right: 1px solid #e1e8ee;
+    padding-top: 12px;
+
+    /* Sections read as separate groups rather than one long list.
+       The gap belongs below My Calendars rather than above Spaces: that
+       section is hidden with v-show when no remote account is connected, and
+       a display:none element contributes no margin, so Spaces closes up
+       instead of keeping a gap above nothing. An adjacent-sibling rule would
+       not, since a hidden element is still a sibling. */
+    .agenda-left-panel-my-calendars {
+      margin-bottom: 20px;
+    }
+
+    /* compact section title: small, medium weight, subdued color (from
+       text-sub-title), tight spacing above the first row */
+    .agenda-left-panel-title {
+      /* laid out here rather than with the d-flex/align-center utilities: in
+         this skin align-center also sets text-align, which centred the caption */
+      display: flex;
+      align-items: center;
+      padding: 0 16px 4px;
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 1.4;
+    }
+
+    /* the empty state sits where a row would, at the same indent */
+    .agenda-left-panel-empty {
+      padding: 2px 16px 0;
+      font-size: 11px;
+      line-height: 1.4;
+      opacity: .8;
+    }
+
+    .agenda-left-panel-calendars {
+      /* horizontal padding applied once here: rows carry no own indent */
+      padding: 0 16px;
+      max-height: ~"calc(100vh - 280px)";
+      overflow-y: auto;
+
+      /* dense rows: ~32px high, no per-row indent on top of the panel's */
+      .v-list-item {
+        padding: 0 !important;
+        min-height: 32px;
+      }
+
+      .agenda-calendar-settings-color {
+        margin: 0 !important;
+        padding-top: 0;
+        min-width: 0;
+
+        .v-input__slot {
+          min-width: 0;
+          margin-bottom: 0;
+        }
+
+        /* long calendar names must truncate with an ellipsis instead of
+           wrapping or widening the row */
+        .v-label {
+          display: block;
+          min-width: 0;
+          max-width: 100%;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          font-size: 14px;
+        }
+      }
+    }
+  }
+
+  /* RTL: the panel border must face the calendar body */
+  .v-application--is-rtl .agenda-left-panel {
+    border-right: none;
+    border-left: 1px solid #e1e8ee;
+  }
 }

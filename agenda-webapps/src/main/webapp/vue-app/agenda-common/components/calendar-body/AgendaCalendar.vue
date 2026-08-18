@@ -77,7 +77,8 @@
       <agenda-connector-remote-event-item
         v-else
         :remote-event="event"
-        :avatar="connectedConnectorAvatar" />
+        :avatar="connectedConnectorAvatar"
+        :style="{borderLeft: `5px solid ${getEventBorderColor(event)}`}" />
       <div
         v-if="timed && canEdit(event)"
         class="v-event-drag-bottom"
@@ -300,8 +301,19 @@ export default {
       period.title = this.$refs.calendar.title;
       this.$root.$emit('agenda-change-period', period);
     },
+    /**
+     * Colour of the bar down the left of an event.
+     *
+     * A local event takes it from the calendar it belongs to. A remote one has
+     * no eXo calendar to read, and carries instead the colour of the
+     * collection it was read from, so it is marked by its own calendar rather
+     * than by the one default blue shared with everything else remote.
+     *
+     * @param {Object} event event being rendered
+     * @returns {String} the colour of its left bar
+     */
     getEventBorderColor(event) {
-      return event && event.calendar && event.calendar.color || '#2196F3';
+      return event && (event.calendar && event.calendar.color || event.color) || '#2196F3';
     },
     getEventTextColor(event) {
       const eventColor = event && (event.color || event.calendar && event.calendar.color) || '#2196F3';
