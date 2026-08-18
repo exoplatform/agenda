@@ -2,7 +2,7 @@
   <exo-drawer
     ref="calendarFilters"
     right
-    @opened="drawer = true"
+    @opened="onOpened"
     @closed="cancel">
     <template slot="title">
       {{ $t('agenda.filterAgendaTitle') }}
@@ -24,6 +24,13 @@
               value="allEvents" />
           </v-radio-group>
         </div>
+      </div>
+      <div v-if="displayCalendarSelection" class="d-flex flex-column mx-4 my-1">
+        <div class="font-weight-bold">{{ $t('agenda.leftPanel.spaces') }}</div>
+        <agenda-filter-calendar-list
+          ref="calendarList"
+          :value="selectedOwnerIds"
+          @input="selectedOwnerIds = $event" />
       </div>
       <div v-if="!$root.isMobile" class="d-flex flex-column mx-4 my-1">
         <div class="font-weight-bold">{{ $t('agenda.filter.label.advancedOptions') }}</div>
@@ -87,12 +94,25 @@ export default {
     eventType: '',
     defaultShowWholeWeek: null,
     showWholeWeek: true,
-    lastShowWholeWeek: true
+    lastShowWholeWeek: true,
+    selectedOwnerIds: [],
+    lastSelectedOwnerIds: []
   }),
   created() {
     this.$root.$on('agenda-filter-drawer-open', this.open);
   },
   computed: {
+    /**
+     * Whether the calendar selection section is displayed in the drawer: on
+     * mobile only, since desktop selects calendars through the left panel,
+     * and only in a personal agenda (a space agenda displays a single space
+     * calendar).
+     *
+     * @returns {boolean} true when the calendar selection is displayed
+     */
+    displayCalendarSelection() {
+      return this.$root.isMobile && !eXo.env.portal.spaceId;
+    },
     displayWholeWeekTooltip() {
       if (this.calendarType === 'day'|| this.calendarType === 'month') {
         return this.$t('agenda.filter.cantChangeViewAllOptionTooltip');
@@ -107,10 +127,21 @@ export default {
     },
   },
   methods: {
+    /**
+     * Closes the drawer discarding any pending change: the whole week option
+     * and the calendar selection are restored to their last applied values.
+     * @returns {void}
+     */
     cancel() {
       this.showWholeWeek = this.lastShowWholeWeek;
+      this.selectedOwnerIds = this.lastSelectedOwnerIds;
       this.$refs.calendarFilters.close();
     },
+    /**
+     * Opens the drawer, initializing the filter states from the current
+     * settings and, on mobile, the calendar selection list.
+     * @returns {void}
+     */
     open() {
       if (this.defaultShowWholeWeek === null){
         this.defaultShowWholeWeek = !this.settings.showWorkingTime;
@@ -124,15 +155,48 @@ export default {
       }
       this.$refs.calendarFilters.open();
     },
+    /**
+     * Initializes the drawer content once the drawer is effectively opened:
+     * the content is only rendered at that point, so the calendar list can
+     * only be initialized from here (a ref lookup right after open() misses
+     * the first opening).
+     * @returns {void}
+     */
+    onOpened() {
+      this.drawer = true;
+      if (this.displayCalendarSelection) {
+        // the drawer content is lazily rendered on first opening: wait for the
+        // render before accessing the calendar list ref
+        this.$nextTick().then(() => {
+          if (this.$refs.calendarList) {
+            this.$refs.calendarList.reset();
+          }
+        });
+      }
+    },
+    /**
+     * Applies the chosen filters: event type, whole week option and, on
+     * mobile, the calendar selection, then closes the drawer.
+     * @returns {void}
+     */
     confirm() {
       this.$root.$emit('agenda-event-type-changed', this.eventType);
       this.$root.$emit('agenda-show-working-changed', !this.showWholeWeek);
       this.lastShowWholeWeek = this.showWholeWeek;
+      if (this.displayCalendarSelection) {
+        this.lastSelectedOwnerIds = this.selectedOwnerIds;
+        this.$root.$emit('agenda-calendar-owners-changed', this.selectedOwnerIds);
+      }
       this.$refs.calendarFilters.close();
     },
+    /**
+     * Resets every filter to its default value then applies the result.
+     * @returns {void}
+     */
     init() {
       this.eventType = this.currentSpace ? 'allEvents' : 'myEvents';
       this.showWholeWeek = this.defaultShowWholeWeek;
+      this.selectedOwnerIds = [];
       this.confirm();
     },
   },

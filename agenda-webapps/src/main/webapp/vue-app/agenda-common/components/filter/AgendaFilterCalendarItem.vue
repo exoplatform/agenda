@@ -6,53 +6,10 @@
         :color="calendarColor"
         :label="calendarDisplayName"
         class="agenda-calendar-settings-color ms-4"
+        dense
+        hide-details
         @click="changeSelection" />
     </v-list-item-content>
-    <v-list-item-action
-      v-if="!$root.isMobile"
-      :id="calendarMenuId"
-      class="calendarSettingActions">
-      <v-menu
-        v-if="canEditCalendar"
-        ref="menu"
-        v-model="menu"
-        :close-on-content-click="false"
-        :content-class="calendarMenuId"
-        bottom
-        left>
-        <template #activator="{ on, attrs }">
-          <v-btn
-            icon
-            v-bind="attrs"
-            v-on="on">
-            <v-icon>mdi-dots-vertical</v-icon>
-          </v-btn>
-        </template>
-        <v-card>
-          <v-color-picker
-            v-model="selectedCalendarColor"
-            class="ma-2"
-            hide-inputs
-            flat />
-          <v-card-actions>
-            <v-spacer />
-            <v-btn
-              :disabled="saving"
-              class="btn ms-2"
-              @click="closeMenu">
-              {{ $t('agenda.button.cancel') }}
-            </v-btn>
-            <v-btn
-              :loading="saving"
-              :disabled="saving"
-              class="btn btn-primary ms-2"
-              @click="applyColor">
-              {{ $t('agenda.button.apply') }}
-            </v-btn>
-          </v-card-actions>
-        </v-card>
-      </v-menu>
-    </v-list-item-action>
   </v-list-item>
 </template>
 
@@ -68,32 +25,46 @@ export default {
       default: () => [],
     },
     selectedOwnerIds: {
-      type: Array,
+      type: [Array, Boolean],
       default: () => [],
     },
   },
   data: () => ({
-    selectedCalendarColor: null,
-    saving: false,
-    menu: false,
     checked: false,
   }),
   computed: {
+    /**
+     * Whether this calendar is selected: an empty array selection means 'all
+     * calendars', a false selection means 'no calendar'.
+     *
+     * @returns {boolean} true when the calendar is selected
+     */
     selected() {
-      return this.selectedOwnerIds !== false && (!this.selectedOwnerIds.length || this.selectedOwnerIds.find(ownerId => ownerId === this.calendarOwnerId));
+      return this.selectedOwnerIds !== false && (!this.selectedOwnerIds.length || this.selectedOwnerIds.indexOf(this.calendarOwnerId) >= 0);
     },
+    /**
+     * Identity id of the calendar owner, as a number.
+     *
+     * @returns {number} calendar owner identity id
+     */
     calendarOwnerId() {
       return Number(this.calendar.owner.id);
     },
-    calendarMenuId() {
-      return `settingsMenu${this.calendarOwnerId}`;
-    },
+    /**
+     * Color of the calendar, used to paint the row checkbox. The color is
+     * read-only here: it belongs to the space and is managed by the space
+     * administrators elsewhere.
+     *
+     * @returns {string} calendar color
+     */
     calendarColor() {
       return this.calendar.color;
     },
-    canEditCalendar() {
-      return this.calendar && this.calendar.acl && this.calendar.acl.canEdit;
-    },
+    /**
+     * Display name of the calendar owner (space or user profile).
+     *
+     * @returns {string} calendar display name
+     */
     calendarDisplayName() {
       const owner = this.calendar.owner;
       const profile = owner.space || owner.profile;
@@ -101,81 +72,41 @@ export default {
     },
   },
   watch: {
-    menu() {
-      if (this.menu) {
-        this.$root.$emit('agenda-filter-close-menu', this.calendarOwnerId);
-      }
-    },
+    /**
+     * Keeps the checkbox state in sync with the selection coming from the
+     * parent list.
+     * @returns {void}
+     */
     selected() {
       this.checked = this.selected;
     },
-  },
-  created() {
-    this.selectedCalendarColor = this.calendar.color;
-
-    // Close current menu when another menu is opened
-    this.$root.$on('agenda-filter-close-menu', calendarOwnerId => {
-      if (calendarOwnerId !== this.calendarOwnerId) {
-        this.menu = false;
-      }
-    });
-
-    // Force to close other DatePicker menus when opening a new one 
-    $('.calendarSettingActions button').on('click', (e) => {
-      if (e.target && !$(e.target).parents(`#${this.calendarMenuId}`).length) {
-        this.menu = false;
-      }
-    });
-
-    // Force to close DatePickers when clicking outside
-    $(document).on('click', (e) => {
-      if (e.target && !$(e.target).parents(`.${this.calendarMenuId}`).length) {
-        this.menu = false;
-      }
-    });
   },
   mounted() {
     this.checked = this.selected;
   },
   methods: {
+    /**
+     * Toggles the selection of this calendar and emits the new selection to
+     * the parent list, without mutating the received props: unchecking the
+     * last selected calendar emits false ('no calendar'), while checking a
+     * calendar when everything is selected first materializes the full list
+     * of owner ids.
+     * @returns {void}
+     */
     changeSelection() {
-      if (this.selectedOwnerIds) {
-        if (this.selected) {
-          if (this.selectedOwnerIds && !this.selectedOwnerIds.length) {
-            this.selectedOwnerIds = this.ownerIds.slice();
-          }
-          const index = this.selectedOwnerIds.findIndex(ownerId => ownerId === this.calendarOwnerId);
-          if (index >= 0) {
-            this.selectedOwnerIds.splice(index, 1);
-            if (!this.selectedOwnerIds.length) {
-              this.selectedOwnerIds = false;
-            }
-          }
-        } else {
-          this.selectedOwnerIds.push(this.calendarOwnerId);
+      let newSelection;
+      if (this.selected) {
+        const currentSelection = Array.isArray(this.selectedOwnerIds) && this.selectedOwnerIds.length && this.selectedOwnerIds.slice() || this.ownerIds.slice();
+        const index = currentSelection.indexOf(this.calendarOwnerId);
+        if (index >= 0) {
+          currentSelection.splice(index, 1);
         }
-      } else if (!this.selected) {
-        this.selectedOwnerIds = [this.calendarOwnerId];
+        newSelection = currentSelection.length && currentSelection || false;
+      } else {
+        newSelection = Array.isArray(this.selectedOwnerIds) && this.selectedOwnerIds.slice() || [];
+        newSelection.push(this.calendarOwnerId);
       }
-      this.$emit('changeSelection', this.selectedOwnerIds);
-    },
-    reset() {
-      this.selectedCalendarColor = this.calendar.color;
-    },
-    applyColor() {
-      const calendarToSave = JSON.parse(JSON.stringify(this.calendar));
-      calendarToSave.color = this.selectedCalendarColor;
-      this.saving = true;
-      this.$calendarService.saveCalendar(calendarToSave)
-        .then(() => {
-          this.calendar.color = this.selectedCalendarColor;
-          this.$root.$emit('agenda-calendar-color-changed', this.calendar.id, this.calendarColor);
-          this.closeMenu();
-        })
-        .finally(() => this.saving = false);
-    },
-    closeMenu() {
-      this.menu = false;
+      this.$emit('changeSelection', newSelection);
     },
   },
 };
