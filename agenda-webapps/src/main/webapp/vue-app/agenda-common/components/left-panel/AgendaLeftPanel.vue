@@ -1,6 +1,24 @@
 <template>
   <aside class="agenda-left-panel border-box-sizing full-height d-flex flex-column">
     <!--
+      Mini month calendar, the way Gmail and macOS Calendar carry one: a way to
+      jump the main view to any day without leaving the current view type.
+      no-title drops the coloured band Vuetify shows above the grid, and
+      full-width makes the picker take the 220px column instead of its own
+      290px default, which would overflow the panel.
+    -->
+    <v-date-picker
+      v-model="pickerValue"
+      :picker-date.sync="pickerMonth"
+      :first-day-of-week="firstDayOfWeek"
+      :locale="language"
+      color="primary"
+      class="agenda-left-panel-mini-calendar"
+      no-title
+      flat
+      full-width
+      @input="displayDate" />
+    <!--
       The calendars of a connected remote account.
       The section is shown whether or not an account is connected: it is how a
       user discovers that connecting one is possible at all, and the button
@@ -65,11 +83,35 @@ export default {
       type: Boolean,
       default: false,
     },
+    period: {
+      type: Object,
+      default: null,
+    },
   },
   data: () => ({
     calendarsLoaded: false,
+    pickerValue: null,
+    pickerMonth: null,
   }),
   computed: {
+    /**
+     * The day the picker starts its weeks on, taken from the user setting
+     * rather than assumed: the same util drives the main grid, so a user who
+     * starts weeks on Sunday sees both agree.
+     *
+     * @returns {Number} index of the first weekday, 0 being Sunday
+     */
+    firstDayOfWeek() {
+      return this.settings && this.$agendaUtils.getWeekSequenceFromDay(this.settings, null, true)[0] || 1;
+    },
+    /**
+     * The language used to label months and weekdays in the picker.
+     *
+     * @returns {String} the current user language
+     */
+    language() {
+      return eXo.env.portal.language;
+    },
     /**
      * Whether the remote calendar feature exists in this deployment at all,
      * which is what decides if the section is worth showing. Not whether an
@@ -95,6 +137,17 @@ export default {
       if (this.expanded && !this.calendarsLoaded) {
         this.loadCalendars();
       }
+    },
+    /**
+     * Keeps the picker on the period the main view displays, so navigating by
+     * week or month moves the highlighted day with it.
+     * @returns {void}
+     */
+    period: {
+      immediate: true,
+      handler() {
+        this.synchronizeWithDisplayedPeriod();
+      },
     },
   },
   mounted() {
@@ -126,6 +179,40 @@ export default {
      */
     changeSelection(selectedOwnerIds) {
       this.$root.$emit('agenda-calendar-owners-changed', selectedOwnerIds);
+    },
+    /**
+     * Moves the main calendar to the day picked, keeping the current view type:
+     * picking a day in week view stays in week view, on that day's week.
+     *
+     * @param {String} value picked day, as the YYYY-MM-DD the picker emits
+     * @returns {void}
+     */
+    displayDate(value) {
+      if (!value) {
+        return;
+      }
+      // toDate first: toRFC3339 given the raw YYYY-MM-DD string would parse it
+      // as UTC midnight, which is the previous day in a negative UTC offset
+      this.$root.$emit('agenda-display-calendar-atDate', this.$agendaUtils.toRFC3339(this.$agendaUtils.toDate(value), true));
+    },
+    /**
+     * Aligns the picker with the period currently displayed, moving the
+     * selected day only when it falls outside that period. Without that guard
+     * the selection would jump back to the first day of the week as soon as
+     * the view answers the pick, so picking Wednesday would highlight Monday.
+     * @returns {void}
+     */
+    synchronizeWithDisplayedPeriod() {
+      if (!this.period || !this.period.start) {
+        return;
+      }
+      const start = this.$agendaUtils.toDate(this.period.start);
+      const end = this.period.end && this.$agendaUtils.toDate(this.period.end);
+      const selected = this.pickerValue && this.$agendaUtils.toDate(this.pickerValue);
+      if (!selected || selected < start || end && selected > end) {
+        this.pickerValue = this.$agendaUtils.toRFC3339(start, true).substring(0, 10);
+      }
+      this.pickerMonth = this.pickerValue.substring(0, 7);
     },
   },
 };
