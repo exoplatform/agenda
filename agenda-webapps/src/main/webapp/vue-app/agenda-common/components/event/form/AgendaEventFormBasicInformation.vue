@@ -6,7 +6,20 @@
     @submit="$emit('next-step')">
     <div class="d-flex flex-column flex-md-row mt-1 event-form-body">
       <div class="d-flex flex-column flex-grow-1 event-form-body-left">
-        <div class="d-flex flex-row">
+        <!--
+          The destination row wraps on its own available width, not on the
+          viewport: the side panel (participants / modify event) eats into
+          this column, so a wide window can still be too narrow here. As soon
+          as the three fields would no longer fit, the whole row switches to
+          the drawer's layout (title on its own line, select beneath,
+          suggester beneath that) instead of wrapping one field at a time:
+          the destination drops its inline mode and takes the full width on
+          the next flex-wrap line, under the icon + title pair.
+        -->
+        <div
+          ref="destinationRow"
+          :class="!destinationInline && 'flex-wrap'"
+          class="d-flex flex-row">
           <v-icon size="20" class="icon-default-color my-auto me-12 d-none d-md-inline">far fa-calendar</v-icon>
           <input
             id="eventTitle"
@@ -18,14 +31,17 @@
             class="ignore-vuetify-classes my-3"
             required
             @change="resetCustomValidity">
-          <label class="mt-5 ms-4 me-4 text-subtitle-1 font-weight-bold d-none d-md-inline">
+          <label
+            v-if="destinationInline"
+            class="mt-5 ms-4 me-4 text-subtitle-1 font-weight-bold">
             {{ $t('agenda.label.in') }}
           </label>
           <agenda-event-form-destination
             ref="calendarOwner"
             :event="event"
             :current-space="currentSpace"
-            inline
+            :inline="destinationInline"
+            :class="!destinationInline && 'full-width'"
             @initialized="$emit('initialized')" />
         </div>
         <div v-if="displayTimeInForm && eventDateOption" class="d-flex flex-row">
@@ -116,6 +132,15 @@
 </template>
 
 <script>
+/**
+ * Minimum width (px) of the destination row for the three fields to fit on
+ * one line: calendar icon + gap (68) + title input (270, reset.less) + 'in'
+ * label with margins (~52) + a usable select (220, matching the suggester)
+ * + suggester with margin (236). Below it the row switches wholesale to the
+ * drawer's stacked layout.
+ */
+const DESTINATION_INLINE_MIN_WIDTH = 850;
+
 export default {
   props: {
     event: {
@@ -147,8 +172,21 @@ export default {
     eventDescriptionTextLength: 1300,
     canInviteeEdit: true,
     eventDateOption: null,
+    rowFitsInline: true,
   }),
   computed: {
+    /**
+     * Whether the destination row renders inline (title, select and space
+     * suggester side by side) or stacked like the drawer. Driven by the
+     * row's own measured width — not the viewport, which cannot account for
+     * the side panel — combined with the breakpoint that already gates the
+     * icon and 'in' label.
+     *
+     * @returns {Boolean} true when the inline layout fits
+     */
+    destinationInline() {
+      return this.rowFitsInline && this.$vuetify.breakpoint.mdAndUp;
+    },
     allowAttendeeToUpdate() {
       return this.event.allowAttendeeToUpdate;
     },
@@ -199,14 +237,51 @@ export default {
         this.$refs.eventTitle.focus();
       }
     }, 500);
+    if (window.ResizeObserver && this.$refs.destinationRow) {
+      // The observer only reads the row's width and the layout switch only
+      // changes its height, so a switch never retriggers itself
+      this.destinationRowObserver = new window.ResizeObserver(
+        entries => this.updateDestinationLayout(entries[0].contentRect.width));
+      this.destinationRowObserver.observe(this.$refs.destinationRow);
+      this.updateDestinationLayout(this.$refs.destinationRow.getBoundingClientRect().width);
+    }
+  },
+  beforeDestroy() {
+    if (this.destinationRowObserver) {
+      this.destinationRowObserver.disconnect();
+      this.destinationRowObserver = null;
+    }
   },
   methods: {
+    /**
+     * Chooses the destination row layout from its measured width: inline
+     * when the three fields fit, the drawer's stacked layout otherwise. A
+     * zero width (the form is hidden, e.g. another stepper step is shown) is
+     * ignored so the last real measurement is kept.
+     *
+     * @param {Number} width the destination row's current content width
+     * @returns {void}
+     */
+    updateDestinationLayout(width) {
+      if (width) {
+        this.rowFitsInline = width >= DESTINATION_INLINE_MIN_WIDTH;
+      }
+    },
+    /**
+     * Resets the date option bound to the date pickers from the event being
+     * edited, once the pickers are unmounted and remounted.
+     * @returns {void}
+     */
     reset() {
       this.eventDateOption = null;
       this.$nextTick().then(() => {
         this.eventDateOption = this.event.dateOptions.length === 1 && this.event.dateOptions[0] || this.event;
       });
     },
+    /**
+     * Clears any custom validity set on the title field and the destination.
+     * @returns {void}
+     */
     resetCustomValidity() {
       if (this.$refs.eventTitle) {
         this.$refs.eventTitle.setCustomValidity('');
@@ -215,6 +290,11 @@ export default {
         this.$refs.calendarOwner.resetCustomValidity();
       }
     },
+    /**
+     * Propagates the picked start and end dates from the date pickers to the
+     * event payload, mirrored to its single date option when there is one.
+     * @returns {void}
+     */
     updateEventDates() {
       this.event.startDate = new Date(this.eventDateOption.startDate);
       this.event.endDate = new Date(this.eventDateOption.endDate);
@@ -229,6 +309,12 @@ export default {
         this.event.dateOptions[0].end = this.event.end;
       }
     },
+    /**
+     * Validates the basic information step: the title presence and length,
+     * the destination, then the Vuetify and standard HTML form rules.
+     *
+     * @returns {Boolean} true when the form is valid, undefined otherwise
+     */
     validateForm() {
       this.resetCustomValidity();
       this.$refs.calendarOwner.validateForm();

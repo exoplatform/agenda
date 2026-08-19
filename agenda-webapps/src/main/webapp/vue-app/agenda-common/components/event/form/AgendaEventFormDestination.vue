@@ -14,8 +14,8 @@
     @initialized="$emit('initialized')" />
   <div
     v-else
-    :class="inline && 'flex-md-row'"
-    class="d-flex flex-column">
+    :class="inline ? 'flex-row' : 'flex-column'"
+    class="d-flex">
     <!--
       An outlined dense v-select, the platform idiom for a bordered select
       (email-connector contact phone type): unlike a native select it renders
@@ -71,7 +71,7 @@
       :event="event"
       :current-space="currentSpace"
       :calendars="calendars"
-      :class="inline ? 'mt-2 mt-md-0 ms-md-4' : 'mt-2'"
+      :class="inline ? 'ms-4' : 'mt-2'"
       @initialized="$emit('initialized')" />
   </div>
 </template>
@@ -116,8 +116,8 @@ export default {
     },
     /**
      * Whether the user chose to file the event in a space, which swaps the
-     * historical space suggester in: beside the select on wide screens when
-     * the inline layout is requested, below it otherwise.
+     * historical space suggester in: beside the select when the inline
+     * layout is in effect, below it otherwise.
      *
      * @returns {Boolean} true when the space flow is selected
      */
