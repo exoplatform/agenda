@@ -26,6 +26,7 @@
             ref="eventTitle"
             v-model="event.summary"
             :placeholder="$t('agenda.eventTitle')"
+            :class="destinationInline && 'destination-row-field'"
             type="text"
             name="title"
             class="ignore-vuetify-classes my-3"
@@ -134,12 +135,13 @@
 <script>
 /**
  * Minimum width (px) of the destination row for the three fields to fit on
- * one line: calendar icon + gap (68) + title input (270, reset.less) + 'in'
- * label with margins (~52) + a usable select (220, matching the suggester)
- * + suggester with margin (236). Below it the row switches wholesale to the
- * drawer's stacked layout.
+ * one line. The fields share the row's width equally (destination-row-field
+ * in agenda.less), so the floor is a usable field of ~220px each: calendar
+ * icon + gap (68) + 'in' label with margins (~52) + suggester gap (16) +
+ * 3 x 220. Below it the row switches wholesale to the drawer's stacked
+ * layout.
  */
-const DESTINATION_INLINE_MIN_WIDTH = 850;
+const DESTINATION_INLINE_MIN_WIDTH = 800;
 
 export default {
   props: {

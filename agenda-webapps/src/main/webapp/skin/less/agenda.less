@@ -213,6 +213,23 @@
       }
     }
 
+    /* Equal field widths on the inline destination row: every field carries
+       the same flex basis plus one grow share, so title, select and
+       suggester resolve to identical widths at any row width. The shared
+       basis must exceed the title input's 22px padding + border floor — with
+       flex-basis: 0 the border box cannot go below it, silently gifting the
+       title those 22px. The two-field wrapper pre-allocates its two bases
+       plus the suggester's 16px ms-4 gap, so its nested fields net exactly
+       the title's share. */
+    .destination-row-field {
+      flex: 1 1 100px;
+      min-width: 0;
+    }
+    .destination-row-fields-2 {
+      flex: 2 2 216px; /* 2 x 100px field basis + the 16px suggester gap */
+      min-width: 0;
+    }
+
     .space-suggester {
       max-width: 270px;
     }
