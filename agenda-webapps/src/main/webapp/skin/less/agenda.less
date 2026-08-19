@@ -213,25 +213,13 @@
       }
     }
 
-    /* The destination line under the title: the select and the space
-       suggester split it in equal halves, each capped at the form's shared
-       field width — so at comfortable widths they render as two fields of
-       the title/location width, and a lone select (personal calendar
-       picked, no suggester needed) keeps that same width instead of
-       stretching across the form. */
-    .destination-line-field {
-      flex: 1 1 0;
-      min-width: 0;
-      max-width: @event-field-width;
-    }
-
     .space-suggester {
       max-width: 270px;
     }
 
-    /* The one field width the form's single-field lines agree on: the title
-       and location inputs (event-input), and the cap of the destination
-       line's fields below. */
+    /* The one field width every line of the expanded form agrees on: the
+       title and location inputs, the destination select and the space
+       suggester all carry the event-input class. */
     @event-field-width: 500px;
 
     .event-input {

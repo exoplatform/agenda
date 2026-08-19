@@ -14,8 +14,7 @@
     @initialized="$emit('initialized')" />
   <div
     v-else
-    :class="inline ? 'flex-row' : 'flex-column'"
-    class="d-flex">
+    class="d-flex flex-column">
     <!--
       An outlined dense v-select, the platform idiom for a bordered select
       (email-connector contact phone type): unlike a native select it renders
@@ -23,14 +22,14 @@
       carries the same border as the fields around it instead of the
       browser's own focus ring.
 
-      Inline mode mirrors the title input's my-3 so the stretched row leaves
-      exactly 40px for the select: with mt-3 alone, align-center re-centers
-      the 40px box in the 52px left over and sinks it 6px below its
-      neighbours. Stacked mode keeps mt-3 only, preserving the drawer's 8px
-      gap to the suggester below.
+      In the expanded form (inline) each destination line mirrors the title
+      input's my-3 margins and event-input width, so select and suggester
+      read as two more fields of the form's single column — same 40px box,
+      same width, same vertical rhythm. The drawer keeps its historical
+      mt-3 / mt-2 spacing and full drawer width.
     -->
     <div
-      :class="inline ? 'my-3 destination-line-field' : 'mt-3'"
+      :class="inline ? 'my-3 event-input' : 'mt-3'"
       class="d-flex flex-row align-center">
       <v-select
         v-model="selectedValue"
@@ -71,7 +70,7 @@
       :event="event"
       :current-space="currentSpace"
       :calendars="calendars"
-      :class="inline ? 'ms-4 destination-line-field' : 'mt-2'"
+      :class="inline ? 'event-input' : 'mt-2'"
       @initialized="$emit('initialized')" />
   </div>
 </template>
@@ -116,8 +115,7 @@ export default {
     },
     /**
      * Whether the user chose to file the event in a space, which swaps the
-     * historical space suggester in: beside the select when the inline
-     * layout is in effect, below it otherwise.
+     * historical space suggester in on its own line below the select.
      *
      * @returns {Boolean} true when the space flow is selected
      */
@@ -201,8 +199,9 @@ export default {
     /**
      * Retrieves the user's personal calendars then preselects the event's
      * current destination: the event's calendar when editing a personal
-     * event, the space flow when editing a space event, the default calendar
-     * for a new event — creating a personal event stays zero extra clicks.
+     * event, the space flow when editing a space event, the system default
+     * calendar ('My calendar') for a new event — creating a personal event
+     * stays zero extra clicks.
      *
      * @returns {Promise} resolved once the selection is initialized
      */
@@ -227,7 +226,12 @@ export default {
       // Applying the initial selection also writes it to the payload (the
       // watcher below), so the save button validity reflects it immediately
       this.initialized = true;
-      const owner = this.event && this.event.calendar && this.event.calendar.owner;
+      const storedOwner = this.event && this.event.calendar && this.event.calendar.owner;
+      // New events ship a bare `owner: {}` placeholder: only an owner
+      // carrying an identity counts as a stored destination, anything else
+      // must fall through to the default personal calendar below
+      const owner = storedOwner
+        && (storedOwner.id || storedOwner.providerId || storedOwner.remoteId) ? storedOwner : null;
       const ownerIsUser = owner && (String(owner.id) === String(this.userIdentityId)
         || owner.providerId === 'organization' && owner.remoteId === eXo.env.portal.userName);
       if (owner && !ownerIsUser) {
@@ -238,7 +242,8 @@ export default {
         // Editing a personal event: keep it where it is filed
         this.selectedValue = `calendar-${Number(this.event.calendar.id)}`;
       } else {
-        // New event: the default calendar, zero extra clicks
+        // New event: the system (default, undeletable) personal calendar —
+        // not merely the first row, which drifts for multi-calendar users
         const defaultCalendar = this.personalCalendars.find(calendar => calendar.system) || this.personalCalendars[0];
         this.selectedValue = defaultCalendar ? `calendar-${defaultCalendar.id}` : 'spaces';
       }

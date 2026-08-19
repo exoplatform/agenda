@@ -20,36 +20,27 @@
             @change="resetCustomValidity">
         </div>
         <!--
-          The destination lives on its own line under the title, which keeps
-          line one to itself; the title carries the same event-input class as
-          the location field below, so both resolve to the form's one shared
-          field width. Inline mode shares this line between the select
-          and the space suggester in equal halves; the choice is driven by
-          this line's own measured width — not the viewport, which cannot
-          account for the side panel eating into this column — and below the
-          threshold it collapses to the drawer's fully stacked layout, one
-          field per line. The 'in' lead-in died with the single-line
-          sentence: the select's values already read as destinations. The
-          gutter icon mirrors the drawer's destination icon, keeping the
-          form's icon rhythm and the fields flush with the column above;
-          like in the drawer it labels the destination as a whole, so it
-          anchors to the first field when the pair stacks.
+          The destination is a block of one field per line under the title
+          (select, then the space suggester when the space flow is chosen),
+          every field carrying the same event-input width as the title and
+          location — one column of equal fields. The 'in' lead-in died with
+          the single-line sentence: the select's values already read as
+          destinations. The single gutter icon mirrors the drawer's
+          destination icon and, like there, labels the destination as a
+          whole: anchored to the first field, the suggester line keeps an
+          empty gutter so the block reads as one destination.
         -->
-        <div
-          ref="destinationRow"
-          class="d-flex flex-row">
+        <div class="d-flex flex-row">
           <v-icon
             size="20"
-            :class="destinationInline ? 'my-auto' : 'mb-auto mt-5'"
-            class="icon-default-color me-12 d-none d-md-inline">
+            class="icon-default-color mb-auto mt-5 me-12 d-none d-md-inline">
             fas fa-calendar-alt
           </v-icon>
           <agenda-event-form-destination
             ref="calendarOwner"
             :event="event"
             :current-space="currentSpace"
-            :inline="destinationInline"
-            class="flex-grow-1"
+            inline
             @initialized="$emit('initialized')" />
         </div>
         <div v-if="displayTimeInForm && eventDateOption" class="d-flex flex-row">
@@ -140,15 +131,6 @@
 </template>
 
 <script>
-/**
- * Minimum width (px) of the destination line for the select and the space
- * suggester to sit side by side. They share the line equally
- * (destination-line-field in agenda.less), so the floor is a usable field
- * of ~220px each: gutter icon + gap (68) + suggester gap (16) + 2 x 220.
- * Below it the line switches wholesale to the drawer's stacked layout.
- */
-const DESTINATION_INLINE_MIN_WIDTH = 530;
-
 export default {
   props: {
     event: {
@@ -180,21 +162,8 @@ export default {
     eventDescriptionTextLength: 1300,
     canInviteeEdit: true,
     eventDateOption: null,
-    rowFitsInline: true,
   }),
   computed: {
-    /**
-     * Whether the destination line renders inline (select and space
-     * suggester side by side under the title) or stacked like the drawer.
-     * Driven by the line's own measured width — not the viewport, which
-     * cannot account for the side panel — combined with the breakpoint that
-     * already gates the gutter icons.
-     *
-     * @returns {Boolean} true when the inline layout fits
-     */
-    destinationInline() {
-      return this.rowFitsInline && this.$vuetify.breakpoint.mdAndUp;
-    },
     allowAttendeeToUpdate() {
       return this.event.allowAttendeeToUpdate;
     },
@@ -245,37 +214,8 @@ export default {
         this.$refs.eventTitle.focus();
       }
     }, 500);
-    if (window.ResizeObserver && this.$refs.destinationRow) {
-      // The observer only reads the row's width and the layout switch only
-      // changes its height, so a switch never retriggers itself
-      this.destinationRowObserver = new window.ResizeObserver(
-        entries => this.updateDestinationLayout(entries[0].contentRect.width));
-      this.destinationRowObserver.observe(this.$refs.destinationRow);
-      this.updateDestinationLayout(this.$refs.destinationRow.getBoundingClientRect().width);
-    }
-  },
-  beforeDestroy() {
-    if (this.destinationRowObserver) {
-      this.destinationRowObserver.disconnect();
-      this.destinationRowObserver = null;
-    }
   },
   methods: {
-    /**
-     * Chooses the destination line layout from its measured width: inline
-     * when the select and the suggester fit side by side, the drawer's
-     * stacked layout otherwise. A zero width (the form is hidden, e.g.
-     * another stepper step is shown) is ignored so the last real
-     * measurement is kept.
-     *
-     * @param {Number} width the destination line's current content width
-     * @returns {void}
-     */
-    updateDestinationLayout(width) {
-      if (width) {
-        this.rowFitsInline = width >= DESTINATION_INLINE_MIN_WIDTH;
-      }
-    },
     /**
      * Resets the date option bound to the date pickers from the event being
      * edited, once the pickers are unmounted and remounted.
