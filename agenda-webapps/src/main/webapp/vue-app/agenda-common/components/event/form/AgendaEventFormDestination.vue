@@ -22,8 +22,16 @@
       the per-calendar color dots and the divider before the space entry, and
       carries the same border as the fields around it instead of the
       browser's own focus ring.
+
+      Inline mode mirrors the title input's my-3 so the stretched row leaves
+      exactly 40px for the select: with mt-3 alone, align-center re-centers
+      the 40px box in the 52px left over and sinks it 6px below its
+      neighbours. Stacked mode keeps mt-3 only, preserving the drawer's 8px
+      gap to the suggester below.
     -->
-    <div class="d-flex flex-row align-center mt-3">
+    <div
+      :class="inline ? 'my-3' : 'mt-3'"
+      class="d-flex flex-row align-center">
       <v-select
         v-model="selectedValue"
         :items="destinationItems"

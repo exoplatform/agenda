@@ -203,6 +203,16 @@
       background: white !important;
     }
 
+    /* The destination select uses no floating label, so Vuetify's outlined
+       fieldset — painted from top -5px to leave room for the label's legend
+       notch — only makes the visible border 45px tall against the 40px
+       native inputs (reset.less) around it. Pin it to the 40px input slot. */
+    .agenda-event-form-destination {
+      fieldset {
+        top: 0;
+      }
+    }
+
     .space-suggester {
       max-width: 270px;
     }
