@@ -8,7 +8,7 @@
         :weekdays="weekdays"
         :full-weekdays="fullWeekdays"
         :working-time="workingTime"
-        :connected-connector-avatar="connectedConnectorAvatar" 
+        :connected-connector="connectedConnector" 
         class="flex-grow-1" />
     </v-flex>
   </v-card>
@@ -29,8 +29,8 @@ export default {
       type: String,
       default: null
     },
-    connectedConnectorAvatar: {
-      type: String,
+    connectedConnector: {
+      type: Object,
       default: null
     },
     weekdays: {

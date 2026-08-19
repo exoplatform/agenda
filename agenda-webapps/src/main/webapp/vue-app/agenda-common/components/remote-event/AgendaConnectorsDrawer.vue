@@ -16,44 +16,48 @@
             v-for="connector in enabledConnectors"
             :key="connector.name">
             <v-list-item-avatar class="rounded-0">
-              <!-- The identity the administrator configured, in its order of
-                   precedence: an uploaded image renders through `avatar` (the
-                   descriptor points it at the image), a chosen font icon
-                   renders as an icon, and a connector carrying neither keeps
-                   its packaged default avatar. -->
-              <v-avatar tile size="40">
-                <v-icon
-                  v-if="connector.icon && !connector.imageUrl"
-                  size="30"
-                  class="icon-default-color">
-                  {{ connector.icon }}
-                </v-icon>
-                <img
-                  v-else
-                  :src="connector.avatar"
-                  :alt="connector.name">
-              </v-avatar>
+              <!-- The identity the administrator configured, resolved by the
+                   shared connector avatar: uploaded image, else chosen font
+                   icon, else the connector's packaged avatar — the same rule
+                   the admin screens apply. -->
+              <agenda-connector-avatar
+                :connector="connector"
+                size="40" />
             </v-list-item-avatar>
             <v-list-item-content>
+              <!-- The row is ALWAYS titled by the connector's name: with
+                   several servers of one kind declared, the name is the only
+                   thing telling them apart, so no state may replace it. -->
+              <v-list-item-title>
+                {{ $t(connector.name) }}
+              </v-list-item-title>
               <v-alert
                 v-if="!connector.canConnect"
                 type="error"
+                dense
+                text
                 class="my-auto">
                 {{ $t('agenda.connectoInitializationFailed') }}
               </v-alert>
-              <template v-else-if="connector.connected">
-                <v-list-item-title>
-                  {{ $t('agenda.connectedAccountWith') }}:
-                </v-list-item-title>
-                <v-list-item-subtitle :title="connector.user">
+              <v-list-item-subtitle
+                v-else-if="connector.connected"
+                :title="`${$t('agenda.connectedAccountWith')}: ${connector.user}`"
+                class="d-flex align-center">
+                <v-icon
+                  size="12"
+                  color="success"
+                  class="me-1">
+                  fa-check-circle
+                </v-icon>
+                <span class="text-truncate">
                   {{ connector.user }}
-                </v-list-item-subtitle>
-              </template>
-              <template v-else>
-                <v-list-item-title>
-                  {{ $t(connector.name) }}
-                </v-list-item-title>
-              </template>
+                </span>
+              </v-list-item-subtitle>
+              <v-list-item-subtitle
+                v-else-if="connectorSubtitle(connector)"
+                :title="connectorSubtitle(connector)">
+                {{ connectorSubtitle(connector) }}
+              </v-list-item-subtitle>
             </v-list-item-content>
             <v-list-item-action v-if="connector.canConnect">
               <v-btn
@@ -149,6 +153,25 @@ export default {
     });
   },
   methods: {
+    /**
+     * The secondary line of a connector row: the connector's translated
+     * description — for a declared CalDAV server, what the administrator
+     * typed, falling back to the server's host, both merged into the shared
+     * i18n instance under the descriptor's description key. A descriptor
+     * without a description, or whose key never got a translation, yields
+     * nothing so the row stays a clean single line rather than showing a raw
+     * key.
+     *
+     * @param {Object} connector the connector descriptor of the row
+     * @returns {String} the resolved secondary line, empty when there is none
+     */
+    connectorSubtitle(connector) {
+      if (!connector.description) {
+        return '';
+      }
+      const translation = this.$t(connector.description);
+      return translation === connector.description ? '' : translation;
+    },
     open() {
       this.connectionInProgress = false;
       this.$root.$emit('agenda-connectors-init');

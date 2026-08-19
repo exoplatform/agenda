@@ -13,12 +13,13 @@
         :size="32"
         popover />
       <div v-else class="d-flex">
-        <v-avatar
-          tile
+        <!-- the shared connector identity: uploaded image, else the
+             admin-chosen font icon, else the packaged avatar — never a
+             bare <img> that ignores the configured icon -->
+        <agenda-connector-avatar
+          :connector="connectedConnector"
           class="spaceAvatar my-auto me-3"
-          size="32">
-          <img :src="connectedConnector.avatar">
-        </v-avatar>
+          size="32" />
         <div class="flex-grow-0 flex-shrink-0 my-auto">
           {{ $t('agenda.personalCalendar') }}
         </div>
