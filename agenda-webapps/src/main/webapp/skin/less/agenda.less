@@ -1050,15 +1050,9 @@
       }
     }
 
-    /* Sections read as separate groups rather than one long list.
-       The gap belongs below My Calendars rather than above Spaces: that
-       section is hidden with v-show when no remote account is connected, and
-       a display:none element contributes no margin, so Spaces closes up
-       instead of keeping a gap above nothing. An adjacent-sibling rule would
-       not, since a hidden element is still a sibling. */
-    .agenda-left-panel-my-calendars {
-      margin-bottom: 20px;
-    }
+    /* Sections read as separate groups rather than one long list: every
+       section carries the same mb-5 utility in the template — one uniform
+       rhythm instead of a special-cased margin on one section here. */
 
     /* compact section title: small, medium weight, subdued color (from
        text-sub-title), tight spacing above the first row */

@@ -25,9 +25,12 @@
       beside the title is the same control the toolbar carries, so both lead to
       the same drawer rather than to two ways of doing one thing.
     -->
+    <!-- Every section carries the same mb-5, one rule for all of them: the
+         vertical rhythm between sections stays identical whichever sections
+         render, and a future section only has to repeat the same class -->
     <section
       v-if="connectorsAvailable"
-      class="agenda-left-panel-section agenda-left-panel-my-calendars d-flex flex-column">
+      class="agenda-left-panel-section d-flex flex-column mb-5">
       <div class="agenda-left-panel-title text-sub-title">
         <span class="flex-grow-1">{{ $t('agenda.leftPanel.myCalendars') }}</span>
         <agenda-connect-to-remote-button
@@ -52,7 +55,7 @@
       managed. This is distinct from the connected-account section above,
       which lists calendars living in a remote account.
     -->
-    <section class="agenda-left-panel-section d-flex flex-column">
+    <section class="agenda-left-panel-section d-flex flex-column mb-5">
       <div class="agenda-left-panel-title text-sub-title">
         <span class="flex-grow-1">{{ $t('agenda.leftPanel.personalCalendars') }}</span>
         <!-- Same affordance as the section above: a small icon button beside
@@ -72,7 +75,7 @@
       <agenda-personal-calendar-list class="agenda-left-panel-calendars" />
     </section>
     <!-- section: Spaces -->
-    <section class="agenda-left-panel-section d-flex flex-column">
+    <section class="agenda-left-panel-section d-flex flex-column mb-5">
       <div class="agenda-left-panel-title text-sub-title">
         {{ $t('agenda.leftPanel.spaces') }}
       </div>
