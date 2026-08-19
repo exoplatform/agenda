@@ -29,15 +29,28 @@
       </template>
       <template #[`item.enabled`]="{ item }">
         <div class="d-flex justify-center">
-          <v-switch
-            v-model="item.enabled"
-            :disabled="item.isOauth && (item.loading || !item.apiKey)"
-            :loading="item.loading"
-            :ripple="false"
-            class="ma-0 pa-0"
-            color="primary"
-            hide-details
-            @change="enableDisableConnector(item)" />
+          <v-tooltip
+            :disabled="!missingApiKey(item)"
+            bottom>
+            <template #activator="{ on, attrs }">
+              <div
+                v-bind="attrs"
+                v-on="on">
+                <v-switch
+                  v-model="item.enabled"
+                  :disabled="item.isOauth && (item.loading || !item.apiKey)"
+                  :loading="item.loading"
+                  :ripple="false"
+                  class="ma-0 pa-0"
+                  color="primary"
+                  hide-details
+                  @change="enableDisableConnector(item)" />
+              </div>
+            </template>
+            <span>
+              {{ $t('agenda.connectors.enableRequiresApiKey') }}
+            </span>
+          </v-tooltip>
         </div>
       </template>
       <template #[`item.actions`]="{ item }">
@@ -122,6 +135,16 @@ export default {
      */
     editItem(connector) {
       this.$root.$emit('open-agenda-connector-drawer', connector);
+    },
+    /**
+     * Whether a row's activation switch is held down for lack of an API key
+     * — the case worth a tooltip now that the keys live behind the drawer.
+     *
+     * @param {Object} connector the built-in connector of the row
+     * @returns {Boolean} true when the connector needs an API key it does not have
+     */
+    missingApiKey(connector) {
+      return !!connector.isOauth && !connector.apiKey;
     },
     /**
      * Propagates the activation switch of a row to the stored remote
