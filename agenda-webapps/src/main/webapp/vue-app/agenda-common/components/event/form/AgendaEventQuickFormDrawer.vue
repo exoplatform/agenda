@@ -41,12 +41,18 @@
               move when the suggester is absent (personal destination)
             -->
             <v-icon size="20" class="icon-default-color mb-auto mt-5 mx-3">fas fa-calendar-alt</v-icon>
+            <!--
+              event-input makes the destination box the title field's exact
+              twin: same 500px bound and, through the drawer's shared
+              calc(100% - 64px) inset, the same right edge — replacing the
+              ad-hoc pe-1 that let it run wider than every input
+            -->
             <agenda-event-form-destination
               ref="calendarOwner"
               :event="event"
               :current-space="currentSpace"
               :calendars="calendars"
-              class="ms-2 pe-1 flex-grow-1"
+              class="ms-2 event-input"
               @initialized="formInitialized" />
           </div>
           <div class="d-flex flex-row">
@@ -68,17 +74,24 @@
               name="locationEvent"
               class="ignore-vuetify-classes my-3 ms-3 event-input">
           </div>
+          <!--
+            Every block below carries the fields' own my-3 rhythm, so the
+            whitespace between any two blocks reads the same 24px whether the
+            content is a 40px field or a one-line label — no block rule, no
+            per-block numbers
+          -->
           <agenda-event-form-conference
             :event="event"
             :settings="settings"
             :current-space="currentSpace"
             :conference-provider="conferenceProvider"
-            icon-class="ms-3 me-6" />
-          <div class="d-flex flex-row align-center">
+            class="my-3"
+            icon-class="ms-3 me-4" />
+          <div class="d-flex flex-row align-center my-3">
             <v-icon size="20" class="icon-default-color my-auto ms-3 me-5">fas fa-palette</v-icon>
             <agenda-event-form-color-picker :event="event" :calendars="calendars" />
           </div>
-          <div class="d-flex flex-row align-center">
+          <div class="d-flex flex-row align-center my-3">
             <v-icon size="20" class="icon-default-color my-auto ms-3 me-4">fas fa-users</v-icon>
             <agenda-event-form-attendees
               :event="event"

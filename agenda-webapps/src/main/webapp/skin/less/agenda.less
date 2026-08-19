@@ -371,15 +371,11 @@
   }
 
   .quick-add {
-    /* The expanded form's row rhythm (.event-form-body-left > *), ported to
-       the drawer: every gutter-icon block spans at least 64px and its field
-       self-centers in it (my-3 margins or my-auto), so the whitespace
-       between any two field blocks reads the same 24px without per-block
-       margins — and the next block added inherits the rhythm for free. */
-    > div > * {
-      min-height: 64px;
-    }
-    input, textarea {
+    /* Every field box of the drawer — bare inputs and the destination
+       block, which carries the event-input class — is inset the same 64px
+       from its row, so all of them resolve to the title field's exact
+       width. */
+    input, textarea, .event-input {
       max-width: ~"calc(100% - 64px)";
     }
     .webconference-event-span {
@@ -401,9 +397,6 @@
     }
     .v-autocomplete.identitySuggester.identitySuggester {
       min-width: 100%;
-    }
-    .user-suggester {
-      max-width: ~"calc(100% - 59px)";
     }
   }
 
