@@ -32,17 +32,22 @@
         <v-label for="agendaPersonalCalendarDescription">
           {{ $t('agenda.calendar.description') }}
         </v-label>
-        <v-textarea
-          id="agendaPersonalCalendarDescription"
-          v-model="calendar.description"
-          :placeholder="$t('agenda.calendar.descriptionPlaceholder')"
-          :aria-label="$t('agenda.calendar.description')"
-          class="mt-2 mb-5 pt-0"
-          rows="3"
-          maxlength="2000"
-          no-resize
-          outlined
-          dense />
+        <!--
+          The platform skin borders the native textarea element itself, so a
+          Vuetify `outlined` textarea renders two nested borders: description
+          fields in drawers use the bare skin-styled textarea instead (cf.
+          social's GroupsManagementFormDrawer)
+        -->
+        <div class="d-flex mt-2 mb-5">
+          <textarea
+            id="agendaPersonalCalendarDescription"
+            v-model="calendar.description"
+            :placeholder="$t('agenda.calendar.descriptionPlaceholder')"
+            :aria-label="$t('agenda.calendar.description')"
+            class="ignore-vuetify-classes flex-grow-1 textarea-no-resize"
+            rows="3"
+            maxlength="2000"></textarea>
+        </div>
         <v-label>
           {{ $t('agenda.calendar.color') }}
         </v-label>
