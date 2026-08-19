@@ -234,7 +234,7 @@
       flex: 0 0 auto;
     }
     .webconference-event-input,.webconference-event-span {
-      width: 500px;
+      width: @event-field-width;
     }
     @media (max-width: @maxMobileWidth) {
       .webconference-event-span {
@@ -361,7 +361,24 @@
     }
   }
 
+  /* The reset gives bare inputs a 10px bottom margin; inside a 64px block
+     it skews the conference field 5px off-center (its sibling variant
+     already carries mb-0). Zeroed for the drawer and the expanded page —
+     the mobile form keeps its own spacing. */
+  .quick-add .webconference-event-input,
+  .event-form-body-left .webconference-event-input {
+    margin-bottom: 0;
+  }
+
   .quick-add {
+    /* The expanded form's row rhythm (.event-form-body-left > *), ported to
+       the drawer: every gutter-icon block spans at least 64px and its field
+       self-centers in it (my-3 margins or my-auto), so the whitespace
+       between any two field blocks reads the same 24px without per-block
+       margins — and the next block added inherits the rhythm for free. */
+    > div > * {
+      min-height: 64px;
+    }
     input, textarea {
       max-width: ~"calc(100% - 64px)";
     }
@@ -370,6 +387,14 @@
     }
     .webconference-event-span-without-cross {
       max-width: ~"calc(100% - 64px)";
+    }
+    /* The -64px row inset belongs to the field's outer box: the conference
+       input lives inside its span wrapper which already carries it, so the
+       input fills the wrapper instead of being inset a second time — the
+       double -64px is what left it narrower than the location field. */
+    .webconference-event-span input,
+    .webconference-event-span-without-cross input {
+      max-width: 100%;
     }
     #eventTitle {
       margin: 0 10px;
