@@ -47,7 +47,8 @@
           <v-icon size="20" class="icon-default-color mb-auto pt-6 me-11">fas fa-clock</v-icon>
           <agenda-event-form-date-pickers
             :event="eventDateOption"
-            class="event-form-datetimes my-4"
+            class="my-4"
+            compact
             @changed="updateEventDates"
             @initialized="formInitialized" />
         </div>

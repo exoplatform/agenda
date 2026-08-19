@@ -409,22 +409,21 @@
     }
   }
 
+
   .datePickerText {
     width: auto;
     min-width: auto;
-    max-width: 50%;
-    padding: 5px;
-    text-align: center;
+    /* 10px left inset = the reset's input padding, so the date text starts
+       where every other field's text starts; left-aligned like them too
+       (the header's month picker keeps its centered text in its own
+       scope) */
+    padding: 5px 5px 5px 10px;
     min-height: 36px !important;
   }
 
   .agenda-application, .event-form {
     [class^="uiIconArrow"] {
       font-size: 12px !important;
-    }
-
-    .event-form-datetimes {
-      max-width: 290px;
     }
 
     .event-time-picker {
@@ -768,6 +767,7 @@
   .agenda-header-date-picker {
     input {
       margin: auto;
+      text-align: center;
       padding-right: 0 !important;
       padding-left: 0 !important;
       max-width: 70% !important;

@@ -60,6 +60,7 @@
             <agenda-event-form-date-pickers
               :event="event"
               class="pt-3 my-4 me-3 ms-2"
+              compact
               @changed="updateEventDates"
               @initialized="formInitialized" />
           </div>
