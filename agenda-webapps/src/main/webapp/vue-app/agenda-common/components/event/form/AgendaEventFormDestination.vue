@@ -14,7 +14,7 @@
     @initialized="$emit('initialized')" />
   <div
     v-else
-    :class="rootLayoutClass"
+    :class="inline ? 'flex-row' : 'flex-column'"
     class="d-flex">
     <!--
       An outlined dense v-select, the platform idiom for a bordered select
@@ -30,7 +30,7 @@
       gap to the suggester below.
     -->
     <div
-      :class="inline ? 'my-3 destination-row-field' : 'mt-3'"
+      :class="inline ? 'my-3 destination-line-field' : 'mt-3'"
       class="d-flex flex-row align-center">
       <v-select
         v-model="selectedValue"
@@ -71,7 +71,7 @@
       :event="event"
       :current-space="currentSpace"
       :calendars="calendars"
-      :class="inline ? 'ms-4 destination-row-field' : 'mt-2'"
+      :class="inline ? 'ms-4 destination-line-field' : 'mt-2'"
       @initialized="$emit('initialized')" />
   </div>
 </template>
@@ -102,20 +102,6 @@ export default {
     initialized: false,
   }),
   computed: {
-    /**
-     * The layout classes of the component root: stacked mode is a plain
-     * column; inline mode is a row that takes as many equal-width field
-     * shares of the destination row as it holds fields (agenda.less), so
-     * the title input and every field in here resolve to the same width.
-     *
-     * @returns {String} classes to apply on the root element
-     */
-    rootLayoutClass() {
-      if (!this.inline) {
-        return 'flex-column';
-      }
-      return this.spacesModeSelected ? 'flex-row destination-row-fields-2' : 'flex-row destination-row-field';
-    },
     /**
      * Whether the destination is restricted to spaces: inside a space agenda
      * the space is fixed, and a timeline configured on selected spaces keeps

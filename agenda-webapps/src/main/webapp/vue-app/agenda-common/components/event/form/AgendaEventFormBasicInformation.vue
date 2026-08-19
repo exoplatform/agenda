@@ -6,43 +6,50 @@
     @submit="$emit('next-step')">
     <div class="d-flex flex-column flex-md-row mt-1 event-form-body">
       <div class="d-flex flex-column flex-grow-1 event-form-body-left">
-        <!--
-          The destination row wraps on its own available width, not on the
-          viewport: the side panel (participants / modify event) eats into
-          this column, so a wide window can still be too narrow here. As soon
-          as the three fields would no longer fit, the whole row switches to
-          the drawer's layout (title on its own line, select beneath,
-          suggester beneath that) instead of wrapping one field at a time:
-          the destination drops its inline mode and takes the full width on
-          the next flex-wrap line, under the icon + title pair.
-        -->
-        <div
-          ref="destinationRow"
-          :class="!destinationInline && 'flex-wrap'"
-          class="d-flex flex-row">
+        <div class="d-flex flex-row">
           <v-icon size="20" class="icon-default-color my-auto me-12 d-none d-md-inline">far fa-calendar</v-icon>
           <input
             id="eventTitle"
             ref="eventTitle"
             v-model="event.summary"
             :placeholder="$t('agenda.eventTitle')"
-            :class="destinationInline && 'destination-row-field'"
             type="text"
             name="title"
-            class="ignore-vuetify-classes my-3"
+            class="ignore-vuetify-classes my-3 event-input"
             required
             @change="resetCustomValidity">
-          <label
-            v-if="destinationInline"
-            class="mt-5 ms-4 me-4 text-subtitle-1 font-weight-bold">
-            {{ $t('agenda.label.in') }}
-          </label>
+        </div>
+        <!--
+          The destination lives on its own line under the title, which keeps
+          line one to itself; the title carries the same event-input class as
+          the location field below, so both resolve to the form's one shared
+          field width. Inline mode shares this line between the select
+          and the space suggester in equal halves; the choice is driven by
+          this line's own measured width — not the viewport, which cannot
+          account for the side panel eating into this column — and below the
+          threshold it collapses to the drawer's fully stacked layout, one
+          field per line. The 'in' lead-in died with the single-line
+          sentence: the select's values already read as destinations. The
+          gutter icon mirrors the drawer's destination icon, keeping the
+          form's icon rhythm and the fields flush with the column above;
+          like in the drawer it labels the destination as a whole, so it
+          anchors to the first field when the pair stacks.
+        -->
+        <div
+          ref="destinationRow"
+          class="d-flex flex-row">
+          <v-icon
+            size="20"
+            :class="destinationInline ? 'my-auto' : 'mb-auto mt-5'"
+            class="icon-default-color me-12 d-none d-md-inline">
+            fas fa-calendar-alt
+          </v-icon>
           <agenda-event-form-destination
             ref="calendarOwner"
             :event="event"
             :current-space="currentSpace"
             :inline="destinationInline"
-            :class="!destinationInline && 'full-width'"
+            class="flex-grow-1"
             @initialized="$emit('initialized')" />
         </div>
         <div v-if="displayTimeInForm && eventDateOption" class="d-flex flex-row">
@@ -134,14 +141,13 @@
 
 <script>
 /**
- * Minimum width (px) of the destination row for the three fields to fit on
- * one line. The fields share the row's width equally (destination-row-field
- * in agenda.less), so the floor is a usable field of ~220px each: calendar
- * icon + gap (68) + 'in' label with margins (~52) + suggester gap (16) +
- * 3 x 220. Below it the row switches wholesale to the drawer's stacked
- * layout.
+ * Minimum width (px) of the destination line for the select and the space
+ * suggester to sit side by side. They share the line equally
+ * (destination-line-field in agenda.less), so the floor is a usable field
+ * of ~220px each: gutter icon + gap (68) + suggester gap (16) + 2 x 220.
+ * Below it the line switches wholesale to the drawer's stacked layout.
  */
-const DESTINATION_INLINE_MIN_WIDTH = 800;
+const DESTINATION_INLINE_MIN_WIDTH = 530;
 
 export default {
   props: {
@@ -178,11 +184,11 @@ export default {
   }),
   computed: {
     /**
-     * Whether the destination row renders inline (title, select and space
-     * suggester side by side) or stacked like the drawer. Driven by the
-     * row's own measured width — not the viewport, which cannot account for
-     * the side panel — combined with the breakpoint that already gates the
-     * icon and 'in' label.
+     * Whether the destination line renders inline (select and space
+     * suggester side by side under the title) or stacked like the drawer.
+     * Driven by the line's own measured width — not the viewport, which
+     * cannot account for the side panel — combined with the breakpoint that
+     * already gates the gutter icons.
      *
      * @returns {Boolean} true when the inline layout fits
      */
@@ -256,12 +262,13 @@ export default {
   },
   methods: {
     /**
-     * Chooses the destination row layout from its measured width: inline
-     * when the three fields fit, the drawer's stacked layout otherwise. A
-     * zero width (the form is hidden, e.g. another stepper step is shown) is
-     * ignored so the last real measurement is kept.
+     * Chooses the destination line layout from its measured width: inline
+     * when the select and the suggester fit side by side, the drawer's
+     * stacked layout otherwise. A zero width (the form is hidden, e.g.
+     * another stepper step is shown) is ignored so the last real
+     * measurement is kept.
      *
-     * @param {Number} width the destination row's current content width
+     * @param {Number} width the destination line's current content width
      * @returns {void}
      */
     updateDestinationLayout(width) {
