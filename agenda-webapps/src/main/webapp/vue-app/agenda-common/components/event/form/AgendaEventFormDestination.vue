@@ -12,45 +12,37 @@
     :current-space="currentSpace"
     :calendars="calendars"
     @initialized="$emit('initialized')" />
-  <div v-else class="d-flex flex-column">
-    <v-select
-      v-model="selectedValue"
-      :items="destinationItems"
-      :aria-label="$t('agenda.destination.label')"
-      :menu-props="{bottom: true, offsetY: true}"
-      class="agenda-event-form-destination pt-0 mt-3"
-      dense
-      hide-details>
-      <template #item="{ item }">
-        <span class="text-truncate">
-          <v-icon
-            v-if="item.color"
-            :color="item.color"
-            size="12"
-            class="me-2">
-            fa-circle
-          </v-icon>{{ item.text }}
-        </span>
-      </template>
-      <template #selection="{ item }">
-        <span class="text-truncate">
-          <v-icon
-            v-if="item.color"
-            :color="item.color"
-            size="12"
-            class="me-2">
-            fa-circle
-          </v-icon>{{ item.text }}
-        </span>
-      </template>
-    </v-select>
+  <div
+    v-else
+    :class="inline && 'flex-md-row'"
+    class="d-flex flex-column">
+    <div class="d-flex flex-row align-center mt-3">
+      <v-icon
+        v-if="selectedColor"
+        :color="selectedColor"
+        size="12"
+        class="me-2 flex-shrink-0">
+        fa-circle
+      </v-icon>
+      <select
+        v-model="selectedValue"
+        :aria-label="$t('agenda.destination.label')"
+        class="ignore-vuetify-classes flex-grow-1 mb-0 agenda-event-form-destination">
+        <option
+          v-for="item in destinationItems"
+          :key="item.value"
+          :value="item.value">
+          {{ item.text }}
+        </option>
+      </select>
+    </div>
     <agenda-event-form-calendar-owner
       v-if="spacesModeSelected"
       ref="calendarOwner"
       :event="event"
       :current-space="currentSpace"
       :calendars="calendars"
-      class="mt-2"
+      :class="inline ? 'mt-2 mt-md-0 ms-md-4' : 'mt-2'"
       @initialized="$emit('initialized')" />
   </div>
 </template>
@@ -69,6 +61,10 @@ export default {
     calendars: {
       type: Array,
       default: () => [],
+    },
+    inline: {
+      type: Boolean,
+      default: false,
     },
   },
   data: () => ({
@@ -91,7 +87,8 @@ export default {
     },
     /**
      * Whether the user chose to file the event in a space, which swaps the
-     * historical space suggester in below the select.
+     * historical space suggester in: beside the select on wide screens when
+     * the inline layout is requested, below it otherwise.
      *
      * @returns {Boolean} true when the space flow is selected
      */
@@ -99,24 +96,32 @@ export default {
       return this.selectedValue === 'spaces';
     },
     /**
-     * The items of the destination select: the user's personal calendars
-     * (color dot + name), then a divider, then the entry leading to the
-     * space flow.
+     * The options of the destination select: the user's personal calendars
+     * by name, then the entry leading to the space flow.
      *
-     * @returns {Array} select items
+     * @returns {Array} select options
      */
     destinationItems() {
       const items = this.personalCalendars.map(calendar => ({
         text: this.calendarLabel(calendar),
         value: `calendar-${calendar.id}`,
-        color: calendar.color,
       }));
-      items.push({divider: true});
       items.push({
         text: this.$t('agenda.destination.spaces'),
         value: 'spaces',
       });
       return items;
+    },
+    /**
+     * The color of the selected personal calendar, shown as a dot beside the
+     * select — a native select cannot render it inside its options. Null in
+     * the space flow or while the calendars are being retrieved.
+     *
+     * @returns {String} hexadecimal color, or null when none applies
+     */
+    selectedColor() {
+      const selected = this.personalCalendars.find(calendar => `calendar-${calendar.id}` === this.selectedValue);
+      return selected && selected.color || null;
     },
     /**
      * The identity id of the current user.

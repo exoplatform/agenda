@@ -25,6 +25,7 @@
             ref="calendarOwner"
             :event="event"
             :current-space="currentSpace"
+            inline
             @initialized="$emit('initialized')" />
         </div>
         <div v-if="displayTimeInForm && eventDateOption" class="d-flex flex-row">

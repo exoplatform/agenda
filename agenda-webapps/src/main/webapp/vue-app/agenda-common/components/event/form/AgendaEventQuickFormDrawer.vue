@@ -33,13 +33,13 @@
               @change="resetCustomValidity">
           </div>
           <div class="d-flex flex-row">
-            <v-icon size="20" class="icon-default-color mt-4 mx-3">fas fa-calendar-alt</v-icon>
+            <v-icon size="20" class="icon-default-color mt-5 mx-3">fas fa-calendar-alt</v-icon>
             <agenda-event-form-destination
               ref="calendarOwner"
               :event="event"
               :current-space="currentSpace"
               :calendars="calendars"
-              class="ms-2 pe-1"
+              class="ms-2 pe-1 flex-grow-1"
               @initialized="formInitialized" />
           </div>
           <div class="d-flex flex-row">
