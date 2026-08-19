@@ -104,6 +104,13 @@
       after connecting, when they have not, so the step was never offered.
     -->
     <agenda-connector-mirror-calendar-drawer />
+    <!--
+      One single instance for the whole application: the personal calendar
+      list renders both in the left panel and in the mobile filter drawer, and
+      both open this drawer through the same root event — two instances would
+      open two drawers.
+    -->
+    <agenda-personal-calendar-drawer />
   </v-app>
 </template>
 <script>

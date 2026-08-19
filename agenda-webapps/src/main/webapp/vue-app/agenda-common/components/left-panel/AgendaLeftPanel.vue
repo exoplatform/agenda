@@ -54,7 +54,20 @@
     -->
     <section class="agenda-left-panel-section d-flex flex-column">
       <div class="agenda-left-panel-title text-sub-title">
-        {{ $t('agenda.leftPanel.personalCalendars') }}
+        <span class="flex-grow-1">{{ $t('agenda.leftPanel.personalCalendars') }}</span>
+        <!-- Same affordance as the section above: a small icon button beside
+             the title, opening a drawer, rather than an inline field -->
+        <v-btn
+          :title="$t('agenda.calendar.addCalendar')"
+          icon
+          max-width="24"
+          max-height="24"
+          class="flex-grow-0"
+          @click="openPersonalCalendarDrawer">
+          <v-icon size="14" class="text-light-color">
+            fas fa-plus
+          </v-icon>
+        </v-btn>
       </div>
       <agenda-personal-calendar-list class="agenda-left-panel-calendars" />
     </section>
@@ -179,6 +192,14 @@ export default {
       if (this.$refs.calendarList) {
         this.$refs.calendarList.reset();
       }
+    },
+    /**
+     * Opens the drawer creating a personal calendar, empty: this button is
+     * the creation entry, editing goes through each calendar's action menu.
+     * @returns {void}
+     */
+    openPersonalCalendarDrawer() {
+      this.$root.$emit('agenda-personal-calendar-drawer-open');
     },
     /**
      * Relays a calendar selection change to the Agenda application through the
