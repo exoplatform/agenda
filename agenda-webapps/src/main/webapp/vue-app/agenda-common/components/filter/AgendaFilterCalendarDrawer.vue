@@ -26,6 +26,10 @@
         </div>
       </div>
       <div v-if="displayCalendarSelection" class="d-flex flex-column mx-4 my-1">
+        <div class="font-weight-bold">{{ $t('agenda.leftPanel.personalCalendars') }}</div>
+        <agenda-personal-calendar-list />
+      </div>
+      <div v-if="displayCalendarSelection" class="d-flex flex-column mx-4 my-1">
         <div class="font-weight-bold">{{ $t('agenda.leftPanel.spaces') }}</div>
         <agenda-filter-calendar-list
           ref="calendarList"

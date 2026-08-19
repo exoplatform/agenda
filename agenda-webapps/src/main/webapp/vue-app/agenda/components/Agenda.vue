@@ -140,6 +140,7 @@ export default {
     events: [],
     remoteEvents: [],
     hiddenRemoteCalendarIds: [],
+    hiddenPersonalCalendarIds: [],
     displayedEvent: [],
     settings: {
       agendaDefaultView: 'week',
@@ -264,6 +265,7 @@ export default {
       handler: 'updateDisplayedEvents',
       deep: true
     },
+    hiddenPersonalCalendarIds: 'updateDisplayedEvents',
     'settings.showRemoteEventsForAgenda': 'updateDisplayedEvents'
   },
   created() {
@@ -288,6 +290,8 @@ export default {
     this.$root.$on('agenda-calendar-owners-changed', this.changeDisplayedOwnerIds);
     this.$root.$on('agenda-left-panel-toggle', this.toggleLeftPanel);
     this.$root.$on('agenda-remote-calendars-changed', this.changeHiddenRemoteCalendars);
+    this.$root.$on('agenda-personal-calendars-visibility-changed', this.changeHiddenPersonalCalendars);
+    this.initHiddenPersonalCalendars();
     this.$root.$on('agenda-settings-refresh', this.initSettings);
     this.$root.$on('agenda-event-change-owner', this.refreshProviders);
     this.$root.$on('agenda-show-remote-change', this.showRemoteEvents);
@@ -322,11 +326,16 @@ export default {
       }
     },
     updateDisplayedEvents() {
+      // Personal per-calendar visibility is applied client-side: the user's
+      // personal calendars share one owner identity, so the server-side
+      // ownerIds selection can't distinguish them
+      const localEvents = this.events.filter(event => !event.calendar
+          || !this.hiddenPersonalCalendarIds.includes(Number(event.calendar.id)));
       if (this.settings.showRemoteEventsForAgenda) {
         // Avoid to have same event from remote and local store (pushed events from local store)
         const filtered = this.filterRemoteEvents(this.events, this.remoteEvents)
           .filter(remote => !this.hiddenRemoteCalendarIds.includes(remote.calendarId));
-        const merged = [...this.events, ...filtered];
+        const merged = [...localEvents, ...filtered];
         merged.sort((a, b) => {
           const s1 = this.$agendaUtils.toDate(a.start || a.startDate).getTime();
           const s2 = this.$agendaUtils.toDate(b.start || b.startDate).getTime();
@@ -334,7 +343,7 @@ export default {
         });
         this.displayedEvent = merged;
       } else {
-        this.displayedEvent = [...this.events];
+        this.displayedEvent = localEvents;
       }
     },
     showRemoteEvents(showRemoteEvents) {
@@ -519,6 +528,31 @@ export default {
     changeHiddenRemoteCalendars(hiddenRemoteCalendarIds) {
       this.hiddenRemoteCalendarIds = hiddenRemoteCalendarIds || [];
       this.updateDisplayedEvents();
+    },
+    /**
+     * Applies a new personal-calendar visibility selection coming from the
+     * personal calendar list (left panel or mobile filter drawer).
+     *
+     * @param {Array} hiddenPersonalCalendarIds identifiers of the personal
+     *          calendars whose events must be hidden
+     * @returns {void}
+     */
+    changeHiddenPersonalCalendars(hiddenPersonalCalendarIds) {
+      this.hiddenPersonalCalendarIds = (hiddenPersonalCalendarIds || []).map(Number);
+    },
+    /**
+     * Restores the personal-calendar visibility persisted in the browser
+     * storage, so a hidden calendar stays hidden across reloads.
+     * @returns {void}
+     */
+    initHiddenPersonalCalendars() {
+      try {
+        const storedValue = localStorage.getItem(`agenda.hiddenPersonalCalendars.${eXo.env.portal.userIdentityId}`);
+        const hiddenIds = storedValue && JSON.parse(storedValue) || [];
+        this.hiddenPersonalCalendarIds = Array.isArray(hiddenIds) ? hiddenIds.map(Number) : [];
+      } catch (e) {
+        this.hiddenPersonalCalendarIds = [];
+      }
     },
     filterRemoteEvents(localEvents, remoteEvents) {
       return remoteEvents.filter(remote => {

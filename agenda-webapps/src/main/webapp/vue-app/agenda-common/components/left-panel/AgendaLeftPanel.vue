@@ -45,6 +45,19 @@
         :connectors="connectors"
         class="agenda-left-panel-calendars" />
     </section>
+    <!--
+      The user's own agenda calendars: the default one plus any calendar the
+      user created to organize personal events. Visibility, rename, creation
+      and deletion all live here — the same place the other calendar lists are
+      managed. This is distinct from the connected-account section above,
+      which lists calendars living in a remote account.
+    -->
+    <section class="agenda-left-panel-section d-flex flex-column">
+      <div class="agenda-left-panel-title text-sub-title">
+        {{ $t('agenda.leftPanel.personalCalendars') }}
+      </div>
+      <agenda-personal-calendar-list class="agenda-left-panel-calendars" />
+    </section>
     <!-- section: Spaces -->
     <section class="agenda-left-panel-section d-flex flex-column">
       <div class="agenda-left-panel-title text-sub-title">
