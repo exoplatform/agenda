@@ -33,7 +33,14 @@
               @change="resetCustomValidity">
           </div>
           <div class="d-flex flex-row">
-            <v-icon size="20" class="icon-default-color mt-5 mx-3">fas fa-calendar-alt</v-icon>
+            <!--
+              mb-auto anchors the icon to the top of the row: it labels the
+              destination as a whole, so it lines up with the row's first
+              field (the select) instead of centring across the pair when the
+              space suggester adds a second field below — and it does not
+              move when the suggester is absent (personal destination)
+            -->
+            <v-icon size="20" class="icon-default-color mb-auto mt-5 mx-3">fas fa-calendar-alt</v-icon>
             <agenda-event-form-destination
               ref="calendarOwner"
               :event="event"

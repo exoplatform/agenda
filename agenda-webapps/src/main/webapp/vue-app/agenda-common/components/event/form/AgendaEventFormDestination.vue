@@ -16,25 +16,46 @@
     v-else
     :class="inline && 'flex-md-row'"
     class="d-flex flex-column">
+    <!--
+      An outlined dense v-select, the platform idiom for a bordered select
+      (email-connector contact phone type): unlike a native select it renders
+      the per-calendar color dots and the divider before the space entry, and
+      carries the same border as the fields around it instead of the
+      browser's own focus ring.
+    -->
     <div class="d-flex flex-row align-center mt-3">
-      <v-icon
-        v-if="selectedColor"
-        :color="selectedColor"
-        size="12"
-        class="me-2 flex-shrink-0">
-        fa-circle
-      </v-icon>
-      <select
+      <v-select
         v-model="selectedValue"
+        :items="destinationItems"
         :aria-label="$t('agenda.destination.label')"
-        class="ignore-vuetify-classes flex-grow-1 mb-0 agenda-event-form-destination">
-        <option
-          v-for="item in destinationItems"
-          :key="item.value"
-          :value="item.value">
-          {{ item.text }}
-        </option>
-      </select>
+        :menu-props="{bottom: true, offsetY: true}"
+        class="agenda-event-form-destination flex-grow-1 pt-0 mt-0"
+        outlined
+        dense
+        hide-details>
+        <template #item="{ item }">
+          <span class="text-truncate">
+            <v-icon
+              v-if="item.color"
+              :color="item.color"
+              size="12"
+              class="me-2">
+              fa-circle
+            </v-icon>{{ item.text }}
+          </span>
+        </template>
+        <template #selection="{ item }">
+          <span class="text-truncate">
+            <v-icon
+              v-if="item.color"
+              :color="item.color"
+              size="12"
+              class="me-2">
+              fa-circle
+            </v-icon>{{ item.text }}
+          </span>
+        </template>
+      </v-select>
     </div>
     <agenda-event-form-calendar-owner
       v-if="spacesModeSelected"
@@ -96,32 +117,24 @@ export default {
       return this.selectedValue === 'spaces';
     },
     /**
-     * The options of the destination select: the user's personal calendars
-     * by name, then the entry leading to the space flow.
+     * The items of the destination select: the user's personal calendars
+     * (color dot + name), then a divider, then the entry leading to the
+     * space flow.
      *
-     * @returns {Array} select options
+     * @returns {Array} select items
      */
     destinationItems() {
       const items = this.personalCalendars.map(calendar => ({
         text: this.calendarLabel(calendar),
         value: `calendar-${calendar.id}`,
+        color: calendar.color,
       }));
+      items.push({divider: true});
       items.push({
         text: this.$t('agenda.destination.spaces'),
         value: 'spaces',
       });
       return items;
-    },
-    /**
-     * The color of the selected personal calendar, shown as a dot beside the
-     * select — a native select cannot render it inside its options. Null in
-     * the space flow or while the calendars are being retrieved.
-     *
-     * @returns {String} hexadecimal color, or null when none applies
-     */
-    selectedColor() {
-      const selected = this.personalCalendars.find(calendar => `calendar-${calendar.id}` === this.selectedValue);
-      return selected && selected.color || null;
     },
     /**
      * The identity id of the current user.
