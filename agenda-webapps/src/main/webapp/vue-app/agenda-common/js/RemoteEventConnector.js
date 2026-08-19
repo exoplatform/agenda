@@ -37,9 +37,19 @@ export function pushEventToConnector(connector, event, allRecurrentEvent) {
  * never breaks the match. A connector that exposes no mirror leaves the list
  * untouched.
  *
+ * Only a DEDICATED mirror — a calendar the connector created to hold the
+ * copies — is left out. A server that refuses creating calendars makes the
+ * connector adopt an existing calendar of the user as the destination
+ * instead, and that one must keep appearing everywhere it always did:
+ * hiding it would make a calendar the user relies on — typically their
+ * primary one — quietly disappear. Its pushed copies do not double the
+ * grid: the display filters them out by the identifier stored at push time.
+ * A connector that cannot tell the two apart keeps the previous behaviour,
+ * excluding whatever mirror it names.
+ *
  * @param {Object} connector the connector the calendars came from
  * @param {Array} calendars the calendars to filter
- * @returns {Promise<Array>} the calendars without the mirror
+ * @returns {Promise<Array>} the calendars without the dedicated mirror
  */
 export function excludeMirrorCalendar(connector, calendars) {
   if (!connector || typeof connector.getMirrorCalendarId !== 'function' || !calendars || !calendars.length) {
@@ -47,9 +57,26 @@ export function excludeMirrorCalendar(connector, calendars) {
   }
   return connector.getMirrorCalendarId()
     .then(mirrorCalendarId => mirrorCalendarId
+      && isDedicatedMirror(connector, mirrorCalendarId)
       && calendars.filter(calendar => !isSameCalendarHref(calendar.id, mirrorCalendarId))
       || calendars)
     .catch(() => calendars);
+}
+
+/**
+ * Whether the mirror a connector names is a calendar it created for the
+ * copies, as opposed to an existing calendar it adopted. Asked of the
+ * connector because only it knows how its mirror came to be; a connector
+ * predating the distinction is read as dedicated, which is what every
+ * mirror was before adoption existed.
+ *
+ * @param {Object} connector the connector naming the mirror
+ * @param {String} mirrorCalendarId href of the mirror calendar
+ * @returns {Boolean} true when the mirror holds nothing but copies
+ */
+function isDedicatedMirror(connector, mirrorCalendarId) {
+  return typeof connector.isDedicatedMirrorCalendar !== 'function'
+    || connector.isDedicatedMirrorCalendar(mirrorCalendarId);
 }
 
 /**
