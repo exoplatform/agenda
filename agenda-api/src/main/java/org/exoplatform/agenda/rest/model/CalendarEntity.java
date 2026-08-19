@@ -24,7 +24,6 @@ import org.exoplatform.social.rest.entity.IdentityEntity;
 import lombok.*;
 
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
 public class CalendarEntity implements Serializable, Cloneable {
 
@@ -38,6 +37,8 @@ public class CalendarEntity implements Serializable, Cloneable {
 
   private String             title;
 
+  private String             name;
+
   private String             description;
 
   private String             created;
@@ -48,8 +49,38 @@ public class CalendarEntity implements Serializable, Cloneable {
 
   private CalendarPermission acl;
 
+  public CalendarEntity(long id,
+                        IdentityEntity owner,
+                        boolean system,
+                        String title,
+                        String description,
+                        String created,
+                        String updated,
+                        String color,
+                        CalendarPermission acl) {
+    this.id = id;
+    this.owner = owner;
+    this.system = system;
+    this.title = title;
+    this.description = description;
+    this.created = created;
+    this.updated = updated;
+    this.color = color;
+    this.acl = acl;
+  }
+
   @Override
   public CalendarEntity clone() {// NOSONAR
-    return new CalendarEntity(id, owner, system, title, description, created, updated, color, acl == null ? null : acl.clone());
+    CalendarEntity calendarEntity = new CalendarEntity(id,
+                                                       owner,
+                                                       system,
+                                                       title,
+                                                       description,
+                                                       created,
+                                                       updated,
+                                                       color,
+                                                       acl == null ? null : acl.clone());
+    calendarEntity.setName(name);
+    return calendarEntity;
   }
 }
