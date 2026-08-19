@@ -275,6 +275,9 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
       Utils.checkAclByCalendarOwner(identityManager, spaceService, calendar.getOwnerId(), username);
     }
     sanitizeAndValidateName(calendar);
+    if (StringUtils.isBlank(calendar.getColor())) {
+      calendar.setColor(getAvailableColor(calendar.getOwnerId()));
+    }
 
     // User had created the calendar manually
     calendar.setSystem(false);
@@ -412,6 +415,39 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     int size = this.defaultColors.size();
     int index = (int) Math.abs(ownerId % size);
     return this.defaultColors.get(index);
+  }
+
+  /**
+   * Picks a color for a new calendar of the given owner when the caller
+   * didn't choose one: the first color of the configured palette not already
+   * used by another calendar of the same owner, so sibling calendars stay
+   * visually distinguishable; when the whole palette is used, falls back to
+   * the owner's stable default color. The COLOR column is non-nullable, so a
+   * color must always be resolved here.
+   *
+   * @param ownerId technical identifier of the calendar owner identity
+   * @return a non-null color from the configured default palette
+   */
+  private String getAvailableColor(long ownerId) {
+    List<Long> ownerCalendarIds = agendaCalendarStorage.getCalendarIdsByOwnerIds(0, Integer.MAX_VALUE, ownerId);
+    Set<String> usedColors = new HashSet<>();
+    for (Long ownerCalendarId : ownerCalendarIds) {
+      Calendar ownerCalendar = ownerCalendarId == null ? null : agendaCalendarStorage.getCalendarById(ownerCalendarId);
+      if (ownerCalendar != null && ownerCalendar.getColor() != null) {
+        usedColors.add(ownerCalendar.getColor().toLowerCase());
+      }
+    }
+    // Start scanning the palette at the owner's stable default color, so the
+    // sequence of assigned colors stays deterministic per owner
+    int size = this.defaultColors.size();
+    int startIndex = (int) Math.abs(ownerId % size);
+    for (int i = 0; i < size; i++) {
+      String candidateColor = this.defaultColors.get((startIndex + i) % size);
+      if (!usedColors.contains(candidateColor.toLowerCase())) {
+        return candidateColor;
+      }
+    }
+    return getDefaultColor(ownerId);
   }
 
   /**
