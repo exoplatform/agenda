@@ -212,7 +212,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
       throw new IllegalStateException("User with technical identifier " + ownerId + " is not found");
     }
     Long systemCalendarId = agendaCalendarStorage.getSystemCalendarIdByOwnerId(ownerId);
-    if (systemCalendarId == null) {
+    if (systemCalendarId == null || systemCalendarId <= 0) {
       Calendar calendar = createCalendarInstance(ownerId);
       calendar = agendaCalendarStorage.createCalendar(calendar);
       return calendar;
