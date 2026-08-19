@@ -159,6 +159,9 @@ export default {
     hasMore: false,
     settingsLoaded: false,
     remoteEventsLoaded: false,
+    // Monotonic token identifying the latest events request: responses of
+    // superseded requests are discarded instead of overwriting fresher ones
+    eventsRequestId: 0,
     leftPanelExpanded: localStorage.getItem('agendaLeftPanelExpanded') !== 'false',
   }),
   computed: {
@@ -335,8 +338,13 @@ export default {
     updateDisplayedEvents() {
       // Personal per-calendar visibility is applied client-side: the user's
       // personal calendars share one owner identity, so the server-side
-      // ownerIds selection can't distinguish them
+      // ownerIds selection can't distinguish them. The filter is scoped to
+      // calendars owned by the current user so that a space calendar can
+      // never be hidden by it, whatever the persisted list contains
+      const userIdentityId = Number(eXo.env.portal.userIdentityId);
       const localEvents = this.events.filter(event => !event.calendar
+          || !event.calendar.owner
+          || Number(event.calendar.owner.id) !== userIdentityId
           || !this.hiddenPersonalCalendarIds.includes(Number(event.calendar.id)));
       if (this.settings.showRemoteEventsForAgenda) {
         // Avoid to have same event from remote and local store (pushed events from local store)
@@ -386,7 +394,19 @@ export default {
         this.retrieveEventsFromStore();
       }
     },
+    /**
+     * Retrieves the events matching the current selection (period, owners,
+     * event type, search term) and displays them. Selection changes, saves
+     * and period moves each trigger a retrieval, so several requests can be
+     * in flight at once: each request takes a monotonic token, and a response
+     * belonging to a superseded request is discarded — otherwise a slower
+     * stale response landing last silently overwrites the fresher one, and
+     * the grid drops events that the current selection does include.
+     *
+     * @returns {Promise|void} resolved when the events are displayed
+     */
     retrieveEventsFromStore() {
+      const requestId = ++this.eventsRequestId;
       this.loading = true;
       const userIdentityId = this.eventType !== 'allEvents' && eXo.env.portal.userIdentityId || null;
       if (this.ownerIds === false) {
@@ -399,6 +419,11 @@ export default {
       const responseTypes = eXo.env.portal.spaceId && this.eventType === 'allEvents' ? null : this.eventType === 'declinedEvent' ? ['DECLINED']:['ACCEPTED', 'NEEDS_ACTION', 'TENTATIVE'];
       return this.$eventService.getEvents(this.searchTerm, this.ownerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, true), this.$agendaUtils.toRFC3339(this.period.end), this.limit, responseTypes, 'attendees,conferences')
         .then(data => {
+          if (requestId !== this.eventsRequestId) {
+            // A newer retrieval was started since: its response is the one
+            // reflecting the current selection, let it drive the display
+            return;
+          }
           let events = data && data.events || [];
           if (this.filterCanceledEvents) {
             events = events.filter(event => !event.status || event.status !== 'CANCELLED');
@@ -413,8 +438,10 @@ export default {
         }).catch(error =>{
           console.error('Error retrieving events', error);
         }).finally(() => {
-          this.initialized = true;
-          this.loading = false;
+          if (requestId === this.eventsRequestId) {
+            this.initialized = true;
+            this.loading = false;
+          }
         });
     },
     generateCalendarTitle(period) {
