@@ -21,7 +21,7 @@
           <label class="mt-5 ms-4 me-4 text-subtitle-1 font-weight-bold d-none d-md-inline">
             {{ $t('agenda.label.in') }}
           </label>
-          <agenda-event-form-calendar-owner
+          <agenda-event-form-destination
             ref="calendarOwner"
             :event="event"
             :current-space="currentSpace"

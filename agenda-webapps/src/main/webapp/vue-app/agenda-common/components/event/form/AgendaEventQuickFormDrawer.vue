@@ -34,7 +34,7 @@
           </div>
           <div class="d-flex flex-row">
             <v-icon size="20" class="icon-default-color mt-4 mx-3">fas fa-calendar-alt</v-icon>
-            <agenda-event-form-calendar-owner
+            <agenda-event-form-destination
               ref="calendarOwner"
               :event="event"
               :current-space="currentSpace"
