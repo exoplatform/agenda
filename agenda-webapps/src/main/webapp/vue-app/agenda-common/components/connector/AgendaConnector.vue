@@ -237,6 +237,26 @@ export default {
       this.refreshConnectorsList();
     },
     /**
+     * Whether an event lives in a space calendar, read from the calendar
+     * owner's identity provider: 'space' identities own space calendars,
+     * 'organization' identities own personal ones. The providerId travels in
+     * every payload reaching the push handlers — server-built events carry
+     * the stored identity's provider, and both create flows set it explicitly
+     * (the destination picker writes 'organization', the space suggester
+     * 'space') — unlike a name or a color, which are user-editable and prove
+     * nothing. The server-expanded owner also embeds a space object; it backs
+     * the check up. An event whose destination cannot be established is not
+     * treated as a space event: the push copies meetings, so only what is
+     * provably a meeting leaves the platform.
+     *
+     * @param {Object} event the event to test
+     * @returns {Boolean} true when the event belongs to a space calendar
+     */
+    isSpaceEvent(event) {
+      const owner = event && event.calendar && event.calendar.owner;
+      return !!owner && (owner.providerId === 'space' || !!owner.space);
+    },
+    /**
      * Removes the copy of a deleted event from the connected calendar.
      *
      * The removal is reported when it fails, because its failure is the one
@@ -244,11 +264,15 @@ export default {
      * screen suggests a copy of it is still standing on their phone, at a time
      * they are no longer expected anywhere.
      *
+     * Only space events are mirrored (the push copies meetings, not the
+     * calendars a user keeps privately in eXo), so only a space event's
+     * deletion reaches the connected account.
+     *
      * @param {Object} event the deleted event whose copy must go
      * @returns {Promise} resolves once the removal has been attempted
      */
     deleteEvent(event) {
-      if (this.settings && this.settings.automaticPushEvents && this.connectedConnector && this.connectedConnector.canPush) {
+      if (this.isSpaceEvent(event) && this.settings && this.settings.automaticPushEvents && this.connectedConnector && this.connectedConnector.canPush) {
         return this.$remoteEventConnector.removeEventFromConnector(this.connectedConnector, event, !!event.recurrence)
           .catch(error => this.announceCopyFailure(error, true))
           .finally(() => this.$root.$emit('agenda-refresh'));
@@ -291,13 +315,20 @@ export default {
      * is on another device. Silence here is what let a switch stay on for days
      * while nothing was reaching the account behind it.
      *
+     * Only space events are pushed: the setting promises to copy the meetings
+     * the user accepts or organises, and an event filed in one of their own
+     * personal calendars is not that — copying it to their connected account
+     * is at best redundant with what that account already holds. This is the
+     * single gate for every trigger, since creation, update and every answer
+     * flow funnel through here.
+     *
      * @param {Object} event the event answered
      * @param {String} occurrenceId the occurrence answered, when only one was
      * @param {String} eventResponse the answer given
      * @returns {Promise} resolves once the copy has been written or removed
      */
     pushEventResponse(event, occurrenceId, eventResponse) {
-      if (event && eventResponse && this.settings && this.settings.automaticPushEvents && this.connectedConnector && this.connectedConnector.canPush) {
+      if (this.isSpaceEvent(event) && eventResponse && this.settings && this.settings.automaticPushEvents && this.connectedConnector && this.connectedConnector.canPush) {
         event.start = this.$agendaUtils.toRFC3339(event.start);
         event.end = this.$agendaUtils.toRFC3339(event.end);
 
