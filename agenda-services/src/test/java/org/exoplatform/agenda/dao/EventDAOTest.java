@@ -118,6 +118,46 @@ public class EventDAOTest extends TestCase {
     }
   }
 
+  /**
+   * Deleting a personal calendar relies on this bulk move: every event of the
+   * source calendar must end up in the target calendar, the returned
+   * identifiers must be exactly the moved events, and events of other
+   * calendars must not move.
+   */
+  public void testMoveCalendarEvents() {
+    CalendarEntity sourceCalendar = newCalendar();
+    CalendarEntity targetCalendar = newCalendar();
+    try {
+      EventEntity movedEvent1 = newEvent(sourceCalendar);
+      EventEntity movedEvent2 = newEvent(sourceCalendar);
+      EventEntity untouchedEvent = newEvent(targetCalendar);
+
+      java.util.List<Long> movedEventIds = eventDAO.moveCalendarEvents(sourceCalendar.getId(), targetCalendar.getId());
+      assertNotNull(movedEventIds);
+      assertEquals(2, movedEventIds.size());
+      assertTrue(movedEventIds.contains(movedEvent1.getId()));
+      assertTrue(movedEventIds.contains(movedEvent2.getId()));
+
+      EventEntity storedMovedEvent1 = eventDAO.find(movedEvent1.getId());
+      EventEntity storedMovedEvent2 = eventDAO.find(movedEvent2.getId());
+      EventEntity storedUntouchedEvent = eventDAO.find(untouchedEvent.getId());
+      assertEquals(targetCalendar.getId(), storedMovedEvent1.getCalendar().getId());
+      assertEquals(targetCalendar.getId(), storedMovedEvent2.getCalendar().getId());
+      assertEquals(targetCalendar.getId(), storedUntouchedEvent.getCalendar().getId());
+
+      // An empty source calendar moves nothing
+      java.util.List<Long> emptyMove = eventDAO.moveCalendarEvents(sourceCalendar.getId(), targetCalendar.getId());
+      assertNotNull(emptyMove);
+      assertTrue(emptyMove.isEmpty());
+    } finally {
+      eventDAO.deleteCalendarEvents(sourceCalendar.getId());
+      eventDAO.deleteCalendarEvents(targetCalendar.getId());
+      RequestLifeCycle.restartTransaction();
+      calendarDAO.delete(sourceCalendar);
+      calendarDAO.delete(targetCalendar);
+    }
+  }
+
   private EventEntity newEvent(CalendarEntity calendarEntity) {
     return newEvent(calendarEntity,
                     availability,

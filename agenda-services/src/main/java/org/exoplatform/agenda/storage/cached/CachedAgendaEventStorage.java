@@ -76,6 +76,28 @@ public class CachedAgendaEventStorage extends AgendaEventStorage {
   @Override
   public void deleteCalendarEvents(long calendarId) {
     super.deleteCalendarEvents(calendarId);
+    clearCalendarEventsFromCache(calendarId);
+  }
+
+  /**
+   * {@inheritDoc} In addition, evicts the moved events from the event cache so
+   * that subsequent reads return the new calendar membership.
+   */
+  @Override
+  public List<Long> moveCalendarEvents(long fromCalendarId, long toCalendarId) {
+    List<Long> movedEventIds = super.moveCalendarEvents(fromCalendarId, toCalendarId);
+    clearCalendarEventsFromCache(fromCalendarId);
+    return movedEventIds;
+  }
+
+  /**
+   * Evicts from the event cache every event cached with a membership to the
+   * given calendar.
+   *
+   * @param calendarId technical identifier of the calendar whose cached events
+   *          have to be evicted
+   */
+  private void clearCalendarEventsFromCache(long calendarId) {
     try {
       this.eventCache.select(new CachedObjectSelector<Long, Event>() {
         @Override

@@ -3435,4 +3435,69 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(icsStartDate, startDateFormatted);
     assertEquals(icsEndDate, endDateFormatted);
   }
+
+  /**
+   * Moving an event to another calendar through update requires the right to
+   * create events in the <b>target</b> calendar (derived from the stored
+   * calendar row): a user allowed to update an event must not be able to file
+   * it into someone else's calendar, while moving between the user's own
+   * calendars must work.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testUpdateEventMoveChecksTargetCalendarAcl() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+
+    Event eventInstance = newEventInstance(start, start.plusHours(1), false);
+    eventInstance.setRecurrence(null);
+    Event createdEvent = createEvent(eventInstance.clone(), user1IdentityId, testuser1Identity);
+    assertEquals(calendar.getId(), createdEvent.getCalendarId());
+
+    // 1. Moving the event to another user's personal calendar must be refused
+    org.exoplatform.agenda.model.Calendar user2Calendar = agendaCalendarService.getOrCreateCalendarByOwnerId(Long.parseLong(testuser2Identity.getId()));
+    Event eventToMove = agendaEventService.getEventById(createdEvent.getId(), null, user1IdentityId).clone();
+    eventToMove.setCalendarId(user2Calendar.getId());
+    try {
+      agendaEventService.updateEvent(eventToMove,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     null,
+                                     null,
+                                     false,
+                                     user1IdentityId);
+      fail("Shouldn't allow to move an event into another user's calendar");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    assertEquals("The event must not have moved",
+                 calendar.getId(),
+                 agendaEventService.getEventById(createdEvent.getId()).getCalendarId());
+
+    // 2. Moving the event between the user's own calendars must work
+    org.exoplatform.agenda.model.Calendar secondCalendar =
+                                                          new org.exoplatform.agenda.model.Calendar(0, user1IdentityId, false, null, null, null, null, null, null);
+    secondCalendar.setName("Second calendar");
+    secondCalendar = agendaCalendarService.createCalendar(secondCalendar, testuser1Identity.getRemoteId());
+    try {
+      eventToMove = agendaEventService.getEventById(createdEvent.getId(), null, user1IdentityId).clone();
+      eventToMove.setCalendarId(secondCalendar.getId());
+      agendaEventService.updateEvent(eventToMove,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     null,
+                                     null,
+                                     false,
+                                     user1IdentityId);
+      assertEquals("The event must have moved to the user's second calendar",
+                   secondCalendar.getId(),
+                   agendaEventService.getEventById(createdEvent.getId()).getCalendarId());
+    } finally {
+      agendaCalendarService.deleteCalendarById(secondCalendar.getId());
+      agendaCalendarService.deleteCalendarById(user2Calendar.getId());
+    }
+  }
 }

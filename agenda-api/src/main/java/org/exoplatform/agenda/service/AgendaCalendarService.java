@@ -141,14 +141,19 @@ public interface AgendaCalendarService {
   void updateCalendar(Calendar calendar) throws ObjectNotFoundException;
 
   /**
-   * Deletes an existing calendar
-   * 
+   * Deletes an existing user (non-system) calendar. The events of the deleted
+   * calendar are not destroyed: they are moved to the owner's default
+   * (system) calendar before the calendar row is deleted. System calendars
+   * can't be deleted through this method.
+   *
    * @param calendarId Calendar technical identifier to delete
    * @param username User name deleting calendar
    * @throws IllegalAccessException when user is not authorized to delete the
    *           calendar
    * @throws ObjectNotFoundException when the calendar identified by its
    *           technical identifier is not found
+   * @throws IllegalStateException when the calendar is a system calendar,
+   *           which is undeletable
    */
   void deleteCalendarById(long calendarId, String username) throws IllegalAccessException, ObjectNotFoundException;
 
