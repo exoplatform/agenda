@@ -203,12 +203,27 @@
       background: white !important;
     }
 
+    /* The destination select uses no floating label, so Vuetify's outlined
+       fieldset — painted from top -5px to leave room for the label's legend
+       notch — only makes the visible border 45px tall against the 40px
+       native inputs (reset.less) around it. Pin it to the 40px input slot. */
+    .agenda-event-form-destination {
+      fieldset {
+        top: 0;
+      }
+    }
+
     .space-suggester {
       max-width: 270px;
     }
 
+    /* The one field width every line of the expanded form agrees on: the
+       title and location inputs, the destination select and the space
+       suggester all carry the event-input class. */
+    @event-field-width: 500px;
+
     .event-input {
-      width: 500px;
+      width: @event-field-width;
     }
 
     .event-color-activator {
@@ -219,7 +234,7 @@
       flex: 0 0 auto;
     }
     .webconference-event-input,.webconference-event-span {
-      width: 500px;
+      width: @event-field-width;
     }
     @media (max-width: @maxMobileWidth) {
       .webconference-event-span {
@@ -346,8 +361,21 @@
     }
   }
 
+  /* The reset gives bare inputs a 10px bottom margin; inside a 64px block
+     it skews the conference field 5px off-center (its sibling variant
+     already carries mb-0). Zeroed for the drawer and the expanded page —
+     the mobile form keeps its own spacing. */
+  .quick-add .webconference-event-input,
+  .event-form-body-left .webconference-event-input {
+    margin-bottom: 0;
+  }
+
   .quick-add {
-    input, textarea {
+    /* Every field box of the drawer — bare inputs and the destination
+       block, which carries the event-input class — is inset the same 64px
+       from its row, so all of them resolve to the title field's exact
+       width. */
+    input, textarea, .event-input {
       max-width: ~"calc(100% - 64px)";
     }
     .webconference-event-span {
@@ -356,14 +384,19 @@
     .webconference-event-span-without-cross {
       max-width: ~"calc(100% - 64px)";
     }
+    /* The -64px row inset belongs to the field's outer box: the conference
+       input lives inside its span wrapper which already carries it, so the
+       input fills the wrapper instead of being inset a second time — the
+       double -64px is what left it narrower than the location field. */
+    .webconference-event-span input,
+    .webconference-event-span-without-cross input {
+      max-width: 100%;
+    }
     #eventTitle {
       margin: 0 10px;
     }
     .v-autocomplete.identitySuggester.identitySuggester {
       min-width: 100%;
-    }
-    .user-suggester {
-      max-width: ~"calc(100% - 59px)";
     }
   }
 
@@ -376,22 +409,21 @@
     }
   }
 
+
   .datePickerText {
     width: auto;
     min-width: auto;
-    max-width: 50%;
-    padding: 5px;
-    text-align: center;
+    /* 10px left inset = the reset's input padding, so the date text starts
+       where every other field's text starts; left-aligned like them too
+       (the header's month picker keeps its centered text in its own
+       scope) */
+    padding: 5px 5px 5px 10px;
     min-height: 36px !important;
   }
 
   .agenda-application, .event-form {
     [class^="uiIconArrow"] {
       font-size: 12px !important;
-    }
-
-    .event-form-datetimes {
-      max-width: 290px;
     }
 
     .event-time-picker {
@@ -735,6 +767,7 @@
   .agenda-header-date-picker {
     input {
       margin: auto;
+      text-align: center;
       padding-right: 0 !important;
       padding-left: 0 !important;
       max-width: 70% !important;
@@ -1066,15 +1099,9 @@
       }
     }
 
-    /* Sections read as separate groups rather than one long list.
-       The gap belongs below My Calendars rather than above Spaces: that
-       section is hidden with v-show when no remote account is connected, and
-       a display:none element contributes no margin, so Spaces closes up
-       instead of keeping a gap above nothing. An adjacent-sibling rule would
-       not, since a hidden element is still a sibling. */
-    .agenda-left-panel-my-calendars {
-      margin-bottom: 20px;
-    }
+    /* Sections read as separate groups rather than one long list: every
+       section carries the same mb-5 utility in the template — one uniform
+       rhythm instead of a special-cased margin on one section here. */
 
     /* compact section title: small, medium weight, subdued color (from
        text-sub-title), tight spacing above the first row */

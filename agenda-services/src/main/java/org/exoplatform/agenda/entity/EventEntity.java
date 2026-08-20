@@ -239,6 +239,10 @@ import jakarta.persistence.Table;
         + " INNER JOIN ev.calendar cal"
         + " WHERE att.identityId = :userIdentityId "
 )
+@NamedQuery(
+    name = "AgendaEvent.moveCalendarEvents",
+    query = "UPDATE AgendaEvent ev SET ev.calendar = :calendar WHERE ev.calendar.id = :calendarId"
+)
 public class EventEntity implements Serializable {
 
   private static final long         serialVersionUID = -597472315530960636L;

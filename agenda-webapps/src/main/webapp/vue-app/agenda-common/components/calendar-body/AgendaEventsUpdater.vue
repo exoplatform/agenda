@@ -66,13 +66,28 @@ export default {
       }
       this.$root.$emit('agenda-refresh-pending');
     },
+    /**
+     * Retrieves a created or updated event then reflects it on the displayed
+     * grid, unless the current calendar selection excludes it: 'no calendar
+     * selected' (false) drops every update, and an explicit owner selection
+     * drops events of unselected owners. Owner ids are compared as numbers:
+     * the selection holds numbers while the REST payload carries strings, so
+     * a raw indexOf would silently drop every event of a selected space.
+     *
+     * @param {Number} eventId technical identifier of the event to retrieve
+     * @returns {void}
+     */
     retrieveAndAddEvent(eventId) {
+      if (this.ownerIds === false) {
+        return;
+      }
       this.$eventService.getEventById(eventId, 'all')
         .then(updatedEvent => {
           if (!updatedEvent) {
             return;
           }
-          if (this.ownerIds && this.ownerIds.length && this.ownerIds.indexOf(updatedEvent.calendar.owner.id) < 0) {
+          if (Array.isArray(this.ownerIds) && this.ownerIds.length
+              && !this.ownerIds.some(ownerId => Number(ownerId) === Number(updatedEvent.calendar.owner.id))) {
             return;
           } else if (updatedEvent.status === 'TENTATIVE' || updatedEvent.status === 'CANCELLED') {
             this.deleteEvent(eventId);

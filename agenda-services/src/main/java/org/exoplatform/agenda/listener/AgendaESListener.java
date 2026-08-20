@@ -46,6 +46,8 @@ public class AgendaESListener extends Listener<AgendaEventModification, Object> 
           reindexAgendaEvent(eventId, "create agenda event");
         } else if (Utils.POST_UPDATE_AGENDA_EVENT_EVENT.equals(event.getEventName())) {
           reindexAgendaEvent(eventId, "update agenda event");
+        } else if (Utils.POST_MOVE_AGENDA_EVENT_EVENT.equals(event.getEventName())) {
+          reindexAgendaEvent(eventId, "move agenda event to another calendar");
         } else if (Utils.POST_DELETE_AGENDA_EVENT_EVENT.equals(event.getEventName())) {
           unindexAgendaEvent(eventId, "delete agenda event");
         } else if (Utils.POST_CREATE_AGENDA_EVENT_POLL.equals(event.getEventName())) {

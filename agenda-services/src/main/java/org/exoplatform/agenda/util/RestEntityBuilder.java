@@ -44,27 +44,31 @@ public class RestEntityBuilder {
   }
 
   public static final Calendar toCalendar(CalendarEntity calendarEntity) {
-    return new Calendar(calendarEntity.getId(),
-                        Long.parseLong(calendarEntity.getOwner().getId()),
-                        calendarEntity.isSystem(),
-                        calendarEntity.getTitle(),
-                        calendarEntity.getDescription(),
-                        calendarEntity.getCreated(),
-                        calendarEntity.getUpdated(),
-                        calendarEntity.getColor(),
-                        calendarEntity.getAcl());
+    Calendar calendar = new Calendar(calendarEntity.getId(),
+                                     Long.parseLong(calendarEntity.getOwner().getId()),
+                                     calendarEntity.isSystem(),
+                                     calendarEntity.getTitle(),
+                                     calendarEntity.getDescription(),
+                                     calendarEntity.getCreated(),
+                                     calendarEntity.getUpdated(),
+                                     calendarEntity.getColor(),
+                                     calendarEntity.getAcl());
+    calendar.setName(calendarEntity.getName());
+    return calendar;
   }
 
   public static final CalendarEntity fromCalendar(IdentityManager identityManager, Calendar calendar) {
-    return new CalendarEntity(calendar.getId(),
-                              getIdentityEntity(identityManager, calendar.getOwnerId()),
-                              calendar.isSystem(),
-                              calendar.getTitle(),
-                              calendar.getDescription(),
-                              calendar.getCreated(),
-                              calendar.getUpdated(),
-                              calendar.getColor(),
-                              calendar.getAcl());
+    CalendarEntity calendarEntity = new CalendarEntity(calendar.getId(),
+                                                       getIdentityEntity(identityManager, calendar.getOwnerId()),
+                                                       calendar.isSystem(),
+                                                       calendar.getTitle(),
+                                                       calendar.getDescription(),
+                                                       calendar.getCreated(),
+                                                       calendar.getUpdated(),
+                                                       calendar.getColor(),
+                                                       calendar.getAcl());
+    calendarEntity.setName(calendar.getName());
+    return calendarEntity;
   }
 
   public static final Event toEvent(EventEntity eventEntity) {

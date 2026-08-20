@@ -19,7 +19,6 @@ package org.exoplatform.agenda.model;
 import lombok.*;
 
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
 public class Calendar implements Cloneable {
 
@@ -32,6 +31,10 @@ public class Calendar implements Cloneable {
   private boolean            deleted;
 
   private String             title;
+
+  private String             name;
+
+  private String             syncUid;
 
   private String             description;
 
@@ -63,7 +66,24 @@ public class Calendar implements Cloneable {
     this.acl = acl;
   }
 
+  public Calendar(long id, // NOSONAR
+                  long ownerId,
+                  boolean system,
+                  boolean deleted,
+                  String title,
+                  String description,
+                  String created,
+                  String updated,
+                  String color,
+                  CalendarPermission acl) {
+    this(id, ownerId, system, title, description, created, updated, color, acl);
+    this.deleted = deleted;
+  }
+
   public Calendar clone() { // NOSONAR
-    return new Calendar(id, ownerId, system, deleted, title, description, created, updated, color, acl);
+    Calendar calendar = new Calendar(id, ownerId, system, deleted, title, description, created, updated, color, acl);
+    calendar.setName(name);
+    calendar.setSyncUid(syncUid);
+    return calendar;
   }
 }

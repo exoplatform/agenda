@@ -23,6 +23,7 @@ import jakarta.persistence.*;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.constant.EventStatus;
+import org.exoplatform.agenda.entity.CalendarEntity;
 import org.exoplatform.agenda.entity.EventEntity;
 import org.exoplatform.commons.api.persistence.ExoTransactional;
 import org.exoplatform.commons.persistence.impl.GenericDAOJPAImpl;
@@ -100,6 +101,35 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     }
 
     executeDeleteCalendarEventsQuery(calendarId);
+  }
+
+  /**
+   * Moves all events of a calendar to another calendar in a single bulk
+   * update, keeping every event row (and its attendees, reminders,
+   * conferences, recurrences and remote identifiers) untouched apart from its
+   * calendar membership.
+   *
+   * @param fromCalendarId technical identifier of the calendar the events are
+   *          moved away from
+   * @param toCalendarId technical identifier of the calendar receiving the
+   *          events
+   * @return {@link List} of technical identifiers of the moved events, empty
+   *         when the source calendar had no events
+   */
+  @ExoTransactional
+  public List<Long> moveCalendarEvents(long fromCalendarId, long toCalendarId) {
+    List<Long> calendarEventIds = getCalendarEventIds(fromCalendarId);
+    if (calendarEventIds.isEmpty()) {
+      return calendarEventIds;
+    }
+    Query moveEventsQuery = getEntityManager().createNamedQuery("AgendaEvent.moveCalendarEvents");
+    moveEventsQuery.setParameter("calendar", getEntityManager().getReference(CalendarEntity.class, toCalendarId));
+    moveEventsQuery.setParameter("calendarId", fromCalendarId);
+    moveEventsQuery.executeUpdate();
+    // Bulk JPQL updates bypass the persistence context, detach any already
+    // loaded event entity to avoid serving stale calendar membership
+    getEntityManager().clear();
+    return calendarEventIds;
   }
 
   public EventEntity deleteEvent(long eventId) {

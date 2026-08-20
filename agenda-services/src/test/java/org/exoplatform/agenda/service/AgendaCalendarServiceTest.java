@@ -141,7 +141,6 @@ public class AgendaCalendarServiceTest {
     Identity calendarOwnerIdentity = new Identity(OrganizationIdentityProvider.NAME, username);
     calendarOwnerIdentity.setId(String.valueOf(calendarOwnerId));
     when(identityManager.getIdentity(eq(String.valueOf(calendarOwnerId)))).thenReturn(calendarOwnerIdentity);
-    when(agendaCalendarStorage.countCalendarsByOwners(any())).thenReturn(1);
 
     Calendar calendar = new Calendar(calendarId,
                                      calendarOwnerId,
@@ -152,15 +151,44 @@ public class AgendaCalendarServiceTest {
                                      AgendaDateUtils.toRFC3339Date(ZonedDateTime.now()),
                                      "color",
                                      null);
-    when(agendaCalendarStorage.getCalendarIdsByOwnerIds(anyInt(),
-                                                        anyInt(),
-                                                        any())).thenReturn(Collections.singletonList(calendar.getId()));
+    when(agendaCalendarStorage.getSystemCalendarIdByOwnerId(eq(calendarOwnerId))).thenReturn(calendarId);
     when(agendaCalendarStorage.getCalendarById(eq(calendarId))).thenReturn(calendar);
 
     Calendar retrievedCalendar = agendaCalendarService.getOrCreateCalendarByOwnerId(calendarOwnerId);
 
     assertEquals(calendar, retrievedCalendar);
     verify(agendaCalendarStorage, times(0)).createCalendar(any());
+  }
+
+  /**
+   * The default calendar must resolve by the {@code isSystem} flag, never by
+   * row order: when the owner has calendars but none of them is the system
+   * one (e.g. rows created through the raw REST API before the lazy default
+   * existed), the system calendar must be created — the old behavior of
+   * silently returning the oldest row would make a user-created calendar the
+   * undeletable default.
+   */
+  @Test
+  public void testGetOrCreateCalendarByOwnerId_CreatesWhenNoSystemCalendar() {
+    long calendarOwnerId = 2;
+
+    String username = "testuser";
+    Identity calendarOwnerIdentity = new Identity(OrganizationIdentityProvider.NAME, username);
+    calendarOwnerIdentity.setId(String.valueOf(calendarOwnerId));
+    when(identityManager.getIdentity(eq(String.valueOf(calendarOwnerId)))).thenReturn(calendarOwnerIdentity);
+
+    // The owner already has (non-system) calendars, but no system one
+    when(agendaCalendarStorage.getSystemCalendarIdByOwnerId(eq(calendarOwnerId))).thenReturn(null);
+    when(agendaCalendarStorage.countCalendarsByOwners(any())).thenReturn(3);
+    when(agendaCalendarStorage.createCalendar(any())).thenAnswer(invocation -> invocation.getArgument(0, Calendar.class));
+
+    Calendar createdCalendar = agendaCalendarService.getOrCreateCalendarByOwnerId(calendarOwnerId);
+
+    assertNotNull(createdCalendar);
+    assertTrue("The lazily created default calendar must carry the system flag", createdCalendar.isSystem());
+    verify(agendaCalendarStorage, times(1)).createCalendar(any());
+    // The old implementation would have read the first row instead of creating
+    verify(agendaCalendarStorage, times(0)).getCalendarIdsByOwnerIds(anyInt(), anyInt(), any());
   }
 
   @Test
@@ -751,6 +779,20 @@ public class AgendaCalendarServiceTest {
 
     when(agendaCalendarStorage.getCalendarById(eq(calendarId))).thenReturn(calendar);
 
+    // The owner's default (system) calendar, receiving the moved events
+    long defaultCalendarId = 99;
+    Calendar defaultCalendar = new Calendar(defaultCalendarId,
+                                            calendarOwnerId,
+                                            true,
+                                            "title",
+                                            "description",
+                                            null,
+                                            null,
+                                            "color",
+                                            null);
+    when(agendaCalendarStorage.getSystemCalendarIdByOwnerId(eq(calendarOwnerId))).thenReturn(defaultCalendarId);
+    when(agendaCalendarStorage.getCalendarById(eq(defaultCalendarId))).thenReturn(defaultCalendar);
+
     // 0. Arguments validation
     try {
       agendaCalendarService.deleteCalendarById(calendarId, null);
@@ -796,8 +838,10 @@ public class AgendaCalendarServiceTest {
       calendar.setSystem(false);
     }
 
-    // 4. Should be able to delete calendar
+    // 4. Should be able to delete calendar, moving its events to the owner's
+    // default calendar first so no event is destroyed
     agendaCalendarService.deleteCalendarById(calendarId, username);
+    verify(agendaCalendarStorage, times(1)).moveCalendarEvents(eq(calendarId), eq(defaultCalendarId), anyLong());
     verify(agendaCalendarStorage, times(1)).deleteCalendarById(eq(calendarId));
 
     // 5. Shouldn't be able to delete calendar of space if user isn't manager or
@@ -1077,6 +1121,177 @@ public class AgendaCalendarServiceTest {
     List<Calendar> calendars = agendaCalendarService.getCalendarsByOwnerIds(Collections.singletonList(calendarOwnerId), username);
     assertNotNull(calendars);
     assertEquals(45, calendars.size());
+  }
+
+  /**
+   * The user-defined calendar name must win over the owner-derived title in
+   * both read paths, and an unnamed calendar must keep rendering exactly as
+   * before named calendars existed.
+   */
+  @Test
+  public void testGetCalendarById_NamedCalendarTitleWins() throws Exception { // NOSONAR
+    long calendarId = 1;
+    long calendarOwnerId = 2;
+    String username = "testuser";
+    Identity calendarOwnerIdentity = new Identity(OrganizationIdentityProvider.NAME, username);
+    calendarOwnerIdentity.setId(String.valueOf(calendarOwnerId));
+    Profile calendarOwnerProfile = new Profile();
+    calendarOwnerProfile.setProperty(Profile.FULL_NAME, "Test User");
+    calendarOwnerIdentity.setProfile(calendarOwnerProfile);
+    when(identityManager.getIdentity(eq(String.valueOf(calendarOwnerId)))).thenReturn(calendarOwnerIdentity);
+    when(identityManager.getOrCreateUserIdentity(eq(username))).thenReturn(calendarOwnerIdentity);
+
+    Calendar namedCalendar = new Calendar(calendarId,
+                                          calendarOwnerId,
+                                          false,
+                                          null,
+                                          "description",
+                                          null,
+                                          null,
+                                          "color",
+                                          null);
+    namedCalendar.setName("Personal projects");
+    when(agendaCalendarStorage.getCalendarById(eq(calendarId))).thenReturn(namedCalendar);
+
+    // 1. The name wins in the ACL-checked read path
+    Calendar retrievedCalendar = agendaCalendarService.getCalendarById(calendarId, username);
+    assertEquals("Personal projects", retrievedCalendar.getTitle());
+
+    // 2. The name wins in the internal read path
+    retrievedCalendar = agendaCalendarService.getCalendarById(calendarId);
+    assertEquals("Personal projects", retrievedCalendar.getTitle());
+
+    // 3. Without a name, the title keeps deriving from the owner identity
+    namedCalendar.setName(null);
+    retrievedCalendar = agendaCalendarService.getCalendarById(calendarId, username);
+    assertEquals("Test User", retrievedCalendar.getTitle());
+  }
+
+  /**
+   * The user-defined name must be sanitized and validated on the user create
+   * path: trimmed, blank normalized to null, limited to 200 characters, and
+   * unique (case-insensitively) among the calendars of the same owner.
+   */
+  @Test
+  public void testCreateCalendarWithUsername_NameValidation() throws Exception { // NOSONAR
+    long calendarId = 1;
+    long calendarOwnerId = 2;
+    String username = "testuser";
+    Identity calendarOwnerIdentity = new Identity(OrganizationIdentityProvider.NAME, username);
+    calendarOwnerIdentity.setId(String.valueOf(calendarOwnerId));
+    Profile calendarOwnerProfile = new Profile();
+    calendarOwnerProfile.setProperty(Profile.FULL_NAME, "Test User");
+    calendarOwnerIdentity.setProfile(calendarOwnerProfile);
+    when(identityManager.getIdentity(eq(String.valueOf(calendarOwnerId)))).thenReturn(calendarOwnerIdentity);
+    when(identityManager.getOrCreateUserIdentity(eq(username))).thenReturn(calendarOwnerIdentity);
+
+    Calendar calendar = new Calendar(0,
+                                     calendarOwnerId,
+                                     false,
+                                     null,
+                                     "description",
+                                     null,
+                                     null,
+                                     "color",
+                                     null);
+
+    // 1. A name longer than 200 characters is refused with a message code
+    calendar.setName("x".repeat(201));
+    try {
+      agendaCalendarService.createCalendar(calendar, username);
+      fail("Shouldn't allow to create a calendar with a name longer than 200 characters");
+    } catch (IllegalArgumentException e) {
+      assertEquals("agenda.calendarNameExceedsMaxLength", e.getMessage());
+    }
+    verify(agendaCalendarStorage, times(0)).createCalendar(any());
+
+    // 2. A name already used by another calendar of the same owner is refused,
+    // case-insensitively
+    long existingCalendarId = 50;
+    Calendar existingCalendar = new Calendar(existingCalendarId,
+                                             calendarOwnerId,
+                                             false,
+                                             null,
+                                             null,
+                                             null,
+                                             null,
+                                             "color",
+                                             null);
+    existingCalendar.setName("Personal Projects");
+    when(agendaCalendarStorage.getCalendarIdsByOwnerIds(anyInt(),
+                                                        anyInt(),
+                                                        any())).thenReturn(Collections.singletonList(existingCalendarId));
+    when(agendaCalendarStorage.getCalendarById(eq(existingCalendarId))).thenReturn(existingCalendar);
+    calendar.setName("personal projects");
+    try {
+      agendaCalendarService.createCalendar(calendar, username);
+      fail("Shouldn't allow two calendars of the same owner with the same name");
+    } catch (IllegalArgumentException e) {
+      assertEquals("agenda.calendarNameAlreadyExists", e.getMessage());
+    }
+    verify(agendaCalendarStorage, times(0)).createCalendar(any());
+
+    // 3. A valid name is trimmed, a blank name is normalized to null
+    when(agendaCalendarStorage.createCalendar(any())).thenAnswer(invocation -> {
+      Calendar storedCalendar = invocation.getArgument(0, Calendar.class);
+      storedCalendar.setId(calendarId);
+      return storedCalendar;
+    });
+    when(agendaCalendarStorage.getCalendarById(eq(calendarId))).thenReturn(calendar);
+
+    calendar.setName("  Side gigs  ");
+    agendaCalendarService.createCalendar(calendar, username);
+    assertEquals("Side gigs", calendar.getName());
+
+    calendar.setId(0);
+    calendar.setName("   ");
+    agendaCalendarService.createCalendar(calendar, username);
+    assertNull("A blank name must be normalized to null (derive title from owner)", calendar.getName());
+  }
+
+  /**
+   * A PUT can never flip the {@code system} flag nor overwrite the
+   * synchronization identifier: flipping {@code system} would make the
+   * undeletable default calendar deletable (and its deletion cascades),
+   * which is a trust-path hole, not a feature.
+   */
+  @Test
+  public void testUpdateCalendar_SystemFlagAndSyncUidReadOnly() throws Exception { // NOSONAR
+    long calendarId = 1;
+    long calendarOwnerId = 2;
+    String username = "testuser";
+    Identity calendarOwnerIdentity = new Identity(OrganizationIdentityProvider.NAME, username);
+    calendarOwnerIdentity.setId(String.valueOf(calendarOwnerId));
+    when(identityManager.getIdentity(eq(String.valueOf(calendarOwnerId)))).thenReturn(calendarOwnerIdentity);
+    when(identityManager.getOrCreateUserIdentity(eq(username))).thenReturn(calendarOwnerIdentity);
+
+    Calendar storedCalendar = new Calendar(calendarId,
+                                           calendarOwnerId,
+                                           true,
+                                           null,
+                                           "description",
+                                           AgendaDateUtils.toRFC3339Date(ZonedDateTime.now()),
+                                           null,
+                                           "color",
+                                           null);
+    storedCalendar.setSyncUid("stored-sync-uid");
+    when(agendaCalendarStorage.getCalendarById(eq(calendarId))).thenReturn(storedCalendar);
+
+    Calendar updatedCalendar = new Calendar(calendarId,
+                                            calendarOwnerId,
+                                            false, // attempt to flip the system flag
+                                            null,
+                                            "new description",
+                                            null,
+                                            null,
+                                            "color2",
+                                            null);
+    updatedCalendar.setSyncUid("forged-sync-uid");
+
+    agendaCalendarService.updateCalendar(updatedCalendar, username);
+
+    verify(agendaCalendarStorage, times(1)).updateCalendar(argThat(calendar -> calendar.isSystem()
+        && "stored-sync-uid".equals(calendar.getSyncUid())));
   }
 
 }

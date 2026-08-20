@@ -158,6 +158,23 @@ public class AgendaEventStorage {
   }
 
   /**
+   * Moves all events of a calendar to another calendar, keeping every event
+   * and its associated data (attendees, reminders, conferences, recurrences,
+   * remote identifiers) untouched apart from the calendar membership.
+   *
+   * @param fromCalendarId technical identifier of the calendar the events are
+   *          moved away from
+   * @param toCalendarId technical identifier of the calendar receiving the
+   *          events
+   * @return {@link List} of technical identifiers of the moved events, empty
+   *         when the source calendar had no events
+   */
+  @ExoTransactional
+  public List<Long> moveCalendarEvents(long fromCalendarId, long toCalendarId) {
+    return eventDAO.moveCalendarEvents(fromCalendarId, toCalendarId);
+  }
+
+  /**
    * @param parentRecurrentEventId a parent recurrent {@link Event} technical
    *          identifier
    * @return {@link List} of Event identifiers corresponding to exceptional

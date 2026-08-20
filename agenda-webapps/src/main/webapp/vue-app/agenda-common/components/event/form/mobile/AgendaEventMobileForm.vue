@@ -40,7 +40,7 @@
         <label class="font-weight-bold my-2">
           {{ $t('agenda') }}
         </label>
-        <agenda-event-form-calendar-owner
+        <agenda-event-form-destination
           ref="calendarOwner"
           :event="event"
           :current-space="currentSpace"

@@ -218,6 +218,9 @@ public class AgendaCalendarRest implements ResourceContainer {
     } catch (IllegalAccessException e) {
       LOG.warn("User '{}' attempts to create a calendar for owner '{}'", currentUser, calendarEntity.getOwner(), e);
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
+    } catch (IllegalArgumentException e) {
+      LOG.debug("Invalid calendar creation input from user '{}'", currentUser, e);
+      return Response.status(Status.BAD_REQUEST).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error creating a calendar", e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -262,15 +265,24 @@ public class AgendaCalendarRest implements ResourceContainer {
     } catch (IllegalAccessException e) {
       LOG.error("User '{}' attempts to update a calendar for owner '{}'", currentUser, calendarEntity.getOwner(), e);
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
+    } catch (IllegalArgumentException e) {
+      LOG.debug("Invalid calendar update input from user '{}'", currentUser, e);
+      return Response.status(Status.BAD_REQUEST).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error updating a calendar", e);
       return Response.serverError().entity(e.getMessage()).build();
     }
   }
 
+  @Path("{calendarId}")
   @DELETE
   @RolesAllowed("users")
-  @Operation(summary = "Deletes an existing calendar", description = "Deletes an existing calendar", method = "DELETE")
+  @Operation(
+      summary = "Deletes an existing calendar",
+      description = "Deletes an existing user calendar after moving its events to the owner's default calendar."
+          + " System (default) calendars can't be deleted.",
+      method = "DELETE"
+  )
   @ApiResponses(
       value = { @ApiResponse(responseCode = "204", description = "Request fulfilled"),
           @ApiResponse(responseCode = "401", description = "Object not found"),
@@ -298,6 +310,9 @@ public class AgendaCalendarRest implements ResourceContainer {
     } catch (IllegalAccessException e) {
       LOG.error("User '{}' attempts to deletes a non authorized calendar", currentUser, e);
       return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
+    } catch (IllegalStateException e) {
+      LOG.debug("User '{}' attempts to delete the undeletable system calendar '{}'", currentUser, calendarId, e);
+      return Response.status(Status.BAD_REQUEST).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error deleting a calendar", e);
       return Response.serverError().entity(e.getMessage()).build();
