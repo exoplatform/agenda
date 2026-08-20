@@ -20,7 +20,7 @@
           :can-create-event="canCreateEvent"
           :loading="loading || !initialized"
           :limit="limit"
-          :connected-connector-avatar="connectedConnectorAvatar" />
+          :connected-connector="connectedConnector" />
         <agenda-body
           v-else
           :events="displayedEvent"
@@ -29,7 +29,7 @@
           :weekdays="weekdays"
           :full-weekdays="fullWeekdays"
           :working-time="workingTime"
-          :connected-connector-avatar="connectedConnectorAvatar" />  
+          :connected-connector="connectedConnector" />  
       </v-card>
     </v-hover>
     <agenda-event-dialog
@@ -134,9 +134,6 @@ export default {
       }
     },
 
-    connectedConnectorAvatar() {
-      return this.connectedConnector && this.connectedConnector.avatar || '';
-    },
     showDefaultRemoteEvents() {
       return this.settings && this.settings.showRemoteEventsForTimeLine;
     },
