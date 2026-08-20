@@ -38,7 +38,22 @@ export function saveCalendar(calendar) {
     body: JSON.stringify(calendar),
   }).then((resp) => {
     if (!resp || !resp.ok) {
-      throw new Error('Error saving calendar');
+      // A 400 body carries a message code (e.g. agenda.calendarNameAlreadyExists)
+      // that callers can map to a translated message
+      return resp.text().then(error => {
+        throw new Error(error || 'Error saving calendar');
+      });
+    }
+  });
+}
+
+export function deleteCalendar(calendarId) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/calendars/${calendarId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  }).then((resp) => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error deleting calendar');
     }
   });
 }

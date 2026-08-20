@@ -171,24 +171,120 @@ public class RestUtils {
                                           userIdentityId);
   }
 
+  /**
+   * Resolves the destination calendar of an event to create. See
+   * {@link #checkCalendar(IdentityManager, AgendaCalendarService, EventEntity, Event)}
+   * for the resolution rules — this creation variant has no stored event to
+   * preserve.
+   *
+   * @param identityManager {@link IdentityManager} service instance
+   * @param agendaCalendarService {@link AgendaCalendarService} service
+   *          instance
+   * @param eventEntity the event payload received from the client, mutated in
+   *          place
+   * @throws AgendaException when no destination calendar can be resolved
+   */
   public static void checkCalendar(IdentityManager identityManager,
                                    AgendaCalendarService agendaCalendarService,
                                    EventEntity eventEntity) throws AgendaException {
-    IdentityEntity identityEntity = eventEntity.getCalendar().getOwner();
+    checkCalendar(identityManager, agendaCalendarService, eventEntity, null);
+  }
 
-    String ownerIdString = RestUtils.getIdentityId(identityEntity, identityManager);
-    if (StringUtils.isBlank(ownerIdString)) {
-      throw new AgendaException(AgendaExceptionType.CALENDAR_OWNER_NOT_FOUND);
+  /**
+   * Resolves the destination calendar of an event and rebuilds the payload's
+   * calendar block from the <b>stored</b> calendar row — never from
+   * client-supplied data. Resolution rules, in order:
+   * <ol>
+   * <li>an explicit {@code calendar.id} designates the stored calendar it
+   * points to, provided the payload's owner (when sent) matches that stored
+   * row's owner — this is what lets an event be filed into any of the owner's
+   * calendars instead of always the first one;</li>
+   * <li>an owner differing from the row designated by {@code calendar.id}
+   * means the client changed the destination owner while round-tripping the
+   * old calendar id (the historical space-change flow): the owner wins and
+   * resolves to its default calendar;</li>
+   * <li>on update, a payload whose owner matches the stored event's calendar
+   * owner — or that carries no destination at all — preserves the event's
+   * stored calendar instead of snapping it back to the owner's default;</li>
+   * <li>otherwise the owner's default calendar is lazily resolved as
+   * before.</li>
+   * </ol>
+   * No ACL decision is made here: the service layer re-derives the owner from
+   * the stored calendar row and enforces permissions on it, so a forged owner
+   * block in the payload can never widen access.
+   *
+   * @param identityManager {@link IdentityManager} service instance
+   * @param agendaCalendarService {@link AgendaCalendarService} service
+   *          instance
+   * @param eventEntity the event payload received from the client, mutated in
+   *          place
+   * @param storedEvent the currently stored event when updating, else
+   *          {@code null}
+   * @throws AgendaException when no destination calendar can be resolved
+   */
+  public static void checkCalendar(IdentityManager identityManager,
+                                   AgendaCalendarService agendaCalendarService,
+                                   EventEntity eventEntity,
+                                   Event storedEvent) throws AgendaException {
+    CalendarEntity payloadCalendar = eventEntity.getCalendar();
+    long requestedCalendarId = payloadCalendar == null ? 0 : payloadCalendar.getId();
+    IdentityEntity identityEntity = payloadCalendar == null ? null : payloadCalendar.getOwner();
+
+    Long ownerId = null;
+    if (identityEntity != null) {
+      String ownerIdString = RestUtils.getIdentityId(identityEntity, identityManager);
+      if (StringUtils.isNotBlank(ownerIdString)) {
+        identityEntity.setId(ownerIdString);
+        ownerId = Long.parseLong(ownerIdString);
+      } else if (requestedCalendarId <= 0 && storedEvent == null) {
+        throw new AgendaException(AgendaExceptionType.CALENDAR_OWNER_NOT_FOUND);
+      }
     }
-    identityEntity.setId(ownerIdString);
-    Calendar calendar = agendaCalendarService.getOrCreateCalendarByOwnerId(Long.parseLong(ownerIdString));
+
+    Calendar calendar = null;
+    if (requestedCalendarId > 0) {
+      Calendar requestedCalendar = agendaCalendarService.getCalendarById(requestedCalendarId);
+      if (requestedCalendar == null || requestedCalendar.isDeleted()) {
+        throw new AgendaException(AgendaExceptionType.CALENDAR_NOT_FOUND);
+      }
+      if (ownerId == null || requestedCalendar.getOwnerId() == ownerId) {
+        calendar = requestedCalendar;
+      }
+      // else: the owner was changed while the old calendar id was
+      // round-tripped, fall through to owner-based resolution
+    }
+    if (calendar == null && storedEvent != null) {
+      Calendar storedCalendar = agendaCalendarService.getCalendarById(storedEvent.getCalendarId());
+      if (storedCalendar != null && !storedCalendar.isDeleted()
+          && (ownerId == null || storedCalendar.getOwnerId() == ownerId)) {
+        calendar = storedCalendar;
+      }
+    }
+    if (calendar == null) {
+      if (ownerId == null) {
+        throw new AgendaException(AgendaExceptionType.CALENDAR_OWNER_NOT_FOUND);
+      }
+      calendar = agendaCalendarService.getOrCreateCalendarByOwnerId(ownerId);
+    }
     if (calendar == null) {
       throw new AgendaException(AgendaExceptionType.CALENDAR_NOT_FOUND);
-    } else if (eventEntity.getCalendar() == null) {
-      eventEntity.setCalendar(RestEntityBuilder.fromCalendar(identityManager, calendar));
-    } else {
-      eventEntity.getCalendar().setId(calendar.getId());
     }
+    // Rebuild the payload's calendar block from trusted data only: the stored
+    // calendar row and its owner identity — whatever the client sent in this
+    // block (forged owner, title...) is discarded here
+    Identity calendarOwnerIdentity = identityManager.getIdentity(String.valueOf(calendar.getOwnerId()));
+    if (calendarOwnerIdentity == null) {
+      throw new AgendaException(AgendaExceptionType.CALENDAR_OWNER_NOT_FOUND);
+    }
+    IdentityEntity ownerIdentityEntity = new IdentityEntity();
+    ownerIdentityEntity.setId(calendarOwnerIdentity.getId());
+    ownerIdentityEntity.setProviderId(calendarOwnerIdentity.getProviderId());
+    ownerIdentityEntity.setRemoteId(calendarOwnerIdentity.getRemoteId());
+    CalendarEntity resolvedCalendarEntity = new CalendarEntity();
+    resolvedCalendarEntity.setId(calendar.getId());
+    resolvedCalendarEntity.setOwner(ownerIdentityEntity);
+    resolvedCalendarEntity.setSystem(calendar.isSystem());
+    eventEntity.setCalendar(resolvedCalendarEntity);
   }
 
   public static EventEntity getEventByIdAndUser(IdentityManager identityManager,

@@ -40,6 +40,10 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
           query = "SELECT ev.id FROM AgendaEvent ev WHERE ev.calendar.id = :calendarId"
       ),
       @NamedQuery(
+          name = "AgendaEvent.moveCalendarEvents",
+          query = "UPDATE AgendaEvent ev SET ev.calendar = :calendar WHERE ev.calendar.id = :calendarId"
+      ),
+      @NamedQuery(
           name = "AgendaEvent.getExceptionalOccurenceIdsByPeriod",
           query = "SELECT ev.id FROM AgendaEvent ev"
               + " WHERE ev.parent.id = :parentEventId"

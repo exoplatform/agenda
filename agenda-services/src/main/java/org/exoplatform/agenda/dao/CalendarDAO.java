@@ -32,11 +32,20 @@ public class CalendarDAO extends GenericDAOJPAImpl<CalendarEntity, Long> {
     super.delete(entity);
   }
 
+  /**
+   * {@inheritDoc} In addition to the generic creation, initializes the
+   * creation date and generates a stable synchronization identifier
+   * ({@code SYNC_UID}) when none was provided, so that every stored calendar
+   * carries an environment-independent unique identifier.
+   */
   @Override
   @ExoTransactional
   public CalendarEntity create(CalendarEntity entity) {
     entity.setCreatedDate(new Date());
     entity.setUpdatedDate(null);
+    if (entity.getSyncUid() == null) {
+      entity.setSyncUid(UUID.randomUUID().toString());
+    }
     return super.create(entity);
   }
 
@@ -55,6 +64,25 @@ public class CalendarDAO extends GenericDAOJPAImpl<CalendarEntity, Long> {
     query.setMaxResults(limit);
     List<Long> resultList = query.getResultList();
     return resultList == null ? Collections.emptyList() : resultList;
+  }
+
+  /**
+   * Retrieves the technical identifier of the system (default) calendar of a
+   * given owner. When several system calendars exist for the same owner (a
+   * data anomaly), the oldest one is returned to keep the result
+   * deterministic.
+   *
+   * @param ownerId technical identifier of the calendar owner identity
+   * @return technical identifier of the owner's system calendar, or
+   *         {@code null} when the owner has no system calendar
+   */
+  public Long getSystemCalendarIdByOwnerId(long ownerId) {
+    TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaCalendar.getSystemCalendarIdsByOwnerId",
+                                                                 Long.class);
+    query.setParameter("ownerId", ownerId);
+    query.setMaxResults(1);
+    List<Long> resultList = query.getResultList();
+    return resultList == null || resultList.isEmpty() ? null : resultList.get(0);
   }
 
   public int countCalendarsByOwnerIds(Long... ownerIds) {

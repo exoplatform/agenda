@@ -122,7 +122,18 @@ export default {
     ownerAvatarUrl() {
       return this.ownerProfile && (this.ownerProfile.avatar || this.ownerProfile.avatarUrl);
     },
+    /**
+     * The label of the calendar holding the event: the calendar's
+     * user-defined name when it has one — two named personal calendars must
+     * be tellable apart — else the owner display name exactly as before.
+     *
+     * @returns {String} calendar display label
+     */
     ownerDisplayName() {
+      const calendarName = this.event && this.event.calendar && this.event.calendar.name;
+      if (calendarName) {
+        return calendarName;
+      }
       return this.ownerProfile && (this.ownerProfile.displayName || this.ownerProfile.fullname || this.ownerProfile.fullName);
     },
     isRemoteEvent(){
