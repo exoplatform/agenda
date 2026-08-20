@@ -18,7 +18,7 @@
           :period-start-date="period.start"
           :loading="loading"
           :limit="limit"
-          :connected-connector-avatar="connectedConnectorAvatar"
+          :connected-connector="connectedConnector"
           class="mt-2 pa-5" />
         <v-row
           v-else
@@ -44,7 +44,7 @@
               :weekdays="weekdays"
               :full-weekdays="fullWeekdays"
               :working-time="workingTime"
-              :connected-connector-avatar="connectedConnectorAvatar" />
+              :connected-connector="connectedConnector" />
           </v-col>
         </v-row>
         <v-flex v-if="$root.isMobile && hasMore" class="d-flex py-4 border-box-sizing">
@@ -215,9 +215,6 @@ export default {
         workingTimeEnd: this.settings.workingTimeEnd,
         workedDaysNumber: this.settings.workedDaysNumber,
       };
-    },
-    connectedConnectorAvatar() {
-      return this.connectedConnector && this.connectedConnector.avatar || '';
     },
   },
   watch: {

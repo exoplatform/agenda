@@ -18,16 +18,18 @@
           class="mt-4 my-auto"
           dense
           text>
-          {{ $t('agenda.mirrorCalendar.creationRefused') }}
+          {{ creationNotice }}
         </v-alert>
         <!--
-          Creating is the only offer. Pointing the mirror at a calendar the
-          user already keeps would push eXo's copies into it and then read them
-          back for display, showing every accepted meeting twice — once as the
-          space event, once as its own copy. Excluding that calendar from the
-          agenda instead would make a calendar they rely on quietly disappear.
-          Neither is something to hand a user who is picking from a list, and
-          most would reach for their work calendar without suspecting either.
+          Creating is the only offered choice. Handing the user a calendar
+          picker instead would invite them to point the copies at the work
+          calendar they already keep, without a way to foresee what that
+          means — so the fallback is not a choice either: when the server
+          refuses to create a calendar, the connector adopts the account's
+          first calendar on its own and the notice above names it. Nothing
+          shows twice in either case: the copies read back from the
+          destination are recognised by the identifier stored at push time
+          and filtered from the display.
         -->
         <div class="agenda-mirror-calendar-choice mt-4">
           <v-icon
@@ -65,6 +67,7 @@ export default {
   data: () => ({
     connector: null,
     creationRefused: false,
+    adoptedCalendarName: null,
     calendars: [],
     saving: false,
     applied: false,
@@ -94,6 +97,21 @@ export default {
     canApply() {
       return !this.creationRefused;
     },
+    /**
+     * What the refusal notice says. When an existing calendar was adopted as
+     * the destination, the notice names it — the copies genuinely go there,
+     * and "the first calendar of your account" tells a user nothing they can
+     * recognise in their own client. The unnamed wording remains only for an
+     * account holding no calendar at all, where there is nothing to adopt
+     * and nowhere for the copies to go.
+     *
+     * @returns {String} the sentence shown in the info alert
+     */
+    creationNotice() {
+      return this.adoptedCalendarName
+        ? this.$t('agenda.mirrorCalendar.adopted', {0: this.adoptedCalendarName})
+        : this.$t('agenda.mirrorCalendar.creationRefused');
+    },
   },
   created() {
     this.$root.$on('agenda-connector-mirror-calendar-open', this.open);
@@ -116,6 +134,7 @@ export default {
       }
       this.connector = connector;
       this.creationRefused = false;
+      this.adoptedCalendarName = null;
       this.applied = false;
       this.retrieveBranding();
       if (this.$refs.mirrorCalendarDrawer) {
@@ -162,7 +181,9 @@ export default {
         });
     },
     /**
-     * Creates the branded calendar that will receive the meetings eXo pushes.
+     * Creates the branded calendar that will receive the meetings eXo pushes,
+     * or — when the server refuses creating calendars — settles for the
+     * existing calendar the connector adopted instead.
      *
      * @returns {Promise} resolves once the mirror destination is stored
      */
@@ -173,21 +194,51 @@ export default {
         color: this.calendarColor,
         description: this.$t('agenda.mirrorCalendar.description', {0: this.companyName}),
       })
-        .then(() => {
-          this.applied = true;
-          this.close();
-          this.$root.$emit('agenda-connector-mirror-calendar-done');
-          this.$root.$emit('alert-message', this.$t('agenda.mirrorCalendar.saved', {0: this.calendarName}), 'success');
+        .then(result => {
+          if (result && result.adopted) {
+            this.destinationAdopted(result);
+          } else {
+            this.calendarCreated();
+          }
         })
         .catch(error => this.handleFailure(error))
         .finally(() => this.saving = false);
     },
     /**
-     * Handles a failed apply. A server refusing to create a calendar is not
+     * The branded calendar exists on the server: the step is complete, the
+     * drawer closes and the success is announced.
+     * @returns {void}
+     */
+    calendarCreated() {
+      this.applied = true;
+      this.close();
+      this.$root.$emit('agenda-connector-mirror-calendar-done');
+      this.$root.$emit('alert-message', this.$t('agenda.mirrorCalendar.saved', {0: this.calendarName}), 'success');
+    },
+    /**
+     * The server refused to create a calendar and the connector adopted an
+     * existing one of the account as the destination instead. A destination
+     * now exists, so the step counts as done — the push switch may latch —
+     * but the drawer stays open on the notice naming the adopted calendar
+     * rather than closing over a success alert: the user asked for a new
+     * calendar and must read that their meetings go to an existing one.
+     *
+     * @param {Object} result what createCalendar resolved with
+     * @param {String} result.name display name of the adopted calendar
+     * @returns {void}
+     */
+    destinationAdopted(result) {
+      this.adoptedCalendarName = result.name;
+      this.creationRefused = true;
+      this.applied = true;
+      this.$root.$emit('agenda-connector-mirror-calendar-done');
+    },
+    /**
+     * Handles a failed apply. A server refusing to create a calendar — with
+     * no calendar of the account left to adopt as the destination — is not
      * an eXo error: it is explained here, at connect time, rather than
-     * failing silently at the first push. Meetings then go to the account's
-     * first calendar, which is what the connector does without a stored
-     * destination. Any other failure is reported as an error.
+     * failing silently at the first push. Any other failure is reported as
+     * an error.
      *
      * @param {Object} error the failure raised by the connector
      * @returns {void}

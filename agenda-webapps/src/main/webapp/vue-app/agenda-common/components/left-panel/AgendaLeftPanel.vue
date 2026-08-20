@@ -92,6 +92,7 @@ export default {
     calendarsLoaded: false,
     pickerValue: null,
     pickerMonth: null,
+    connectorsAvailable: false,
   }),
   computed: {
     /**
@@ -112,19 +113,20 @@ export default {
     language() {
       return eXo.env.portal.language;
     },
-    /**
-     * Whether the remote calendar feature exists in this deployment at all,
-     * which is what decides if the section is worth showing. Not whether an
-     * account is connected: an empty section with a way to connect is how the
-     * feature is discovered, and hiding it means a user who has never
-     * connected never learns it is there.
-     *
-     * @returns {Boolean} true when a connector implements the calendar contract
-     */
-    connectorsAvailable() {
-      const connectors = extensionRegistry.loadExtensions('agenda', 'connectors') || [];
-      return connectors.some(connector => connector && connector.canListCalendars);
-    },
+  },
+  created() {
+    // Whether the remote calendar feature exists here is read from the
+    // extension registry, which is NOT reactive — and connectors may register
+    // late (the CalDAV add-on registers one connector per declared server,
+    // after fetching them). As a computed this evaluated once, usually before
+    // that registration, and My Calendars silently disappeared. So it is
+    // plain data, refreshed on the same event every other connectors consumer
+    // already listens to.
+    document.addEventListener('agenda-connectors-refresh', this.refreshConnectorsAvailable);
+    this.refreshConnectorsAvailable();
+  },
+  beforeDestroy() {
+    document.removeEventListener('agenda-connectors-refresh', this.refreshConnectorsAvailable);
   },
   watch: {
     /**
@@ -156,6 +158,19 @@ export default {
     }
   },
   methods: {
+    /**
+     * Re-reads the extension registry to decide whether any connector
+     * implements the calendar contract — which is what decides if the
+     * My Calendars section is worth showing. Not whether an account is
+     * connected: an empty section with a way to connect is how the feature
+     * is discovered.
+     *
+     * @returns {void}
+     */
+    refreshConnectorsAvailable() {
+      const connectors = extensionRegistry.loadExtensions('agenda', 'connectors') || [];
+      this.connectorsAvailable = connectors.some(connector => connector && connector.canListCalendars);
+    },
     /**
      * Triggers the initial retrieval of the space calendars displayed in the
      * Spaces section, at most once per application load.

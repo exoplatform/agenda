@@ -61,13 +61,11 @@
                       v-else
                       :value="event.endDate"
                       :format="timeFormat" />
-                    <v-avatar
+                    <agenda-connector-avatar
                       v-if="event.type === 'remoteEvent'"
-                      tile
+                      :connector="connectedConnector"
                       class="white ms-auto me-1"
-                      size="16">
-                      <img :src="connectedConnectorAvatar">
-                    </v-avatar>  
+                      size="16" />
                   </div>
                 </v-list-item-content>
               </v-list-item>
@@ -102,8 +100,8 @@ export default {
       type: String,
       default: null,
     },
-    connectedConnectorAvatar: {
-      type: String,
+    connectedConnector: {
+      type: Object,
       default: null
     },
     canCreateEvent: {
