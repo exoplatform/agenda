@@ -33,13 +33,11 @@
           </v-btn>
         </div>
         <div :class="{ 'd-flex': enabledconnectors }">
-          <v-avatar
+          <agenda-connector-avatar
             v-if="connectedConnector"
-            tile
+            :connector="connectedConnector"
             class="me-1"
-            size="16">
-            <img :src="connectedConnectorAvatar">
-          </v-avatar>
+            size="16" />
           <a
             v-if="connectedConnector"
             @click="openPersonalCalendarDrawer"
@@ -63,7 +61,7 @@
               v-for="remoteEvent in displayedRemoteEvents"
               :key="remoteEvent"
               :remote-event="remoteEvent"
-              :avatar="connectedConnectorAvatar"
+              :connector="connectedConnector"
               :event="event"
               class="mt-5 remote-events-details"
               is-events-list />
@@ -155,9 +153,6 @@ export default {
     },
     connectedConnectorUser() {
       return this.connectedConnector && this.connectedConnector.user || '';
-    },
-    connectedConnectorAvatar() {
-      return this.connectedConnector && this.connectedConnector.avatar || '';
     },
     connectedConnectorLoading() {
       return this.connectedConnector && this.connectedConnector.loading;

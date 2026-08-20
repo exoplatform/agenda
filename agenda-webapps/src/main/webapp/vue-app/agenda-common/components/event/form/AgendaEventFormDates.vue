@@ -109,7 +109,7 @@
         <agenda-connector-remote-event-item
           v-else
           :remote-event="eventObj.event"
-          :avatar="connectedConnectorAvatar" />
+          :connector="connectedConnector" />
       </template>
       <template #day-body="day">
         <div
@@ -202,9 +202,6 @@ export default {
     },
     connectedConnector() {
       return this.connectors.find(connector => connector.connected);
-    },
-    connectedConnectorAvatar() {
-      return this.connectedConnector && this.connectedConnector.avatar || '';
     },
     spaceEventsToDisplay() {
       // Avoid to have same event that we are changing twice

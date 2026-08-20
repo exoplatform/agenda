@@ -1,101 +1,71 @@
 <template>
-  <div>
-    <div class="pb-5 text-title">
+  <div class="mt-8">
+    <div class="text-title mb-3">
       {{ $t('agenda.agendaConnectors') }}
     </div>
-    <v-divider />
     <v-data-table
       :headers="headers"
       :items="connectors"
-      :items-per-page="itemsPerPage"
-      :hide-default-footer="hideFooter"
-      :footer-props="{
-        itemsPerPageText: `${$t('agenda.itemsPerPage')}:`,
-      }"
       :no-data-text="$t('agenda.noConnectors')"
-      disable-sort>
-      <template slot="item" slot-scope="props">
-        <tr>
-          <td>
-            <div class="align-center">
-              <v-avatar tile size="40">
-                <img :alt=" props.item.name" :src=" props.item.avatar">
-              </v-avatar>
-            </div>
-          </td>
-          <td>
-            <div class="align-center">
-              {{ $t(props.item.name) }}
-            </div>
-          </td>
-          <td>
-            <div class="align-center">
-              {{ $t(props.item.description) }}
-            </div>
-          </td>
-          <td>
-            <div class="align-center">
-              <v-text-field
-                :ref="`${props.item.name}ApiInput`"
-                v-model="props.item.apiKey"
-                :readonly="!props.item.apiEditing"
-                :placeholder="!props.item.isOauth ? $t('agenda.noConnectorClientApiKey') : $t('agenda.connectorClientApiKey')"
-                :class="props.item.isOauth ? 'mx-2 pa-0' : 'mx-2 pa-0 me-8' "
-                dense>
-                <template #prepend>
-                  <i 
-                    :class="!props.item.isOauth ? 'uiIcon uiIconLock grey--text mt-1':'uiIcon uiIconLock primary--text mt-1'">
-                  </i>
-                </template>
-                <template v-if="props.item.isOauth" #append-outer>
-                  <v-slide-x-reverse-transition mode="out-in">
-                    <i
-                      :key="`icon-${props.item.apiEditing}`"
-                      :class="props.item.apiEditing ? 'uiIcon uiIconTick clickable success--text mt-1' : 'uiIcon uiIconEdit clickable primary--text mt-1'"
-                      @click="editApiKey(props.item)"></i>
-                  </v-slide-x-reverse-transition>
-                </template>
-              </v-text-field>
-            </div>
-          </td>
-          <td>
-            <v-text-field
-              :ref="`${props.item.name}SecretInput`"
-              v-model="props.item.secretKey"
-              :readonly="!props.item.secretEditing"
-              :placeholder="!props.item.mandatorySecretKey ? $t('agenda.noConnectorClientSecretKey') : $t('agenda.connectorSecretApiKey')"
-              :class="props.item.mandatorySecretKey ? 'mx-2 pa-0' : 'mx-2 pa-0 me-8' "
-              dense>
-              <template #prepend>
-                <em
-                  :class="!props.item.mandatorySecretKey ? 'uiIcon uiIconLock grey--text mt-1':'uiIcon uiIconLock primary--text mt-1'">
-                </em>
-              </template>
-              <template v-if="props.item.mandatorySecretKey" #append-outer>
-                <v-slide-x-reverse-transition mode="out-in">
-                  <em
-                    :key="`icon-${props.item.secretEditing}`"
-                    :class="props.item.secretEditing ? 'uiIcon uiIconTick clickable success--text mt-1' : 'uiIcon uiIconEdit clickable primary--text mt-1'"
-                    @click="editSecretKey(props.item)"></em>
-                </v-slide-x-reverse-transition>
-              </template>
-            </v-text-field>
-          </td>
-          <td>
-            <div class="d-flex flex-column align-center">
-              <v-switch
-                v-model="props.item.enabled"
-                :disabled="props.item.isOauth && (props.item.loading || props.item.editing || !props.item.apiKey)"
-                :loading="props.item.loading"
-                :ripple="false"
-                color="primary"
-                class="connectorSwitcher my-auto"
-                @change="enableDisableConnector(props.item)" />
-            </div>
-          </td>
-        </tr>
+      hide-default-footer
+      disable-pagination
+      disable-filtering
+      disable-sort
+      dense>
+      <template #[`item.avatar`]="{ item }">
+        <v-avatar
+          class="py-1"
+          size="40"
+          tile>
+          <img
+            :alt="$t(item.name)"
+            :src="item.avatar">
+        </v-avatar>
+      </template>
+      <template #[`item.name`]="{ item }">
+        <span>
+          {{ $t(item.name) }}
+        </span>
+      </template>
+      <template #[`item.enabled`]="{ item }">
+        <div class="d-flex justify-center">
+          <v-tooltip
+            :disabled="!missingApiKey(item)"
+            bottom>
+            <template #activator="{ on, attrs }">
+              <div
+                v-bind="attrs"
+                v-on="on">
+                <v-switch
+                  v-model="item.enabled"
+                  :disabled="item.isOauth && (item.loading || !item.apiKey)"
+                  :loading="item.loading"
+                  :ripple="false"
+                  class="ma-0 pa-0"
+                  color="primary"
+                  hide-details
+                  @change="enableDisableConnector(item)" />
+              </div>
+            </template>
+            <span>
+              {{ $t('agenda.connectors.enableRequiresApiKey') }}
+            </span>
+          </v-tooltip>
+        </div>
+      </template>
+      <template #[`item.actions`]="{ item }">
+        <v-btn
+          icon
+          @click="editItem(item)">
+          <v-icon
+            size="20"
+            class="icon-default-color">
+            fa-edit
+          </v-icon>
+        </v-btn>
       </template>
     </v-data-table>
+    <agenda-admin-connector-drawer />
   </div>
 </template>
 
@@ -110,13 +80,7 @@ export default {
   data: () => ({
     connectors: [],
     headers: [],
-    itemsPerPage: 10,
   }),
-  computed: {
-    hideFooter() {
-      return this.connectors && this.connectors.length <= this.itemsPerPage;
-    },
-  },
   watch: {
     settings() {
       this.refreshConnectorsList();
@@ -124,23 +88,30 @@ export default {
   },
   mounted() {
     document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
-    this.skeleton = false;
   },
   created() {
     this.headers = [
-      { text: this.$t('agenda.avatar'), align: 'center' },
-      { text: this.$t('agenda.name'), align: 'center' },
-      { text: this.$t('agenda.description'), align: 'center' },
-      { text: this.$t('agenda.connectorClientApiKey'), align: 'center', width: '40%' },
-      { text: this.$t('agenda.connectorSecretApiKey'), align: 'center', width: '15%' },
-      { text: this.$t('agenda.active'), align: 'center' }
+      { text: '', value: 'avatar', width: '40px' },
+      { text: this.$t('agenda.name'), value: 'name' },
+      { text: this.$t('agenda.active'), align: 'center', value: 'enabled', width: '80px' },
+      { text: this.$t('agenda.connectors.list.actions'), align: 'center', value: 'actions', width: '80px' }
     ];
     // Retrieving list of registered connectors from extensionRegistry
     document.addEventListener('agenda-connectors-refresh', this.refreshConnectorsList);
   },
   methods: {
+    /**
+     * Reloads the built-in connectors from the extension registry and
+     * decorates each with its stored settings (activation and credentials).
+     *
+     * @returns {void}
+     */
     refreshConnectorsList() {
-      const connectors = extensionRegistry.loadExtensions('agenda', 'connectors') || [];
+      // Multi-instance connectors (CalDAV servers) are managed in their own
+      // admin section, one row per declared server: this table keeps the
+      // single-instance OAuth connectors only.
+      const connectors = (extensionRegistry.loadExtensions('agenda', 'connectors') || [])
+        .filter(connector => !connector.multiInstance);
       if (this.settings && this.settings.remoteProviders) {
         //in case of a new connector is added.
         connectors.forEach(connector => {
@@ -149,50 +120,45 @@ export default {
           connector.apiKey = connectorObj && connectorObj.apiKey || '';
           connector.secretKey = connectorObj && connectorObj.secretKey || '';
           connector.loading = false;
-          connector.apiEditing = false;
-          connector.secretEditing = false;
         });
       } else {
         connectors.forEach(connector => connector.enabled = false);
       }
       this.connectors = connectors;
     },
+    /**
+     * Opens the connector drawer on the clicked row, where the connector's
+     * credentials are read and edited.
+     *
+     * @param {Object} connector the built-in connector of the clicked row
+     * @returns {void}
+     */
+    editItem(connector) {
+      this.$root.$emit('open-agenda-connector-drawer', connector);
+    },
+    /**
+     * Whether a row's activation switch is held down for lack of an API key
+     * — the case worth a tooltip now that the keys live behind the drawer.
+     *
+     * @param {Object} connector the built-in connector of the row
+     * @returns {Boolean} true when the connector needs an API key it does not have
+     */
+    missingApiKey(connector) {
+      return !!connector.isOauth && !connector.apiKey;
+    },
+    /**
+     * Propagates the activation switch of a row to the stored remote
+     * provider settings.
+     *
+     * @param {Object} connector the built-in connector whose switch was flipped
+     * @returns {void}
+     */
     enableDisableConnector(connector) {
       connector.loading = true;
       this.$settingsService.saveRemoteProviderStatus(connector.name, connector.enabled, connector.isOauth)
         .then(result => Object.assign(connector, result))
         .catch(() => connector.enabled = !connector.enabled)
         .finally(() => connector.loading = false);
-    },
-    editApiKey(connector) {
-      if (connector.apiEditing) {
-        this.$settingsService.saveRemoteProviderApiKey(connector.name, connector.apiKey)
-          .then(result => Object.assign(connector, result))
-          .finally(() => connector.apiEditing = false);
-      } else {
-        connector.apiEditing = true;
-        this.$nextTick(() => {
-          const $input = this.$refs[`${connector.name}ApiInput`];
-          if ($input) {
-            $input.focus();
-          }
-        });
-      }
-    },
-    editSecretKey(connector) {
-      if (connector.secretEditing) {
-        this.$settingsService.saveRemoteProviderSecretKey(connector.name, connector.secretKey)
-          .then(result => Object.assign(connector, result))
-          .finally(() => connector.secretEditing = false);
-      } else {
-        connector.secretEditing = true;
-        this.$nextTick(() => {
-          const $input = this.$refs[`${connector.name}SecretInput`];
-          if ($input) {
-            $input.focus();
-          }
-        });
-      }
     },
   }
 };
