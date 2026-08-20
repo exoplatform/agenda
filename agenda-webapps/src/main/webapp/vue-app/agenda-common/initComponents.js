@@ -20,6 +20,9 @@ import AgendaFilterCalendarDrawer from './components/filter/AgendaFilterCalendar
 import AgendaFilterCalendarList from './components/filter/AgendaFilterCalendarList.vue';
 import AgendaFilterCalendarItem from './components/filter/AgendaFilterCalendarItem.vue';
 import AgendaFilterCalendarSearch from './components/filter/AgendaFilterCalendarSearch.vue';
+import AgendaPersonalCalendarList from './components/filter/AgendaPersonalCalendarList.vue';
+import AgendaPersonalCalendarDrawer from './components/filter/AgendaPersonalCalendarDrawer.vue';
+import AgendaEventFormDestination from './components/event/form/AgendaEventFormDestination.vue';
 
 import AgendaPendingInvitationDrawer from './components/pending-date-polls/AgendaPendingInvitationDrawer.vue';
 import AgendaPendingInvitationItem from './components/pending-date-polls/AgendaPendingInvitationItem.vue';
@@ -105,6 +108,9 @@ const components = {
   'agenda-filter-calendar-list': AgendaFilterCalendarList,
   'agenda-filter-calendar-item': AgendaFilterCalendarItem,
   'agenda-filter-calendar-search': AgendaFilterCalendarSearch,
+  'agenda-personal-calendar-list': AgendaPersonalCalendarList,
+  'agenda-personal-calendar-drawer': AgendaPersonalCalendarDrawer,
+  'agenda-event-form-destination': AgendaEventFormDestination,
   'agenda-create-event-button': AgendaCreateEventButton,
   'agenda-calendar-filter-button': AgendaCalendarFilterButton,
   'agenda-period-selector': AgendaPeriodSelector,

@@ -416,4 +416,11 @@
     </sql>
   </changeSet>
 
+  <changeSet author="agenda" id="1.0.0-36">
+    <addColumn tableName="EXO_AGENDA_CALENDAR">
+      <column name="NAME" type="NVARCHAR(200)" />
+      <column name="SYNC_UID" type="NVARCHAR(36)" />
+    </addColumn>
+  </changeSet>
+
 </databaseChangeLog>

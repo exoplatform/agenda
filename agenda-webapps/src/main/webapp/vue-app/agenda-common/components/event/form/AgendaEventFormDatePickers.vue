@@ -6,7 +6,8 @@
         v-if="startDate"
         v-model="startDate"
         :top="datePickerTop"
-        class="flex-grow-1 my-auto" />
+        :class="compact ? 'flex-grow-0' : 'flex-grow-1'"
+        class="my-auto" />
       <div v-if="!event.allDay" class="d-flex flex-row flex-grow-0">
         <slot name="startDateTime"></slot>
         <time-picker v-model="startTime" class="event-time-picker" />
@@ -21,7 +22,8 @@
         v-model="endDate"
         :top="datePickerTop"
         :min-value="minimumEndDate"
-        class="flex-grow-1 my-auto" />
+        :class="compact ? 'flex-grow-0' : 'flex-grow-1'"
+        class="my-auto" />
       <div v-if="!event.allDay" class="flex-grow-0">
         <slot name="endTimeLabel"></slot>
         <time-picker
@@ -54,6 +56,17 @@ export default {
       default: () => 'endDate',
     },
     datePickerTop: {
+      type: Boolean,
+      default: false,
+    },
+    /**
+     * Sizes each date box to its content instead of growing it across the
+     * row, so the time select sits right beside it separated only by its
+     * own ms-4 — the form's standard 16px gutter. The drawer and the
+     * expanded form pass it; the mobile form keeps the historical grown
+     * layout by default.
+     */
+    compact: {
       type: Boolean,
       default: false,
     },

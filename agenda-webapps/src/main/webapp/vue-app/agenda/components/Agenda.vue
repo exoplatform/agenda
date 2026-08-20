@@ -104,6 +104,13 @@
       after connecting, when they have not, so the step was never offered.
     -->
     <agenda-connector-mirror-calendar-drawer />
+    <!--
+      One single instance for the whole application: the personal calendar
+      list renders both in the left panel and in the mobile filter drawer, and
+      both open this drawer through the same root event — two instances would
+      open two drawers.
+    -->
+    <agenda-personal-calendar-drawer />
   </v-app>
 </template>
 <script>
@@ -140,6 +147,7 @@ export default {
     events: [],
     remoteEvents: [],
     hiddenRemoteCalendarIds: [],
+    hiddenPersonalCalendarIds: [],
     displayedEvent: [],
     settings: {
       agendaDefaultView: 'week',
@@ -151,6 +159,9 @@ export default {
     hasMore: false,
     settingsLoaded: false,
     remoteEventsLoaded: false,
+    // Monotonic token identifying the latest events request: responses of
+    // superseded requests are discarded instead of overwriting fresher ones
+    eventsRequestId: 0,
     leftPanelExpanded: localStorage.getItem('agendaLeftPanelExpanded') !== 'false',
   }),
   computed: {
@@ -261,6 +272,7 @@ export default {
       handler: 'updateDisplayedEvents',
       deep: true
     },
+    hiddenPersonalCalendarIds: 'updateDisplayedEvents',
     'settings.showRemoteEventsForAgenda': 'updateDisplayedEvents'
   },
   created() {
@@ -285,6 +297,8 @@ export default {
     this.$root.$on('agenda-calendar-owners-changed', this.changeDisplayedOwnerIds);
     this.$root.$on('agenda-left-panel-toggle', this.toggleLeftPanel);
     this.$root.$on('agenda-remote-calendars-changed', this.changeHiddenRemoteCalendars);
+    this.$root.$on('agenda-personal-calendars-visibility-changed', this.changeHiddenPersonalCalendars);
+    this.initHiddenPersonalCalendars();
     this.$root.$on('agenda-settings-refresh', this.initSettings);
     this.$root.$on('agenda-event-change-owner', this.refreshProviders);
     this.$root.$on('agenda-show-remote-change', this.showRemoteEvents);
@@ -319,11 +333,21 @@ export default {
       }
     },
     updateDisplayedEvents() {
+      // Personal per-calendar visibility is applied client-side: the user's
+      // personal calendars share one owner identity, so the server-side
+      // ownerIds selection can't distinguish them. The filter is scoped to
+      // calendars owned by the current user so that a space calendar can
+      // never be hidden by it, whatever the persisted list contains
+      const userIdentityId = Number(eXo.env.portal.userIdentityId);
+      const localEvents = this.events.filter(event => !event.calendar
+          || !event.calendar.owner
+          || Number(event.calendar.owner.id) !== userIdentityId
+          || !this.hiddenPersonalCalendarIds.includes(Number(event.calendar.id)));
       if (this.settings.showRemoteEventsForAgenda) {
         // Avoid to have same event from remote and local store (pushed events from local store)
         const filtered = this.filterRemoteEvents(this.events, this.remoteEvents)
           .filter(remote => !this.hiddenRemoteCalendarIds.includes(remote.calendarId));
-        const merged = [...this.events, ...filtered];
+        const merged = [...localEvents, ...filtered];
         merged.sort((a, b) => {
           const s1 = this.$agendaUtils.toDate(a.start || a.startDate).getTime();
           const s2 = this.$agendaUtils.toDate(b.start || b.startDate).getTime();
@@ -331,7 +355,7 @@ export default {
         });
         this.displayedEvent = merged;
       } else {
-        this.displayedEvent = [...this.events];
+        this.displayedEvent = localEvents;
       }
     },
     showRemoteEvents(showRemoteEvents) {
@@ -367,7 +391,19 @@ export default {
         this.retrieveEventsFromStore();
       }
     },
+    /**
+     * Retrieves the events matching the current selection (period, owners,
+     * event type, search term) and displays them. Selection changes, saves
+     * and period moves each trigger a retrieval, so several requests can be
+     * in flight at once: each request takes a monotonic token, and a response
+     * belonging to a superseded request is discarded — otherwise a slower
+     * stale response landing last silently overwrites the fresher one, and
+     * the grid drops events that the current selection does include.
+     *
+     * @returns {Promise|void} resolved when the events are displayed
+     */
     retrieveEventsFromStore() {
+      const requestId = ++this.eventsRequestId;
       this.loading = true;
       const userIdentityId = this.eventType !== 'allEvents' && eXo.env.portal.userIdentityId || null;
       if (this.ownerIds === false) {
@@ -380,6 +416,11 @@ export default {
       const responseTypes = eXo.env.portal.spaceId && this.eventType === 'allEvents' ? null : this.eventType === 'declinedEvent' ? ['DECLINED']:['ACCEPTED', 'NEEDS_ACTION', 'TENTATIVE'];
       return this.$eventService.getEvents(this.searchTerm, this.ownerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, true), this.$agendaUtils.toRFC3339(this.period.end), this.limit, responseTypes, 'attendees,conferences')
         .then(data => {
+          if (requestId !== this.eventsRequestId) {
+            // A newer retrieval was started since: its response is the one
+            // reflecting the current selection, let it drive the display
+            return;
+          }
           let events = data && data.events || [];
           if (this.filterCanceledEvents) {
             events = events.filter(event => !event.status || event.status !== 'CANCELLED');
@@ -394,8 +435,10 @@ export default {
         }).catch(error =>{
           console.error('Error retrieving events', error);
         }).finally(() => {
-          this.initialized = true;
-          this.loading = false;
+          if (requestId === this.eventsRequestId) {
+            this.initialized = true;
+            this.loading = false;
+          }
         });
     },
     generateCalendarTitle(period) {
@@ -524,6 +567,31 @@ export default {
     changeHiddenRemoteCalendars(hiddenRemoteCalendarIds) {
       this.hiddenRemoteCalendarIds = hiddenRemoteCalendarIds || [];
       this.updateDisplayedEvents();
+    },
+    /**
+     * Applies a new personal-calendar visibility selection coming from the
+     * personal calendar list (left panel or mobile filter drawer).
+     *
+     * @param {Array} hiddenPersonalCalendarIds identifiers of the personal
+     *          calendars whose events must be hidden
+     * @returns {void}
+     */
+    changeHiddenPersonalCalendars(hiddenPersonalCalendarIds) {
+      this.hiddenPersonalCalendarIds = (hiddenPersonalCalendarIds || []).map(Number);
+    },
+    /**
+     * Restores the personal-calendar visibility persisted in the browser
+     * storage, so a hidden calendar stays hidden across reloads.
+     * @returns {void}
+     */
+    initHiddenPersonalCalendars() {
+      try {
+        const storedValue = localStorage.getItem(`agenda.hiddenPersonalCalendars.${eXo.env.portal.userIdentityId}`);
+        const hiddenIds = storedValue && JSON.parse(storedValue) || [];
+        this.hiddenPersonalCalendarIds = Array.isArray(hiddenIds) ? hiddenIds.map(Number) : [];
+      } catch (e) {
+        this.hiddenPersonalCalendarIds = [];
+      }
     },
     filterRemoteEvents(localEvents, remoteEvents) {
       return remoteEvents.filter(remote => {

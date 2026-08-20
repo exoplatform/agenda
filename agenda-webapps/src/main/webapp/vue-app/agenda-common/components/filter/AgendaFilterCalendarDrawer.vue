@@ -26,6 +26,25 @@
         </div>
       </div>
       <div v-if="displayCalendarSelection" class="d-flex flex-column mx-4 my-1">
+        <div class="d-flex align-center">
+          <span class="font-weight-bold flex-grow-1">{{ $t('agenda.leftPanel.personalCalendars') }}</span>
+          <!-- Same affordance as the left panel section header: creation goes
+               through the calendar drawer, opening on top of this one -->
+          <v-btn
+            :title="$t('agenda.calendar.addCalendar')"
+            icon
+            max-width="24"
+            max-height="24"
+            class="flex-grow-0"
+            @click="openPersonalCalendarDrawer">
+            <v-icon size="14" class="text-light-color">
+              fas fa-plus
+            </v-icon>
+          </v-btn>
+        </div>
+        <agenda-personal-calendar-list />
+      </div>
+      <div v-if="displayCalendarSelection" class="d-flex flex-column mx-4 my-1">
         <div class="font-weight-bold">{{ $t('agenda.leftPanel.spaces') }}</div>
         <agenda-filter-calendar-list
           ref="calendarList"
@@ -154,6 +173,14 @@ export default {
         this.eventType = this.currentSpace ? 'allEvents' : 'myEvents';
       }
       this.$refs.calendarFilters.open();
+    },
+    /**
+     * Opens the drawer creating a personal calendar, on top of this filter
+     * drawer (exo-drawer stacks the last opened drawer above the others).
+     * @returns {void}
+     */
+    openPersonalCalendarDrawer() {
+      this.$root.$emit('agenda-personal-calendar-drawer-open');
     },
     /**
      * Initializes the drawer content once the drawer is effectively opened:
