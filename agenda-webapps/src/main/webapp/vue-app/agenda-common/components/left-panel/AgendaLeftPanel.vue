@@ -41,9 +41,12 @@
       beside the title is the same control the toolbar carries, so both lead to
       the same drawer rather than to two ways of doing one thing.
     -->
+    <!-- Every section carries the same mb-5, one rule for all of them: the
+         vertical rhythm between sections stays identical whichever sections
+         render, and a future section only has to repeat the same class -->
     <section
       v-if="connectorsAvailable"
-      class="agenda-left-panel-section agenda-left-panel-my-calendars d-flex flex-column">
+      class="agenda-left-panel-section d-flex flex-column mb-5">
       <div class="agenda-left-panel-title text-sub-title">
         <span class="flex-grow-1">{{ $t('agenda.leftPanel.myCalendars') }}</span>
         <agenda-connect-to-remote-button
@@ -61,8 +64,34 @@
         :connectors="connectors"
         class="agenda-left-panel-calendars" />
     </section>
+    <!--
+      The user's own agenda calendars: the default one plus any calendar the
+      user created to organize personal events. Visibility, rename, creation
+      and deletion all live here — the same place the other calendar lists are
+      managed. This is distinct from the connected-account section above,
+      which lists calendars living in a remote account.
+    -->
+    <section class="agenda-left-panel-section d-flex flex-column mb-5">
+      <div class="agenda-left-panel-title text-sub-title">
+        <span class="flex-grow-1">{{ $t('agenda.leftPanel.personalCalendars') }}</span>
+        <!-- Same affordance as the section above: a small icon button beside
+             the title, opening a drawer, rather than an inline field -->
+        <v-btn
+          :title="$t('agenda.calendar.addCalendar')"
+          icon
+          max-width="24"
+          max-height="24"
+          class="flex-grow-0"
+          @click="openPersonalCalendarDrawer">
+          <v-icon size="14" class="text-light-color">
+            fas fa-plus
+          </v-icon>
+        </v-btn>
+      </div>
+      <agenda-personal-calendar-list class="agenda-left-panel-calendars" />
+    </section>
     <!-- section: Spaces -->
-    <section class="agenda-left-panel-section d-flex flex-column">
+    <section class="agenda-left-panel-section d-flex flex-column mb-5">
       <div class="agenda-left-panel-title text-sub-title">
         {{ $t('agenda.leftPanel.spaces') }}
       </div>
@@ -197,6 +226,14 @@ export default {
       if (this.$refs.calendarList) {
         this.$refs.calendarList.reset();
       }
+    },
+    /**
+     * Opens the drawer creating a personal calendar, empty: this button is
+     * the creation entry, editing goes through each calendar's action menu.
+     * @returns {void}
+     */
+    openPersonalCalendarDrawer() {
+      this.$root.$emit('agenda-personal-calendar-drawer-open');
     },
     /**
      * Relays a calendar selection change to the Agenda application through the

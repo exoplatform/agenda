@@ -581,6 +581,20 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       throw new IllegalAccessException("User '" + userIdentityId + "' can't update event " + eventId);
     }
 
+    // Moving the event to another calendar additionally requires the right to
+    // create events in the TARGET calendar (derived from the stored calendar
+    // row, never from the request): being allowed to update an event must not
+    // grant filing it into someone else's calendar
+    if (storedEvent.getCalendarId() != calendarId && !canCreateEvent(calendar, userIdentityId)) {
+      throw new IllegalAccessException("User '" + userIdentityId + "' can't move event " + eventId + " to calendar "
+          + calendarId);
+    }
+
+    // Moving the event to another calendar additionally requires the right to
+    // create events in the TARGET calendar (derived from the stored calendar
+    // row, never from the request): being allowed to update an event must not
+    // grant filing it into someone else's calendar
+
     EventOccurrence occurrence = event.getOccurrence();
     if (occurrence != null && occurrence.getId() != null) {
       event.setRecurrence(null);

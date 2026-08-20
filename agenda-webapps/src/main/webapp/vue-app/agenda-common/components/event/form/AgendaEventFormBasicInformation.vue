@@ -15,23 +15,40 @@
             :placeholder="$t('agenda.eventTitle')"
             type="text"
             name="title"
-            class="ignore-vuetify-classes my-3"
+            class="ignore-vuetify-classes my-3 event-input"
             required
             @change="resetCustomValidity">
-          <label class="mt-5 ms-4 me-4 text-subtitle-1 font-weight-bold d-none d-md-inline">
-            {{ $t('agenda.label.in') }}
-          </label>
-          <agenda-event-form-calendar-owner
+        </div>
+        <!--
+          The destination is a block of one field per line under the title
+          (select, then the space suggester when the space flow is chosen),
+          every field carrying the same event-input width as the title and
+          location — one column of equal fields. The 'in' lead-in died with
+          the single-line sentence: the select's values already read as
+          destinations. The single gutter icon mirrors the drawer's
+          destination icon and, like there, labels the destination as a
+          whole: anchored to the first field, the suggester line keeps an
+          empty gutter so the block reads as one destination.
+        -->
+        <div class="d-flex flex-row">
+          <v-icon
+            size="20"
+            class="icon-default-color mb-auto mt-5 me-12 d-none d-md-inline">
+            fas fa-calendar-alt
+          </v-icon>
+          <agenda-event-form-destination
             ref="calendarOwner"
             :event="event"
             :current-space="currentSpace"
+            inline
             @initialized="$emit('initialized')" />
         </div>
         <div v-if="displayTimeInForm && eventDateOption" class="d-flex flex-row">
           <v-icon size="20" class="icon-default-color mb-auto pt-6 me-11">fas fa-clock</v-icon>
           <agenda-event-form-date-pickers
             :event="eventDateOption"
-            class="event-form-datetimes my-4"
+            class="my-4"
+            compact
             @changed="updateEventDates"
             @initialized="formInitialized" />
         </div>
@@ -200,12 +217,21 @@ export default {
     }, 500);
   },
   methods: {
+    /**
+     * Resets the date option bound to the date pickers from the event being
+     * edited, once the pickers are unmounted and remounted.
+     * @returns {void}
+     */
     reset() {
       this.eventDateOption = null;
       this.$nextTick().then(() => {
         this.eventDateOption = this.event.dateOptions.length === 1 && this.event.dateOptions[0] || this.event;
       });
     },
+    /**
+     * Clears any custom validity set on the title field and the destination.
+     * @returns {void}
+     */
     resetCustomValidity() {
       if (this.$refs.eventTitle) {
         this.$refs.eventTitle.setCustomValidity('');
@@ -214,6 +240,11 @@ export default {
         this.$refs.calendarOwner.resetCustomValidity();
       }
     },
+    /**
+     * Propagates the picked start and end dates from the date pickers to the
+     * event payload, mirrored to its single date option when there is one.
+     * @returns {void}
+     */
     updateEventDates() {
       this.event.startDate = new Date(this.eventDateOption.startDate);
       this.event.endDate = new Date(this.eventDateOption.endDate);
@@ -228,6 +259,12 @@ export default {
         this.event.dateOptions[0].end = this.event.end;
       }
     },
+    /**
+     * Validates the basic information step: the title presence and length,
+     * the destination, then the Vuetify and standard HTML form rules.
+     *
+     * @returns {Boolean} true when the form is valid, undefined otherwise
+     */
     validateForm() {
       this.resetCustomValidity();
       this.$refs.calendarOwner.validateForm();

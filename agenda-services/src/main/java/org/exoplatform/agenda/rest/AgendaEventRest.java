@@ -622,9 +622,14 @@ public class AgendaEventRest implements ResourceContainer, Startable {
 
     long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
     try {
+      // Resolve the destination calendar against the stored event, so an
+      // update without an explicit destination preserves the event's calendar
+      // instead of snapping it back to the owner's default one
+      Event storedEvent = agendaEventService.getEventById(eventEntity.getId());
       checkCalendar(identityManager,
                     agendaCalendarService,
-                    eventEntity);
+                    eventEntity,
+                    storedEvent);
 
       List<EventAttendeeEntity> attendeeEntities = eventEntity.getAttendees();
       List<EventAttendee> attendees = null;

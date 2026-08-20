@@ -46,17 +46,20 @@ public class EntityMapper {
     if (calendarEntity == null) {
       return null;
     }
-    return new Calendar(calendarEntity.getId(),
-                        calendarEntity.getOwnerId(),
-                        calendarEntity.isSystem(),
-                        null,
-                        calendarEntity.getDescription(),
-                        calendarEntity.getCreatedDate() == null ? null
-                                                                : AgendaDateUtils.toRFC3339Date(calendarEntity.getCreatedDate()),
-                        calendarEntity.getUpdatedDate() == null ? null
-                                                                : AgendaDateUtils.toRFC3339Date(calendarEntity.getUpdatedDate()),
-                        calendarEntity.getColor(),
-                        null);
+    Calendar calendar = new Calendar(calendarEntity.getId(),
+                                     calendarEntity.getOwnerId(),
+                                     calendarEntity.isSystem(),
+                                     null,
+                                     calendarEntity.getDescription(),
+                                     calendarEntity.getCreatedDate() == null ? null
+                                                                             : AgendaDateUtils.toRFC3339Date(calendarEntity.getCreatedDate()),
+                                     calendarEntity.getUpdatedDate() == null ? null
+                                                                             : AgendaDateUtils.toRFC3339Date(calendarEntity.getUpdatedDate()),
+                                     calendarEntity.getColor(),
+                                     null);
+    calendar.setName(calendarEntity.getName());
+    calendar.setSyncUid(calendarEntity.getSyncUid());
+    return calendar;
   }
 
   public static CalendarEntity toEntity(Calendar calendar) {
@@ -79,6 +82,8 @@ public class EntityMapper {
     }
     calendarEntity.setDescription(calendar.getDescription());
     calendarEntity.setSystem(calendar.isSystem());
+    calendarEntity.setName(calendar.getName());
+    calendarEntity.setSyncUid(calendar.getSyncUid());
     return calendarEntity;
   }
 

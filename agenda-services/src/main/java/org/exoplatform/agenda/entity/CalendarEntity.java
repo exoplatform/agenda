@@ -37,6 +37,10 @@ import jakarta.persistence.Table;
     name = "AgendaCalendar.countCalendarsByOwnerIds",
     query = "SELECT count(cal.id) FROM AgendaCalendar cal WHERE cal.ownerId IN (:ownerIds)"
 )
+@NamedQuery(
+    name = "AgendaCalendar.getSystemCalendarIdsByOwnerId",
+    query = "SELECT cal.id FROM AgendaCalendar cal WHERE cal.ownerId = :ownerId AND cal.isSystem = TRUE ORDER BY cal.id ASC"
+)
 public class CalendarEntity implements Serializable {
 
   private static final long serialVersionUID = -5042089789130151840L;
@@ -51,6 +55,12 @@ public class CalendarEntity implements Serializable {
 
   @Column(name = "IS_SYSTEM")
   private boolean           isSystem;
+
+  @Column(name = "NAME")
+  private String            name;
+
+  @Column(name = "SYNC_UID")
+  private String            syncUid;
 
   @Column(name = "DESCRIPTION")
   private String            description;
@@ -86,6 +96,38 @@ public class CalendarEntity implements Serializable {
 
   public void setSystem(boolean isSystem) {
     this.isSystem = isSystem;
+  }
+
+  /**
+   * @return user-defined display name of the calendar, or {@code null} when
+   *         the calendar title has to be derived from its owner identity
+   */
+  public String getName() {
+    return name;
+  }
+
+  /**
+   * @param name user-defined display name of the calendar, {@code null} to
+   *          keep deriving the title from the owner identity
+   */
+  public void setName(String name) {
+    this.name = name;
+  }
+
+  /**
+   * @return stable, environment-independent unique identifier of the calendar
+   *         (UUID), used by external synchronization engines
+   */
+  public String getSyncUid() {
+    return syncUid;
+  }
+
+  /**
+   * @param syncUid stable, environment-independent unique identifier of the
+   *          calendar (UUID)
+   */
+  public void setSyncUid(String syncUid) {
+    this.syncUid = syncUid;
   }
 
   public String getDescription() {

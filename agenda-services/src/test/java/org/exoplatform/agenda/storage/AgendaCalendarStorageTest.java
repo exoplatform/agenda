@@ -27,8 +27,10 @@ import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.dao.CalendarDAO;
 import org.exoplatform.agenda.entity.CalendarEntity;
+import org.exoplatform.agenda.model.AgendaEventModification;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.storage.cached.CachedAgendaCalendarStorage;
 import org.exoplatform.container.ExoContainerContext;
@@ -42,12 +44,16 @@ public class AgendaCalendarStorageTest {
 
   private CalendarDAO                 calendarDAO;
 
+  private AgendaEventStorage          agendaEventStorage;
+
+  private ListenerService             listenerService;
+
   @Before
   public void setUp() throws Exception { // NOSONAR
     CacheService cacheService = mock(CacheService.class);
     calendarDAO = mock(CalendarDAO.class);
-    AgendaEventStorage agendaEventStorage = mock(AgendaEventStorage.class);
-    ListenerService listenerService = new ListenerService(new ExoContainerContext(null));
+    agendaEventStorage = mock(AgendaEventStorage.class);
+    listenerService = new ListenerService(new ExoContainerContext(null));
     listenerService = spy(listenerService);
     when(cacheService.getCacheInstance(CachedAgendaCalendarStorage.CALENDAR_CACHE_NAME)).thenReturn(new ConcurrentFIFOExoCache<>(CachedAgendaCalendarStorage.CALENDAR_CACHE_NAME,
                                                                                                                                  500));
@@ -193,6 +199,40 @@ public class AgendaCalendarStorageTest {
     verify(calendarDAO, times(3)).find(anyLong());
     agendaCalendarStorage.getCalendarById(calendarId);
     verify(calendarDAO, times(4)).find(anyLong());
+  }
+
+  /**
+   * The Elasticsearch mapping indexes {@code calendarId}, so a calendar-events
+   * move must broadcast one {@code exo.agenda.event.moved} per moved event —
+   * that broadcast is what triggers the reindex of each moved event.
+   */
+  @Test
+  public void testMoveCalendarEventsBroadcastsPerMovedEvent() throws Exception { // NOSONAR
+    long fromCalendarId = 1L;
+    long toCalendarId = 2L;
+    long modifierId = 55L;
+    when(agendaEventStorage.moveCalendarEvents(fromCalendarId, toCalendarId)).thenReturn(Arrays.asList(10L, 11L));
+
+    List<Long> movedEventIds = agendaCalendarStorage.moveCalendarEvents(fromCalendarId, toCalendarId, modifierId);
+
+    assertEquals(Arrays.asList(10L, 11L), movedEventIds);
+    verify(agendaEventStorage, times(1)).moveCalendarEvents(fromCalendarId, toCalendarId);
+    verify(listenerService, times(1)).broadcast(eq("exo.agenda.event.moved"),
+                                                argThat((AgendaEventModification modification) -> modification != null
+                                                    && modification.getEventId() == 10L
+                                                    && modification.getCalendarId() == toCalendarId
+                                                    && modification.getModifierId() == modifierId
+                                                    && modification.hasModification(AgendaEventModificationType.UPDATED)),
+                                                isNull());
+    verify(listenerService, times(1)).broadcast(eq("exo.agenda.event.moved"),
+                                                argThat((AgendaEventModification modification) -> modification != null
+                                                    && modification.getEventId() == 11L),
+                                                isNull());
+
+    // An empty source calendar broadcasts nothing
+    when(agendaEventStorage.moveCalendarEvents(fromCalendarId, toCalendarId)).thenReturn(Collections.emptyList());
+    agendaCalendarStorage.moveCalendarEvents(fromCalendarId, toCalendarId, modifierId);
+    verify(listenerService, times(2)).broadcast(anyString(), any(), any());
   }
 
 }
