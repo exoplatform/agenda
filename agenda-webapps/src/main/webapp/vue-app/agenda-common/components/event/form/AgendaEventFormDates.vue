@@ -434,6 +434,14 @@ export default {
       }
     },
     retrieveRemoteEvents() {
+      // The connectedConnector watcher fires as soon as a connector signs in,
+      // which here is usually before the calendar's first @change has built
+      // the period at all, so both bounds are still absent and the read is
+      // rejected by strict connectors (CalDAV). Skipping loses nothing:
+      // retrieveEvents() calls back once retrievePeriod() has run.
+      if (!this.period || !this.period.start || !this.period.end) {
+        return;
+      }
       if (this.connectedConnector) {
         const startEventRFC3359 = this.$agendaUtils.toRFC3339(this.period.start, false, true);
         const endEventRFC3359 = this.$agendaUtils.toRFC3339(this.period.end, false, true);

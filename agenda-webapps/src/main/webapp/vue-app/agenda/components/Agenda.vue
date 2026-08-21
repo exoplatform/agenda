@@ -479,6 +479,14 @@ export default {
       }
     },
     retrieveRemoteEvents() {
+      // A connector can sign in before the calendar has emitted its first
+      // period, in which case end is still null and the read goes out with a
+      // half-built window that strict connectors (CalDAV) reject outright.
+      // Skipping loses nothing: the period watcher retrieves again as soon as
+      // the calendar has a real period.
+      if (!this.period || !this.period.start || !this.period.end) {
+        return;
+      }
       if (this.settingsLoaded && this.connectorStatus === 1) {
         const startDateRFC3359 = this.$agendaUtils.toRFC3339(this.period.start, false, true);
         const endDateRFC3359 = this.$agendaUtils.toRFC3339(this.period.end, false, true);
