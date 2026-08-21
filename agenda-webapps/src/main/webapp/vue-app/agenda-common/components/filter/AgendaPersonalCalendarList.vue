@@ -106,10 +106,17 @@ export default {
       if (!this.calendarToDelete) {
         return '';
       }
-      return this.$t('agenda.calendarDelete.confirmMessage', {
+      const message = this.$t('agenda.calendarDelete.confirmMessage', {
         0: this.calendarLabel(this.calendarToDelete),
         1: this.defaultCalendarLabel,
       });
+      // A connector mirroring this calendar elsewhere knows something agenda
+      // does not: that confirming also destroys a copy on a remote server,
+      // events other devices added included. Agenda cannot phrase that — it
+      // does not know which server, or whether the copy is eXo's to delete —
+      // so the connector supplies the sentence and agenda shows it.
+      const warning = this.connectorDeleteWarning();
+      return warning && `${message}\n\n${warning}` || message;
     },
     /**
      * The display label of the user's default calendar, used in the deletion
@@ -219,6 +226,59 @@ export default {
       this.$root.$emit('agenda-personal-calendar-drawer-open', calendar);
     },
     /**
+     * The connectors registered with agenda, in the shape they register
+     * themselves.
+     *
+     * @returns {Array} the registered connectors, possibly empty
+     */
+    connectors() {
+      return extensionRegistry.loadExtensions('agenda', 'connectors') || [];
+    },
+    /**
+     * The connector that mirrors a calendar elsewhere and wants a say in its
+     * deletion, if any.
+     *
+     * Optional on the contract on purpose: a connector that mirrors nothing —
+     * or has nothing to add — simply does not implement it, and agenda behaves
+     * exactly as it did before.
+     *
+     * @param {Object} calendar the calendar being deleted
+     * @returns {Object} the connector claiming it, or null
+     */
+    connectorFor(calendar) {
+      return this.connectors().find(connector => connector
+        && typeof connector.claimsCalendarDeletion === 'function'
+        && connector.claimsCalendarDeletion(calendar)) || null;
+    },
+    /**
+     * The extra sentence a connector wants shown before the user confirms.
+     *
+     * @returns {String} the warning, or an empty string
+     */
+    connectorDeleteWarning() {
+      const connector = this.connectorFor(this.calendarToDelete);
+      return connector && typeof connector.calendarDeletionWarning === 'function'
+        && connector.calendarDeletionWarning(this.calendarToDelete) || '';
+    },
+    /**
+     * Removes whatever a connector mirrors this calendar as, before agenda
+     * removes the calendar itself.
+     *
+     * Resolves immediately when no connector claims it, which is every case
+     * that existed before this hook.
+     *
+     * @param {Object} calendar the calendar being deleted
+     * @returns {Promise} resolves once the remote side is gone, rejects to
+     *          abort the whole deletion
+     */
+    deleteRemoteCounterpart(calendar) {
+      const connector = this.connectorFor(calendar);
+      if (!connector || typeof connector.deleteCalendar !== 'function') {
+        return Promise.resolve();
+      }
+      return connector.deleteCalendar(calendar);
+    },
+    /**
      * Opens the deletion confirmation dialog for a calendar, stating that its
      * events will be moved to the default calendar.
      *
@@ -241,13 +301,28 @@ export default {
         return;
       }
       const calendarId = this.calendarToDelete.id;
-      this.$calendarService.deleteCalendar(calendarId)
+      const calendar = this.calendarToDelete;
+      // The remote side first, and only then the local one. A connector that
+      // fails here must leave BOTH sides untouched: deleting locally first can
+      // strand a collection on a server after the record that knew about it is
+      // gone, and nothing will ever find it again. So a rejection stops the
+      // whole deletion rather than being reported after the fact.
+      this.deleteRemoteCounterpart(calendar)
+        .then(() => this.$calendarService.deleteCalendar(calendarId))
         .then(() => {
           this.calendarToDelete = null;
           return this.retrieveCalendars();
         })
         .then(() => this.$root.$emit('agenda-refresh'))
-        .catch(() => this.$root.$emit('alert-message', this.$t('agenda.calendarDelete.error'), 'error'));
+        // A connector that refused knows why, and agenda does not: which
+        // server answered, and whether anything was deleted at all. It rejects
+        // with a message already in the user's language, and that message is
+        // shown rather than agenda's generic one — "nothing was deleted, in
+        // eXo or on the server" is a very different thing to read than "the
+        // calendar could not be deleted".
+        .catch(error => this.$root.$emit('alert-message',
+          error && error.message || this.$t('agenda.calendarDelete.error'),
+          'error'));
     },
   },
 };
