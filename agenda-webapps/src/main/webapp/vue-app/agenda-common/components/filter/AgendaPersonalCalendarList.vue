@@ -76,6 +76,7 @@ export default {
     hiddenCalendarIds: [],
     loading: false,
     calendarToDelete: null,
+    connectorWarning: '',
   }),
   computed: {
     /**
@@ -114,9 +115,11 @@ export default {
       // does not: that confirming also destroys a copy on a remote server,
       // events other devices added included. Agenda cannot phrase that — it
       // does not know which server, or whether the copy is eXo's to delete —
-      // so the connector supplies the sentence and agenda shows it.
-      const warning = this.connectorDeleteWarning();
-      return warning && `${message}\n\n${warning}` || message;
+      // so the connector supplies the sentence and agenda shows it. It is
+      // fetched before the dialog opens, never while this is computed: the
+      // answer lives on a server, and a warning that arrives after the user
+      // has confirmed is no warning at all.
+      return this.connectorWarning && `${message}\n\n${this.connectorWarning}` || message;
     },
     /**
      * The display label of the user's default calendar, used in the deletion
@@ -234,31 +237,35 @@ export default {
     connectors() {
       return extensionRegistry.loadExtensions('agenda', 'connectors') || [];
     },
+
     /**
-     * The connector that mirrors a calendar elsewhere and wants a say in its
-     * deletion, if any.
+     * Asks every connector what deleting this calendar would also do, and
+     * keeps the sentence the one that claims it wants shown.
      *
-     * Optional on the contract on purpose: a connector that mirrors nothing —
-     * or has nothing to add — simply does not implement it, and agenda behaves
-     * exactly as it did before.
+     * Asked once, before the dialog opens. A connector answering slowly delays
+     * the dialog rather than letting it open without the warning — which is
+     * the right trade: the whole point of the sentence is to be read before
+     * the user confirms, not after.
      *
-     * @param {Object} calendar the calendar being deleted
-     * @returns {Object} the connector claiming it, or null
+     * @param {Object} calendar the calendar about to be deleted
+     * @returns {Promise} resolves once the warning is known
      */
-    connectorFor(calendar) {
-      return this.connectors().find(connector => connector
-        && typeof connector.claimsCalendarDeletion === 'function'
-        && connector.claimsCalendarDeletion(calendar)) || null;
-    },
-    /**
-     * The extra sentence a connector wants shown before the user confirms.
-     *
-     * @returns {String} the warning, or an empty string
-     */
-    connectorDeleteWarning() {
-      const connector = this.connectorFor(this.calendarToDelete);
-      return connector && typeof connector.calendarDeletionWarning === 'function'
-        && connector.calendarDeletionWarning(this.calendarToDelete) || '';
+    loadConnectorWarning(calendar) {
+      this.connectorWarning = '';
+      const connector = this.connectors().find(one => one && typeof one.describeCalendarDeletion === 'function');
+      if (!connector) {
+        return Promise.resolve();
+      }
+      return connector.describeCalendarDeletion(calendar)
+        .then(description => {
+          this.connectorWarning = description && description.claims && description.warning || '';
+        })
+        .catch(() => {
+          // A connector that cannot answer must not stop the user deleting a
+          // calendar. The dialog opens without its sentence, and the deletion
+          // call itself still decides what happens remotely.
+          this.connectorWarning = '';
+        });
     },
     /**
      * Removes whatever a connector mirrors this calendar as, before agenda
@@ -272,8 +279,8 @@ export default {
      *          abort the whole deletion
      */
     deleteRemoteCounterpart(calendar) {
-      const connector = this.connectorFor(calendar);
-      if (!connector || typeof connector.deleteCalendar !== 'function') {
+      const connector = this.connectors().find(one => one && typeof one.deleteCalendar === 'function');
+      if (!connector) {
         return Promise.resolve();
       }
       return connector.deleteCalendar(calendar);
@@ -287,7 +294,7 @@ export default {
      */
     confirmDelete(calendar) {
       this.calendarToDelete = calendar;
-      this.$refs.deleteConfirmDialog.open();
+      this.loadConnectorWarning(calendar).then(() => this.$refs.deleteConfirmDialog.open());
     },
     /**
      * Deletes the calendar confirmed by the user: server-side its events are
