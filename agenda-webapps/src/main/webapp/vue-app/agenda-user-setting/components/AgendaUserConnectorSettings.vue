@@ -1,13 +1,16 @@
 <template>
   <v-list-item>
     <v-list-item-content>
-      <v-list-item-title class="text-header">
+      <!-- text-color, the class the E-mail rows on this same page use:
+           text-header renders grey and lighter, so the calendar rows read
+           as a different kind of setting than the ones above them. -->
+      <v-list-item-title class="text-color">
         {{ $t('agenda.connectYourPersonalAgenda') }}
       </v-list-item-title>
       <v-list-item-subtitle class="d-flex align-center">
         <agenda-connector-status :connectors="connectors">
           <template slot="connectButton">
-            <span class="text-subtitle">
+            <span>
               {{ $t('agenda.connectYourPersonalAgendaSubTitle') }}
             </span>
           </template>
@@ -19,7 +22,7 @@
           Shown only once the connector has answered, and only for one that
           can answer at all.
         -->
-        <span v-if="lastSyncLabel" class="text-subtitle ms-1 text-truncate">
+        <span v-if="lastSyncLabel" class="ms-1 text-truncate">
           · {{ lastSyncLabel }}
         </span>
       </v-list-item-subtitle>

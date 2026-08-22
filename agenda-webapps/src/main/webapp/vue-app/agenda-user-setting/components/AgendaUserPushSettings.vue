@@ -1,14 +1,17 @@
 <template>
   <v-list-item v-if="displayed">
     <v-list-item-content>
-      <v-list-item-title class="text-header">
+      <!-- text-color, the class the E-mail rows on this same page use:
+           text-header renders grey and lighter, so the calendar rows read
+           as a different kind of setting than the ones above them. -->
+      <v-list-item-title class="text-color">
         {{ $t('agenda.settings.pushEvents') }}
       </v-list-item-title>
       <!-- No vertical margin: the E-mail rows on this same page sit their
            summary straight under their header, and a row that breathes more
            than its neighbours reads as belonging to another list. -->
       <v-list-item-subtitle>
-        <span class="text-subtitle">
+        <span>
           {{ $t('agenda.settings.pushEventsSubTitle') }}
         </span>
         <!--
