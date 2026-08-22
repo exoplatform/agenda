@@ -26,6 +26,21 @@
             dense
             hide-details
             @change="toggle(calendar)" />
+          <!--
+            A calendar that stopped synchronising sits in this list looking
+            exactly like the ones that did not, which is why the notice cannot
+            live only in the settings: nobody in that situation thinks to open
+            them. The sentence is the connector's — only it knows what went
+            wrong on its side.
+          -->
+          <v-icon
+            v-if="problemOf(calendar)"
+            :title="problemOf(calendar).message"
+            size="14"
+            color="warning"
+            class="ms-2">
+            fa-exclamation-triangle
+          </v-icon>
         </v-list-item-content>
         <!-- No action on a not-yet-persisted default calendar (id 0): it can
              only be edited once it exists, i.e. after the first event -->
@@ -80,6 +95,7 @@ export default {
   data: () => ({
     calendars: [],
     hiddenCalendarIds: [],
+    problems: {},
     loading: false,
     calendarToDelete: null,
     connectorWarning: '',
@@ -140,6 +156,9 @@ export default {
   },
   created() {
     this.hiddenCalendarIds = this.readHiddenCalendarIds();
+    this.$root.$on('agenda-refresh-personal-calendars', this.retrieveProblems);
+    document.addEventListener('agenda-refresh-personal-calendars', this.retrieveProblems);
+    this.retrieveProblems();
     this.$root.$on('agenda-refresh-personal-calendars', this.retrieveCalendars);
     // Also on the document, so an add-on's drawer living in another Vue app —
     // the settings page has its own — can say that the set of personal
@@ -150,8 +169,37 @@ export default {
   beforeDestroy() {
     this.$root.$off('agenda-refresh-personal-calendars', this.retrieveCalendars);
     document.removeEventListener('agenda-refresh-personal-calendars', this.retrieveCalendars);
+    this.$root.$off('agenda-refresh-personal-calendars', this.retrieveProblems);
+    document.removeEventListener('agenda-refresh-personal-calendars', this.retrieveProblems);
   },
   methods: {
+    /**
+     * What each connector says is wrong with one of this user's calendars.
+     *
+     * Asked of the connectors rather than worked out here: which calendar is
+     * failing, and why, is the connector's own business — agenda only knows
+     * that a row should carry a warning and what sentence to show on it.
+     *
+     * @returns {Promise} resolves once every connector has answered
+     */
+    retrieveProblems() {
+      const connectors = (extensionRegistry.loadExtensions('agenda', 'connectors') || [])
+        .filter(connector => connector && connector.connected && typeof connector.calendarProblems === 'function');
+      if (!connectors.length) {
+        this.problems = {};
+        return Promise.resolve();
+      }
+      return Promise.all(connectors.map(connector => Promise.resolve(connector.calendarProblems())
+        .catch(() => ({}))))
+        .then(answers => this.problems = Object.assign({}, ...answers));
+    },
+    /**
+     * @param {Object} calendar the row being drawn
+     * @returns {Object} what is wrong with it, or null when nothing is
+     */
+    problemOf(calendar) {
+      return calendar && this.problems[calendar.id] || null;
+    },
     /**
      * Retrieves the personal calendars of the current user. The REST list
      * endpoint returns a not-yet-persisted default calendar (id 0) when the
