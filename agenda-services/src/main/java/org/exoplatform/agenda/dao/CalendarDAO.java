@@ -49,10 +49,24 @@ public class CalendarDAO extends GenericDAOJPAImpl<CalendarEntity, Long> {
     return super.create(entity);
   }
 
+  /**
+   * Updates a calendar, giving it a {@code SYNC_UID} when it still has none.
+   *
+   * <p>
+   * The same guard {@link #create(CalendarEntity)} applies, for the calendars
+   * that predate the column: one restored from an old backup after the
+   * migration ran would otherwise carry no anchor and be invisible to every
+   * integration that binds by it. This complements the migration rather than
+   * replacing it — the calendar that matters most is the system one, which is
+   * almost never updated.
+   */
   @Override
   @ExoTransactional
   public CalendarEntity update(CalendarEntity entity) {
     entity.setUpdatedDate(new Date());
+    if (entity.getSyncUid() == null) {
+      entity.setSyncUid(UUID.randomUUID().toString());
+    }
     return super.update(entity);
   }
 
