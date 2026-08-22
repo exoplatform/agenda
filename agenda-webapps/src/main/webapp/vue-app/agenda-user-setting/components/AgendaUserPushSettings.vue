@@ -277,19 +277,10 @@ export default {
         this.mirrorCalendarName = null;
         return;
       }
-      Promise.resolve(connector.getMirrorCalendarId())
-        .then(mirrorId => {
-          if (!mirrorId) {
-            this.mirrorCalendarName = null;
-            return;
-          }
-          return connector.listCalendars()
-            .then(calendars => {
-              const mirror = (calendars || [])
-                .find(calendar => this.$remoteEventConnector.isSameCalendarHref(calendar.id, mirrorId));
-              this.mirrorCalendarName = mirror && mirror.name || null;
-              this.refreshSwitch();
-            });
+      Promise.resolve(this.readMirror(connector))
+        .then(mirror => {
+          this.mirrorCalendarName = mirror && mirror.name || null;
+          this.refreshSwitch();
         })
         .catch(() => this.mirrorCalendarName = null);
     },
@@ -328,16 +319,37 @@ export default {
       }
       this.checking = true;
       this.checkOutcome = null;
-      return Promise.resolve(connector.getMirrorCalendarId())
-        .then(mirrorId => connector.listCalendars()
-          .then(calendars => {
-            const mirror = (calendars || [])
-              .find(calendar => this.$remoteEventConnector.isSameCalendarHref(calendar.id, mirrorId));
-            this.mirrorCalendarName = mirror && mirror.name || this.mirrorCalendarName;
-            this.checkOutcome = mirror && 'reachable' || 'missing';
-          }))
+      return Promise.resolve(this.readMirror(connector))
+        .then(mirror => {
+          this.mirrorCalendarName = mirror && mirror.name || this.mirrorCalendarName;
+          this.checkOutcome = mirror && 'reachable' || 'missing';
+        })
         .catch(error => this.checkOutcome = this.failedCheckOutcome(connector, error))
         .finally(() => this.checking = false);
+    },
+    /**
+     * Reads the calendar the copies go to, and the name it carries now.
+     *
+     * A connector that can answer directly is asked directly. The older
+     * contract — an id, then a scan of the calendar listing for it — is kept
+     * for connectors that only have that, but it cannot be the first choice:
+     * a connector is free to leave the destination out of that listing, and
+     * the CalDAV one does exactly that (the collection holds nothing but
+     * copies of events the agenda already shows). The scan then found
+     * nothing, this screen concluded there was no destination, and the switch
+     * went back off in front of the user who had just chosen one.
+     *
+     * @param {Object} connector the connector holding the destination
+     * @returns {Promise<Object>} {id, name}, or null when there is none
+     */
+    readMirror(connector) {
+      if (typeof connector.getMirrorCalendar === 'function') {
+        return connector.getMirrorCalendar();
+      }
+      return Promise.resolve(connector.getMirrorCalendarId())
+        .then(mirrorId => mirrorId && connector.listCalendars()
+          .then(calendars => (calendars || [])
+            .find(calendar => this.$remoteEventConnector.isSameCalendarHref(calendar.id, mirrorId)) || null) || null);
     },
     /**
      * Tells apart the reasons the check could not reach a verdict.
