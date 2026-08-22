@@ -141,10 +141,15 @@ export default {
   created() {
     this.hiddenCalendarIds = this.readHiddenCalendarIds();
     this.$root.$on('agenda-refresh-personal-calendars', this.retrieveCalendars);
+    // Also on the document, so an add-on's drawer living in another Vue app —
+    // the settings page has its own — can say that the set of personal
+    // calendars just changed. A $root event never crosses that boundary.
+    document.addEventListener('agenda-refresh-personal-calendars', this.retrieveCalendars);
     this.retrieveCalendars();
   },
   beforeDestroy() {
     this.$root.$off('agenda-refresh-personal-calendars', this.retrieveCalendars);
+    document.removeEventListener('agenda-refresh-personal-calendars', this.retrieveCalendars);
   },
   methods: {
     /**
