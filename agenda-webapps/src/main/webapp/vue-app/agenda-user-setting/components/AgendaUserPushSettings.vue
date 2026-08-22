@@ -28,36 +28,27 @@
           made again.
         -->
         <!--
-          The check sits next to the destination because it answers the
-          question the destination raises: the name shown here was read once,
-          and says nothing about whether that calendar still accepts what eXo
-          sends it. Kept as a button the user presses rather than something
-          run on display: it talks to a server outside the platform, and a
-          settings page must not hang on it, nor probe an account every time
-          someone opens their preferences.
+          The destination, and — only when something is wrong with it — why.
+          There used to be a "Check it" button beside this line, from when the
+          name was read once and said nothing about whether that calendar still
+          accepted what eXo sends. The destination is now read from the server
+          on every render, so the button asked a question the render had
+          already answered; what was worth keeping is the verdict, not the act
+          of asking for it.
           No flex here on purpose: the align-center helper of this skin also
           centres text, which silently centres the whole caption.
         -->
-        <div v-if="mirrorCalendarName" class="text-subtitle mt-2">
+        <div v-if="mirrorCalendarName" class="text-subtitle">
           {{ $t('agenda.settings.pushEventsDestination', {0: mirrorCalendarName}) }}
-          <v-btn
-            :loading="checking"
-            :disabled="checking"
-            class="ms-1"
-            small
-            text
-            @click="checkDestination">
-            {{ $t('agenda.settings.pushEventsCheck') }}
-          </v-btn>
         </div>
-        <div v-if="checkMessage" class="text-subtitle mt-1">
+        <div v-if="problemMessage" class="text-subtitle mt-1">
           <v-icon
-            :color="checkColor"
+            color="warning"
             size="16"
             class="me-1">
-            {{ checkIcon }}
+            fa-exclamation-triangle
           </v-icon>
-          {{ checkMessage }}
+          {{ problemMessage }}
         </div>
       </v-list-item-subtitle>
     </v-list-item-content>
@@ -89,8 +80,7 @@ export default {
     pushEnabled: false,
     saving: false,
     mirrorCalendarName: null,
-    checking: false,
-    checkOutcome: null,
+    destinationProblem: null,
   }),
   computed: {
     /**
@@ -135,40 +125,24 @@ export default {
     /**
      * What the last check found, in words the user can act on.
      *
-     * The four outcomes are told apart because the action each calls for is
-     * different: nothing to do, recreate the calendar, reconnect the account,
-     * wait and retry. Lumping them into one "check failed" is what left a
-     * rejected password looking like a server problem.
+     * The three cases are told apart because the action each calls for is
+     * different: recreate the calendar, reconnect the account, wait and retry.
+     * Lumping them into one "it did not work" is what left a rejected
+     * password looking like a server problem.
      *
-     * @returns {String} the message to display, empty until a check has run
+     * Nothing is said when the destination reads correctly. A line confirming
+     * that the thing named on the line above exists is noise: the name is
+     * only there because it was just read from the server.
+     *
+     * @returns {String} the message to display, empty while all is well
      */
-    checkMessage() {
-      switch (this.checkOutcome) {
-      case 'reachable': return this.$t('agenda.settings.pushEventsCheckReachable', {0: this.mirrorCalendarName});
+    problemMessage() {
+      switch (this.destinationProblem) {
       case 'missing': return this.$t('agenda.settings.pushEventsCheckMissing');
       case 'credentials': return this.$t('agenda.settings.pushEventsCheckCredentials');
       case 'unreachable': return this.$t('agenda.settings.pushEventsCheckUnreachable');
       default: return '';
       }
-    },
-    /**
-     * The icon standing beside the outcome, so the answer is readable before
-     * the sentence is: found, or not.
-     *
-     * @returns {String} the icon class of the last outcome
-     */
-    checkIcon() {
-      return this.checkOutcome === 'reachable' && 'fas fa-check-circle' || 'fas fa-times-circle';
-    },
-    /**
-     * The colour of that icon. Everything that is not a working destination
-     * is an error and not a warning: the copies are not arriving in any of
-     * those three cases, which is the same outcome for the user.
-     *
-     * @returns {String} the colour class of the last outcome
-     */
-    checkColor() {
-      return this.checkOutcome === 'reachable' && 'success' || 'error';
     },
   },
   watch: {
@@ -263,15 +237,23 @@ export default {
         : enabled;
     },
     /**
-     * Reads the name of the calendar the copies are written to, from the
-     * connector's own list rather than from a separately kept copy, so a
-     * calendar renamed in the user's own client reads correctly here.
+     * Reads the calendar the copies are written to, and says what is wrong
+     * when it cannot be read.
+     *
+     * Asked of the connector on every render rather than kept: the calendar
+     * lives on a server outside the platform, where it can be renamed,
+     * deleted, or made unreachable by a password that stopped working. A name
+     * remembered from an earlier read would keep claiming copies are arriving
+     * somewhere they are not.
+     *
+     * This is what replaced the "Check it" button. The button existed because
+     * the name was read once and said nothing about now; reading it now
+     * answers the same question without asking the user to press anything.
+     *
      * @returns {void}
      */
     retrieveDestination() {
-      // A destination that is being re-read makes the previous verdict stale:
-      // it was about a calendar that may no longer be the one named below.
-      this.checkOutcome = null;
+      this.destinationProblem = null;
       const connector = this.mirrorCapableConnector;
       if (!connector) {
         this.mirrorCalendarName = null;
@@ -280,9 +262,16 @@ export default {
       Promise.resolve(this.readMirror(connector))
         .then(mirror => {
           this.mirrorCalendarName = mirror && mirror.name || null;
+          // Only a destination the user chose can be missing. Never having
+          // chosen one is not a problem to report — it is the state the
+          // switch itself already shows.
+          this.destinationProblem = !mirror && this.pushEnabled && 'missing' || null;
           this.refreshSwitch();
         })
-        .catch(() => this.mirrorCalendarName = null);
+        .catch(error => {
+          this.mirrorCalendarName = null;
+          this.destinationProblem = this.failedCheckOutcome(connector, error);
+        });
     },
     /**
      * Opens the step that creates the calendar receiving the copies. It is
@@ -292,40 +281,6 @@ export default {
      */
     configureDestination() {
       this.$root.$emit('agenda-connector-mirror-calendar-open', this.mirrorCapableConnector);
-    },
-    /**
-     * Asks the connected account, live, whether the calendar named above can
-     * still receive the copies, and says what it answered.
-     *
-     * Listing the account's calendars is the whole check: it needs the
-     * credentials to be accepted, and it enumerates the collections that
-     * exist, which is exactly the two ways the destination stops working —
-     * the account was refused, or the calendar was deleted from another
-     * client. So no dedicated endpoint is needed to answer the question, and
-     * none is added: a "is it still there" API would have to be kept in step
-     * with what the copies actually do, whereas this asks the very thing they
-     * ask.
-     *
-     * The name shown above is refreshed on the way, since the list was just
-     * read — a calendar renamed in the user's own client would otherwise keep
-     * reading here under its old name.
-     *
-     * @returns {Promise} resolves once the outcome has been established
-     */
-    checkDestination() {
-      const connector = this.mirrorCapableConnector;
-      if (!connector) {
-        return;
-      }
-      this.checking = true;
-      this.checkOutcome = null;
-      return Promise.resolve(this.readMirror(connector))
-        .then(mirror => {
-          this.mirrorCalendarName = mirror && mirror.name || this.mirrorCalendarName;
-          this.checkOutcome = mirror && 'reachable' || 'missing';
-        })
-        .catch(error => this.checkOutcome = this.failedCheckOutcome(connector, error))
-        .finally(() => this.checking = false);
     },
     /**
      * Reads the calendar the copies go to, and the name it carries now.
