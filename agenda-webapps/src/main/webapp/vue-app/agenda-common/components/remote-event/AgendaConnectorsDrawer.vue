@@ -91,7 +91,7 @@
                 v-if="connector.isSignedIn && connector.user"
                 :loading="connector.loading"
                 class="btn"
-                @click="disconnect(connector)">
+                @click="askBeforeDisconnecting(connector)">
                 {{ $t('agenda.disconnect') }}
               </v-btn>
               <v-btn
@@ -130,6 +130,19 @@
       </template>
     </exo-drawer>
     <div id="agendaConnectorSettingsDrawer"></div>
+    <!--
+      A connector may have something to say before it is unlinked. Only it
+      knows what unlinking costs on its side, so it supplies the sentence and
+      this shows it; a connector with nothing to say is disconnected straight
+      away, as before.
+    -->
+    <exo-confirm-dialog
+      ref="confirmDisconnectDialog"
+      :title="$t('agenda.connectors.disconnect.confirmTitle')"
+      :message="disconnectWarning"
+      :ok-label="$t('agenda.connectors.disconnect.confirm')"
+      :cancel-label="$t('agenda.connectors.disconnect.cancel')"
+      @ok="confirmDisconnect" />
     <exo-confirm-dialog
       ref="confirmConnectDialog"
       :title="confirmConnectDialogLabels.title"
@@ -153,6 +166,8 @@ export default {
     selectedConnector: null,
     syncing: null,
     lastSyncs: {},
+    disconnectWarning: '',
+    connectorToDisconnect: null,
   }),
   computed: {
     enabledConnectors() {
@@ -299,6 +314,45 @@ export default {
     },
     confirmConnect() {
       this.$root.$emit('agenda-connector-connect', this.selectedConnector);
+    },
+    /**
+     * Asks the connector what unlinking it costs, and confirms when it has an
+     * answer.
+     *
+     * A connector that declares nothing is disconnected straight away — that
+     * was the behaviour for every connector until one of them started
+     * removing things on the way out, and it stays right for the others.
+     *
+     * @param {Object} connector the connector to unlink
+     * @returns {Promise} resolves once the dialog is up, or the account gone
+     */
+    askBeforeDisconnecting(connector) {
+      if (typeof connector.disconnectWarning !== 'function') {
+        return Promise.resolve(this.disconnect(connector));
+      }
+      this.connectorToDisconnect = connector;
+      return Promise.resolve(connector.disconnectWarning())
+        .then(warning => {
+          this.disconnectWarning = warning || '';
+          if (!this.disconnectWarning) {
+            return this.disconnect(connector);
+          }
+          return this.$refs.confirmDisconnectDialog.open();
+        })
+        .catch(error => {
+          // A connector that cannot say what it costs must not become a reason
+          // the user cannot unlink it.
+          console.error('cannot read what disconnecting this account costs', error);
+          return this.disconnect(connector);
+        });
+    },
+    /**
+     * Unlinks the connector the dialog was opened for.
+     *
+     * @returns {Promise} resolves once the account is gone
+     */
+    confirmDisconnect() {
+      return Promise.resolve(this.disconnect(this.connectorToDisconnect));
     },
     disconnect(connector) {
       this.connectionInProgress = true;
