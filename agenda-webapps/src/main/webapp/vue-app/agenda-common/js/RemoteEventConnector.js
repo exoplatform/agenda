@@ -176,3 +176,35 @@ function updateEventRemoteInformation(connector, event, connectorEvent) {
     return createEvent(newExceptionalEvent);
   }
 }
+
+/**
+ * How to phrase "when did this last synchronise", as a key of the Agenda
+ * bundle and the number that goes in it.
+ *
+ * Shared by the settings row and the connectors drawer so the two never
+ * disagree about what "just now" means. The phrasing lives in this bundle
+ * rather than going through the platform's relative-time helper: that helper
+ * resolves TimeConvert.* keys, which live in the commons bundle and are not
+ * loaded on the pages either of these render in — they would show raw keys.
+ *
+ * Whether the state has been read at all is the caller's to know: this is
+ * only asked once there is an answer, and a missing date here means the
+ * account has never synchronised, not that nobody looked.
+ *
+ * @param {Date} lastSync when it last finished, null when it never has
+ * @returns {Object} {key, count} to feed $t
+ */
+export function lastSyncPhrase(lastSync) {
+  if (!lastSync) {
+    return {key: 'agenda.connectors.lastSync.never'};
+  }
+  const minutes = Math.round((Date.now() - lastSync.getTime()) / 60000);
+  if (minutes < 2) {
+    return {key: 'agenda.connectors.lastSync.justNow'};
+  } else if (minutes < 60) {
+    return {key: 'agenda.connectors.lastSync.minutes', count: minutes};
+  } else if (minutes < 1440) {
+    return {key: 'agenda.connectors.lastSync.hours', count: Math.round(minutes / 60)};
+  }
+  return {key: 'agenda.connectors.lastSync.days', count: Math.round(minutes / 1440)};
+}

@@ -4,7 +4,10 @@
       <v-list-item-title class="text-header">
         {{ $t('agenda.settings.pushEvents') }}
       </v-list-item-title>
-      <v-list-item-subtitle class="my-3">
+      <!-- No vertical margin: the E-mail rows on this same page sit their
+           summary straight under their header, and a row that breathes more
+           than its neighbours reads as belonging to another list. -->
+      <v-list-item-subtitle>
         <span class="text-subtitle">
           {{ $t('agenda.settings.pushEventsSubTitle') }}
         </span>
@@ -330,25 +333,31 @@ export default {
             this.mirrorCalendarName = mirror && mirror.name || this.mirrorCalendarName;
             this.checkOutcome = mirror && 'reachable' || 'missing';
           }))
-        .catch(error => this.checkOutcome = this.failedCheckOutcome(error))
+        .catch(error => this.checkOutcome = this.failedCheckOutcome(connector, error))
         .finally(() => this.checking = false);
     },
     /**
      * Tells apart the reasons the check could not reach a verdict.
      *
      * A refused password is singled out because it is the failure a user can
-     * fix and the one they are least able to recognise: the underlying CalDAV
-     * library reacts to a rejected credential by probing the server root and
-     * ends up reporting "cannot find principalUrl", which reads as a broken
-     * server address. The connector already turns that into a stable code, so
-     * this reads the code rather than the message.
+     * fix and the one they are least able to recognise: a connector may react
+     * to a rejected credential by probing the server and then report
+     * something that reads as a broken address rather than a bad password.
      *
+     * Which code means that is the connector's to say, not this page's: it
+     * declares `credentialsErrorCode`, and a connector that declares none
+     * simply never produces this outcome. Naming one connector's code here
+     * would put an add-on's vocabulary in a component that must serve every
+     * connector.
+     *
+     * @param {Object} connector the connector whose check failed
      * @param {Object} error the failure the connector rejected with
      * @returns {String} the outcome to display
      */
-    failedCheckOutcome(error) {
+    failedCheckOutcome(connector, error) {
       console.error('cannot check the calendar receiving the copies', error);
-      return error && error.code === 'caldav.error.credentials' && 'credentials' || 'unreachable';
+      const credentialsCode = connector && connector.credentialsErrorCode;
+      return credentialsCode && error && error.code === credentialsCode && 'credentials' || 'unreachable';
     },
   },
 };
