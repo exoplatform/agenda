@@ -22,8 +22,11 @@ package org.exoplatform.agenda.upgrade;
 import java.util.List;
 import java.util.UUID;
 
+import jakarta.persistence.Entity;
+
 import org.apache.commons.lang3.StringUtils;
 
+import org.exoplatform.agenda.entity.CalendarEntity;
 import org.exoplatform.commons.api.persistence.ExoTransactional;
 import org.exoplatform.commons.persistence.impl.EntityManagerService;
 import org.exoplatform.commons.upgrade.UpgradeProductPlugin;
@@ -66,12 +69,21 @@ public class CalendarSyncUidUpgradePlugin extends UpgradeProductPlugin {
   private static final int           PAGE_SIZE  = 500;
 
   /**
+   * The entity as JPQL names it — {@code @Entity(name = "AgendaCalendar")},
+   * which is not the class name. Read from the annotation rather than written
+   * out, so a rename cannot leave these queries pointing at something that no
+   * longer exists: a mocked entity manager resolves no query, so nothing but a
+   * running database would otherwise notice.
+   */
+  static final String                ENTITY     = CalendarEntity.class.getAnnotation(Entity.class).name();
+
+  /**
    * The calendars still missing an anchor, oldest first so a run that is
    * interrupted resumes where it stopped rather than starting over.
    */
   private static final String        SELECT_SQL = """
-      SELECT c.id FROM CalendarEntity c WHERE c.syncUid IS NULL ORDER BY c.id
-      """;
+      SELECT c.id FROM %s c WHERE c.syncUid IS NULL ORDER BY c.id
+      """.formatted(ENTITY);
 
   /**
    * Writes one anchor.
@@ -83,8 +95,8 @@ public class CalendarSyncUidUpgradePlugin extends UpgradeProductPlugin {
    * exists to close.
    */
   private static final String        UPDATE_SQL = """
-      UPDATE CalendarEntity c SET c.syncUid = :syncUid WHERE c.id = :id AND c.syncUid IS NULL
-      """;
+      UPDATE %s c SET c.syncUid = :syncUid WHERE c.id = :id AND c.syncUid IS NULL
+      """.formatted(ENTITY);
 
   private final EntityManagerService entityManagerService;
 

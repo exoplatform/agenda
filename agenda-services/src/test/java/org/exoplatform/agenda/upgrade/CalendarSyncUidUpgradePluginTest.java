@@ -20,6 +20,7 @@
 package org.exoplatform.agenda.upgrade;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -34,6 +35,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 
+import jakarta.persistence.Entity;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import jakarta.persistence.TypedQuery;
@@ -41,11 +43,13 @@ import jakarta.persistence.TypedQuery;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
+import org.exoplatform.agenda.entity.CalendarEntity;
 import org.exoplatform.commons.persistence.impl.EntityManagerService;
 import org.exoplatform.container.xml.InitParams;
 
@@ -176,6 +180,28 @@ public class CalendarSyncUidUpgradePluginTest {
     verify(entityManager, times(1)).createQuery(sql.capture());
     assertTrue(sql.getValue().contains("c.syncUid IS NULL"),
                "the update must refuse a calendar that already carries an anchor");
+  }
+
+  /**
+   * The queries name the entity the way JPQL knows it.
+   */
+  @Test
+  public void theQueriesNameTheEntityAsJpqlKnowsIt() {
+    // The first live run failed on exactly this: the queries said
+    // "CalendarEntity", the class name, while @Entity declares
+    // "AgendaCalendar". A mocked entity manager resolves no query, so every
+    // test here passed and only a running database objected. Tying the name
+    // to the annotation is what makes that reachable without one.
+    assertEquals("AgendaCalendar", CalendarSyncUidUpgradePlugin.ENTITY);
+    assertEquals(CalendarEntity.class.getAnnotation(Entity.class).name(), CalendarSyncUidUpgradePlugin.ENTITY);
+
+    when(selectQuery.getResultList()).thenReturn(List.of());
+    plugin.processUpgrade("7.2.0", "7.3.0");
+
+    ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+    verify(entityManager).createQuery(sql.capture(), eq(Long.class));
+    assertTrue(sql.getValue().contains(" " + CalendarSyncUidUpgradePlugin.ENTITY + " "),
+               "the query must name the entity JPQL resolves, not the class");
   }
 
   /**
