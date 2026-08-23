@@ -838,10 +838,13 @@ public class AgendaCalendarServiceTest {
       calendar.setSystem(false);
     }
 
-    // 4. Should be able to delete calendar, moving its events to the owner's
-    // default calendar first so no event is destroyed
+    // 4. Should be able to delete the calendar, and its events go with it.
+    // Nothing is moved anywhere: events used to be tipped into the owner's
+    // default calendar, which put them somewhere the user had not chosen and,
+    // on a calendar bound to a remote account, fed them back to that account
+    // through the automatic-copy setting.
     agendaCalendarService.deleteCalendarById(calendarId, username);
-    verify(agendaCalendarStorage, times(1)).moveCalendarEvents(eq(calendarId), eq(defaultCalendarId), anyLong());
+    verify(agendaCalendarStorage, never()).moveCalendarEvents(anyLong(), anyLong(), anyLong());
     verify(agendaCalendarStorage, times(1)).deleteCalendarById(eq(calendarId));
 
     // 5. Shouldn't be able to delete calendar of space if user isn't manager or
