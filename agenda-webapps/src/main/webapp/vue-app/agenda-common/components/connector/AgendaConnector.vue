@@ -279,6 +279,55 @@ export default {
       return !!owner && (owner.providerId === 'space' || !!owner.space);
     },
     /**
+     * Whether this event is one the connected account should receive.
+     *
+     * Two destinations, and deliberately two different conditions.
+     *
+     * A space meeting is a <em>copy</em> made into a calendar eXo creates on
+     * the account, and the user opts into that with the copy setting. Without
+     * the setting there is no copy and no calendar to hold one.
+     *
+     * An event of a calendar the connector materialised is not a copy. That
+     * calendar exists because the user connected the account and the
+     * collection behind it became a calendar here; keeping the two sides equal
+     * is what the calendar is for, and a second switch to permit it would ask
+     * the user to opt into the thing they already opted into. So this does not
+     * consult the copy setting — a bound calendar synchronises both ways
+     * because it is bound.
+     *
+     * Connectors that fetch remotely without materialising anything declare
+     * nothing, so they keep exactly the behaviour they had — for them a
+     * personal calendar has no counterpart to write into.
+     *
+     * Which calendars have a collection is the connector's business, not this
+     * component's: it says whether it does that at all, and the server it
+     * pushes to decides per calendar and answers that nothing was copied when
+     * there is nowhere to copy to.
+     *
+     * @param {Object} event the event about to be copied or removed
+     * @returns {Boolean} true when the connected account should receive it
+     */
+    shouldReachAccount(event) {
+      if (this.isSpaceEvent(event)) {
+        return !!(this.settings && this.settings.automaticPushEvents);
+      }
+      return !!(this.connectedConnector && this.connectedConnector.pushesOwnCalendars) && this.isOwnCalendarEvent(event);
+    },
+    /**
+     * Whether the event sits in a calendar this user owns.
+     *
+     * The owner is matched on the remote id rather than the identity id: it
+     * is the field every caller of this component already populates, and the
+     * one the profile links are built from.
+     *
+     * @param {Object} event the event to place
+     * @returns {Boolean} true when the calendar belongs to the current user
+     */
+    isOwnCalendarEvent(event) {
+      const owner = event && event.calendar && event.calendar.owner;
+      return !!owner && owner.providerId === 'organization' && owner.remoteId === eXo.env.portal.userName;
+    },
+    /**
      * Removes the copy of a deleted event from the connected calendar.
      *
      * The removal is reported when it fails, because its failure is the one
@@ -294,7 +343,7 @@ export default {
      * @returns {Promise} resolves once the removal has been attempted
      */
     deleteEvent(event) {
-      if (this.isSpaceEvent(event) && this.settings && this.settings.automaticPushEvents && this.connectedConnector && this.connectedConnector.canPush) {
+      if (this.shouldReachAccount(event) && this.connectedConnector && this.connectedConnector.canPush) {
         return this.$remoteEventConnector.removeEventFromConnector(this.connectedConnector, event, !!event.recurrence)
           .catch(error => this.announceCopyFailure(error, true))
           .finally(() => this.$root.$emit('agenda-refresh'));
@@ -350,7 +399,7 @@ export default {
      * @returns {Promise} resolves once the copy has been written or removed
      */
     pushEventResponse(event, occurrenceId, eventResponse) {
-      if (this.isSpaceEvent(event) && eventResponse && this.settings && this.settings.automaticPushEvents && this.connectedConnector && this.connectedConnector.canPush) {
+      if (this.shouldReachAccount(event) && eventResponse && this.connectedConnector && this.connectedConnector.canPush) {
         event.start = this.$agendaUtils.toRFC3339(event.start);
         event.end = this.$agendaUtils.toRFC3339(event.end);
 
