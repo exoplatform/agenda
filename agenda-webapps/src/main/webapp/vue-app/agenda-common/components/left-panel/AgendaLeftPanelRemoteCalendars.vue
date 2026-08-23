@@ -55,6 +55,7 @@ export default {
     },
   },
   data: () => ({
+    calendarsRequestId: 0,
     calendars: [],
     hiddenIds: [],
     loading: false,
@@ -129,6 +130,30 @@ export default {
   },
   created() {
     this.retrieveCalendars();
+    // The same signal the personal list listens to, because materialising a
+    // collection changes both panels at once: it leaves this one and joins
+    // that one. Listening on only one side is what let a calendar sit under
+    // Remote while already being shown under Personal.
+    this.$root.$on('agenda-refresh-personal-calendars', this.retrieveCalendars);
+    // And on the agenda's general refresh, which is what actually covers the
+    // case this list kept getting wrong. Everything else that refreshes it —
+    // creation, the connected-accounts watcher, connecting, disconnecting —
+    // happens around the account changing. None of them fires when a
+    // synchronisation materialises a collection, and that is the moment a
+    // calendar stops being remote.
+    //
+    // So a page that loaded while a collection was still unbound kept
+    // offering it for the life of that page, however many times it was
+    // synchronised afterwards, and a reload only reproduced the same stale
+    // answer if it happened in the same window. agenda-refresh is emitted
+    // after a synchronisation completes, among a dozen other places, so this
+    // list now corrects itself on the signal that matters rather than only on
+    // the ones that happen to be near it.
+    this.$root.$on('agenda-refresh', this.retrieveCalendars);
+  },
+  beforeDestroy() {
+    this.$root.$off('agenda-refresh-personal-calendars', this.retrieveCalendars);
+    this.$root.$off('agenda-refresh', this.retrieveCalendars);
   },
   methods: {
     /**
@@ -158,6 +183,16 @@ export default {
         return;
       }
       this.loading = true;
+      // Connecting fires two of these in quick succession — one the moment the
+      // account is marked connected, one once its first synchronisation has
+      // finished — and they answer different things: before the collections
+      // are bound, every one of them is remote. Landing out of order, the
+      // first overwrites the second and the panel keeps offering a calendar
+      // that is already in the user's list, until the page is reloaded.
+      //
+      // The same guard the events grid uses, for the same reason: only the
+      // newest request may write.
+      const requestId = ++this.calendarsRequestId;
       Promise.all(connectors.map(connector =>
         connector.listCalendars()
           // The calendar eXo writes its copies to is left out of the list: it
@@ -169,8 +204,17 @@ export default {
             return [];
           })
       )).then(lists => {
+        if (requestId !== this.calendarsRequestId) {
+          // A newer retrieval was started since: its answer is the one that
+          // reflects the account as it now stands.
+          return;
+        }
         this.setCalendars(lists.flat());
-      }).finally(() => this.loading = false);
+      }).finally(() => {
+        if (requestId === this.calendarsRequestId) {
+          this.loading = false;
+        }
+      });
     },
     /**
      * Whether a calendar's events are currently shown. Calendars are displayed
