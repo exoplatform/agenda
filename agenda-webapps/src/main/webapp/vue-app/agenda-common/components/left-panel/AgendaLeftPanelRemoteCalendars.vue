@@ -44,6 +44,7 @@ export default {
     },
   },
   data: () => ({
+    calendarsRequestId: 0,
     calendars: [],
     hiddenIds: [],
     loading: false,
@@ -121,6 +122,16 @@ export default {
         return;
       }
       this.loading = true;
+      // Connecting fires two of these in quick succession — one the moment the
+      // account is marked connected, one once its first synchronisation has
+      // finished — and they answer different things: before the collections
+      // are bound, every one of them is remote. Landing out of order, the
+      // first overwrites the second and the panel keeps offering a calendar
+      // that is already in the user's list, until the page is reloaded.
+      //
+      // The same guard the events grid uses, for the same reason: only the
+      // newest request may write.
+      const requestId = ++this.calendarsRequestId;
       Promise.all(connectors.map(connector =>
         connector.listCalendars()
           // The calendar eXo writes its copies to is left out of the list: it
@@ -132,8 +143,17 @@ export default {
             return [];
           })
       )).then(lists => {
+        if (requestId !== this.calendarsRequestId) {
+          // A newer retrieval was started since: its answer is the one that
+          // reflects the account as it now stands.
+          return;
+        }
         this.calendars = lists.flat();
-      }).finally(() => this.loading = false);
+      }).finally(() => {
+        if (requestId === this.calendarsRequestId) {
+          this.loading = false;
+        }
+      });
     },
     /**
      * Whether a calendar's events are currently shown. Calendars are displayed
