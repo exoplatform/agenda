@@ -82,13 +82,20 @@ public class AgendaPersonalCalendarsIntegrationTest extends BaseAgendaEventTest 
 
   /**
    * Deleting a user calendar must move its events to the owner's default
-   * calendar — keeping every event alive — then delete the emptied calendar;
-   * the system calendar itself must stay undeletable.
+   * calendar, and leave the calendars around it alone; the system calendar
+   * itself must stay undeletable.
+   *
+   * <p>
+   * They used to be moved into the owner's default calendar instead. That put
+   * them somewhere the user had not chosen, mixed with what was already
+   * there — and on a calendar bound to a remote account the automatic-copy
+   * setting then pushed them back to that account, so deleting a calendar
+   * could add events to the server it came from.
    *
    * @throws Exception when a service call fails unexpectedly
    */
   @Test
-  public void testDeleteUserCalendarMovesEventsToDefault() throws Exception { // NOSONAR
+  public void testDeleteUserCalendarDeletesItsEvents() throws Exception { // NOSONAR
     String username = testuser1Identity.getRemoteId();
     long userIdentityId = Long.parseLong(testuser1Identity.getId());
 
@@ -101,27 +108,29 @@ public class AgendaPersonalCalendarsIntegrationTest extends BaseAgendaEventTest 
     Event event = newEventInstance(start, start.plusHours(1), false);
     event.setRecurrence(null);
     event.setCalendarId(secondCalendar.getId());
-    Event movedEvent = createEvent(event.clone(), userIdentityId, testuser1Identity);
+    Event doomedEvent = createEvent(event.clone(), userIdentityId, testuser1Identity);
 
     Event untouchedEventInstance = newEventInstance(start, start.plusHours(1), false);
     untouchedEventInstance.setRecurrence(null);
     untouchedEventInstance.setCalendarId(calendar.getId());
     Event untouchedEvent = createEvent(untouchedEventInstance.clone(), userIdentityId, testuser1Identity);
 
-    assertEquals(secondCalendar.getId(), movedEvent.getCalendarId());
+    assertEquals(secondCalendar.getId(), doomedEvent.getCalendarId());
 
     // Delete the second calendar as the user
     agendaCalendarService.deleteCalendarById(secondCalendar.getId(), username);
     restartTransaction();
 
-    // The calendar is gone, its event is alive in the default calendar
+    // The calendar is gone and so is what it held. Asserted against the
+    // database rather than a mock: whether the rows actually go is the whole
+    // question, and no mocked storage can answer it.
     assertNull(agendaCalendarService.getCalendarById(secondCalendar.getId()));
-    Event movedEventAfterDelete = agendaEventService.getEventById(movedEvent.getId());
-    assertNotNull("The event must survive the deletion of its calendar", movedEventAfterDelete);
-    assertEquals("The event must now belong to the owner's default calendar",
-                 calendar.getId(),
-                 movedEventAfterDelete.getCalendarId());
+    assertNull("The event must go with the calendar that held it",
+               agendaEventService.getEventById(doomedEvent.getId()));
+    // And nothing else moved: a deletion that reached into a neighbouring
+    // calendar would be a far worse bug than the one this replaces.
     Event untouchedEventAfterDelete = agendaEventService.getEventById(untouchedEvent.getId());
+    assertNotNull("An event of another calendar must not be touched", untouchedEventAfterDelete);
     assertEquals(calendar.getId(), untouchedEventAfterDelete.getCalendarId());
 
     // The default (system) calendar stays undeletable

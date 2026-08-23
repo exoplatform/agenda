@@ -353,13 +353,24 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
   }
 
   /**
-   * {@inheritDoc} A user-created (non-system) calendar is an organizational
-   * label, not a lifecycle boundary: deleting it moves its events to the
-   * owner's default (system) calendar — created lazily when absent — then
-   * deletes the emptied calendar row, so no event is ever destroyed by a
-   * user-initiated calendar deletion. The internal
-   * {@link #deleteCalendarById(long)} overload keeps its cascading semantic
-   * for the owner-identity-removal flow.
+   * {@inheritDoc} Deleting a calendar deletes the events it holds.
+   *
+   * <p>
+   * It used to move them into the owner's default calendar instead, on the
+   * reading that a calendar is an organizational label rather than a
+   * lifecycle boundary. In practice that put the events somewhere the user
+   * had not chosen, mixed with the ones already there and no longer
+   * separable from them — and undoing it meant finding them one by one.
+   *
+   * <p>
+   * On a calendar bound to a remote account it was worse than untidy: the
+   * events landed in the default calendar, which the automatic-copy setting
+   * then pushed back to the server, so deleting a calendar could <i>add</i>
+   * events to the account it came from.
+   *
+   * <p>
+   * The confirmation dialog is where this is decided, and it now says what
+   * happens rather than promising the opposite.
    */
   @Override
   public void deleteCalendarById(long calendarId, String username) throws IllegalAccessException, ObjectNotFoundException {
@@ -377,11 +388,6 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
       throw new IllegalStateException("Calendar with id " + calendarId + " is a system calendar, thus it couldn't be deleted");
     }
     Utils.checkAclByCalendarOwner(identityManager, spaceService, calendar.getOwnerId(), username);
-    Identity userIdentity = identityManager.getOrCreateUserIdentity(username);
-    Calendar defaultCalendar = getOrCreateCalendarByOwnerId(calendar.getOwnerId());
-    agendaCalendarStorage.moveCalendarEvents(calendarId,
-                                             defaultCalendar.getId(),
-                                             userIdentity == null ? 0 : Long.parseLong(userIdentity.getId()));
     deleteCalendarById(calendarId);
   }
 
