@@ -78,6 +78,21 @@ export default {
           && connector.connected
           && typeof connector.listCalendars === 'function');
     },
+    /**
+     * Whether an account is in the middle of connecting.
+     *
+     * An account is marked connected before its first synchronisation runs,
+     * and only that synchronisation takes its collections in. Asking in
+     * between gets a true answer to the wrong question: nothing has
+     * materialised yet, so every collection on the account still counts as
+     * one eXo is not holding, and the section shows the lot for the second it
+     * takes the synchronisation to finish.
+     *
+     * @returns {Boolean} true while a connector is still connecting
+     */
+    connectorsConnecting() {
+      return (this.connectors || []).some(connector => connector && connector.loading);
+    },
   },
   watch: {
     /**
@@ -86,7 +101,30 @@ export default {
      * @returns {void}
      */
     connectedConnectors() {
+      // Not mid-connect: the account is flagged connected before its first
+      // synchronisation, and answering then paints collections that are about
+      // to stop being remote. The connecting watcher below asks once it is
+      // over, so nothing is lost by staying quiet here.
+      if (this.connectorsConnecting) {
+        return;
+      }
       this.retrieveCalendars();
+    },
+    /**
+     * Asks once connecting is over.
+     *
+     * Its own trigger rather than a reliance on the refresh the connect flow
+     * emits: this list must fill even if that signal is not sent, and asking
+     * twice costs one request while not asking at all leaves the section
+     * empty for the life of the page.
+     *
+     * @param {Boolean} connecting whether an account is still connecting
+     * @returns {void}
+     */
+    connectorsConnecting(connecting) {
+      if (!connecting) {
+        this.retrieveCalendars();
+      }
     },
   },
   created() {
