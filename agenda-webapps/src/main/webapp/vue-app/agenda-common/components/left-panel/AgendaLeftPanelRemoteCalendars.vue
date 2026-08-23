@@ -93,6 +93,14 @@ export default {
   },
   created() {
     this.retrieveCalendars();
+    // The same signal the personal list listens to, because materialising a
+    // collection changes both panels at once: it leaves this one and joins
+    // that one. Listening on only one side is what let a calendar sit under
+    // Remote while already being shown under Personal.
+    this.$root.$on('agenda-refresh-personal-calendars', this.retrieveCalendars);
+  },
+  beforeDestroy() {
+    this.$root.$off('agenda-refresh-personal-calendars', this.retrieveCalendars);
   },
   methods: {
     /**

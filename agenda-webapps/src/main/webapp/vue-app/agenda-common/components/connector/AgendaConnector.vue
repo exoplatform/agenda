@@ -137,9 +137,25 @@ export default {
               this.$set(connector, 'connected', true);
             });
         })
+        // The account is connected, but its calendars are not here yet: what
+        // makes them appear is the first synchronisation, and it has not run.
+        // Refreshing the panels now shows every collection under Remote —
+        // the heading for calendars eXo is *not* showing — because that is
+        // precisely what they still are. They move to Personal only once
+        // something materialises them, and until this waited for that, the
+        // only thing that corrected the display was the user reloading.
+        .then(() => typeof connector.sync === 'function'
+          && Promise.resolve(connector.sync()).catch(error => {
+            // A first synchronisation that fails is not a failed connection:
+            // the account is connected either way, and the sweep will try
+            // again. The panels are refreshed regardless, so a collection
+            // that did materialise is not left looking remote.
+            console.error('the first synchronisation after connecting did not complete', error);
+          }))
         .then(() => {
           this.$set(connector, 'loading', false);
           this.$root.$emit('agenda-settings-refresh');
+          this.$root.$emit('agenda-refresh-personal-calendars');
           this.refreshConnectorsList();
           // Not offered where connecting is one preference among others: a
           // drawer taking over the page is for the agenda, where connecting
