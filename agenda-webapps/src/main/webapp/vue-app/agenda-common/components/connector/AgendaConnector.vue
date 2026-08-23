@@ -259,17 +259,23 @@ export default {
     /**
      * Whether this event is one the connected account should receive.
      *
-     * A space meeting always is — that is the copy the setting promises. An
-     * event of one of the user's own calendars is too, but only where the
-     * connector holds a collection standing for that calendar: then the
-     * account does not already have the event, the user created it here, and
-     * a calendar that takes events in one direction only is half a
-     * synchronisation.
+     * Two destinations, and deliberately two different conditions.
+     *
+     * A space meeting is a <em>copy</em> made into a calendar eXo creates on
+     * the account, and the user opts into that with the copy setting. Without
+     * the setting there is no copy and no calendar to hold one.
+     *
+     * An event of a calendar the connector materialised is not a copy. That
+     * calendar exists because the user connected the account and the
+     * collection behind it became a calendar here; keeping the two sides equal
+     * is what the calendar is for, and a second switch to permit it would ask
+     * the user to opt into the thing they already opted into. So this does not
+     * consult the copy setting — a bound calendar synchronises both ways
+     * because it is bound.
      *
      * Connectors that fetch remotely without materialising anything declare
      * nothing, so they keep exactly the behaviour they had — for them a
-     * personal calendar has no counterpart to write into, and copying to one
-     * really would be redundant with what the account already holds.
+     * personal calendar has no counterpart to write into.
      *
      * Which calendars have a collection is the connector's business, not this
      * component's: it says whether it does that at all, and the server it
@@ -279,9 +285,11 @@ export default {
      * @param {Object} event the event about to be copied or removed
      * @returns {Boolean} true when the connected account should receive it
      */
-    isPushable(event) {
-      return this.isSpaceEvent(event)
-        || !!(this.connectedConnector && this.connectedConnector.pushesOwnCalendars) && this.isOwnCalendarEvent(event);
+    shouldReachAccount(event) {
+      if (this.isSpaceEvent(event)) {
+        return !!(this.settings && this.settings.automaticPushEvents);
+      }
+      return !!(this.connectedConnector && this.connectedConnector.pushesOwnCalendars) && this.isOwnCalendarEvent(event);
     },
     /**
      * Whether the event sits in a calendar this user owns.
@@ -313,7 +321,7 @@ export default {
      * @returns {Promise} resolves once the removal has been attempted
      */
     deleteEvent(event) {
-      if (this.isPushable(event) && this.settings && this.settings.automaticPushEvents && this.connectedConnector && this.connectedConnector.canPush) {
+      if (this.shouldReachAccount(event) && this.connectedConnector && this.connectedConnector.canPush) {
         return this.$remoteEventConnector.removeEventFromConnector(this.connectedConnector, event, !!event.recurrence)
           .catch(error => this.announceCopyFailure(error, true))
           .finally(() => this.$root.$emit('agenda-refresh'));
@@ -369,7 +377,7 @@ export default {
      * @returns {Promise} resolves once the copy has been written or removed
      */
     pushEventResponse(event, occurrenceId, eventResponse) {
-      if (this.isPushable(event) && eventResponse && this.settings && this.settings.automaticPushEvents && this.connectedConnector && this.connectedConnector.canPush) {
+      if (this.shouldReachAccount(event) && eventResponse && this.connectedConnector && this.connectedConnector.canPush) {
         event.start = this.$agendaUtils.toRFC3339(event.start);
         event.end = this.$agendaUtils.toRFC3339(event.end);
 
