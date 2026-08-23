@@ -26,22 +26,35 @@
             dense
             hide-details
             @change="toggle(calendar)" />
-          <!--
-            A calendar that stopped synchronising sits in this list looking
-            exactly like the ones that did not, which is why the notice cannot
-            live only in the settings: nobody in that situation thinks to open
-            them. The sentence is the connector's — only it knows what went
-            wrong on its side.
-          -->
-          <v-icon
-            v-if="problemOf(calendar)"
-            :title="problemOf(calendar).message"
-            size="14"
-            color="warning"
-            class="ms-2">
-            fa-exclamation-triangle
-          </v-icon>
         </v-list-item-content>
+        <!--
+          A calendar that stopped synchronising sits in this list looking
+          exactly like the ones that did not, which is why the notice cannot
+          live only in the settings: nobody in that situation thinks to open
+          them. The sentence is the connector's — only it knows what went
+          wrong on its side.
+
+          It belongs in the row's action area, at the end of the line: inside
+          the content column it was laid out beneath the calendar's name,
+          wrapping onto its own row and reading as though it belonged to the
+          calendar below.
+        -->
+        <v-list-item-action
+          v-if="problemOf(calendar)"
+          class="my-0 ms-2">
+          <v-tooltip bottom>
+            <template #activator="{on, attrs}">
+              <v-icon
+                v-bind="attrs"
+                size="14"
+                color="warning"
+                v-on="on">
+                fa-exclamation-triangle
+              </v-icon>
+            </template>
+            <span>{{ problemMessage(calendar) }}</span>
+          </v-tooltip>
+        </v-list-item-action>
         <!-- No action on a not-yet-persisted default calendar (id 0): it can
              only be edited once it exists, i.e. after the first event -->
         <!--
@@ -206,6 +219,23 @@ export default {
      * @param {Object} calendar the row being drawn
      * @returns {Object} what is wrong with it, or null when nothing is
      */
+    /**
+     * What the marker says when the pointer rests on it.
+     *
+     * The connector's own sentence when it has one — only it knows what went
+     * wrong on its side — and agenda's plain one when it does not. A marker
+     * that cannot say anything is worse than no marker: the user sees that
+     * something is wrong and has no way to find out what, which is exactly
+     * what an empty tooltip delivered when the connector's bundle was served
+     * incomplete.
+     *
+     * @param {Object} calendar the calendar the marker sits on
+     * @returns {String} the sentence to show
+     */
+    problemMessage(calendar) {
+      const problem = this.problemOf(calendar);
+      return problem && problem.message || this.$t('agenda.calendars.problemUnknown');
+    },
     problemOf(calendar) {
       return calendar && this.problems[calendar.id] || null;
     },
