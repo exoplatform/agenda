@@ -99,9 +99,25 @@ export default {
     // that one. Listening on only one side is what let a calendar sit under
     // Remote while already being shown under Personal.
     this.$root.$on('agenda-refresh-personal-calendars', this.retrieveCalendars);
+    // And on the agenda's general refresh, which is what actually covers the
+    // case this list kept getting wrong. Everything else that refreshes it —
+    // creation, the connected-accounts watcher, connecting, disconnecting —
+    // happens around the account changing. None of them fires when a
+    // synchronisation materialises a collection, and that is the moment a
+    // calendar stops being remote.
+    //
+    // So a page that loaded while a collection was still unbound kept
+    // offering it for the life of that page, however many times it was
+    // synchronised afterwards, and a reload only reproduced the same stale
+    // answer if it happened in the same window. agenda-refresh is emitted
+    // after a synchronisation completes, among a dozen other places, so this
+    // list now corrects itself on the signal that matters rather than only on
+    // the ones that happen to be near it.
+    this.$root.$on('agenda-refresh', this.retrieveCalendars);
   },
   beforeDestroy() {
     this.$root.$off('agenda-refresh-personal-calendars', this.retrieveCalendars);
+    this.$root.$off('agenda-refresh', this.retrieveCalendars);
   },
   methods: {
     /**
