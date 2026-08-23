@@ -27,6 +27,34 @@
             hide-details
             @change="toggle(calendar)" />
         </v-list-item-content>
+        <!--
+          A calendar that stopped synchronising sits in this list looking
+          exactly like the ones that did not, which is why the notice cannot
+          live only in the settings: nobody in that situation thinks to open
+          them. The sentence is the connector's — only it knows what went
+          wrong on its side.
+
+          It belongs in the row's action area, at the end of the line: inside
+          the content column it was laid out beneath the calendar's name,
+          wrapping onto its own row and reading as though it belonged to the
+          calendar below.
+        -->
+        <v-list-item-action
+          v-if="problemOf(calendar)"
+          class="my-0 ms-2">
+          <v-tooltip bottom>
+            <template #activator="{on, attrs}">
+              <v-icon
+                v-bind="attrs"
+                size="14"
+                color="warning"
+                v-on="on">
+                fa-exclamation-triangle
+              </v-icon>
+            </template>
+            <span>{{ problemMessage(calendar) }}</span>
+          </v-tooltip>
+        </v-list-item-action>
         <!-- No action on a not-yet-persisted default calendar (id 0): it can
              only be edited once it exists, i.e. after the first event -->
         <!--
@@ -80,6 +108,7 @@ export default {
   data: () => ({
     calendars: [],
     hiddenCalendarIds: [],
+    problems: {},
     loading: false,
     calendarToDelete: null,
     connectorWarning: '',
@@ -129,6 +158,17 @@ export default {
   },
   created() {
     this.hiddenCalendarIds = this.readHiddenCalendarIds();
+    this.$root.$on('agenda-refresh-personal-calendars', this.retrieveProblems);
+    // And on the agenda's general refresh, which is the one that follows a
+    // synchronisation. Disconnecting deliberately pauses the bindings of the
+    // calendars eXo created — so reconnecting finds the same collections
+    // instead of making new ones — and reconnecting clears them a second
+    // later. Refreshing only around the account changing caught that second
+    // and then kept it: a warning on every one of the user's own calendars,
+    // for a state that had already passed, until the page was reloaded.
+    this.$root.$on('agenda-refresh', this.retrieveProblems);
+    document.addEventListener('agenda-refresh-personal-calendars', this.retrieveProblems);
+    this.retrieveProblems();
     this.$root.$on('agenda-refresh-personal-calendars', this.retrieveCalendars);
     // Also on the document, so an add-on's drawer living in another Vue app —
     // the settings page has its own — can say that the set of personal
@@ -139,8 +179,55 @@ export default {
   beforeDestroy() {
     this.$root.$off('agenda-refresh-personal-calendars', this.retrieveCalendars);
     document.removeEventListener('agenda-refresh-personal-calendars', this.retrieveCalendars);
+    this.$root.$off('agenda-refresh-personal-calendars', this.retrieveProblems);
+    this.$root.$off('agenda-refresh', this.retrieveProblems);
+    document.removeEventListener('agenda-refresh-personal-calendars', this.retrieveProblems);
   },
   methods: {
+    /**
+     * What each connector says is wrong with one of this user's calendars.
+     *
+     * Asked of the connectors rather than worked out here: which calendar is
+     * failing, and why, is the connector's own business — agenda only knows
+     * that a row should carry a warning and what sentence to show on it.
+     *
+     * @returns {Promise} resolves once every connector has answered
+     */
+    retrieveProblems() {
+      const connectors = (extensionRegistry.loadExtensions('agenda', 'connectors') || [])
+        .filter(connector => connector && connector.connected && typeof connector.calendarProblems === 'function');
+      if (!connectors.length) {
+        this.problems = {};
+        return Promise.resolve();
+      }
+      return Promise.all(connectors.map(connector => Promise.resolve(connector.calendarProblems())
+        .catch(() => ({}))))
+        .then(answers => this.problems = Object.assign({}, ...answers));
+    },
+    /**
+     * @param {Object} calendar the row being drawn
+     * @returns {Object} what is wrong with it, or null when nothing is
+     */
+    /**
+     * What the marker says when the pointer rests on it.
+     *
+     * The connector's own sentence when it has one — only it knows what went
+     * wrong on its side — and agenda's plain one when it does not. A marker
+     * that cannot say anything is worse than no marker: the user sees that
+     * something is wrong and has no way to find out what, which is exactly
+     * what an empty tooltip delivered when the connector's bundle was served
+     * incomplete.
+     *
+     * @param {Object} calendar the calendar the marker sits on
+     * @returns {String} the sentence to show
+     */
+    problemMessage(calendar) {
+      const problem = this.problemOf(calendar);
+      return problem && problem.message || this.$t('agenda.calendars.problemUnknown');
+    },
+    problemOf(calendar) {
+      return calendar && this.problems[calendar.id] || null;
+    },
     /**
      * Retrieves the personal calendars of the current user. The REST list
      * endpoint returns a not-yet-persisted default calendar (id 0) when the
