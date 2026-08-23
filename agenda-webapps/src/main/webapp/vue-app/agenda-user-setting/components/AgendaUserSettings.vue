@@ -2,13 +2,13 @@
   <v-app v-if="displayed">
     <v-card class="application-body" flat>
       <v-list two-line>
-        <agenda-user-general-settings :settings="settings" />
-        <agenda-user-connector-settings
+        <component
+          :is="row.vueComponent"
+          v-for="row in rows"
+          :key="row.id"
           :settings="settings"
+          :connectors="connectors"
           @connectors-loaded="connectors = $event" />
-        <agenda-user-push-settings
-          :settings="settings"
-          :connectors="connectors" />
       </v-list>
     </v-card>
     <!--
@@ -22,10 +22,26 @@
 </template>
 
 <script>
+/**
+ * The rows this page owns, carrying the ranks add-on rows are placed among.
+ * They sit in the same sorted list as the contributed ones rather than being
+ * fixed markup with an extension slot bolted on: a slot at one position only
+ * lets a contributor land there, and the row an add-on needs is rarely last.
+ *
+ * The gaps are deliberate — an add-on row belongs between the account and the
+ * copy switch far more often than after everything.
+ */
+const OWN_ROWS = [
+  {id: 'general', rank: 10, vueComponent: 'agenda-user-general-settings'},
+  {id: 'connector', rank: 20, vueComponent: 'agenda-user-connector-settings'},
+  {id: 'push', rank: 40, vueComponent: 'agenda-user-push-settings'},
+];
+
 export default {
   data: () => ({
     displayed: true,
     connectors: [],
+    sections: [],
     settings: {
       agendaDefaultView: 'week',
       agendaWeekStartOn: 'MO',
@@ -34,8 +50,27 @@ export default {
       workingTimeEnd: '18:00',
     },
   }),
+  computed: {
+    /**
+     * Every row to render, this page's own and the contributed ones, in rank
+     * order.
+     *
+     * @returns {Array} the rows, each carrying the component to render
+     */
+    rows() {
+      return OWN_ROWS.concat(this.sections)
+        .sort((a, b) => (a.rank || 0) - (b.rank || 0));
+    },
+  },
   created() {
     this.$root.$on('agenda-settings-refresh', this.initSettings);
+    // Rows contributed by add-ons. They register from modules the page
+    // includes AFTER this app is created (includeExtensions runs once the app
+    // exists), so a load here alone would race them: each contributor also
+    // dispatches this event once registered, and whichever side arrives
+    // second finds the other — the same handshake the admin sections use.
+    document.addEventListener('agenda-user-sections-refresh', this.refreshSections);
+    this.refreshSections();
     this.initSettings();
   },
   mounted() {
@@ -48,6 +83,18 @@ export default {
     this.$root.$on('agenda-settings-refresh', this.initSettings);
   },
   methods: {
+    /**
+     * Reloads the add-on-contributed rows from the extension registry. Each
+     * entry carries an opaque vueComponent the add-on built from its own
+     * globally registered component, so this page never imports add-on code
+     * and learns nothing about what the row is for.
+     *
+     * @returns {void}
+     */
+    refreshSections() {
+      this.sections = (extensionRegistry.loadExtensions('agenda-user-settings', 'sections') || [])
+        .filter(section => section.vueComponent);
+    },
     initSettings(userSettings) {
       if (userSettings) {
         this.settings = userSettings;
