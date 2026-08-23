@@ -137,9 +137,25 @@ export default {
               this.$set(connector, 'connected', true);
             });
         })
+        // The account is connected, but its calendars are not here yet: what
+        // makes them appear is the first synchronisation, and it has not run.
+        // Refreshing the panels now shows every collection under Remote —
+        // the heading for calendars eXo is *not* showing — because that is
+        // precisely what they still are. They move to Personal only once
+        // something materialises them, and until this waited for that, the
+        // only thing that corrected the display was the user reloading.
+        .then(() => typeof connector.sync === 'function'
+          && Promise.resolve(connector.sync()).catch(error => {
+            // A first synchronisation that fails is not a failed connection:
+            // the account is connected either way, and the sweep will try
+            // again. The panels are refreshed regardless, so a collection
+            // that did materialise is not left looking remote.
+            console.error('the first synchronisation after connecting did not complete', error);
+          }))
         .then(() => {
           this.$set(connector, 'loading', false);
           this.$root.$emit('agenda-settings-refresh');
+          this.$root.$emit('agenda-refresh-personal-calendars');
           this.refreshConnectorsList();
           // Not offered where connecting is one preference among others: a
           // drawer taking over the page is for the agenda, where connecting
@@ -194,6 +210,12 @@ export default {
             connector.resetPushAbility();
           }
           this.$root.$emit('agenda-settings-refresh');
+          // The same refresh connecting asks for, and for the mirror-image
+          // reason. Disconnecting removes the calendars materialised from the
+          // account, so the panels are describing calendars that no longer
+          // exist — the personal list still offering them and the remote list
+          // still hiding them as bound. Only a reload corrected it.
+          this.$root.$emit('agenda-refresh-personal-calendars');
           this.refreshConnectorsList();
         })
         .finally(() => {
