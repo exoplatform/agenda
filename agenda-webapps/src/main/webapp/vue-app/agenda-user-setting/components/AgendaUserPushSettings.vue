@@ -17,11 +17,17 @@
 <template>
   <v-list-item v-if="displayed">
     <v-list-item-content>
-      <v-list-item-title class="text-header">
+      <!-- text-color, the class the E-mail rows on this same page use:
+           text-header renders grey and lighter, so the calendar rows read
+           as a different kind of setting than the ones above them. -->
+      <v-list-item-title class="text-color">
         {{ $t('agenda.settings.pushEvents') }}
       </v-list-item-title>
-      <v-list-item-subtitle class="my-3">
-        <span class="text-subtitle">
+      <!-- No vertical margin: the E-mail rows on this same page sit their
+           summary straight under their header, and a row that breathes more
+           than its neighbours reads as belonging to another list. -->
+      <v-list-item-subtitle>
+        <span>
           {{ $t('agenda.settings.pushEventsSubTitle') }}
         </span>
         <!--
@@ -38,36 +44,27 @@
           made again.
         -->
         <!--
-          The check sits next to the destination because it answers the
-          question the destination raises: the name shown here was read once,
-          and says nothing about whether that calendar still accepts what eXo
-          sends it. Kept as a button the user presses rather than something
-          run on display: it talks to a server outside the platform, and a
-          settings page must not hang on it, nor probe an account every time
-          someone opens their preferences.
+          The destination, and — only when something is wrong with it — why.
+          There used to be a "Check it" button beside this line, from when the
+          name was read once and said nothing about whether that calendar still
+          accepted what eXo sends. The destination is now read from the server
+          on every render, so the button asked a question the render had
+          already answered; what was worth keeping is the verdict, not the act
+          of asking for it.
           No flex here on purpose: the align-center helper of this skin also
           centres text, which silently centres the whole caption.
         -->
-        <div v-if="mirrorCalendarName" class="text-subtitle mt-2">
+        <div v-if="mirrorCalendarName" class="text-subtitle">
           {{ $t('agenda.settings.pushEventsDestination', {0: mirrorCalendarName}) }}
-          <v-btn
-            :loading="checking"
-            :disabled="checking"
-            class="ms-1"
-            small
-            text
-            @click="checkDestination">
-            {{ $t('agenda.settings.pushEventsCheck') }}
-          </v-btn>
         </div>
-        <div v-if="checkMessage" class="text-subtitle mt-1">
+        <div v-if="problemMessage" class="text-subtitle mt-1">
           <v-icon
-            :color="checkColor"
+            color="warning"
             size="16"
             class="me-1">
-            {{ checkIcon }}
+            fa-exclamation-triangle
           </v-icon>
-          {{ checkMessage }}
+          {{ problemMessage }}
         </div>
       </v-list-item-subtitle>
     </v-list-item-content>
@@ -99,8 +96,7 @@ export default {
     pushEnabled: false,
     saving: false,
     mirrorCalendarName: null,
-    checking: false,
-    checkOutcome: null,
+    destinationProblem: null,
   }),
   computed: {
     /**
@@ -145,40 +141,24 @@ export default {
     /**
      * What the last check found, in words the user can act on.
      *
-     * The four outcomes are told apart because the action each calls for is
-     * different: nothing to do, recreate the calendar, reconnect the account,
-     * wait and retry. Lumping them into one "check failed" is what left a
-     * rejected password looking like a server problem.
+     * The three cases are told apart because the action each calls for is
+     * different: recreate the calendar, reconnect the account, wait and retry.
+     * Lumping them into one "it did not work" is what left a rejected
+     * password looking like a server problem.
      *
-     * @returns {String} the message to display, empty until a check has run
+     * Nothing is said when the destination reads correctly. A line confirming
+     * that the thing named on the line above exists is noise: the name is
+     * only there because it was just read from the server.
+     *
+     * @returns {String} the message to display, empty while all is well
      */
-    checkMessage() {
-      switch (this.checkOutcome) {
-      case 'reachable': return this.$t('agenda.settings.pushEventsCheckReachable', {0: this.mirrorCalendarName});
+    problemMessage() {
+      switch (this.destinationProblem) {
       case 'missing': return this.$t('agenda.settings.pushEventsCheckMissing');
       case 'credentials': return this.$t('agenda.settings.pushEventsCheckCredentials');
       case 'unreachable': return this.$t('agenda.settings.pushEventsCheckUnreachable');
       default: return '';
       }
-    },
-    /**
-     * The icon standing beside the outcome, so the answer is readable before
-     * the sentence is: found, or not.
-     *
-     * @returns {String} the icon class of the last outcome
-     */
-    checkIcon() {
-      return this.checkOutcome === 'reachable' && 'fas fa-check-circle' || 'fas fa-times-circle';
-    },
-    /**
-     * The colour of that icon. Everything that is not a working destination
-     * is an error and not a warning: the copies are not arriving in any of
-     * those three cases, which is the same outcome for the user.
-     *
-     * @returns {String} the colour class of the last outcome
-     */
-    checkColor() {
-      return this.checkOutcome === 'reachable' && 'success' || 'error';
     },
   },
   watch: {
@@ -273,35 +253,41 @@ export default {
         : enabled;
     },
     /**
-     * Reads the name of the calendar the copies are written to, from the
-     * connector's own list rather than from a separately kept copy, so a
-     * calendar renamed in the user's own client reads correctly here.
+     * Reads the calendar the copies are written to, and says what is wrong
+     * when it cannot be read.
+     *
+     * Asked of the connector on every render rather than kept: the calendar
+     * lives on a server outside the platform, where it can be renamed,
+     * deleted, or made unreachable by a password that stopped working. A name
+     * remembered from an earlier read would keep claiming copies are arriving
+     * somewhere they are not.
+     *
+     * This is what replaced the "Check it" button. The button existed because
+     * the name was read once and said nothing about now; reading it now
+     * answers the same question without asking the user to press anything.
+     *
      * @returns {void}
      */
     retrieveDestination() {
-      // A destination that is being re-read makes the previous verdict stale:
-      // it was about a calendar that may no longer be the one named below.
-      this.checkOutcome = null;
+      this.destinationProblem = null;
       const connector = this.mirrorCapableConnector;
       if (!connector) {
         this.mirrorCalendarName = null;
         return;
       }
-      Promise.resolve(connector.getMirrorCalendarId())
-        .then(mirrorId => {
-          if (!mirrorId) {
-            this.mirrorCalendarName = null;
-            return;
-          }
-          return connector.listCalendars()
-            .then(calendars => {
-              const mirror = (calendars || [])
-                .find(calendar => this.$remoteEventConnector.isSameCalendarHref(calendar.id, mirrorId));
-              this.mirrorCalendarName = mirror && mirror.name || null;
-              this.refreshSwitch();
-            });
+      Promise.resolve(this.readMirror(connector))
+        .then(mirror => {
+          this.mirrorCalendarName = mirror && mirror.name || null;
+          // Only a destination the user chose can be missing. Never having
+          // chosen one is not a problem to report — it is the state the
+          // switch itself already shows.
+          this.destinationProblem = !mirror && this.pushEnabled && 'missing' || null;
+          this.refreshSwitch();
         })
-        .catch(() => this.mirrorCalendarName = null);
+        .catch(error => {
+          this.mirrorCalendarName = null;
+          this.destinationProblem = this.failedCheckOutcome(connector, error);
+        });
     },
     /**
      * Opens the step that creates the calendar receiving the copies. It is
@@ -313,58 +299,51 @@ export default {
       this.$root.$emit('agenda-connector-mirror-calendar-open', this.mirrorCapableConnector);
     },
     /**
-     * Asks the connected account, live, whether the calendar named above can
-     * still receive the copies, and says what it answered.
+     * Reads the calendar the copies go to, and the name it carries now.
      *
-     * Listing the account's calendars is the whole check: it needs the
-     * credentials to be accepted, and it enumerates the collections that
-     * exist, which is exactly the two ways the destination stops working —
-     * the account was refused, or the calendar was deleted from another
-     * client. So no dedicated endpoint is needed to answer the question, and
-     * none is added: a "is it still there" API would have to be kept in step
-     * with what the copies actually do, whereas this asks the very thing they
-     * ask.
+     * A connector that can answer directly is asked directly. The older
+     * contract — an id, then a scan of the calendar listing for it — is kept
+     * for connectors that only have that, but it cannot be the first choice:
+     * a connector is free to leave the destination out of that listing, and
+     * the CalDAV one does exactly that (the collection holds nothing but
+     * copies of events the agenda already shows). The scan then found
+     * nothing, this screen concluded there was no destination, and the switch
+     * went back off in front of the user who had just chosen one.
      *
-     * The name shown above is refreshed on the way, since the list was just
-     * read — a calendar renamed in the user's own client would otherwise keep
-     * reading here under its old name.
-     *
-     * @returns {Promise} resolves once the outcome has been established
+     * @param {Object} connector the connector holding the destination
+     * @returns {Promise<Object>} {id, name}, or null when there is none
      */
-    checkDestination() {
-      const connector = this.mirrorCapableConnector;
-      if (!connector) {
-        return;
+    readMirror(connector) {
+      if (typeof connector.getMirrorCalendar === 'function') {
+        return connector.getMirrorCalendar();
       }
-      this.checking = true;
-      this.checkOutcome = null;
       return Promise.resolve(connector.getMirrorCalendarId())
-        .then(mirrorId => connector.listCalendars()
-          .then(calendars => {
-            const mirror = (calendars || [])
-              .find(calendar => this.$remoteEventConnector.isSameCalendarHref(calendar.id, mirrorId));
-            this.mirrorCalendarName = mirror && mirror.name || this.mirrorCalendarName;
-            this.checkOutcome = mirror && 'reachable' || 'missing';
-          }))
-        .catch(error => this.checkOutcome = this.failedCheckOutcome(error))
-        .finally(() => this.checking = false);
+        .then(mirrorId => mirrorId && connector.listCalendars()
+          .then(calendars => (calendars || [])
+            .find(calendar => this.$remoteEventConnector.isSameCalendarHref(calendar.id, mirrorId)) || null) || null);
     },
     /**
      * Tells apart the reasons the check could not reach a verdict.
      *
      * A refused password is singled out because it is the failure a user can
-     * fix and the one they are least able to recognise: the underlying CalDAV
-     * library reacts to a rejected credential by probing the server root and
-     * ends up reporting "cannot find principalUrl", which reads as a broken
-     * server address. The connector already turns that into a stable code, so
-     * this reads the code rather than the message.
+     * fix and the one they are least able to recognise: a connector may react
+     * to a rejected credential by probing the server and then report
+     * something that reads as a broken address rather than a bad password.
      *
+     * Which code means that is the connector's to say, not this page's: it
+     * declares `credentialsErrorCode`, and a connector that declares none
+     * simply never produces this outcome. Naming one connector's code here
+     * would put an add-on's vocabulary in a component that must serve every
+     * connector.
+     *
+     * @param {Object} connector the connector whose check failed
      * @param {Object} error the failure the connector rejected with
      * @returns {String} the outcome to display
      */
-    failedCheckOutcome(error) {
+    failedCheckOutcome(connector, error) {
       console.error('cannot check the calendar receiving the copies', error);
-      return error && error.code === 'caldav.error.credentials' && 'credentials' || 'unreachable';
+      const credentialsCode = connector && connector.credentialsErrorCode;
+      return credentialsCode && error && error.code === credentialsCode && 'credentials' || 'unreachable';
     },
   },
 };
