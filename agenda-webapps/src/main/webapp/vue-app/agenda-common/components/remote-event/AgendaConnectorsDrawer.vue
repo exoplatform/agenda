@@ -328,23 +328,40 @@ export default {
      */
     askBeforeDisconnecting(connector) {
       if (typeof connector.disconnectWarning !== 'function') {
+        // A connector that never offered to explain the cost is left as it
+        // was. Giving one a confirmation it was not written for is a change
+        // to that connector's behaviour, not a fix to this one's.
         return Promise.resolve(this.disconnect(connector));
       }
       this.connectorToDisconnect = connector;
       return Promise.resolve(connector.disconnectWarning())
-        .then(warning => {
-          this.disconnectWarning = warning || '';
-          if (!this.disconnectWarning) {
-            return this.disconnect(connector);
-          }
-          return this.$refs.confirmDisconnectDialog.open();
-        })
+        .then(warning => this.confirmDisconnecting(warning))
         .catch(error => {
-          // A connector that cannot say what it costs must not become a reason
-          // the user cannot unlink it.
           console.error('cannot read what disconnecting this account costs', error);
-          return this.disconnect(connector);
+          return this.confirmDisconnecting('');
         });
+    },
+    /**
+     * Opens the confirmation, whatever the connector managed to say.
+     *
+     * <p>
+     * Always opens it. A connector that offers to explain the cost of
+     * disconnecting is one where disconnecting costs something, and that does
+     * not stop being true when the explanation is unavailable — a locale
+     * without the string, a stale bundle, a request that failed. Skipping the
+     * dialog then turned a missing translation into one click that silently
+     * removed every calendar the account had materialised.
+     *
+     * <p>
+     * Failing open costs nothing here: the dialog is a question, and a user
+     * who still wants to disconnect answers it. Failing closed cost data.
+     *
+     * @param {String} warning what the connector said, possibly empty
+     * @returns {Promise} resolves once the dialog is up
+     */
+    confirmDisconnecting(warning) {
+      this.disconnectWarning = warning || this.$t('agenda.connectors.disconnect.genericWarning');
+      return this.$refs.confirmDisconnectDialog.open();
     },
     /**
      * Unlinks the connector the dialog was opened for.
