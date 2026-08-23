@@ -376,17 +376,22 @@ export default {
      * Refused credentials come first and drop the distinction between writing
      * and removing a copy: nothing will work until the account is connected
      * again, and that — not which operation happened to be running — is what
-     * the user has to act on. The code is the one the connector rejects with,
-     * read here rather than the message it carries, because tsdav turns a
-     * rejected password into "cannot find principalUrl" and a user reading
-     * that has no chance of guessing it means their password.
+     * the user has to act on. The code is read rather than the message,
+     * because a connector may turn a rejected password into something like
+     * "cannot find principalUrl", which no user could read as their password.
+     *
+     * Which code carries that meaning is the connector's to declare, through
+     * `credentialsErrorCode`; a connector declaring none simply falls to the
+     * generic message. This component serves every connector, so it holds no
+     * single add-on's vocabulary.
      *
      * @param {Object} error the failure the connector rejected with
      * @param {Boolean} removal whether the copy was being removed, not written
      * @returns {String} the translation key of the message to display
      */
     copyFailureMessageKey(error, removal) {
-      if (error && error.code === 'caldav.error.credentials') {
+      const credentialsCode = this.connectedConnector && this.connectedConnector.credentialsErrorCode;
+      if (credentialsCode && error && error.code === credentialsCode) {
         return 'agenda.pushEvents.copyCredentialsError';
       }
       return removal && 'agenda.pushEvents.copyRemovalError' || 'agenda.pushEvents.copyError';

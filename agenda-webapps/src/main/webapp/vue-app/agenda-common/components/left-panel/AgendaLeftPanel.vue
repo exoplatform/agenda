@@ -44,26 +44,15 @@
     <!-- Every section carries the same mb-5, one rule for all of them: the
          vertical rhythm between sections stays identical whichever sections
          render, and a future section only has to repeat the same class -->
-    <section
+    <!--
+      The collections of the connected account that eXo is not already showing
+      as calendars of its own. The component draws its own section, header
+      included, and draws nothing at all when there is nothing left to list —
+      which is the normal state once every collection has been bound.
+    -->
+    <agenda-left-panel-remote-calendars
       v-if="connectorsAvailable"
-      class="agenda-left-panel-section d-flex flex-column mb-5">
-      <div class="agenda-left-panel-title text-sub-title">
-        <span class="flex-grow-1">{{ $t('agenda.leftPanel.myCalendars') }}</span>
-        <agenda-connect-to-remote-button
-          :connectors="connectors"
-          :settings="settings"
-          :show-default-remote-events="showDefaultRemoteEvents"
-          height="24"
-          width="24"
-          size="14"
-          class="flex-grow-0"
-          :show-toggle-action="false"
-          :show-manage-action="true" />
-      </div>
-      <agenda-left-panel-remote-calendars
-        :connectors="connectors"
-        class="agenda-left-panel-calendars" />
-    </section>
+      :connectors="connectors" />
     <!--
       The user's own agenda calendars: the default one plus any calendar the
       user created to organize personal events. Visibility, rename, creation
@@ -74,8 +63,24 @@
     <section class="agenda-left-panel-section d-flex flex-column mb-5">
       <div class="agenda-left-panel-title text-sub-title">
         <span class="flex-grow-1">{{ $t('agenda.leftPanel.personalCalendars') }}</span>
-        <!-- Same affordance as the section above: a small icon button beside
-             the title, opening a drawer, rather than an inline field -->
+        <!--
+          Connecting an account lives here, beside adding a calendar: both add
+          calendars to this section, and this is the section a user looks at
+          when they wonder where their calendars are. It used to sit on the
+          Remote header, which meant the only way to discover connecting was
+          to be shown a section that has nothing to do with it — and kept that
+          section alive for no other reason.
+        -->
+        <agenda-connect-to-remote-button
+          :connectors="connectors"
+          :settings="settings"
+          :show-default-remote-events="showDefaultRemoteEvents"
+          height="24"
+          width="24"
+          size="14"
+          class="flex-grow-0"
+          :show-toggle-action="false"
+          :show-manage-action="true" />
         <v-btn
           :title="$t('agenda.calendar.addCalendar')"
           icon

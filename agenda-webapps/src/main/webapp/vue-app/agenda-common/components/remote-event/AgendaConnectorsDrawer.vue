@@ -53,13 +53,40 @@
                   {{ connector.user }}
                 </span>
               </v-list-item-subtitle>
+              <!--
+                The state that makes the action beside it worth pressing: four
+                minutes means there is nothing to do, two hours is a reason.
+                Only for a connector that can answer the question.
+              -->
+              <v-list-item-subtitle
+                v-if="connector.connected && lastSyncLabel(connector)"
+                class="text-truncate">
+                {{ lastSyncLabel(connector) }}
+              </v-list-item-subtitle>
               <v-list-item-subtitle
                 v-else-if="connectorSubtitle(connector)"
                 :title="connectorSubtitle(connector)">
                 {{ connectorSubtitle(connector) }}
               </v-list-item-subtitle>
             </v-list-item-content>
-            <v-list-item-action v-if="connector.canConnect">
+            <!--
+              A row, not the column v-list-item-action lays out by default: a
+              connected account can carry two actions, and stacked they
+              overlap the row above.
+            -->
+            <v-list-item-action v-if="connector.canConnect" class="d-flex flex-row align-center">
+              <v-btn
+                v-if="canSync(connector)"
+                :loading="syncing === connector.name"
+                :disabled="syncing !== null"
+                :aria-label="$t('agenda.connectors.syncNow')"
+                :title="$t('agenda.connectors.syncNow')"
+                icon
+                small
+                class="me-2"
+                @click="syncNow(connector)">
+                <v-icon size="18">fa-sync-alt</v-icon>
+              </v-btn>
               <v-btn
                 v-if="connector.isSignedIn && connector.user"
                 :loading="connector.loading"
@@ -123,7 +150,9 @@ export default {
   },
   data: () => ({
     connectionInProgress: false,
-    selectedConnector: null
+    selectedConnector: null,
+    syncing: null,
+    lastSyncs: {},
   }),
   computed: {
     enabledConnectors() {
@@ -140,6 +169,10 @@ export default {
   },
   created() {
     this.$root.$on('agenda-connectors-drawer-open', this.open);
+    // Read on open rather than once at creation: the drawer outlives several
+    // synchronisations, and a line stamped when the page loaded would age
+    // silently while the user looks at it.
+    this.$root.$on('agenda-connectors-drawer-open', this.retrieveLastSyncs);
     // The calendar step opens on top of this drawer and is the last thing the
     // user does when connecting; once it is done there is nothing left here to
     // come back to, so this closes with it rather than being revealed again.
@@ -165,6 +198,76 @@ export default {
      * @param {Object} connector the connector descriptor of the row
      * @returns {String} the resolved secondary line, empty when there is none
      */
+    /**
+     * Whether this connector can be asked to synchronise on demand.
+     *
+     * Declared by the connector, not assumed: an OAuth calendar whose events
+     * arrive by push has nothing to run, and offering a button that does
+     * nothing is worse than offering none.
+     *
+     * @param {Object} connector the connector descriptor of the row
+     * @returns {Boolean} true when the row shows a Sync now button
+     */
+    canSync(connector) {
+      return !!(connector && connector.connected && typeof connector.sync === 'function');
+    },
+    /**
+     * When this connector last finished synchronising, in words.
+     *
+     * The phrasing is shared with the settings row, so the two cannot come to
+     * disagree about what "just now" means.
+     *
+     * @param {Object} connector the connector descriptor of the row
+     * @returns {String} the line to display, empty when unknown
+     */
+    lastSyncLabel(connector) {
+      // Not yet read and never synchronised are different answers: the first
+      // has nothing to say, the second has something the user should see.
+      if (!Object.prototype.hasOwnProperty.call(this.lastSyncs, connector.name)) {
+        return '';
+      }
+      const phrase = this.$remoteEventConnector.lastSyncPhrase(this.lastSyncs[connector.name]);
+      return phrase && this.$t(phrase.key, {0: phrase.count}) || '';
+    },
+    /**
+     * Reads the last synchronisation of every connector able to report one.
+     *
+     * A connector that fails to answer is left without a line rather than
+     * given a wrong one: not knowing when the last sync happened is a smaller
+     * problem than stating a time that is not true.
+     *
+     * @returns {Promise} resolves once every connector has answered or failed
+     */
+    retrieveLastSyncs() {
+      return Promise.all(this.enabledConnectors
+        .filter(connector => connector.connected && typeof connector.lastSynchronised === 'function')
+        .map(connector => Promise.resolve(connector.lastSynchronised())
+          .then(lastSync => this.$set(this.lastSyncs, connector.name, lastSync || null))
+          .catch(error => console.error('cannot read when the account last synchronised', error))));
+    },
+    /**
+     * Synchronises one connector's account now.
+     *
+     * One at a time, and the state is read again afterwards: pressing the
+     * button and seeing the line stay where it was is the one outcome that
+     * would make the button look broken.
+     *
+     * @param {Object} connector the connector to synchronise
+     * @returns {Promise} resolves once the synchronisation has run
+     */
+    syncNow(connector) {
+      this.syncing = connector.name;
+      return Promise.resolve(connector.sync())
+        .then(() => {
+          this.$root.$emit('agenda-refresh');
+          return this.retrieveLastSyncs();
+        })
+        .catch(error => {
+          console.error('cannot synchronise the connected account', error);
+          this.$root.$emit('alert-message', this.$t('agenda.connectors.syncError'), 'error');
+        })
+        .finally(() => this.syncing = null);
+    },
     connectorSubtitle(connector) {
       if (!connector.description) {
         return '';

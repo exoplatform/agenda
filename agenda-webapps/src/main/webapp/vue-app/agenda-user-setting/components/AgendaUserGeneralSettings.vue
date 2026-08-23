@@ -4,24 +4,34 @@
       <v-list-item-title class="text-title">
         {{ $t('agenda') }}
       </v-list-item-title>
+      <!--
+        Outlined and muted, not solid primary: these chips state the current
+        values, they are not controls. Filled in the accent colour they were
+        the loudest thing on the page while the pencil beside them — the only
+        thing you can actually click — is a grey icon, which put the emphasis
+        exactly the wrong way round.
+      -->
       <v-flex v-if="settings" class="d-flex flex-wrap">
         <v-chip
-          class="ma-2"
-          color="primary">
+          class="ma-2 text-sub-title"
+          outlined
+          small>
           <span class="text-capitalize">{{ agendaSelectedView }}</span>
           <span class="ps-1">{{ $t('agenda.view') }}</span>
         </v-chip>
         <v-chip
-          class="ma-2"
-          color="primary">
+          class="ma-2 text-sub-title"
+          outlined
+          small>
           <div class="text-truncate">
             {{ agendaWeekStartOnLabel }}
           </div>
         </v-chip>
         <v-chip
           v-if="agendaWorkingTime"
-          class="ma-2"
-          color="primary">
+          class="ma-2 text-sub-title"
+          outlined
+          small>
           <div class="text-truncate">
             {{ agendaWorkingTime }}
           </div>
@@ -30,8 +40,9 @@
           <v-chip
             v-for="(reminder, index) in settings.reminders"
             :key="index"
-            class="ma-2"
-            color="primary">
+            class="ma-2 text-sub-title"
+            outlined
+            small>
             <div class="text-truncate">
               <template v-if="reminder.before">
                 {{ $t('agenda.label.notifyMeBefore', {0: reminder.before, 1: $t(`agenda.option.${reminder.beforePeriodType.toLowerCase()}s`).toLowerCase()}) }}
@@ -49,7 +60,7 @@
         small
         icon
         @click="openDrawer">
-        <i class="uiIconEdit uiIconLightBlue pb-2"></i>
+        <v-icon size="20" class="icon-default-color">fa-edit</v-icon>
       </v-btn>
     </v-list-item-action>
     <agenda-user-setting-drawer ref="agendaDrawer" :settings="settings" />

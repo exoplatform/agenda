@@ -29,9 +29,15 @@
         </v-list-item-content>
         <!-- No action on a not-yet-persisted default calendar (id 0): it can
              only be edited once it exists, i.e. after the first event -->
+        <!--
+          Revealed on hover on a pointer device, always there on touch: three
+          dots on every row turned a list of calendars into a column of
+          controls. The class does the work in the panel's stylesheet, and
+          focus-within keeps it reachable from the keyboard.
+        -->
         <v-list-item-action
           v-if="calendar.id"
-          class="my-0 ms-2">
+          class="my-0 ms-2 agenda-calendar-actions">
           <v-menu
             offset-y
             left>
@@ -135,10 +141,15 @@ export default {
   created() {
     this.hiddenCalendarIds = this.readHiddenCalendarIds();
     this.$root.$on('agenda-refresh-personal-calendars', this.retrieveCalendars);
+    // Also on the document, so an add-on's drawer living in another Vue app —
+    // the settings page has its own — can say that the set of personal
+    // calendars just changed. A $root event never crosses that boundary.
+    document.addEventListener('agenda-refresh-personal-calendars', this.retrieveCalendars);
     this.retrieveCalendars();
   },
   beforeDestroy() {
     this.$root.$off('agenda-refresh-personal-calendars', this.retrieveCalendars);
+    document.removeEventListener('agenda-refresh-personal-calendars', this.retrieveCalendars);
   },
   methods: {
     /**
