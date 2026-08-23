@@ -210,6 +210,12 @@ export default {
             connector.resetPushAbility();
           }
           this.$root.$emit('agenda-settings-refresh');
+          // The same refresh connecting asks for, and for the mirror-image
+          // reason. Disconnecting removes the calendars materialised from the
+          // account, so the panels are describing calendars that no longer
+          // exist — the personal list still offering them and the remote list
+          // still hiding them as bound. Only a reload corrected it.
+          this.$root.$emit('agenda-refresh-personal-calendars');
           this.refreshConnectorsList();
         })
         .finally(() => {
