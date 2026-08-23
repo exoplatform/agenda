@@ -1122,6 +1122,27 @@
         min-height: 32px;
       }
 
+      /* The per-calendar menu is revealed on hover, so the panel reads as a
+         list of calendars rather than a column of controls. Kept reachable
+         from the keyboard through focus-within, and left permanently visible
+         where there is no pointer to hover with — on a touch screen a hidden
+         action is simply an absent one. */
+      .agenda-calendar-actions {
+        opacity: 0;
+        transition: opacity .15s ease-in-out;
+      }
+
+      .v-list-item:hover .agenda-calendar-actions,
+      .agenda-calendar-actions:focus-within {
+        opacity: 1;
+      }
+
+      @media (hover: none) {
+        .agenda-calendar-actions {
+          opacity: 1;
+        }
+      }
+
       .agenda-calendar-settings-color {
         margin: 0 !important;
         padding-top: 0;
