@@ -157,6 +157,14 @@ export default {
   created() {
     this.hiddenCalendarIds = this.readHiddenCalendarIds();
     this.$root.$on('agenda-refresh-personal-calendars', this.retrieveProblems);
+    // And on the agenda's general refresh, which is the one that follows a
+    // synchronisation. Disconnecting deliberately pauses the bindings of the
+    // calendars eXo created — so reconnecting finds the same collections
+    // instead of making new ones — and reconnecting clears them a second
+    // later. Refreshing only around the account changing caught that second
+    // and then kept it: a warning on every one of the user's own calendars,
+    // for a state that had already passed, until the page was reloaded.
+    this.$root.$on('agenda-refresh', this.retrieveProblems);
     document.addEventListener('agenda-refresh-personal-calendars', this.retrieveProblems);
     this.retrieveProblems();
     this.$root.$on('agenda-refresh-personal-calendars', this.retrieveCalendars);
@@ -170,6 +178,7 @@ export default {
     this.$root.$off('agenda-refresh-personal-calendars', this.retrieveCalendars);
     document.removeEventListener('agenda-refresh-personal-calendars', this.retrieveCalendars);
     this.$root.$off('agenda-refresh-personal-calendars', this.retrieveProblems);
+    this.$root.$off('agenda-refresh', this.retrieveProblems);
     document.removeEventListener('agenda-refresh-personal-calendars', this.retrieveProblems);
   },
   methods: {
