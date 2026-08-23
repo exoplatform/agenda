@@ -144,7 +144,6 @@ export default {
       }
       const message = this.$t('agenda.calendarDelete.confirmMessage', {
         0: this.calendarLabel(this.calendarToDelete),
-        1: this.defaultCalendarLabel,
       });
       // A connector mirroring this calendar elsewhere knows something agenda
       // does not: that confirming also destroys a copy on a remote server,
@@ -155,16 +154,6 @@ export default {
       // answer lives on a server, and a warning that arrives after the user
       // has confirmed is no warning at all.
       return this.connectorWarning && `${message}\n\n${this.connectorWarning}` || message;
-    },
-    /**
-     * The display label of the user's default calendar, used in the deletion
-     * confirmation message as the destination of the moved events.
-     *
-     * @returns {String} default calendar label
-     */
-    defaultCalendarLabel() {
-      const defaultCalendar = this.calendars.find(calendar => calendar.system);
-      return defaultCalendar && this.calendarLabel(defaultCalendar) || this.$t('agenda.myCalendar');
     },
   },
   created() {
