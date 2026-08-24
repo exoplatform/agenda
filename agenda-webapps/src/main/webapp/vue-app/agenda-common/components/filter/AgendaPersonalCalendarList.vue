@@ -168,6 +168,18 @@ export default {
     // for a state that had already passed, until the page was reloaded.
     this.$root.$on('agenda-refresh', this.retrieveProblems);
     document.addEventListener('agenda-refresh-personal-calendars', this.retrieveProblems);
+    // And once the connectors exist. This asks which calendars are failing,
+    // and only a connector can answer — but a connector registers after its
+    // own REST has answered, which is later than this component is created. So
+    // the first ask finds nobody to ask, records that nothing is wrong, and
+    // never revisits it: a calendar that had stopped synchronising was drawn
+    // looking perfectly normal until something unrelated refreshed the panel.
+    //
+    // The caldav webapp already announces this — it dispatches
+    // agenda-connectors-refresh once registration is done, and the admin
+    // settings already listen to it. Listening to the same signal rather than
+    // inventing another one, or worse, retrying on a timer.
+    document.addEventListener('agenda-connectors-refresh', this.retrieveProblems);
     this.retrieveProblems();
     this.$root.$on('agenda-refresh-personal-calendars', this.retrieveCalendars);
     // Also on the document, so an add-on's drawer living in another Vue app —
@@ -182,6 +194,7 @@ export default {
     this.$root.$off('agenda-refresh-personal-calendars', this.retrieveProblems);
     this.$root.$off('agenda-refresh', this.retrieveProblems);
     document.removeEventListener('agenda-refresh-personal-calendars', this.retrieveProblems);
+    document.removeEventListener('agenda-connectors-refresh', this.retrieveProblems);
   },
   methods: {
     /**
