@@ -135,8 +135,19 @@ export function saveUserConnector(connectorName, connectorUserId) {
   });
 }
 
-export function resetUserConnector() {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/settings/connector`, {
+/**
+ * Disconnects one connected account, or every account when no connector name
+ * is given. Naming the connector is what lets one CalDAV account and one or
+ * more remote accounts coexist: disconnecting Google must not take the CalDAV
+ * account backing My Calendars with it.
+ *
+ * @param {String} connectorName name of the connector whose account is
+ *          disconnected; absent, every connected account is
+ * @returns {Promise} resolves when the account is removed
+ */
+export function resetUserConnector(connectorName) {
+  const queryParam = connectorName && `?connectorName=${encodeURIComponent(connectorName)}` || '';
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/settings/connector${queryParam}`, {
     method: 'DELETE',
     credentials: 'include',
   }).then(resp => {

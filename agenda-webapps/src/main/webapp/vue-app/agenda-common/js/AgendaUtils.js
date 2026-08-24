@@ -409,3 +409,52 @@ export function roundTime(time, down = true) {
 export function toDateTime(tms, down = true) {
   return roundTime(new Date(tms.year, tms.month - 1, tms.day, tms.hour, tms.minute).getTime(), down);
 }
+
+/**
+ * Merges the remote events several connected accounts returned into one
+ * array, in a deterministic order, deduplicating the events two accounts
+ * both hold.
+ *
+ * Every event is tagged with the connector it came from — with several
+ * accounts connected, "the connected connector" stops naming one thing, and
+ * a remote event's avatar or push target must be the account the event
+ * actually belongs to.
+ *
+ * The dedup key is the event's ICS UID together with its start instant: the
+ * UID alone would collapse the occurrences of a recurring series (which
+ * share it), while UID + start only matches the same occurrence of the same
+ * event surfaced by two accounts. When two accounts do return the same
+ * occurrence, the account whose connector declares the lower rank wins,
+ * name order breaking ties — a rule rather than whichever response landed
+ * last, so the grid attributes the event to the same account on every load.
+ *
+ * @param {Array} eventsByConnector one entry per account,
+ *          `{connector, events}`
+ * @returns {Array} the merged events, each carrying its `connector`
+ */
+export function mergeRemoteEvents(eventsByConnector) {
+  const orderedResults = (eventsByConnector || []).slice()
+    .sort((result1, result2) => {
+      const rank1 = result1.connector && Number.isFinite(result1.connector.rank) ? result1.connector.rank : Number.MAX_SAFE_INTEGER;
+      const rank2 = result2.connector && Number.isFinite(result2.connector.rank) ? result2.connector.rank : Number.MAX_SAFE_INTEGER;
+      return rank1 - rank2
+        || String(result1.connector && result1.connector.name || '').localeCompare(String(result2.connector && result2.connector.name || ''));
+    });
+  const seenOccurrences = new Set();
+  const mergedEvents = [];
+  orderedResults.forEach(result => (result.events || []).forEach(event => {
+    event.connector = result.connector;
+    const startTime = event.startDate && toDate(event.startDate).getTime()
+      || event.start && toDate(event.start).getTime()
+      || '';
+    const occurrenceKey = event.id && `${event.id}|${startTime}` || null;
+    if (occurrenceKey && seenOccurrences.has(occurrenceKey)) {
+      return;
+    }
+    if (occurrenceKey) {
+      seenOccurrences.add(occurrenceKey);
+    }
+    mergedEvents.push(event);
+  }));
+  return mergedEvents;
+}

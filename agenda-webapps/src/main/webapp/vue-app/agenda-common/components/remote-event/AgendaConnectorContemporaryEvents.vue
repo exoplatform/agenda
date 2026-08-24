@@ -61,7 +61,7 @@
               v-for="remoteEvent in displayedRemoteEvents"
               :key="remoteEvent"
               :remote-event="remoteEvent"
-              :connector="connectedConnector"
+              :connector="remoteEvent.connector || connectedConnector"
               :event="event"
               class="mt-5 remote-events-details"
               is-events-list />
@@ -140,9 +140,20 @@ export default {
     connectedConnector() {
       return this.connectors && this.connectors.find(connector => connector.connected);
     },
+    /**
+     * The connected connectors whose browser session can be asked for remote
+     * events: this panel shows what every connected account holds around the
+     * event, not one account's view.
+     *
+     * @returns {Array} the signed-in connected connectors
+     */
+    signedInConnectors() {
+      return (this.connectors || [])
+        .filter(connector => connector.connected && connector.isSignedIn);
+    },
     connectorStatus() {
       if (this.connectedConnector) {
-        if (this.connectedConnector.isSignedIn) {
+        if (this.signedInConnectors.length) {
           return 1;
         } else {
           return 2;
@@ -195,9 +206,16 @@ export default {
       this.$root.$emit('agenda-connectors-drawer-open');
     },
     refreshRemoteEvents() {
-      this.retrieveRemoteEvents(this.connectedConnector);
+      this.retrieveRemoteEvents();
     },
-    retrieveRemoteEvents(connector) {
+    /**
+     * Fetches what every signed-in connected account holds around the event's
+     * days and merges it into one deduplicated list, each entry tagged with
+     * the account it came from.
+     *
+     * @returns {void}
+     */
+    retrieveRemoteEvents() {
       if (this.connectorStatus === 1) {
         const eventStartDay = this.event.startDate;
         const eventEndDay = this.event.endDate;
@@ -214,20 +232,26 @@ export default {
         const endDateRFC3359 = this.$agendaUtils.toRFC3339(eventEndDay, false, true);
 
         this.loading = true;
-        connector.getEvents(startDateRFC3359, endDateRFC3359)
-          .then(events => {
-            if (events) {
-              events.forEach(event => {
-                event.startDate = event.start && this.$agendaUtils.toDate(event.start) || null;
-                event.endDate = event.end && this.$agendaUtils.toDate(event.end) || null;
-              });
-            }
-            this.remoteEvents = events || [];
+        // Every signed-in account is asked, and each fails on its own: one
+        // unreachable account must not blank the events the others returned
+        Promise.all(this.signedInConnectors.map(connector =>
+          connector.getEvents(startDateRFC3359, endDateRFC3359)
+            .then(events => {
+              if (events) {
+                events.forEach(event => {
+                  event.startDate = event.start && this.$agendaUtils.toDate(event.start) || null;
+                  event.endDate = event.end && this.$agendaUtils.toDate(event.end) || null;
+                });
+              }
+              return {connector, events: events || []};
+            })
+            .catch(error => {
+              console.error('Error retrieving remote events', connector.name, error);
+              return {connector, events: []};
+            })))
+          .then(eventsByConnector => {
+            this.remoteEvents = this.$agendaUtils.mergeRemoteEvents(eventsByConnector);
             this.loading = false;
-          }).catch(error => {
-            this.remoteEvents = [];
-            this.loading = false;
-            console.error('Error retrieving remote events', error);
           });
       } else {
         this.remoteEvents = [];

@@ -39,11 +39,29 @@ export default {
     remoteProviders() {
       return this.settings && this.settings.remoteProviders;
     },
-    connectedConnectorUser() {
-      return this.connectedConnector && this.connectedConnector.user;
-    },
-    connectedConnector() {
-      return this.connectors && this.connectors.find(connector => connector.connected);
+    /**
+     * The accounts the settings say are connected, one per provider at most.
+     * Read from the list the settings now carry, falling back to the two
+     * legacy fields for a client still holding a settings object fetched
+     * before the list existed.
+     *
+     * @returns {Array} the accounts, each {providerName, remoteUserId, pushEnabled}
+     */
+    connectedAccounts() {
+      if (!this.settings) {
+        return [];
+      }
+      if (this.settings.connectedConnectors && this.settings.connectedConnectors.length) {
+        return this.settings.connectedConnectors;
+      }
+      if (this.settings.connectedRemoteProvider) {
+        return [{
+          providerName: this.settings.connectedRemoteProvider,
+          remoteUserId: this.settings.connectedRemoteUserId,
+          pushEnabled: true,
+        }];
+      }
+      return [];
     },
   },
   watch: {
@@ -67,6 +85,15 @@ export default {
     this.refreshConnectorsList();
   },
   methods: {
+    /**
+     * Rebuilds the connectors list from the extension registry, marking each
+     * one enabled from the administrator's providers and connected from the
+     * user's own account on that provider. Several connectors can be
+     * connected at once — the settings carry one account per provider — so
+     * each connector reads its own account rather than a single shared one.
+     *
+     * @returns {void}
+     */
     refreshConnectorsList() {
       // Get list of connectors from extensionRegistry
       const connectors = extensionRegistry.loadExtensions('agenda', 'connectors') || [];
@@ -76,10 +103,14 @@ export default {
         connectors
           .forEach(connector => {
             const connectorObj = this.remoteProviders.find(connectorSettings => connectorSettings.name === connector.name);
+            const account = this.connectedAccounts.find(connectedAccount => connectedAccount.providerName === connector.name);
             connector.enabled = connectorObj && connectorObj.enabled || false;
             connector.apiKey = connectorObj && connectorObj.apiKey || '';
-            connector.connected = connector.enabled && this.settings.connectedRemoteProvider === connectorObj.name;
-            connector.user = connector.connected && this.settings.connectedRemoteUserId || '';
+            connector.connected = connector.enabled && !!account;
+            connector.user = connector.connected && account.remoteUserId || '';
+            // Whether this account receives copies of the user's meetings:
+            // per-account, so opting one account out never silences the others
+            connector.pushEnabled = !account || account.pushEnabled !== false;
           });
       } else {
         connectors.forEach(connector => connector.enabled = false);
@@ -98,13 +129,14 @@ export default {
         });
     },
     /**
-     * Connects a connector to its remote account: disconnects any other
-     * connected connector, delegates the connection to the connector itself,
-     * then stores the connected user. Once the connection succeeded, when the
-     * connector can create a calendar on the remote server, the mirror
-     * calendar step is offered — the destination the pushed meetings will be
-     * written to — so a refused creation is dealt with at connect time, not
-     * at first push.
+     * Connects a connector to its remote account: delegates the connection to
+     * the connector itself, then stores the connected user beside the
+     * accounts already held — connecting Google no longer evicts the CalDAV
+     * account backing My Calendars, or vice versa; accounts are additive, one
+     * per provider. Once the connection succeeded, when the connector can
+     * create a calendar on the remote server, the mirror calendar step is
+     * offered — the destination the pushed meetings will be written to — so a
+     * refused creation is dealt with at connect time, not at first push.
      *
      * @param {Object} connector the connector to connect
      * @returns {Promise} resolves once the connection is established and stored
@@ -112,15 +144,8 @@ export default {
     connect(connector) {
       this.errorMessage = null;
 
-      const disconnectPromises = [];
-      this.connectors.forEach(otherConnector => {
-        if (connector.name !== otherConnector.name && (otherConnector.user || otherConnector.isSignedIn)) {
-          disconnectPromises.push(this.disconnect(otherConnector));
-        }
-      });
-
       this.$set(connector, 'loading', true);
-      return Promise.all(disconnectPromises)
+      return Promise.resolve()
         .then(() => connector.connect(this.settings && this.settings.automaticPushEvents))
         .then((userId) => {
           return this.$settingsService.saveUserConnector(connector.name, userId)
@@ -175,6 +200,13 @@ export default {
           }
         });
     },
+    /**
+     * Disconnects one connector's account: signs the browser session out when
+     * one is held, then removes the stored account.
+     *
+     * @param {Object} connector the connector to disconnect
+     * @returns {Promise} resolves once the account is removed
+     */
     disconnect(connector) {
       //disconnect from connected browser
       if (connector.isSignedIn) {
@@ -183,9 +215,17 @@ export default {
         return this.resetConnector(connector);
       }
     },
+    /**
+     * Removes this connector's stored account and clears its runtime flags.
+     * The removal names the connector: with several accounts held at once,
+     * disconnecting one must leave the others standing.
+     *
+     * @param {Object} connector the connector whose account is removed
+     * @returns {Promise} resolves once the settings no longer hold the account
+     */
     resetConnector(connector) {
       this.$set(connector, 'loading', true);
-      return this.$settingsService.resetUserConnector()
+      return this.$settingsService.resetUserConnector(connector.name)
         .then(() => {
           this.$set(connector, 'isSignedIn', false);
           this.$set(connector, 'connected', false);
@@ -243,12 +283,22 @@ export default {
         this.cleanConnectorStatus(connector, connectedUser);
       }
     },
+    /**
+     * Reconciles one connector's browser session with the account the
+     * settings hold for that same connector — its own account, not a single
+     * shared one: with several accounts connected at once, Google's session
+     * must be compared to the Google account, never to the CalDAV one.
+     *
+     * @param {Object} connector the connector whose session is reconciled
+     * @param {Object} connectedUser the user the browser session holds
+     * @returns {void}
+     */
     cleanConnectorStatus(connector, connectedUser) {
       this.$set(connector, 'error', '');
 
-      if (this.connectedConnectorUser) {
+      if (connector && connector.user) {
         //if user is connected with different account from other browser
-        if (connectedUser && connectedUser.user !== this.connectedConnectorUser) {
+        if (connectedUser && connectedUser.user !== connector.user) {
           connector.disconnect();
         }
       } else if (connector && connector.isSignedIn) {
@@ -304,14 +354,38 @@ export default {
      * pushes to decides per calendar and answers that nothing was copied when
      * there is nowhere to copy to.
      *
+     * With several accounts connected at once, the question is asked per
+     * account: a space meeting is copied to every connected account able to
+     * receive it, minus the ones whose per-account switch opts them out; a
+     * bound calendar's event reaches only the account that materialised the
+     * calendar, whatever the copy switches say.
+     *
+     * @param {Object} connector the connected connector asked to receive it
      * @param {Object} event the event about to be copied or removed
-     * @returns {Boolean} true when the connected account should receive it
+     * @returns {Boolean} true when that connector's account should receive it
      */
-    shouldReachAccount(event) {
+    shouldReachAccount(connector, event) {
       if (this.isSpaceEvent(event)) {
-        return !!(this.settings && this.settings.automaticPushEvents);
+        return !!(this.settings && this.settings.automaticPushEvents) && connector.pushEnabled !== false;
       }
-      return !!(this.connectedConnector && this.connectedConnector.pushesOwnCalendars) && this.isOwnCalendarEvent(event);
+      return !!connector.pushesOwnCalendars && this.isOwnCalendarEvent(event);
+    },
+    /**
+     * The connected accounts an event's copy or removal must be written to:
+     * every connected connector able to push whose account should receive
+     * this event. Copies go to every account that can take them — one
+     * behaviour, per-account opt-out switches — rather than to one chosen
+     * target.
+     *
+     * @param {Object} event the event about to be copied or removed
+     * @returns {Array} the connectors to write to, possibly empty
+     */
+    pushTargets(event) {
+      return (this.connectors || [])
+        .filter(connector => connector
+          && connector.connected
+          && connector.canPush
+          && this.shouldReachAccount(connector, event));
     },
     /**
      * Whether the event sits in a calendar this user owns.
@@ -343,9 +417,11 @@ export default {
      * @returns {Promise} resolves once the removal has been attempted
      */
     deleteEvent(event) {
-      if (this.shouldReachAccount(event) && this.connectedConnector && this.connectedConnector.canPush) {
-        return this.$remoteEventConnector.removeEventFromConnector(this.connectedConnector, event, !!event.recurrence)
-          .catch(error => this.announceCopyFailure(error, true))
+      const targets = this.pushTargets(event);
+      if (targets.length) {
+        return Promise.all(targets.map(connector =>
+          this.$remoteEventConnector.removeEventFromConnector(connector, event, !!event.recurrence)
+            .catch(error => this.announceCopyFailure(connector, error, true))))
           .finally(() => this.$root.$emit('agenda-refresh'));
       }
     },
@@ -399,19 +475,20 @@ export default {
      * @returns {Promise} resolves once the copy has been written or removed
      */
     pushEventResponse(event, occurrenceId, eventResponse) {
-      if (this.shouldReachAccount(event) && eventResponse && this.connectedConnector && this.connectedConnector.canPush) {
+      const targets = eventResponse && this.pushTargets(event) || [];
+      if (targets.length) {
         event.start = this.$agendaUtils.toRFC3339(event.start);
         event.end = this.$agendaUtils.toRFC3339(event.end);
 
-        if (eventResponse.toLowerCase()  === 'accepted') {
-          return this.$remoteEventConnector.pushEventToConnector(this.connectedConnector, event, !!event.recurrence)
-            .catch(error => this.announceCopyFailure(error, false))
-            .finally(() => this.$root.$emit('agenda-refresh'));
-        } else {
-          return this.$remoteEventConnector.removeEventFromConnector(this.connectedConnector, event, !!event.recurrence)
-            .catch(error => this.announceCopyFailure(error, true))
-            .finally(() => this.$root.$emit('agenda-refresh'));
-        }
+        const removal = eventResponse.toLowerCase() !== 'accepted';
+        return Promise.all(targets.map(connector => {
+          const operation = removal
+            ? this.$remoteEventConnector.removeEventFromConnector(connector, event, !!event.recurrence)
+            : this.$remoteEventConnector.pushEventToConnector(connector, event, !!event.recurrence);
+          // Each account fails or succeeds on its own: one unreachable
+          // account must not stop the copy from reaching the others
+          return operation.catch(error => this.announceCopyFailure(connector, error, removal));
+        })).finally(() => this.$root.$emit('agenda-refresh'));
       }
     },
     /**
@@ -427,19 +504,20 @@ export default {
      * so a problem that persists is not hidden either. The raw failure always
      * reaches the console, whether it was announced or not.
      *
+     * @param {Object} connector the connector whose account refused the copy
      * @param {Object} error the failure the connector rejected with
      * @param {Boolean} removal whether the copy was being removed, not written
      * @returns {void}
      */
-    announceCopyFailure(error, removal) {
-      console.error('cannot update the copy of the event in the connected calendar', error);
+    announceCopyFailure(connector, error, removal) {
+      console.error('cannot update the copy of the event in the connected calendar', connector && connector.name, error);
 
       const now = Date.now();
       if (now - this.copyFailureAnnouncedAt < COPY_FAILURE_QUIET_PERIOD_MS) {
         return;
       }
       this.copyFailureAnnouncedAt = now;
-      this.$root.$emit('alert-message', this.$t(this.copyFailureMessageKey(error, removal)), 'error');
+      this.$root.$emit('alert-message', this.$t(this.copyFailureMessageKey(connector, error, removal)), 'error');
     },
     /**
      * Chooses what the user is told about a failed copy.
@@ -456,12 +534,13 @@ export default {
      * generic message. This component serves every connector, so it holds no
      * single add-on's vocabulary.
      *
+     * @param {Object} connector the connector whose account refused the copy
      * @param {Object} error the failure the connector rejected with
      * @param {Boolean} removal whether the copy was being removed, not written
      * @returns {String} the translation key of the message to display
      */
-    copyFailureMessageKey(error, removal) {
-      const credentialsCode = this.connectedConnector && this.connectedConnector.credentialsErrorCode;
+    copyFailureMessageKey(connector, error, removal) {
+      const credentialsCode = connector && connector.credentialsErrorCode;
       if (credentialsCode && error && error.code === credentialsCode) {
         return 'agenda.pushEvents.copyCredentialsError';
       }
