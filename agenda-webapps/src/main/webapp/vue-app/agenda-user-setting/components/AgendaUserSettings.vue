@@ -8,10 +8,24 @@
           :key="row.id"
           :settings="settings"
           :connectors="connectors"
-          :nested-sections="row.id === 'connector' && nestedCalendarSections || []"
-          @connectors-loaded="connectors = $event" />
+          :nested-sections="row.id === 'connector' && nestedCalendarSections || []" />
       </v-list>
     </v-card>
+    <!--
+      The connectors are loaded here, by the page, and not inside any one
+      section: the My Calendars section hides itself when no CalDAV account
+      is connected, and while it owned this the whole page went blank with
+      it — every other section reads the list it never got to load. The
+      shared drawer moved up for the same reason: a drawer that only exists
+      while one section is displayed cannot be the one every part of the
+      page opens.
+    -->
+    <agenda-connectors-drawer :connectors="enabledConnectors" />
+    <agenda-connector
+      :settings="settings"
+      :connectors="connectors"
+      auto-connect
+      @connectors-loaded="connectors = $event" />
     <!--
       The step that creates the calendar receiving the copies. Mounted here
       rather than inside the connector row: connecting from this page used to
@@ -68,6 +82,14 @@ export default {
     },
   }),
   computed: {
+    /**
+     * The connectors the drawer offers: a disabled one is not connectable.
+     *
+     * @returns {Array} the enabled connectors
+     */
+    enabledConnectors() {
+      return (this.connectors || []).filter(connector => connector.enabled);
+    },
     /**
      * Every row to render, this page's own and the contributed ones, in rank
      * order.

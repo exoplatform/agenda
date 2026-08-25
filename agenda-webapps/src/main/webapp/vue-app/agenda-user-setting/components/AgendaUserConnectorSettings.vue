@@ -71,12 +71,6 @@
       :key="row.id"
       :settings="settings"
       :connectors="connectors" />
-    <agenda-connectors-drawer :connectors="enabledConnectors" />
-    <agenda-connector
-      :settings="settings"
-      :connectors="connectors"
-      auto-connect
-      @connectors-loaded="connectorsLoaded" />
   </div>
 </template>
 
@@ -96,13 +90,34 @@ export default {
       type: Array,
       default: () => [],
     },
+    /**
+     * The connectors the page loaded. Held by the page and not by this
+     * section: the section hides itself when no CalDAV account is connected,
+     * and a hidden section cannot be what loads the list every other section
+     * reads.
+     */
+    connectors: {
+      type: Array,
+      default: () => [],
+    },
   },
   data: () => ({
-    connectors: [],
     syncing: false,
     syncStateRead: false,
     lastSynchronisedAt: null,
   }),
+  watch: {
+    /**
+     * Reads the account's sync state whenever the page hands down a new list.
+     * The section used to do this from its own load callback, which it no
+     * longer owns.
+     *
+     * @returns {void}
+     */
+    connectors() {
+      this.retrieveSyncState();
+    },
+  },
   computed: {
     enabledConnectors() {
       return this.connectors && this.connectors.filter(connector => connector.enabled) || [];
@@ -189,17 +204,7 @@ export default {
     },
   },
   methods: {
-    /**
-     * Hands the loaded connectors to the page and reads their state.
-     *
-     * @param {Array} connectors the connectors the connector component built
-     * @returns {void}
-     */
-    connectorsLoaded(connectors) {
-      this.connectors = connectors;
-      this.$emit('connectors-loaded', connectors);
-      this.retrieveSyncState();
-    },
+
     /**
      * Reads when the section's account last synchronised.
      *
