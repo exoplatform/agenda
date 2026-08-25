@@ -316,7 +316,9 @@ export default {
       return event && (event.calendar && event.calendar.color || event.color) || '#2196F3';
     },
     getEventTextColor(event) {
-      const eventColor = event && (event.color || event.calendar && event.calendar.color) || '#2196F3';
+      const eventColor = this.usableEventColour(event && event.color)
+        || event && event.calendar && event.calendar.color
+        || '#2196F3';
       if (!event.acl || !event.acl.attendee) {
         return eventColor;
       }
@@ -333,6 +335,34 @@ export default {
     isEventTentative(event) {
       const currentUserAttendee = event.attendees && event.attendees.find(attendee => attendee.identity.id === eXo.env.portal.userIdentityId);
       return currentUserAttendee && currentUserAttendee.response === 'TENTATIVE';
+    },
+    /**
+     * A colour an event's text can actually be read in, or nothing.
+     *
+     * White is treated as nothing on purpose. getEventColor gives every event
+     * without an ACL a white card — which every remote event is — so the text
+     * colour is what carries the calendar's identity and what has to be
+     * legible against white. A connector declaring white paints white text on
+     * that white card: not a subtle event but an invisible one, which is how
+     * a connected Google account looked to have no events at all.
+     *
+     * Falling through leaves such an event with the colour of the calendar it
+     * belongs to, or agenda's default, either of which can be read. The Google
+     * connector no longer hardcodes white (EXO-89623, agenda-connectors#152);
+     * this keeps the grid legible whatever a connector declares, and Office
+     * 365 and Exchange still hardcode it.
+     *
+     * @param {String} colour the colour the event declares
+     * @returns {String} the colour to use, or an empty string when it cannot
+     *          be read
+     */
+    usableEventColour(colour) {
+      if (!colour) {
+        return '';
+      }
+      const normalised = String(colour).trim().toLowerCase();
+      const white = ['#fff', '#ffff', '#ffffff', '#ffffffff', 'white'].includes(normalised);
+      return white ? '' : colour;
     },
     getEventColor(event) {
       if (!event.acl || !event.acl.attendee) {
