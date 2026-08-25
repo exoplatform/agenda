@@ -120,6 +120,55 @@ export default {
 
       this.$emit('connectors-loaded', connectors);
     },
+    /**
+     * Offers the step that creates the calendar receiving the copies, unless
+     * the account already has one.
+     *
+     * Reconnecting an account that was set up before — the common case after
+     * a password change, or after moving between servers — leaves its
+     * destination calendar sitting on the server. Asking again to create
+     * what is already there reads as the connection having lost something,
+     * and invites the user to make a second calendar beside the first.
+     *
+     * A check that fails answers nothing, so the step is offered as it was
+     * before: an account left with no destination copies nowhere, which is
+     * the worse of the two ways to be wrong.
+     *
+     * @param {Object} connector the connector just connected
+     * @returns {void}
+     */
+    offerMirrorCalendarUnlessPresent(connector) {
+      Promise.resolve(this.readMirrorCalendar(connector))
+        .then(mirror => {
+          if (!mirror) {
+            this.$root.$emit('agenda-connector-mirror-calendar-open', connector);
+          }
+        })
+        .catch(() => this.$root.$emit('agenda-connector-mirror-calendar-open', connector));
+    },
+    /**
+     * The calendar an account already uses for the copies, asked of the
+     * connector in whichever way it answers: some hold the calendar itself,
+     * the others only its id among the calendars they can list.
+     *
+     * @param {Object} connector the connector to ask
+     * @returns {Promise} resolves with the calendar, or a falsy value when
+     *          the account has none
+     */
+    readMirrorCalendar(connector) {
+      if (typeof connector.getMirrorCalendar === 'function') {
+        return connector.getMirrorCalendar();
+      }
+      if (typeof connector.getMirrorCalendarId !== 'function') {
+        return Promise.resolve(null);
+      }
+      return Promise.resolve(connector.getMirrorCalendarId())
+        .then(mirrorId => mirrorId
+          && typeof connector.listCalendars === 'function'
+          && Promise.resolve(connector.listCalendars())
+            .then(calendars => (calendars || []).find(calendar => String(calendar.id) === String(mirrorId)))
+          || null);
+    },
     initConnectors() {
       this.connectors
         .forEach(connector => {
@@ -187,7 +236,7 @@ export default {
           // is the task at hand. In the settings the same step is reached by
           // turning the copy switch on, which is what asks for it.
           if (this.offerMirrorCalendar && connector.canCreateCalendar) {
-            this.$root.$emit('agenda-connector-mirror-calendar-open', connector);
+            this.offerMirrorCalendarUnlessPresent(connector);
           }
         })
         .catch(error => {
