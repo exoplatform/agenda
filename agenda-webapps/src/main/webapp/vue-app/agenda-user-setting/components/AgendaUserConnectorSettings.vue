@@ -21,7 +21,7 @@
             <span v-if="caldavConnector.connected" class="text-truncate">
               {{ $t('agenda.settings.myCalendarsSyncedWith', {0: caldavConnector.user}) }}
             </span>
-            <span v-else>
+            <span v-else-if="accountStateKnown">
               {{ $t('agenda.settings.myCalendarsNotConnected') }}
             </span>
           </template>
@@ -111,6 +111,7 @@ export default {
   },
   data: () => ({
     connectors: [],
+    connectorsRead: false,
     syncing: false,
     syncStateRead: false,
     lastSynchronisedAt: null,
@@ -127,6 +128,23 @@ export default {
      */
     caldavConnector() {
       return this.enabledConnectors.find(connector => connector.isCaldav === true) || null;
+    },
+    /**
+     * Whether this section actually knows whether an account is connected.
+     *
+     * The connectors are enriched with their account asynchronously — the
+     * descriptors come from the extension registry, the accounts from the
+     * user settings — so for a moment there is a CalDAV connector whose
+     * `connected` is merely not resolved yet. Saying "not synced" then is a
+     * claim the section cannot support, and it is read by a user whose
+     * account IS connected as the sync having broken. Until a load pass has
+     * run with the settings in hand, the line stays empty instead: the same
+     * discipline `lastSyncLabel` applies to a time it does not yet know.
+     *
+     * @returns {Boolean} true once the account state has been resolved
+     */
+    accountStateKnown() {
+      return this.connectorsRead && !!this.settings;
     },
     /**
      * Whether a CalDAV connector can be told apart at all. A deployment whose
@@ -179,6 +197,7 @@ export default {
      */
     connectorsLoaded(connectors) {
       this.connectors = connectors;
+      this.connectorsRead = true;
       this.$emit('connectors-loaded', connectors);
       this.retrieveSyncState();
     },
