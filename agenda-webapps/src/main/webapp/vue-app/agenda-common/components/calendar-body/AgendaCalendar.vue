@@ -316,7 +316,9 @@ export default {
       return event && (event.calendar && event.calendar.color || event.color) || '#2196F3';
     },
     getEventTextColor(event) {
-      const eventColor = event && (event.color || event.calendar && event.calendar.color) || '#2196F3';
+      const eventColor = this.usableEventColour(event && event.color)
+        || event && event.calendar && event.calendar.color
+        || '#2196F3';
       if (!event.acl || !event.acl.attendee) {
         return eventColor;
       }
@@ -325,6 +327,28 @@ export default {
         return eventColor;
       }
       return 'white';
+    },
+    /**
+     * A colour an event can actually be drawn in, or nothing.
+     *
+     * White is treated as nothing on purpose. A connector that declares no
+     * colour of its own gets agenda's default; one that declares white paints
+     * a white block on a white grid, which is not a subtle event but an
+     * invisible one — the Google connector hardcodes it on every event it
+     * returns. Falling through leaves such an event with the colour of the
+     * calendar it belongs to, or the default, either of which can be seen.
+     *
+     * @param {String} colour the colour the event declares
+     * @returns {String} the colour to use, or an empty string when it cannot
+     *          be drawn
+     */
+    usableEventColour(colour) {
+      if (!colour) {
+        return '';
+      }
+      const normalised = String(colour).trim().toLowerCase();
+      const white = ['#fff', '#ffff', '#ffffff', '#ffffffff', 'white'].includes(normalised);
+      return white ? '' : colour;
     },
     isEventDeclined(event) {
       const currentUserAttendee = event.attendees && event.attendees.find(attendee => attendee.identity.id === eXo.env.portal.userIdentityId);

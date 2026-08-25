@@ -54,7 +54,7 @@
         size="20"
         :show-default-remote-events="showDefaultRemoteEvents"
         :show-connect-action="!leftPanelCarriesConnect"
-        :show-toggle-action="!leftPanelCarriesConnect" />
+        :show-toggle-action="!leftPanelCarriesConnect || connectorWithoutCalendarList" />
       <agenda-switch-view :calendar-type="calendarType" v-if="!$root.isMobile" />
       <agenda-calendar-filter-button />
     </template>
@@ -154,6 +154,25 @@ export default {
      */
     leftPanelCarriesConnect() {
       return !this.$root.isMobile && !eXo.env.portal.spaceId;
+    },
+    /**
+     * Whether a connected account's events can only be shown or hidden from
+     * here.
+     *
+     * The left panel took over that control by listing a connector's
+     * calendars and giving each a checkbox, which works only for a connector
+     * that declares canListCalendars — CalDAV alone today. A connected
+     * account that lists nothing, Google or Office 365, is filtered out of
+     * that panel entirely, so removing the toolbar toggle left it with no
+     * control anywhere: its events default to hidden and nothing on a
+     * desktop could show them.
+     *
+     * @returns {Boolean} true when a connected account lists no calendars
+     */
+    connectorWithoutCalendarList() {
+      return (this.connectors || []).some(connector => connector
+        && connector.connected
+        && !connector.canListCalendars);
     },
 
     /**
