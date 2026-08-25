@@ -46,15 +46,23 @@
         parent-element="div"
         element="div"
         class="my-auto" />  
+      <!--
+        No toggle action anywhere in the agenda toolbar any more: the global
+        show/hide-remote-events setting is retired, connecting an account is
+        the opt-in and the left panel's per-calendar checkboxes decide what is
+        shown. Where there is no left panel (mobile, space agenda) the toolbar
+        keeps the connect entry, and a manage entry once an account is
+        connected, so the connection itself stays reachable.
+      -->
       <agenda-connect-to-remote-button
         :connectors="connectors"
         :settings="settings"
         height="36"
         width="36"
         size="20"
-        :show-default-remote-events="showDefaultRemoteEvents"
         :show-connect-action="!leftPanelCarriesConnect"
-        :show-toggle-action="!leftPanelCarriesConnect" />
+        :show-toggle-action="false"
+        :show-manage-action="!leftPanelCarriesConnect" />
       <agenda-switch-view :calendar-type="calendarType" v-if="!$root.isMobile" />
       <agenda-calendar-filter-button />
     </template>
@@ -144,11 +152,10 @@ export default {
   computed: {
     /**
      * Whether the left panel is carrying the remote-calendar controls, in
-     * which case the toolbar shows none of them: connecting is offered beside
-     * the calendars it fills, and hiding calendars is done per calendar there
-     * rather than all at once here. The panel exists only on a desktop
-     * personal agenda, so on mobile and inside a space agenda the toolbar
-     * remains the only place for both.
+     * which case the toolbar shows none of them: connecting and managing are
+     * offered beside the calendars they fill. The panel exists only on a
+     * desktop personal agenda, so on mobile and inside a space agenda the
+     * toolbar remains the only way to reach the connection.
      *
      * @returns {Boolean} true when the left panel carries these controls
      */
@@ -173,9 +180,6 @@ export default {
      */
     canCreateEvent() {
       return !this.currentCalendar || !this.currentCalendar.acl || this.currentCalendar.acl.canCreate;
-    },
-    showDefaultRemoteEvents() {
-      return this.settings && this.settings.showRemoteEventsForAgenda;
     },
     params() {
       return {

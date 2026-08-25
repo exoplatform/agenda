@@ -18,31 +18,15 @@
       flat
       full-width
       @input="displayDate" />
-    <!--
-      The calendars of a connected remote account.
-      The section is shown whether or not an account is connected: it is how a
-      user discovers that connecting one is possible at all, and the button
-      beside the title is the same control the toolbar carries, so both lead to
-      the same drawer rather than to two ways of doing one thing.
-    -->
     <!-- Every section carries the same mb-5, one rule for all of them: the
          vertical rhythm between sections stays identical whichever sections
          render, and a future section only has to repeat the same class -->
     <!--
-      The collections of the connected account that eXo is not already showing
-      as calendars of its own. The component draws its own section, header
-      included, and draws nothing at all when there is nothing left to list —
-      which is the normal state once every collection has been bound.
-    -->
-    <agenda-left-panel-remote-calendars
-      v-if="connectorsAvailable"
-      :connectors="connectors" />
-    <!--
       The user's own agenda calendars: the default one plus any calendar the
       user created to organize personal events. Visibility, rename, creation
       and deletion all live here — the same place the other calendar lists are
-      managed. This is distinct from the connected-account section above,
-      which lists calendars living in a remote account.
+      managed. This is distinct from the per-provider sections below, which
+      list calendars living in a remote account.
     -->
     <section class="agenda-left-panel-section d-flex flex-column mb-5">
       <div class="agenda-left-panel-title text-sub-title">
@@ -58,7 +42,6 @@
         <agenda-connect-to-remote-button
           :connectors="connectors"
           :settings="settings"
-          :show-default-remote-events="showDefaultRemoteEvents"
           height="24"
           width="24"
           size="14"
@@ -79,6 +62,19 @@
       </div>
       <agenda-personal-calendar-list class="agenda-left-panel-calendars" />
     </section>
+    <!--
+      One section per connected remote provider (Google, Office 365…), titled
+      with the provider's own label, listing the calendars of the account and
+      a visibility checkbox for each. Placed after My Calendars because that
+      is where a remote calendar sits in the user's mind: my own first, then
+      each account I look at. CalDAV gets no section here — its collections
+      are materialised as the user's own personal calendars, so they already
+      appear above. The component draws its own sections, headers included,
+      and draws nothing at all when no connected provider lists calendars.
+    -->
+    <agenda-left-panel-remote-calendars
+      v-if="connectorsAvailable"
+      :connectors="connectors" />
     <!-- section: Spaces -->
     <section class="agenda-left-panel-section d-flex flex-column mb-5">
       <div class="agenda-left-panel-title text-sub-title">
@@ -112,10 +108,6 @@ export default {
     settings: {
       type: Object,
       default: null,
-    },
-    showDefaultRemoteEvents: {
-      type: Boolean,
-      default: false,
     },
     period: {
       type: Object,

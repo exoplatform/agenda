@@ -76,12 +76,34 @@ public class AgendaUserSettings implements Cloneable {
 
   private String                       workedDaysNumber   = null;
 
-  private boolean                      showRemoteEventsForAgenda         = false;
-
   private boolean                      showRemoteEventsForTimeLine         = false;
 
   private String                       embedMapProvider;
 
+  /**
+   * Builds the settings from their scalar fields — what {@link #clone()}
+   * copies. The showRemoteEventsForAgenda flag this constructor used to carry
+   * is retired: remote events are fetched whenever an account is connected,
+   * and what is shown is decided per calendar in the agenda's left panel.
+   * The timeline keeps its own flag, whose default hides remote events there.
+   *
+   * @param cometdToken token authenticating the cometd channel
+   * @param agendaDefaultView view type the agenda opens on
+   * @param agendaWeekStartOn day the displayed weeks start on
+   * @param showWorkingTime whether the working-time frame is highlighted
+   * @param workingTimeStart start hour of the working-time frame
+   * @param workingTimeEnd end hour of the working-time frame
+   * @param connectedRemoteProvider legacy mirror of the first connected
+   *          account's provider name
+   * @param connectedRemoteUserId legacy mirror of the first connected
+   *          account's remote user id
+   * @param automaticPushEvents whether eXo events are pushed to the connected
+   *          account without asking
+   * @param timeZoneId identifier of the user's time zone
+   * @param workedDaysNumber number of days the working week counts
+   * @param showRemoteEventsForTimeLine whether the timeline widget shows
+   *          remote events
+   */
   public AgendaUserSettings(String cometdToken,
                             String agendaDefaultView,
                             String agendaWeekStartOn,
@@ -93,7 +115,6 @@ public class AgendaUserSettings implements Cloneable {
                             boolean automaticPushEvents,
                             String timeZoneId,
                             String workedDaysNumber,
-                            boolean showRemoteEventsForAgenda,
                             boolean showRemoteEventsForTimeLine) {
     this.cometdToken = cometdToken;
     this.agendaDefaultView = agendaDefaultView;
@@ -106,7 +127,6 @@ public class AgendaUserSettings implements Cloneable {
     this.automaticPushEvents = automaticPushEvents;
     this.timeZoneId = timeZoneId;
     this.workedDaysNumber = workedDaysNumber;
-    this.showRemoteEventsForAgenda = showRemoteEventsForAgenda;
     this.showRemoteEventsForTimeLine = showRemoteEventsForTimeLine;
   }
 
@@ -243,7 +263,6 @@ public class AgendaUserSettings implements Cloneable {
                                                                automaticPushEvents,
                                                                timeZoneId,
                                                                workedDaysNumber,
-                                                               showRemoteEventsForAgenda,
                                                                showRemoteEventsForTimeLine);
     if (connectedConnectors != null) {
       clonedSettings.setConnectedConnectors(connectedConnectors.stream()
