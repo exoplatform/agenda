@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div v-if="displayed">
     <!--
       The "My Calendars" section: the single CalDAV account backing the
       My Calendars group of the agenda's left panel. It is named after what
@@ -17,21 +17,9 @@
           {{ $t('agenda.settings.myCalendars') }}
         </v-list-item-title>
         <v-list-item-subtitle class="d-flex align-center">
-          <template v-if="caldavKnown">
-            <span v-if="caldavConnector.connected" class="text-truncate">
-              {{ $t('agenda.settings.myCalendarsSyncedWith', {0: caldavConnector.user}) }}
-            </span>
-            <span v-else-if="accountStateKnown">
-              {{ $t('agenda.settings.myCalendarsNotConnected') }}
-            </span>
-          </template>
-          <agenda-connector-status v-else :connectors="connectors">
-            <template slot="connectButton">
-              <span>
-                {{ $t('agenda.connectYourPersonalAgendaSubTitle') }}
-              </span>
-            </template>
-          </agenda-connector-status>
+          <span class="text-truncate">
+            {{ $t('agenda.settings.myCalendarsSyncedWith', {0: caldavConnector.user}) }}
+          </span>
           <!--
             On the account's own line, after a separator: what makes the action
             beside it worth pressing is knowing how stale the account is, and
@@ -111,7 +99,6 @@ export default {
   },
   data: () => ({
     connectors: [],
-    connectorsRead: false,
     syncing: false,
     syncStateRead: false,
     lastSynchronisedAt: null,
@@ -140,21 +127,24 @@ export default {
       return caldavConnectors.find(connector => connector.connected) || caldavConnectors[0] || null;
     },
     /**
-     * Whether this section actually knows whether an account is connected.
+     * Whether this section is worth showing at all.
      *
-     * The connectors are enriched with their account asynchronously — the
-     * descriptors come from the extension registry, the accounts from the
-     * user settings — so for a moment there is a CalDAV connector whose
-     * `connected` is merely not resolved yet. Saying "not synced" then is a
-     * claim the section cannot support, and it is read by a user whose
-     * account IS connected as the sync having broken. Until a load pass has
-     * run with the settings in hand, the line stays empty instead: the same
-     * discipline `lastSyncLabel` applies to a time it does not yet know.
+     * It describes one account and the calendars that account materialises,
+     * so with no account connected there is nothing for it to describe: it
+     * offered a connect prompt, and the rows nested under it — calendar
+     * states, hidden calendars, the device setup — spoke about an account
+     * that did not exist. Connecting a first account is offered by the
+     * agenda application itself, where connecting is the task at hand.
      *
-     * @returns {Boolean} true once the account state has been resolved
+     * It also settles what the subtitle used to guess at. The account state
+     * arrives asynchronously, so the section rendered before it knew, and a
+     * user whose account was connected read "not synced" for a moment. Now
+     * the section simply is not there until there is something true to say.
+     *
+     * @returns {Boolean} true when a CalDAV account is connected
      */
-    accountStateKnown() {
-      return this.connectorsRead && !!this.settings;
+    displayed() {
+      return !!this.caldavConnector && !!this.caldavConnector.connected;
     },
     /**
      * Whether a CalDAV connector can be told apart at all. A deployment whose
@@ -207,7 +197,6 @@ export default {
      */
     connectorsLoaded(connectors) {
       this.connectors = connectors;
-      this.connectorsRead = true;
       this.$emit('connectors-loaded', connectors);
       this.retrieveSyncState();
     },
