@@ -22,6 +22,7 @@ import java.util.Collections;
 
 import org.apache.commons.lang3.StringUtils;
 import org.exoplatform.agenda.constant.ReminderPeriodType;
+import org.exoplatform.agenda.model.AgendaConnectorAccount;
 import org.exoplatform.agenda.model.AgendaUserSettings;
 import org.exoplatform.agenda.model.EventReminderParameter;
 import org.exoplatform.agenda.model.RemoteProvider;
@@ -84,6 +85,14 @@ public class AgendaUserSettingsServiceTest extends BaseAgendaEventTest {
     assertEquals(agendaUserSettings.getWorkingTimeStart(), storedAgendaUserSettings.getWorkingTimeStart());
   }
 
+  /**
+   * Connecting stores the account beside the ones already held — one per
+   * provider — rather than overwriting a single pair of fields, and the
+   * legacy fields keep mirroring the first held account for downgrade
+   * safety. A disabled provider still refuses the connection.
+   *
+   * @throws Exception when the remote provider cannot be prepared
+   */
   @Test
   public void testSaveUserConnector() throws Exception { // NOSONAR
     long identityId = 2223l;
@@ -95,8 +104,20 @@ public class AgendaUserSettingsServiceTest extends BaseAgendaEventTest {
     agendaUserSettingsService.saveUserConnector("connectorName", "connectorUserId", identityId);
     AgendaUserSettings agendaUserSettings = agendaUserSettingsService.getAgendaUserSettings(identityId);
 
-    assertEquals("connectorName", agendaUserSettings.getConnectedRemoteProvider());
-    assertEquals("connectorUserId", agendaUserSettings.getConnectedRemoteUserId());
+    AgendaConnectorAccount account = agendaUserSettings.getConnectedConnectors()
+                                                       .stream()
+                                                       .filter(connectedAccount -> "connectorName".equals(connectedAccount.getProviderName()))
+                                                       .findFirst()
+                                                       .orElse(null);
+    assertNotNull(account);
+    assertEquals("connectorUserId", account.getRemoteUserId());
+    // The legacy fields mirror the first held account, whichever provider it
+    // is on, so an older platform reading this blob still sees one coherent
+    // account
+    assertEquals(agendaUserSettings.getConnectedConnectors().get(0).getProviderName(),
+                 agendaUserSettings.getConnectedRemoteProvider());
+    assertEquals(agendaUserSettings.getConnectedConnectors().get(0).getRemoteUserId(),
+                 agendaUserSettings.getConnectedRemoteUserId());
 
     remoteProvider.setEnabled(false);
     agendaRemoteEventService.saveRemoteProvider(remoteProvider);
