@@ -1,6 +1,13 @@
 <template>
   <div v-if="displayed">
     <!--
+      The rule belongs to this section, not to the page: it exists to set
+      other accounts apart from everything above, so it has to appear and
+      disappear with the section itself. Drawn by the page, it survived a
+      deployment with no remote connector enabled as a line under nothing.
+    -->
+    <v-divider class="my-2" />
+    <!--
       The "Remote calendars" section: the additive list of non-CalDAV accounts
       (Google, Office 365). Separate from "Your calendars" above because they
       are different things to the user: those ARE their eXo calendars, these

@@ -2,25 +2,14 @@
   <v-app v-if="displayed">
     <v-card class="application-body" flat>
       <v-list two-line>
-        <template v-for="row in rows">
-          <!--
-            A rule before the rows that start a new subject. The page is one
-            flat list of v-list-items, so without it the last section reads as
-            one more setting about the account above it rather than as a
-            different topic.
-          -->
-          <v-divider
-            v-if="row.separatedFromPrevious"
-            :key="`${row.id}-divider`"
-            class="my-2" />
-          <component
-            :is="row.vueComponent"
-            :key="row.id"
-            :settings="settings"
-            :connectors="connectors"
-            :nested-sections="row.id === 'connector' && nestedCalendarSections || []"
-            @connectors-loaded="connectors = $event" />
-        </template>
+        <component
+          :is="row.vueComponent"
+          v-for="row in rows"
+          :key="row.id"
+          :settings="settings"
+          :connectors="connectors"
+          :nested-sections="row.id === 'connector' && nestedCalendarSections || []"
+          @connectors-loaded="connectors = $event" />
       </v-list>
     </v-card>
     <!--
@@ -51,7 +40,7 @@ const OWN_ROWS = [
   // calendars and what eXo does with them. Other accounts are a different
   // subject, and putting them between the account and its copy switch made
   // that switch read as if it were about them.
-  {id: 'remote-connectors', rank: 50, separatedFromPrevious: true, vueComponent: 'agenda-user-remote-connectors-settings'},
+  {id: 'remote-connectors', rank: 50, vueComponent: 'agenda-user-remote-connectors-settings'},
 ];
 
 /**

@@ -124,10 +124,20 @@ export default {
      * The connector holding the CalDAV account backing My Calendars,
      * recognised by the `isCaldav` constant its descriptor declares.
      *
+     * A deployment declares several CalDAV servers — one embedded, others a
+     * user may choose between — so several CalDAV connectors can be enabled
+     * at once while the user holds an account on exactly one of them. Taking
+     * the first would report on whichever server happens to be registered
+     * first, and tell a user with a working BlueMind account that My
+     * Calendars is not synced. The connected one wins; the first stands in
+     * only when none is connected, so the section still has a row to offer
+     * a connection from.
+     *
      * @returns {Object} the connector, or null while the flag is unknown
      */
     caldavConnector() {
-      return this.enabledConnectors.find(connector => connector.isCaldav === true) || null;
+      const caldavConnectors = this.enabledConnectors.filter(connector => connector.isCaldav === true);
+      return caldavConnectors.find(connector => connector.connected) || caldavConnectors[0] || null;
     },
     /**
      * Whether this section actually knows whether an account is connected.
