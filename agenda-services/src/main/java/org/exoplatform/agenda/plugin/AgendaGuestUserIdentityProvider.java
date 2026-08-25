@@ -16,7 +16,7 @@
  */
 package org.exoplatform.agenda.plugin;
 
-import javax.mail.internet.InternetAddress;
+import jakarta.mail.internet.InternetAddress;
 
 import org.apache.commons.lang3.StringUtils;
 
