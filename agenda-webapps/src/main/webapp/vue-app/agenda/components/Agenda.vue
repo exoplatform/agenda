@@ -33,8 +33,7 @@
               :expanded="displayLeftPanel"
               :connectors="enabledConnectors"
               :settings="settings"
-              :period="period"
-              :show-default-remote-events="settings && settings.showRemoteEventsForAgenda" />
+              :period="period" />
           </v-col>
           <v-col class="agenda-body-column">
             <agenda-body
@@ -158,7 +157,6 @@ export default {
     },
     hasMore: false,
     settingsLoaded: false,
-    remoteEventsLoaded: false,
     // Monotonic token identifying the latest events request: responses of
     // superseded requests are discarded instead of overwriting fresher ones
     eventsRequestId: 0,
@@ -281,10 +279,17 @@ export default {
         this.$root.$emit('agenda-application-loaded');
       }
     },
+    /**
+     * Reloads both event sources when the displayed period moves: the local
+     * store always, the remote accounts when one can answer. Remote events
+     * are no longer gated by a setting: connecting an account is the opt-in,
+     * and the per-calendar checkboxes of the left panel decide what is shown.
+     * @returns {void}
+     */
     period() {
       this.events = [];
       this.retrieveEvents();
-      if (this.settings.showRemoteEventsForAgenda && this.signedInConnector) {
+      if (this.signedInConnector) {
         this.retrieveRemoteEvents();
       }
     },
@@ -303,13 +308,13 @@ export default {
      * Fetches again when the set of accounts able to serve remote events
      * changes — one signing in must add its events, one signing out must take
      * them away — watched as a name list so connector-object mutations do not
-     * refetch for nothing.
+     * refetch for nothing. retrieveRemoteEvents itself empties the remote
+     * events when no account can serve any, which is what takes a signed-out
+     * account's events off the grid.
      * @returns {void}
      */
     signedInConnectorNames() {
-      if (this.settings.showRemoteEventsForAgenda) {
-        this.retrieveRemoteEvents();
-      }
+      this.retrieveRemoteEvents();
     },
     events: {
       handler: 'updateDisplayedEvents',
@@ -321,7 +326,6 @@ export default {
       deep: true
     },
     hiddenPersonalCalendarIds: 'updateDisplayedEvents',
-    'settings.showRemoteEventsForAgenda': 'updateDisplayedEvents'
   },
   created() {
     // Ensure that localStorage doesn't have a deleted event
@@ -349,7 +353,6 @@ export default {
     this.initHiddenPersonalCalendars();
     this.$root.$on('agenda-settings-refresh', this.initSettings);
     this.$root.$on('agenda-event-change-owner', this.refreshProviders);
-    this.$root.$on('agenda-show-remote-change', this.showRemoteEvents);
     this.initSettings();
   },
   methods: {
@@ -380,6 +383,16 @@ export default {
         this.conferenceProviders = null;
       }
     },
+    /**
+     * Rebuilds the displayed events from the two sources in hand: the local
+     * store filtered by the personal-calendar visibility, and the remote
+     * events filtered by the per-calendar checkboxes of the left panel. What
+     * is shown is decided per calendar and nowhere else — the global
+     * show-remote setting this method used to read is retired, connecting an
+     * account being the opt-in.
+     *
+     * @returns {void}
+     */
     updateDisplayedEvents() {
       // Personal per-calendar visibility is applied client-side: the user's
       // personal calendars share one owner identity, so the server-side
@@ -391,7 +404,7 @@ export default {
           || !event.calendar.owner
           || Number(event.calendar.owner.id) !== userIdentityId
           || !this.hiddenPersonalCalendarIds.includes(Number(event.calendar.id)));
-      if (this.settings.showRemoteEventsForAgenda) {
+      if (this.remoteEvents.length) {
         // Avoid to have same event from remote and local store (pushed events from local store)
         const filtered = this.filterRemoteEvents(this.events, this.remoteEvents)
           .filter(remote => !this.hiddenRemoteCalendarIds.includes(remote.calendarId));
@@ -404,15 +417,6 @@ export default {
         this.displayedEvent = merged;
       } else {
         this.displayedEvent = localEvents;
-      }
-    },
-    showRemoteEvents(showRemoteEvents) {
-      if (this.settings.showRemoteEventsForAgenda !== showRemoteEvents){
-        this.settings.showRemoteEventsForAgenda = showRemoteEvents;
-        this.$settingsService.saveUserSettings(this.settings);
-        if (showRemoteEvents && !this.remoteEventsLoaded) {
-          this.retrieveRemoteEvents();
-        }
       }
     },
     retrieveEvents() {
@@ -609,7 +613,6 @@ export default {
           .then(eventsByConnector => {
             this.remoteEvents = this.$agendaUtils.mergeRemoteEvents(eventsByConnector);
             this.loading = false;
-            this.remoteEventsLoaded = true;
           });
       } else {
         this.remoteEvents = [];
