@@ -116,15 +116,55 @@ export default {
     enabledConnectors() {
       return this.connectors && this.connectors.filter(connector => connector.initialized && connector.enabled) || [];
     },
+    /**
+     * The first connected connector, kept as the fallback identity for a
+     * remote event that does not carry its own connector — each fetched event
+     * is tagged with the account it came from, this is only the last resort.
+     *
+     * @returns {Object} the first connected connector, or undefined
+     */
     connectedConnector() {
       return this.connectors && this.connectors.find(connector => connector.connected);
     },
+    /**
+     * Every connected connector: the user may hold one CalDAV account plus
+     * one or more remote accounts at the same time.
+     *
+     * @returns {Array} the connected connectors, possibly empty
+     */
+    connectedConnectors() {
+      return this.connectors && this.connectors.filter(connector => connector.connected) || [];
+    },
+    /**
+     * The connected connectors whose browser session can be asked for remote
+     * events right now.
+     *
+     * @returns {Array} the signed-in connected connectors
+     */
+    signedInConnectors() {
+      return this.connectedConnectors.filter(connector => connector.isSignedIn);
+    },
+    /**
+     * Whether at least one account can serve remote events.
+     *
+     * @returns {Boolean} true when a signed-in connected connector exists
+     */
     signedInConnector() {
-      return this.connectedConnector && this.connectedConnector.isSignedIn;
+      return this.signedInConnectors.length > 0;
+    },
+    /**
+     * The set of accounts to fetch from, as a comparable string, so the
+     * watcher fires when an account joins or leaves rather than on every
+     * mutation of the connector objects.
+     *
+     * @returns {String} the signed-in connector names, joined
+     */
+    signedInConnectorNames() {
+      return this.signedInConnectors.map(connector => connector.name).join(',');
     },
     connectorStatus() {
-      if (this.connectedConnector) {
-        if (this.connectedConnector.isSignedIn) {
+      if (this.connectedConnectors.length) {
+        if (this.signedInConnectors.length) {
           return 1;
         } else {
           return 2;
@@ -165,8 +205,15 @@ export default {
         this.$root.$applicationLoaded();
       }
     },
-    signedInConnector() {
-      if (this.signedInConnector && this.settings.showRemoteEventsForTimeLine) {
+    /**
+     * Fetches again when the set of accounts able to serve remote events
+     * changes — one signing in must add its events, one signing out must take
+     * them away — watched as a name list so connector-object mutations do not
+     * refetch for nothing.
+     * @returns {void}
+     */
+    signedInConnectorNames() {
+      if (this.settings.showRemoteEventsForTimeLine) {
         this.retrieveRemoteEvents();
       }
     },
@@ -326,6 +373,13 @@ export default {
           this.loading = false;
         });
     },
+    /**
+     * Fetches the remote events of every signed-in connected account for the
+     * displayed period and merges them into one deduplicated array, each
+     * event tagged with the account it came from.
+     *
+     * @returns {void}
+     */
     retrieveRemoteEvents() {
       if (this.connectorStatus === 1) {
         const startDateRFC3359 = this.$agendaUtils.toRFC3339(this.period.start, false, true);
@@ -336,22 +390,27 @@ export default {
         }
         const endDateRFC3359 = this.$agendaUtils.toRFC3339(endDate, false, true);
         this.loading = true;
-        this.connectedConnector.getEvents(startDateRFC3359, endDateRFC3359)
-          .then(events => {
-            if (events) {
-              events.forEach(event => {
-                event.startDate = event.start && this.$agendaUtils.toDate(event.start) || null;
-                event.endDate = event.end && this.$agendaUtils.toDate(event.end) || null;
-              });
-            }
-            const remoteEvents = events;
-            this.remoteEvents = remoteEvents && remoteEvents.slice() || [];
+        // Every signed-in account is asked, and each fails on its own: one
+        // unreachable account must not blank the events the others returned
+        Promise.all(this.signedInConnectors.map(connector =>
+          connector.getEvents(startDateRFC3359, endDateRFC3359)
+            .then(events => {
+              if (events) {
+                events.forEach(event => {
+                  event.startDate = event.start && this.$agendaUtils.toDate(event.start) || null;
+                  event.endDate = event.end && this.$agendaUtils.toDate(event.end) || null;
+                });
+              }
+              return {connector, events: events || []};
+            })
+            .catch(error => {
+              console.error('Error retrieving remote events', connector.name, error);
+              return {connector, events: []};
+            })))
+          .then(eventsByConnector => {
+            this.remoteEvents = this.$agendaUtils.mergeRemoteEvents(eventsByConnector);
             this.loading = false;
             this.remoteEventsLoaded = true;
-          }).catch(error => {
-            this.remoteEvents = [];
-            this.loading = false;
-            console.error('Error retrieving remote events', error);
           });
       } else {
         this.remoteEvents = [];

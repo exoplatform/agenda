@@ -108,6 +108,11 @@ public class AgendaUserSettingsServiceImpl implements AgendaUserSettingsService 
     return agendaUserSettings;
   }
 
+  /**
+   * {@inheritDoc} The account is upserted into the user's connected-accounts
+   * list rather than overwriting a single pair of fields, so connecting a
+   * second provider (e.g. Google beside CalDAV) no longer evicts the first.
+   */
   @Override
   public void saveUserConnector(String connectorName, String connectorUserId, long userIdentityId) {
     if (StringUtils.isBlank(connectorName)) {
@@ -132,8 +137,22 @@ public class AgendaUserSettingsServiceImpl implements AgendaUserSettingsService 
       throw new IllegalStateException("Connector " + connectorName + " is not enabled");
     }
 
-    agendaUserSettings.setConnectedRemoteUserId(connectorUserId);
-    agendaUserSettings.setConnectedRemoteProvider(connectorName);
+    agendaUserSettings.addOrUpdateConnectedConnector(connectorName, connectorUserId);
+    saveAgendaUserSettings(userIdentityId, agendaUserSettings);
+  }
+
+  /**
+   * {@inheritDoc} Removes only the given provider's account: disconnecting a
+   * Google account must not take the CalDAV account backing "My Calendars"
+   * with it, and vice versa.
+   */
+  @Override
+  public void removeUserConnector(String connectorName, long userIdentityId) {
+    if (userIdentityId <= 0) {
+      throw new IllegalArgumentException("userIdentityId parameter is mandatory");
+    }
+    AgendaUserSettings agendaUserSettings = getAgendaUserSettings(userIdentityId);
+    agendaUserSettings.removeConnectedConnector(connectorName);
     saveAgendaUserSettings(userIdentityId, agendaUserSettings);
   }
 

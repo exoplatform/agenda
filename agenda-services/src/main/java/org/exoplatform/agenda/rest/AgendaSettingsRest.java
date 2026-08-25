@@ -332,13 +332,23 @@ public class AgendaSettingsRest implements ResourceContainer {
           @ApiResponse(responseCode = "500", description = "Internal server error"),
       }
   )
-  public Response deleteUserConnectorSettings() {
+  /**
+   * Disconnects one connected account, or every account when no connector name
+   * is given. The optional parameter is what lets several accounts coexist: a
+   * caller naming a connector removes only that provider's account, while the
+   * parameterless call keeps the behaviour the endpoint had when a single
+   * account could exist. The removal itself is the service's business, not
+   * this layer's.
+   *
+   * @param connectorName name of the remote provider whose account is
+   *          disconnected, or null/blank to disconnect them all
+   * @return 204 when the account is removed, 500 on failure
+   */
+  public Response deleteUserConnectorSettings(@Parameter(description = "Remote connector name of the account to disconnect; when absent, every connected account is disconnected")
+                                              @QueryParam("connectorName") String connectorName) {
     long identityId = RestUtils.getCurrentUserIdentityId(identityManager);
     try {
-      AgendaUserSettings agendaUserSettings = agendaUserSettingsService.getAgendaUserSettings(identityId);
-      agendaUserSettings.setConnectedRemoteUserId(null);
-      agendaUserSettings.setConnectedRemoteProvider(null);
-      agendaUserSettingsService.saveAgendaUserSettings(identityId, agendaUserSettings);
+      agendaUserSettingsService.removeUserConnector(connectorName, identityId);
       return Response.noContent().build();
     } catch (Exception e) {
       LOG.warn("Error deleting agenda connector settings for user with id '{}'", identityId, e);

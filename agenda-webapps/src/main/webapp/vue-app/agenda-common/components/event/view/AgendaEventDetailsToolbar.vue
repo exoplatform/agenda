@@ -16,8 +16,10 @@
         <!-- the shared connector identity: uploaded image, else the
              admin-chosen font icon, else the packaged avatar — never a
              bare <img> that ignores the configured icon -->
+        <!-- the account the event belongs to, not "the" connected one:
+             several can be connected at once -->
         <agenda-connector-avatar
-          :connector="connectedConnector"
+          :connector="event.connector || connectedConnector"
           class="spaceAvatar my-auto me-3"
           size="32" />
         <div class="flex-grow-0 flex-shrink-0 my-auto">
