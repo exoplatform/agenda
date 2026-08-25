@@ -12,19 +12,19 @@
         <!-- text-color, the class the E-mail rows on this same page use, so
              the section header reads like its siblings. -->
         <v-list-item-title class="text-color">
-          {{ $t('agenda.settings.remoteCalendars') }}
+          {{ $t('agenda.settings.otherAccounts') }}
         </v-list-item-title>
         <v-list-item-subtitle>
-          {{ $t('agenda.settings.remoteCalendarsSubTitle') }}
+          {{ $t('agenda.settings.otherAccountsSubTitle') }}
         </v-list-item-subtitle>
       </v-list-item-content>
       <v-list-item-action>
         <v-btn
-          :aria-label="$t('agenda.settings.remoteCalendarsAdd')"
+          :aria-label="$t('agenda.settings.otherAccountsConnect')"
           class="btn"
           @click="openDrawer">
           <v-icon size="14" class="me-1">fa-plus</v-icon>
-          {{ $t('agenda.settings.remoteCalendarsAdd') }}
+          {{ $t('agenda.settings.otherAccountsConnect') }}
         </v-btn>
       </v-list-item-action>
     </v-list-item>

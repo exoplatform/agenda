@@ -1,10 +1,12 @@
 <template>
   <div>
     <!--
-      The "Your calendars" section: the single CalDAV account backing
-      My Calendars. Remote accounts (Google, Office 365) live in the
-      "Remote calendars" section below — the two are different things to the
-      user: this one IS their eXo calendars, the others are copies beside them.
+      The "My Calendars" section: the single CalDAV account backing the
+      My Calendars group of the agenda's left panel. It is named after what
+      the user already sees every day rather than after the account, and the
+      subtitle states the relationship — synced both ways — instead of
+      leaving "yours" to imply it. Accounts whose calendars stay foreign
+      (Google, Office 365) live in "Calendars from other accounts" below.
     -->
     <v-list-item>
       <v-list-item-content>
@@ -12,15 +14,15 @@
              text-header renders grey and lighter, so the calendar rows read
              as a different kind of setting than the ones above them. -->
         <v-list-item-title class="text-color">
-          {{ $t('agenda.settings.yourCalendars') }}
+          {{ $t('agenda.settings.myCalendars') }}
         </v-list-item-title>
         <v-list-item-subtitle class="d-flex align-center">
           <template v-if="caldavKnown">
             <span v-if="caldavConnector.connected" class="text-truncate">
-              {{ caldavConnector.user }}
+              {{ $t('agenda.settings.myCalendarsSyncedWith', {0: caldavConnector.user}) }}
             </span>
             <span v-else>
-              {{ $t('agenda.settings.yourCalendarsNotConnected') }}
+              {{ $t('agenda.settings.myCalendarsNotConnected') }}
             </span>
           </template>
           <agenda-connector-status v-else :connectors="connectors">
@@ -61,8 +63,8 @@
           <v-icon size="20" class="icon-default-color">fa-sync-alt</v-icon>
         </v-btn>
         <v-btn
-          :aria-label="$t('agenda.settings.yourCalendars')"
-          :title="$t('agenda.settings.yourCalendars')"
+          :aria-label="$t('agenda.settings.myCalendarsManage')"
+          :title="$t('agenda.settings.myCalendarsManage')"
           icon
           @click="openDrawer">
           <v-icon size="20" class="icon-default-color">fa-edit</v-icon>
