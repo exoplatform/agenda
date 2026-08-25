@@ -109,7 +109,7 @@
         <agenda-connector-remote-event-item
           v-else
           :remote-event="eventObj.event"
-          :connector="connectedConnector" />
+          :connector="eventObj.event.connector || connectedConnector" />
       </template>
       <template #day-body="day">
         <div
@@ -203,6 +203,27 @@ export default {
     connectedConnector() {
       return this.connectors.find(connector => connector.connected);
     },
+    /**
+     * The connected connectors whose browser session can be asked for remote
+     * events: several accounts can be connected at once, and this preview
+     * must show what every one of them holds.
+     *
+     * @returns {Array} the signed-in connected connectors
+     */
+    signedInConnectors() {
+      return (this.connectors || [])
+        .filter(connector => connector.connected && connector.isSignedIn);
+    },
+    /**
+     * The set of accounts to fetch from, as a comparable string, so the
+     * watcher fires when an account joins or leaves rather than on every
+     * mutation of the connector objects.
+     *
+     * @returns {String} the signed-in connector names, joined
+     */
+    signedInConnectorNames() {
+      return this.signedInConnectors.map(connector => connector.name).join(',');
+    },
     spaceEventsToDisplay() {
       // Avoid to have same event that we are changing twice
       return this.spaceEvents && this.spaceEvents.filter(event => !this.isSameEvent(event)) || [];
@@ -233,7 +254,12 @@ export default {
         this.adjustEditingEventsZIndex();
       }, 200);
     },
-    connectedConnector() {
+    /**
+     * Fetches again when the set of accounts able to serve remote events
+     * changes, so the preview follows connections and disconnections.
+     * @returns {void}
+     */
+    signedInConnectorNames() {
       this.retrieveRemoteEvents();
     },
   },
@@ -433,29 +459,43 @@ export default {
         return null;
       }
     },
+    /**
+     * Fetches the remote events of every signed-in connected account for the
+     * previewed period and merges them into one deduplicated array, each
+     * event tagged with the account it came from.
+     *
+     * @returns {void}
+     */
     retrieveRemoteEvents() {
-      // The connectedConnector watcher fires as soon as a connector signs in,
-      // which here is usually before the calendar's first @change has built
-      // the period at all, so both bounds are still absent and the read is
-      // rejected by strict connectors (CalDAV). Skipping loses nothing:
+      // The signed-in-connectors watcher fires as soon as a connector signs
+      // in, which here is usually before the calendar's first @change has
+      // built the period at all, so both bounds are still absent and the read
+      // is rejected by strict connectors (CalDAV). Skipping loses nothing:
       // retrieveEvents() calls back once retrievePeriod() has run.
       if (!this.period || !this.period.start || !this.period.end) {
         return;
       }
-      if (this.connectedConnector) {
+      if (this.signedInConnectors.length) {
         const startEventRFC3359 = this.$agendaUtils.toRFC3339(this.period.start, false, true);
         const endEventRFC3359 = this.$agendaUtils.toRFC3339(this.period.end, false, true);
 
         this.loading = true;
-        this.connectedConnector.getEvents(startEventRFC3359, endEventRFC3359)
-          .then(events => {
-            events.forEach(event => {
-              this.$agendaUtils.convertDates(event);
-            });
-            this.remoteEvents = events;
-            this.loading = false;
-          }).catch(error => {
-            console.error('Error retrieving remote events', error);
+        // Every signed-in account is asked, and each fails on its own: one
+        // unreachable account must not blank the events the others returned
+        Promise.all(this.signedInConnectors.map(connector =>
+          connector.getEvents(startEventRFC3359, endEventRFC3359)
+            .then(events => {
+              (events || []).forEach(event => {
+                this.$agendaUtils.convertDates(event);
+              });
+              return {connector, events: events || []};
+            })
+            .catch(error => {
+              console.error('Error retrieving remote events', connector.name, error);
+              return {connector, events: []};
+            })))
+          .then(eventsByConnector => {
+            this.remoteEvents = this.$agendaUtils.mergeRemoteEvents(eventsByConnector);
             this.loading = false;
           })
           .finally(() => this.refreshEventsToDisplay());

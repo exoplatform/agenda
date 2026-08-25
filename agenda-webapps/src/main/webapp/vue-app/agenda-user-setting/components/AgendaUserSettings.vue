@@ -8,9 +8,24 @@
           :key="row.id"
           :settings="settings"
           :connectors="connectors"
-          @connectors-loaded="connectors = $event" />
+          :nested-sections="row.id === 'connector' && nestedCalendarSections || []" />
       </v-list>
     </v-card>
+    <!--
+      The connectors are loaded here, by the page, and not inside any one
+      section: the My Calendars section hides itself when no CalDAV account
+      is connected, and while it owned this the whole page went blank with
+      it — every other section reads the list it never got to load. The
+      shared drawer moved up for the same reason: a drawer that only exists
+      while one section is displayed cannot be the one every part of the
+      page opens.
+    -->
+    <agenda-connectors-drawer :connectors="enabledConnectors" />
+    <agenda-connector
+      :settings="settings"
+      :connectors="connectors"
+      auto-connect
+      @connectors-loaded="connectors = $event" />
     <!--
       The step that creates the calendar receiving the copies. Mounted here
       rather than inside the connector row: connecting from this page used to
@@ -35,7 +50,23 @@ const OWN_ROWS = [
   {id: 'general', rank: 10, vueComponent: 'agenda-user-general-settings'},
   {id: 'connector', rank: 20, vueComponent: 'agenda-user-connector-settings'},
   {id: 'push', rank: 40, vueComponent: 'agenda-user-push-settings'},
+  // Last, and behind a rule: every row above is about the user's own
+  // calendars and what eXo does with them. Other accounts are a different
+  // subject, and putting them between the account and its copy switch made
+  // that switch read as if it were about them.
+  {id: 'remote-connectors', rank: 50, vueComponent: 'agenda-user-remote-connectors-settings'},
 ];
+
+/**
+ * The rank band whose contributed rows render INSIDE the "Your calendars"
+ * section rather than between the page's own rows: the calendar-states (29)
+ * and hidden-calendars (30) rows describe the calendars backing My Calendars,
+ * so they belong under the account that materialises those calendars, above
+ * the "Remote calendars" section that follows at rank 35.
+ */
+const NESTED_CALENDAR_RANK_MIN = 21;
+
+const NESTED_CALENDAR_RANK_MAX = 34;
 
 export default {
   data: () => ({
@@ -52,13 +83,43 @@ export default {
   }),
   computed: {
     /**
+     * The connectors the drawer offers: a disabled one is not connectable.
+     *
+     * @returns {Array} the enabled connectors
+     */
+    enabledConnectors() {
+      return (this.connectors || []).filter(connector => connector.enabled);
+    },
+    /**
      * Every row to render, this page's own and the contributed ones, in rank
      * order.
      *
      * @returns {Array} the rows, each carrying the component to render
      */
     rows() {
-      return OWN_ROWS.concat(this.sections)
+      return OWN_ROWS.concat(this.topLevelSections)
+        .sort((a, b) => (a.rank || 0) - (b.rank || 0));
+    },
+    /**
+     * The contributed rows that stay between the page's own rows: everything
+     * outside the nested calendar band.
+     *
+     * @returns {Array} the rows to render at the top level
+     */
+    topLevelSections() {
+      return this.sections
+        .filter(section => !this.isNestedCalendarSection(section));
+    },
+    /**
+     * The contributed rows that render inside the "Your calendars" section,
+     * in rank order — today the calendar-states and hidden-calendars rows the
+     * CalDAV add-on contributes.
+     *
+     * @returns {Array} the rows the section receives
+     */
+    nestedCalendarSections() {
+      return this.sections
+        .filter(section => this.isNestedCalendarSection(section))
         .sort((a, b) => (a.rank || 0) - (b.rank || 0));
     },
   },
@@ -94,6 +155,17 @@ export default {
     refreshSections() {
       this.sections = (extensionRegistry.loadExtensions('agenda-user-settings', 'sections') || [])
         .filter(section => section.vueComponent);
+    },
+    /**
+     * Whether a contributed row belongs inside the "Your calendars" section
+     * rather than at the top level of the page.
+     *
+     * @param {Object} section the contributed row descriptor
+     * @returns {Boolean} true when its rank falls in the nested band
+     */
+    isNestedCalendarSection(section) {
+      return (section.rank || 0) >= NESTED_CALENDAR_RANK_MIN
+        && (section.rank || 0) <= NESTED_CALENDAR_RANK_MAX;
     },
     initSettings(userSettings) {
       if (userSettings) {

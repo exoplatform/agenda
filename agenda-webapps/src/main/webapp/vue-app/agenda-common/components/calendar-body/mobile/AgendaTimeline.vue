@@ -61,9 +61,11 @@
                       v-else
                       :value="event.endDate"
                       :format="timeFormat" />
+                    <!-- the account the event belongs to, not "the"
+                         connected one: several can be connected at once -->
                     <agenda-connector-avatar
                       v-if="event.type === 'remoteEvent'"
-                      :connector="connectedConnector"
+                      :connector="event.connector || connectedConnector"
                       class="white ms-auto me-1"
                       size="16" />
                   </div>

@@ -77,7 +77,7 @@
       <agenda-connector-remote-event-item
         v-else
         :remote-event="event"
-        :connector="connectedConnector"
+        :connector="event.connector || connectedConnector"
         :style="{borderLeft: `5px solid ${getEventBorderColor(event)}`}" />
       <div
         v-if="timed && canEdit(event)"

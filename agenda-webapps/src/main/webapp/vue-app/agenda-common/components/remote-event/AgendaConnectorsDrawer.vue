@@ -103,23 +103,6 @@
               </v-btn>
             </v-list-item-action>
           </v-list-item>
-          <v-list-item>
-            <v-list-item-content>
-              <div class="d-flex">
-                <span class="my-auto pe-4">
-                  <v-icon
-                    size="16"
-                    class="text-light-color"
-                    depressed>
-                    fa-info-circle
-                  </v-icon>
-                </span>
-                <span class="my-auto me-auto text-subtitle">
-                  {{ $t('agenda.allowedToConnectOnlyOneConnector') }}
-                </span>
-              </div>
-            </v-list-item-content>
-          </v-list-item>
         </v-list>
         <div
           v-else
@@ -143,13 +126,6 @@
       :ok-label="$t('agenda.connectors.disconnect.confirm')"
       :cancel-label="$t('agenda.connectors.disconnect.cancel')"
       @ok="confirmDisconnect" />
-    <exo-confirm-dialog
-      ref="confirmConnectDialog"
-      :title="confirmConnectDialogLabels.title"
-      :message="confirmConnectDialogLabels.message"
-      :ok-label="confirmConnectDialogLabels.ok"
-      :cancel-label="confirmConnectDialogLabels.cancel"
-      @ok="confirmConnect" />
   </div>
 </template>
 
@@ -163,23 +139,32 @@ export default {
   },
   data: () => ({
     connectionInProgress: false,
-    selectedConnector: null,
     syncing: null,
     lastSyncs: {},
     disconnectWarning: '',
     connectorToDisconnect: null,
+    connectorFilter: null,
   }),
   computed: {
+    /**
+     * The connectors this opening of the drawer offers. Beyond the
+     * administrator's enablement, the opener may have asked for one family
+     * only: the settings' "Your calendars" section connects the CalDAV
+     * account backing My Calendars, its "Remote calendars" section adds
+     * accounts on everything else. The flag is the connector descriptor's
+     * declared `isCaldav` constant; a descriptor shipped before the constant
+     * existed simply counts as not CalDAV.
+     *
+     * @returns {Array} the connectors to list
+     */
     enabledConnectors() {
-      return this.connectors && this.connectors.slice().filter(connector => connector.enabled) || [];
-    },
-    confirmConnectDialogLabels() {
-      return {
-        title: this.$t('agenda.agendaConnectors.confirmConnectDialog.title'),
-        message: this.$t('agenda.agendaConnectors.confirmConnectDialog.message'),
-        ok: this.$t('agenda.agendaConnectors.confirmConnectDialog.ok'),
-        cancel: this.$t('agenda.agendaConnectors.confirmConnectDialog.cancel')
-      };
+      const enabledConnectors = this.connectors && this.connectors.slice().filter(connector => connector.enabled) || [];
+      if (this.connectorFilter === 'caldav') {
+        return enabledConnectors.filter(connector => connector.isCaldav === true);
+      } else if (this.connectorFilter === 'remote') {
+        return enabledConnectors.filter(connector => connector.isCaldav !== true);
+      }
+      return enabledConnectors;
     },
   },
   created() {
@@ -290,8 +275,17 @@ export default {
       const translation = this.$t(connector.description);
       return translation === connector.description ? '' : translation;
     },
-    open() {
+    /**
+     * Opens the drawer, optionally scoped to one connector family.
+     *
+     * @param {Object} options when given, `{filter: 'caldav'|'remote'}`
+     *          restricts the rows to that family; absent, every enabled
+     *          connector is offered
+     * @returns {void}
+     */
+    open(options) {
       this.connectionInProgress = false;
+      this.connectorFilter = options && options.filter || null;
       this.$root.$emit('agenda-connectors-init');
       if (this.$refs.agendaConnectorsDrawer) {
         this.$refs.agendaConnectorsDrawer.open();
@@ -302,18 +296,18 @@ export default {
         this.$refs.agendaConnectorsDrawer.close();
       }
     },
+    /**
+     * Connects an account on this connector. No confirmation and no eviction:
+     * accounts are additive now — connecting Google leaves the CalDAV account
+     * standing, and vice versa — so there is no other account to warn about
+     * replacing.
+     *
+     * @param {Object} connector the connector to connect an account on
+     * @returns {void}
+     */
     connect(connector) {
       this.connectionInProgress = true;
-      this.selectedConnector = connector;
-      if (this.enabledConnectors.some(c => c.isSignedIn && c.user)) {
-        this.$refs.confirmConnectDialog.open();
-      }
-      else {
-        this.confirmConnect();
-      }
-    },
-    confirmConnect() {
-      this.$root.$emit('agenda-connector-connect', this.selectedConnector);
+      this.$root.$emit('agenda-connector-connect', connector);
     },
     /**
      * Asks the connector what unlinking it costs, and confirms when it has an

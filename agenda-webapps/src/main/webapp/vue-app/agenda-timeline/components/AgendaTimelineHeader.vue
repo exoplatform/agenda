@@ -153,8 +153,20 @@ export default {
         attendees: [],
       });
     },
+    /**
+     * Opens the shared connectors drawer on the CalDAV connectors alone — the
+     * mobile timeline is the agenda application too, so it makes the same
+     * offer as the desktop connect button: connect the calendars that become
+     * the user's own, and leave remote accounts to the settings section.
+     *
+     * The filter is passed only when a CalDAV connector is recognisable, so a
+     * deployment without one keeps the legacy full list.
+     *
+     * @returns {void}
+     */
     openPersonalCalendarDrawer() {
-      this.$root.$emit('agenda-connectors-drawer-open');
+      const caldavKnown = this.connectors && this.connectors.some(connector => connector.isCaldav === true);
+      this.$root.$emit('agenda-connectors-drawer-open', caldavKnown && {filter: 'caldav'} || null);
     },
     openSeeMoreLink () {
       let url = this.$root.timelineSettings.seeMoreUrl;
