@@ -103,8 +103,21 @@ export default {
   },
 
   methods: {
+    /**
+     * Opens the shared connectors drawer on the CalDAV connectors alone. The
+     * agenda application offers to connect the calendars that become the
+     * user's own; adding a remote account to merely look at is a settings
+     * act, done from the "Remote calendars" section.
+     *
+     * The filter is passed only when a CalDAV connector is recognisable —
+     * without one there is nothing to narrow to, and narrowing anyway would
+     * open an empty drawer instead of the legacy full list.
+     *
+     * @returns {void}
+     */
     openPersonalCalendarDrawer() {
-      this.$root.$emit('agenda-connectors-drawer-open');
+      const caldavKnown = this.connectors && this.connectors.some(connector => connector.isCaldav === true);
+      this.$root.$emit('agenda-connectors-drawer-open', caldavKnown && {filter: 'caldav'} || null);
     },
     showRemoteEvents() {
       this.$root.$emit('agenda-show-remote-change',!this.showDefaultRemoteEvents);

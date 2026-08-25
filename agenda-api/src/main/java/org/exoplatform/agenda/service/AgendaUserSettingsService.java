@@ -26,13 +26,30 @@ public interface AgendaUserSettingsService {
   AgendaUserSettings getAgendaUserSettings(long identityId);
 
   /**
-   * Saves the new connected user settings on remote events provider
-   * 
+   * Saves a connected account on a remote events provider. The account is
+   * upserted per provider: a user may hold several accounts at the same time
+   * (typically one CalDAV account plus one or more remote accounts), at most
+   * one per provider, so connecting a provider that already holds an account
+   * replaces that account's remote user id and leaves the other providers'
+   * accounts untouched.
+   *
    * @param connectorName connector identifier
    * @param connectorUserId user identifier on remote provider
    * @param userIdentityId user social identifier
    */
   void saveUserConnector(String connectorName, String connectorUserId, long userIdentityId);
+
+  /**
+   * Removes a connected account from the user's agenda settings, leaving the
+   * accounts held on other providers untouched. A blank connector name removes
+   * every connected account, which is the behaviour the reset had when only
+   * one account could exist.
+   *
+   * @param connectorName connector identifier of the account to remove, or
+   *          blank to remove them all
+   * @param userIdentityId user social identifier
+   */
+  void removeUserConnector(String connectorName, long userIdentityId);
 
   /**
    * @return {@link List} of {@link EventReminderParameter} that will be used
