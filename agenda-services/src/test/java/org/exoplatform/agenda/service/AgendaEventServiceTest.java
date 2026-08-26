@@ -37,6 +37,7 @@ import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.social.core.identity.model.Identity;
+import org.exoplatform.social.core.identity.model.Profile;
 import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 
 public class AgendaEventServiceTest extends BaseAgendaEventTest {
@@ -3434,6 +3435,154 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     assertEquals(icsStartDate, startDateFormatted);
     assertEquals(icsEndDate, endDateFormatted);
+  }
+
+  /**
+   * Reads the iCalendar document eXo would mail for an event, already unfolded
+   * so a property can be matched whole.
+   *
+   * <p>
+   * RFC 5545 &sect;3.1 lets a writer break any line after 75 octets and
+   * continue it with a leading space, which the eXo writer does: without
+   * unfolding, a DESCRIPTION long enough to be broken cannot be asserted on.
+   *
+   * @param eventDescription description to pass to the generator, HTML as the
+   *          editor would store it
+   * @param userLocale locale the labels are read in
+   * @param eventModifierId identity id to write as ORGANIZER, blank for none
+   * @return the unfolded document
+   */
+  private String generateIcs(String eventDescription, Locale userLocale, String eventModifierId) {
+    ZonedDateTime start = getDate();
+    ZonedDateTime end = start.plusHours(1);
+    byte[] icsContent = generateIcsFile(spaceIdentity.getId(),
+                                        "eventSummary",
+                                        eventDescription,
+                                        AgendaDateUtils.toRFC3339Date(start),
+                                        AgendaDateUtils.toRFC3339Date(end),
+                                        "https://meet.example.com/room",
+                                        eventModifierId,
+                                        "Root Root",
+                                        "location",
+                                        userLocale,
+                                        ZoneId.of("Europe/Paris"));
+    String text = new String(icsContent, StandardCharsets.UTF_8);
+    return text.replace("\r\n ", "").replace("\r\n\t", "").replace("\n ", "").replace("\n\t", "");
+  }
+
+  /**
+   * Reads one property out of an unfolded iCalendar document.
+   *
+   * @param ics unfolded document
+   * @param propertyName property name, without its parameters
+   * @return the whole property line, or null when the document has none
+   */
+  private String icsProperty(String ics, String propertyName) {
+    return Arrays.stream(ics.split("\\R"))
+                 .filter(line -> line.equals(propertyName) || line.startsWith(propertyName + ":")
+                     || line.startsWith(propertyName + ";"))
+                 .findFirst()
+                 .orElse(null);
+  }
+
+  /**
+   * PRODID must carry its value alone: the writer emits the property name
+   * itself, so a value that repeats it puts PRODID:PRODID: on the wire.
+   */
+  @Test
+  public void testIcsFileNamesTheProductOnce() {
+    String ics = generateIcs(null, Locale.ENGLISH, "unknownModifier");
+    String prodId = icsProperty(ics, "PRODID");
+    assertNotNull("the document must name the product that wrote it", prodId);
+    assertFalse("PRODID must not repeat its own property name: " + prodId, prodId.startsWith("PRODID:PRODID:"));
+    assertTrue("PRODID value must be an FPI: " + prodId, prodId.startsWith("PRODID:-//"));
+  }
+
+  /**
+   * The body must declare the same method as the MIME part that carries it,
+   * and that method is PUBLISH: answering is done through the links in the
+   * mail, not through iMIP.
+   */
+  @Test
+  public void testIcsFileDeclaresItsMethodInTheBody() {
+    String ics = generateIcs(null, Locale.ENGLISH, "unknownModifier");
+    assertEquals("METHOD:PUBLISH", icsProperty(ics, "METHOD"));
+  }
+
+  /**
+   * ORGANIZER carries a CAL-ADDRESS, which RFC 5545 &sect;3.3.3 defines as a
+   * URI: a bare mail address has no scheme and is dropped by a client that
+   * validates the value.
+   */
+  @Test
+  public void testIcsFileWritesOrganizerAsAMailtoUri() {
+    Profile profile = testuser1Identity.getProfile();
+    profile.setProperty(Profile.EMAIL, "testuser1@example.com");
+    identityManager.updateProfile(profile);
+
+    String ics = generateIcs(null, Locale.ENGLISH, testuser1Identity.getId());
+    String organizer = icsProperty(ics, "ORGANIZER");
+    assertNotNull("the invitation must say who sent it", organizer);
+    assertTrue("ORGANIZER must be a mailto: URI: " + organizer, organizer.endsWith(":mailto:testuser1@example.com"));
+  }
+
+  /**
+   * DESCRIPTION is plain text by definition; the HTML flavour belongs to
+   * X-ALT-DESC, which must keep carrying it.
+   */
+  @Test
+  public void testIcsFileDescriptionIsPlainTextAndAltDescIsHtml() {
+    String ics = generateIcs("<p>Bring the <b>slides</b>.</p>", Locale.ENGLISH, "unknownModifier");
+
+    String description = icsProperty(ics, "DESCRIPTION");
+    assertNotNull(description);
+    assertFalse("DESCRIPTION must not carry markup: " + description, description.contains("<"));
+    assertFalse("DESCRIPTION must not carry markup: " + description, description.contains("&lt;"));
+    assertTrue("DESCRIPTION must keep the text of the description: " + description,
+               description.contains("Bring the slides."));
+
+    String altDescription = icsProperty(ics, "X-ALT-DESC");
+    assertNotNull("the HTML flavour must still be offered", altDescription);
+    assertTrue("X-ALT-DESC must carry the HTML: " + altDescription, altDescription.contains("<html><body>"));
+    assertTrue("X-ALT-DESC must be typed as HTML: " + altDescription, altDescription.contains("FMTTYPE=text/html"));
+  }
+
+  /**
+   * The space attribution is what the invitation is for: it must survive
+   * DESCRIPTION becoming plain text.
+   */
+  @Test
+  public void testIcsFileStillAttributesTheInvitationToItsSpace() {
+    String ics = generateIcs(null, Locale.ENGLISH, "unknownModifier");
+    String description = icsProperty(ics, "DESCRIPTION");
+    assertNotNull(description);
+    assertTrue("the sender must be named: " + description, description.contains("Root Root"));
+    assertTrue("the space must be named: " + description, description.contains(space.getDisplayName()));
+  }
+
+  /**
+   * A non-ASCII character must reach DESCRIPTION as itself.
+   *
+   * <p>
+   * The HTML flavour runs its content through an entity encoder, so an
+   * accented character becomes &amp;eacute; or &amp;#xe9;, whose semicolon the
+   * iCalendar writer then escapes into \; — the character mangled twice over,
+   * which is what a French recipient was shown. Plain text must be built from
+   * the source values, not by unescaping the HTML one.
+   */
+  @Test
+  public void testIcsFileDescriptionKeepsNonAsciiCharactersIntact() {
+    String ics = generateIcs("<p>Réunion reportée à 20h &amp; suivante</p>", Locale.FRENCH, "unknownModifier");
+
+    String description = icsProperty(ics, "DESCRIPTION");
+    assertNotNull(description);
+    assertTrue("the accented text must reach DESCRIPTION as itself: " + description,
+               description.contains("Réunion reportée à 20h"));
+    assertFalse("DESCRIPTION must carry no HTML entity: " + description, description.contains("&eacute"));
+    assertFalse("DESCRIPTION must carry no HTML entity: " + description, description.contains("&#x"));
+    assertFalse("DESCRIPTION must carry no escaped entity semicolon: " + description, description.contains("\\;"));
+    assertTrue("an escaped ampersand must be decoded, not left as an entity: " + description,
+               description.contains("& suivante"));
   }
 
   /**

@@ -33,6 +33,8 @@ import net.fortuna.ical4j.util.RandomUidGenerator;
 import net.fortuna.ical4j.util.UidGenerator;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
 
 import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.constant.EventStatus;
@@ -102,6 +104,13 @@ public class Utils {
   public static final String            POST_VOTE_AGENDA_EVENT_POLL    = "exo.agenda.event.poll.voted";
 
   public static final String            POST_DISMISS_AGENDA_EVENT_POLL = "exo.agenda.event.poll.dismissed";
+
+  /**
+   * Stands in for a line break while an HTML fragment is being flattened to
+   * text: a control character no editor content can carry, so it survives the
+   * markup being stripped and is swapped back for a real newline afterwards.
+   */
+  private static final String           LINE_BREAK_MARKER              = "\u0001";
 
   private Utils() {
   }
@@ -634,6 +643,32 @@ public class Utils {
     return userIdentity.getProfile() != null && userIdentity.getProfile().getProperty(Profile.EXTERNAL) != null && userIdentity.getProfile().getProperty(Profile.EXTERNAL).equals("true");
   }
 
+  /**
+   * Builds the iCalendar document eXo attaches to the mail that announces an
+   * event.
+   *
+   * <p>
+   * The document is a <code>PUBLISH</code> one, not a <code>REQUEST</code>:
+   * answering an invitation is handled by the tokenised links carried in the
+   * mail body, not by iMIP. {@link Method#PUBLISH} is written into the body so
+   * it says the same thing as the <code>method=PUBLISH</code> parameter the
+   * MIME part already declares, as RFC 6047 asks.
+   *
+   * @param ownerId identifier of the identity owning the event's calendar,
+   *          used to name the space the invitation comes from
+   * @param eventSummary event title, written as <code>SUMMARY</code>
+   * @param eventDescription event description, HTML as the editor stored it
+   * @param startDateRFC3339 event start, RFC 3339
+   * @param endDateRFC3339 event end, RFC 3339
+   * @param eventConference conference URL, blank when the event has none
+   * @param eventModifierId identifier of the identity to write as
+   *          <code>ORGANIZER</code>
+   * @param eventCreatorFullName display name of whoever sent the invitation
+   * @param location event location, blank when the event has none
+   * @param userLocale locale of the recipient, the one the labels are read in
+   * @param timeZone time zone the dates are written in
+   * @return the iCalendar document, UTF-8 encoded
+   */
   public static byte[] generateIcsFile(String ownerId,
                                        String eventSummary,
                                        String eventDescription,
@@ -665,17 +700,24 @@ public class Utils {
     vEvent.getProperties().add(uid);
     /* Create calendar */
     net.fortuna.ical4j.model.Calendar calendar = new net.fortuna.ical4j.model.Calendar();
-    calendar.getProperties().add(new ProdId("PRODID:-//"+ brandingService.getSiteName() + "//" + brandingService.getCompanyName() + "//EN"));
+    // ProdId writes the property name itself: the argument is the value alone,
+    // otherwise the wire carries PRODID:PRODID:-//...
+    calendar.getProperties().add(new ProdId("-//" + brandingService.getSiteName() + "//" + brandingService.getCompanyName() + "//EN"));
     calendar.getProperties().add(Version.VERSION_2_0);
     calendar.getProperties().add(CalScale.GREGORIAN);
+    calendar.getProperties().add(Method.PUBLISH);
     // Explicitly add VTIMEZONE component
     calendar.getComponents().add(ical4jTimezone.getVTimeZone());
 
-    Identity eventOrganozerIdentity = identityManager.getIdentity(eventModifierId);
-    if(eventOrganozerIdentity != null) {
-      Organizer organizer = new Organizer(URI.create(eventOrganozerIdentity.getProfile().getEmail()));
-      organizer.getParameters().add(new Cn(eventOrganozerIdentity.getProfile().getFullName()));
-      vEvent.getProperties().add(organizer);
+    Identity eventOrganizerIdentity = identityManager.getIdentity(eventModifierId);
+    if (eventOrganizerIdentity != null) {
+      String organizerEmail = eventOrganizerIdentity.getProfile() == null ? null
+                                                                         : eventOrganizerIdentity.getProfile().getEmail();
+      if (StringUtils.isNotBlank(organizerEmail)) {
+        Organizer organizer = new Organizer(toCalendarUserAddress(organizerEmail));
+        organizer.getParameters().add(new Cn(eventOrganizerIdentity.getProfile().getFullName()));
+        vEvent.getProperties().add(organizer);
+      }
     }
     if(StringUtils.isNotBlank(location)) {
       vEvent.getProperties().add(new Location(location));
@@ -703,7 +745,13 @@ public class Utils {
     htmlContent = htmlContent + "</body></html>";
     //trim and remove all line breaks
     htmlContent = htmlContent.trim().replace("\n", "");
-    vEvent.getProperties().add(new Description(htmlContent));
+    // DESCRIPTION is plain text by definition; the HTML flavour belongs to
+    // X-ALT-DESC alone, built below from the very same content.
+    vEvent.getProperties().add(new Description(buildIcsPlainTextDescription(userLocale,
+                                                                           eventCreatorFullName,
+                                                                           spaceName,
+                                                                           eventConference,
+                                                                           eventDescription)));
     ParameterList parameters = new ParameterList();
     parameters.add(new net.fortuna.ical4j.model.parameter.XParameter("FMTTYPE", "text/html"));
     XProperty xProperty = new XProperty("X-ALT-DESC", parameters, htmlContent);
@@ -721,6 +769,107 @@ public class Utils {
     }
   }
 
+  /**
+   * Turns a bare mail address into the CAL-ADDRESS URI RFC 5545 &sect;3.3.3
+   * requires for ORGANIZER and ATTENDEE.
+   *
+   * <p>
+   * A bare address is not a URI: it has no scheme, so a client that validates
+   * the value simply drops the property — and with ORGANIZER goes any
+   * attribution of the invitation.
+   *
+   * @param email mail address, already known to be non blank
+   * @return the same address as a <code>mailto:</code> URI, left untouched
+   *         when it already carries that scheme
+   */
+  private static URI toCalendarUserAddress(String email) {
+    String address = email.trim();
+    if (StringUtils.startsWithIgnoreCase(address, "mailto:")) {
+      return URI.create(address);
+    }
+    return URI.create("mailto:" + address);
+  }
+
+  /**
+   * Builds the plain-text flavour of the invitation blurb, the one
+   * <code>DESCRIPTION</code> carries.
+   *
+   * <p>
+   * It is built from the raw labels and values rather than by unescaping the
+   * HTML flavour: the HTML one runs every label through
+   * {@link HTMLEntityEncoder}, so a French label reaches it as
+   * <code>envoy&amp;eacute;e</code>, whose semicolon the iCalendar writer then
+   * escapes again into <code>envoy&amp;eacute\;e</code> — an accented word
+   * mangled twice over. Reading from the source instead means the value is
+   * plain UTF-8 whatever the locale.
+   *
+   * @param userLocale locale the labels are read in
+   * @param eventCreatorFullName display name of whoever sent the invitation
+   * @param spaceName display name of the space the event belongs to
+   * @param eventConference conference URL, blank when the event has none
+   * @param eventDescription event description as HTML, blank when the event
+   *          has none
+   * @return the description as plain text, with real line breaks
+   */
+  private static String buildIcsPlainTextDescription(Locale userLocale,
+                                                     String eventCreatorFullName,
+                                                     String spaceName,
+                                                     String eventConference,
+                                                     String eventDescription) {
+    StringBuilder text = new StringBuilder();
+    text.append(getResourceBundleLabel(userLocale, "agenda.invitationText"))
+        .append(" ")
+        .append(eventCreatorFullName)
+        .append(" ")
+        .append(getResourceBundleLabel(userLocale, "agenda.inSpace"))
+        .append(" ")
+        .append(spaceName)
+        .append(".");
+    if (StringUtils.isNotBlank(eventConference)) {
+      text.append("\n\n")
+          .append(getResourceBundleLabel(userLocale, "agenda.visioLink"))
+          .append(" ")
+          .append(eventConference);
+    }
+    if (StringUtils.isNotBlank(eventDescription)) {
+      text.append("\n\n")
+          .append(getResourceBundleLabel(userLocale, "agenda.eventDetail"))
+          .append("\n")
+          .append(htmlToPlainText(eventDescription));
+    }
+    return text.toString();
+  }
+
+  /**
+   * Renders an HTML fragment as the plain text a calendar client would show.
+   *
+   * <p>
+   * Block boundaries and <code>&lt;br&gt;</code> become real line breaks,
+   * every other tag is dropped and every entity is decoded, so an accented
+   * character written as <code>&amp;eacute;</code> comes back as the character
+   * itself.
+   *
+   * @param html HTML fragment, already known to be non blank
+   * @return the fragment as plain text
+   */
+  private static String htmlToPlainText(String html) {
+    Document document = Jsoup.parseBodyFragment(html);
+    document.outputSettings(new Document.OutputSettings().prettyPrint(false));
+    // Jsoup drops the layout with the markup, so the breaks a reader relies on
+    // are pinned as text nodes before the text is read out.
+    document.select("br").after(LINE_BREAK_MARKER);
+    document.select("p, div, li, tr, h1, h2, h3, h4, h5, h6, blockquote, pre").after(LINE_BREAK_MARKER);
+    String text = document.body().wholeText().replace(LINE_BREAK_MARKER, "\n").replace('\u00A0', ' ');
+    return text.replaceAll("[ \\t]*\\R[ \\t]*", "\n").replaceAll("\n{3,}", "\n\n").trim();
+  }
+
+  /**
+   * Replaces every non-ASCII character by its HTML numeric entity, so an
+   * emoji survives a mail body that is not read as UTF-8.
+   *
+   * @param text text to escape
+   * @return the text with every codepoint above 127 written as an entity
+   */
   public static String escapeEmoticons(String text) {
     return text.codePoints()
             .mapToObj(codePoint -> codePoint > 127 ? "&#x" + Integer.toHexString(codePoint) + ";"
