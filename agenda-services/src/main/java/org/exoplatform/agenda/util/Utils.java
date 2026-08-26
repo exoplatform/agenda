@@ -631,16 +631,46 @@ public class Utils {
    *          default {@link Locale} of the server is used when null
    * @return the HTML content of the confirmation page
    */
+  /**
+   * Escapes a string for insertion into an HTML text node.
+   *
+   * <p>Deliberately not {@code HTMLEntityEncoder}: that encoder escapes ordinary
+   * punctuation as well as markup, so a label reading "Your answer has been
+   * recorded: Accepted" reached the guest as "recorded&#38;#x3a; Accepted". The five
+   * characters below are the ones that can change how a browser parses a text
+   * node; everything else is left as the translator wrote it.</p>
+   *
+   * <p>Escaping is kept rather than dropped even though every value on this page
+   * comes from eXo's own resource bundles: those bundles are translated through
+   * Crowdin, so their content is only as trusted as the translation pipeline.</p>
+   *
+   * <p>Package-private rather than private so the escaping can be pinned directly:
+   * the page itself renders resource-bundle keys under a bare unit test, which
+   * leaves no punctuation in it to assert on.</p>
+   *
+   * @param text the text to escape, may be null
+   * @return the escaped text, or an empty string when the input is null
+   */
+  static String escapeHtmlText(String text) {
+    if (text == null) {
+      return "";
+    }
+    return text.replace("&", "&amp;")
+               .replace("<", "&lt;")
+               .replace(">", "&gt;")
+               .replace("\"", "&quot;")
+               .replace("'", "&#39;");
+  }
+
   public static String buildGuestResponseConfirmationPage(EventAttendeeResponse response, Locale locale) {
     Locale pageLocale = locale == null ? Locale.getDefault() : locale;
-    HTMLEntityEncoder encoder = HTMLEntityEncoder.getInstance();
     String responseLabel = getResourceBundleLabel(pageLocale, getResponseLabelKey(response));
-    String title = encoder.encodeHTML(getResourceBundleLabel(pageLocale, GUEST_RESPONSE_TITLE_LABEL));
+    String title = escapeHtmlText(getResourceBundleLabel(pageLocale, GUEST_RESPONSE_TITLE_LABEL));
     String recorded =
-                    encoder.encodeHTML(MessageFormat.format(getResourceBundleLabel(pageLocale, GUEST_RESPONSE_RECORDED_LABEL),
+                    escapeHtmlText(MessageFormat.format(getResourceBundleLabel(pageLocale, GUEST_RESPONSE_RECORDED_LABEL),
                                                             responseLabel));
-    String hint = encoder.encodeHTML(getResourceBundleLabel(pageLocale, GUEST_RESPONSE_HINT_LABEL));
-    return "<!DOCTYPE html><html lang=\"" + encoder.encodeHTML(pageLocale.getLanguage()) + "\">"
+    String hint = escapeHtmlText(getResourceBundleLabel(pageLocale, GUEST_RESPONSE_HINT_LABEL));
+    return "<!DOCTYPE html><html lang=\"" + escapeHtmlText(pageLocale.getLanguage()) + "\">"
         + "<head><meta charset=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>"
         + "<title>" + title + "</title></head>"
         + "<body style=\"margin:0;padding:40px 20px;background-color:#f5f5f5;"
