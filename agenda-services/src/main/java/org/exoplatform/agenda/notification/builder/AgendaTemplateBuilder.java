@@ -56,6 +56,15 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
 
   private PluginKey                  key;
 
+  /**
+   * Builds the notification content of one agenda event plugin on one channel.
+   *
+   * @param templateProvider provider holding the template paths of the channel
+   * @param container container the platform services are read from
+   * @param key key of the notification plugin this builder serves
+   * @param pushNotification whether the channel is the mobile push one
+   * @param webNotification whether the channel is the in-platform web one
+   */
   public AgendaTemplateBuilder(TemplateProvider templateProvider,
                                ExoContainer container,
                                PluginKey key,
@@ -68,6 +77,12 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
     this.key = key;
   }
 
+  /**
+   * Compiles the Groovy template of this plugin, falling back to an empty
+   * template rather than failing the notification when it cannot be read.
+   *
+   * @return the compiled template, or null when even an empty one fails
+   */
   @Override
   public Template getTemplateEngine() {
     String templatePath = null;
@@ -90,6 +105,15 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
     }
   }
 
+  /**
+   * Builds the message one recipient receives on this channel: its subject,
+   * its rendered body, and — unless the recipient will hold a synced copy of
+   * the same meeting — the {@code event.ics} file.
+   *
+   * @param ctx notification context carrying the notification to render
+   * @return the message, or null when it must not be sent or could not be
+   *         built
+   */
   @Override
   protected MessageInfo makeMessage(NotificationContext ctx) {
     NotificationInfo notification = ctx.getNotificationInfo();
@@ -150,23 +174,33 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
       String location = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_LOCATION);
       Locale userLocale = Locale.of(Utils.getUserLanguage(notification.getTo()));
 
-      Attachment attachment = new Attachment();
-      byte[] icsFileBytes = generateIcsFile(notification.getValueOwnerParameter("eventId"),
-                                       ownerId,
-                                       eventSummary,
-                                       eventDescription,
-                                       startDateRFC3339,
-                                       endDateRFC3339,
-                                       eventConference,
-                                       eventModifierId,
-                                       eventCreator,
-                                       location,
-                                       userLocale,
-                                       timeZone);
-      attachment.setInputStream(new ByteArrayInputStream(icsFileBytes));
-      attachment.setMimeType("text/calendar;charset=utf-8;method=PUBLISH");
-      attachment.setName("event.ics");
-      messageInfo.addAttachment(attachment);
+      // The file is left out for a recipient who will hold a synced copy of
+      // the same meeting: attaching it there is what makes the meeting appear
+      // twice in their calendar. The condition is a prediction and the
+      // reasoning behind it lives on shouldAttachIcsFile. Applied on every
+      // channel, not on mail alone: it is a fact about the recipient, not
+      // about the channel, and the mobile-push and web notifications never
+      // hand a file to a calendar application anyway — MessageInfo carries
+      // its attachments only into the mail Message.
+      if (shouldAttachIcsFile(identityId, agendaUserSettings)) {
+        Attachment attachment = new Attachment();
+        byte[] icsFileBytes = generateIcsFile(notification.getValueOwnerParameter("eventId"),
+                                         ownerId,
+                                         eventSummary,
+                                         eventDescription,
+                                         startDateRFC3339,
+                                         endDateRFC3339,
+                                         eventConference,
+                                         eventModifierId,
+                                         eventCreator,
+                                         location,
+                                         userLocale,
+                                         timeZone);
+        attachment.setInputStream(new ByteArrayInputStream(icsFileBytes));
+        attachment.setMimeType("text/calendar;charset=utf-8;method=PUBLISH");
+        attachment.setName("event.ics");
+        messageInfo.addAttachment(attachment);
+      }
 
 
       Throwable exception = templateContext.getException();
@@ -183,11 +217,26 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
     }
   }
 
+  /**
+   * Agenda notifications have no digest form.
+   *
+   * @param notificationContext notification context, unused
+   * @param writer writer the digest would be rendered into, unused
+   * @return false, always
+   */
   @Override
   protected boolean makeDigest(NotificationContext notificationContext, Writer writer) {
     return false;
   }
 
+  /**
+   * The event a notification is about.
+   *
+   * @param notification notification carrying the event id
+   * @return the event, or null when it no longer exists
+   * @throws IllegalStateException when the notification carries no usable
+   *           event id
+   */
   private final Event getEvent(NotificationInfo notification) {
     String eventIdString = notification.getValueOwnerParameter("eventId");
     if (StringUtils.isBlank(eventIdString)) {
@@ -200,6 +249,14 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
     return getEventService().getEventById(eventId);
   }
 
+  /**
+   * Logs a failure met while rendering, with the whole notification only when
+   * debug is on: the notification is verbose and this is a warning, not an
+   * incident.
+   *
+   * @param notification notification being rendered
+   * @param e the failure, ignored when null
+   */
   private void logException(NotificationInfo notification, Throwable e) {
     if (e != null) {
       if (LOG.isDebugEnabled()) {
@@ -210,6 +267,11 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
     }
   }
 
+  /**
+   * The event service, resolved from the container on first use.
+   *
+   * @return the event service
+   */
   private AgendaEventService getEventService() {
     if (agendaEventService == null) {
       agendaEventService = this.container.getComponentInstanceOfType(AgendaEventService.class);
@@ -217,6 +279,11 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
     return agendaEventService;
   }
 
+  /**
+   * The user settings service, resolved from the container on first use.
+   *
+   * @return the user settings service
+   */
   private AgendaUserSettingsService getAgendaUserSettingsService() {
     if (agendaUserSettingsService == null) {
       agendaUserSettingsService = this.container.getComponentInstanceOfType(AgendaUserSettingsService.class);
@@ -224,6 +291,11 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
     return agendaUserSettingsService;
   }
 
+  /**
+   * The attendee service, resolved from the container on first use.
+   *
+   * @return the attendee service
+   */
   private AgendaEventAttendeeService getAgendaEventAttendeeService() {
     if (agendaEventAttendeeService == null) {
       agendaEventAttendeeService = this.container.getComponentInstanceOfType(AgendaEventAttendeeService.class);
@@ -231,6 +303,11 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
     return agendaEventAttendeeService;
   }
 
+  /**
+   * The identity manager, resolved from the container on first use.
+   *
+   * @return the identity manager
+   */
   private IdentityManager getIdentityManager() {
     if (identityManager == null) {
       identityManager = this.container.getComponentInstanceOfType(IdentityManager.class);
@@ -238,6 +315,11 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
     return identityManager;
   }
 
+  /**
+   * The space service, resolved from the container on first use.
+   *
+   * @return the space service
+   */
   public SpaceService getSpaceService() {
     if (spaceService == null) {
       spaceService = this.container.getComponentInstanceOfType(SpaceService.class);
