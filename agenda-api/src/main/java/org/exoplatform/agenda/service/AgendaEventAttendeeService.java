@@ -123,12 +123,17 @@ public interface AgendaEventAttendeeService {
 
   /**
    * Reads token content and retrieves user Social Identity from email or
-   * username contained in token
+   * username contained in token. An internal attendee is retrieved from the
+   * organization identity provider, an external attendee - a guest invited by
+   * mail address only - is retrieved among the guest attendees of the event.
+   * No identity is ever created by this lookup, so a token carrying a mail
+   * address which attends nothing resolves to null.
    * 
    * @param token encrypted token
    * @param eventId {@link Event} technical identifier
    * @param response {@link EventAttendeeResponse} value for chosen answer
-   * @return {@link Identity} of user
+   * @return {@link Identity} of user, or null when the token designates neither
+   *         an existing internal user nor a guest attendee of the event
    * @throws IllegalAccessException when the token has bad format
    */
   public Identity decryptUserIdentity(long eventId,

@@ -20,6 +20,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.text.MessageFormat;
 import java.time.*;
 import java.util.*;
 import java.util.Date;
@@ -35,6 +36,7 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.constant.AgendaEventModificationType;
+import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.commons.utils.CommonsUtils;
@@ -68,6 +70,12 @@ import org.exoplatform.social.metadata.model.MetadataType;
 public class Utils {
 
   private static final Log              LOG                            = ExoLogger.getLogger(Utils.class);
+
+  private static final String           GUEST_RESPONSE_TITLE_LABEL     = "agenda.guestResponse.title";
+
+  private static final String           GUEST_RESPONSE_RECORDED_LABEL  = "agenda.guestResponse.recorded";
+
+  private static final String           GUEST_RESPONSE_HINT_LABEL      = "agenda.guestResponse.change";
 
   private static class ICal4jTimeZoneRegistryHolder {
     private static final TimeZoneRegistry INSTANCE = TimeZoneRegistryFactory.getInstance().createRegistry();
@@ -607,6 +615,86 @@ public class Utils {
                                   .getString(label);
     } catch (MissingResourceException mre) {
       return label;
+    }
+  }
+
+  /**
+   * Builds the minimal HTML page acknowledging the answer of an external
+   * attendee - a guest invited by mail address, having no account on the
+   * platform. Such an attendee cannot be redirected to the event page of the
+   * portal, which would only display a login form to them, so their answer is
+   * acknowledged by this self contained page instead.
+   *
+   * @param response the {@link EventAttendeeResponse} that has just been
+   *          recorded for the guest attendee
+   * @param locale {@link Locale} used to translate the labels of the page, the
+   *          default {@link Locale} of the server is used when null
+   * @return the HTML content of the confirmation page
+   */
+  /**
+   * Escapes a string for insertion into an HTML text node.
+   *
+   * <p>Deliberately not {@code HTMLEntityEncoder}: that encoder escapes ordinary
+   * punctuation as well as markup, so a label reading "Your answer has been
+   * recorded: Accepted" reached the guest as "recorded&#38;#x3a; Accepted". The five
+   * characters below are the ones that can change how a browser parses a text
+   * node; everything else is left as the translator wrote it.</p>
+   *
+   * <p>Escaping is kept rather than dropped even though every value on this page
+   * comes from eXo's own resource bundles: those bundles are translated through
+   * Crowdin, so their content is only as trusted as the translation pipeline.</p>
+   *
+   * <p>Package-private rather than private so the escaping can be pinned directly:
+   * the page itself renders resource-bundle keys under a bare unit test, which
+   * leaves no punctuation in it to assert on.</p>
+   *
+   * @param text the text to escape, may be null
+   * @return the escaped text, or an empty string when the input is null
+   */
+  static String escapeHtmlText(String text) {
+    if (text == null) {
+      return "";
+    }
+    return text.replace("&", "&amp;")
+               .replace("<", "&lt;")
+               .replace(">", "&gt;")
+               .replace("\"", "&quot;")
+               .replace("'", "&#39;");
+  }
+
+  public static String buildGuestResponseConfirmationPage(EventAttendeeResponse response, Locale locale) {
+    Locale pageLocale = locale == null ? Locale.getDefault() : locale;
+    String responseLabel = getResourceBundleLabel(pageLocale, getResponseLabelKey(response));
+    String title = escapeHtmlText(getResourceBundleLabel(pageLocale, GUEST_RESPONSE_TITLE_LABEL));
+    String recorded =
+                    escapeHtmlText(MessageFormat.format(getResourceBundleLabel(pageLocale, GUEST_RESPONSE_RECORDED_LABEL),
+                                                            responseLabel));
+    String hint = escapeHtmlText(getResourceBundleLabel(pageLocale, GUEST_RESPONSE_HINT_LABEL));
+    return "<!DOCTYPE html><html lang=\"" + escapeHtmlText(pageLocale.getLanguage()) + "\">"
+        + "<head><meta charset=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>"
+        + "<title>" + title + "</title></head>"
+        + "<body style=\"margin:0;padding:40px 20px;background-color:#f5f5f5;"
+        + "font-family:HelveticaNeue,Helvetica,Arial,sans-serif;color:#333333;text-align:center;\">"
+        + "<p style=\"margin:0 0 12px;font-size:18px;font-weight:bold;\">" + recorded + "</p>"
+        + "<p style=\"margin:0;font-size:13px;color:#999999;\">" + hint + "</p>"
+        + "</body></html>";
+  }
+
+  /**
+   * Gives the resource bundle key holding the human readable label of an
+   * invitation answer.
+   *
+   * @param response the {@link EventAttendeeResponse} to label
+   * @return the key of the label inside the <code>locale.portlet.Agenda</code>
+   *         resource bundle
+   */
+  private static String getResponseLabelKey(EventAttendeeResponse response) {
+    if (response == EventAttendeeResponse.ACCEPTED) {
+      return "agenda.accepted";
+    } else if (response == EventAttendeeResponse.DECLINED) {
+      return "agenda.declined";
+    } else {
+      return "agenda.tentative";
     }
   }
 
