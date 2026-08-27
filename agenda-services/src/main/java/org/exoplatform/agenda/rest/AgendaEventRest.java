@@ -1792,7 +1792,8 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       if(eventConferences != null && !eventConferences.isEmpty()) {
         conferenceURL = eventConferences.getFirst().getUrl();
       }
-      byte[] iCSContent = Utils.generateIcsFile(String.valueOf(agendaCalendarService.getCalendarById(event.getCalendarId()).getOwnerId()),
+      byte[] iCSContent = Utils.generateIcsFile(String.valueOf(event.getId()),
+              String.valueOf(agendaCalendarService.getCalendarById(event.getCalendarId()).getOwnerId()),
               event.getSummary(),
               HtmlUtils.transform(event.getDescription(), null),
               AgendaDateUtils.toRFC3339Date(event.getStart()),

@@ -3399,7 +3399,8 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     MessageInfo messageInfo = new MessageInfo();
     Attachment attachment = new Attachment();
 
-    byte[] icsContent = generateIcsFile("ownerId",
+    byte[] icsContent = generateIcsFile("42",
+            "ownerId",
             "eventSummary",
             "eventDescription",
             AgendaDateUtils.toRFC3339Date(start),
