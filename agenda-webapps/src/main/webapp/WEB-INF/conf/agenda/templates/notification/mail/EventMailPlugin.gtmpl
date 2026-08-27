@@ -87,7 +87,7 @@
                                                 </p>
                                                 <br/>
                                                 <%
-                                                if (!org.exoplatform.agenda.constant.AgendaEventModificationType.DELETED.name().equals(modificationType) && !isGuest && !isCreator) { %>
+                                                if (!org.exoplatform.agenda.constant.AgendaEventModificationType.DELETED.name().equals(modificationType) && !isCreator) { %>
                                                 <p style="margin: 0 0 20px;">
                                                     <a target="_blank" style="
                                                         display: inline-block;
@@ -114,10 +114,7 @@
                                                         text-align: center;
                                                         vertical-align: middle;"
                                                         href="<%= declinedResponseURL %>">
-                                                        <%
-                                                         if (!org.exoplatform.agenda.constant.AgendaEventModificationType.DELETED.name().equals(modificationType) && !isCreator) { %>
-                                                          <%= _ctx.appRes("Notification.agenda.event.declined") %>
-                                                        <% } %>
+                                                        <%= _ctx.appRes("Notification.agenda.event.declined") %>
                                                     </a>
 
                                                     <a target="_blank" style="
@@ -131,12 +128,13 @@
                                                         text-align: center;
                                                         vertical-align: middle;"
                                                         href="<%= tentativeResponseURL %>">
-                                                        <%
-                                                        if (!org.exoplatform.agenda.constant.AgendaEventModificationType.DELETED.name().equals(modificationType) && !isCreator) { %>
-                                                          <%= _ctx.appRes("Notification.agenda.event.tentative") %>
-                                                         <% } %>
+                                                        <%= _ctx.appRes("Notification.agenda.event.tentative") %>
                                                     </a>
 
+                                                    <%
+                                                    boolean addedEvent = org.exoplatform.agenda.constant.AgendaEventModificationType.ADDED.name().equals(modificationType);
+                                                    boolean updatedEvent = org.exoplatform.agenda.constant.AgendaEventModificationType.UPDATED.name().equals(modificationType);
+                                                    if (!isGuest && (addedEvent || updatedEvent)) { %>
                                                     &nbsp; &nbsp; &nbsp;
                                                     <a target="_blank" style="
                                                         display: inline-block;
@@ -149,13 +147,13 @@
                                                         text-align: center;
                                                         vertical-align: middle;"
                                                         href="<%= eventURL %>">
-                                                        <%
-                                                        if (org.exoplatform.agenda.constant.AgendaEventModificationType.ADDED.name().equals(modificationType) && !isCreator) { %>
+                                                        <% if (addedEvent) { %>
                                                           <%= _ctx.appRes("Notification.agenda.event.reply") %>
-                                                        <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.UPDATED.name().equals(modificationType)){ %>
+                                                        <% } else { %>
                                                           <%= _ctx.appRes("Notification.agenda.event.view") %>
                                                         <% } %>
                                                     </a>
+                                                    <% } %>
                                                 </p>
                                                <% } %>
                                             </td>
