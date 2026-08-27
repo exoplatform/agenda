@@ -1040,11 +1040,19 @@ public class Utils {
     // X-ALT-DESC alone. Both come from EventIcsBuilder, which is also what the
     // CalDAV copy writes, so the two channels attribute the meeting to its
     // space in the very same words (EXO-89732).
+    // No answer links in this document, deliberately (EXO-89753). They belong
+    // to the calendar copy, whose client may offer no RSVP control of its own;
+    // a mail already carries its Accept and Decline buttons in the body. And
+    // this method serves the ICS download endpoint as well as the mail, so it
+    // has no single recipient a per-person token could be minted for - writing
+    // one here would risk handing one attendee the ability to answer as
+    // another.
     vEvent.getProperties().add(new Description(EventIcsBuilder.description(userLocale,
                                                                           eventCreatorFullName,
                                                                           spaceName,
                                                                           eventConference,
                                                                           eventUrl,
+                                                                          null,
                                                                           eventDescription)));
     String htmlContent = EventIcsBuilder.htmlDescription(userLocale,
                                                          eventCreatorFullName,
