@@ -47,6 +47,7 @@ import org.picocontainer.Startable;
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
+import org.exoplatform.agenda.exception.EventInvitationExpiredException;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.plugin.AgendaGuestUserIdentityProvider;
 import org.exoplatform.agenda.rest.model.*;
@@ -1448,6 +1449,18 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       } else {
         return Response.noContent().build();
       }
+    } catch (EventInvitationExpiredException e) {
+      // Not an incident and not an attack: somebody followed a link in good
+      // faith, after the meeting it answers. Debug, never warn.
+      LOG.debug("Expired invitation link followed for event with id '{}'", eventId, e);
+      if (redirect) {
+        Locale locale = request == null ? null : request.getLocale();
+        return Response.status(Status.UNAUTHORIZED)
+                       .entity(Utils.buildInvitationExpiredPage(locale, NotificationUtils.getEventURL(eventId)))
+                       .type(MediaType.TEXT_HTML)
+                       .build();
+      }
+      return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (ObjectNotFoundException e) {
       return Response.status(Status.NOT_FOUND).entity("Event not found").build();
     } catch (IllegalAccessException e) {
