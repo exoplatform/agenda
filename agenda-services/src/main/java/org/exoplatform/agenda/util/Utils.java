@@ -770,6 +770,7 @@ public class Utils {
     return "agenda-event-" + eventId + "@" + host;
   }
 
+  /**
    * Builds the iCalendar document eXo attaches to the mail that announces an
    * event.
    *
