@@ -18,11 +18,13 @@ package org.exoplatform.agenda.util;
 
 import java.net.URI;
 import java.util.Locale;
+import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 
+import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.commons.utils.HTMLEntityEncoder;
 
 /**
@@ -83,6 +85,24 @@ public final class EventIcsBuilder {
 
   /** Label introducing the event's own description. */
   private static final String EVENT_DETAIL_LABEL    = "agenda.eventDetail";
+
+  /** Label introducing the block of answer links. */
+  private static final String RSVP_PROMPT_LABEL     = "agenda.rsvpPrompt";
+
+  /**
+   * The answers offered in the description, in the order they are written.
+   *
+   * <p>
+   * Fixed rather than derived from the map handed in, and that is not
+   * cosmetic: the description of a calendar copy is compared byte for byte by
+   * the mirror, so an iteration order that varied between renders would rewrite
+   * every copy on every sweep. Accept first, since it is the answer most people
+   * are looking for; Decline last, so a mis-click is the hardest of the three.
+   */
+  private static final EventAttendeeResponse[] RSVP_ORDER =
+                                                          {EventAttendeeResponse.ACCEPTED,
+                                                              EventAttendeeResponse.TENTATIVE,
+                                                              EventAttendeeResponse.DECLINED};
 
   /**
    * Placeholder standing in for a line break while Jsoup is asked for text.
@@ -171,6 +191,10 @@ public final class EventIcsBuilder {
    * @param eventUrl link back to the event in eXo, from {@link #eventUrl};
    *          <b>blank deliberately for a recipient who has no eXo account</b>,
    *          for whom it resolves to a login screen (EXO-89751)
+   * @param rsvpLinks the answer links to offer, keyed by the answer they
+   *          record, <b>built for the one recipient this document is for</b>;
+   *          null or empty for a channel that offers no answer links, which is
+   *          every channel except the calendar copy (EXO-89753)
    * @param eventDescriptionHtml the event's own description, HTML as the editor
    *          stored it, blank when the event has none
    * @return the description as plain text, with real line breaks
@@ -180,6 +204,7 @@ public final class EventIcsBuilder {
                                    String spaceName,
                                    String conferenceUrl,
                                    String eventUrl,
+                                   Map<EventAttendeeResponse, String> rsvpLinks,
                                    String eventDescriptionHtml) {
     StringBuilder text = new StringBuilder();
     text.append(label(userLocale, INVITATION_TEXT_LABEL))
@@ -204,6 +229,7 @@ public final class EventIcsBuilder {
     if (StringUtils.isNotBlank(eventUrl)) {
       text.append("\n\n").append(label(userLocale, EVENT_LINK_LABEL)).append(" ").append(eventUrl);
     }
+    appendRsvpLinks(text, userLocale, rsvpLinks);
     if (StringUtils.isNotBlank(eventDescriptionHtml)) {
       String detail = htmlToPlainText(eventDescriptionHtml);
       if (StringUtils.isNotBlank(detail)) {
@@ -211,6 +237,81 @@ public final class EventIcsBuilder {
       }
     }
     return text.toString();
+  }
+
+  /**
+   * Writes the answer links into the description, one line per answer.
+   *
+   * <p>
+   * <b>Why a description at all, when calendars have RSVP built in.</b> Some
+   * clients will never offer Accept or Decline on the eXo Meetings copy.
+   * BlueMind's web UI is the confirmed case: it renders the RSVP control only
+   * for events in the account's <i>default</i> calendar, and a calendar created
+   * over CalDAV is marked non-default in its code, so <code>exo-meetings</code>
+   * can never show it - established from BlueMind's own source, and not fixable
+   * from our side. A description, on the other hand, is rendered by every
+   * client there is (EXO-89753).
+   *
+   * <p>
+   * <b>Links only. The current answer is deliberately not written here.</b> It
+   * would be stale the moment it was written: eXo rewrites the copy within
+   * seconds of a click (EXO-89715), but the user's client only sees that at its
+   * own refresh - minutes away, or a manual reload. A description stating an
+   * answer the user has just changed reads as the click having failed, and
+   * invites a second click. The answer already has a home the client
+   * understands: <code>PARTSTAT</code> on the attendee line. <b>Actions in the
+   * description, state in PARTSTAT</b> - one fact, one place.
+   *
+   * <p>
+   * <b>These links are one person's.</b> Each carries a token minted for the
+   * recipient whose calendar this copy is being written into, so the caller
+   * must build them from the identity it is pushing for and no other. Writing
+   * one attendee's token into another attendee's copy would hand over the
+   * ability to answer as them.
+   *
+   * @param text the description being built, appended to in place
+   * @param userLocale locale the labels are read in, the platform default when
+   *          null
+   * @param rsvpLinks the answer links keyed by the answer they record, null or
+   *          empty when the channel offers none
+   */
+  private static void appendRsvpLinks(StringBuilder text, Locale userLocale, Map<EventAttendeeResponse, String> rsvpLinks) {
+    if (rsvpLinks == null || rsvpLinks.isEmpty()) {
+      return;
+    }
+    StringBuilder block = new StringBuilder();
+    for (EventAttendeeResponse response : RSVP_ORDER) {
+      String url = rsvpLinks.get(response);
+      if (StringUtils.isNotBlank(url)) {
+        block.append("\n").append(label(userLocale, responseLabelKey(response))).append(" ").append(url);
+      }
+    }
+    // A prompt introducing nothing would be worse than no prompt. The map can
+    // legitimately arrive with no usable link in it: a token is not minted for
+    // an event that carries no date to bound it by (EXO-89752).
+    if (block.length() > 0) {
+      text.append("\n\n").append(label(userLocale, RSVP_PROMPT_LABEL)).append(block);
+    }
+  }
+
+  /**
+   * Gives the resource bundle key naming one answer.
+   *
+   * <p>
+   * The same three keys the confirmation page reads, so the word a person
+   * clicks in their calendar is the word the page tells them was recorded.
+   *
+   * @param response the answer to label
+   * @return the key of its label in the <code>locale.portlet.Agenda</code>
+   *         bundle
+   */
+  private static String responseLabelKey(EventAttendeeResponse response) {
+    if (response == EventAttendeeResponse.ACCEPTED) {
+      return "agenda.accepted";
+    } else if (response == EventAttendeeResponse.DECLINED) {
+      return "agenda.declined";
+    }
+    return "agenda.tentative";
   }
 
   /**
@@ -222,6 +323,15 @@ public final class EventIcsBuilder {
    * show DESCRIPTION. It lives here beside its plain-text twin all the same,
    * because the two are two renderings of one text and separating them is how
    * they drift.
+   *
+   * <p>
+   * <b>It takes no answer links, and that is not an omission.</b> Only the
+   * calendar copy carries them (EXO-89753), for a reason specific to it: its
+   * client may offer no RSVP control of its own. A mail already carries its
+   * Accept and Decline buttons in the body, and the mailed document is a
+   * PUBLISH with no attendees on it. Adding a parameter here that every caller
+   * would pass as null would be a signature saying something the class does
+   * not do.
    *
    * @param userLocale locale the labels are read in; the platform default when
    *          null
