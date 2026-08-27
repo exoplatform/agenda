@@ -49,7 +49,6 @@ import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
 import org.exoplatform.agenda.exception.EventInvitationExpiredException;
 import org.exoplatform.agenda.model.*;
-import org.exoplatform.agenda.plugin.AgendaGuestUserIdentityProvider;
 import org.exoplatform.agenda.rest.model.*;
 import org.exoplatform.agenda.service.*;
 import org.exoplatform.agenda.util.*;
@@ -58,6 +57,7 @@ import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.portal.config.UserPortalConfigService;
+import org.exoplatform.services.security.IdentityConstants;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.rest.resource.ResourceContainer;
@@ -1406,6 +1406,20 @@ public class AgendaEventRest implements ResourceContainer, Startable {
     }
 
     String currentUser = RestUtils.getCurrentUser();
+    // Captured before currentUser is overwritten with whoever the token names:
+    // what matters below is whether the browser carried a session, not who the
+    // answer turned out to belong to.
+    //
+    // A request with no session is NOT blank here. RestUtils.getCurrentUser
+    // reads ConversationState, and the platform binds one to every request,
+    // naming the anonymous identity when nobody is logged in - so a blank
+    // check alone calls every anonymous caller authenticated, and the page
+    // below would never be shown to the one person it exists for. Verified on
+    // a rig 2026-08-27: a cookie-less click returned 303 to the portal, which
+    // is a login form for somebody with no account.
+    boolean authenticatedSession = StringUtils.isNotBlank(currentUser)
+        && !IdentityConstants.ANONIM.equals(currentUser)
+        && !IdentityConstants.SYSTEM.equals(currentUser);
     try {
       Identity identity = null;
       if (StringUtils.isNotBlank(token)) {
@@ -1441,7 +1455,16 @@ public class AgendaEventRest implements ResourceContainer, Startable {
         }
       }
       if (redirect) {
-        if (AgendaGuestUserIdentityProvider.NAME.equals(identity.getProviderId())) {
+        // Who gets the self contained page instead of the redirect: whoever has
+        // no eXo session in the browser they clicked in. Redirecting them lands
+        // them on a login form, which tells them nothing about the answer they
+        // just gave. That was already true of a guest, who has no account at
+        // all (EXO-89705); it is now true of an internal attendee answering
+        // from the description of their calendar copy, on a client whose
+        // browser was never logged into eXo (EXO-89753). Somebody who does have
+        // a session still gets the event page, which shows their answer in
+        // context and is better feedback than any static page.
+        if (!authenticatedSession) {
           Locale locale = request == null ? null : request.getLocale();
           return Response.ok(Utils.buildGuestResponseConfirmationPage(response, locale), MediaType.TEXT_HTML).build();
         }
