@@ -20,6 +20,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.text.MessageFormat;
 import java.time.*;
 import java.util.*;
 import java.util.Date;
@@ -37,6 +38,7 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 
 import org.exoplatform.agenda.constant.AgendaEventModificationType;
+import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.commons.utils.CommonsUtils;
@@ -70,6 +72,12 @@ import org.exoplatform.social.metadata.model.MetadataType;
 public class Utils {
 
   private static final Log              LOG                            = ExoLogger.getLogger(Utils.class);
+
+  private static final String           GUEST_RESPONSE_TITLE_LABEL     = "agenda.guestResponse.title";
+
+  private static final String           GUEST_RESPONSE_RECORDED_LABEL  = "agenda.guestResponse.recorded";
+
+  private static final String           GUEST_RESPONSE_HINT_LABEL      = "agenda.guestResponse.change";
 
   private static class ICal4jTimeZoneRegistryHolder {
     private static final TimeZoneRegistry INSTANCE = TimeZoneRegistryFactory.getInstance().createRegistry();
@@ -620,6 +628,86 @@ public class Utils {
   }
 
   /**
+   * Builds the minimal HTML page acknowledging the answer of an external
+   * attendee - a guest invited by mail address, having no account on the
+   * platform. Such an attendee cannot be redirected to the event page of the
+   * portal, which would only display a login form to them, so their answer is
+   * acknowledged by this self contained page instead.
+   *
+   * @param response the {@link EventAttendeeResponse} that has just been
+   *          recorded for the guest attendee
+   * @param locale {@link Locale} used to translate the labels of the page, the
+   *          default {@link Locale} of the server is used when null
+   * @return the HTML content of the confirmation page
+   */
+  /**
+   * Escapes a string for insertion into an HTML text node.
+   *
+   * <p>Deliberately not {@code HTMLEntityEncoder}: that encoder escapes ordinary
+   * punctuation as well as markup, so a label reading "Your answer has been
+   * recorded: Accepted" reached the guest as "recorded&#38;#x3a; Accepted". The five
+   * characters below are the ones that can change how a browser parses a text
+   * node; everything else is left as the translator wrote it.</p>
+   *
+   * <p>Escaping is kept rather than dropped even though every value on this page
+   * comes from eXo's own resource bundles: those bundles are translated through
+   * Crowdin, so their content is only as trusted as the translation pipeline.</p>
+   *
+   * <p>Package-private rather than private so the escaping can be pinned directly:
+   * the page itself renders resource-bundle keys under a bare unit test, which
+   * leaves no punctuation in it to assert on.</p>
+   *
+   * @param text the text to escape, may be null
+   * @return the escaped text, or an empty string when the input is null
+   */
+  static String escapeHtmlText(String text) {
+    if (text == null) {
+      return "";
+    }
+    return text.replace("&", "&amp;")
+               .replace("<", "&lt;")
+               .replace(">", "&gt;")
+               .replace("\"", "&quot;")
+               .replace("'", "&#39;");
+  }
+
+  public static String buildGuestResponseConfirmationPage(EventAttendeeResponse response, Locale locale) {
+    Locale pageLocale = locale == null ? Locale.getDefault() : locale;
+    String responseLabel = getResourceBundleLabel(pageLocale, getResponseLabelKey(response));
+    String title = escapeHtmlText(getResourceBundleLabel(pageLocale, GUEST_RESPONSE_TITLE_LABEL));
+    String recorded =
+                    escapeHtmlText(MessageFormat.format(getResourceBundleLabel(pageLocale, GUEST_RESPONSE_RECORDED_LABEL),
+                                                            responseLabel));
+    String hint = escapeHtmlText(getResourceBundleLabel(pageLocale, GUEST_RESPONSE_HINT_LABEL));
+    return "<!DOCTYPE html><html lang=\"" + escapeHtmlText(pageLocale.getLanguage()) + "\">"
+        + "<head><meta charset=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>"
+        + "<title>" + title + "</title></head>"
+        + "<body style=\"margin:0;padding:40px 20px;background-color:#f5f5f5;"
+        + "font-family:HelveticaNeue,Helvetica,Arial,sans-serif;color:#333333;text-align:center;\">"
+        + "<p style=\"margin:0 0 12px;font-size:18px;font-weight:bold;\">" + recorded + "</p>"
+        + "<p style=\"margin:0;font-size:13px;color:#999999;\">" + hint + "</p>"
+        + "</body></html>";
+  }
+
+  /**
+   * Gives the resource bundle key holding the human readable label of an
+   * invitation answer.
+   *
+   * @param response the {@link EventAttendeeResponse} to label
+   * @return the key of the label inside the <code>locale.portlet.Agenda</code>
+   *         resource bundle
+   */
+  private static String getResponseLabelKey(EventAttendeeResponse response) {
+    if (response == EventAttendeeResponse.ACCEPTED) {
+      return "agenda.accepted";
+    } else if (response == EventAttendeeResponse.DECLINED) {
+      return "agenda.declined";
+    } else {
+      return "agenda.tentative";
+    }
+  }
+
+  /**
    * Gets platform language of user. In case of any errors return null.
    *
    * @param userId user Id
@@ -644,6 +732,45 @@ public class Utils {
   }
 
   /**
+   * The iCalendar identifier of an event, stable across every mail that
+   * describes it and identical for every recipient.
+   *
+   * <p>
+   * A random identifier was minted on each call, so no calendar client could
+   * tell that two mails were about the same meeting: an update added a second
+   * entry beside the first instead of replacing it, a cancellation matched
+   * nothing to cancel, and two attendees held the same meeting under
+   * different identifiers. RFC 5545 gives UID exactly this job — naming the
+   * event itself — so it is derived from the event rather than invented.
+   *
+   * <p>
+   * The deployment's domain is part of it because the event id alone is only
+   * unique within one platform, and two of them would otherwise mint the same
+   * identifier for their own event 42 — which the recipient of both would see
+   * as one meeting.
+   *
+   * <p>
+   * Note this is deliberately NOT the identifier a user's CalDAV copy carries:
+   * that one is per user (each copy is their own object on their own account),
+   * while an invitation names the meeting and must read the same to everyone.
+   *
+   * @param eventId technical identifier of the event, blank when the caller
+   *          has none
+   * @return the UID to write, falling back to a random one when the event
+   *         cannot be named
+   */
+  private static String icsUid(String eventId) {
+    if (StringUtils.isBlank(eventId)) {
+      // Nothing to be stable about. A random identifier is still a valid one,
+      // and better than an identifier shared by every unnamed event.
+      return new RandomUidGenerator().generateUid().getValue();
+    }
+    String domain = CommonsUtils.getCurrentDomain();
+    String host = StringUtils.isBlank(domain) ? "exo" : domain.replaceFirst("^https?://", "").replaceAll("[/:].*$", "");
+    return "agenda-event-" + eventId + "@" + host;
+  }
+
+  /**
    * Builds the iCalendar document eXo attaches to the mail that announces an
    * event.
    *
@@ -654,6 +781,8 @@ public class Utils {
    * it says the same thing as the <code>method=PUBLISH</code> parameter the
    * MIME part already declares, as RFC 6047 asks.
    *
+   * @param eventId identifier of the event, used to derive a UID that is stable
+   *          across every mail describing this meeting (EXO-89680)
    * @param ownerId identifier of the identity owning the event's calendar,
    *          used to name the space the invitation comes from
    * @param eventSummary event title, written as <code>SUMMARY</code>
@@ -669,8 +798,8 @@ public class Utils {
    * @param timeZone time zone the dates are written in
    * @return the iCalendar document, UTF-8 encoded
    */
-  public static byte[] generateIcsFile(String ownerId,
-                                       String eventSummary,
+  public static byte[] generateIcsFile(String eventId,
+                                       String ownerId,                                       String eventSummary,
                                        String eventDescription,
                                        String startDateRFC3339,
                                        String endDateRFC3339,
@@ -688,9 +817,7 @@ public class Utils {
     Space space = identity!=null ? spaceService.getSpaceByPrettyName(identity.getRemoteId()) : null;
     String spaceName = space == null ? null : space.getDisplayName();
 
-    /* Generate unique identifier */
-    UidGenerator ug = new RandomUidGenerator();
-    Uid uid = ug.generateUid();
+    Uid uid = new Uid(icsUid(eventId));
     ZonedDateTime startDate = ZonedDateTime.parse(startDateRFC3339).withZoneSameInstant(timeZone);
     ZonedDateTime endDate = ZonedDateTime.parse(endDateRFC3339).withZoneSameInstant(timeZone);
     net.fortuna.ical4j.model.TimeZone ical4jTimezone = getICalTimeZone(timeZone);

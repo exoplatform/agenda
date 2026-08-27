@@ -48,6 +48,7 @@ import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
 import org.exoplatform.agenda.model.*;
+import org.exoplatform.agenda.plugin.AgendaGuestUserIdentityProvider;
 import org.exoplatform.agenda.rest.model.*;
 import org.exoplatform.agenda.service.*;
 import org.exoplatform.agenda.util.*;
@@ -1342,12 +1343,15 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       method = "GET")
   @ApiResponses(
       value = {
+          @ApiResponse(responseCode = "200", description = "Request fulfilled, answer acknowledged by an HTML page shown to an external attendee"),
           @ApiResponse(responseCode = "204", description = "Request fulfilled"),
           @ApiResponse(responseCode = "400", description = "Invalid query input"),
           @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
           @ApiResponse(responseCode = "500", description = "Internal server error"), }
   )
   public Response sendEventResponse(
+                                    @Context
+                                    HttpServletRequest request,
                                     @Parameter(description= "Event technical identifier", required = true)
                                     @PathParam(
                                       "eventId"
@@ -1404,13 +1408,13 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       Identity identity = null;
       if (StringUtils.isNotBlank(token)) {
         identity = agendaEventAttendeeService.decryptUserIdentity(eventId, token, response);
-        currentUser = identity.getRemoteId();
       } else if (StringUtils.isNotBlank(currentUser)) {
         identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, currentUser);
       }
       if (identity == null) {
         return Response.status(Status.FORBIDDEN).build();
       }
+      currentUser = identity.getRemoteId();
       long identityId = Long.parseLong(identity.getId());
       if (!agendaEventAttendeeService.isEventAttendee(eventId, identityId)) {
         throw new IllegalAccessException("User " + currentUser + " isn't attendee of event with id " + eventId);
@@ -1435,6 +1439,10 @@ public class AgendaEventRest implements ResourceContainer, Startable {
         }
       }
       if (redirect) {
+        if (AgendaGuestUserIdentityProvider.NAME.equals(identity.getProviderId())) {
+          Locale locale = request == null ? null : request.getLocale();
+          return Response.ok(Utils.buildGuestResponseConfirmationPage(response, locale), MediaType.TEXT_HTML).build();
+        }
         URI location = new URI("/portal/" + this.defaultSite + "/" + AGENDA_APP_URI + "?eventId=" + eventId); // NOSONAR
         return Response.seeOther(location).build();
       } else {
@@ -1792,7 +1800,8 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       if(eventConferences != null && !eventConferences.isEmpty()) {
         conferenceURL = eventConferences.getFirst().getUrl();
       }
-      byte[] iCSContent = Utils.generateIcsFile(String.valueOf(agendaCalendarService.getCalendarById(event.getCalendarId()).getOwnerId()),
+      byte[] iCSContent = Utils.generateIcsFile(String.valueOf(event.getId()),
+              String.valueOf(agendaCalendarService.getCalendarById(event.getCalendarId()).getOwnerId()),
               event.getSummary(),
               HtmlUtils.transform(event.getDescription(), null),
               AgendaDateUtils.toRFC3339Date(event.getStart()),
