@@ -57,6 +57,7 @@ import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.portal.config.UserPortalConfigService;
+import org.exoplatform.services.security.IdentityConstants;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.rest.resource.ResourceContainer;
@@ -1408,7 +1409,17 @@ public class AgendaEventRest implements ResourceContainer, Startable {
     // Captured before currentUser is overwritten with whoever the token names:
     // what matters below is whether the browser carried a session, not who the
     // answer turned out to belong to.
-    boolean authenticatedSession = StringUtils.isNotBlank(currentUser);
+    //
+    // A request with no session is NOT blank here. RestUtils.getCurrentUser
+    // reads ConversationState, and the platform binds one to every request,
+    // naming the anonymous identity when nobody is logged in - so a blank
+    // check alone calls every anonymous caller authenticated, and the page
+    // below would never be shown to the one person it exists for. Verified on
+    // a rig 2026-08-27: a cookie-less click returned 303 to the portal, which
+    // is a login form for somebody with no account.
+    boolean authenticatedSession = StringUtils.isNotBlank(currentUser)
+        && !IdentityConstants.ANONIM.equals(currentUser)
+        && !IdentityConstants.SYSTEM.equals(currentUser);
     try {
       Identity identity = null;
       if (StringUtils.isNotBlank(token)) {
