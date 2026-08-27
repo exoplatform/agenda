@@ -42,6 +42,13 @@ import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 
 public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
+  /** A link back to the event in eXo, of the shape NotificationUtils mints. */
+  private static final String EVENT_LINK      = "http://localhost:8080/portal/dw/agenda?eventId=42";
+
+  /** The video call, which is a different thing and has its own property. */
+  private static final String CONFERENCE_LINK = "https://meet.example.com/room";
+
+
   @Test
   public void testCreateEvent() throws Exception { // NOSONAR
     try {
@@ -3410,6 +3417,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
             "eventModifierId",
             "eventCreator",
             "location",
+            "https://exo.example.com/portal/dw/agenda?eventId=42",
             Locale.getDefault(),
             dstTimeZone);
     attachment.setMimeType("text/calendar;charset=utf-8;method=PUBLISH");
@@ -3454,6 +3462,21 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
    * @return the unfolded document
    */
   private String generateIcs(String eventDescription, Locale userLocale, String eventModifierId) {
+    return generateIcs(eventDescription, userLocale, eventModifierId, EVENT_LINK);
+  }
+
+  /**
+   * The same, choosing what link back to eXo the document is given — null
+   * standing for the guest case, where the caller withholds it.
+   *
+   * @param eventDescription description to pass to the generator, HTML as the
+   *          editor would store it
+   * @param userLocale locale the labels are read in
+   * @param eventModifierId identity id to write as ORGANIZER, blank for none
+   * @param eventUrl link back to the event in eXo, null for a guest
+   * @return the unfolded document
+   */
+  private String generateIcs(String eventDescription, Locale userLocale, String eventModifierId, String eventUrl) {
     ZonedDateTime start = getDate();
     ZonedDateTime end = start.plusHours(1);
     byte[] icsContent = generateIcsFile("42",
@@ -3462,10 +3485,11 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                         eventDescription,
                                         AgendaDateUtils.toRFC3339Date(start),
                                         AgendaDateUtils.toRFC3339Date(end),
-                                        "https://meet.example.com/room",
+                                        CONFERENCE_LINK,
                                         eventModifierId,
                                         "Root Root",
                                         "location",
+                                        eventUrl,
                                         userLocale,
                                         ZoneId.of("Europe/Paris"));
     String text = new String(icsContent, StandardCharsets.UTF_8);
@@ -3585,6 +3609,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                               "unknownModifier",
                                               "Root Root",
                                               "location",
+                                              EVENT_LINK,
                                               Locale.ENGLISH,
                                               ZoneId.of("Europe/Paris"));
     String ics = new String(icsContent, StandardCharsets.UTF_8).replace("\r\n ", "").replace("\n ", "");
@@ -3594,6 +3619,74 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertTrue("the sender must still be named: " + description, description.contains("Root Root"));
     assertFalse("an absent space must not be written as the word null: " + description, description.contains("null"));
     assertFalse("and the clause introducing it must be dropped with it: " + description, description.contains("in space"));
+  }
+
+  /**
+   * URL means "where this event lives" (RFC 5545 &sect;3.8.4.6), so it must
+   * name the event in eXo — not the video call, which is a different thing and
+   * has a property of its own.
+   *
+   * <p>
+   * The mailed document used to set URL from the conference link, which both
+   * said the wrong thing and left the event's own address out of the document
+   * altogether (EXO-89751).
+   */
+  @Test
+  public void testIcsFileUrlIsTheEventAndNotTheConference() {
+    String ics = generateIcs(null, Locale.ENGLISH, "unknownModifier");
+
+    String url = icsProperty(ics, "URL");
+    assertNotNull("the mailed document must say where the event lives", url);
+    assertEquals("URL must be the event in eXo", "URL:" + EVENT_LINK, url);
+    assertFalse("URL must not be the conference link: " + url, url.contains(CONFERENCE_LINK));
+  }
+
+  /**
+   * The link is also written into the description, beside the conference line
+   * already there: many calendar clients never surface URL, and the
+   * description is what a person reads.
+   */
+  @Test
+  public void testIcsFileDescriptionCarriesTheEventLinkBesideTheConferenceOne() {
+    String ics = generateIcs(null, Locale.ENGLISH, "unknownModifier");
+
+    String description = icsProperty(ics, "DESCRIPTION");
+    assertNotNull(description);
+    assertTrue("the description must carry the event link: " + description, description.contains(EVENT_LINK));
+    // The label reads as its key here: no resource bundle is registered in
+    // the test container, and EventIcsBuilder answers the key rather than
+    // failing the push. What is pinned is that the line is introduced by the
+    // agenda.eventLink label at all — the English text of it lives in
+    // Agenda_en.properties.
+    assertTrue("and it must be labelled: " + description, description.contains("agenda.eventLink " + EVENT_LINK));
+    assertTrue("the conference line must still be there: " + description, description.contains(CONFERENCE_LINK));
+
+    String altDescription = icsProperty(ics, "X-ALT-DESC");
+    assertNotNull(altDescription);
+    assertTrue("the HTML flavour must carry it too: " + altDescription, altDescription.contains(EVENT_LINK));
+  }
+
+  /**
+   * A guest has no eXo account, so the link lands them on a login screen. The
+   * mail is the one channel that knows who it is going to, and it withholds
+   * the link there — from URL and from the description alike.
+   */
+  @Test
+  public void testIcsFileWithholdsTheEventLinkFromAGuest() {
+    String ics = generateIcs(null, Locale.ENGLISH, "unknownModifier", null);
+
+    assertNull("a guest's document must carry no URL: " + icsProperty(ics, "URL"), icsProperty(ics, "URL"));
+
+    String description = icsProperty(ics, "DESCRIPTION");
+    assertNotNull(description);
+    assertFalse("nor the labelled line: " + description, description.contains("agenda.eventLink"));
+    assertFalse("nor the link anywhere in it: " + description, description.contains("agenda?eventId="));
+    assertTrue("the conference link is not withheld — a guest can join the call: " + description,
+               description.contains(CONFERENCE_LINK));
+
+    String altDescription = icsProperty(ics, "X-ALT-DESC");
+    assertNotNull(altDescription);
+    assertFalse("nor the HTML flavour of the line: " + altDescription, altDescription.contains("agenda?eventId="));
   }
 
   /**
