@@ -16,9 +16,12 @@
  */
 package org.exoplatform.agenda.notification.builder;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
@@ -255,6 +258,82 @@ public class AgendaTemplateBuilderIcsAttachmentTest extends BaseAgendaEventTest 
     channelId.setValue("MAIL_CHANNEL");
     initParams.addParam(channelId);
     return initParams;
+  }
+
+  /**
+   * An internal recipient's mailed document says where the meeting lives: URL
+   * names the event in eXo, and the description repeats it on a labelled line
+   * because many clients never surface URL (EXO-89751).
+   *
+   * @throws Exception when the notification cannot be built
+   */
+  @Test
+  public void testMailedIcsCarriesTheEventLinkForAnInternalUser() throws Exception {
+    String ics = icsOf(buildMailFor("testuser3"));
+
+    String url = icsProperty(ics, "URL");
+    Assert.assertNotNull("the mailed document must say where the event lives", url);
+    Assert.assertTrue("URL must name the event in eXo: " + url, url.contains("/agenda?eventId="));
+
+    String description = icsProperty(ics, "DESCRIPTION");
+    Assert.assertNotNull(description);
+    Assert.assertTrue("the description must carry the link too: " + description,
+                      description.contains("/agenda?eventId="));
+  }
+
+  /**
+   * A guest has no eXo account, so the link would put them on a login screen.
+   * The mail is the one channel that knows who it is going to, and it leaves
+   * the link out for a guest — from URL and from the description alike.
+   *
+   * <p>
+   * The guest still gets the file itself, and everything else in it: this is
+   * about one link, not about withholding the meeting.
+   *
+   * @throws Exception when the notification cannot be built
+   */
+  @Test
+  public void testMailedIcsWithholdsTheEventLinkFromAGuest() throws Exception {
+    MessageInfo messageInfo = buildMailFor(GUEST_ADDRESS);
+    assertHasIcs(messageInfo);
+    String ics = icsOf(messageInfo);
+
+    Assert.assertNull("a guest's document must carry no URL: " + icsProperty(ics, "URL"), icsProperty(ics, "URL"));
+
+    String description = icsProperty(ics, "DESCRIPTION");
+    Assert.assertNotNull("the guest still gets a described meeting", description);
+    Assert.assertFalse("and no link to a screen they cannot reach: " + description,
+                       description.contains("/agenda?eventId="));
+  }
+
+  /**
+   * Reads the {@code event.ics} part of a message as text, already unfolded so
+   * a property broken over several lines (RFC 5545 &sect;3.1) can be matched
+   * whole.
+   *
+   * @param messageInfo message the mail channel would send
+   * @return the unfolded document
+   * @throws IOException when the attachment cannot be read
+   */
+  private String icsOf(MessageInfo messageInfo) throws IOException {
+    assertHasIcs(messageInfo);
+    String text = new String(messageInfo.getAttachment().get(0).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+    return text.replace("\r\n ", "").replace("\r\n\t", "").replace("\n ", "").replace("\n\t", "");
+  }
+
+  /**
+   * Reads one property out of an unfolded iCalendar document.
+   *
+   * @param ics unfolded document
+   * @param propertyName property name, without its parameters
+   * @return the whole property line, or null when the document has none
+   */
+  private String icsProperty(String ics, String propertyName) {
+    return Arrays.stream(ics.split("\\R"))
+                 .filter(line -> line.equals(propertyName) || line.startsWith(propertyName + ":")
+                     || line.startsWith(propertyName + ";"))
+                 .findFirst()
+                 .orElse(null);
   }
 
   /**
