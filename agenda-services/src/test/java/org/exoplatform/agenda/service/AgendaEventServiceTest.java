@@ -3563,6 +3563,40 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
   }
 
   /**
+   * An event belonging to no space attributes itself to its sender alone.
+   *
+   * <p>
+   * The attribution used to be concatenated unconditionally, so an event on a
+   * personal calendar — whose owner identity resolves to no space — read
+   * "Invitation sent by Root Root in space null". Harmless-looking in a mail
+   * nobody re-reads, and much less so now that the very same sentence is what
+   * the CalDAV copy carries into the user's own calendar (EXO-89732): the
+   * clause is dropped when there is no space to name.
+   */
+  @Test
+  public void testIcsFileNamesNoSpaceWhenTheEventBelongsToNone() {
+    byte[] icsContent = generateIcsFile("42",
+                                              testuser1Identity.getId(),
+                                              "eventSummary",
+                                              null,
+                                              AgendaDateUtils.toRFC3339Date(getDate()),
+                                              AgendaDateUtils.toRFC3339Date(getDate().plusHours(1)),
+                                              null,
+                                              "unknownModifier",
+                                              "Root Root",
+                                              "location",
+                                              Locale.ENGLISH,
+                                              ZoneId.of("Europe/Paris"));
+    String ics = new String(icsContent, StandardCharsets.UTF_8).replace("\r\n ", "").replace("\n ", "");
+
+    String description = icsProperty(ics, "DESCRIPTION");
+    assertNotNull(description);
+    assertTrue("the sender must still be named: " + description, description.contains("Root Root"));
+    assertFalse("an absent space must not be written as the word null: " + description, description.contains("null"));
+    assertFalse("and the clause introducing it must be dropped with it: " + description, description.contains("in space"));
+  }
+
+  /**
    * A non-ASCII character must reach DESCRIPTION as itself.
    *
    * <p>
