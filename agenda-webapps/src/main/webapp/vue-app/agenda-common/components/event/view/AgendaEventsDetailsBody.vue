@@ -83,7 +83,7 @@
             transparent
             class="mb-auto border-box-sizing"
             @click="$refs.reminders.open()">
-            <v-icon size="20" class="icon-default-color pt-2">fas fa-pen</v-icon>
+            <v-icon size="20" class="icon-default-color">fas fa-pen</v-icon>
           </v-btn>
         </div>
         <div v-if="isConferenceEnabled" class="event-conference d-flex flex-grow-0 flex-shrink-1 pb-5">

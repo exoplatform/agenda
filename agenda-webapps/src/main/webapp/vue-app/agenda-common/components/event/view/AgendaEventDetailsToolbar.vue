@@ -7,12 +7,9 @@
       {{ $t('agenda.label.in') }}
     </v-col>
     <v-col class="flex-grow-1 text-truncate flex-shrink-0 d-flex px-0 mx-2">
-      <exo-space-avatar
-        v-if="!isRemoteEvent"
-        :space="ownerProfile"
-        :size="32"
-        popover />
-      <div v-else class="d-flex">
+      <!-- an event fetched live from a connected account holds no eXo
+           calendar at all: it reads as the account it came from -->
+      <div v-if="isRemoteEvent" class="d-flex">
         <!-- the shared connector identity: uploaded image, else the
              admin-chosen font icon, else the packaged avatar — never a
              bare <img> that ignores the configured icon -->
@@ -25,6 +22,28 @@
         <div class="flex-grow-0 flex-shrink-0 my-auto">
           {{ $t('agenda.personalCalendar') }}
         </div>
+      </div>
+      <!-- a space calendar reads as the space owning it: space avatar and
+           space display name, exactly as before -->
+      <exo-space-avatar
+        v-else-if="isSpaceCalendar"
+        :space="ownerSpace"
+        :size="32"
+        popover />
+      <!-- a personal calendar reads as the calendar, not as its owner: a
+           user owns several of them and only their names tell them apart.
+           The owner avatar says whose calendar it is, the label says which
+           one — falling back to the owner name for the unnamed default. -->
+      <div v-else-if="isUserCalendar" class="d-flex text-truncate">
+        <exo-user-avatar
+          :identity="ownerUserProfile"
+          :size="32"
+          avatar
+          popover />
+        <a
+          :href="calendarOwnerLink"
+          :title="ownerDisplayName"
+          class="text-truncate calendar-owner-link my-auto">{{ ownerDisplayName }}</a>
       </div>
     </v-col>
     <v-col class="px-0 flex-grow-1 flex-shrink-0 mx-2">
@@ -118,8 +137,47 @@ export default {
     owner() {
       return this.event && this.event.calendar && this.event.calendar.owner;
     },
+    /**
+     * Whether the calendar holding the event belongs to a space, the only
+     * case an {@code exo-space-avatar} can render: it reads
+     * {@code displayName}, {@code avatarUrl} and {@code prettyName}, none of
+     * which a user profile carries.
+     *
+     * @returns {Boolean} true when the calendar owner is a space
+     */
+    isSpaceCalendar() {
+      return !!this.owner && this.owner.providerId === 'space';
+    },
+    /**
+     * Whether the calendar holding the event belongs to a user — a personal
+     * calendar, be it the implicit default one or one materialised from a
+     * connected CalDAV/Google/O365 account.
+     *
+     * @returns {Boolean} true when the calendar owner is a user
+     */
+    isUserCalendar() {
+      return !!this.owner && this.owner.providerId === 'organization';
+    },
+    /**
+     * The space owning the calendar, when there is one.
+     *
+     * @returns {Object} the space entity, or a falsy value for a personal
+     *          calendar
+     */
+    ownerSpace() {
+      return this.owner && this.owner.space;
+    },
+    /**
+     * The user profile owning the calendar, when there is one.
+     *
+     * @returns {Object} the user profile entity, or a falsy value for a
+     *          space calendar
+     */
+    ownerUserProfile() {
+      return this.owner && this.owner.profile;
+    },
     ownerProfile() {
-      return this.owner && (this.owner.profile || this.owner.space);
+      return this.ownerUserProfile || this.ownerSpace;
     },
     ownerAvatarUrl() {
       return this.ownerProfile && (this.ownerProfile.avatar || this.ownerProfile.avatarUrl);
