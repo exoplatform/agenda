@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.constant.*;
+import org.exoplatform.agenda.exception.EventInvitationExpiredException;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.plugin.AgendaGuestUserIdentityProvider;
 import org.exoplatform.agenda.storage.AgendaEventAttendeeStorage;
@@ -49,7 +50,16 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
 
   private static final Log           LOG       = ExoLogger.getLogger(AgendaEventAttendeeServiceImpl.class);
 
-  private static final String        SEPARATOR = "@@@";
+  private static final String        SEPARATOR            = "@@@";
+
+  /**
+   * Position of the expiry inside a decoded token payload.
+   *
+   * <p>
+   * A payload shorter than this is a token minted before EXO-89752, which
+   * carries no expiry of its own and is bounded against the event instead.
+   */
+  private static final int           EXPIRY_TOKEN_PART    = 3;
 
   private AgendaEventAttendeeStorage attendeeStorage;
 
@@ -284,12 +294,26 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     if (StringUtils.isBlank(emailOrUsername)) {
       throw new IllegalArgumentException("email is mandatory");
     }
+    long expiry = Utils.invitationTokenExpiry(eventStorage.getEventById(eventId));
+    if (expiry <= 0) {
+      // No event, or an event carrying no date at all: there is no meeting to
+      // bound the link by. Minting one anyway would either be a link that never
+      // expires - the defect being fixed - or a link dead on arrival. Neither
+      // belongs in a mail, so no link is offered at all.
+      LOG.warn("No expiry could be derived for event with id '{}', no invitation token is generated", eventId);
+      return null;
+    }
+    // The answer slot is always written, empty when the token carries no
+    // answer, so that the expiry keeps the same position in every token. The
+    // reader below relies on it: a three field payload is a token minted before
+    // EXO-89752, not a four field one with something missing.
     StringBuilder tokenFlatStringBuilder = new StringBuilder().append(String.valueOf(eventId))
                                                               .append(SEPARATOR)
-                                                              .append(emailOrUsername);
-    if (response != null) {
-      tokenFlatStringBuilder.append(SEPARATOR).append(response.getValue());
-    }
+                                                              .append(emailOrUsername)
+                                                              .append(SEPARATOR)
+                                                              .append(response == null ? "" : response.getValue())
+                                                              .append(SEPARATOR)
+                                                              .append(expiry);
     String tokenFlat = tokenFlatStringBuilder.toString();
     try {
       return codecInitializer.getCodec().encode(tokenFlat);
@@ -313,7 +337,9 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       LOG.warn("Error decrypting Token", e);
       return null;
     }
-    String[] tokenParts = tokenFlat.split("\\" + SEPARATOR);
+    // -1 keeps the trailing fields of a token whose answer slot is empty, which
+    // split() would otherwise drop along with the expiry sitting after it.
+    String[] tokenParts = tokenFlat.split("\\" + SEPARATOR, -1);
     if (tokenParts.length < 2) {
       throw new IllegalAccessException("Wrong token format");
     }
@@ -322,13 +348,71 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       throw new IllegalAccessException("Wrong eventId from token");
     }
     if (response != null) {
-      String responseString = tokenParts.length > 2 ? tokenParts[2] : null;
+      String responseString = tokenParts.length > 2 ? StringUtils.defaultIfEmpty(tokenParts[2], null) : null;
       if (!StringUtils.equals(responseString, response.getValue())) {
         throw new IllegalAccessException("Wrong response from token");
       }
     }
+    // Deliberately after the event and answer checks: a token repointed at
+    // another meeting or another answer must still be refused as forged, and
+    // must not be told instead that it merely expired.
+    checkInvitationNotExpired(eventId, tokenParts);
     String emailOrUsername = tokenParts[1];
     return getAttendeeIdentity(eventId, emailOrUsername);
+  }
+
+  /**
+   * Refuses a token whose meeting is over.
+   *
+   * <p>
+   * <b>How tokens minted before EXO-89752 are handled, and why nothing breaks.</b>
+   * Every invitation already delivered carries a payload with no expiry in it.
+   * Rejecting those outright would break the Accept button of every mail ever
+   * sent, and accepting them unchecked would leave the replayable link in place
+   * for exactly the population that already has one - so neither is done.
+   * A payload with no expiry is bounded by asking the event for the bound now,
+   * with {@link Utils#invitationTokenExpiry(Event)}: the same rule, the same
+   * grace, computed instead of read.
+   *
+   * <p>
+   * That is what makes this a fix rather than a migration. There is no
+   * transition window to configure, no flag to remember to turn off, and no
+   * date on which old links stop working in a batch: an old link is answerable
+   * for exactly as long as a new one for the same meeting would be, and every
+   * link - old and new alike - is bounded from the moment this deploys. The
+   * transition ends by itself as the old mails age out.
+   *
+   * <p>
+   * The two are not merely equivalent, and the difference is the reason the
+   * field is in the payload at all: a stored expiry pins the bound as it stood
+   * when the invitation was issued, so a link cannot be quietly extended by
+   * moving the meeting later, whereas a derived one follows the event.
+   *
+   * @param eventId technical identifier of the {@link Event} being answered,
+   *          already checked against the token
+   * @param tokenParts the decoded payload, split on the separator
+   * @throws EventInvitationExpiredException when the meeting is far enough past
+   *           that the link is no longer honoured, or when no bound can be
+   *           established at all
+   */
+  private void checkInvitationNotExpired(long eventId, String[] tokenParts) throws EventInvitationExpiredException {
+    long expiry = 0;
+    if (tokenParts.length > EXPIRY_TOKEN_PART && StringUtils.isNotBlank(tokenParts[EXPIRY_TOKEN_PART])) {
+      try {
+        expiry = Long.parseLong(tokenParts[EXPIRY_TOKEN_PART]);
+      } catch (NumberFormatException e) {
+        // A payload that decoded cleanly cannot have a corrupt expiry unless it
+        // was forged. Leaving it at 0 refuses it below.
+        LOG.debug("Unparsable expiry in the invitation token of event with id '{}'", eventId, e);
+      }
+    } else {
+      expiry = Utils.invitationTokenExpiry(eventStorage.getEventById(eventId));
+    }
+    long now = ZonedDateTime.now().toEpochSecond();
+    if (expiry <= 0 || now > expiry) {
+      throw new EventInvitationExpiredException("Invitation token for event with id '" + eventId + "' expired at '" + expiry
+          + "', current time is '" + now + "'");
+    }
   }
 
   /**

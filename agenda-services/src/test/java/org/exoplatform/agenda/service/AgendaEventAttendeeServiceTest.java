@@ -27,11 +27,13 @@ import java.util.List;
 import org.junit.Test;
 
 import org.exoplatform.agenda.constant.*;
+import org.exoplatform.agenda.exception.EventInvitationExpiredException;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.plugin.AgendaGuestUserIdentityProvider;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.storage.api.IdentityStorage;
+import org.exoplatform.web.security.codec.CodecInitializer;
 
 public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
 
@@ -251,6 +253,181 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
                identityStorage.findIdentity(AgendaGuestUserIdentityProvider.NAME, strangerEmail));
     assertNull("resolving the token must not create an organization identity",
                identityStorage.findIdentity("organization", strangerEmail));
+  }
+
+  /**
+   * A link for a meeting still to come is honoured, and the same link for a
+   * meeting already over is not.
+   *
+   * <p>
+   * The two halves are one test on purpose: asserting only the refusal would
+   * pass just as well against a decrypt that refused everything.
+   */
+  @Test
+  public void testInvitationTokenExpiresWithItsEvent() throws Exception { // NOSONAR
+    Event futureEvent = createNonRecurringEvent(ZonedDateTime.now().plusDays(1).withNano(0));
+    String liveToken = agendaEventAttendeeService.generateEncryptedToken(futureEvent.getId(),
+                                                                        testuser5Identity.getRemoteId(),
+                                                                        EventAttendeeResponse.ACCEPTED);
+    assertNotNull("a meeting still to come must produce a token", liveToken);
+    assertNotNull("and that token must resolve to its attendee",
+                  agendaEventAttendeeService.decryptUserIdentity(futureEvent.getId(),
+                                                                 liveToken,
+                                                                 EventAttendeeResponse.ACCEPTED));
+
+    Event pastEvent = createNonRecurringEvent(ZonedDateTime.now().minusDays(10).withNano(0));
+    String staleToken = agendaEventAttendeeService.generateEncryptedToken(pastEvent.getId(),
+                                                                         testuser5Identity.getRemoteId(),
+                                                                         EventAttendeeResponse.ACCEPTED);
+    assertNotNull(staleToken);
+    try {
+      agendaEventAttendeeService.decryptUserIdentity(pastEvent.getId(), staleToken, EventAttendeeResponse.ACCEPTED);
+      fail("a token for a meeting that is over must not resolve to anybody");
+    } catch (EventInvitationExpiredException e) {
+      // Expected: the link outlived its meeting.
+    }
+  }
+
+  /**
+   * The checks that were already there still refuse what they always refused.
+   *
+   * <p>
+   * A regression pin rather than a new assertion: adding an expiry must not make
+   * the event and answer checks any weaker, and in particular a token repointed
+   * at another meeting or another answer must still be refused as forged - not
+   * quietly reclassified as merely expired.
+   */
+  @Test
+  public void testExpiryDoesNotWeakenTheEventAndAnswerChecks() throws Exception { // NOSONAR
+    ZonedDateTime start = ZonedDateTime.now().plusDays(1).withNano(0);
+    Event event = createNonRecurringEvent(start);
+    Event otherEvent = createNonRecurringEvent(start.plusHours(2));
+
+    String token = agendaEventAttendeeService.generateEncryptedToken(event.getId(),
+                                                                     testuser5Identity.getRemoteId(),
+                                                                     EventAttendeeResponse.ACCEPTED);
+    assertNotNull(token);
+
+    try {
+      agendaEventAttendeeService.decryptUserIdentity(otherEvent.getId(), token, EventAttendeeResponse.ACCEPTED);
+      fail("a token minted for one meeting must not answer another");
+    } catch (EventInvitationExpiredException e) {
+      fail("a repointed token must be refused as forged, not reported as expired");
+    } catch (IllegalAccessException e) {
+      // Expected: wrong event.
+    }
+
+    try {
+      agendaEventAttendeeService.decryptUserIdentity(event.getId(), token, EventAttendeeResponse.DECLINED);
+      fail("a token minted for one answer must not record another");
+    } catch (EventInvitationExpiredException e) {
+      fail("a repointed token must be refused as forged, not reported as expired");
+    } catch (IllegalAccessException e) {
+      // Expected: wrong answer.
+    }
+  }
+
+  /**
+   * A token minted before EXO-89752 keeps working while its meeting is live, and
+   * stops working once it is over.
+   *
+   * <p>
+   * This is the decision the fix rests on. Every invitation already delivered
+   * carries a three field payload with no expiry in it. Refusing those outright
+   * would break the Accept button of every mail ever sent; honouring them
+   * unchecked would leave the replayable link in place for precisely the
+   * population that already holds one. Instead the bound is computed from the
+   * event at decrypt time, so an old link lives exactly as long as a new one for
+   * the same meeting would - no transition window, no flag to turn off, and no
+   * date on which old links stop working in a batch.
+   */
+  @Test
+  public void testLegacyTokenWithNoExpiryIsBoundedByItsEventAllTheSame() throws Exception { // NOSONAR
+    Event futureEvent = createNonRecurringEvent(ZonedDateTime.now().plusDays(1).withNano(0));
+    Identity resolved = agendaEventAttendeeService.decryptUserIdentity(futureEvent.getId(),
+                                                                      legacyToken(futureEvent.getId(),
+                                                                                  testuser5Identity.getRemoteId(),
+                                                                                  EventAttendeeResponse.ACCEPTED),
+                                                                      EventAttendeeResponse.ACCEPTED);
+    assertNotNull("an invitation already in somebody's mailbox must keep working while its meeting is live", resolved);
+    assertEquals(testuser5Identity.getId(), resolved.getId());
+
+    Event pastEvent = createNonRecurringEvent(ZonedDateTime.now().minusDays(10).withNano(0));
+    try {
+      agendaEventAttendeeService.decryptUserIdentity(pastEvent.getId(),
+                                                     legacyToken(pastEvent.getId(),
+                                                                 testuser5Identity.getRemoteId(),
+                                                                 EventAttendeeResponse.ACCEPTED),
+                                                     EventAttendeeResponse.ACCEPTED);
+      fail("an old token is bounded by its event too, or the fix leaves the replayable link in place");
+    } catch (EventInvitationExpiredException e) {
+      // Expected: the old link is bounded by the same rule, computed instead of
+      // read.
+    }
+  }
+
+  /**
+   * The same event and answer always mint the same token.
+   *
+   * <p>
+   * Pinned here because the calendar copy carries these links in its
+   * DESCRIPTION and the mirror rewrites any copy whose description changed
+   * (EXO-89753). A token that varied between renders would put every copy into
+   * permanent churn.
+   */
+  @Test
+  public void testTokenIsByteStableAcrossRenders() throws Exception { // NOSONAR
+    Event event = createNonRecurringEvent(ZonedDateTime.now().plusDays(1).withNano(0));
+
+    String first = agendaEventAttendeeService.generateEncryptedToken(event.getId(),
+                                                                     testuser5Identity.getRemoteId(),
+                                                                     EventAttendeeResponse.ACCEPTED);
+    String second = agendaEventAttendeeService.generateEncryptedToken(event.getId(),
+                                                                      testuser5Identity.getRemoteId(),
+                                                                      EventAttendeeResponse.ACCEPTED);
+
+    assertNotNull(first);
+    assertEquals("two renders of the same invitation must produce the very same token", first, second);
+  }
+
+  /**
+   * Creates a plain one-off event, attended by testuser5, over a one hour slot.
+   *
+   * <p>
+   * The shared factory builds a recurring, all-day event, whose bound is the
+   * series end and whose all-day widening pushes it further still. Neither helps
+   * when the point is to place a meeting precisely before or after now.
+   *
+   * @param start when the meeting starts
+   * @return the created {@link Event}, as stored
+   * @throws Exception when the event cannot be created
+   */
+  private Event createNonRecurringEvent(ZonedDateTime start) throws Exception { // NOSONAR
+    Event event = newEventInstance(start, start.plusHours(1), false);
+    event.setRecurrence(null);
+    event.setStatus(EventStatus.CONFIRMED);
+    return createEvent(event.clone(), Long.parseLong(testuser1Identity.getId()), testuser1Identity, testuser5Identity);
+  }
+
+  /**
+   * Mints a token in the shape used before EXO-89752 - three fields, no expiry -
+   * by encoding the payload with the platform codec directly.
+   *
+   * <p>
+   * Built by hand rather than by calling the service, because the service is
+   * exactly the thing that no longer produces this shape. It is the only way to
+   * test against an invitation that is already in somebody's mailbox.
+   *
+   * @param eventId technical identifier of the event the token answers
+   * @param emailOrUsername identifier of the attendee, as the old payload
+   *          carried it
+   * @param response the answer the link records
+   * @return the encoded legacy token
+   * @throws Exception when the platform codec cannot be obtained
+   */
+  private String legacyToken(long eventId, String emailOrUsername, EventAttendeeResponse response) throws Exception { // NOSONAR
+    CodecInitializer codecInitializer = container.getComponentInstanceOfType(CodecInitializer.class);
+    return codecInitializer.getCodec().encode(eventId + "@@@" + emailOrUsername + "@@@" + response.getValue());
   }
 
   @Test

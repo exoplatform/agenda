@@ -76,6 +76,31 @@ public class Utils {
 
   private static final String           GUEST_RESPONSE_HINT_LABEL      = "agenda.guestResponse.change";
 
+  /** Browser title of the page shown for an invitation link that has lapsed. */
+  private static final String           INVITATION_EXPIRED_TITLE_LABEL   = "agenda.invitationExpired.title";
+
+  /** Headline telling the reader the invitation can no longer be answered. */
+  private static final String           INVITATION_EXPIRED_MESSAGE_LABEL = "agenda.invitationExpired.message";
+
+  /** Secondary line explaining that the meeting is over. */
+  private static final String           INVITATION_EXPIRED_HINT_LABEL    = "agenda.invitationExpired.hint";
+
+  /** Wording of the anchor offering a way into eXo. */
+  private static final String           INVITATION_EXPIRED_LINK_LABEL    = "agenda.invitationExpired.link";
+
+  /**
+   * How long a tokenised invitation link outlives the meeting it answers.
+   *
+   * <p>
+   * A constant rather than a configuration property, deliberately. The value
+   * ends up inside the token of every invitation mail <b>and</b> inside the
+   * DESCRIPTION of every calendar copy, where a byte of difference is a
+   * rewrite; a per deployment - or worse, per node - setting would be one more
+   * way for two renders of the same event to disagree, for a tuning nobody has
+   * asked for. See {@link #invitationTokenExpiry(Event)} for why a day.
+   */
+  private static final int              INVITATION_TOKEN_GRACE_HOURS     = 24;
+
   private static class ICal4jTimeZoneRegistryHolder {
     private static final TimeZoneRegistry INSTANCE = TimeZoneRegistryFactory.getInstance().createRegistry();
   }
@@ -618,19 +643,6 @@ public class Utils {
   }
 
   /**
-   * Builds the minimal HTML page acknowledging the answer of an external
-   * attendee - a guest invited by mail address, having no account on the
-   * platform. Such an attendee cannot be redirected to the event page of the
-   * portal, which would only display a login form to them, so their answer is
-   * acknowledged by this self contained page instead.
-   *
-   * @param response the {@link EventAttendeeResponse} that has just been
-   *          recorded for the guest attendee
-   * @param locale {@link Locale} used to translate the labels of the page, the
-   *          default {@link Locale} of the server is used when null
-   * @return the HTML content of the confirmation page
-   */
-  /**
    * Escapes a string for insertion into an HTML text node.
    *
    * <p>Deliberately not {@code HTMLEntityEncoder}: that encoder escapes ordinary
@@ -661,22 +673,187 @@ public class Utils {
                .replace("'", "&#39;");
   }
 
+  /**
+   * Builds the minimal HTML page acknowledging an answer given through a
+   * tokenised invitation link, naming the answer that was recorded.
+   *
+   * <p>
+   * It was introduced for an external attendee - a guest invited by mail
+   * address, having no account on the platform - who cannot be redirected to
+   * the event page of the portal, which would only display a login form to
+   * them (EXO-89705). Since EXO-89753 it serves a second reader with the same
+   * problem for a different reason: somebody answering from the description of
+   * their calendar copy, on a client which renders no RSVP control of its own.
+   * That reader gets no feedback whatsoever from the client they clicked in, so
+   * <b>the page has to say what was recorded, not merely that something was</b>
+   * - which is why the answer is named in the sentence rather than implied by
+   * the page having loaded at all.
+   *
+   * @param response the {@link EventAttendeeResponse} that has just been
+   *          recorded for the attendee
+   * @param locale {@link Locale} used to translate the labels of the page, the
+   *          default {@link Locale} of the server is used when null
+   * @return the HTML content of the confirmation page
+   */
   public static String buildGuestResponseConfirmationPage(EventAttendeeResponse response, Locale locale) {
     Locale pageLocale = locale == null ? Locale.getDefault() : locale;
     String responseLabel = getResourceBundleLabel(pageLocale, getResponseLabelKey(response));
-    String title = escapeHtmlText(getResourceBundleLabel(pageLocale, GUEST_RESPONSE_TITLE_LABEL));
     String recorded =
                     escapeHtmlText(MessageFormat.format(getResourceBundleLabel(pageLocale, GUEST_RESPONSE_RECORDED_LABEL),
                                                             responseLabel));
     String hint = escapeHtmlText(getResourceBundleLabel(pageLocale, GUEST_RESPONSE_HINT_LABEL));
+    return buildStandaloneAnswerPage(pageLocale, GUEST_RESPONSE_TITLE_LABEL, recorded, hint, null);
+  }
+
+  /**
+   * Builds the page shown to somebody who follows an invitation link whose
+   * meeting is over.
+   *
+   * <p>
+   * The alternative was to let the refusal fall through as a bare 401, which
+   * tells its reader nothing at all: they clicked an Accept button in an
+   * invitation and got a blank error, with no way to tell whether they had
+   * answered, whether the link was broken, or whether they were looking at a
+   * fault of their own. This is the same self contained surface the
+   * confirmation above uses, saying instead that the invitation can no longer
+   * be answered here - and carrying a way into eXo, where the meeting can
+   * still be looked at and, if it has not happened yet, still be answered.
+   *
+   * <p>
+   * The link is offered rather than followed. Redirecting a guest, who has no
+   * account, would land them on a login form - the exact outcome EXO-89705
+   * built this page to avoid.
+   *
+   * @param locale {@link Locale} used to translate the labels of the page, the
+   *          default {@link Locale} of the server is used when null
+   * @param eventUrl absolute address of the event inside eXo, blank when the
+   *          portal cannot be asked for one, in which case the page simply
+   *          carries no link
+   * @return the HTML content of the expired invitation page
+   */
+  public static String buildInvitationExpiredPage(Locale locale, String eventUrl) {
+    Locale pageLocale = locale == null ? Locale.getDefault() : locale;
+    String message = escapeHtmlText(getResourceBundleLabel(pageLocale, INVITATION_EXPIRED_MESSAGE_LABEL));
+    String hint = escapeHtmlText(getResourceBundleLabel(pageLocale, INVITATION_EXPIRED_HINT_LABEL));
+    String linkLabel = escapeHtmlText(getResourceBundleLabel(pageLocale, INVITATION_EXPIRED_LINK_LABEL));
+    String link = null;
+    if (StringUtils.isNotBlank(eventUrl)) {
+      link = "<a href=\"" + escapeHtmlText(eventUrl) + "\" style=\"color:#476a9c;\">" + linkLabel + "</a>";
+    }
+    return buildStandaloneAnswerPage(pageLocale, INVITATION_EXPIRED_TITLE_LABEL, message, hint, link);
+  }
+
+  /**
+   * The one page shell every standalone invitation outcome is rendered in.
+   *
+   * <p>
+   * Written once so the confirmation and the expiry read as the same page to
+   * the same person: they are two endings of one journey, reached from the same
+   * button, and a reader who sees both should not be able to tell that two
+   * pieces of code drew them.
+   *
+   * @param pageLocale {@link Locale} to render in, already resolved to a non
+   *          null value by the caller
+   * @param titleLabelKey resource bundle key of the browser title
+   * @param headline the prominent sentence, <b>already HTML escaped</b> by the
+   *          caller, since only the caller knows whether it was built by
+   *          formatting a message
+   * @param hint the secondary sentence, already HTML escaped
+   * @param linkHtml a ready made anchor element, or null for a page with no
+   *          link; the only argument allowed to carry markup
+   * @return the complete HTML document
+   */
+  private static String buildStandaloneAnswerPage(Locale pageLocale,
+                                                  String titleLabelKey,
+                                                  String headline,
+                                                  String hint,
+                                                  String linkHtml) {
+    String title = escapeHtmlText(getResourceBundleLabel(pageLocale, titleLabelKey));
     return "<!DOCTYPE html><html lang=\"" + escapeHtmlText(pageLocale.getLanguage()) + "\">"
         + "<head><meta charset=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>"
         + "<title>" + title + "</title></head>"
         + "<body style=\"margin:0;padding:40px 20px;background-color:#f5f5f5;"
         + "font-family:HelveticaNeue,Helvetica,Arial,sans-serif;color:#333333;text-align:center;\">"
-        + "<p style=\"margin:0 0 12px;font-size:18px;font-weight:bold;\">" + recorded + "</p>"
+        + "<p style=\"margin:0 0 12px;font-size:18px;font-weight:bold;\">" + headline + "</p>"
         + "<p style=\"margin:0;font-size:13px;color:#999999;\">" + hint + "</p>"
+        + (linkHtml == null ? "" : "<p style=\"margin:16px 0 0;font-size:13px;\">" + linkHtml + "</p>")
         + "</body></html>";
+  }
+
+  /**
+   * The instant past which a tokenised invitation link for this event stops
+   * being honoured.
+   *
+   * <p>
+   * <b>The bound is the meeting itself.</b> A link exists to answer an
+   * invitation, and once the meeting is over there is no answer left to give,
+   * so nothing legitimate is lost by refusing it - while a link that outlives
+   * its meeting stays a usable "answer as this person" credential for anyone
+   * the mail was ever forwarded to (EXO-89752).
+   *
+   * <p>
+   * <b>Which end.</b> For a recurring event {@link Event#getEnd()} is the end of
+   * the <i>first occurrence</i>, not of the series - the two are stored in
+   * different rows and swapped apart in
+   * {@link EntityMapper#fromEntity(org.exoplatform.agenda.entity.EventEntity)} -
+   * so bounding a series by it would kill the link after its first meeting,
+   * while an answer legitimately applies to every occurrence still to come. The
+   * series end, {@link EventRecurrence#getOverallEnd()}, is used instead.
+   *
+   * <p>
+   * <b>A series that never ends is already answered, and not here.</b>
+   * {@link EntityMapper} stores <code>overallStart.plusYears(10)</code> as the
+   * end of an endless recurrence, and reads it back into
+   * <code>getOverallEnd()</code>. That is a persisted property of the event
+   * rather than a horizon invented in this method, so an endless standup gets
+   * ten years of answerable link and this code gains no second opinion about
+   * what "no end" means.
+   *
+   * <p>
+   * <b>Why there is a grace period at all.</b> Expiring at the exact end would
+   * kill the link in the hand of somebody answering during the meeting's last
+   * minute, and would kill it outright for an invitation whose meeting was
+   * lengthened after the mail went out. A day covers both, plus any clock skew
+   * between the node that minted the token and the node that reads it, and is
+   * short enough that a leaked link is not a lasting credential.
+   *
+   * <p>
+   * <b>It is a pure function of the event, and must stay one.</b> The same value
+   * has to come out on every render, because the calendar copy writes these
+   * links into its DESCRIPTION and the mirror rewrites any copy whose
+   * description changed (EXO-89753, EXO-89716). Deriving the bound from "now" -
+   * a sliding window from the moment of minting - would make every sweep mint a
+   * different token and put every copy into permanent churn. Nothing in this
+   * method may read the clock.
+   *
+   * @param event the {@link Event} the invitation answers, null tolerated
+   * @return the expiry as a number of seconds since the epoch, or 0 when the
+   *         event carries no date to bound it by - which the caller must treat
+   *         as "cannot be answered" rather than as "never expires"
+   */
+  public static long invitationTokenExpiry(Event event) {
+    if (event == null) {
+      return 0;
+    }
+    EventRecurrence recurrence = event.getRecurrence();
+    ZonedDateTime reach = recurrence == null ? event.getEnd() : recurrence.getOverallEnd();
+    if (reach == null) {
+      // A non recurring event with no end, or a recurrence whose overall end
+      // was never computed. Fall back to the start rather than to no bound at
+      // all: an event is answerable, at the latest, around the time it happens.
+      reach = event.getStart();
+    }
+    if (reach == null) {
+      return 0;
+    }
+    if (event.isAllDay()) {
+      // An all day event's end is stored at the start of a day, so honouring it
+      // literally would retire the link before the day it belongs to is over.
+      // The same widening AgendaDateUtils and getOccurrences already apply.
+      ZoneId zoneId = event.getTimeZoneId() == null ? ZoneOffset.UTC : event.getTimeZoneId();
+      reach = reach.withZoneSameInstant(zoneId).toLocalDate().atStartOfDay(zoneId).plusDays(1).minusSeconds(1);
+    }
+    return reach.plusHours(INVITATION_TOKEN_GRACE_HOURS).toEpochSecond();
   }
 
   /**
