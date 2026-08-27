@@ -26,6 +26,7 @@ import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.constant.*;
 import org.exoplatform.agenda.model.*;
+import org.exoplatform.agenda.plugin.AgendaGuestUserIdentityProvider;
 import org.exoplatform.agenda.storage.AgendaEventAttendeeStorage;
 import org.exoplatform.agenda.storage.AgendaEventStorage;
 import org.exoplatform.agenda.util.Utils;
@@ -327,7 +328,64 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       }
     }
     String emailOrUsername = tokenParts[1];
-    return identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, emailOrUsername);
+    return getAttendeeIdentity(eventId, emailOrUsername);
+  }
+
+  /**
+   * Resolves the {@link Identity} designated by the identifier carried inside an
+   * invitation token. An internal attendee is designated by its username and
+   * lives under the {@link OrganizationIdentityProvider}, while an external
+   * attendee - a guest invited by mail address only - lives under the
+   * {@link AgendaGuestUserIdentityProvider}. The organization provider is tried
+   * first so that the behavior of internal attendees is left untouched, then the
+   * guest attendees of the designated event are looked up.
+   *
+   * @param eventId technical identifier of the {@link Event} the token answers
+   * @param emailOrUsername username of an internal attendee or mail address of a
+   *          guest attendee, as carried by the token
+   * @return the {@link Identity} of the attendee, or null when the identifier
+   *         designates neither an existing internal user nor a guest attendee of
+   *         the event
+   */
+  private Identity getAttendeeIdentity(long eventId, String emailOrUsername) {
+    Identity identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, emailOrUsername);
+    if (identity != null) {
+      return identity;
+    }
+    return getGuestAttendeeIdentity(eventId, emailOrUsername);
+  }
+
+  /**
+   * Looks up the guest {@link Identity} of a given mail address among the
+   * attendees of an event. The lookup is deliberately made on the event
+   * attendees and never through
+   * {@link IdentityManager#getOrCreateIdentity(String, String)}: the
+   * {@link AgendaGuestUserIdentityProvider} accepts any parsable mail address,
+   * so asking it to resolve an unknown address would silently create a stray
+   * identity for anyone able to forge a token payload.
+   *
+   * @param eventId technical identifier of the {@link Event} whose attendees are
+   *          searched
+   * @param email mail address of the guest attendee to look for
+   * @return the guest {@link Identity} attending the event with that mail
+   *         address, or null when no guest attendee matches
+   */
+  private Identity getGuestAttendeeIdentity(long eventId, String email) {
+    if (StringUtils.isBlank(email)) {
+      return null;
+    }
+    EventAttendeeList eventAttendees = getEventAttendees(eventId);
+    if (eventAttendees == null || eventAttendees.getEventAttendees() == null) {
+      return null;
+    }
+    return eventAttendees.getEventAttendees()
+                         .stream()
+                         .map(eventAttendee -> Utils.getIdentityById(identityManager, eventAttendee.getIdentityId()))
+                         .filter(attendeeIdentity -> attendeeIdentity != null
+                             && AgendaGuestUserIdentityProvider.NAME.equals(attendeeIdentity.getProviderId())
+                             && StringUtils.equalsIgnoreCase(attendeeIdentity.getRemoteId(), email))
+                         .findFirst()
+                         .orElse(null);
   }
 
   /**
