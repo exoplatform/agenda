@@ -784,6 +784,12 @@ public class Utils {
    *          <code>ORGANIZER</code>
    * @param eventCreatorFullName display name of whoever sent the invitation
    * @param location event location, blank when the event has none
+   * @param eventUrl link back to the event in eXo, written as
+   *          <code>URL</code> and named in the description. <b>Blank for a
+   *          recipient with no eXo account</b>: the link resolves to a login
+   *          screen for a guest, so the caller — which is the only party that
+   *          knows who the mail is going to — leaves it out for one
+   *          (EXO-89751)
    * @param userLocale locale of the recipient, the one the labels are read in
    * @param timeZone time zone the dates are written in
    * @return the iCalendar document, UTF-8 encoded
@@ -797,6 +803,7 @@ public class Utils {
                                        String eventModifierId,
                                        String eventCreatorFullName,
                                        String location,
+                                       String eventUrl,
                                        Locale userLocale,
                                        ZoneId timeZone) {
     IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
@@ -839,13 +846,17 @@ public class Utils {
     if(StringUtils.isNotBlank(location)) {
       vEvent.getProperties().add(new Location(location));
     }
-    URI eventUrl;
-    if(StringUtils.isNotBlank(eventConference)) {
+    // URL is "where this event lives" (RFC 5545 §3.8.4.6), so it names the
+    // event in eXo. It used to be set from the conference link, which is a
+    // different thing entirely and already has its own property — and which
+    // left the event's own address out of the document altogether (EXO-89751).
+    if (StringUtils.isNotBlank(eventUrl)) {
       try {
-        eventUrl = new URI(eventConference);
-        vEvent.getProperties().add(new Url(eventUrl));
+        vEvent.getProperties().add(new Url(new URI(eventUrl)));
       } catch (URISyntaxException use) {
-        // Nothing to do, we simply ignore the URL
+        // A link that cannot be parsed is not written; the document is still
+        // a valid one without it.
+        LOG.debug("Event link {} is not a usable URI; the mailed document carries no URL", eventUrl, use);
       }
     }
     // DESCRIPTION is plain text by definition; the HTML flavour belongs to
@@ -856,11 +867,13 @@ public class Utils {
                                                                           eventCreatorFullName,
                                                                           spaceName,
                                                                           eventConference,
+                                                                          eventUrl,
                                                                           eventDescription)));
     String htmlContent = EventIcsBuilder.htmlDescription(userLocale,
                                                          eventCreatorFullName,
                                                          spaceName,
                                                          eventConference,
+                                                         eventUrl,
                                                          eventDescription);
     ParameterList parameters = new ParameterList();
     parameters.add(new net.fortuna.ical4j.model.parameter.XParameter("FMTTYPE", "text/html"));

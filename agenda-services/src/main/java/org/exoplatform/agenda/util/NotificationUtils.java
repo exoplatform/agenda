@@ -642,24 +642,60 @@ public class NotificationUtils {
     templateContext.put("USER", notification.getTo());
   }
 
+  /**
+   * The absolute link that opens one event in eXo.
+   *
+   * <p>
+   * This is the single definition of the shape of that link, and it is the one
+   * every notification mail's deep link has always used. EXO-89751 made it an
+   * overload of its own so that the iCalendar documents eXo writes — the file
+   * attached to the invitation mail, and the copy pushed into a user's own
+   * calendar over CalDAV — can render the very same string as the mail body
+   * they arrive with, from the event alone, without a caller having to pass one
+   * in. That is the property the whole ticket turns on: a value derived from
+   * the event is the same on a browser push, on a sweep and on a repair, so the
+   * link is written once and never stripped by the next repair.
+   *
+   * @param eventId technical identifier of the event
+   * @return the absolute link, ending in <code>agenda?eventId=&lt;id&gt;</code>
+   */
+  public static String getEventURL(long eventId) {
+    return eventsBaseURL() + "?eventId=" + eventId;
+  }
+
   public static String getEventURL(Event event, ZonedDateTime occurrenceId) {
-    String currentSite = getDefaultSite();
+    String notificationURL = "";
+    if (event != null) {
+      if (occurrenceId == null) {
+        notificationURL = getEventURL(event.getId());
+      } else {
+        notificationURL = eventsBaseURL() + "?parentId=" + event.getId() + "&occurrenceId="
+            + AgendaDateUtils.toRFC3339Date(occurrenceId, ZoneOffset.UTC);
+      }
+    } else {
+      notificationURL = eventsBaseURL();
+    }
+    return notificationURL;
+  }
+
+  /**
+   * The agenda application's own absolute address, with no event named yet.
+   *
+   * <p>
+   * The domain comes from the deployment's configured one
+   * ({@link CommonsUtils#getCurrentDomain()}, the
+   * <code>gatein.email.domain.url</code> property) rather than from a request,
+   * because most of the callers have no request: a notification is rendered by
+   * a job, and so is a CalDAV sweep.
+   *
+   * @return the address, with no trailing slash and no query string
+   */
+  private static String eventsBaseURL() {
     String currentDomain = CommonsUtils.getCurrentDomain();
     if (!currentDomain.endsWith("/")) {
       currentDomain += "/";
     }
-    String notificationURL = "";
-    if (event != null) {
-      if (occurrenceId == null) {
-        notificationURL = currentDomain + "portal/" + currentSite + "/agenda?eventId=" + event.getId();
-      } else {
-        notificationURL = currentDomain + "portal/" + currentSite + "/agenda?parentId=" + event.getId() + "&occurrenceId="
-            + AgendaDateUtils.toRFC3339Date(occurrenceId, ZoneOffset.UTC);
-      }
-    } else {
-      notificationURL = currentDomain + "portal/" + currentSite + "/agenda";
-    }
-    return notificationURL;
+    return currentDomain + "portal/" + getDefaultSite() + "/agenda";
   }
 
   public static String getWebEventURL(Event event, ZonedDateTime occurrenceId) {

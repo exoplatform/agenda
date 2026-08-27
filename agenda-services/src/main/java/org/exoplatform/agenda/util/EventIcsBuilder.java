@@ -45,7 +45,9 @@ import org.exoplatform.commons.utils.HTMLEntityEncoder;
  * through iMIP (EXO-89705) — while the copy must carry them with their
  * PARTSTAT, because a roster the client recognises is the only thing that
  * makes it offer RSVP (EXO-89681). What is shared is the <i>core</i>: what the
- * meeting is called, what it is about, and where it came from. What stays with
+ * meeting is called, what it is about, where it came from, and — since
+ * EXO-89751 — where it lives, the <code>URL</code> both channels now write and
+ * both channels name in the description. What stays with
  * each channel is who is written into it and how it is to be acted on:
  * attendees and PARTSTAT, SCHEDULE-AGENT, alarms, STATUS and TRANSP, and
  * METHOD — which the mail declares as PUBLISH and which a calendar object
@@ -76,6 +78,9 @@ public final class EventIcsBuilder {
   /** Label introducing the conference link. */
   private static final String VISIO_LINK_LABEL      = "agenda.visioLink";
 
+  /** Label introducing the link back to the event in eXo. */
+  private static final String EVENT_LINK_LABEL      = "agenda.eventLink";
+
   /** Label introducing the event's own description. */
   private static final String EVENT_DETAIL_LABEL    = "agenda.eventDetail";
 
@@ -93,6 +98,50 @@ public final class EventIcsBuilder {
    */
   private EventIcsBuilder() {
     // Utility class.
+  }
+
+  /**
+   * The link that opens this event in eXo, derived from the event itself.
+   *
+   * <p>
+   * <b>Derived, never passed in.</b> The CalDAV channel used to take this value
+   * from whatever the browser had put on the push request, which meant only a
+   * browser push carried it: every sweep and every repair rendered the copy with
+   * no <code>URL</code> at all, so the link appeared once and the next repair
+   * stripped it — and the mirror comparison had to ignore the property outright,
+   * because comparing a value one side never renders makes every copy look
+   * rewritten. Deriving it here is what fixes both: the same event renders the
+   * same string on a browser push, on a sweep, on a repair and in the mailed
+   * document, so there is nothing left to lose and nothing left to exempt
+   * (EXO-89751, EXO-89716).
+   *
+   * <p>
+   * The shape is not invented here. It is
+   * {@link NotificationUtils#getEventURL(long)} — the one already in the body of
+   * every notification mail about this event, and the same
+   * <code>agenda?eventId=</code> route the browser was building for itself.
+   *
+   * <p>
+   * It is guarded like {@link #label}, and for the same reason: the address
+   * needs the portal's configured domain and its meta portal, neither of which
+   * is resolvable outside a running container. A copy that reached nobody's
+   * calendar because a link could not be composed would be a worse outcome than
+   * a copy without a link, and this builder is on the push path.
+   *
+   * @param eventId technical identifier of the event, 0 or less when the caller
+   *          has none
+   * @return the absolute link, or null when there is no event to name or the
+   *         portal cannot be asked
+   */
+  public static String eventUrl(long eventId) {
+    if (eventId <= 0) {
+      return null;
+    }
+    try {
+      return StringUtils.trimToNull(NotificationUtils.getEventURL(eventId));
+    } catch (RuntimeException | LinkageError e) {
+      return null;
+    }
   }
 
   /**
@@ -119,6 +168,9 @@ public final class EventIcsBuilder {
    * @param spaceName display name of the space the event belongs to, blank for
    *          an event that belongs to no space
    * @param conferenceUrl conference link, blank when the event has none
+   * @param eventUrl link back to the event in eXo, from {@link #eventUrl};
+   *          <b>blank deliberately for a recipient who has no eXo account</b>,
+   *          for whom it resolves to a login screen (EXO-89751)
    * @param eventDescriptionHtml the event's own description, HTML as the editor
    *          stored it, blank when the event has none
    * @return the description as plain text, with real line breaks
@@ -127,6 +179,7 @@ public final class EventIcsBuilder {
                                    String eventCreatorFullName,
                                    String spaceName,
                                    String conferenceUrl,
+                                   String eventUrl,
                                    String eventDescriptionHtml) {
     StringBuilder text = new StringBuilder();
     text.append(label(userLocale, INVITATION_TEXT_LABEL))
@@ -142,6 +195,14 @@ public final class EventIcsBuilder {
     text.append(".");
     if (StringUtils.isNotBlank(conferenceUrl)) {
       text.append("\n\n").append(label(userLocale, VISIO_LINK_LABEL)).append(" ").append(conferenceUrl);
+    }
+    // Beside the conference link, and for the same reason it is there: many
+    // calendar clients never show the URL property, and the description is
+    // what a person actually reads. A copy that says "invitation sent by X in
+    // space Chemistry" and offers no way to reach that space names a place the
+    // reader cannot get to (EXO-89751).
+    if (StringUtils.isNotBlank(eventUrl)) {
+      text.append("\n\n").append(label(userLocale, EVENT_LINK_LABEL)).append(" ").append(eventUrl);
     }
     if (StringUtils.isNotBlank(eventDescriptionHtml)) {
       String detail = htmlToPlainText(eventDescriptionHtml);
@@ -167,6 +228,8 @@ public final class EventIcsBuilder {
    * @param eventCreatorFullName display name of whoever called the meeting
    * @param spaceName display name of the space, blank for none
    * @param conferenceUrl conference link, blank when the event has none
+   * @param eventUrl link back to the event in eXo, blank for a recipient with
+   *          no eXo account
    * @param eventDescriptionHtml the event's own description as HTML, blank
    *          when the event has none
    * @return the description as an HTML document, on a single line
@@ -175,6 +238,7 @@ public final class EventIcsBuilder {
                                        String eventCreatorFullName,
                                        String spaceName,
                                        String conferenceUrl,
+                                       String eventUrl,
                                        String eventDescriptionHtml) {
     HTMLEntityEncoder encoder = HTMLEntityEncoder.getInstance();
     StringBuilder html = new StringBuilder("<html><body>");
@@ -193,6 +257,15 @@ public final class EventIcsBuilder {
           .append(conferenceUrl)
           .append("\">")
           .append(conferenceUrl)
+          .append("</a>");
+    }
+    if (StringUtils.isNotBlank(eventUrl)) {
+      html.append("<br><br><b>")
+          .append(encoder.encodeHTML(label(userLocale, EVENT_LINK_LABEL)))
+          .append(" </b> <a href=\"")
+          .append(eventUrl)
+          .append("\">")
+          .append(eventUrl)
           .append("</a>");
     }
     if (StringUtils.isNotBlank(eventDescriptionHtml)) {

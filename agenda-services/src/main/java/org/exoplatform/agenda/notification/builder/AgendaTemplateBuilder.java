@@ -8,11 +8,13 @@ import java.time.*;
 import java.util.Locale;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.math.NumberUtils;
 
 import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.model.AgendaUserSettings;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.service.*;
+import org.exoplatform.agenda.util.EventIcsBuilder;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.channel.template.AbstractTemplateBuilder;
@@ -194,6 +196,7 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
                                          eventModifierId,
                                          eventCreator,
                                          location,
+                                         mailedEventUrl(notification, identityId),
                                          userLocale,
                                          timeZone);
         attachment.setInputStream(new ByteArrayInputStream(icsFileBytes));
@@ -215,6 +218,39 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
     } finally {
       RequestLifeCycle.end();
     }
+  }
+
+  /**
+   * The link the attached document may carry back to the event in eXo — and
+   * nothing at all when the recipient has no account there.
+   *
+   * <p>
+   * <b>Not for guests.</b> A guest is invited by mail address and has no eXo
+   * account, so this link puts them on a login screen they cannot get past. A
+   * door you cannot open is worse than no door, and this is the one channel
+   * that can tell the difference: the mail knows exactly who it is going to,
+   * where the CalDAV copy only ever lands in the calendar of somebody who has
+   * an account by construction. It is a product decision, not a technicality
+   * (EXO-89751).
+   *
+   * <p>
+   * The test is the recipient's organization identity id, which is the same
+   * signal {@code shouldAttachIcsFile} already reads for the same reason: a
+   * guest is an
+   * {@link org.exoplatform.agenda.plugin.AgendaGuestUserIdentityProvider}
+   * identity, never an organization one, so it arrives here as 0.
+   *
+   * @param notification the notification being rendered, carrying the event id
+   * @param recipientIdentityId organization identity id of the recipient, 0
+   *          when the recipient is a guest
+   * @return the absolute link back to the event, or null for a guest and for a
+   *         notification that names no event
+   */
+  private String mailedEventUrl(NotificationInfo notification, long recipientIdentityId) {
+    if (recipientIdentityId <= 0) {
+      return null;
+    }
+    return EventIcsBuilder.eventUrl(NumberUtils.toLong(notification.getValueOwnerParameter("eventId"), 0));
   }
 
   /**
