@@ -634,7 +634,47 @@ public class Utils {
     return userIdentity.getProfile() != null && userIdentity.getProfile().getProperty(Profile.EXTERNAL) != null && userIdentity.getProfile().getProperty(Profile.EXTERNAL).equals("true");
   }
 
-  public static byte[] generateIcsFile(String ownerId,
+  /**
+   * The iCalendar identifier of an event, stable across every mail that
+   * describes it and identical for every recipient.
+   *
+   * <p>
+   * A random identifier was minted on each call, so no calendar client could
+   * tell that two mails were about the same meeting: an update added a second
+   * entry beside the first instead of replacing it, a cancellation matched
+   * nothing to cancel, and two attendees held the same meeting under
+   * different identifiers. RFC 5545 gives UID exactly this job — naming the
+   * event itself — so it is derived from the event rather than invented.
+   *
+   * <p>
+   * The deployment's domain is part of it because the event id alone is only
+   * unique within one platform, and two of them would otherwise mint the same
+   * identifier for their own event 42 — which the recipient of both would see
+   * as one meeting.
+   *
+   * <p>
+   * Note this is deliberately NOT the identifier a user's CalDAV copy carries:
+   * that one is per user (each copy is their own object on their own account),
+   * while an invitation names the meeting and must read the same to everyone.
+   *
+   * @param eventId technical identifier of the event, blank when the caller
+   *          has none
+   * @return the UID to write, falling back to a random one when the event
+   *         cannot be named
+   */
+  private static String icsUid(String eventId) {
+    if (StringUtils.isBlank(eventId)) {
+      // Nothing to be stable about. A random identifier is still a valid one,
+      // and better than an identifier shared by every unnamed event.
+      return new RandomUidGenerator().generateUid().getValue();
+    }
+    String domain = CommonsUtils.getCurrentDomain();
+    String host = StringUtils.isBlank(domain) ? "exo" : domain.replaceFirst("^https?://", "").replaceAll("[/:].*$", "");
+    return "agenda-event-" + eventId + "@" + host;
+  }
+
+  public static byte[] generateIcsFile(String eventId,
+                                       String ownerId,
                                        String eventSummary,
                                        String eventDescription,
                                        String startDateRFC3339,
@@ -653,9 +693,7 @@ public class Utils {
     Space space = identity!=null ? spaceService.getSpaceByPrettyName(identity.getRemoteId()) : null;
     String spaceName = space == null ? null : space.getDisplayName();
 
-    /* Generate unique identifier */
-    UidGenerator ug = new RandomUidGenerator();
-    Uid uid = ug.generateUid();
+    Uid uid = new Uid(icsUid(eventId));
     ZonedDateTime startDate = ZonedDateTime.parse(startDateRFC3339).withZoneSameInstant(timeZone);
     ZonedDateTime endDate = ZonedDateTime.parse(endDateRFC3339).withZoneSameInstant(timeZone);
     net.fortuna.ical4j.model.TimeZone ical4jTimezone = getICalTimeZone(timeZone);
