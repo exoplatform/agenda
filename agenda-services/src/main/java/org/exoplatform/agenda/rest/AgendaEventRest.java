@@ -1810,6 +1810,10 @@ public class AgendaEventRest implements ResourceContainer, Startable {
               String.valueOf(event.getModifierId()),
               eventCreator,
               event.getLocation(),
+              // The link is written here: this endpoint answers a logged-in
+              // user downloading the event, so there is no guest to withhold
+              // it from (EXO-89751).
+              EventIcsBuilder.eventUrl(event.getId()),
               Locale.of(Utils.getUserLanguage(request.getRemoteUser())),
               ZoneId.of(timeZoneId));
       return Response.ok(new String(iCSContent, StandardCharsets.UTF_8)).build();
