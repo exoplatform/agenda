@@ -100,22 +100,35 @@ public interface AgendaEventAttendeeService {
 
   /**
    * Generates a token that will be used to authenticate user when requesting
-   * REST API in anonymous mode
-   * 
+   * REST API in anonymous mode.
+   *
    * @param eventId {@link Event} technical identifier
    * @param email User email
-   * @return encrypted token containing "EVENT_ID|EMAIL"
+   * @return encrypted token containing "EVENT_ID|EMAIL||EXPIRY", or null when
+   *         the event carries no date to bound the token by
    */
   public String generateEncryptedToken(long eventId, String email);
 
   /**
    * Generates a token that will be used to authenticate user when requesting
-   * REST API in anonymous mode. This
-   * 
+   * REST API in anonymous mode.
+   *
+   * <p>
+   * The token expires with the meeting it answers. The expiry is the last field
+   * of the payload, an epoch second derived from the event by
+   * <code>Utils.invitationTokenExpiry</code>; it is a pure function of the
+   * event, so the same event and answer always yield the same token, which is
+   * what lets the calendar copy carry these links in a DESCRIPTION without
+   * being rewritten on every sweep (EXO-89752, EXO-89753).
+   *
    * @param eventId {@link Event} technical identifier
    * @param emailOrUsername User name or email
-   * @param response {@link EventAttendeeResponse} value for chosen answer
-   * @return encrypted token containing "EVENT_ID|EMAIL|ATTENDEE_RESPONSE"
+   * @param response {@link EventAttendeeResponse} value for chosen answer, null
+   *          for a token that authenticates without carrying an answer
+   * @return encrypted token containing
+   *         "EVENT_ID|EMAIL|ATTENDEE_RESPONSE|EXPIRY", the answer field being
+   *         empty when there is none; null when the event carries no date to
+   *         bound the token by, in which case no link should be offered
    */
   public String generateEncryptedToken(long eventId,
                                        String emailOrUsername,
@@ -129,12 +142,23 @@ public interface AgendaEventAttendeeService {
    * No identity is ever created by this lookup, so a token carrying a mail
    * address which attends nothing resolves to null.
    * 
+   * <p>
+   * A token whose meeting is over is refused, with
+   * {@link org.exoplatform.agenda.exception.EventInvitationExpiredException} so
+   * that a caller can tell a lapsed link apart from a forged one. A token
+   * minted before EXO-89752 carries no expiry of its own and is bounded by
+   * asking the event for the same bound at this point, so no invitation already
+   * delivered stops working and none of them stays replayable either.
+   *
    * @param token encrypted token
    * @param eventId {@link Event} technical identifier
    * @param response {@link EventAttendeeResponse} value for chosen answer
    * @return {@link Identity} of user, or null when the token designates neither
    *         an existing internal user nor a guest attendee of the event
-   * @throws IllegalAccessException when the token has bad format
+   * @throws IllegalAccessException when the token has bad format, designates
+   *           another event or another answer, or - as
+   *           {@link org.exoplatform.agenda.exception.EventInvitationExpiredException}
+   *           - when the meeting it answers is over
    */
   public Identity decryptUserIdentity(long eventId,
                                       String token,

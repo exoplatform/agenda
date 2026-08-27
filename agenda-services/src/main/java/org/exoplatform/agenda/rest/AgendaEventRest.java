@@ -47,6 +47,7 @@ import org.picocontainer.Startable;
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
+import org.exoplatform.agenda.exception.EventInvitationExpiredException;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.plugin.AgendaGuestUserIdentityProvider;
 import org.exoplatform.agenda.rest.model.*;
@@ -1347,6 +1348,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
           @ApiResponse(responseCode = "204", description = "Request fulfilled"),
           @ApiResponse(responseCode = "400", description = "Invalid query input"),
           @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "410", description = "The invitation link has expired: the meeting it answers is over"),
           @ApiResponse(responseCode = "500", description = "Internal server error"), }
   )
   public Response sendEventResponse(
@@ -1448,6 +1450,24 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       } else {
         return Response.noContent().build();
       }
+    } catch (EventInvitationExpiredException e) {
+      // Not an incident and not an attack: somebody followed a link in good
+      // faith, after the meeting it answers. Debug, never warn.
+      LOG.debug("Expired invitation link followed for event with id '{}'", eventId, e);
+      // GONE, not UNAUTHORIZED. The link was valid and is now spent: no
+      // credential the caller could present would revive it, which is exactly
+      // what 401 invites them to try. It also keeps the page out of reach of
+      // anything that treats a 401 as a challenge - a reverse proxy adding
+      // WWW-Authenticate turns this page into a browser password prompt, and
+      // the person answering an invitation has no password to give.
+      if (redirect) {
+        Locale locale = request == null ? null : request.getLocale();
+        return Response.status(Status.GONE)
+                       .entity(Utils.buildInvitationExpiredPage(locale, NotificationUtils.getEventURL(eventId)))
+                       .type(MediaType.TEXT_HTML)
+                       .build();
+      }
+      return Response.status(Status.GONE).entity(e.getMessage()).build();
     } catch (ObjectNotFoundException e) {
       return Response.status(Status.NOT_FOUND).entity("Event not found").build();
     } catch (IllegalAccessException e) {

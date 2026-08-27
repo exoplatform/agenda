@@ -57,4 +57,39 @@ public class GuestResponsePageTest {
     assertEquals("the page is a document, not an escaped string", true, page.startsWith("<!DOCTYPE html>"));
     assertEquals("the page closes properly", true, page.trim().endsWith("</html>"));
   }
+
+  /**
+   * The page shown for a lapsed link carries a way into eXo.
+   *
+   * <p>
+   * The point of the page over a bare 401 is that its reader is left with
+   * somewhere to go, so the anchor is the thing worth pinning.
+   */
+  @Test
+  public void theExpiredInvitationPageOffersAWayIntoExo() {
+    String page = Utils.buildInvitationExpiredPage(Locale.ENGLISH, "https://exo.example.com/portal/dw/agenda?eventId=42");
+
+    assertEquals("the page is a document", true, page.startsWith("<!DOCTYPE html>"));
+    assertEquals("the page closes properly", true, page.trim().endsWith("</html>"));
+    assertEquals("the link into eXo is rendered as a real anchor",
+                 true,
+                 page.contains("<a href=\"https://exo.example.com/portal/dw/agenda?eventId=42\""));
+  }
+
+  /**
+   * With no address to offer, the page renders without an anchor rather than
+   * with an empty one.
+   *
+   * <p>
+   * The address needs the portal's configured domain, which is not resolvable
+   * everywhere the page can be built, so "no link" is a real case and not a
+   * defensive one.
+   */
+  @Test
+  public void theExpiredInvitationPageSurvivesHavingNoLinkToOffer() {
+    String page = Utils.buildInvitationExpiredPage(Locale.ENGLISH, null);
+
+    assertFalse("no dangling anchor when there is no address to point at", page.contains("<a "));
+    assertEquals("the page is still a document", true, page.startsWith("<!DOCTYPE html>"));
+  }
 }
