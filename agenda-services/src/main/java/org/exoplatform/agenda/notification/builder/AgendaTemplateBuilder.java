@@ -151,7 +151,8 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
       Locale userLocale = Locale.of(Utils.getUserLanguage(notification.getTo()));
 
       Attachment attachment = new Attachment();
-      byte[] icsFileBytes = generateIcsFile(ownerId,
+      byte[] icsFileBytes = generateIcsFile(notification.getValueOwnerParameter("eventId"),
+                                       ownerId,
                                        eventSummary,
                                        eventDescription,
                                        startDateRFC3339,
