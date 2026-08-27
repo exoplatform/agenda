@@ -476,7 +476,9 @@ export default {
     },
     /**
      * Copies an event to the connected remote calendar when it is one the user
-     * keeps: a meeting they accepted, or one they organise.
+     * keeps: a meeting they accepted, one they organise — or, since EXO-89681,
+     * one they have not answered yet, so the invitation shows in their own
+     * calendar (with its honest PARTSTAT) while they are deciding.
      *
      * Organised events used to be left out. The condition was attendance
      * alone, and an organiser is not necessarily in their own attendee list,
@@ -502,8 +504,12 @@ export default {
       }
     },
     /**
-     * Writes the user's answer to the connected calendar: an accepted meeting
-     * is copied there, any other answer takes the copy away.
+     * Writes the user's answer to the connected calendar: a declined meeting
+     * has its copy taken away, every other answer — accepted, tentative, or
+     * not yet given — writes the copy with that answer as its PARTSTAT.
+     * Declined alone removes, since EXO-89681: a pending or tentative meeting
+     * is still on the user's plate, and its copy is the surface they can
+     * answer it from — the connector reads the answer back off the copy.
      *
      * Both outcomes are reported when they fail. The copy is the whole point
      * of the feature and the user has no way of noticing it did not happen —
@@ -529,7 +535,7 @@ export default {
         event.start = this.$agendaUtils.toRFC3339(event.start);
         event.end = this.$agendaUtils.toRFC3339(event.end);
 
-        const removal = eventResponse.toLowerCase() !== 'accepted';
+        const removal = eventResponse.toLowerCase() === 'declined';
         return Promise.all(targets.map(connector => {
           const operation = removal
             ? this.$remoteEventConnector.removeEventFromConnector(connector, event, !!event.recurrence)
