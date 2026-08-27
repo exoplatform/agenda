@@ -3400,7 +3400,8 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     MessageInfo messageInfo = new MessageInfo();
     Attachment attachment = new Attachment();
 
-    byte[] icsContent = generateIcsFile("ownerId",
+    byte[] icsContent = generateIcsFile("42",
+            "ownerId",
             "eventSummary",
             "eventDescription",
             AgendaDateUtils.toRFC3339Date(start),
@@ -3455,7 +3456,8 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
   private String generateIcs(String eventDescription, Locale userLocale, String eventModifierId) {
     ZonedDateTime start = getDate();
     ZonedDateTime end = start.plusHours(1);
-    byte[] icsContent = generateIcsFile(spaceIdentity.getId(),
+    byte[] icsContent = generateIcsFile("42",
+                                        spaceIdentity.getId(),
                                         "eventSummary",
                                         eventDescription,
                                         AgendaDateUtils.toRFC3339Date(start),

@@ -28,7 +28,10 @@ import org.junit.Test;
 
 import org.exoplatform.agenda.constant.*;
 import org.exoplatform.agenda.model.*;
+import org.exoplatform.agenda.plugin.AgendaGuestUserIdentityProvider;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.social.core.identity.model.Identity;
+import org.exoplatform.social.core.storage.api.IdentityStorage;
 
 public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
 
@@ -194,6 +197,60 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
                                                                 Long.parseLong(testuser5Identity.getId()));
     assertNotNull(eventResponse);
     assertEquals(EventAttendeeResponse.TENTATIVE, eventResponse);
+  }
+
+  @Test
+  public void testDecryptUserIdentityOfGuestAttendee() throws Exception { // NOSONAR
+    ZonedDateTime start = ZonedDateTime.now().withNano(0);
+
+    String guestEmail = "guest.attendee@example.com";
+    Identity guestIdentity = identityManager.getOrCreateIdentity(AgendaGuestUserIdentityProvider.NAME, guestEmail);
+    assertNotNull("the guest identity provider must be registered", guestIdentity);
+    assertEquals(AgendaGuestUserIdentityProvider.NAME, guestIdentity.getProviderId());
+
+    Event event = newEventInstance(start, start, true);
+    event.setStatus(EventStatus.CONFIRMED);
+    event = createEvent(event.clone(), Long.parseLong(testuser1Identity.getId()), testuser1Identity, guestIdentity);
+    long eventId = event.getId();
+
+    String token = agendaEventAttendeeService.generateEncryptedToken(eventId, guestEmail, EventAttendeeResponse.ACCEPTED);
+    assertNotNull(token);
+
+    Identity decryptedIdentity = agendaEventAttendeeService.decryptUserIdentity(eventId,
+                                                                                token,
+                                                                                EventAttendeeResponse.ACCEPTED);
+    assertNotNull("the token of a guest attendee must resolve to an identity", decryptedIdentity);
+    assertEquals("the token of a guest attendee must resolve under the guest provider",
+                 AgendaGuestUserIdentityProvider.NAME,
+                 decryptedIdentity.getProviderId());
+    assertEquals(guestIdentity.getId(), decryptedIdentity.getId());
+    assertTrue("the identity resolved from the token must be recognized as an attendee",
+               agendaEventAttendeeService.isEventAttendee(eventId, Long.parseLong(decryptedIdentity.getId())));
+  }
+
+  @Test
+  public void testDecryptUserIdentityOfUnknownAttendeeCreatesNothing() throws Exception { // NOSONAR
+    ZonedDateTime start = ZonedDateTime.now().withNano(0);
+
+    Event event = newEventInstance(start, start, true);
+    event.setStatus(EventStatus.CONFIRMED);
+    event = createEvent(event.clone(), Long.parseLong(testuser1Identity.getId()), testuser1Identity, testuser5Identity);
+    long eventId = event.getId();
+
+    String strangerEmail = "stranger.not.invited@example.com";
+    String token = agendaEventAttendeeService.generateEncryptedToken(eventId, strangerEmail, EventAttendeeResponse.ACCEPTED);
+    assertNotNull(token);
+
+    Identity decryptedIdentity = agendaEventAttendeeService.decryptUserIdentity(eventId,
+                                                                                token,
+                                                                                EventAttendeeResponse.ACCEPTED);
+    assertNull("a mail address which is not an attendee must not resolve to any identity", decryptedIdentity);
+
+    IdentityStorage identityStorage = container.getComponentInstanceOfType(IdentityStorage.class);
+    assertNull("resolving the token must not create a guest identity",
+               identityStorage.findIdentity(AgendaGuestUserIdentityProvider.NAME, strangerEmail));
+    assertNull("resolving the token must not create an organization identity",
+               identityStorage.findIdentity("organization", strangerEmail));
   }
 
   @Test

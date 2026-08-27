@@ -184,7 +184,8 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
       // its attachments only into the mail Message.
       if (shouldAttachIcsFile(identityId, agendaUserSettings)) {
         Attachment attachment = new Attachment();
-        byte[] icsFileBytes = generateIcsFile(ownerId,
+        byte[] icsFileBytes = generateIcsFile(notification.getValueOwnerParameter("eventId"),
+                                         ownerId,
                                          eventSummary,
                                          eventDescription,
                                          startDateRFC3339,
