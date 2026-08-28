@@ -11,6 +11,5 @@
   <import>war:/conf/agenda/listeners-configuration.xml</import>
   <import>war:/conf/agenda/cache-configuration.xml</import>
   <import>war:/conf/agenda/websocket-configuration.xml</import>
-  <import>war:/conf/agenda/webui-configuration.xml</import>
   <import>war:/conf/agenda/metadata-plugins-configuration.xml</import>
 </configuration>
