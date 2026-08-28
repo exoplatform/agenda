@@ -1,7 +1,17 @@
 <template>
   <div class="mt-8">
-    <div class="text-title mb-3">
+    <div class="text-title mb-2">
       {{ $t('agenda.agendaConnectors') }}
+    </div>
+    <!--
+      Mirrors the CalDAV section above: the host page paints no title of its
+      own, so a section showing only a heading leaves an administrator to
+      guess what a switch in this table grants. It says who the toggle is
+      for - the user connecting their own calendar - rather than describing
+      the table.
+    -->
+    <div class="text-subtitle mb-4">
+      {{ $t('agenda.agendaConnectors.subtitle') }}
     </div>
     <v-data-table
       :headers="headers"
