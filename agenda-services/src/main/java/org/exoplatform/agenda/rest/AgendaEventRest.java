@@ -184,7 +184,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                             )
                             String timeZoneId,
                             @Parameter(
-                                description = "Limit of results to return, used only when end date isn't set") @Schema(defaultValue = "10")
+                                description = "Maximum number of events to return. Honoured whenever it is greater than zero, including when an end date is set: the response is then capped at this many events inside the requested period. Omit it, or pass zero, to get every event of the period.") @Schema(defaultValue = "10")
                             @QueryParam("limit")
                             int limit,
                             @Parameter(
