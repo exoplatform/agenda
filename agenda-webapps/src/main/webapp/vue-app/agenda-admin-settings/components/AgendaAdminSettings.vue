@@ -21,14 +21,18 @@
  * before the connectors table it feeds (EXO-89757), and there is no rank that
  * expresses that while these two are hardcoded.
  *
+ * The embedded-map settings stay first by product decision: the page opens on
+ * a setting every deployment has, rather than on a registry that is empty
+ * until someone declares a server.
+ *
  * Ranks are spaced by ten so a section can be slipped between two of them
  * without renumbering. `vueComponent` holds a NAME here and a component
  * OBJECT for a contributed section; `<component :is>` takes either, and the
  * name resolves because initComponents.js registers both globally.
  */
 const BUILT_IN_SECTIONS = [
-  {id: 'agendaConnectors', rank: 20, vueComponent: 'agenda-admin-connector-settings'},
-  {id: 'agendaEmbedMap', rank: 30, vueComponent: 'agenda-admin-embed-map-settings'},
+  {id: 'agendaEmbedMap', rank: 10, vueComponent: 'agenda-admin-embed-map-settings'},
+  {id: 'agendaConnectors', rank: 30, vueComponent: 'agenda-admin-connector-settings'},
 ];
 
 export default {

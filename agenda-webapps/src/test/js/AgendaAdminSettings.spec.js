@@ -94,7 +94,7 @@ describe('AgendaAdminSettings sections', () => {
   it('renders its own two sections when no add-on contributed any', () => {
     const wrapper = mountPage([]);
 
-    expect(renderedSectionIds(wrapper)).toEqual(['agendaConnectors', 'agendaEmbedMap']);
+    expect(renderedSectionIds(wrapper)).toEqual(['agendaEmbedMap', 'agendaConnectors']);
     expect(wrapper.find('.connector-settings-stub').exists()).toBe(true);
     expect(wrapper.find('.embed-map-settings-stub').exists()).toBe(true);
   });
@@ -102,17 +102,19 @@ describe('AgendaAdminSettings sections', () => {
   it('renders them just the same when the registry answers nothing at all', () => {
     const wrapper = mountPage(undefined);
 
-    expect(renderedSectionIds(wrapper)).toEqual(['agendaConnectors', 'agendaEmbedMap']);
+    expect(renderedSectionIds(wrapper)).toEqual(['agendaEmbedMap', 'agendaConnectors']);
     expect(wrapper.find('.connector-settings-stub').exists()).toBe(true);
     expect(wrapper.find('.embed-map-settings-stub').exists()).toBe(true);
   });
 
-  it('lets a contributed section rank itself before the built-in ones', () => {
-    // This is what the CalDAV registry asks for: it is declared at rank 10
-    // because the connectors table below it is derived from what it holds.
-    const wrapper = mountPage([contributedSection('caldavServers', 10)]);
+  it('lets a contributed section rank itself ahead of a built-in one', () => {
+    // What the CalDAV registry asks for: rank 20 puts it after the embedded
+    // map (10) and before the connectors table (30), which is derived from
+    // what the registry holds. Ahead of a built-in is the property being
+    // pinned -- no rank could express it while these two were hardcoded.
+    const wrapper = mountPage([contributedSection('caldavServers', 20)]);
 
-    expect(renderedSectionIds(wrapper)).toEqual(['caldavServers', 'agendaConnectors', 'agendaEmbedMap']);
+    expect(renderedSectionIds(wrapper)).toEqual(['agendaEmbedMap', 'caldavServers', 'agendaConnectors']);
     // A contributed component is an opaque object this page never imports, so
     // shallowMount stubs it: it is found by its name, not by a class its own
     // template would have drawn.
@@ -122,15 +124,15 @@ describe('AgendaAdminSettings sections', () => {
   });
 
   it('interleaves contributed sections with the built-in ones by rank', () => {
-    const wrapper = mountPage([contributedSection('late', 40), contributedSection('middle', 25)]);
+    const wrapper = mountPage([contributedSection('late', 40), contributedSection('middle', 20)]);
 
-    expect(renderedSectionIds(wrapper)).toEqual(['agendaConnectors', 'middle', 'agendaEmbedMap', 'late']);
+    expect(renderedSectionIds(wrapper)).toEqual(['agendaEmbedMap', 'middle', 'agendaConnectors', 'late']);
   });
 
   it('drops a contributed section carrying no component, keeping the built-in ones', () => {
     const wrapper = mountPage([{id: 'broken', rank: 10}]);
 
-    expect(renderedSectionIds(wrapper)).toEqual(['agendaConnectors', 'agendaEmbedMap']);
+    expect(renderedSectionIds(wrapper)).toEqual(['agendaEmbedMap', 'agendaConnectors']);
     expect(wrapper.find('.connector-settings-stub').exists()).toBe(true);
   });
 });
