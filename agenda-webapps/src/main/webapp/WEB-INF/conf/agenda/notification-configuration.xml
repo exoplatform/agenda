@@ -376,4 +376,39 @@
       </init-params>
     </component-plugin>
   </external-component-plugins>
+
+  <!-- Digest mail notifications: the category this addon owns -->
+  <external-component-plugins>
+    <target-component>io.meeds.commons.digest.DigestCategoryRegistry</target-component>
+    <component-plugin>
+      <name>agenda</name>
+      <set-method>addCategoryProvider</set-method>
+      <type>io.meeds.commons.digest.plugin.DigestCategoryPlugin</type>
+      <description>The agenda notifications: events, replies, reminders and date polls</description>
+      <init-params>
+        <value-param>
+          <name>id</name>
+          <value>agenda</value>
+        </value-param>
+        <value-param>
+          <name>labelKey</name>
+          <value>digest.category.agenda</value>
+        </value-param>
+        <value-param>
+          <name>order</name>
+          <value>50</value>
+        </value-param>
+        <values-param>
+          <name>pluginIds</name>
+          <value>EventAddedNotificationPlugin</value>
+          <value>EventModifiedNotificationPlugin</value>
+          <value>EventCanceledNotificationPlugin</value>
+          <value>EventReminderNotificationPlugin</value>
+          <value>EventReplyNotificationPlugin</value>
+          <value>DatePollNotificationPlugin</value>
+          <value>VoteNotificationPlugin</value>
+        </values-param>
+      </init-params>
+    </component-plugin>
+  </external-component-plugins>
 </configuration>
