@@ -268,6 +268,27 @@ export default {
     },
   },
   watch: {
+    /**
+     * Drops the mobile page size when the application leaves the mobile
+     * layout. Only the mobile timeline paginates: it asks for one page from
+     * its created() hook, and that ask puts an explicit `limit` on the events
+     * query — which the server honours even when a period end date is set.
+     * The desktop grid has no pagination and must query the whole period, so
+     * a `limit` inherited from a mobile phase would silently cap the grid at
+     * one page until the page is reloaded (EXO-89791).
+     *
+     * Resetting here removes the coupling rather than narrowing the race the
+     * unmeasured-width fix in main.js closes: no future transient mobile
+     * phase can leave a page size behind on a desktop query.
+     *
+     * @param {Boolean} isMobile the layout the application switched to
+     * @returns {void}
+     */
+    '$root.isMobile'(isMobile) {
+      if (!isMobile) {
+        this.limit = 0;
+      }
+    },
     limit() {
       this.retrieveEvents();
     },
