@@ -571,3 +571,153 @@ export function failedSourceNames(failedConnectors) {
     .map(connector => connector && (connector.user || connector.name) || '')
     .filter(name => !!name);
 }
+
+/**
+ * The three things that can have happened when one participant's busy time
+ * was asked for. The server spells them exactly this way, and so does this
+ * module: one idea, one spelling, across the wire and the views.
+ */
+export const BUSY_TIME_DISCLOSED = 'disclosed';
+
+/**
+ * The participant does not disclose their busy time to the asking user — a
+ * choice of theirs, not an incident.
+ */
+export const BUSY_TIME_NOT_DISCLOSED = 'not_disclosed';
+
+/**
+ * The read broke. Nothing is known, and it is not the participant's doing.
+ */
+export const BUSY_TIME_FAILED = 'failed';
+
+/**
+ * How one participant is identified on a screen that has not saved its event
+ * yet.
+ *
+ * <p>
+ * <strong>Not the identity id.</strong> A participant added through the
+ * suggester carries only `{providerId, remoteId, profile}` —
+ * `convertSuggesterItemToIdentity` in social builds exactly that — and gains
+ * an `id` only once the event is saved and the server resolves them. Keying
+ * a screen off `identity.id` therefore drops every participant of a NEW
+ * event, which is the whole population this feature exists for.
+ *
+ * <p>
+ * `providerId:remoteId` is what the attendees drawer already keys its own
+ * duplicate check on, and it is present on both attendee shapes: the one the
+ * suggester builds and the one AgendaEventFormAttendees builds for the
+ * organiser. It is also the only key a participant whose identity could NOT
+ * be resolved still has — and that participant has to be nameable, or the
+ * screen goes quiet about them again.
+ *
+ * @param {Object} attendee an event attendee
+ * @returns {String} the participant key, empty when the attendee carries
+ *          neither a provider/remote pair nor an id
+ */
+export function participantKey(attendee) {
+  const identity = attendee && attendee.identity;
+  if (!identity) {
+    return '';
+  }
+  if (identity.providerId && identity.remoteId) {
+    return `${identity.providerId}:${identity.remoteId}`;
+  }
+  return identity.id && String(identity.id) || '';
+}
+
+/**
+ * Splits what the availability endpoint answered into the blocks a view may
+ * draw and the people it has to own up to not having checked.
+ *
+ * <p>
+ * This is `splitRemoteEventResults` for people rather than accounts, and it
+ * exists for the same reason: the events a view can draw and the sources it
+ * could not read are two different things, and a view that keeps only the
+ * first paints a slot free that is not.
+ *
+ * <p>
+ * The one difference is that a person carries THREE outcomes where an account
+ * carries two. `{disclosure: 'disclosed', busy: []}` is a real answer — that
+ * person has nothing on — while `not_disclosed` and `failed` are two ways of
+ * having no answer at all, and they are kept apart because they read
+ * differently to an organiser: one is a colleague's decision to keep their
+ * calendar to themselves, the other is a breakage that may be gone in a
+ * minute. Collapsing any two of the three is what turns an empty grid into a
+ * booking over someone's real meeting.
+ *
+ * <p>
+ * A record whose `disclosure` this function does not recognise counts as
+ * unchecked, not as checked. An unknown status is not an answer.
+ *
+ * @param {Array} records one per participant, `{identityId, disclosure,
+ *          busy}`, as the endpoint answered
+ * @returns {Object} `{busyByIdentityId, checkedIds, notDisclosedIds,
+ *          failedIds}` — the blocks per participant, and the three sets of
+ *          identifiers, which partition everything asked about
+ */
+export function splitBusyTimeResults(records) {
+  const busyByIdentityId = {};
+  const checkedIds = [];
+  const notDisclosedIds = [];
+  const failedIds = [];
+  (records || []).forEach(record => {
+    // A record with no identifier names nobody, so it can be neither drawn
+    // nor owned up to; == null catches both a missing and a null identifier.
+    if (!record || record.identityId == null) {
+      return;
+    }
+    const identityId = String(record.identityId);
+    if (record.disclosure === BUSY_TIME_DISCLOSED) {
+      busyByIdentityId[identityId] = record.busy || [];
+      checkedIds.push(identityId);
+    } else if (record.disclosure === BUSY_TIME_FAILED) {
+      failedIds.push(identityId);
+    } else {
+      notDisclosedIds.push(identityId);
+    }
+  });
+  return {busyByIdentityId, checkedIds, notDisclosedIds, failedIds};
+}
+
+/**
+ * The colour every participant busy block is drawn in.
+ *
+ * <p>
+ * One neutral grey for everybody, deliberately. Every other colour on this
+ * grid means "this calendar" — the organiser's own calendars and the accounts
+ * they connected — and a participant's block is not one of those; it is
+ * background the slot is picked against. Who a block belongs to is said by the
+ * avatar on it, which is a fact, rather than by a colour, which would be a
+ * legend nobody was given.
+ */
+export const PARTICIPANT_BUSY_COLOR = '#9e9e9e';
+
+/**
+ * Turns one participant's busy ranges into the pseudo-events a calendar grid
+ * draws behind the slots being picked.
+ *
+ * <p>
+ * The blocks carry nothing but the person and the two instants. There is no
+ * title to show because the server never sent one, which is the whole reason
+ * showing someone else's calendar here is defensible at all — so the label the
+ * grid paints is the word the caller passes, the same word for everybody.
+ *
+ * @param {Array} blocks the ranges the endpoint answered, `{start, end}`
+ * @param {Object} attendee the participant these ranges belong to
+ * @param {String} label what every block says, e.g. "Busy"
+ * @returns {Array} one grid event per range
+ */
+export function toParticipantBusyEvents(blocks, attendee, label) {
+  return (blocks || [])
+    .filter(block => block && block.start && block.end)
+    .map(block => convertDates({
+      type: 'participantBusy',
+      color: PARTICIPANT_BUSY_COLOR,
+      identityId: attendee && attendee.identity && attendee.identity.id,
+      identity: attendee && attendee.identity,
+      summary: label,
+      allDay: false,
+      start: block.start,
+      end: block.end,
+    }));
+}

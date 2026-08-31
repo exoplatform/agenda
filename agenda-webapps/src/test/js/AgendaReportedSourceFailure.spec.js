@@ -82,6 +82,15 @@ const baseVm = {
   loading: false,
   remoteEvents: [],
   failedConnectors: [],
+  /*
+   * EXO-89851 gave the form a second kind of unreadable source — a calendar,
+   * beside an account — and the one warning now names both. Declared here so
+   * these fixtures keep describing the component as it really is: a `|| []`
+   * in the computed would have made them pass while still describing
+   * something the component does not hold.
+   */
+  failedStoreSourceKeys: [],
+  $t: key => key,
   period: {start: new Date('2026-09-01T00:00:00Z'), end: new Date('2026-09-08T00:00:00Z')},
   $agendaUtils: agendaUtils,
 };
