@@ -64,19 +64,37 @@
           {{ $t('agenda.button.previous') }}
         </span>
       </v-btn>
-      <!-- The sentence the drawer deliberately does not carry. The drawer is
-           minimal and gets the name only; the explanation belongs here, beside
-           the button it explains, because "Suggest several dates" sits greyed
-           and secondary next to the primary save and otherwise tells a
-           first-time organiser nothing about what pressing it would produce.
+      <!-- ONE slot in the footer, carrying whichever line the step it is on
+           owes the organiser. Two lines, never both at once — one belongs to
+           the details step and one to the date step — so they share a place
+           and a treatment rather than becoming two mechanisms that have to be
+           kept looking alike.
 
-           Only while that button is on screen, and only on a wide one: on the
-           date step the button is gone and the sentence would be explaining
-           nothing. -->
+           On step 1 it is the sentence the quick-add drawer deliberately does
+           not carry: the drawer is minimal and gets the name only, while
+           "Suggest several dates" sits here greyed and secondary next to the
+           primary save and would otherwise tell a first-time organiser
+           nothing about what pressing it produces.
+
+           On step 2 it is the instruction that used to sit above the grid,
+           under the busy-coverage report and the failed-source warning. Three
+           stacked informational rows competed with each other and pushed the
+           grid — the thing the organiser came to use — further down the
+           screen. Here it costs the grid no height at all and sits beside the
+           controls about to be pressed. The cost, plainly: it is further from
+           the grid it refers to. "Drag on the calendar" names its own target,
+           so proximity is doing little work here, but it is a real cost and
+           not nothing.
+
+           Below sm the footer's buttons already fill the row, so the line
+           steps aside rather than wrapping them; text-truncate with the whole
+           line on title keeps a narrow window clipping instead of pushing the
+           buttons off the edge. -->
       <div
-        v-if="displayDatePollExplanation"
-        class="d-none d-md-flex align-center ms-4 me-2 caption text-light-color">
-        {{ $t('agenda.datePoll.explanation') }}
+        v-if="footerHint"
+        :title="$t(footerHint)"
+        class="d-none d-sm-flex align-center ms-4 me-2 caption text-light-color text-truncate">
+        {{ $t(footerHint) }}
       </div>
       <div class="ms-auto me-10">
         <v-btn
@@ -187,8 +205,20 @@ export default {
     disableNextStepButton() {
       return !this.eventDetailsComplete;
     },
-    displayDatePollExplanation() {
-      return this.displayTimeInForm && this.stepper < 2;
+    /*
+     * The one line the footer carries, as a message key, or nothing.
+     *
+     * The date step's instruction is spent the moment it is obeyed, and it is
+     * read off eventDateOptionsLength — the same count disableSaveButton
+     * reads, kept up to date by the date step's own added/deleted events — so
+     * the hint and the save button can never disagree about whether the grid
+     * holds anything.
+     */
+    footerHint() {
+      if (this.stepper > 1) {
+        return this.eventDateOptionsLength === 0 && 'agenda.datePoll.dragHint' || '';
+      }
+      return this.displayTimeInForm && 'agenda.datePoll.explanation' || '';
     },
     nextStepClass() {
       return this.displayTimeInForm && 'btn' || 'btn btn-primary';

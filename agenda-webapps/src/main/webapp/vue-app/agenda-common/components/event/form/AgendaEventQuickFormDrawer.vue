@@ -111,11 +111,11 @@
             fourth would read as a fourth way to commit rather than as a
             change of route.
 
-            Disabled, it still says what it is and why it cannot be used yet.
-            A greyed control teaches nothing to the person this link exists
-            for — someone who has never seen it enabled and does not know the
-            feature is there — so the reason is body text beside it, not a
-            tooltip on a control that swallows hover events anyway.
+            Disabled it is greyed and says nothing further. The two fields it
+            waits on — the title and the destination — sit directly above it,
+            so what is missing is visible without being narrated, and a
+            sentence spelling that out would cost this drawer the minimalism
+            that is the whole reason the explanation lives in the full form.
 
             Not on mobile. This drawer is reachable there (the empty timeline
             opens it), but the dialog behind it renders the mobile form, which
@@ -134,10 +134,7 @@
               @click.prevent="openDatePollForm">
               {{ $t('agenda.alternativeDates') }}
             </a>
-            <template v-else>
-              <span class="text-light-color">{{ $t('agenda.alternativeDates') }}</span>
-              <span class="text-light-color caption ms-2">{{ $t('agenda.datePoll.linkDisabledReason') }}</span>
-            </template>
+            <span v-else class="text-light-color">{{ $t('agenda.alternativeDates') }}</span>
           </div>
         </div>
       </v-form>

@@ -154,16 +154,6 @@ function mountDrawer(event, mobile) {
   });
 }
 
-/**
- * Evaluates the shipped step-2 hint guard over an event.
- *
- * @param {Array} dateOptions the slots on the grid
- * @returns {Number} what the component counts
- */
-function slotsOnGrid(dateOptions) {
-  return AgendaEventFormDates.computed.dateOptionsCount.call({event: {dateOptions}});
-}
-
 describe('EXO-89852 — the drawer admits exactly whom the form admits', () => {
   AGREEMENT_CASES.forEach(([name, event]) => {
     it(`agrees with the form's next-step rule on ${name}`, () => {
@@ -184,24 +174,35 @@ describe('EXO-89852 — the drawer admits exactly whom the form admits', () => {
     expect(drawer.vm.datePollRouteEnabled).toBe(false);
   });
 
-  it('shows the route as a link when it is open, and names it and its reason when it is not', () => {
+  it('shows the route as a link when it is open, and greys the same words when it is not', () => {
     const open = mountDrawer(editedEvent());
     const shut = mountDrawer(editedEvent({summary: ''}));
 
     expect(open.text()).toContain('agenda.alternativeDates');
     expect(open.find('a.primary--text').exists()).toBe(true);
-    expect(open.text()).not.toContain('agenda.datePoll.linkDisabledReason');
 
     expect(shut.find('a.primary--text').exists()).toBe(false);
     expect(shut.text()).toContain('agenda.alternativeDates');
-    expect(shut.text()).toContain('agenda.datePoll.linkDisabledReason');
+  });
+
+  /*
+   * The disabled link says nothing beyond its own name: the two fields it
+   * waits on sit directly above it. Asserted as "no date-poll message key
+   * renders here at all" rather than against the retired key, so a sentence
+   * reintroduced under any new name fails this too.
+   */
+  it('says nothing further when it is disabled, whatever the sentence might be called', () => {
+    const shut = mountDrawer(editedEvent({summary: ''}));
+
+    expect(shut.text()).not.toContain('agenda.datePoll.');
+    expect(shut.findAll('.text-light-color').length).toBe(1);
   });
 
   it('offers nothing on mobile, where the form it would open has no date step', () => {
     const onPhone = mountDrawer(editedEvent(), true);
 
     expect(onPhone.text()).not.toContain('agenda.alternativeDates');
-    expect(onPhone.text()).not.toContain('agenda.datePoll.linkDisabledReason');
+    expect(onPhone.text()).not.toContain('agenda.datePoll.');
     expect(onPhone.text()).toContain('agenda.button.moreDetails');
   });
 });
@@ -244,22 +245,6 @@ describe('EXO-89852 — the route asks for the date step', () => {
   });
 });
 
-describe('EXO-89852 — the step-2 hint is spent the moment it is obeyed', () => {
-  it('counts what is on the grid, so the hint is shown on an empty one only', () => {
-    expect(slotsOnGrid([])).toBe(0);
-    expect(slotsOnGrid([{start: '2026-09-01T09:00:00Z'}])).toBe(1);
-    expect(slotsOnGrid([{start: '1'}, {start: '2'}])).toBe(2);
-  });
-
-  it('renders the hint under the coverage strip while the grid is empty, and not once a slot exists', () => {
-    const empty = renderDatesStep([]);
-    const dragged = renderDatesStep([{start: '2026-09-01T09:00:00Z'}]);
-
-    expect(empty).toContain('agenda.datePoll.dragHint');
-    expect(dragged).not.toContain('agenda.datePoll.dragHint');
-  });
-});
-
 describe('EXO-89852 — the save button says what it is about to send', () => {
   it('sends a date poll on two options and creates an event on one', () => {
     const form = mountForm({displayTimeInForm: true});
@@ -282,15 +267,62 @@ describe('EXO-89852 — the save button says what it is about to send', () => {
     const onDetails = mountForm({displayTimeInForm: true});
 
     return onDetails.vm.$nextTick().then(() => {
-      expect(onDetails.vm.displayDatePollExplanation).toBe(true);
+      expect(onDetails.vm.footerHint).toBe('agenda.datePoll.explanation');
       expect(onDetails.text()).toContain('agenda.datePoll.explanation');
 
       onDetails.setData({stepper: 2});
       return onDetails.vm.$nextTick().then(() => {
-        expect(onDetails.vm.displayDatePollExplanation).toBe(false);
         expect(onDetails.text()).not.toContain('agenda.datePoll.explanation');
       });
     });
+  });
+});
+
+describe('EXO-89852 — the date step is instructed from the footer', () => {
+  /**
+   * Puts the form on the date step with a given number of slots on the grid.
+   *
+   * The slots go on the EVENT, never straight into eventDateOptionsLength:
+   * the stepper watcher recounts them off the event on arrival, so a count
+   * planted in data would be overwritten and the test would be asserting
+   * against a state the running form can never be in.
+   *
+   * @param {Number} slots how many date options the organiser has dragged
+   * @returns {Promise} resolves with the mounted wrapper
+   */
+  function onDateStep(slots) {
+    const dateOptions = [];
+    for (let slot = 0; slot < slots; slot++) {
+      dateOptions.push({allDay: false});
+    }
+    const form = mountForm({event: editedEvent({dateOptions}), displayTimeInForm: true});
+    return form.vm.$nextTick().then(() => {
+      form.setData({stepper: 2});
+      return form.vm.$nextTick().then(() => form);
+    });
+  }
+
+  it('carries the instruction in the footer while the grid is empty', () => {
+    return onDateStep(0).then(form => {
+      expect(form.vm.footerHint).toBe('agenda.datePoll.dragHint');
+      expect(form.text()).toContain('agenda.datePoll.dragHint');
+      expect(form.find('v-stepper').text()).not.toContain('agenda.datePoll.dragHint');
+    });
+  });
+
+  it('drops the instruction the moment a slot exists', () => {
+    return onDateStep(1).then(form => {
+      expect(form.vm.footerHint).toBe('');
+      expect(form.text()).not.toContain('agenda.datePoll.dragHint');
+    });
+  });
+
+  /*
+   * The step it was moved OUT of must not keep a copy: two copies would both
+   * be right on the day of the move and drift the first time either changes.
+   */
+  it('is gone from the grid it used to sit above', () => {
+    expect(renderDatesStep([])).not.toContain('agenda.datePoll.dragHint');
   });
 });
 
