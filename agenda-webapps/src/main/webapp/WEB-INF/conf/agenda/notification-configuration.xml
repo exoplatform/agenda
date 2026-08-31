@@ -401,12 +401,7 @@
         <values-param>
           <name>pluginIds</name>
           <value>EventAddedNotificationPlugin</value>
-          <value>EventModifiedNotificationPlugin</value>
-          <value>EventCanceledNotificationPlugin</value>
-          <value>EventReminderNotificationPlugin</value>
-          <value>EventReplyNotificationPlugin</value>
           <value>DatePollNotificationPlugin</value>
-          <value>VoteNotificationPlugin</value>
         </values-param>
       </init-params>
     </component-plugin>
