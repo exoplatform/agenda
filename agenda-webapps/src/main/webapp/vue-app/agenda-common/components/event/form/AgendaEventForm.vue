@@ -64,6 +64,20 @@
           {{ $t('agenda.button.previous') }}
         </span>
       </v-btn>
+      <!-- The sentence the drawer deliberately does not carry. The drawer is
+           minimal and gets the name only; the explanation belongs here, beside
+           the button it explains, because "Suggest several dates" sits greyed
+           and secondary next to the primary save and otherwise tells a
+           first-time organiser nothing about what pressing it would produce.
+
+           Only while that button is on screen, and only on a wide one: on the
+           date step the button is gone and the sentence would be explaining
+           nothing. -->
+      <div
+        v-if="displayDatePollExplanation"
+        class="d-none d-md-flex align-center ms-4 me-2 caption text-light-color">
+        {{ $t('agenda.datePoll.explanation') }}
+      </div>
       <div class="ms-auto me-10">
         <v-btn
           v-if="displaySaveButton"
@@ -124,6 +138,18 @@ export default {
       type: Object,
       default: () => null
     },
+    /*
+     * Open straight on the date step instead of the details step. Set by the
+     * quick-add drawer's "Suggest several dates" link, which has already
+     * collected everything the details step asks for — the drawer gates that
+     * link on isEventDetailsComplete, the very rule disableNextStepButton
+     * applies, so this skips a step the organiser could only have walked
+     * through unchanged.
+     */
+    openDateOptions: {
+      type: Boolean,
+      default: false
+    },
   },
   data () {
     return {
@@ -133,26 +159,18 @@ export default {
     };
   },
   computed: {
-    eventTitle() {
-      return this.event && this.event.summary;
-    },
-    eventTitleValid() {
-      return this.eventTitle && this.eventTitle.length >= 1 && this.eventTitle.length < 1024;
-    },
     eventCalendar() {
       return this.event && this.event.calendar;
     },
     eventOwner() {
       return this.eventCalendar && this.eventCalendar.owner;
     },
-    eventOwnerValid() {
-      return this.eventOwner && (this.eventOwner.id || this.eventOwner.remoteId && this.eventOwner.providerId);
-    },
-    eventDescription() {
-      return this.event && this.event.description || '';
-    },
-    eventDescriptionValid() {
-      return this.$utils.htmlToText(this.eventDescription).length <= 1300;
+    /*
+     * The details step's rule, held in AgendaUtils so the quick-add drawer's
+     * date-poll link can apply the same one instead of restating it.
+     */
+    eventDetailsComplete() {
+      return this.$agendaUtils.isEventDetailsComplete(this.event, this.$utils.htmlToText);
     },
     eventDateOptions() {
       return this.event && this.event.dateOptions || [];
@@ -164,10 +182,13 @@ export default {
       return this.displayTimeInForm || this.stepper > 1;
     },
     disableSaveButton() {
-      return !this.eventTitleValid || !this.eventOwnerValid || !this.eventDescriptionValid || this.eventDateOptionsLength === 0;
+      return !this.eventDetailsComplete || this.eventDateOptionsLength === 0;
     },
     disableNextStepButton() {
-      return !this.eventTitleValid || !this.eventOwnerValid || !this.eventDescriptionValid;
+      return !this.eventDetailsComplete;
+    },
+    displayDatePollExplanation() {
+      return this.displayTimeInForm && this.stepper < 2;
     },
     nextStepClass() {
       return this.displayTimeInForm && 'btn' || 'btn btn-primary';
@@ -237,6 +258,18 @@ export default {
     updateDateOptionsLength() {
       this.eventDateOptionsLength = this.event.dateOptions.length;
     },
+    /**
+     * Puts the form back to the step the caller asked for.
+     *
+     * The stepper is driven to 0 first and only then to its target on the next
+     * tick: the stepper watcher is what re-initialises the event and the
+     * details step, and a v-model assigned its current value would not fire it.
+     * Which target is the caller's choice — 1 for the details step, 2 when the
+     * quick-add drawer already collected the details and asked for the date
+     * step directly.
+     *
+     * @returns {void}
+     */
     reset() {
       if (this.eventCalendar && this.eventCalendar.acl) {
         this.selectedCalendar = this.eventCalendar;
@@ -248,7 +281,7 @@ export default {
       this.eventDateOptionsLength = this.event.dateOptions.length;
 
       this.stepper = 0;
-      this.$nextTick().then(() => this.stepper = 1);
+      this.$nextTick().then(() => this.stepper = this.openDateOptions && 2 || 1);
       this.$forceUpdate();
     },
     previousStep() {

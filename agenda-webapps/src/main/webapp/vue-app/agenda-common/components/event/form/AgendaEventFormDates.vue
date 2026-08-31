@@ -97,6 +97,23 @@
       :checked-keys="checkedParticipantKeys"
       :not-disclosed-keys="notDisclosedParticipantKeys"
       :failed-keys="failedParticipantKeys" />
+    <!-- Under the coverage strip, and the last thing before the grid: an empty
+         week-view with no instruction is the step where the feature is lost —
+         nothing on it says a slot is dragged, and nothing says that dragging a
+         second one is what makes this a poll.
+
+         It says what the organiser DOES, not what the grid shows, and it is
+         rendered only while there is nothing on the grid: obeying it removes
+         it, so it needs no stored state, nothing to dismiss, and it costs the
+         step no room once the work has started — which matters on a screen
+         that already carries a source warning and a coverage report above
+         this line. -->
+    <div
+      v-if="!dateOptionsCount"
+      class="d-flex flex-row align-start caption text-light-color mb-2">
+      <v-icon size="14" class="me-1 mt-1 icon-default-color">fas fa-hand-pointer</v-icon>
+      <span>{{ $t('agenda.datePoll.dragHint') }}</span>
+    </div>
     <v-calendar
       ref="calendar"
       v-model="dayToDisplay"
@@ -286,6 +303,16 @@ export default {
     displayedEvents: [],
   }),
   computed: {
+    /**
+     * How many slots the organiser has put on the grid. Read straight off the
+     * event rather than mirrored into data, so it follows a drag and a delete
+     * without anything having to remember to update it.
+     *
+     * @returns {Number} the number of date options
+     */
+    dateOptionsCount() {
+      return this.event && this.event.dateOptions && this.event.dateOptions.length || 0;
+    },
     // A workaround to display events that finishes at midnight the same day
     eventsToDisplay() {
       const eventsToDisplay = [];

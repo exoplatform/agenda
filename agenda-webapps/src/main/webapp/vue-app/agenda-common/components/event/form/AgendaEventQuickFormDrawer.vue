@@ -99,6 +99,46 @@
               class="ml-n2px pe-1"
               @initialized="formInitialized" />
           </div>
+          <!--
+            The only trace of the date poll on the drawer's path, and a link
+            rather than a sentence: this drawer is deliberately minimal, and
+            an explanation here would fight that — the explanation lives in
+            the full form, which has room for it. The words are the full
+            form's own button label, read from the same key, so the two
+            places teach one name for one feature.
+
+            Not a footer button: the footer already carries three, and a
+            fourth would read as a fourth way to commit rather than as a
+            change of route.
+
+            Disabled, it still says what it is and why it cannot be used yet.
+            A greyed control teaches nothing to the person this link exists
+            for — someone who has never seen it enabled and does not know the
+            feature is there — so the reason is body text beside it, not a
+            tooltip on a control that swallows hover events anyway.
+
+            Not on mobile. This drawer is reachable there (the empty timeline
+            opens it), but the dialog behind it renders the mobile form, which
+            has no date step and cannot create a poll at all — out of scope
+            here, deliberately. A link advertising a feature and landing on a
+            screen that does not have it is worse than the silence it replaced.
+          -->
+          <div
+            v-if="!$root.isMobile"
+            class="d-flex flex-row align-center my-3 ms-3">
+            <v-icon size="20" class="icon-default-color my-auto me-4">far fa-calendar-check</v-icon>
+            <a
+              v-if="datePollRouteEnabled"
+              href="#"
+              class="primary--text"
+              @click.prevent="openDatePollForm">
+              {{ $t('agenda.alternativeDates') }}
+            </a>
+            <template v-else>
+              <span class="text-light-color">{{ $t('agenda.alternativeDates') }}</span>
+              <span class="text-light-color caption ms-2">{{ $t('agenda.datePoll.linkDisabledReason') }}</span>
+            </template>
+          </div>
         </div>
       </v-form>
     </template>
@@ -179,6 +219,16 @@ export default {
     disableSaveButton() {
       return this.saving || !this.eventTitleValid || !this.eventOwnerValid;
     },
+    /*
+     * The date-poll link opens the full form on its date step, so it may only
+     * admit whom that step admits. That is the form's disableNextStepButton
+     * rule, held once in AgendaUtils and applied here rather than restated:
+     * were it restated, the two could drift and this link would open a step
+     * the form itself refuses to leave.
+     */
+    datePollRouteEnabled() {
+      return !this.saving && this.$agendaUtils.isEventDetailsComplete(this.event, this.$utils.htmlToText);
+    },
     isConferenceEnabled() {
       return this.conferenceProvider && this.conferenceProvider.getType();
     },
@@ -236,11 +286,39 @@ export default {
     formInitialized() {
       this.originalEventString = JSON.stringify(this.event);
     },
+    /**
+     * Opens the full event form on its details step — the drawer's historical
+     * "More details" route.
+     *
+     * @returns {void}
+     */
     openCompleteEventForm() {
+      this.openFullEventForm(false);
+    },
+    /**
+     * Opens the full event form directly on its date step — the drawer's route
+     * to the date poll, gated on datePollRouteEnabled.
+     *
+     * @returns {void}
+     */
+    openDatePollForm() {
+      this.openFullEventForm(true);
+    },
+    /**
+     * Hands the half-filled event over to the full form and closes the drawer.
+     *
+     * The flag is passed explicitly rather than taken from the click handler's
+     * argument: both callers are @click handlers, and a DOM event read as the
+     * flag would send "More details" to the date step too.
+     *
+     * @param {Boolean} openDateOptions true to open on the date step
+     * @returns {void}
+     */
+    openFullEventForm(openDateOptions) {
       this.event.start = this.$agendaUtils.toRFC3339(this.event.startDate);
       this.event.end = this.$agendaUtils.toRFC3339(this.event.endDate);
 
-      this.$root.$emit('agenda-event-form', this.event, true);
+      this.$root.$emit('agenda-event-form', this.event, true, openDateOptions);
       this.cancelEventCreation();
       this.$nextTick(() => this.$refs.quickAddEventDrawer.close());
     },
