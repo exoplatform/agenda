@@ -51,6 +51,19 @@
         :event="event"
         class="align-end my-auto col-sm-3 col-2" />
     </v-toolbar>
+    <!-- the grid behind the drag is what the user checks a slot against, so
+         when an account could not be read the form says so where the choice
+         is made, and says what it means for the choice: the slot may look
+         free only because nobody could ask that account -->
+    <v-alert
+      v-if="hasFailedSource"
+      type="warning"
+      class="mb-4"
+      dense
+      outlined
+      text>
+      {{ failedSourceWarning }}
+    </v-alert>
     <v-calendar
       ref="calendar"
       v-model="dayToDisplay"
@@ -173,6 +186,13 @@ export default {
     newStartedEvent: null,
     period: {},
     remoteEvents: [],
+    /*
+     * The accounts whose last read failed. Kept apart from the events because
+     * an account that could not answer is not an account that answered
+     * "nothing": the grid behind the drag is what the user checks a slot
+     * against, and it has to say when it is not showing everything.
+     */
+    failedConnectors: [],
     spaceEvents: [],
     displayedEvents: [],
   }),
@@ -246,6 +266,35 @@ export default {
         event: this.event,
         events: this.eventsToDisplay,
       };
+    },
+    /**
+     * The accounts the grid could not read, named as the user knows them.
+     *
+     * @returns {Array} one display name per unreachable account
+     */
+    failedSourceNames() {
+      return this.$agendaUtils.failedSourceNames(this.failedConnectors);
+    },
+    /**
+     * Whether the grid behind the drag is missing what an account holds.
+     *
+     * @returns {Boolean} true when at least one account could not be read
+     */
+    hasFailedSource() {
+      return this.failedSourceNames.length > 0;
+    },
+    /**
+     * What the warning above the grid says. It states the consequence, not
+     * the incident: the user is about to pick a slot against this grid, so
+     * the sentence they need is that the slot may not be free, not that a
+     * request failed.
+     *
+     * @returns {String} the warning sentence
+     */
+    failedSourceWarning() {
+      return this.$t('agenda.eventForm.busyTimesIncomplete', {
+        0: this.failedSourceNames.join(', '),
+      });
     },
   },
   watch: {
@@ -492,15 +541,22 @@ export default {
             })
             .catch(error => {
               console.error('Error retrieving remote events', connector.name, error);
-              return {connector, events: []};
+              // No events array at all: an account that could not answer must
+              // not reach the grid as an account that answered "nothing",
+              // which would paint the slot free and let the user book over a
+              // meeting that is really there.
+              return {connector, failed: true};
             })))
           .then(eventsByConnector => {
-            this.remoteEvents = this.$agendaUtils.mergeRemoteEvents(eventsByConnector);
+            const sources = this.$agendaUtils.splitRemoteEventResults(eventsByConnector);
+            this.remoteEvents = sources.events;
+            this.failedConnectors = sources.failedConnectors;
             this.loading = false;
           })
           .finally(() => this.refreshEventsToDisplay());
       } else {
         this.remoteEvents = [];
+        this.failedConnectors = [];
         this.refreshEventsToDisplay();
       }
     },

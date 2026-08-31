@@ -12,6 +12,18 @@
           :settings="settings"
           :period-title="periodTitle"
           :show-default-remote-events="showDefaultRemoteEvents" />
+        <!-- a widget is glanced at rather than worked in: one short line is
+             what a glance can carry, so it says the list is short of a source
+             and leaves which account to the tooltip -->
+        <div
+          v-if="hasFailedSource"
+          :title="failedSourceTitle"
+          class="d-flex align-center px-4 pt-2 text-caption warning--text">
+          <v-icon size="14" class="me-1 warning--text">
+            fa-exclamation-triangle
+          </v-icon>
+          <span class="text-truncate">{{ failedSourceMessage }}</span>
+        </div>
         <agenda-timeline
           v-if="$root.isTimelineView"
           :events="displayedEvent"
@@ -80,6 +92,13 @@ export default {
     },
     events: [],
     remoteEvents: [],
+    /*
+     * The accounts whose last read failed. Kept apart from the events because
+     * an account that could not answer is not an account that answered
+     * "nothing": the widget would otherwise show a shorter list with nothing
+     * saying a source dropped out.
+     */
+    failedConnectors: [],
     agendaBaseLink: null,
     conferenceProviders: null,
     selectedProviderType: null,
@@ -88,6 +107,42 @@ export default {
     periodTitle: '',
   }),
   computed: {
+    /**
+     * The accounts the widget could not read, named as the user knows them.
+     *
+     * @returns {Array} one display name per unreachable account
+     */
+    failedSourceNames() {
+      return this.$agendaUtils.failedSourceNames(this.failedConnectors);
+    },
+    /**
+     * Whether the list is showing less than it should.
+     *
+     * @returns {Boolean} true when at least one account could not be read
+     */
+    hasFailedSource() {
+      return this.failedSourceNames.length > 0;
+    },
+    /**
+     * What the line above the list says. A widget is glanced at, not worked
+     * in, so it says only the one thing a glance has to carry — that the list
+     * is short of a source — and leaves naming which one to its tooltip.
+     *
+     * @returns {String} the short warning line
+     */
+    failedSourceMessage() {
+      return this.$t('agenda.timeline.someEventsMissing');
+    },
+    /**
+     * Which accounts the short line is about, for the reader who stops on it.
+     *
+     * @returns {String} the tooltip naming the unread accounts
+     */
+    failedSourceTitle() {
+      return this.$t('agenda.timeline.someEventsMissingTooltip', {
+        0: this.failedSourceNames.join(', '),
+      });
+    },
     canCreateEvent() {
       return (this.$root?.timelineSettings && this.$root.timelineSettings.agendaSource !== 'selectedSpaces') || (this.calendars?.length && this.calendars.some(c => c?.acl?.canCreate));
     },
@@ -405,15 +460,21 @@ export default {
             })
             .catch(error => {
               console.error('Error retrieving remote events', connector.name, error);
-              return {connector, events: []};
+              // No events array at all: an account that could not answer must
+              // not reach the widget as an account that answered "nothing",
+              // which would shorten the list with nothing saying why.
+              return {connector, failed: true};
             })))
           .then(eventsByConnector => {
-            this.remoteEvents = this.$agendaUtils.mergeRemoteEvents(eventsByConnector);
+            const sources = this.$agendaUtils.splitRemoteEventResults(eventsByConnector);
+            this.remoteEvents = sources.events;
+            this.failedConnectors = sources.failedConnectors;
             this.loading = false;
             this.remoteEventsLoaded = true;
           });
       } else {
         this.remoteEvents = [];
+        this.failedConnectors = [];
       }
     },
     filterRemoteEvents(localEvents, remoteEvents) {
