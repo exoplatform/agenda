@@ -577,14 +577,16 @@ export default {
       // unreachable account must not blank the events the others returned
       Promise.all(connectors.map(connector =>
         connector.getEvents(period.start, period.end)
-          .then(events => {
-            if (events) {
-              events.forEach(event => {
-                event.startDate = event.start && this.$agendaUtils.toDate(event.start) || null;
-                event.endDate = event.end && this.$agendaUtils.toDate(event.end) || null;
-              });
-            }
-            return {connector, events: events || []};
+          .then(answer => {
+            // A connector may report a partial read: the events it did get,
+            // beside the fact that it could not get all of them. Both halves
+            // travel on, or the panel lists a short roster as a whole one.
+            const read = this.$agendaUtils.readConnectorAnswer(answer);
+            read.events.forEach(event => {
+              event.startDate = event.start && this.$agendaUtils.toDate(event.start) || null;
+              event.endDate = event.end && this.$agendaUtils.toDate(event.end) || null;
+            });
+            return {connector, events: read.events, failed: read.failed};
           })
           .catch(error => {
             console.error('Error retrieving remote events', connector.name, error);

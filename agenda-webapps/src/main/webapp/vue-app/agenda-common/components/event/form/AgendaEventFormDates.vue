@@ -533,11 +533,15 @@ export default {
         // unreachable account must not blank the events the others returned
         Promise.all(this.signedInConnectors.map(connector =>
           connector.getEvents(startEventRFC3359, endEventRFC3359)
-            .then(events => {
-              (events || []).forEach(event => {
+            .then(answer => {
+              // A connector may report a partial read: the events it did get,
+              // beside the fact that it could not get all of them. Both halves
+              // travel on, or the grid paints a slot free that is not.
+              const read = this.$agendaUtils.readConnectorAnswer(answer);
+              read.events.forEach(event => {
                 this.$agendaUtils.convertDates(event);
               });
-              return {connector, events: events || []};
+              return {connector, events: read.events, failed: read.failed};
             })
             .catch(error => {
               console.error('Error retrieving remote events', connector.name, error);
