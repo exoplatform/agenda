@@ -54,6 +54,12 @@ public class AgendaEventStorage {
     this.eventRecurrenceDAO = eventRecurrenceDAO;
   }
 
+  /**
+   * Retrieves the identifiers of the events matching a filter.
+   *
+   * @param eventFilter criteria of the events to retrieve
+   * @return {@link List} of matching event technical identifiers
+   */
   public List<Long> getEventIds(EventFilter eventFilter) {
     ZonedDateTime start = eventFilter.getStart();
     ZonedDateTime end = eventFilter.getEnd();
@@ -63,7 +69,13 @@ public class AgendaEventStorage {
     List<Long> ownerIds = eventFilter.getOwnerIds();
     List<EventAttendeeResponse> responseTypes = eventFilter.getResponseTypes();
     int limit = eventFilter.getEnd() == null ? DEFAULT_LIMIT : 0;
-    return this.eventDAO.getEventIds(startDate, endDate, ownerIds, attendeeIds, responseTypes, limit);
+    return this.eventDAO.getEventIds(startDate,
+                                     endDate,
+                                     ownerIds,
+                                     attendeeIds,
+                                     responseTypes,
+                                     eventFilter.getExcludedCalendarIds(),
+                                     limit);
   }
 
   public List<Long> getPendingEventIds(Long userIdentityId,
