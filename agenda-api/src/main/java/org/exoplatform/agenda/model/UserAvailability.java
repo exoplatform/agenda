@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2025 eXo Platform SAS.
+ * Copyright (C) 2026 eXo Platform SAS.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -14,33 +14,30 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.exoplatform.agenda.mcp.model;
+package org.exoplatform.agenda.model;
 
 import java.util.List;
-
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import com.fasterxml.jackson.annotation.JsonProperty;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-// Server-side conflict report over an event's attendees for a given window.
-// Partial on purpose: attendees whose availability the acting user may not read are listed in "not_disclosed"
-// and left out of "conflicts", so all_available means "no clash was found", never "everyone is free".
+/**
+ * One user's availability over a window: the time they are busy, and the time
+ * they are not.
+ * <p>
+ * Only time ranges are carried — never an event, its title or its calendar —
+ * so that disclosing availability never discloses event content.
+ */
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@JsonInclude(value = Include.NON_NULL)
-public class ConflictsModel {
+public class UserAvailability {
 
-  @JsonProperty("all_available")
-  private boolean                     allAvailable;
+  private long            identityId;
 
-  private List<AttendeeConflictModel> conflicts;
+  private List<TimeBlock> busy;
 
-  @JsonProperty("not_disclosed")
-  private List<String>                notDisclosed;
+  private List<TimeBlock> free;
 
 }
