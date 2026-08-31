@@ -73,8 +73,12 @@ import org.exoplatform.agenda.model.EventReminder;
 import org.exoplatform.agenda.model.EventReminderParameter;
 import org.exoplatform.agenda.model.EventSearchResult;
 import org.exoplatform.agenda.model.AgendaEventSearchFilter;
+import org.exoplatform.agenda.model.AvailabilityConflicts;
+import org.exoplatform.agenda.model.TimeBlock;
+import org.exoplatform.agenda.model.UserAvailability;
 import org.exoplatform.agenda.plugin.AgendaEventAclPlugin;
 import org.exoplatform.agenda.plugin.AgendaEventPermanentLinkPlugin;
+import org.exoplatform.agenda.service.AgendaAvailabilityService;
 import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.agenda.service.AgendaEventAttendeeService;
 import org.exoplatform.agenda.service.AgendaEventConferenceService;
@@ -122,6 +126,13 @@ public class AgendaEventMcpTool implements McpToolPlugin {
 
   private static final String                MSG_PARAMETER_ATTENDEE_IS_MANDATORY  = "Parameter 'attendee_usernames' is mandatory";
 
+  /**
+   * The only clash status the report can carry. The event query behind
+   * free/busy filters on CONFIRMED events, so a TENTATIVE one is never read
+   * and "tentative" could never be reported.
+   */
+  private static final String                CONFLICT_STATUS_BUSY                 = "busy";
+
   private static final String                MSG_USER_NOT_ALLOWED_TO_UPDATE       =
                                                                             "User isn't allowed to update the event with id %s";
 
@@ -138,6 +149,8 @@ public class AgendaEventMcpTool implements McpToolPlugin {
   private final AgendaCalendarService        agendaCalendarService;
 
   private final AgendaEventService           agendaEventService;
+
+  private final AgendaAvailabilityService    agendaAvailabilityService;
 
   private final AgendaEventAttendeeService   agendaEventAttendeeService;
 
@@ -162,6 +175,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
   @Autowired
   public AgendaEventMcpTool(AgendaCalendarService agendaCalendarService, // NOSONAR
                             AgendaEventService agendaEventService,
+                            AgendaAvailabilityService agendaAvailabilityService,
                             AgendaEventConferenceService agendaEventConferenceService,
                             AgendaEventAttendeeService agendaEventAttendeeService,
                             AgendaEventDatePollService agendaEventDatePollService,
@@ -175,6 +189,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
                             SpaceService spaceService,
                             UserACL userAcl) {
     this.agendaEventService = agendaEventService;
+    this.agendaAvailabilityService = agendaAvailabilityService;
     this.agendaEventAttendeeService = agendaEventAttendeeService;
     this.agendaEventConferenceService = agendaEventConferenceService;
     this.agendaEventDatePollService = agendaEventDatePollService;
@@ -669,35 +684,61 @@ public class AgendaEventMcpTool implements McpToolPlugin {
   }
 
   // ==========================================================================
-  // Free / busy + suggestions (new scheduling logic)
+  // Free / busy + suggestions
   // ==========================================================================
 
-  // Return per-user availability (busy and free time blocks) within [start,end].
-  // Privacy: only time ranges are returned, never event titles or details of other users.
+  /**
+   * Returns each named user's busy and free time blocks over a window.
+   * <p>
+   * Glue only: usernames and RFC3339 bounds are resolved here, the ACL and the
+   * free/busy algebra belong to {@link AgendaAvailabilityService}. Asking
+   * about a user whose availability the caller may not read is refused, not
+   * silently omitted.
+   *
+   * @param usernames the users to report on
+   * @param start window start, RFC3339
+   * @param end window end, RFC3339
+   * @return one entry per username that resolved to an identity
+   * @throws IllegalAccessException when the caller may not read one of them
+   */
   public List<AvailabilityModel> getAvailability(List<String> usernames,
                                                  String start,
                                                  String end) throws IllegalAccessException {
     if (CollectionUtils.isEmpty(usernames)) {
       throw new IllegalArgumentException("Parameter 'usernames' is mandatory");
     }
-    ZonedDateTime windowStart = toZonedDateTime(start);
-    ZonedDateTime windowEnd = toZonedDateTime(end);
-    List<AvailabilityModel> result = new ArrayList<>();
-    for (String username : usernames) {
-      Identity identity = identityManager.getOrCreateUserIdentity(username);
-      if (identity == null) {
-        continue;
-      }
-      List<BusyInterval> intervals = getBusyIntervals(identity.getIdentityId(), windowStart, windowEnd);
-      List<TimeBlockModel> busy = mergeToBlocks(intervals);
-      List<TimeBlockModel> free = complementBlocks(intervals, windowStart, windowEnd);
-      result.add(new AvailabilityModel(username, busy, free));
+    Map<Long, String> usernamesByIdentityId = resolveUsers(usernames);
+    if (usernamesByIdentityId.isEmpty()) {
+      return List.of();
     }
-    return result;
+    List<UserAvailability> availabilities = agendaAvailabilityService.getAvailability(List.copyOf(usernamesByIdentityId.keySet()),
+                                                                                      toZonedDateTime(start),
+                                                                                      toZonedDateTime(end),
+                                                                                      getCurrentUserIdentityId());
+    return availabilities.stream()
+                         .map(availability -> new AvailabilityModel(usernamesByIdentityId.get(availability.getIdentityId()),
+                                                                    toTimeBlocks(availability.getBusy()),
+                                                                    toTimeBlocks(availability.getFree())))
+                         .toList();
   }
 
-  // Suggest candidate meeting slots of at least duration_minutes where ALL attendees are free within the window.
-  // Optional constraint keywords: "mornings" / "afternoons" restrict candidate start times (before/after 12:00).
+  /**
+   * Suggests candidate slots of at least {@code duration_minutes} over which
+   * every attendee is free.
+   * <p>
+   * Glue only. Note that this refuses outright when one attendee's
+   * availability is not readable by the caller: a suggestion computed from a
+   * subset of the attendees would read as a whole answer.
+   *
+   * @param attendees the users who must all be free
+   * @param durationMinutes the wanted slot length, in minutes
+   * @param windowStart earliest acceptable start, RFC3339
+   * @param windowEnd latest acceptable end, RFC3339
+   * @param constraints optional free text; "mornings" and "afternoons" are
+   *          honoured
+   * @return the candidate slots, earliest first
+   * @throws IllegalAccessException when the caller may not read one attendee
+   */
   public List<TimeBlockModel> suggestMeetingTime(List<String> attendees,
                                                  Integer durationMinutes,
                                                  String windowStart,
@@ -709,41 +750,19 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     if (durationMinutes == null || durationMinutes <= 0) {
       throw new IllegalArgumentException("Parameter 'duration_minutes' must be a positive number of minutes");
     }
-    ZonedDateTime start = toZonedDateTime(windowStart);
-    ZonedDateTime end = toZonedDateTime(windowEnd);
-    // Aggregate everyone's busy intervals, then derive the shared free time
-    List<BusyInterval> allBusy = new ArrayList<>();
-    for (String username : attendees) {
-      Identity identity = identityManager.getOrCreateUserIdentity(username);
-      if (identity != null) {
-        allBusy.addAll(getBusyIntervals(identity.getIdentityId(), start, end));
-      }
+    Map<Long, String> usernamesByIdentityId = resolveUsers(attendees);
+    if (usernamesByIdentityId.isEmpty()) {
+      return List.of();
     }
-    List<TimeBlockModel> freeBlocks = complementBlocks(allBusy, start, end);
-    Duration duration = Duration.ofMinutes(durationMinutes);
     String constraint = constraints == null ? "" : constraints.toLowerCase();
-    boolean morningsOnly = constraint.contains("morning");
-    boolean afternoonsOnly = constraint.contains("afternoon");
-    List<TimeBlockModel> suggestions = new ArrayList<>();
-    for (TimeBlockModel block : freeBlocks) {
-      ZonedDateTime blockStart = toZonedDateTime(block.getStart());
-      ZonedDateTime blockEnd = toZonedDateTime(block.getEnd());
-      ZonedDateTime candidate = blockStart;
-      // Step through the free block in 30-minute increments looking for slots that fit the duration
-      while (!candidate.plus(duration).isAfter(blockEnd)) {
-        int hour = candidate.getHour();
-        boolean hourOk = (!morningsOnly || hour < 12) && (!afternoonsOnly || hour >= 12);
-        if (hourOk) {
-          suggestions.add(new TimeBlockModel(formatDate(Date.from(candidate.toInstant())),
-                                             formatDate(Date.from(candidate.plus(duration).toInstant()))));
-        }
-        candidate = candidate.plusMinutes(30);
-        if (suggestions.size() >= MAX_LIMIT) {
-          return suggestions;
-        }
-      }
-    }
-    return suggestions;
+    return toTimeBlocks(agendaAvailabilityService.suggestMeetingTime(List.copyOf(usernamesByIdentityId.keySet()),
+                                                                     Duration.ofMinutes(durationMinutes),
+                                                                     toZonedDateTime(windowStart),
+                                                                     toZonedDateTime(windowEnd),
+                                                                     constraint.contains("morning"),
+                                                                     constraint.contains("afternoon"),
+                                                                     MAX_LIMIT,
+                                                                     getCurrentUserIdentityId()));
   }
 
   // ==========================================================================
@@ -876,146 +895,106 @@ public class AgendaEventMcpTool implements McpToolPlugin {
   // Scheduling helpers
   // ==========================================================================
 
-  // Small internal busy interval carrying a "tentative" flag (event status TENTATIVE) used by free/busy + conflicts.
-  private static final class BusyInterval {
-    private final ZonedDateTime start;
-
-    private final ZonedDateTime end;
-
-    private final boolean       tentative;
-
-    private BusyInterval(ZonedDateTime start, ZonedDateTime end, boolean tentative) {
-      this.start = start;
-      this.end = end;
-      this.tentative = tentative;
+  /**
+   * Resolves usernames to identity ids, keeping the order they were asked in
+   * and dropping the ones that resolve to nothing.
+   *
+   * @param usernames the usernames to resolve
+   * @return the usernames that resolved, keyed by their identity id
+   */
+  private Map<Long, String> resolveUsers(List<String> usernames) {
+    Map<Long, String> usernamesByIdentityId = new LinkedHashMap<>();
+    for (String username : usernames) {
+      Identity identity = identityManager.getOrCreateUserIdentity(username);
+      if (identity != null) {
+        usernamesByIdentityId.put(identity.getIdentityId(), username);
+      }
     }
+    return usernamesByIdentityId;
   }
 
-  // Query the given user's calendar in [start,end] and return their busy intervals, clipped to the window.
-  // "Busy" = events the user has ACCEPTED (the creator is auto-accepted, so owned events are included); merely
-  // invited (NEEDS_ACTION), tentative or declined events do NOT make the user busy. Only time ranges are used.
-  // NOTE: connected remote/CalDAV calendars are NOT included here (see class report) — there is no server-side API
-  // to enumerate another user's remote free/busy; those events are only fetched client-side with the user's creds.
-  private List<BusyInterval> getBusyIntervals(long identityId, ZonedDateTime start, ZonedDateTime end) throws IllegalAccessException {
-    EventFilter filter = new EventFilter(identityId,
-                                         null,
-                                         List.of(EventAttendeeResponse.ACCEPTED),
-                                         start,
-                                         end,
-                                         BUSY_QUERY_LIMIT);
-    List<Event> events = agendaEventService.getEvents(filter, TIMEZONE, identityId);
-    List<BusyInterval> intervals = new ArrayList<>();
-    for (Event event : events) {
-      if (event.getStart() == null || event.getEnd() == null) {
-        continue;
-      }
-      ZonedDateTime clippedStart = event.getStart().isBefore(start) ? start : event.getStart();
-      ZonedDateTime clippedEnd = event.getEnd().isAfter(end) ? end : event.getEnd();
-      if (!clippedStart.isBefore(clippedEnd)) {
-        continue;
-      }
-      intervals.add(new BusyInterval(clippedStart, clippedEnd, event.getStatus() == EventStatus.TENTATIVE));
-    }
-    return intervals;
+  /**
+   * Reads back the username behind an identity id.
+   *
+   * @param identityId the identity to name
+   * @return the username, or {@code null} when the identity is unknown
+   */
+  private String usernameOf(long identityId) {
+    Identity identity = identityManager.getIdentity(String.valueOf(identityId));
+    return identity == null ? null : identity.getRemoteId();
   }
 
-  // Merge overlapping busy intervals into a sorted list of busy time blocks.
-  private List<TimeBlockModel> mergeToBlocks(List<BusyInterval> intervals) {
-    List<TimeBlockModel> blocks = new ArrayList<>();
-    List<BusyInterval> sorted = new ArrayList<>(intervals);
-    sorted.sort(Comparator.comparing(i -> i.start));
-    ZonedDateTime curStart = null;
-    ZonedDateTime curEnd = null;
-    for (BusyInterval interval : sorted) {
-      if (curStart == null) {
-        curStart = interval.start;
-        curEnd = interval.end;
-      } else if (!interval.start.isAfter(curEnd)) {
-        if (interval.end.isAfter(curEnd)) {
-          curEnd = interval.end;
-        }
-      } else {
-        blocks.add(toTimeBlock(curStart, curEnd));
-        curStart = interval.start;
-        curEnd = interval.end;
-      }
-    }
-    if (curStart != null) {
-      blocks.add(toTimeBlock(curStart, curEnd));
-    }
-    return blocks;
+  /**
+   * Collects the identity ids of an event's attendees.
+   *
+   * @param attendees the attendees, possibly {@code null}
+   * @return their identity ids, never {@code null}
+   */
+  private List<Long> toIdentityIds(List<EventAttendee> attendees) {
+    return attendees == null ? List.of() : attendees.stream().map(EventAttendee::getIdentityId).toList();
   }
 
-  // Compute the free time blocks in [windowStart,windowEnd] left over after removing all busy intervals.
-  private List<TimeBlockModel> complementBlocks(List<BusyInterval> intervals,
-                                                ZonedDateTime windowStart,
-                                                ZonedDateTime windowEnd) {
-    List<TimeBlockModel> busyBlocks = mergeToBlocks(intervals);
-    List<TimeBlockModel> free = new ArrayList<>();
-    ZonedDateTime cursor = windowStart;
-    for (TimeBlockModel busy : busyBlocks) {
-      ZonedDateTime busyStart = toZonedDateTime(busy.getStart());
-      ZonedDateTime busyEnd = toZonedDateTime(busy.getEnd());
-      if (busyStart.isAfter(cursor)) {
-        free.add(toTimeBlock(cursor, busyStart));
-      }
-      if (busyEnd.isAfter(cursor)) {
-        cursor = busyEnd;
-      }
-    }
-    if (cursor.isBefore(windowEnd)) {
-      free.add(toTimeBlock(cursor, windowEnd));
-    }
-    return free;
+  /**
+   * Maps the service's time blocks to their RFC3339 tool representation.
+   *
+   * @param blocks the blocks to map
+   * @return the mapped blocks, in the same order
+   */
+  private List<TimeBlockModel> toTimeBlocks(List<TimeBlock> blocks) {
+    return blocks.stream().map(block -> toTimeBlock(block.getStart(), block.getEnd())).toList();
   }
 
-  // Build the attendee conflict report for [start,end]: one entry per attendee that overlaps, plus all_available.
-  // Privacy: only busy/tentative status and the overlapping window are returned, never other users' event details.
-  private ConflictsModel computeConflicts(List<EventAttendee> attendees,
-                                          ZonedDateTime start,
-                                          ZonedDateTime end) throws IllegalAccessException {
-    List<AttendeeConflictModel> conflicts = new ArrayList<>();
-    if (attendees != null) {
-      for (EventAttendee attendee : attendees) {
-        Identity identity = identityManager.getIdentity(attendee.getIdentityId());
-        if (identity == null || !identity.isUser()) {
-          continue;
-        }
-        List<BusyInterval> intervals = getBusyIntervals(attendee.getIdentityId(), start, end);
-        if (intervals.isEmpty()) {
-          continue;
-        }
-        ZonedDateTime overlapStart = intervals.stream().map(i -> i.start).min(Comparator.naturalOrder()).orElse(start);
-        ZonedDateTime overlapEnd = intervals.stream().map(i -> i.end).max(Comparator.naturalOrder()).orElse(end);
-        boolean onlyTentative = intervals.stream().allMatch(i -> i.tentative);
-        conflicts.add(new AttendeeConflictModel(identity.getRemoteId(),
-                                                onlyTentative ? "tentative" : "busy",
-                                                toTimeBlock(overlapStart, overlapEnd)));
-      }
-    }
-    return new ConflictsModel(conflicts.isEmpty(), conflicts);
+  /**
+   * Builds the attendee clash report decorating a create, update or date-poll
+   * confirmation.
+   * <p>
+   * Glue only. The report covers the attendees the acting user is allowed to
+   * read and names the ones it could not check, so a caller must read
+   * {@code all_available} as "no clash was found", never as "everyone is
+   * free" — see {@link AvailabilityConflicts}.
+   *
+   * @param attendees the event's attendees
+   * @param start proposed window start
+   * @param end proposed window end
+   * @return the clash report
+   */
+  private ConflictsModel computeConflicts(List<EventAttendee> attendees, ZonedDateTime start, ZonedDateTime end) {
+    AvailabilityConflicts availabilityConflicts = agendaAvailabilityService.getConflicts(toIdentityIds(attendees),
+                                                                                        start,
+                                                                                        end,
+                                                                                        getCurrentUserIdentityId());
+    List<AttendeeConflictModel> conflicts = availabilityConflicts.getConflicts()
+                                                                 .stream()
+                                                                 .map(conflict -> new AttendeeConflictModel(usernameOf(conflict.getIdentityId()),
+                                                                                                            CONFLICT_STATUS_BUSY,
+                                                                                                            toTimeBlock(conflict.getOverlap()
+                                                                                                                                .getStart(),
+                                                                                                                        conflict.getOverlap()
+                                                                                                                                .getEnd())))
+                                                                 .toList();
+    List<String> notDisclosed = availabilityConflicts.getNotDisclosedIdentityIds()
+                                                     .stream()
+                                                     .map(this::usernameOf)
+                                                     .filter(Objects::nonNull)
+                                                     .toList();
+    return new ConflictsModel(availabilityConflicts.isAllAvailable(), conflicts, notDisclosed);
   }
 
-  // Order date-poll slots so the ones where the most internal attendees are free come first.
+  /**
+   * Orders date-poll slots so the ones suiting the most attendees come first.
+   * <p>
+   * Glue only; the ordering, and the ACL that decides which attendees can be
+   * counted, belong to {@link AgendaAvailabilityService}.
+   *
+   * @param dateOptions the options to order
+   * @param attendees the event's attendees
+   * @return the options, most-available first
+   */
   private List<EventDateOption> rankDateOptionsByAvailability(List<EventDateOption> dateOptions,
-                                                              List<EventAttendee> attendees) throws IllegalAccessException {
-    Map<EventDateOption, Long> availabilityCount = new LinkedHashMap<>();
-    for (EventDateOption option : dateOptions) {
-      long freeCount = 0;
-      for (EventAttendee attendee : attendees) {
-        Identity identity = identityManager.getIdentity(attendee.getIdentityId());
-        if (identity == null || !identity.isUser()) {
-          continue;
-        }
-        if (getBusyIntervals(attendee.getIdentityId(), option.getStart(), option.getEnd()).isEmpty()) {
-          freeCount++;
-        }
-      }
-      availabilityCount.put(option, freeCount);
-    }
-    return dateOptions.stream()
-                      .sorted(Comparator.comparingLong((EventDateOption o) -> availabilityCount.get(o)).reversed())
-                      .toList();
+                                                              List<EventAttendee> attendees) {
+    return agendaAvailabilityService.rankDateOptionsByAvailability(dateOptions,
+                                                                   toIdentityIds(attendees),
+                                                                   getCurrentUserIdentityId());
   }
 
   // Build an EventRecurrence from simple frequency/interval/until/count params, or null when no frequency is given.
