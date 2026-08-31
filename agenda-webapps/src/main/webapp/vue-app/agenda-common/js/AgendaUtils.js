@@ -496,3 +496,45 @@ export function mergeRemoteEvents(eventsByConnector) {
   }));
   return mergedEvents;
 }
+
+/**
+ * Splits what the connected accounts answered into the events a view may
+ * draw and the accounts that could not answer at all.
+ *
+ * <p>
+ * An account that failed reaches here as `{connector, failed: true}` and
+ * carries no events array, which is the whole point: `{connector, events: []}`
+ * would say the account answered "nothing", and no view downstream could
+ * then tell "you have nothing scheduled there" from "we could not ask". The
+ * distinction cannot be recovered later either — the server degrades a failed
+ * read to an empty list, so a 200 with no events is indistinguishable from a
+ * genuinely empty calendar at the HTTP layer. It has to be carried from here.
+ *
+ * @param {Array} resultsByConnector one entry per account, either
+ *          `{connector, events}` or `{connector, failed: true}`
+ * @returns {Object} `{events, failedConnectors}` — the merged events of the
+ *          accounts that answered, and the connectors of those that did not
+ */
+export function splitRemoteEventResults(resultsByConnector) {
+  const results = resultsByConnector || [];
+  return {
+    events: mergeRemoteEvents(results.filter(result => !result.failed)),
+    failedConnectors: results.filter(result => result.failed)
+      .map(result => result.connector)
+      .filter(connector => !!connector),
+  };
+}
+
+/**
+ * Names the accounts a view has to own up to not having read, preferring the
+ * address the account is signed in as over the connector's technical name: a
+ * user recognises "jane@example.com", not "caldav".
+ *
+ * @param {Array} failedConnectors the connectors whose read failed
+ * @returns {Array} one display name per account, empty names dropped
+ */
+export function failedSourceNames(failedConnectors) {
+  return (failedConnectors || [])
+    .map(connector => connector && (connector.user || connector.name) || '')
+    .filter(name => !!name);
+}
