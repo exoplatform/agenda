@@ -1,14 +1,24 @@
 <template>
   <div class="connector-status">
-    <div v-if="connectedConnectorUser" class="connector-connected d-flex">
-      <agenda-connector-avatar
-        :connector="connectedConnector"
-        size="24" />
-      <a
-        class="mx-2 my-auto"
+    <!-- The connected account is one icon, not a row carrying an address.
+         Benjamin, on the Suggest dates header: "use the connect (plug) we use
+         everywhere instead of displaying the email address". The address is a
+         detail about a state, not the state itself, so it moves into the
+         tooltip and the header gets its width back. Same `fas fa-plug` this
+         product uses for a calendar account everywhere else — the connect
+         button and the contemporary-events panel both draw it. -->
+    <div v-if="connectedConnectorUser" class="connector-connected d-flex align-center">
+      <v-btn
+        :title="connectedAccountLabel"
+        :aria-label="connectedAccountLabel"
+        icon
+        max-width="28"
+        max-height="28"
         @click="openPersonalCalendarDrawer">
-        {{ connectedConnectorUser }}
-      </a>
+        <v-icon size="18" class="text-light-color">
+          fas fa-plug
+        </v-icon>
+      </v-btn>
     </div>
     <div
       v-else
@@ -37,6 +47,21 @@ export default {
     },
     connectedConnectorUser() {
       return this.connectedConnector && this.connectedConnector.user || '';
+    },
+    /**
+     * What the plug says on hover: the action it performs, and the account it
+     * performs it on.
+     *
+     * <p>
+     * The address is here rather than on screen, and it is here rather than
+     * nowhere: an icon alone cannot say WHICH account is connected, and a user
+     * with two of them has to be able to find out. Both halves reuse strings
+     * that already exist — no new one is introduced for a tooltip.
+     *
+     * @returns {String} the tooltip of the connected-account plug
+     */
+    connectedAccountLabel() {
+      return `${this.$t('agenda.manageYourPersonalAgenda')} — ${this.connectedConnectorUser}`;
     },
   },
   methods: {
