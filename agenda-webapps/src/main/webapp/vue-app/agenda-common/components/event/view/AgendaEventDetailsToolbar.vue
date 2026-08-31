@@ -16,11 +16,18 @@
         <!-- the account the event belongs to, not "the" connected one:
              several can be connected at once -->
         <agenda-connector-avatar
-          :connector="event.connector || connectedConnector"
+          :connector="eventConnector"
           class="spaceAvatar my-auto me-3"
           size="32" />
-        <div class="flex-grow-0 flex-shrink-0 my-auto">
-          {{ $t('agenda.personalCalendar') }}
+        <!-- the collection the event actually lives in, never the generic
+             "Personal Calendar": a connected account holds several, and a
+             label that names none of them identifies nothing. The title
+             carries the collection href, which is what tells two same-named
+             collections apart when one has to be tracked down. -->
+        <div
+          :title="remoteCalendarTitle"
+          class="flex-grow-0 flex-shrink-0 my-auto text-truncate remote-calendar-label">
+          {{ remoteCalendarLabel }}
         </div>
       </div>
       <!-- a space calendar reads as the space owning it: space avatar and
@@ -119,6 +126,7 @@ export default {
   },
   data: () => ({
     eventMenu: null,
+    resolvedRemoteCalendarName: null,
   }),
   computed: {
     calendarOwnerLink() {
@@ -199,6 +207,72 @@ export default {
     isRemoteEvent(){
       return this.event.type === 'remoteEvent';
     },
+    /**
+     * The account the event was read from: the one carried by the event
+     * itself, since several can be connected at once and the header must name
+     * the one this event came from, not whichever happens to be first.
+     *
+     * @returns {Object} the connector, or a falsy value for a stored event
+     */
+    eventConnector() {
+      return this.event && this.event.connector || this.connectedConnector;
+    },
+    /**
+     * The href of the collection the event was read from. It is the only
+     * thing a live read carries about where the event lives — there is no eXo
+     * calendar behind it.
+     *
+     * @returns {String} the collection href, empty when the read carried none
+     */
+    remoteCalendarHref() {
+      return this.event && this.event.calendarId || '';
+    },
+    /**
+     * The account's own identifier, as the connector reports it — a mailbox
+     * or a login, not the connector's name. Used only to say *whose* account
+     * a collection belongs to when the collection itself cannot be named.
+     *
+     * @returns {String} the account, empty when the connector reports none
+     */
+    remoteAccount() {
+      return this.eventConnector && this.eventConnector.user || '';
+    },
+    /**
+     * What the header says a live-read event is in.
+     *
+     * <p>
+     * The collection's own name whenever the account can give it. When it
+     * cannot — the account is unreachable, or the collection is one the
+     * connector reads from but leaves out of its listing — the header says so
+     * in terms of the account instead of inventing a name. What it never does
+     * again is claim a "Personal Calendar" that exists nowhere, which is the
+     * label that made a stray event impossible to place.
+     *
+     * @returns {String} the label to display
+     */
+    remoteCalendarLabel() {
+      if (this.resolvedRemoteCalendarName) {
+        return this.resolvedRemoteCalendarName;
+      }
+      if (this.remoteAccount) {
+        return this.$t('agenda.remoteEvent.calendarOfAccount', {0: this.remoteAccount});
+      }
+      return this.$t('agenda.remoteEvent.unnamedCalendar');
+    },
+    /**
+     * The hover text of the label: the collection href, which is the only
+     * thing that distinguishes two collections sharing a display name — and
+     * the thing one needs when tracking down where an unexpected event
+     * actually came from.
+     *
+     * @returns {String} the tooltip, the label itself when there is no href
+     */
+    remoteCalendarTitle() {
+      if (!this.remoteCalendarHref) {
+        return this.remoteCalendarLabel;
+      }
+      return this.$t('agenda.remoteEvent.calendarLocation', {0: this.remoteCalendarHref});
+    },
     labels() {
       return {
         CancelRequest: this.$t('profile.CancelRequest'),
@@ -223,10 +297,51 @@ export default {
       };
     },
   },
+  watch: {
+    /**
+     * The dialog is reused from one event to the next, so a new event must
+     * re-resolve rather than keep the previous event's calendar name.
+     *
+     * @returns {void}
+     */
+    event() {
+      this.resolveRemoteCalendarName();
+    },
+  },
+  created() {
+    this.resolveRemoteCalendarName();
+  },
   mounted() {
     $('.agendaEventDialog').parent().click(() => {
       this.eventMenu = false;
     });
+  },
+  methods: {
+    /**
+     * Asks the account what it calls the collection the event was read from.
+     *
+     * <p>
+     * Only for a live read: a stored event already names its calendar through
+     * the owner header and must not pay for a request. The answer is dropped
+     * unless it still matches the collection on display — the dialog can be
+     * moved to another event while a listing is in flight, and a name landing
+     * on the wrong event is worse than the honest fallback.
+     *
+     * @returns {void}
+     */
+    resolveRemoteCalendarName() {
+      this.resolvedRemoteCalendarName = null;
+      if (!this.isRemoteEvent) {
+        return;
+      }
+      const requestedHref = this.remoteCalendarHref;
+      this.$remoteEventConnector.remoteCalendarName(this.eventConnector, requestedHref)
+        .then(name => {
+          if (requestedHref === this.remoteCalendarHref) {
+            this.resolvedRemoteCalendarName = name;
+          }
+        });
+    },
   },
 };
 </script>

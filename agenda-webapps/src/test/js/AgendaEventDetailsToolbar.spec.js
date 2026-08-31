@@ -68,15 +68,31 @@ function userOwner() {
   };
 }
 
-function mountToolbar(event) {
+/*
+ * $t rendered as the key followed by the values it was given, so a spec can
+ * tell "named the account" from "named nothing" — which the bare key alone
+ * cannot express, both being the same string.
+ */
+function translate(key, params) {
+  if (!params) {
+    return key;
+  }
+  return `${key}|${Object.keys(params).sort().map(index => params[index]).join('|')}`;
+}
+
+function mountToolbar(event, options) {
+  const opts = options || {};
   return shallowMount(AgendaEventDetailsToolbar, {
     propsData: {
       event,
-      connectedConnector: {name: 'caldav'},
+      connectedConnector: opts.connectedConnector || {name: 'caldav'},
       isAttendee: false,
     },
     mocks: {
-      $t: key => key,
+      $t: translate,
+      $remoteEventConnector: {
+        remoteCalendarName: opts.remoteCalendarName || (() => Promise.resolve(null)),
+      },
     },
     stubs: {
       'exo-space-avatar': ExoSpaceAvatarStub,
@@ -97,6 +113,7 @@ function mountToolbar(event) {
 }
 
 const ownerLabel = wrapper => wrapper.find('.calendar-owner-link');
+const remoteLabel = wrapper => wrapper.find('.remote-calendar-label');
 
 describe('AgendaEventDetailsToolbar owner header', () => {
 
@@ -174,6 +191,118 @@ describe('AgendaEventDetailsToolbar owner header', () => {
     it('renders neither the space nor the user avatar', () => {
       expect(wrapper.findComponent(ExoSpaceAvatarStub).exists()).toBe(false);
       expect(wrapper.findComponent(ExoUserAvatarStub).exists()).toBe(false);
+    });
+  });
+
+  /*
+   * EXO-89825. A live connector read holds no eXo calendar — only the href of
+   * the collection it lives in — and the header used to label every one of
+   * them "Personal Calendar", a name no calendar of the user actually has.
+   * A connected account holds several collections, so that label identified
+   * nothing and made a stray event impossible to place.
+   */
+  describe('the calendar of an event read live from a connected account', () => {
+
+    const remoteEvent = () => ({
+      summary: 'test',
+      type: 'remoteEvent',
+      calendarId: '/dav/cal/alice@stalwart.local/default',
+      connector: {name: 'caldav', user: 'alice@stalwart.local'},
+    });
+
+    it('names the collection the account holds the event in', async () => {
+      const wrapper = mountToolbar(remoteEvent(), {
+        remoteCalendarName: () => Promise.resolve('MYCAL2'),
+      });
+      await wrapper.vm.$nextTick();
+      await wrapper.vm.$nextTick();
+      expect(remoteLabel(wrapper).text()).toBe('MYCAL2');
+    });
+
+    it('never labels it "Personal Calendar", which names no calendar the user has', async () => {
+      const wrapper = mountToolbar(remoteEvent(), {
+        remoteCalendarName: () => Promise.resolve('MYCAL2'),
+      });
+      await wrapper.vm.$nextTick();
+      await wrapper.vm.$nextTick();
+      expect(wrapper.text()).not.toContain('agenda.personalCalendar');
+    });
+
+    it('asks the account the event came from, for the collection it came from', () => {
+      const asked = [];
+      const connector = {name: 'caldav', user: 'alice@stalwart.local'};
+      mountToolbar({...remoteEvent(), connector}, {
+        connectedConnector: {name: 'other-account', user: 'bob@stalwart.local'},
+        remoteCalendarName: (usedConnector, href) => {
+          asked.push([usedConnector, href]);
+          return Promise.resolve('MYCAL2');
+        },
+      });
+      expect(asked).toEqual([[connector, '/dav/cal/alice@stalwart.local/default']]);
+    });
+
+    it('says whose account the collection belongs to when the account cannot name it', async () => {
+      const wrapper = mountToolbar(remoteEvent(), {
+        remoteCalendarName: () => Promise.resolve(null),
+      });
+      await wrapper.vm.$nextTick();
+      await wrapper.vm.$nextTick();
+      expect(remoteLabel(wrapper).text()).toBe('agenda.remoteEvent.calendarOfAccount|alice@stalwart.local');
+    });
+
+    it('invents no name when neither the collection nor the account is known', async () => {
+      const wrapper = mountToolbar({
+        summary: 'test',
+        type: 'remoteEvent',
+        calendarId: '/dav/cal/somewhere/default',
+        connector: {name: 'caldav'},
+      }, {
+        connectedConnector: {name: 'caldav'},
+        remoteCalendarName: () => Promise.resolve(null),
+      });
+      await wrapper.vm.$nextTick();
+      await wrapper.vm.$nextTick();
+      expect(remoteLabel(wrapper).text()).toBe('agenda.remoteEvent.unnamedCalendar');
+    });
+
+    it('puts the collection href in the hover text, which is what tells two collections apart', () => {
+      const wrapper = mountToolbar(remoteEvent());
+      expect(remoteLabel(wrapper).attributes('title'))
+        .toBe('agenda.remoteEvent.calendarLocation|/dav/cal/alice@stalwart.local/default');
+    });
+
+    it('drops a name that resolved after the dialog moved to another event', async () => {
+      // One resolver per collection, so the test settles the request the
+      // dialog has already moved away from and not the current one.
+      const settle = {};
+      const wrapper = mountToolbar(remoteEvent(), {
+        remoteCalendarName: (connector, href) => new Promise(resolve => settle[href] = resolve),
+      });
+      wrapper.setProps({event: {
+        summary: 'other',
+        type: 'remoteEvent',
+        calendarId: '/dav/cal/alice@stalwart.local/other',
+        connector: {name: 'caldav', user: 'alice@stalwart.local'},
+      }});
+      await wrapper.vm.$nextTick();
+      settle['/dav/cal/alice@stalwart.local/default']('MYCAL2');
+      await wrapper.vm.$nextTick();
+      await wrapper.vm.$nextTick();
+      expect(remoteLabel(wrapper).text()).not.toBe('MYCAL2');
+    });
+
+    it('asks nothing at all for a stored event, which names its calendar already', () => {
+      let asked = 0;
+      mountToolbar({
+        summary: 'Dentist',
+        calendar: {id: 68, name: 'CAL3', owner: userOwner()},
+      }, {
+        remoteCalendarName: () => {
+          asked++;
+          return Promise.resolve(null);
+        },
+      });
+      expect(asked).toBe(0);
     });
   });
 
