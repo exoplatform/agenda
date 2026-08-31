@@ -165,21 +165,32 @@ function settle() {
  * Runs the component's shipped busy-time retrieval against what the endpoint
  * answers, and returns the state it left behind.
  *
+ * <p>
+ * <strong>A factory, never a promise.</strong> `Promise.reject(...)` passed as
+ * an argument is created when the argument is evaluated, and the component
+ * only attaches its handler after resolving the participants' identities — so
+ * the rejection sits unhandled across that step and Node's default policy
+ * kills the process, failing the Maven build with every suite green. The
+ * factory is invoked by the component at the moment it would really call the
+ * service, which is when the handler goes on.
+ *
  * @param {Array} participants the event's participants
- * @param {Promise} answer what the availability service resolves or rejects
- *          with
+ * @param {Function} answerFactory called by the component; returns what the
+ *          availability service resolves or rejects with
+ * @param {Array} calls a log the identity resolver appends to
+ * @param {Object} existingVm a vm to reuse, for the memoisation pins
  * @returns {Promise} resolves with the resulting vm
  */
-function retrieve(participants, answer, calls, existingVm) {
+function retrieve(participants, answerFactory, calls, existingVm) {
   const vm = existingVm || Object.assign({}, baseVm, {
     resolvedParticipants: {},
     identityCalls: calls || [],
     $identityService: identityService(calls || []),
     $availabilityService: {
-      getBusyTime: ids => {
+      getBusyTime: jest.fn(ids => {
         vm.askedIdentityIds = ids;
-        return answer;
-      },
+        return answerFactory();
+      }),
     },
   });
   vm.participants = participants;
@@ -284,7 +295,7 @@ describe('AgendaUtils keeps the three busy-time outcomes apart', () => {
 
 describe('The date-poll grid draws the participants busy time', () => {
   it('draws the blocks of a participant who shares them', () => {
-    return retrieve([SHARER], Promise.resolve([
+    return retrieve([SHARER], () => Promise.resolve([
       record(SHARER, 'disclosed', [block('2026-07-20T09:00:00+02:00', '2026-07-20T10:00:00+02:00')]),
     ])).then(vm => {
       expect(vm.participantBusyEvents).toHaveLength(1);
@@ -297,7 +308,7 @@ describe('The date-poll grid draws the participants busy time', () => {
   });
 
   it('draws no block for a participant who shares nothing, and names them', () => {
-    return retrieve([SHARER, WITHHOLDER], Promise.resolve([
+    return retrieve([SHARER, WITHHOLDER], () => Promise.resolve([
       record(SHARER, 'disclosed', []),
       record(WITHHOLDER, 'not_disclosed'),
     ])).then(vm => {
@@ -316,7 +327,7 @@ describe('The date-poll grid draws the participants busy time', () => {
   });
 
   it('names a participant whose own read broke apart from one who shares nothing', () => {
-    return retrieve([WITHHOLDER, BROKEN], Promise.resolve([
+    return retrieve([WITHHOLDER, BROKEN], () => Promise.resolve([
       record(WITHHOLDER, 'not_disclosed'),
       record(BROKEN, 'failed'),
     ])).then(vm => {
@@ -332,7 +343,7 @@ describe('The date-poll grid draws the participants busy time', () => {
   });
 
   it('says nothing about a participant who was read and has nothing on', () => {
-    return retrieve([SHARER], Promise.resolve([record(SHARER, 'disclosed', [])])).then(vm => {
+    return retrieve([SHARER], () => Promise.resolve([record(SHARER, 'disclosed', [])])).then(vm => {
       const strip = coverage([SHARER], vm);
       expect(strip.notDisclosedNames).toHaveLength(0);
       expect(strip.failedNames).toHaveLength(0);
@@ -343,7 +354,7 @@ describe('The date-poll grid draws the participants busy time', () => {
   });
 
   it('makes every participant unchecked when the whole read fails', () => {
-    return retrieve([SHARER, WITHHOLDER], Promise.reject(new Error('gateway down'))).then(vm => {
+    return retrieve([SHARER, WITHHOLDER], () => Promise.reject(new Error('gateway down'))).then(vm => {
       expect(vm.participantBusyEvents).toHaveLength(0);
       expect(vm.checkedParticipantKeys).toHaveLength(0);
       expect(vm.failedParticipantKeys).toEqual(['organization:sara', 'organization:tom']);
@@ -355,8 +366,23 @@ describe('The date-poll grid draws the participants busy time', () => {
     });
   });
 
+  it('reports everybody unread when the read throws instead of rejecting', () => {
+    // A service that throws SYNCHRONOUSLY bypasses the catch attached to its
+    // return value and lands in the outer chain. A chain terminated by
+    // `finally` re-throws that, leaving an unhandled rejection — a console
+    // error in a browser, a killed process under the Node the build uses —
+    // and, worse here, a grid emptied with nobody named on it.
+    return retrieve([SHARER, WITHHOLDER], () => {
+      throw new Error('service exploded');
+    }).then(vm => {
+      expect(vm.participantBusyEvents).toHaveLength(0);
+      expect(vm.checkedParticipantKeys).toHaveLength(0);
+      expect(vm.failedParticipantKeys).toEqual(['organization:sara', 'organization:tom']);
+    });
+  });
+
   it('drops a stale answer about somebody who has left the event', () => {
-    return retrieve([SHARER, WITHHOLDER], Promise.resolve([
+    return retrieve([SHARER, WITHHOLDER], () => Promise.resolve([
       record(SHARER, 'disclosed', []),
       record(WITHHOLDER, 'disclosed', []),
     ])).then(vm => {
@@ -436,7 +462,7 @@ describe('The date-poll grid resolves the participants it was handed', () => {
     // Pat Vale is not in the directory the stub answers for. Nothing can be
     // read about them, so they are a breakage — not a choice, and above all
     // not somebody who is free.
-    return retrieve([SHARER, NAMELESS], Promise.resolve([record(SHARER, 'disclosed', [])])).then(vm => {
+    return retrieve([SHARER, NAMELESS], () => Promise.resolve([record(SHARER, 'disclosed', [])])).then(vm => {
       expect(vm.checkedParticipantKeys).toEqual(['organization:sara']);
       expect(vm.failedParticipantKeys).toEqual(['organization:ghost']);
 
@@ -459,7 +485,7 @@ describe('The date-poll grid resolves the participants it was handed', () => {
       }},
     });
 
-    return retrieve([NAMELESS], null, [], vm).then(state => {
+    return retrieve([NAMELESS], () => Promise.resolve([]), [], vm).then(state => {
       expect(asked).toBe(false);
       expect(state.failedParticipantKeys).toEqual(['organization:ghost']);
       expect(state.checkedParticipantKeys).toHaveLength(0);
@@ -475,9 +501,9 @@ describe('The date-poll grid resolves the participants it was handed', () => {
       $availabilityService: {getBusyTime: () => answer()},
     });
 
-    return retrieve([SHARER, WITHHOLDER], null, calls, vm)
-      .then(state => retrieve([SHARER, WITHHOLDER], null, calls, state))
-      .then(state => retrieve([SHARER, WITHHOLDER], null, calls, state))
+    return retrieve([SHARER, WITHHOLDER], () => Promise.resolve([]), calls, vm)
+      .then(state => retrieve([SHARER, WITHHOLDER], () => Promise.resolve([]), calls, state))
+      .then(state => retrieve([SHARER, WITHHOLDER], () => Promise.resolve([]), calls, state))
       .then(() => {
         // Three navigations, two people, two lookups. Without the memo this
         // is six, and a month of paging is dozens.
@@ -493,8 +519,8 @@ describe('The date-poll grid resolves the participants it was handed', () => {
       $availabilityService: {getBusyTime: () => Promise.resolve([])},
     });
 
-    return retrieve([NAMELESS], null, calls, vm)
-      .then(state => retrieve([NAMELESS], null, calls, state))
+    return retrieve([NAMELESS], () => Promise.resolve([]), calls, vm)
+      .then(state => retrieve([NAMELESS], () => Promise.resolve([]), calls, state))
       .then(state => {
         expect(calls).toEqual(['organization:ghost']);
         // And the answer stays the honest one across both passes.
@@ -516,7 +542,7 @@ describe('The date-poll grid resolves the participants it was handed', () => {
       }},
     });
 
-    return retrieve([SHARER], null, [], vm).then(state => {
+    return retrieve([SHARER], () => Promise.resolve([]), [], vm).then(state => {
       expect(asked).toBe(false);
       expect(state.failedParticipantKeys).toEqual(['organization:sara']);
       expect(state.checkedParticipantKeys).toHaveLength(0);
@@ -526,7 +552,7 @@ describe('The date-poll grid resolves the participants it was handed', () => {
   it('counts a participant the answer says nothing about as unread', () => {
     // Two people asked about, one answered for. Silence is not an answer, and
     // the silent one must not inherit the other one's "checked".
-    return retrieve([SHARER, WITHHOLDER], Promise.resolve([record(SHARER, 'disclosed', [])])).then(vm => {
+    return retrieve([SHARER, WITHHOLDER], () => Promise.resolve([record(SHARER, 'disclosed', [])])).then(vm => {
       expect(vm.checkedParticipantKeys).toEqual(['organization:sara']);
       expect(vm.failedParticipantKeys).toEqual(['organization:tom']);
 

@@ -214,6 +214,29 @@ describe('The slot-picking grid owns up to a calendar it could not read', () => 
     });
   });
 
+  it('names both sources when the read throws instead of rejecting', () => {
+    // Same gap on this chain: the single-source read had a terminal catch and
+    // the two-source rewrite dropped it. Both reads handle their own failure,
+    // so reaching here means something else broke — which is not something a
+    // grid that becomes a decision may treat as "nothing was in the way".
+    const vm = formVm({targetEvents: [], ownEvents: []});
+    vm.mergeStoreEvents = () => {
+      throw new Error('merge exploded');
+    };
+    AgendaEventFormDates.methods.retrieveEventsFromStore.call(vm);
+    let chain = Promise.resolve();
+    for (let step = 0; step < 8; step++) {
+      chain = chain.then(() => Promise.resolve());
+    }
+    return chain.then(() => {
+      expect(vm.spaceEvents).toHaveLength(0);
+      expect(failureState(vm).names).toEqual([
+        'agenda.eventForm.sourceThisCalendar',
+        'agenda.eventForm.sourceYourCalendars',
+      ]);
+    });
+  });
+
   it('stops naming a source once its next read succeeds', () => {
     return readStore({targetFails: true, ownEvents: []}).then(vm => {
       expect(failureState(vm).hasFailedSource).toBe(true);

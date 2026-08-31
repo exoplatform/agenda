@@ -748,6 +748,19 @@ export default {
           this.failedStoreSourceKeys = sources.filter(source => source.failed).map(source => source.labelKey);
           return this.$nextTick();
         })
+        // The terminal catch the single-source read had and the two-source
+        // rewrite dropped. Both reads already handle their own failure, so
+        // reaching here means something else broke — and nothing else broke
+        // is not something this screen may assume, since the grid it draws
+        // becomes a decision. Both sources are declared unread.
+        .catch(error => {
+          if (requestId !== this.storeRequestId) {
+            return;
+          }
+          console.error('Error retrieving events', error);
+          this.spaceEvents = [];
+          this.failedStoreSourceKeys = ['agenda.eventForm.sourceThisCalendar', 'agenda.eventForm.sourceYourCalendars'];
+        })
         .finally(() => {
           if (requestId === this.storeRequestId) {
             this.refreshEventsToDisplay();
@@ -956,6 +969,24 @@ export default {
           }
           this.applyParticipantsBusyTime(participants, answer);
         })
+        // The chain ends in a catch, not in a finally. `finally` re-throws
+        // what it was handed, so a chain terminated by one leaves any error
+        // its handlers raised — a service that throws instead of rejecting, a
+        // malformed payload — as an UNHANDLED rejection. In a browser that is
+        // a console error; under the pinned Node the build runs on it kills
+        // the process. And the honest degradation is the same one every other
+        // failure here gets: nothing was read, so nobody is free.
+        .catch(error => {
+          if (requestId !== this.busyTimeRequestId) {
+            return;
+          }
+          console.error('Error reading the participants busy time', error);
+          this.participantBusyEvents = [];
+          this.checkedParticipantKeys = [];
+          this.notDisclosedParticipantKeys = [];
+          this.failedParticipantKeys = participants
+            .map(participant => this.$agendaUtils.participantKey(participant));
+        })
         .finally(() => {
           if (requestId === this.busyTimeRequestId) {
             this.refreshEventsToDisplay();
@@ -1054,9 +1085,14 @@ export default {
      *          only the participants that could be resolved
      */
     resolveParticipants(participants) {
+      // hasOwnProperty rather than Object.hasOwn: the build pins Node 16.0.0,
+      // which predates it (16.9), and so do the browsers before Chrome 93 /
+      // Safari 15.4. The distinction the check needs is the same either way —
+      // a key PRESENT with a null value is a lookup that already failed and
+      // must not be retried, which a truthiness test would miss.
       const pending = participants.filter(participant => {
         const key = this.$agendaUtils.participantKey(participant);
-        return key && !Object.hasOwn(this.resolvedParticipants, key);
+        return key && !Object.prototype.hasOwnProperty.call(this.resolvedParticipants, key);
       });
       return Promise.all(pending.map(participant => {
         const key = this.$agendaUtils.participantKey(participant);
