@@ -1,41 +1,72 @@
 <template>
-  <div v-if="participantCount" class="event-form-busy-coverage d-flex flex-column mb-2">
-    <!-- Always on screen, even when everybody was checked. The grid can only
-         be READ as "this slot is free" if the screen says whose calendars it
-         is showing; a coverage line that appeared only on trouble would leave
-         the good case indistinguishable from the case where the feature never
-         ran at all. -->
-    <div class="d-flex flex-row align-center caption">
-      <v-icon size="14" class="me-1 icon-default-color">fas fa-user-clock</v-icon>
-      <span>{{ coverageSentence }}</span>
-    </div>
-    <!-- Two separate lines, never one merged "could not check" list. Not
-         sharing is a colleague's decision and will not change by reloading;
-         a failed read is a breakage that may well be gone in a minute. An
-         organiser does different things about them, so they are told apart. -->
+  <div
+    v-if="visible"
+    :class="isCounter && 'd-flex flex-row align-center' || 'd-flex flex-column mb-2'"
+    class="event-form-busy-coverage">
+    <!-- THE COUNTER. Compact by design, and always present while there are
+         participants: an empty grid can only be READ as "this slot is free"
+         if the screen says whose calendars it is showing. The SENTENCE moves
+         into the tooltip; the NUMBER does not, because a number is scannable
+         and an icon alone is not. -->
     <div
-      v-if="notDisclosedNames.length"
-      class="d-flex flex-row align-start caption mt-1">
-      <v-icon size="14" class="me-1 mt-1 icon-default-color">fas fa-eye-slash</v-icon>
-      <span>{{ notDisclosedSentence }}</span>
+      v-if="isCounter"
+      :title="coverageSentence"
+      :aria-label="coverageSentence"
+      class="d-flex flex-row align-center">
+      <v-icon size="18" class="me-1 icon-default-color">fas fa-user-clock</v-icon>
+      <span class="caption">{{ checkedCount }}/{{ participantCount }}</span>
     </div>
-    <div
-      v-if="failedNames.length"
-      class="d-flex flex-row align-start caption warning--text mt-1">
-      <v-icon
-        size="14"
-        color="warning"
-        class="me-1 mt-1">
-        fas fa-exclamation-triangle
-      </v-icon>
-      <span>{{ failedSentence }}</span>
-    </div>
+    <!-- THE REPORT. Body text, never a tooltip, and only when there is
+         something to own up to.
+
+         Two reasons it is not a tooltip, and they are the point of the whole
+         feature. A tooltip does not exist on touch, so on mobile these lines
+         would be unreachable. And an organiser who never hovers never learns
+         their grid is incomplete — which is exactly the "a state that looks
+         like an answer" failure this screen was built to prevent. Hiding it
+         behind a hover would trade away the property EXO-89842, EXO-89843 and
+         EXO-89850 exist to establish.
+
+         Two lines rather than one merged list, for the reason they always
+         were: not sharing is a colleague's decision and will not change by
+         reloading, while a failed read is a breakage that may be gone in a
+         minute, and an organiser does different things about them. -->
+    <template v-else>
+      <div
+        v-if="notDisclosedNames.length"
+        class="d-flex flex-row align-start caption">
+        <v-icon size="14" class="me-1 mt-1 icon-default-color">fas fa-eye-slash</v-icon>
+        <span>{{ notDisclosedSentence }}</span>
+      </div>
+      <div
+        v-if="failedNames.length"
+        class="d-flex flex-row align-start caption warning--text mt-1">
+        <v-icon
+          size="14"
+          color="warning"
+          class="me-1 mt-1">
+          fas fa-exclamation-triangle
+        </v-icon>
+        <span>{{ failedSentence }}</span>
+      </div>
+    </template>
   </div>
 </template>
 
 <script>
 export default {
   props: {
+    /*
+     * Which half of the coverage this instance renders: the compact counter
+     * that sits in the header beside the connected-account plug, or the
+     * report of who could not be checked, which goes above the grid as body
+     * text. One component owns both so that the counting and the naming
+     * cannot drift apart into two answers.
+     */
+    variant: {
+      type: String,
+      default: 'counter',
+    },
     /*
      * The participants this screen undertook to check: the event's user
      * attendees other than the organiser, in the order the attendee list
@@ -77,6 +108,32 @@ export default {
     },
   },
   computed: {
+    /**
+     * Whether this instance is the header counter rather than the report.
+     *
+     * @returns {Boolean} true for the compact counter
+     */
+    isCounter() {
+      return this.variant === 'counter';
+    },
+    /**
+     * Whether this instance renders anything at all.
+     *
+     * <p>
+     * The counter shows whenever there is a participant to count, because the
+     * grid can only be read as "free" if something says whose calendars it
+     * covers. The report shows only when somebody could not be checked — with
+     * everybody checked it draws no empty container and no margin, and the
+     * grid gets that space back.
+     *
+     * @returns {Boolean} true when this instance has something to say
+     */
+    visible() {
+      if (!this.participantCount) {
+        return false;
+      }
+      return this.isCounter || this.notDisclosedNames.length > 0 || this.failedNames.length > 0;
+    },
     /**
      * How many people this screen set out to check.
      *

@@ -4,13 +4,26 @@
       class="border-color mb-4"
       max-height="64"
       flat>
-      <div class="d-flex flex-row align-start col-sm-3 col-2">
+      <!-- The header's compact row: the connected-account plug, then the
+           coverage counter, on one line and vertically centred with each
+           other and with the week navigation beside them. align-center, not
+           align-start: EXO-89845 was an alignment defect on this very header
+           and a 28px icon button beside 18px inline text does not line up on
+           its own. -->
+      <div class="d-flex flex-row align-center col-sm-3 col-2">
         <agenda-connector-status
           class="my-auto"
           :connectors="connectors">
+          <!-- The same plug the connected state now draws, and that the
+               connect button and the contemporary-events panel already draw:
+               one glyph for "a calendar account" everywhere. The label stays,
+               because with nothing connected this is the header's only call to
+               action and an unlabelled icon would not read as one. -->
           <template slot="connectButton">
             <v-btn class="btn">
-              <i class="uiIconHyperlink me-2 darkGreyIcon"></i>
+              <v-icon size="16" class="me-2 text-light-color">
+                fas fa-plug
+              </v-icon>
               {{ $t('agenda.connectYourPersonalAgenda') }}
             </v-btn>
           </template>
@@ -21,6 +34,13 @@
           color="primary"
           size="20"
           class="ms-3 my-auto" />
+        <agenda-event-form-busy-coverage
+          variant="counter"
+          :participants="participants"
+          :checked-keys="checkedParticipantKeys"
+          :not-disclosed-keys="notDisclosedParticipantKeys"
+          :failed-keys="failedParticipantKeys"
+          class="ms-2 my-auto" />
         <extension-registry-components
           :params="params"
           name="AgendaEventForm"
@@ -66,8 +86,13 @@
     </v-alert>
     <!-- Directly above the grid, and directly under the account warning: both
          say what this grid is NOT showing, and the organiser has to have read
-         both before the drag starts, not after scrolling past the calendar. -->
+         both before the drag starts, not after scrolling past the calendar.
+
+         Body text, and only rendered when there is something to own up to —
+         so the quiet case costs the grid no space at all, and the case that
+         could mislead somebody is impossible to miss. -->
     <agenda-event-form-busy-coverage
+      variant="report"
       :participants="participants"
       :checked-keys="checkedParticipantKeys"
       :not-disclosed-keys="notDisclosedParticipantKeys"
