@@ -275,11 +275,16 @@ public class AgendaAvailabilityServiceImpl implements AgendaAvailabilityService 
    * particular viewer.
    * <p>
    * This can only ever add to what {@link #canReadAvailability} already
-   * allowed. Two things keep it from becoming a bypass of the calendar ACL:
-   * it answers {@code false} for anything that is not a user on both sides —
-   * so no personal setting ever discloses a <em>space</em> calendar, whose
-   * readers are decided by space visibility alone — and it never looks at a
-   * calendar, only at a setting and a membership.
+   * allowed, and there is only one thing it can add: the people the target
+   * shares a space with. Two things keep it from becoming a bypass of the
+   * calendar ACL: it answers {@code false} for anything that is not a user on
+   * both sides — so no personal setting ever discloses a <em>space</em>
+   * calendar, whose readers are decided by space visibility alone — and it
+   * never looks at a calendar, only at a setting and a membership.
+   * <p>
+   * Nobody outside all of the target's spaces is ever admitted here, whatever
+   * they are. That is the boundary the two-state setting draws, and it is
+   * deliberately the narrower of the two that were on the table.
    *
    * @param targetIdentityId the user whose availability is wanted
    * @param userIdentityId the user asking
@@ -292,8 +297,11 @@ public class AgendaAvailabilityServiceImpl implements AgendaAvailabilityService 
     if (target == null || !target.isUser() || viewer == null || !viewer.isUser()) {
       return false;
     }
+    // An exhaustive switch with no default, on a two-value enum: it is one
+    // boundary, and the day a third value is added the compiler makes whoever
+    // adds it come here and say what it means. A default arm would have
+    // answered for them, which on this gate is the wrong kind of convenience.
     return switch (agendaUserSettingsService.getAvailabilitySharing(targetIdentityId)) {
-    case EVERYONE -> true;
     case SHARED_SPACES -> sharesASpaceWith(target.getRemoteId(), viewer.getRemoteId());
     case NOBODY -> false;
     };

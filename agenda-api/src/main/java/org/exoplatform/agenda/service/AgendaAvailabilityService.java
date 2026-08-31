@@ -45,10 +45,11 @@ import org.exoplatform.agenda.model.UserAvailability;
  * whatever it permits is always permitted.</li>
  * <li>the target user's {@link AvailabilitySharing} setting — read from
  * {@link AgendaUserSettingsService#getAvailabilitySharing}, which owns it —
- * and which can only ever <strong>widen</strong> that floor, and only for a
- * target that is a user. A space's availability is never disclosed by anyone's
- * personal setting, and no setting lets a viewer read a calendar some other
- * rule keeps from them.</li>
+ * and which can only ever <strong>widen</strong> that floor, by exactly one
+ * step and only for a target that is a user: the people that user shares a
+ * space with. A space's availability is never disclosed by anyone's personal
+ * setting, no setting lets a viewer read a calendar some other rule keeps from
+ * them, and nobody outside all of the target's spaces is ever admitted.</li>
  * </ol>
  * <p>
  * What is disclosed does not change with the setting: time ranges, busy and

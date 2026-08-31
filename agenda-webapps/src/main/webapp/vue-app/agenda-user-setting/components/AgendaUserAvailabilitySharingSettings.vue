@@ -9,37 +9,30 @@
       </v-list-item-title>
       <v-list-item-subtitle>
         <!--
-          The whole point of this line. The choice is on by default, so the
-          person reading it may never have opted into anything: it has to say
-          what is shared (times only), what counts (the events copied in from
-          a calendar they connected for their own convenience) and what is
-          never shared (anything about the events themselves). Buried, this
-          setting would be a disclosure nobody was told about.
+          Short, and carrying the one thing a user could be surprised by: the
+          events copied in from a calendar they connected for their own
+          convenience count too. The setting is on by default, so the person
+          reading this may never have opted into anything.
         -->
         <span>
           {{ $t('agenda.settings.shareAvailabilitySubTitle') }}
         </span>
         <!--
-          Shown only on "Nobody", because that is the choice whose consequence
-          is not obvious: sharing nothing does not make you look free, it makes
-          you unknown, and a person deciding to hide their calendar deserves to
-          know that it will not silently get them booked over.
+          Shown only when the switch is off, because that is the state whose
+          consequence is not obvious: sharing nothing does not make you look
+          free, it makes you unknown.
         -->
-        <div v-if="sharing === 'nobody'" class="text-subtitle mt-1">
-          {{ $t('agenda.settings.shareAvailabilityNobodyHint') }}
+        <div v-if="!shared" class="text-subtitle mt-1">
+          {{ $t('agenda.settings.shareAvailabilityOffHint') }}
         </div>
       </v-list-item-subtitle>
     </v-list-item-content>
     <v-list-item-action>
-      <v-select
-        v-model="sharing"
-        :items="options"
+      <v-switch
+        v-model="shared"
         :loading="saving"
         :disabled="saving"
-        class="mt-0 me-2 pt-0"
-        item-value="value"
-        item-text="text"
-        dense
+        class="mt-0 me-2"
         hide-details
         @change="saveSharing" />
     </v-list-item-action>
@@ -48,40 +41,22 @@
 
 <script>
 /**
- * The stored values, in the order they are offered — widest first, so the
- * list reads from "most people" down to "nobody". They are the same tokens
- * the server stores and the same ones the REST endpoint accepts; there is no
- * second vocabulary to keep in step.
+ * The two stored values. They are the tokens the server stores and the ones
+ * the REST endpoint accepts, so the switch has no vocabulary of its own to
+ * keep in step: on is "the people I share a space with", off is "nobody".
  */
-const SHARING_VALUES = ['everyone', 'shared-spaces', 'nobody'];
+const SHARED = 'shared-spaces';
 
-/**
- * What is applied when the server has never been asked, and when a save
- * fails before anything was read. It matches the server's own default, so the
- * control never shows a state the server does not hold.
- */
-const DEFAULT_SHARING = 'shared-spaces';
+const NOT_SHARED = 'nobody';
 
 export default {
   data: () => ({
-    sharing: DEFAULT_SHARING,
-    previousSharing: DEFAULT_SHARING,
+    // On, matching the server's own default, so the switch never shows a
+    // state the server does not hold while the first read is in flight.
+    shared: true,
+    previouslyShared: true,
     saving: false,
   }),
-  computed: {
-    /**
-     * The three choices, labelled.
-     *
-     * @returns {Array} the items the select offers
-     */
-    options() {
-      return [
-        {value: 'everyone', text: this.$t('agenda.settings.shareAvailabilityOptionEveryone')},
-        {value: 'shared-spaces', text: this.$t('agenda.settings.shareAvailabilityOptionSharedSpaces')},
-        {value: 'nobody', text: this.$t('agenda.settings.shareAvailabilityOptionNobody')},
-      ];
-    },
-  },
   created() {
     this.retrieveSharing();
   },
@@ -94,30 +69,33 @@ export default {
      * a settings save that does not carry it cannot reset it. Reading it out
      * of that payload would put it back into the shape the storage avoids.
      *
+     * Anything other than the off token reads as on, which is the default and
+     * the state the server answers with when nothing was ever chosen.
+     *
      * @returns {void}
      */
     retrieveSharing() {
       this.$settingsService.getAvailabilitySharing()
         .then(value => {
-          this.sharing = SHARING_VALUES.includes(value) && value || DEFAULT_SHARING;
-          this.previousSharing = this.sharing;
+          this.shared = value !== NOT_SHARED;
+          this.previouslyShared = this.shared;
         })
         .catch(error => {
           console.error('cannot read the availability sharing setting', error);
         });
     },
     /**
-     * Stores the new choice, putting the control back where it was when the
+     * Stores the new choice, putting the switch back where it was when the
      * save fails, so it never shows a disclosure the server is not applying.
      *
      * @returns {void}
      */
     saveSharing() {
       this.saving = true;
-      this.$settingsService.saveAvailabilitySharing(this.sharing)
-        .then(() => this.previousSharing = this.sharing)
+      this.$settingsService.saveAvailabilitySharing(this.shared && SHARED || NOT_SHARED)
+        .then(() => this.previouslyShared = this.shared)
         .catch(() => {
-          this.sharing = this.previousSharing;
+          this.shared = this.previouslyShared;
           this.$root.$emit('alert-message', this.$t('agenda.settings.shareAvailabilityError'), 'error');
         })
         .finally(() => this.saving = false);

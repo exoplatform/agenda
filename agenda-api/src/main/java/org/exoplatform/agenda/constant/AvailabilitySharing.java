@@ -22,31 +22,34 @@ import java.util.stream.Stream;
 import org.apache.commons.lang3.StringUtils;
 
 /**
- * How widely a user lets the platform disclose <em>when they are busy</em> —
- * time ranges and nothing else.
+ * Whether a user lets the platform disclose <em>when they are busy</em> — time
+ * ranges and nothing else.
+ * <p>
+ * <strong>Two states, on purpose.</strong> An earlier draft had three, with an
+ * {@code everyone} above {@link #SHARED_SPACES}. It is gone: on a gate that
+ * decides who reads whose calendar, every extra value is another branch to
+ * reason about and another boundary to pin, and the one it added is marginal
+ * on an intranet where colleagues share spaces. What is lost is real and worth
+ * saying: someone outside all of your spaces can no longer see your busy time.
+ * For a scheduling assistant that is the right boundary, and if the
+ * cross-department case ever arrives, putting {@code everyone} back is a
+ * <em>widening</em> — the safe direction — whereas withdrawing it later would
+ * take away a visibility people had already opted into.
  * <p>
  * Whatever the value, what is ever disclosed is the same: busy and free
- * blocks. Never a title, a location, an attendee or a calendar name. This
- * enum only widens or narrows <em>who</em> may ask, never <em>what</em> comes
- * back, which is what makes counting events materialised from a connected
- * account defensible: their content is never shown.
- * <p>
- * The values are ordered from the widest to the narrowest so that the
- * declaration order matches how the choice reads to a user.
+ * blocks. Never a title, a location, an attendee or a calendar name. This enum
+ * only widens or narrows <em>who</em> may ask, never <em>what</em> comes back,
+ * which is what makes counting events materialised from a connected account
+ * defensible: their content is never shown.
  */
 public enum AvailabilitySharing {
 
   /**
-   * Anyone on the platform may see when this user is busy.
-   */
-  EVERYONE("everyone"),
-
-  /**
-   * Only the people who are members of at least one of the same spaces may
-   * see when this user is busy. This is the default: it matches how the rest
-   * of the product decides who sees a user's activity, and a default of
-   * {@link #NOBODY} would leave a setting nobody has a reason to open turning
-   * agent-assisted scheduling off for everybody.
+   * The people who are members of at least one of the same spaces may see when
+   * this user is busy. This is the default, and the "on" side of the switch:
+   * it matches how the rest of the product decides who sees a user's activity,
+   * and defaulting to {@link #NOBODY} would leave a setting nobody has a
+   * reason to open turning agent-assisted scheduling off for everybody.
    */
   SHARED_SPACES("shared-spaces"),
 
@@ -93,6 +96,11 @@ public enum AvailabilitySharing {
    * read is a broken store, and answering a broken store with the sharing
    * default would widen a disclosure on the strength of a typo. The caller
    * decides, and this method only says whether it knew the token.
+   * <p>
+   * The retired {@code everyone} token falls under exactly that rule: a blob
+   * written while the third value existed is unknown here, and resolves to
+   * {@link #NOBODY} at the one place that reads it. Retiring a value fails
+   * closed.
    *
    * @param value the token to resolve, may be {@code null} or blank
    * @return the matching constant, or {@link Optional#empty()} when the token

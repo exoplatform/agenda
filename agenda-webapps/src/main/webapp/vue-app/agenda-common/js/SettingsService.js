@@ -218,7 +218,7 @@ export function removeEmbedMapProvider() {
  * under its own key so that a settings save which does not carry it cannot
  * silently reset a disclosure choice.
  *
- * @returns {Promise<String>} 'everyone', 'shared-spaces' or 'nobody'
+ * @returns {Promise<String>} 'shared-spaces' or 'nobody'
  */
 export function getAvailabilitySharing() {
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/settings/availabilitySharing`, {
@@ -238,7 +238,7 @@ export function getAvailabilitySharing() {
 /**
  * Stores how widely the current user shares their busy time.
  *
- * @param {String} shareAvailability 'everyone', 'shared-spaces' or 'nobody'
+ * @param {String} shareAvailability 'shared-spaces' or 'nobody'
  * @returns {Promise} resolves when the choice is stored
  */
 export function saveAvailabilitySharing(shareAvailability) {

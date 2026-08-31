@@ -144,7 +144,8 @@ class AgendaAvailabilityServiceImplTest {
 
   @Test
   void theEventServiceIsAskedAsTheTargetOnceTheGateHasAllowedTheRead() throws Exception {
-    sharing(COLLEAGUE, AvailabilitySharing.EVERYONE);
+    sharing(COLLEAGUE, AvailabilitySharing.SHARED_SPACES);
+    membersOfASameSpace("user400", "user5");
     when(agendaEventService.getEvents(any(), eq(ZoneOffset.UTC), eq(COLLEAGUE))).thenReturn(List.of(busyEvent(9, 10)));
 
     availabilityService.getAvailability(List.of(COLLEAGUE), WINDOW_START, WINDOW_END, ASKER);
@@ -238,14 +239,17 @@ class AgendaAvailabilityServiceImplTest {
   }
 
   @Test
-  void aColleagueSharingWithEveryoneIsReadableByAStranger() throws Exception {
-    sharing(COLLEAGUE, AvailabilitySharing.EVERYONE);
+  void sharingIsOnAndStillAdmitsNobodyFromOutsideTheTargetsSpaces() throws Exception {
+    // The setting has two states, and neither of them opens a user's busy time
+    // to someone outside all of their spaces. This is the boundary that
+    // replaced the retired third value, and it is the whole of what "on" can
+    // ever widen to.
+    sharing(COLLEAGUE, AvailabilitySharing.SHARED_SPACES);
     when(spaceService.getCommonSpaces("user400", "user700")).thenReturn(listAccessOf());
-    when(agendaEventService.getEvents(any(), eq(ZoneOffset.UTC), eq(COLLEAGUE))).thenReturn(List.of(busyEvent(9, 10)));
+    when(agendaEventService.getEvents(any(), any(), anyLong())).thenReturn(List.of(busyEvent(9, 10)));
 
-    List<UserAvailability> result = availabilityService.getAvailability(List.of(COLLEAGUE), WINDOW_START, WINDOW_END, STRANGER);
-
-    assertEquals(1, result.get(0).getBusy().size());
+    assertThrows(IllegalAccessException.class,
+                 () -> availabilityService.getAvailability(List.of(COLLEAGUE), WINDOW_START, WINDOW_END, STRANGER));
   }
 
   @Test
@@ -253,7 +257,7 @@ class AgendaAvailabilityServiceImplTest {
     // The asker is the permissive one, the target the private one. Reading the
     // asker's setting here would let anyone open everyone else's calendar
     // simply by opening their own.
-    sharing(ASKER, AvailabilitySharing.EVERYONE);
+    sharing(ASKER, AvailabilitySharing.SHARED_SPACES);
     sharing(COLLEAGUE, AvailabilitySharing.NOBODY);
     membersOfASameSpace("user400", "user5");
     when(agendaEventService.getEvents(any(), any(), anyLong())).thenReturn(List.of(busyEvent(9, 10)));
@@ -267,7 +271,10 @@ class AgendaAvailabilityServiceImplTest {
     // A space owner has no sharing setting of its own; if the code asked for
     // one anyway it would get the permissive default of whatever it looked up.
     mockSpace(SPACE);
-    sharing(SPACE, AvailabilitySharing.EVERYONE);
+    sharing(SPACE, AvailabilitySharing.SHARED_SPACES);
+    // If the space identity were run through the personal rule it would find a
+    // shared space and be let through; only the isUser guard stops it.
+    membersOfASameSpace("space900", "user5");
     when(spaceService.getSpaceByPrettyName("space900")).thenReturn(null);
     when(spaceService.canViewSpace(null, "user5")).thenReturn(false);
     when(agendaEventService.getEvents(any(), any(), anyLong())).thenReturn(List.of(busyEvent(9, 10)));

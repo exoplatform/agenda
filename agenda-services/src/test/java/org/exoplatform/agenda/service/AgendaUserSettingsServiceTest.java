@@ -205,8 +205,8 @@ public class AgendaUserSettingsServiceTest extends BaseAgendaEventTest {
                  AvailabilitySharing.NOBODY,
                  agendaUserSettingsService.getAvailabilitySharing(56223l));
 
-    agendaUserSettingsService.saveAvailabilitySharing(56223l, AvailabilitySharing.EVERYONE);
-    assertEquals(AvailabilitySharing.EVERYONE, agendaUserSettingsService.getAvailabilitySharing(56223l));
+    agendaUserSettingsService.saveAvailabilitySharing(56223l, AvailabilitySharing.SHARED_SPACES);
+    assertEquals(AvailabilitySharing.SHARED_SPACES, agendaUserSettingsService.getAvailabilitySharing(56223l));
   }
 
   /**
@@ -226,6 +226,25 @@ public class AgendaUserSettingsServiceTest extends BaseAgendaEventTest {
                        SettingValue.create("everybody-in-the-world"));
 
     assertEquals(AvailabilitySharing.NOBODY, agendaUserSettingsService.getAvailabilitySharing(56224l));
+  }
+
+  /**
+   * The retired "everyone" value is one such unreadable value, and it is the
+   * one that will actually be met: a blob written while the setting had three
+   * states reads as "nobody", not as the default. Retiring a value fails
+   * closed, so nobody keeps a visibility the product no longer offers.
+   *
+   * @throws Exception when the container misbehaves
+   */
+  @Test
+  public void testTheRetiredEveryoneValueIsReadAsNobody() throws Exception { // NOSONAR
+    SettingService settingService = CommonsUtils.getService(SettingService.class);
+    settingService.set(Context.USER.id("56227"),
+                       Scope.APPLICATION.id("Agenda"),
+                       "shareAvailability",
+                       SettingValue.create("everyone"));
+
+    assertEquals(AvailabilitySharing.NOBODY, agendaUserSettingsService.getAvailabilitySharing(56227l));
   }
 
   /**

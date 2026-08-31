@@ -445,8 +445,7 @@ public class AgendaSettingsRest implements ResourceContainer {
    * coercing it would silently widen or narrow a disclosure the user did not
    * ask for.
    *
-   * @param shareAvailability the wanted value: everyone, shared-spaces or
-   *          nobody
+   * @param shareAvailability the wanted value: shared-spaces or nobody
    * @return 204 when saved, 400 on an unknown value, 500 on failure
    */
   @Path("availabilitySharing")
@@ -454,7 +453,7 @@ public class AgendaSettingsRest implements ResourceContainer {
   @RolesAllowed("users")
   @Operation(
       summary = "Saves how widely the authenticated user shares their busy time",
-      description = "Accepts 'everyone', 'shared-spaces' or 'nobody'. Applies to the authenticated user only.",
+      description = "Accepts 'shared-spaces' (the default) or 'nobody'. Applies to the authenticated user only.",
       method = "PATCH")
   @ApiResponses(
       value = {
@@ -463,12 +462,12 @@ public class AgendaSettingsRest implements ResourceContainer {
           @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
           @ApiResponse(responseCode = "500", description = "Internal server error"),
       })
-  public Response saveAvailabilitySharing(@Parameter(description = "One of: everyone, shared-spaces, nobody", required = true)
+  public Response saveAvailabilitySharing(@Parameter(description = "One of: shared-spaces, nobody", required = true)
                                           @FormParam("shareAvailability") String shareAvailability) {
     Optional<AvailabilitySharing> availabilitySharing = AvailabilitySharing.parse(shareAvailability);
     if (availabilitySharing.isEmpty()) {
       return Response.status(Status.BAD_REQUEST)
-                     .entity("'shareAvailability' must be one of: everyone, shared-spaces, nobody")
+                     .entity("'shareAvailability' must be one of: shared-spaces, nobody")
                      .build();
     }
     long identityId = RestUtils.getCurrentUserIdentityId(identityManager);
