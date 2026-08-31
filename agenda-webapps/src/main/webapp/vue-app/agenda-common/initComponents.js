@@ -35,6 +35,8 @@ import AgendaEventForm from './components/event/form/AgendaEventForm.vue';
 import AgendaEventFormBasicInformation from './components/event/form/AgendaEventFormBasicInformation.vue';
 import AgendaEventQuickFormDrawer from './components/event/form/AgendaEventQuickFormDrawer.vue';
 import AgendaEventFormDates from './components/event/form/AgendaEventFormDates.vue';
+import AgendaEventFormBusyCoverage from './components/event/form/AgendaEventFormBusyCoverage.vue';
+import AgendaEventFormParticipantBusyItem from './components/event/form/AgendaEventFormParticipantBusyItem.vue';
 import AgendaEventFormDatePickers from './components/event/form/AgendaEventFormDatePickers.vue';
 import AgendaEventFormReminders from './components/event/form/AgendaEventFormReminders.vue';
 import AgendaSwitchView from './components/top-toolbar/AgendaSwitchView.vue';
@@ -123,6 +125,8 @@ const components = {
   'agenda-event-form-basic-information': AgendaEventFormBasicInformation,
   'agenda-event-quick-form-drawer': AgendaEventQuickFormDrawer,
   'agenda-event-form-dates': AgendaEventFormDates,
+  'agenda-event-form-busy-coverage': AgendaEventFormBusyCoverage,
+  'agenda-event-form-participant-busy-item': AgendaEventFormParticipantBusyItem,
   'agenda-event-form-date-pickers': AgendaEventFormDatePickers,
   'agenda-event-form-reminders': AgendaEventFormReminders,
   'agenda-event-form-attachments': AgendaEventFormAttachments,
@@ -188,6 +192,7 @@ for (const key in components) {
 import * as eventService from './js/EventService.js';
 import * as calendarService from './js/CalendarService.js';
 import * as settingsService from './js/SettingsService.js';
+import * as availabilityService from './js/AvailabilityService.js';
 import * as agendaUtils from './js/AgendaUtils.js';
 import * as datePollUtils from './js/DatePollUtils.js';
 import * as webConferencingService from './js/EventWebConferencingService.js';
@@ -209,6 +214,11 @@ if (!Vue.prototype.$eventService) {
 if (!Vue.prototype.$settingsService) {
   window.Object.defineProperty(Vue.prototype, '$settingsService', {
     value: settingsService,
+  });
+}
+if (!Vue.prototype.$availabilityService) {
+  window.Object.defineProperty(Vue.prototype, '$availabilityService', {
+    value: availabilityService,
   });
 }
 if (!Vue.prototype.$agendaUtils) {
