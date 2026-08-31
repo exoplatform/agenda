@@ -114,7 +114,7 @@
           },
           "fail_on_conflict": {
             "type": "boolean",
-            "description": "When true, abort creation if any attendee is busy/tentative in the window. Default false: create anyway and return the conflicts block."
+            "description": "When true, abort creation if any attendee known to be busy clashes with the window. Default false: create anyway and return the conflicts block. The conflicts block only covers attendees whose calendar the current user may read; the others are listed under not_disclosed and were not checked, so all_available means 'no clash was found', not 'everyone is free'."
           }
         },
         "required": [
@@ -179,7 +179,7 @@
           },
           "fail_on_conflict": {
             "type": "boolean",
-            "description": "When true, abort the update if any attendee is busy/tentative in the (new) window. Default false: update anyway and return the conflicts block."
+            "description": "When true, abort the update if any attendee known to be busy clashes with the (new) window. Default false: update anyway and return the conflicts block. The conflicts block only covers attendees whose calendar the current user may read; the others are listed under not_disclosed and were not checked, so all_available means 'no clash was found', not 'everyone is free'."
           }
         },
         "required": [
@@ -492,7 +492,7 @@
     {
       "name": "get_availability",
       "title": "Get users availability",
-      "description": "Return each user's busy and free time blocks within a window. Only time ranges are returned, never event titles or details.",
+      "description": "Return each user's busy and free time blocks within a window. Only time ranges are returned, never event titles or details. Availability is calendar content and is protected by the calendar permissions: you can read it only for users whose calendar the current user is allowed to see, which today means the current user themselves. Asking about anyone else is refused rather than answered.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -528,7 +528,7 @@
     {
       "name": "suggest_meeting_time",
       "title": "Suggest a meeting time",
-      "description": "Suggest candidate slots of at least duration_minutes where all attendees are free within a window. Optional constraints keyword 'mornings' or 'afternoons' restricts candidate start times.",
+      "description": "Suggest candidate slots of at least duration_minutes where all attendees are free within a window. Optional constraints keyword 'mornings' or 'afternoons' restricts candidate start times. Every attendee's calendar must be readable by the current user, which today means this answers for the current user alone; if any other attendee is named the call is refused rather than answered from a subset of the calendars.",
       "input_schema": {
         "type": "object",
         "properties": {

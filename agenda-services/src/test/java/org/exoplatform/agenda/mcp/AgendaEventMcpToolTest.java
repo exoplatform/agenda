@@ -17,6 +17,7 @@
 package org.exoplatform.agenda.mcp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -61,6 +62,7 @@ import org.exoplatform.agenda.model.EventConference;
 import org.exoplatform.agenda.model.EventDateOption;
 import org.exoplatform.agenda.model.EventReminder;
 import org.exoplatform.agenda.model.EventSearchResult;
+import org.exoplatform.agenda.service.AgendaAvailabilityServiceImpl;
 import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.agenda.service.AgendaEventAttendeeService;
 import org.exoplatform.agenda.service.AgendaEventConferenceService;
@@ -154,8 +156,13 @@ class AgendaEventMcpToolTest {
 
     when(agendaUserSettingsService.getAgendaUserSettings(USER_IDENTITY_ID)).thenReturn(new AgendaUserSettings());
 
+    when(identityManager.getIdentity(String.valueOf(USER_IDENTITY_ID))).thenReturn(currentUserIdentityMock);
+    when(currentUserIdentityMock.getId()).thenReturn(String.valueOf(USER_IDENTITY_ID));
+    when(currentUserIdentityMock.isUser()).thenReturn(true);
+
     tool = new AgendaEventMcpTool(agendaCalendarService,
                                   agendaEventService,
+                                  new AgendaAvailabilityServiceImpl(agendaEventService, identityManager, spaceService),
                                   agendaEventConferenceService,
                                   agendaEventAttendeeService,
                                   agendaEventDatePollService,
@@ -573,26 +580,24 @@ class AgendaEventMcpToolTest {
                                any(org.exoplatform.services.security.Identity.class))).thenReturn(true);
     stubSpaceCalendarChain(SPACE_ID, SPACE_PRETTY_NAME, OWNER_IDENTITY_ID, CALENDAR_ID);
 
-    Identity busyIdentity = Mockito.mock(Identity.class);
-    when(busyIdentity.getIdentityId()).thenReturn(201L);
-    when(busyIdentity.isUser()).thenReturn(true);
-    when(busyIdentity.getRemoteId()).thenReturn("busy.user");
-    when(identityManager.getOrCreateUserIdentity("busy.user")).thenReturn(busyIdentity);
-    when(identityManager.getIdentity(201L)).thenReturn(busyIdentity);
+    // Availability is readable by its owner only, so the acting user is the
+    // one attendee whose clash can actually be detected here.
+    when(currentUserIdentityMock.getRemoteId()).thenReturn(USERNAME);
     Event busyEvent = buildEvent(700L, CALENDAR_ID, START, END, EventStatus.CONFIRMED);
-    when(agendaEventService.getEvents(any(), eq(ZoneOffset.UTC), eq(201L))).thenReturn(List.of(busyEvent));
+    when(agendaEventService.getEvents(any(), eq(ZoneOffset.UTC), eq(USER_IDENTITY_ID))).thenReturn(List.of(busyEvent));
 
     Identity silentIdentity = Mockito.mock(Identity.class);
     when(silentIdentity.getIdentityId()).thenReturn(202L);
     when(identityManager.getOrCreateUserIdentity("silent.user")).thenReturn(silentIdentity);
-    // identityManager.getIdentity(202L) intentionally left unstubbed -> null -> "unresolved identity" branch
+    // identityManager.getIdentity("202") intentionally left unstubbed -> null -> "unresolved identity" branch
 
     Identity freeIdentity = Mockito.mock(Identity.class);
     when(freeIdentity.getIdentityId()).thenReturn(203L);
     when(freeIdentity.isUser()).thenReturn(true);
+    when(freeIdentity.getId()).thenReturn("203");
+    when(freeIdentity.getRemoteId()).thenReturn("free.user");
     when(identityManager.getOrCreateUserIdentity("free.user")).thenReturn(freeIdentity);
-    when(identityManager.getIdentity(203L)).thenReturn(freeIdentity);
-    when(agendaEventService.getEvents(any(), eq(ZoneOffset.UTC), eq(203L))).thenReturn(Collections.emptyList());
+    when(identityManager.getIdentity("203")).thenReturn(freeIdentity);
 
     IllegalStateException ex =
                               assertThrows(IllegalStateException.class,
@@ -602,7 +607,7 @@ class AgendaEventMcpToolTest {
                                                                         null,
                                                                         "2026-07-20T09:00:00Z",
                                                                         "2026-07-20T10:00:00Z",
-                                                                        List.of("busy.user", "silent.user", "free.user"),
+                                                                        List.of(USERNAME, "silent.user", "free.user"),
                                                                         null,
                                                                         null,
                                                                         null,
@@ -611,6 +616,56 @@ class AgendaEventMcpToolTest {
                                                                         null));
     assertTrue(ex.getMessage().contains("1"));
     verify(agendaEventService, never()).createEvent(any(), any(), any(), any(), any(), any(), anyBoolean(), anyLong());
+  }
+
+  @Test
+  void conflictsReportBusyAndNameTheAttendeesThatCouldNotBeChecked() throws Exception {
+    when(userAcl.hasPermission(any(),
+                               eq(String.valueOf(SPACE_ID)),
+                               any(),
+                               any(org.exoplatform.services.security.Identity.class))).thenReturn(true);
+    stubSpaceCalendarChain(SPACE_ID, SPACE_PRETTY_NAME, OWNER_IDENTITY_ID, CALENDAR_ID);
+    when(currentUserIdentityMock.getRemoteId()).thenReturn(USERNAME);
+
+    // A TENTATIVE-status event is reported as busy like any other. The event
+    // query behind free/busy filters on CONFIRMED, so a "tentative" clash
+    // could never actually be produced and is no longer derived from a field
+    // the query cannot vary.
+    Event tentative = buildEvent(700L, CALENDAR_ID, START, END, EventStatus.TENTATIVE);
+    when(agendaEventService.getEvents(any(), eq(ZoneOffset.UTC), eq(USER_IDENTITY_ID))).thenReturn(List.of(tentative));
+
+    Identity colleague = Mockito.mock(Identity.class);
+    when(colleague.getIdentityId()).thenReturn(400L);
+    when(colleague.getId()).thenReturn("400");
+    when(colleague.isUser()).thenReturn(true);
+    when(colleague.getRemoteId()).thenReturn("colleague");
+    when(identityManager.getOrCreateUserIdentity("colleague")).thenReturn(colleague);
+    when(identityManager.getIdentity("400")).thenReturn(colleague);
+
+    Event created = buildEvent(600L, CALENDAR_ID, START, END, EventStatus.CONFIRMED);
+    when(agendaEventService.createEvent(any(), any(), any(), any(), any(), any(), anyBoolean(), eq(USER_IDENTITY_ID)))
+                                                                                                                     .thenReturn(created);
+
+    AgendaEventModel model = tool.createAgendaEvent(SPACE_ID,
+                                                    "Kickoff",
+                                                    null,
+                                                    null,
+                                                    "2026-07-20T09:00:00Z",
+                                                    "2026-07-20T10:00:00Z",
+                                                    List.of(USERNAME, "colleague"),
+                                                    null,
+                                                    null,
+                                                    null,
+                                                    null,
+                                                    null,
+                                                    null);
+
+    assertEquals(1, model.getConflicts().getConflicts().size());
+    assertEquals("busy", model.getConflicts().getConflicts().get(0).getStatus());
+    assertEquals(List.of("colleague"),
+                 model.getConflicts().getNotDisclosed(),
+                 "an attendee whose availability we may not read must be named, not assumed free");
+    assertFalse(model.getConflicts().isAllAvailable());
   }
 
   @Test
@@ -861,10 +916,6 @@ class AgendaEventMcpToolTest {
 
   @Test
   void getAvailabilityMergesOverlappingBusyIntervalsAndComputesFreeBlocks() throws Exception {
-    Identity john = Mockito.mock(Identity.class);
-    when(john.getIdentityId()).thenReturn(400L);
-    when(identityManager.getOrCreateUserIdentity("john")).thenReturn(john);
-
     Event a = buildEvent(1L,
                         CALENDAR_ID,
                         ZonedDateTime.of(2026, 7, 20, 9, 0, 0, 0, ZoneOffset.UTC),
@@ -880,10 +931,10 @@ class AgendaEventMcpToolTest {
                         ZonedDateTime.of(2026, 7, 20, 14, 0, 0, 0, ZoneOffset.UTC),
                         ZonedDateTime.of(2026, 7, 20, 15, 0, 0, 0, ZoneOffset.UTC),
                         EventStatus.CONFIRMED);
-    when(agendaEventService.getEvents(any(), eq(ZoneOffset.UTC), eq(400L))).thenReturn(List.of(a, b, c));
+    when(agendaEventService.getEvents(any(), eq(ZoneOffset.UTC), eq(USER_IDENTITY_ID))).thenReturn(List.of(a, b, c));
 
     List<AvailabilityModel> result =
-                                    tool.getAvailability(List.of("john"), "2026-07-20T08:00:00Z", "2026-07-20T20:00:00Z");
+                                    tool.getAvailability(List.of(USERNAME), "2026-07-20T08:00:00Z", "2026-07-20T20:00:00Z");
 
     assertEquals(1, result.size());
     AvailabilityModel availability = result.get(0);
@@ -893,18 +944,15 @@ class AgendaEventMcpToolTest {
 
   @Test
   void getAvailabilityFullyBusyWindowYieldsNoFreeBlocks() throws Exception {
-    Identity jane = Mockito.mock(Identity.class);
-    when(jane.getIdentityId()).thenReturn(410L);
-    when(identityManager.getOrCreateUserIdentity("jane")).thenReturn(jane);
     Event fullyBusy = buildEvent(4L,
                                 CALENDAR_ID,
                                 ZonedDateTime.of(2026, 7, 20, 8, 0, 0, 0, ZoneOffset.UTC),
                                 ZonedDateTime.of(2026, 7, 20, 10, 0, 0, 0, ZoneOffset.UTC),
                                 EventStatus.CONFIRMED);
-    when(agendaEventService.getEvents(any(), eq(ZoneOffset.UTC), eq(410L))).thenReturn(List.of(fullyBusy));
+    when(agendaEventService.getEvents(any(), eq(ZoneOffset.UTC), eq(USER_IDENTITY_ID))).thenReturn(List.of(fullyBusy));
 
     List<AvailabilityModel> result =
-                                    tool.getAvailability(List.of("jane"), "2026-07-20T08:00:00Z", "2026-07-20T10:00:00Z");
+                                    tool.getAvailability(List.of(USERNAME), "2026-07-20T08:00:00Z", "2026-07-20T10:00:00Z");
 
     assertEquals(1, result.size());
     assertTrue(result.get(0).getFree().isEmpty());
@@ -921,13 +969,49 @@ class AgendaEventMcpToolTest {
   }
 
   @Test
-  void suggestMeetingTimeFindsFreeSlotsRespectingMorningConstraint() throws Exception {
-    Identity john = Mockito.mock(Identity.class);
-    when(john.getIdentityId()).thenReturn(401L);
-    when(identityManager.getOrCreateUserIdentity("john")).thenReturn(john);
-    when(agendaEventService.getEvents(any(), eq(ZoneOffset.UTC), eq(401L))).thenReturn(Collections.emptyList());
+  void getAvailabilityOfAnotherUserIsRefused() throws Exception {
+    Identity colleague = Mockito.mock(Identity.class);
+    when(colleague.getIdentityId()).thenReturn(400L);
+    when(colleague.getId()).thenReturn("400");
+    when(colleague.isUser()).thenReturn(true);
+    when(identityManager.getOrCreateUserIdentity("colleague")).thenReturn(colleague);
+    when(identityManager.getIdentity("400")).thenReturn(colleague);
+    // Stubbed so that, with the guard gone, the call would succeed and the
+    // assertion below is what fails.
+    when(agendaEventService.getEvents(any(), eq(ZoneOffset.UTC), anyLong()))
+                                                                            .thenReturn(List.of(buildEvent(9L,
+                                                                                                           CALENDAR_ID,
+                                                                                                           START,
+                                                                                                           END,
+                                                                                                           EventStatus.CONFIRMED)));
 
-    List<TimeBlockModel> suggestions = tool.suggestMeetingTime(List.of("john"),
+    assertThrows(IllegalAccessException.class,
+                 () -> tool.getAvailability(List.of("colleague"), "2026-07-20T08:00:00Z", "2026-07-20T20:00:00Z"));
+  }
+
+  @Test
+  void suggestMeetingTimeWithAnotherAttendeeIsRefused() throws Exception {
+    Identity colleague = Mockito.mock(Identity.class);
+    when(colleague.getIdentityId()).thenReturn(400L);
+    when(colleague.getId()).thenReturn("400");
+    when(colleague.isUser()).thenReturn(true);
+    when(identityManager.getOrCreateUserIdentity("colleague")).thenReturn(colleague);
+    when(identityManager.getIdentity("400")).thenReturn(colleague);
+    when(agendaEventService.getEvents(any(), eq(ZoneOffset.UTC), anyLong())).thenReturn(Collections.emptyList());
+
+    assertThrows(IllegalAccessException.class,
+                 () -> tool.suggestMeetingTime(List.of(USERNAME, "colleague"),
+                                               30,
+                                               "2026-07-20T09:00:00Z",
+                                               "2026-07-20T13:00:00Z",
+                                               null));
+  }
+
+  @Test
+  void suggestMeetingTimeFindsFreeSlotsRespectingMorningConstraint() throws Exception {
+    when(agendaEventService.getEvents(any(), eq(ZoneOffset.UTC), eq(USER_IDENTITY_ID))).thenReturn(Collections.emptyList());
+
+    List<TimeBlockModel> suggestions = tool.suggestMeetingTime(List.of(USERNAME),
                                                                30,
                                                                "2026-07-20T09:00:00Z",
                                                                "2026-07-20T13:00:00Z",
@@ -938,13 +1022,10 @@ class AgendaEventMcpToolTest {
 
   @Test
   void suggestMeetingTimeWithoutConstraintsReturnsAllSlots() throws Exception {
-    Identity john = Mockito.mock(Identity.class);
-    when(john.getIdentityId()).thenReturn(401L);
-    when(identityManager.getOrCreateUserIdentity("john")).thenReturn(john);
-    when(agendaEventService.getEvents(any(), eq(ZoneOffset.UTC), eq(401L))).thenReturn(Collections.emptyList());
+    when(agendaEventService.getEvents(any(), eq(ZoneOffset.UTC), eq(USER_IDENTITY_ID))).thenReturn(Collections.emptyList());
 
     List<TimeBlockModel> suggestions =
-                                      tool.suggestMeetingTime(List.of("john"),
+                                      tool.suggestMeetingTime(List.of(USERNAME),
                                                               30,
                                                               "2026-07-20T09:00:00Z",
                                                               "2026-07-20T13:00:00Z",
