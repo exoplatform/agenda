@@ -105,7 +105,7 @@
           :class="eventObj.event.dateOption && 'editing-event' || ''"
           class="readonly-event">
           <p
-            :title="eventObj.event.summary"
+            :title="storeEventTitle(eventObj.event)"
             class="text-truncate my-auto ms-2 caption font-weight-bold d-flex">
             <span class="text-truncate me-auto">{{ eventObj.event.summary }}</span>
             <v-icon
@@ -147,6 +147,14 @@
 </template>
 
 <script>
+
+/*
+ * The responses that make an event a commitment on the organiser's week. An
+ * invitation they have not answered still occupies the slot as far as picking
+ * one goes; a declined event does not. Same set EXO-89840 settled on for the
+ * conflicts panel.
+ */
+const SCHEDULED_RESPONSES = ['ACCEPTED', 'NEEDS_ACTION', 'TENTATIVE'];
 
 export default {
   props: {
@@ -204,7 +212,22 @@ export default {
      * against, and it has to say when it is not showing everything.
      */
     failedConnectors: [],
+    /*
+     * What eXo's own calendars hold over the previewed week. Two reads feed
+     * it — the calendar being scheduled into, and everything the organiser is
+     * an attendee of — and each of them fails on its own.
+     */
     spaceEvents: [],
+    /*
+     * The calendar sources whose last read failed, as message keys. Kept
+     * apart from the events for the reason EXO-89842 established: a source
+     * that could not answer is not a source that answered "nothing".
+     */
+    failedStoreSourceKeys: [],
+    /*
+     * Only the newest store read may write what the grid shows.
+     */
+    storeRequestId: 0,
     /*
      * The third source behind the grid: the participants' busy time. It is
      * held as three separate things on purpose — the blocks that can be drawn,
@@ -309,12 +332,21 @@ export default {
       };
     },
     /**
-     * The accounts the grid could not read, named as the user knows them.
+     * The sources the grid could not read, named as the user knows them:
+     * connected accounts by the address they are signed in as, eXo's own
+     * calendars by what they are.
      *
-     * @returns {Array} one display name per unreachable account
+     * <p>
+     * One list and one warning rather than two: the organiser is about to
+     * pick a slot against this grid, and what they need to know is that
+     * something behind it is missing — not which layer of the product it
+     * came from.
+     *
+     * @returns {Array} one display name per unreachable source
      */
     failedSourceNames() {
-      return this.$agendaUtils.failedSourceNames(this.failedConnectors);
+      return this.$agendaUtils.failedSourceNames(this.failedConnectors)
+        .concat(this.failedStoreSourceKeys.map(key => this.$t(key)));
     },
     /**
      * Whether the grid behind the drag is missing what an account holds.
@@ -662,35 +694,189 @@ export default {
         this.refreshEventsToDisplay();
       }
     },
+    /**
+     * Fetches what eXo's own calendars hold over the previewed week, from
+     * <strong>two</strong> sources.
+     *
+     * <p>
+     * This grid exists so the organiser can see what a slot would clash with,
+     * and it used to ask one calendar: the owner of the event being created.
+     * Create a poll in a space and it asked that space alone — personal
+     * calendar, other spaces, and calendars materialised from a connected
+     * account were all invisible at the moment of choosing. So the organiser
+     * picked a slot over their own meeting and the screen never said a word.
+     *
+     * <p>
+     * The two sources, and why neither replaces the other:
+     * <ul>
+     * <li><strong>the target calendar</strong> — everything owned by the
+     * calendar being scheduled into, including events the organiser is not an
+     * attendee of. A space meeting they were not invited to still occupies
+     * that space's week, and the poll is being placed in it;</li>
+     * <li><strong>the organiser's own commitments</strong> — everything they
+     * are an attendee of, wherever it lives. This is EXO-89840's read,
+     * unchanged: the same events endpoint already filters on the viewer as an
+     * attendee, and it is also what answers for a materialised remote
+     * calendar, whose events the live connector read stops reporting the
+     * moment they are imported.</li>
+     * </ul>
+     *
+     * <p>
+     * An event in both — a space meeting the organiser attends — is drawn
+     * once, the target calendar's copy winning, since that is the calendar
+     * whose colour the grid is showing.
+     *
+     * <p>
+     * <strong>Each source fails on its own and says so.</strong> One
+     * unreachable source must not blank what the other returned, and it must
+     * not reach the grid as a source that answered "nothing": that is
+     * EXO-89842 and EXO-89843's contract, and it matters more here than
+     * anywhere because the answer becomes a decision.
+     *
+     * @returns {void}
+     */
     retrieveEventsFromStore() {
-      const userIdentityId = this.eventType === 'myEvents' && eXo.env.portal.userIdentityId || null;
-
-      const calendarOwner = this.event && this.event.calendar && this.event.calendar.owner;
-
-      let ownerIdentityPromise = null;
-      if (calendarOwner && calendarOwner.remoteId && calendarOwner.providerId) {
-        ownerIdentityPromise = this.$identityService.getIdentityByProviderIdAndRemoteId(calendarOwner.providerId, calendarOwner.remoteId);
-      } else {
-        ownerIdentityPromise = Promise.resolve(calendarOwner);
-      }
-      ownerIdentityPromise
-        .then(ownerIdentity => {
-          const ownerIds = ownerIdentity && ownerIdentity.id ? [ownerIdentity.id] : [];
-          return this.$eventService.getEvents(null, ownerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, true), this.$agendaUtils.toRFC3339(this.period.end), this.limit, null, 'attendees, conferences');
-        })
-        .then(data => {
-          const events = data && data.events || [];
-          events.forEach(event => {
-            event.name = event.summary;
-            this.$agendaUtils.convertDates(event);
-          });
-          this.spaceEvents = events;
+      const requestId = ++this.storeRequestId;
+      const start = this.$agendaUtils.toRFC3339(this.period.start, true);
+      const end = this.$agendaUtils.toRFC3339(this.period.end);
+      Promise.all([this.readTargetCalendarEvents(start, end), this.readOwnEvents(start, end)])
+        .then(sources => {
+          if (requestId !== this.storeRequestId) {
+            return;
+          }
+          this.spaceEvents = this.mergeStoreEvents(sources);
+          this.failedStoreSourceKeys = sources.filter(source => source.failed).map(source => source.labelKey);
           return this.$nextTick();
         })
-        .catch(error =>{
-          console.error('Error retrieving events', error);
+        .finally(() => {
+          if (requestId === this.storeRequestId) {
+            this.refreshEventsToDisplay();
+          }
+        });
+    },
+    /**
+     * Reads the calendar the poll is being placed in.
+     *
+     * <p>
+     * The owner is resolved the same way it always was. When the event carries
+     * no calendar owner yet there is no target calendar to read, which is an
+     * answer rather than a failure — the organiser's own commitments below
+     * still cover the week.
+     *
+     * @param {String} start the period start, RFC3339
+     * @param {String} end the period end, RFC3339
+     * @returns {Promise} resolves with `{events, failed, labelKey}`
+     */
+    readTargetCalendarEvents(start, end) {
+      const labelKey = 'agenda.eventForm.sourceThisCalendar';
+      const calendarOwner = this.event && this.event.calendar && this.event.calendar.owner;
+      const ownerIdentityPromise = calendarOwner && calendarOwner.remoteId && calendarOwner.providerId
+        ? this.$identityService.getIdentityByProviderIdAndRemoteId(calendarOwner.providerId, calendarOwner.remoteId)
+        : Promise.resolve(calendarOwner);
+      return ownerIdentityPromise
+        .then(ownerIdentity => {
+          const ownerIds = ownerIdentity && ownerIdentity.id ? [ownerIdentity.id] : [];
+          if (!ownerIds.length) {
+            return {events: [], failed: false, labelKey};
+          }
+          return this.$eventService.getEvents(null, ownerIds, null, start, end, 0, null, 'attendees, conferences')
+            .then(data => ({events: this.readStoreEvents(data), failed: false, labelKey}));
         })
-        .finally(() => this.refreshEventsToDisplay());
+        .catch(error => {
+          console.error('Error retrieving the events of the calendar being scheduled into', error);
+          // No events array: a calendar that could not answer must not reach
+          // the grid as a calendar that answered "nothing".
+          return {failed: true, labelKey};
+        });
+    },
+    /**
+     * Reads everything the organiser is an attendee of, across their
+     * calendars.
+     *
+     * @param {String} start the period start, RFC3339
+     * @param {String} end the period end, RFC3339
+     * @returns {Promise} resolves with `{events, failed, labelKey}`
+     */
+    readOwnEvents(start, end) {
+      const labelKey = 'agenda.eventForm.sourceYourCalendars';
+      const attendeeIdentityId = eXo.env.portal.userIdentityId || null;
+      if (!attendeeIdentityId) {
+        return Promise.resolve({events: [], failed: false, labelKey});
+      }
+      return this.$eventService.getEvents(null, [], attendeeIdentityId, start, end, 0, SCHEDULED_RESPONSES, 'attendees, conferences')
+        .then(data => ({events: this.readStoreEvents(data), failed: false, labelKey}))
+        .catch(error => {
+          console.error('Error retrieving the events of the user own calendars', error);
+          return {failed: true, labelKey};
+        });
+    },
+    /**
+     * Normalises what the events endpoint answered for the grid.
+     *
+     * @param {Object} data the endpoint answer
+     * @returns {Array} the events, with their dates converted
+     */
+    readStoreEvents(data) {
+      const events = data && data.events || [];
+      events.forEach(event => {
+        event.name = event.summary;
+        this.$agendaUtils.convertDates(event);
+      });
+      return events;
+    },
+    /**
+     * Merges the two store reads into one list, each event once.
+     *
+     * <p>
+     * Only a source that carries an events array contributes; one that failed
+     * carries none, which is the whole point of keeping the two apart. The
+     * first source to claim an id keeps it, so the target calendar's copy of a
+     * shared event wins — an event with no id at all is kept rather than
+     * folded away, since two absent ids are not a match.
+     *
+     * @param {Array} sources the per-source results
+     * @returns {Array} the merged events
+     */
+    mergeStoreEvents(sources) {
+      const seenIds = new Set();
+      const merged = [];
+      sources.forEach(source => (source.events || []).forEach(event => {
+        const id = event.id && String(event.id) || '';
+        if (id && seenIds.has(id)) {
+          return;
+        }
+        if (id) {
+          seenIds.add(id);
+        }
+        merged.push(event);
+      }));
+      return merged;
+    },
+    /**
+     * What a grid block says on hover.
+     *
+     * <p>
+     * Now that the grid carries several calendars, its colours mean something
+     * the organiser was never given a legend for. Naming the calendar on hover
+     * is the answer EXO-89825 already gave for the same problem on the
+     * connected-account rows, and it costs no new visual vocabulary — the
+     * colour keeps distinguishing, the title says what it distinguishes.
+     *
+     * @param {Object} event a grid event
+     * @returns {String} the title attribute of the block
+     */
+    storeEventTitle(event) {
+      const summary = event && event.summary || '';
+      const calendar = event && event.calendar;
+      if (!summary || !calendar) {
+        return summary;
+      }
+      // The same rule AgendaPersonalCalendarList.calendarLabel applies: the
+      // user-defined name when there is one, and 'My calendar' for the unnamed
+      // default, whose title the server fills with the owner's display name.
+      const calendarName = calendar.name
+        || (calendar.system ? this.$t('agenda.myCalendar') : calendar.title || this.$t('agenda.myCalendar'));
+      return this.$t('agenda.eventForm.eventInCalendar', {0: summary, 1: calendarName});
     },
     /**
      * Fetches the busy time of every participant for the previewed period —
