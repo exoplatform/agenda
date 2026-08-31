@@ -22,3 +22,13 @@ global.eXo = {
 global.$ = () => ({
   parent: () => ({click: () => {}}),
 });
+
+/*
+ * The AMD loader the portal ships. Some service modules probe it at import
+ * time — EventWebConferencingService asks whether SHARED/webConferencing is
+ * defined as its module body runs — so anything importing them transitively
+ * needs it to exist before the import, not merely before a test runs.
+ * Answering "nothing is defined" is the truthful stand-in here.
+ */
+global.require = Object.assign(() => {}, {defined: () => false});
+window.require = global.require;

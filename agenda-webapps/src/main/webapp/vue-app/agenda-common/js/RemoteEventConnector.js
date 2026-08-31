@@ -1,6 +1,13 @@
 import {getEventExceptionalOccurrences, updateEventFields, createEvent} from './EventService.js';
 
 /**
+ * The in-flight or settled calendar listing of each connector, keyed by the
+ * connector object itself so a rebuilt connector starts from a clean listing
+ * and a discarded one is collected with it.
+ */
+const calendarListings = new WeakMap();
+
+/**
  * Removes an event from the remote account behind a connector.
  *
  * @param {Object} connector the connected connector
@@ -77,6 +84,68 @@ export function excludeMirrorCalendar(connector, calendars) {
 function isDedicatedMirror(connector, mirrorCalendarId) {
   return typeof connector.isDedicatedMirrorCalendar !== 'function'
     || connector.isDedicatedMirrorCalendar(mirrorCalendarId);
+}
+
+/**
+ * The calendar listing of a connector, fetched at most once per connector.
+ *
+ * Listing calendars is a live request to the remote account, and the calendar
+ * of an event is asked for every preview that is opened. The *promise* is
+ * memoised rather than its result, so ten previews opened in a row — or ten
+ * opened while the first request is still in flight — cost one request.
+ *
+ * A failure is memoised as an empty listing rather than left to be retried:
+ * an unreachable account would otherwise make every preview wait out the same
+ * timeout before showing anything.
+ *
+ * @param {Object} connector the connector to list
+ * @returns {Promise<Array>} its calendars, empty when it cannot list them
+ */
+function connectorCalendars(connector) {
+  if (!connector || !connector.canListCalendars || typeof connector.listCalendars !== 'function') {
+    return Promise.resolve([]);
+  }
+  if (!calendarListings.has(connector)) {
+    calendarListings.set(connector, Promise.resolve()
+      .then(() => connector.listCalendars())
+      .then(calendars => calendars || [])
+      .catch(error => {
+        console.error('cannot list the calendars of', connector && connector.name, error);
+        return [];
+      }));
+  }
+  return calendarListings.get(connector);
+}
+
+/**
+ * What the connected account calls the collection an event was read from.
+ *
+ * <p>
+ * An event read live from an account holds no eXo calendar — only the href of
+ * the collection it lives in — so the only thing that can name it is the
+ * account itself. Matched on the href and never on position: a listing is not
+ * ordered, and two collections may share a display name.
+ *
+ * <p>
+ * Resolves to null rather than to a guess whenever the collection is absent
+ * from the listing. That is not a theoretical case: a connector may read
+ * events from collections it deliberately leaves out of its listing — the
+ * CalDAV one omits the collections eXo has already materialised, and the ones
+ * eXo itself created but no longer holds a binding for. The caller says
+ * honestly that it cannot name it; it must not fall back to naming the
+ * connector, which answers "how did this arrive" and not "where does it live".
+ *
+ * @param {Object} connector the connector the event was read from
+ * @param {String} calendarHref href of the collection holding the event
+ * @returns {Promise<String>} the collection's name, null when unnameable
+ */
+export function remoteCalendarName(connector, calendarHref) {
+  if (!calendarHref) {
+    return Promise.resolve(null);
+  }
+  return connectorCalendars(connector)
+    .then(calendars => (calendars || []).find(calendar => isSameCalendarHref(calendar.id, calendarHref)))
+    .then(calendar => calendar && calendar.name || null);
 }
 
 /**
