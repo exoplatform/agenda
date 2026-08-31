@@ -6,6 +6,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
+import org.exoplatform.agenda.constant.AvailabilitySharing;
 import org.exoplatform.agenda.model.AgendaUserSettings;
 import org.exoplatform.agenda.model.EventReminderParameter;
 import org.exoplatform.agenda.model.RemoteProvider;
@@ -16,6 +17,8 @@ import org.exoplatform.commons.api.settings.data.Scope;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.container.xml.ObjectParameter;
+import org.exoplatform.services.log.ExoLogger;
+import org.exoplatform.services.log.Log;
 import org.exoplatform.services.organization.OrganizationService;
 import org.exoplatform.services.organization.UserProfile;
 import org.exoplatform.services.organization.UserProfileHandler;
@@ -31,6 +34,16 @@ public class AgendaUserSettingsServiceImpl implements AgendaUserSettingsService 
   private static final String          TIMEZONE                       = "user.timeZone";
 
   private static final String          EMBED_MAP_PROVIDER_KEY         = "embedMapProvider";
+
+  /**
+   * The key the per-user availability sharing choice is stored under. Its own
+   * key, beside the settings blob rather than inside it — see
+   * {@link AgendaUserSettingsService#saveAvailabilitySharing}.
+   */
+  private static final String          SHARE_AVAILABILITY_KEY         = "shareAvailability";
+
+  private static final Log             LOG                            =
+                                           ExoLogger.getLogger(AgendaUserSettingsServiceImpl.class);
 
   private AgendaEventConferenceService agendaEventConferenceService;
 
@@ -199,6 +212,46 @@ public class AgendaUserSettingsServiceImpl implements AgendaUserSettingsService 
     this.settingService.remove(Context.GLOBAL,
                                AGENDA_USER_SETTING_SCOPE,
                                EMBED_MAP_PROVIDER_KEY);
+  }
+
+  /**
+   * {@inheritDoc} Stored under its own key in the user's settings context, in
+   * the same scope as the settings blob but beside it, so that a settings save
+   * that does not know about this field cannot silently reset it.
+   */
+  @Override
+  public AvailabilitySharing getAvailabilitySharing(long userIdentityId) {
+    SettingValue<?> settingValue = this.settingService.get(Context.USER.id(String.valueOf(userIdentityId)),
+                                                           AGENDA_USER_SETTING_SCOPE,
+                                                           SHARE_AVAILABILITY_KEY);
+    String storedValue = settingValue == null || settingValue.getValue() == null ? null : settingValue.getValue().toString();
+    if (StringUtils.isBlank(storedValue)) {
+      return AvailabilitySharing.DEFAULT;
+    }
+    return AvailabilitySharing.parse(storedValue).orElseGet(() -> {
+      LOG.warn("Unknown availability sharing value '{}' stored for identity {}; it is read as '{}'",
+               storedValue,
+               userIdentityId,
+               AvailabilitySharing.NOBODY.getValue());
+      return AvailabilitySharing.NOBODY;
+    });
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void saveAvailabilitySharing(long userIdentityId, AvailabilitySharing availabilitySharing) {
+    if (userIdentityId <= 0) {
+      throw new IllegalArgumentException("agenda.availability.userIdentityMandatory");
+    }
+    if (availabilitySharing == null) {
+      throw new IllegalArgumentException("agenda.availability.sharingMandatory");
+    }
+    this.settingService.set(Context.USER.id(String.valueOf(userIdentityId)),
+                            AGENDA_USER_SETTING_SCOPE,
+                            SHARE_AVAILABILITY_KEY,
+                            SettingValue.create(availabilitySharing.getValue()));
   }
 
 }
