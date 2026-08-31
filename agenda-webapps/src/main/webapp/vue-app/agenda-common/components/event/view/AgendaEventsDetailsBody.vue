@@ -145,7 +145,6 @@
             :settings="settings"
             :event="event"
             :connectors="connectors"
-            :class="!isAcceptedEvent && 'agenda-hidden-connectors'"
             class="mt-4 mr-auto width-full"
             @download-ics="downloadICS" />
           <agenda-ics
@@ -255,13 +254,6 @@ export default {
     },
     isAttendee() {
       return this.event.acl && this.event.acl.attendee;
-    },
-    isAcceptedEvent() {
-      if (!this.isAttendee) {
-        return false;
-      }
-      const currentUserResponse = this.event.attendees.find(attendee => attendee && attendee.identity.remoteId ===  eXo.env.portal.userName);
-      return currentUserResponse && currentUserResponse.response !== 'DECLINED';
     },
     owner() {
       return this.event && this.event.calendar && this.event.calendar.owner;
