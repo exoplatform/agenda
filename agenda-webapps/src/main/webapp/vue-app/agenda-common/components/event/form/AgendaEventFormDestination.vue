@@ -40,27 +40,52 @@
         outlined
         dense
         hide-details>
+        <!--
+          Three things share the row and each owns its space, so the row's
+          shape is the same whatever the calendar is called: the colour dot,
+          which never gives up its 12px; the name, which is the only part
+          that gives way and ellipsises inside what is left; and the dropdown
+          arrow, which keeps its own box at the end. Before this the name was
+          a text run with the dot inline in it and nothing bounding it, and
+          it was the field's height that absorbed a long one (see the skin
+          rules on .agenda-event-form-destination).
+
+          The whole name is on the row's title, as a consequence rather than
+          as the point. A calendar keeps the name its owner gave it — a CalDAV
+          server publishes 'Stalwart Calendar (alice@stalwart.local)' and eXo
+          stores that verbatim — so what a clip takes is the part naming the
+          account, and two connected accounts give two calendars diverging
+          only there. The hover is the treatment EXO-89825 and EXO-89840
+          already settled on for exactly that.
+
+          The same markup in both slots on purpose: the row the menu offers
+          and the row the closed select shows are the same row, and a name
+          that reads one way open and another way closed is one more thing to
+          keep in step.
+        -->
         <template #item="{ item }">
-          <span class="text-truncate">
+          <div class="agenda-destination-option d-flex align-center">
             <v-icon
               v-if="item.color"
               :color="item.color"
               size="12"
-              class="me-2">
+              class="me-2 flex-shrink-0">
               fa-circle
-            </v-icon>{{ item.text }}
-          </span>
+            </v-icon>
+            <span :title="item.text" class="text-truncate">{{ item.text }}</span>
+          </div>
         </template>
         <template #selection="{ item }">
-          <span class="text-truncate">
+          <div class="agenda-destination-option d-flex align-center">
             <v-icon
               v-if="item.color"
               :color="item.color"
               size="12"
-              class="me-2">
+              class="me-2 flex-shrink-0">
               fa-circle
-            </v-icon>{{ item.text }}
-          </span>
+            </v-icon>
+            <span :title="item.text" class="text-truncate">{{ item.text }}</span>
+          </div>
         </template>
       </v-select>
     </div>
