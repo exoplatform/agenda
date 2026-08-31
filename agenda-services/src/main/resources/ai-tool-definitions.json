@@ -492,7 +492,7 @@
     {
       "name": "get_availability",
       "title": "Get users availability",
-      "description": "Return each user's busy and free time blocks within a window. Only time ranges are returned, never event titles or details. Availability is calendar content and is protected by the calendar permissions: you can read it only for users whose calendar the current user is allowed to see, which today means the current user themselves. Asking about anyone else is refused rather than answered.",
+      "description": "Return each user's busy and free time blocks within a window. Only time ranges are returned, never event titles, locations, attendees or calendar names. Availability is calendar content and is protected: it is readable for the current user, and for another user only when that user shares their busy time with them - each user chooses between sharing it with the people they are in a space with (the default) and sharing it with nobody, so someone outside all of a user's spaces never sees their busy time. A user who does not share it with the caller is refused, not reported as free: a refusal means their availability is UNKNOWN, and must never be presented as availability or used to pick a time.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -528,7 +528,7 @@
     {
       "name": "suggest_meeting_time",
       "title": "Suggest a meeting time",
-      "description": "Suggest candidate slots of at least duration_minutes where all attendees are free within a window. Optional constraints keyword 'mornings' or 'afternoons' restricts candidate start times. Every attendee's calendar must be readable by the current user, which today means this answers for the current user alone; if any other attendee is named the call is refused rather than answered from a subset of the calendars.",
+      "description": "Suggest candidate slots of at least duration_minutes where all attendees are free within a window. Optional constraints keyword 'mornings' or 'afternoons' restricts candidate start times. Every attendee's busy time must be readable by the current user: that covers the people they share a space with, unless they turned the sharing off. If any one attendee does not share it with the caller, the whole call is refused rather than answered from the other calendars - their availability is UNKNOWN, not free. On a refusal, say whose availability could not be seen and ask, rather than proposing a time that may sit on top of their real commitments.",
       "input_schema": {
         "type": "object",
         "properties": {

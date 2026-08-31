@@ -1,6 +1,7 @@
 package org.exoplatform.agenda.rest;
 
 import java.util.Collections;
+import java.util.Optional;
 
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.*;
@@ -15,6 +16,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.apache.commons.lang3.StringUtils;
 
+import org.exoplatform.agenda.constant.AvailabilitySharing;
 import org.exoplatform.agenda.model.AgendaUserSettings;
 import org.exoplatform.agenda.model.RemoteProvider;
 import org.exoplatform.agenda.service.*;
@@ -396,6 +398,84 @@ public class AgendaSettingsRest implements ResourceContainer {
       return Response.noContent().build();
     } catch (Exception e) {
       LOG.warn("Error removing embed map provider", e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
+  /**
+   * Returns the authenticated user's availability sharing choice.
+   * <p>
+   * It answers for the caller and for nobody else: the identity is taken from
+   * the session, never from a parameter, so this endpoint cannot be used to
+   * learn what anyone else chose.
+   *
+   * @return 200 with {@code {"shareAvailability": "..."}}, 500 on failure
+   */
+  @Path("availabilitySharing")
+  @GET
+  @Produces(MediaType.APPLICATION_JSON)
+  @RolesAllowed("users")
+  @Operation(
+      summary = "Gets how widely the authenticated user shares their busy time",
+      description = "Returns the authenticated user's own choice only. It never reports anyone else's, and it discloses no calendar content.",
+      method = "GET")
+  @ApiResponses(
+      value = {
+          @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"),
+      })
+  public Response getAvailabilitySharing() {
+    long identityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    try {
+      AvailabilitySharing availabilitySharing = agendaUserSettingsService.getAvailabilitySharing(identityId);
+      return Response.ok(Collections.singletonMap("shareAvailability", availabilitySharing.getValue())).build();
+    } catch (Exception e) {
+      LOG.warn("Error retrieving availability sharing setting for user with id '{}'", identityId, e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
+  /**
+   * Records the authenticated user's availability sharing choice.
+   * <p>
+   * The identity written to is the caller's own, taken from the session: this
+   * endpoint cannot change anyone else's choice. An unrecognised value is
+   * refused with a 400 rather than being coerced onto a default, because
+   * coercing it would silently widen or narrow a disclosure the user did not
+   * ask for.
+   *
+   * @param shareAvailability the wanted value: shared-spaces or nobody
+   * @return 204 when saved, 400 on an unknown value, 500 on failure
+   */
+  @Path("availabilitySharing")
+  @PATCH
+  @RolesAllowed("users")
+  @Operation(
+      summary = "Saves how widely the authenticated user shares their busy time",
+      description = "Accepts 'shared-spaces' (the default) or 'nobody'. Applies to the authenticated user only.",
+      method = "PATCH")
+  @ApiResponses(
+      value = {
+          @ApiResponse(responseCode = "204", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Bad request"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"),
+      })
+  public Response saveAvailabilitySharing(@Parameter(description = "One of: shared-spaces, nobody", required = true)
+                                          @FormParam("shareAvailability") String shareAvailability) {
+    Optional<AvailabilitySharing> availabilitySharing = AvailabilitySharing.parse(shareAvailability);
+    if (availabilitySharing.isEmpty()) {
+      return Response.status(Status.BAD_REQUEST)
+                     .entity("'shareAvailability' must be one of: shared-spaces, nobody")
+                     .build();
+    }
+    long identityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    try {
+      agendaUserSettingsService.saveAvailabilitySharing(identityId, availabilitySharing.get());
+      return Response.noContent().build();
+    } catch (Exception e) {
+      LOG.warn("Error saving availability sharing setting for user with id '{}'", identityId, e);
       return Response.serverError().entity(e.getMessage()).build();
     }
   }
