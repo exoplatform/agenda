@@ -28,6 +28,19 @@ public class EventFilter implements Cloneable {
 
   private int                         limit;
 
+  /**
+   * Technical identifiers of the calendars whose events must be left out of
+   * the result, whatever their owner brings in.
+   * <p>
+   * Owner-level selection alone cannot express a selection inside one owner:
+   * every personal calendar of a user shares the user identity as owner, so
+   * asking for that owner asks for all of them at once. This is the
+   * calendar-level counterpart, and it is a subtraction on purpose — it
+   * composes with any owner selection, including the implicit "every calendar
+   * I can see" one, which no inclusion list could enumerate.
+   */
+  private List<Long>                  excludedCalendarIds;
+
   public EventFilter(long attendeeId,
                      List<Long> ownerIds,
                      List<EventAttendeeResponse> responseTypes,
@@ -58,10 +71,20 @@ public class EventFilter implements Cloneable {
     this.limit = limit;
   }
 
+  /**
+   * @return {@code true} when the filter carries both a start and an end date,
+   *         hence designates a bounded period
+   */
   public boolean isUseDates() {
     return start != null && end != null;
   }
 
+  /**
+   * Copies this filter, so a caller can narrow a copy (dates, owners) without
+   * mutating the filter it received.
+   *
+   * @return a new {@link EventFilter} carrying the same criteria
+   */
   @Override
   public EventFilter clone() { // NOSONAR
     return new EventFilter(attendeeId,
@@ -71,7 +94,8 @@ public class EventFilter implements Cloneable {
                            start,
                            end,
                            offset,
-                           limit);
+                           limit,
+                           excludedCalendarIds);
   }
 
 }

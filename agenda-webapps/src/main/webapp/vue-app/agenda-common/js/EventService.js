@@ -1,7 +1,25 @@
 import {toRFC3339, getDayNameFromDate, getMonthNumberFromDate, toDate, USER_TIMEZONE_ID} from './AgendaUtils.js';
 import {deleteEventWebConferencing, saveEventWebConferencing} from './EventWebConferencingService.js';
 
-export function getEvents(query, ownerIds, attendeeIdentityId, start, end, limit, responseTypes, expand) {
+/**
+ * Retrieves the events of a period.
+ *
+ * @param {String} query full text search term, may be null
+ * @param {Array|boolean} ownerIds identity ids of the calendar owners to
+ *          display, empty for every calendar the user can access
+ * @param {Number} attendeeIdentityId identity id to filter on attendees
+ * @param {String|Date} start beginning of the period
+ * @param {String|Date} end end of the period, may be null
+ * @param {Number} limit maximum number of events, 0 for no limit
+ * @param {Array} responseTypes attendee responses to keep
+ * @param {String} expand properties to expand
+ * @param {Array} excludedCalendarIds technical ids of the calendars to leave
+ *          out of the results, whatever the selected owners bring in: the
+ *          personal calendars of a user all share one owner, so ownerIds
+ *          alone cannot express a selection among them
+ * @returns {Promise} resolved with the event list
+ */
+export function getEvents(query, ownerIds, attendeeIdentityId, start, end, limit, responseTypes, expand, excludedCalendarIds) {
   if (typeof start === 'object') {
     start = toRFC3339(start);
   }
@@ -35,6 +53,10 @@ export function getEvents(query, ownerIds, attendeeIdentityId, start, end, limit
 
   if (responseTypes) {
     params.responseTypes = responseTypes;
+  }
+
+  if (excludedCalendarIds && excludedCalendarIds.length) {
+    params.excludedCalendarIds = excludedCalendarIds;
   }
 
   params = $.param(params, true);
