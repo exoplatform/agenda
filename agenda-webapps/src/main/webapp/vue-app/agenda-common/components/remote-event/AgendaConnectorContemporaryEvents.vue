@@ -598,10 +598,11 @@ export default {
             // describes the event now on screen.
             return;
           }
-          this.failedConnectors = resultsByConnector
-            .filter(result => result.failed)
-            .map(result => result.connector);
-          this.remoteEvents = this.$agendaUtils.mergeRemoteEvents(resultsByConnector.filter(result => !result.failed));
+          // the same partition three other views need, so it lives in
+          // AgendaUtils rather than once per view
+          const sources = this.$agendaUtils.splitRemoteEventResults(resultsByConnector);
+          this.remoteEvents = sources.events;
+          this.failedConnectors = sources.failedConnectors;
           this.remoteLoading = false;
           this.resolveRemoteCalendarNames(requestId);
         });
