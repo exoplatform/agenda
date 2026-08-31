@@ -1,37 +1,59 @@
 <template>
-  <!-- The ordinary event's own container and class list, with the avatar
-       inserted as the leading element of the title line. Not "close to" it —
-       the same `.readonly-event` root and the same
-       `text-truncate my-auto caption font-weight-bold d-flex` title, so the
-       two blocks in this grid cannot drift apart by hand-tuning. See
-       AgendaEventFormDates.vue's own #event slot for the block this mirrors.
+  <!-- The ordinary event's own container and layout classes, with the avatar
+       as the leading element of the title line. See AgendaEventFormDates.vue's
+       #event slot for the block this mirrors.
 
-       WHAT WAS WRONG: `d-flex align-center` on the root. In this skin the
-       align-center utility ALSO sets text-align: center — a trap agenda.less
-       already documents twice, on .agenda-left-panel-title and on
-       .agenda-mirror-calendar-choice — so the block was centred on BOTH axes
-       while every other block in the grid is anchored top-left. Removing it
-       fixes both at once, and nothing replaces it: the ordinary event carries
-       no align utility either, and a block that simply stacks its children
-       starts at the top by itself.
+       TWO DELIBERATE DIVERGENCES FROM THAT BLOCK, BOTH BECAUSE ITS CLASSES
+       CARRY ASSUMPTIONS AN AVATAR BREAKS. Each was checked against the
+       COMPILED skin (agenda-webapps/target/src/main/webapp/skin/less), not
+       against the Vuetify docs, because trusting the docs is what cost the
+       previous round.
+
+       1. The title line is a <div>, not a <p> with `my-auto`. `my-auto`
+          compiles to `margin-top: auto; margin-bottom: auto !important`
+          (vuetify.less:4132) — margins whose computed value DEPENDS on the
+          formatting context and on how much room is left: zero in a block
+          context, free-space distribution in a flex one. On the ordinary
+          block it is there to cancel the <p> element's own default margin,
+          and it is scoped `.v-application .my-auto`, so it only cancels it
+          while that ancestor is present. A line that must be pinned to the
+          top of its block should not depend on either. A <div> has no default
+          margin to cancel, so nothing has to be undone and nothing can be
+          distributed.
+
+       2. `align-self-center` on both children. `.d-flex` sets `display: flex`
+          and nothing else (vuetify.less:3669), so `align-items` stays at the
+          CSS default `stretch`: the avatar's wrapper stretches to the line
+          height while `v-avatar` keeps its fixed 16px inside it, and the
+          label sits on its own baseline — so the two never share a centre
+          line. `align-self-center` compiles to `align-self: center !important`
+          and NOTHING else (vuetify.less:3813), which is the whole reason it is
+          used here instead of the container-level `align-center`.
+
+       NEVER `align-center` ON THIS COMPONENT. It resolves to TWO rules:
+       `align-items: center !important` (vuetify.less:3765) AND
+       `text-align: center` (the platform's core/helpers.less:723). The second
+       is what centred this block horizontally in the first place; agenda.less
+       documents the same trap twice, on .agenda-left-panel-title and
+       .agenda-mirror-calendar-choice. A pin fails if the token reappears
+       anywhere in this file.
 
        INDENT: the title line takes ms-1 (4px) and exo-user-avatar's own
-       wrapper adds mx-1 (4px, from its `parentClass`), so the avatar's left
-       edge lands on 8px — the ms-2 the ordinary event's title uses. The time
-       row keeps that ms-2 directly, so both lines start on the same edge. The
-       arithmetic is written down here because it is the one place these two
-       blocks are aligned by two numbers rather than by one shared class. -->
+       wrapper adds mx-1 (4px, from its parentClass), landing the avatar's left
+       edge on the 8px the ordinary title gets from ms-2. The time row takes
+       that ms-2 directly, so both lines start on the same edge. -->
   <div class="readonly-event">
-    <p class="text-truncate my-auto ms-1 caption font-weight-bold d-flex">
+    <div class="text-truncate ms-1 caption font-weight-bold d-flex">
       <exo-user-avatar
         v-if="identity"
         :identity="identity"
         :size="16"
         :popover="false"
         :url="false"
-        avatar />
-      <span class="text-truncate">{{ $t('agenda.busy') }}</span>
-    </p>
+        avatar
+        class="align-self-center" />
+      <span class="text-truncate align-self-center">{{ $t('agenda.busy') }}</span>
+    </div>
     <!-- Hidden on a short block by the same isShortEvent test the ordinary
          event uses, so a 30-minute block shows one line in both cases rather
          than overflowing its own height. -->

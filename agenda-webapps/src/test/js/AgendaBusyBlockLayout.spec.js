@@ -17,13 +17,19 @@ import * as agendaUtils from '../../main/webapp/vue-app/agenda-common/js/AgendaU
  * other block in the same grid is anchored top-left, and the avatar sat
  * vertically centred against the whole block instead of on the title line.
  *
+ * A second round then fixed two things the first left: a gap above the avatar,
+ * and the avatar not sharing a centre line with the label. Both came from
+ * classes copied from the ordinary block that carry assumptions an avatar
+ * breaks — `my-auto`, whose computed value depends on the formatting context,
+ * and `d-flex`'s default `align-items: stretch`.
+ *
  * WHAT THESE PINS CAN AND CANNOT DO. Geometry is not pinnable here: jsdom
- * computes no layout, so nothing below proves the avatar is at the top left of
- * a painted rectangle. Only the rig can show that. What IS pinnable is
- * everything the geometry follows from — that the block reuses the ordinary
- * event's container and class list rather than a hand-tuned one of its own,
- * that the avatar is inside the title line, that the centring classes are
- * gone, and that nothing was dropped while rearranging.
+ * computes no layout, so nothing below proves the gap is gone or that the
+ * avatar is painted on the label's centre line. Only the rig can show that.
+ * What IS pinnable is everything the geometry follows from — which classes the
+ * title line and its children carry, that the poisoned `align-center` is
+ * absent, that the context-dependent `my-auto` is absent, and that nothing was
+ * dropped while rearranging.
  */
 
 const BUSY_EVENT = {
@@ -64,6 +70,37 @@ function mountBlock(busyEvent) {
 }
 
 /**
+ * The component's raw source, for the pins that are about what is written
+ * rather than about what renders.
+ *
+ * @returns {String} the .vue file's contents
+ */
+function componentSource() {
+  return fs.readFileSync(path.join(__dirname,
+    '../../main/webapp/vue-app/agenda-common/components/event/form/AgendaEventFormParticipantBusyItem.vue'), 'utf8');
+}
+
+/**
+ * The component's source with every comment removed.
+ *
+ * <p>
+ * The pins below are about what the component DOES, and this file deliberately
+ * documents the traps it avoids — naming `align-center` and `<p>` in prose to
+ * explain why neither is used. Scanning the raw text would make that
+ * documentation fail the very pins it explains, so the comments come out
+ * first: HTML comments from the template, block and line comments from the
+ * script.
+ *
+ * @returns {String} the source, comments stripped
+ */
+function componentCode() {
+  return componentSource()
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '');
+}
+
+/**
  * The class list of the first element matching a pattern in a .vue file's
  * template source.
  *
@@ -75,8 +112,12 @@ function templateClasses(file, pattern) {
   const source = fs.readFileSync(
     path.join(__dirname, '../../main/webapp/vue-app', file), 'utf8');
   const match = source.match(pattern);
+  // An empty list rather than a throw: a mutant that removes the element
+  // should fail these pins on their own assertion, not crash the helper and
+  // die of an incidental error. The callers assert the list is non-empty, so
+  // a silent no-match cannot make a pin vacuous either.
   if (!match) {
-    throw new Error(`no element matching ${pattern} in ${file}`);
+    return [];
   }
   return match[1].split(/\s+/).filter(name => !!name);
 }
@@ -101,7 +142,7 @@ describe('The Busy block is laid out like the ordinary events beside it', () => 
     expect(root).not.toContain('text-center');
   });
 
-  it('shares the ordinary event title line class for class', () => {
+  it('shares the ordinary event title line classes, bar the two it must not', () => {
     // Pinned against the SOURCE of the block it mirrors, so the two cannot be
     // hand-tuned apart: if either title line changes, this fails.
     const ordinary = templateClasses(
@@ -109,14 +150,58 @@ describe('The Busy block is laid out like the ordinary events beside it', () => 
       /<p\s+:title="storeEventTitle\(eventObj\.event\)"\s+class="([^"]+)"/);
     const busy = templateClasses(
       'agenda-common/components/event/form/AgendaEventFormParticipantBusyItem.vue',
-      /<p class="([^"]+)">/);
+      /<div class="([^"]+)">\s*\n\s*<exo-user-avatar/);
 
-    // Every layout class the ordinary title carries, the busy title carries.
-    // The indent differs by design and by four pixels: the busy title takes
-    // ms-1 and the avatar's own wrapper adds mx-1, landing on the ordinary
-    // title's ms-2.
-    ordinary.filter(name => name !== 'ms-2').forEach(name => expect(busy).toContain(name));
+    // Two classes are deliberately not carried over, and both exclusions are
+    // asserted below rather than merely filtered out here:
+    //   ms-2    the indent, which the avatar's own mx-1 completes from ms-1
+    //   my-auto margins whose computed value depends on the formatting context
+    expect(ordinary.length).toBeGreaterThan(0);
+    expect(busy.length).toBeGreaterThan(0);
+    const SHARED = ordinary.filter(name => name !== 'ms-2' && name !== 'my-auto');
+    expect(SHARED).toContain('d-flex');
+    SHARED.forEach(name => expect(busy).toContain(name));
     expect(busy).toContain('ms-1');
+  });
+
+  it('does not carry my-auto, whose effect depends on how much room is left', () => {
+    const busy = templateClasses(
+      'agenda-common/components/event/form/AgendaEventFormParticipantBusyItem.vue',
+      /<div class="([^"]+)">\s*\n\s*<exo-user-avatar/);
+
+    // `.v-application .my-auto` compiles to margin-top/bottom: auto — zero in
+    // a block formatting context, free-space distribution in a flex one. A
+    // line that must be pinned to the top of its block cannot depend on that.
+    expect(busy.length).toBeGreaterThan(0);
+    expect(busy).not.toContain('my-auto');
+  });
+
+  it('uses a container with no default margin to cancel', () => {
+    const source = componentCode();
+
+    // A <p> carries the UA's own 1em margin, which the ordinary block cancels
+    // with a `.v-application`-scoped utility. A <div> has nothing to cancel.
+    expect(source).not.toMatch(/<p[\s>]/);
+  });
+
+  it('never reintroduces the poisoned align-center, anywhere in the component', () => {
+    // THE REGRESSION THAT HAS BEEN MADE ONCE. `align-center` resolves to
+    // align-items: center !important (vuetify) AND text-align: center (the
+    // platform's helpers.less) — the second is what centred this block
+    // horizontally. Scanned over the whole file, not just the rendered root,
+    // so it cannot come back on any element or in any binding.
+    // align-self-center is a different token and is what this component uses.
+    expect(componentCode()).not.toMatch(/\balign-center\b/);
+  });
+
+  it('centres the avatar and the label against each other without that class', () => {
+    const wrapper = mountBlock();
+
+    // d-flex sets display: flex and nothing else, so align-items stays at the
+    // default `stretch` and a fixed-size avatar never shares a centre line
+    // with a text span. align-self-center compiles to align-self alone.
+    expect(wrapper.find('exo-user-avatar').classes()).toContain('align-self-center');
+    expect(wrapper.find('span').classes()).toContain('align-self-center');
   });
 
   it('puts the avatar inside the title line, not floating in the block', () => {
@@ -124,7 +209,7 @@ describe('The Busy block is laid out like the ordinary events beside it', () => 
 
     // Inside the <p>, and first: the avatar leads the line the label is on,
     // rather than being centred against the block's whole height.
-    const title = wrapper.find('p');
+    const title = wrapper.find('.readonly-event > div');
     expect(title.find('exo-user-avatar').exists()).toBe(true);
     expect(title.element.firstElementChild.tagName.toLowerCase()).toBe('exo-user-avatar');
   });
@@ -151,8 +236,8 @@ describe('The Busy block is laid out like the ordinary events beside it', () => 
 
     // The avatar keeps its size and the label gives way — text-truncate on
     // both the line and the label, exactly as on the ordinary event.
-    expect(wrapper.find('p').classes()).toContain('text-truncate');
-    expect(wrapper.find('p span').classes()).toContain('text-truncate');
+    expect(wrapper.find('.readonly-event > div').classes()).toContain('text-truncate');
+    expect(wrapper.find('span').classes()).toContain('text-truncate');
   });
 
   it('renders the label alone when the participant has no profile to draw', () => {
