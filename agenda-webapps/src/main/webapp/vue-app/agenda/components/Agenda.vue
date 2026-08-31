@@ -89,7 +89,7 @@
       :settings="settings"
       :current-calendar="currentCalendar"
       :calendar-type="eventType"
-      :owner-ids="ownerIds"
+      :owner-ids="effectiveOwnerIds"
       :events="events"
       :period="period"
       :limit="limit" />
@@ -172,6 +172,42 @@ export default {
      */
     leftPanelAvailable() {
       return !eXo.env.portal.spaceId;
+    },
+    /**
+     * The owner identity ids effectively asked of the events REST.
+     *
+     * The Spaces section of the left panel selects SPACES, and its selection
+     * used to travel to the server untouched — so ticking one space asked for
+     * that space's owner and nothing else, and every personal calendar
+     * silently left the grid (EXO-89818). They were never hidden by a display
+     * rule: they were not asked for. The user's own identity is therefore
+     * always part of the request whenever a space subset is selected, their
+     * personal calendars being selected one by one through excludedCalendarIds
+     * instead — a space calendar has its own owner, a personal calendar shares
+     * the user's, and the two cannot be expressed by the same list.
+     *
+     * A space agenda is left untouched: there is no left panel there, the
+     * selection is the space itself, and adding the viewer's own calendars
+     * would put personal events on a space's page.
+     *
+     * @returns {Array|boolean} owner identity ids to request: an empty array
+     *          means every accessible calendar
+     */
+    effectiveOwnerIds() {
+      if (!this.leftPanelAvailable) {
+        return this.ownerIds;
+      }
+      const userIdentityId = Number(eXo.env.portal.userIdentityId);
+      if (this.ownerIds === false) {
+        // No space selected: the user's own calendars remain, which of them
+        // is displayed being the personal list's decision, not this one
+        return [userIdentityId];
+      }
+      if (!Array.isArray(this.ownerIds) || !this.ownerIds.length) {
+        return this.ownerIds;
+      }
+      const selectedOwnerIds = this.ownerIds.map(Number);
+      return selectedOwnerIds.includes(userIdentityId) ? selectedOwnerIds : selectedOwnerIds.concat(userIdentityId);
     },
     /**
      * Whether the left panel is effectively displayed: available in the
@@ -346,7 +382,23 @@ export default {
       handler: 'updateDisplayedEvents',
       deep: true
     },
-    hiddenPersonalCalendarIds: 'updateDisplayedEvents',
+    /**
+     * Reflects a personal-calendar visibility change twice: on the events
+     * already in hand, so the grid answers the click at once, and on the
+     * server, which is now told which calendars to leave out. The request
+     * matters beyond tidiness — the events of a hidden calendar used to be
+     * counted against the requested `limit` and only dropped afterwards, so
+     * hiding a calendar quietly returned a short page.
+     * @returns {void}
+     */
+    hiddenPersonalCalendarIds() {
+      this.updateDisplayedEvents();
+      if (this.initialized) {
+        // Restoring the persisted selection at startup must not fire a second
+        // query: the first one has not been issued yet and already carries it
+        this.retrieveEvents();
+      }
+    },
   },
   created() {
     // Ensure that localStorage doesn't have a deleted event
@@ -415,11 +467,13 @@ export default {
      * @returns {void}
      */
     updateDisplayedEvents() {
-      // Personal per-calendar visibility is applied client-side: the user's
-      // personal calendars share one owner identity, so the server-side
-      // ownerIds selection can't distinguish them. The filter is scoped to
-      // calendars owned by the current user so that a space calendar can
-      // never be hidden by it, whatever the persisted list contains
+      // The server already leaves the hidden personal calendars out — it is
+      // told which ones through excludedCalendarIds. This repeats the filter
+      // for the events that never went through that query: the websocket
+      // updater pushes a created or updated event straight into this store.
+      // It stays scoped to calendars owned by the current user so that a
+      // space calendar can never be hidden by it, whatever the persisted
+      // list contains
       const userIdentityId = Number(eXo.env.portal.userIdentityId);
       const localEvents = this.events.filter(event => !event.calendar
           || !event.calendar.owner
@@ -479,7 +533,7 @@ export default {
       const requestId = ++this.eventsRequestId;
       this.loading = true;
       const userIdentityId = this.eventType !== 'allEvents' && eXo.env.portal.userIdentityId || null;
-      if (this.ownerIds === false) {
+      if (this.effectiveOwnerIds === false) {
         this.events = [];
         this.hasMore = false;
         this.loading = false;
@@ -487,7 +541,7 @@ export default {
         return;
       }
       const responseTypes = eXo.env.portal.spaceId && this.eventType === 'allEvents' ? null : this.eventType === 'declinedEvent' ? ['DECLINED']:['ACCEPTED', 'NEEDS_ACTION', 'TENTATIVE'];
-      return this.$eventService.getEvents(this.searchTerm, this.ownerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, true), this.$agendaUtils.toRFC3339(this.period.end), this.limit, responseTypes, 'attendees,conferences')
+      return this.$eventService.getEvents(this.searchTerm, this.effectiveOwnerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, true), this.$agendaUtils.toRFC3339(this.period.end), this.limit, responseTypes, 'attendees,conferences', this.hiddenPersonalCalendarIds)
         .then(data => {
           if (requestId !== this.eventsRequestId) {
             // A newer retrieval was started since: its response is the one
