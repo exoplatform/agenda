@@ -25,6 +25,7 @@ import org.exoplatform.agenda.model.AvailabilityConflicts;
 import org.exoplatform.agenda.model.EventDateOption;
 import org.exoplatform.agenda.model.TimeBlock;
 import org.exoplatform.agenda.model.UserAvailability;
+import org.exoplatform.agenda.model.UserBusyTime;
 
 /**
  * Free/busy over the platform's own calendars, under the platform's own
@@ -85,6 +86,45 @@ public interface AgendaAvailabilityService {
                                          ZonedDateTime start,
                                          ZonedDateTime end,
                                          long userIdentityId) throws IllegalAccessException;
+
+  /**
+   * Reports, for each given user, their busy time over a window <em>and what
+   * happened when it was asked for</em>.
+   * <p>
+   * Like {@link #getConflicts} and unlike {@link #getAvailability}, this
+   * method does not refuse: it answers for every user it was asked about,
+   * saying per user whether a calendar was actually read. It is the shape a
+   * screen needs — one that draws what it knows and has to name what it does
+   * not — where {@link #getAvailability}'s all-or-nothing refusal would blank
+   * a whole grid because one participant shares nothing.
+   * <p>
+   * <strong>It adds no gate.</strong> Every user in the answer went through
+   * the same single gate as every other read in this service; this method only
+   * reports its verdict per user instead of throwing on the first refusal.
+   * <p>
+   * The returned list has one entry per <em>distinct</em> requested
+   * identifier, in the order asked, and never omits one — an absent entry
+   * would be an unstated status, which is the very thing
+   * {@link org.exoplatform.agenda.constant.AvailabilityDisclosure} exists to
+   * prevent. A requested identifier that is not a user (a space, or nothing at
+   * all) comes back as
+   * {@link org.exoplatform.agenda.constant.AvailabilityDisclosure#NOT_DISCLOSED},
+   * which is literally true of it: no busy time was disclosed for it.
+   *
+   * @param targetIdentityIds technical identifiers of the users whose busy
+   *          time is asked for
+   * @param start window start, inclusive
+   * @param end window end, exclusive
+   * @param userIdentityId technical identifier of the user asking
+   * @return one {@link UserBusyTime} per distinct requested user, in the order
+   *         asked, never {@code null}
+   * @throws IllegalArgumentException when the window or the user list is
+   *           missing or empty, or when the window ends before it starts
+   */
+  List<UserBusyTime> getBusyTime(List<Long> targetIdentityIds,
+                                 ZonedDateTime start,
+                                 ZonedDateTime end,
+                                 long userIdentityId);
 
   /**
    * Proposes the slots of the given length, inside the given window, over
