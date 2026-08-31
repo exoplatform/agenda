@@ -194,7 +194,14 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                 required = false
                             )
                             @QueryParam("responseTypes")
-                            List<EventAttendeeResponse> responseTypes) {
+                            List<EventAttendeeResponse> responseTypes,
+                            @Parameter(
+                                description = "Technical identifiers of the calendars whose events must be left out of the results, whatever the selected owners bring in."
+                                    + " Every personal calendar of a user shares the user identity as owner, so ownerIds alone cannot express a selection inside them.",
+                                required = false
+                            )
+                            @QueryParam("excludedCalendarIds")
+                            List<Long> excludedCalendarIds) {
 
     if (StringUtils.isBlank(start)) {
       return Response.status(Status.BAD_REQUEST).entity("Start datetime is mandatory").build();
@@ -227,6 +234,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                                 startDatetime,
                                                 endDatetime,
                                                 limit);
+      eventFilter.setExcludedCalendarIds(excludedCalendarIds);
       List<Event> events = agendaEventService.getEvents(eventFilter, userTimeZone, userIdentityId);
       Map<Long, EventAttendeeList> attendeesByParentEventId = new HashMap<>();
       Map<Long, List<EventConference>> conferencesByParentEventId = new HashMap<>();

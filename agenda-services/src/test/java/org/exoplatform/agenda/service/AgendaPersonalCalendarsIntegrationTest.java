@@ -18,12 +18,17 @@ package org.exoplatform.agenda.service;
 
 import static org.junit.Assert.*;
 
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import org.junit.Test;
 
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.Event;
+import org.exoplatform.agenda.model.EventFilter;
 
 /**
  * Container-backed (real database, real services) tests of the multiple
@@ -140,5 +145,127 @@ public class AgendaPersonalCalendarsIntegrationTest extends BaseAgendaEventTest 
     } catch (IllegalStateException e) {
       // Expected
     }
+  }
+
+  /**
+   * A user owning several personal calendars must be able to look at one space
+   * AND at their own calendars at the same time, and to pick one of their own
+   * calendars without its siblings coming along (EXO-89818).
+   * <p>
+   * Both halves are one question about the filter's key: owner-level selection
+   * cannot separate calendars that share an owner, which every personal
+   * calendar of a user does. So the space selection carries the user identity
+   * beside the space, and the choice inside the user's own calendars is made
+   * by excluding calendar identifiers.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testFilterOnSpaceKeepsSelectedPersonalCalendars() throws Exception { // NOSONAR
+    String username = testuser1Identity.getRemoteId();
+    long userIdentityId = Long.parseLong(testuser1Identity.getId());
+    long spaceIdentityId = Long.parseLong(spaceIdentity.getId());
+
+    Calendar secondCalendar = new Calendar(0, userIdentityId, false, null, null, null, null, null, null);
+    secondCalendar.setName("Second calendar");
+    secondCalendar = agendaCalendarService.createCalendar(secondCalendar, username);
+    Calendar thirdCalendar = new Calendar(0, userIdentityId, false, null, null, null, null, null, null);
+    thirdCalendar.setName("Third calendar");
+    thirdCalendar = agendaCalendarService.createCalendar(thirdCalendar, username);
+
+    try {
+      ZonedDateTime start = getDate();
+      createEventInCalendar(calendar.getId(), start, userIdentityId);
+      createEventInCalendar(secondCalendar.getId(), start, userIdentityId);
+      createEventInCalendar(thirdCalendar.getId(), start, userIdentityId);
+      createEventInCalendar(spaceCalendar.getId(), start, userIdentityId);
+      restartTransaction();
+
+      // What the bug reported: asking for the space owner alone answers with
+      // the space's events and nothing else. Kept as an assertion because it
+      // is the reason the front-end must add the user identity to the request
+      List<Long> spaceOnly = calendarIdsOfEvents(Arrays.asList(spaceIdentityId), null, userIdentityId, start);
+      assertEquals("Selecting only the space owner must return only its calendar's events",
+                   Arrays.asList(spaceCalendar.getId()),
+                   spaceOnly);
+
+      // Space and the user's own owner together: the space calendar and every
+      // personal calendar of the user, three of them here
+      List<Long> spaceAndUser = calendarIdsOfEvents(Arrays.asList(spaceIdentityId, userIdentityId), null, userIdentityId, start);
+      assertEquals("Selecting a space beside the user's own owner must keep every personal calendar",
+                   4,
+                   spaceAndUser.size());
+      assertTrue(spaceAndUser.containsAll(Arrays.asList(calendar.getId(),
+                                                        secondCalendar.getId(),
+                                                        thirdCalendar.getId(),
+                                                        spaceCalendar.getId())));
+
+      // One personal calendar picked among the three: its siblings must go,
+      // and only them — the space calendar shares no owner with any of them
+      List<Long> oneCalendarOnly = calendarIdsOfEvents(Arrays.asList(spaceIdentityId, userIdentityId),
+                                                       Arrays.asList(calendar.getId(), thirdCalendar.getId()),
+                                                       userIdentityId,
+                                                       start);
+      assertEquals("Excluding two personal calendars must leave the third one and the space calendar",
+                   2,
+                   oneCalendarOnly.size());
+      assertTrue(oneCalendarOnly.containsAll(Arrays.asList(secondCalendar.getId(), spaceCalendar.getId())));
+
+      // And the exclusion composes with the implicit 'every calendar I can
+      // see' selection, which no inclusion list could have enumerated
+      List<Long> everythingButOne = calendarIdsOfEvents(null, Arrays.asList(secondCalendar.getId()), userIdentityId, start);
+      assertFalse("An excluded calendar must not come back through the default owner selection",
+                  everythingButOne.contains(secondCalendar.getId()));
+      assertTrue(everythingButOne.containsAll(Arrays.asList(calendar.getId(),
+                                                            thirdCalendar.getId(),
+                                                            spaceCalendar.getId())));
+    } finally {
+      agendaCalendarService.deleteCalendarById(secondCalendar.getId());
+      agendaCalendarService.deleteCalendarById(thirdCalendar.getId());
+      restartTransaction();
+    }
+  }
+
+  /**
+   * Files one non recurrent event of one hour in a given calendar.
+   *
+   * @param calendarId technical identifier of the calendar receiving the event
+   * @param start beginning of the event
+   * @param userIdentityId identity identifier of the creator
+   * @return the created {@link Event}
+   * @throws Exception when the creation fails
+   */
+  private Event createEventInCalendar(long calendarId, ZonedDateTime start, long userIdentityId) throws Exception {
+    Event event = newEventInstance(start, start.plusHours(1), false);
+    event.setRecurrence(null);
+    event.setCalendarId(calendarId);
+    return createEvent(event.clone(), userIdentityId, testuser1Identity);
+  }
+
+  /**
+   * Runs the events query the agenda issues and reports which calendars the
+   * returned events belong to, which is what a calendar selection is judged
+   * on.
+   *
+   * @param ownerIds identity identifiers of the selected calendar owners,
+   *          {@code null} to let the service select every accessible owner
+   * @param excludedCalendarIds technical identifiers of the calendars to leave
+   *          out, {@code null} to exclude none
+   * @param userIdentityId identity identifier of the user asking
+   * @param start beginning of the events filed by this test, taken once so
+   *          every query uses the same window (the container flips the default
+   *          time zone between calls)
+   * @return the calendar identifiers of the returned events, sorted
+   * @throws IllegalAccessException when the user may not access a selected
+   *           owner's calendar
+   */
+  private List<Long> calendarIdsOfEvents(List<Long> ownerIds,
+                                         List<Long> excludedCalendarIds,
+                                         long userIdentityId,
+                                         ZonedDateTime start) throws IllegalAccessException {
+    EventFilter eventFilter = new EventFilter(0, ownerIds, null, start.minusHours(1), start.plusHours(2), 0);
+    eventFilter.setExcludedCalendarIds(excludedCalendarIds);
+    List<Event> events = agendaEventService.getEvents(eventFilter, ZoneId.systemDefault(), userIdentityId);
+    return events.stream().map(Event::getCalendarId).distinct().sorted().collect(Collectors.toList());
   }
 }

@@ -189,16 +189,36 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     deleteEventsQuery.executeUpdate();
   }
 
+  /**
+   * Retrieves the identifiers of the events matching a period and the given
+   * owner, attendee and response criteria.
+   *
+   * @param startDate beginning of the period, mandatory
+   * @param endDate end of the period, {@code null} for an open period
+   * @param ownerIds identity identifiers of the calendar owners to keep, empty
+   *          or {@code null} to keep every owner
+   * @param attendeeIds identity identifiers to filter on attendees, empty or
+   *          {@code null} to ignore attendees
+   * @param responseTypes attendee responses to keep, only used together with
+   *          {@code attendeeIds}
+   * @param excludedCalendarIds technical identifiers of the calendars whose
+   *          events must be left out, whatever the owner criteria kept; empty
+   *          or {@code null} to exclude nothing
+   * @param limit maximum number of identifiers to return, 0 for no limit
+   * @return {@link List} of matching event technical identifiers
+   */
   public List<Long> getEventIds(Date startDate,
                                 Date endDate,
                                 List<Long> ownerIds,
                                 List<Long> attendeeIds,
                                 List<EventAttendeeResponse> responseTypes,
+                                List<Long> excludedCalendarIds,
                                 int limit) {
     verifyLimit(endDate, limit);
 
     boolean filterAttendees = attendeeIds != null && !attendeeIds.isEmpty();
     boolean filterOwners = ownerIds != null && !ownerIds.isEmpty();
+    boolean excludeCalendars = excludedCalendarIds != null && !excludedCalendarIds.isEmpty();
 
     // We avoid to use QueryBuilder to avoid contention,
     // thus we will have to build a specific query for each use case
@@ -214,6 +234,9 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     }
     if (filterOwners) {
       jpql.append(" AND cal.ownerId IN (:ownerIds)");
+    }
+    if (excludeCalendars) {
+      jpql.append(" AND cal.id NOT IN (:excludedCalendarIds)");
     }
     if (filterAttendees) {
       jpql.append(" AND att.identityId IN (:attendeeIds)");
@@ -231,6 +254,9 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     }
     if (filterOwners) {
       query.setParameter("ownerIds", ownerIds);
+    }
+    if (excludeCalendars) {
+      query.setParameter("excludedCalendarIds", excludedCalendarIds);
     }
     if (filterAttendees) {
       query.setParameter("attendeeIds", attendeeIds);
