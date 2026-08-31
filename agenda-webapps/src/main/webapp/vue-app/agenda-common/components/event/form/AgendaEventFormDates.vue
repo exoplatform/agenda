@@ -64,6 +64,14 @@
       text>
       {{ failedSourceWarning }}
     </v-alert>
+    <!-- Directly above the grid, and directly under the account warning: both
+         say what this grid is NOT showing, and the organiser has to have read
+         both before the drag starts, not after scrolling past the calendar. -->
+    <agenda-event-form-busy-coverage
+      :participants="participants"
+      :checked-keys="checkedParticipantKeys"
+      :not-disclosed-keys="notDisclosedParticipantKeys"
+      :failed-keys="failedParticipantKeys" />
     <v-calendar
       ref="calendar"
       v-model="dayToDisplay"
@@ -89,8 +97,11 @@
       @mouseup:time="endDrag"
       @change="retrieveEvents">
       <template #event="eventObj">
+        <agenda-event-form-participant-busy-item
+          v-if="eventObj.event && eventObj.event.type === 'participantBusy'"
+          :busy-event="eventObj.event" />
         <div
-          v-if="!eventObj.event || eventObj.event.type !== 'remoteEvent'"
+          v-else-if="!eventObj.event || eventObj.event.type !== 'remoteEvent'"
           :class="eventObj.event.dateOption && 'editing-event' || ''"
           class="readonly-event">
           <p
@@ -194,6 +205,36 @@ export default {
      */
     failedConnectors: [],
     spaceEvents: [],
+    /*
+     * The third source behind the grid: the participants' busy time. It is
+     * held as three separate things on purpose — the blocks that can be drawn,
+     * and the two sets of people about whom nothing is known — because an
+     * organiser about to pick a slot needs to be told the second and third as
+     * plainly as they are shown the first.
+     */
+    participantBusyEvents: [],
+    /*
+     * The three sets, keyed by participant (providerId:remoteId), never by
+     * identity id: a participant whose identity could not be resolved has no
+     * id and still has to be nameable.
+     */
+    checkedParticipantKeys: [],
+    notDisclosedParticipantKeys: [],
+    failedParticipantKeys: [],
+    /*
+     * Resolved identities, memoised by participant key across calendar
+     * navigations. A participant added through the suggester carries no
+     * identity id until the event is saved, so one lookup per person is
+     * needed — but only one: paging the grid a week forward must not re-ask
+     * for everybody. Same memoisation EXO-89825 applies to calendar listings.
+     */
+    resolvedParticipants: {},
+    /*
+     * Only the newest read may write what the strip shows. Resolution is
+     * asynchronous and now sits in front of the fetch, so two navigations in
+     * quick succession can land out of order.
+     */
+    busyTimeRequestId: 0,
     displayedEvents: [],
   }),
   computed: {
@@ -296,6 +337,53 @@ export default {
         0: this.failedSourceNames.join(', '),
       });
     },
+    /**
+     * The people this grid undertakes to show the busy time of: the event's
+     * user attendees, minus the organiser themselves.
+     *
+     * <p>
+     * <strong>Selected on the provider/remote pair, never on the identity
+     * id.</strong> A participant added through the suggester carries only
+     * `{providerId, remoteId, profile}` until the event is saved — social's
+     * `convertSuggesterItemToIdentity` builds exactly that — so a filter on
+     * `identity.id` keeps nobody but the organiser, who is then removed by the
+     * next filter, and the list of a NEW event is always empty. That is the
+     * one population this feature exists for, and it was the whole of what
+     * shipped in the first cut of EXO-89850.
+     *
+     * <p>
+     * The organiser is left out because their own calendars are already
+     * painted here by the other sources; asking for them again would draw
+     * every one of their events a second time, in grey, on top of itself. They
+     * are matched on their username as well as on their id, since on a new
+     * event neither side of that comparison is guaranteed to carry one.
+     *
+     * <p>
+     * A space attendee is left out too: a space has no busy time of its own,
+     * and expanding it into its members would disclose the calendars of people
+     * the organiser never named.
+     *
+     * @returns {Array} the participants, in attendee order
+     */
+    participants() {
+      const currentUserIdentityId = String(eXo.env.portal.userIdentityId || '');
+      const currentUserName = String(eXo.env.portal.userName || '');
+      return (this.event && this.event.attendees || [])
+        .filter(attendee => !!this.$agendaUtils.participantKey(attendee))
+        .filter(attendee => attendee.identity.providerId !== 'space')
+        .filter(attendee => String(attendee.identity.id || '') !== currentUserIdentityId
+                         && String(attendee.identity.remoteId || '') !== currentUserName);
+    },
+    /**
+     * The participants this screen last asked about, as a comparable string,
+     * so the watcher fires when somebody joins or leaves the event rather than
+     * on every mutation of the attendee objects.
+     *
+     * @returns {String} the participant keys, joined
+     */
+    participantKeys() {
+      return this.participants.map(participant => this.$agendaUtils.participantKey(participant)).join(',');
+    },
   },
   watch: {
     displayedEvents() {
@@ -310,6 +398,15 @@ export default {
      */
     signedInConnectorNames() {
       this.retrieveRemoteEvents();
+    },
+    /**
+     * Asks again when the guest list changes, so that adding somebody on the
+     * first step and coming back here shows their busy time — and, just as
+     * importantly, so that removing somebody stops the screen naming them.
+     * @returns {void}
+     */
+    participantKeys() {
+      this.retrieveParticipantsBusyTime();
     },
   },
   created() {
@@ -473,6 +570,7 @@ export default {
         this.retrievePeriod(range);
         this.retrieveEventsFromStore();
         this.retrieveRemoteEvents();
+        this.retrieveParticipantsBusyTime();
       }
       this.$forceUpdate();
     },
@@ -594,9 +692,217 @@ export default {
         })
         .finally(() => this.refreshEventsToDisplay());
     },
+    /**
+     * Fetches the busy time of every participant for the previewed period —
+     * the grid's third source, beside the organiser's own space events and
+     * their connected accounts.
+     *
+     * <p>
+     * The three outcomes the server distinguishes per person are kept
+     * distinct here too: blocks to draw, people who share nothing, people
+     * whose read broke. Only the first is merged into the grid; the other two
+     * are handed to the coverage line above it, because a person missing from
+     * the grid with nothing said about them is a person the organiser will
+     * book over.
+     *
+     * <p>
+     * <strong>A rejected read makes every participant failed, not free.</strong>
+     * The whole call is one source, exactly like a connector that could not
+     * answer (EXO-89843): when it fails, nothing is known about anybody, and
+     * that is what the screen then says.
+     *
+     * <p>
+     * One thing this cannot do, and it follows from what the endpoint refuses
+     * to send: a block carries no event identifier, so when an existing event
+     * is being rescheduled its own attendees show as busy over its current
+     * slot, by that very event. Telling that block apart would need an id the
+     * server deliberately never discloses.
+     *
+     * @returns {void}
+     */
+    retrieveParticipantsBusyTime() {
+      // Same guard as the remote-event read: the watcher can fire before the
+      // calendar's first @change has built the period at all.
+      if (!this.period || !this.period.start || !this.period.end) {
+        return;
+      }
+      const participants = this.participants;
+      const requestId = ++this.busyTimeRequestId;
+      if (!participants.length) {
+        this.forgetParticipantsBusyTime();
+        this.refreshEventsToDisplay();
+        return;
+      }
+      const start = this.$agendaUtils.toRFC3339(this.period.start, false, true);
+      const end = this.$agendaUtils.toRFC3339(this.period.end, false, true);
+      this.resolveParticipants(participants)
+        .then(resolved => {
+          if (requestId !== this.busyTimeRequestId) {
+            return null;
+          }
+          // A participant the platform could not put a name to is not a
+          // participant who is free: they never reach the endpoint, so they
+          // are declared unread here rather than quietly left out.
+          const unresolvedKeys = participants
+            .map(participant => this.$agendaUtils.participantKey(participant))
+            .filter(key => !resolved[key]);
+          const identityIds = Object.values(resolved).map(identity => String(identity.id));
+          if (!identityIds.length) {
+            this.participantBusyEvents = [];
+            this.checkedParticipantKeys = [];
+            this.notDisclosedParticipantKeys = [];
+            this.failedParticipantKeys = unresolvedKeys;
+            return null;
+          }
+          return this.$availabilityService.getBusyTime(identityIds, start, end)
+            .then(records => ({records, resolved, unresolvedKeys}))
+            .catch(error => {
+              console.error('Error retrieving the participants busy time', error);
+              // Nothing was read about anybody. Emptying the blocks WITHOUT
+              // filling the failed list would repaint the grid as if every
+              // participant were free.
+              return {records: null, resolved, unresolvedKeys};
+            });
+        })
+        .then(answer => {
+          if (!answer || requestId !== this.busyTimeRequestId) {
+            return;
+          }
+          this.applyParticipantsBusyTime(participants, answer);
+        })
+        .finally(() => {
+          if (requestId === this.busyTimeRequestId) {
+            this.refreshEventsToDisplay();
+          }
+        });
+    },
+    /**
+     * Clears everything the grid holds about the participants busy time.
+     *
+     * <p>
+     * The three sets go together: emptying the blocks while leaving a set
+     * behind would name somebody the grid is no longer showing anything for,
+     * and emptying a set while leaving blocks would show a block the strip no
+     * longer counts.
+     *
+     * @returns {void}
+     */
+    forgetParticipantsBusyTime() {
+      this.participantBusyEvents = [];
+      this.checkedParticipantKeys = [];
+      this.notDisclosedParticipantKeys = [];
+      this.failedParticipantKeys = [];
+    },
+    /**
+     * Writes one answer onto the grid and the coverage strip.
+     *
+     * <p>
+     * A null `records` is the whole read having failed: every participant that
+     * was going to be asked about joins the ones that could not be resolved,
+     * because in both cases nothing was read and neither is an answer.
+     *
+     * @param {Array} participants the people the read was about
+     * @param {Object} answer `{records, resolved, unresolvedKeys}`
+     * @returns {void}
+     */
+    applyParticipantsBusyTime(participants, answer) {
+      const keyOf = participant => this.$agendaUtils.participantKey(participant);
+      if (!answer.records) {
+        this.participantBusyEvents = [];
+        this.checkedParticipantKeys = [];
+        this.notDisclosedParticipantKeys = [];
+        this.failedParticipantKeys = participants.map(keyOf);
+        return;
+      }
+      const split = this.$agendaUtils.splitBusyTimeResults(answer.records);
+      const checked = [];
+      const notDisclosed = [];
+      const failed = answer.unresolvedKeys.slice();
+      const busyEvents = [];
+      participants.forEach(participant => {
+        const key = keyOf(participant);
+        const identity = answer.resolved[key];
+        if (!identity) {
+          return;
+        }
+        const identityId = String(identity.id);
+        if (split.failedIds.includes(identityId)) {
+          failed.push(key);
+        } else if (split.notDisclosedIds.includes(identityId)) {
+          notDisclosed.push(key);
+        } else if (split.checkedIds.includes(identityId)) {
+          checked.push(key);
+          // The resolved identity carries a fuller profile than the suggester
+          // left behind, so the avatar on each block is drawn from it.
+          const blocks = split.busyByIdentityId[identityId];
+          busyEvents.push(...this.$agendaUtils.toParticipantBusyEvents(blocks, {identity}, this.$t('agenda.busy')));
+        } else {
+          // Asked about and not answered for. Silence is not an answer.
+          failed.push(key);
+        }
+      });
+      this.checkedParticipantKeys = checked;
+      this.notDisclosedParticipantKeys = notDisclosed;
+      this.failedParticipantKeys = failed;
+      this.participantBusyEvents = busyEvents;
+    },
+    /**
+     * Puts an identity id on every participant that has none yet.
+     *
+     * <p>
+     * A participant added through the suggester carries `{providerId,
+     * remoteId}` and nothing else until the event is saved, and the
+     * availability endpoint speaks identity ids. This resolves them with the
+     * very call this component already makes for the calendar owner.
+     *
+     * <p>
+     * <strong>Memoised by participant key, and only the unseen ones are
+     * asked for.</strong> This runs on every calendar navigation; without the
+     * memo, paging a month forward would re-resolve the whole guest list a
+     * dozen times. A failed lookup is memoised as a failure too, so it is not
+     * retried on every page either — the participant is named as unread
+     * instead, which is the honest answer and a stable one.
+     *
+     * @param {Array} participants the people to resolve
+     * @returns {Promise} resolves with `{[participantKey]: identity}`, holding
+     *          only the participants that could be resolved
+     */
+    resolveParticipants(participants) {
+      const pending = participants.filter(participant => {
+        const key = this.$agendaUtils.participantKey(participant);
+        return key && !Object.hasOwn(this.resolvedParticipants, key);
+      });
+      return Promise.all(pending.map(participant => {
+        const key = this.$agendaUtils.participantKey(participant);
+        const identity = participant.identity;
+        if (identity.id) {
+          this.resolvedParticipants[key] = identity;
+          return Promise.resolve();
+        }
+        return this.$identityService.getIdentityByProviderIdAndRemoteId(identity.providerId, identity.remoteId)
+          .then(resolvedIdentity => {
+            // A lookup that answers without an id resolved nothing; recording
+            // it as a success would send `undefined` to the endpoint.
+            this.resolvedParticipants[key] = resolvedIdentity && resolvedIdentity.id && resolvedIdentity || null;
+          })
+          .catch(error => {
+            console.error('Error resolving the identity of a participant', key, error);
+            this.resolvedParticipants[key] = null;
+          });
+      })).then(() => {
+        const resolved = {};
+        participants.forEach(participant => {
+          const key = this.$agendaUtils.participantKey(participant);
+          if (this.resolvedParticipants[key]) {
+            resolved[key] = this.resolvedParticipants[key];
+          }
+        });
+        return resolved;
+      });
+    },
     refreshEventsToDisplay() {
       const events = this.event.dateOptions || [];
-      this.displayedEvents = [...events,...this.spaceEventsToDisplay, ...this.remoteEventsToDisplay];
+      this.displayedEvents = [...events,...this.spaceEventsToDisplay, ...this.remoteEventsToDisplay, ...this.participantBusyEvents];
     },
   },
 };

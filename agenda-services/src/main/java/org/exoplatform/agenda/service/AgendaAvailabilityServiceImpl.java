@@ -30,6 +30,7 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import org.exoplatform.agenda.constant.AvailabilityDisclosure;
 import org.exoplatform.agenda.constant.AvailabilitySharing;
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.constant.EventAvailability;
@@ -40,6 +41,7 @@ import org.exoplatform.agenda.model.EventDateOption;
 import org.exoplatform.agenda.model.EventFilter;
 import org.exoplatform.agenda.model.TimeBlock;
 import org.exoplatform.agenda.model.UserAvailability;
+import org.exoplatform.agenda.model.UserBusyTime;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.services.log.ExoLogger;
@@ -137,6 +139,27 @@ public class AgendaAvailabilityServiceImpl implements AgendaAvailabilityService 
     for (Long targetIdentityId : targetIdentityIds) {
       List<TimeBlock> busy = mergeBlocks(readBusyBlocks(targetIdentityId, start, end, userIdentityId));
       result.add(new UserAvailability(targetIdentityId, busy, complement(busy, start, end)));
+    }
+    return result;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<UserBusyTime> getBusyTime(List<Long> targetIdentityIds,
+                                        ZonedDateTime start,
+                                        ZonedDateTime end,
+                                        long userIdentityId) {
+    if (CollectionUtils.isEmpty(targetIdentityIds)) {
+      throw new IllegalArgumentException("agenda.availability.usersMandatory");
+    }
+    checkWindow(start, end);
+    List<UserBusyTime> result = new ArrayList<>();
+    // The same user can be named twice — an organiser who is also listed as a
+    // participant — and they are one person with one answer.
+    for (Long targetIdentityId : targetIdentityIds.stream().distinct().toList()) {
+      result.add(readBusyTime(targetIdentityId, start, end, userIdentityId));
     }
     return result;
   }
@@ -479,6 +502,61 @@ public class AgendaAvailabilityServiceImpl implements AgendaAvailabilityService 
       return Optional.of(readBusyBlocks(targetIdentityId, start, end, userIdentityId));
     } catch (IllegalAccessException e) { // NOSONAR a refusal is an answer here, not a failure of the caller
       return Optional.empty();
+    }
+  }
+
+  /**
+   * Reads one user's busy time and says which of the three things happened,
+   * without ever failing the call.
+   * <p>
+   * The gate is not re-implemented here and not consulted separately: this
+   * calls {@link #readBusyBlocks}, the one fused gate-and-read of this class,
+   * and turns its outcome into a status. What this method adds is that a
+   * refusal and a breakage stop being the same silence.
+   * <p>
+   * <strong>Why a refusal from either place is
+   * {@link AvailabilityDisclosure#NOT_DISCLOSED}.</strong>
+   * {@link #readBusyBlocks} raises {@link IllegalAccessException} from the
+   * gate, and {@link AgendaEventService#getEvents} may raise the same type
+   * afterwards. Telling the two apart would mean splitting the gate from the
+   * read, which is precisely what {@link #readBusyBlocks} was fused to make
+   * impossible. Both mean "no calendar was read", both are drawn as unchecked,
+   * and the only cost of not distinguishing them is a word in a message.
+   * <p>
+   * Anything else that goes wrong is {@link AvailabilityDisclosure#FAILED},
+   * and it is logged — a broken store is an incident, unlike a refusal, which
+   * is an answer.
+   *
+   * @param targetIdentityId the user whose busy time is wanted
+   * @param start window start
+   * @param end window end
+   * @param userIdentityId the user asking
+   * @return the user's busy time and the status of the read, never
+   *         {@code null}
+   */
+  private UserBusyTime readBusyTime(long targetIdentityId,
+                                    ZonedDateTime start,
+                                    ZonedDateTime end,
+                                    long userIdentityId) {
+    Identity target = identityManager.getIdentity(String.valueOf(targetIdentityId));
+    if (target == null || !target.isUser()) {
+      // A space, or nothing at all. "Not disclosed" is literally true of it,
+      // and it keeps this enum at three values rather than gaining a fourth
+      // that every caller would have to reason about.
+      return new UserBusyTime(targetIdentityId, AvailabilityDisclosure.NOT_DISCLOSED, null);
+    }
+    try {
+      return new UserBusyTime(targetIdentityId,
+                              AvailabilityDisclosure.DISCLOSED,
+                              mergeBlocks(readBusyBlocks(targetIdentityId, start, end, userIdentityId)));
+    } catch (IllegalAccessException e) { // NOSONAR a refusal is an answer here, not a failure of the caller
+      return new UserBusyTime(targetIdentityId, AvailabilityDisclosure.NOT_DISCLOSED, null);
+    } catch (RuntimeException e) { // NOSONAR one broken read must not fail the answer about everybody else
+      LOG.warn("Error reading the busy time of identity {} for identity {}; it is reported as unread, never as free",
+               targetIdentityId,
+               userIdentityId,
+               e);
+      return new UserBusyTime(targetIdentityId, AvailabilityDisclosure.FAILED, null);
     }
   }
 
