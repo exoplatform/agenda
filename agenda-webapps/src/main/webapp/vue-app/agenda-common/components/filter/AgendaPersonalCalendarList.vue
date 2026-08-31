@@ -15,8 +15,17 @@
         v-for="calendar in calendars"
         :key="calendar.id"
         class="agenda-calendar-settings px-0">
+        <!--
+          The row's visible text is the name truncated to the width of
+          whichever list is mounted, so the hover is where a name cut mid-way
+          is recovered — and the name is what the cut takes: a connected
+          account publishes its address inside the name, and two accounts give
+          two calendars that diverge only there. A hover showing the
+          description instead answered a question nobody asked and hid the one
+          thing telling them apart.
+        -->
         <v-list-item-content
-          :title="calendar.description || calendarLabel(calendar)"
+          :title="calendarTooltip(calendar)"
           class="flex-grow-1 pa-0">
           <v-checkbox
             :input-value="isDisplayed(calendar)"
@@ -274,6 +283,25 @@ export default {
         return calendar.name;
       }
       return calendar.system ? this.$t('agenda.myCalendar') : (calendar.title || this.$t('agenda.myCalendar'));
+    },
+    /**
+     * The hover text of a calendar row: the calendar's name, then its
+     * description on a second line when it has one.
+     *
+     * <p>
+     * The name comes first and is never dropped. The row shows it truncated
+     * to the width of the list it is in, so the hover is the only place a
+     * name cut mid-way can be read whole — and it is precisely the end of the
+     * name that the cut takes, where a connected account writes its address.
+     * Two accounts produce two calendars whose names differ only there, and a
+     * hover carrying the description instead left them indistinguishable.
+     *
+     * @param {Object} calendar the calendar to describe
+     * @returns {String} the hover text
+     */
+    calendarTooltip(calendar) {
+      const label = this.calendarLabel(calendar);
+      return calendar.description ? `${label}\n${calendar.description}` : label;
     },
     /**
      * Whether the events of a calendar are currently displayed in the agenda.
