@@ -20,6 +20,7 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.List;
 
+import org.exoplatform.agenda.constant.AvailabilitySharing;
 import org.exoplatform.agenda.model.AvailabilityConflicts;
 import org.exoplatform.agenda.model.EventDateOption;
 import org.exoplatform.agenda.model.TimeBlock;
@@ -27,24 +28,41 @@ import org.exoplatform.agenda.model.UserAvailability;
 
 /**
  * Free/busy over the platform's own calendars, under the platform's own
- * calendar ACL.
+ * calendar ACL and the target user's own sharing choice.
  * <p>
  * <strong>Every method takes the asking user's identity, and every method
  * enforces it.</strong> Availability is calendar content: knowing when someone
  * is busy is knowing that they have a meeting, and over a long enough window
- * it maps their working life. The rule applied here is not a new one — it is
- * {@code Utils.canAccessCalendar}, the same check
- * {@link AgendaEventService#getEvents} applies to a calendar owner. For a
- * personal calendar that check resolves to "its owner, and no one else", so in
- * practice a user may currently ask about their own availability only.
+ * it maps their working life.
  * <p>
- * That is deliberately the narrow reading. Whether, and to whom, a user should
- * be able to expose their free/busy is a product decision that has not been
- * taken; until it is, this service enforces the guard that already exists
- * rather than inventing a sharing policy of its own. When such a policy
- * arrives it belongs here, in this one place, so that every surface built on
- * this service — REST, MCP, the UI — moves together and none of them can
- * drift.
+ * Two rules decide, in this order, and there is exactly one place in the
+ * implementation where they are applied:
+ * <ol>
+ * <li>{@code Utils.canAccessCalendar} — the same check
+ * {@link AgendaEventService#getEvents} applies to a calendar owner. For a
+ * personal calendar it resolves to "its owner, and no one else"; for a space
+ * calendar, to whoever may view the space. This is the <strong>floor</strong>:
+ * whatever it permits is always permitted.</li>
+ * <li>the target user's {@link AvailabilitySharing} setting — read from
+ * {@link AgendaUserSettingsService#getAvailabilitySharing}, which owns it —
+ * and which can only ever <strong>widen</strong> that floor, by exactly one
+ * step and only for a target that is a user: the people that user shares a
+ * space with. A space's availability is never disclosed by anyone's personal
+ * setting, no setting lets a viewer read a calendar some other rule keeps from
+ * them, and nobody outside all of the target's spaces is ever admitted.</li>
+ * </ol>
+ * <p>
+ * What is disclosed does not change with the setting: time ranges, busy and
+ * free. Never a title, a location, an attendee or a calendar name. That
+ * includes busy time derived from a calendar the user connected to the
+ * platform, whose events are materialised as ordinary eXo events — the fact
+ * that they are busy is disclosed, what they are doing is not.
+ * <p>
+ * A user who discloses nothing is <strong>unknown</strong>, never available.
+ * The methods that must answer refuse ({@link IllegalAccessException}); the
+ * methods that enrich a write the user may already perform degrade and name
+ * whom they could not check, so that "no clash was found" is never read as
+ * "everyone is free".
  */
 public interface AgendaAvailabilityService {
 
