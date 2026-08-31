@@ -10,6 +10,41 @@ import {USER_TIMEZONE_ID} from './AgendaUtils.js';
  */
 
 /**
+ * Where a Spring MVC controller of THIS add-on is mounted, built from the two
+ * things that decide it and nothing else:
+ *
+ * <ul>
+ *   <li>`/agenda` — the agenda WAR's own servlet context. Tomcat takes it from
+ *       the war file name, which the addon assembly pins
+ *       (`agenda-packaging/src/main/assemblies/assembly.xml`,
+ *       `<outputFileNameMapping>agenda.war`). It is the same on every
+ *       deployment;</li>
+ *   <li>`/rest` — `spring.mvc.servlet.path`, set once in the core's shared
+ *       `application-common.properties` and inherited by every add-on.</li>
+ * </ul>
+ *
+ * <p>
+ * <strong>Neither `eXo.env.portal.context` nor `eXo.env.portal.rest` belongs
+ * here, and using them is what broke this.</strong> Both describe the PORTAL
+ * webapp — a different WAR. `eXo.env.portal.context` is that webapp's context
+ * (`/portal`), so prefixing it asks the portal for a path it does not serve
+ * and the request is answered with a 302 to the login page;
+ * `eXo.env.portal.rest` is the legacy JAX-RS mount inside it, which is where
+ * the sibling `EventService` and `SettingsService` resources genuinely live
+ * (`/portal/rest/v1/agenda/...`) and where a Spring MVC controller never does.
+ * Copying either sibling was the mistake.
+ *
+ * <p>
+ * The path is root-relative, so it follows the origin the page was served
+ * from, and it is unaffected by the portal being deployed under a
+ * non-default container name — that name only ever moves `/portal`, never this
+ * add-on's own context. Same construction as the agenda add-on's other Spring
+ * MVC call (`agenda-base-extension/main.js` → `/agenda/rest/timezone`) and as
+ * the CalDAV add-on's (`/caldav/rest/...`).
+ */
+const AGENDA_REST_BASE = '/agenda/rest';
+
+/**
  * Asks the server for each named participant's busy time over a window.
  *
  * <p>
@@ -34,7 +69,7 @@ export function getBusyTime(identityIds, start, end) {
   // Same `timeZoneId` the events resource takes: the ranges come back in the
   // reader's own zone, so a busy block lands on the grid at the same
   // wall-clock hour as every other event drawn beside it.
-  return fetch(`${eXo.env.portal.context}/agenda/rest/availability?identityIds=${encodeURIComponent(ids)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&timeZoneId=${encodeURIComponent(USER_TIMEZONE_ID)}`, {
+  return fetch(`${AGENDA_REST_BASE}/availability?identityIds=${encodeURIComponent(ids)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&timeZoneId=${encodeURIComponent(USER_TIMEZONE_ID)}`, {
     method: 'GET',
     credentials: 'include',
     headers: {
