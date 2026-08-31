@@ -71,6 +71,26 @@ function remoteEvent(id, summary, start, calendarId) {
   };
 }
 
+/**
+ * An event of the viewer's own eXo calendars, as /v1/agenda/events returns
+ * it. `remoteId` is what the endpoint fills for an event imported from — or
+ * pushed to — a connected account, and is the identity the deduplication
+ * against the live read rides on.
+ */
+function exoEvent(id, summary, start, options) {
+  const opts = options || {};
+  return {
+    id,
+    summary,
+    start,
+    end: start,
+    allDay: !!opts.allDay,
+    remoteId: opts.remoteId || null,
+    parent: opts.parent || null,
+    calendar: opts.calendar || null,
+  };
+}
+
 function mountPanel(connectors, options) {
   const opts = options || {};
   return shallowMount(AgendaConnectorContemporaryEvents, {
@@ -87,6 +107,9 @@ function mountPanel(connectors, options) {
     mocks: {
       $t: translate,
       $agendaUtils: agendaUtils,
+      $eventService: {
+        getEvents: opts.getExoEvents || (() => Promise.resolve({events: opts.exoEvents || []})),
+      },
       $remoteEventConnector: {
         remoteCalendarName: opts.remoteCalendarName || (() => Promise.resolve(null)),
       },
@@ -331,6 +354,303 @@ describe('AgendaConnectorContemporaryEvents reads', () => {
     expect(typeof key).toBe('string');
     expect(key).toContain('caldav');
     expect(key).toContain('standup');
+    wrapper.destroy();
+  });
+});
+
+describe('AgendaConnectorContemporaryEvents reads the viewer\'s own calendars', () => {
+
+  /*
+   * The pin EXO-89840 exists for. Both rig accounts have their collections
+   * materialised, so the live read returns nothing by construction: an event
+   * sitting in a materialised eXo calendar has to reach the list all the
+   * same, or the panel says "nothing" about a day that is full.
+   */
+  it('lists an event of a materialised calendar even when the live read is empty by construction', async () => {
+    const wrapper = mountPanel([
+      account('caldav', 'anais@demo.fr', []),
+    ], {
+      exoEvents: [
+        exoEvent(501, 'Materialised standup', '2026-09-01T09:00:00', {remoteId: 'uid-standup'}),
+      ],
+    });
+    await settle(wrapper);
+
+    const summaries = rows(wrapper).map(row => row.props('remoteEvent').summary);
+    expect(summaries).toContain('Materialised standup');
+    expect(wrapper.find('.contemporary-events-empty').exists()).toBe(false);
+    wrapper.destroy();
+  });
+
+  it('says which eXo calendar a row is in', async () => {
+    const wrapper = mountPanel([
+      account('caldav', 'anais@demo.fr', []),
+    ], {
+      exoEvents: [
+        exoEvent(501, 'Materialised standup', '2026-09-01T09:00:00', {
+          remoteId: 'uid-standup',
+          calendar: {id: 187, title: 'Work'},
+        }),
+      ],
+    });
+    await settle(wrapper);
+
+    expect(rowTitles(wrapper))
+      .toContain('501=agenda.contemporaryEvents.rowExoCalendar|Materialised standup|Work');
+    wrapper.destroy();
+  });
+
+  it('does not repeat the event the panel is describing', async () => {
+    const wrapper = mountPanel([
+      account('caldav', 'anais@demo.fr', []),
+    ], {
+      exoEvents: [
+        exoEvent(100, 'This event', '2026-09-01T10:00:00'),
+        exoEvent(501, 'Materialised standup', '2026-09-01T09:00:00'),
+      ],
+    });
+    await settle(wrapper);
+
+    const ids = rows(wrapper).map(row => row.props('remoteEvent').id);
+    expect(ids.filter(id => id === 100)).toHaveLength(1);
+    wrapper.destroy();
+  });
+
+  /*
+   * An occurrence of a recurring series is sent with an id of zero and the
+   * series as its parent, so an identity read off the id alone would not
+   * recognise the occurrence the panel is describing — and the panel would
+   * list the very event it is about, beside itself.
+   */
+  it('does not repeat the occurrence the panel is describing', async () => {
+    const occurrence = {
+      id: 0,
+      parent: {id: 700},
+      summary: 'Daily standup',
+      startDate: new Date('2026-09-01T10:00:00'),
+      endDate: new Date('2026-09-01T11:00:00'),
+      attendees: [],
+    };
+    const wrapper = mountPanel([
+      account('caldav', 'anais@demo.fr', []),
+    ], {
+      event: occurrence,
+      exoEvents: [
+        exoEvent(0, 'Daily standup', '2026-09-01T10:00:00', {parent: {id: 700}}),
+        exoEvent(0, 'Daily standup', '2026-09-01T16:00:00', {parent: {id: 700}}),
+      ],
+    });
+    await settle(wrapper);
+
+    const starts = rows(wrapper).map(row => wrapper.vm.startInstant(row.props('remoteEvent')));
+    expect(starts).toHaveLength(2);
+    expect(new Set(starts).size).toBe(2);
+    wrapper.destroy();
+  });
+});
+
+describe('AgendaConnectorContemporaryEvents deduplication across the two sources', () => {
+
+  /*
+   * The meeting is in a materialised eXo calendar AND still returned by the
+   * live read — a collection eXo imported that the connector kept reporting,
+   * or an eXo event pushed to an account. Showing it twice is worse than the
+   * emptiness being fixed, so the identity has to span the two sources: the
+   * remote object's own identifier, which eXo records as `remoteId` and the
+   * live read returns as `id`, together with the occurrence's start.
+   */
+  it('shows an event reachable from both sources exactly once', async () => {
+    const wrapper = mountPanel([
+      account('caldav', 'anais@demo.fr', [
+        remoteEvent('uid-standup', 'Weekly standup', '2026-09-01T09:00:00', '/dav/cal/anais/work'),
+      ]),
+    ], {
+      exoEvents: [
+        exoEvent(501, 'Weekly standup', '2026-09-01T09:00:00', {remoteId: 'uid-standup'}),
+      ],
+    });
+    await settle(wrapper);
+
+    const standups = rows(wrapper).filter(row => row.props('remoteEvent').summary === 'Weekly standup');
+    expect(standups).toHaveLength(1);
+    // The eXo copy is the one kept: it is the copy the viewer can act on.
+    expect(standups[0].props('remoteEvent').id).toBe(501);
+    wrapper.destroy();
+  });
+
+  /*
+   * An occurrence of a recurring series carries no remote mapping of its own
+   * — the endpoint records it on the series — so its identity has to be read
+   * off the parent, or the same occurrence shows up once per source.
+   */
+  it('recognises an occurrence through its series identifier', async () => {
+    const wrapper = mountPanel([
+      account('caldav', 'anais@demo.fr', [
+        remoteEvent('uid-series', 'Daily standup', '2026-09-01T09:00:00', '/dav/cal/anais/work'),
+      ]),
+    ], {
+      exoEvents: [
+        exoEvent(0, 'Daily standup', '2026-09-01T09:00:00', {
+          parent: {id: 501, remoteId: 'uid-series'},
+        }),
+      ],
+    });
+    await settle(wrapper);
+
+    const standups = rows(wrapper).filter(row => row.props('remoteEvent').summary === 'Daily standup');
+    expect(standups).toHaveLength(1);
+    wrapper.destroy();
+  });
+
+  /*
+   * ...and the start is what keeps the siblings apart: every occurrence of
+   * the series shares that identifier, so an identity without the start
+   * would collapse a day holding two of them into one row.
+   */
+  it('keeps two occurrences of one series apart, sharing an identifier as they do', async () => {
+    const wrapper = mountPanel([
+      account('caldav', 'anais@demo.fr', [
+        remoteEvent('uid-series', 'Daily standup', '2026-09-01T15:00:00', '/dav/cal/anais/work'),
+      ]),
+    ], {
+      exoEvents: [
+        exoEvent(0, 'Daily standup', '2026-09-01T09:00:00', {
+          parent: {id: 501, remoteId: 'uid-series'},
+        }),
+      ],
+    });
+    await settle(wrapper);
+
+    const standups = rows(wrapper).filter(row => row.props('remoteEvent').summary === 'Daily standup');
+    expect(standups).toHaveLength(2);
+    wrapper.destroy();
+  });
+
+  it('keeps an event the live read alone holds', async () => {
+    const wrapper = mountPanel([
+      account('caldav', 'anais@demo.fr', [
+        remoteEvent('uid-dentist', 'Dentist', '2026-09-01T14:00:00', '/dav/cal/anais/never-imported'),
+      ]),
+    ], {
+      exoEvents: [
+        exoEvent(501, 'Materialised standup', '2026-09-01T09:00:00', {remoteId: 'uid-standup'}),
+      ],
+    });
+    await settle(wrapper);
+
+    const summaries = rows(wrapper).map(row => row.props('remoteEvent').summary);
+    expect(summaries).toContain('Dentist');
+    expect(summaries).toContain('Materialised standup');
+    wrapper.destroy();
+  });
+
+  it('interleaves the two sources chronologically rather than grouping them', async () => {
+    const wrapper = mountPanel([
+      account('caldav', 'anais@demo.fr', [
+        remoteEvent('uid-early', 'Live at 08:00', '2026-09-01T08:00:00', '/dav/cal/anais/never-imported'),
+        remoteEvent('uid-late', 'Live at 16:00', '2026-09-01T16:00:00', '/dav/cal/anais/never-imported'),
+      ]),
+    ], {
+      exoEvents: [
+        exoEvent(501, 'eXo at 09:00', '2026-09-01T09:00:00'),
+      ],
+    });
+    await settle(wrapper);
+
+    expect(rows(wrapper).map(row => row.props('remoteEvent').summary)).toEqual([
+      'Live at 08:00',
+      'eXo at 09:00',
+      'This event',
+      'Live at 16:00',
+    ]);
+    wrapper.destroy();
+  });
+});
+
+describe('AgendaConnectorContemporaryEvents when the eXo read fails', () => {
+
+  /*
+   * The 89839 invariant, now owed to the eXo source too: a source that could
+   * not answer must not render as a source that answered "nothing".
+   */
+  it('never renders a failed eXo read as an empty one', async () => {
+    const wrapper = mountPanel([
+      account('caldav', 'anais@demo.fr', []),
+    ], {
+      getExoEvents: () => Promise.reject(new Error('HTTP 500')),
+    });
+    await settle(wrapper);
+
+    expect(rows(wrapper)).toHaveLength(0);
+    expect(rosterLabels(wrapper)).toEqual([
+      'anais@demo.fr',
+      'agenda.contemporaryEvents.exoCalendarsUnreachable',
+    ]);
+    expect(emptyStateText(wrapper)).toBe('agenda.contemporaryEvents.noEventsPartial');
+    wrapper.destroy();
+  });
+
+  it('keeps the events the accounts returned when the eXo read failed', async () => {
+    const wrapper = mountPanel([
+      account('caldav', 'anais@demo.fr', [
+        remoteEvent('uid-dentist', 'Dentist', '2026-09-01T14:00:00', '/dav/cal/anais/never-imported'),
+      ]),
+    ], {
+      getExoEvents: () => Promise.reject(new Error('HTTP 500')),
+    });
+    await settle(wrapper);
+
+    expect(rows(wrapper).map(row => row.props('remoteEvent').summary)).toContain('Dentist');
+    expect(rosterLabels(wrapper)).toContain('agenda.contemporaryEvents.exoCalendarsUnreachable');
+    wrapper.destroy();
+  });
+
+  /*
+   * The full sentence claims every source was consulted and every one was
+   * empty. It may only be said when that is true of BOTH sources.
+   */
+  it('says the list is complete only when both sources answered', async () => {
+    const answered = mountPanel([account('caldav', 'anais@demo.fr', [])]);
+    await settle(answered);
+    expect(emptyStateText(answered)).toBe('agenda.contemporaryEvents.noEvents');
+    expect(rosterLabels(answered)).toEqual(['anais@demo.fr']);
+    answered.destroy();
+
+    const exoFailed = mountPanel([account('caldav', 'anais@demo.fr', [])], {
+      getExoEvents: () => Promise.reject(new Error('HTTP 500')),
+    });
+    await settle(exoFailed);
+    expect(emptyStateText(exoFailed)).toBe('agenda.contemporaryEvents.noEventsPartial');
+    exoFailed.destroy();
+  });
+
+  it('names eXo in the roster only when its read failed', async () => {
+    const wrapper = mountPanel([account('caldav', 'anais@demo.fr', [])]);
+    await settle(wrapper);
+
+    expect(rosterLabels(wrapper)).not.toContain('agenda.contemporaryEvents.exoCalendarsUnreachable');
+    wrapper.destroy();
+  });
+});
+
+describe('AgendaConnectorContemporaryEvents with no account connected', () => {
+
+  /*
+   * eXo's own calendars answer whether or not an account is connected, so
+   * hiding what they hold behind a connector would be the same emptiness in
+   * another guise.
+   */
+  it('still lists what the viewer\'s own calendars hold', async () => {
+    const wrapper = mountPanel([
+      {name: 'caldav', enabled: true, connected: false},
+    ], {
+      exoEvents: [
+        exoEvent(501, 'A meeting in eXo', '2026-09-01T09:00:00'),
+      ],
+    });
+    await settle(wrapper);
+
+    expect(rows(wrapper).map(row => row.props('remoteEvent').summary)).toContain('A meeting in eXo');
     wrapper.destroy();
   });
 });
