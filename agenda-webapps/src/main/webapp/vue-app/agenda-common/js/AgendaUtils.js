@@ -388,6 +388,44 @@ export function isShortEvent(event) {
   return Math.floor(toDate(event.endDate).getTime() / 60000) - Math.floor(toDate(event.startDate).getTime() / 60000) < 60;
 }
 
+/*
+ * The colour three connectors write on every event they return: Google,
+ * Office 365 and Exchange each set `event.color = '#FFFFFF'` unconditionally,
+ * their providers giving them no calendar colour to pass on. It is a
+ * placeholder rather than a colour — painted, it is invisible on a light
+ * ground and wrong on a dark one — so it counts as no colour at all.
+ *
+ * Nothing else can produce it: eXo's own swatches hold no white, and the
+ * CalDAV palette walks a derived colour down until it clears WCAG AA against
+ * white, which white itself never does.
+ */
+const PLACEHOLDER_EVENT_COLOR = '#FFFFFF';
+
+/**
+ * The colour an event is recognised by: its calendar's, else the one set on
+ * the event itself.
+ *
+ * <p>
+ * The same chain, in the same order, that the calendar grid paints its events
+ * with (`AgendaCalendar.getEventBorderColor`), so one event is not one colour
+ * in the grid and another in a list beside it. What is deliberately left out
+ * is that method's `#2196F3` fallback: a surface that draws a colour to say
+ * WHICH calendar a row came from must draw nothing when it does not know,
+ * rather than a default that reads as an answer.
+ *
+ * <p>
+ * Works for either source: an event of eXo's own calendars carries the
+ * calendar the REST layer attached, and one read live from a CalDAV account
+ * carries the colour that account's palette gave its collection.
+ *
+ * @param {Object} event an event from either source
+ * @returns {String} the hex colour, empty when the event has none to show
+ */
+export function calendarColor(event) {
+  const color = event && (event.calendar && event.calendar.color || event.color) || '';
+  return color.toUpperCase() === PLACEHOLDER_EVENT_COLOR ? '' : color;
+}
+
 export function addOpacity(hexColor, opacity) {
   hexColor = hexColor.replace('#', '');
   const duplicate = hexColor.length < 6;
