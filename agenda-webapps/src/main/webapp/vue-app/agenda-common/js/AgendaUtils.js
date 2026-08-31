@@ -505,24 +505,57 @@ export function mergeRemoteEvents(eventsByConnector) {
  * An account that failed reaches here as `{connector, failed: true}` and
  * carries no events array, which is the whole point: `{connector, events: []}`
  * would say the account answered "nothing", and no view downstream could
- * then tell "you have nothing scheduled there" from "we could not ask". The
- * distinction cannot be recovered later either — the server degrades a failed
- * read to an empty list, so a 200 with no events is indistinguishable from a
- * genuinely empty calendar at the HTTP layer. It has to be carried from here.
+ * then tell "you have nothing scheduled there" from "we could not ask".
  *
- * @param {Array} resultsByConnector one entry per account, either
- *          `{connector, events}` or `{connector, failed: true}`
- * @returns {Object} `{events, failedConnectors}` — the merged events of the
- *          accounts that answered, and the connectors of those that did not
+ * <p>
+ * "Answered" and "failed" are two axes here, not one. A connector able to
+ * report a partial read — most of its calendars answered, one did not —
+ * arrives as `{connector, events, failed: true}`, and both halves of that are
+ * true at once: the events it did return belong on the grid, AND the view has
+ * to own up to the ones it could not read. Partitioning on `failed` alone
+ * would silently throw the returned events away to report the missing ones,
+ * which is a worse week than the failure caused. So the events of every result
+ * that carries an events array are merged, and every result that carries the
+ * flag names its connector — a result may do both.
+ *
+ * @param {Array} resultsByConnector one entry per account: `{connector,
+ *          events}`, `{connector, failed: true}`, or `{connector, events,
+ *          failed: true}` for a partial read
+ * @returns {Object} `{events, failedConnectors}` — the merged events of
+ *          everything that was read, and the connectors that lost something
  */
 export function splitRemoteEventResults(resultsByConnector) {
   const results = resultsByConnector || [];
   return {
-    events: mergeRemoteEvents(results.filter(result => !result.failed)),
+    events: mergeRemoteEvents(results.filter(result => result.events)),
     failedConnectors: results.filter(result => result.failed)
       .map(result => result.connector)
       .filter(connector => !!connector),
   };
+}
+
+/**
+ * Normalises what a connector's `getEvents` resolved with.
+ *
+ * <p>
+ * Two shapes are accepted, on purpose. A plain array is what every connector
+ * answers that only knows how to succeed or throw — Google, Office 365,
+ * Exchange — and it keeps working untouched. `{events, failed}` is what a
+ * connector answers when its own server can fail in a way the HTTP layer
+ * hides: the CalDAV add-on reads a third-party calendar server, and that
+ * server being down reaches the platform as a perfectly successful 200 with
+ * nothing in it. Only the connector can tell the two apart, so only the
+ * connector can say so, and this is where a view hears it.
+ *
+ * @param {Array|Object} answer what the connector resolved with
+ * @returns {Object} `{events, failed}`, both always present
+ */
+export function readConnectorAnswer(answer) {
+  if (Array.isArray(answer)) {
+    return {events: answer, failed: false};
+  }
+  const payload = answer || {};
+  return {events: payload.events || [], failed: !!payload.failed};
 }
 
 /**
