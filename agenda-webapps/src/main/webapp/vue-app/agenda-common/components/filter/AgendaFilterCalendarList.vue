@@ -41,9 +41,15 @@
         {{ $t('agenda.leftPanel.noCalendars') }}
       </v-list-item-content>
     </v-list-item>
+    <!-- Keyed on owner AND calendar: an owner is not a row identity. This
+         list holds space calendars, and nothing stops a space owning more
+         than one — two rows would then share a key, and Vue would reuse or
+         drop one of them on re-render. The calendar id alone would not do
+         either: a space with no calendar yet is served as an unsaved one,
+         whose id is 0 for every such space. -->
     <agenda-filter-calendar-item
       v-for="calendar in filteredCalendars"
-      :key="calendar.owner.id"
+      :key="`${calendar.owner.id}-${calendar.id}`"
       :calendar="calendar"
       :owner-ids="spaceIdentityIds"
       :selected-owner-ids="value"
