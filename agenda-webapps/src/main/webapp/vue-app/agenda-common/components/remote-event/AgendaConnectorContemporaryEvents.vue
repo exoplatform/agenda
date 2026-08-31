@@ -35,20 +35,24 @@
             </v-icon>
           </v-btn>
         </div>
-        <!-- the accounts are named here, all of them, each carrying its own
+        <!-- the sources are named here, all of them, each carrying its own
              state: an account that could not be reached, or whose session
              expired, says so next to its own name instead of disappearing
-             into a list the others answered -->
+             into a list the others answered. eXo's own calendars are not an
+             account and hold no standing entry — they appear here only when
+             they could not be read, which is the one thing about them the
+             roster has to say -->
         <div
-          v-if="hasConnectedAccount"
+          v-if="sourceRoster.length"
           class="d-flex flex-wrap contemporary-events-accounts">
-          <a
-            v-for="account in accountRoster"
+          <component
+            :is="account.connector ? 'a' : 'div'"
+            v-for="account in sourceRoster"
             :key="account.key"
             :title="account.label"
             :class="account.stateClass"
             class="d-flex align-center me-4 icon-small-size contemporary-events-account"
-            @click="openPersonalCalendarDrawer">
+            @click="account.connector && openPersonalCalendarDrawer()">
             <v-icon
               v-if="account.warning"
               size="16"
@@ -61,10 +65,10 @@
               class="me-1"
               size="16" />
             <span class="text-truncate">{{ account.label }}</span>
-          </a>
+          </component>
         </div>
         <div
-          v-else
+          v-if="!hasConnectedAccount"
           class="text-subtitle d-flex">
           <div class="pe-6">
             {{ $t('agenda.synchronizeEventsWithPersonalCalendarSubTitle') }}
@@ -73,35 +77,36 @@
         <template v-if="loading || accountsLoading">
           <v-progress-linear indeterminate />
         </template>
-        <template v-if="hasConnectedAccount">
-          <template v-if="hasRemoteEvents">
-            <agenda-connector-remote-event-item
-              v-for="remoteEvent in displayedRemoteEvents"
-              :key="remoteEventKey(remoteEvent)"
-              :remote-event="remoteEvent"
-              :connector="remoteEvent.connector"
-              :hover-title="remoteEventTitle(remoteEvent)"
-              :event="event"
-              class="mt-5 remote-events-details"
-              is-events-list />
-          </template>
-          <v-chip
-            v-else-if="displayEmptyState"
-            color="primary"
-            class="border-radius my-2 contemporary-events-empty"
-            outlined>
-            <v-icon
-              size="20"
-              class="me-4"
-              color="primary"
-              depressed>
-              fa-info-circle
-            </v-icon>
-            <span class="text--primary text-wrap">
-              {{ emptyStateLabel }}
-            </span>
-          </v-chip>
+        <!-- the list is no longer gated on an account being connected: eXo's
+             own calendars answer whether or not one is, and hiding what they
+             hold behind a connector is the very emptiness this panel had -->
+        <template v-if="hasRemoteEvents">
+          <agenda-connector-remote-event-item
+            v-for="remoteEvent in displayedRemoteEvents"
+            :key="remoteEventKey(remoteEvent)"
+            :remote-event="remoteEvent"
+            :connector="remoteEvent.connector"
+            :hover-title="remoteEventTitle(remoteEvent)"
+            :event="event"
+            class="mt-5 remote-events-details"
+            is-events-list />
         </template>
+        <v-chip
+          v-else-if="displayEmptyState"
+          color="primary"
+          class="border-radius my-2 contemporary-events-empty"
+          outlined>
+          <v-icon
+            size="20"
+            class="me-4"
+            color="primary"
+            depressed>
+            fa-info-circle
+          </v-icon>
+          <span class="text--primary text-wrap">
+            {{ emptyStateLabel }}
+          </span>
+        </v-chip>
       </div>
     </div>
     <agenda-connectors-drawer :connectors="connectors" />
@@ -109,6 +114,14 @@
 </template>
 
 <script>
+/*
+ * The attendee responses that put an event on the viewer's schedule. Every
+ * response but DECLINED: a meeting the viewer turned down is not on their
+ * schedule, while one they have not answered yet is exactly what they need
+ * to see before answering this one.
+ */
+const SCHEDULED_RESPONSES = ['ACCEPTED', 'NEEDS_ACTION', 'TENTATIVE'];
+
 export default {
   props: {
     settings: {
@@ -126,8 +139,21 @@ export default {
   },
   data() {
     return {
-      loading: false,
+      remoteLoading: false,
+      exoLoading: false,
       remoteEvents: [],
+      /*
+       * What eXo's own calendars hold around the event — including the
+       * calendars materialised from a connected account, whose events the
+       * live read stops reporting the moment they are imported.
+       */
+      exoEvents: [],
+      /*
+       * Whether the last read of eXo's own calendars failed. Kept for the
+       * same reason as failedConnectors: a source that could not answer is
+       * not a source that answered "nothing".
+       */
+      exoReadFailed: false,
       /*
        * The accounts whose last read failed. Kept apart from the events
        * because an account that could not answer is not an account that
@@ -156,6 +182,15 @@ export default {
     };
   },
   computed: {
+    /**
+     * Whether either source is still being read: an unfinished read is not
+     * an answer, from eXo's own calendars as much as from an account.
+     *
+     * @returns {Boolean} true while a read is in flight
+     */
+    loading() {
+      return this.remoteLoading || this.exoLoading;
+    },
     /**
      * Every account the user has connected, whatever state it is in — the
      * roster names them all, including the ones that cannot answer.
@@ -235,14 +270,40 @@ export default {
       });
     },
     /**
-     * Whether some connected account did not answer the last read — it
-     * failed, or its session expired. An empty list then means "nothing on
-     * the accounts that could be checked", never "nothing".
+     * Every source the roster names: one entry per connected account, always,
+     * plus eXo's own calendars when — and only when — they could not be read.
      *
-     * @returns {Boolean} true when an account could not be asked or answered
+     * <p>
+     * eXo's own calendars hold no standing entry because they are not an
+     * account: there is nothing to connect, nothing to reconnect, and no
+     * address to name. What the roster owes them is the one state the user
+     * cannot infer from the list, which is that they failed.
+     *
+     * @returns {Array} the roster entries to render
      */
-    hasUnansweredAccount() {
-      return this.accountRoster.some(account => account.warning);
+    sourceRoster() {
+      const roster = this.accountRoster.slice();
+      if (this.exoReadFailed) {
+        roster.push({
+          key: 'exo-calendars',
+          connector: null,
+          label: this.$t('agenda.contemporaryEvents.exoCalendarsUnreachable'),
+          stateClass: 'contemporary-events-account-unreachable',
+          warning: true,
+        });
+      }
+      return roster;
+    },
+    /**
+     * Whether some source did not answer the last read — an account that
+     * failed or whose session expired, or eXo's own calendars. An empty list
+     * then means "nothing on the sources that could be checked", never
+     * "nothing".
+     *
+     * @returns {Boolean} true when a source could not be asked or answered
+     */
+    hasUnansweredSource() {
+      return this.sourceRoster.some(account => account.warning);
     },
     /**
      * Whether the "nothing found" message may be shown at all: never while a
@@ -261,15 +322,61 @@ export default {
      * @returns {String} the empty-state sentence
      */
     emptyStateLabel() {
-      return this.hasUnansweredAccount
+      return this.hasUnansweredSource
         ? this.$t('agenda.contemporaryEvents.noEventsPartial')
         : this.$t('agenda.contemporaryEvents.noEvents');
     },
     hasRemoteEvents() {
       return this.displayedRemoteEvents && this.displayedRemoteEvents.length;
     },
+    /**
+     * The two sources folded into one list, without double-counting the
+     * meetings both of them hold.
+     *
+     * <p>
+     * The identity that spans the two is the remote object's own identifier
+     * together with the occurrence's start: an event imported into an eXo
+     * calendar records the UID of the object it was imported from, and an
+     * eXo event pushed to an account records the identifier the account
+     * issued for it — in both cases the very identifier the live read returns
+     * as the event's <code>id</code>. Start is part of the key because the
+     * occurrences of a recurring series all share that identifier.
+     *
+     * <p>
+     * The key is deliberately NOT scoped by provider name. A materialised
+     * event records the constant <code>agenda.caldavCalendar</code>, while a
+     * multi-server CalDAV account is bound under its own server's provider
+     * name, so scoping would stop matching exactly where materialisation is
+     * used. Nothing is lost by leaving it out: a UID is unique by
+     * specification and a provider-issued identifier is an opaque token, so
+     * two unrelated events sharing one AND starting at the same instant is
+     * not a case that exists.
+     *
+     * <p>
+     * When both sources hold the meeting, the eXo copy is the one kept — it
+     * is the copy the viewer can act on, and keeping it makes a meeting that
+     * happens to be readable twice render exactly like the ordinary
+     * materialised one instead of depending on which read landed.
+     *
+     * @returns {Array} the events of both sources, each of them once
+     */
+    scheduledEvents() {
+      const exoEvents = (this.exoEvents || []).filter(exoEvent => !this.isCurrentEvent(exoEvent));
+      const knownRemoteOccurrences = new Set();
+      exoEvents.forEach(exoEvent => {
+        const key = this.exoRemoteOccurrenceKey(exoEvent);
+        if (key) {
+          knownRemoteOccurrences.add(key);
+        }
+      });
+      const liveEvents = (this.remoteEvents || []).filter(remoteEvent => {
+        const key = this.liveOccurrenceKey(remoteEvent);
+        return !key || !knownRemoteOccurrences.has(key);
+      });
+      return exoEvents.concat(liveEvents);
+    },
     displayedRemoteEvents() {
-      const remoteEventsToDisplay = this.remoteEvents && this.remoteEvents.slice() || [];
+      const remoteEventsToDisplay = this.scheduledEvents.slice();
       // Avoid to have same event from remote and local store (pushed events from local store)
       if (remoteEventsToDisplay.length) {
         // Only a copy of THIS event is dropped. The identifiers are compared
@@ -307,7 +414,9 @@ export default {
      */
     event() {
       this.remoteEvents = [];
+      this.exoEvents = [];
       this.failedConnectors = [];
+      this.exoReadFailed = false;
       this.refreshRemoteEvents();
     },
   },
@@ -319,34 +428,39 @@ export default {
     openPersonalCalendarDrawer() {
       this.$root.$emit('agenda-connectors-drawer-open');
     },
-    refreshRemoteEvents() {
-      this.retrieveRemoteEvents();
-    },
     /**
-     * Fetches what every signed-in connected account holds around the event's
-     * days and merges it into one deduplicated list, each entry tagged with
-     * the account it came from.
-     *
-     * <p>
-     * An account that fails is recorded as failed rather than folded in as an
-     * account holding nothing: those two are different answers and the panel
-     * says which one it got.
+     * Re-reads both sources for the event on screen under one request id, so
+     * that a read landing after the dialog moved on is dropped whichever
+     * source it came from.
      *
      * @returns {void}
      */
-    retrieveRemoteEvents() {
-      const connectors = this.signedInConnectors;
-      // The window is derived from the event, never written back into it: the
-      // prop's Date objects belong to the screen showing the event, and
-      // widening them to whole days here moved the event itself.
+    refreshRemoteEvents() {
+      const period = this.readPeriod();
+      // The same guard the left panel uses: the dialog is reused from one
+      // event to the next, and a read that lands after the screen moved on
+      // would describe the previous event's day.
+      const requestId = ++this.eventsRequestId;
+      this.retrieveExoEvents(requestId, period);
+      this.retrieveRemoteEvents(requestId, period);
+    },
+    /**
+     * The whole days the event spans, as the two sources are both asked for
+     * them.
+     *
+     * <p>
+     * Derived from the event, never written back into it: the prop's Date
+     * objects belong to the screen showing the event, and widening them to
+     * whole days here moved the event itself.
+     *
+     * @returns {Object} `{start, end}` in RFC3339, null when the event
+     *          carries no dates to widen
+     */
+    readPeriod() {
       const eventStartDay = this.$agendaUtils.toDate(this.event && this.event.startDate);
       const eventEndDay = this.$agendaUtils.toDate(this.event && this.event.endDate);
-      if (!connectors.length || !eventStartDay || !eventEndDay) {
-        this.eventsRequestId++;
-        this.remoteEvents = [];
-        this.failedConnectors = [];
-        this.loading = false;
-        return;
+      if (!eventStartDay || !eventEndDay) {
+        return null;
       }
 
       // Start of the day of start date
@@ -357,18 +471,112 @@ export default {
       eventEndDay.setHours(23);
       eventEndDay.setMinutes(59);
 
-      const startDateRFC3359 = this.$agendaUtils.toRFC3339(eventStartDay, false, true);
-      const endDateRFC3359 = this.$agendaUtils.toRFC3339(eventEndDay, false, true);
+      return {
+        start: this.$agendaUtils.toRFC3339(eventStartDay, false, true),
+        end: this.$agendaUtils.toRFC3339(eventEndDay, false, true),
+      };
+    },
+    /**
+     * Fetches what eXo's own calendars hold around the event's days.
+     *
+     * <p>
+     * This is the source that answers for a materialised account: once a
+     * remote collection is imported its events ARE eXo events, and the
+     * connector stops reporting them precisely because they were imported —
+     * so a panel asking only the connector reads a stream that is empty by
+     * construction.
+     *
+     * <p>
+     * The existing events endpoint answers it as it stands: it already
+     * filters on the viewer as an attendee and on the response types, and it
+     * already fills `remoteId` on every event that carries one, which is what
+     * the deduplication against the live read needs. Nothing new is added
+     * server-side.
+     *
+     * <p>
+     * A read that fails is recorded as failed, for the same reason an account
+     * that fails is: an empty list must not be able to mean two things.
+     *
+     * @param {Number} requestId the read this answer belongs to
+     * @param {Object} period the days to read, null when the event has none
+     * @returns {void}
+     */
+    retrieveExoEvents(requestId, period) {
+      if (!period) {
+        this.exoEvents = [];
+        this.exoReadFailed = false;
+        this.exoLoading = false;
+        return;
+      }
+      this.exoLoading = true;
+      const attendeeIdentityId = eXo && eXo.env && eXo.env.portal && eXo.env.portal.userIdentityId || null;
+      return this.$eventService.getEvents(
+        null,
+        [],
+        attendeeIdentityId,
+        period.start,
+        period.end,
+        0,
+        SCHEDULED_RESPONSES,
+        '')
+        .then(data => {
+          if (requestId !== this.eventsRequestId) {
+            return;
+          }
+          const events = data && data.events || [];
+          events.forEach(event => {
+            event.startDate = event.start && this.$agendaUtils.toDate(event.start) || null;
+            event.endDate = event.end && this.$agendaUtils.toDate(event.end) || null;
+          });
+          this.exoEvents = events;
+          this.exoReadFailed = false;
+          this.exoLoading = false;
+        })
+        .catch(error => {
+          if (requestId !== this.eventsRequestId) {
+            return;
+          }
+          console.error('Error retrieving events of the user calendars', error);
+          this.exoEvents = [];
+          this.exoReadFailed = true;
+          this.exoLoading = false;
+        });
+    },
+    /**
+     * Fetches what every signed-in connected account holds around the event's
+     * days and merges it into one deduplicated list, each entry tagged with
+     * the account it came from.
+     *
+     * <p>
+     * For a CalDAV account this is now the collections eXo never imported:
+     * the connector already leaves out the ones it materialised, and what
+     * they hold comes from eXo's own calendars instead. For a connector that
+     * materialises nothing — Google, Office 365, Exchange — it stays the
+     * whole account.
+     *
+     * <p>
+     * An account that fails is recorded as failed rather than folded in as an
+     * account holding nothing: those two are different answers and the panel
+     * says which one it got.
+     *
+     * @param {Number} requestId the read this answer belongs to
+     * @param {Object} period the days to read, null when the event has none
+     * @returns {void}
+     */
+    retrieveRemoteEvents(requestId, period) {
+      const connectors = this.signedInConnectors;
+      if (!connectors.length || !period) {
+        this.remoteEvents = [];
+        this.failedConnectors = [];
+        this.remoteLoading = false;
+        return;
+      }
 
-      this.loading = true;
-      // The same guard the left panel uses: the dialog is reused from one
-      // event to the next, and a read that lands after the screen moved on
-      // would describe the previous event's day.
-      const requestId = ++this.eventsRequestId;
+      this.remoteLoading = true;
       // Every signed-in account is asked, and each fails on its own: one
       // unreachable account must not blank the events the others returned
       Promise.all(connectors.map(connector =>
-        connector.getEvents(startDateRFC3359, endDateRFC3359)
+        connector.getEvents(period.start, period.end)
           .then(events => {
             if (events) {
               events.forEach(event => {
@@ -394,7 +602,7 @@ export default {
             .filter(result => result.failed)
             .map(result => result.connector);
           this.remoteEvents = this.$agendaUtils.mergeRemoteEvents(resultsByConnector.filter(result => !result.failed));
-          this.loading = false;
+          this.remoteLoading = false;
           this.resolveRemoteCalendarNames(requestId);
         });
     },
@@ -427,6 +635,96 @@ export default {
       });
     },
     /**
+     * Whether an event read from eXo's own calendars is the event the panel
+     * is describing — which the list carries once, of its own accord, and
+     * must not carry twice.
+     *
+     * <p>
+     * A computed occurrence of a recurring series carries no id of its own —
+     * the endpoint sends it as zero, with the series as its parent — so the
+     * series answers for it. The start is compared alongside, because the
+     * occurrences of that series all share it: another occurrence of this
+     * very series, on this very day, is a different row and has to survive.
+     *
+     * @param {Object} exoEvent an event of the viewer's own calendars
+     * @returns {Boolean} true when the row would repeat the current event
+     */
+    isCurrentEvent(exoEvent) {
+      const identity = this.eventIdentity(this.event);
+      return !!identity && this.eventIdentity(exoEvent) === identity;
+    },
+    /**
+     * What identifies one occurrence among eXo's own events: the event's id,
+     * or the series' id when the event is a computed occurrence, together
+     * with the start that tells the siblings apart.
+     *
+     * @param {Object} event an event of the viewer's own calendars
+     * @returns {String} the identity, empty when the event carries no id
+     */
+    eventIdentity(event) {
+      const eventId = event && (event.id || event.parent && event.parent.id);
+      if (!eventId) {
+        return '';
+      }
+      return `${eventId}|${this.startInstant(event)}`;
+    },
+    /**
+     * The instant a row starts at, as a comparable value.
+     *
+     * <p>
+     * An all-day event is keyed on its calendar day rather than on an
+     * instant: the two sources spell the start of a whole day differently
+     * (one with the day's midnight in the viewer's zone, the other with a
+     * date alone), and comparing those as instants would make the same
+     * all-day meeting look like two.
+     *
+     * @param {Object} event an event from either source
+     * @returns {String} the key, empty when the event carries no start
+     */
+    startInstant(event) {
+      const start = event && this.$agendaUtils.toDate(event.start || event.startDate);
+      if (!start) {
+        return '';
+      }
+      if (event.allDay) {
+        return `${start.getFullYear()}-${start.getMonth() + 1}-${start.getDate()}`;
+      }
+      return String(start.getTime());
+    },
+    /**
+     * The identity an event of eXo's own calendars shares with the live read,
+     * when it has one: the identifier of the remote object it was imported
+     * from, or the one the account issued when it was pushed there.
+     *
+     * <p>
+     * A computed occurrence carries no mapping of its own — the endpoint
+     * records it on the series — so the parent's identifier answers for it,
+     * separated from its siblings by the start.
+     *
+     * @param {Object} exoEvent an event of the viewer's own calendars
+     * @returns {String} the key, empty when the event has no remote identity
+     */
+    exoRemoteOccurrenceKey(exoEvent) {
+      const remoteId = exoEvent && (exoEvent.remoteId || exoEvent.parent && exoEvent.parent.remoteId);
+      if (!remoteId) {
+        return '';
+      }
+      return `${remoteId}|${this.startInstant(exoEvent)}`;
+    },
+    /**
+     * The same identity read off a live event, whose `id` is the identifier
+     * the account knows it by.
+     *
+     * @param {Object} remoteEvent an event as its account returned it
+     * @returns {String} the key, empty when the event carries no identifier
+     */
+    liveOccurrenceKey(remoteEvent) {
+      if (!remoteEvent || !remoteEvent.id) {
+        return '';
+      }
+      return `${remoteEvent.id}|${this.startInstant(remoteEvent)}`;
+    },
+    /**
      * Identifies a collection across the accounts on display: the same href
      * read from two accounts is not the same collection.
      *
@@ -454,6 +752,15 @@ export default {
     remoteEventTitle(remoteEvent) {
       const key = this.remoteCalendarKey(remoteEvent);
       if (!key) {
+        // A row from eXo's own calendars keeps the same promise by the means
+        // available to it: the events endpoint already names the calendar the
+        // event is in, so no second call is needed to say where it lives. A
+        // calendar with no title of its own — the personal one, named after
+        // its owner elsewhere in the UI — adds nothing rather than a blank.
+        const exoCalendarName = remoteEvent && remoteEvent.calendar && remoteEvent.calendar.title;
+        if (exoCalendarName) {
+          return this.$t('agenda.contemporaryEvents.rowExoCalendar', {0: remoteEvent.summary || '', 1: exoCalendarName});
+        }
         return remoteEvent && remoteEvent.summary || '';
       }
       const resolvedName = this.resolvedCalendarNames[key];
