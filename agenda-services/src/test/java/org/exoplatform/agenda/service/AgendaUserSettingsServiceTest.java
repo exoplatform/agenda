@@ -21,12 +21,17 @@ import static org.junit.Assert.*;
 import java.util.Collections;
 
 import org.apache.commons.lang3.StringUtils;
+import org.exoplatform.agenda.constant.AvailabilitySharing;
 import org.exoplatform.agenda.constant.ReminderPeriodType;
 import org.exoplatform.agenda.model.AgendaConnectorAccount;
 import org.exoplatform.agenda.model.AgendaUserSettings;
 import org.exoplatform.agenda.model.EventReminderParameter;
 import org.exoplatform.agenda.model.RemoteProvider;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.commons.api.settings.SettingService;
+import org.exoplatform.commons.api.settings.SettingValue;
+import org.exoplatform.commons.api.settings.data.Context;
+import org.exoplatform.commons.api.settings.data.Scope;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.services.organization.OrganizationService;
 import org.exoplatform.services.organization.UserProfile;
@@ -168,4 +173,72 @@ public class AgendaUserSettingsServiceTest extends BaseAgendaEventTest {
     String storedProviderId = agendaUserSettingsService.getEmbedMapProvider();
     assertNull(storedProviderId);
   }
+
+  /**
+   * A user who never touched the setting shares with the people they are in a
+   * space with. Pinned against the real settings store, not a mock: "nothing
+   * stored" is a state only the store can produce, and it is the state every
+   * user is in on the day this ships.
+   *
+   * @throws Exception when the container misbehaves
+   */
+  @Test
+  public void testAvailabilitySharingDefaultsToSharedSpaces() throws Exception { // NOSONAR
+    assertEquals(AvailabilitySharing.SHARED_SPACES, agendaUserSettingsService.getAvailabilitySharing(56222l));
+  }
+
+  /**
+   * The choice survives a real write and a real read, and it is stored beside
+   * the settings blob rather than inside it — so saving the blob afterwards
+   * cannot take it with it.
+   *
+   * @throws Exception when the container misbehaves
+   */
+  @Test
+  public void testSaveAndReadAvailabilitySharing() throws Exception { // NOSONAR
+    agendaUserSettingsService.saveAvailabilitySharing(56223l, AvailabilitySharing.NOBODY);
+    assertEquals(AvailabilitySharing.NOBODY, agendaUserSettingsService.getAvailabilitySharing(56223l));
+
+    AgendaUserSettings settings = agendaUserSettingsService.getAgendaUserSettings(56223l);
+    agendaUserSettingsService.saveAgendaUserSettings(56223l, settings);
+    assertEquals("saving the settings blob must not reset a disclosure choice it does not carry",
+                 AvailabilitySharing.NOBODY,
+                 agendaUserSettingsService.getAvailabilitySharing(56223l));
+
+    agendaUserSettingsService.saveAvailabilitySharing(56223l, AvailabilitySharing.EVERYONE);
+    assertEquals(AvailabilitySharing.EVERYONE, agendaUserSettingsService.getAvailabilitySharing(56223l));
+  }
+
+  /**
+   * A stored value nobody can make sense of is read as "nobody", not as the
+   * default: absence means the user never chose, a corrupt value means the
+   * store is broken, and a broken store must never be the reason someone's
+   * calendar opens up.
+   *
+   * @throws Exception when the container misbehaves
+   */
+  @Test
+  public void testUnknownStoredAvailabilitySharingIsReadAsNobody() throws Exception { // NOSONAR
+    SettingService settingService = CommonsUtils.getService(SettingService.class);
+    settingService.set(Context.USER.id("56224"),
+                       Scope.APPLICATION.id("Agenda"),
+                       "shareAvailability",
+                       SettingValue.create("everybody-in-the-world"));
+
+    assertEquals(AvailabilitySharing.NOBODY, agendaUserSettingsService.getAvailabilitySharing(56224l));
+  }
+
+  /**
+   * The setting is per user, so one user's choice never answers for another.
+   *
+   * @throws Exception when the container misbehaves
+   */
+  @Test
+  public void testAvailabilitySharingIsPerUser() throws Exception { // NOSONAR
+    agendaUserSettingsService.saveAvailabilitySharing(56225l, AvailabilitySharing.NOBODY);
+
+    assertEquals(AvailabilitySharing.NOBODY, agendaUserSettingsService.getAvailabilitySharing(56225l));
+    assertEquals(AvailabilitySharing.SHARED_SPACES, agendaUserSettingsService.getAvailabilitySharing(56226l));
+  }
+
 }

@@ -27,9 +27,10 @@ import lombok.NoArgsConstructor;
  * availability the asking user is allowed to read.
  * <p>
  * The report is deliberately partial and says so. Availability is readable
- * only where the platform calendar ACL allows it, so an attendee the asker
- * cannot read is neither reported busy nor assumed free: their identifier is
- * listed in {@link #getNotDisclosedIdentityIds()} and left out of
+ * only where the platform calendar ACL allows it, or where the attendee's own
+ * sharing setting opens it to the asker, so an attendee the asker cannot read
+ * is neither reported busy nor assumed free: their identifier is listed in
+ * {@link #getNotDisclosedIdentityIds()} and left out of
  * {@link #getConflicts()}. A caller that presents this to a user must say that
  * those attendees were not checked, rather than imply they are available.
  */

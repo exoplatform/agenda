@@ -37,6 +37,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import org.exoplatform.agenda.constant.AvailabilitySharing;
 import org.exoplatform.agenda.constant.EventAvailability;
 import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.model.AvailabilityConflicts;
@@ -44,8 +45,10 @@ import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventDateOption;
 import org.exoplatform.agenda.model.TimeBlock;
 import org.exoplatform.agenda.model.UserAvailability;
+import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 
 /**
@@ -62,6 +65,10 @@ class AgendaAvailabilityServiceImplTest {
 
   private static final long             COLLEAGUE    = 400L;
 
+  private static final long             STRANGER     = 700L;
+
+  private static final long             SPACE        = 900L;
+
   private static final ZonedDateTime    WINDOW_START = ZonedDateTime.of(2026, 7, 20, 8, 0, 0, 0, ZoneOffset.UTC);
 
   private static final ZonedDateTime    WINDOW_END   = ZonedDateTime.of(2026, 7, 20, 20, 0, 0, 0, ZoneOffset.UTC);
@@ -72,6 +79,8 @@ class AgendaAvailabilityServiceImplTest {
 
   private SpaceService                  spaceService;
 
+  private AgendaUserSettingsService     agendaUserSettingsService;
+
   private AgendaAvailabilityServiceImpl availabilityService;
 
   @BeforeEach
@@ -79,9 +88,17 @@ class AgendaAvailabilityServiceImplTest {
     agendaEventService = Mockito.mock(AgendaEventService.class);
     identityManager = Mockito.mock(IdentityManager.class);
     spaceService = Mockito.mock(SpaceService.class);
-    availabilityService = new AgendaAvailabilityServiceImpl(agendaEventService, identityManager, spaceService);
+    agendaUserSettingsService = Mockito.mock(AgendaUserSettingsService.class);
+    availabilityService = new AgendaAvailabilityServiceImpl(agendaEventService,
+                                                            identityManager,
+                                                            spaceService,
+                                                            agendaUserSettingsService);
     mockUser(ASKER);
     mockUser(COLLEAGUE);
+    mockUser(STRANGER);
+    // Nobody shares anything and nobody shares a space, unless a test says so.
+    // A test that widens says exactly what it widens.
+    when(agendaUserSettingsService.getAvailabilitySharing(anyLong())).thenReturn(AvailabilitySharing.NOBODY);
   }
 
   // --- the gate ---------------------------------------------------------------
@@ -126,20 +143,22 @@ class AgendaAvailabilityServiceImplTest {
   }
 
   @Test
-  void theEventServiceIsAskedAsTheAskingUserNotAsTheTarget() throws Exception {
-    when(agendaEventService.getEvents(any(), eq(ZoneOffset.UTC), eq(ASKER))).thenReturn(List.of());
+  void theEventServiceIsAskedAsTheTargetOnceTheGateHasAllowedTheRead() throws Exception {
+    sharing(COLLEAGUE, AvailabilitySharing.EVERYONE);
+    when(agendaEventService.getEvents(any(), eq(ZoneOffset.UTC), eq(COLLEAGUE))).thenReturn(List.of(busyEvent(9, 10)));
 
-    availabilityService.getAvailability(List.of(ASKER), WINDOW_START, WINDOW_END, ASKER);
+    availabilityService.getAvailability(List.of(COLLEAGUE), WINDOW_START, WINDOW_END, ASKER);
 
-    // The asker is passed as the acting user, so the event service's own
-    // attendee check is a real second gate rather than a comparison of the
-    // target with itself.
-    //
-    // Note this assertion cannot currently tell the two apart: while the rule
-    // is "your own availability only", asker and target are always equal, so
-    // passing the target here would still satisfy it. It is defence in depth
-    // for the day the rule widens, not a pin that a mutation would kill.
-    verify(agendaEventService).getEvents(argThat(filter -> filter.getAttendeeId() == ASKER), eq(ZoneOffset.UTC), eq(ASKER));
+    // The target, not the asker, is the acting user of the underlying event
+    // read, because AgendaEventServiceImpl.getEvents refuses an attendee
+    // filter naming anyone but its acting user - which would refuse every
+    // disclosure this feature exists to allow. EXO-89841 passed the asker
+    // here as a second gate; that second gate is spent, and what replaced it
+    // is that this read is unreachable except through the gate above, which
+    // the refusal tests pin.
+    verify(agendaEventService).getEvents(argThat(filter -> filter.getAttendeeId() == COLLEAGUE),
+                                         eq(ZoneOffset.UTC),
+                                         eq(COLLEAGUE));
   }
 
   @Test
@@ -163,6 +182,167 @@ class AgendaAvailabilityServiceImplTest {
                                                               false,
                                                               100,
                                                               ASKER));
+  }
+
+  // --- the sharing setting widens the gate, and only widens it ----------------
+
+  @Test
+  void aColleagueSharingWithNobodyIsRefusedEvenInsideASharedSpace() throws Exception {
+    sharing(COLLEAGUE, AvailabilitySharing.NOBODY);
+    membersOfASameSpace("user400", "user5");
+    // Fully stubbed on purpose: with the refusal dropped this returns an
+    // availability, so it is the assertion below that fails, not an NPE.
+    when(agendaEventService.getEvents(any(), any(), anyLong())).thenReturn(List.of(busyEvent(9, 10)));
+
+    assertThrows(IllegalAccessException.class,
+                 () -> availabilityService.getAvailability(List.of(COLLEAGUE), WINDOW_START, WINDOW_END, ASKER));
+  }
+
+  @Test
+  void aColleagueSharingWithinSpacesIsReadableBySomeoneInOneOfThem() throws Exception {
+    sharing(COLLEAGUE, AvailabilitySharing.SHARED_SPACES);
+    membersOfASameSpace("user400", "user5");
+    when(agendaEventService.getEvents(any(), eq(ZoneOffset.UTC), eq(COLLEAGUE))).thenReturn(List.of(busyEvent(9, 10)));
+
+    List<UserAvailability> result = availabilityService.getAvailability(List.of(COLLEAGUE), WINDOW_START, WINDOW_END, ASKER);
+
+    assertEquals(1, result.size());
+    assertEquals(COLLEAGUE, result.get(0).getIdentityId());
+    assertEquals(1, result.get(0).getBusy().size(), "a colleague sharing inside their spaces must be readable there");
+  }
+
+  @Test
+  void aColleagueSharingWithinSpacesIsRefusedToSomeoneOutsideThemAll() throws Exception {
+    sharing(COLLEAGUE, AvailabilitySharing.SHARED_SPACES);
+    when(spaceService.getCommonSpaces("user400", "user700")).thenReturn(listAccessOf());
+    when(agendaEventService.getEvents(any(), any(), anyLong())).thenReturn(List.of(busyEvent(9, 10)));
+
+    assertThrows(IllegalAccessException.class,
+                 () -> availabilityService.getAvailability(List.of(COLLEAGUE), WINDOW_START, WINDOW_END, STRANGER));
+  }
+
+  @Test
+  void merelyBeingInvitedToASpaceIsNotSharingOne() throws Exception {
+    sharing(COLLEAGUE, AvailabilitySharing.SHARED_SPACES);
+    // The platform's common-spaces query joins memberships of ANY status, so
+    // a space the stranger has only been invited to - or has asked to join -
+    // comes back as common. Trusting it alone would hand the busy time of
+    // everyone in a space to anyone who knocked on its door.
+    Space space = commonSpaceOf("user400", "user700");
+    when(spaceService.isMember(space, "user400")).thenReturn(true);
+    when(spaceService.isMember(space, "user700")).thenReturn(false);
+    when(agendaEventService.getEvents(any(), any(), anyLong())).thenReturn(List.of(busyEvent(9, 10)));
+
+    assertThrows(IllegalAccessException.class,
+                 () -> availabilityService.getAvailability(List.of(COLLEAGUE), WINDOW_START, WINDOW_END, STRANGER));
+  }
+
+  @Test
+  void aColleagueSharingWithEveryoneIsReadableByAStranger() throws Exception {
+    sharing(COLLEAGUE, AvailabilitySharing.EVERYONE);
+    when(spaceService.getCommonSpaces("user400", "user700")).thenReturn(listAccessOf());
+    when(agendaEventService.getEvents(any(), eq(ZoneOffset.UTC), eq(COLLEAGUE))).thenReturn(List.of(busyEvent(9, 10)));
+
+    List<UserAvailability> result = availabilityService.getAvailability(List.of(COLLEAGUE), WINDOW_START, WINDOW_END, STRANGER);
+
+    assertEquals(1, result.get(0).getBusy().size());
+  }
+
+  @Test
+  void theSettingConsultedIsTheTargetsOwnNotTheAskersOwn() throws Exception {
+    // The asker is the permissive one, the target the private one. Reading the
+    // asker's setting here would let anyone open everyone else's calendar
+    // simply by opening their own.
+    sharing(ASKER, AvailabilitySharing.EVERYONE);
+    sharing(COLLEAGUE, AvailabilitySharing.NOBODY);
+    membersOfASameSpace("user400", "user5");
+    when(agendaEventService.getEvents(any(), any(), anyLong())).thenReturn(List.of(busyEvent(9, 10)));
+
+    assertThrows(IllegalAccessException.class,
+                 () -> availabilityService.getAvailability(List.of(COLLEAGUE), WINDOW_START, WINDOW_END, ASKER));
+  }
+
+  @Test
+  void noPersonalSettingEverOpensASpaceCalendar() throws Exception {
+    // A space owner has no sharing setting of its own; if the code asked for
+    // one anyway it would get the permissive default of whatever it looked up.
+    mockSpace(SPACE);
+    sharing(SPACE, AvailabilitySharing.EVERYONE);
+    when(spaceService.getSpaceByPrettyName("space900")).thenReturn(null);
+    when(spaceService.canViewSpace(null, "user5")).thenReturn(false);
+    when(agendaEventService.getEvents(any(), any(), anyLong())).thenReturn(List.of(busyEvent(9, 10)));
+
+    assertThrows(IllegalAccessException.class,
+                 () -> availabilityService.getAvailability(List.of(SPACE), WINDOW_START, WINDOW_END, ASKER),
+                 "the calendar ACL alone decides for a space, whatever any personal setting says");
+  }
+
+  @Test
+  void suggestingATimeWithOneAttendeeWhoSharesNothingIsRefused() throws Exception {
+    sharing(COLLEAGUE, AvailabilitySharing.NOBODY);
+    membersOfASameSpace("user400", "user5");
+    when(agendaEventService.getEvents(any(), any(), anyLong())).thenReturn(List.of());
+
+    assertThrows(IllegalAccessException.class,
+                 () -> availabilityService.suggestMeetingTime(List.of(ASKER, COLLEAGUE),
+                                                              Duration.ofMinutes(30),
+                                                              WINDOW_START,
+                                                              WINDOW_END,
+                                                              false,
+                                                              false,
+                                                              100,
+                                                              ASKER),
+                 "an attendee who shares nothing is unknown, and a slot must not be proposed over an unknown");
+  }
+
+  @Test
+  void suggestingATimeWithASharingAttendeeAvoidsTheirBusyBlock() throws Exception {
+    sharing(COLLEAGUE, AvailabilitySharing.SHARED_SPACES);
+    membersOfASameSpace("user400", "user5");
+    when(agendaEventService.getEvents(any(), eq(ZoneOffset.UTC), eq(ASKER))).thenReturn(List.of());
+    when(agendaEventService.getEvents(any(), eq(ZoneOffset.UTC), eq(COLLEAGUE))).thenReturn(List.of(busyEvent(8, 19)));
+
+    List<TimeBlock> slots = availabilityService.suggestMeetingTime(List.of(ASKER, COLLEAGUE),
+                                                                   Duration.ofMinutes(30),
+                                                                   WINDOW_START,
+                                                                   WINDOW_END,
+                                                                   false,
+                                                                   false,
+                                                                   100,
+                                                                   ASKER);
+
+    assertEquals(2, slots.size(), "only the hour the colleague is free is left, as two half-hour slots");
+    assertEquals(at(19), slots.get(0).getStart());
+  }
+
+  @Test
+  void anAttendeeWhoSharesNothingIsNamedNotDisclosedRatherThanFoundFree() throws Exception {
+    sharing(COLLEAGUE, AvailabilitySharing.NOBODY);
+    membersOfASameSpace("user400", "user5");
+    when(agendaEventService.getEvents(any(), eq(ZoneOffset.UTC), eq(ASKER))).thenReturn(List.of());
+    when(agendaEventService.getEvents(any(), eq(ZoneOffset.UTC), eq(COLLEAGUE))).thenReturn(List.of(busyEvent(9, 10)));
+
+    AvailabilityConflicts report = availabilityService.getConflicts(List.of(ASKER, COLLEAGUE), at(9), at(10), ASKER);
+
+    assertEquals(List.of(COLLEAGUE),
+                 report.getNotDisclosedIdentityIds(),
+                 "a refusal must be reported as not disclosed, never collapsed into 'nothing in the way'");
+    assertTrue(report.getConflicts().isEmpty());
+  }
+
+  @Test
+  void anAttendeeWhoSharesInSpacesIsCheckedAndReportedBusy() throws Exception {
+    sharing(COLLEAGUE, AvailabilitySharing.SHARED_SPACES);
+    membersOfASameSpace("user400", "user5");
+    when(agendaEventService.getEvents(any(), eq(ZoneOffset.UTC), eq(ASKER))).thenReturn(List.of());
+    when(agendaEventService.getEvents(any(), eq(ZoneOffset.UTC), eq(COLLEAGUE))).thenReturn(List.of(busyEvent(9, 10)));
+
+    AvailabilityConflicts report = availabilityService.getConflicts(List.of(ASKER, COLLEAGUE), at(9), at(10), ASKER);
+
+    assertTrue(report.getNotDisclosedIdentityIds().isEmpty());
+    assertEquals(1, report.getConflicts().size());
+    assertEquals(COLLEAGUE, report.getConflicts().get(0).getIdentityId());
+    assertFalse(report.isAllAvailable());
   }
 
   // --- what "busy" means ------------------------------------------------------
@@ -243,6 +423,85 @@ class AgendaAvailabilityServiceImplTest {
   }
 
   // --- helpers ----------------------------------------------------------------
+
+  /**
+   * Declares how widely a user shares their busy time.
+   *
+   * @param identityId the user whose choice is declared
+   * @param sharing the choice
+   */
+  private void sharing(long identityId, AvailabilitySharing sharing) {
+    when(agendaUserSettingsService.getAvailabilitySharing(identityId)).thenReturn(sharing);
+  }
+
+  /**
+   * Declares that two users are in a same space and are both really members
+   * of it — what the shared-spaces rule actually requires.
+   *
+   * @param firstUsername remote id of one user
+   * @param secondUsername remote id of the other
+   */
+  private void membersOfASameSpace(String firstUsername, String secondUsername) {
+    Space space = commonSpaceOf(firstUsername, secondUsername);
+    when(spaceService.isMember(space, firstUsername)).thenReturn(true);
+    when(spaceService.isMember(space, secondUsername)).thenReturn(true);
+  }
+
+  /**
+   * Declares that a space is returned as "common" to two users, without
+   * saying anything about whether either of them is a member of it — which is
+   * what the platform query behind getCommonSpaces actually reports, since it
+   * joins memberships of any status, invitations and join requests included.
+   *
+   * @param firstUsername remote id of one user
+   * @param secondUsername remote id of the other
+   * @return the space the lookup returns
+   */
+  private Space commonSpaceOf(String firstUsername, String secondUsername) {
+    Space space = new Space();
+    space.setId("42");
+    space.setPrettyName("common");
+    when(spaceService.getCommonSpaces(firstUsername, secondUsername)).thenReturn(listAccessOf(space));
+    when(spaceService.getCommonSpaces(secondUsername, firstUsername)).thenReturn(listAccessOf(space));
+    return space;
+  }
+
+  /**
+   * Wraps spaces in the ListAccess the space service hands back.
+   *
+   * @param spaces the spaces the list holds
+   * @return a list access over them
+   */
+  private ListAccess<Space> listAccessOf(Space... spaces) {
+    return new ListAccess<>() {
+      @Override
+      public Space[] load(int offset, int limit) {
+        return spaces;
+      }
+
+      @Override
+      public int getSize() {
+        return spaces.length;
+      }
+    };
+  }
+
+  /**
+   * Mocks a space identity, which is what a space calendar's owner resolves
+   * to.
+   *
+   * @param identityId the space identity's technical id
+   * @return the mocked identity
+   */
+  private Identity mockSpace(long identityId) {
+    Identity identity = Mockito.mock(Identity.class);
+    when(identity.getId()).thenReturn(String.valueOf(identityId));
+    when(identity.isUser()).thenReturn(false);
+    when(identity.isSpace()).thenReturn(true);
+    when(identity.getRemoteId()).thenReturn("space" + identityId);
+    when(identityManager.getIdentity(String.valueOf(identityId))).thenReturn(identity);
+    return identity;
+  }
 
   private Identity mockUser(long identityId) {
     Identity identity = Mockito.mock(Identity.class);

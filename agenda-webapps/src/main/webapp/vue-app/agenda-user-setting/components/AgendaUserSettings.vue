@@ -50,6 +50,10 @@ const OWN_ROWS = [
   {id: 'general', rank: 10, vueComponent: 'agenda-user-general-settings'},
   {id: 'connector', rank: 20, vueComponent: 'agenda-user-connector-settings'},
   {id: 'push', rank: 40, vueComponent: 'agenda-user-push-settings'},
+  // Right after the copy switch and before the other-accounts section: both
+  // rows above are about what eXo does with this user's own calendar, and who
+  // may see when that calendar is busy is the same subject.
+  {id: 'availability-sharing', rank: 45, vueComponent: 'agenda-user-availability-sharing-settings'},
   // Last, and behind a rule: every row above is about the user's own
   // calendars and what eXo does with them. Other accounts are a different
   // subject, and putting them between the account and its copy switch made

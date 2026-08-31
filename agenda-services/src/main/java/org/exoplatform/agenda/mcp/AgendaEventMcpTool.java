@@ -690,10 +690,11 @@ public class AgendaEventMcpTool implements McpToolPlugin {
   /**
    * Returns each named user's busy and free time blocks over a window.
    * <p>
-   * Glue only: usernames and RFC3339 bounds are resolved here, the ACL and the
-   * free/busy algebra belong to {@link AgendaAvailabilityService}. Asking
-   * about a user whose availability the caller may not read is refused, not
-   * silently omitted.
+   * Glue only: usernames and RFC3339 bounds are resolved here, the ACL, the
+   * sharing setting and the free/busy algebra all belong to
+   * {@link AgendaAvailabilityService}. Asking about a user who does not
+   * disclose their busy time to the caller is refused, not silently omitted:
+   * an omitted user would read as one with nothing in their calendar.
    *
    * @param usernames the users to report on
    * @param start window start, RFC3339
@@ -727,8 +728,10 @@ public class AgendaEventMcpTool implements McpToolPlugin {
    * every attendee is free.
    * <p>
    * Glue only. Note that this refuses outright when one attendee's
-   * availability is not readable by the caller: a suggestion computed from a
-   * subset of the attendees would read as a whole answer.
+   * availability is not disclosed to the caller — whether because the calendar
+   * ACL says so or because that attendee shares their busy time more narrowly:
+   * a suggestion computed from a subset of the attendees would read as a whole
+   * answer.
    *
    * @param attendees the users who must all be free
    * @param durationMinutes the wanted slot length, in minutes
