@@ -6,13 +6,14 @@
     }"
     class="v-event-draggable remote-event rounded v-event-draggable-parent">
     <p
-      :title="remoteEvent.summary"
+      :title="rowTitle"
       :class="textClass"
       class="text-truncate-2 my-auto ms-2 caption font-weight-bold">
       {{ remoteEvent.summary }}
     </p>
     <template v-if="!displayEventDate">
       <agenda-connector-avatar
+        v-if="connector"
         :connector="connector"
         class="me-1 my-auto"
         size="16" />
@@ -30,7 +31,7 @@
         :class="textClass"
         class="v-event-draggable me-2" />
       <agenda-connector-avatar
-        v-if="!currentEvent"
+        v-if="connector && !currentEvent"
         :connector="connector"
         class="white ms-auto me-1"
         size="16" />
@@ -57,6 +58,14 @@ export default {
       type: Boolean,
       default: false
     },
+    /*
+     * What the row says on hover. Left empty by the surfaces that have
+     * nothing to add, which then keeps the event's own title.
+     */
+    hoverTitle: {
+      type: String,
+      default: ''
+    },
   },
   data() {
     return {
@@ -67,6 +76,15 @@ export default {
     };
   },
   computed: {
+    /**
+     * The row's hover text: what the surface hosting the row asked for, else
+     * the event's own title.
+     *
+     * @returns {String} the title attribute of the row
+     */
+    rowTitle() {
+      return this.hoverTitle || this.remoteEvent.summary;
+    },
     currentEvent() {
       return this.event && this.event.id === this.remoteEvent.id;
     },
