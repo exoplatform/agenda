@@ -43,6 +43,72 @@
     }
   }
 
+  /* The destination select of the event form, and one row of it.
+
+     Both are keyed on their own class rather than on the form around them,
+     because neither is confined to one form: the select is mounted by the
+     expanded form and the quick-add drawer (.event-form) AND by the mobile
+     form (.event-form-mobile), and the menu it opens is attached to the
+     application root rather than to any of them. A rule scoped to a form
+     would style one surface, or style the closed control and miss the list
+     it drops down. (The fieldset offset further down IS still scoped to
+     .event-form — pre-existing, and the mobile form does not get it.)
+
+     The .v-application in the chain is there to carry weight, not to narrow
+     anything: the 80% cap below is set by the platform skin as
+     `.VuetifyApp .v-application .v-select__selections`, and an equally
+     specific rule of ours would be decided by which stylesheet the page
+     happens to load second. Matching that chain and adding our own class
+     settles it on specificity instead. */
+  .v-application .agenda-event-form-destination {
+    /* This select is one field in a column of equal fields, and it was the
+       only one whose geometry moved with its content. Measured on the
+       expanded form with a 97-character calendar name: the box grew from 40px
+       to 46px while the title and location inputs above and below it stayed
+       at 40, and the gutter icon that the form centres on its field drifted
+       from level with the box to 4.3px off it — a row visibly out of step
+       with the ones it is stacked against.
+
+       Two defaults produce that. Vuetify keeps a readonly <input> inside
+       `.v-select__selections` at `flex: 1 1 0%`, so it claims a share of a row
+       it will never put text in; a name long enough to crowd it out then wraps
+       it onto a second line, and the wrap is what grows the box. And the
+       platform skin caps `.v-select__selections` at 80% of the control,
+       parking the arrow behind a fifth of the row that nothing can occupy.
+       Between them, 144px of the 500px control withheld from the name — which
+       is why it also broke off far short of the arrow instead of at it.
+
+       So: the name takes the width the input was holding, nothing wraps, and
+       the box is 40px whatever the name is. */
+    .v-select__selections {
+      max-width: 100%;
+      flex-wrap: nowrap;
+    }
+
+    .v-select__selections input {
+      flex: 0 1 0px;
+      width: 0;
+      min-width: 0;
+      padding: 0;
+    }
+
+    /* The arrow gives up no width to a long name: it is the one mark in the
+       row that says the field opens. */
+    .v-input__append-inner {
+      flex: 0 0 auto;
+    }
+  }
+
+  /* One row of that picker — colour dot then calendar name. It takes the line
+     it is given (the selection area of the closed select, or a v-list-item in
+     the menu) and lets the name be the only part that gives way: min-width: 0
+     is what allows a flex item to shrink under its own text, so there is
+     something for the ellipsis to happen in. */
+  .agenda-destination-option {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
   .v-calendar-daily{
     border-top: none !important;
     border-left: @primaryBackground 1px solid !important;
@@ -177,6 +243,29 @@
       }
       label {
         margin-left: 12px;
+      }
+
+      /* A calendar's name is this checkbox's label wherever the row is
+         rendered, and the same three lists are mounted in two places: the
+         left panel and the filter drawer. The ellipsis used to be scoped to
+         the panel, so in the drawer a long name — a connected account
+         publishes its address inside the name — wrapped onto a second line
+         and widened the row instead. Same name, same failure, other
+         direction; the rule belongs on the row, not on one of its two
+         hosts. The panel keeps only its own type scale below. */
+      min-width: 0;
+
+      .v-input__slot {
+        min-width: 0;
+      }
+
+      .v-label {
+        display: block;
+        min-width: 0;
+        max-width: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
     }
     .settingsIcon {
@@ -1158,22 +1247,16 @@
       .agenda-calendar-settings-color {
         margin: 0 !important;
         padding-top: 0;
-        min-width: 0;
 
         .v-input__slot {
-          min-width: 0;
           margin-bottom: 0;
         }
 
-        /* long calendar names must truncate with an ellipsis instead of
-           wrapping or widening the row */
+        /* The panel's own type scale. The ellipsis that keeps a long calendar
+           name from wrapping or widening the row is on the row itself
+           (.agenda-calendar-settings-color, near the top of this file), so
+           the filter drawer's copies of these lists get it too. */
         .v-label {
-          display: block;
-          min-width: 0;
-          max-width: 100%;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
           font-size: 14px;
         }
       }
