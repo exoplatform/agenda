@@ -12,6 +12,18 @@
           :settings="settings"
           :period="period"
           :connectors="enabledConnectors" />
+        <!-- an account that could not be read leaves a week lighter than the
+             real one. The calendar is a view, not a decision, so it states
+             the fact once under the header and names which account is
+             missing rather than interrupting with a dialog -->
+        <div
+          v-if="hasFailedSource"
+          class="d-flex align-center mt-2 text-caption warning--text">
+          <v-icon size="14" class="me-1 warning--text">
+            fa-exclamation-triangle
+          </v-icon>
+          <span class="text-truncate">{{ failedSourceMessage }}</span>
+        </div>
         <agenda-timeline
           v-if="$root.isMobile"
           :events="displayedEvent"
@@ -145,6 +157,13 @@ export default {
     },
     events: [],
     remoteEvents: [],
+    /*
+     * The accounts whose last read failed. Kept apart from the events because
+     * an account that could not answer is not an account that answered
+     * "nothing": without this the week simply looks lighter than it is and
+     * nothing on screen says a source dropped out.
+     */
+    failedConnectors: [],
     hiddenRemoteCalendarIds: [],
     hiddenPersonalCalendarIds: [],
     displayedEvent: [],
@@ -163,6 +182,34 @@ export default {
     leftPanelExpanded: localStorage.getItem('agendaLeftPanelExpanded') !== 'false',
   }),
   computed: {
+    /**
+     * The accounts the calendar could not read, named as the user knows them.
+     *
+     * @returns {Array} one display name per unreachable account
+     */
+    failedSourceNames() {
+      return this.$agendaUtils.failedSourceNames(this.failedConnectors);
+    },
+    /**
+     * Whether the calendar is showing less than it should.
+     *
+     * @returns {Boolean} true when at least one account could not be read
+     */
+    hasFailedSource() {
+      return this.failedSourceNames.length > 0;
+    },
+    /**
+     * What the strip under the header says. The calendar is a view rather
+     * than a decision, so it states the fact and names the accounts, without
+     * the form's warning about what the gap could cost.
+     *
+     * @returns {String} the sentence naming the unread accounts
+     */
+    failedSourceMessage() {
+      return this.$t('agenda.calendarIncomplete', {
+        0: this.failedSourceNames.join(', '),
+      });
+    },
     /**
      * Whether the left panel feature is available in the current context: it
      * is a personal agenda feature, thus hidden inside a space agenda where a
@@ -683,14 +730,21 @@ export default {
             })
             .catch(error => {
               console.error('Error retrieving remote events', connector.name, error);
-              return {connector, events: []};
+              // No events array at all: an account that could not answer must
+              // not reach the calendar as an account that answered "nothing",
+              // which would draw a week lighter than the real one with no
+              // sign that anything is missing.
+              return {connector, failed: true};
             })))
           .then(eventsByConnector => {
-            this.remoteEvents = this.$agendaUtils.mergeRemoteEvents(eventsByConnector);
+            const sources = this.$agendaUtils.splitRemoteEventResults(eventsByConnector);
+            this.remoteEvents = sources.events;
+            this.failedConnectors = sources.failedConnectors;
             this.loading = false;
           });
       } else {
         this.remoteEvents = [];
+        this.failedConnectors = [];
       }
     },
     /**
