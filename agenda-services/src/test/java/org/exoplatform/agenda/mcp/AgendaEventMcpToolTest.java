@@ -62,6 +62,7 @@ import org.exoplatform.agenda.model.EventConference;
 import org.exoplatform.agenda.model.EventDateOption;
 import org.exoplatform.agenda.model.EventReminder;
 import org.exoplatform.agenda.model.EventSearchResult;
+import org.exoplatform.agenda.constant.AvailabilitySharing;
 import org.exoplatform.agenda.service.AgendaAvailabilityServiceImpl;
 import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.agenda.service.AgendaEventAttendeeService;
@@ -155,6 +156,11 @@ class AgendaEventMcpToolTest {
                                                            Mockito.mock(org.exoplatform.services.security.Identity.class);
 
     when(agendaUserSettingsService.getAgendaUserSettings(USER_IDENTITY_ID)).thenReturn(new AgendaUserSettings());
+    // Nobody shares their busy time here: these tests exercise the tools as
+    // glue, and the sharing rule itself is pinned in
+    // AgendaAvailabilityServiceImplTest. Left unstubbed, every gate decision
+    // would rest on a mock's null.
+    when(agendaUserSettingsService.getAvailabilitySharing(anyLong())).thenReturn(AvailabilitySharing.NOBODY);
 
     when(identityManager.getIdentity(String.valueOf(USER_IDENTITY_ID))).thenReturn(currentUserIdentityMock);
     when(currentUserIdentityMock.getId()).thenReturn(String.valueOf(USER_IDENTITY_ID));
@@ -162,7 +168,10 @@ class AgendaEventMcpToolTest {
 
     tool = new AgendaEventMcpTool(agendaCalendarService,
                                   agendaEventService,
-                                  new AgendaAvailabilityServiceImpl(agendaEventService, identityManager, spaceService),
+                                  new AgendaAvailabilityServiceImpl(agendaEventService,
+                                                                    identityManager,
+                                                                    spaceService,
+                                                                    agendaUserSettingsService),
                                   agendaEventConferenceService,
                                   agendaEventAttendeeService,
                                   agendaEventDatePollService,
