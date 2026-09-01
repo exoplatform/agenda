@@ -260,11 +260,32 @@ export default {
           && this.event.calendar.owner.remoteId,
       };
     },
+    /*
+     * The three strings the suggester shows, and they land in three different
+     * places — which is why they are not interchangeable:
+     *
+     *   placeholder       the field itself, before anything is typed. Since
+     *                     EXO-89852 put this field on screen the moment the
+     *                     drawer opens, it is the first thing anybody reads
+     *                     here, so it says what to DO and names all three
+     *                     things the field takes — including the email
+     *                     address, which the field has always accepted
+     *                     through checkGuestInvitation and which no text on
+     *                     this screen used to mention.
+     *   searchPlaceholder the dropdown, before a search has started. Generic,
+     *                     and shared with the calendar-owner and timeline
+     *                     suggesters, so it stays as it is.
+     *   noDataLabel       the dropdown, when a search found nothing. This one
+     *                     is the drawer's OWN key: the shared agenda.noDataLabel
+     *                     says "No agenda found", which is right for the two
+     *                     suggesters that search agendas and wrong for the one
+     *                     searching people.
+     */
     participantSuggesterLabels() {
       return {
         searchPlaceholder: this.$t('agenda.searchPlaceholder'),
         placeholder: this.$t('agenda.attendees.searchPlaceholder'),
-        noDataLabel: this.$t('agenda.noDataLabel'),
+        noDataLabel: this.$t('agenda.attendees.noDataLabel'),
       };
     },
     ignoredMembers() {

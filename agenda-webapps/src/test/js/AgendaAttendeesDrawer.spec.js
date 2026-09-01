@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import {mount} from '@vue/test-utils';
 import AgendaEventFormAttendeesDrawer from '../../main/webapp/vue-app/agenda-common/components/event/form/AgendaEventFormAttendeesDrawer.vue';
 
@@ -103,6 +105,83 @@ function bodyRowOrder(drawer) {
     return `unrecognised:${row.tagName.toLowerCase()}`;
   });
 }
+
+/*
+ * EXO-89852, the three strings the participants suggester shows.
+ *
+ * The field's placeholder read "Search for space or users". Wrong twice over:
+ * it omitted the EMAIL ADDRESS the field has always accepted — typed straight
+ * in and committed on Enter, space or blur by checkGuestInvitation and
+ * saveGuestEmail — and it led with the space, the rarest of the three, ahead
+ * of the user, which is what people reach for.
+ *
+ * Two kinds of pin, because two different edits can break this:
+ *
+ *   - the drawer must read the key it means to read. Three labels go to three
+ *     different places in the suggester and two of the keys are shared with
+ *     suggesters that search AGENDAS, so wiring the wrong one is both easy and
+ *     invisible on the screen that did not change.
+ *   - the English must still name all three things the field takes. That is
+ *     the defect itself, and only the bundle can be asked about it.
+ */
+describe('EXO-89852 — the participants field says what it takes', () => {
+  /**
+   * The shipped _en bundle, as a key/value map.
+   *
+   * Read from the file rather than mocked: the defect being fixed lives in the
+   * bundle, and a test that mocked $t could not see it.
+   *
+   * @returns {Object} every key in Agenda_en.properties
+   */
+  function englishBundle() {
+    const file = path.join(__dirname, '../../main/resources/locale/portlet/Agenda_en.properties');
+    const bundle = {};
+    fs.readFileSync(file, 'utf8').split('\n').forEach(line => {
+      const at = line.indexOf('=');
+      if (at > 0 && !line.startsWith('#')) {
+        bundle[line.slice(0, at)] = line.slice(at + 1);
+      }
+    });
+    return bundle;
+  }
+
+  it('sends each label to the slot it belongs in', () => {
+    const labels = mountDrawer().vm.participantSuggesterLabels;
+
+    expect(labels.placeholder).toBe('agenda.attendees.searchPlaceholder');
+    expect(labels.searchPlaceholder).toBe('agenda.searchPlaceholder');
+    expect(labels.noDataLabel).toBe('agenda.attendees.noDataLabel');
+  });
+
+  /*
+   * The no-data line is the drawer's own key, not the one two agenda
+   * suggesters share: "No agenda found" is right for them and wrong here.
+   */
+  it('does not borrow the agenda suggesters\' no-data line', () => {
+    const labels = mountDrawer().vm.participantSuggesterLabels;
+
+    expect(labels.noDataLabel).not.toBe('agenda.noDataLabel');
+    expect(englishBundle()['agenda.noDataLabel']).toBe('No agenda found');
+  });
+
+  it('names all three things the field accepts, in the order they are reached for', () => {
+    const placeholder = englishBundle()['agenda.attendees.searchPlaceholder'];
+
+    expect(placeholder).toBeDefined();
+    expect(placeholder.toLowerCase()).toContain('user');
+    expect(placeholder.toLowerCase()).toContain('email');
+    expect(placeholder.toLowerCase()).toContain('space');
+    expect(placeholder.toLowerCase().indexOf('user')).toBeLessThan(placeholder.toLowerCase().indexOf('email'));
+    expect(placeholder.toLowerCase().indexOf('email')).toBeLessThan(placeholder.toLowerCase().indexOf('space'));
+  });
+
+  it('answers an empty search in terms of what was searched for', () => {
+    const noData = englishBundle()['agenda.attendees.noDataLabel'];
+
+    expect(noData).toBeDefined();
+    expect(noData.toLowerCase()).not.toContain('agenda');
+  });
+});
 
 describe('EXO-89852 — the participants drawer opens on its search field', () => {
   it('shows the search field as soon as the drawer renders, with no button in the way', () => {
