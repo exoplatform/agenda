@@ -64,6 +64,38 @@
           {{ $t('agenda.button.previous') }}
         </span>
       </v-btn>
+      <!-- ONE slot in the footer, carrying whichever line the step it is on
+           owes the organiser. Two lines, never both at once — one belongs to
+           the details step and one to the date step — so they share a place
+           and a treatment rather than becoming two mechanisms that have to be
+           kept looking alike.
+
+           On step 1 it is the sentence the quick-add drawer deliberately does
+           not carry: the drawer is minimal and gets the name only, while
+           "Suggest several dates" sits here greyed and secondary next to the
+           primary save and would otherwise tell a first-time organiser
+           nothing about what pressing it produces.
+
+           On step 2 it is the instruction that used to sit above the grid,
+           under the busy-coverage report and the failed-source warning. Three
+           stacked informational rows competed with each other and pushed the
+           grid — the thing the organiser came to use — further down the
+           screen. Here it costs the grid no height at all and sits beside the
+           controls about to be pressed. The cost, plainly: it is further from
+           the grid it refers to. "Drag on the calendar" names its own target,
+           so proximity is doing little work here, but it is a real cost and
+           not nothing.
+
+           Below sm the footer's buttons already fill the row, so the line
+           steps aside rather than wrapping them; text-truncate with the whole
+           line on title keeps a narrow window clipping instead of pushing the
+           buttons off the edge. -->
+      <div
+        v-if="footerHint"
+        :title="$t(footerHint)"
+        class="d-none d-sm-flex align-center ms-4 me-2 caption text-light-color text-truncate">
+        {{ $t(footerHint) }}
+      </div>
       <div class="ms-auto me-10">
         <v-btn
           v-if="displaySaveButton"
@@ -124,6 +156,18 @@ export default {
       type: Object,
       default: () => null
     },
+    /*
+     * Open straight on the date step instead of the details step. Set by the
+     * quick-add drawer's "Suggest several dates" link, which has already
+     * collected everything the details step asks for — the drawer gates that
+     * link on isEventDetailsComplete, the very rule disableNextStepButton
+     * applies, so this skips a step the organiser could only have walked
+     * through unchanged.
+     */
+    openDateOptions: {
+      type: Boolean,
+      default: false
+    },
   },
   data () {
     return {
@@ -133,26 +177,18 @@ export default {
     };
   },
   computed: {
-    eventTitle() {
-      return this.event && this.event.summary;
-    },
-    eventTitleValid() {
-      return this.eventTitle && this.eventTitle.length >= 1 && this.eventTitle.length < 1024;
-    },
     eventCalendar() {
       return this.event && this.event.calendar;
     },
     eventOwner() {
       return this.eventCalendar && this.eventCalendar.owner;
     },
-    eventOwnerValid() {
-      return this.eventOwner && (this.eventOwner.id || this.eventOwner.remoteId && this.eventOwner.providerId);
-    },
-    eventDescription() {
-      return this.event && this.event.description || '';
-    },
-    eventDescriptionValid() {
-      return this.$utils.htmlToText(this.eventDescription).length <= 1300;
+    /*
+     * The details step's rule, held in AgendaUtils so the quick-add drawer's
+     * date-poll link can apply the same one instead of restating it.
+     */
+    eventDetailsComplete() {
+      return this.$agendaUtils.isEventDetailsComplete(this.event, this.$utils.htmlToText);
     },
     eventDateOptions() {
       return this.event && this.event.dateOptions || [];
@@ -164,10 +200,33 @@ export default {
       return this.displayTimeInForm || this.stepper > 1;
     },
     disableSaveButton() {
-      return !this.eventTitleValid || !this.eventOwnerValid || !this.eventDescriptionValid || this.eventDateOptionsLength === 0;
+      return !this.eventDetailsComplete || this.eventDateOptionsLength === 0;
     },
     disableNextStepButton() {
-      return !this.eventTitleValid || !this.eventOwnerValid || !this.eventDescriptionValid;
+      return !this.eventDetailsComplete;
+    },
+    /*
+     * The one line the footer carries, as a message key, or nothing.
+     *
+     * The date step's instruction stands until the event actually becomes a
+     * poll — under two options, not under one. An empty grid is not the state
+     * this hint is for: arriving from the quick-add drawer the clicked slot is
+     * already on the grid, so a guard on an empty grid would suppress the hint
+     * on precisely the path that needs it, for the organiser who reached this
+     * step without knowing the feature exists. One slot still means an
+     * ordinary event; the second is the transition, and that is the moment the
+     * line has been obeyed and should go.
+     *
+     * It reads eventDateOptionsLength, the same count saveButtonLabel and
+     * disableSaveButton read and the date step's own added/deleted events keep
+     * current — so hint-present and button-says-Create describe one state, and
+     * the hint goes exactly as the button turns into "Send date poll".
+     */
+    footerHint() {
+      if (this.stepper > 1) {
+        return this.eventDateOptionsLength < 2 && 'agenda.datePoll.dragHint' || '';
+      }
+      return this.displayTimeInForm && 'agenda.datePoll.explanation' || '';
     },
     nextStepClass() {
       return this.displayTimeInForm && 'btn' || 'btn btn-primary';
@@ -237,6 +296,18 @@ export default {
     updateDateOptionsLength() {
       this.eventDateOptionsLength = this.event.dateOptions.length;
     },
+    /**
+     * Puts the form back to the step the caller asked for.
+     *
+     * The stepper is driven to 0 first and only then to its target on the next
+     * tick: the stepper watcher is what re-initialises the event and the
+     * details step, and a v-model assigned its current value would not fire it.
+     * Which target is the caller's choice — 1 for the details step, 2 when the
+     * quick-add drawer already collected the details and asked for the date
+     * step directly.
+     *
+     * @returns {void}
+     */
     reset() {
       if (this.eventCalendar && this.eventCalendar.acl) {
         this.selectedCalendar = this.eventCalendar;
@@ -248,7 +319,7 @@ export default {
       this.eventDateOptionsLength = this.event.dateOptions.length;
 
       this.stepper = 0;
-      this.$nextTick().then(() => this.stepper = 1);
+      this.$nextTick().then(() => this.stepper = this.openDateOptions && 2 || 1);
       this.$forceUpdate();
     },
     previousStep() {

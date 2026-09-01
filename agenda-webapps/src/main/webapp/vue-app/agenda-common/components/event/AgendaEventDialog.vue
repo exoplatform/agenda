@@ -27,6 +27,7 @@
           :settings="settings"
           :event="event"
           :display-time-in-form="displayTimeInForm"
+          :open-date-options="openDateOptions"
           :weekdays="weekdays"
           :current-space="currentSpace"
           :working-time="workingTime"
@@ -101,6 +102,13 @@ export default {
       originalEventString: null,
       isForm: false,
       displayTimeInForm: false,
+      /*
+       * Which step the form should open on. Only the quick-add drawer's
+       * "Suggest several dates" link asks for the date step; every other
+       * caller opens on the details step, and re-opening the dialog must not
+       * inherit the previous opening's answer, so both branches below set it.
+       */
+      openDateOptions: false,
     };
   },
   computed: {
@@ -161,7 +169,7 @@ export default {
       }
     }
     $(document).on('keydown', this.closeByEscape);
-    this.$root.$on('agenda-event-form', (agendaEvent, displayTimeInForm) => {
+    this.$root.$on('agenda-event-form', (agendaEvent, displayTimeInForm, openDateOptions) => {
       this.isNew = agendaEvent.id ? !agendaEvent.id : !agendaEvent.parent || !agendaEvent.parent.id;
       if (this.isNew) {
         if (!this.calendars?.length || (this.calendars[0] && !this.calendars.some(c => c?.acl?.canCreate))) {
@@ -169,10 +177,12 @@ export default {
         }
         this.isForm = true;
         this.displayTimeInForm = !!displayTimeInForm;
+        this.openDateOptions = !!openDateOptions;
         this.openDialog(agendaEvent);
         this.$nextTick().then(() => this.$root.$emit('agenda-event-form-opened', agendaEvent));
       } else {
         this.displayTimeInForm = true;
+        this.openDateOptions = false;
         if (agendaEvent.id) {
           this.openEventForm(agendaEvent.id);
         } else if (agendaEvent.occurrence && agendaEvent.occurrence.id) {
