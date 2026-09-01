@@ -10,20 +10,17 @@
             {{ $t('agenda.contemporaryEvents.title') }}
           </div>
           <v-spacer />
+          <!-- no offer to connect here: this surface's job is to show what the
+               viewer's calendars hold, and since EXO-89839/89840 it does that
+               with no account connected at all. Connecting lives where a user
+               goes to set their agenda up — the left panel and the toolbar —
+               not mid-task on a panel that already has its content (EXO-89896,
+               the same move EXO-89869 made on the event date step). The slot
+               it used to share stays gated as it was: an unconnected viewer
+               is offered the ICS download by the standalone button below the
+               panel, which shows precisely while no account is connected -->
           <v-btn
-            v-if="!hasConnectedAccount"
-            :title="$t('agenda.connectYourPersonalAgenda')"
-            :aria-label="$t('agenda.connectYourPersonalAgenda')"
-            icon
-            max-width="36"
-            max-height="36"
-            @click="openPersonalCalendarDrawer">
-            <v-icon size="20" class="text-light-color">
-              fas fa-plug
-            </v-icon>
-          </v-btn>
-          <v-btn
-            v-else
+            v-if="hasConnectedAccount"
             :aria-label="$t('agenda.icsbutton')"
             :title="$t('agenda.icsbutton')"
             icon
@@ -38,10 +35,11 @@
         <!-- the sources are named here, all of them, each carrying its own
              state: an account that could not be reached, or whose session
              expired, says so next to its own name instead of disappearing
-             into a list the others answered. eXo's own calendars are not an
-             account and hold no standing entry — they appear here only when
-             they could not be read, which is the one thing about them the
-             roster has to say -->
+             into a list the others answered. A source is named by the
+             connector it is bound to and never by the address it is signed in
+             as — see accountRoster. eXo's own calendars are not an account and
+             hold no standing entry — they appear here only when they could not
+             be read, which is the one thing about them the roster has to say -->
         <div
           v-if="sourceRoster.length"
           class="d-flex flex-wrap contemporary-events-accounts">
@@ -66,13 +64,6 @@
               size="16" />
             <span class="text-truncate">{{ account.label }}</span>
           </component>
-        </div>
-        <div
-          v-if="!hasConnectedAccount"
-          class="text-subtitle d-flex">
-          <div class="pe-6">
-            {{ $t('agenda.synchronizeEventsWithPersonalCalendarSubTitle') }}
-          </div>
         </div>
         <template v-if="loading || accountsLoading">
           <v-progress-linear indeterminate />
@@ -201,8 +192,10 @@ export default {
       return (this.connectors || []).filter(connector => connector.connected);
     },
     /**
-     * Whether at least one account is connected: with none, the panel offers
-     * to connect one instead of describing an empty list.
+     * Whether at least one account is connected. It no longer gates what the
+     * panel shows — eXo's own calendars answer either way — only the ICS icon
+     * in the header, which stands in for the standalone download button the
+     * details view hides exactly while an account is connected.
      *
      * @returns {Boolean} true when an account is connected
      */
@@ -240,15 +233,30 @@ export default {
       return this.signedInConnectors.map(connector => connector.name).join('|');
     },
     /**
-     * One entry per connected account, carrying that account's own state:
-     * reachable accounts read as their address, an account that could not be
-     * reached or whose session expired states the fact in its own words.
+     * One entry per connected account, carrying that account's own state: a
+     * reachable account reads as the connector it is bound to, one that could
+     * not be reached or whose session expired states the fact in its own
+     * words.
+     *
+     * <p>
+     * The connector's name, never the address the account is signed in as
+     * (EXO-89896). An address is a detail about a state and not the state
+     * itself — the reasoning EXO-89845 applied to the Suggest dates header —
+     * and it disambiguates nothing here: a connector holds at most one entry
+     * in this list, so its name already tells two accounts apart. The address
+     * stays one click away, on the row of the connectors drawer this roster
+     * opens.
+     *
+     * <p>
+     * The name is read through $t, as the connectors drawer titles its rows:
+     * a connector's name is the key of its own label, and an untranslated one
+     * falls back to itself rather than to nothing.
      *
      * @returns {Array} the roster entries to render
      */
     accountRoster() {
       return this.connectedConnectors.map(connector => {
-        const account = connector.user || connector.name;
+        const account = this.$t(connector.name);
         const signedOut = !connector.isSignedIn && !connector.loading;
         const unreachable = !signedOut && this.failedConnectors.indexOf(connector) >= 0;
         let label = account;
@@ -425,6 +433,15 @@ export default {
     this.refreshRemoteEvents();
   },
   methods: {
+    /**
+     * Opens the connectors drawer. Reached from the roster only, since the
+     * panel stopped offering to connect (EXO-89896): the entries that click
+     * through are the accounts that say they are disconnected or unreachable,
+     * and the drawer is where a user reconnects one — and where the address it
+     * is signed in as is written, this panel no longer showing it.
+     *
+     * @returns {void}
+     */
     openPersonalCalendarDrawer() {
       this.$root.$emit('agenda-connectors-drawer-open');
     },
@@ -745,9 +762,14 @@ export default {
      * the row came from a connected account.
      *
      * <p>
-     * The collection's own name when the account can give it, else the
-     * account it belongs to, else the href — never the connector's name,
-     * which answers how the event arrived and not where it lives.
+     * The collection's own name when the account can give it, and nothing
+     * else. Never the connector's name, which answers how the event arrived
+     * and not where it lives; and no longer the address the account is signed
+     * in as, nor the collection href (EXO-89896) — an address names an
+     * account and an href names nothing a reader can place, so the row says
+     * only what it knows. That is the rule the eXo branch above already
+     * applies to a calendar with no title of its own: add nothing rather than
+     * a label that is not one.
      *
      * @param {Object} remoteEvent the event the row renders
      * @returns {String} the hover text
@@ -767,16 +789,10 @@ export default {
         return remoteEvent && remoteEvent.summary || '';
       }
       const resolvedName = this.resolvedCalendarNames[key];
-      const account = remoteEvent.connector.user;
-      let calendarLabel;
-      if (resolvedName) {
-        calendarLabel = resolvedName;
-      } else if (account) {
-        calendarLabel = this.$t('agenda.remoteEvent.calendarOfAccount', {0: account});
-      } else {
-        calendarLabel = remoteEvent.calendarId;
+      if (!resolvedName) {
+        return remoteEvent.summary || '';
       }
-      return this.$t('agenda.contemporaryEvents.rowCalendar', {0: remoteEvent.summary || '', 1: calendarLabel});
+      return this.$t('agenda.contemporaryEvents.rowCalendar', {0: remoteEvent.summary || '', 1: resolvedName});
     },
     /**
      * Identifies a row: the same occurrence read from two accounts is two
