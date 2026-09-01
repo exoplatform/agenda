@@ -64,6 +64,12 @@
           :event="event"
           class="text-wrap mt-2" />
         <label class="font-weight-bold my-2">
+          {{ $t('agenda.participants') }}
+        </label>
+        <agenda-event-form-attendees
+          :event="event"
+          @initialized="$emit('initialized')" />
+        <label class="font-weight-bold my-2">
           {{ $t('agenda.location') }}
         </label>
         <input
@@ -86,12 +92,6 @@
           :settings="settings"
           :current-space="currentSpace"
           :conference-provider="conferenceProvider" />
-        <label class="font-weight-bold my-2">
-          {{ $t('agenda.participants') }}
-        </label>
-        <agenda-event-form-attendees
-          :event="event"
-          @initialized="$emit('initialized')" />
         <div class="d-flex flex-row my-2 align-center">
           <label class="font-weight-bold">{{ $t('agenda.modifyEventPermission') }}</label>
           <v-switch v-model="event.allowAttendeeToUpdate" class="pa-0 mt-0 ms-4" />
