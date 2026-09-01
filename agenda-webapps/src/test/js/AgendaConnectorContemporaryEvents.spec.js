@@ -15,12 +15,6 @@ const RemoteEventItemStub = {
   template: '<div class="remote-event-item-stub"></div>',
 };
 
-const ConnectorAvatarStub = {
-  name: 'agenda-connector-avatar',
-  props: ['connector'],
-  template: '<div class="connector-avatar-stub"></div>',
-};
-
 const passthrough = tag => ({
   template: `<${tag}><slot></slot></${tag}>`,
 });
@@ -116,9 +110,7 @@ function mountPanel(connectors, options) {
       $root: {$emit: () => {}},
     },
     stubs: {
-      'agenda-connector-avatar': ConnectorAvatarStub,
       'agenda-connector-remote-event-item': RemoteEventItemStub,
-      'agenda-connectors-drawer': true,
       'v-spacer': true,
       'v-progress-linear': true,
       'v-chip': passthrough('div'),
@@ -138,8 +130,6 @@ async function settle(wrapper) {
   }
 }
 
-const rosterLabels = wrapper => wrapper.findAll('.contemporary-events-account')
-  .wrappers.map(entry => entry.find('span').text());
 const rows = wrapper => wrapper.findAllComponents(RemoteEventItemStub).wrappers;
 /*
  * Every row as "<id>=<hover title>", so a missing row fails on the assertion
@@ -149,7 +139,7 @@ const rowTitles = wrapper => rows(wrapper)
   .map(row => `${row.props('remoteEvent').id}=${row.props('hoverTitle')}`);
 const emptyStateText = wrapper => wrapper.find('.contemporary-events-empty').find('span').text();
 
-describe('AgendaConnectorContemporaryEvents heading and roster', () => {
+describe('AgendaConnectorContemporaryEvents heading and sources', () => {
 
   it('titles the panel by its purpose and names no account in the heading', async () => {
     const wrapper = mountPanel([
@@ -166,29 +156,35 @@ describe('AgendaConnectorContemporaryEvents heading and roster', () => {
   });
 
   /*
-   * A connector's name is the key of its own label, which is why the roster
-   * reads it through $t exactly as the connectors drawer titles its rows; the
-   * $t of this spec renders a key as itself, so 'caldav' here is what a user
-   * sees as "CalDAV calendar".
+   * The pin EXO-89899 exists for. The roster named every connected account
+   * above the events; the heading already says whose calendars these are and
+   * every row names the calendar it lives in, so the list said nothing twice
+   * over. $t renders a key as itself in this spec, so a connector's name is
+   * also its rendered label — a name reaching the panel would show here.
    */
-  it('names every connected account in the roster, not only the first', async () => {
+  it('names no connected account above the events', async () => {
     const wrapper = mountPanel([
       account('caldav', 'anais@demo.fr', []),
       account('google', 'alice@gmail.com', []),
     ]);
     await settle(wrapper);
 
-    expect(rosterLabels(wrapper)).toEqual(['caldav', 'google']);
+    expect(wrapper.text()).not.toContain('caldav');
+    expect(wrapper.text()).not.toContain('google');
     wrapper.destroy();
   });
 
   /*
-   * The pin EXO-89896 exists for: the address an account is signed in as is a
-   * detail about a state, not the state itself, and this panel shows none of
-   * it — not in the roster it renders, not in the tooltip of a roster entry,
-   * not anywhere else in the panel.
+   * The consequence EXO-89899 accepted, pinned rather than softened: a
+   * disconnected or unreachable account is no longer reported on this panel.
+   * Its events are simply missing and nothing here says which account owed
+   * them. The only trace left is the empty-state sentence, which stops short
+   * of claiming the list is complete — pinned in its own describe below.
+   *
+   * Read as a decision, not a defect: reinstating the report in any form is a
+   * change to that decision, not a fix to this spec.
    */
-  it('shows no account address anywhere, in any account state', async () => {
+  it('says nothing about an account that is disconnected or could not be reached', async () => {
     const wrapper = mountPanel([
       account('caldav', 'anais@demo.fr', []),
       account('google', 'alice@gmail.com', [], {isSignedIn: false}),
@@ -196,23 +192,54 @@ describe('AgendaConnectorContemporaryEvents heading and roster', () => {
     ]);
     await settle(wrapper);
 
-    expect(wrapper.html()).not.toContain('anais@demo.fr');
-    expect(wrapper.html()).not.toContain('alice@gmail.com');
-    expect(wrapper.html()).not.toContain('bob@contoso.com');
+    expect(wrapper.text()).not.toContain('agenda.contemporaryEvents.accountSignedOut');
+    expect(wrapper.text()).not.toContain('agenda.contemporaryEvents.accountUnreachable');
+    expect(wrapper.text()).not.toContain('google');
+    expect(wrapper.text()).not.toContain('other');
     wrapper.destroy();
   });
 
-  it('states the disconnection on the account it belongs to, whatever its rank in the list', async () => {
+  /*
+   * The pin EXO-89896 exists for, kept because the panel can still render text
+   * an account gave it: a row's hover title carries the collection name the
+   * account resolved. The assertion is panel-wide on purpose — it does not
+   * care where an address would appear, only that none does.
+   */
+  it('shows no account address anywhere, in any account state', async () => {
+    const wrapper = mountPanel([
+      account('caldav', 'anais@demo.fr', [
+        remoteEvent('dentist', 'Dentist', '2026-09-01T14:00:00', '/dav/cal/anais/personal'),
+      ]),
+      account('google', 'alice@gmail.com', [], {isSignedIn: false}),
+      unreachableAccount('other', 'bob@contoso.com'),
+    ], {
+      remoteCalendarName: () => Promise.resolve(null),
+    });
+    await settle(wrapper);
+
+    const rendered = `${wrapper.html()} ${rowTitles(wrapper).join(' ')}`;
+    expect(rendered).not.toContain('anais@demo.fr');
+    expect(rendered).not.toContain('alice@gmail.com');
+    expect(rendered).not.toContain('bob@contoso.com');
+    wrapper.destroy();
+  });
+
+  /*
+   * The panel used to mount a connectors drawer of its own, for the roster to
+   * click through to. It only ever renders inside the event dialog, and both
+   * hosts of that dialog — Agenda.vue and AgendaTimelineWidget.vue — already
+   * mount one beside it; since every mounted drawer subscribes to the same
+   * $root event in created(), that second instance opened stacked on the
+   * host's. EXO-89899 removed it with the roster that needed it.
+   */
+  it('mounts no connectors drawer of its own', async () => {
     const wrapper = mountPanel([
       account('caldav', 'anais@demo.fr', []),
-      account('google', 'alice@gmail.com', [], {isSignedIn: false}),
     ]);
     await settle(wrapper);
 
-    expect(rosterLabels(wrapper)).toEqual([
-      'caldav',
-      'agenda.contemporaryEvents.accountSignedOut|google',
-    ]);
+    expect(wrapper.html()).not.toContain('agenda-connectors-drawer');
+    expect(wrapper.html().toLowerCase()).not.toContain('agendaconnectorsdrawer');
     wrapper.destroy();
   });
 
@@ -238,22 +265,37 @@ describe('AgendaConnectorContemporaryEvents heading and roster', () => {
 describe('AgendaConnectorContemporaryEvents when an account could not be reached', () => {
 
   /*
-   * The pin that matters: a failed account must not read as an account that
-   * answered "nothing". Two things have to hold at once — the panel says the
-   * account failed, and it does NOT say the list is complete.
+   * What survives EXO-89899 of the EXO-89839 invariant. The panel no longer
+   * names the account that failed, so the one thing it still owes the reader
+   * is that it must not claim the list is complete: an empty list after a
+   * failed read means "nothing on the sources that could be checked", never
+   * "nothing".
    */
-  it('never renders a failed account as an empty one', async () => {
+  it('never calls the list complete when an account could not be reached', async () => {
     const wrapper = mountPanel([
       unreachableAccount('caldav', 'bob@contoso.com'),
     ]);
     await settle(wrapper);
 
     expect(rows(wrapper)).toHaveLength(0);
-    expect(rosterLabels(wrapper)).toEqual([
-      'agenda.contemporaryEvents.accountUnreachable|caldav',
-    ]);
     expect(emptyStateText(wrapper)).toBe('agenda.contemporaryEvents.noEventsPartial');
     expect(wrapper.text()).not.toContain('agenda.noRemoteEvents');
+    wrapper.destroy();
+  });
+
+  /*
+   * The same for an account whose session expired rather than one whose read
+   * failed: the two used to render as different roster lines and now differ
+   * only here, so both paths into hasUnansweredSource need their own pin.
+   */
+  it('never calls the list complete when an account is disconnected', async () => {
+    const wrapper = mountPanel([
+      account('google', 'alice@gmail.com', [], {isSignedIn: false}),
+    ]);
+    await settle(wrapper);
+
+    expect(rows(wrapper)).toHaveLength(0);
+    expect(emptyStateText(wrapper)).toBe('agenda.contemporaryEvents.noEventsPartial');
     wrapper.destroy();
   });
 
@@ -268,7 +310,6 @@ describe('AgendaConnectorContemporaryEvents when an account could not be reached
 
     const summaries = rows(wrapper).map(row => row.props('remoteEvent').summary);
     expect(summaries).toContain('Weekly standup');
-    expect(rosterLabels(wrapper)).toContain('agenda.contemporaryEvents.accountUnreachable|caldav');
     wrapper.destroy();
   });
 
@@ -623,10 +664,12 @@ describe('AgendaConnectorContemporaryEvents deduplication across the two sources
 describe('AgendaConnectorContemporaryEvents when the eXo read fails', () => {
 
   /*
-   * The 89839 invariant, now owed to the eXo source too: a source that could
-   * not answer must not render as a source that answered "nothing".
+   * What survives EXO-89899 of the EXO-89839 invariant on the eXo source. The
+   * failure is no longer named — the line that named it went with the roster —
+   * so the teeth are in the sentence: a read that failed must not leave the
+   * panel calling the list complete.
    */
-  it('never renders a failed eXo read as an empty one', async () => {
+  it('never calls the list complete when the eXo read failed', async () => {
     const wrapper = mountPanel([
       account('caldav', 'anais@demo.fr', []),
     ], {
@@ -635,10 +678,6 @@ describe('AgendaConnectorContemporaryEvents when the eXo read fails', () => {
     await settle(wrapper);
 
     expect(rows(wrapper)).toHaveLength(0);
-    expect(rosterLabels(wrapper)).toEqual([
-      'caldav',
-      'agenda.contemporaryEvents.exoCalendarsUnreachable',
-    ]);
     expect(emptyStateText(wrapper)).toBe('agenda.contemporaryEvents.noEventsPartial');
     wrapper.destroy();
   });
@@ -654,7 +693,6 @@ describe('AgendaConnectorContemporaryEvents when the eXo read fails', () => {
     await settle(wrapper);
 
     expect(rows(wrapper).map(row => row.props('remoteEvent').summary)).toContain('Dentist');
-    expect(rosterLabels(wrapper)).toContain('agenda.contemporaryEvents.exoCalendarsUnreachable');
     wrapper.destroy();
   });
 
@@ -666,7 +704,6 @@ describe('AgendaConnectorContemporaryEvents when the eXo read fails', () => {
     const answered = mountPanel([account('caldav', 'anais@demo.fr', [])]);
     await settle(answered);
     expect(emptyStateText(answered)).toBe('agenda.contemporaryEvents.noEvents');
-    expect(rosterLabels(answered)).toEqual(['caldav']);
     answered.destroy();
 
     const exoFailed = mountPanel([account('caldav', 'anais@demo.fr', [])], {
@@ -677,12 +714,28 @@ describe('AgendaConnectorContemporaryEvents when the eXo read fails', () => {
     exoFailed.destroy();
   });
 
-  it('names eXo in the roster only when its read failed', async () => {
-    const wrapper = mountPanel([account('caldav', 'anais@demo.fr', [])]);
-    await settle(wrapper);
+  /*
+   * The other half of what EXO-89899 removed, pinned rather than softened: a
+   * failed eXo read is not named on this panel either, no more than a failed
+   * account is. Benjamin chose the whole block gone over keeping a line for
+   * the failing case — reinstating it in any form is a change to that
+   * decision, not a fix to this spec.
+   */
+  it('says nothing about eXo\'s calendars, whether or not they could be read', async () => {
+    const answered = mountPanel([account('caldav', 'anais@demo.fr', [])]);
+    await settle(answered);
+    expect(answered.text()).not.toContain('agenda.contemporaryEvents.exoCalendarsUnreachable');
+    answered.destroy();
 
-    expect(rosterLabels(wrapper)).not.toContain('agenda.contemporaryEvents.exoCalendarsUnreachable');
-    wrapper.destroy();
+    const failed = mountPanel([account('caldav', 'anais@demo.fr', [])], {
+      getExoEvents: () => Promise.reject(new Error('HTTP 500')),
+    });
+    await settle(failed);
+    expect(failed.text()).not.toContain('agenda.contemporaryEvents.exoCalendarsUnreachable');
+    // and nothing else stands between the heading and the list either
+    expect(failed.find('.contemporary-events-exo-unreachable').exists()).toBe(false);
+    expect(failed.find('.contemporary-events-account').exists()).toBe(false);
+    failed.destroy();
   });
 });
 
