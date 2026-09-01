@@ -165,6 +165,12 @@ describe('AgendaConnectorContemporaryEvents heading and roster', () => {
     wrapper.destroy();
   });
 
+  /*
+   * A connector's name is the key of its own label, which is why the roster
+   * reads it through $t exactly as the connectors drawer titles its rows; the
+   * $t of this spec renders a key as itself, so 'caldav' here is what a user
+   * sees as "CalDAV calendar".
+   */
   it('names every connected account in the roster, not only the first', async () => {
     const wrapper = mountPanel([
       account('caldav', 'anais@demo.fr', []),
@@ -172,7 +178,27 @@ describe('AgendaConnectorContemporaryEvents heading and roster', () => {
     ]);
     await settle(wrapper);
 
-    expect(rosterLabels(wrapper)).toEqual(['anais@demo.fr', 'alice@gmail.com']);
+    expect(rosterLabels(wrapper)).toEqual(['caldav', 'google']);
+    wrapper.destroy();
+  });
+
+  /*
+   * The pin EXO-89896 exists for: the address an account is signed in as is a
+   * detail about a state, not the state itself, and this panel shows none of
+   * it — not in the roster it renders, not in the tooltip of a roster entry,
+   * not anywhere else in the panel.
+   */
+  it('shows no account address anywhere, in any account state', async () => {
+    const wrapper = mountPanel([
+      account('caldav', 'anais@demo.fr', []),
+      account('google', 'alice@gmail.com', [], {isSignedIn: false}),
+      unreachableAccount('other', 'bob@contoso.com'),
+    ]);
+    await settle(wrapper);
+
+    expect(wrapper.html()).not.toContain('anais@demo.fr');
+    expect(wrapper.html()).not.toContain('alice@gmail.com');
+    expect(wrapper.html()).not.toContain('bob@contoso.com');
     wrapper.destroy();
   });
 
@@ -184,9 +210,27 @@ describe('AgendaConnectorContemporaryEvents heading and roster', () => {
     await settle(wrapper);
 
     expect(rosterLabels(wrapper)).toEqual([
-      'anais@demo.fr',
-      'agenda.contemporaryEvents.accountSignedOut|alice@gmail.com',
+      'caldav',
+      'agenda.contemporaryEvents.accountSignedOut|google',
     ]);
+    wrapper.destroy();
+  });
+
+  /*
+   * EXO-89896 removed the offer to connect from this panel: it is mid-task on
+   * a surface whose job is content, and the content is there whether or not an
+   * account is connected. The two things it removed are pinned by what a user
+   * would see — the plug icon and the synchronisation pitch.
+   */
+  it('never offers to connect an account, however few are connected', async () => {
+    const wrapper = mountPanel([
+      {name: 'caldav', enabled: true, connected: false},
+    ]);
+    await settle(wrapper);
+
+    expect(wrapper.html()).not.toContain('fa-plug');
+    expect(wrapper.text()).not.toContain('agenda.connectYourPersonalAgenda');
+    expect(wrapper.text()).not.toContain('agenda.synchronizeEventsWithPersonalCalendarSubTitle');
     wrapper.destroy();
   });
 });
@@ -206,7 +250,7 @@ describe('AgendaConnectorContemporaryEvents when an account could not be reached
 
     expect(rows(wrapper)).toHaveLength(0);
     expect(rosterLabels(wrapper)).toEqual([
-      'agenda.contemporaryEvents.accountUnreachable|bob@contoso.com',
+      'agenda.contemporaryEvents.accountUnreachable|caldav',
     ]);
     expect(emptyStateText(wrapper)).toBe('agenda.contemporaryEvents.noEventsPartial');
     expect(wrapper.text()).not.toContain('agenda.noRemoteEvents');
@@ -224,7 +268,7 @@ describe('AgendaConnectorContemporaryEvents when an account could not be reached
 
     const summaries = rows(wrapper).map(row => row.props('remoteEvent').summary);
     expect(summaries).toContain('Weekly standup');
-    expect(rosterLabels(wrapper)).toContain('agenda.contemporaryEvents.accountUnreachable|bob@contoso.com');
+    expect(rosterLabels(wrapper)).toContain('agenda.contemporaryEvents.accountUnreachable|caldav');
     wrapper.destroy();
   });
 
@@ -257,7 +301,14 @@ describe('AgendaConnectorContemporaryEvents row provenance', () => {
     wrapper.destroy();
   });
 
-  it('falls back to the account, never to the connector name, when the collection cannot be named', async () => {
+  /*
+   * EXO-89896: when the collection cannot be named, the row says nothing
+   * about where it lives rather than something that is not a calendar name —
+   * neither the address the account is signed in as, nor the collection href,
+   * nor the connector name. The rule the row already applied to an eXo
+   * calendar with no title of its own.
+   */
+  it('says nothing about the collection, rather than an address or an href, when it cannot be named', async () => {
     const wrapper = mountPanel([
       account('caldav', 'anais@demo.fr', [
         remoteEvent('dentist', 'Dentist', '2026-09-01T14:00:00', '/dav/cal/anais/personal'),
@@ -267,9 +318,11 @@ describe('AgendaConnectorContemporaryEvents row provenance', () => {
     });
     await settle(wrapper);
 
-    expect(rowTitles(wrapper))
-      .toContain('dentist=agenda.contemporaryEvents.rowCalendar|Dentist|agenda.remoteEvent.calendarOfAccount|anais@demo.fr');
-    expect(rowTitles(wrapper).join(' ')).not.toContain('caldav');
+    expect(rowTitles(wrapper)).toContain('dentist=Dentist');
+    const titles = rowTitles(wrapper).join(' ');
+    expect(titles).not.toContain('anais@demo.fr');
+    expect(titles).not.toContain('/dav/cal/anais/personal');
+    expect(titles).not.toContain('caldav');
     wrapper.destroy();
   });
 
@@ -583,7 +636,7 @@ describe('AgendaConnectorContemporaryEvents when the eXo read fails', () => {
 
     expect(rows(wrapper)).toHaveLength(0);
     expect(rosterLabels(wrapper)).toEqual([
-      'anais@demo.fr',
+      'caldav',
       'agenda.contemporaryEvents.exoCalendarsUnreachable',
     ]);
     expect(emptyStateText(wrapper)).toBe('agenda.contemporaryEvents.noEventsPartial');
@@ -613,7 +666,7 @@ describe('AgendaConnectorContemporaryEvents when the eXo read fails', () => {
     const answered = mountPanel([account('caldav', 'anais@demo.fr', [])]);
     await settle(answered);
     expect(emptyStateText(answered)).toBe('agenda.contemporaryEvents.noEvents');
-    expect(rosterLabels(answered)).toEqual(['anais@demo.fr']);
+    expect(rosterLabels(answered)).toEqual(['caldav']);
     answered.destroy();
 
     const exoFailed = mountPanel([account('caldav', 'anais@demo.fr', [])], {
