@@ -1,6 +1,5 @@
 import {mount} from '@vue/test-utils';
 import AgendaEventFormBusyCoverage from '../../main/webapp/vue-app/agenda-common/components/event/form/AgendaEventFormBusyCoverage.vue';
-import AgendaConnectorStatus from '../../main/webapp/vue-app/agenda-common/components/connector/AgendaConnectorStatus.vue';
 import * as agendaUtils from '../../main/webapp/vue-app/agenda-common/js/AgendaUtils.js';
 
 /*
@@ -13,7 +12,6 @@ import * as agendaUtils from '../../main/webapp/vue-app/agenda-common/js/AgendaU
  *
  * What is compacted and what is NOT is the whole of these pins:
  *
- *   - the account ADDRESS becomes a tooltip. It is a detail about a state.
  *   - the coverage SENTENCE becomes a tooltip, but the COUNT stays visible
  *     text: a number is scannable, an icon alone is not.
  *   - the failure line stays BODY TEXT. A tooltip does not exist on touch, and
@@ -69,46 +67,13 @@ function mountCoverage(variant, props) {
   });
 }
 
-/**
- * Mounts the connected-account status.
- *
- * @param {Array} connectors the connectors it is given
- * @returns {Object} the mounted wrapper
+/*
+ * The connected-account plug that used to sit first in this header is gone
+ * (EXO-89869): an account is connected from the settings, not in the middle of
+ * creating an event, so the pins that described it went with it. What the
+ * header still owes the organiser — the coverage count, and the loud failure
+ * line — is what remains under test below.
  */
-function mountStatus(connectors) {
-  return mount(AgendaConnectorStatus, {
-    propsData: {connectors},
-    mocks: {$t: key => key},
-  });
-}
-
-describe('The header shows the connected account as an icon, not an address', () => {
-  const CONNECTED = [{name: 'caldav', connected: true, user: 'anais.francois@demo3.livecollab.fr'}];
-
-  it('does not print the account address as body text', () => {
-    const wrapper = mountStatus(CONNECTED);
-
-    expect(wrapper.text()).not.toContain('anais.francois@demo3.livecollab.fr');
-  });
-
-  it('makes the address reachable as a tooltip', () => {
-    // Compacting must not lose the answer to "which account?" — a user with
-    // two connected accounts has to be able to find out.
-    const wrapper = mountStatus(CONNECTED);
-    const button = wrapper.find('v-btn');
-
-    expect(button.attributes('title')).toContain('anais.francois@demo3.livecollab.fr');
-    expect(button.attributes('aria-label')).toContain('anais.francois@demo3.livecollab.fr');
-  });
-
-  it('draws the plug the product already uses for a calendar account', () => {
-    const wrapper = mountStatus(CONNECTED);
-
-    // The same glyph AgendaConnectToRemoteButton and the contemporary-events
-    // panel already draw for a calendar account.
-    expect(wrapper.find('v-icon').text()).toContain('fa-plug');
-  });
-});
 
 describe('The header counter keeps its number visible and its sentence in a tooltip', () => {
   it('renders the count as text', () => {
