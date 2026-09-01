@@ -58,6 +58,9 @@ import org.exoplatform.agenda.mcp.model.ConferenceModel;
 import org.exoplatform.agenda.mcp.model.ConflictsModel;
 import org.exoplatform.agenda.mcp.model.DatePollModel;
 import org.exoplatform.agenda.mcp.model.DatePollOptionModel;
+import org.exoplatform.agenda.mcp.model.ScheduleConflictEventModel;
+import org.exoplatform.agenda.mcp.model.ScheduleConflictGroupModel;
+import org.exoplatform.agenda.mcp.model.ScheduleConflictsModel;
 import org.exoplatform.agenda.mcp.model.TimeBlockModel;
 import org.exoplatform.agenda.model.AgendaUserSettings;
 import org.exoplatform.agenda.model.Calendar;
@@ -72,6 +75,9 @@ import org.exoplatform.agenda.model.EventRecurrence;
 import org.exoplatform.agenda.model.EventReminder;
 import org.exoplatform.agenda.model.EventReminderParameter;
 import org.exoplatform.agenda.model.EventSearchResult;
+import org.exoplatform.agenda.model.ScheduleConflict;
+import org.exoplatform.agenda.model.ScheduleConflictEvent;
+import org.exoplatform.agenda.model.ScheduleConflicts;
 import org.exoplatform.agenda.model.AgendaEventSearchFilter;
 import org.exoplatform.agenda.model.AvailabilityConflicts;
 import org.exoplatform.agenda.model.TimeBlock;
@@ -85,6 +91,7 @@ import org.exoplatform.agenda.service.AgendaEventConferenceService;
 import org.exoplatform.agenda.service.AgendaEventDatePollService;
 import org.exoplatform.agenda.service.AgendaEventReminderService;
 import org.exoplatform.agenda.service.AgendaEventService;
+import org.exoplatform.agenda.service.AgendaScheduleConflictService;
 import org.exoplatform.agenda.service.AgendaUserSettingsService;
 import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
@@ -126,6 +133,9 @@ public class AgendaEventMcpTool implements McpToolPlugin {
 
   private static final String                MSG_PARAMETER_ATTENDEE_IS_MANDATORY  = "Parameter 'attendee_usernames' is mandatory";
 
+  private static final String                MSG_PARAMETER_WINDOW_MANDATORY       =
+                                                                                  "Parameters 'start' and 'end' are mandatory";
+
   /**
    * The only clash status the report can carry. The event query behind
    * free/busy filters on CONFIRMED events, so a TENTATIVE one is never read
@@ -152,6 +162,8 @@ public class AgendaEventMcpTool implements McpToolPlugin {
 
   private final AgendaAvailabilityService    agendaAvailabilityService;
 
+  private final AgendaScheduleConflictService agendaScheduleConflictService;
+
   private final AgendaEventAttendeeService   agendaEventAttendeeService;
 
   private final AgendaEventConferenceService agendaEventConferenceService;
@@ -176,6 +188,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
   public AgendaEventMcpTool(AgendaCalendarService agendaCalendarService, // NOSONAR
                             AgendaEventService agendaEventService,
                             AgendaAvailabilityService agendaAvailabilityService,
+                            AgendaScheduleConflictService agendaScheduleConflictService,
                             AgendaEventConferenceService agendaEventConferenceService,
                             AgendaEventAttendeeService agendaEventAttendeeService,
                             AgendaEventDatePollService agendaEventDatePollService,
@@ -190,6 +203,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
                             UserACL userAcl) {
     this.agendaEventService = agendaEventService;
     this.agendaAvailabilityService = agendaAvailabilityService;
+    this.agendaScheduleConflictService = agendaScheduleConflictService;
     this.agendaEventAttendeeService = agendaEventAttendeeService;
     this.agendaEventConferenceService = agendaEventConferenceService;
     this.agendaEventDatePollService = agendaEventDatePollService;
@@ -894,6 +908,29 @@ public class AgendaEventMcpTool implements McpToolPlugin {
                   .toList();
   }
 
+  // Report the clashes already on the current user's own calendar over a window, computed server-side: the
+  // overlapping events are found, grouped and ordered here, so nothing about this result needs sorting, grouping,
+  // deduplicating or renumbering. Two events that merely touch - one ending exactly when the next begins - are NOT a
+  // clash and never appear together. Grouping is transitive, so a group of three may hold two events that do not
+  // themselves overlap, and a group's start/end is the stretch it covers, not a window in which all of its events
+  // are present. Declined, cancelled and free-time events are already excluded. Only the caller's own calendar is
+  // ever read; for someone else's schedule use get_availability, which discloses times and never titles.
+  public ScheduleConflictsModel getScheduleConflicts(String start, String end) throws IllegalAccessException {
+    if (StringUtils.isBlank(start) || StringUtils.isBlank(end)) {
+      throw new IllegalArgumentException(MSG_PARAMETER_WINDOW_MANDATORY);
+    }
+    ScheduleConflicts conflicts = agendaScheduleConflictService.getScheduleConflicts(toZonedDateTime(start),
+                                                                                     toZonedDateTime(end),
+                                                                                     getCurrentUserIdentityId());
+    return new ScheduleConflictsModel(conflicts.getConflicts()
+                                               .stream()
+                                               .map(this::toScheduleConflictGroupModel)
+                                               .toList(),
+                                      start,
+                                      end,
+                                      conflicts.isTruncated());
+  }
+
   // ==========================================================================
   // Scheduling helpers
   // ==========================================================================
@@ -1327,6 +1364,53 @@ public class AgendaEventMcpTool implements McpToolPlugin {
                             getCurrentUserName());
       }
     }
+  }
+
+  /**
+   * Maps one clash to its wire shape.
+   *
+   * @param conflict the clash computed by the service
+   * @return the model handed to the caller
+   */
+  private ScheduleConflictGroupModel toScheduleConflictGroupModel(ScheduleConflict conflict) {
+    return new ScheduleConflictGroupModel(formatDate(Date.from(conflict.getStart().toInstant())),
+                                          formatDate(Date.from(conflict.getEnd().toInstant())),
+                                          conflict.getEvents()
+                                                  .stream()
+                                                  .map(this::toScheduleConflictEventModel)
+                                                  .toList());
+  }
+
+  /**
+   * Maps one event of a clash to its wire shape.
+   * <p>
+   * A materialised occurrence of a recurring series carries no id of its own,
+   * so the id published here — and the one the permanent link is built from —
+   * is the series', and the occurrence is identified by its date. That pair is
+   * exactly what the write tools that act on a single occurrence expect.
+   *
+   * @param conflictEvent one event of a clash, with the caller's answer to it
+   * @return the model handed to the caller
+   */
+  @SneakyThrows
+  private ScheduleConflictEventModel toScheduleConflictEventModel(ScheduleConflictEvent conflictEvent) {
+    Event event = conflictEvent.getEvent();
+    long eventId = isComputedOccurrence(event) ? event.getParentId() : event.getId();
+    return new ScheduleConflictEventModel(eventId,
+                                          event.getOccurrence() == null
+                                              || event.getOccurrence().getId() == null ?
+                                                                                       null :
+                                                                                       formatDate(Date.from(event.getOccurrence()
+                                                                                                                 .getId()
+                                                                                                                 .toInstant())),
+                                          event.getSummary(),
+                                          formatDate(Date.from(event.getStart().toInstant())),
+                                          formatDate(Date.from(event.getEnd().toInstant())),
+                                          event.isAllDay(),
+                                          getUrl(eventId),
+                                          getCalendarSpaceId(event.getCalendarId()),
+                                          conflictEvent.isCreatedByUser(),
+                                          conflictEvent.getResponse());
   }
 
   private ZonedDateTime toZonedDateTime(String dateString) {
