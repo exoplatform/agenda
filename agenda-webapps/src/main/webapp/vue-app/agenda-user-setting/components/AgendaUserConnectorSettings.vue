@@ -17,16 +17,8 @@
           {{ $t('agenda.settings.myCalendars') }}
         </v-list-item-title>
         <v-list-item-subtitle class="d-flex align-center">
-          <!--
-            Whose account this is, or — when there is none because the instance
-            decided the server — which server it will be. The connected case
-            keeps naming the ACCOUNT even under managed mode: a user who
-            connected by hand before the mode was switched on is still synced
-            with their own account, and naming the managed server instead would
-            state something that is not true of them.
-          -->
           <span class="text-truncate">
-            {{ accountLine }}
+            {{ $t('agenda.settings.myCalendarsSyncedWith', {0: caldavConnector.user}) }}
           </span>
           <!--
             On the account's own line, after a separator: what makes the action
@@ -59,14 +51,12 @@
           <v-icon size="20" class="icon-default-color">fa-sync-alt</v-icon>
         </v-btn>
         <!--
-          The pencil leads to the connect drawer, so it is a connect and
-          disconnect affordance wearing another icon: it goes when the instance
-          decided the server. What sits beside it does not — Sync now and the
-          last-sync line are status, and a managed user needs them exactly as
-          much as anyone else. Status yes, control no.
+          No managed guard of its own, deliberately: under managed mode the
+          whole section is gone (see `displayed`), so a second condition here
+          would be a branch nothing can reach — and an unreachable guard reads
+          as a rule that is still doing work.
         -->
         <v-btn
-          v-if="!caldavManaged"
           :aria-label="$t('agenda.settings.myCalendarsManage')"
           :title="$t('agenda.settings.myCalendarsManage')"
           icon
@@ -173,19 +163,31 @@ export default {
      * the section simply is not there until there is something true to say.
      *
      * <p>
-     * Managed mode adds the second case. There, the section stops being an
-     * offer to connect and becomes the only place a user can read the state of
-     * an account they did not choose and cannot manage: which server, when it
-     * last synchronised, and the button that runs it now. Hiding it because
-     * nothing is connected yet would leave a managed user with no account
-     * page at all — and none of the reasons above apply, since the section no
-     * longer offers a connect prompt to anybody.
+     * Managed mode takes the section away outright — connected or not. Every
+     * line it holds is addressed to somebody who might act on it: the account
+     * address matters because you could reconnect as somebody else, the last
+     * sync matters because you could press the button beside it. A managed
+     * user can do none of that, so each line answers a question they have no
+     * reason to ask and raises one they cannot act on. Sync now and the
+     * last-sync phrase are the mechanism reporting on itself, and being told a
+     * synchronisation failed is no use to somebody with no way to fix it: in
+     * managed mode the connection is the administrator's, so a broken one is
+     * the administrator's problem. Managed mode's whole promise is that the
+     * synchronisation is transparent, so it is transparent.
      *
-     * @returns {Boolean} true when a CalDAV account is connected, or when the
-     *          instance chose the server on this user's behalf
+     * <p>
+     * The condition is CONNECTED AND NOT MANAGED, rather than a plain return
+     * to "connected". The two differ exactly where it matters: an account
+     * connected by hand before the mode was switched on stays connected, so
+     * "connected" alone would keep rendering the row — the account address,
+     * the last sync, the sync button — for precisely the user this rule was
+     * written after. The `!caldavManaged` term is doing work, not tidying.
+     *
+     * @returns {Boolean} true when a CalDAV account is connected and the
+     *          instance did not choose the server on this user's behalf
      */
     displayed() {
-      return (!!this.caldavConnector && !!this.caldavConnector.connected) || this.caldavManaged;
+      return !!this.caldavConnector && !!this.caldavConnector.connected && !this.caldavManaged;
     },
     /**
      * Whether the instance chose this user's CalDAV server for them, read
@@ -195,28 +197,6 @@ export default {
      */
     caldavManaged() {
       return this.$remoteEventConnector.isCaldavManaged(this.connectors);
-    },
-    /**
-     * The line naming what My Calendars is synchronised with.
-     *
-     * <p>
-     * The connected account when there is one — including a hand-made
-     * connection that predates managed mode, whose truth is its own account
-     * and not the instance's choice. Only a managed user with nothing
-     * connected is told the server's name instead, which is the honest
-     * rendering of "assigned, not provisioned": the server is decided, the
-     * account does not exist yet, and there is deliberately no last sync
-     * beside it to suggest otherwise.
-     *
-     * @returns {String} the subtitle's account line
-     */
-    accountLine() {
-      if (this.caldavConnector && this.caldavConnector.connected) {
-        return this.$t('agenda.settings.myCalendarsSyncedWith', {0: this.caldavConnector.user});
-      }
-      return this.$t('agenda.settings.myCalendarsManaged', {
-        0: this.$remoteEventConnector.caldavManagedServerName(this.connectors),
-      });
     },
     /**
      * Whether a CalDAV connector can be told apart at all. A deployment whose

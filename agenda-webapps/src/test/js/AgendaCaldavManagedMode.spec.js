@@ -7,6 +7,10 @@ import AgendaConnectorsDrawer
   from '../../main/webapp/vue-app/agenda-common/components/remote-event/AgendaConnectorsDrawer.vue';
 import AgendaUserConnectorSettings
   from '../../main/webapp/vue-app/agenda-user-setting/components/AgendaUserConnectorSettings.vue';
+import AgendaUserPushSettings
+  from '../../main/webapp/vue-app/agenda-user-setting/components/AgendaUserPushSettings.vue';
+import AgendaConnector
+  from '../../main/webapp/vue-app/agenda-common/components/connector/AgendaConnector.vue';
 
 /*
  * EXO-89900 — managed mode, agenda side. When the instance chose the user's
@@ -221,61 +225,256 @@ describe('AgendaUserConnectorSettings under managed mode', () => {
   }
 
   /*
-   * The section stops hiding itself. It is where sync-now and the last-sync
-   * phrase survive, so a managed user with nothing connected yet would
-   * otherwise have no account page at all.
+   * The whole section goes under managed mode — this is the case Benjamin saw
+   * on the rig: managed mode on, a connection he had made by hand before it,
+   * and the row still reading "Synced both ways with <his address> ·
+   * Synchronised just now" beside a sync button. Every one of those lines is
+   * addressed to somebody who could act on it, and he could not.
+   *
+   * Written as three separate cases because the middle one is the whole
+   * point: `connected` alone — a plain revert — passes the first and third and
+   * fails only this one.
    */
-  it('shows when managed even with nothing connected, and hides when neither', () => {
-    expect(mountSettings([caldavConnector({managed: true, managedServerName: 'Bluemind'})]).vm.displayed).toBe(true);
-    expect(mountSettings([caldavConnector({})]).vm.displayed).toBe(false);
+  it('does not show under managed mode, connected or not', () => {
+    // Managed, nothing connected: nothing to describe and nothing to offer.
+    expect(mountSettings([caldavConnector({managed: true})]).vm.displayed).toBe(false);
+    // Managed AND connected by hand before the mode - the rig case.
+    expect(mountSettings([caldavConnector({
+      managed: true,
+      connected: true,
+      isSignedIn: true,
+      user: 'anais.francois@demo3.livecollab.fr',
+    })]).vm.displayed).toBe(false);
+    // Unmanaged and connected: unchanged, the section is exactly as it was.
     expect(mountSettings([caldavConnector({connected: true, user: 'mary@example.org'})]).vm.displayed).toBe(true);
   });
 
   /*
-   * Assigned, not provisioned — stated rather than papered over. The server is
-   * named, and there is deliberately no last sync beside it, because there is
-   * no account yet to have synchronised.
+   * And nothing of it reaches the page: not the account address, not a server
+   * name, not the last-sync phrase, not the sync button. Asserted on the
+   * rendered output rather than on `displayed` alone, because what was
+   * complained about was what could be READ on the screen.
    */
-  it('names the server, with no last sync, for a managed user who is not connected', () => {
-    const wrapper = mountSettings([caldavConnector({managed: true, managedServerName: 'Bluemind'})]);
-
-    expect(wrapper.vm.accountLine).toBe('agenda.settings.myCalendarsManaged(Bluemind)');
-    expect(wrapper.vm.lastSyncLabel).toBe('');
-    expect(wrapper.vm.syncableConnector).toBeNull();
-  });
-
-  /*
-   * A hand-made connection that predates managed mode keeps telling the truth
-   * of ITS OWN account: it is synced with that account, not with the server
-   * the instance later chose, and saying otherwise would state something false
-   * about a connection nothing has touched.
-   */
-  it('keeps naming the account of a connection made by hand before the mode', () => {
-    const wrapper = mountSettings([caldavConnector({
+  it('renders none of the account, the sync state or the sync button when managed', () => {
+    const managed = mountSettings([caldavConnector({
       managed: true,
-      managedServerName: 'Bluemind',
       connected: true,
       isSignedIn: true,
-      user: 'mary@stalwart.example.org',
+      user: 'anais.francois@demo3.livecollab.fr',
+      sync: () => Promise.resolve(),
+      lastSynchronised: () => Promise.resolve(new Date()),
     })]);
 
-    expect(wrapper.vm.accountLine).toBe('agenda.settings.myCalendarsSyncedWith(mary@stalwart.example.org)');
+    expect(managed.text()).toBe('');
+    expect(managed.find('[title="agenda.connectors.syncNow"]').exists()).toBe(false);
+    expect(managed.find('[title="agenda.settings.myCalendarsManage"]').exists()).toBe(false);
   });
 
   /*
-   * The pencil leads to the connect drawer, so it is a control: it goes when
-   * managed and comes back when not.
+   * Unmanaged, the section is untouched by this delivery: the account line,
+   * the sync button and the manage pencil are all where they were.
    */
-  it('drops the manage pencil when managed and keeps it when not', () => {
-    const connected = {connected: true, isSignedIn: true, user: 'mary@example.org'};
+  it('leaves the unmanaged section exactly as it was', () => {
+    const unmanaged = mountSettings([caldavConnector({
+      connected: true,
+      isSignedIn: true,
+      user: 'mary@example.org',
+      sync: () => Promise.resolve(),
+    })]);
 
-    const unmanaged = mountSettings([caldavConnector(connected)]);
     expect(unmanaged.vm.caldavManaged).toBe(false);
+    expect(unmanaged.text()).toContain('agenda.settings.myCalendarsSyncedWith(mary@example.org)');
+    expect(unmanaged.find('[title="agenda.connectors.syncNow"]').exists()).toBe(true);
     // Found by its title, because the pencil's only text is its icon glyph.
     expect(unmanaged.find('[title="agenda.settings.myCalendarsManage"]').exists()).toBe(true);
+  });
+});
 
-    const managed = mountSettings([caldavConnector(Object.assign({managed: true}, connected))]);
-    expect(managed.vm.caldavManaged).toBe(true);
-    expect(managed.find('[title="agenda.settings.myCalendarsManage"]').exists()).toBe(false);
+describe('the copy-meetings control under managed mode', () => {
+
+  /** A connected CalDAV account able to receive copies. */
+  const pushingAccount = {connected: true, isSignedIn: true, user: 'mary@example.org', canPush: true};
+
+  /**
+   * Mounts the "Copy eXo meetings to your calendar account" row.
+   *
+   * @param {Object} settings the agenda user settings the page loaded
+   * @param {Array} connectors the descriptors the page loaded
+   * @returns {Object} the wrapper
+   */
+  function mountPushRow(settings, connectors) {
+    return shallowMount(AgendaUserPushSettings, {
+      propsData: {settings, connectors},
+      mocks: {
+        $t: (key, args) => args && `${key}(${args[0]})` || key,
+        $remoteEventConnector: remoteEventConnector,
+        $settingsService: {saveUserSettings: jest.fn(() => Promise.resolve())},
+      },
+    });
+  }
+
+  /*
+   * The control is not status, it is the switch deciding whether the
+   * synchronisation happens at all. Left visible, a user switches it off and
+   * the administration row's "Everyone synchronises with {server}" becomes a
+   * false statement.
+   */
+  it('is absent when managed and present when not', () => {
+    const stored = {automaticPushEvents: true};
+
+    expect(mountPushRow(stored, [caldavConnector(pushingAccount)]).vm.displayed).toBe(true);
+    expect(mountPushRow(stored, [caldavConnector(Object.assign({managed: true}, pushingAccount))]).vm.displayed)
+      .toBe(false);
+  });
+
+  /*
+   * And the destination sentence goes with the row: it names a calendar the
+   * user cannot change, on a row they cannot act on.
+   */
+  it('renders nothing at all when managed', async () => {
+    const managed = mountPushRow({automaticPushEvents: true},
+                                 [caldavConnector(Object.assign({managed: true}, pushingAccount))]);
+    await managed.vm.$nextTick();
+
+    expect(managed.text()).toBe('');
+  });
+
+  /*
+   * The switch's own state still tracks the STORED preference, because that is
+   * what has to come back when managed mode is switched off. It positions a
+   * control that does not render, so it never contradicts the effective value.
+   */
+  it('keeps tracking the stored preference behind the hidden control', () => {
+    const optedOut = mountPushRow({automaticPushEvents: false},
+                                  [caldavConnector(Object.assign({managed: true}, pushingAccount))]);
+
+    expect(optedOut.vm.pushEnabled).toBe(false);
+  });
+
+  /*
+   * The write path is never taken by managed mode itself: nothing in this
+   * delivery calls saveUserSettings, so no stored preference is rewritten
+   * behind a user's back.
+   */
+  it('never writes the setting on its own', () => {
+    const wrapper = mountPushRow({automaticPushEvents: false},
+                                 [caldavConnector(Object.assign({managed: true}, pushingAccount))]);
+
+    expect(wrapper.vm.$settingsService.saveUserSettings).not.toHaveBeenCalled();
+  });
+});
+
+describe('copyMeetingsEnabled', () => {
+
+  /*
+   * The override, at the point the value is READ. This is the pin that matters
+   * most: hiding the control while a stored false still suppressed the copy
+   * would produce exactly the silently non-synchronising population the change
+   * exists to prevent.
+   */
+  it('is true under managed mode even when the stored preference is false', () => {
+    expect(remoteEventConnector.copyMeetingsEnabled(
+      {automaticPushEvents: false},
+      [caldavConnector({managed: true})])).toBe(true);
+  });
+
+  /*
+   * And the stored preference is what governs again the moment managed mode
+   * goes: the override lives where the value is read, so nothing has to be
+   * restored because nothing was overwritten.
+   */
+  it('gives the stored preference back when managed mode is switched off', () => {
+    const storedOff = {automaticPushEvents: false};
+    const connectors = [caldavConnector({managed: true})];
+
+    expect(remoteEventConnector.copyMeetingsEnabled(storedOff, connectors)).toBe(true);
+
+    // The same settings object, unmutated, once the descriptors stop being
+    // stamped - which is all that switching managed mode off changes.
+    expect(storedOff.automaticPushEvents).toBe(false);
+    expect(remoteEventConnector.copyMeetingsEnabled(storedOff, [caldavConnector({})])).toBe(false);
+  });
+
+  /*
+   * The override reads the settings object and never writes it. A mutant that
+   * rewrites the stored preference instead of overriding the read has to fail
+   * here.
+   */
+  it('does not mutate the stored settings', () => {
+    const stored = {automaticPushEvents: false, other: 'untouched'};
+
+    remoteEventConnector.copyMeetingsEnabled(stored, [caldavConnector({managed: true})]);
+
+    expect(stored).toEqual({automaticPushEvents: false, other: 'untouched'});
+  });
+
+  /*
+   * Unmanaged, the function is exactly the expression the push path always
+   * used - absent settings mean no copy. The settings screen defaults an unset
+   * preference the other way; those two have always differed, and unifying
+   * them here would change what an unmanaged deployment does.
+   */
+  it('leaves the unmanaged behaviour exactly as it was', () => {
+    expect(remoteEventConnector.copyMeetingsEnabled({automaticPushEvents: true}, [caldavConnector({})])).toBe(true);
+    expect(remoteEventConnector.copyMeetingsEnabled({automaticPushEvents: false}, [caldavConnector({})])).toBe(false);
+    expect(remoteEventConnector.copyMeetingsEnabled(null, [caldavConnector({})])).toBe(false);
+    expect(remoteEventConnector.copyMeetingsEnabled(null, null)).toBe(false);
+  });
+});
+
+/*
+ * The push path's own call site. copyMeetingsEnabled being right is worth
+ * nothing if shouldReachAccount — the single gate every push trigger funnels
+ * through — still reads the raw setting, so the wiring is pinned here and not
+ * only the helper.
+ *
+ * The methods are invoked against a hand-made receiver rather than a mounted
+ * component: AgendaConnector carries no template, so there is nothing to
+ * mount, and what is under test is a decision and not a rendering.
+ */
+describe('AgendaConnector.shouldReachAccount under managed mode', () => {
+
+  /** A meeting owned by a space, which is the case the copy setting governs. */
+  const spaceEvent = {calendar: {owner: {providerId: 'space'}}};
+
+  /**
+   * Calls the gate with the settings and descriptors a page would hold.
+   *
+   * @param {Object} settings the agenda user settings
+   * @param {Array} connectors the descriptors agenda loaded
+   * @returns {Boolean} whether the account receives the copy
+   */
+  function reaches(settings, connectors) {
+    const receiver = {
+      settings,
+      connectors,
+      $remoteEventConnector: remoteEventConnector,
+      isSpaceEvent: AgendaConnector.methods.isSpaceEvent,
+    };
+    return AgendaConnector.methods.shouldReachAccount.call(receiver, connectors[0], spaceEvent);
+  }
+
+  it('copies a space meeting when managed, whatever the stored preference says', () => {
+    const managed = [caldavConnector({managed: true, connected: true, canPush: true})];
+
+    expect(reaches({automaticPushEvents: false}, managed)).toBe(true);
+    expect(reaches({automaticPushEvents: true}, managed)).toBe(true);
+  });
+
+  it('still honours the stored preference when unmanaged', () => {
+    const unmanaged = [caldavConnector({connected: true, canPush: true})];
+
+    expect(reaches({automaticPushEvents: false}, unmanaged)).toBe(false);
+    expect(reaches({automaticPushEvents: true}, unmanaged)).toBe(true);
+  });
+
+  /*
+   * The per-account opt-out is a different switch and managed mode does not
+   * touch it: an account explicitly excluded stays excluded.
+   */
+  it('leaves the per-account opt-out alone', () => {
+    const managedButOptedOut = [caldavConnector({managed: true, connected: true, canPush: true, pushEnabled: false})];
+
+    expect(reaches({automaticPushEvents: true}, managedButOptedOut)).toBe(false);
   });
 });

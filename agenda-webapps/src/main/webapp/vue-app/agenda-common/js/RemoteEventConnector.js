@@ -277,21 +277,49 @@ export function isCaldavManaged(connectors) {
 }
 
 /**
- * The name of the server this instance synchronises the user with, when it
- * chose one.
+ * Whether eXo meetings are copied into the user's connected calendar account
+ * — the EFFECTIVE value, which is not always the stored preference.
  *
  * <p>
- * A different question from {@link isCaldavManaged}, and kept apart from it on
- * purpose: that one decides whether an affordance is offered and every screen
- * must agree on it, this one is a word one screen prints. Read off the same
- * stamp so the sentence and the decision cannot come from different sources.
+ * Managed mode forces it on. The reason is stronger than the one that hides
+ * the My Calendars line, and it is worth stating precisely: this is not
+ * status, it is the switch deciding whether the synchronisation happens at
+ * all. Left to the user, an administrator turns managed mode on believing the
+ * organisation now synchronises with the chosen server, while any number of
+ * users have quietly switched it off — and the admin row's sentence,
+ * "Everyone synchronises with {server}", is then simply false. An inconsistent
+ * affordance is untidy; a false statement in the administration UI is a
+ * defect. It also follows the rule already applied one row above: a user who
+ * is not shown that the synchronisation happened cannot coherently be the one
+ * deciding whether it happens. The privacy objection — not wanting work
+ * meetings copied into a personal calendar — does not survive either, because
+ * a managed account is one the instance provisioned, so it is a work account
+ * by construction.
  *
+ * <p>
+ * <b>The stored preference is not touched.</b> Managed mode overrides the
+ * value HERE, where it is read, and nothing rewrites what the user chose. A
+ * user who had copies switched off before the mode was turned on gets copies
+ * while it is on and gets their own choice back the moment it is turned off.
+ * Rewriting the setting instead would have been one line shorter and would
+ * have destroyed a choice the platform has no way to reconstruct.
+ *
+ * <p>
+ * The unmanaged half is deliberately the push path's own expression — absent
+ * settings mean no copy — and not the settings screen's, which defaults an
+ * unset preference to on. Those two have always differed; unifying them here
+ * would change what an unmanaged deployment does, which is not what this
+ * function is for.
+ *
+ * @param {Object} settings the agenda user settings the page loaded
  * @param {Array} connectors the connector descriptors agenda loaded
- * @returns {String} the server's name, empty when unmanaged or unnamed
+ * @returns {Boolean} true when the copies must be written
  */
-export function caldavManagedServerName(connectors) {
-  const managed = (connectors || []).find(connector => connector && connector.isCaldav === true && connector.managed === true);
-  return managed && managed.managedServerName || '';
+export function copyMeetingsEnabled(settings, connectors) {
+  if (isCaldavManaged(connectors)) {
+    return true;
+  }
+  return !!(settings && settings.automaticPushEvents);
 }
 
 /**

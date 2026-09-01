@@ -1,4 +1,4 @@
-import {caldavManagedServerName, isCaldavManaged, remoteCalendarName} from '../../main/webapp/vue-app/agenda-common/js/RemoteEventConnector.js';
+import {isCaldavManaged, remoteCalendarName} from '../../main/webapp/vue-app/agenda-common/js/RemoteEventConnector.js';
 
 /*
  * EXO-89825. An event read live from a connected account carries the href of
@@ -168,24 +168,5 @@ describe('isCaldavManaged', () => {
     expect(isCaldavManaged(null)).toBe(false);
     expect(isCaldavManaged([])).toBe(false);
     expect(isCaldavManaged([null, undefined])).toBe(false);
-  });
-});
-
-/*
- * The server's name is a different question from the verdict, kept apart on
- * purpose: the verdict decides whether an affordance is offered and every
- * screen must agree on it, the name is a word one screen prints.
- */
-describe('caldavManagedServerName', () => {
-
-  it('names the server the managed descriptor carries', () => {
-    expect(caldavManagedServerName([
-      {isCaldav: true, managed: true, managedServerName: 'Bluemind'},
-    ])).toBe('Bluemind');
-  });
-
-  it('names nothing when nothing is managed', () => {
-    expect(caldavManagedServerName([{isCaldav: true, managed: false, managedServerName: 'Bluemind'}])).toBe('');
-    expect(caldavManagedServerName(null)).toBe('');
   });
 });
