@@ -247,6 +247,82 @@ function updateEventRemoteInformation(connector, event, connectorEvent) {
 }
 
 /**
+ * Whether this instance chooses the user's CalDAV server for them, so agenda
+ * must offer neither connecting nor disconnecting a CalDAV account.
+ *
+ * <p>
+ * The single place that condition is written. Every component that hides an
+ * affordance because of managed mode asks this — the toolbar button, the
+ * connectors drawer, the settings section, the timeline's own drawer opener —
+ * for the same reason `lastSyncPhrase` lives here: a condition copied into
+ * four components is four conditions, and they drift. The drift is not
+ * hypothetical in this delivery, it is its most repeated defect shape.
+ *
+ * <p>
+ * The verdict is read off the connector descriptors, which the CalDAV add-on
+ * stamps from a PER-VIEWER answer. Agenda deliberately does not ask the
+ * platform itself: it would have to know a CalDAV REST endpoint, which is
+ * exactly the coupling the descriptor exists to avoid, and it would be a
+ * second answer to a question that already has one.
+ *
+ * <p>
+ * A descriptor that predates the stamp simply counts as unmanaged, which is
+ * the behaviour every deployment had before managed mode existed.
+ *
+ * @param {Array} connectors the connector descriptors agenda loaded
+ * @returns {Boolean} true when the CalDAV affordances must not be offered
+ */
+export function isCaldavManaged(connectors) {
+  return !!(connectors || []).some(connector => connector && connector.isCaldav === true && connector.managed === true);
+}
+
+/**
+ * Whether eXo meetings are copied into the user's connected calendar account
+ * — the EFFECTIVE value, which is not always the stored preference.
+ *
+ * <p>
+ * Managed mode forces it on. The reason is stronger than the one that hides
+ * the My Calendars line, and it is worth stating precisely: this is not
+ * status, it is the switch deciding whether the synchronisation happens at
+ * all. Left to the user, an administrator turns managed mode on believing the
+ * organisation now synchronises with the chosen server, while any number of
+ * users have quietly switched it off — and the admin row's sentence,
+ * "Everyone synchronises with {server}", is then simply false. An inconsistent
+ * affordance is untidy; a false statement in the administration UI is a
+ * defect. It also follows the rule already applied one row above: a user who
+ * is not shown that the synchronisation happened cannot coherently be the one
+ * deciding whether it happens. The privacy objection — not wanting work
+ * meetings copied into a personal calendar — does not survive either, because
+ * a managed account is one the instance provisioned, so it is a work account
+ * by construction.
+ *
+ * <p>
+ * <b>The stored preference is not touched.</b> Managed mode overrides the
+ * value HERE, where it is read, and nothing rewrites what the user chose. A
+ * user who had copies switched off before the mode was turned on gets copies
+ * while it is on and gets their own choice back the moment it is turned off.
+ * Rewriting the setting instead would have been one line shorter and would
+ * have destroyed a choice the platform has no way to reconstruct.
+ *
+ * <p>
+ * The unmanaged half is deliberately the push path's own expression — absent
+ * settings mean no copy — and not the settings screen's, which defaults an
+ * unset preference to on. Those two have always differed; unifying them here
+ * would change what an unmanaged deployment does, which is not what this
+ * function is for.
+ *
+ * @param {Object} settings the agenda user settings the page loaded
+ * @param {Array} connectors the connector descriptors agenda loaded
+ * @returns {Boolean} true when the copies must be written
+ */
+export function copyMeetingsEnabled(settings, connectors) {
+  if (isCaldavManaged(connectors)) {
+    return true;
+  }
+  return !!(settings && settings.automaticPushEvents);
+}
+
+/**
  * How to phrase "when did this last synchronise", as a key of the Agenda
  * bundle and the number that goes in it.
  *

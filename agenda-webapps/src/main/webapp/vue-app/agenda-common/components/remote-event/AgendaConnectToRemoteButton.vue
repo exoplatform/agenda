@@ -1,7 +1,7 @@
 <template>
   <div v-if="showButton" class="d-flex align-center">
     <v-btn
-      v-if="!connectedConnector && showConnectAction"
+      v-if="!connectedConnector && showConnectAction && !caldavManaged"
       :title="$t('agenda.connectYourPersonalAgenda')"
       icon
       :max-width="width"
@@ -12,7 +12,7 @@
       </v-icon>
     </v-btn>
     <v-btn
-      v-else-if="connectedConnector && showManageAction"
+      v-else-if="connectedConnector && showManageAction && !caldavManaged"
       :title="$t('agenda.manageYourPersonalAgenda')"
       icon
       :max-width="width"
@@ -93,9 +93,25 @@ export default {
         return false;
       }
       if (this.connectedConnector) {
-        return this.showToggleAction || this.showManageAction;
+        return this.showToggleAction || (this.showManageAction && !this.caldavManaged);
       }
-      return this.showConnectAction;
+      return this.showConnectAction && !this.caldavManaged;
+    },
+    /**
+     * Whether the instance chose this user's CalDAV server for them.
+     *
+     * Both actions this button offers when it is not toggling — connecting an
+     * account, and managing the one connected — open the CalDAV-filtered
+     * connectors drawer, so both are exactly the act managed mode takes away.
+     * The show/hide-remote-events toggle is not: it is a view preference over
+     * events that are already there, and a managed user keeps it. Suppressing
+     * the whole button would have removed it too, from the one place that
+     * offers it — the timeline header.
+     *
+     * @returns {Boolean} true when connect and manage must not be offered
+     */
+    caldavManaged() {
+      return this.$remoteEventConnector.isCaldavManaged(this.connectors);
     },
     connectedConnector() {
       return this.connectors && this.connectors.find(connector => connector.connected);
