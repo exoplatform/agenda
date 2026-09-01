@@ -118,6 +118,10 @@ export default {
       type: Boolean,
       default: false,
     },
+    standalone: {
+      type: Boolean,
+      default: false,
+    },
   },
   data: () => ({
     initialized: false,
@@ -154,6 +158,9 @@ export default {
     leftPanelExpanded: localStorage.getItem('agendaLeftPanelExpanded') !== 'false',
   }),
   computed: {
+    spaceContextId() {
+      return !this.standalone && eXo.env.portal.spaceId || null;
+    },
     /**
      * Whether the left panel feature is available in the current context: it
      * is a personal agenda feature, thus hidden inside a space agenda where a
@@ -162,7 +169,7 @@ export default {
      * @returns {boolean} true when the left panel can be displayed
      */
     leftPanelAvailable() {
-      return !eXo.env.portal.spaceId;
+      return !this.spaceContextId;
     },
     /**
      * Whether the left panel is effectively displayed: available in the
@@ -281,7 +288,7 @@ export default {
     this.$root.$on('agenda-event-type-changed', eventType => this.eventType = eventType);
     this.$root.$on('agenda-event-deleted', this.deletedEvent);
     this.$root.$on('agenda-event-response-sent', this.retrieveEvents);
-    this.spaceId = eXo.env.portal.spaceId;
+    this.spaceId = this.spaceContextId;
     this.$root.$on('agenda-calendar-owners-changed', this.changeDisplayedOwnerIds);
     this.$root.$on('agenda-left-panel-toggle', this.toggleLeftPanel);
     this.$root.$on('agenda-remote-calendars-changed', this.changeHiddenRemoteCalendars);
@@ -344,8 +351,8 @@ export default {
       }
     },
     retrieveEvents() {
-      if (!this.initialized && eXo.env.portal.spaceId) {
-        const spaceId = eXo.env.portal.spaceId;
+      if (!this.initialized && this.spaceContextId) {
+        const spaceId = this.spaceContextId;
         this.$spaceService.getSpaceById(spaceId, 'identity')
           .then((space) => {
             this.currentSpace = space;
@@ -377,7 +384,7 @@ export default {
         this.initialized = true;
         return;
       }
-      const responseTypes = eXo.env.portal.spaceId && this.eventType === 'allEvents' ? null : this.eventType === 'declinedEvent' ? ['DECLINED']:['ACCEPTED', 'NEEDS_ACTION', 'TENTATIVE'];
+      const responseTypes = this.spaceContextId && this.eventType === 'allEvents' ? null : this.eventType === 'declinedEvent' ? ['DECLINED']:['ACCEPTED', 'NEEDS_ACTION', 'TENTATIVE'];
       return this.$eventService.getEvents(this.searchTerm, this.ownerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, true), this.$agendaUtils.toRFC3339(this.period.end), this.limit, responseTypes, 'attendees,conferences')
         .then(data => {
           let events = data && data.events || [];

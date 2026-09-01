@@ -26,7 +26,8 @@ const url = `${eXo.env.portal.context}/${eXo.env.portal.rest}/i18n/bundle/locale
 export function init() {
   exoi18n.loadLanguageAsync(lang, url).then(i18n => {
     // init Vue app when locale ressources are ready
-    const eventType = eXo.env.portal.spaceId ? 'allEvents' : 'myEvents';
+    const standalone = !!document.getElementById(appId)?.closest('.drawerParent');
+    const eventType = !standalone && eXo.env.portal.spaceId ? 'allEvents' : 'myEvents';
     Vue.createApp({
       data() {
         return {
@@ -57,7 +58,7 @@ export function init() {
           return this.$vuetify.breakpoint.width < this.$vuetify.breakpoint.thresholds.md && this.$vuetify.breakpoint.width >= this.$vuetify.breakpoint.thresholds.sm;
         },
       },
-      template: `<agenda id="${appId}" event-type="${eventType}" />`,
+      template: `<agenda id="${appId}" event-type="${eventType}" :standalone="${standalone}" />`,
       vuetify,
       i18n
     }, `#${appId}`, 'Agenda');
