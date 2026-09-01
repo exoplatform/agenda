@@ -52,6 +52,8 @@ import org.exoplatform.agenda.mcp.model.AgendaEventModel;
 import org.exoplatform.agenda.mcp.model.AvailabilityModel;
 import org.exoplatform.agenda.mcp.model.ConferenceModel;
 import org.exoplatform.agenda.mcp.model.DatePollModel;
+import org.exoplatform.agenda.mcp.model.ScheduleConflictEventModel;
+import org.exoplatform.agenda.mcp.model.ScheduleConflictsModel;
 import org.exoplatform.agenda.mcp.model.TimeBlockModel;
 import org.exoplatform.agenda.model.AgendaUserSettings;
 import org.exoplatform.agenda.model.Calendar;
@@ -59,6 +61,7 @@ import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
 import org.exoplatform.agenda.model.EventAttendeeList;
 import org.exoplatform.agenda.model.EventConference;
+import org.exoplatform.agenda.model.EventOccurrence;
 import org.exoplatform.agenda.model.EventDateOption;
 import org.exoplatform.agenda.model.EventReminder;
 import org.exoplatform.agenda.model.EventSearchResult;
@@ -68,6 +71,7 @@ import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.agenda.service.AgendaEventAttendeeService;
 import org.exoplatform.agenda.service.AgendaEventConferenceService;
 import org.exoplatform.agenda.service.AgendaEventService;
+import org.exoplatform.agenda.service.AgendaScheduleConflictServiceImpl;
 import org.exoplatform.agenda.service.AgendaUserSettingsService;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.portal.config.UserACL;
@@ -98,6 +102,10 @@ class AgendaEventMcpToolTest {
   private static final ZonedDateTime         START            = ZonedDateTime.of(2026, 7, 20, 9, 0, 0, 0, ZoneOffset.UTC);
 
   private static final ZonedDateTime         END              = ZonedDateTime.of(2026, 7, 20, 10, 0, 0, 0, ZoneOffset.UTC);
+
+  private static final String                WINDOW_START_TEXT = "2026-07-20T00:00:00Z";
+
+  private static final String                WINDOW_END_TEXT  = "2026-07-21T00:00:00Z";
 
   private AgendaCalendarService              agendaCalendarService;
 
@@ -172,6 +180,7 @@ class AgendaEventMcpToolTest {
                                                                     identityManager,
                                                                     spaceService,
                                                                     agendaUserSettingsService),
+                                  new AgendaScheduleConflictServiceImpl(agendaEventService, agendaEventAttendeeService),
                                   agendaEventConferenceService,
                                   agendaEventAttendeeService,
                                   agendaEventDatePollService,
@@ -1201,5 +1210,91 @@ class AgendaEventMcpToolTest {
   private Event mockEvent() {
     return Mockito.mock(Event.class);
   }
+
+
+  // --- get_schedule_conflicts ----------------------------------------------
+
+  @Test
+  void getScheduleConflictsWithoutAWindowFails() {
+    assertThrows(IllegalArgumentException.class, () -> tool.getScheduleConflicts(null, WINDOW_END_TEXT));
+    assertThrows(IllegalArgumentException.class, () -> tool.getScheduleConflicts(WINDOW_START_TEXT, " "));
+  }
+
+  @Test
+  void getScheduleConflictsReportsOneGroupWithWhatTheCallerNeeds() throws Exception {
+    stubSpaceCalendarChain(SPACE_ID, SPACE_PRETTY_NAME, OWNER_IDENTITY_ID, CALENDAR_ID);
+    Event mine = buildEvent(601L, CALENDAR_ID, at(9), at(11), EventStatus.CONFIRMED);
+    mine.setCreatorId(USER_IDENTITY_ID);
+    Event theirs = buildEvent(602L, CALENDAR_ID, at(10), at(12), EventStatus.CONFIRMED);
+    when(agendaEventService.getEvents(any(), eq(ZoneOffset.UTC), eq(USER_IDENTITY_ID))).thenReturn(List.of(mine, theirs));
+
+    ScheduleConflictsModel model = tool.getScheduleConflicts(WINDOW_START_TEXT, WINDOW_END_TEXT);
+
+    assertNotNull(model);
+    assertEquals(WINDOW_START_TEXT, model.getFromDate());
+    assertEquals(WINDOW_END_TEXT, model.getToDate());
+    assertFalse(model.isTruncated());
+    assertEquals(1, model.getConflicts().size());
+    List<ScheduleConflictEventModel> events = model.getConflicts().get(0).getEvents();
+    assertEquals(2, events.size());
+    assertEquals(601L, events.get(0).getEventId());
+    assertEquals("summary", events.get(0).getSummary());
+    assertNotNull(events.get(0).getStart());
+    assertNotNull(events.get(0).getUrl());
+    assertEquals(SPACE_ID, events.get(0).getSpaceId());
+    assertTrue(events.get(0).isCreatedByMe());
+    assertFalse(events.get(1).isCreatedByMe());
+  }
+
+  /**
+   * The whole point of moving the arithmetic server-side: 09:00 - 10:00
+   * followed by 10:00 - 11:00 comes back as nothing to report.
+   */
+  @Test
+  void getScheduleConflictsReportsNothingForBackToBackEvents() throws Exception {
+    stubSpaceCalendarChain(SPACE_ID, SPACE_PRETTY_NAME, OWNER_IDENTITY_ID, CALENDAR_ID);
+    when(agendaEventService.getEvents(any(), eq(ZoneOffset.UTC), eq(USER_IDENTITY_ID)))
+                                                                                       .thenReturn(List.of(buildEvent(601L,
+                                                                                                                      CALENDAR_ID,
+                                                                                                                      at(9),
+                                                                                                                      at(10),
+                                                                                                                      EventStatus.CONFIRMED),
+                                                                                                           buildEvent(602L,
+                                                                                                                      CALENDAR_ID,
+                                                                                                                      at(10),
+                                                                                                                      at(11),
+                                                                                                                      EventStatus.CONFIRMED)));
+
+    assertTrue(tool.getScheduleConflicts(WINDOW_START_TEXT, WINDOW_END_TEXT).getConflicts().isEmpty());
+  }
+
+  /**
+   * A materialised occurrence has no id of its own, so what is published is
+   * the series id plus the occurrence's date — the pair the write tools that
+   * act on a single occurrence expect.
+   */
+  @Test
+  void getScheduleConflictsPublishesTheSeriesIdOfAnOccurrence() throws Exception {
+    stubSpaceCalendarChain(SPACE_ID, SPACE_PRETTY_NAME, OWNER_IDENTITY_ID, CALENDAR_ID);
+    Event occurrence = buildEvent(0L, CALENDAR_ID, at(9), at(11), EventStatus.CONFIRMED);
+    occurrence.setParentId(900L);
+    occurrence.setOccurrence(new EventOccurrence(at(9)));
+    Event other = buildEvent(602L, CALENDAR_ID, at(10), at(12), EventStatus.CONFIRMED);
+    when(agendaEventService.getEvents(any(), eq(ZoneOffset.UTC), eq(USER_IDENTITY_ID))).thenReturn(List.of(occurrence, other));
+
+    ScheduleConflictEventModel reported = tool.getScheduleConflicts(WINDOW_START_TEXT, WINDOW_END_TEXT)
+                                              .getConflicts()
+                                              .get(0)
+                                              .getEvents()
+                                              .get(0);
+
+    assertEquals(900L, reported.getEventId());
+    assertNotNull(reported.getOccurrenceId());
+  }
+
+  private ZonedDateTime at(int hour) {
+    return ZonedDateTime.of(2026, 7, 20, hour, 0, 0, 0, ZoneOffset.UTC);
+  }
+
 
 }

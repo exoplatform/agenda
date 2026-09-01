@@ -571,6 +571,34 @@
       }
     },
     {
+      "name": "get_schedule_conflicts",
+      "title": "Get schedule conflicts",
+      "description": "Report the clashes already on the current user's own calendar over a window. The overlapping events are found, grouped and ordered server-side, so nothing in this result needs sorting, grouping, deduplicating or renumbering - narrate it and propose what to do. Two events that merely touch, one ending exactly when the next begins, are NOT a clash and never appear together. Grouping is transitive: a group of three may hold two events that do not themselves overlap, and a group's start/end is the stretch of the day the tangle covers, not a window in which all of its events are present - never present it as 'you are triple-booked from X to Y'. Events the user declined, cancelled events and events published as free time are already excluded. Each event says whether the caller created it (created_by_me): only there can a reschedule be proposed; elsewhere the honest proposals are to decline or to ask the organiser. An empty conflicts list means the window is genuinely clear, unless truncated is true, in which case the window held more events than one call scans and the absence of further clashes is not evidence - ask for a shorter window. Only the caller's own calendar is read; for someone else's schedule use get_availability, which discloses times and never titles.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "start": {
+            "type": "string",
+            "description": "Window start (RFC3339)."
+          },
+          "end": {
+            "type": "string",
+            "description": "Window end (RFC3339), strictly after start and at most 92 days later."
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
       "name": "get_event_attendees",
       "title": "Get event attendees",
       "description": "List an event's attendees together with each one's response (ACCEPTED, DECLINED, TENTATIVE or NEEDS_ACTION).",
