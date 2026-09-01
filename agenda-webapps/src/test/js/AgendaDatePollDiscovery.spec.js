@@ -207,6 +207,114 @@ describe('EXO-89852 — the drawer admits exactly whom the form admits', () => {
   });
 });
 
+/**
+ * The body's rows, in the order the DOM holds them.
+ *
+ * Read off the rendered container's direct children rather than off the
+ * source, and each row is named by something only that row contains — so a row
+ * appended in the wrong place, or moved, shows up here as a changed sequence.
+ * A row this function does not recognise is reported rather than skipped: a
+ * future field silently dropping in unnamed would otherwise pass.
+ *
+ * @param {Object} drawer the mounted drawer
+ * @returns {Array} the row names, top to bottom
+ */
+function bodyRowOrder(drawer) {
+  const body = drawer.element.querySelector('.flex-column.flex-grow-1');
+  return Array.prototype.map.call(body.children, row => {
+    if (row.querySelector('#eventTitle')) {
+      return 'title';
+    } else if (row.querySelector('agenda-event-form-destination')) {
+      return 'destination';
+    } else if (row.querySelector('agenda-event-form-date-pickers')) {
+      return 'date';
+    } else if (row.textContent.includes('agenda.alternativeDates')) {
+      return 'datePollLink';
+    } else if (row.querySelector('agenda-event-form-attendees')) {
+      return 'participants';
+    } else if (row.querySelector('#eventLocation')) {
+      return 'location';
+    } else if (row.tagName.toLowerCase() === 'agenda-event-form-conference') {
+      return 'conference';
+    } else if (row.querySelector('agenda-event-form-color-picker')) {
+      return 'colour';
+    }
+    return `unrecognised:${row.tagName.toLowerCase()}`;
+  });
+}
+
+/*
+ * EXO-89852, the drawer's running order. It grew by appending — nothing chose
+ * it — and left the two rows that carry DECISIONS below the three that carry
+ * attributes of a meeting already decided.
+ *
+ * Who is coming is the same kind of choice as when: it is what decides whether
+ * the time works, which is why Google and Outlook both put guests straight
+ * after the time. Location, conference and colour are decoration by
+ * comparison. And the date-poll link answers a question asked while looking at
+ * the time field — past the optional attributes it reads as one more action
+ * rather than as an alternative to the field above it.
+ *
+ * Geometry is not testable here, but sequence is, and sequence is the whole
+ * of the change.
+ */
+describe('EXO-89852 — the drawer asks for the decisions first', () => {
+  it('puts the date-poll link under the time and the participants above the optional fields', () => {
+    const order = bodyRowOrder(mountDrawer(editedEvent()));
+
+    expect(order).toEqual([
+      'title',
+      'destination',
+      'date',
+      'datePollLink',
+      'participants',
+      'location',
+      'conference',
+      'colour',
+    ]);
+  });
+
+  /*
+   * The two relationships the order exists for, asserted by name so a failure
+   * says which one broke rather than only that the list changed.
+   */
+  it('keeps the link immediately after the date pickers, and participants above location', () => {
+    const order = bodyRowOrder(mountDrawer(editedEvent()));
+
+    expect(order[order.indexOf('date') + 1]).toBe('datePollLink');
+    expect(order.indexOf('participants')).toBeLessThan(order.indexOf('location'));
+    expect(order.indexOf('participants')).toBeLessThan(order.indexOf('conference'));
+    expect(order.indexOf('participants')).toBeLessThan(order.indexOf('colour'));
+  });
+
+  /*
+   * The disabled link holds its place: it is greyed, not removed, so the rows
+   * below it do not shift under an organiser who has not filled the title in
+   * yet.
+   */
+  it('holds the link\'s place while it is disabled', () => {
+    expect(bodyRowOrder(mountDrawer(editedEvent({summary: ''})))[3]).toBe('datePollLink');
+  });
+
+  /*
+   * On mobile the link is absent (the form behind it cannot make a poll), and
+   * its absence must not disturb anything else.
+   */
+  it('drops only the link on mobile, leaving the rest of the order alone', () => {
+    const order = bodyRowOrder(mountDrawer(editedEvent(), true));
+
+    expect(order).toEqual([
+      'title',
+      'destination',
+      'date',
+      'participants',
+      'location',
+      'conference',
+      'colour',
+    ]);
+  });
+});
+
 describe('EXO-89852 — the route asks for the date step', () => {
   /**
    * Captures what the drawer emits on the root bus.
