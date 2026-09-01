@@ -181,6 +181,26 @@ describe('EXO-89852 — the participants field says what it takes', () => {
     expect(noData).toBeDefined();
     expect(noData.toLowerCase()).not.toContain('agenda');
   });
+
+  /*
+   * Kept as its own test, not folded into the one above: the two invariants
+   * fail for different reasons and a reader of a failure needs to know which
+   * one broke. Losing the hint is not the same defect as talking about
+   * agendas, and a single test asserting both would report either as the
+   * other.
+   *
+   * An empty result is the only moment this sentence can land — it is where
+   * somebody who typed an address has already tried and failed. Enter alone is
+   * named of the three triggers checkGuestInvitation commits on, so the pin
+   * asks for Enter and does NOT ask for space or blur: naming those would be
+   * pinning a worse instruction.
+   */
+  it('tells someone who typed an address that Enter will invite them', () => {
+    const noData = englishBundle()['agenda.attendees.noDataLabel'].toLowerCase();
+
+    expect(noData).toContain('enter');
+    expect(noData).toContain('email');
+  });
 });
 
 describe('EXO-89852 — the participants drawer opens on its search field', () => {

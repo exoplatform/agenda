@@ -279,7 +279,16 @@ export default {
      *                     is the drawer's OWN key: the shared agenda.noDataLabel
      *                     says "No agenda found", which is right for the two
      *                     suggesters that search agendas and wrong for the one
-     *                     searching people.
+     *                     searching people. It also carries the guest hint,
+     *                     because an empty result is the only moment at which
+     *                     somebody who typed an address has already tried and
+     *                     failed — the one place that sentence can still
+     *                     rescue them. It names Enter alone of the three
+     *                     things checkGuestInvitation commits on: Enter is the
+     *                     one a reader will already believe means "commit
+     *                     this", while space is a surprise and blur is
+     *                     invisible, and an instruction listing all three
+     *                     teaches worse than one naming the obvious.
      */
     participantSuggesterLabels() {
       return {
