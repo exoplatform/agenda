@@ -420,6 +420,19 @@ export default {
      * and expanding it into its members would disclose the calendars of people
      * the organiser never named.
      *
+     * <p>
+     * <strong>And a guest, for the same kind of reason (EXO-89867).</strong> A
+     * guest is an email address, not an account: there is no eXo calendar to
+     * read and there never was one, so there is no answer being missed. They
+     * are left out SILENTLY rather than named as unreadable — the strip below
+     * the header exists to say "this grid may be hiding a real commitment",
+     * and a line saying that about somebody who provably has no calendar is a
+     * false alarm. It would also count against the coverage the counter
+     * claims, telling the organiser their grid is incomplete when it covers
+     * everybody the platform can answer about. The organiser typed an address
+     * instead of picking a person and the attendee row shows that address;
+     * the screen owes them nothing further here.
+     *
      * @returns {Array} the participants, in attendee order
      */
     participants() {
@@ -428,6 +441,7 @@ export default {
       return (this.event && this.event.attendees || [])
         .filter(attendee => !!this.$agendaUtils.participantKey(attendee))
         .filter(attendee => attendee.identity.providerId !== 'space')
+        .filter(attendee => attendee.identity.providerId !== this.$agendaUtils.GUEST_USER_PROVIDER_ID)
         .filter(attendee => String(attendee.identity.id || '') !== currentUserIdentityId
                          && String(attendee.identity.remoteId || '') !== currentUserName);
     },
@@ -1105,6 +1119,19 @@ export default {
      * retried on every page either — the participant is named as unread
      * instead, which is the honest answer and a stable one.
      *
+     * <p>
+     * <strong>Resolved means an id the endpoint can be ASKED about, not
+     * merely a truthy `identity.id` (EXO-89867).</strong> An attendee's
+     * `identity.id` is not always an identity id — the attendees drawer puts
+     * the email address there for a guest — and the availability resource
+     * binds its whole `List&lt;Long&gt;` at once, so one member that is not a
+     * number is a 400 on the REQUEST, not a member the server skips. Sending
+     * such a value therefore does not fail that one participant: it blanks
+     * every other participant's busy time, and a blank grid reads as free. A
+     * value that is not an identity id is treated exactly like a lookup that
+     * answered nothing — that participant is declared unread and named, and
+     * everybody else is still asked about.
+     *
      * @param {Array} participants the people to resolve
      * @returns {Promise} resolves with `{[participantKey]: identity}`, holding
      *          only the participants that could be resolved
@@ -1122,15 +1149,19 @@ export default {
       return Promise.all(pending.map(participant => {
         const key = this.$agendaUtils.participantKey(participant);
         const identity = participant.identity;
-        if (identity.id) {
+        if (this.$agendaUtils.isIdentityId(identity.id)) {
           this.resolvedParticipants[key] = identity;
           return Promise.resolve();
         }
         return this.$identityService.getIdentityByProviderIdAndRemoteId(identity.providerId, identity.remoteId)
           .then(resolvedIdentity => {
-            // A lookup that answers without an id resolved nothing; recording
-            // it as a success would send `undefined` to the endpoint.
-            this.resolvedParticipants[key] = resolvedIdentity && resolvedIdentity.id && resolvedIdentity || null;
+            // A lookup that answers without an askable id resolved nothing;
+            // recording it as a success would send `undefined` — or whatever
+            // else it did answer — to the endpoint on everybody's behalf.
+            this.resolvedParticipants[key] = resolvedIdentity
+              && this.$agendaUtils.isIdentityId(resolvedIdentity.id)
+              && resolvedIdentity
+              || null;
           })
           .catch(error => {
             console.error('Error resolving the identity of a participant', key, error);
