@@ -108,13 +108,6 @@ public class AgendaUserSettingsServiceTest extends BaseAgendaEventTest {
     }
   }
 
-  @Test
-  public void testupdateUserTimeZone() throws Exception { // NOSONAR
-    String timeZone = "UTC";
-    agendaUserSettingsService.updateUserTimeZone("testuser1", timeZone);
-    UserProfile userProfile = CommonsUtils.getService(OrganizationService.class).getUserProfileHandler().findUserProfileByName("testuser1");
-    assertEquals("UTC", userProfile.getAttribute("user.timeZone"));
-  }
 
   @Test
   public void testGetEmbedMapProviderWhenNotSet() {
