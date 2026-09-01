@@ -247,6 +247,54 @@ function updateEventRemoteInformation(connector, event, connectorEvent) {
 }
 
 /**
+ * Whether this instance chooses the user's CalDAV server for them, so agenda
+ * must offer neither connecting nor disconnecting a CalDAV account.
+ *
+ * <p>
+ * The single place that condition is written. Every component that hides an
+ * affordance because of managed mode asks this — the toolbar button, the
+ * connectors drawer, the settings section, the timeline's own drawer opener —
+ * for the same reason `lastSyncPhrase` lives here: a condition copied into
+ * four components is four conditions, and they drift. The drift is not
+ * hypothetical in this delivery, it is its most repeated defect shape.
+ *
+ * <p>
+ * The verdict is read off the connector descriptors, which the CalDAV add-on
+ * stamps from a PER-VIEWER answer. Agenda deliberately does not ask the
+ * platform itself: it would have to know a CalDAV REST endpoint, which is
+ * exactly the coupling the descriptor exists to avoid, and it would be a
+ * second answer to a question that already has one.
+ *
+ * <p>
+ * A descriptor that predates the stamp simply counts as unmanaged, which is
+ * the behaviour every deployment had before managed mode existed.
+ *
+ * @param {Array} connectors the connector descriptors agenda loaded
+ * @returns {Boolean} true when the CalDAV affordances must not be offered
+ */
+export function isCaldavManaged(connectors) {
+  return !!(connectors || []).some(connector => connector && connector.isCaldav === true && connector.managed === true);
+}
+
+/**
+ * The name of the server this instance synchronises the user with, when it
+ * chose one.
+ *
+ * <p>
+ * A different question from {@link isCaldavManaged}, and kept apart from it on
+ * purpose: that one decides whether an affordance is offered and every screen
+ * must agree on it, this one is a word one screen prints. Read off the same
+ * stamp so the sentence and the decision cannot come from different sources.
+ *
+ * @param {Array} connectors the connector descriptors agenda loaded
+ * @returns {String} the server's name, empty when unmanaged or unnamed
+ */
+export function caldavManagedServerName(connectors) {
+  const managed = (connectors || []).find(connector => connector && connector.isCaldav === true && connector.managed === true);
+  return managed && managed.managedServerName || '';
+}
+
+/**
  * How to phrase "when did this last synchronise", as a key of the Agenda
  * bundle and the number that goes in it.
  *

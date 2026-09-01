@@ -17,8 +17,16 @@
           {{ $t('agenda.settings.myCalendars') }}
         </v-list-item-title>
         <v-list-item-subtitle class="d-flex align-center">
+          <!--
+            Whose account this is, or — when there is none because the instance
+            decided the server — which server it will be. The connected case
+            keeps naming the ACCOUNT even under managed mode: a user who
+            connected by hand before the mode was switched on is still synced
+            with their own account, and naming the managed server instead would
+            state something that is not true of them.
+          -->
           <span class="text-truncate">
-            {{ $t('agenda.settings.myCalendarsSyncedWith', {0: caldavConnector.user}) }}
+            {{ accountLine }}
           </span>
           <!--
             On the account's own line, after a separator: what makes the action
@@ -50,7 +58,15 @@
           @click="syncNow">
           <v-icon size="20" class="icon-default-color">fa-sync-alt</v-icon>
         </v-btn>
+        <!--
+          The pencil leads to the connect drawer, so it is a connect and
+          disconnect affordance wearing another icon: it goes when the instance
+          decided the server. What sits beside it does not — Sync now and the
+          last-sync line are status, and a managed user needs them exactly as
+          much as anyone else. Status yes, control no.
+        -->
         <v-btn
+          v-if="!caldavManaged"
           :aria-label="$t('agenda.settings.myCalendarsManage')"
           :title="$t('agenda.settings.myCalendarsManage')"
           icon
@@ -156,10 +172,51 @@ export default {
      * user whose account was connected read "not synced" for a moment. Now
      * the section simply is not there until there is something true to say.
      *
-     * @returns {Boolean} true when a CalDAV account is connected
+     * <p>
+     * Managed mode adds the second case. There, the section stops being an
+     * offer to connect and becomes the only place a user can read the state of
+     * an account they did not choose and cannot manage: which server, when it
+     * last synchronised, and the button that runs it now. Hiding it because
+     * nothing is connected yet would leave a managed user with no account
+     * page at all — and none of the reasons above apply, since the section no
+     * longer offers a connect prompt to anybody.
+     *
+     * @returns {Boolean} true when a CalDAV account is connected, or when the
+     *          instance chose the server on this user's behalf
      */
     displayed() {
-      return !!this.caldavConnector && !!this.caldavConnector.connected;
+      return (!!this.caldavConnector && !!this.caldavConnector.connected) || this.caldavManaged;
+    },
+    /**
+     * Whether the instance chose this user's CalDAV server for them, read
+     * through the one helper every screen reads it through.
+     *
+     * @returns {Boolean} true when the account is not this user's to manage
+     */
+    caldavManaged() {
+      return this.$remoteEventConnector.isCaldavManaged(this.connectors);
+    },
+    /**
+     * The line naming what My Calendars is synchronised with.
+     *
+     * <p>
+     * The connected account when there is one — including a hand-made
+     * connection that predates managed mode, whose truth is its own account
+     * and not the instance's choice. Only a managed user with nothing
+     * connected is told the server's name instead, which is the honest
+     * rendering of "assigned, not provisioned": the server is decided, the
+     * account does not exist yet, and there is deliberately no last sync
+     * beside it to suggest otherwise.
+     *
+     * @returns {String} the subtitle's account line
+     */
+    accountLine() {
+      if (this.caldavConnector && this.caldavConnector.connected) {
+        return this.$t('agenda.settings.myCalendarsSyncedWith', {0: this.caldavConnector.user});
+      }
+      return this.$t('agenda.settings.myCalendarsManaged', {
+        0: this.$remoteEventConnector.caldavManagedServerName(this.connectors),
+      });
     },
     /**
      * Whether a CalDAV connector can be told apart at all. A deployment whose
