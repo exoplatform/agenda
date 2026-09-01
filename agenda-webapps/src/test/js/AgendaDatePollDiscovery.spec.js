@@ -310,19 +310,64 @@ describe('EXO-89852 — the date step is instructed from the footer', () => {
     });
   });
 
-  it('drops the instruction the moment a slot exists', () => {
+  /*
+   * One slot is not the state this hint is spent by. The instruction stands
+   * until the event becomes a poll, and it goes exactly as the save button
+   * turns into "Send date poll" — the two read the same count, so a screen
+   * offering the instruction while the button already says the work is done
+   * is not reachable.
+   */
+  it('stands while one slot makes an ordinary event, and goes at the second', () => {
     return onDateStep(1).then(form => {
-      expect(form.vm.footerHint).toBe('');
-      expect(form.text()).not.toContain('agenda.datePoll.dragHint');
+      expect(form.vm.footerHint).toBe('agenda.datePoll.dragHint');
+      expect(form.vm.saveButtonLabel).toBe('agenda.label.create');
+      expect(form.text()).toContain('agenda.datePoll.dragHint');
+
+      return onDateStep(2).then(poll => {
+        expect(poll.vm.footerHint).toBe('');
+        expect(poll.vm.saveButtonLabel).toBe('agenda.label.schedule');
+        expect(poll.text()).not.toContain('agenda.datePoll.dragHint');
+      });
     });
+  });
+
+  /*
+   * The defect that made the guard wrong in the first place, pinned through
+   * the path that exposed it rather than through a planted count: opened from
+   * the quick-add drawer, the clicked slot is ALREADY on the grid before the
+   * organiser sees the step. That path is the whole audience for this line —
+   * somebody who got to the date step without knowing the feature is there —
+   * and a guard on an empty grid silently withheld it from exactly them.
+   */
+  it('greets the organiser arriving from the quick-add drawer, whose slot is already on the grid', () => {
+    const fromDrawer = mountForm({
+      event: editedEvent({
+        startDate: new Date('2026-09-01T09:00:00Z'),
+        endDate: new Date('2026-09-01T10:00:00Z'),
+      }),
+      displayTimeInForm: true,
+      openDateOptions: true,
+    });
+
+    return fromDrawer.vm.$nextTick()
+      .then(() => fromDrawer.vm.$nextTick())
+      .then(() => {
+        expect(fromDrawer.vm.stepper).toBe(2);
+        expect(fromDrawer.vm.eventDateOptionsLength).toBe(1);
+        expect(fromDrawer.vm.footerHint).toBe('agenda.datePoll.dragHint');
+        expect(fromDrawer.text()).toContain('agenda.datePoll.dragHint');
+      });
   });
 
   /*
    * The step it was moved OUT of must not keep a copy: two copies would both
    * be right on the day of the move and drift the first time either changes.
+   * Asserted at both counts the footer now renders at, so a leftover copy
+   * cannot hide behind whichever one the threshold happens to be.
    */
   it('is gone from the grid it used to sit above', () => {
     expect(renderDatesStep([])).not.toContain('agenda.datePoll.dragHint');
+    expect(renderDatesStep([{allDay: false}])).not.toContain('agenda.datePoll.dragHint');
   });
 });
 

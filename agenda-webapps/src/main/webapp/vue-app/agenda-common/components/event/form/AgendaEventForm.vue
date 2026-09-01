@@ -208,15 +208,23 @@ export default {
     /*
      * The one line the footer carries, as a message key, or nothing.
      *
-     * The date step's instruction is spent the moment it is obeyed, and it is
-     * read off eventDateOptionsLength — the same count disableSaveButton
-     * reads, kept up to date by the date step's own added/deleted events — so
-     * the hint and the save button can never disagree about whether the grid
-     * holds anything.
+     * The date step's instruction stands until the event actually becomes a
+     * poll — under two options, not under one. An empty grid is not the state
+     * this hint is for: arriving from the quick-add drawer the clicked slot is
+     * already on the grid, so a guard on an empty grid would suppress the hint
+     * on precisely the path that needs it, for the organiser who reached this
+     * step without knowing the feature exists. One slot still means an
+     * ordinary event; the second is the transition, and that is the moment the
+     * line has been obeyed and should go.
+     *
+     * It reads eventDateOptionsLength, the same count saveButtonLabel and
+     * disableSaveButton read and the date step's own added/deleted events keep
+     * current — so hint-present and button-says-Create describe one state, and
+     * the hint goes exactly as the button turns into "Send date poll".
      */
     footerHint() {
       if (this.stepper > 1) {
-        return this.eventDateOptionsLength === 0 && 'agenda.datePoll.dragHint' || '';
+        return this.eventDateOptionsLength < 2 && 'agenda.datePoll.dragHint' || '';
       }
       return this.displayTimeInForm && 'agenda.datePoll.explanation' || '';
     },
