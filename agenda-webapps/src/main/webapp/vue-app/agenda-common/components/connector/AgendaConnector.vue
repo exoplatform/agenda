@@ -195,7 +195,10 @@ export default {
 
       this.$set(connector, 'loading', true);
       return Promise.resolve()
-        .then(() => connector.connect(this.settings && this.settings.automaticPushEvents))
+        // The same effective value: a managed account that connected without a
+        // mirror calendar would have nowhere to put the copies it is about to
+        // be sent, so the two reads must not be allowed to disagree.
+        .then(() => connector.connect(this.$remoteEventConnector.copyMeetingsEnabled(this.settings, this.connectors)))
         .then((userId) => {
           return this.$settingsService.saveUserConnector(connector.name, userId)
             .then(() => {
@@ -415,7 +418,14 @@ export default {
      */
     shouldReachAccount(connector, event) {
       if (this.isSpaceEvent(event)) {
-        return !!(this.settings && this.settings.automaticPushEvents) && connector.pushEnabled !== false;
+        // The EFFECTIVE value, not the stored preference: managed mode forces
+        // the copies on without rewriting what the user chose. Hiding the
+        // control while a stored false still suppressed the copy would leave a
+        // population silently not synchronising under an administrator who has
+        // been told everyone is — the worst of both, and the reason this reads
+        // the helper rather than the setting.
+        return this.$remoteEventConnector.copyMeetingsEnabled(this.settings, this.connectors)
+          && connector.pushEnabled !== false;
       }
       return !!connector.pushesOwnCalendars && this.isOwnCalendarEvent(event);
     },

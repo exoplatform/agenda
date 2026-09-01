@@ -87,15 +87,28 @@
                 @click="syncNow(connector)">
                 <v-icon size="18">fa-sync-alt</v-icon>
               </v-btn>
+              <!--
+                Neither button on a row the instance manages, and the two are
+                written as independent conditions rather than an if/else: an
+                else would have turned a hidden Disconnect into an offered
+                Connect, which is the opposite of what managed mode means.
+
+                Disconnect is the one that matters most here. A managed account
+                is not the user's to break — under provisioning it is the
+                instance's — and one click on it would leave them with no way
+                back, since the Connect button that would have fixed it is
+                exactly what managed mode also takes away. This is defence in
+                depth: the affordances that lead here are gone already.
+              -->
               <v-btn
-                v-if="connector.isSignedIn && connector.user"
+                v-if="connector.isSignedIn && connector.user && !rowManaged(connector)"
                 :loading="connector.loading"
                 class="btn"
                 @click="askBeforeDisconnecting(connector)">
                 {{ $t('agenda.disconnect') }}
               </v-btn>
               <v-btn
-                v-else
+                v-if="!(connector.isSignedIn && connector.user) && !rowManaged(connector)"
                 :loading="connector.loading"
                 class="btn"
                 @click="connect(connector)">
@@ -210,6 +223,22 @@ export default {
      */
     canSync(connector) {
       return !!(connector && connector.connected && typeof connector.sync === 'function');
+    },
+    /**
+     * Whether this row's account is the instance's to decide rather than the
+     * user's.
+     *
+     * Asked of the shared helper, one row at a time — the same predicate the
+     * toolbar button and the settings section read, so a row can never offer
+     * what another screen has already taken away. The row's own descriptor is
+     * what is judged: it is a CalDAV row that is managed, never "some CalDAV
+     * row on this page is".
+     *
+     * @param {Object} connector the connector descriptor of the row
+     * @returns {Boolean} true when neither Connect nor Disconnect belongs here
+     */
+    rowManaged(connector) {
+      return this.$remoteEventConnector.isCaldavManaged([connector]);
     },
     /**
      * When this connector last finished synchronising, in words.
