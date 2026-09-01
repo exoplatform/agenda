@@ -90,6 +90,43 @@ export function initEventForm(agendaEvent, deleteDates) {
   }
 }
 
+/*
+ * The bounds the event form enforces on the details step. Named because two
+ * screens now ask the same question and a bare 1024 in one of them would not
+ * read as the same rule as a bare 1024 in the other.
+ */
+export const EVENT_TITLE_MAX_LENGTH = 1024;
+export const EVENT_DESCRIPTION_MAX_LENGTH = 1300;
+
+/**
+ * Whether the event's details step is complete: a title within bounds, a
+ * destination the server can resolve, and a description within bounds.
+ *
+ * This is the rule behind the form's own "next step" button. It lives here,
+ * and not in AgendaEventForm, because the quick-add drawer now offers a second
+ * route into the date step and must admit exactly whom the form admits — two
+ * copies of this rule would drift, and the drawer would end up opening a step
+ * the form itself refuses to leave.
+ *
+ * @param {Object} agendaEvent the event being edited
+ * @param {Function} htmlToText the portal's HTML-to-text helper, as
+ *        $utils.htmlToText — passed in because this module is plain JS and has
+ *        no Vue prototype to read it from
+ * @returns {Boolean} true when nothing on the details step is missing
+ */
+export function isEventDetailsComplete(agendaEvent, htmlToText) {
+  const summary = agendaEvent && agendaEvent.summary;
+  if (!summary || summary.length < 1 || summary.length >= EVENT_TITLE_MAX_LENGTH) {
+    return false;
+  }
+  const owner = agendaEvent.calendar && agendaEvent.calendar.owner;
+  if (!owner || !(owner.id || owner.remoteId && owner.providerId)) {
+    return false;
+  }
+  const description = agendaEvent.description || '';
+  return htmlToText(description).length <= EVENT_DESCRIPTION_MAX_LENGTH;
+}
+
 export function getUserTimezone() {
   const timeZoneOffset = - (new Date().getTimezoneOffset());
   let timezoneHours = Math.abs(parseInt(timeZoneOffset / 60));

@@ -9,58 +9,57 @@
     </template>
     <template slot="content">
       <div class="pa-4">
+        <!--
+          The search field IS this drawer, so it is on screen when the drawer
+          opens, on a line of its own and at full width.
+
+          It used to sit behind a "+ Add" button whose only statement was
+          showSuggester = true. That button existed to make room: the add
+          control and the filter were sharing one line, so one of them had to
+          be a toggle. Giving each its own line leaves the toggle nothing to
+          solve, and it goes — along with the back arrow beside the field,
+          whose only job was to return to the line the filter button was on.
+        -->
+        <form
+          v-if="editable"
+          ref="form"
+          class="mb-4"
+          @keypress="checkGuestInvitation($event)">
+          <exo-identity-suggester
+            ref="invitedAttendeeAutoComplete"
+            v-model="invitedAttendee"
+            :labels="participantSuggesterLabels"
+            :title="suggesterStatus"
+            :disabled="disableAttendeeSuggester"
+            :ignore-items="ignoredMembers"
+            :search-options="searchOptions"
+            name="inviteAttendee"
+            no-redactor-space
+            include-users
+            dense
+            include-spaces />
+          <span v-if="disableAttendeeSuggester" class="error--text caption">
+            {{ $t('agenda.suggesterRequired') }}
+          </span>
+        </form>
+        <!--
+          The filter keeps its toggle, but on its own line rather than in
+          place of the field above.
+
+          It is NOT folded away with showSuggester, because the two flags were
+          doing different work despite looking alike: showSuggester only ever
+          bought horizontal room, while showFilterBar keeps a text field and a
+          status dropdown out of a drawer that mostly does not need them —
+          most events have a handful of attendees and nothing to filter. What
+          changes is only that expanding the filter no longer costs the search
+          field its place.
+        -->
         <div v-if="!showFilterBar" class="d-flex align-center mb-4">
-          <template v-if="editable">
-            <v-btn
-              v-if="!showSuggester"
-              color="primary"
-              class="ms-1"
-              elevation="0"
-              :title="$t('agenda.addParticipants')"
-              small
-              width="94px"
-              @click="showSuggester = true">
-              <v-icon size="14" class="me-1">fas fa-plus</v-icon>
-              <span class="text-font-size">{{ $t('agenda.label.addParticipants') }}</span>
-            </v-btn>
-            <form
-              v-else
-              ref="form"
-              class="flex-grow-1"
-              @keypress="checkGuestInvitation($event)">
-              <div class="d-flex align-center">
-                <v-btn
-                  icon
-                  small
-                  class="me-2 flex-shrink-0"
-                  @click="showSuggester = false">
-                  <v-icon size="20" class="icon-default-color">fas fa-arrow-left</v-icon>
-                </v-btn>
-                <exo-identity-suggester
-                  ref="invitedAttendeeAutoComplete"
-                  v-model="invitedAttendee"
-                  :labels="participantSuggesterLabels"
-                  :title="suggesterStatus"
-                  :disabled="disableAttendeeSuggester"
-                  :ignore-items="ignoredMembers"
-                  :search-options="searchOptions"
-                  name="inviteAttendee"
-                  no-redactor-space
-                  include-users
-                  dense
-                  include-spaces />
-              </div>
-              <span v-if="disableAttendeeSuggester" class="error--text caption">
-                {{ $t('agenda.suggesterRequired') }}
-              </span>
-            </form>
-          </template>
-          <div v-else class="ms-1 text-color subtitle-2">
+          <div v-if="!editable" class="ms-1 text-color subtitle-2">
             {{ $t('agenda.label.searchParticipant') }}
           </div>
-          <v-spacer v-if="!showSuggester" />
+          <v-spacer />
           <v-btn
-            v-if="!showSuggester"
             icon
             small
             class="flex-shrink-0"
@@ -167,7 +166,6 @@ export default {
     return {
       invitedAttendee: null,
       displayedCount: PAGE_SIZE,
-      showSuggester: false,
       showFilterBar: false,
       filterText: '',
       responseFilter: 'ALL',
@@ -284,11 +282,41 @@ export default {
       }
       return options;
     },
+    /*
+     * The three strings the suggester shows, and they land in three different
+     * places — which is why they are not interchangeable:
+     *
+     *   placeholder       the field itself, before anything is typed. Since
+     *                     EXO-89852 put this field on screen the moment the
+     *                     drawer opens, it is the first thing anybody reads
+     *                     here, so it says what to DO and names all three
+     *                     things the field takes — including the email
+     *                     address, which the field has always accepted
+     *                     through checkGuestInvitation and which no text on
+     *                     this screen used to mention.
+     *   searchPlaceholder the dropdown, before a search has started. Generic,
+     *                     and shared with the calendar-owner and timeline
+     *                     suggesters, so it stays as it is.
+     *   noDataLabel       the dropdown, when a search found nothing. This one
+     *                     is the drawer's OWN key: the shared agenda.noDataLabel
+     *                     says "No agenda found", which is right for the two
+     *                     suggesters that search agendas and wrong for the one
+     *                     searching people. It also carries the guest hint,
+     *                     because an empty result is the only moment at which
+     *                     somebody who typed an address has already tried and
+     *                     failed — the one place that sentence can still
+     *                     rescue them. It names Enter alone of the three
+     *                     things checkGuestInvitation commits on: Enter is the
+     *                     one a reader will already believe means "commit
+     *                     this", while space is a surprise and blur is
+     *                     invisible, and an instruction listing all three
+     *                     teaches worse than one naming the obvious.
+     */
     participantSuggesterLabels() {
       return {
         searchPlaceholder: this.$t('agenda.searchPlaceholder'),
         placeholder: this.$t('agenda.attendees.searchPlaceholder'),
-        noDataLabel: this.$t('agenda.noDataLabel'),
+        noDataLabel: this.$t('agenda.attendees.noDataLabel'),
       };
     },
     ignoredMembers() {
@@ -325,13 +353,29 @@ export default {
     },
   },
   methods: {
+    /**
+     * Opens the drawer, with the caller's response filter if it named one, and
+     * puts the cursor in the search field.
+     *
+     * The focus is done here rather than through the suggester's own autofocus
+     * prop, which it does support. That prop is a mount-time hook, and
+     * exo-drawer keeps its content mounted once opened (its `initialized` flag
+     * is never reset), so the prop would put the cursor in the field on the
+     * first opening of a page's lifetime and on no other. Removing a click
+     * only to leave the organiser reaching for the tab key on every opening
+     * afterwards is not the fix that was asked for. focus() is the suggester's
+     * own public method — no reaching into its DOM.
+     *
+     * @param {String} responseFilter the response to filter the list on, if any
+     * @returns {void}
+     */
     open(responseFilter) {
       this.displayedCount = PAGE_SIZE;
-      this.showSuggester = false;
       this.showFilterBar = false;
       this.filterText = '';
       this.responseFilter = responseFilter || 'ALL';
       this.$refs.attendeesDrawer.open();
+      this.$nextTick(() => this.$refs.invitedAttendeeAutoComplete && this.$refs.invitedAttendeeAutoComplete.focus());
     },
     loadMore() {
       this.displayedCount += PAGE_SIZE;
