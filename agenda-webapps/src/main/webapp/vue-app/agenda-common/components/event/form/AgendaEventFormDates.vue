@@ -4,36 +4,26 @@
       class="border-color mb-4"
       max-height="64"
       flat>
-      <!-- The header's compact row: the connected-account plug, then the
-           coverage counter, on one line and vertically centred with each
-           other and with the week navigation beside them. align-center, not
-           align-start: EXO-89845 was an alignment defect on this very header
-           and a 28px icon button beside 18px inline text does not line up on
-           its own. -->
+      <!-- The header's compact row: the loading spinner, then the coverage
+           counter, on one line and vertically centred with each other and with
+           the week navigation beside them. align-center, not align-start:
+           EXO-89845 was an alignment defect on this very header, and inline
+           items of unequal height do not line up on their own.
+
+           No connect affordance here, by EXO-89869: a calendar account is
+           connected once, from the settings, not in the middle of creating an
+           event — and with the personal-calendar drawer and the free/busy
+           coverage now on this step, a plug offering to connect one is noise.
+           What an already-connected account holds still paints on this grid;
+           that comes from `signedInConnectors` reading the `connectors` prop,
+           not from anything drawn in this header. -->
       <div class="d-flex flex-row align-center col-sm-3 col-2">
-        <agenda-connector-status
-          class="my-auto"
-          :connectors="connectors">
-          <!-- The same plug the connected state now draws, and that the
-               connect button and the contemporary-events panel already draw:
-               one glyph for "a calendar account" everywhere. The label stays,
-               because with nothing connected this is the header's only call to
-               action and an unlabelled icon would not read as one. -->
-          <template slot="connectButton">
-            <v-btn class="btn">
-              <v-icon size="16" class="me-2 text-light-color">
-                fas fa-plug
-              </v-icon>
-              {{ $t('agenda.connectYourPersonalAgenda') }}
-            </v-btn>
-          </template>
-        </agenda-connector-status>
         <v-progress-circular
           v-if="loading"
           indeterminate
           color="primary"
           size="20"
-          class="ms-3 my-auto" />
+          class="my-auto" />
         <agenda-event-form-busy-coverage
           variant="counter"
           :participants="participants"
@@ -167,7 +157,6 @@
           :style="currentTimeStyle"></div>
       </template>
     </v-calendar>
-    <agenda-connectors-drawer :connectors="connectors" />
   </v-flex>
 </template>
 

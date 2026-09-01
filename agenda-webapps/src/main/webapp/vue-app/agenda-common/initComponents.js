@@ -88,7 +88,6 @@ import AgendaRecurrentEventReminderConfirmDialog from './components/event/confir
 
 import AgendaEventIcs from './components/event/view/AgendaEventIcs.vue';
 import AgendaConnector from './components/connector/AgendaConnector.vue';
-import AgendaConnectorStatus from './components/connector/AgendaConnectorStatus.vue';
 import AgendaConnectorAvatar from './components/connector/AgendaConnectorAvatar.vue';
 import AgendaConnectorContemporaryEvents from './components/remote-event/AgendaConnectorContemporaryEvents.vue';
 import AgendaConnectorRemoteEventItem from './components/remote-event/AgendaConnectorRemoteEventItem.vue';
@@ -175,7 +174,6 @@ const components = {
   'agenda-date-option-conflict-item': AgendaDateOptionConflictItem,
   'agenda-ics': AgendaEventIcs,
   'agenda-connector': AgendaConnector,
-  'agenda-connector-status': AgendaConnectorStatus,
   'agenda-connector-avatar': AgendaConnectorAvatar,
   'agenda-connector-contemporary-events': AgendaConnectorContemporaryEvents,
   'agenda-connector-remote-event-item': AgendaConnectorRemoteEventItem,
