@@ -628,6 +628,45 @@ export const BUSY_TIME_NOT_DISCLOSED = 'not_disclosed';
 export const BUSY_TIME_FAILED = 'failed';
 
 /**
+ * The provider a guest invited by email address carries.
+ *
+ * <p>
+ * A guest is an email address, not an account: `saveGuestEmail` in the
+ * attendees drawer builds `{providerId: GUEST_USER_PROVIDER_ID, remoteId: the
+ * address, id: the address}`, and `AgendaGuestUserIdentityProvider` on the
+ * server is the provider that name refers to.
+ */
+export const GUEST_USER_PROVIDER_ID = 'GUEST_USER';
+
+/**
+ * Whether a value is an identity id the availability endpoint can be asked
+ * about.
+ *
+ * <p>
+ * <strong>The endpoint's parameter is `List&lt;Long&gt;`</strong>
+ * (`AgendaAvailabilityRest.getBusyTime`), and it binds the whole comma-joined
+ * list at once: a single member that is not a number is not a member the
+ * server skips, it is a 400 on the request — so nothing is read about ANYBODY
+ * on it. That is why this predicate exists at the boundary rather than a
+ * try/catch behind it: an unaskable participant has to be kept out of the
+ * batch, or they take everyone else's answer with them (EXO-89867).
+ *
+ * <p>
+ * An attendee's `identity.id` is not always an identity id. The attendees
+ * drawer puts the email address there for a guest, and a caller may hold any
+ * shape the suggester or the server left behind; a numeric id is the one
+ * shape this endpoint speaks.
+ *
+ * @param {*} value the candidate id
+ * @returns {Boolean} true when it is a technical identity id
+ */
+export function isIdentityId(value) {
+  // The type test carries its own weight: `String(['400'])` is '400', so a
+  // regexp alone would accept a one-element array as an id.
+  return (typeof value === 'string' || typeof value === 'number') && /^\d+$/.test(String(value));
+}
+
+/**
  * How one participant is identified on a screen that has not saved its event
  * yet.
  *

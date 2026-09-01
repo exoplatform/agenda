@@ -599,3 +599,290 @@ describe('The date-poll grid resolves the participants it was handed', () => {
       });
   });
 });
+
+/*
+ * EXO-89867: inviting a guest by email blanked the busy time of everyone else.
+ *
+ * THE MECHANISM, MEASURED ON THE RUNNING PLATFORM, not inferred from the
+ * symptom. A guest is pushed by `saveGuestEmail` with `identity.id` set to the
+ * EMAIL ADDRESS, so `resolveParticipants` took its "already has an id"
+ * short-circuit and recorded the guest as RESOLVED — it never looked anybody
+ * up and never failed. The address then travelled into the one batched
+ * request, whose parameter is `List<Long>`:
+ *
+ *   GET /agenda/rest/availability?identityIds=13              -> 200 + blocks
+ *   GET /agenda/rest/availability?identityIds=13,a@acme.com   -> 400
+ *      "Failed to convert value of type 'java.lang.String' to required type
+ *       'java.util.List'; For input string: \"13,a@acme.com\""
+ *
+ * Spring binds the whole comma-joined list at once, so a single unaskable
+ * member is a 400 on the REQUEST, not a member the server skips. The 400 then
+ * met EXO-89850's own rule — a rejected read means nothing is known about
+ * ANYBODY — and that rule, correct in itself, fanned one guest's presence out
+ * over every real colleague on the list.
+ *
+ * The two halves are therefore pinned separately, because either one alone
+ * leaves the defect reachable:
+ *   - a guest is not a participant of this grid at all;
+ *   - and a participant who cannot be reduced to an askable identity id is
+ *     kept OUT of the batch and named, while everybody else is still asked.
+ *
+ * The availability stub below models the endpoint's real contract rather than
+ * a friendly one: it REJECTS the whole call when any id is not numeric. A stub
+ * that quietly ignored the bad id would pass against the very bug this file
+ * exists to prevent.
+ */
+
+/*
+ * A guest, exactly as AgendaEventFormAttendeesDrawer.saveGuestEmail builds
+ * them — including `identity.id` holding the address, which is what made the
+ * old truthiness check treat this as a resolved identity.
+ */
+const GUEST = {
+  identity: {
+    id: 'guest@acme.com',
+    remoteId: 'guest@acme.com',
+    identityId: 'guest@acme.com',
+    providerId: 'GUEST_USER',
+    profile: {
+      fullName: 'guest@acme.com',
+      avatarUrl: '/portal/rest/v1/social/users/default-image/avatar',
+    },
+  },
+};
+
+/*
+ * A NON-guest carrying something that is not an identity id where an identity
+ * id is expected. This is the general shape of the regression, and it is why
+ * excluding guests is not on its own enough: any participant the platform
+ * cannot reduce to a technical id would take the whole batch down the same
+ * way.
+ */
+const MISKEYED = {
+  identity: {
+    id: 'not-an-identity-id',
+    providerId: 'organization',
+    remoteId: 'ghost',
+    profile: {fullname: 'Pat Vale'},
+  },
+};
+
+/**
+ * An availability service that answers the way the resource really does: the
+ * whole call fails when any member of the list is not an identity id.
+ *
+ * @param {Object} vm the vm to record the asked ids on
+ * @param {Array} records what a well-formed call answers
+ * @returns {Object} a stand-in for $availabilityService
+ */
+function strictAvailabilityService(vm, records) {
+  return {
+    getBusyTime(ids) {
+      vm.askedIdentityIds = ids;
+      if ((ids || []).some(id => !/^\d+$/.test(String(id)))) {
+        // Spring's own failure: the parameter never binds, so the method that
+        // would have answered about the others is never entered.
+        return Promise.reject(new Error('Response code indicates a server error'));
+      }
+      return Promise.resolve(records);
+    },
+  };
+}
+
+/**
+ * Builds a vm wired to the strict service above.
+ *
+ * @param {Array} records what a well-formed call answers
+ * @returns {Object} the vm
+ */
+function strictVm(records) {
+  const vm = Object.assign({}, baseVm, {
+    resolvedParticipants: {},
+    $identityService: identityService([]),
+  });
+  vm.$availabilityService = strictAvailabilityService(vm, records);
+  return vm;
+}
+
+describe('AgendaUtils tells an identity id from anything else', () => {
+  it('accepts a technical identity id', () => {
+    expect(agendaUtils.isIdentityId('400')).toBe(true);
+    expect(agendaUtils.isIdentityId(400)).toBe(true);
+  });
+
+  it('refuses the email address a guest carries in place of one', () => {
+    // The value `saveGuestEmail` really puts in `identity.id`.
+    expect(agendaUtils.isIdentityId('guest@acme.com')).toBe(false);
+  });
+
+  it('refuses what an absent or malformed id looks like', () => {
+    expect(agendaUtils.isIdentityId(undefined)).toBe(false);
+    expect(agendaUtils.isIdentityId(null)).toBe(false);
+    expect(agendaUtils.isIdentityId('')).toBe(false);
+    expect(agendaUtils.isIdentityId('12a')).toBe(false);
+    expect(agendaUtils.isIdentityId(' 12')).toBe(false);
+    // `String(['400'])` is '400': a regexp on its own would take this for an
+    // id and put an array into the query string.
+    expect(agendaUtils.isIdentityId(['400'])).toBe(false);
+  });
+});
+
+describe('EXO-89867: a guest never blanks the people who do have a calendar', () => {
+  beforeEach(() => {
+    global.eXo.env.portal.userIdentityId = '5';
+    global.eXo.env.portal.userName = 'jsmith';
+  });
+
+  /**
+   * Evaluates the form's participants computed over an attendee list.
+   *
+   * @param {Array} attendees the event's attendees
+   * @returns {Array} the participants the grid will ask about
+   */
+  function participantsOf(attendees) {
+    return AgendaEventFormDates.computed.participants.call({
+      event: {attendees},
+      $agendaUtils: agendaUtils,
+    });
+  }
+
+  it('leaves a guest out of the participants, as it already leaves a space out', () => {
+    // A guest passes every OTHER filter: they have a participant key, their
+    // provider is not `space`, and they are not the current user. That is
+    // precisely how they reached the request.
+    expect(agendaUtils.participantKey(GUEST)).toBe('GUEST_USER:guest@acme.com');
+    expect(GUEST.identity.providerId).not.toBe('space');
+
+    const participants = participantsOf([ORGANISER, SHARER, GUEST]);
+
+    expect(participants.map(participant => agendaUtils.participantKey(participant)))
+      .toEqual(['organization:sara']);
+  });
+
+  it('asks only about the colleague, and draws their busy time', () => {
+    // THE PIN FOR THE REPORTED SYMPTOM. Sara's calendar is readable and holds
+    // a meeting; before the fix the guest's presence turned that into an
+    // empty week for her too.
+    const participants = participantsOf([ORGANISER, SHARER, GUEST]);
+    const vm = strictVm([record(SHARER, 'disclosed', [block('2026-07-20T09:00:00+02:00', '2026-07-20T10:00:00+02:00')])]);
+
+    return retrieve(participants, null, [], vm).then(state => {
+      expect(state.askedIdentityIds).toEqual(['400']);
+      expect(state.checkedParticipantKeys).toEqual(['organization:sara']);
+      expect(state.participantBusyEvents).toHaveLength(1);
+      expect(state.failedParticipantKeys).toHaveLength(0);
+    });
+  });
+
+  it('says nothing at all about the guest, and still shows the colleague as free', () => {
+    // The decision this change makes, pinned so it cannot drift back: a guest
+    // is OMITTED, never named as unreadable. Sara was read and has nothing
+    // on — she is free, and the strip has to be able to say so, which it can
+    // only do if the guest is not counted against its coverage.
+    const participants = participantsOf([ORGANISER, SHARER, GUEST]);
+    const vm = strictVm([record(SHARER, 'disclosed', [])]);
+
+    return retrieve(participants, null, [], vm).then(state => {
+      expect(state.checkedParticipantKeys).toEqual(['organization:sara']);
+      expect(state.notDisclosedParticipantKeys).toHaveLength(0);
+      expect(state.failedParticipantKeys).toHaveLength(0);
+      expect(state.participantBusyEvents).toHaveLength(0);
+
+      const strip = coverage(participants, state);
+      expect(strip.participantCount).toBe(1);
+      expect(strip.checkedCount).toBe(1);
+      expect(strip.failedNames).toHaveLength(0);
+      expect(strip.notDisclosedNames).toHaveLength(0);
+      // 1 of 1, not 1 of 2: the grid covers everybody it undertook to cover,
+      // and the empty week reads as "Sara is free" rather than as a gap.
+      expect(strip.coverageSentence).toBe('agenda.eventForm.busyTimeCoverage|1|1');
+    });
+  });
+
+  it('never lets a guest reach the identity lookup either', () => {
+    // Not a cost point: a lookup that ANSWERED would put the guest back in
+    // the batch, since GUEST_USER is a real social identity provider.
+    const calls = [];
+    const participants = participantsOf([ORGANISER, GUEST]);
+    const vm = Object.assign({}, baseVm, {
+      resolvedParticipants: {},
+      $identityService: identityService(calls),
+    });
+    vm.$availabilityService = strictAvailabilityService(vm, []);
+
+    return retrieve(participants, null, calls, vm).then(state => {
+      expect(participants).toHaveLength(0);
+      expect(calls).toHaveLength(0);
+      expect(state.askedIdentityIds).toBeUndefined();
+    });
+  });
+});
+
+describe('EXO-89867: one unaskable participant does not blank the rest', () => {
+  beforeEach(() => {
+    global.eXo.env.portal.userIdentityId = '5';
+    global.eXo.env.portal.userName = 'jsmith';
+  });
+
+  it('keeps a participant with no askable id out of the batch and names them', () => {
+    // THE HALF THAT OUTLIVES THE GUEST FIX. Nothing here is a guest: this is
+    // any participant the platform cannot reduce to an identity id. Before
+    // the fix `identity.id` was believed because it was truthy, the address
+    // went into the list, and Sara — whose calendar is perfectly readable —
+    // lost her busy time to it.
+    const vm = strictVm([record(SHARER, 'disclosed', [block('2026-07-20T09:00:00+02:00', '2026-07-20T10:00:00+02:00')])]);
+
+    return retrieve([SHARER, MISKEYED], null, [], vm).then(state => {
+      expect(state.askedIdentityIds).toEqual(['400']);
+      // Sara is drawn.
+      expect(state.checkedParticipantKeys).toEqual(['organization:sara']);
+      expect(state.participantBusyEvents).toHaveLength(1);
+      // And the one who could not be asked about is NAMED, not dropped and
+      // not drawn as free: nothing was read about them.
+      expect(state.failedParticipantKeys).toEqual(['organization:ghost']);
+
+      const strip = coverage([SHARER, MISKEYED], state);
+      expect(strip.checkedCount).toBe(1);
+      expect(strip.participantCount).toBe(2);
+      expect(strip.failedNames).toEqual(['Pat Vale']);
+      expect(strip.failedSentence).toContain('agenda.eventForm.busyTimeNotChecked');
+    });
+  });
+
+  it('refuses a lookup that answers with something that is not an identity id', () => {
+    // The same rule one layer down. A 200 carrying `{id: 'a@b.com'}` is not a
+    // resolution; believing it puts the value straight back into the batch.
+    const vm = Object.assign({}, baseVm, {
+      resolvedParticipants: {},
+      $identityService: {
+        getIdentityByProviderIdAndRemoteId: () => Promise.resolve({id: 'a@b.com', providerId: 'organization', remoteId: 'sara'}),
+      },
+    });
+    vm.$availabilityService = strictAvailabilityService(vm, []);
+
+    return retrieve([SHARER], null, [], vm).then(state => {
+      // Nobody left to ask about, so nothing is asked — and Sara is declared
+      // unread rather than quietly left off a grid that reads as free.
+      expect(state.askedIdentityIds).toBeUndefined();
+      expect(state.failedParticipantKeys).toEqual(['organization:sara']);
+      expect(state.checkedParticipantKeys).toHaveLength(0);
+    });
+  });
+
+  it('still reports everybody unread when the read itself breaks', () => {
+    // The guard narrows what reaches the endpoint; it does not soften what a
+    // genuine failure means. Both participants are askable here, the call
+    // fails, and neither is drawn as free.
+    const vm = Object.assign({}, baseVm, {
+      resolvedParticipants: {},
+      $identityService: identityService([]),
+      $availabilityService: {getBusyTime: () => Promise.reject(new Error('gateway down'))},
+    });
+
+    return retrieve([SHARER, WITHHOLDER], null, [], vm).then(state => {
+      expect(state.failedParticipantKeys).toEqual(['organization:sara', 'organization:tom']);
+      expect(state.checkedParticipantKeys).toHaveLength(0);
+      expect(state.participantBusyEvents).toHaveLength(0);
+    });
+  });
+});
