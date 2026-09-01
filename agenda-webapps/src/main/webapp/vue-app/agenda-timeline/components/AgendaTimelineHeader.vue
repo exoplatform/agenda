@@ -162,9 +162,17 @@ export default {
      * The filter is passed only when a CalDAV connector is recognisable, so a
      * deployment without one keeps the legacy full list.
      *
+     * Nothing is opened when the instance chose the user's CalDAV server for
+     * them: this opener is a second, inlined copy of the toolbar button's, and
+     * a condition that lives in one copy and not the other is how the two come
+     * to disagree. It reads the same shared helper the button does.
+     *
      * @returns {void}
      */
     openPersonalCalendarDrawer() {
+      if (this.$remoteEventConnector.isCaldavManaged(this.connectors)) {
+        return;
+      }
       const caldavKnown = this.connectors && this.connectors.some(connector => connector.isCaldav === true);
       this.$root.$emit('agenda-connectors-drawer-open', caldavKnown && {filter: 'caldav'} || null);
     },

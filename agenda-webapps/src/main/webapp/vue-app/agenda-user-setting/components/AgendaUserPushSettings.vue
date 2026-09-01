@@ -104,10 +104,33 @@ export default {
      * receive copies makes the question meaningful, so a deployment with no
      * pushing connector never shows a switch that would do nothing.
      *
-     * @returns {Boolean} true when a connected connector can push
+     * <p>
+     * And never under managed mode. This row is not status — it is the switch
+     * deciding whether the synchronisation happens at all — so leaving it
+     * would let a user switch off the very thing the administration screen
+     * states is happening for everyone. The copies are forced on instead (see
+     * {@code copyMeetingsEnabled}), and the stored preference is left exactly
+     * as the user set it, so switching managed mode off gives each of them
+     * their own choice back rather than whatever a rewrite would have left.
+     *
+     * <p>
+     * With the row gone, the destination sentence goes with it: it names a
+     * calendar the user cannot change, on a row they cannot act on.
+     *
+     * @returns {Boolean} true when a connected connector can push and the
+     *          instance did not decide the account on this user's behalf
      */
     displayed() {
-      return this.connectedConnector !== null;
+      return this.connectedConnector !== null && !this.caldavManaged;
+    },
+    /**
+     * Whether the instance chose this user's CalDAV server for them, read
+     * through the one helper every screen reads it through.
+     *
+     * @returns {Boolean} true when the account is not this user's to manage
+     */
+    caldavManaged() {
+      return this.$remoteEventConnector.isCaldavManaged(this.connectors);
     },
     /**
      * The connected connector able to push, if any.
@@ -247,6 +270,12 @@ export default {
      * @returns {void}
      */
     refreshSwitch() {
+      // Reads the STORED preference, deliberately, and is the only place left
+      // that does outside the writer below. It positions a switch that does
+      // not render under managed mode, so it never disagrees with the
+      // effective value the push path uses; and it must keep the stored value
+      // it has always shown, so that switching managed mode off puts each
+      // user's own choice back under their thumb.
       const enabled = !this.settings || this.settings.automaticPushEvents !== false;
       this.pushEnabled = this.mirrorCapableConnector
         ? enabled && !!this.mirrorCalendarName
