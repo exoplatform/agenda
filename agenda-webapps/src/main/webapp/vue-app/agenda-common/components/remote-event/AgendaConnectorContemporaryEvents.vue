@@ -32,39 +32,15 @@
             </v-icon>
           </v-btn>
         </div>
-        <!-- the sources are named here, all of them, each carrying its own
-             state: an account that could not be reached, or whose session
-             expired, says so next to its own name instead of disappearing
-             into a list the others answered. A source is named by the
-             connector it is bound to and never by the address it is signed in
-             as — see accountRoster. eXo's own calendars are not an account and
-             hold no standing entry — they appear here only when they could not
-             be read, which is the one thing about them the roster has to say -->
-        <div
-          v-if="sourceRoster.length"
-          class="d-flex flex-wrap contemporary-events-accounts">
-          <component
-            :is="account.connector ? 'a' : 'div'"
-            v-for="account in sourceRoster"
-            :key="account.key"
-            :title="account.label"
-            :class="account.stateClass"
-            class="d-flex align-center me-4 icon-small-size contemporary-events-account"
-            @click="account.connector && openPersonalCalendarDrawer()">
-            <v-icon
-              v-if="account.warning"
-              size="16"
-              class="me-1 warning--text">
-              fa-exclamation-triangle
-            </v-icon>
-            <agenda-connector-avatar
-              v-else
-              :connector="account.connector"
-              class="me-1"
-              size="16" />
-            <span class="text-truncate">{{ account.label }}</span>
-          </component>
-        </div>
+        <!-- nothing stands between the heading and the list (EXO-89899). The
+             roster of connected accounts used to, and the heading already says
+             whose calendars these are while every row names the calendar it
+             lives in, so it said nothing the panel was not saying twice over.
+             The eXo-calendars failure line went with it: a source that could
+             not be read is not named here at all any more, whichever source it
+             is. What a failed read still changes is the empty-state sentence,
+             which stops short of calling the list complete — see
+             hasUnansweredSource, the only consumer either failure has left -->
         <template v-if="loading || accountsLoading">
           <v-progress-linear indeterminate />
         </template>
@@ -100,7 +76,22 @@
         </v-chip>
       </div>
     </div>
-    <agenda-connectors-drawer :connectors="connectors" />
+    <!--
+      No connectors drawer is mounted here. This panel only ever renders inside
+      the event dialog, and both of its hosts — Agenda.vue and
+      AgendaTimelineWidget.vue — already mount one unconditionally beside that
+      dialog. The drawer opens on a $root event every mounted instance
+      subscribes to in created(), so the instance this panel used to carry was
+      a second drawer opening stacked on the host's (EXO-89899). The roster
+      that opened it is gone; the drawer it needed never was this panel's to
+      own.
+
+      The wrapping div it used to share is kept on purpose, empty of everything
+      but the block below it. It is the element the parent's layout classes
+      land on (mt-4 mr-auto width-full, AgendaEventsDetailsBody), and dropping
+      it would move them onto a d-flex — a display change no test can see and
+      no one has looked at on a running page.
+    -->
   </div>
 </template>
 
@@ -142,13 +133,19 @@ export default {
       /*
        * Whether the last read of eXo's own calendars failed. Kept for the
        * same reason as failedConnectors: a source that could not answer is
-       * not a source that answered "nothing".
+       * not a source that answered "nothing". Since EXO-89899 removed the
+       * line that named it, hasUnansweredSource is its only consumer — which
+       * is reason enough to keep it, that check being what stops the panel
+       * calling a list complete when a source was never asked.
        */
       exoReadFailed: false,
       /*
        * The accounts whose last read failed. Kept apart from the events
        * because an account that could not answer is not an account that
        * answered "nothing": the panel has to be able to tell the two apart.
+       * Since EXO-89899 it is no longer named on screen — like exoReadFailed,
+       * the only thing it still decides is whether an empty list may call
+       * itself complete.
        */
       failedConnectors: [],
       /*
@@ -183,8 +180,9 @@ export default {
       return this.remoteLoading || this.exoLoading;
     },
     /**
-     * Every account the user has connected, whatever state it is in — the
-     * roster names them all, including the ones that cannot answer.
+     * Every account the user has connected, whatever state it is in —
+     * including the ones that cannot answer, which the empty-state sentence
+     * has to know about even though nothing names them any more.
      *
      * @returns {Array} the connected connectors
      */
@@ -233,85 +231,32 @@ export default {
       return this.signedInConnectors.map(connector => connector.name).join('|');
     },
     /**
-     * One entry per connected account, carrying that account's own state: a
-     * reachable account reads as the connector it is bound to, one that could
-     * not be reached or whose session expired states the fact in its own
-     * words.
-     *
-     * <p>
-     * The connector's name, never the address the account is signed in as
-     * (EXO-89896). An address is a detail about a state and not the state
-     * itself — the reasoning EXO-89845 applied to the Suggest dates header —
-     * and it disambiguates nothing here: a connector holds at most one entry
-     * in this list, so its name already tells two accounts apart. The address
-     * stays one click away, on the row of the connectors drawer this roster
-     * opens.
-     *
-     * <p>
-     * The name is read through $t, as the connectors drawer titles its rows:
-     * a connector's name is the key of its own label, and an untranslated one
-     * falls back to itself rather than to nothing.
-     *
-     * @returns {Array} the roster entries to render
-     */
-    accountRoster() {
-      return this.connectedConnectors.map(connector => {
-        const account = this.$t(connector.name);
-        const signedOut = !connector.isSignedIn && !connector.loading;
-        const unreachable = !signedOut && this.failedConnectors.indexOf(connector) >= 0;
-        let label = account;
-        let stateClass = '';
-        if (signedOut) {
-          label = this.$t('agenda.contemporaryEvents.accountSignedOut', {0: account});
-          stateClass = 'contemporary-events-account-signed-out';
-        } else if (unreachable) {
-          label = this.$t('agenda.contemporaryEvents.accountUnreachable', {0: account});
-          stateClass = 'contemporary-events-account-unreachable';
-        }
-        return {
-          key: connector.name,
-          connector,
-          label,
-          stateClass,
-          warning: signedOut || unreachable,
-        };
-      });
-    },
-    /**
-     * Every source the roster names: one entry per connected account, always,
-     * plus eXo's own calendars when — and only when — they could not be read.
-     *
-     * <p>
-     * eXo's own calendars hold no standing entry because they are not an
-     * account: there is nothing to connect, nothing to reconnect, and no
-     * address to name. What the roster owes them is the one state the user
-     * cannot infer from the list, which is that they failed.
-     *
-     * @returns {Array} the roster entries to render
-     */
-    sourceRoster() {
-      const roster = this.accountRoster.slice();
-      if (this.exoReadFailed) {
-        roster.push({
-          key: 'exo-calendars',
-          connector: null,
-          label: this.$t('agenda.contemporaryEvents.exoCalendarsUnreachable'),
-          stateClass: 'contemporary-events-account-unreachable',
-          warning: true,
-        });
-      }
-      return roster;
-    },
-    /**
-     * Whether some source did not answer the last read — an account that
-     * failed or whose session expired, or eXo's own calendars. An empty list
-     * then means "nothing on the sources that could be checked", never
+     * Whether some source did not answer the last read — a connected account
+     * that failed or whose session expired, or eXo's own calendars. An empty
+     * list then means "nothing on the sources that could be checked", never
      * "nothing".
+     *
+     * <p>
+     * Read off the sources themselves since EXO-89899 removed the block this
+     * used to be derived from — the roster of connected accounts and, with it,
+     * the line that named a failed eXo read. Nothing on the panel names either
+     * failure any more, so this check is the last trace of both: it says a
+     * source is missing without being able to say which.
+     *
+     * <p>
+     * Removing a line is a decision about what is displayed; it is not licence
+     * to assert something false. Dropping either half of this check would let
+     * the panel claim there is nothing on the viewer's calendars when a source
+     * was never asked, which is a different statement — so both halves stay,
+     * whatever is or is not drawn above the list.
      *
      * @returns {Boolean} true when a source could not be asked or answered
      */
     hasUnansweredSource() {
-      return this.sourceRoster.some(account => account.warning);
+      return this.exoReadFailed
+          || this.connectedConnectors.some(connector =>
+            !connector.isSignedIn && !connector.loading
+            || this.failedConnectors.indexOf(connector) >= 0);
     },
     /**
      * Whether the "nothing found" message may be shown at all: never while a
@@ -323,9 +268,15 @@ export default {
       return !this.loading && !this.accountsLoading;
     },
     /**
-     * What an empty list says. It must not claim there is nothing when an
-     * account could not be asked: the roster already names which one, and
-     * this sentence stops short of an answer it does not have.
+     * What an empty list says. It must not claim there is nothing when a
+     * source could not be asked, so it stops short of an answer it does not
+     * have — "nothing found on the sources that could be checked".
+     *
+     * <p>
+     * Since EXO-89899 nothing on the panel names the source that failed —
+     * neither a connected account nor eXo's own calendars — so this sentence
+     * stands alone: it is honest about the gap without pointing at it, and it
+     * is the only place the gap is mentioned at all.
      *
      * @returns {String} the empty-state sentence
      */
@@ -433,18 +384,6 @@ export default {
     this.refreshRemoteEvents();
   },
   methods: {
-    /**
-     * Opens the connectors drawer. Reached from the roster only, since the
-     * panel stopped offering to connect (EXO-89896): the entries that click
-     * through are the accounts that say they are disconnected or unreachable,
-     * and the drawer is where a user reconnects one — and where the address it
-     * is signed in as is written, this panel no longer showing it.
-     *
-     * @returns {void}
-     */
-    openPersonalCalendarDrawer() {
-      this.$root.$emit('agenda-connectors-drawer-open');
-    },
     /**
      * Re-reads both sources for the event on screen under one request id, so
      * that a read landing after the dialog moved on is dropped whichever
@@ -597,7 +536,7 @@ export default {
           .then(answer => {
             // A connector may report a partial read: the events it did get,
             // beside the fact that it could not get all of them. Both halves
-            // travel on, or the panel lists a short roster as a whole one.
+            // travel on, or the panel calls a short list a complete one.
             const read = this.$agendaUtils.readConnectorAnswer(answer);
             read.events.forEach(event => {
               event.startDate = event.start && this.$agendaUtils.toDate(event.start) || null;
