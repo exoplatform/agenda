@@ -251,14 +251,36 @@ export default {
     hasMore() {
       return this.filteredAttendees.length > this.displayedCount;
     },
+    /**
+     * The search scope handed to the identity suggester.
+     *
+     * {@code spaceURL} narrows the suggestion to the members of one space.
+     * The endpoint behind it resolves that value as a space pretty name and
+     * answers an <em>empty</em> list as soon as it names no space — social's
+     * PeopleRestService returns early when the name resolves to no space, so
+     * a value that is not a space name suggests nobody at all.
+     *
+     * A calendar owner is a space only for a space calendar. A personal
+     * calendar is owned by the user, whose {@code remoteId} is a username, so
+     * sending it unconditionally scoped every personal event to a space that
+     * cannot exist: no one could be invited to an event in one's own calendar.
+     *
+     * The key is therefore set only when the owner is a space — the same test
+     * the connector applies in {@code isSpaceEvent} — and left absent
+     * otherwise, which is what makes the endpoint suggest the viewer's
+     * connections and then the other users.
+     *
+     * @returns {Object} the search options given to the identity suggester
+     */
     searchOptions() {
-      return {
+      const owner = this.event && this.event.calendar && this.event.calendar.owner;
+      const options = {
         currentUser: '',
-        spaceURL: this.event
-          && this.event.calendar
-          && this.event.calendar.owner
-          && this.event.calendar.owner.remoteId,
       };
+      if (owner && (owner.providerId === 'space' || !!owner.space)) {
+        options.spaceURL = owner.remoteId;
+      }
+      return options;
     },
     /*
      * The three strings the suggester shows, and they land in three different
