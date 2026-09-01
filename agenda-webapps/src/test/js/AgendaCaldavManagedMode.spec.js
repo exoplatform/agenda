@@ -1,4 +1,4 @@
-import {shallowMount} from '@vue/test-utils';
+import {mount, shallowMount} from '@vue/test-utils';
 
 import * as remoteEventConnector from '../../main/webapp/vue-app/agenda-common/js/RemoteEventConnector.js';
 import AgendaConnectToRemoteButton
@@ -214,9 +214,13 @@ describe('AgendaUserConnectorSettings under managed mode', () => {
    * @param {Array} connectors the descriptors the page loaded
    * @returns {Object} the wrapper
    */
-  function mountSettings(connectors) {
-    return shallowMount(AgendaUserConnectorSettings, {
-      propsData: {connectors, settings: {}, nestedSections: []},
+  function mountSettings(connectors, nestedSections) {
+    // mount, not shallowMount: the nested rows arrive as component options
+    // through `<component :is>`, and a shallow render stubs exactly those away
+    // — which would make "the container still renders its children" pass on a
+    // container that renders nothing.
+    return mount(AgendaUserConnectorSettings, {
+      propsData: {connectors, settings: {}, nestedSections: nestedSections || []},
       mocks: {
         $t: (key, args) => args && `${key}(${args[0]})` || key,
         $remoteEventConnector: remoteEventConnector,
@@ -224,38 +228,51 @@ describe('AgendaUserConnectorSettings under managed mode', () => {
     });
   }
 
-  /*
-   * The whole section goes under managed mode — this is the case Benjamin saw
-   * on the rig: managed mode on, a connection he had made by hand before it,
-   * and the row still reading "Synced both ways with <his address> ·
-   * Synchronised just now" beside a sync button. Every one of those lines is
-   * addressed to somebody who could act on it, and he could not.
+  /**
+   * A nested row as the CalDAV add-on registers one, rendering a title of its
+   * own so the test can see whether the container let it through.
    *
-   * Written as three separate cases because the middle one is the whole
-   * point: `connected` alone — a plain revert — passes the first and third and
-   * fails only this one.
+   * @param {String} id the extension id
+   * @param {String} title what the row draws
+   * @returns {Object} the registered section descriptor
    */
-  it('does not show under managed mode, connected or not', () => {
-    // Managed, nothing connected: nothing to describe and nothing to offer.
-    expect(mountSettings([caldavConnector({managed: true})]).vm.displayed).toBe(false);
+  function nestedRow(id, title) {
+    // A render function and not a template string: the suite runs against the
+    // runtime-only Vue build, which cannot compile a template at runtime and
+    // would silently render nothing.
+    return {id, vueComponent: {render: h => h('div', title)}};
+  }
+
+  /*
+   * The header LINE goes under managed mode — this is the case Benjamin saw on
+   * the rig: managed mode on, a connection he had made by hand before it, and
+   * the row still reading "Synced both ways with <his address> · Synchronised
+   * just now" beside a sync button. Every one of those is addressed to
+   * somebody who could act on it, and he could not.
+   *
+   * Written as three cases because the middle one is the whole point:
+   * `connected` alone passes the first and third and fails only this one.
+   */
+  it('drops its own header line under managed mode', () => {
+    expect(mountSettings([caldavConnector({managed: true})]).vm.headerDisplayed).toBe(false);
     // Managed AND connected by hand before the mode - the rig case.
     expect(mountSettings([caldavConnector({
       managed: true,
       connected: true,
       isSignedIn: true,
       user: 'anais.francois@demo3.livecollab.fr',
-    })]).vm.displayed).toBe(false);
-    // Unmanaged and connected: unchanged, the section is exactly as it was.
-    expect(mountSettings([caldavConnector({connected: true, user: 'mary@example.org'})]).vm.displayed).toBe(true);
+    })]).vm.headerDisplayed).toBe(false);
+    // Unmanaged and connected: unchanged.
+    expect(mountSettings([caldavConnector({connected: true, user: 'mary@example.org'})]).vm.headerDisplayed).toBe(true);
   });
 
   /*
-   * And nothing of it reaches the page: not the account address, not a server
-   * name, not the last-sync phrase, not the sync button. Asserted on the
-   * rendered output rather than on `displayed` alone, because what was
-   * complained about was what could be READ on the screen.
+   * Nothing of that line reaches the page: not the account address, not the
+   * last-sync phrase, not the sync button, not the manage pencil. Asserted on
+   * the rendered output and not on the flag alone, because what was complained
+   * about was what could be READ on the screen.
    */
-  it('renders none of the account, the sync state or the sync button when managed', () => {
+  it('renders none of the account, the sync state or the buttons when managed', () => {
     const managed = mountSettings([caldavConnector({
       managed: true,
       connected: true,
@@ -265,25 +282,58 @@ describe('AgendaUserConnectorSettings under managed mode', () => {
       lastSynchronised: () => Promise.resolve(new Date()),
     })]);
 
-    expect(managed.text()).toBe('');
+    expect(managed.text()).not.toContain('agenda.settings.myCalendarsSyncedWith');
+    expect(managed.text()).not.toContain('anais.francois@demo3.livecollab.fr');
+    expect(managed.text()).not.toContain('agenda.settings.myCalendars');
     expect(managed.find('[title="agenda.connectors.syncNow"]').exists()).toBe(false);
     expect(managed.find('[title="agenda.settings.myCalendarsManage"]').exists()).toBe(false);
   });
 
   /*
+   * And the CONTAINER survives, so the rows the CalDAV add-on nests under it
+   * still render. This is the correction: hiding the container to remove the
+   * header took away device setup, which is the row a managed user most needs
+   * — the instance chose the server, they still have to point their phone at
+   * it.
+   */
+  it('keeps rendering the rows nested under it when managed', () => {
+    const managed = mountSettings(
+      [caldavConnector({managed: true, connected: true, isSignedIn: true, user: 'mary@example.org'})],
+      [nestedRow('caldavDeviceSetup', 'phone setup row'), nestedRow('caldavHiddenCalendars', 'hidden calendars row')]);
+
+    expect(managed.vm.displayed).toBe(true);
+    expect(managed.text()).toContain('phone setup row');
+    expect(managed.text()).toContain('hidden calendars row');
+  });
+
+  /*
+   * The bare-heading case the container condition has to avoid: a managed user
+   * who has not been provisioned yet is not connected, every nested row needs
+   * a connected account to have anything to say, so the container stays away
+   * rather than drawing a heading over an empty space.
+   */
+  it('renders nothing at all for a managed user with no account yet', () => {
+    const notProvisioned = mountSettings(
+      [caldavConnector({managed: true})],
+      [nestedRow('caldavDeviceSetup', 'phone setup row')]);
+
+    expect(notProvisioned.vm.displayed).toBe(false);
+    expect(notProvisioned.text()).toBe('');
+  });
+
+  /*
    * Unmanaged, the section is untouched by this delivery: the account line,
-   * the sync button and the manage pencil are all where they were.
+   * the sync button, the manage pencil and the nested rows all where they
+   * were.
    */
   it('leaves the unmanaged section exactly as it was', () => {
-    const unmanaged = mountSettings([caldavConnector({
-      connected: true,
-      isSignedIn: true,
-      user: 'mary@example.org',
-      sync: () => Promise.resolve(),
-    })]);
+    const unmanaged = mountSettings(
+      [caldavConnector({connected: true, isSignedIn: true, user: 'mary@example.org', sync: () => Promise.resolve()})],
+      [nestedRow('caldavPendingCopies', 'pending copies row')]);
 
     expect(unmanaged.vm.caldavManaged).toBe(false);
     expect(unmanaged.text()).toContain('agenda.settings.myCalendarsSyncedWith(mary@example.org)');
+    expect(unmanaged.text()).toContain('pending copies row');
     expect(unmanaged.find('[title="agenda.connectors.syncNow"]').exists()).toBe(true);
     // Found by its title, because the pencil's only text is its icon glyph.
     expect(unmanaged.find('[title="agenda.settings.myCalendarsManage"]').exists()).toBe(true);

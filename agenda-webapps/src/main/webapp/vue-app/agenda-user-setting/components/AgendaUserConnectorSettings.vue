@@ -7,8 +7,16 @@
       subtitle states the relationship — synced both ways — instead of
       leaving "yours" to imply it. Accounts whose calendars stay foreign
       (Google, Office 365) live in "Calendars from other accounts" below.
+
+      This component is TWO things, and managed mode needs them apart: its own
+      header line — the account, how stale it is, and the two buttons — and the
+      container holding the rows the CalDAV add-on nests under it. Managed mode
+      suppresses the header line only. Suppressing the container instead took
+      away the nested rows as well, including the one telling a user how to
+      point their phone at the account, which is if anything MORE useful once
+      the instance chose the server for them.
     -->
-    <v-list-item>
+    <v-list-item v-if="headerDisplayed">
       <v-list-item-content>
         <!-- text-color, the class the E-mail rows on this same page use:
              text-header renders grey and lighter, so the calendar rows read
@@ -39,6 +47,12 @@
         neighbour and read as the only thing worth clicking.
       -->
       <v-list-item-action class="d-flex flex-row align-center">
+        <!--
+          Sync now and the pencil carry no managed guard of their own: they live
+          inside the header line, which managed mode already removes whole. A
+          second condition here would be a branch nothing can reach, and an
+          unreachable guard reads as a rule that is still doing work.
+        -->
         <v-btn
           v-if="syncableConnector"
           :loading="syncing"
@@ -50,12 +64,6 @@
           @click="syncNow">
           <v-icon size="20" class="icon-default-color">fa-sync-alt</v-icon>
         </v-btn>
-        <!--
-          No managed guard of its own, deliberately: under managed mode the
-          whole section is gone (see `displayed`), so a second condition here
-          would be a branch nothing can reach — and an unreachable guard reads
-          as a rule that is still doing work.
-        -->
         <v-btn
           :aria-label="$t('agenda.settings.myCalendarsManage')"
           :title="$t('agenda.settings.myCalendarsManage')"
@@ -163,31 +171,58 @@ export default {
      * the section simply is not there until there is something true to say.
      *
      * <p>
-     * Managed mode takes the section away outright — connected or not. Every
-     * line it holds is addressed to somebody who might act on it: the account
-     * address matters because you could reconnect as somebody else, the last
-     * sync matters because you could press the button beside it. A managed
-     * user can do none of that, so each line answers a question they have no
-     * reason to ask and raises one they cannot act on. Sync now and the
-     * last-sync phrase are the mechanism reporting on itself, and being told a
+     * Unchanged by managed mode, and that is the correction: this flag gates
+     * the CONTAINER, and the container holds the rows the CalDAV add-on nests
+     * under it — hidden calendars, device setup — which have their own reasons
+     * to exist and are not this component's header line. Taking the container
+     * away to remove the header took those with it, device setup included,
+     * which is the row a managed user most needs: the instance chose the
+     * server, they still have to point their phone at it. What managed mode
+     * suppresses is `headerDisplayed` below.
+     *
+     * <p>
+     * `connected` also happens to be what keeps a bare heading off the page.
+     * Every nested row needs a connected account to have anything to say — the
+     * device URL is built from the account's own address, the hidden calendars
+     * and the diagnostics are that account's — so a managed user who has not
+     * been provisioned yet fails this test and sees nothing at all, rather than
+     * a heading over an empty space.
+     *
+     * @returns {Boolean} true when a CalDAV account is connected
+     */
+    displayed() {
+      return !!this.caldavConnector && !!this.caldavConnector.connected;
+    },
+    /**
+     * Whether this section's OWN header line is shown: the account address,
+     * how stale it is, Sync now and the manage pencil.
+     *
+     * <p>
+     * Everything on that line is addressed to somebody who might act on it —
+     * the address matters because you could reconnect as somebody else, the
+     * last sync because you could press the button beside it. A managed user
+     * can do none of that, so each line answers a question they have no reason
+     * to ask and raises one they cannot act on. Sync now and the last-sync
+     * phrase are the mechanism reporting on itself, and being told a
      * synchronisation failed is no use to somebody with no way to fix it: in
      * managed mode the connection is the administrator's, so a broken one is
      * the administrator's problem. Managed mode's whole promise is that the
      * synchronisation is transparent, so it is transparent.
      *
      * <p>
-     * The condition is CONNECTED AND NOT MANAGED, rather than a plain return
-     * to "connected". The two differ exactly where it matters: an account
-     * connected by hand before the mode was switched on stays connected, so
-     * "connected" alone would keep rendering the row — the account address,
-     * the last sync, the sync button — for precisely the user this rule was
-     * written after. The `!caldavManaged` term is doing work, not tidying.
+     * The section's TITLE goes with the line rather than staying behind as a
+     * heading of its own. The nested rows underneath are each titled — "Your
+     * calendars on your phone", "Hidden calendars" — so they read perfectly
+     * well without one, whereas a "My Calendars" heading over nothing but them
+     * would be a header whose own row had silently vanished. No replacement
+     * wording is proposed because none is needed: nothing has to be said in
+     * place of a line whose whole content was things the user cannot do.
      *
-     * @returns {Boolean} true when a CalDAV account is connected and the
-     *          instance did not choose the server on this user's behalf
+     * @returns {Boolean} true when the account line and its buttons belong on
+     *          the page
      */
-    displayed() {
-      return !!this.caldavConnector && !!this.caldavConnector.connected && !this.caldavManaged;
+    headerDisplayed() {
+      return this.displayed && !this.caldavManaged;
     },
     /**
      * Whether the instance chose this user's CalDAV server for them, read
