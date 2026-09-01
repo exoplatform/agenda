@@ -94,7 +94,6 @@ class AgendaUserSettingsMultiConnectorTest {
     agendaUserSettingsService = new AgendaUserSettingsServiceImpl(agendaEventConferenceService,
                                                                   agendaRemoteEventService,
                                                                   settingService,
-                                                                  organizationService,
                                                                   new InitParams());
     lenient().when(agendaRemoteEventService.getRemoteProviders())
              .thenReturn(Arrays.asList(new RemoteProvider(1, CALDAV, "apiKey", "secretKey", true, true),
