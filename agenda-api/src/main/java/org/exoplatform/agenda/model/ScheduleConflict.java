@@ -36,7 +36,7 @@ import lombok.NoArgsConstructor;
  * invite a caller to renumber and dedupe — the very work this exists to
  * remove.
  * <p>
- * <strong>{@link #getStart()} and {@link #getEnd()} are the envelope of the
+ * <strong>{@code getStart()} and {@code getEnd()} are the envelope of the
  * group, not a common busy interval.</strong> For a pair they are the same
  * thing; for the transitive chain above the envelope is 09:00 - 12:30 while no
  * instant is inside all three. A caller must present them as "the stretch of
