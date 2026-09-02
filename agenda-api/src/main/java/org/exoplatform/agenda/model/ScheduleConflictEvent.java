@@ -28,16 +28,16 @@ import lombok.NoArgsConstructor;
  * does not carry: what the asking user answered to it, and whether it is
  * theirs to move.
  * <p>
- * <strong>{@link #isCreatedByUser()} is the closest thing Agenda has to "I am
+ * <strong>{@code isCreatedByUser()} is the closest thing Agenda has to "I am
  * the organiser".</strong> There is no organiser field on an event: the only
- * person the model records is {@link Event#getCreatorId()}, and the creator is
+ * person the model records is {@code Event.getCreatorId()}, and the creator is
  * also the one {@link org.exoplatform.agenda.service.AgendaEventService} lets
  * update the event unconditionally. So "yours to move" resolves through the
  * creator, and a caller proposing a reschedule must not promise it for an
  * event where this is {@code false} — there, the only honest proposal is to
  * ask the organiser or to decline.
  * <p>
- * {@link #getResponse()} is {@code null} when the user is not an attendee of
+ * {@code getResponse()} is {@code null} when the user is not an attendee of
  * the event at all, which happens for an event sitting on a calendar of a
  * space they belong to. Null is "never asked", not "has not answered yet" —
  * the latter is {@link EventAttendeeResponse#NEEDS_ACTION}. Neither is a
