@@ -26,7 +26,7 @@ const url = `${eXo.env.portal.context}/${eXo.env.portal.rest}/i18n/bundle/locale
 export function init() {
   exoi18n.loadLanguageAsync(lang, url).then(i18n => {
     // init Vue app when locale ressources are ready
-    const standalone = !!document.querySelector(`#appLauncherPortletViewer #${appId}`);
+    const standalone = !!document.getElementById(appId)?.closest('.drawerParent');
     const eventType = !standalone && eXo.env.portal.spaceId ? 'allEvents' : 'myEvents';
     Vue.createApp({
       data() {
