@@ -26,7 +26,7 @@ import lombok.NoArgsConstructor;
  * Every clash found on one user's calendar over one window, and whether the
  * search saw the whole window.
  * <p>
- * <strong>{@link #isTruncated()} exists so that "no more conflicts" and "we
+ * <strong>{@code isTruncated()} exists so that "no more conflicts" and "we
  * stopped looking" cannot be told apart by guessing.</strong> The read behind
  * this report is capped, and a capped read that comes back full has almost
  * certainly left events unexamined; the conflicts reported are still real, but
