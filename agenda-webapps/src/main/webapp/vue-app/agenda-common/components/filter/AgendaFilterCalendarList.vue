@@ -2,7 +2,8 @@
   <v-list dense>
     <!-- full (drawer) header: select-all, search and selection type filter.
          In compact mode (left panel) no header line is displayed at all: the
-         panel shows only one row per calendar under its section title -->
+         panel shows only one row per calendar under its section title, and
+         the search lives in that title, handed down through the keyword prop -->
     <v-list-item v-if="!compact" class="agenda-calendar-settings px-0">
       <v-list-item-action class="me-2 ms-4">
         <v-checkbox
@@ -78,6 +79,15 @@ export default {
       type: Boolean,
       default: false,
     },
+    /**
+     * A search keyword decided by the host, for the compact rendering whose
+     * header — and therefore whose search field — belongs to the left panel.
+     * The drawer keeps its own field bound to the query directly.
+     */
+    keyword: {
+      type: String,
+      default: null,
+    },
   },
   data: () => ({
     spaces: [],
@@ -89,6 +99,7 @@ export default {
     limit: 20,
     pageSize: 20,
     totalSize: 0,
+    membershipSize: 0,
     initialized: false,
   }),
   computed: {
@@ -128,7 +139,25 @@ export default {
      * @returns {Array} space identity ids as numbers
      */
     spaceIdentityIds() {
-      return this.spaces && this.spaces.filter(space => space.identity && space.identity.id).map(space => Number(space.identity.id)) || [];
+      return this.toIdentityIds(this.spaces);
+    },
+    /**
+     * Whether the selection is the 'all calendars' sentinel, the empty array
+     * that also covers calendars not loaded yet.
+     *
+     * @returns {boolean} true when every calendar is selected by sentinel
+     */
+    allSelected() {
+      return Array.isArray(this.value) && !this.value.length;
+    },
+    /**
+     * Whether the loaded rows are only part of the user's spaces: a further
+     * page exists, or a search keyword keeps the non-matching ones out.
+     *
+     * @returns {boolean} true when spaces exist beyond the loaded rows
+     */
+    partiallyLoaded() {
+      return this.hasMore || !!this.query;
     },
     /**
      * Calendars currently selected: all of them when the selection is empty
@@ -168,6 +197,14 @@ export default {
      */
     query() {
       this.retrieveCalendars();
+    },
+    /**
+     * Follows the keyword the host decided, through the same query the
+     * drawer's own field drives, so both renderings search the same way.
+     * @returns {void}
+     */
+    keyword() {
+      this.query = this.keyword || null;
     },
     /**
      * Relays the loading state to the parent component.
@@ -232,17 +269,65 @@ export default {
      *
      * @param {Array|boolean} selectedOwnerIds new selection emitted by the
      *          item: an array of owner ids or false when nothing is selected
-     * @returns {void}
+     * @returns {Promise|void} the pending narrowing when the selection has to
+     *          be completed from the server, nothing otherwise
      */
     changeSelection(selectedOwnerIds) {
       if (selectedOwnerIds === false || !selectedOwnerIds.length) {
         this.uncheckAll();
       } else if (!this.query && !this.hasMore && selectedOwnerIds.length === this.spaceIdentityIds.length) {
         this.checkAll();
+      } else if (this.allSelected && this.partiallyLoaded) {
+        return this.narrowAllSelection(selectedOwnerIds);
       } else {
         this.selectAll = false;
         this.$emit('input', selectedOwnerIds);
       }
+    },
+    /**
+     * Unselects one calendar out of 'all' when the loaded rows are not all
+     * the rows.
+     *
+     * An item materializes 'all' from the rows it can see, so out of 'all'
+     * it hands back the loaded ids minus its own. Behind a search keyword the
+     * loaded rows are the matches only, and taking that list as the new
+     * selection would drop every space the keyword kept out: unticking one
+     * space of the two matching "project" would leave exactly the other one
+     * displayed. A further page loses its spaces the same way. The list is
+     * the one that knows the rows are partial, so it asks for the whole
+     * membership once and excludes the unticked ids from that.
+     *
+     * @param {Array} selectedOwnerIds the loaded ids minus the unticked ones
+     * @returns {Promise} resolved once the narrowed selection is emitted
+     */
+    narrowAllSelection(selectedOwnerIds) {
+      const excludedOwnerIds = this.spaceIdentityIds.filter(id => selectedOwnerIds.indexOf(id) < 0);
+      return this.retrieveMembershipIdentityIds().then(ownerIds => {
+        const narrowedOwnerIds = ownerIds.filter(id => excludedOwnerIds.indexOf(id) < 0);
+        this.selectAll = false;
+        this.$emit('input', narrowedOwnerIds.length && narrowedOwnerIds || false);
+      });
+    },
+    /**
+     * Retrieves the identity ids of every space the user is member of, in
+     * one page sized on the count the last unfiltered retrieval reported —
+     * or, should none have reported one, on the current page size.
+     *
+     * @returns {Promise} resolved with the identity ids, as numbers
+     */
+    retrieveMembershipIdentityIds() {
+      const limit = this.membershipSize || this.limit;
+      return this.$spaceService.getSpaces(null, 0, limit, 'lastVisited', 'identity')
+        .then(data => this.toIdentityIds(data && data.spaces));
+    },
+    /**
+     * Maps spaces to their identity ids, which are the calendar owner ids.
+     *
+     * @param {Array} spaces spaces as the REST returns them
+     * @returns {Array} identity ids as numbers
+     */
+    toIdentityIds(spaces) {
+      return spaces && spaces.filter(space => space.identity && space.identity.id).map(space => Number(space.identity.id)) || [];
     },
     /**
      * Selects all calendars. Outside of a search, the canonical 'all selected'
@@ -288,6 +373,12 @@ export default {
       return this.$spaceService.getSpaces(this.query, 0, this.limit, 'lastVisited', 'identity').then(data => {
         this.spaces = data && data.spaces || [];
         this.totalSize = data && data.size || 0;
+        if (!this.query) {
+          // the count of the whole membership, kept while a keyword narrows
+          // totalSize down to its matches: it sizes the page asked for when a
+          // selection has to be narrowed out of 'all'
+          this.membershipSize = this.totalSize;
+        }
         if (this.spaceIdentityIds.length) {
           return this.$calendarService.getCalendars(0, this.limit, false, this.spaceIdentityIds);
         }
