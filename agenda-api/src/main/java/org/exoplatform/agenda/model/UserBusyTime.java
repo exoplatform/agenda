@@ -31,7 +31,7 @@ import lombok.NoArgsConstructor;
  * The status is not decoration. Three outcomes reach a screen that has to
  * decide whether a slot is free, and two of them look identical without it:
  * <ul>
- * <li>{@link AvailabilityDisclosure#DISCLOSED} with an empty {@link #getBusy()}
+ * <li>{@link AvailabilityDisclosure#DISCLOSED} with an empty {@code getBusy()}
  * — a calendar was read and holds nothing over the window. <em>They are
  * free.</em></li>
  * <li>{@link AvailabilityDisclosure#NOT_DISCLOSED} — no calendar was read,
@@ -41,7 +41,7 @@ import lombok.NoArgsConstructor;
  * the read broke. <em>Nothing is known, and it is not their doing.</em></li>
  * </ul>
  * <p>
- * {@link #getBusy()} is {@code null} for the last two, deliberately. An empty
+ * {@code getBusy()} is {@code null} for the last two, deliberately. An empty
  * list there would be a second spelling of "they are free", one field away
  * from the status that says otherwise, and every incident this delivery has
  * had came from exactly that collapse.
