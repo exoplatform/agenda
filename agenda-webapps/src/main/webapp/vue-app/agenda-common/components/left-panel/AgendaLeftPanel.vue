@@ -91,14 +91,59 @@
     <agenda-left-panel-remote-calendars
       v-if="connectorsAvailable"
       :connectors="connectors" />
-    <!-- section: Spaces -->
+    <!--
+      Spaces: one row per space calendar, and a filter in the header for a
+      user who belongs to dozens of spaces and would otherwise page through
+      the list to find one by name. The filter is the platform's drawer
+      header idiom — an icon on the right of the title, which turns the whole
+      line into a text field with a back arrow on the left — drawn here
+      because that idiom lives inside exo-drawer's own header and this line
+      is a section title, not a drawer. The field is the same one the filter
+      drawer shows, so the search it issues is the same, server-side one.
+      Collapsing clears the keyword: a filter that keeps working out of sight
+      would leave a list that looks complete and is not.
+    -->
     <section class="agenda-left-panel-section d-flex flex-column mb-5">
       <div class="agenda-left-panel-title text-sub-title">
-        {{ $t('agenda.leftPanel.spaces') }}
+        <template v-if="!spaceFilterExpanded">
+          <span class="flex-grow-1">{{ $t('agenda.leftPanel.spaces') }}</span>
+          <v-btn
+            :aria-label="$t('agenda.leftPanel.filterSpaces')"
+            :title="$t('agenda.leftPanel.filterSpaces')"
+            icon
+            max-width="24"
+            max-height="24"
+            class="flex-grow-0"
+            @click="expandSpaceFilter">
+            <v-icon size="14" class="text-light-color">
+              fas fa-filter
+            </v-icon>
+          </v-btn>
+        </template>
+        <template v-else>
+          <v-btn
+            :aria-label="$t('agenda.button.close')"
+            :title="$t('agenda.button.close')"
+            icon
+            max-width="24"
+            max-height="24"
+            class="flex-grow-0 me-1"
+            @click="collapseSpaceFilter">
+            <v-icon size="14" class="text-light-color">
+              {{ backIcon }}
+            </v-icon>
+          </v-btn>
+          <agenda-filter-calendar-search
+            ref="spaceFilter"
+            v-model="spaceQuery"
+            class="flex-grow-1"
+            compact />
+        </template>
       </div>
       <agenda-filter-calendar-list
         ref="calendarList"
         :value="selectedOwnerIds"
+        :keyword="spaceQuery"
         class="agenda-left-panel-calendars"
         compact
         @input="changeSelection" />
@@ -135,8 +180,19 @@ export default {
     pickerValue: null,
     pickerMonth: null,
     connectorsAvailable: false,
+    spaceFilterExpanded: false,
+    spaceQuery: null,
   }),
   computed: {
+    /**
+     * The arrow that collapses the space filter: it points back to where the
+     * title was, which in a right-to-left layout is the right.
+     *
+     * @returns {String} the icon class
+     */
+    backIcon() {
+      return this.$vuetify.rtl && 'fas fa-arrow-right' || 'fas fa-arrow-left';
+    },
     /**
      * The day the picker starts its weeks on, taken from the user setting
      * rather than assumed: the same util drives the main grid, so a user who
@@ -223,6 +279,29 @@ export default {
       if (this.$refs.calendarList) {
         this.$refs.calendarList.reset();
       }
+    },
+    /**
+     * Turns the Spaces title into the filter field and puts the caret in it,
+     * once the field is rendered: the user asked to type.
+     * @returns {void}
+     */
+    expandSpaceFilter() {
+      this.spaceFilterExpanded = true;
+      this.$nextTick().then(() => {
+        const input = this.$refs.spaceFilter && this.$refs.spaceFilter.$el.querySelector('input');
+        if (input) {
+          input.focus();
+        }
+      });
+    },
+    /**
+     * Puts the Spaces title back and drops the keyword with the field, so the
+     * list returns to every space the user is member of.
+     * @returns {void}
+     */
+    collapseSpaceFilter() {
+      this.spaceFilterExpanded = false;
+      this.spaceQuery = null;
     },
     /**
      * Opens the drawer creating a personal calendar, empty: this button is
