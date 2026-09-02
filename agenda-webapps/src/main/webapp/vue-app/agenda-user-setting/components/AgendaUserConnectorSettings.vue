@@ -74,17 +74,49 @@
       </v-list-item-action>
     </v-list-item>
     <!--
+      The same line before there is an account: what the section will describe
+      once there is one, and the way to get one. It replaces the account line
+      rather than joining it — one of the two is always the whole of what this
+      section has to say about the account.
+    -->
+    <v-list-item v-else-if="connectOffered">
+      <v-list-item-content>
+        <v-list-item-title class="text-color">
+          {{ $t('agenda.settings.myCalendars') }}
+        </v-list-item-title>
+        <v-list-item-subtitle class="text-truncate">
+          {{ $t('agenda.settings.myCalendarsConnectPrompt') }}
+        </v-list-item-subtitle>
+      </v-list-item-content>
+      <v-list-item-action>
+        <v-btn
+          :aria-label="$t('agenda.connect')"
+          class="btn"
+          @click="openDrawer">
+          <v-icon size="14" class="me-1">fa-plug</v-icon>
+          {{ $t('agenda.connect') }}
+        </v-btn>
+      </v-list-item-action>
+    </v-list-item>
+    <!--
       The rows the CalDAV add-on contributes about the calendars backing
       My Calendars — calendar states, hidden calendars — rendered inside this
       section: they describe what the account above materialises, so they
       belong under it, not floating between unrelated rows.
+
+      Gated on the account and not on the container: every one of them speaks
+      about a connected account — the device URL is built from its address, the
+      hidden calendars are its own — so under the connect offer they would each
+      describe an account that does not exist yet.
     -->
-    <component
-      :is="row.vueComponent"
-      v-for="row in nestedSections"
-      :key="row.id"
-      :settings="settings"
-      :connectors="connectors" />
+    <template v-if="connected">
+      <component
+        :is="row.vueComponent"
+        v-for="row in nestedSections"
+        :key="row.id"
+        :settings="settings"
+        :connectors="connectors" />
+    </template>
   </div>
 </template>
 
@@ -156,42 +188,69 @@ export default {
       return caldavConnectors.find(connector => connector.connected) || caldavConnectors[0] || null;
     },
     /**
-     * Whether this section is worth showing at all.
+     * Whether a CalDAV account backs My Calendars.
      *
-     * It describes one account and the calendars that account materialises,
-     * so with no account connected there is nothing for it to describe: it
-     * offered a connect prompt, and the rows nested under it — calendar
-     * states, hidden calendars, the device setup — spoke about an account
-     * that did not exist. Connecting a first account is offered by the
-     * agenda application itself, where connecting is the task at hand.
-     *
+     * <p>
      * It also settles what the subtitle used to guess at. The account state
      * arrives asynchronously, so the section rendered before it knew, and a
-     * user whose account was connected read "not synced" for a moment. Now
-     * the section simply is not there until there is something true to say.
-     *
-     * <p>
-     * Unchanged by managed mode, and that is the correction: this flag gates
-     * the CONTAINER, and the container holds the rows the CalDAV add-on nests
-     * under it — hidden calendars, device setup — which have their own reasons
-     * to exist and are not this component's header line. Taking the container
-     * away to remove the header took those with it, device setup included,
-     * which is the row a managed user most needs: the instance chose the
-     * server, they still have to point their phone at it. What managed mode
-     * suppresses is `headerDisplayed` below.
-     *
-     * <p>
-     * `connected` also happens to be what keeps a bare heading off the page.
-     * Every nested row needs a connected account to have anything to say — the
-     * device URL is built from the account's own address, the hidden calendars
-     * and the diagnostics are that account's — so a managed user who has not
-     * been provisioned yet fails this test and sees nothing at all, rather than
-     * a heading over an empty space.
+     * user whose account was connected read "not synced" for a moment. Nothing
+     * is said about the account until there is something true to say.
      *
      * @returns {Boolean} true when a CalDAV account is connected
      */
-    displayed() {
+    connected() {
       return !!this.caldavConnector && !!this.caldavConnector.connected;
+    },
+    /**
+     * Whether this section offers connecting a first account.
+     *
+     * <p>
+     * This page used to hide itself whole when no account was connected, on
+     * the ground that connecting is offered by the agenda application, where
+     * connecting is the task at hand rather than one preference among others.
+     * That reasoning holds for where connecting is BEST offered and not for
+     * where it may be found: the only affordance left was a plug icon beside
+     * the "+" of the left panel's Personal header, and on a CalDAV-only
+     * deployment this page — the page carrying the e-mail account rows, so the
+     * page a user reaches with exactly this in mind — offered no way to
+     * connect a calendar at all. A user who does not find it concludes the
+     * feature is not there.
+     *
+     * <p>
+     * Not offered in managed mode: the instance chose the account, and
+     * connecting one is precisely what such a user cannot do. That is the same
+     * rule `headerDisplayed` states for the account line, applied before there
+     * is an account.
+     *
+     * @returns {Boolean} true when connecting is this user's to do and they
+     *          have not done it yet
+     */
+    connectOffered() {
+      return this.caldavKnown && !this.connected && !this.caldavManaged;
+    },
+    /**
+     * Whether this section is on the page at all.
+     *
+     * <p>
+     * This flag gates the CONTAINER, and the container holds the rows the
+     * CalDAV add-on nests under it — hidden calendars, device setup — which
+     * have their own reasons to exist and are not this component's header
+     * line. Taking the container away to remove the header took those with it,
+     * device setup included, which is the row a managed user most needs: the
+     * instance chose the server, they still have to point their phone at it.
+     * What managed mode suppresses is `headerDisplayed` below.
+     *
+     * <p>
+     * The one case left with nothing on it is a managed user not yet
+     * provisioned: no account to describe, no connection of theirs to make,
+     * and every nested row speaks about an account. They see nothing, rather
+     * than a heading over an empty space.
+     *
+     * @returns {Boolean} true when the section has either an account to
+     *          describe or a connection to offer
+     */
+    displayed() {
+      return this.connected || this.connectOffered;
     },
     /**
      * Whether this section's OWN header line is shown: the account address,
@@ -222,7 +281,7 @@ export default {
      *          the page
      */
     headerDisplayed() {
-      return this.displayed && !this.caldavManaged;
+      return this.connected && !this.caldavManaged;
     },
     /**
      * Whether the instance chose this user's CalDAV server for them, read
