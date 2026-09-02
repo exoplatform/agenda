@@ -43,6 +43,7 @@ function retrieve(spaces, calendars) {
     loading: false,
     initialized: false,
     sortByOwnerOrder: AgendaFilterCalendarList.methods.sortByOwnerOrder,
+    toIdentityIds: AgendaFilterCalendarList.methods.toIdentityIds,
     $spaceService: {
       getSpaces: (...args) => {
         spaceQueryArguments = args;

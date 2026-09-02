@@ -4,6 +4,8 @@
       v-model="query"
       :placeholder="$t('agenda.SearchCalendarPlaceholder')"
       :append-icon="appendIcon"
+      :dense="compact"
+      :hide-details="compact"
       prepend-inner-icon="fa-filter"
       class="agenda-calendar-filter-input pa-0 my-auto"
       @click:append="query = null" />
@@ -16,6 +18,14 @@ export default {
     value: {
       type: String,
       default: null,
+    },
+    /**
+     * Renders the field dense and without its details line, so it fits the
+     * one-line section header of the left panel instead of a drawer row.
+     */
+    compact: {
+      type: Boolean,
+      default: false,
     },
   },
   data: () => ({
