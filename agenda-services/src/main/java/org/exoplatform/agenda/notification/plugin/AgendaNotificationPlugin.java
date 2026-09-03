@@ -2,6 +2,10 @@ package org.exoplatform.agenda.notification.plugin;
 
 import static org.exoplatform.agenda.util.NotificationUtils.*;
 
+import org.exoplatform.agenda.util.Utils;
+import org.exoplatform.social.core.identity.model.Identity;
+import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
+
 import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
@@ -81,6 +85,13 @@ public class AgendaNotificationPlugin extends BaseNotificationPlugin {
     notification.key(getId());
     if (event.getId() > 0) {
       setNotificationRecipients(identityManager, notification, spaceService, eventAttendees, event, typeModification, modifierId);
+      // The one who did the action, so that whoever consumes the notification
+      // apart from the channels, like the digest, can leave him out of what
+      // happened to him. The on-site and mail behaviors are unchanged.
+      Identity modifier = modifierId != null && modifierId > 0 ? Utils.getIdentityById(identityManager, modifierId) : null;
+      if (modifier != null && OrganizationIdentityProvider.NAME.equals(modifier.getProviderId())) {
+        notification.setFrom(modifier.getRemoteId());
+      }
     }
     if (notification.getSendToUserIds() == null || notification.getSendToUserIds().isEmpty()) {
       LOG.debug("Notification type '{}' doesn't have a recipient", getId());
