@@ -930,15 +930,31 @@
         }
       }
     }
-    .event-form {
-      .event-form-body {
-        .event-form-body-right {
-          min-width: 376px !important;
-        }
-        .event-form-body-left {
-          min-width: ~"calc(100% - 416px)";
-        }
-      }
+  }
+}
+
+/* Event form body: two columns from Vuetify's md breakpoint upwards, matching
+   the `flex-md-row` class on the row (EXO-89981). Between @maxMobileWidth and
+   md the row is still stacked, so these rules must not apply there: a
+   flex-basis would then size the panel's height instead of its width. */
+@media (min-width: @minLargeTabletWidth) {
+  .VuetifyApp .event-form .event-form-body {
+    /* The only number the two-column split depends on: the participants
+       panel width. The left column takes the rest. */
+    @event-form-right-width: 376px;
+
+    .event-form-body-left {
+      /* Takes whatever the right panel leaves. `min-width: 0` overrides the
+         flex default (min-content) so the column can actually give way. */
+      flex: 1 1 0;
+      min-width: 0;
+    }
+    .event-form-body-right {
+      /* An explicit basis: with `auto`, the panel's base size is the
+         max-content width of its longest sentence, which cannot shrink and
+         pushes the "+" (add participants) off-screen in long locales. With a
+         fixed basis the sentence wraps inside the panel instead. */
+      flex: 0 0 @event-form-right-width;
     }
   }
 }
