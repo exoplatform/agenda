@@ -30,9 +30,14 @@ const OTHER_SPACE_IDENTITY_ID = 15;
  */
 function effectiveOwnerIds(ownerIds, spaceId) {
   eXo.env.portal.spaceId = spaceId || null;
+  // leftPanelAvailable reads spaceContextId, a sibling computed, rather than the
+  // portal global directly (EXO-89787), so the context has to carry it: called
+  // with an empty `this` it would always report a personal agenda and this file
+  // would stop testing the space case at all.
+  const spaceContextId = Agenda.computed.spaceContextId.call({standalone: false});
   return Agenda.computed.effectiveOwnerIds.call({
     ownerIds,
-    leftPanelAvailable: Agenda.computed.leftPanelAvailable.call({}),
+    leftPanelAvailable: Agenda.computed.leftPanelAvailable.call({spaceContextId}),
   });
 }
 
