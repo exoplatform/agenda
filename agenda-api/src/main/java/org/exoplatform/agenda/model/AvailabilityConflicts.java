@@ -29,8 +29,8 @@ import lombok.NoArgsConstructor;
  * The report is deliberately partial and says so. Availability is readable
  * only where the platform calendar ACL allows it, so an attendee the asker
  * cannot read is neither reported busy nor assumed free: their identifier is
- * listed in {@link #getNotDisclosedIdentityIds()} and left out of
- * {@link #getConflicts()}. A caller that presents this to a user must say that
+ * listed in {@code notDisclosedIdentityIds} and left out of
+ * {@code conflicts}. A caller that presents this to a user must say that
  * those attendees were not checked, rather than imply they are available.
  */
 @Data
@@ -47,7 +47,7 @@ public class AvailabilityConflicts {
    * the window.
    * <p>
    * This says nothing about the attendees in
-   * {@link #getNotDisclosedIdentityIds()}: it is "no clash was found", not
+   * {@code notDisclosedIdentityIds}: it is "no clash was found", not
    * "everyone is free".
    *
    * @return {@code true} when no clash was found among the readable attendees
