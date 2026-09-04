@@ -26,7 +26,9 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-// Server-side conflict report over an event's attendees for a given window
+// Server-side conflict report over an event's attendees for a given window.
+// Partial on purpose: attendees whose availability the acting user may not read are listed in "not_disclosed"
+// and left out of "conflicts", so all_available means "no clash was found", never "everyone is free".
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -37,5 +39,8 @@ public class ConflictsModel {
   private boolean                     allAvailable;
 
   private List<AttendeeConflictModel> conflicts;
+
+  @JsonProperty("not_disclosed")
+  private List<String>                notDisclosed;
 
 }
