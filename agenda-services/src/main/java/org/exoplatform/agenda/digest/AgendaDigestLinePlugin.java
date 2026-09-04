@@ -18,6 +18,9 @@
  */
 package org.exoplatform.agenda.digest;
 
+import static org.exoplatform.agenda.util.NotificationUtils.STORED_PARAMETER_EVENT_ID;
+import static org.exoplatform.agenda.util.NotificationUtils.STORED_PARAMETER_MODIFIER_IDENTITY_ID;
+
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
@@ -49,11 +52,6 @@ public class AgendaDigestLinePlugin extends DigestLinePlugin {
 
   public static final String  DATE_POLL_PLUGIN     = "DatePollNotificationPlugin";
 
-  /** The stored parameters, the same names as in the notifications */
-  static final String         EVENT_ID_PARAM       = "eventId";
-
-  static final String         MODIFIER_ID_PARAM    = "modifierIdentityId";
-
   private static final String LINE_KEY_PREFIX      = "digest.line.";
 
   private static final String ALL_DAY_SUFFIX       = ".allDay";
@@ -74,7 +72,7 @@ public class AgendaDigestLinePlugin extends DigestLinePlugin {
 
   @Override
   public DigestLine buildLine(DigestItem item, DigestLineContext context) {
-    Event event = findEvent(item.getParam(EVENT_ID_PARAM));
+    Event event = findEvent(item.getParam(STORED_PARAMETER_EVENT_ID));
     if (event == null) {
       return null;
     }
@@ -89,17 +87,20 @@ public class AgendaDigestLinePlugin extends DigestLinePlugin {
 
   /** "{actor} invited you to "{title}" — {date} at {time}", date only for an all-day event */
   private DigestLine invitationLine(DigestItem item, DigestLineContext context, Event event, String title, String url) {
-    String actor = fullName(item.getParam(MODIFIER_ID_PARAM));
-    ZonedDateTime start = event.getStart() == null ? null : event.getStart().withZoneSameInstant(context.getZoneId());
-    if (start == null) {
+    String actor = fullName(item.getParam(STORED_PARAMETER_MODIFIER_IDENTITY_ID));
+    DateTimeFormatter dateFormat = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(context.getLocale());
+    if (event.getStart() == null) {
       return DigestLine.of(LINE_KEY_PREFIX + EVENT_ADDED_PLUGIN + ALL_DAY_SUFFIX, actor, title, "").withUrl(url);
     }
-    String date = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(context.getLocale()).format(start);
     if (event.isAllDay()) {
-      return DigestLine.of(LINE_KEY_PREFIX + EVENT_ADDED_PLUGIN + ALL_DAY_SUFFIX, actor, title, date).withUrl(url);
+      // An all-day event is a calendar day, the same whatever the recipient's
+      // timezone: never converted, or a westward recipient reads the day before
+      return DigestLine.of(LINE_KEY_PREFIX + EVENT_ADDED_PLUGIN + ALL_DAY_SUFFIX, actor, title, dateFormat.format(event.getStart().toLocalDate()))
+                       .withUrl(url);
     }
+    ZonedDateTime start = event.getStart().withZoneSameInstant(context.getZoneId());
     String time = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(context.getLocale()).format(start);
-    return DigestLine.of(LINE_KEY_PREFIX + EVENT_ADDED_PLUGIN, actor, title, date, time).withUrl(url);
+    return DigestLine.of(LINE_KEY_PREFIX + EVENT_ADDED_PLUGIN, actor, title, dateFormat.format(start), time).withUrl(url);
   }
 
   private Event findEvent(String eventId) {

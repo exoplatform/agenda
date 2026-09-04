@@ -97,7 +97,7 @@ class AgendaDigestLinePluginTest {
     event.setStart(ZonedDateTime.parse("2026-09-10T10:00:00+02:00[Europe/Paris]"));
     when(agendaEventService.getEventById(7)).thenReturn(event);
 
-    DigestLine line = plugin.buildLine(item(AgendaDigestLinePlugin.EVENT_ADDED_PLUGIN, "eventId", "7", "modifierIdentityId", "15"),
+    DigestLine line = plugin.buildLine(item(AgendaDigestLinePlugin.EVENT_ADDED_PLUGIN, "eventId", "7", "MODIFIER_IDENTITY_ID", "15"),
                                        CONTEXT);
     assertNotNull(line);
     assertEquals("digest.line.EventAddedNotificationPlugin", line.getLabelKey());
@@ -116,11 +116,27 @@ class AgendaDigestLinePluginTest {
     event.setStart(ZonedDateTime.parse("2026-09-10T00:00:00+02:00[Europe/Paris]"));
     when(agendaEventService.getEventById(7)).thenReturn(event);
 
-    DigestLine line = plugin.buildLine(item(AgendaDigestLinePlugin.EVENT_ADDED_PLUGIN, "eventId", "7", "modifierIdentityId", "15"),
+    DigestLine line = plugin.buildLine(item(AgendaDigestLinePlugin.EVENT_ADDED_PLUGIN, "eventId", "7", "MODIFIER_IDENTITY_ID", "15"),
                                        CONTEXT);
     assertNotNull(line);
     assertEquals("digest.line.EventAddedNotificationPlugin.allDay", line.getLabelKey());
     assertEquals(List.of("John Smith", "Company day", "Sep 10, 2026"), line.getArgs());
+  }
+
+  @Test
+  void testAllDayDateIsTheSameForARecipientWestOfTheEvent() {
+    Event event = new Event();
+    event.setId(7);
+    event.setSummary("Company day");
+    event.setAllDay(true);
+    event.setStart(ZonedDateTime.parse("2026-09-10T00:00:00+02:00[Europe/Paris]"));
+    when(agendaEventService.getEventById(7)).thenReturn(event);
+    DigestLineContext newYork = new DigestLineContext("ayoub", Locale.ENGLISH, ZoneId.of("America/New_York"));
+
+    DigestLine line = plugin.buildLine(item(AgendaDigestLinePlugin.EVENT_ADDED_PLUGIN, "eventId", "7", "MODIFIER_IDENTITY_ID", "15"),
+                                       newYork);
+    assertNotNull(line);
+    assertEquals("Sep 10, 2026", line.getArgs().get(2));
   }
 
   @Test
@@ -130,7 +146,7 @@ class AgendaDigestLinePluginTest {
     event.setSummary("Team lunch");
     when(agendaEventService.getEventById(8)).thenReturn(event);
 
-    DigestLine line = plugin.buildLine(item(AgendaDigestLinePlugin.DATE_POLL_PLUGIN, "eventId", "8", "modifierIdentityId", "15"), CONTEXT);
+    DigestLine line = plugin.buildLine(item(AgendaDigestLinePlugin.DATE_POLL_PLUGIN, "eventId", "8", "MODIFIER_IDENTITY_ID", "15"), CONTEXT);
     assertNotNull(line);
     assertEquals("digest.line.DatePollNotificationPlugin", line.getLabelKey());
     assertEquals(List.of("Team lunch"), line.getArgs());
