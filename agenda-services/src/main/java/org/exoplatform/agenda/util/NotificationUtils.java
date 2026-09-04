@@ -141,7 +141,7 @@ public class NotificationUtils {
 
   public static final String                                 STORED_PARAMETER_EVENT_OWNER_ID                = "ownerId";
 
-  private static final String                                STORED_PARAMETER_EVENT_ID                      = "eventId";
+  public static final String                                 STORED_PARAMETER_EVENT_ID                      = "eventId";
 
   public static final String                                 STORED_PARAMETER_EVENT_MODIFIER                = "eventModifier";
 
