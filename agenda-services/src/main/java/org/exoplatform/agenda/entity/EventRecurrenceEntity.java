@@ -19,32 +19,35 @@ package org.exoplatform.agenda.entity;
 import java.io.Serializable;
 import java.util.Date;
 
-import jakarta.persistence.*;
-
 import org.exoplatform.agenda.constant.EventRecurrenceType;
-import org.exoplatform.commons.api.persistence.ExoEntity;
+
+import io.meeds.common.persistence.PortableSequence;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.NamedQuery;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
 
 @Entity(name = "AgendaEventRecurrence")
-@ExoEntity
 @Table(name = "EXO_AGENDA_RECURRENCE")
-@NamedQueries(
-  {
-      @NamedQuery(
-          name = "AgendaEventRecurrence.deleteCalendarRecurrences",
-          query = "DELETE FROM AgendaEventRecurrence a WHERE a.event.id IN (SELECT evt.id FROM AgendaEvent evt WHERE evt.calendar.id = :calendarId)"
-      ),
-      @NamedQuery(
-          name = "AgendaEventRecurrence.deleteEventRecurrences",
-          query = "DELETE FROM AgendaEventRecurrence a WHERE a.event.id = :eventId"
-      ), }
+@NamedQuery(
+  name = "AgendaEventRecurrence.deleteCalendarRecurrences",
+  query = "DELETE FROM AgendaEventRecurrence a WHERE a.event.id IN (SELECT evt.id FROM AgendaEvent evt WHERE evt.calendar.id = :calendarId)"
+)
+@NamedQuery(
+  name = "AgendaEventRecurrence.deleteEventRecurrences",
+  query = "DELETE FROM AgendaEventRecurrence a WHERE a.event.id = :eventId"
 )
 public class EventRecurrenceEntity implements Serializable {
 
   private static final long   serialVersionUID = -4214007539857435152L;
 
   @Id
-  @SequenceGenerator(name = "SEQ_AGENDA_EVENT_RECURRENCE_ID", sequenceName = "SEQ_AGENDA_EVENT_RECURRENCE_ID", allocationSize = 1)
-  @GeneratedValue(strategy = GenerationType.AUTO, generator = "SEQ_AGENDA_EVENT_RECURRENCE_ID")
+  @PortableSequence(name = "SEQ_AGENDA_EVENT_RECURRENCE_ID")
   @Column(name = "EVENT_RECURRENCE_ID")
   private Long                id;
 

@@ -18,36 +18,34 @@ package org.exoplatform.agenda.entity;
 
 import java.io.Serializable;
 
-import jakarta.persistence.*;
+import io.meeds.common.persistence.PortableSequence;
 
-import org.exoplatform.commons.api.persistence.ExoEntity;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.NamedQuery;
+import jakarta.persistence.Table;
 
 @Entity(name = "AgendaRemoteEvent")
-@ExoEntity
 @Table(name = "EXO_AGENDA_REMOTE_EVENT")
-@NamedQueries(
-  {
-      @NamedQuery(
-          name = "AgendaRemoteEvent.deleteCalendarRemoteEvents",
-          query = "DELETE FROM AgendaRemoteEvent r WHERE r.eventId IN (SELECT evt.id FROM AgendaEvent evt WHERE evt.calendar.id = :calendarId)"
-      ),
-      @NamedQuery(
-          name = "AgendaRemoteEvent.deleteRemoteEvents",
-          query = "DELETE FROM AgendaRemoteEvent r WHERE r.eventId = :eventId"
-      ),
-      @NamedQuery(
-          name = "AgendaRemoteEvent.findRemoteEventByEventIdAndIdentityId",
-          query = "SELECT r FROM AgendaRemoteEvent r WHERE r.eventId = :eventId AND r.identityId = :identityId"
-      ),
-  }
+@NamedQuery(
+  name = "AgendaRemoteEvent.deleteCalendarRemoteEvents",
+  query = "DELETE FROM AgendaRemoteEvent r WHERE r.eventId IN (SELECT evt.id FROM AgendaEvent evt WHERE evt.calendar.id = :calendarId)"
+)
+@NamedQuery(
+  name = "AgendaRemoteEvent.deleteRemoteEvents",
+  query = "DELETE FROM AgendaRemoteEvent r WHERE r.eventId = :eventId"
+)
+@NamedQuery(
+  name = "AgendaRemoteEvent.findRemoteEventByEventIdAndIdentityId",
+  query = "SELECT r FROM AgendaRemoteEvent r WHERE r.eventId = :eventId AND r.identityId = :identityId"
 )
 public class RemoteEventEntity implements Serializable {
 
   private static final long serialVersionUID = 6095103528261973968L;
 
   @Id
-  @SequenceGenerator(name = "SEQ_AGENDA_REMOTE_EVENT_ID", sequenceName = "SEQ_AGENDA_REMOTE_EVENT_ID", allocationSize = 1)
-  @GeneratedValue(strategy = GenerationType.AUTO, generator = "SEQ_AGENDA_REMOTE_EVENT_ID")
+  @PortableSequence(name = "SEQ_AGENDA_REMOTE_EVENT_ID")
   @Column(name = "REMOTE_EVENT_ID")
   private Long              id;
 

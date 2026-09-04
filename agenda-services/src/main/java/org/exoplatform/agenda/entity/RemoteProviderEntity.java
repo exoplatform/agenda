@@ -18,28 +18,26 @@ package org.exoplatform.agenda.entity;
 
 import java.io.Serializable;
 
-import jakarta.persistence.*;
+import io.meeds.common.persistence.PortableSequence;
 
-import org.exoplatform.commons.api.persistence.ExoEntity;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.NamedQuery;
+import jakarta.persistence.Table;
 
 @Entity(name = "AgendaRemoteProvider")
-@ExoEntity
 @Table(name = "EXO_AGENDA_REMOTE_PROVIDER")
-@NamedQueries(
-  {
-      @NamedQuery(
-          name = "AgendaRemoteProvider.findByName",
-          query = "SELECT rc FROM AgendaRemoteProvider rc WHERE rc.name = :name"
-      ),
-  }
+@NamedQuery(
+  name = "AgendaRemoteProvider.findByName",
+  query = "SELECT rc FROM AgendaRemoteProvider rc WHERE rc.name = :name"
 )
 public class RemoteProviderEntity implements Serializable {
 
   private static final long serialVersionUID = -5031970577705728288L;
 
   @Id
-  @SequenceGenerator(name = "SEQ_AGENDA_PROVIDER_ID", sequenceName = "SEQ_AGENDA_PROVIDER_ID", allocationSize = 1)
-  @GeneratedValue(strategy = GenerationType.AUTO, generator = "SEQ_AGENDA_PROVIDER_ID")
+  @PortableSequence(name = "SEQ_AGENDA_PROVIDER_ID")
   @Column(name = "AGENDA_PROVIDER_ID")
   private Long              id;
 

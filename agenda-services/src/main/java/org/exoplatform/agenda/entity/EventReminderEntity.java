@@ -19,45 +19,44 @@ package org.exoplatform.agenda.entity;
 import java.io.Serializable;
 import java.util.Date;
 
-import jakarta.persistence.*;
-
 import org.exoplatform.agenda.constant.ReminderPeriodType;
-import org.exoplatform.commons.api.persistence.ExoEntity;
+
+import io.meeds.common.persistence.PortableSequence;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.NamedQuery;
+import jakarta.persistence.Table;
 
 @Entity(name = "AgendaEventReminder")
-@ExoEntity
 @Table(name = "EXO_AGENDA_REMINDER")
-@NamedQueries(
-  {
-      @NamedQuery(
-          name = "AgendaEventReminder.deleteCalendarReminders",
-          query = "DELETE FROM AgendaEventReminder a WHERE a.eventId IN (SELECT evt.id FROM AgendaEvent evt WHERE evt.calendar.id = :calendarId)"
-      ),
-      @NamedQuery(
-          name = "AgendaEventReminder.deleteEventReminders",
-          query = "DELETE FROM AgendaEventReminder a WHERE a.eventId = :eventId"
-      ),
-      @NamedQuery(
-          name = "AgendaEventReminder.getEventRemindersByEventIdAndUserId",
-          query = "SELECT a FROM AgendaEventReminder a WHERE a.eventId = :eventId AND a.receiverId = :userId"
-      ),
-      @NamedQuery(
-          name = "AgendaEventReminder.getEventRemindersByEventId",
-          query = "SELECT a FROM AgendaEventReminder a WHERE a.eventId = :eventId"
-      ),
-      @NamedQuery(
-          name = "AgendaEventReminder.getEventRemindersByPeriod",
-          query = "SELECT a FROM AgendaEventReminder a WHERE a.triggerDate >= :start AND a.triggerDate < :end"
-      ),
-  }
+@NamedQuery(
+  name = "AgendaEventReminder.deleteCalendarReminders",
+  query = "DELETE FROM AgendaEventReminder a WHERE a.eventId IN (SELECT evt.id FROM AgendaEvent evt WHERE evt.calendar.id = :calendarId)"
+)
+@NamedQuery(
+  name = "AgendaEventReminder.deleteEventReminders",
+  query = "DELETE FROM AgendaEventReminder a WHERE a.eventId = :eventId"
+)
+@NamedQuery(
+  name = "AgendaEventReminder.getEventRemindersByEventIdAndUserId",
+  query = "SELECT a FROM AgendaEventReminder a WHERE a.eventId = :eventId AND a.receiverId = :userId"
+)
+@NamedQuery(
+  name = "AgendaEventReminder.getEventRemindersByEventId",
+  query = "SELECT a FROM AgendaEventReminder a WHERE a.eventId = :eventId"
+)
+@NamedQuery(
+  name = "AgendaEventReminder.getEventRemindersByPeriod",
+  query = "SELECT a FROM AgendaEventReminder a WHERE a.triggerDate >= :start AND a.triggerDate < :end"
 )
 public class EventReminderEntity implements Serializable {
 
   private static final long  serialVersionUID = 6460217989840428489L;
 
   @Id
-  @SequenceGenerator(name = "SEQ_AGENDA_EVENT_REMINDER_ID", sequenceName = "SEQ_AGENDA_EVENT_REMINDER_ID", allocationSize = 1)
-  @GeneratedValue(strategy = GenerationType.AUTO, generator = "SEQ_AGENDA_EVENT_REMINDER_ID")
+  @PortableSequence(name = "SEQ_AGENDA_EVENT_REMINDER_ID")
   @Column(name = "EVENT_REMINDER_ID")
   private Long               id;
 

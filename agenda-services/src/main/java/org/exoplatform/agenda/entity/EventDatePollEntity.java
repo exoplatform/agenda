@@ -18,28 +18,26 @@ package org.exoplatform.agenda.entity;
 
 import java.io.Serializable;
 
-import jakarta.persistence.*;
+import io.meeds.common.persistence.PortableSequence;
 
-import org.exoplatform.commons.api.persistence.ExoEntity;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.NamedQuery;
+import jakarta.persistence.Table;
 
 @Entity(name = "AgendaEventDatePoll")
-@ExoEntity
 @Table(name = "EXO_AGENDA_EVENT_DATE_POLL")
-@NamedQueries(
-  {
-      @NamedQuery(
-          name = "AgendaEventDatePoll.findDatePollByEventId",
-          query = "SELECT datePoll FROM AgendaEventDatePoll datePoll WHERE datePoll.eventId = :eventId"
-      ),
-  }
+@NamedQuery(
+  name = "AgendaEventDatePoll.findDatePollByEventId",
+  query = "SELECT datePoll FROM AgendaEventDatePoll datePoll WHERE datePoll.eventId = :eventId"
 )
 public class EventDatePollEntity implements Serializable {
 
   private static final long serialVersionUID = -6015331866476045556L;
 
   @Id
-  @SequenceGenerator(name = "SEQ_AGENDA_EVENT_DATE_POLL_ID", sequenceName = "SEQ_AGENDA_EVENT_DATE_POLL_ID", allocationSize = 1)
-  @GeneratedValue(strategy = GenerationType.AUTO, generator = "SEQ_AGENDA_EVENT_DATE_POLL_ID")
+  @PortableSequence(name = "SEQ_AGENDA_EVENT_DATE_POLL_ID")
   @Column(name = "EVENT_DATE_POLL_ID")
   private Long              id;
 

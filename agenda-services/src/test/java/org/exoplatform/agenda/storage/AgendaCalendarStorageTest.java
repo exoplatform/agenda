@@ -17,7 +17,7 @@
 package org.exoplatform.agenda.storage;
 
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import java.util.*;
@@ -82,7 +82,7 @@ public class AgendaCalendarStorageTest {
 
   @Test
   public void testGetCalendarIdsByOwnerIds() {
-    when(calendarDAO.getCalendarIdsByOwnerIds(eq(0), eq(10), anyVararg())).thenReturn(Collections.singletonList(2l));
+    when(calendarDAO.getCalendarIdsByOwnerIds(eq(0), eq(10), any(Long[].class))).thenReturn(Collections.singletonList(2l));
     List<Long> result = agendaCalendarStorage.getCalendarIdsByOwnerIds(0, 10, 2l);
     assertNotNull(result);
     assertEquals(1, result.size());
@@ -95,7 +95,7 @@ public class AgendaCalendarStorageTest {
 
   @Test
   public void testCountCalendarsByOwners() {
-    when(calendarDAO.countCalendarsByOwnerIds(anyVararg())).thenReturn(1);
+    when(calendarDAO.countCalendarsByOwnerIds(any(Long[].class))).thenReturn(1);
     int count = agendaCalendarStorage.countCalendarsByOwners(2l);
     assertEquals(1, count);
 
@@ -116,7 +116,7 @@ public class AgendaCalendarStorageTest {
                                      null,
                                      "color",
                                      null);
-    when(calendarDAO.create(anyObject())).thenAnswer(new Answer<CalendarEntity>() {
+    when(calendarDAO.create(any())).thenAnswer(new Answer<CalendarEntity>() {
       @Override
       public CalendarEntity answer(InvocationOnMock invocation) throws Throwable {
         CalendarEntity calendarEntity = invocation.getArgument(0, CalendarEntity.class);
@@ -156,7 +156,7 @@ public class AgendaCalendarStorageTest {
     verify(calendarDAO, times(1)).find(anyLong());
 
     agendaCalendarStorage.updateCalendar(calendar);
-    verify(calendarDAO, times(1)).update(anyObject());
+    verify(calendarDAO, times(1)).update(any());
 
     agendaCalendarStorage.getCalendarById(calendarId);
     // Verify that cache is cleared
@@ -185,7 +185,7 @@ public class AgendaCalendarStorageTest {
     verify(calendarDAO, times(1)).find(anyLong());
 
     agendaCalendarStorage.deleteCalendarById(calendarId);
-    verify(calendarDAO, times(1)).delete(anyObject());
+    verify(calendarDAO, times(1)).delete(any());
     when(calendarDAO.find(eq(calendarId))).thenReturn(null);
 
     // Verify that cache is cleared

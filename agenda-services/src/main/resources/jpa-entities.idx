@@ -1,0 +1,11 @@
+org.exoplatform.agenda.entity.CalendarEntity
+org.exoplatform.agenda.entity.EventAttendeeEntity
+org.exoplatform.agenda.entity.EventConferenceEntity
+org.exoplatform.agenda.entity.EventDateOptionEntity
+org.exoplatform.agenda.entity.EventDatePollEntity
+org.exoplatform.agenda.entity.EventDateVoteEntity
+org.exoplatform.agenda.entity.EventEntity
+org.exoplatform.agenda.entity.EventRecurrenceEntity
+org.exoplatform.agenda.entity.EventReminderEntity
+org.exoplatform.agenda.entity.RemoteEventEntity
+org.exoplatform.agenda.entity.RemoteProviderEntity
