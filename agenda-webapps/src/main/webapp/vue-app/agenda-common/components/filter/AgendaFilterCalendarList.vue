@@ -264,20 +264,51 @@ export default {
      * Retrieves the spaces the user is member of, then their calendars, and
      * refreshes the displayed list.
      *
+     * The spaces are asked for in the platform's 'recent spaces' order — the
+     * one the spaces sidebar shows — so that a user who belongs to dozens of
+     * spaces meets the ones they work in on the first page instead of paging
+     * through an alphabet. The order is decided server-side, before the page
+     * is cut: sorting here would only reorder an already alphabetical page.
+     *
+     * It has to be the 'lastVisited' filter type and not 'member' sorted by
+     * lastVisited: the latter is cached under the member key, which the
+     * visit-time eviction does not touch, and would serve a stale order.
+     *
      * @returns {Promise} resolved when the calendars are loaded
      */
     retrieveCalendars() {
       this.initialized = true;
       this.loading = true;
-      return this.$spaceService.getSpaces(this.query, 0, this.limit, 'member', 'identity').then(data => {
+      return this.$spaceService.getSpaces(this.query, 0, this.limit, 'lastVisited', 'identity').then(data => {
         this.spaces = data && data.spaces || [];
         this.totalSize = data && data.size || 0;
         if (this.spaceIdentityIds.length) {
           return this.$calendarService.getCalendars(0, this.limit, false, this.spaceIdentityIds);
         }
       }).then(data => {
-        this.calendars = data && data.calendars || [];
+        this.calendars = this.sortByOwnerOrder(data && data.calendars || []);
       }).finally(() => this.loading = false);
+    },
+    /**
+     * Puts a page of calendars back into the order their spaces were asked in.
+     *
+     * The calendars REST answers a set of owners, not a sequence: it returns
+     * the saved calendars ordered by their own id and appends an unsaved one
+     * per space that has none. Left as it comes, that discards the recency
+     * order the spaces call established, so the whole point of asking for
+     * recent spaces would be lost one call later.
+     *
+     * @param {Array} calendars calendars as returned by the server
+     * @returns {Array} the same calendars, in the order of their owners
+     */
+    sortByOwnerOrder(calendars) {
+      const rank = new Map(this.spaceIdentityIds.map((identityId, index) => [identityId, index]));
+      return calendars.slice()
+        .sort((first, second) => {
+          const firstRank = rank.has(Number(first.owner && first.owner.id)) ? rank.get(Number(first.owner.id)) : Number.MAX_SAFE_INTEGER;
+          const secondRank = rank.has(Number(second.owner && second.owner.id)) ? rank.get(Number(second.owner.id)) : Number.MAX_SAFE_INTEGER;
+          return firstRank - secondRank;
+        });
     },
   },
 };
