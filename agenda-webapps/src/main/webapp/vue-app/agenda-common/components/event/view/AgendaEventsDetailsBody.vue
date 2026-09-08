@@ -105,7 +105,11 @@
                 <v-icon size="16">fas fa-copy</v-icon>
               </v-btn>
             </div>
-            <span class="text-subtitle text-truncate mt-1">{{ eventConferenceUrl }}</span>
+            <span
+              :title="eventConferenceUrl"
+              class="text-subtitle text-truncate mt-1">
+              {{ displayedConferenceUrl }}
+            </span>
           </div>
         </div>
         <div v-if="event.location" class="event-location d-flex flex-grow-0 flex-shrink-1 pb-5">
@@ -187,6 +191,7 @@ export default {
   data() {
     return {
       addToMyAgenda: false,
+      conferenceUrlMaxLength: 50,
       fullDateFormat: {
         year: 'numeric',
         month: 'short',
@@ -232,6 +237,15 @@ export default {
     },
     eventConferenceUrl() {
       return this.eventConference && this.eventConference.url;
+    },
+    displayedConferenceUrl() {
+      // EXO-89987: the full link stays on the CTA, the copy button and the title,
+      // the visible text is capped so a long generated link does not flood the page
+      // cut on code points, not UTF-16 units, so an emoji at the cut is never split
+      const chars = Array.from(this.eventConferenceUrl || '');
+      return chars.length > this.conferenceUrlMaxLength
+        ? `${chars.slice(0, this.conferenceUrlMaxLength).join('')}…`
+        : chars.join('');
     },
     conferenceHref() {
       if (!this.eventConferenceUrl) { return '#'; }
