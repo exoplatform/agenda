@@ -190,13 +190,9 @@
           :conference-provider="conferenceProvider"
           :show-icon="false" />
       </div>
-      <div class="mt-n1">
-        <span class="my-auto mb-2">
-          {{ $t('contentEvent.participants.label') }}
-        </span>
-        <agenda-event-form-attendees
-          :event="event" />
-      </div>
+      <agenda-event-form-attendees
+        :event="event"
+        class="mt-4" />
     </div>
     <exo-confirm-dialog
       ref="eventFormConfirmDialog"
