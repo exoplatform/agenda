@@ -254,18 +254,6 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
   }
 
   /**
-   * Agenda notifications have no digest form.
-   *
-   * @param notificationContext notification context, unused
-   * @param writer writer the digest would be rendered into, unused
-   * @return false, always
-   */
-  @Override
-  protected boolean makeDigest(NotificationContext notificationContext, Writer writer) {
-    return false;
-  }
-
-  /**
    * The event a notification is about.
    *
    * @param notification notification carrying the event id

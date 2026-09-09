@@ -2,7 +2,6 @@ package org.exoplatform.agenda.notification.builder;
 
 import static org.exoplatform.agenda.util.NotificationUtils.*;
 
-import java.io.Writer;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 
@@ -119,11 +118,6 @@ public class ReminderTemplateBuilder extends AbstractTemplateBuilder {
     } finally {
       RequestLifeCycle.end();
     }
-  }
-
-  @Override
-  protected boolean makeDigest(NotificationContext notificationContext, Writer writer) {
-    return false;
   }
 
   public TemplateProvider getTemplateProvider() {
