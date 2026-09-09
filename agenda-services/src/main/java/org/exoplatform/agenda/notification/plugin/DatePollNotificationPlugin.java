@@ -2,13 +2,16 @@ package org.exoplatform.agenda.notification.plugin;
 
 import static org.exoplatform.agenda.util.NotificationUtils.*;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.service.AgendaCalendarService;
+import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.model.NotificationInfo;
 import org.exoplatform.commons.api.notification.plugin.BaseNotificationPlugin;
@@ -16,6 +19,7 @@ import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.container.xml.ValueParam;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
+import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.spi.SpaceService;
 
@@ -81,6 +85,7 @@ public class DatePollNotificationPlugin extends BaseNotificationPlugin {
     notification.key(getId());
     if (event.getId() > 0) {
       setNotificationRecipients(identityManager, notification, spaceService, eventAttendees, event, typeModification, modifierId);
+      excludeDatePollActor(notification, event, modifierId);
     }
     if (notification.getSendToUserIds() == null || notification.getSendToUserIds().isEmpty()) {
       LOG.debug("Notification type '{}' doesn't have a recipient", getId());
@@ -89,5 +94,29 @@ public class DatePollNotificationPlugin extends BaseNotificationPlugin {
       storeEventParameters(identityManager, notification, event, calendar, typeModification);
       return notification.end();
     }
+  }
+
+  /**
+   * The user who creates a date poll is usually one of its attendees (the UI
+   * adds them by default), thus is part of the recipients computed from the
+   * attendees list. Being the author of the poll, they must not be notified
+   * about its creation: only the invitees are. The excluded user is the one who
+   * performed the action (context modifier), falling back to the persisted
+   * creator of the event when the context carries none.
+   */
+  private void excludeDatePollActor(NotificationInfo notification, Event event, Long modifierId) {
+    long actorId = modifierId != null && modifierId > 0 ? modifierId : event.getCreatorId();
+    if (actorId <= 0 || notification.getSendToUserIds() == null) {
+      return;
+    }
+    Identity actorIdentity = Utils.getIdentityById(identityManager, actorId);
+    if (actorIdentity == null || StringUtils.isBlank(actorIdentity.getRemoteId())) {
+      return;
+    }
+    List<String> recipients = notification.getSendToUserIds()
+                                          .stream()
+                                          .filter(username -> !StringUtils.equals(username, actorIdentity.getRemoteId()))
+                                          .collect(Collectors.toCollection(ArrayList::new));
+    notification.to(recipients);
   }
 }
