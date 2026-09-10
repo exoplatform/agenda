@@ -384,7 +384,7 @@
       <name>agenda</name>
       <set-method>addCategoryProvider</set-method>
       <type>io.meeds.commons.digest.plugin.DigestCategoryPlugin</type>
-      <description>The agenda notifications: events, replies, reminders and date polls</description>
+      <description>The agenda notifications: event invitations and date polls</description>
       <init-params>
         <value-param>
           <name>id</name>
