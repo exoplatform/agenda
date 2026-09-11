@@ -22,6 +22,7 @@ import io.meeds.content.news.utils.NewsUtils;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.exoplatform.agenda.model.AgendaEventModification;
 import org.exoplatform.agenda.service.AgendaEventService;
 import org.exoplatform.services.listener.Asynchronous;
@@ -60,6 +61,23 @@ public class AgendaEventContentSyncListener extends Listener<AgendaEventModifica
     listenerService.addListener(POST_UPDATE_AGENDA_EVENT_EVENT, this);
   }
 
+  /**
+   * Propagates the summary of an updated agenda event to the news article
+   * linked to it, when such a link exists. The link is the {@code contentId}
+   * property of the event's metadata item; that item exists for every event
+   * saved through the agenda service, and social returns its properties map
+   * as {@code null} (never as an empty map) when no property is stored, so
+   * the map is null-checked before it is read.
+   *
+   * <p>
+   * An event carrying no summary propagates nothing: {@code SUMMARY} is
+   * nullable, and pushing it onto the article would replace a title the
+   * article has with none.
+   *
+   * @param event the {@code POST_UPDATE_AGENDA_EVENT_EVENT} listener event
+   *          carrying the {@link AgendaEventModification}
+   * @throws Exception when the news article update fails
+   */
   @Override
   public void onEvent(Event<AgendaEventModification, Object> event) throws Exception {
     AgendaEventModification agendaEventModification = event.getSource();
@@ -73,7 +91,7 @@ public class AgendaEventContentSyncListener extends Listener<AgendaEventModifica
     }
 
     Map<String, String> properties = metadataItems.getFirst().getProperties();
-    if (!properties.containsKey(CONTENT_ID)) {
+    if (properties == null || !properties.containsKey(CONTENT_ID)) {
       return;
     }
 
@@ -88,7 +106,11 @@ public class AgendaEventContentSyncListener extends Listener<AgendaEventModifica
       return;
     }
 
-    if (!agendaEvent.getSummary().equals(news.getTitle())) {
+    // An event whose summary is not set propagates nothing: the alternative is
+    // writing a null title onto an article that has one, which is a worse
+    // outcome than leaving the two out of step. SUMMARY is nullable in the
+    // schema, and the rest of the repo already reads it as such.
+    if (StringUtils.isNotBlank(agendaEvent.getSummary()) && !StringUtils.equals(agendaEvent.getSummary(), news.getTitle())) {
       news.setTitle(agendaEvent.getSummary());
       String updater = identityManager.getIdentity(agendaEventModification.getModifierId()).getRemoteId();
       newsService.updateNews(news,

@@ -30,6 +30,7 @@ import org.exoplatform.social.metadata.model.MetadataItem;
 import org.exoplatform.social.metadata.model.MetadataObject;
 import org.springframework.stereotype.Component;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -88,6 +89,20 @@ public class ContentUpdateListener extends Listener<String, News> {
     }
   }
 
+  /**
+   * Links (or re-links) a news article to an agenda event by writing the
+   * article id as the {@code contentId} property of the event's metadata
+   * item, creating that item when the event has none yet. An existing item
+   * may carry no properties at all — social returns {@code null} rather than
+   * an empty map in that case — and is then treated as an empty map so the
+   * link can be (re)established.
+   *
+   * @param news the updated news article
+   * @param agendaEvent the agenda event the article references
+   * @param metadataObject the metadata object identifying the event
+   * @param metadataItems the event's existing metadata items, possibly empty
+   * @throws Exception when the metadata item cannot be created or updated
+   */
   private void handleUpdateNews(News news,
                                 org.exoplatform.agenda.model.Event agendaEvent,
                                 MetadataObject metadataObject,
@@ -98,8 +113,10 @@ public class ContentUpdateListener extends Listener<String, News> {
     } else {
       MetadataItem metadataItem = metadataItems.getFirst();
       Map<String, String> existingProperties = metadataItem.getProperties();
-      if (!existingProperties.containsKey(CONTENT_ID)
-          || !existingProperties.get(CONTENT_ID).equals(String.valueOf(news.getId()))) {
+      if (existingProperties == null) {
+        existingProperties = new HashMap<>();
+      }
+      if (!String.valueOf(news.getId()).equals(existingProperties.get(CONTENT_ID))) {
         existingProperties.putAll(properties);
         metadataItem.setProperties(existingProperties);
         metadataService.updateMetadataItem(metadataItem, getModifierOrCreatorId(agendaEvent));
@@ -107,14 +124,27 @@ public class ContentUpdateListener extends Listener<String, News> {
     }
   }
 
+  /**
+   * Unlinks a deleted news article from its agenda event by removing the
+   * {@code contentId} property from the event's metadata item, when that
+   * property points at the deleted article. The item is kept, possibly with
+   * no property left: every event saved through the agenda service owns such
+   * an item and its other properties (the event parameters) must survive.
+   * An item whose properties map is {@code null} holds no link and is left
+   * untouched.
+   *
+   * @param news the deleted news article
+   * @param metadataItems the event's existing metadata items, possibly empty
+   * @throws Exception when the metadata item cannot be updated
+   */
   private void handleDeleteNews(News news, List<MetadataItem> metadataItems) throws Exception {
     if (CollectionUtils.isEmpty(metadataItems)) {
       return;
     }
     MetadataItem metadataItem = metadataItems.getFirst();
     Map<String, String> existingProperties = metadataItem.getProperties();
-    if (existingProperties.containsKey(CONTENT_ID)
-        && existingProperties.get(CONTENT_ID).equals(String.valueOf(news.getId()))) {
+    if (existingProperties != null
+        && String.valueOf(news.getId()).equals(existingProperties.get(CONTENT_ID))) {
       existingProperties.remove(CONTENT_ID);
       metadataItem.setProperties(existingProperties);
       metadataService.updateMetadataItem(metadataItem, metadataItem.getCreatorId());
