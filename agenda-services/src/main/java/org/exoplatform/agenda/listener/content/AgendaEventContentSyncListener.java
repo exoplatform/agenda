@@ -60,6 +60,18 @@ public class AgendaEventContentSyncListener extends Listener<AgendaEventModifica
     listenerService.addListener(POST_UPDATE_AGENDA_EVENT_EVENT, this);
   }
 
+  /**
+   * Propagates the summary of an updated agenda event to the news article
+   * linked to it, when such a link exists. The link is the {@code contentId}
+   * property of the event's metadata item; that item exists for every event
+   * saved through the agenda service, and social returns its properties map
+   * as {@code null} (never as an empty map) when no property is stored, so
+   * the map is null-checked before it is read.
+   *
+   * @param event the {@code POST_UPDATE_AGENDA_EVENT_EVENT} listener event
+   *          carrying the {@link AgendaEventModification}
+   * @throws Exception when the news article update fails
+   */
   @Override
   public void onEvent(Event<AgendaEventModification, Object> event) throws Exception {
     AgendaEventModification agendaEventModification = event.getSource();
@@ -73,7 +85,7 @@ public class AgendaEventContentSyncListener extends Listener<AgendaEventModifica
     }
 
     Map<String, String> properties = metadataItems.getFirst().getProperties();
-    if (!properties.containsKey(CONTENT_ID)) {
+    if (properties == null || !properties.containsKey(CONTENT_ID)) {
       return;
     }
 
