@@ -23,7 +23,6 @@ import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.manager.IdentityManager;
 
-import java.io.Writer;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 
@@ -114,11 +113,6 @@ public class ReplyTemplateBuilder extends AbstractTemplateBuilder {
     } finally {
       RequestLifeCycle.end();
     }
-  }
-
-  @Override
-  protected boolean makeDigest(NotificationContext notificationContext, Writer writer) {
-    return false;
   }
 
   public TemplateProvider getTemplateProvider() {

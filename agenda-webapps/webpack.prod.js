@@ -32,7 +32,6 @@ const config = {
     agendaNotificationsExtension: './src/main/webapp/vue-app/agenda-notifications/main.js',
     engagementCenterExtensions: './src/main/webapp/vue-app/engagementCenterExtensions/extensions.js',
     agendaEventContentLinkExtension: './src/main/webapp/vue-app/content-link/extensions.js',
-    agendaBaseExtension: './src/main/webapp/vue-app/agenda-base-extension/main.js',
     agendaSpaceAdministration: './src/main/webapp/vue-app/agenda-space-administration/main.js',
     contentPublishExtensions: './src/main/webapp/vue-app/agenda-extensions/content-publication-extensions/main.js',
     eventActivityStreamExtensions: './src/main/webapp/vue-app/agenda-extensions/activity-stream-extensions/main.js',
