@@ -211,6 +211,14 @@ public class NotificationUtils {
 
   private static final String                                TEMPLATE_VARIABLE_EVENT_IS_GUEST               = "isGuest";
 
+  /**
+   * Name the CalDAV connector registers itself under in a user's connected
+   * accounts. Duplicated from the add-on's own constant on purpose: CalDAV
+   * depends on agenda, so the dependency cannot be taken the other way round.
+   */
+  public static final String                                 CALDAV_PROVIDER_NAME                           =
+                                                                                  "agenda.caldavCalendar";
+
   private static final String                                TEMPLATE_VARIABLE_EVENT_CONFERENCE             = "conference";
 
   private static final String                                TEMPLATE_VARIABLE_EVENT_TIMEZONE_NAME          = "timeZoneName";
@@ -634,24 +642,60 @@ public class NotificationUtils {
     templateContext.put("USER", notification.getTo());
   }
 
+  /**
+   * The absolute link that opens one event in eXo.
+   *
+   * <p>
+   * This is the single definition of the shape of that link, and it is the one
+   * every notification mail's deep link has always used. EXO-89751 made it an
+   * overload of its own so that the iCalendar documents eXo writes — the file
+   * attached to the invitation mail, and the copy pushed into a user's own
+   * calendar over CalDAV — can render the very same string as the mail body
+   * they arrive with, from the event alone, without a caller having to pass one
+   * in. That is the property the whole ticket turns on: a value derived from
+   * the event is the same on a browser push, on a sweep and on a repair, so the
+   * link is written once and never stripped by the next repair.
+   *
+   * @param eventId technical identifier of the event
+   * @return the absolute link, ending in <code>agenda?eventId=&lt;id&gt;</code>
+   */
+  public static String getEventURL(long eventId) {
+    return eventsBaseURL() + "?eventId=" + eventId;
+  }
+
   public static String getEventURL(Event event, ZonedDateTime occurrenceId) {
-    String currentSite = getDefaultSite();
+    String notificationURL = "";
+    if (event != null) {
+      if (occurrenceId == null) {
+        notificationURL = getEventURL(event.getId());
+      } else {
+        notificationURL = eventsBaseURL() + "?parentId=" + event.getId() + "&occurrenceId="
+            + AgendaDateUtils.toRFC3339Date(occurrenceId, ZoneOffset.UTC);
+      }
+    } else {
+      notificationURL = eventsBaseURL();
+    }
+    return notificationURL;
+  }
+
+  /**
+   * The agenda application's own absolute address, with no event named yet.
+   *
+   * <p>
+   * The domain comes from the deployment's configured one
+   * ({@link CommonsUtils#getCurrentDomain()}, the
+   * <code>gatein.email.domain.url</code> property) rather than from a request,
+   * because most of the callers have no request: a notification is rendered by
+   * a job, and so is a CalDAV sweep.
+   *
+   * @return the address, with no trailing slash and no query string
+   */
+  private static String eventsBaseURL() {
     String currentDomain = CommonsUtils.getCurrentDomain();
     if (!currentDomain.endsWith("/")) {
       currentDomain += "/";
     }
-    String notificationURL = "";
-    if (event != null) {
-      if (occurrenceId == null) {
-        notificationURL = currentDomain + "portal/" + currentSite + "/agenda?eventId=" + event.getId();
-      } else {
-        notificationURL = currentDomain + "portal/" + currentSite + "/agenda?parentId=" + event.getId() + "&occurrenceId="
-            + AgendaDateUtils.toRFC3339Date(occurrenceId, ZoneOffset.UTC);
-      }
-    } else {
-      notificationURL = currentDomain + "portal/" + currentSite + "/agenda";
-    }
-    return notificationURL;
+    return currentDomain + "portal/" + getDefaultSite() + "/agenda";
   }
 
   public static String getWebEventURL(Event event, ZonedDateTime occurrenceId) {
@@ -913,5 +957,97 @@ public class NotificationUtils {
 
   }
 
+  /**
+   * Whether the {@code event.ics} file must be attached to the notification
+   * built for this recipient.
+   *
+   * <p>
+   * A recipient who keeps a CalDAV account connected with meeting copies on
+   * ends up holding the same meeting twice: once as the copy eXo pushes into
+   * their "eXo Meetings" calendar, once if they open the file attached to
+   * their mail. The two documents carry different UIDs, so no client can tell
+   * they are the same meeting and neither replaces the other. The file is the
+   * redundant one — it is the poorer document (no ATTENDEE, no PARTSTAT, no
+   * recurrence, no alarms) and the copy arrives whether it is opened or not —
+   * so it is the one that goes.
+   *
+   * <p>
+   * <b>This is a prediction, not an observation, and deliberately so.</b> The
+   * invitation is dispatched synchronously inside event creation
+   * ({@code AgendaEventServiceImpl.createEvent} to
+   * {@code AgendaEventAttendeeServiceImpl.sendInvitations}) while an
+   * attendee's copy is written only by the five-minute CalDAV sweep. At the
+   * moment this runs the copy does not exist yet — measured on the rig,
+   * notification at 21:36:19Z and copy at 21:40:16Z — so "does a copy exist"
+   * is unanswerable here and asking it would be a race. The question answered
+   * instead is "will this user hold a copy", read from the user's own
+   * settings. It is wrong for a user whose CalDAV server has been unreachable
+   * for a long time; that user loses the attachment, but they are already
+   * receiving none of their meetings, and they can still see the event in eXo
+   * and answer from the links in the mail, which this does not touch.
+   *
+   * <p>
+   * <b>A guest is never suppressed</b>, under any condition: a guest has no
+   * copy by definition, and the attachment is their only way to get the
+   * meeting at all. Two independent things guarantee it here — a guest is a
+   * {@link org.exoplatform.agenda.plugin.AgendaGuestUserIdentityProvider}
+   * identity, so it never resolves to an organization identity and reaches
+   * this method with an id of 0; and having no connected account, its default
+   * settings fail the connector test as well.
+   *
+   * @param recipientIdentityId organization identity id of the recipient, 0
+   *          when the recipient is not an internal user (a guest)
+   * @param recipientSettings agenda settings of that recipient, possibly null
+   * @return true when the file must be attached, which is every case but the
+   *         connected-with-copies one
+   */
+  public static boolean shouldAttachIcsFile(long recipientIdentityId, AgendaUserSettings recipientSettings) {
+    return !willHoldCaldavCopy(recipientIdentityId, recipientSettings);
+  }
+
+  /**
+   * Whether the recipient's own settings say they will hold a CalDAV copy of
+   * the meetings they are invited to.
+   *
+   * <p>
+   * Reads the same two switches the front end reads before it asks the server
+   * for a copy — {@code AgendaConnector.vue}'s {@code shouldReachAccount}, the
+   * single gate every push trigger funnels through, requires
+   * {@code settings.automaticPushEvents} <i>and</i> the account's own
+   * {@code pushEnabled} for a space meeting. Reading anything else here would
+   * predict a copy the platform never writes.
+   *
+   * @param recipientIdentityId organization identity id of the recipient, 0
+   *          for a guest
+   * @param recipientSettings agenda settings of that recipient, possibly null
+   * @return true when a CalDAV account of that user is set to receive copies
+   */
+  private static boolean willHoldCaldavCopy(long recipientIdentityId, AgendaUserSettings recipientSettings) {
+    if (recipientIdentityId <= 0 || recipientSettings == null || !recipientSettings.isAutomaticPushEvents()) {
+      return false;
+    }
+    List<AgendaConnectorAccount> connectedAccounts = recipientSettings.getConnectedConnectors();
+    return connectedAccounts != null
+        && connectedAccounts.stream().anyMatch(account -> account != null && account.isPushEnabled()
+            && isCaldavProvider(account.getProviderName()));
+  }
+
+  /**
+   * Whether a connected account's provider is a CalDAV one.
+   *
+   * <p>
+   * The name is matched rather than imported: the CalDAV add-on depends on
+   * agenda, so agenda cannot see its constant. Two spellings exist — the seed
+   * registration is {@code agenda.caldavCalendar} and every additional
+   * declared server is {@code agenda.caldavCalendar.<id>} — and both push
+   * copies into the same mirror calendar, so both count.
+   *
+   * @param providerName name of the remote provider an account is held on
+   * @return true when that provider is CalDAV
+   */
+  private static boolean isCaldavProvider(String providerName) {
+    return StringUtils.equals(providerName, CALDAV_PROVIDER_NAME)
+        || StringUtils.startsWith(providerName, CALDAV_PROVIDER_NAME + ".");
+  }
 
 }

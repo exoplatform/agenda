@@ -40,7 +40,6 @@ import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.commons.utils.CommonsUtils;
-import org.exoplatform.commons.utils.HTMLEntityEncoder;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.portal.branding.BrandingService;
@@ -76,6 +75,31 @@ public class Utils {
   private static final String           GUEST_RESPONSE_RECORDED_LABEL  = "agenda.guestResponse.recorded";
 
   private static final String           GUEST_RESPONSE_HINT_LABEL      = "agenda.guestResponse.change";
+
+  /** Browser title of the page shown for an invitation link that has lapsed. */
+  private static final String           INVITATION_EXPIRED_TITLE_LABEL   = "agenda.invitationExpired.title";
+
+  /** Headline telling the reader the invitation can no longer be answered. */
+  private static final String           INVITATION_EXPIRED_MESSAGE_LABEL = "agenda.invitationExpired.message";
+
+  /** Secondary line explaining that the meeting is over. */
+  private static final String           INVITATION_EXPIRED_HINT_LABEL    = "agenda.invitationExpired.hint";
+
+  /** Wording of the anchor offering a way into eXo. */
+  private static final String           INVITATION_EXPIRED_LINK_LABEL    = "agenda.invitationExpired.link";
+
+  /**
+   * How long a tokenised invitation link outlives the meeting it answers.
+   *
+   * <p>
+   * A constant rather than a configuration property, deliberately. The value
+   * ends up inside the token of every invitation mail <b>and</b> inside the
+   * DESCRIPTION of every calendar copy, where a byte of difference is a
+   * rewrite; a per deployment - or worse, per node - setting would be one more
+   * way for two renders of the same event to disagree, for a tuning nobody has
+   * asked for. See {@link #invitationTokenExpiry(Event)} for why a day.
+   */
+  private static final int              INVITATION_TOKEN_GRACE_HOURS     = 24;
 
   private static class ICal4jTimeZoneRegistryHolder {
     private static final TimeZoneRegistry INSTANCE = TimeZoneRegistryFactory.getInstance().createRegistry();
@@ -619,19 +643,6 @@ public class Utils {
   }
 
   /**
-   * Builds the minimal HTML page acknowledging the answer of an external
-   * attendee - a guest invited by mail address, having no account on the
-   * platform. Such an attendee cannot be redirected to the event page of the
-   * portal, which would only display a login form to them, so their answer is
-   * acknowledged by this self contained page instead.
-   *
-   * @param response the {@link EventAttendeeResponse} that has just been
-   *          recorded for the guest attendee
-   * @param locale {@link Locale} used to translate the labels of the page, the
-   *          default {@link Locale} of the server is used when null
-   * @return the HTML content of the confirmation page
-   */
-  /**
    * Escapes a string for insertion into an HTML text node.
    *
    * <p>Deliberately not {@code HTMLEntityEncoder}: that encoder escapes ordinary
@@ -662,22 +673,187 @@ public class Utils {
                .replace("'", "&#39;");
   }
 
+  /**
+   * Builds the minimal HTML page acknowledging an answer given through a
+   * tokenised invitation link, naming the answer that was recorded.
+   *
+   * <p>
+   * It was introduced for an external attendee - a guest invited by mail
+   * address, having no account on the platform - who cannot be redirected to
+   * the event page of the portal, which would only display a login form to
+   * them (EXO-89705). Since EXO-89753 it serves a second reader with the same
+   * problem for a different reason: somebody answering from the description of
+   * their calendar copy, on a client which renders no RSVP control of its own.
+   * That reader gets no feedback whatsoever from the client they clicked in, so
+   * <b>the page has to say what was recorded, not merely that something was</b>
+   * - which is why the answer is named in the sentence rather than implied by
+   * the page having loaded at all.
+   *
+   * @param response the {@link EventAttendeeResponse} that has just been
+   *          recorded for the attendee
+   * @param locale {@link Locale} used to translate the labels of the page, the
+   *          default {@link Locale} of the server is used when null
+   * @return the HTML content of the confirmation page
+   */
   public static String buildGuestResponseConfirmationPage(EventAttendeeResponse response, Locale locale) {
     Locale pageLocale = locale == null ? Locale.getDefault() : locale;
     String responseLabel = getResourceBundleLabel(pageLocale, getResponseLabelKey(response));
-    String title = escapeHtmlText(getResourceBundleLabel(pageLocale, GUEST_RESPONSE_TITLE_LABEL));
     String recorded =
                     escapeHtmlText(MessageFormat.format(getResourceBundleLabel(pageLocale, GUEST_RESPONSE_RECORDED_LABEL),
                                                             responseLabel));
     String hint = escapeHtmlText(getResourceBundleLabel(pageLocale, GUEST_RESPONSE_HINT_LABEL));
+    return buildStandaloneAnswerPage(pageLocale, GUEST_RESPONSE_TITLE_LABEL, recorded, hint, null);
+  }
+
+  /**
+   * Builds the page shown to somebody who follows an invitation link whose
+   * meeting is over.
+   *
+   * <p>
+   * The alternative was to let the refusal fall through as a bare 401, which
+   * tells its reader nothing at all: they clicked an Accept button in an
+   * invitation and got a blank error, with no way to tell whether they had
+   * answered, whether the link was broken, or whether they were looking at a
+   * fault of their own. This is the same self contained surface the
+   * confirmation above uses, saying instead that the invitation can no longer
+   * be answered here - and carrying a way into eXo, where the meeting can
+   * still be looked at and, if it has not happened yet, still be answered.
+   *
+   * <p>
+   * The link is offered rather than followed. Redirecting a guest, who has no
+   * account, would land them on a login form - the exact outcome EXO-89705
+   * built this page to avoid.
+   *
+   * @param locale {@link Locale} used to translate the labels of the page, the
+   *          default {@link Locale} of the server is used when null
+   * @param eventUrl absolute address of the event inside eXo, blank when the
+   *          portal cannot be asked for one, in which case the page simply
+   *          carries no link
+   * @return the HTML content of the expired invitation page
+   */
+  public static String buildInvitationExpiredPage(Locale locale, String eventUrl) {
+    Locale pageLocale = locale == null ? Locale.getDefault() : locale;
+    String message = escapeHtmlText(getResourceBundleLabel(pageLocale, INVITATION_EXPIRED_MESSAGE_LABEL));
+    String hint = escapeHtmlText(getResourceBundleLabel(pageLocale, INVITATION_EXPIRED_HINT_LABEL));
+    String linkLabel = escapeHtmlText(getResourceBundleLabel(pageLocale, INVITATION_EXPIRED_LINK_LABEL));
+    String link = null;
+    if (StringUtils.isNotBlank(eventUrl)) {
+      link = "<a href=\"" + escapeHtmlText(eventUrl) + "\" style=\"color:#476a9c;\">" + linkLabel + "</a>";
+    }
+    return buildStandaloneAnswerPage(pageLocale, INVITATION_EXPIRED_TITLE_LABEL, message, hint, link);
+  }
+
+  /**
+   * The one page shell every standalone invitation outcome is rendered in.
+   *
+   * <p>
+   * Written once so the confirmation and the expiry read as the same page to
+   * the same person: they are two endings of one journey, reached from the same
+   * button, and a reader who sees both should not be able to tell that two
+   * pieces of code drew them.
+   *
+   * @param pageLocale {@link Locale} to render in, already resolved to a non
+   *          null value by the caller
+   * @param titleLabelKey resource bundle key of the browser title
+   * @param headline the prominent sentence, <b>already HTML escaped</b> by the
+   *          caller, since only the caller knows whether it was built by
+   *          formatting a message
+   * @param hint the secondary sentence, already HTML escaped
+   * @param linkHtml a ready made anchor element, or null for a page with no
+   *          link; the only argument allowed to carry markup
+   * @return the complete HTML document
+   */
+  private static String buildStandaloneAnswerPage(Locale pageLocale,
+                                                  String titleLabelKey,
+                                                  String headline,
+                                                  String hint,
+                                                  String linkHtml) {
+    String title = escapeHtmlText(getResourceBundleLabel(pageLocale, titleLabelKey));
     return "<!DOCTYPE html><html lang=\"" + escapeHtmlText(pageLocale.getLanguage()) + "\">"
         + "<head><meta charset=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>"
         + "<title>" + title + "</title></head>"
         + "<body style=\"margin:0;padding:40px 20px;background-color:#f5f5f5;"
         + "font-family:HelveticaNeue,Helvetica,Arial,sans-serif;color:#333333;text-align:center;\">"
-        + "<p style=\"margin:0 0 12px;font-size:18px;font-weight:bold;\">" + recorded + "</p>"
+        + "<p style=\"margin:0 0 12px;font-size:18px;font-weight:bold;\">" + headline + "</p>"
         + "<p style=\"margin:0;font-size:13px;color:#999999;\">" + hint + "</p>"
+        + (linkHtml == null ? "" : "<p style=\"margin:16px 0 0;font-size:13px;\">" + linkHtml + "</p>")
         + "</body></html>";
+  }
+
+  /**
+   * The instant past which a tokenised invitation link for this event stops
+   * being honoured.
+   *
+   * <p>
+   * <b>The bound is the meeting itself.</b> A link exists to answer an
+   * invitation, and once the meeting is over there is no answer left to give,
+   * so nothing legitimate is lost by refusing it - while a link that outlives
+   * its meeting stays a usable "answer as this person" credential for anyone
+   * the mail was ever forwarded to (EXO-89752).
+   *
+   * <p>
+   * <b>Which end.</b> For a recurring event {@link Event#getEnd()} is the end of
+   * the <i>first occurrence</i>, not of the series - the two are stored in
+   * different rows and swapped apart in
+   * {@link EntityMapper#fromEntity(org.exoplatform.agenda.entity.EventEntity)} -
+   * so bounding a series by it would kill the link after its first meeting,
+   * while an answer legitimately applies to every occurrence still to come. The
+   * series end, {@link EventRecurrence#getOverallEnd()}, is used instead.
+   *
+   * <p>
+   * <b>A series that never ends is already answered, and not here.</b>
+   * {@link EntityMapper} stores <code>overallStart.plusYears(10)</code> as the
+   * end of an endless recurrence, and reads it back into
+   * <code>getOverallEnd()</code>. That is a persisted property of the event
+   * rather than a horizon invented in this method, so an endless standup gets
+   * ten years of answerable link and this code gains no second opinion about
+   * what "no end" means.
+   *
+   * <p>
+   * <b>Why there is a grace period at all.</b> Expiring at the exact end would
+   * kill the link in the hand of somebody answering during the meeting's last
+   * minute, and would kill it outright for an invitation whose meeting was
+   * lengthened after the mail went out. A day covers both, plus any clock skew
+   * between the node that minted the token and the node that reads it, and is
+   * short enough that a leaked link is not a lasting credential.
+   *
+   * <p>
+   * <b>It is a pure function of the event, and must stay one.</b> The same value
+   * has to come out on every render, because the calendar copy writes these
+   * links into its DESCRIPTION and the mirror rewrites any copy whose
+   * description changed (EXO-89753, EXO-89716). Deriving the bound from "now" -
+   * a sliding window from the moment of minting - would make every sweep mint a
+   * different token and put every copy into permanent churn. Nothing in this
+   * method may read the clock.
+   *
+   * @param event the {@link Event} the invitation answers, null tolerated
+   * @return the expiry as a number of seconds since the epoch, or 0 when the
+   *         event carries no date to bound it by - which the caller must treat
+   *         as "cannot be answered" rather than as "never expires"
+   */
+  public static long invitationTokenExpiry(Event event) {
+    if (event == null) {
+      return 0;
+    }
+    EventRecurrence recurrence = event.getRecurrence();
+    ZonedDateTime reach = recurrence == null ? event.getEnd() : recurrence.getOverallEnd();
+    if (reach == null) {
+      // A non recurring event with no end, or a recurrence whose overall end
+      // was never computed. Fall back to the start rather than to no bound at
+      // all: an event is answerable, at the latest, around the time it happens.
+      reach = event.getStart();
+    }
+    if (reach == null) {
+      return 0;
+    }
+    if (event.isAllDay()) {
+      // An all day event's end is stored at the start of a day, so honouring it
+      // literally would retire the link before the day it belongs to is over.
+      // The same widening AgendaDateUtils and getOccurrences already apply.
+      ZoneId zoneId = event.getTimeZoneId() == null ? ZoneOffset.UTC : event.getTimeZoneId();
+      reach = reach.withZoneSameInstant(zoneId).toLocalDate().atStartOfDay(zoneId).plusDays(1).minusSeconds(1);
+    }
+    return reach.plusHours(INVITATION_TOKEN_GRACE_HOURS).toEpochSecond();
   }
 
   /**
@@ -722,8 +898,81 @@ public class Utils {
     return userIdentity.getProfile() != null && userIdentity.getProfile().getProperty(Profile.EXTERNAL) != null && userIdentity.getProfile().getProperty(Profile.EXTERNAL).equals("true");
   }
 
-  public static byte[] generateIcsFile(String ownerId,
-                                       String eventSummary,
+  /**
+   * The iCalendar identifier of an event, stable across every mail that
+   * describes it and identical for every recipient.
+   *
+   * <p>
+   * A random identifier was minted on each call, so no calendar client could
+   * tell that two mails were about the same meeting: an update added a second
+   * entry beside the first instead of replacing it, a cancellation matched
+   * nothing to cancel, and two attendees held the same meeting under
+   * different identifiers. RFC 5545 gives UID exactly this job — naming the
+   * event itself — so it is derived from the event rather than invented.
+   *
+   * <p>
+   * The deployment's domain is part of it because the event id alone is only
+   * unique within one platform, and two of them would otherwise mint the same
+   * identifier for their own event 42 — which the recipient of both would see
+   * as one meeting.
+   *
+   * <p>
+   * Note this is deliberately NOT the identifier a user's CalDAV copy carries:
+   * that one is per user (each copy is their own object on their own account),
+   * while an invitation names the meeting and must read the same to everyone.
+   *
+   * @param eventId technical identifier of the event, blank when the caller
+   *          has none
+   * @return the UID to write, falling back to a random one when the event
+   *         cannot be named
+   */
+  private static String icsUid(String eventId) {
+    if (StringUtils.isBlank(eventId)) {
+      // Nothing to be stable about. A random identifier is still a valid one,
+      // and better than an identifier shared by every unnamed event.
+      return new RandomUidGenerator().generateUid().getValue();
+    }
+    String domain = CommonsUtils.getCurrentDomain();
+    String host = StringUtils.isBlank(domain) ? "exo" : domain.replaceFirst("^https?://", "").replaceAll("[/:].*$", "");
+    return "agenda-event-" + eventId + "@" + host;
+  }
+
+  /**
+   * Builds the iCalendar document eXo attaches to the mail that announces an
+   * event.
+   *
+   * <p>
+   * The document is a <code>PUBLISH</code> one, not a <code>REQUEST</code>:
+   * answering an invitation is handled by the tokenised links carried in the
+   * mail body, not by iMIP. {@link Method#PUBLISH} is written into the body so
+   * it says the same thing as the <code>method=PUBLISH</code> parameter the
+   * MIME part already declares, as RFC 6047 asks.
+   *
+   * @param eventId identifier of the event, used to derive a UID that is stable
+   *          across every mail describing this meeting (EXO-89680)
+   * @param ownerId identifier of the identity owning the event's calendar,
+   *          used to name the space the invitation comes from
+   * @param eventSummary event title, written as <code>SUMMARY</code>
+   * @param eventDescription event description, HTML as the editor stored it
+   * @param startDateRFC3339 event start, RFC 3339
+   * @param endDateRFC3339 event end, RFC 3339
+   * @param eventConference conference URL, blank when the event has none
+   * @param eventModifierId identifier of the identity to write as
+   *          <code>ORGANIZER</code>
+   * @param eventCreatorFullName display name of whoever sent the invitation
+   * @param location event location, blank when the event has none
+   * @param eventUrl link back to the event in eXo, written as
+   *          <code>URL</code> and named in the description. <b>Blank for a
+   *          recipient with no eXo account</b>: the link resolves to a login
+   *          screen for a guest, so the caller — which is the only party that
+   *          knows who the mail is going to — leaves it out for one
+   *          (EXO-89751)
+   * @param userLocale locale of the recipient, the one the labels are read in
+   * @param timeZone time zone the dates are written in
+   * @return the iCalendar document, UTF-8 encoded
+   */
+  public static byte[] generateIcsFile(String eventId,
+                                       String ownerId,                                       String eventSummary,
                                        String eventDescription,
                                        String startDateRFC3339,
                                        String endDateRFC3339,
@@ -731,6 +980,7 @@ public class Utils {
                                        String eventModifierId,
                                        String eventCreatorFullName,
                                        String location,
+                                       String eventUrl,
                                        Locale userLocale,
                                        ZoneId timeZone) {
     IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
@@ -741,9 +991,7 @@ public class Utils {
     Space space = identity!=null ? spaceService.getSpaceByPrettyName(identity.getRemoteId()) : null;
     String spaceName = space == null ? null : space.getDisplayName();
 
-    /* Generate unique identifier */
-    UidGenerator ug = new RandomUidGenerator();
-    Uid uid = ug.generateUid();
+    Uid uid = new Uid(icsUid(eventId));
     ZonedDateTime startDate = ZonedDateTime.parse(startDateRFC3339).withZoneSameInstant(timeZone);
     ZonedDateTime endDate = ZonedDateTime.parse(endDateRFC3339).withZoneSameInstant(timeZone);
     net.fortuna.ical4j.model.TimeZone ical4jTimezone = getICalTimeZone(timeZone);
@@ -753,45 +1001,65 @@ public class Utils {
     vEvent.getProperties().add(uid);
     /* Create calendar */
     net.fortuna.ical4j.model.Calendar calendar = new net.fortuna.ical4j.model.Calendar();
-    calendar.getProperties().add(new ProdId("PRODID:-//"+ brandingService.getSiteName() + "//" + brandingService.getCompanyName() + "//EN"));
+    // ProdId writes the property name itself: the argument is the value alone,
+    // otherwise the wire carries PRODID:PRODID:-//...
+    calendar.getProperties().add(new ProdId("-//" + brandingService.getSiteName() + "//" + brandingService.getCompanyName() + "//EN"));
     calendar.getProperties().add(Version.VERSION_2_0);
     calendar.getProperties().add(CalScale.GREGORIAN);
+    calendar.getProperties().add(Method.PUBLISH);
     // Explicitly add VTIMEZONE component
     calendar.getComponents().add(ical4jTimezone.getVTimeZone());
 
-    Identity eventOrganozerIdentity = identityManager.getIdentity(eventModifierId);
-    if(eventOrganozerIdentity != null) {
-      Organizer organizer = new Organizer(URI.create(eventOrganozerIdentity.getProfile().getEmail()));
-      organizer.getParameters().add(new Cn(eventOrganozerIdentity.getProfile().getFullName()));
-      vEvent.getProperties().add(organizer);
+    Identity eventOrganizerIdentity = identityManager.getIdentity(eventModifierId);
+    if (eventOrganizerIdentity != null) {
+      String organizerEmail = eventOrganizerIdentity.getProfile() == null ? null
+                                                                         : eventOrganizerIdentity.getProfile().getEmail();
+      if (StringUtils.isNotBlank(organizerEmail)) {
+        Organizer organizer = new Organizer(EventIcsBuilder.calendarUserAddress(organizerEmail));
+        organizer.getParameters().add(new Cn(eventOrganizerIdentity.getProfile().getFullName()));
+        vEvent.getProperties().add(organizer);
+      }
     }
     if(StringUtils.isNotBlank(location)) {
       vEvent.getProperties().add(new Location(location));
     }
-    URI eventUrl;
-    if(StringUtils.isNotBlank(eventConference)) {
+    // URL is "where this event lives" (RFC 5545 §3.8.4.6), so it names the
+    // event in eXo. It used to be set from the conference link, which is a
+    // different thing entirely and already has its own property — and which
+    // left the event's own address out of the document altogether (EXO-89751).
+    if (StringUtils.isNotBlank(eventUrl)) {
       try {
-        eventUrl = new URI(eventConference);
-        vEvent.getProperties().add(new Url(eventUrl));
+        vEvent.getProperties().add(new Url(new URI(eventUrl)));
       } catch (URISyntaxException use) {
-        // Nothing to do, we simply ignore the URL
+        // A link that cannot be parsed is not written; the document is still
+        // a valid one without it.
+        LOG.debug("Event link {} is not a usable URI; the mailed document carries no URL", eventUrl, use);
       }
     }
-    HTMLEntityEncoder htmlEntityEncoder = HTMLEntityEncoder.getInstance();
-    String htmlContent = "<html><body>" +
-            htmlEntityEncoder.encodeHTML(getResourceBundleLabel(userLocale, "agenda.invitationText")) + " " + " <b>" + eventCreatorFullName
-            + "</b> " +  htmlEntityEncoder.encodeHTML(getResourceBundleLabel(userLocale, "agenda.inSpace")) + " <b>" + spaceName + "</b>. "
-            + ( eventConference != null ? "<br><br><b>" + htmlEntityEncoder.encodeHTML(getResourceBundleLabel(userLocale, "agenda.visioLink")) + " " + "</b> "
-            +  "<a href=\""+ eventConference + "\">"
-            + eventConference + "</a>" :"");
-    if (eventDescription != null && !eventDescription.isEmpty()) {
-      htmlContent = htmlContent + "<br><br>" + htmlEntityEncoder.encodeHTML(getResourceBundleLabel(userLocale, "agenda.eventDetail")) + "<br>" + escapeEmoticons(eventDescription);
-    }
-
-    htmlContent = htmlContent + "</body></html>";
-    //trim and remove all line breaks
-    htmlContent = htmlContent.trim().replace("\n", "");
-    vEvent.getProperties().add(new Description(htmlContent));
+    // DESCRIPTION is plain text by definition; the HTML flavour belongs to
+    // X-ALT-DESC alone. Both come from EventIcsBuilder, which is also what the
+    // CalDAV copy writes, so the two channels attribute the meeting to its
+    // space in the very same words (EXO-89732).
+    // No answer links in this document, deliberately (EXO-89753). They belong
+    // to the calendar copy, whose client may offer no RSVP control of its own;
+    // a mail already carries its Accept and Decline buttons in the body. And
+    // this method serves the ICS download endpoint as well as the mail, so it
+    // has no single recipient a per-person token could be minted for - writing
+    // one here would risk handing one attendee the ability to answer as
+    // another.
+    vEvent.getProperties().add(new Description(EventIcsBuilder.description(userLocale,
+                                                                          eventCreatorFullName,
+                                                                          spaceName,
+                                                                          eventConference,
+                                                                          eventUrl,
+                                                                          null,
+                                                                          eventDescription)));
+    String htmlContent = EventIcsBuilder.htmlDescription(userLocale,
+                                                         eventCreatorFullName,
+                                                         spaceName,
+                                                         eventConference,
+                                                         eventUrl,
+                                                         eventDescription);
     ParameterList parameters = new ParameterList();
     parameters.add(new net.fortuna.ical4j.model.parameter.XParameter("FMTTYPE", "text/html"));
     XProperty xProperty = new XProperty("X-ALT-DESC", parameters, htmlContent);
@@ -809,6 +1077,13 @@ public class Utils {
     }
   }
 
+  /**
+   * Replaces every non-ASCII character by its HTML numeric entity, so an
+   * emoji survives a mail body that is not read as UTF-8.
+   *
+   * @param text text to escape
+   * @return the text with every codepoint above 127 written as an entity
+   */
   public static String escapeEmoticons(String text) {
     return text.codePoints()
             .mapToObj(codePoint -> codePoint > 127 ? "&#x" + Integer.toHexString(codePoint) + ";"

@@ -2,6 +2,7 @@ package org.exoplatform.agenda.service;
 
 import java.util.List;
 
+import org.exoplatform.agenda.constant.AvailabilitySharing;
 import org.exoplatform.agenda.model.AgendaUserSettings;
 import org.exoplatform.agenda.model.EventReminderParameter;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
@@ -91,4 +92,46 @@ public interface AgendaUserSettingsService {
    * After this call, {@link #getEmbedMapProvider()} will return {@code null}.
    */
   void removeEmbedMapProvider();
+
+  /**
+   * Returns how widely the given user lets their busy time be disclosed to
+   * other people.
+   * <p>
+   * A user who has never chosen gets {@link AvailabilitySharing#DEFAULT}. A
+   * stored value that cannot be understood is treated as
+   * {@link AvailabilitySharing#NOBODY}: absence means "never chose", which the
+   * default answers, whereas an unreadable value is a broken store, and a
+   * broken store must not widen a disclosure.
+   * <p>
+   * This is the only reader of that stored value. What it means for who may
+   * read whose free/busy is decided in exactly one other place,
+   * {@link AgendaAvailabilityService} — this method reports a preference, it
+   * does not grant anything.
+   *
+   * @param userIdentityId technical identifier of the user whose choice is
+   *          wanted
+   * @return the user's choice, never {@code null}
+   */
+  AvailabilitySharing getAvailabilitySharing(long userIdentityId);
+
+  /**
+   * Records how widely a user lets their busy time be disclosed to other
+   * people.
+   * <p>
+   * The value is stored under its own settings key rather than inside the
+   * {@link AgendaUserSettings} blob, because that blob is replaced wholesale
+   * by {@code PUT /v1/agenda/settings} with whatever the client sends: a
+   * client unaware of the field would silently reset a user's disclosure
+   * choice, which is not a thing a settings save may do by omission.
+   * <p>
+   * Only the user concerned may change their own choice; the caller is
+   * responsible for having established that the identity it passes is the
+   * authenticated one, as for every other per-user setting here.
+   *
+   * @param userIdentityId technical identifier of the user making the choice
+   * @param availabilitySharing the choice to record
+   * @throws IllegalArgumentException when the identity is not a positive
+   *           identifier, or the choice is {@code null}
+   */
+  void saveAvailabilitySharing(long userIdentityId, AvailabilitySharing availabilitySharing);
 }

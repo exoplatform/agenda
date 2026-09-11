@@ -47,8 +47,8 @@ import org.picocontainer.Startable;
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
+import org.exoplatform.agenda.exception.EventInvitationExpiredException;
 import org.exoplatform.agenda.model.*;
-import org.exoplatform.agenda.plugin.AgendaGuestUserIdentityProvider;
 import org.exoplatform.agenda.rest.model.*;
 import org.exoplatform.agenda.service.*;
 import org.exoplatform.agenda.util.*;
@@ -57,6 +57,7 @@ import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.portal.config.UserPortalConfigService;
+import org.exoplatform.services.security.IdentityConstants;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.rest.resource.ResourceContainer;
@@ -1355,6 +1356,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
           @ApiResponse(responseCode = "204", description = "Request fulfilled"),
           @ApiResponse(responseCode = "400", description = "Invalid query input"),
           @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "410", description = "The invitation link has expired: the meeting it answers is over"),
           @ApiResponse(responseCode = "500", description = "Internal server error"), }
   )
   public Response sendEventResponse(
@@ -1412,6 +1414,20 @@ public class AgendaEventRest implements ResourceContainer, Startable {
     }
 
     String currentUser = RestUtils.getCurrentUser();
+    // Captured before currentUser is overwritten with whoever the token names:
+    // what matters below is whether the browser carried a session, not who the
+    // answer turned out to belong to.
+    //
+    // A request with no session is NOT blank here. RestUtils.getCurrentUser
+    // reads ConversationState, and the platform binds one to every request,
+    // naming the anonymous identity when nobody is logged in - so a blank
+    // check alone calls every anonymous caller authenticated, and the page
+    // below would never be shown to the one person it exists for. Verified on
+    // a rig 2026-08-27: a cookie-less click returned 303 to the portal, which
+    // is a login form for somebody with no account.
+    boolean authenticatedSession = StringUtils.isNotBlank(currentUser)
+        && !IdentityConstants.ANONIM.equals(currentUser)
+        && !IdentityConstants.SYSTEM.equals(currentUser);
     try {
       Identity identity = null;
       if (StringUtils.isNotBlank(token)) {
@@ -1447,7 +1463,16 @@ public class AgendaEventRest implements ResourceContainer, Startable {
         }
       }
       if (redirect) {
-        if (AgendaGuestUserIdentityProvider.NAME.equals(identity.getProviderId())) {
+        // Who gets the self contained page instead of the redirect: whoever has
+        // no eXo session in the browser they clicked in. Redirecting them lands
+        // them on a login form, which tells them nothing about the answer they
+        // just gave. That was already true of a guest, who has no account at
+        // all (EXO-89705); it is now true of an internal attendee answering
+        // from the description of their calendar copy, on a client whose
+        // browser was never logged into eXo (EXO-89753). Somebody who does have
+        // a session still gets the event page, which shows their answer in
+        // context and is better feedback than any static page.
+        if (!authenticatedSession) {
           Locale locale = request == null ? null : request.getLocale();
           return Response.ok(Utils.buildGuestResponseConfirmationPage(response, locale), MediaType.TEXT_HTML).build();
         }
@@ -1456,6 +1481,24 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       } else {
         return Response.noContent().build();
       }
+    } catch (EventInvitationExpiredException e) {
+      // Not an incident and not an attack: somebody followed a link in good
+      // faith, after the meeting it answers. Debug, never warn.
+      LOG.debug("Expired invitation link followed for event with id '{}'", eventId, e);
+      // GONE, not UNAUTHORIZED. The link was valid and is now spent: no
+      // credential the caller could present would revive it, which is exactly
+      // what 401 invites them to try. It also keeps the page out of reach of
+      // anything that treats a 401 as a challenge - a reverse proxy adding
+      // WWW-Authenticate turns this page into a browser password prompt, and
+      // the person answering an invitation has no password to give.
+      if (redirect) {
+        Locale locale = request == null ? null : request.getLocale();
+        return Response.status(Status.GONE)
+                       .entity(Utils.buildInvitationExpiredPage(locale, NotificationUtils.getEventURL(eventId)))
+                       .type(MediaType.TEXT_HTML)
+                       .build();
+      }
+      return Response.status(Status.GONE).entity(e.getMessage()).build();
     } catch (ObjectNotFoundException e) {
       return Response.status(Status.NOT_FOUND).entity("Event not found").build();
     } catch (IllegalAccessException e) {
@@ -1808,7 +1851,8 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       if(eventConferences != null && !eventConferences.isEmpty()) {
         conferenceURL = eventConferences.getFirst().getUrl();
       }
-      byte[] iCSContent = Utils.generateIcsFile(String.valueOf(agendaCalendarService.getCalendarById(event.getCalendarId()).getOwnerId()),
+      byte[] iCSContent = Utils.generateIcsFile(String.valueOf(event.getId()),
+              String.valueOf(agendaCalendarService.getCalendarById(event.getCalendarId()).getOwnerId()),
               event.getSummary(),
               HtmlUtils.transform(event.getDescription(), null),
               AgendaDateUtils.toRFC3339Date(event.getStart()),
@@ -1817,6 +1861,10 @@ public class AgendaEventRest implements ResourceContainer, Startable {
               String.valueOf(event.getModifierId()),
               eventCreator,
               event.getLocation(),
+              // The link is written here: this endpoint answers a logged-in
+              // user downloading the event, so there is no guest to withhold
+              // it from (EXO-89751).
+              EventIcsBuilder.eventUrl(event.getId()),
               Locale.of(Utils.getUserLanguage(request.getRemoteUser())),
               ZoneId.of(timeZoneId));
       return Response.ok(new String(iCSContent, StandardCharsets.UTF_8)).build();

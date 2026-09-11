@@ -37,9 +37,17 @@ import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.social.core.identity.model.Identity;
+import org.exoplatform.social.core.identity.model.Profile;
 import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 
 public class AgendaEventServiceTest extends BaseAgendaEventTest {
+
+  /** A link back to the event in eXo, of the shape NotificationUtils mints. */
+  private static final String EVENT_LINK      = "http://localhost:8080/portal/dw/agenda?eventId=42";
+
+  /** The video call, which is a different thing and has its own property. */
+  private static final String CONFERENCE_LINK = "https://meet.example.com/room";
+
 
   @Test
   public void testCreateEvent() throws Exception { // NOSONAR
@@ -3399,7 +3407,8 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     MessageInfo messageInfo = new MessageInfo();
     Attachment attachment = new Attachment();
 
-    byte[] icsContent = generateIcsFile("ownerId",
+    byte[] icsContent = generateIcsFile("42",
+            "ownerId",
             "eventSummary",
             "eventDescription",
             AgendaDateUtils.toRFC3339Date(start),
@@ -3408,6 +3417,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
             "eventModifierId",
             "eventCreator",
             "location",
+            "https://exo.example.com/portal/dw/agenda?eventId=42",
             Locale.getDefault(),
             dstTimeZone);
     attachment.setMimeType("text/calendar;charset=utf-8;method=PUBLISH");
@@ -3434,6 +3444,274 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     assertEquals(icsStartDate, startDateFormatted);
     assertEquals(icsEndDate, endDateFormatted);
+  }
+
+  /**
+   * Reads the iCalendar document eXo would mail for an event, already unfolded
+   * so a property can be matched whole.
+   *
+   * <p>
+   * RFC 5545 &sect;3.1 lets a writer break any line after 75 octets and
+   * continue it with a leading space, which the eXo writer does: without
+   * unfolding, a DESCRIPTION long enough to be broken cannot be asserted on.
+   *
+   * @param eventDescription description to pass to the generator, HTML as the
+   *          editor would store it
+   * @param userLocale locale the labels are read in
+   * @param eventModifierId identity id to write as ORGANIZER, blank for none
+   * @return the unfolded document
+   */
+  private String generateIcs(String eventDescription, Locale userLocale, String eventModifierId) {
+    return generateIcs(eventDescription, userLocale, eventModifierId, EVENT_LINK);
+  }
+
+  /**
+   * The same, choosing what link back to eXo the document is given — null
+   * standing for the guest case, where the caller withholds it.
+   *
+   * @param eventDescription description to pass to the generator, HTML as the
+   *          editor would store it
+   * @param userLocale locale the labels are read in
+   * @param eventModifierId identity id to write as ORGANIZER, blank for none
+   * @param eventUrl link back to the event in eXo, null for a guest
+   * @return the unfolded document
+   */
+  private String generateIcs(String eventDescription, Locale userLocale, String eventModifierId, String eventUrl) {
+    ZonedDateTime start = getDate();
+    ZonedDateTime end = start.plusHours(1);
+    byte[] icsContent = generateIcsFile("42",
+                                        spaceIdentity.getId(),
+                                        "eventSummary",
+                                        eventDescription,
+                                        AgendaDateUtils.toRFC3339Date(start),
+                                        AgendaDateUtils.toRFC3339Date(end),
+                                        CONFERENCE_LINK,
+                                        eventModifierId,
+                                        "Root Root",
+                                        "location",
+                                        eventUrl,
+                                        userLocale,
+                                        ZoneId.of("Europe/Paris"));
+    String text = new String(icsContent, StandardCharsets.UTF_8);
+    return text.replace("\r\n ", "").replace("\r\n\t", "").replace("\n ", "").replace("\n\t", "");
+  }
+
+  /**
+   * Reads one property out of an unfolded iCalendar document.
+   *
+   * @param ics unfolded document
+   * @param propertyName property name, without its parameters
+   * @return the whole property line, or null when the document has none
+   */
+  private String icsProperty(String ics, String propertyName) {
+    return Arrays.stream(ics.split("\\R"))
+                 .filter(line -> line.equals(propertyName) || line.startsWith(propertyName + ":")
+                     || line.startsWith(propertyName + ";"))
+                 .findFirst()
+                 .orElse(null);
+  }
+
+  /**
+   * PRODID must carry its value alone: the writer emits the property name
+   * itself, so a value that repeats it puts PRODID:PRODID: on the wire.
+   */
+  @Test
+  public void testIcsFileNamesTheProductOnce() {
+    String ics = generateIcs(null, Locale.ENGLISH, "unknownModifier");
+    String prodId = icsProperty(ics, "PRODID");
+    assertNotNull("the document must name the product that wrote it", prodId);
+    assertFalse("PRODID must not repeat its own property name: " + prodId, prodId.startsWith("PRODID:PRODID:"));
+    assertTrue("PRODID value must be an FPI: " + prodId, prodId.startsWith("PRODID:-//"));
+  }
+
+  /**
+   * The body must declare the same method as the MIME part that carries it,
+   * and that method is PUBLISH: answering is done through the links in the
+   * mail, not through iMIP.
+   */
+  @Test
+  public void testIcsFileDeclaresItsMethodInTheBody() {
+    String ics = generateIcs(null, Locale.ENGLISH, "unknownModifier");
+    assertEquals("METHOD:PUBLISH", icsProperty(ics, "METHOD"));
+  }
+
+  /**
+   * ORGANIZER carries a CAL-ADDRESS, which RFC 5545 &sect;3.3.3 defines as a
+   * URI: a bare mail address has no scheme and is dropped by a client that
+   * validates the value.
+   */
+  @Test
+  public void testIcsFileWritesOrganizerAsAMailtoUri() {
+    Profile profile = testuser1Identity.getProfile();
+    profile.setProperty(Profile.EMAIL, "testuser1@example.com");
+    identityManager.updateProfile(profile);
+
+    String ics = generateIcs(null, Locale.ENGLISH, testuser1Identity.getId());
+    String organizer = icsProperty(ics, "ORGANIZER");
+    assertNotNull("the invitation must say who sent it", organizer);
+    assertTrue("ORGANIZER must be a mailto: URI: " + organizer, organizer.endsWith(":mailto:testuser1@example.com"));
+  }
+
+  /**
+   * DESCRIPTION is plain text by definition; the HTML flavour belongs to
+   * X-ALT-DESC, which must keep carrying it.
+   */
+  @Test
+  public void testIcsFileDescriptionIsPlainTextAndAltDescIsHtml() {
+    String ics = generateIcs("<p>Bring the <b>slides</b>.</p>", Locale.ENGLISH, "unknownModifier");
+
+    String description = icsProperty(ics, "DESCRIPTION");
+    assertNotNull(description);
+    assertFalse("DESCRIPTION must not carry markup: " + description, description.contains("<"));
+    assertFalse("DESCRIPTION must not carry markup: " + description, description.contains("&lt;"));
+    assertTrue("DESCRIPTION must keep the text of the description: " + description,
+               description.contains("Bring the slides."));
+
+    String altDescription = icsProperty(ics, "X-ALT-DESC");
+    assertNotNull("the HTML flavour must still be offered", altDescription);
+    assertTrue("X-ALT-DESC must carry the HTML: " + altDescription, altDescription.contains("<html><body>"));
+    assertTrue("X-ALT-DESC must be typed as HTML: " + altDescription, altDescription.contains("FMTTYPE=text/html"));
+  }
+
+  /**
+   * The space attribution is what the invitation is for: it must survive
+   * DESCRIPTION becoming plain text.
+   */
+  @Test
+  public void testIcsFileStillAttributesTheInvitationToItsSpace() {
+    String ics = generateIcs(null, Locale.ENGLISH, "unknownModifier");
+    String description = icsProperty(ics, "DESCRIPTION");
+    assertNotNull(description);
+    assertTrue("the sender must be named: " + description, description.contains("Root Root"));
+    assertTrue("the space must be named: " + description, description.contains(space.getDisplayName()));
+  }
+
+  /**
+   * An event belonging to no space attributes itself to its sender alone.
+   *
+   * <p>
+   * The attribution used to be concatenated unconditionally, so an event on a
+   * personal calendar — whose owner identity resolves to no space — read
+   * "Invitation sent by Root Root in space null". Harmless-looking in a mail
+   * nobody re-reads, and much less so now that the very same sentence is what
+   * the CalDAV copy carries into the user's own calendar (EXO-89732): the
+   * clause is dropped when there is no space to name.
+   */
+  @Test
+  public void testIcsFileNamesNoSpaceWhenTheEventBelongsToNone() {
+    byte[] icsContent = generateIcsFile("42",
+                                              testuser1Identity.getId(),
+                                              "eventSummary",
+                                              null,
+                                              AgendaDateUtils.toRFC3339Date(getDate()),
+                                              AgendaDateUtils.toRFC3339Date(getDate().plusHours(1)),
+                                              null,
+                                              "unknownModifier",
+                                              "Root Root",
+                                              "location",
+                                              EVENT_LINK,
+                                              Locale.ENGLISH,
+                                              ZoneId.of("Europe/Paris"));
+    String ics = new String(icsContent, StandardCharsets.UTF_8).replace("\r\n ", "").replace("\n ", "");
+
+    String description = icsProperty(ics, "DESCRIPTION");
+    assertNotNull(description);
+    assertTrue("the sender must still be named: " + description, description.contains("Root Root"));
+    assertFalse("an absent space must not be written as the word null: " + description, description.contains("null"));
+    assertFalse("and the clause introducing it must be dropped with it: " + description, description.contains("in space"));
+  }
+
+  /**
+   * URL means "where this event lives" (RFC 5545 &sect;3.8.4.6), so it must
+   * name the event in eXo — not the video call, which is a different thing and
+   * has a property of its own.
+   *
+   * <p>
+   * The mailed document used to set URL from the conference link, which both
+   * said the wrong thing and left the event's own address out of the document
+   * altogether (EXO-89751).
+   */
+  @Test
+  public void testIcsFileUrlIsTheEventAndNotTheConference() {
+    String ics = generateIcs(null, Locale.ENGLISH, "unknownModifier");
+
+    String url = icsProperty(ics, "URL");
+    assertNotNull("the mailed document must say where the event lives", url);
+    assertEquals("URL must be the event in eXo", "URL:" + EVENT_LINK, url);
+    assertFalse("URL must not be the conference link: " + url, url.contains(CONFERENCE_LINK));
+  }
+
+  /**
+   * The link is also written into the description, beside the conference line
+   * already there: many calendar clients never surface URL, and the
+   * description is what a person reads.
+   */
+  @Test
+  public void testIcsFileDescriptionCarriesTheEventLinkBesideTheConferenceOne() {
+    String ics = generateIcs(null, Locale.ENGLISH, "unknownModifier");
+
+    String description = icsProperty(ics, "DESCRIPTION");
+    assertNotNull(description);
+    assertTrue("the description must carry the event link: " + description, description.contains(EVENT_LINK));
+    // The label reads as its key here: no resource bundle is registered in
+    // the test container, and EventIcsBuilder answers the key rather than
+    // failing the push. What is pinned is that the line is introduced by the
+    // agenda.eventLink label at all — the English text of it lives in
+    // Agenda_en.properties.
+    assertTrue("and it must be labelled: " + description, description.contains("agenda.eventLink " + EVENT_LINK));
+    assertTrue("the conference line must still be there: " + description, description.contains(CONFERENCE_LINK));
+
+    String altDescription = icsProperty(ics, "X-ALT-DESC");
+    assertNotNull(altDescription);
+    assertTrue("the HTML flavour must carry it too: " + altDescription, altDescription.contains(EVENT_LINK));
+  }
+
+  /**
+   * A guest has no eXo account, so the link lands them on a login screen. The
+   * mail is the one channel that knows who it is going to, and it withholds
+   * the link there — from URL and from the description alike.
+   */
+  @Test
+  public void testIcsFileWithholdsTheEventLinkFromAGuest() {
+    String ics = generateIcs(null, Locale.ENGLISH, "unknownModifier", null);
+
+    assertNull("a guest's document must carry no URL: " + icsProperty(ics, "URL"), icsProperty(ics, "URL"));
+
+    String description = icsProperty(ics, "DESCRIPTION");
+    assertNotNull(description);
+    assertFalse("nor the labelled line: " + description, description.contains("agenda.eventLink"));
+    assertFalse("nor the link anywhere in it: " + description, description.contains("agenda?eventId="));
+    assertTrue("the conference link is not withheld — a guest can join the call: " + description,
+               description.contains(CONFERENCE_LINK));
+
+    String altDescription = icsProperty(ics, "X-ALT-DESC");
+    assertNotNull(altDescription);
+    assertFalse("nor the HTML flavour of the line: " + altDescription, altDescription.contains("agenda?eventId="));
+  }
+
+  /**
+   * A non-ASCII character must reach DESCRIPTION as itself.
+   *
+   * <p>
+   * The HTML flavour runs its content through an entity encoder, so an
+   * accented character becomes &amp;eacute; or &amp;#xe9;, whose semicolon the
+   * iCalendar writer then escapes into \; — the character mangled twice over,
+   * which is what a French recipient was shown. Plain text must be built from
+   * the source values, not by unescaping the HTML one.
+   */
+  @Test
+  public void testIcsFileDescriptionKeepsNonAsciiCharactersIntact() {
+    String ics = generateIcs("<p>Réunion reportée à 20h &amp; suivante</p>", Locale.FRENCH, "unknownModifier");
+
+    String description = icsProperty(ics, "DESCRIPTION");
+    assertNotNull(description);
+    assertTrue("the accented text must reach DESCRIPTION as itself: " + description,
+               description.contains("Réunion reportée à 20h"));
+    assertFalse("DESCRIPTION must carry no HTML entity: " + description, description.contains("&eacute"));
+    assertFalse("DESCRIPTION must carry no HTML entity: " + description, description.contains("&#x"));
+    assertFalse("DESCRIPTION must carry no escaped entity semicolon: " + description, description.contains("\\;"));
+    assertTrue("an escaped ampersand must be decoded, not left as an entity: " + description,
+               description.contains("& suivante"));
   }
 
   /**

@@ -35,6 +35,8 @@ import AgendaEventForm from './components/event/form/AgendaEventForm.vue';
 import AgendaEventFormBasicInformation from './components/event/form/AgendaEventFormBasicInformation.vue';
 import AgendaEventQuickFormDrawer from './components/event/form/AgendaEventQuickFormDrawer.vue';
 import AgendaEventFormDates from './components/event/form/AgendaEventFormDates.vue';
+import AgendaEventFormBusyCoverage from './components/event/form/AgendaEventFormBusyCoverage.vue';
+import AgendaEventFormParticipantBusyItem from './components/event/form/AgendaEventFormParticipantBusyItem.vue';
 import AgendaEventFormDatePickers from './components/event/form/AgendaEventFormDatePickers.vue';
 import AgendaEventFormReminders from './components/event/form/AgendaEventFormReminders.vue';
 import AgendaSwitchView from './components/top-toolbar/AgendaSwitchView.vue';
@@ -86,7 +88,6 @@ import AgendaRecurrentEventReminderConfirmDialog from './components/event/confir
 
 import AgendaEventIcs from './components/event/view/AgendaEventIcs.vue';
 import AgendaConnector from './components/connector/AgendaConnector.vue';
-import AgendaConnectorStatus from './components/connector/AgendaConnectorStatus.vue';
 import AgendaConnectorAvatar from './components/connector/AgendaConnectorAvatar.vue';
 import AgendaConnectorContemporaryEvents from './components/remote-event/AgendaConnectorContemporaryEvents.vue';
 import AgendaConnectorRemoteEventItem from './components/remote-event/AgendaConnectorRemoteEventItem.vue';
@@ -123,6 +124,8 @@ const components = {
   'agenda-event-form-basic-information': AgendaEventFormBasicInformation,
   'agenda-event-quick-form-drawer': AgendaEventQuickFormDrawer,
   'agenda-event-form-dates': AgendaEventFormDates,
+  'agenda-event-form-busy-coverage': AgendaEventFormBusyCoverage,
+  'agenda-event-form-participant-busy-item': AgendaEventFormParticipantBusyItem,
   'agenda-event-form-date-pickers': AgendaEventFormDatePickers,
   'agenda-event-form-reminders': AgendaEventFormReminders,
   'agenda-event-form-attachments': AgendaEventFormAttachments,
@@ -171,7 +174,6 @@ const components = {
   'agenda-date-option-conflict-item': AgendaDateOptionConflictItem,
   'agenda-ics': AgendaEventIcs,
   'agenda-connector': AgendaConnector,
-  'agenda-connector-status': AgendaConnectorStatus,
   'agenda-connector-avatar': AgendaConnectorAvatar,
   'agenda-connector-contemporary-events': AgendaConnectorContemporaryEvents,
   'agenda-connector-remote-event-item': AgendaConnectorRemoteEventItem,
@@ -188,6 +190,7 @@ for (const key in components) {
 import * as eventService from './js/EventService.js';
 import * as calendarService from './js/CalendarService.js';
 import * as settingsService from './js/SettingsService.js';
+import * as availabilityService from './js/AvailabilityService.js';
 import * as agendaUtils from './js/AgendaUtils.js';
 import * as datePollUtils from './js/DatePollUtils.js';
 import * as webConferencingService from './js/EventWebConferencingService.js';
@@ -209,6 +212,11 @@ if (!Vue.prototype.$eventService) {
 if (!Vue.prototype.$settingsService) {
   window.Object.defineProperty(Vue.prototype, '$settingsService', {
     value: settingsService,
+  });
+}
+if (!Vue.prototype.$availabilityService) {
+  window.Object.defineProperty(Vue.prototype, '$availabilityService', {
+    value: availabilityService,
   });
 }
 if (!Vue.prototype.$agendaUtils) {

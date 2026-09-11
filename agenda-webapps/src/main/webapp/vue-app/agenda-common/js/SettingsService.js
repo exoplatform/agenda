@@ -210,3 +210,51 @@ export function removeEmbedMapProvider() {
     }
   });
 }
+
+/**
+ * Reads how widely the current user shares their busy time.
+ *
+ * Its own request, not a field of the settings payload: the value is stored
+ * under its own key so that a settings save which does not carry it cannot
+ * silently reset a disclosure choice.
+ *
+ * @returns {Promise<String>} 'shared-spaces' or 'nobody'
+ */
+export function getAvailabilitySharing() {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/settings/availabilitySharing`, {
+    method: 'GET',
+    credentials: 'include',
+    headers: {
+      Accept: 'application/json',
+    },
+  }).then(resp => {
+    if (!resp?.ok) {
+      throw new Error('Response code indicates a server error', resp);
+    }
+    return resp.json();
+  }).then(setting => setting?.shareAvailability);
+}
+
+/**
+ * Stores how widely the current user shares their busy time.
+ *
+ * @param {String} shareAvailability 'shared-spaces' or 'nobody'
+ * @returns {Promise} resolves when the choice is stored
+ */
+export function saveAvailabilitySharing(shareAvailability) {
+  const formData = new FormData();
+  formData.append('shareAvailability', shareAvailability);
+
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/settings/availabilitySharing`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams(formData).toString(),
+  }).then(resp => {
+    if (!resp?.ok) {
+      throw new Error('Response code indicates a server error', resp);
+    }
+  });
+}
