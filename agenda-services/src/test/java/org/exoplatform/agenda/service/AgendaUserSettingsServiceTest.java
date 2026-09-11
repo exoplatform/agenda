@@ -27,9 +27,6 @@ import org.exoplatform.agenda.model.AgendaUserSettings;
 import org.exoplatform.agenda.model.EventReminderParameter;
 import org.exoplatform.agenda.model.RemoteProvider;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
-import org.exoplatform.commons.utils.CommonsUtils;
-import org.exoplatform.services.organization.OrganizationService;
-import org.exoplatform.services.organization.UserProfile;
 import org.junit.After;
 import org.junit.Test;
 
