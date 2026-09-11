@@ -237,4 +237,56 @@ public class ContentUpdateListenerTest {
 
     verifyNoInteractions(metadataService);
   }
+
+  /**
+   * Regression pin for EXO-90192, re-link path: an existing item whose
+   * properties map is {@code null} (social's reading of an item with no
+   * stored property) must be treated as empty so the content link can be
+   * established on it, instead of dereferencing the null map.
+   */
+  @Test
+  public void shouldLinkContentWhenExistingPropertiesNull() throws Exception {
+    when(event.getEventName()).thenReturn(UPDATE_NEWS);
+    when(event.getData()).thenReturn(news);
+
+    org.exoplatform.agenda.model.Event agendaEvent =
+        mock(org.exoplatform.agenda.model.Event.class);
+
+    when(agendaEvent.getModifierId()).thenReturn(2L);
+    when(agendaEventService.getEventById(123L)).thenReturn(agendaEvent);
+
+    MetadataItem item = new MetadataItem();
+    assertNull(item.getProperties());
+
+    when(metadataService.getMetadataItemsByMetadataAndObject(any(), any()))
+        .thenReturn(List.of(item));
+
+    contentUpdateListener.onEvent(event);
+
+    assertEquals("999", item.getProperties().get("contentId"));
+    verify(metadataService).updateMetadataItem(eq(item), eq(2L));
+    verify(metadataService, never()).createMetadataItem(any(), any(), any(), anyLong());
+  }
+
+  /**
+   * Regression pin for EXO-90192, unlink path: an existing item whose
+   * properties map is {@code null} holds no content link, so a deleted
+   * article leaves it untouched instead of dereferencing the null map.
+   */
+  @Test
+  public void shouldDoNothingOnDeleteWhenExistingPropertiesNull() throws Exception {
+    when(event.getEventName()).thenReturn(DELETE_NEWS);
+    when(event.getData()).thenReturn(news);
+
+    MetadataItem item = new MetadataItem();
+
+    when(metadataService.getMetadataItemsByMetadataAndObject(any(), any()))
+        .thenReturn(List.of(item));
+
+    contentUpdateListener.onEvent(event);
+
+    assertNull(item.getProperties());
+    verify(metadataService, never()).updateMetadataItem(any(), anyLong());
+    verify(metadataService, never()).createMetadataItem(any(), any(), any(), anyLong());
+  }
 }
