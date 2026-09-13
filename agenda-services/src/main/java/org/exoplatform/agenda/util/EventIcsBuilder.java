@@ -17,8 +17,10 @@
 package org.exoplatform.agenda.util;
 
 import java.net.URI;
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 import org.jsoup.Jsoup;
@@ -68,6 +70,16 @@ import org.exoplatform.commons.utils.HTMLEntityEncoder;
  * This class lives in agenda rather than in caldav-integration because the
  * dependency runs one way only: caldav-integration builds on agenda and never
  * the reverse. caldav-integration passes in what only it knows.
+ *
+ * <p>
+ * <b>The text is written once, whatever the description already carries.</b>
+ * A description handed in can itself begin with this builder's text: the
+ * CalDAV connector stores the whole description of a copy it imports, and on
+ * an account two eXo users share, the copy one of them pushed is what the
+ * other imports. Prepending unconditionally then stacked one block per edit
+ * round trip (EXO-90227). Both flavours below take any such block off the
+ * description before writing their own — {@link InvitationText} says how it
+ * is recognised, and why it is replaced rather than kept.
  */
 public final class EventIcsBuilder {
 
@@ -196,7 +208,9 @@ public final class EventIcsBuilder {
    *          null or empty for a channel that offers no answer links, which is
    *          every channel except the calendar copy (EXO-89753)
    * @param eventDescriptionHtml the event's own description, HTML as the editor
-   *          stored it, blank when the event has none
+   *          stored it, blank when the event has none; a description that
+   *          already begins with this builder's text contributes only what
+   *          follows that text (EXO-90227)
    * @return the description as plain text, with real line breaks
    */
   public static String description(Locale userLocale,
@@ -230,13 +244,30 @@ public final class EventIcsBuilder {
       text.append("\n\n").append(label(userLocale, EVENT_LINK_LABEL)).append(" ").append(eventUrl);
     }
     appendRsvpLinks(text, userLocale, rsvpLinks);
-    if (StringUtils.isNotBlank(eventDescriptionHtml)) {
-      String detail = htmlToPlainText(eventDescriptionHtml);
-      if (StringUtils.isNotBlank(detail)) {
-        text.append("\n\n").append(label(userLocale, EVENT_DETAIL_LABEL)).append("\n").append(detail);
-      }
+    String detail = organisersText(eventDescriptionHtml);
+    if (StringUtils.isNotBlank(detail)) {
+      text.append("\n\n").append(label(userLocale, EVENT_DETAIL_LABEL)).append("\n").append(detail);
     }
     return text.toString();
+  }
+
+  /**
+   * The organiser's own words, as plain text: the description rendered out of
+   * its markup, minus any invitation text this builder had already composed in
+   * front of it.
+   *
+   * <p>
+   * Taken off <em>after</em> the rendering to text, not before: a description
+   * that carries a block came in as the plain text of a copy, but an editor
+   * that re-saved it may have wrapped every line in a paragraph of its own,
+   * and it is the lines that are recognised.
+   *
+   * @param eventDescriptionHtml the description as the editor stored it, blank
+   *          tolerated
+   * @return the organiser's text, empty when there is none
+   */
+  private static String organisersText(String eventDescriptionHtml) {
+    return InvitationText.stripFrom(htmlToPlainText(eventDescriptionHtml));
   }
 
   /**
@@ -341,7 +372,9 @@ public final class EventIcsBuilder {
    * @param eventUrl link back to the event in eXo, blank for a recipient with
    *          no eXo account
    * @param eventDescriptionHtml the event's own description as HTML, blank
-   *          when the event has none
+   *          when the event has none; a description that already begins with
+   *          this builder's text contributes only what follows that text
+   *          (EXO-90227)
    * @return the description as an HTML document, on a single line
    */
   public static String htmlDescription(Locale userLocale,
@@ -378,14 +411,63 @@ public final class EventIcsBuilder {
           .append(eventUrl)
           .append("</a>");
     }
-    if (StringUtils.isNotBlank(eventDescriptionHtml)) {
+    String detail = organisersHtml(eventDescriptionHtml, encoder);
+    if (StringUtils.isNotBlank(detail)) {
       html.append("<br><br>")
           .append(encoder.encodeHTML(label(userLocale, EVENT_DETAIL_LABEL)))
           .append("<br>")
-          .append(Utils.escapeEmoticons(eventDescriptionHtml));
+          .append(Utils.escapeEmoticons(detail));
     }
     html.append("</body></html>");
     return html.toString().trim().replace("\n", "");
+  }
+
+  /**
+   * The organiser's own words, as HTML: the description exactly as the editor
+   * stored it — markup, emphasis and all — unless it begins with invitation
+   * text this builder had already composed, in which case what follows that
+   * text.
+   *
+   * <p>
+   * <b>Untouched when nothing is recognised</b>, byte for byte: the HTML
+   * flavour of an ordinary description is what it was before EXO-90227, so a
+   * notification's attached document does not change for the events it has
+   * always described. When a block is recognised the remainder is rendered
+   * from the plain text — escaped, line breaks as {@code <br>} — because the
+   * block is recognised in the text and cannot be cut out of the markup.
+   *
+   * <p>
+   * <b>What that flattening costs depends on whether the recognition was
+   * right</b>, and both halves belong on this page. On a true positive it
+   * costs nothing: the description arrived through an import as plain text in
+   * the first place, so there was no markup to give up. On a <b>false</b>
+   * positive it is a second loss on top of the lines
+   * {@link InvitationText} dropped — the markup of a description that came
+   * from the rich-text editor, all of it, because the whole remainder is
+   * re-rendered from text. Verified: {@code <b>Bob</b> and <a
+   * href="https://x.test">the link</a>} arrives as {@code Bob and the link} —
+   * the emphasis gone, the {@code href} gone, the link no longer a link.
+   * Anyone weighing a widening of the recogniser should price that alongside
+   * the deleted lines, not instead of them; {@link InvitationText}'s own
+   * Javadoc carries the other half.
+   *
+   * @param eventDescriptionHtml the description as the editor stored it, blank
+   *          tolerated
+   * @param encoder the encoder the rest of the document is escaped with
+   * @return the organiser's text as HTML, blank when there is none
+   */
+  private static String organisersHtml(String eventDescriptionHtml, HTMLEntityEncoder encoder) {
+    if (StringUtils.isBlank(eventDescriptionHtml)) {
+      return eventDescriptionHtml;
+    }
+    String plain = htmlToPlainText(eventDescriptionHtml);
+    String organisers = InvitationText.stripFrom(plain);
+    if (organisers.equals(plain)) {
+      return eventDescriptionHtml;
+    }
+    // Line by line: the encoder writes a line break as a character reference
+    // (&#xa;), which a mail client renders as nothing at all.
+    return Arrays.stream(organisers.split("\n")).map(encoder::encodeHTML).collect(Collectors.joining("<br>"));
   }
 
   /**
@@ -455,13 +537,23 @@ public final class EventIcsBuilder {
    * meeting that never reached the user's calendar because a label could not
    * be read is a lost meeting, and this builder is on the push path.
    *
+   * <p>
+   * <b>A label the bundle answers blank is treated as no label at all</b>, and
+   * that is not cosmetics: a key present with an empty value is what a Crowdin
+   * round can ship for one locale, and it would leave the layout writing
+   * {@code "" + " " + url} — a line with no label in front of the link, which
+   * {@link InvitationText} does not recognise as this builder's own, for that
+   * locale's readers only and silently. Answering the key keeps the line's
+   * shape whatever a bundle holds.
+   *
    * @param userLocale locale to read in, the platform default when null
    * @param key resource bundle key
-   * @return the label, or the key itself when it cannot be read
+   * @return the label, or the key itself when it cannot be read or is blank
    */
   private static String label(Locale userLocale, String key) {
     try {
-      return Utils.getResourceBundleLabel(userLocale == null ? Locale.getDefault() : userLocale, key);
+      return StringUtils.defaultIfBlank(Utils.getResourceBundleLabel(userLocale == null ? Locale.getDefault() : userLocale, key),
+                                        key);
     } catch (RuntimeException | LinkageError e) {
       return key;
     }
