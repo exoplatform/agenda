@@ -87,8 +87,23 @@ import org.apache.commons.lang3.StringUtils;
  * <p>
  * <b>Fails closed.</b> Anything not recognised is returned untouched, so the
  * worst outcome for a text this cannot read is the behaviour before this
- * class existed. The one coupling is to the builder's own layout, which
- * lives in the same package and is pinned by the same tests.
+ * class existed. The coupling is to the builder's own layout — which lives in
+ * the same package and is pinned by
+ * {@code InvitationTextTest.renderingWhatTheBuilderRenderedIsTheSameCopy}, the
+ * test that fails if the layout and the recogniser drift apart.
+ *
+ * <p>
+ * <b>That coupling crosses a repository, and a change to the layout is
+ * therefore a two-repository change.</b> The connector calls this on the way
+ * IN — {@code caldav-integration}'s {@code IcsEventMapper.toEvent} — so that
+ * the description eXo *stores* carries the organiser's text alone; the builder
+ * calls it on the way OUT, so that every channel it renders carries one block.
+ * Neither call site can replace the other: the builder never touches what the
+ * event drawer, the mail body and search read, and the import never re-reads
+ * an object nobody edits again. What the pin above cannot see is the import
+ * half — a layout change would degrade it silently, fail-closed, with no test
+ * in this repository noticing. Change the layout and the recogniser together,
+ * and say so in the connector's PR.
  */
 public final class InvitationText {
 
