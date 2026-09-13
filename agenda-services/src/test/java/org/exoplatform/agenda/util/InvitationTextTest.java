@@ -21,14 +21,23 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.when;
 
 import java.util.LinkedHashMap;
+import java.util.ListResourceBundle;
 import java.util.Locale;
 import java.util.Map;
+import java.util.ResourceBundle;
 
 import org.junit.Test;
+import org.mockito.MockedStatic;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
+import org.exoplatform.container.ExoContainerContext;
+import org.exoplatform.services.resources.ResourceBundleService;
 
 /**
  * A description that already carries the builder's invitation text is given
@@ -57,6 +66,9 @@ public class InvitationTextTest {
    * builder's own rendering of a line break is not what these pins assert.
    */
   private static final String DETAIL    = "<p>Bring the <b>cake</b>.</p>";
+
+  /** The layout's labels as the English bundle ships them, for the pins that render with a bundle. */
+  private static final Map<String, String> ENGLISH_LABELS = englishLabels();
 
   // ---------------------------------------------------------------- reading
 
@@ -150,6 +162,69 @@ public class InvitationTextTest {
   }
 
   /**
+   * <b>A link under a sentence is not a link under a label.</b> The shapes
+   * people actually write — a greeting, then a pasted event link, then a
+   * signature; a sentence of context, then "Last meeting: <i>link</i>", then
+   * more prose; a link line followed by a second link to something else — each
+   * has the block's first two joints and not its last: the line after the link
+   * is prose, and prose does not end in a colon. Every one of these five came
+   * back with its head deleted before the narrowing this pin exists for — the
+   * first three measured on this repository's review of EXO-90227, the last two
+   * on the connector's.
+   */
+  @Test
+  public void aLinkUnderASentenceRatherThanALabelIsReturnedUntouched() {
+    String[] typed = { "Hi all,\nsee " + LINK_87 + "\nThanks,\nBob",
+        "Follow-up of our last meeting.\n\nLast meeting: " + LINK_87
+            + "\n\nPlease read the minutes before we start.\n\nAgenda: 1. budget 2. hiring",
+        "Preparation:\n\nPrevious meeting: " + LINK_87 + "\n\nNotes: https://wiki.acme.com/x\n\nBring cake.",
+        "Weekly sync.\nAgenda: " + LINK_87 + "\nNotes: bring the deck.\nRoom 4.",
+        "Kickoff.\nSee: " + LINK_87 + "\nThat is all." };
+    for (String text : typed) {
+      assertSame("must be returned as given: " + text, text, InvitationText.stripFrom(text));
+    }
+  }
+
+  /**
+   * <b>A list of meetings is not a block.</b> Several event links under a
+   * heading: the second link line is where the block's label would have to be,
+   * and it is not one — so the whole list is kept, links, heading and the text
+   * under it.
+   */
+  @Test
+  public void aListOfEventLinksIsReturnedUntouched() {
+    String text = "Related meetings:\nKickoff: " + LINK_87 + "\nReview: " + LINK_88 + "\nRetro: "
+        + LINK_87.replace("eventId=87", "eventId=89") + "\nBring cake.";
+
+    assertSame(text, InvitationText.stripFrom(text));
+  }
+
+  /**
+   * <b>And the loop cannot eat its way down a text either.</b> Two
+   * label-and-link shapes one after the other, each followed by a line of the
+   * user's own: recognition stops at the first, so the six lines
+   * {@code stripFrom} used to consume one pass at a time are all still there.
+   */
+  @Test
+  public void repeatedLabelAndLinkShapesAreReturnedUntouched() {
+    String text = "Notes:\nA: " + LINK_87 + "\nx\nNotes2:\nB: " + LINK_88 + "\ny\nBring cake.";
+
+    assertSame(text, InvitationText.stripFrom(text));
+  }
+
+  /**
+   * <b>A sentence that happens to end in an event link is not a label and a
+   * link.</b> The label may be no longer than a label ever is; past that the
+   * line is prose, whatever it ends with.
+   */
+  @Test
+  public void aSentenceEndingInAnEventLinkIsNotTheBuildersLine() {
+    String text = "Hello.\n\nThe minutes of the meeting we had in March are attached to " + LINK_87 + "\n\nEvent details:\nCake";
+
+    assertSame(text, InvitationText.stripFrom(text));
+  }
+
+  /**
    * Nothing to read is nothing to change.
    */
   @Test
@@ -210,6 +285,69 @@ public class InvitationTextTest {
   }
 
   /**
+   * <b>The same round trip, with the labels a reader actually sees.</b> The pin
+   * above renders outside a portal container, where every label degrades to its
+   * bundle key — so it fails on a drift in the layout and cannot see one that
+   * needs a real label to show. This one reads the labels through the bundle
+   * service, so the localised shape of the line the recogniser anchors on is
+   * covered too, and asserts that it really did: a rendering that fell back to
+   * the keys would prove nothing here.
+   */
+  @Test
+  public void renderingWithLabelsFromABundleIsTheSameCopy() {
+    ResourceBundleService bundles = bundleService(ENGLISH_LABELS);
+    try (MockedStatic<ExoContainerContext> container = mockStatic(ExoContainerContext.class)) {
+      container.when(() -> ExoContainerContext.getService(ResourceBundleService.class)).thenReturn(bundles);
+
+      String rendered = EventIcsBuilder.description(Locale.ENGLISH,
+                                                    "Alice Two",
+                                                    "Chemistry",
+                                                    "https://meet.example.test/room",
+                                                    LINK_87,
+                                                    answers(ANSWER_87),
+                                                    DETAIL);
+
+      assertTrue("the labels must come from the bundle, not from the keys: " + rendered,
+                 rendered.startsWith("Invitation sent by Alice Two in space Chemistry.") && rendered.contains("\nEvent link: ")
+                     && rendered.contains("\nEvent details:\n"));
+      assertFalse("no key may survive in the render: " + rendered, rendered.contains("agenda."));
+      assertEquals(rendered,
+                   EventIcsBuilder.description(Locale.ENGLISH,
+                                               "Alice Two",
+                                               "Chemistry",
+                                               "https://meet.example.test/room",
+                                               LINK_87,
+                                               answers(ANSWER_87),
+                                               rendered));
+    }
+  }
+
+  /**
+   * <b>A locale whose bundle answers a label blank does not lose the layout.</b>
+   * A key present with an empty value is what one Crowdin round can ship, and
+   * it would otherwise write the event link with nothing in front of it — a
+   * line the recogniser does not read as this builder's own, silently and for
+   * that locale only. The label falls back to its key instead, so the line
+   * keeps its shape and the round trip still holds.
+   */
+  @Test
+  public void aBundleAnsweringALabelBlankStillWritesALineTheRecogniserReads() {
+    Map<String, String> blankLink = new LinkedHashMap<>(ENGLISH_LABELS);
+    blankLink.put("agenda.eventLink", "");
+    blankLink.put("agenda.eventDetail", "");
+    ResourceBundleService bundles = bundleService(blankLink);
+    try (MockedStatic<ExoContainerContext> container = mockStatic(ExoContainerContext.class)) {
+      container.when(() -> ExoContainerContext.getService(ResourceBundleService.class)).thenReturn(bundles);
+
+      String rendered = EventIcsBuilder.description(Locale.ENGLISH, "Alice Two", null, null, LINK_87, null, DETAIL);
+
+      assertTrue("the blank label must fall back to its key: " + rendered, rendered.contains("\nagenda.eventLink " + LINK_87));
+      assertEquals(rendered,
+                   EventIcsBuilder.description(Locale.ENGLISH, "Alice Two", null, null, LINK_87, null, rendered));
+    }
+  }
+
+  /**
    * The HTML flavour — X-ALT-DESC of the mailed and downloaded document —
    * writes one block as well, and the organiser's text under it.
    */
@@ -256,6 +394,50 @@ public class InvitationTextTest {
                                                   "<p>Bring the <b>slides</b>.</p>");
 
     assertTrue("the markup must pass through untouched: " + html, html.contains("<p>Bring the <b>slides</b>.</p>"));
+  }
+
+  /**
+   * The labels of the layout as {@code Agenda_en.properties} ships them —
+   * copied from it, so a label reshaped there and not here shows up as a
+   * failure of the pins that read this rather than as silence.
+   *
+   * @return the nine labels the description is composed of, keyed as the
+   *         builder asks for them
+   */
+  private static Map<String, String> englishLabels() {
+    Map<String, String> labels = new LinkedHashMap<>();
+    labels.put("agenda.invitationText", "Invitation sent by");
+    labels.put("agenda.inSpace", "in space");
+    labels.put("agenda.visioLink", "Video conference link:");
+    labels.put("agenda.eventLink", "Event link:");
+    labels.put("agenda.eventDetail", "Event details:");
+    labels.put("agenda.rsvpPrompt", "Answer this invitation:");
+    labels.put("agenda.accepted", "Accepted");
+    labels.put("agenda.declined", "Declined");
+    labels.put("agenda.tentative", "Maybe");
+    return labels;
+  }
+
+  /**
+   * A bundle service answering one set of labels, standing in for the portal
+   * container the builder reads them through.
+   *
+   * @param labels the entries the bundle holds; a key absent from it is
+   *          answered by the real {@code Utils} with the key itself, as in
+   *          production
+   * @return the service, which every locale asked of it answers the same way
+   */
+  private static ResourceBundleService bundleService(Map<String, String> labels) {
+    ResourceBundle bundle = new ListResourceBundle() {
+      @Override
+      protected Object[][] getContents() {
+        return labels.entrySet().stream().map(entry -> new Object[] { entry.getKey(), entry.getValue() }).toArray(Object[][]::new);
+      }
+    };
+    ResourceBundleService service = mock(ResourceBundleService.class);
+    when(service.getSharedResourceBundleNames()).thenReturn(new String[0]);
+    when(service.getResourceBundle(any(String[].class), any(Locale.class))).thenReturn(bundle);
+    return service;
   }
 
   /**

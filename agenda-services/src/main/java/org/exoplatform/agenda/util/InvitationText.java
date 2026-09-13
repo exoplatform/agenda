@@ -55,49 +55,117 @@ import org.apache.commons.lang3.StringUtils;
  * <b>Any eXo's block, by shape and not by words.</b> The labels are read in
  * the recipient's locale, and the builder reading a description back cannot
  * know which locale wrote it — nor which deployment, nor which event id. So
- * no word is matched. What is matched is the layout the builder produces,
- * anchored on the one line of it that has a shape of its own: a label and an
- * eXo event link and nothing else, as the second or third non-blank line of
- * the text, after the attribution sentence and at most one conference line.
- * Everything up to that line is the block; an answer block after it — a
- * prompt and one to three lines each ending in an answer link — is part of
- * it; the line after that is the label under which the organiser's text
- * sits, and what follows is that text.
+ * no word of any translation is matched. What is matched is the layout the
+ * builder produces, and all four of its joints must be there:
+ * <ol>
+ * <li>a line that is a <b>short label</b> — at most
+ * {@link #LABEL_MAX_LENGTH} characters, which is what tells a label from a
+ * sentence — then whitespace, then <b>one eXo event link and nothing
+ * else</b>;</li>
+ * <li>that line as the <b>second or third</b> non-blank line of the text,
+ * after the attribution sentence and at most one conference line;</li>
+ * <li>optionally an answer block under it: a prompt, then one to three lines
+ * each a short label and an answer link;</li>
+ * <li>then either <b>nothing at all</b>, or a line that <b>has the shape of a
+ * label</b> ({@link #looksLikeALabel}) — the one under which the builder puts
+ * the organiser's text.</li>
+ * </ol>
+ * Everything up to and including that label line is the block; what follows
+ * is the organiser's text. Miss any joint and the text is returned exactly as
+ * given.
  *
  * <p>
- * <b>What is accepted as a false negative.</b> A block whose event link the
- * pusher withheld — a guest recipient, or a deployment whose portal could
- * not be asked for its address — has no link line and is not recognised;
- * such a description would still stack. Neither case reaches this path
- * today: the connector writes copies for eXo users only, and a copy with no
- * link is one this deployment did not compose. A link line as the fourth or
- * later non-blank line is not recognised either, on purpose (below).
+ * <b>What is accepted as a false negative.</b> Every one of these leaves the
+ * text untouched, which is to say it would still stack — the price of reading
+ * shape rather than words, and paid in the direction that loses nothing:
+ * <ul>
+ * <li>A block whose event link the pusher withheld — a guest recipient, or a
+ * deployment whose portal could not be asked for its address — has no link
+ * line. Neither case reaches this path today: the connector writes copies for
+ * eXo users only, and a copy with no link is one this deployment did not
+ * compose.</li>
+ * <li>A link line as the fourth or later non-blank line, on purpose
+ * (below).</li>
+ * <li><b>A label the bundle answers blank — guarded, and listed here so it
+ * stays guarded.</b> {@code description()} would write
+ * {@code "" + " " + url} and the line would carry no label at all, so joint 1
+ * would not be met. {@link EventIcsBuilder}'s own label lookup answers the key
+ * when the bundle answers blank instead, and the line keeps a label whatever
+ * Crowdin ships. Not idle plumbing — {@code agenda.eventLink} and
+ * {@code agenda.rsvpPrompt} are in {@code Agenda_en.properties} alone, and
+ * every other locale reads them through the English parent bundle
+ * ({@code BaseResourceBundleService}, whose default locale is {@code en}),
+ * while {@code Agenda_sq.properties} already ships an untranslated Crowdin
+ * placeholder as its {@code agenda.eventDetail}.</li>
+ * <li><b>A detail label that does not end in a colon.</b> 38 of the 39
+ * bundles that translate {@code agenda.eventDetail} end it with one; the
+ * exception is that Albanian placeholder. A locale whose label loses its colon
+ * loses recognition with it, for that locale's readers only.</li>
+ * <li><b>A server that folds a line the builder wrote onto another</b> — the
+ * attribution onto the link line, which {@link #eventLinkLine} stops looking
+ * for at the first non-blank line, or the detail label onto the first line of
+ * the text, which then ends in that text rather than in a colon. BlueMind,
+ * the one server observed folding anything, folds blank lines only and keeps
+ * both apart.</li>
+ * <li><b>The occurrence link shape.</b> {@code NotificationUtils} also
+ * composes a link carrying {@code parentId=} and {@code occurrenceId=} for one
+ * occurrence of a recurrent event, which the link pattern does not match — it
+ * requires {@code eventId=} and then the end of the line. <b>Unreachable today
+ * and a deliberate guard, not a description of the code:</b> every path into the
+ * builder passes the URL from {@link EventIcsBuilder#eventUrl(long)}, which
+ * writes {@code ?eventId=}. It is written down because the coupling that
+ * would make it reachable lives in another class — one caller away — and this
+ * ledger is where that caller's author would look.</li>
+ * </ul>
  *
  * <p>
  * <b>What keeps this from destroying text a person typed.</b> A link to an
  * eXo event pasted into a sentence, a link on the first line, a link with
- * words after it, a bare link on a line of its own, a link in the fourth
- * paragraph: none has the shape and the text is returned exactly as given.
- * The exposure that remains is a person typing, by hand, a one-line
- * paragraph, then a paragraph that is a short label and an eXo event link,
- * then more — the block's own shape — and losing those first two paragraphs
- * plus one line for it. Nobody has done that; it is the price of reading no
- * words, and it is bounded to the head of the text.
+ * words after it or a full stop after it, a bare link on a line of its own, a
+ * link in the fourth paragraph, a link under a sentence rather than a label, a
+ * list of several event links, a link followed by a line of prose: none has
+ * the shape, and the very instance given is returned. What remains is a person
+ * writing, by hand and in this order, a one-line paragraph, then a short
+ * label and an eXo event link alone on a line, then a line that itself ends in
+ * a colon or is a bundle key of ours, and then their text — and losing
+ * everything down to that line. It is the price of reading no words, it is
+ * bounded to the head of the text, and it is one shape narrower than a
+ * reader would guess: <b>the joint that does the work is the last one</b>,
+ * because a person's next line after a link is prose, and prose does not end
+ * in a colon.
+ *
+ * <p>
+ * <b>What a false positive costs, so the price is on the page.</b> The block is
+ * recognised in the text, not in the markup, so when it is recognised the
+ * remainder of a rich description is re-rendered from plain text — see
+ * {@link EventIcsBuilder}'s HTML flavour: bold, links and lists a person wrote
+ * in the editor arrive as words. On a true positive that costs nothing (the
+ * text came in as plain text). On a false positive it is a second loss on top
+ * of the deleted lines. Widening any joint above is therefore not a trade of
+ * recall against a little noise; read both this paragraph and that method's
+ * before touching one.
  *
  * <p>
  * <b>Fails closed.</b> Anything not recognised is returned untouched, so the
  * worst outcome for a text this cannot read is the behaviour before this
  * class existed. The coupling is to the builder's own layout — which lives in
- * the same package and is pinned by
- * {@code InvitationTextTest.renderingWhatTheBuilderRenderedIsTheSameCopy}, the
- * test that fails if the layout and the recogniser drift apart.
+ * the same package and is pinned twice, because one pin cannot see the whole
+ * of it: {@code InvitationTextTest.renderingWhatTheBuilderRenderedIsTheSameCopy}
+ * renders <b>outside a container</b>, where every label degrades to its bundle
+ * key, so it fails on a drift in the <em>layout</em> — a line moved, a joint
+ * removed — and cannot see a drift that needs a real label to show, and
+ * {@code renderingWithLabelsFromABundleIsTheSameCopy} renders the same layout
+ * with the labels read from a bundle, so the localised shape is covered too. A
+ * drift visible in neither — a translation reshaped in Crowdin — is what the
+ * false-negative ledger above is for.
  *
  * <p>
  * <b>That coupling crosses a repository, and a change to the layout is
  * therefore a two-repository change.</b> The connector calls this on the way
  * IN — {@code caldav-integration}'s {@code IcsEventMapper.toEvent} — so that
- * the description eXo *stores* carries the organiser's text alone; the builder
- * calls it on the way OUT, so that every channel it renders carries one block.
+ * the description eXo <em>stores</em> carries the organiser's text alone; the
+ * builder calls it on the way OUT, so that every channel it renders carries one
+ * block.
  * Neither call site can replace the other: the builder never touches what the
  * event drawer, the mail body and search read, and the import never re-reads
  * an object nobody edits again. What the pin above cannot see is the import
@@ -108,31 +176,77 @@ import org.apache.commons.lang3.StringUtils;
 public final class InvitationText {
 
   /**
-   * The line naming the event in eXo: a label, one eXo event link — the
-   * shape {@link NotificationUtils#getEventURL(long)} produces, with or
-   * without a scheme, since a copy has been read back without one — and at
-   * most a server's bracketed repetition of that same link, which BlueMind
-   * appends to every URI in a description.
+   * How long a label may be, which is what tells one from a sentence.
    *
    * <p>
-   * The label is required and must precede the link with whitespace: the
-   * builder always writes one, if only the bundle key when no bundle can be
-   * read, and a bare link on a line is what a person pastes.
+   * Measured, not guessed: across the 315 bundles under
+   * <code>agenda-webapps/.../locale/portlet</code>, the longest value any of
+   * the nine labels this layout uses is ever given is <b>30</b> characters — an
+   * untranslated Crowdin placeholder in <code>Agenda_sq.properties</code> —
+   * and the longest real translation is 24 (<code>Détails de l'événement
+   * :</code>, French). The keys themselves, which {@link EventIcsBuilder}
+   * writes when no bundle can be read, are 16 to 20. Forty leaves a third
+   * again of room for a translation nobody has written yet and still refuses a
+   * sentence, which is the point: a label is short, and prose is not.
+   */
+  private static final int     LABEL_MAX_LENGTH  = 40;
+
+  /**
+   * A label at the head of a line, and the whitespace separating it from what
+   * it introduces — bounded by {@link #LABEL_MAX_LENGTH}, so a sentence with a
+   * link at the end of it is not read as a label with a link after it.
+   */
+  private static final String  LABEL_THEN        = "^\\s*\\S.{0," + (LABEL_MAX_LENGTH - 1) + "}?\\s+";
+
+  /**
+   * At most a server's bracketed repetition of the link just matched, which
+   * BlueMind appends to every URI in a description, and then the end of the
+   * line: nothing else may follow, which is what keeps a link a person wrote
+   * words after out of every pattern below.
+   */
+  private static final String  AND_NOTHING_ELSE  = "(?:\\s+<\\1>)?\\s*$";
+
+  /**
+   * The line naming the event in eXo: a label, one eXo event link — the
+   * shape {@link NotificationUtils#getEventURL(long)} produces, with or
+   * without a scheme, since a copy has been read back without one — and
+   * nothing else.
+   *
+   * <p>
+   * The label is required, must precede the link with whitespace, and must be
+   * short: the builder always writes one, if only the bundle key when no
+   * bundle can be read; a bare link on a line is what a person pastes, and a
+   * sentence ending in a link is what a person writes.
    */
   private static final Pattern EVENT_LINK_LINE   =
-                                                Pattern.compile("^\\s*\\S.*?\\s+((?:https?://)?[^\\s<>\"']+/portal/[^/\\s<>?]+/agenda\\?eventId=\\d+)"
-                                                    + "(?:\\s+<\\1>)?\\s*$",
-                                                                Pattern.CASE_INSENSITIVE);
+                                                Pattern.compile(LABEL_THEN
+                                                    + "((?:https?://)?[^\\s<>\"']+/portal/[^/\\s<>?]+/agenda\\?eventId=\\d+)"
+                                                    + AND_NOTHING_ELSE, Pattern.CASE_INSENSITIVE);
 
   /**
    * One offered answer: a label and a tokenised answer link, as
-   * {@link NotificationUtils#getResponseURL} mints it. A server's bracketed
-   * repetition of the link is tolerated for the same reason as above.
+   * {@link NotificationUtils#getResponseURL} mints it, under the same bound on
+   * the label.
    */
   private static final Pattern ANSWER_LINK_LINE  =
-                                                 Pattern.compile("^\\s*\\S.*?\\s+((?:https?://)?[^\\s<>\"']+/portal/rest/v1/agenda/events/\\d+/response/send\\?[^\\s<>\"']*)"
-                                                     + "(?:\\s+<\\1>)?\\s*$",
-                                                                 Pattern.CASE_INSENSITIVE);
+                                                 Pattern.compile(LABEL_THEN
+                                                     + "((?:https?://)?[^\\s<>\"']+/portal/rest/v1/agenda/events/\\d+/response/send\\?[^\\s<>\"']*)"
+                                                     + AND_NOTHING_ELSE, Pattern.CASE_INSENSITIVE);
+
+  /**
+   * A bundle key of this addon's own namespace, which is what
+   * {@link EventIcsBuilder} writes in a label's place when no bundle can be
+   * read at all.
+   *
+   * <p>
+   * The one word-like shape this class matches, and it is not a word in
+   * anybody's language: it is a literal of our own, locale-independent by
+   * construction. Without it the block a builder outside a portal container
+   * composes — every label degraded to its key, the shape
+   * {@code InvitationTextTest.renderingWhatTheBuilderRenderedIsTheSameCopy}
+   * renders — would not be recognised as its own.
+   */
+  private static final Pattern LABEL_KEY         = Pattern.compile("^agenda\\.[A-Za-z]+$");
 
   /**
    * How many non-blank lines may precede the event link line: the attribution
@@ -206,9 +320,37 @@ public final class InvitationText {
       return "";
     }
     // The line under which the builder puts the organiser's own text is a
-    // label, written only when there is text to introduce - so a line here is
-    // that label, and what follows it is the description.
+    // label, written only when there is text to introduce - so the block ends
+    // in one of two ways, and no third: either nothing follows the links at
+    // all (above), or what follows is that label. A line here that is not one
+    // is a line this class did not write, and the whole text is left alone.
+    if (!looksLikeALabel(lines.get(next))) {
+      return null;
+    }
     return trimBlankLines(lines.subList(next + 1, lines.size()));
+  }
+
+  /**
+   * Whether a line is a label introducing what comes under it, rather than
+   * something a person wrote.
+   *
+   * <p>
+   * This is the guard between "the block ended here" and "the user's second
+   * paragraph began here", and it is the only thing standing between the
+   * recogniser and a line of somebody's text: {@link #stripOnce} drops the
+   * line it is asked about. Two shapes pass, and they are the two the builder
+   * writes: a short line ending in a colon, which is what every translated
+   * bundle ships ({@code Event details:}, {@code Détails de l'événement :}),
+   * and a bare bundle key of this addon ({@link #LABEL_KEY}), which is what it
+   * writes when no bundle can be read. A sentence is too long, or does not end
+   * in a colon, or both.
+   *
+   * @param line the line after the links, already known to be non blank
+   * @return true when it has the shape of a label
+   */
+  private static boolean looksLikeALabel(String line) {
+    String label = line.strip();
+    return label.length() <= LABEL_MAX_LENGTH && (label.endsWith(":") || LABEL_KEY.matcher(label).matches());
   }
 
   /**
@@ -260,6 +402,9 @@ public final class InvitationText {
   }
 
   /**
+   * Skips the blank lines a server may or may not have left, so every step
+   * through the block reasons about the lines that carry something.
+   *
    * @param lines the text
    * @param from where to start looking
    * @return the index of the first non-blank line at or after {@code from},

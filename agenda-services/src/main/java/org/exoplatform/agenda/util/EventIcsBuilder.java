@@ -434,9 +434,22 @@ public final class EventIcsBuilder {
    * notification's attached document does not change for the events it has
    * always described. When a block is recognised the remainder is rendered
    * from the plain text — escaped, line breaks as {@code <br>} — because the
-   * block is recognised in the text and cannot be cut out of the markup. What
-   * is given up is the markup of a description that arrived through an import
-   * as plain text in the first place, which is to say nothing.
+   * block is recognised in the text and cannot be cut out of the markup.
+   *
+   * <p>
+   * <b>What that flattening costs depends on whether the recognition was
+   * right</b>, and both halves belong on this page. On a true positive it
+   * costs nothing: the description arrived through an import as plain text in
+   * the first place, so there was no markup to give up. On a <b>false</b>
+   * positive it is a second loss on top of the lines
+   * {@link InvitationText} dropped — the markup of a description that came
+   * from the rich-text editor, all of it, because the whole remainder is
+   * re-rendered from text. Verified: {@code <b>Bob</b> and <a
+   * href="https://x.test">the link</a>} arrives as {@code Bob and the link} —
+   * the emphasis gone, the {@code href} gone, the link no longer a link.
+   * Anyone weighing a widening of the recogniser should price that alongside
+   * the deleted lines, not instead of them; {@link InvitationText}'s own
+   * Javadoc carries the other half.
    *
    * @param eventDescriptionHtml the description as the editor stored it, blank
    *          tolerated
@@ -524,13 +537,23 @@ public final class EventIcsBuilder {
    * meeting that never reached the user's calendar because a label could not
    * be read is a lost meeting, and this builder is on the push path.
    *
+   * <p>
+   * <b>A label the bundle answers blank is treated as no label at all</b>, and
+   * that is not cosmetics: a key present with an empty value is what a Crowdin
+   * round can ship for one locale, and it would leave the layout writing
+   * {@code "" + " " + url} — a line with no label in front of the link, which
+   * {@link InvitationText} does not recognise as this builder's own, for that
+   * locale's readers only and silently. Answering the key keeps the line's
+   * shape whatever a bundle holds.
+   *
    * @param userLocale locale to read in, the platform default when null
    * @param key resource bundle key
-   * @return the label, or the key itself when it cannot be read
+   * @return the label, or the key itself when it cannot be read or is blank
    */
   private static String label(Locale userLocale, String key) {
     try {
-      return Utils.getResourceBundleLabel(userLocale == null ? Locale.getDefault() : userLocale, key);
+      return StringUtils.defaultIfBlank(Utils.getResourceBundleLabel(userLocale == null ? Locale.getDefault() : userLocale, key),
+                                        key);
     } catch (RuntimeException | LinkageError e) {
       return key;
     }
