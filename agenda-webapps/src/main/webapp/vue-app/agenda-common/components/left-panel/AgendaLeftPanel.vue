@@ -79,14 +79,19 @@
       <agenda-personal-calendar-list class="agenda-left-panel-calendars" />
     </section>
     <!--
-      One section per connected remote provider (Google, Office 365…), titled
-      with the provider's own label, listing the calendars of the account and
-      a visibility checkbox for each. Placed after My Calendars because that
-      is where a remote calendar sits in the user's mind: my own first, then
-      each account I look at. CalDAV gets no section here — its collections
-      are materialised as the user's own personal calendars, so they already
-      appear above. The component draws its own sections, headers included,
-      and draws nothing at all when no connected provider lists calendars.
+      One section per connected remote provider that lists calendars (Google,
+      a CalDAV server…), titled with the provider's own label, listing the
+      calendars of the account and a visibility checkbox for each. Placed
+      after My Calendars because that is where a remote calendar sits in the
+      user's mind: my own first, then each account I look at. A CalDAV
+      section lists only what its connector serves read-only — a calendar
+      shared with the user, typically: the connector leaves out every
+      collection materialised as one of the user's own calendars, which
+      already appear above, so it is the connector and not this panel that
+      keeps a calendar from showing twice, and a user whose collections are
+      all materialised sees no CalDAV section. The component draws its own
+      sections, headers included, and draws nothing at all when no connected
+      provider lists calendars.
     -->
     <agenda-left-panel-remote-calendars
       v-if="connectorsAvailable"
