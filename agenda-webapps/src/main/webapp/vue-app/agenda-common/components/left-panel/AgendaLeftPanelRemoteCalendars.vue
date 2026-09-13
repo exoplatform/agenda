@@ -69,20 +69,17 @@
               no edit or delete action for any calendar, so read-only is not a
               menu with fewer entries but a marker, static and always visible.
               The flag is the connector's word, `readOnly` on the calendar it
-              listed.
-
-              Drawn on CalDAV rows only, as a matter of scope and not of
-              meaning: Google lists the same flag, from the calendar's access
-              role, but its rows are to stay exactly as they were, and a marker
-              they never had is a change. Extending it to every provider is one
-              predicate — `group.markReadOnly` — and the Architect's call.
+              listed, whichever provider listed it: CalDAV derives it from the
+              collection's privileges, Google from the calendar's access role
+              (reader and freeBusyReader only — writer and owner can write).
+              A connector that lists no such flag draws no marker.
 
               The icon alone would not be announced: Vuetify hides a v-icon
               that has no click listener from assistive technology, so the
               wrapper is what carries the role and the label.
             -->
             <v-list-item-action
-              v-if="group.markReadOnly && calendar.readOnly === true"
+              v-if="calendar.readOnly === true"
               class="my-0 ms-2 flex-grow-0">
               <span
                 :title="$t('agenda.leftPanel.readOnlyCalendar')"
@@ -237,8 +234,7 @@ export default {
      * Records the provider sections to draw.
      *
      * @param {Array} groups sections to show, each carrying the provider's
-     *          label key, its calendars and whether its read-only calendars
-     *          are marked as such
+     *          label key and its calendars
      * @returns {void}
      */
     setGroups(groups) {
@@ -278,16 +274,10 @@ export default {
           // holds nothing but duplicates of events the agenda already shows,
           // so displaying it would double every meeting on the grid.
           .then(calendars => this.$remoteEventConnector.excludeMirrorCalendar(connector, calendars))
-          // markReadOnly: which provider's read-only calendars carry the
-          // marker — the template says why it is CalDAV's for now
-          .then(calendars => ({
-            name: connector.name,
-            calendars: calendars || [],
-            markReadOnly: connector.isCaldav === true,
-          }))
+          .then(calendars => ({name: connector.name, calendars: calendars || []}))
           .catch(error => {
             console.error(`cannot list the calendars of ${connector.name}`, error);
-            return {name: connector.name, calendars: [], markReadOnly: false};
+            return {name: connector.name, calendars: []};
           })
       )).then(groups => {
         if (requestId !== this.calendarsRequestId) {
