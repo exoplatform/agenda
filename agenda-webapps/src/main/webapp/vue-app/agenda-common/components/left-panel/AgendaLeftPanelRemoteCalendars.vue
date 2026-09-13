@@ -68,19 +68,31 @@
               the user owns and looks exactly like them. The rows here carry
               no edit or delete action for any calendar, so read-only is not a
               menu with fewer entries but a marker, static and always visible.
-              The flag is the connector's word: a connector that says nothing
-              about writability — Google, Office 365 — gets no marker.
+              The flag is the connector's word, `readOnly` on the calendar it
+              listed.
+
+              Drawn on CalDAV rows only, as a matter of scope and not of
+              meaning: Google lists the same flag, from the calendar's access
+              role, but its rows are to stay exactly as they were, and a marker
+              they never had is a change. Extending it to every provider is one
+              predicate — `group.markReadOnly` — and the Architect's call.
+
+              The icon alone would not be announced: Vuetify hides a v-icon
+              that has no click listener from assistive technology, so the
+              wrapper is what carries the role and the label.
             -->
             <v-list-item-action
-              v-if="calendar.readOnly === true"
+              v-if="group.markReadOnly && calendar.readOnly === true"
               class="my-0 ms-2 flex-grow-0">
-              <v-icon
+              <span
                 :title="$t('agenda.leftPanel.readOnlyCalendar')"
                 :aria-label="$t('agenda.leftPanel.readOnlyCalendar')"
-                size="12"
-                class="text-light-color">
-                fas fa-lock
-              </v-icon>
+                role="img"
+                class="d-flex">
+                <v-icon size="14" class="text-light-color">
+                  fas fa-lock
+                </v-icon>
+              </span>
             </v-list-item-action>
           </v-list-item>
         </v-list>
@@ -114,9 +126,9 @@ export default {
      * of its own would have shown each calendar twice. That assumption broke
      * the day a calendar shared with the user stayed unmaterialised: its
      * events were drawn on the grid as remote events, and no calendar
-     * anywhere named them, coloured them or let the user hide them. Shared
-     * calendars now stay unmaterialised for good and are served read-only
-     * (EXO-90235), so the exclusion would hide them for good.
+     * anywhere named them, coloured them or let the user hide them. Once
+     * EXO-90235 lands, a shared calendar stays unmaterialised for good and is
+     * served read-only, so the exclusion would have hidden it for good.
      *
      * What keeps a materialised calendar from appearing twice is the
      * connector, not this panel. Its listing serves only the collections eXo
@@ -224,7 +236,8 @@ export default {
      * Records the provider sections to draw.
      *
      * @param {Array} groups sections to show, each carrying the provider's
-     *          label key and its calendars
+     *          label key, its calendars and whether its read-only calendars
+     *          are marked as such
      * @returns {void}
      */
     setGroups(groups) {
@@ -264,10 +277,12 @@ export default {
           // holds nothing but duplicates of events the agenda already shows,
           // so displaying it would double every meeting on the grid.
           .then(calendars => this.$remoteEventConnector.excludeMirrorCalendar(connector, calendars))
-          .then(calendars => ({name: connector.name, calendars: calendars || []}))
+          // markReadOnly: which provider's read-only calendars carry the
+          // marker — the template says why it is CalDAV's for now
+          .then(calendars => ({name: connector.name, calendars: calendars || [], markReadOnly: connector.isCaldav === true}))
           .catch(error => {
             console.error(`cannot list the calendars of ${connector.name}`, error);
-            return {name: connector.name, calendars: []};
+            return {name: connector.name, calendars: [], markReadOnly: false};
           })
       )).then(groups => {
         if (requestId !== this.calendarsRequestId) {
