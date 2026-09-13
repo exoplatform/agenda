@@ -18,7 +18,12 @@
   <!--
     One section per connected provider, titled with the provider's own label,
     so a calendar's header says where it comes from — the generic "Remote"
-    header said only that it comes from somewhere else.
+    header said only that it comes from somewhere else. The calendars a
+    CalDAV server serves because someone else shared them with the user are
+    the exception: they sit in one section titled "Shared with me", whichever
+    server they come from, because what the user needs to know about such a
+    calendar is not which server holds it but that it is someone else's — see
+    buildGroups below.
 
     Sections are drawn here rather than by the panel, and only once there is
     something in them: this component is the only thing that knows which
@@ -52,7 +57,13 @@
             v-for="calendar in group.calendars"
             :key="calendar.id"
             class="agenda-calendar-settings px-0">
-            <v-list-item-content :title="calendar.name" class="flex-grow-1 pa-0">
+            <!--
+              The hover is the name, which the row may have cut short, and on
+              a shared calendar who shared it: the header says it is someone
+              else's, the row says whose — the avatar beside it does too, but
+              only for an owner this deployment knows as a user.
+            -->
+            <v-list-item-content :title="rowTitle(calendar)" class="flex-grow-1 pa-0">
               <v-checkbox
                 :input-value="isDisplayed(calendar)"
                 :color="calendar.color"
@@ -74,6 +85,20 @@
               (reader and freeBusyReader only — writer and owner can write).
               A connector that lists no such flag draws no marker.
 
+              When the calendar is one buildGroups stamped as shared with the
+              user and its owner is a user of this deployment — a colleague's
+              eXo calendar shared on the server, which the CalDAV connector
+              names by `ownerUsername` — the owner's avatar takes the
+              lock's place: it says who the calendar belongs to, which a lock
+              does not, and the read-only part is what "Shared with me" already
+              says. The shared component is used in its picture-only mode with
+              its popover and profile link, so the owner is one hover or one
+              click away, as anywhere else on the platform. An owner the
+              connector names only by a display name — a share made on the
+              server by someone who is not a user here — has no profile to
+              link, so that row keeps the lock and names the owner in the
+              hover.
+
               The icon alone would not be announced: Vuetify hides a v-icon
               that has no click listener from assistive technology, so the
               wrapper is what carries the role and the label.
@@ -83,12 +108,23 @@
               lays its content out from the start, while a header icon is a
               14px glyph centred in a 24px button — left as it was, the lock
               ended five pixels short of the column the plug, plus and filter
-              icons share. Same slot the personal rows use for their menu.
+              icons share. Same slot the personal rows use for their menu. The
+              avatar's own side margins are taken back in the panel's
+              stylesheet for the same reason (agenda.less, .user-wrapper).
             -->
             <v-list-item-action
-              v-if="calendar.readOnly === true"
+              v-if="hasKnownOwner(calendar) || calendar.readOnly === true"
               class="my-0 ms-2 flex-grow-0 justify-center">
+              <exo-user-avatar
+                v-if="hasKnownOwner(calendar)"
+                :profile-id="calendar.ownerUsername"
+                :name="calendar.ownerDisplayName"
+                :aria-label="sharedLabel(calendar)"
+                :size="20"
+                avatar
+                popover />
               <span
+                v-else
                 :title="$t('agenda.leftPanel.readOnlyCalendar')"
                 :aria-label="$t('agenda.leftPanel.readOnlyCalendar')"
                 role="img"
@@ -106,6 +142,13 @@
 </template>
 
 <script>
+/**
+ * Label key of the section that gathers the calendars shared with the user.
+ * A section is keyed and titled by its name, the provider sections by the
+ * provider's own label key, so this one is a label key too.
+ */
+const SHARED_WITH_ME_SECTION = 'agenda.leftPanel.sharedWithMe';
+
 export default {
   props: {
     connectors: {
@@ -240,8 +283,8 @@ export default {
     /**
      * Records the provider sections to draw.
      *
-     * @param {Array} groups sections to show, each carrying the provider's
-     *          label key and its calendars
+     * @param {Array} groups sections to show, each carrying its label key —
+     *          the provider's, or the shared section's — and its calendars
      * @returns {void}
      */
     setGroups(groups) {
@@ -249,7 +292,9 @@ export default {
     },
     /**
      * Asks every sectioned connector for the calendars of the account behind
-     * it, and renders one titled section per provider that answered with any.
+     * it, and renders one titled section per provider that answered with any,
+     * plus the "Shared with me" section when a CalDAV server listed calendars
+     * shared with the user (see buildGroups).
      *
      * A connector that does not declare canListCalendars is skipped rather
      * than called, so the ones that predate this contract — Office 365 and
@@ -281,25 +326,160 @@ export default {
           // holds nothing but duplicates of events the agenda already shows,
           // so displaying it would double every meeting on the grid.
           .then(calendars => this.$remoteEventConnector.excludeMirrorCalendar(connector, calendars))
-          .then(calendars => ({name: connector.name, calendars: calendars || []}))
+          .then(calendars => ({connector, calendars: calendars || []}))
           .catch(error => {
             console.error(`cannot list the calendars of ${connector.name}`, error);
-            return {name: connector.name, calendars: []};
+            return {connector, calendars: []};
           })
-      )).then(groups => {
+      )).then(answers => {
         if (requestId !== this.calendarsRequestId) {
           // A newer retrieval was started since: its answer is the one that
           // reflects the accounts as they now stand.
           return;
         }
-        // A provider that answered with nothing gets no header: an empty
-        // section is a question the user cannot act on.
-        this.setGroups(groups.filter(group => group.calendars.length));
+        this.setGroups(this.buildGroups(answers));
       }).finally(() => {
         if (requestId === this.calendarsRequestId) {
           this.loading = false;
         }
       });
+    },
+    /**
+     * Turns the connectors' answers into the sections to draw.
+     *
+     * One section per provider, in the connectors' order, holding what the
+     * account itself owns; then one "Shared with me" section holding, across
+     * every CalDAV server, the calendars someone else shared with the user.
+     * A provider that answered with nothing, or with shared calendars only,
+     * gets no section of its own: an empty section is a question the user
+     * cannot act on.
+     *
+     * The shared calendars are gathered rather than left under their server
+     * because the server's name answers the wrong question. Under "Bluemind",
+     * a colleague's calendar looked like one more calendar of the user's own
+     * account — the lock said it could not be written to, nothing said it was
+     * someone else's. Gathered, the header says what they have in common and
+     * the row can say whose each one is. The section comes last, after the
+     * providers' own: the panel goes from what is mine outwards — my own
+     * calendars, then my accounts, then what others let me see — and a
+     * section merged across servers has no one provider to sit next to. It
+     * also lands right above Spaces, the other list of calendars the user
+     * does not own.
+     *
+     * What counts as shared is the CalDAV connector's word, `shared` on the
+     * calendar it listed, and is distinct from `readOnly`: an own calendar the
+     * synchronisation has not taken in yet is read-only here for a moment,
+     * and is still the user's own, so it keeps its server's section. A
+     * connector that lists no `shared` flag at all — an older CalDAV add-on —
+     * answers exactly as before: every calendar under its server's name. The
+     * other providers are not asked: Google lists no such flag, and its
+     * calendars stay where they were, lock included.
+     *
+     * The verdict is taken once, here, and stamped on the row as
+     * `sharedWithMe`: the section, the hover and the owner marker all read
+     * the stamp rather than each re-reading the connector's fields, so a row
+     * cannot land in a server's section and still be labelled as a share —
+     * which is what happened when the hover read `shared` off every
+     * provider and the marker read `ownerUsername` off every row. The
+     * connector's own object is left as it answered it; the stamp goes on a
+     * copy.
+     *
+     * @param {Array} answers one entry per connector asked, `{connector,
+     *          calendars}`, in the connectors' order
+     * @returns {Array} the sections, each `{name, calendars}` with a label key
+     *          for a name, none of them empty
+     */
+    buildGroups(answers) {
+      const sharedCalendars = [];
+      const groups = [];
+      answers.forEach(({connector, calendars}) => {
+        const own = [];
+        calendars.forEach(calendar => {
+          if (this.isSharedCalendar(connector, calendar)) {
+            sharedCalendars.push({...calendar, sharedWithMe: true});
+          } else {
+            own.push(calendar);
+          }
+        });
+        if (own.length) {
+          groups.push({name: connector.name, calendars: own});
+        }
+      });
+      if (sharedCalendars.length) {
+        groups.push({name: SHARED_WITH_ME_SECTION, calendars: sharedCalendars});
+      }
+      return groups;
+    },
+    /**
+     * Whether a calendar belongs to someone else and was shared with the user.
+     *
+     * Asked only of a CalDAV connector, by the `isCaldav` constant its
+     * descriptor declares: `shared` is that connector's contract, and reading
+     * it off another provider's calendars would move them on a word that
+     * provider never meant. Strictly true, so an entry without the flag —
+     * an older add-on — is the user's own, as it always read.
+     *
+     * @param {Object} connector the connector that listed the calendar
+     * @param {Object} calendar calendar as the connector described it
+     * @returns {Boolean} true when it is a calendar shared with the user
+     */
+    isSharedCalendar(connector, calendar) {
+      return !!connector && connector.isCaldav === true && !!calendar && calendar.shared === true;
+    },
+    /**
+     * Whether the calendar is a share whose owner is a user of this
+     * deployment, one the avatar can show and link to.
+     *
+     * Asked of a row that buildGroups stamped as shared with the user, never
+     * of the owner fields alone: a calendar that is the user's own has an
+     * owner who is a user of this deployment too — the viewer — and were the
+     * connector ever to name them, the row would otherwise show the viewer
+     * their own face labelled as a share. Among the owner fields the username
+     * is what decides, not the identity id: the avatar component resolves the
+     * profile, the picture and the popover from the username, and would draw
+     * a nameless placeholder from an id alone. The connector sends both
+     * together or neither.
+     *
+     * @param {Object} calendar calendar as buildGroups stamped it
+     * @returns {Boolean} true when the owner can be shown as a user
+     */
+    hasKnownOwner(calendar) {
+      return !!calendar
+        && calendar.sharedWithMe === true
+        && typeof calendar.ownerUsername === 'string'
+        && calendar.ownerUsername.length > 0;
+    },
+    /**
+     * What to say about who shared a calendar: "Shared by <owner>" when the
+     * connector named the owner — the eXo full name of a colleague, or the
+     * server's display name of a stranger — and "Shared with you" when the
+     * connector names no owner at all. Which servers can name one is the
+     * connector's business, not this panel's.
+     *
+     * @param {Object} calendar calendar as the connector described it
+     * @returns {String} the sentence, in the user's language
+     */
+    sharedLabel(calendar) {
+      return calendar.ownerDisplayName
+        ? this.$t('agenda.leftPanel.sharedBy', {0: calendar.ownerDisplayName})
+        : this.$t('agenda.leftPanel.sharedCalendar');
+    },
+    /**
+     * The row's hover: the calendar's full name, and on a calendar shared
+     * with the user who shared it. Judged on the stamp buildGroups set, the
+     * same verdict that placed the row under "Shared with me", so the hover
+     * and the header never disagree; a calendar that is not shared — or one
+     * a provider other than CalDAV flagged, whose word that is not — keeps
+     * the bare name it always had.
+     *
+     * @param {Object} calendar calendar as buildGroups stamped it
+     * @returns {String} the hover text
+     */
+    rowTitle(calendar) {
+      if (calendar.sharedWithMe !== true) {
+        return calendar.name;
+      }
+      return `${calendar.name} — ${this.sharedLabel(calendar)}`;
     },
     /**
      * Whether a calendar's events are currently shown. Calendars are displayed
