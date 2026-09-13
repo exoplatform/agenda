@@ -1244,6 +1244,18 @@
         }
       }
 
+      /* The owner's avatar on a shared calendar sits in the same 24px column
+         as the read-only lock and the section headers' icons. The shared
+         avatar component wraps its picture in mx-1 — 4px on each side, set
+         with !important by Vuetify's utility and offered through no prop —
+         which widened the action slot to 28px and moved the centre 2px off
+         that column. Taken back here, where the column is defined, so the
+         20px picture is centred in the slot's 24px minimum like the lock. */
+      .v-list-item__action .user-wrapper {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+      }
+
       .agenda-calendar-settings-color {
         margin: 0 !important;
         padding-top: 0;

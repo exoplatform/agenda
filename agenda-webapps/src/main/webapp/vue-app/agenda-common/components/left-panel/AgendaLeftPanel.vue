@@ -89,9 +89,11 @@
       collection materialised as one of the user's own calendars, which
       already appear above, so it is the connector and not this panel that
       keeps a calendar from showing twice, and a user whose collections are
-      all materialised sees no CalDAV section. The component draws its own
-      sections, headers included, and draws nothing at all when no connected
-      provider lists calendars.
+      all materialised sees no CalDAV section. The calendars a CalDAV server
+      lists as shared with the user are gathered into one "Shared with me"
+      section after the providers' own, whichever server they come from. The
+      component draws its own sections, headers included, and draws nothing
+      at all when no connected provider lists calendars.
     -->
     <agenda-left-panel-remote-calendars
       v-if="connectorsAvailable"
