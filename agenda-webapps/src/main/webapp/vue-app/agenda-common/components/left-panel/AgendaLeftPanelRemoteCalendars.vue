@@ -279,7 +279,11 @@ export default {
           .then(calendars => this.$remoteEventConnector.excludeMirrorCalendar(connector, calendars))
           // markReadOnly: which provider's read-only calendars carry the
           // marker — the template says why it is CalDAV's for now
-          .then(calendars => ({name: connector.name, calendars: calendars || [], markReadOnly: connector.isCaldav === true}))
+          .then(calendars => ({
+            name: connector.name,
+            calendars: calendars || [],
+            markReadOnly: connector.isCaldav === true,
+          }))
           .catch(error => {
             console.error(`cannot list the calendars of ${connector.name}`, error);
             return {name: connector.name, calendars: [], markReadOnly: false};
