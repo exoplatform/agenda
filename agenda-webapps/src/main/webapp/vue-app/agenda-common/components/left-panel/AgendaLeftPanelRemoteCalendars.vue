@@ -85,9 +85,10 @@
               (reader and freeBusyReader only — writer and owner can write).
               A connector that lists no such flag draws no marker.
 
-              When the calendar was shared by a user of this deployment — a
-              colleague's eXo calendar shared on the server, which the CalDAV
-              connector names by `ownerUsername` — the owner's avatar takes the
+              When the calendar is one buildGroups stamped as shared with the
+              user and its owner is a user of this deployment — a colleague's
+              eXo calendar shared on the server, which the CalDAV connector
+              names by `ownerUsername` — the owner's avatar takes the
               lock's place: it says who the calendar belongs to, which a lock
               does not, and the read-only part is what "Shared with me" already
               says. The shared component is used in its picture-only mode with
@@ -374,6 +375,15 @@ export default {
      * other providers are not asked: Google lists no such flag, and its
      * calendars stay where they were, lock included.
      *
+     * The verdict is taken once, here, and stamped on the row as
+     * `sharedWithMe`: the section, the hover and the owner marker all read
+     * the stamp rather than each re-reading the connector's fields, so a row
+     * cannot land in a server's section and still be labelled as a share —
+     * which is what happened when the hover read `shared` off every
+     * provider and the marker read `ownerUsername` off every row. The
+     * connector's own object is left as it answered it; the stamp goes on a
+     * copy.
+     *
      * @param {Array} answers one entry per connector asked, `{connector,
      *          calendars}`, in the connectors' order
      * @returns {Array} the sections, each `{name, calendars}` with a label key
@@ -383,10 +393,12 @@ export default {
       const sharedCalendars = [];
       const groups = [];
       answers.forEach(({connector, calendars}) => {
-        const own = calendars.filter(calendar => !this.isSharedCalendar(connector, calendar));
+        const own = [];
         calendars.forEach(calendar => {
           if (this.isSharedCalendar(connector, calendar)) {
-            sharedCalendars.push(calendar);
+            sharedCalendars.push({...calendar, sharedWithMe: true});
+          } else {
+            own.push(calendar);
           }
         });
         if (own.length) {
@@ -415,19 +427,27 @@ export default {
       return !!connector && connector.isCaldav === true && !!calendar && calendar.shared === true;
     },
     /**
-     * Whether the calendar's owner is a user of this deployment, one the
-     * avatar can show and link to.
+     * Whether the calendar is a share whose owner is a user of this
+     * deployment, one the avatar can show and link to.
      *
-     * The username is what decides, not the identity id: the avatar component
-     * resolves the profile, the picture and the popover from the username,
-     * and would draw a nameless placeholder from an id alone. The connector
-     * sends both together or neither.
+     * Asked of a row that buildGroups stamped as shared with the user, never
+     * of the owner fields alone: a calendar that is the user's own has an
+     * owner who is a user of this deployment too — the viewer — and were the
+     * connector ever to name them, the row would otherwise show the viewer
+     * their own face labelled as a share. Among the owner fields the username
+     * is what decides, not the identity id: the avatar component resolves the
+     * profile, the picture and the popover from the username, and would draw
+     * a nameless placeholder from an id alone. The connector sends both
+     * together or neither.
      *
-     * @param {Object} calendar calendar as the connector described it
+     * @param {Object} calendar calendar as buildGroups stamped it
      * @returns {Boolean} true when the owner can be shown as a user
      */
     hasKnownOwner(calendar) {
-      return !!calendar && typeof calendar.ownerUsername === 'string' && calendar.ownerUsername.length > 0;
+      return !!calendar
+        && calendar.sharedWithMe === true
+        && typeof calendar.ownerUsername === 'string'
+        && calendar.ownerUsername.length > 0;
     },
     /**
      * What to say about who shared a calendar: "Shared by <owner>" when the
@@ -444,16 +464,18 @@ export default {
         : this.$t('agenda.leftPanel.sharedCalendar');
     },
     /**
-     * The row's hover: the calendar's full name, and on a shared calendar who
-     * shared it. Judged on the `shared` flag alone rather than on the section
-     * the row landed in, so the sentence follows the flag wherever the row is
-     * drawn; a calendar that is not shared keeps the bare name it always had.
+     * The row's hover: the calendar's full name, and on a calendar shared
+     * with the user who shared it. Judged on the stamp buildGroups set, the
+     * same verdict that placed the row under "Shared with me", so the hover
+     * and the header never disagree; a calendar that is not shared — or one
+     * a provider other than CalDAV flagged, whose word that is not — keeps
+     * the bare name it always had.
      *
-     * @param {Object} calendar calendar as the connector described it
+     * @param {Object} calendar calendar as buildGroups stamped it
      * @returns {String} the hover text
      */
     rowTitle(calendar) {
-      if (calendar.shared !== true) {
+      if (calendar.sharedWithMe !== true) {
         return calendar.name;
       }
       return `${calendar.name} — ${this.sharedLabel(calendar)}`;
