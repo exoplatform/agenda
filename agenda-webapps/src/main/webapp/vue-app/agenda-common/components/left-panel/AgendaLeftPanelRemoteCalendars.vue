@@ -135,10 +135,11 @@ export default {
      * holds no calendar for — the materialised ones, the mirror and the ones
      * an eXo created are left out on the server — so a CalDAV section lists
      * exactly what is read live and read-only, and a user whose collections
-     * are all materialised gets no CalDAV section at all. Capability flags
-     * are still not what chooses: `canPush` is dynamic on Google (a section
-     * would vanish mid-session when the user grants the write scope) and
-     * `canListCalendars` is what every provider declares.
+     * are all materialised gets no CalDAV section at all. `canListCalendars`
+     * is what chooses, and only Google and CalDAV declare it — Office 365 and
+     * Exchange predate the contract and are never asked. `canPush` is
+     * deliberately not consulted: it is dynamic on Google, and a section must
+     * not vanish mid-session when the user grants the write scope.
      *
      * `connected` is the runtime state and is what decides. `isSignedIn` is a
      * static property on the CalDAV descriptor, always true whether or not an
