@@ -262,6 +262,24 @@ public final class EventIcsBuilder {
    * that re-saved it may have wrapped every line in a paragraph of its own,
    * and it is the lines that are recognised.
    *
+   * <p>
+   * <b>Taken off with no gate, and that is the open decision on this class.</b>
+   * The connector gates its own call on a property of the object — an eXo
+   * {@code URL} it could only have written itself — because it has the object in
+   * hand and it <em>writes</em> what comes back. Here there is no such signal:
+   * the input is a stored description whose provenance nothing records, so the
+   * recogniser's residual false positive (see {@link InvitationText}: an opener,
+   * a colon-terminated label with an eXo event link after it, another such
+   * label, then text) shortens a description a person typed — on every channel
+   * this builder renders, and in a mail already sent by the time anyone could
+   * notice. EXO-90228 narrowed the recogniser as far as reading the text can go
+   * and left that case. What would close it is a provenance signal reaching
+   * here — whether this event is bound to a remote event at all
+   * ({@code AgendaRemoteEventService.findRemoteEvent}) — which means a parameter
+   * on this class's public methods and a change at all four of their call sites,
+   * two of them in another repository. <b>That is the Architect's call, not this
+   * method's</b>, and it is recorded so on EXO-90228.
+   *
    * @param eventDescriptionHtml the description as the editor stored it, blank
    *          tolerated
    * @return the organiser's text, empty when there is none
