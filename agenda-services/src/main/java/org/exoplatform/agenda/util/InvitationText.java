@@ -65,14 +65,23 @@ import org.apache.commons.lang3.StringUtils;
  * <li>that line as the <b>second or third</b> non-blank line of the text,
  * after the attribution sentence and at most one conference line;</li>
  * <li>optionally an answer block under it: a prompt, then one to three lines
- * each a short label and an answer link;</li>
+ * each <b>carrying a tokenised answer link</b> — the one thing in this layout
+ * nobody can type, so nothing else is asked of those lines;</li>
  * <li>then either <b>nothing at all</b>, or a line that <b>has the shape of a
- * label</b> ({@link #looksLikeALabel}) — the one under which the builder puts
- * the organiser's text.</li>
+ * label</b> — the one under which the builder puts the organiser's text.</li>
  * </ol>
  * Everything up to and including that label line is the block; what follows
  * is the organiser's text. Miss any joint and the text is returned exactly as
  * given.
+ *
+ * <p>
+ * <b>And one invariant over the whole of it, checked on the way out.</b> A
+ * reading that would hand back a text still carrying an answer link is refused
+ * outright, and the text is returned as given: see {@link #stripFrom}. Joints
+ * are a hypothesis about a layout, and a hypothesis can be wrong in a way
+ * nobody has thought of yet; that one token must not be re-emitted as the
+ * organiser's own words is not a hypothesis, so it is asserted on the result
+ * rather than inferred from the joints.
  *
  * <p>
  * <b>What is accepted as a false negative.</b> Every one of these leaves the
@@ -101,6 +110,15 @@ import org.apache.commons.lang3.StringUtils;
  * bundles that translate {@code agenda.eventDetail} end it with one; the
  * exception is that Albanian placeholder. A locale whose label loses its colon
  * loses recognition with it, for that locale's readers only.</li>
+ * <li><b>A server that inserts a blank line the builder did not write</b>,
+ * between the answer prompt and the answer links. {@link #pastAnswerBlock}
+ * reads the answers on the lines immediately under the prompt — the builder
+ * writes them with one newline apiece and none observed server folds a line
+ * <em>apart</em> — so a blank line there strands the answer links below the
+ * point the block would end at, and the invariant then refuses the reading
+ * altogether rather than returning them. Fail-closed, and the pin
+ * {@code noPartialStripEverKeepsSomebodyElsesAnswerToken} is what keeps it
+ * that way.</li>
  * <li><b>A server that folds a line the builder wrote onto another</b> — the
  * attribution onto the link line, which {@link #eventLinkLine} stops looking
  * for at the first non-blank line, or the detail label onto the first line of
@@ -146,9 +164,16 @@ import org.apache.commons.lang3.StringUtils;
  * before touching one.
  *
  * <p>
- * <b>Fails closed.</b> Anything not recognised is returned untouched, so the
- * worst outcome for a text this cannot read is the behaviour before this
- * class existed. The coupling is to the builder's own layout — which lives in
+ * <b>Fails closed, and the one outcome that would not be is refused
+ * explicitly.</b> Anything not recognised is returned untouched, so the worst
+ * outcome for a text this cannot read is the behaviour before this class
+ * existed. That is <em>not</em> true of a <b>partial</b> reading — one that
+ * ends the block above somebody else's answer links and hands those back as
+ * the organiser's text — which is strictly worse than both outcomes: the
+ * tokens are re-emitted <em>and</em> the attribution that said whose they were
+ * is deleted, so no reader can tell. {@link #stripFrom} therefore asserts on
+ * its result that this cannot happen, and returns the text as given when it
+ * would. The coupling is to the builder's own layout — which lives in
  * the same package and is pinned twice, because one pin cannot see the whole
  * of it: {@code InvitationTextTest.renderingWhatTheBuilderRenderedIsTheSameCopy}
  * renders <b>outside a container</b>, where every label degrades to its bundle
@@ -176,18 +201,32 @@ import org.apache.commons.lang3.StringUtils;
 public final class InvitationText {
 
   /**
-   * How long a label may be, which is what tells one from a sentence.
+   * How long a label may be, which is one half of what tells one from a
+   * sentence.
    *
    * <p>
-   * Measured, not guessed: across the 315 bundles under
-   * <code>agenda-webapps/.../locale/portlet</code>, the longest value any of
-   * the nine labels this layout uses is ever given is <b>30</b> characters — an
-   * untranslated Crowdin placeholder in <code>Agenda_sq.properties</code> —
-   * and the longest real translation is 24 (<code>Détails de l'événement
-   * :</code>, French). The keys themselves, which {@link EventIcsBuilder}
-   * writes when no bundle can be read, are 16 to 20. Forty leaves a third
-   * again of room for a translation nobody has written yet and still refuses a
-   * sentence, which is the point: a label is short, and prose is not.
+   * Measured, not guessed, and stated for the labels this bound is actually
+   * asked about — the two the patterns read a label at:
+   * {@code agenda.eventLink} on the link line and {@code agenda.eventDetail}
+   * on the line that closes the block. Across the 40 {@code Agenda_*}
+   * bundles under <code>agenda-webapps/.../locale/portlet</code>, the longest
+   * value either is ever given is <b>30</b> characters — an untranslated
+   * Crowdin placeholder in <code>Agenda_sq.properties</code> — and the longest
+   * real translation is 24 (<code>Détails de l'événement :</code>, French,
+   * {@code agenda.eventDetail}; {@code agenda.eventLink} is English-only and
+   * 11). The keys themselves, which {@link EventIcsBuilder} writes when no
+   * bundle can be read, are 16 and 18. Forty leaves a third again of room for a
+   * translation nobody has written yet and still refuses a sentence, which is
+   * the point: a label is short, and prose is not.
+   *
+   * <p>
+   * For the whole layout — all nine of its labels, including the answer labels
+   * this bound is deliberately <em>not</em> applied to (see
+   * {@link #ANSWER_LINK}) — the figures are 30 for the placeholder and <b>28</b>
+   * for the longest real translation (<code>Lien de la visioconférence :</code>,
+   * French {@code agenda.visioLink}), with the keys 14 to 21. Named here
+   * because a reader widening the bound will reach for the layout's numbers,
+   * not this bound's.
    */
   private static final int     LABEL_MAX_LENGTH  = 40;
 
@@ -202,7 +241,7 @@ public final class InvitationText {
    * At most a server's bracketed repetition of the link just matched, which
    * BlueMind appends to every URI in a description, and then the end of the
    * line: nothing else may follow, which is what keeps a link a person wrote
-   * words after out of every pattern below.
+   * words after out of the pattern below.
    */
   private static final String  AND_NOTHING_ELSE  = "(?:\\s+<\\1>)?\\s*$";
 
@@ -224,14 +263,26 @@ public final class InvitationText {
                                                     + AND_NOTHING_ELSE, Pattern.CASE_INSENSITIVE);
 
   /**
-   * One offered answer: a label and a tokenised answer link, as
-   * {@link NotificationUtils#getResponseURL} mints it, under the same bound on
-   * the label.
+   * A tokenised answer link, as {@link NotificationUtils#getResponseURL} mints
+   * it, <b>anywhere on a line</b> — our own REST route, carrying a token that
+   * authenticates as the person it was minted for.
+   *
+   * <p>
+   * <b>Nothing else is asked of the line, on purpose, and that is a
+   * correction.</b> Requiring a short label in front and nothing behind — as
+   * the answer lines were read until EXO-90228 — bought no discrimination this
+   * link does not already carry by itself (an organiser does not hand-type a
+   * minted token), and it cost recall in the one direction that matters: a
+   * locale whose answer label ran past {@link #LABEL_MAX_LENGTH}, or a server
+   * that rewrote the bracketed repetition, left the answer lines unread, ended
+   * the block one line too high, and handed those tokens back as the
+   * organiser's text. Read loosely, they are consumed whatever a bundle or a
+   * server does to them; and the same pattern, applied to the whole of what is
+   * about to be returned, is the invariant in {@link #stripFrom}.
    */
-  private static final Pattern ANSWER_LINK_LINE  =
-                                                 Pattern.compile(LABEL_THEN
-                                                     + "((?:https?://)?[^\\s<>\"']+/portal/rest/v1/agenda/events/\\d+/response/send\\?[^\\s<>\"']*)"
-                                                     + AND_NOTHING_ELSE, Pattern.CASE_INSENSITIVE);
+  private static final Pattern ANSWER_LINK       =
+                                                Pattern.compile("/portal/rest/v1/agenda/events/\\d+/response/send\\?",
+                                                                Pattern.CASE_INSENSITIVE);
 
   /**
    * A bundle key of this addon's own namespace, which is what
@@ -277,20 +328,46 @@ public final class InvitationText {
    * stacked several blocks before this existed — the rig held three — renders
    * with the organiser's text alone, not with one block fewer.
    *
+   * <p>
+   * <b>The one thing this promises, whatever the joints did.</b> Either the
+   * text is returned as given, or what is returned carries <b>no answer
+   * link</b> — never a reading that took a block off and kept somebody else's
+   * tokens under the organiser's name. The joints are meant to make that
+   * unreachable; this makes it so. Two ways in were known when it was written
+   * (an answer label longer than a label, a server rewriting the bracketed
+   * repetition), both closed at {@link #ANSWER_LINK} as well, and one was
+   * found while writing this guard (a blank line inserted between the prompt
+   * and the answers) — which is the argument for asserting the outcome instead
+   * of trusting the enumeration.
+   *
+   * <p>
+   * Refusing is the milder failure and not a free one: the text keeps its old
+   * block, so this event's copies stack one more, exactly as they did before
+   * this class existed. That is the price of not laundering one person's
+   * authentication token into another person's mail
+   * ({@code AgendaEventRest} honours it with no session at all), and it is not
+   * close.
+   *
    * @param text the description as plain text, null and blank tolerated
    * @return what remains once every leading block is taken off; an empty
    *         string when the block was all there was; the input itself when no
-   *         block is recognised
+   *         block is recognised, or when the reading would have kept an answer
+   *         link
    */
   public static String stripFrom(String text) {
     if (StringUtils.isBlank(text)) {
       return text;
     }
     String remaining = text;
+    boolean strippedABlock = false;
     String stripped = stripOnce(remaining);
     while (stripped != null) {
       remaining = stripped;
+      strippedABlock = true;
       stripped = stripOnce(remaining);
+    }
+    if (strippedABlock && ANSWER_LINK.matcher(remaining).find()) {
+      return text;
     }
     return remaining;
   }
@@ -321,9 +398,11 @@ public final class InvitationText {
     }
     // The line under which the builder puts the organiser's own text is a
     // label, written only when there is text to introduce - so the block ends
-    // in one of two ways, and no third: either nothing follows the links at
-    // all (above), or what follows is that label. A line here that is not one
-    // is a line this class did not write, and the whole text is left alone.
+    // one of two ways: either nothing follows the links at all (above), or what
+    // follows is that label. A line here that is not one is a line this class
+    // did not write, and the whole text is left alone. This is a claim about
+    // the layout, not a proof about the text - which is why stripFrom checks
+    // what this returns rather than relying on the claim (EXO-90228).
     if (!looksLikeALabel(lines.get(next))) {
       return null;
     }
@@ -381,10 +460,17 @@ public final class InvitationText {
    * Skips the block of answer links, when there is one.
    *
    * <p>
-   * The block is a prompt line followed by one to three lines each offering an
-   * answer; it is consumed only when at least one answer line follows the
+   * The block is a prompt line followed by one to three lines each carrying an
+   * answer link; it is consumed only when at least one such line follows the
    * prompt, so a lone line after the link — the label over the organiser's
    * text — is never taken for a prompt.
+   *
+   * <p>
+   * The lines are read <b>immediately</b> under the prompt, blank lines
+   * included in nothing: the builder writes one newline apiece, so a blank line
+   * there is not the layout. It is also not fatal — the answer links then stay
+   * below where the block would end, and {@link #stripFrom}'s invariant refuses
+   * the whole reading rather than returning them.
    *
    * @param lines the text
    * @param from the first non-blank line after the event link line
@@ -394,7 +480,7 @@ public final class InvitationText {
   private static int pastAnswerBlock(List<String> lines, int from) {
     int answers = 0;
     int i = from + 1;
-    while (i < lines.size() && answers < ANSWERS_OFFERED && ANSWER_LINK_LINE.matcher(lines.get(i)).matches()) {
+    while (i < lines.size() && answers < ANSWERS_OFFERED && ANSWER_LINK.matcher(lines.get(i)).find()) {
       answers++;
       i++;
     }

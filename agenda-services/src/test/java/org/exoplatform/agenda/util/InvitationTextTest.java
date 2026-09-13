@@ -58,6 +58,14 @@ public class InvitationTextTest {
   /** And for the other. */
   private static final String ANSWER_88 = "http://localhost:8080/portal/rest/v1/agenda/events/88/response/send?response=%s&token=alice&redirect=true";
 
+  /**
+   * An answer label of 52 characters — past the 40 a label may be, which the
+   * three shipped answer labels are nowhere near (30 at the longest, an
+   * untranslated Crowdin placeholder). One translation of
+   * {@code agenda.accepted} in this shape is all it would take.
+   */
+  private static final String LONG_ANSWER_LABEL = "Klikoni ketu per te pranuar kete ftese takimi xxxxx:";
+
   /** What the organiser typed, as the copy carries it. */
   private static final String DETAIL_AS_TEXT = "Bring cake.\nAnd plates.";
 
@@ -222,6 +230,76 @@ public class InvitationTextTest {
     String text = "Hello.\n\nThe minutes of the meeting we had in March are attached to " + LINK_87 + "\n\nEvent details:\nCake";
 
     assertSame(text, InvitationText.stripFrom(text));
+  }
+
+  /**
+   * <b>An answer label longer than a label does not strand the answer links.</b>
+   * The answer lines are read by the tokenised link they carry and by nothing
+   * else, so no bound on a label can leave them below the point the block ends
+   * at. Until EXO-90228 they were read under the same 40-character bound as the
+   * event link's label, and this very input came back as <em>the answer link
+   * itself</em>, presented as the organiser's text: the tokens re-emitted and
+   * the prompt that said whose they were deleted. No shipped bundle reaches 40
+   * today — the longest of the three answer labels across the 40
+   * {@code Agenda_*} bundles is 30 — so this pin is about the Crowdin round
+   * after next, which is where the blank-label guard came from too.
+   */
+  @Test
+  public void anAnswerLabelLongerThanALabelStillLetsTheAnswerBlockBeConsumed() {
+    String copy = "Invitation sent by alice2.\n\nEvent link: " + LINK_87 + "\n\nAnswer this invitation:\n" + LONG_ANSWER_LABEL
+        + " " + ANSWER_87.formatted("ACCEPTED") + "\n\nEvent details:\nBring cake.";
+
+    assertEquals("Bring cake.", InvitationText.stripFrom(copy));
+  }
+
+  /**
+   * <b>Nor does a server rewriting the bracketed repetition of an answer
+   * link.</b> BlueMind repeats every URI of a description in angle brackets;
+   * the event link line requires that repetition to be the same link, and an
+   * answer line — since EXO-90228 — requires nothing after the link at all. A
+   * server that puts something else there therefore no longer ends the block
+   * above the answers.
+   */
+  @Test
+  public void aServerRewritingTheBracketedRepetitionOfAnAnswerLinkDoesNotStrandIt() {
+    String copy = "Invitation sent by alice2.\n\nEvent link: " + LINK_87 + "\n\nAnswer this invitation:\nAccepted "
+        + ANSWER_87.formatted("ACCEPTED") + " <" + LINK_88 + ">\n\nEvent details:\nBring cake.";
+
+    assertEquals("Bring cake.", InvitationText.stripFrom(copy));
+  }
+
+  /**
+   * <b>The invariant, asserted on the result rather than inferred from the
+   * joints:</b> for any text at all, either it comes back as the very instance
+   * given, or what comes back carries no answer link. A reading that takes a
+   * block off and keeps somebody else's tokens under the organiser's name is
+   * the one outcome worse than doing nothing — the tokens are re-emitted
+   * <em>and</em> the attribution that said whose they were is gone — and
+   * {@code AgendaEventRest} honours such a token as an identity with no session.
+   *
+   * <p>
+   * The four inputs are the four ways found into that reading: an answer label
+   * past the bound, a rewritten bracketed repetition, a blank line where the
+   * builder wrote none, and more answer lines than the layout offers. The first
+   * two are consumed correctly (the pins above); the last two are refused, and
+   * that refusal is what this pin protects — remove the check in
+   * {@code stripFrom} and they leak.
+   */
+  @Test
+  public void noPartialStripEverKeepsSomebodyElsesAnswerToken() {
+    String accepted = ANSWER_87.formatted("ACCEPTED");
+    String head = "Invitation sent by alice2.\n\nEvent link: " + LINK_87 + "\n\nAnswer this invitation:";
+    String[] texts = { head + "\n" + LONG_ANSWER_LABEL + " " + accepted + "\n\nEvent details:\nBring cake.",
+        head + "\nAccepted " + accepted + " <" + LINK_88 + ">\n\nEvent details:\nBring cake.",
+        head + "\n\nAccepted " + accepted + "\n\nEvent details:\nBring cake.",
+        head + "\nAccepted " + accepted + "\nMaybe " + ANSWER_87.formatted("TENTATIVE") + "\nDeclined "
+            + ANSWER_87.formatted("DECLINED") + "\nAlso " + accepted + "\n\nEvent details:\nBring cake." };
+    for (String text : texts) {
+      String stripped = InvitationText.stripFrom(text);
+      if (stripped != text) {
+        assertFalse("a reading that kept an answer token: " + stripped, stripped.contains("/response/send?"));
+      }
+    }
   }
 
   /**
