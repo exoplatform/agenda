@@ -221,6 +221,44 @@ public class InvitationTextTest {
   }
 
   /**
+   * <b>A word in front of a link is not a label in front of a link.</b> How a
+   * person introduces a link they are pasting — {@code see}, {@code Here},
+   * {@code Agenda item 3} — is short enough to be a label and is not one: a
+   * label ends in a colon, or is a bundle key of ours. Without this joint the
+   * first of these came back as {@code Bring the deck.} — the greeting, the
+   * link and the line over the text all deleted, on the render path, before
+   * anything was stored (EXO-90228, measured against the merged build of
+   * EXO-90227).
+   */
+  @Test
+  public void aLinkAfterAWordThatIsNotALabelIsNotTheBuildersLine() {
+    String[] typed = { "Hi all,\nsee " + LINK_87 + "\nNotes:\nBring the deck.",
+        "Kickoff.\nHere " + LINK_87 + "\nAgenda:\nBudget, then hiring.",
+        "Quarterly review.\nAgenda item 3 " + LINK_87 + "\nNotes:\nRoom 4." };
+    for (String text : typed) {
+      assertSame("must be returned as given: " + text, text, InvitationText.stripFrom(text));
+    }
+  }
+
+  /**
+   * <b>The residual false positive, pinned so that it is visible rather than
+   * discovered.</b> A person writing a one-line opener, then a label ending in
+   * a colon with an eXo event link alone after it, then another such label, then
+   * their text, still loses everything down to that label. This is not a case
+   * the narrowing missed: it is character for character the shape the builder
+   * writes, and what tells {@code Agenda:} from {@code Event link:} is the words
+   * of a bundle {@code agenda-services} cannot read. Closing it needs a signal
+   * the builder is not given — whether the description came in through an
+   * import — which is a change to what its callers pass and a decision for the
+   * Architect (EXO-90228). Should that land, this pin is the one to delete.
+   */
+  @Test
+  public void theResidualFalsePositiveTheNarrowingDoesNotClose() {
+    assertEquals("bring the deck.\nRoom 4.",
+                 InvitationText.stripFrom("Weekly sync.\nAgenda: " + LINK_87 + "\nNotes:\nbring the deck.\nRoom 4."));
+  }
+
+  /**
    * <b>A sentence that happens to end in an event link is not a label and a
    * link.</b> The label may be no longer than a label ever is; past that the
    * line is prose, whatever it ends with.
@@ -475,9 +513,24 @@ public class InvitationTextTest {
   }
 
   /**
-   * The labels of the layout as {@code Agenda_en.properties} ships them —
-   * copied from it, so a label reshaped there and not here shows up as a
-   * failure of the pins that read this rather than as silence.
+   * The labels of the layout as {@code Agenda_en.properties} ships them, copied
+   * from it by hand and matching it value for value when this was written.
+   *
+   * <p>
+   * <b>Nothing keeps the copy honest, and that is worth saying plainly here
+   * rather than discovering it.</b> The bundle lives in {@code agenda-webapps},
+   * which is not on this module's test classpath and cannot be put on it — the
+   * dependency runs the other way — so no test in this repository reads the
+   * shipped file. A label reshaped there and not here leaves every pin below
+   * <b>green</b>: they would go on asserting that the recogniser reads the
+   * layout these nine strings make, which would no longer be the layout eXo
+   * writes. What this fixture does cover is the other direction, and it is not
+   * nothing: it is the only pin that renders the block with <em>real</em> label
+   * values rather than bundle keys, so a drift in the recogniser that only
+   * shows against a translated label fails here (demonstrated on EXO-90227
+   * round 2, mutant 3). The reshape-in-Crowdin case is covered by no test at
+   * all, and the false-negative ledger in {@link InvitationText} is where it is
+   * recorded instead.
    *
    * @return the nine labels the description is composed of, keyed as the
    *         builder asks for them
