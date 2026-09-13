@@ -452,8 +452,9 @@ export default {
     /**
      * What to say about who shared a calendar: "Shared by <owner>" when the
      * connector named the owner — the eXo full name of a colleague, or the
-     * server's display name of a stranger — and "Shared with you" when it
-     * could not, which BlueMind's shares between non-eXo accounts cannot.
+     * server's display name of a stranger — and "Shared with you" when the
+     * connector names no owner at all. Which servers can name one is the
+     * connector's business, not this panel's.
      *
      * @param {Object} calendar calendar as the connector described it
      * @returns {String} the sentence, in the user's language
