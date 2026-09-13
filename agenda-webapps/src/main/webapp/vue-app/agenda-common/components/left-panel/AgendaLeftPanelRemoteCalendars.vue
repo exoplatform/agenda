@@ -77,10 +77,17 @@
               The icon alone would not be announced: Vuetify hides a v-icon
               that has no click listener from assistive technology, so the
               wrapper is what carries the role and the label.
+
+              Centred in the action slot so that it lines up with the section
+              headers' icons: Vuetify gives the slot a 24px minimum width and
+              lays its content out from the start, while a header icon is a
+              14px glyph centred in a 24px button — left as it was, the lock
+              ended five pixels short of the column the plug, plus and filter
+              icons share. Same slot the personal rows use for their menu.
             -->
             <v-list-item-action
               v-if="calendar.readOnly === true"
-              class="my-0 ms-2 flex-grow-0">
+              class="my-0 ms-2 flex-grow-0 justify-center">
               <span
                 :title="$t('agenda.leftPanel.readOnlyCalendar')"
                 :aria-label="$t('agenda.leftPanel.readOnlyCalendar')"
