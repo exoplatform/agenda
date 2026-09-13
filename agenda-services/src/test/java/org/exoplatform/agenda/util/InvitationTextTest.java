@@ -58,6 +58,14 @@ public class InvitationTextTest {
   /** And for the other. */
   private static final String ANSWER_88 = "http://localhost:8080/portal/rest/v1/agenda/events/88/response/send?response=%s&token=alice&redirect=true";
 
+  /**
+   * An answer label of 52 characters — past the 40 a label may be, which the
+   * three shipped answer labels are nowhere near (30 at the longest, an
+   * untranslated Crowdin placeholder). One translation of
+   * {@code agenda.accepted} in this shape is all it would take.
+   */
+  private static final String LONG_ANSWER_LABEL = "Klikoni ketu per te pranuar kete ftese takimi xxxxx:";
+
   /** What the organiser typed, as the copy carries it. */
   private static final String DETAIL_AS_TEXT = "Bring cake.\nAnd plates.";
 
@@ -213,6 +221,44 @@ public class InvitationTextTest {
   }
 
   /**
+   * <b>A word in front of a link is not a label in front of a link.</b> How a
+   * person introduces a link they are pasting — {@code see}, {@code Here},
+   * {@code Agenda item 3} — is short enough to be a label and is not one: a
+   * label ends in a colon, or is a bundle key of ours. Without this joint the
+   * first of these came back as {@code Bring the deck.} — the greeting, the
+   * link and the line over the text all deleted, on the render path, before
+   * anything was stored (EXO-90228, measured against the merged build of
+   * EXO-90227).
+   */
+  @Test
+  public void aLinkAfterAWordThatIsNotALabelIsNotTheBuildersLine() {
+    String[] typed = { "Hi all,\nsee " + LINK_87 + "\nNotes:\nBring the deck.",
+        "Kickoff.\nHere " + LINK_87 + "\nAgenda:\nBudget, then hiring.",
+        "Quarterly review.\nAgenda item 3 " + LINK_87 + "\nNotes:\nRoom 4." };
+    for (String text : typed) {
+      assertSame("must be returned as given: " + text, text, InvitationText.stripFrom(text));
+    }
+  }
+
+  /**
+   * <b>The residual false positive, pinned so that it is visible rather than
+   * discovered.</b> A person writing a one-line opener, then a label ending in
+   * a colon with an eXo event link alone after it, then another such label, then
+   * their text, still loses everything down to that label. This is not a case
+   * the narrowing missed: it is character for character the shape the builder
+   * writes, and what tells {@code Agenda:} from {@code Event link:} is the words
+   * of a bundle {@code agenda-services} cannot read. Closing it needs a signal
+   * the builder is not given — whether the description came in through an
+   * import — which is a change to what its callers pass and a decision for the
+   * Architect (EXO-90228). Should that land, this pin is the one to delete.
+   */
+  @Test
+  public void theResidualFalsePositiveTheNarrowingDoesNotClose() {
+    assertEquals("bring the deck.\nRoom 4.",
+                 InvitationText.stripFrom("Weekly sync.\nAgenda: " + LINK_87 + "\nNotes:\nbring the deck.\nRoom 4."));
+  }
+
+  /**
    * <b>A sentence that happens to end in an event link is not a label and a
    * link.</b> The label may be no longer than a label ever is; past that the
    * line is prose, whatever it ends with.
@@ -222,6 +268,76 @@ public class InvitationTextTest {
     String text = "Hello.\n\nThe minutes of the meeting we had in March are attached to " + LINK_87 + "\n\nEvent details:\nCake";
 
     assertSame(text, InvitationText.stripFrom(text));
+  }
+
+  /**
+   * <b>An answer label longer than a label does not strand the answer links.</b>
+   * The answer lines are read by the tokenised link they carry and by nothing
+   * else, so no bound on a label can leave them below the point the block ends
+   * at. Until EXO-90228 they were read under the same 40-character bound as the
+   * event link's label, and this very input came back as <em>the answer link
+   * itself</em>, presented as the organiser's text: the tokens re-emitted and
+   * the prompt that said whose they were deleted. No shipped bundle reaches 40
+   * today — the longest of the three answer labels across the 40
+   * {@code Agenda_*} bundles is 30 — so this pin is about the Crowdin round
+   * after next, which is where the blank-label guard came from too.
+   */
+  @Test
+  public void anAnswerLabelLongerThanALabelStillLetsTheAnswerBlockBeConsumed() {
+    String copy = "Invitation sent by alice2.\n\nEvent link: " + LINK_87 + "\n\nAnswer this invitation:\n" + LONG_ANSWER_LABEL
+        + " " + ANSWER_87.formatted("ACCEPTED") + "\n\nEvent details:\nBring cake.";
+
+    assertEquals("Bring cake.", InvitationText.stripFrom(copy));
+  }
+
+  /**
+   * <b>Nor does a server rewriting the bracketed repetition of an answer
+   * link.</b> BlueMind repeats every URI of a description in angle brackets;
+   * the event link line requires that repetition to be the same link, and an
+   * answer line — since EXO-90228 — requires nothing after the link at all. A
+   * server that puts something else there therefore no longer ends the block
+   * above the answers.
+   */
+  @Test
+  public void aServerRewritingTheBracketedRepetitionOfAnAnswerLinkDoesNotStrandIt() {
+    String copy = "Invitation sent by alice2.\n\nEvent link: " + LINK_87 + "\n\nAnswer this invitation:\nAccepted "
+        + ANSWER_87.formatted("ACCEPTED") + " <" + LINK_88 + ">\n\nEvent details:\nBring cake.";
+
+    assertEquals("Bring cake.", InvitationText.stripFrom(copy));
+  }
+
+  /**
+   * <b>The invariant, asserted on the result rather than inferred from the
+   * joints:</b> for any text at all, either it comes back as the very instance
+   * given, or what comes back carries no answer link. A reading that takes a
+   * block off and keeps somebody else's tokens under the organiser's name is
+   * the one outcome worse than doing nothing — the tokens are re-emitted
+   * <em>and</em> the attribution that said whose they were is gone — and
+   * {@code AgendaEventRest} honours such a token as an identity with no session.
+   *
+   * <p>
+   * The four inputs are the four ways found into that reading: an answer label
+   * past the bound, a rewritten bracketed repetition, a blank line where the
+   * builder wrote none, and more answer lines than the layout offers. The first
+   * two are consumed correctly (the pins above); the last two are refused, and
+   * that refusal is what this pin protects — remove the check in
+   * {@code stripFrom} and they leak.
+   */
+  @Test
+  public void noPartialStripEverKeepsSomebodyElsesAnswerToken() {
+    String accepted = ANSWER_87.formatted("ACCEPTED");
+    String head = "Invitation sent by alice2.\n\nEvent link: " + LINK_87 + "\n\nAnswer this invitation:";
+    String[] texts = { head + "\n" + LONG_ANSWER_LABEL + " " + accepted + "\n\nEvent details:\nBring cake.",
+        head + "\nAccepted " + accepted + " <" + LINK_88 + ">\n\nEvent details:\nBring cake.",
+        head + "\n\nAccepted " + accepted + "\n\nEvent details:\nBring cake.",
+        head + "\nAccepted " + accepted + "\nMaybe " + ANSWER_87.formatted("TENTATIVE") + "\nDeclined "
+            + ANSWER_87.formatted("DECLINED") + "\nAlso " + accepted + "\n\nEvent details:\nBring cake." };
+    for (String text : texts) {
+      String stripped = InvitationText.stripFrom(text);
+      if (stripped != text) {
+        assertFalse("a reading that kept an answer token: " + stripped, stripped.contains("/response/send?"));
+      }
+    }
   }
 
   /**
@@ -397,9 +513,24 @@ public class InvitationTextTest {
   }
 
   /**
-   * The labels of the layout as {@code Agenda_en.properties} ships them —
-   * copied from it, so a label reshaped there and not here shows up as a
-   * failure of the pins that read this rather than as silence.
+   * The labels of the layout as {@code Agenda_en.properties} ships them, copied
+   * from it by hand and matching it value for value when this was written.
+   *
+   * <p>
+   * <b>Nothing keeps the copy honest, and that is worth saying plainly here
+   * rather than discovering it.</b> The bundle lives in {@code agenda-webapps},
+   * which is not on this module's test classpath and cannot be put on it — the
+   * dependency runs the other way — so no test in this repository reads the
+   * shipped file. A label reshaped there and not here leaves every pin below
+   * <b>green</b>: they would go on asserting that the recogniser reads the
+   * layout these nine strings make, which would no longer be the layout eXo
+   * writes. What this fixture does cover is the other direction, and it is not
+   * nothing: it is the only pin that renders the block with <em>real</em> label
+   * values rather than bundle keys, so a drift in the recogniser that only
+   * shows against a translated label fails here (demonstrated on EXO-90227
+   * round 2, mutant 3). The reshape-in-Crowdin case is covered by no test at
+   * all, and the false-negative ledger in {@link InvitationText} is where it is
+   * recorded instead.
    *
    * @return the nine labels the description is composed of, keyed as the
    *         builder asks for them
