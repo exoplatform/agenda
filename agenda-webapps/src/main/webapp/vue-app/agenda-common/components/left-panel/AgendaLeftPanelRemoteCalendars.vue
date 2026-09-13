@@ -62,6 +62,42 @@
                 hide-details
                 @change="toggle(calendar)" />
             </v-list-item-content>
+            <!--
+              A calendar the account may only read — one its owner shared with
+              the user, typically — says so, because it sits next to calendars
+              the user owns and looks exactly like them. The rows here carry
+              no edit or delete action for any calendar, so read-only is not a
+              menu with fewer entries but a marker, static and always visible.
+              The flag is the connector's word, `readOnly` on the calendar it
+              listed, whichever provider listed it: CalDAV derives it from the
+              collection's privileges, Google from the calendar's access role
+              (reader and freeBusyReader only — writer and owner can write).
+              A connector that lists no such flag draws no marker.
+
+              The icon alone would not be announced: Vuetify hides a v-icon
+              that has no click listener from assistive technology, so the
+              wrapper is what carries the role and the label.
+
+              Centred in the action slot so that it lines up with the section
+              headers' icons: Vuetify gives the slot a 24px minimum width and
+              lays its content out from the start, while a header icon is a
+              14px glyph centred in a 24px button — left as it was, the lock
+              ended five pixels short of the column the plug, plus and filter
+              icons share. Same slot the personal rows use for their menu.
+            -->
+            <v-list-item-action
+              v-if="calendar.readOnly === true"
+              class="my-0 ms-2 flex-grow-0 justify-center">
+              <span
+                :title="$t('agenda.leftPanel.readOnlyCalendar')"
+                :aria-label="$t('agenda.leftPanel.readOnlyCalendar')"
+                role="img"
+                class="d-flex">
+                <v-icon size="14" class="text-light-color">
+                  fas fa-lock
+                </v-icon>
+              </span>
+            </v-list-item-action>
           </v-list-item>
         </v-list>
       </div>
@@ -85,18 +121,29 @@ export default {
   }),
   computed: {
     /**
-     * The connectors that get a section: connected, able to list calendars,
-     * and not CalDAV.
+     * The connectors that get a section: connected and able to list calendars,
+     * CalDAV included.
      *
-     * CalDAV is excluded by identity, not by capability: its collections are
-     * materialised as the user's own personal calendars, so they already
-     * appear under My Calendars and a section of their own would show every
-     * calendar twice. The `isCaldav` constant on the descriptor is what says
-     * so; a descriptor shipped before the constant existed counts as remote —
-     * the defensive reading, matching the settings panel's split. Capability
-     * flags were rejected on purpose: `canPush` is dynamic on Google (a
-     * section would vanish mid-session when the user grants the write scope)
-     * and `canListCalendars` is what CalDAV declares too.
+     * CalDAV used to be excluded here by identity, on the assumption that
+     * every one of its collections is materialised as one of the user's own
+     * personal calendars and so already sits under My Calendars — a section
+     * of its own would have shown each calendar twice. That assumption broke
+     * the day a calendar shared with the user stayed unmaterialised: its
+     * events were drawn on the grid as remote events, and no calendar
+     * anywhere named them, coloured them or let the user hide them. Once
+     * EXO-90235 lands, a shared calendar stays unmaterialised for good and is
+     * served read-only, so the exclusion would have hidden it for good.
+     *
+     * What keeps a materialised calendar from appearing twice is the
+     * connector, not this panel. Its listing serves only the collections eXo
+     * holds no calendar for — the materialised ones, the mirror and the ones
+     * an eXo created are left out on the server — so a CalDAV section lists
+     * exactly what is read live and read-only, and a user whose collections
+     * are all materialised gets no CalDAV section at all. `canListCalendars`
+     * is what chooses, and only Google and CalDAV declare it — Office 365 and
+     * Exchange predate the contract and are never asked. `canPush` is
+     * deliberately not consulted: it is dynamic on Google, and a section must
+     * not vanish mid-session when the user grants the write scope.
      *
      * `connected` is the runtime state and is what decides. `isSignedIn` is a
      * static property on the CalDAV descriptor, always true whether or not an
@@ -109,7 +156,6 @@ export default {
      */
     connectedConnectors() {
       return (this.connectors || []).filter(connector => connector
-          && connector.isCaldav !== true
           && connector.canListCalendars
           && connector.connected
           && typeof connector.listCalendars === 'function');
