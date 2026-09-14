@@ -31,10 +31,12 @@
       right
       @closed="forget">
       <template slot="title">
-        {{ $t('agenda.calendarPublish.title', {0: calendarName}) }}
+        {{ $t('agenda.calendarPublish.title') }}
       </template>
       <template slot="content">
         <div v-if="calendar" class="pa-4">
+          <!-- The title is the bare verb, so the calendar being published is named here. -->
+          <p class="font-weight-bold mb-2 agenda-calendar-link-name">{{ calendarName }}</p>
           <p class="text-light-color">{{ $t('agenda.calendarPublish.explanation') }}</p>
           <div
             v-if="state === 'loading'"

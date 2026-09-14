@@ -130,7 +130,9 @@ describe('Calendar link drawer', () => {
     await flush();
 
     expect(drawerStub.methods.open).toHaveBeenCalled();
-    expect(wrapper.find('.drawer-stub').text()).toContain('agenda.calendarPublish.title(Work)');
+    expect(wrapper.find('.drawer-stub').text()).toContain('agenda.calendarPublish.title');
+    expect(wrapper.find('.drawer-stub').text()).not.toContain('agenda.calendarPublish.title(');
+    expect(wrapper.find('.agenda-calendar-link-name').text()).toBe('Work');
     expect(service.getCalendarLink).toHaveBeenCalledWith(10);
     expect(wrapper.find('.agenda-calendar-link-none').exists()).toBe(true);
     expect(wrapper.find('.agenda-calendar-link-save').text()).toBe('agenda.calendarPublish.create');
