@@ -91,6 +91,12 @@ public class CalendarFeedFetcher {
   /** The ports a link may reach unless the deployment says otherwise. */
   public static final String    DEFAULT_PORTS         = "80,443,8080,8443";
 
+  /** Longest entity tag kept: the width of {@code EXO_AGENDA_SUBSCRIPTION.ETAG}. */
+  static final int              MAX_ETAG              = 512;
+
+  /** Longest Last-Modified kept: the width of {@code EXO_AGENDA_SUBSCRIPTION.LAST_MODIFIED}. */
+  static final int              MAX_LAST_MODIFIED     = 128;
+
   private static final String   USER_AGENT            = "eXo-Agenda-Calendar-Subscription/1.0";
 
   private static final String   ACCEPT                = "text/calendar, text/plain;q=0.5, */*;q=0.1";
@@ -305,11 +311,14 @@ public class CalendarFeedFetcher {
   private Answer handle(ClassicHttpResponse response, long deadline) throws IOException {
     int status = response.getCode();
     if (status == 304) {
-      return new Answer(new FeedResponse(true, null, header(response, HttpHeaders.ETAG), header(response, HttpHeaders.LAST_MODIFIED)),
+      return new Answer(new FeedResponse(true,
+                                         null,
+                                         header(response, HttpHeaders.ETAG, MAX_ETAG),
+                                         header(response, HttpHeaders.LAST_MODIFIED, MAX_LAST_MODIFIED)),
                         null);
     }
     if (status == 301 || status == 302 || status == 303 || status == 307 || status == 308) {
-      String location = header(response, HttpHeaders.LOCATION);
+      String location = header(response, HttpHeaders.LOCATION, Integer.MAX_VALUE);
       if (StringUtils.isBlank(location)) {
         throw new FeedIOException(CalendarFeedException.HTTP_ERROR);
       }
@@ -343,8 +352,8 @@ public class CalendarFeedFetcher {
     }
     return new Answer(new FeedResponse(false,
                                        body.toByteArray(),
-                                       header(response, HttpHeaders.ETAG),
-                                       header(response, HttpHeaders.LAST_MODIFIED)),
+                                       header(response, HttpHeaders.ETAG, MAX_ETAG),
+                                       header(response, HttpHeaders.LAST_MODIFIED, MAX_LAST_MODIFIED)),
                       null);
   }
 
@@ -391,15 +400,21 @@ public class CalendarFeedFetcher {
   }
 
   /**
-   * The value of a header, null when absent or blank.
+   * The value of a validator header, null when absent, blank, or longer than the
+   * column that stores it: a validator cut short would never match again, and a
+   * value over the column would make recording the refresh fail.
    *
    * @param response the answer
    * @param name the header name
+   * @param maxLength the longest value kept
    * @return the value
    */
-  private static String header(ClassicHttpResponse response, String name) {
+  private static String header(ClassicHttpResponse response, String name, int maxLength) {
     Header header = response.getFirstHeader(name);
-    return header == null || StringUtils.isBlank(header.getValue()) ? null : StringUtils.left(header.getValue(), 512);
+    if (header == null || StringUtils.isBlank(header.getValue()) || header.getValue().length() > maxLength) {
+      return null;
+    }
+    return header.getValue();
   }
 
   /**

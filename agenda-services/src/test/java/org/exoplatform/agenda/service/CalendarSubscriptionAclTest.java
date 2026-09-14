@@ -233,6 +233,42 @@ class CalendarSubscriptionAclTest {
   }
 
   /**
+   * A subscribed calendar's name takes no part in the uniqueness of the owner's
+   * calendar names: it may repeat a personal calendar's name, where an ordinary
+   * calendar may not.
+   *
+   * @throws Exception never
+   */
+  @Test
+  void aSubscribedCalendarNameTakesNoPartInNameUniqueness() throws Exception {
+    AgendaCalendarServiceImpl service = calendarServiceImpl();
+    when(calendarStorage.getCalendarIdsByOwnerIds(0, Integer.MAX_VALUE, JOHN)).thenReturn(List.of(5L));
+    Calendar personal = new Calendar();
+    personal.setId(5);
+    personal.setOwnerId(JOHN);
+    personal.setName("Holidays");
+    when(calendarStorage.getCalendarById(5)).thenReturn(personal);
+    when(calendarStorage.createCalendar(any())).thenAnswer(invocation -> {
+      Calendar created = invocation.getArgument(0);
+      created.setId(CALENDAR);
+      return created;
+    });
+
+    Calendar ordinary = new Calendar();
+    ordinary.setOwnerId(JOHN);
+    ordinary.setName("Holidays");
+    assertThrows(IllegalArgumentException.class, () -> service.createCalendar(ordinary, "john"), "control: an ordinary calendar may not");
+
+    subscribed = true;
+    Calendar subscription = new Calendar();
+    subscription.setOwnerId(JOHN);
+    subscription.setName("Holidays");
+    subscription.setSubscription(true);
+    service.createCalendar(subscription, "john");
+    verify(calendarStorage).createCalendar(any());
+  }
+
+  /**
    * A subscribed calendar cannot be published; the same calendar unflagged can.
    *
    * @throws Exception never

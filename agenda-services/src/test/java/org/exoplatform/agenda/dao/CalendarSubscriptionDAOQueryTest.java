@@ -231,6 +231,27 @@ class CalendarSubscriptionDAOQueryTest {
   }
 
   /**
+   * The engine refuses a Last-Modified wider than its column, which is why the
+   * fetcher keeps none longer than {@code CalendarFeedFetcher.MAX_LAST_MODIFIED}.
+   */
+  @Test
+  void aLastModifiedWiderThanItsColumnIsRefusedByTheEngine() {
+    long id = inTransaction(() -> dao.saveAndFlush(subscription(1, 7, "a", NOW.minusSeconds(1), NOW)).getId());
+    inTransaction(() -> dao.claimDue(id, "node-a", Date.from(NOW), STALE));
+    Date next = Date.from(NOW.plus(Duration.ofHours(4)));
+
+    assertEquals(1, (int) inTransaction(() -> dao.recordSuccess(id, "node-a", "a".repeat(64), null, "L".repeat(128), "h", null, Date.from(NOW), false, next)));
+    inTransaction(() -> dao.claim(id, "node-a", Date.from(NOW.plusSeconds(1)), STALE));
+    entityManager.getTransaction().begin();
+    try {
+      assertThrows(PersistenceException.class,
+                   () -> dao.recordSuccess(id, "node-a", "a".repeat(64), null, "L".repeat(129), "h", null, Date.from(NOW), false, next));
+    } finally {
+      entityManager.getTransaction().rollback();
+    }
+  }
+
+  /**
    * A new URL forgets the validators of the old one and is due at once; the
    * engine refuses a URL key the user already holds.
    */

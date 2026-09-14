@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.charset.StandardCharsets;
@@ -32,6 +33,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.Test;
 
@@ -336,6 +338,173 @@ class CalendarFeedParserTest {
                                            "END:VEVENT"));
 
     assertTrue(parsed.events().isEmpty());
+  }
+
+  /**
+   * A list of numbers, comma-separated.
+   *
+   * @param from first number
+   * @param to last number
+   * @return the list
+   */
+  private static String numbers(int from, int to) {
+    return IntStream.rangeClosed(from, to).mapToObj(String::valueOf).collect(Collectors.joining(","));
+  }
+
+  /**
+   * A rule whose one step builds millions of candidates is not expanded — it ran
+   * the heap out, a step at a time — while the other events of the document are
+   * kept, and the document says something was left out. The series start before
+   * the window, so their first step lies inside it however short the window is
+   * made for them. A step of 1,344 candidates is refused too, though its window
+   * would cost little: the bound is on what one step holds in memory.
+   *
+   * @throws Exception when refused
+   */
+  @Test
+  void aRuleWhoseStepBuildsTooManyCandidatesIsNotExpanded() throws Exception {
+    ParsedCalendar parsed = assertTimeoutPreemptively(Duration.ofSeconds(20),
+                                                      () -> parse(calendar("BEGIN:VEVENT",
+                                                                           "UID:bomb@test",
+                                                                           "DTSTART:20260101T090000Z",
+                                                                           "RRULE:FREQ=YEARLY;BYMONTH=" + numbers(1, 12)
+                                                                               + ";BYMONTHDAY=" + numbers(1, 31) + ";BYHOUR="
+                                                                               + numbers(0, 23) + ";BYMINUTE=" + numbers(0, 59)
+                                                                               + ";BYSECOND=" + numbers(0, 59),
+                                                                           "END:VEVENT",
+                                                                           "BEGIN:VEVENT",
+                                                                           "UID:exclusion-bomb@test",
+                                                                           "DTSTART:20260101T090000Z",
+                                                                           "RRULE:FREQ=DAILY",
+                                                                           "EXRULE:FREQ=HOURLY;BYMINUTE=" + numbers(0, 59)
+                                                                               + ";BYSECOND=" + numbers(0, 59),
+                                                                           "END:VEVENT",
+                                                                           "BEGIN:VEVENT",
+                                                                           "UID:wide@test",
+                                                                           "DTSTART:20260101T090000Z",
+                                                                           "RRULE:FREQ=YEARLY;BYMONTH=" + numbers(1, 12)
+                                                                               + ";BYMONTHDAY=" + numbers(1, 28) + ";BYHOUR=9,10,11,12",
+                                                                           "END:VEVENT",
+                                                                           "BEGIN:VEVENT",
+                                                                           "UID:one@test",
+                                                                           "DTSTART:20260301T090000Z",
+                                                                           "END:VEVENT")));
+
+    assertEquals(List.of("one@test|"), parsed.events().stream().map(ImportedEvent::key).toList());
+    assertTrue(parsed.truncated());
+  }
+
+  /**
+   * A series firing many times an hour is expanded only as far as the instances
+   * that can be kept: without that, a year of it is millions of instances.
+   *
+   * @throws Exception when refused
+   */
+  @Test
+  void aDenseSeriesIsExpandedOnlyAsFarAsItCanBeKept() throws Exception {
+    ParsedCalendar parsed = assertTimeoutPreemptively(Duration.ofSeconds(20),
+                                                      () -> CalendarFeedParser.parse(calendar("BEGIN:VEVENT",
+                                                                                              "UID:dense@test",
+                                                                                              "DTSTART:20260201T000000Z",
+                                                                                              "DTEND:20260201T000001Z",
+                                                                                              "RRULE:FREQ=HOURLY;BYMINUTE="
+                                                                                                  + numbers(0, 59) + ";BYSECOND="
+                                                                                                  + numbers(0, 15),
+                                                                                              "END:VEVENT"),
+                                                                                     FROM,
+                                                                                     TO,
+                                                                                     10));
+
+    assertTrue(parsed.truncated());
+    assertEquals(10, parsed.events().size());
+    assertEquals(Instant.parse("2026-02-01T00:00:00Z"), parsed.events().get(0).start().toInstant());
+    assertEquals(Instant.parse("2026-02-01T00:00:09Z"), parsed.events().get(9).start().toInstant());
+  }
+
+  /**
+   * A dense series starting late in the window keeps its first instances: the
+   * window is shortened from where the series starts, not from where the window
+   * does.
+   *
+   * @throws Exception when refused
+   */
+  @Test
+  void aDenseSeriesStartingLateInTheWindowKeepsItsFirstInstances() throws Exception {
+    ParsedCalendar parsed = CalendarFeedParser.parse(calendar("BEGIN:VEVENT",
+                                                              "UID:late@test",
+                                                              "DTSTART:20260601T000000Z",
+                                                              "DTEND:20260601T001000Z",
+                                                              "RRULE:FREQ=HOURLY;BYMINUTE=0,15,30,45",
+                                                              "END:VEVENT"),
+                                                     FROM,
+                                                     TO,
+                                                     10);
+
+    assertTrue(parsed.truncated());
+    assertEquals(10, parsed.events().size());
+    assertEquals(Instant.parse("2026-06-01T00:00:00Z"), parsed.events().get(0).start().toInstant());
+    assertEquals(Instant.parse("2026-06-01T02:15:00Z"), parsed.events().get(9).start().toInstant());
+  }
+
+  /**
+   * A counted series is walked from its first instance, whatever the window: one
+   * started decades ago with several instances a day is not expanded, the same
+   * series started a week before the window is.
+   *
+   * @throws Exception when refused
+   */
+  @Test
+  void aCountedSeriesStartedLongAgoIsNotWalked() throws Exception {
+    String rule = "RRULE:FREQ=DAILY;COUNT=99999999;BYHOUR=" + numbers(0, 23) + ";BYMINUTE=" + numbers(0, 40);
+    ParsedCalendar parsed = assertTimeoutPreemptively(Duration.ofSeconds(20),
+                                                      () -> CalendarFeedParser.parse(calendar("BEGIN:VEVENT",
+                                                                                              "UID:old@test",
+                                                                                              "DTSTART:19700101T000000Z",
+                                                                                              rule,
+                                                                                              "END:VEVENT",
+                                                                                              "BEGIN:VEVENT",
+                                                                                              "UID:recent@test",
+                                                                                              "DTSTART:20260125T000000Z",
+                                                                                              rule,
+                                                                                              "END:VEVENT"),
+                                                                                     FROM,
+                                                                                     TO,
+                                                                                     10));
+
+    assertTrue(parsed.truncated());
+    assertEquals(Set.of("recent@test"),
+                 parsed.events().stream().map(event -> event.key().substring(0, event.key().indexOf('|'))).collect(Collectors.toSet()));
+  }
+
+  /**
+   * The rules of one document cost a bounded total: past it, the next series are
+   * left out even though each alone would be read.
+   *
+   * @throws Exception when refused
+   */
+  @Test
+  void theSeriesOfOneDocumentCostABoundedTotal() throws Exception {
+    List<String> lines = new java.util.ArrayList<>();
+    for (int i = 0; i < 12; i++) {
+      lines.addAll(List.of("BEGIN:VEVENT",
+                           "UID:counted-" + i + "@test",
+                           "DTSTART:19800101T000000Z",
+                           "RRULE:FREQ=DAILY;COUNT=337000;BYHOUR=" + numbers(0, 19),
+                           "END:VEVENT"));
+    }
+    ParsedCalendar alone = CalendarFeedParser.parse(calendar(lines.subList(0, 5).toArray(String[]::new)), FROM, TO, 2000);
+    assertFalse(alone.events().isEmpty(), "control: one such series alone is read");
+
+    ParsedCalendar parsed = assertTimeoutPreemptively(Duration.ofSeconds(60),
+                                                      () -> CalendarFeedParser.parse(calendar(lines.toArray(String[]::new)),
+                                                                                     FROM,
+                                                                                     TO,
+                                                                                     2000));
+
+    Set<String> read = parsed.events().stream().map(event -> event.key().substring(0, event.key().indexOf('|'))).collect(Collectors.toSet());
+    assertTrue(read.contains("counted-0@test"));
+    assertFalse(read.contains("counted-11@test"), "the last series is past the document's budget");
+    assertTrue(parsed.truncated());
   }
 
   /**

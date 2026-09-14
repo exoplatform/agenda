@@ -124,6 +124,8 @@ public class AgendaCalendarSubscriptionRest {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, FORBIDDEN);
     } catch (IllegalArgumentException e) {
       throw badRequest(e);
+    } catch (IllegalStateException e) {
+      throw refused(e);
     }
   }
 
@@ -157,6 +159,8 @@ public class AgendaCalendarSubscriptionRest {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, FORBIDDEN);
     } catch (IllegalArgumentException e) {
       throw badRequest(e);
+    } catch (IllegalStateException e) {
+      throw refused(e);
     }
   }
 
@@ -193,6 +197,8 @@ public class AgendaCalendarSubscriptionRest {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, FORBIDDEN);
     } catch (IllegalArgumentException e) {
       throw badRequest(e);
+    } catch (IllegalStateException e) {
+      throw refused(e);
     }
   }
 
@@ -223,13 +229,7 @@ public class AgendaCalendarSubscriptionRest {
     } catch (IllegalAccessException e) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, FORBIDDEN);
     } catch (IllegalStateException e) {
-      if (AgendaCalendarSubscriptionServiceImpl.REFRESH_TOO_SOON.equals(e.getMessage())) {
-        throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, e.getMessage());
-      }
-      if (AgendaCalendarSubscriptionServiceImpl.REFRESH_IN_PROGRESS.equals(e.getMessage())) {
-        throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage());
-      }
-      throw e;
+      throw refused(e);
     }
   }
 
@@ -257,6 +257,26 @@ public class AgendaCalendarSubscriptionRest {
     } catch (IllegalAccessException e) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, FORBIDDEN);
     }
+  }
+
+  /**
+   * The status of a refusal the service answers as a state: 429 for a refresh
+   * asked a moment ago or a user already reading as many links as allowed, 409
+   * for a refresh already running; any other state is not a refusal and is
+   * rethrown.
+   *
+   * @param e the state
+   * @return the exception to throw
+   */
+  private RuntimeException refused(IllegalStateException e) {
+    if (AgendaCalendarSubscriptionServiceImpl.REFRESH_TOO_SOON.equals(e.getMessage())
+        || AgendaCalendarSubscriptionServiceImpl.TOO_MANY_READS.equals(e.getMessage())) {
+      return new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, e.getMessage());
+    }
+    if (AgendaCalendarSubscriptionServiceImpl.REFRESH_IN_PROGRESS.equals(e.getMessage())) {
+      return new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage());
+    }
+    return e;
   }
 
   /**

@@ -33,18 +33,24 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import org.exoplatform.agenda.constant.EventAttendeeResponse;
+import org.exoplatform.agenda.constant.EventAvailability;
 import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.CalendarSubscription;
 import org.exoplatform.agenda.model.CalendarSubscriptionEvent;
 import org.exoplatform.agenda.model.Event;
+import org.exoplatform.agenda.model.EventAttendee;
 import org.exoplatform.agenda.search.AgendaIndexingServiceConnector;
+import org.exoplatform.agenda.storage.AgendaEventAttendeeStorage;
 import org.exoplatform.agenda.storage.AgendaEventStorage;
 import org.exoplatform.agenda.storage.CalendarSubscriptionStorage;
 import org.exoplatform.agenda.util.CalendarFeedException;
@@ -163,6 +169,17 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
   /** A colour that is not {@code #RRGGBB}. */
   public static final String    INVALID_COLOR           = CalendarFeedException.CODE_PREFIX + "invalidColor";
 
+  /** The user already has as many links being read as allowed. */
+  public static final String    TOO_MANY_READS          = CalendarFeedException.CODE_PREFIX + "tooManyReads";
+
+  /**
+   * Most links one user may have read at the same time on one node, through
+   * checking, subscribing, editing and refreshing: a user looping on slow hosts
+   * would otherwise hold the connections the scheduled refresh and every other
+   * user share.
+   */
+  public static final int       MAX_READS_PER_USER      = 2;
+
   /** Path of a published calendar's feed on this eXo, token and extension appended. */
   static final String           OWN_FEED_PATH           = "/agenda/rest/ical/";
 
@@ -178,7 +195,11 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
 
   private final AgendaEventStorage          agendaEventStorage;
 
+  private final AgendaEventAttendeeStorage  attendeeStorage;
+
   private final AgendaCalendarLinkService   calendarLinkService;
+
+  private final Map<Long, AtomicInteger>    readsInFlight           = new ConcurrentHashMap<>();
 
   private final CalendarFeedFetcher         feedFetcher;
 
@@ -200,6 +221,7 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
    * @param subscriptionStorage the subscription rows
    * @param agendaCalendarService creates, reads and deletes the calendars
    * @param agendaEventStorage writes the imported events without broadcasting
+   * @param attendeeStorage writes the owner as the attendee of an imported event
    * @param calendarLinkService reads the links of this eXo
    * @param feedFetcher reads every other link
    * @param identityManager resolves users
@@ -212,6 +234,7 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
   public AgendaCalendarSubscriptionServiceImpl(CalendarSubscriptionStorage subscriptionStorage, // NOSONAR
                                                AgendaCalendarService agendaCalendarService,
                                                AgendaEventStorage agendaEventStorage,
+                                               AgendaEventAttendeeStorage attendeeStorage,
                                                AgendaCalendarLinkService calendarLinkService,
                                                CalendarFeedFetcher feedFetcher,
                                                IdentityManager identityManager,
@@ -221,6 +244,7 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
     this.subscriptionStorage = subscriptionStorage;
     this.agendaCalendarService = agendaCalendarService;
     this.agendaEventStorage = agendaEventStorage;
+    this.attendeeStorage = attendeeStorage;
     this.calendarLinkService = calendarLinkService;
     this.feedFetcher = feedFetcher;
     this.identityManager = identityManager;
@@ -257,7 +281,7 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
     long userIdentityId = userIdentityId(username);
     try {
       URI uri = feedFetcher.getGuard().normalize(url);
-      FeedResponse feed = read(uri, null, null, userIdentityId);
+      FeedResponse feed = readForUser(uri, null, null, userIdentityId);
       return parse(feed.body(), clock.instant()).name();
     } catch (CalendarFeedException e) {
       throw new IllegalArgumentException(e.getCode());
@@ -286,7 +310,7 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
       if (subscriptionStorage.getByUser(userIdentityId, MAX_SUBSCRIPTIONS).size() >= MAX_SUBSCRIPTIONS) {
         throw new IllegalArgumentException(TOO_MANY_SUBSCRIPTIONS);
       }
-      feed = read(uri, null, null, userIdentityId);
+      feed = readForUser(uri, null, null, userIdentityId);
       parsed = parse(feed.body(), now);
     } catch (CalendarFeedException e) {
       throw new IllegalArgumentException(e.getCode());
@@ -299,22 +323,36 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
     calendar.setSubscription(true);
     calendar = agendaCalendarService.createCalendar(calendar, username);
 
-    CalendarSubscription subscription = new CalendarSubscription();
-    subscription.setCalendarId(calendar.getId());
-    subscription.setUserIdentityId(userIdentityId);
-    subscription.setUrlEncrypted(encrypt(uri.toString()));
-    subscription.setUrlKey(urlKey);
-    subscription.setCreatedDate(now.toEpochMilli());
-    subscription.setNextRefreshDate(now.plus(DEFAULT_REFRESH).toEpochMilli());
-    // Created claimed: the job must not read the feed while its first import runs
-    subscription.setClaimedBy(node);
-    subscription.setClaimedDate(now.toEpochMilli());
-    CalendarSubscription created = subscriptionStorage.create(subscription);
+    CalendarSubscription created;
+    try {
+      CalendarSubscription subscription = new CalendarSubscription();
+      subscription.setCalendarId(calendar.getId());
+      subscription.setUserIdentityId(userIdentityId);
+      subscription.setUrlEncrypted(encrypt(uri.toString()));
+      subscription.setUrlKey(urlKey);
+      subscription.setCreatedDate(now.toEpochMilli());
+      subscription.setNextRefreshDate(now.plus(DEFAULT_REFRESH).toEpochMilli());
+      // Created claimed: the job must not read the feed while its first import runs
+      subscription.setClaimedBy(node);
+      subscription.setClaimedDate(now.toEpochMilli());
+      created = subscriptionStorage.create(subscription);
+    } catch (RuntimeException e) {
+      // No subscription row points at the calendar: nothing would ever list or
+      // remove it, since the owner listings and the calendar API leave it out
+      deleteCalendarQuietly(calendar.getId());
+      throw e;
+    }
     if (created == null) {
       deleteCalendarQuietly(calendar.getId());
       throw new IllegalArgumentException(ALREADY_SUBSCRIBED);
     }
-    apply(created, feed, parsed, now);
+    try {
+      apply(created, feed, parsed, now);
+    } catch (RuntimeException e) {
+      // The subscription exists and its failure is recorded on it: the owner sees
+      // it with its warning, a refresh retries it, and unsubscribing removes it
+      LOG.warn("The first import of calendar subscription {} failed", created.getId(), e);
+    }
     return forOwner(subscriptionStorage.getById(created.getId()));
   }
 
@@ -347,7 +385,7 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
           if (subscriptionStorage.getByUrlKey(key) != null) {
             throw new IllegalArgumentException(ALREADY_SUBSCRIBED);
           }
-          feed = read(uri, null, null, subscription.getUserIdentityId());
+          feed = readForUser(uri, null, null, subscription.getUserIdentityId());
           parsed = parse(feed.body(), now);
           newUri = uri;
           newKey = key;
@@ -385,10 +423,17 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
         && now.toEpochMilli() - subscription.getLastAttemptDate() < MANUAL_REFRESH_INTERVAL.toMillis()) {
       throw new IllegalStateException(REFRESH_TOO_SOON);
     }
-    if (!subscriptionStorage.claim(subscriptionId, node, Date.from(now), staleBefore(now))) {
-      throw new IllegalStateException(REFRESH_IN_PROGRESS);
+    if (!acquireRead(subscription.getUserIdentityId())) {
+      throw new IllegalStateException(TOO_MANY_READS);
     }
-    refreshClaimed(subscriptionStorage.getById(subscriptionId), now);
+    try {
+      if (!subscriptionStorage.claim(subscriptionId, node, Date.from(now), staleBefore(now))) {
+        throw new IllegalStateException(REFRESH_IN_PROGRESS);
+      }
+      refreshClaimed(subscriptionStorage.getById(subscriptionId), now);
+    } finally {
+      releaseRead(subscription.getUserIdentityId());
+    }
     return forOwner(subscriptionStorage.getById(subscriptionId));
   }
 
@@ -473,12 +518,12 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
     Date attempt = Date.from(now);
     Identity owner = identityManager.getIdentity(String.valueOf(subscription.getUserIdentityId()));
     if (owner == null || owner.isDeleted() || !owner.isEnable()) {
-      subscriptionStorage.recordFailure(subscription.getId(), node, attempt, USER_DISABLED, Date.from(now.plus(RETRY_AFTER_DEAD_END)));
+      recordFailure(subscription, attempt, USER_DISABLED, now.plus(RETRY_AFTER_DEAD_END));
       return;
     }
     URI uri = storedUri(subscription);
     if (uri == null) {
-      subscriptionStorage.recordFailure(subscription.getId(), node, attempt, URL_UNREADABLE, Date.from(now.plus(RETRY_AFTER_DEAD_END)));
+      recordFailure(subscription, attempt, URL_UNREADABLE, now.plus(RETRY_AFTER_DEAD_END));
       return;
     }
     try {
@@ -486,7 +531,72 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
       apply(subscription, feed, null, now);
     } catch (CalendarFeedException e) {
       LOG.debug("Calendar subscription {} could not be read: {}", subscription.getId(), e.getReason());
-      subscriptionStorage.recordFailure(subscription.getId(), node, attempt, e.getCode(), Date.from(now.plus(RETRY_AFTER_FAILURE)));
+      recordFailure(subscription, attempt, e.getCode(), now.plus(RETRY_AFTER_FAILURE));
+    }
+  }
+
+  /**
+   * Records a failed refresh; when the row no longer matches this node's claim,
+   * the claim is released all the same, so that nothing stays claimed until it
+   * goes stale.
+   *
+   * @param subscription the subscription
+   * @param attempt when the refresh ran
+   * @param code message code of the failure
+   * @param next when the next attempt is due
+   */
+  private void recordFailure(CalendarSubscription subscription, Date attempt, String code, Instant next) {
+    if (!subscriptionStorage.recordFailure(subscription.getId(), node, attempt, code, Date.from(next))) {
+      subscriptionStorage.release(subscription.getId(), node);
+    }
+  }
+
+  /**
+   * Reads a link on behalf of a user, at most {@link #MAX_READS_PER_USER} at a
+   * time for that user on this node.
+   *
+   * @param uri the normalized URL
+   * @param etag the entity tag to send, or null
+   * @param lastModified the date to send, or null
+   * @param userIdentityId the user
+   * @return what was read
+   * @throws CalendarFeedException with the reason nothing usable was read
+   */
+  private FeedResponse readForUser(URI uri, String etag, String lastModified, long userIdentityId) throws CalendarFeedException {
+    if (!acquireRead(userIdentityId)) {
+      throw new IllegalStateException(TOO_MANY_READS);
+    }
+    try {
+      return read(uri, etag, lastModified, userIdentityId);
+    } finally {
+      releaseRead(userIdentityId);
+    }
+  }
+
+  /**
+   * Takes one of a user's read permits.
+   *
+   * @param userIdentityId the user
+   * @return false when the user holds them all
+   */
+  private boolean acquireRead(long userIdentityId) {
+    AtomicInteger count = readsInFlight.computeIfAbsent(userIdentityId, id -> new AtomicInteger());
+    if (count.incrementAndGet() > MAX_READS_PER_USER) {
+      count.decrementAndGet();
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Gives a read permit back.
+   *
+   * @param userIdentityId the user
+   */
+  private void releaseRead(long userIdentityId) {
+    AtomicInteger count = readsInFlight.get(userIdentityId);
+    if (count != null && count.decrementAndGet() <= 0) {
+      readsInFlight.remove(userIdentityId, count);
     }
   }
 
@@ -522,9 +632,9 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
                     document.truncated(), now);
     } catch (CalendarFeedException e) {
       LOG.debug("Calendar subscription {} could not be read: {}", subscription.getId(), e.getReason());
-      subscriptionStorage.recordFailure(subscription.getId(), node, attempt, e.getCode(), Date.from(now.plus(RETRY_AFTER_FAILURE)));
+      recordFailure(subscription, attempt, e.getCode(), now.plus(RETRY_AFTER_FAILURE));
     } catch (RuntimeException e) {
-      subscriptionStorage.recordFailure(subscription.getId(), node, attempt, REFRESH_FAILED, Date.from(now.plus(RETRY_AFTER_FAILURE)));
+      recordFailure(subscription, attempt, REFRESH_FAILED, now.plus(RETRY_AFTER_FAILURE));
       throw e;
     }
   }
@@ -548,16 +658,22 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
                              boolean truncated,
                              Instant now) {
     Duration interval = refreshMinutes == null ? DEFAULT_REFRESH : Duration.ofMinutes(refreshMinutes);
-    subscriptionStorage.recordSuccess(subscription.getId(),
-                                      node,
-                                      subscription.getUrlKey(),
-                                      etag,
-                                      lastModified,
-                                      contentHash,
-                                      refreshMinutes,
-                                      Date.from(now),
-                                      truncated,
-                                      Date.from(now.plus(interval)));
+    boolean recorded = subscriptionStorage.recordSuccess(subscription.getId(),
+                                                         node,
+                                                         subscription.getUrlKey(),
+                                                         etag,
+                                                         lastModified,
+                                                         contentHash,
+                                                         refreshMinutes,
+                                                         Date.from(now),
+                                                         truncated,
+                                                         Date.from(now.plus(interval)));
+    if (!recorded) {
+      // The URL changed during the read (updateUrl made the row due at once), or
+      // the claim went stale: the outcome belongs to nobody, the claim is still
+      // this node's to give back
+      subscriptionStorage.release(subscription.getId(), node);
+    }
   }
 
   /**
@@ -593,6 +709,14 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
         eventId = agendaEventStorage.updateEvent(stored).getId();
       } else {
         eventId = agendaEventStorage.createEvent(newEvent(subscription, imported, now)).getId();
+        // The owner attends the event, as the author of an event made in agenda
+        // does: the default "my events" view and the timeline list events through
+        // the attendee table, and an event nobody attends never appears there.
+        // ACCEPTED, so it is never a pending invitation. Written through the
+        // storage: its attendee broadcast has no listener, and no invitation or
+        // notification is sent.
+        attendeeStorage.saveEventAttendee(new EventAttendee(0, eventId, subscription.getUserIdentityId(), EventAttendeeResponse.ACCEPTED),
+                                          eventId);
       }
       reindex(eventId);
       CalendarSubscriptionEvent saved = row == null ? new CalendarSubscriptionEvent(0, subscription.getId(), eventId, key, contentHash)
@@ -645,7 +769,10 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
     event.setStart(imported.start());
     event.setEnd(imported.end());
     event.setTimeZoneId(imported.timeZone());
-    event.setAvailability(imported.availability());
+    // Free, whatever the feed says: busy time is read from the events a user
+    // attends, and someone else's calendar, a holiday list or a team feed is not
+    // the user's own commitment (PO decision to revisit)
+    event.setAvailability(EventAvailability.FREE);
     // Never TENTATIVE: in agenda that status is a date poll
     event.setStatus(EventStatus.CONFIRMED);
     event.setAllowAttendeeToUpdate(false);

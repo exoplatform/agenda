@@ -47,6 +47,7 @@ export const ERROR_CODES = [
   'agenda.calendarSubscription.urlUnreadable',
   'agenda.calendarSubscription.refreshTooSoon',
   'agenda.calendarSubscription.refreshInProgress',
+  'agenda.calendarSubscription.tooManyReads',
   'agenda.calendarSubscription.refreshFailed',
   'agenda.calendarSubscription.userDisabled',
   'agenda.calendarSubscription.nameTooLong',

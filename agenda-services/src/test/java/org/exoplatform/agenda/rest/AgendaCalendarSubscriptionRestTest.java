@@ -184,6 +184,11 @@ class AgendaCalendarSubscriptionRestTest {
     assertEquals(AgendaCalendarSubscriptionServiceImpl.REFRESH_TOO_SOON, tooSoon.getReason());
     assertEquals(HttpStatus.CONFLICT, refused(() -> resource.refreshSubscription(request, 2)).getStatusCode());
     assertThrows(IllegalStateException.class, () -> resource.refreshSubscription(request, 3));
+
+    when(service.checkUrl(anyString(), eq("john"))).thenThrow(new IllegalStateException(AgendaCalendarSubscriptionServiceImpl.TOO_MANY_READS));
+    ResponseStatusException tooMany = refused(() -> resource.checkUrl(request, new CalendarSubscriptionRequestEntity("u", null, null)));
+    assertEquals(HttpStatus.TOO_MANY_REQUESTS, tooMany.getStatusCode());
+    assertEquals(AgendaCalendarSubscriptionServiceImpl.TOO_MANY_READS, tooMany.getReason());
   }
 
   /**

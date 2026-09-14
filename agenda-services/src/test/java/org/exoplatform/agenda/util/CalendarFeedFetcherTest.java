@@ -215,6 +215,28 @@ class CalendarFeedFetcherTest {
   }
 
   /**
+   * A validator longer than the column that stores it is not kept: a
+   * Last-Modified of 129 characters would make recording the refresh fail on
+   * every read.
+   *
+   * @throws Exception when the read fails
+   */
+  @Test
+  void aValidatorLongerThanItsColumnIsNotKept() throws Exception {
+    handler = exchange -> {
+      exchange.getResponseHeaders().add("ETag", "\"" + "e".repeat(CalendarFeedFetcher.MAX_ETAG) + "\"");
+      exchange.getResponseHeaders().add("Last-Modified", "L".repeat(CalendarFeedFetcher.MAX_LAST_MODIFIED + 1));
+      answer(exchange, 200, CALENDAR);
+    };
+
+    CalendarFeedFetcher.FeedResponse response = fetcher.fetch(url("public.test", "/cal.ics"), null, null);
+
+    assertNull(response.etag());
+    assertNull(response.lastModified());
+    assertArrayEquals(CALENDAR.getBytes(StandardCharsets.UTF_8), response.body());
+  }
+
+  /**
    * The validators of the previous read are sent, and a 304 is read as nothing
    * changed.
    *

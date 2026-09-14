@@ -526,6 +526,13 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
       throw new IllegalArgumentException("agenda.calendarNameExceedsMaxLength");
     }
     calendar.setName(name);
+    if (calendar.isSubscription()) {
+      // A subscribed calendar (EXO-90278) is named after its feed and listed in a
+      // section of its own: its name takes no part in the uniqueness of the
+      // owner's calendar names, in either direction, as the owner listings it is
+      // compared through leave subscribed calendars out
+      return;
+    }
     List<Long> ownerCalendarIds = agendaCalendarStorage.getCalendarIdsByOwnerIds(0,
                                                                                  Integer.MAX_VALUE,
                                                                                  calendar.getOwnerId());
