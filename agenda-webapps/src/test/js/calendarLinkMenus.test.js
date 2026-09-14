@@ -128,6 +128,40 @@ describe('Calendar menus and rows follow the publishing state', () => {
       expect(sign.find('v-icon').classes()).toContain('warning--text');
     });
 
+    it('lists the publishing entries after Edit and before Delete, as BlueMind orders Modifier, Partager, Publier', async () => {
+      const wrapper = await mountList();
+      /**
+       * The menu entries of a row, in the order they are drawn.
+       *
+       * @param {String} label the calendar's label
+       * @returns {Array} the entry titles
+       */
+      const entries = label => row(wrapper, label).findAll('v-list-item-title').wrappers.map(title => title.text());
+
+      /**
+       * Where an entry sits in a row's menu. An entry's title can carry its
+       * state icon's name before its label, so it is found by what it contains.
+       *
+       * @param {Array} titles the entry titles, in order
+       * @param {String} key the label key the entry shows
+       * @returns {Number} its position, -1 when absent
+       */
+      const at = (titles, key) => titles.findIndex(title => title.split(/\s+/).includes(key));
+
+      const published = entries('Home');
+      expect(published).toHaveLength(4);
+      expect(at(published, 'agenda.calendar.edit')).toBe(0);
+      expect(at(published, 'agenda.calendarPublish.published')).toBe(1);
+      expect(at(published, 'agenda.calendarPublish.delete')).toBe(2);
+      expect(at(published, 'agenda.calendar.delete')).toBe(3);
+
+      const notPublished = entries('Work');
+      expect(notPublished).toHaveLength(3);
+      expect(at(notPublished, 'agenda.calendar.edit')).toBe(0);
+      expect(at(notPublished, 'agenda.calendarPublish.menu')).toBe(1);
+      expect(at(notPublished, 'agenda.calendar.delete')).toBe(2);
+    });
+
     it('opens the drawer from the state entry and asks the drawer to unpublish', async () => {
       const wrapper = await mountList();
       const home = row(wrapper, 'Home');

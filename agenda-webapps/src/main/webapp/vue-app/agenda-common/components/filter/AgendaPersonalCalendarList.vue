@@ -128,11 +128,14 @@
               </v-btn>
             </template>
             <v-list dense class="pa-0">
+              <v-list-item @click="editCalendar(calendar)">
+                <v-list-item-title>{{ $t('agenda.calendar.edit') }}</v-list-item-title>
+              </v-list-item>
               <!--
                 Publishing (EXO-90252): one entry naming the calendar's state and opening
                 the drawer, and Unpublish once it is published, working or stopped.
-                First in the menu, so the state reads before the actions — and
-                apart from the connector actions that follow Edit (EXO-90253).
+                Right before Delete: Edit, then what connectors add (Share…,
+                EXO-90253), then Publish — BlueMind's own order.
               -->
               <v-list-item
                 :class="`agenda-calendar-link-action agenda-calendar-link-state-${linkStateOf(calendar)}`"
@@ -158,9 +161,6 @@
                 class="agenda-calendar-unpublish-action"
                 @click="unpublishCalendar(calendar)">
                 <v-list-item-title>{{ $t('agenda.calendarPublish.delete') }}</v-list-item-title>
-              </v-list-item>
-              <v-list-item @click="editCalendar(calendar)">
-                <v-list-item-title>{{ $t('agenda.calendar.edit') }}</v-list-item-title>
               </v-list-item>
               <v-list-item
                 v-if="!calendar.system"
