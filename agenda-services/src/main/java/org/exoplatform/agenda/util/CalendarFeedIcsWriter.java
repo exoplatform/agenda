@@ -83,9 +83,11 @@ import net.fortuna.ical4j.validate.ValidationException;
  * expansion.
  * <p>
  * <b>The same data writes the same bytes.</b> Nothing in the document depends
- * on the moment it is written — {@code DTSTAMP} is the event's own last change —
- * so the entity tag computed over it lets a client that refreshes an unchanged
- * calendar get a 304.
+ * on the moment it is written — {@code DTSTAMP} is the event's own last change,
+ * <b>except for a busy block, whose stamp is the constant {@code NO_STAMP}</b> so
+ * that it does not tell when the private event was edited — so the entity tag
+ * computed over it lets a client that refreshes an unchanged calendar get a
+ * 304.
  * <p>
  * <b>Times are written in UTC</b> and all-day events as dates, so no
  * {@code VTIMEZONE} is needed and every client places an event at the same
@@ -123,7 +125,10 @@ public final class CalendarFeedIcsWriter {
 
   private static final Pattern  LINE_BREAK       = Pattern.compile("\\R");
 
-  /** Written for an event that carries no date of its own at all. */
+  /**
+   * The stamp of a busy block, whatever dates its private event carries, and of
+   * an event that carries no date of its own at all.
+   */
   private static final ZonedDateTime NO_STAMP     = ZonedDateTime.of(1970, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC);
 
   private static final DateTimeFormatter OCCURRENCE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'")

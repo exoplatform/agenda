@@ -23,7 +23,10 @@ const AGENDA_REST_BASE = '/agenda/rest';
 
 /**
  * Reads the status of a calendar's link: whether it exists, who created it,
- * when, and whether it still answers. Never its URL.
+ * when, whether it still answers — and its URL too, while the link answers and
+ * can be displayed. The server answers only the calendar's owner or a current
+ * manager of its space, and never lets the answer be cached: treat the URL as
+ * the secret it is.
  *
  * @param {Number} calendarId technical identifier of the calendar
  * @returns {Promise<Object>} the status
@@ -41,8 +44,8 @@ export function getCalendarLink(calendarId) {
 }
 
 /**
- * Creates the link of a calendar, replacing the one it has. The answer is the
- * only one that carries the link's URL.
+ * Creates the link of a calendar, replacing the one it has. The answer carries
+ * the new link's URL, as every later status read by its owner or a manager does.
  *
  * @param {Number} calendarId technical identifier of the calendar
  * @returns {Promise<Object>} the status of the new link, with its url
