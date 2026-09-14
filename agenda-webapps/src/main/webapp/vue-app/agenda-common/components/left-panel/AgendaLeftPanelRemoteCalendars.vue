@@ -112,7 +112,7 @@
                     v-bind="attrs"
                     v-on="on"
                     :title="$t('agenda.calendar.actions')"
-                    :aria-label="$t('agenda.calendar.actions')"
+                    :aria-label="actionsLabel(calendar)"
                     icon
                     x-small>
                     <v-icon size="14">fa-ellipsis-v</v-icon>
@@ -616,6 +616,22 @@ export default {
       }
       const connector = this.connectorOf(calendar);
       return !!connector && typeof connector.hideCalendar === 'function';
+    },
+    /**
+     * What a screen reader announces for a row's menu button: the actions of
+     * that calendar, by name.
+     *
+     * The visible hover keeps the generic "Calendar actions" the personal
+     * rows show, since a sighted user sees which row the button sits on. A
+     * user tabbing through the list hears only the button, and heard the same
+     * "Calendar actions" on every shared row, with nothing saying which
+     * calendar the menu would hide.
+     *
+     * @param {Object} calendar calendar as buildGroups stamped it
+     * @returns {String} the accessible name, in the user's language
+     */
+    actionsLabel(calendar) {
+      return this.$t('agenda.leftPanel.sharedCalendarActions', {0: calendar.name});
     },
     /**
      * The sections without the given calendars, a section emptied by that
