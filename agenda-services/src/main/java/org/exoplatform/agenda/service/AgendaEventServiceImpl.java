@@ -923,35 +923,34 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    */
   @Override
   public boolean canUpdateEvent(Event event, long userIdentityId) {
-    Calendar calendar = null;
-    if (userIdentityId == event.getCreatorId()) {
-      // Check if creator can always access to calendar or not
-      calendar = agendaCalendarService.getCalendarById(event.getCalendarId());
-      if (calendar.isDeleted()) {
-        return false;
-      }
-      if (Utils.canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), userIdentityId)) {
-        return true;
-      }
+    // The calendar is read first, and always: an event of a subscribed calendar
+    // (EXO-90278) is the feed's, and neither its creator nor its owner updates,
+    // moves or deletes it. The read is served by the calendar cache.
+    Calendar calendar = agendaCalendarService.getCalendarById(event.getCalendarId());
+    if (calendar == null || calendar.isDeleted() || calendar.isSubscription()) {
+      return false;
+    }
+    if (userIdentityId == event.getCreatorId()
+        && Utils.canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), userIdentityId)) {
+      // A creator who can still access the calendar
+      return true;
     }
     if (event.isAllowAttendeeToUpdate()
         && attendeeService.isEventAttendee(getEventIdOrParentId(event), userIdentityId)) {
       return true;
     }
-    if (calendar == null) {
-      calendar = agendaCalendarService.getCalendarById(event.getCalendarId());
-      if (calendar.isDeleted()) {
-        return false;
-      }
-    }
     return Utils.canEditCalendar(identityManager, spaceService, calendar.getOwnerId(), userIdentityId);
   }
 
   /**
-   * {@inheritDoc}
+   * {@inheritDoc} Never in a subscribed calendar (EXO-90278), whose events come
+   * from its feed alone.
    */
   @Override
   public boolean canCreateEvent(Calendar calendar, long userIdentityId) {
+    if (calendar.isSubscription()) {
+      return false;
+    }
     return Utils.canCreateEvent(identityManager, spaceService, calendar.getOwnerId(), userIdentityId);
   }
 
@@ -1343,7 +1342,16 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     return events;
   }
 
-  private List<Long> getUserCalenders(Identity userIdentity) throws Exception {
+  /**
+   * The calendars whose events a user's pending and date-poll listings look
+   * at: those they attend events of, those they can list, and their subscribed
+   * calendars (EXO-90278), which the listing leaves out.
+   *
+   * @param userIdentity the user
+   * @return distinct technical identifiers of calendars that still exist
+   * @throws Exception when the calendars cannot be listed
+   */
+  private List<Long> getUserCalenders(Identity userIdentity) throws Exception { // NOSONAR
     List<Long> calenderIds = this.agendaEventStorage.getUserEventCalenderIds(Long.parseLong(userIdentity.getId()));
     calenderIds.addAll(this.agendaCalendarService.getCalendars(0,
                                                                this.agendaCalendarService.countCalendars(userIdentity.getRemoteId()),
@@ -1351,6 +1359,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                                  .stream()
                                                  .map(Calendar::getId)
                                                  .toList());
+    calenderIds.addAll(this.agendaCalendarService.getSubscriptionCalendarIds(Long.parseLong(userIdentity.getId())));
     return filterUserCalenders(calenderIds);
   }
 

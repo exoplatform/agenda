@@ -29,13 +29,20 @@ import jakarta.persistence.Table;
 
 @Entity(name = "AgendaCalendar")
 @Table(name = "EXO_AGENDA_CALENDAR")
+// The owner listings leave subscribed calendars out (EXO-90278): they are not
+// calendars an owner files events into, and a connector binding every listed
+// calendar to a remote collection must never be handed one.
 @NamedQuery(
     name = "AgendaCalendar.getCalendarIdsByOwnerIds",
-    query = "SELECT cal.id FROM AgendaCalendar cal WHERE cal.ownerId IN (:ownerIds) ORDER BY cal.id ASC"
+    query = "SELECT cal.id FROM AgendaCalendar cal WHERE cal.ownerId IN (:ownerIds) AND cal.isSubscription = FALSE ORDER BY cal.id ASC"
 )
 @NamedQuery(
     name = "AgendaCalendar.countCalendarsByOwnerIds",
-    query = "SELECT count(cal.id) FROM AgendaCalendar cal WHERE cal.ownerId IN (:ownerIds)"
+    query = "SELECT count(cal.id) FROM AgendaCalendar cal WHERE cal.ownerId IN (:ownerIds) AND cal.isSubscription = FALSE"
+)
+@NamedQuery(
+    name = "AgendaCalendar.getSubscriptionCalendarIdsByOwnerId",
+    query = "SELECT cal.id FROM AgendaCalendar cal WHERE cal.ownerId = :ownerId AND cal.isSubscription = TRUE ORDER BY cal.id ASC"
 )
 @NamedQuery(
     name = "AgendaCalendar.getSystemCalendarIdsByOwnerId",
@@ -55,6 +62,9 @@ public class CalendarEntity implements Serializable {
 
   @Column(name = "IS_SYSTEM")
   private boolean           isSystem;
+
+  @Column(name = "IS_SUBSCRIPTION", nullable = false)
+  private boolean           isSubscription;
 
   @Column(name = "NAME")
   private String            name;
@@ -160,6 +170,20 @@ public class CalendarEntity implements Serializable {
 
   public void setUpdatedDate(Date updatedDate) {
     this.updatedDate = updatedDate;
+  }
+
+  /**
+   * @return whether the calendar holds a subscribed calendar link (EXO-90278)
+   */
+  public boolean isSubscription() {
+    return isSubscription;
+  }
+
+  /**
+   * @param isSubscription whether the calendar holds a subscribed calendar link
+   */
+  public void setSubscription(boolean isSubscription) {
+    this.isSubscription = isSubscription;
   }
 
 }

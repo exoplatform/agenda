@@ -49,6 +49,9 @@ public class CalendarEntity implements Serializable, Cloneable {
 
   private CalendarPermission acl;
 
+  /** Whether the calendar holds a subscribed calendar link (EXO-90278). */
+  private boolean            subscription;
+
   public CalendarEntity(long id,
                         IdentityEntity owner,
                         boolean system,
@@ -81,6 +84,7 @@ public class CalendarEntity implements Serializable, Cloneable {
                                                        color,
                                                        acl == null ? null : acl.clone());
     calendarEntity.setName(name);
+    calendarEntity.setSubscription(subscription);
     return calendarEntity;
   }
 }

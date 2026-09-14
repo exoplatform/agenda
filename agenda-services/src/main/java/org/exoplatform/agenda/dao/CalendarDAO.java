@@ -99,6 +99,22 @@ public class CalendarDAO extends GenericDAOJPAImpl<CalendarEntity, Long> {
     return resultList == null || resultList.isEmpty() ? null : resultList.get(0);
   }
 
+  /**
+   * Lists the subscribed calendars (EXO-90278) of an owner, which the owner
+   * listings leave out.
+   *
+   * @param ownerId technical identifier of the calendar owner identity
+   * @return technical identifiers of the owner's subscribed calendars, oldest
+   *         first, never null
+   */
+  public List<Long> getSubscriptionCalendarIdsByOwnerId(long ownerId) {
+    TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaCalendar.getSubscriptionCalendarIdsByOwnerId",
+                                                                 Long.class);
+    query.setParameter("ownerId", ownerId);
+    List<Long> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList() : resultList;
+  }
+
   public int countCalendarsByOwnerIds(Long... ownerIds) {
     TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaCalendar.countCalendarsByOwnerIds",
                                                                  Long.class);

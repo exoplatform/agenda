@@ -46,6 +46,14 @@ public class Calendar implements Cloneable {
 
   private CalendarPermission acl;
 
+  /**
+   * Whether the calendar holds the events of a subscribed calendar link
+   * (EXO-90278): read-only, filled by a refresh of the remote feed, left out
+   * of the owner's calendar listings, and never to be copied to a remote
+   * account by a connector.
+   */
+  private boolean            subscription;
+
   public Calendar(long id,
                   long ownerId,
                   boolean system,
@@ -84,6 +92,7 @@ public class Calendar implements Cloneable {
     Calendar calendar = new Calendar(id, ownerId, system, deleted, title, description, created, updated, color, acl);
     calendar.setName(name);
     calendar.setSyncUid(syncUid);
+    calendar.setSubscription(subscription);
     return calendar;
   }
 }
