@@ -275,11 +275,16 @@ export default {
     // inventing another one, or worse, retrying on a timer.
     document.addEventListener('agenda-connectors-refresh', this.retrieveProblems);
     this.retrieveProblems();
-    // What connectors add to a calendar's menu, asked at the same moments as
-    // its problems and for the same reason: a connector registers after this
-    // component is created, and can say what it offers only then.
-    document.addEventListener('agenda-connectors-refresh', this.retrieveConnectorActions);
+    // What connectors add to a calendar's menu, asked at exactly the moments
+    // its problems are, and for the same reasons: a connector registers after
+    // this component is created; a drawer in another Vue app can only signal
+    // on the document; and the general refresh follows every synchronisation,
+    // which is what binds a new calendar to the collection it can be shared
+    // through.
     this.$root.$on('agenda-refresh-personal-calendars', this.retrieveConnectorActions);
+    this.$root.$on('agenda-refresh', this.retrieveConnectorActions);
+    document.addEventListener('agenda-refresh-personal-calendars', this.retrieveConnectorActions);
+    document.addEventListener('agenda-connectors-refresh', this.retrieveConnectorActions);
     this.retrieveConnectorActions();
     this.$root.$on('agenda-refresh-personal-calendars', this.retrieveCalendars);
     // Also on the document, so an add-on's drawer living in another Vue app —
@@ -295,8 +300,10 @@ export default {
     this.$root.$off('agenda-refresh', this.retrieveProblems);
     document.removeEventListener('agenda-refresh-personal-calendars', this.retrieveProblems);
     document.removeEventListener('agenda-connectors-refresh', this.retrieveProblems);
-    document.removeEventListener('agenda-connectors-refresh', this.retrieveConnectorActions);
     this.$root.$off('agenda-refresh-personal-calendars', this.retrieveConnectorActions);
+    this.$root.$off('agenda-refresh', this.retrieveConnectorActions);
+    document.removeEventListener('agenda-refresh-personal-calendars', this.retrieveConnectorActions);
+    document.removeEventListener('agenda-connectors-refresh', this.retrieveConnectorActions);
   },
   methods: {
     /**
@@ -329,11 +336,17 @@ export default {
      * action id on one calendar — the same add-on registered once per server —
      * give one row.
      *
+     * Not gated on the connector being marked connected. The connector
+     * component sets that flag once the user's settings have loaded, and
+     * nothing tells this list when that happens, so a connector asked too early
+     * would not be asked again. Which calendars an action applies to is the
+     * connector's to answer, and one with no account answers none.
+     *
      * @returns {Promise} resolves once every connector has answered
      */
     retrieveConnectorActions() {
       const connectors = this.connectors()
-        .filter(connector => connector && connector.connected
+        .filter(connector => connector
           && typeof connector.calendarActions === 'function'
           && typeof connector.runCalendarAction === 'function');
       if (!connectors.length) {
