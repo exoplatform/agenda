@@ -46,8 +46,9 @@ import org.exoplatform.social.core.space.spi.SpaceService;
  * Pins the flag the calendar menus follow (EXO-90252, PO decision (b)): a
  * calendar read for a user tells whether they may publish it, apart from whether
  * they may edit it — a super-manager edits a space calendar but does not publish
- * it — and a copy of the permissions keeps the flag, since the REST entity
- * serialises a copy.
+ * it. It also checks that {@code CalendarPermission.clone()} keeps the flag:
+ * that is a guard, not a production path — the REST entity serialises the
+ * permissions as read, and nothing clones them today.
  */
 class AgendaCalendarPublishAclTest {
 
@@ -106,7 +107,7 @@ class AgendaCalendarPublishAclTest {
 
     assertTrue(acl.isCanEdit());
     assertTrue(acl.isCanPublish());
-    assertTrue(acl.clone().isCanPublish(), "the copy the REST entity serialises keeps the flag");
+    assertTrue(acl.clone().isCanPublish(), "a copy keeps the flag (a guard: no production path clones the permissions today)");
   }
 
   /**

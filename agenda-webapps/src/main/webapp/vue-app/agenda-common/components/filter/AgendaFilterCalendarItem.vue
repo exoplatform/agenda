@@ -153,10 +153,11 @@ export default {
       return profile.displayName || profile.fullname || profile.fullName;
     },
     /**
-     * Whether the current user manages this space calendar, and may therefore
-     * manage its private iCal link.
+     * Whether the current user may publish this saved calendar as a private
+     * iCal link: acl.canPublish, a real manager of the space — never a
+     * super-manager who is not one, although they can edit the calendar.
      *
-     * @returns {boolean} true for a saved calendar the user can edit
+     * @returns {boolean} true for a saved calendar the user may publish
      */
     canManageLink() {
       return !!this.calendar && Number(this.calendar.id) > 0 && !!this.calendar.acl && !!this.calendar.acl.canPublish;
