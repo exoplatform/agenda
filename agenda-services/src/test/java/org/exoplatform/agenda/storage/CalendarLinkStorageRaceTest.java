@@ -48,11 +48,15 @@ import org.exoplatform.agenda.entity.CalendarLinkEntity;
 import org.exoplatform.agenda.model.CalendarLink;
 
 /**
- * Runs the storage's lost-race retry through real Spring Data repositories, in
- * the shape the platform gives an addon: a plain {@link EntityManagerFactory}
- * bean (portal's {@code PersistenceUnitIntegration} exposes the kernel's), a
- * {@link JpaTransactionManager}, and each repository call in its own
- * transaction. The schema is agenda's real changelog on HSQLDB.
+ * Runs the storage's lost-race retry through real Spring Data repositories: a
+ * plain {@link EntityManagerFactory} bean — the part of the platform's shape
+ * that is known, portal's {@code PersistenceUnitIntegration} exposes the
+ * kernel's — and a {@link JpaTransactionManager}, so that each repository call
+ * runs in its own transaction. <b>Which transaction manager the platform wires
+ * for an addon is not verified here</b>: none was found declared in portal,
+ * social or commons-exo, so this pins the retry under Spring Data's standard
+ * transactional repositories, not under the production bean. The schema is
+ * agenda's real changelog on HSQLDB.
  * <p>
  * The race is staged, not timed: the repository the storage talks to answers
  * "no link" on its first lookup although another manager's row is already
@@ -149,7 +153,7 @@ class CalendarLinkStorageRaceTest {
   static class JpaConfiguration {
 
     /**
-     * The entity manager factory, a plain bean like the platform's.
+     * The entity manager factory, a plain bean as portal exposes it.
      *
      * @return the factory
      */

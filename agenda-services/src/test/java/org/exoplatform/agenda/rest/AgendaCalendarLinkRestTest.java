@@ -153,6 +153,7 @@ class AgendaCalendarLinkRestTest {
                               .andExpect(jsonPath("$.active").value(true))
                               .andExpect(jsonPath("$.displayable").value(true))
                               .andExpect(jsonPath("$.creatorName").value("Mary Manager"))
+                              .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
                               .andReturn();
 
     String body = result.getResponse().getContentAsString();
@@ -160,6 +161,7 @@ class AgendaCalendarLinkRestTest {
     assertFalse(body.contains("tokenHash") || body.contains("tokenEncrypted"), "no stored secret leaves the server");
 
     String status = mockMvc.perform(as("manager", get("/agenda/calendars/20/link").contextPath("/agenda")))
+                           .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
                            .andReturn()
                            .getResponse()
                            .getContentAsString();

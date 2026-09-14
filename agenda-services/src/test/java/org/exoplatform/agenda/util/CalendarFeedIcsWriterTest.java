@@ -162,6 +162,7 @@ class CalendarFeedIcsWriterTest {
     assertEquals("20260918T160000Z", busy.getProperty(Property.DTEND).getValue(), "and the same end");
     assertEquals("OPAQUE", busy.getProperty(Property.TRANSP).getValue(), "and it blocks the time");
     assertEquals("PRIVATE", busy.getProperty(Property.CLASS).getValue());
+    assertEquals("19700101T000000Z", busy.getProperty(Property.DTSTAMP).getValue(), "and not when it was last edited");
     assertNull(busy.getProperty(Property.DESCRIPTION));
     assertNull(busy.getProperty(Property.LOCATION));
     assertNull(busy.getProperty(Property.ATTENDEE));

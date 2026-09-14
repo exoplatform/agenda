@@ -198,7 +198,8 @@ public final class CalendarFeedIcsWriter {
     // every fetch.
     VEvent vEvent = new VEvent(false);
     PropertyList<net.fortuna.ical4j.model.Property> properties = vEvent.getProperties();
-    addIdentityAndTime(properties, event, host);
+    ZonedDateTime lastChange = lastChange(event);
+    addIdentityAndTime(properties, event, host, lastChange == null ? NO_STAMP : lastChange);
     properties.add(new Summary(StringUtils.defaultString(event.getSummary())));
     if (StringUtils.isNotBlank(event.getLocation())) {
       properties.add(new Location(event.getLocation()));
@@ -218,7 +219,8 @@ public final class CalendarFeedIcsWriter {
   /**
    * Writes a private event as busy time: its identifier, its start and end, and
    * the title "Busy" — no description, location, attendee or address, and not
-   * even its last change.
+   * even its last change: its {@code DTSTAMP} is a constant, so the document does
+   * not tell when the private event was edited.
    *
    * @param event the private event
    * @param host host qualifying the identifier
@@ -230,7 +232,7 @@ public final class CalendarFeedIcsWriter {
     // every fetch.
     VEvent vEvent = new VEvent(false);
     PropertyList<net.fortuna.ical4j.model.Property> properties = vEvent.getProperties();
-    addIdentityAndTime(properties, event, host);
+    addIdentityAndTime(properties, event, host, NO_STAMP);
     properties.add(new Summary(BUSY_SUMMARY));
     properties.add(Clazz.PRIVATE);
     properties.add(Transp.OPAQUE);
@@ -243,11 +245,14 @@ public final class CalendarFeedIcsWriter {
    * @param properties the component's properties
    * @param event the event
    * @param host host qualifying the identifier
+   * @param stamp the value of its {@code DTSTAMP}
    */
-  private static void addIdentityAndTime(PropertyList<net.fortuna.ical4j.model.Property> properties, Event event, String host) {
+  private static void addIdentityAndTime(PropertyList<net.fortuna.ical4j.model.Property> properties,
+                                         Event event,
+                                         String host,
+                                         ZonedDateTime stamp) {
     properties.add(new Uid(uid(event, host)));
-    ZonedDateTime stamp = lastChange(event);
-    properties.add(new DtStamp(utc(stamp == null ? NO_STAMP : stamp)));
+    properties.add(new DtStamp(utc(stamp)));
     if (event.isAllDay()) {
       LocalDate startDay = event.getStart().toLocalDate();
       LocalDate endDay = event.getEnd() == null ? startDay : event.getEnd().toLocalDate();

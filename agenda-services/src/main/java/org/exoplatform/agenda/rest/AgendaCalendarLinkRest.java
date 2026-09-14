@@ -102,7 +102,9 @@ public class AgendaCalendarLinkRest {
   /**
    * Tells whether a calendar has a link, who created it, when, whether it still
    * answers, and — while it answers and can be displayed — its URL. Only someone
-   * allowed to manage the link gets an answer at all.
+   * allowed to manage the link gets an answer at all, and the answer is never
+   * cached: its body can carry a working capability URL, and the portal's
+   * security chain writes no cache header of its own.
    *
    * @param request the authenticated request
    * @param calendarId technical identifier of the calendar
@@ -119,9 +121,10 @@ public class AgendaCalendarLinkRest {
       @ApiResponse(responseCode = "403", description = "The user may not manage the link of this calendar"),
       @ApiResponse(responseCode = "404", description = "Calendar not found"),
   })
-  public CalendarLinkStatusEntity getCalendarLink(HttpServletRequest request, @PathVariable("calendarId") long calendarId) {
+  public ResponseEntity<CalendarLinkStatusEntity> getCalendarLink(HttpServletRequest request,
+                                                                  @PathVariable("calendarId") long calendarId) {
     try {
-      return toEntity(request, calendarId, calendarLinkService.getCalendarLink(calendarId, request.getRemoteUser()));
+      return uncached(toEntity(request, calendarId, calendarLinkService.getCalendarLink(calendarId, request.getRemoteUser())));
     } catch (ObjectNotFoundException e) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "agenda.calendarLink.calendarNotFound");
     } catch (IllegalAccessException e) {
@@ -133,7 +136,8 @@ public class AgendaCalendarLinkRest {
 
   /**
    * Creates the link of a calendar, replacing the one it has: the previous URL
-   * stops answering at once. The answer carries the new URL.
+   * stops answering at once. The answer carries the new URL, and is never
+   * cached.
    *
    * @param request the authenticated request
    * @param calendarId technical identifier of the calendar
@@ -149,10 +153,11 @@ public class AgendaCalendarLinkRest {
       @ApiResponse(responseCode = "403", description = "The user may not manage the link of this calendar"),
       @ApiResponse(responseCode = "404", description = "Calendar not found"),
   })
-  public CalendarLinkStatusEntity saveCalendarLink(HttpServletRequest request, @PathVariable("calendarId") long calendarId) {
+  public ResponseEntity<CalendarLinkStatusEntity> saveCalendarLink(HttpServletRequest request,
+                                                                   @PathVariable("calendarId") long calendarId) {
     try {
       calendarLinkService.saveCalendarLink(calendarId, request.getRemoteUser());
-      return toEntity(request, calendarId, calendarLinkService.getCalendarLink(calendarId, request.getRemoteUser()));
+      return uncached(toEntity(request, calendarId, calendarLinkService.getCalendarLink(calendarId, request.getRemoteUser())));
     } catch (ObjectNotFoundException e) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "agenda.calendarLink.calendarNotFound");
     } catch (IllegalAccessException e) {
@@ -237,6 +242,17 @@ public class AgendaCalendarLinkRest {
                          .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"calendar.ics\"")
                          .contentType(TEXT_CALENDAR)
                          .body(body);
+  }
+
+  /**
+   * Answers a link's status with {@code Cache-Control: no-store}, so that a URL
+   * it carries stays out of browser and intermediary caches.
+   *
+   * @param entity the status
+   * @return the response
+   */
+  private ResponseEntity<CalendarLinkStatusEntity> uncached(CalendarLinkStatusEntity entity) {
+    return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(entity);
   }
 
   /**
