@@ -216,6 +216,7 @@ export default {
     connectorWarning: '',
     connectorActions: {},
     connectorActionsAsked: 0,
+    problemsAsked: 0,
   }),
   computed: {
     /**
@@ -323,9 +324,14 @@ export default {
      * failing, and why, is the connector's own business — agenda only knows
      * that a row should carry a warning and what sentence to show on it.
      *
+     * Only the latest question's answer is kept: the list asks again on every
+     * signal and whenever a calendar's menu opens, and an older, slower answer
+     * must not replace a newer one.
+     *
      * @returns {Promise} resolves once every connector has answered
      */
     retrieveProblems() {
+      const asked = ++this.problemsAsked;
       const connectors = (extensionRegistry.loadExtensions('agenda', 'connectors') || [])
         .filter(connector => connector && connector.connected && typeof connector.calendarProblems === 'function');
       if (!connectors.length) {
@@ -334,7 +340,11 @@ export default {
       }
       return Promise.all(connectors.map(connector => Promise.resolve(connector.calendarProblems())
         .catch(() => ({}))))
-        .then(answers => this.problems = Object.assign({}, ...answers));
+        .then(answers => {
+          if (asked === this.problemsAsked) {
+            this.problems = Object.assign({}, ...answers);
+          }
+        });
     },
     /**
      * What each connector adds to the menu of one of this user's calendars.
