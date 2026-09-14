@@ -101,6 +101,9 @@
             :value="isRowMenuOpen(calendar.id)"
             content-class="agendaCalendarRowMenu"
             offset-y
+            left>
+              </v-list-item>
+              <!--
             left
             @input="opened => opened && refreshCalendarMenu()">
               </v-list-item>
@@ -112,7 +115,8 @@
                 v-on="on"
                 :title="$t('agenda.calendar.actions')"
                 icon
-                x-small>
+                x-small
+                @click="refreshCalendarMenu()">
                 <v-icon size="14">fa-ellipsis-v</v-icon>
               </v-btn>
             </template>
@@ -395,16 +399,15 @@ export default {
         });
     },
     /**
-     * Asks the connectors again what they add to a calendar's menu and what
-     * they report wrong with it, as the menu opens.
+     * Asks the connectors again about actions and problems whenever the
+     * button of a calendar's menu is clicked: a calendar created during the
+     * session is bound to its CalDAV collection asynchronously, after agenda's
+     * own refresh signal, so its "Share" action may only exist by the time its
+     * menu is opened. Bound to the activator button's click rather than the
+     * menu's input so the menu's open state stays wholly the list's own; a
+     * click that closes the menu asks once more, which costs one request.
      *
-     * The signals a creation, an edit or a deletion emits reach this list
-     * before a connector may be ready to answer: the CalDAV add-on binds a new
-     * calendar to its collection in a listener running after agenda answered
-     * the creation. Opening the menu comes later than any of that, and is the
-     * moment the answer is needed.
-     *
-     * @returns {Promise} resolves once both are asked
+     * @returns {Promise} resolves once both questions are answered
      */
     refreshCalendarMenu() {
       return Promise.all([this.retrieveConnectorActions(), this.retrieveProblems()]);
