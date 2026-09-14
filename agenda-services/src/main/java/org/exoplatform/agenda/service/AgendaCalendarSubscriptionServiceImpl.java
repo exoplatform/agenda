@@ -34,7 +34,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
@@ -199,7 +198,7 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
 
   private final AgendaCalendarLinkService   calendarLinkService;
 
-  private final Map<Long, AtomicInteger>    readsInFlight           = new ConcurrentHashMap<>();
+  private final Map<Long, Integer>          readsInFlight           = new ConcurrentHashMap<>();
 
   private final CalendarFeedFetcher         feedFetcher;
 
@@ -580,12 +579,18 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
    * @return false when the user holds them all
    */
   private boolean acquireRead(long userIdentityId) {
-    AtomicInteger count = readsInFlight.computeIfAbsent(userIdentityId, id -> new AtomicInteger());
-    if (count.incrementAndGet() > MAX_READS_PER_USER) {
-      count.decrementAndGet();
-      return false;
-    }
-    return true;
+    // counted inside the map's own atomic update: a permit given back and its
+    // entry removed never races a permit taken on the entry being removed
+    boolean[] acquired = { false };
+    readsInFlight.compute(userIdentityId, (id, held) -> {
+      int count = held == null ? 0 : held;
+      if (count >= MAX_READS_PER_USER) {
+        return held;
+      }
+      acquired[0] = true;
+      return count + 1;
+    });
+    return acquired[0];
   }
 
   /**
@@ -594,10 +599,7 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
    * @param userIdentityId the user
    */
   private void releaseRead(long userIdentityId) {
-    AtomicInteger count = readsInFlight.get(userIdentityId);
-    if (count != null && count.decrementAndGet() <= 0) {
-      readsInFlight.remove(userIdentityId, count);
-    }
+    readsInFlight.computeIfPresent(userIdentityId, (id, held) -> held <= 1 ? null : held - 1);
   }
 
   /**

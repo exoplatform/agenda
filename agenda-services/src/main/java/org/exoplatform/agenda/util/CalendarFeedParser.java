@@ -281,12 +281,21 @@ public final class CalendarFeedParser {
    * replaces left to the override.
    * <p>
    * ical4j expands a series with no limit of its own, so its cost is bounded
-   * before it runs, from the rules alone: a rule firing every second or minute,
-   * or whose one step builds more than {@link #MAX_CANDIDATES_PER_STEP}
-   * candidates, is not expanded; the window is shortened, from the series' first instance in it, so
-   * the series yields about {@code allowed} instances at most; and a series whose rules would walk
-   * more than {@link #MAX_RULE_WORK} candidates, or more than the document has
-   * left, is not expanded either.
+   * before it runs, from the rules alone:
+   * <ul>
+   * <li>a rule firing every second or minute, or whose one step builds more than
+   * {@link #MAX_CANDIDATES_PER_STEP} candidates, is not expanded;</li>
+   * <li>an instance overlaps the window when it starts after the window's start
+   * minus the instance's length, and ical4j walks from there: a series whose
+   * rules all ended before is not expanded at all, and one whose instances
+   * overlapping the window's start alone exceed {@code allowed} is refused;</li>
+   * <li>the window is shortened, from the series' first instance in it, so the
+   * series yields about {@code allowed} instances at most;</li>
+   * <li>ical4j reaches the start of its walk one step at a time from the series'
+   * first instance, and walks a rule with a COUNT from there building every
+   * candidate: a series costing more than {@link #MAX_RULE_WORK} steps and
+   * candidates, or more than the document has left, is not expanded.</li>
+   * </ul>
    *
    * @param uid the event's UID
    * @param master the event
@@ -317,9 +326,25 @@ public final class CalendarFeedParser {
       add(events, occurrence(uid + "|", master, null, null, floatingZone), windowStart, windowEnd);
       return true;
     }
+    Duration length = instanceLength(master);
+    if (length == null) {
+      return false;
+    }
+    Instant seed = master.getStartDate().getDate().toInstant();
+    Instant reach = windowStart.minus(length);
+    // floating and all-day dates are read in the JVM's zone: a day of margin
+    // before a series is taken as ended
+    Instant ended = reach.minus(Duration.ofDays(1));
     List<Recur> rules = new ArrayList<>();
+    boolean anyInstance = !master.getProperties(Property.RDATE).isEmpty();
     for (Object property : master.getProperties(Property.RRULE)) {
-      rules.add(((RRule) property).getRecur());
+      Recur rule = ((RRule) property).getRecur();
+      rules.add(rule);
+      anyInstance |= rule == null || rule.getUntil() == null || !rule.getUntil().toInstant().isBefore(ended);
+    }
+    if (!anyInstance) {
+      // every rule ended before an instance could overlap the window
+      return true;
     }
     for (Object property : master.getProperties(Property.EXRULE)) {
       rules.add(((ExRule) property).getRecur());
@@ -334,40 +359,97 @@ public final class CalendarFeedParser {
       }
       rate += candidatesPerStep(rule) / step.toMillis();
     }
-    Instant seed = master.getStartDate().getDate().toInstant();
+    Instant firstStart = seed.isAfter(reach) ? seed : reach;
     // shortened from the series' first instance in the window, not from the
     // window's start: a dense series starting late in the window keeps its
     // first instances
     Instant rangeStart = seed.isAfter(windowStart) ? seed : windowStart;
     boolean shortened = false;
     Instant end = windowEnd;
-    if (rate > 0 && rangeStart.isBefore(windowEnd)
-        && Math.max(allowed, 1) / rate < Duration.between(rangeStart, windowEnd).toMillis()) {
-      end = rangeStart.plusMillis((long) Math.ceil(Math.max(allowed, 1) / rate));
-      shortened = true;
+    if (rate > 0) {
+      double available = Math.max(allowed, 1) / rate - Math.max(Duration.between(firstStart, rangeStart).toMillis(), 0);
+      if (available <= 0) {
+        // the instances overlapping the window's start alone are too many
+        return false;
+      }
+      if (rangeStart.isBefore(windowEnd) && available < Duration.between(rangeStart, windowEnd).toMillis()) {
+        end = rangeStart.plusMillis((long) Math.ceil(available));
+        shortened = true;
+      }
     }
-    long cost = master.getProperties(Property.RDATE).size();
+    double cost = master.getProperties(Property.RDATE).size();
     for (Recur rule : rules) {
-      Instant from = rule.getCount() > 0 || seed.isAfter(windowStart) ? seed : windowStart;
-      Instant to = rule.getUntil() != null && rule.getUntil().toInstant().isBefore(end) ? rule.getUntil().toInstant() : end;
-      long steps = to.isAfter(from) ? Duration.between(from, to).dividedBy(shortestStep(rule)) + 1 : 1;
-      cost += (long) Math.min(steps * candidatesPerStep(rule), Long.MAX_VALUE / 4d);
+      Duration step = shortestStep(rule);
+      Instant walkFrom = rule.getCount() > 0 ? seed : firstStart;
+      Instant walkTo = rule.getUntil() != null && rule.getUntil().toInstant().isBefore(end) ? rule.getUntil().toInstant() : end;
+      cost += stepsBetween(seed, walkFrom, step);
+      cost += Math.max(stepsBetween(walkFrom, walkTo, step), 1) * candidatesPerStep(rule);
     }
     if (cost > MAX_RULE_WORK || cost > work[0]) {
       return false;
     }
-    work[0] -= cost;
+    work[0] -= (long) cost;
     boolean allDay = !(master.getStartDate().getDate() instanceof DateTime);
-    PeriodList periods = master.calculateRecurrenceSet(new Period(new DateTime(windowStart.toEpochMilli()),
-                                                                  new DateTime(end.toEpochMilli())));
+    PeriodList periods;
+    try {
+      periods = master.calculateRecurrenceSet(new Period(new DateTime(windowStart.toEpochMilli()),
+                                                         new DateTime(end.toEpochMilli())));
+    } catch (RuntimeException e) {
+      // a negative duration far enough moves ical4j's start past the period's
+      // end, and it refuses the range
+      return false;
+    }
+    int added = 0;
     for (Object value : periods) {
+      if (added >= Math.max(allowed, 1)) {
+        return false;
+      }
       Period period = (Period) value;
       String key = allDay ? utcDate(period.getStart()).toString() : instantKey(period.getStart());
       if (!overridden.containsKey(key)) {
+        int before = events.size();
         add(events, occurrence(uid + "|" + key, master, period.getStart(), period.getEnd(), floatingZone), windowStart, windowEnd);
+        added += events.size() - before;
       }
     }
     return !shortened;
+  }
+
+  /**
+   * How long one instance of a series lasts, read the way ical4j 3.2.19 reads it
+   * to move the start of its walk back: DURATION first, else DTEND, else DUE,
+   * else nothing. A negative length is counted by its size.
+   *
+   * @param master the series
+   * @return the length, or null when it cannot be read
+   */
+  private static Duration instanceLength(VEvent master) {
+    try {
+      Instant start = master.getStartDate().getDate().toInstant();
+      net.fortuna.ical4j.model.property.Duration duration = master.getProperty(Property.DURATION);
+      if (duration != null && duration.getDuration() != null) {
+        return Duration.between(start, ZonedDateTime.ofInstant(start, ZoneOffset.UTC).plus(duration.getDuration()).toInstant()).abs();
+      }
+      DateProperty end = master.getProperty(Property.DTEND);
+      if (end == null || end.getDate() == null) {
+        end = master.getProperty(Property.DUE);
+      }
+      return end == null || end.getDate() == null ? Duration.ZERO : Duration.between(start, end.getDate().toInstant()).abs();
+    } catch (RuntimeException e) {
+      return null;
+    }
+  }
+
+  /**
+   * How many steps of a rule fit between two instants, counted generously.
+   *
+   * @param from the first instant
+   * @param to the last instant
+   * @param step the shortest step of the rule
+   * @return the steps, 0 when {@code to} is not after {@code from}
+   */
+  private static double stepsBetween(Instant from, Instant to, Duration step) {
+    return to.isAfter(from) ? (double) Duration.between(from, to).toMillis() / step.toMillis() + 1 : 0;
   }
 
   /**

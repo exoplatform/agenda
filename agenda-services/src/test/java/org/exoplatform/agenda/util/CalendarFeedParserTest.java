@@ -447,6 +447,110 @@ class CalendarFeedParserTest {
   }
 
   /**
+   * ical4j walks a series from where its instances could start overlapping the
+   * window, the window's start minus an instance's length: a dense series whose
+   * instances last a century is not expanded — that walk ran the heap out from
+   * 1970 — while a yearly series with instances of three months is. The length is
+   * read as ical4j reads it: DURATION before DTEND, DUE when there is no DTEND;
+   * and a length so negative that ical4j refuses the range leaves the series out
+   * instead of failing the document.
+   *
+   * @throws Exception when refused
+   */
+  @Test
+  void aSeriesWithLongInstancesIsCostedFromWhereTheyStart() throws Exception {
+    ParsedCalendar parsed = assertTimeoutPreemptively(Duration.ofSeconds(20),
+                                                      () -> parse(calendar("BEGIN:VEVENT",
+                                                                           "UID:century@test",
+                                                                           "DTSTART:19700101T000000Z",
+                                                                           "DTEND:21000101T000000Z",
+                                                                           "RRULE:FREQ=HOURLY;BYMINUTE=" + numbers(0, 59),
+                                                                           "END:VEVENT",
+                                                                           "BEGIN:VEVENT",
+                                                                           "UID:century-duration@test",
+                                                                           "DTSTART:19700101T000000Z",
+                                                                           "DTEND:19700101T010000Z",
+                                                                           "DURATION:P47482D",
+                                                                           "RRULE:FREQ=HOURLY;BYMINUTE=" + numbers(0, 59),
+                                                                           "END:VEVENT",
+                                                                           "BEGIN:VEVENT",
+                                                                           "UID:century-due@test",
+                                                                           "DTSTART:19700101T000000Z",
+                                                                           "DUE:21000101T000000Z",
+                                                                           "RRULE:FREQ=HOURLY;BYMINUTE=" + numbers(0, 59),
+                                                                           "END:VEVENT",
+                                                                           "BEGIN:VEVENT",
+                                                                           "UID:backwards@test",
+                                                                           "DTSTART:19700101T000000Z",
+                                                                           "DURATION:-P47482D",
+                                                                           "RRULE:FREQ=YEARLY",
+                                                                           "END:VEVENT",
+                                                                           "BEGIN:VEVENT",
+                                                                           "UID:season@test",
+                                                                           "DTSTART:20200701T000000Z",
+                                                                           "DTEND:20200929T000000Z",
+                                                                           "RRULE:FREQ=YEARLY",
+                                                                           "END:VEVENT")));
+
+    assertTrue(parsed.truncated());
+    assertEquals(Set.of("season@test|" + Instant.parse("2026-07-01T00:00:00Z").toEpochMilli()),
+                 parsed.events().stream().map(ImportedEvent::key).collect(Collectors.toSet()));
+  }
+
+  /**
+   * ical4j reaches a series' walk one step at a time from its first instance,
+   * whatever its UNTIL: series seeded in year 1 and ended in year 2 are not
+   * expanded, and cost nothing — nothing of them was left out — where each took
+   * over a second.
+   *
+   * @throws Exception when refused
+   */
+  @Test
+  void aSeriesThatEndedCenturiesAgoIsNotWalked() throws Exception {
+    List<String> lines = new java.util.ArrayList<>();
+    for (int i = 0; i < 20; i++) {
+      lines.addAll(List.of("BEGIN:VEVENT",
+                           "UID:ended-" + i + "@test",
+                           "DTSTART:00010101T000000Z",
+                           "DTEND:00010101T000100Z",
+                           "RRULE:FREQ=HOURLY;UNTIL=00020101T000000Z",
+                           "END:VEVENT"));
+    }
+    ParsedCalendar parsed = assertTimeoutPreemptively(Duration.ofSeconds(10),
+                                                      () -> parse(calendar(lines.toArray(String[]::new))));
+
+    assertTrue(parsed.events().isEmpty());
+    assertFalse(parsed.truncated(), "an ended series leaves nothing out");
+  }
+
+  /**
+   * A series seeded in year 1 that never ends is refused on the steps ical4j
+   * would take to reach the window, while a daily series started in 1900 is read.
+   *
+   * @throws Exception when refused
+   */
+  @Test
+  void aSeriesSeededCenturiesAgoIsCostedOnTheStepsToTheWindow() throws Exception {
+    List<String> lines = new java.util.ArrayList<>();
+    for (int i = 0; i < 20; i++) {
+      lines.addAll(List.of("BEGIN:VEVENT",
+                           "UID:ancient-" + i + "@test",
+                           "DTSTART:00010101T000000Z",
+                           "DTEND:00010101T000100Z",
+                           "RRULE:FREQ=HOURLY",
+                           "END:VEVENT"));
+    }
+    lines.addAll(List.of("BEGIN:VEVENT", "UID:old-daily@test", "DTSTART:19000101T090000Z", "DTEND:19000101T100000Z", "RRULE:FREQ=DAILY",
+                         "END:VEVENT"));
+    ParsedCalendar parsed = assertTimeoutPreemptively(Duration.ofSeconds(10),
+                                                      () -> parse(calendar(lines.toArray(String[]::new))));
+
+    assertTrue(parsed.truncated());
+    assertEquals(Set.of("old-daily@test"),
+                 parsed.events().stream().map(event -> event.key().substring(0, event.key().indexOf('|'))).collect(Collectors.toSet()));
+  }
+
+  /**
    * A counted series is walked from its first instance, whatever the window: one
    * started decades ago with several instances a day is not expanded, the same
    * series started a week before the window is.
