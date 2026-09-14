@@ -44,8 +44,11 @@
       v-if="canManageLink"
       class="my-0 ms-2 agenda-calendar-actions">
       <v-menu
+        :value="isRowMenuOpen('menu')"
+        content-class="agendaCalendarRowMenu"
         offset-y
-        left>
+        left
+        @input="toggleRowMenu('menu', $event)">
         <template #activator="{ on, attrs }">
           <v-btn
             v-bind="attrs"
@@ -94,9 +97,10 @@
 
 <script>
 import calendarLinkMenuMixin from '../../js/CalendarLinkMenuMixin.js';
+import calendarRowMenuMixin from '../../js/CalendarRowMenuMixin.js';
 
 export default {
-  mixins: [calendarLinkMenuMixin],
+  mixins: [calendarLinkMenuMixin, calendarRowMenuMixin],
   props: {
     calendar: {
       type: Object,

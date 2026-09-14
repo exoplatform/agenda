@@ -115,8 +115,11 @@
           v-if="calendar.id"
           class="my-0 ms-2 agenda-calendar-actions">
           <v-menu
+            :value="isRowMenuOpen(calendar.id)"
+            content-class="agendaCalendarRowMenu"
             offset-y
-            left>
+            left
+            @input="toggleRowMenu(calendar.id, $event)">
             <template #activator="{ on, attrs }">
               <v-btn
                 v-bind="attrs"
@@ -184,9 +187,10 @@
 
 <script>
 import calendarLinkMenuMixin from '../../js/CalendarLinkMenuMixin.js';
+import calendarRowMenuMixin from '../../js/CalendarRowMenuMixin.js';
 
 export default {
-  mixins: [calendarLinkMenuMixin],
+  mixins: [calendarLinkMenuMixin, calendarRowMenuMixin],
   data: () => ({
     calendars: [],
     hiddenCalendarIds: [],
