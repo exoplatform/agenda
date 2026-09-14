@@ -256,11 +256,9 @@ export default {
   },
   created() {
     this.$root.$on('agenda-calendar-link-drawer-open', this.open);
-    this.$root.$on('agenda-calendar-link-unpublish', this.askUnpublish);
   },
   beforeDestroy() {
     this.$root.$off('agenda-calendar-link-drawer-open', this.open);
-    this.$root.$off('agenda-calendar-link-unpublish', this.askUnpublish);
   },
   methods: {
     /**
@@ -302,18 +300,6 @@ export default {
         return;
       }
       return this.save();
-    },
-    /**
-     * Unpublishes a calendar from a menu, without opening the drawer: the same
-     * confirmation, then the same deletion and its success message.
-     *
-     * @param {Object} calendar the calendar to unpublish
-     * @returns {void}
-     */
-    askUnpublish(calendar) {
-      this.calendar = calendar;
-      this.pendingAction = 'delete';
-      this.$refs.confirmDialog.open();
     },
     /**
      * Asks before deleting the link.

@@ -25,9 +25,8 @@
  * and is read again when the calendar link drawer says a link changed and on
  * the agenda's general refresh.
  *
- * Nothing here changes a link: publishing and resetting happen in the drawer,
- * and unpublishing is asked of the drawer too, which holds the one confirmation
- * dialog, so a list of fifty space rows does not carry fifty dialogs.
+ * Nothing here changes a link: publishing, resetting and unpublishing all
+ * happen in the drawer the state entry opens.
  */
 export default {
   data: () => ({
@@ -124,16 +123,6 @@ export default {
      */
     openCalendarLink(calendar) {
       this.$root.$emit('agenda-calendar-link-drawer-open', calendar);
-    },
-    /**
-     * Asks the drawer to unpublish a calendar: it confirms, deletes and says so,
-     * without opening.
-     *
-     * @param {Object} calendar the calendar to unpublish
-     * @returns {void}
-     */
-    unpublishCalendar(calendar) {
-      this.$root.$emit('agenda-calendar-link-unpublish', calendar);
     },
   },
 };

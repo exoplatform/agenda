@@ -136,7 +136,7 @@
               </v-list-item>
               <!--
                 Publishing (EXO-90252): one entry naming the calendar's state and opening
-                the drawer, and Unpublish once it is published, working or stopped.
+                the drawer, which is where a calendar is unpublished.
                 Right before Delete: Edit, then what connectors add (Share…,
                 EXO-90253), then Publish — BlueMind's own order.
               -->
@@ -158,12 +158,6 @@
                   </v-icon>
                   {{ publishMenuLabel(calendar) }}
                 </v-list-item-title>
-              </v-list-item>
-              <v-list-item
-                v-if="linkStateOf(calendar) !== 'none'"
-                class="agenda-calendar-unpublish-action"
-                @click="unpublishCalendar(calendar)">
-                <v-list-item-title>{{ $t('agenda.calendarPublish.delete') }}</v-list-item-title>
               </v-list-item>
               <v-list-item
                 v-if="!calendar.system"

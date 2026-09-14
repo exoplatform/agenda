@@ -231,30 +231,13 @@ describe('Calendar link drawer', () => {
     await flush();
 
     expect(service.deleteCalendarLink).toHaveBeenCalledWith(10);
+    expect(wrapper.rootEmit).toHaveBeenCalledWith('alert-message', 'agenda.calendarPublish.unpublished', 'success');
+    expect(wrapper.rootEmit).toHaveBeenCalledWith('agenda-calendar-links-changed');
     expect(drawerStub.methods.close).not.toHaveBeenCalled();
     expect(wrapper.findComponent(drawerStub).exists()).toBe(true);
     expect(wrapper.find('.agenda-calendar-link-none').exists()).toBe(true);
     expect(wrapper.find('.agenda-calendar-link-url').exists()).toBe(false);
     expect(wrapper.find('.agenda-calendar-link-save').text()).toBe('agenda.calendarPublish.create');
-  });
-
-  it('unpublishes from a menu only once confirmed, without opening, and says so', async () => {
-    service.deleteCalendarLink.mockResolvedValue();
-    const wrapper = mountDrawer();
-
-    wrapper.vm.$root.$emit('agenda-calendar-link-unpublish', SPACE_CALENDAR);
-    await flush();
-
-    expect(drawerStub.methods.open).not.toHaveBeenCalled();
-    expect(confirmStub.methods.open).toHaveBeenCalled();
-    expect(service.deleteCalendarLink).not.toHaveBeenCalled();
-
-    wrapper.findComponent(confirmStub).vm.$emit('ok');
-    await flush();
-
-    expect(service.deleteCalendarLink).toHaveBeenCalledWith(20);
-    expect(wrapper.rootEmit).toHaveBeenCalledWith('alert-message', 'agenda.calendarPublish.unpublished', 'success');
-    expect(wrapper.rootEmit).toHaveBeenCalledWith('agenda-calendar-links-changed');
   });
 
   it('tells the lists a link changed once published', async () => {

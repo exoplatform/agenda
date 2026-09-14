@@ -22,8 +22,9 @@ import AgendaFilterCalendarItem from '../../main/webapp/vue-app/agenda-common/co
 
 /**
  * The calendar menus and rows follow the publishing state (EXO-90252): not
- * published offers Publish; published says so with a check and offers
- * Unpublish; stopped says so with a warning and offers Unpublish. The row
+ * published offers Publish; published says so with a check; stopped says so with
+ * a warning. Each state is one entry opening the drawer, the only place a
+ * calendar is unpublished — the menus carry no Unpublish of their own. The row
  * carries a sign whenever the calendar is published, working or not. States
  * come from one listing, read again when a link changes.
  */
@@ -50,6 +51,40 @@ describe('Calendar menus and rows follow the publishing state', () => {
    */
   function flush() {
     return new Promise(resolve => setTimeout(resolve));
+  }
+
+  /**
+   * The menu entry titles of a menu, in the order they are drawn.
+   *
+   * @param {Object} menuHolder a wrapper holding one menu
+   * @returns {Array} the entry titles
+   */
+  function titlesOf(menuHolder) {
+    return menuHolder.findAll('v-list-item-title').wrappers.map(title => title.text());
+  }
+
+  /**
+   * Where an entry sits in a menu. An entry's title can carry its state icon's
+   * name before its label, so it is found by what it contains.
+   *
+   * @param {Array} titles the entry titles, in order
+   * @param {String} key the label key the entry shows
+   * @returns {Number} its position, -1 when absent
+   */
+  function at(titles, key) {
+    return titles.findIndex(title => title.split(/\s+/).includes(key));
+  }
+
+  /**
+   * Whether a menu offers an Unpublish entry, recognised by its label or by the
+   * class it used to carry.
+   *
+   * @param {Object} menuHolder a wrapper holding one menu
+   * @returns {Boolean} true when an Unpublish entry is drawn
+   */
+  function offersUnpublish(menuHolder) {
+    return at(titlesOf(menuHolder), 'agenda.calendarPublish.delete') >= 0
+      || menuHolder.find('.agenda-calendar-unpublish-action').exists();
   }
 
   beforeAll(() => {
@@ -98,79 +133,61 @@ describe('Calendar menus and rows follow the publishing state', () => {
 
       expect(work.find('.agenda-calendar-link-action').classes()).toContain('agenda-calendar-link-state-none');
       expect(work.find('.agenda-calendar-link-action').text()).toBe('agenda.calendarPublish.menu');
-      expect(work.find('.agenda-calendar-unpublish-action').exists()).toBe(false);
       expect(work.find('.agenda-calendar-published-icon').exists()).toBe(false);
     });
 
-    it('says Published with a check, offers Unpublish, and signs the row', async () => {
+    it('says Published with a check, and signs the row', async () => {
       const home = row(await mountList(), 'Home');
 
       const entry = home.find('.agenda-calendar-link-action');
       expect(entry.classes()).toContain('agenda-calendar-link-state-published');
       expect(entry.text()).toContain('agenda.calendarPublish.published');
       expect(entry.find('v-icon').text()).toBe('fas fa-check');
-      expect(home.find('.agenda-calendar-unpublish-action').text()).toBe('agenda.calendarPublish.delete');
       const sign = home.find('.agenda-calendar-published-published');
       expect(sign.attributes('title')).toBe('agenda.calendarPublish.publishedTooltip');
       expect(sign.find('v-icon').text()).toBe('fas fa-link');
     });
 
-    it('says Publishing stopped with a warning, offers Unpublish, and signs the row differently', async () => {
+    it('says Publishing stopped with a warning, and signs the row differently', async () => {
       const trips = row(await mountList(), 'Trips');
 
       const entry = trips.find('.agenda-calendar-link-action');
       expect(entry.classes()).toContain('agenda-calendar-link-state-stopped');
       expect(entry.text()).toContain('agenda.calendarPublish.stopped');
       expect(entry.find('v-icon').text()).toBe('fas fa-exclamation-triangle');
-      expect(trips.find('.agenda-calendar-unpublish-action').exists()).toBe(true);
       const sign = trips.find('.agenda-calendar-published-stopped');
       expect(sign.attributes('title')).toBe('agenda.calendarPublish.stoppedTooltip');
       expect(sign.find('v-icon').classes()).toContain('warning--text');
     });
 
-    it('lists the publishing entries after Edit and before Delete, as BlueMind orders Modifier, Partager, Publier', async () => {
+    it('offers no Unpublish in the menu, whatever the state: a calendar is unpublished in the drawer', async () => {
       const wrapper = await mountList();
-      /**
-       * The menu entries of a row, in the order they are drawn.
-       *
-       * @param {String} label the calendar's label
-       * @returns {Array} the entry titles
-       */
-      const entries = label => row(wrapper, label).findAll('v-list-item-title').wrappers.map(title => title.text());
 
-      /**
-       * Where an entry sits in a row's menu. An entry's title can carry its
-       * state icon's name before its label, so it is found by what it contains.
-       *
-       * @param {Array} titles the entry titles, in order
-       * @param {String} key the label key the entry shows
-       * @returns {Number} its position, -1 when absent
-       */
-      const at = (titles, key) => titles.findIndex(title => title.split(/\s+/).includes(key));
+      ['Work', 'Home', 'Trips'].forEach(label => expect(offersUnpublish(row(wrapper, label))).toBe(false));
+    });
 
-      const published = entries('Home');
-      expect(published).toHaveLength(4);
+    it('lists the publishing entry after Edit and before Delete, as BlueMind orders Modifier, Partager, Publier', async () => {
+      const wrapper = await mountList();
+
+      const published = titlesOf(row(wrapper, 'Home'));
+      expect(published).toHaveLength(3);
       expect(at(published, 'agenda.calendar.edit')).toBe(0);
       expect(at(published, 'agenda.calendarPublish.published')).toBe(1);
-      expect(at(published, 'agenda.calendarPublish.delete')).toBe(2);
-      expect(at(published, 'agenda.calendar.delete')).toBe(3);
+      expect(at(published, 'agenda.calendar.delete')).toBe(2);
 
-      const notPublished = entries('Work');
+      const notPublished = titlesOf(row(wrapper, 'Work'));
       expect(notPublished).toHaveLength(3);
       expect(at(notPublished, 'agenda.calendar.edit')).toBe(0);
       expect(at(notPublished, 'agenda.calendarPublish.menu')).toBe(1);
       expect(at(notPublished, 'agenda.calendar.delete')).toBe(2);
     });
 
-    it('opens the drawer from the state entry and asks the drawer to unpublish', async () => {
+    it('opens the drawer from the state entry', async () => {
       const wrapper = await mountList();
-      const home = row(wrapper, 'Home');
 
-      await home.find('.agenda-calendar-link-action').trigger('click');
-      await home.find('.agenda-calendar-unpublish-action').trigger('click');
+      await row(wrapper, 'Home').find('.agenda-calendar-link-action').trigger('click');
 
       expect(wrapper.rootEmit).toHaveBeenCalledWith('agenda-calendar-link-drawer-open', expect.objectContaining({id: 11}));
-      expect(wrapper.rootEmit).toHaveBeenCalledWith('agenda-calendar-link-unpublish', expect.objectContaining({id: 11}));
     });
 
     it('reads the states once, and again when a link changes', async () => {
@@ -211,16 +228,15 @@ describe('Calendar menus and rows follow the publishing state', () => {
       const wrapper = await mountItem(space(22, true));
 
       expect(wrapper.find('.agenda-calendar-link-action').classes()).toContain('agenda-calendar-link-state-none');
-      expect(wrapper.find('.agenda-calendar-unpublish-action').exists()).toBe(false);
       expect(wrapper.find('.agenda-calendar-published-icon').exists()).toBe(false);
     });
 
-    it('says Published and offers Unpublish to a manager, with the sign on the row', async () => {
+    it('says Published to a manager, opens the drawer from it, and signs the row', async () => {
       const wrapper = await mountItem(space(20, true));
 
       expect(wrapper.find('.agenda-calendar-link-action').text()).toContain('agenda.calendarPublish.published');
-      await wrapper.find('.agenda-calendar-unpublish-action').trigger('click');
-      expect(wrapper.rootEmit).toHaveBeenCalledWith('agenda-calendar-link-unpublish', expect.objectContaining({id: 20}));
+      await wrapper.find('.agenda-calendar-link-action').trigger('click');
+      expect(wrapper.rootEmit).toHaveBeenCalledWith('agenda-calendar-link-drawer-open', expect.objectContaining({id: 20}));
       expect(wrapper.find('.agenda-calendar-published-published').exists()).toBe(true);
     });
 
@@ -228,15 +244,22 @@ describe('Calendar menus and rows follow the publishing state', () => {
       const wrapper = await mountItem(space(21, true));
 
       expect(wrapper.find('.agenda-calendar-link-action').classes()).toContain('agenda-calendar-link-state-stopped');
-      expect(wrapper.find('.agenda-calendar-unpublish-action').exists()).toBe(true);
       expect(wrapper.find('.agenda-calendar-published-stopped').exists()).toBe(true);
+    });
+
+    it('offers no Unpublish in the menu, whatever the state: a calendar is unpublished in the drawer', async () => {
+      for (const id of [20, 21, 22]) {
+        const wrapper = await mountItem(space(id, true));
+        expect(titlesOf(wrapper)).toHaveLength(1);
+        expect(offersUnpublish(wrapper)).toBe(false);
+      }
     });
 
     it('offers no publishing entry to a member', async () => {
       const wrapper = await mountItem(space(20, false));
 
       expect(wrapper.find('.agenda-calendar-link-action').exists()).toBe(false);
-      expect(wrapper.find('.agenda-calendar-unpublish-action').exists()).toBe(false);
+      expect(titlesOf(wrapper)).toHaveLength(0);
     });
   });
 
