@@ -232,7 +232,7 @@ describe('Calendar menus and rows follow the publishing state', () => {
       return wrapper;
     }
 
-    const space = (id, canEdit) => ({id, owner: {id: 100, providerId: 'space', space: {displayName: 'Chemistry'}}, acl: {canEdit}});
+    const space = (id, canEdit) => ({id, owner: {id: 100, providerId: 'space', space: {displayName: 'Chemistry'}}, acl: {canEdit, canPublish: canEdit}});
 
     it('offers Publish to a manager of a calendar that is not published', async () => {
       const wrapper = await mountItem(space(22, true));
@@ -272,6 +272,14 @@ describe('Calendar menus and rows follow the publishing state', () => {
         expect(titlesOf(wrapper)).toHaveLength(1);
         expect(offersUnpublish(wrapper)).toBe(false);
       }
+    });
+
+    it('offers no publishing entry, and no menu, to a super-manager who is not a manager of the space', async () => {
+      const wrapper = await mountItem({...space(20, true), acl: {canEdit: true, canPublish: false}});
+
+      expect(wrapper.find('.agenda-calendar-link-action').exists()).toBe(false);
+      expect(wrapper.find('.agenda-calendar-actions').exists()).toBe(false);
+      expect(titlesOf(wrapper)).toHaveLength(0);
     });
 
     it('offers no publishing entry to a member', async () => {

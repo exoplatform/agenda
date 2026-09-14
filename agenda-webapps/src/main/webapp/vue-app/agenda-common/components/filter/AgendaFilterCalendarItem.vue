@@ -11,10 +11,11 @@
         @click="changeSelection" />
     </v-list-item-content>
     <!--
-      Only a manager of the space gets the menu: its one entry manages the
+      Only a real manager of the space gets the menu: its one entry manages the
       calendar's private iCal link, which the server refuses anyone else
-      (EXO-90252). acl.canEdit is the server's own "manages this calendar"
-      answer. No menu on a space calendar not saved yet (id 0): it has nothing
+      (EXO-90252). acl.canPublish is the server's own answer — a member holding
+      the manager role, not a super-manager who is not one, which is why it is
+      not acl.canEdit. No menu on a space calendar not saved yet (id 0): it has nothing
       a link could publish until it exists.
     -->
     <v-list-item-action
@@ -158,7 +159,7 @@ export default {
      * @returns {boolean} true for a saved calendar the user can edit
      */
     canManageLink() {
-      return !!this.calendar && Number(this.calendar.id) > 0 && !!this.calendar.acl && !!this.calendar.acl.canEdit;
+      return !!this.calendar && Number(this.calendar.id) > 0 && !!this.calendar.acl && !!this.calendar.acl.canPublish;
     },
   },
   watch: {

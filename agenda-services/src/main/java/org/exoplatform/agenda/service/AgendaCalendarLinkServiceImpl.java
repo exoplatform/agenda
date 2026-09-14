@@ -60,7 +60,7 @@ import org.exoplatform.web.security.security.TokenServiceInitializationException
  * when it stops answering.
  * <p>
  * <b>Managing</b> (read the status, create or reset, delete) is
- * {@link Utils#canEditCalendar}: the owner of a personal calendar, a manager of
+ * {@link Utils#canPublishCalendar}: the owner of a personal calendar, a real manager of
  * the space for a space calendar.
  * <p>
  * <b>Answering</b> is decided again on every fetch, because the URL is
@@ -193,7 +193,7 @@ public class AgendaCalendarLinkServiceImpl implements AgendaCalendarLinkService 
     for (CalendarLink link : calendarLinkStorage.getByCalendarOwnerIds(ownerIds, MAX_LISTED_LINKS)) {
       Calendar calendar = agendaCalendarService.getCalendarById(link.getCalendarId());
       if (calendar != null && !calendar.isDeleted()
-          && Utils.canEditCalendar(identityManager, spaceService, calendar.getOwnerId(), userIdentityId)) {
+          && Utils.canPublishCalendar(identityManager, spaceService, calendar.getOwnerId(), userIdentityId)) {
         links.add(forManager(calendar, link));
       }
     }
@@ -445,7 +445,7 @@ public class AgendaCalendarLinkServiceImpl implements AgendaCalendarLinkService 
     if (calendar == null || calendar.isDeleted()) {
       throw new ObjectNotFoundException("Calendar with id " + calendarId + " wasn't found");
     }
-    if (!Utils.canEditCalendar(identityManager, spaceService, calendar.getOwnerId(), userIdentityId)) {
+    if (!Utils.canPublishCalendar(identityManager, spaceService, calendar.getOwnerId(), userIdentityId)) {
       throw new IllegalAccessException("User " + username + " is not allowed to manage the link of calendar " + calendarId);
     }
     return calendar;
@@ -488,7 +488,7 @@ public class AgendaCalendarLinkServiceImpl implements AgendaCalendarLinkService 
           && Utils.canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), creatorId);
     }
     if (owner.isSpace()) {
-      return Utils.canEditCalendar(identityManager, spaceService, calendar.getOwnerId(), creatorId);
+      return Utils.canPublishCalendar(identityManager, spaceService, calendar.getOwnerId(), creatorId);
     }
     return false;
   }

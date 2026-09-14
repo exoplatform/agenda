@@ -93,6 +93,12 @@ class AgendaCalendarLinkServiceTest {
 
   private static final long          MEMBER         = 5;
 
+  /** A platform administrator: a super-manager of every space, a manager of none. */
+  private static final long          SUPER_MANAGER  = 6;
+
+  /** Holds the manager role of the space without being one of its members. */
+  private static final long          ROLE_ONLY      = 7;
+
   private static final long          SPACE          = 100;
 
   private static final long          PERSONAL_CAL   = 10;
@@ -108,6 +114,9 @@ class AgendaCalendarLinkServiceTest {
   private final Set<String>          managers       = new HashSet<>();
 
   private final Set<String>          members        = new HashSet<>();
+
+  /** Who social's canManageSpace also admits, on top of the managers. */
+  private final Set<String>          superManagers  = new HashSet<>();
 
   /** Who the platform lists as a manager of the space, which may lag behind the rights check. */
   private final Set<String>          listedManagers = new HashSet<>();
@@ -138,11 +147,14 @@ class AgendaCalendarLinkServiceTest {
     user(MANAGER, "manager");
     user(SECOND_MANAGER, "manager2");
     user(MEMBER, "member");
+    user(SUPER_MANAGER, "admin");
+    user(ROLE_ONLY, "roleonly");
     Identity spaceIdentity = new Identity(SpaceIdentityProvider.NAME, "team");
     spaceIdentity.setId(String.valueOf(SPACE));
     identities.put(String.valueOf(SPACE), spaceIdentity);
     managers.addAll(List.of("manager", "manager2"));
     members.addAll(List.of("manager", "manager2", "member"));
+    superManagers.add("admin");
     listedManagers.addAll(managers);
 
     IdentityManager identityManager = mock(IdentityManager.class);
@@ -158,7 +170,14 @@ class AgendaCalendarLinkServiceTest {
     space.setPrettyName("team");
     SpaceService spaceService = mock(SpaceService.class);
     when(spaceService.getSpaceByPrettyName("team")).thenReturn(space);
-    when(spaceService.canManageSpace(eq(space), anyString())).thenAnswer(invocation -> managers.contains(invocation.getArgument(1)));
+    // canManageSpace as social computes it — (member and manager) or super-manager —
+    // so that a check going back through it would let the administrator in.
+    when(spaceService.canManageSpace(eq(space), anyString())).thenAnswer(invocation -> {
+      String username = invocation.getArgument(1);
+      return managers.contains(username) && members.contains(username) || superManagers.contains(username);
+    });
+    when(spaceService.isManager(eq(space), anyString())).thenAnswer(invocation -> managers.contains(invocation.getArgument(1)));
+    when(spaceService.isMember(eq(space), anyString())).thenAnswer(invocation -> members.contains(invocation.getArgument(1)));
     when(spaceService.canViewSpace(eq(space), anyString())).thenAnswer(invocation -> members.contains(invocation.getArgument(1)));
     when(spaceService.getManagerSpaces(anyString())).thenAnswer(invocation -> spaces(listedManagers.contains(invocation.getArgument(0)) ? List.of(space)
                                                                                                                                    : List.of()));
@@ -532,6 +551,71 @@ class AgendaCalendarLinkServiceTest {
 
     assertTrue(storage.rows.isEmpty());
     verify(calendarService, never()).getCalendarById(0);
+  }
+
+  /**
+   * PO decision (b): a super-manager who is not a manager of the space — a
+   * platform administrator — may not read, create, reset or delete a space
+   * calendar's link, although social lets them manage the space.
+   *
+   * @throws Exception when setting up the link fails
+   */
+  @Test
+  void aSuperManagerWhoIsNotAManagerIsRefusedEveryLinkOperation() throws Exception {
+    assertThrows(IllegalAccessException.class, () -> service.saveCalendarLink(SPACE_CAL, "admin"), "create");
+    assertTrue(storage.rows.isEmpty(), "nothing stored");
+
+    service.saveCalendarLink(SPACE_CAL, "manager");
+    String digest = storage.rows.get(SPACE_CAL).getTokenHash();
+
+    assertThrows(IllegalAccessException.class, () -> service.getCalendarLink(SPACE_CAL, "admin"), "read, so no URL");
+    assertThrows(IllegalAccessException.class, () -> service.saveCalendarLink(SPACE_CAL, "admin"), "reset");
+    assertThrows(IllegalAccessException.class, () -> service.deleteCalendarLink(SPACE_CAL, "admin"), "delete");
+    assertEquals(digest, storage.rows.get(SPACE_CAL).getTokenHash(), "the link is untouched");
+  }
+
+  /**
+   * PO decision (b): holding the manager role is not enough — a real manager is
+   * also a member of the space.
+   */
+  @Test
+  void theManagerRoleWithoutMembershipIsRefused() {
+    managers.add("roleonly");
+
+    assertThrows(IllegalAccessException.class, () -> service.saveCalendarLink(SPACE_CAL, "roleonly"));
+  }
+
+  /**
+   * PO decision (b): a super-manager's listing holds no space calendar link, even
+   * when the platform's list of managed spaces names the space for them.
+   *
+   * @throws Exception when setting up the link fails
+   */
+  @Test
+  void aSuperManagerListsNoSpaceLinkEvenWhenTheSpaceIsListedForThem() throws Exception {
+    service.saveCalendarLink(SPACE_CAL, "manager");
+    listedManagers.add("admin");
+
+    assertTrue(service.getCalendarLinks("admin").isEmpty());
+  }
+
+  /**
+   * PO decision (b): a space link whose creator is only a super-manager — one
+   * created before the rule — opens nothing, and the space's real managers see it
+   * stopped, without its URL.
+   *
+   * @throws Exception when the service refuses
+   */
+  @Test
+  void aLinkCreatedByASuperManagerDiesAtFetchTime() throws Exception {
+    String token = "S".repeat(43);
+    storage.save(SPACE_CAL, SUPER_MANAGER, AgendaCalendarLinkServiceImpl.hash(token), codec.encode(token), new Date());
+
+    assertThrows(ObjectNotFoundException.class, () -> service.getCalendarFeed(token));
+    CalendarLink seen = service.getCalendarLink(SPACE_CAL, "manager");
+    assertFalse(seen.isActive());
+    assertNull(seen.getToken());
+    assertEquals(1, service.getCalendarLinks("manager").size(), "and it is listed, stopped, for them");
   }
 
   /**

@@ -33,8 +33,28 @@ public class CalendarPermission implements Cloneable, Serializable {
 
   private boolean           canInviteeEdit;
 
+  /**
+   * Whether the user may publish the calendar as a private link (EXO-90252):
+   * the owner of a personal calendar, a member holding the manager role of the
+   * space for a space calendar — never a super-manager who is not one.
+   */
+  private boolean           canPublish;
+
+  /**
+   * Builds the permissions a calendar grants, publishing left refused.
+   *
+   * @param canCreate whether the user may create events in the calendar
+   * @param canEdit whether the user may edit the calendar
+   * @param canInviteeEdit whether invitees may edit the calendar's events
+   */
+  public CalendarPermission(boolean canCreate, boolean canEdit, boolean canInviteeEdit) {
+    this(canCreate, canEdit, canInviteeEdit, false);
+  }
+
   @Override
   public CalendarPermission clone() { // NOSONAR
-    return new CalendarPermission(canEdit, canCreate, canInviteeEdit);
+    CalendarPermission copy = new CalendarPermission(canEdit, canCreate, canInviteeEdit);
+    copy.setCanPublish(canPublish);
+    return copy;
   }
 }

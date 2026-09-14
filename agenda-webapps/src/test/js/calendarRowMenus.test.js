@@ -184,7 +184,7 @@ describe('Calendar row menus close on an outside press and when another opens', 
     const host = mount({
       components: {AgendaPersonalCalendarList, AgendaFilterCalendarItem},
       data: () => ({
-        space: {id: 20, owner: {id: 100, providerId: 'space', space: {displayName: 'Chemistry'}}, acl: {canEdit: true}},
+        space: {id: 20, owner: {id: 100, providerId: 'space', space: {displayName: 'Chemistry'}}, acl: {canEdit: true, canPublish: true}},
       }),
       template: '<div><agenda-personal-calendar-list /><agenda-filter-calendar-item :calendar="space" :owner-ids="[100]" :selected-owner-ids="[]" /></div>',
     }, {

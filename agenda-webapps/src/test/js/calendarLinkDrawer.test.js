@@ -34,7 +34,7 @@ describe('Calendar link drawer', () => {
 
   const OTHER_URL = 'https://tribe.example.org/agenda/rest/ical/Q1w2E3r4T5y6U7i8O9p0A1s2D3f4G5h6J7k8L9z0X1c.ics';
 
-  const SPACE_CALENDAR = {id: 20, owner: {id: 100, providerId: 'space', space: {displayName: 'Chemistry'}}, acl: {canEdit: true}};
+  const SPACE_CALENDAR = {id: 20, owner: {id: 100, providerId: 'space', space: {displayName: 'Chemistry'}}, acl: {canEdit: true, canPublish: true}};
 
   const PERSONAL_CALENDAR = {id: 10, name: 'Work', owner: {id: 1, providerId: 'organization', profile: {fullname: 'John'}}};
 
@@ -288,7 +288,7 @@ describe('Calendar link drawer', () => {
     });
 
     it('offers nothing to a member who does not manage the space, nor on an unsaved calendar', () => {
-      expect(mountItem({...SPACE_CALENDAR, acl: {canEdit: false}}).find('.agenda-calendar-link-action').exists()).toBe(false);
+      expect(mountItem({...SPACE_CALENDAR, acl: {canEdit: false, canPublish: false}}).find('.agenda-calendar-link-action').exists()).toBe(false);
       expect(mountItem({...SPACE_CALENDAR, acl: null}).find('.agenda-calendar-link-action').exists()).toBe(false);
       expect(mountItem({...SPACE_CALENDAR, id: 0}).find('.agenda-calendar-link-action').exists()).toBe(false);
     });
