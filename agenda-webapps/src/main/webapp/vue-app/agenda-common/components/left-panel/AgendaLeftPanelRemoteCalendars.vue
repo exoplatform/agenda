@@ -74,6 +74,58 @@
                 @change="toggle(calendar)" />
             </v-list-item-content>
             <!--
+              Hiding a calendar someone shared with the user, for good: the
+              checkbox only hides its events until the page is reloaded, and a
+              share the user never asked to see came back on every visit. The
+              connector records the choice on the server, and the agenda user
+              settings list what was hidden and show it again — the snackbar
+              says where.
+
+              The same three-dots menu the personal rows carry, one entry in
+              it, revealed on hover and on keyboard focus by the same class,
+              so the two lists read alike and the panel stays a list of
+              calendars rather than a column of controls. Offered only on a
+              row buildGroups stamped as shared, and only when the connector
+              that listed it can hide it: every other provider, and a CalDAV
+              add-on older than this contract, declares no hideCalendar, gets
+              no menu, and the row reads exactly as it did.
+
+              Placed before the owner marker, where the personal rows put
+              their menu last: the avatar and the lock are static markers
+              aligned on the 24px column the section headers' icons share
+              (see the marker's own comment), and a menu after them would
+              push them out of that column on every shared row, hovered or
+              not — the hover reveals the menu by opacity and does not take
+              its width back. So the marker keeps the column and the menu
+              appears at its left. Keyboard users reach it by tabbing:
+              focus-within is what reveals it, and the button carries its
+              own label.
+            -->
+            <v-list-item-action
+              v-if="canHide(calendar)"
+              class="my-0 ms-2 flex-grow-0 agenda-calendar-actions">
+              <v-menu
+                offset-y
+                left>
+                <template #activator="{ on, attrs }">
+                  <v-btn
+                    v-bind="attrs"
+                    v-on="on"
+                    :title="$t('agenda.calendar.actions')"
+                    :aria-label="$t('agenda.calendar.actions')"
+                    icon
+                    x-small>
+                    <v-icon size="14">fa-ellipsis-v</v-icon>
+                  </v-btn>
+                </template>
+                <v-list dense class="pa-0">
+                  <v-list-item @click="hideCalendar(calendar)">
+                    <v-list-item-title>{{ $t('agenda.leftPanel.hideSharedCalendar') }}</v-list-item-title>
+                  </v-list-item>
+                </v-list>
+              </v-menu>
+            </v-list-item-action>
+            <!--
               A calendar the account may only read — one its owner shared with
               the user, typically — says so, because it sits next to calendars
               the user owns and looks exactly like them. The rows here carry
@@ -384,6 +436,14 @@ export default {
      * connector's own object is left as it answered it; the stamp goes on a
      * copy.
      *
+     * A shared row is also stamped with the name of the connector that listed
+     * it, `connectorName`: the section it lands in is not its server's, so
+     * nothing else on the row says which connector to ask when the user acts
+     * on it (see hideCalendar). The name and not the connector itself, so the
+     * row stays plain data — the descriptor is looked up again among the
+     * connected connectors at the moment of acting, which is also what keeps
+     * a menu from acting on an account disconnected since the row was drawn.
+     *
      * @param {Array} answers one entry per connector asked, `{connector,
      *          calendars}`, in the connectors' order
      * @returns {Array} the sections, each `{name, calendars}` with a label key
@@ -396,7 +456,7 @@ export default {
         const own = [];
         calendars.forEach(calendar => {
           if (this.isSharedCalendar(connector, calendar)) {
-            sharedCalendars.push({...calendar, sharedWithMe: true});
+            sharedCalendars.push({...calendar, sharedWithMe: true, connectorName: connector.name});
           } else {
             own.push(calendar);
           }
@@ -505,6 +565,124 @@ export default {
         ? this.hiddenIds.concat(calendar.id)
         : this.hiddenIds.filter(id => id !== calendar.id);
       this.$root.$emit('agenda-remote-calendars-changed', this.hiddenIds.slice());
+    },
+    /**
+     * The connector that listed a shared row, found again by the name
+     * buildGroups stamped on it, among the connectors currently connected.
+     *
+     * @param {Object} calendar calendar as buildGroups stamped it
+     * @returns {Object} the connector, or null when none connected bears the
+     *          name — the account was disconnected since the row was drawn
+     */
+    connectorOf(calendar) {
+      const name = calendar && calendar.connectorName;
+      return name && this.connectedConnectors.find(connector => connector.name === name) || null;
+    },
+    /**
+     * Whether the row gets the menu that hides the calendar for good.
+     *
+     * Only a row buildGroups stamped as shared with the user — hiding is what
+     * one does with someone else's calendar; an own calendar is managed from
+     * its account — and only when the connector that listed it declares
+     * `hideCalendar`. The declaration is the contract, as `listCalendars` and
+     * `calendarProblems` are for the other lists: a provider without it, or
+     * a CalDAV add-on older than the method, gets no menu rather than a menu
+     * that fails.
+     *
+     * @param {Object} calendar calendar as buildGroups stamped it
+     * @returns {Boolean} true when the calendar can be hidden from here
+     */
+    canHide(calendar) {
+      if (!calendar || calendar.sharedWithMe !== true) {
+        return false;
+      }
+      const connector = this.connectorOf(calendar);
+      return !!connector && typeof connector.hideCalendar === 'function';
+    },
+    /**
+     * The sections without one calendar, a section emptied by it dropped
+     * with it: an empty section is a question the user cannot act on, the
+     * same rule buildGroups applies.
+     *
+     * @param {Array} groups sections as drawn
+     * @param {String} calendarId identity of the calendar to leave out
+     * @returns {Array} new sections, the given ones untouched
+     */
+    withoutCalendar(groups, calendarId) {
+      return groups
+        .map(group => ({...group, calendars: group.calendars.filter(calendar => calendar.id !== calendarId)}))
+        .filter(group => group.calendars.length);
+    },
+    /**
+     * Drops a calendar from the locally hidden set, once it is hidden for
+     * good, and tells the grid.
+     *
+     * The checkbox state would otherwise outlive the row: shown again from
+     * the settings in the same session, the calendar would come back
+     * unticked, its events filtered out by a choice the user made before
+     * hiding it and cannot see any more.
+     *
+     * @param {Object} calendar the calendar just hidden
+     * @returns {void}
+     */
+    forgetVisibility(calendar) {
+      if (this.isDisplayed(calendar)) {
+        return;
+      }
+      this.hiddenIds = this.hiddenIds.filter(id => id !== calendar.id);
+      this.$root.$emit('agenda-remote-calendars-changed', this.hiddenIds.slice());
+    },
+    /**
+     * Hides a shared calendar for good, through the connector that listed it.
+     *
+     * The row goes at once and the server is asked afterwards: the user
+     * clicked to make it go, and a row that lingers until a round trip
+     * completes looks like a click that did nothing. On success the snackbar
+     * names the calendar and says where it can be shown again — the settings
+     * are not where the user is — and the agenda's general refresh is
+     * emitted: the grid re-reads the remote events, which the connector no
+     * longer serves for a hidden collection, and this list re-asks the
+     * connectors, which confirms the row gone from the server's own answer.
+     * On failure the row comes back exactly as it was and the error is said.
+     *
+     * The sections are put back only if no retrieval has been started since
+     * the click: one that has is answering for the accounts as they now
+     * stand, hidden calendar included since hiding failed, and the snapshot
+     * would overwrite a fresher answer with an older one. The retrieval
+     * counter is read, never advanced, for the same reason retrieveCalendars
+     * owns it: advancing it would make an in-flight retrieval unable to
+     * clear the loading flag, and the whole component hides while loading.
+     *
+     * The connector is called inside a promise executor: the call goes out
+     * at once, and a connector throwing synchronously is handled as a
+     * rejection, on the same path as a refused request, rather than escaping
+     * the click handler with the row already gone.
+     *
+     * @param {Object} calendar calendar as buildGroups stamped it
+     * @returns {Promise} resolves once the outcome has been shown, never
+     *          rejects
+     */
+    hideCalendar(calendar) {
+      const connector = this.connectorOf(calendar);
+      if (!connector || typeof connector.hideCalendar !== 'function') {
+        return Promise.resolve();
+      }
+      const groups = this.groups;
+      const requestId = this.calendarsRequestId;
+      this.setGroups(this.withoutCalendar(groups, calendar.id));
+      return new Promise(resolve => resolve(connector.hideCalendar(calendar.id)))
+        .then(() => {
+          this.forgetVisibility(calendar);
+          this.$root.$emit('alert-message', this.$t('agenda.leftPanel.sharedCalendarHidden', {0: calendar.name}), 'success');
+          this.$root.$emit('agenda-refresh');
+        })
+        .catch(error => {
+          console.error(`cannot hide the calendar ${calendar.name}`, error);
+          if (requestId === this.calendarsRequestId) {
+            this.setGroups(groups);
+          }
+          this.$root.$emit('alert-message', this.$t('agenda.leftPanel.hideSharedCalendarError'), 'error');
+        });
     },
   },
 };
