@@ -135,7 +135,7 @@ class AgendaRestSecurityTest {
                                                                              List.of(new SimpleGrantedAuthority("guests"))));
     MockHttpServletRequest request = new MockHttpServletRequest();
 
-    assertNotNull(resource.getCalendarFeed("token", null).getBody());
+    assertNotNull(resource.getCalendarFeed("token").getBody());
     assertThrows(AccessDeniedException.class, () -> resource.getCalendarLink(request, 10));
     assertThrows(AccessDeniedException.class, () -> resource.saveCalendarLink(request, 10));
     assertThrows(AccessDeniedException.class, () -> resource.deleteCalendarLink(request, 10));

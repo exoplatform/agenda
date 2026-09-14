@@ -33,7 +33,6 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -201,10 +200,14 @@ public class AgendaCalendarLinkRest {
    * Every link that opens nothing — unknown, replaced, deleted, or whose creator
    * lost their right — gets the same bodiless 404. The token never reaches a
    * log line or a response.
+   * <p>
+   * The 304 is Spring MVC's, not this method's: for a GET answering an
+   * {@code ETag}, {@code HttpEntityMethodProcessor} compares it with the
+   * request's {@code If-None-Match} and drops the body itself.
+   * {@code AgendaCalendarLinkRestTest} pins the behaviour through the dispatcher.
    *
    * @param token the token presented in the URL
-   * @param ifNoneMatch the entity tag the client already holds, if any
-   * @return the iCalendar document, a 304 when unchanged, or a 404
+   * @return the iCalendar document, or a 404
    */
   @GetMapping("ical/{token}.ics")
   @Operation(summary = "Get the iCalendar document a private calendar link publishes", method = "GET",
@@ -214,9 +217,7 @@ public class AgendaCalendarLinkRest {
       @ApiResponse(responseCode = "304", description = "Unchanged since the entity tag the client holds"),
       @ApiResponse(responseCode = "404", description = "The link opens nothing"),
   })
-  public ResponseEntity<byte[]> getCalendarFeed(@PathVariable("token") String token,
-                                                @RequestHeader(name = HttpHeaders.IF_NONE_MATCH, required = false)
-                                                String ifNoneMatch) {
+  public ResponseEntity<byte[]> getCalendarFeed(@PathVariable("token") String token) {
     String document;
     try {
       document = calendarLinkService.getCalendarFeed(token);
@@ -229,17 +230,14 @@ public class AgendaCalendarLinkRest {
     }
     byte[] body = document.getBytes(StandardCharsets.UTF_8);
     String entityTag = "\"" + sha256(body) + "\"";
-    ResponseEntity.BodyBuilder builder = StringUtils.equals(ifNoneMatch, entityTag) ? ResponseEntity.status(HttpStatus.NOT_MODIFIED)
-                                                                                    : ResponseEntity.ok();
-    builder.eTag(entityTag)
-           .cacheControl(CacheControl.maxAge(CalendarFeedIcsWriter.REFRESH_INTERVAL.dividedBy(16)).cachePrivate())
-           .header("X-Robots-Tag", "noindex, nofollow")
-           .header("Referrer-Policy", "no-referrer")
-           .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"calendar.ics\"");
-    if (StringUtils.equals(ifNoneMatch, entityTag)) {
-      return builder.build();
-    }
-    return builder.contentType(TEXT_CALENDAR).body(body);
+    return ResponseEntity.ok()
+                         .eTag(entityTag)
+                         .cacheControl(CacheControl.maxAge(CalendarFeedIcsWriter.REFRESH_INTERVAL.dividedBy(16)).cachePrivate())
+                         .header("X-Robots-Tag", "noindex, nofollow")
+                         .header("Referrer-Policy", "no-referrer")
+                         .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"calendar.ics\"")
+                         .contentType(TEXT_CALENDAR)
+                         .body(body);
   }
 
   /**
