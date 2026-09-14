@@ -29,9 +29,11 @@ import lombok.ToString;
  * to the calendar, not to the person who clicked. A space calendar's managers
  * all see the same link, and any of them may replace or delete it.
  * <p>
- * <b>The secret is not here.</b> The token a calendar application presents is
- * shown once, when the link is created, and only its SHA-256 digest is kept.
- * Nothing that holds this object can give the link back.
+ * <b>The secret is kept twice, neither time in clear</b>: as a SHA-256 digest,
+ * which is what a feed request is looked up and compared by, and encrypted with
+ * the platform codec, which is what lets the link be shown again to the people
+ * who manage it. None of the three secret fields is ever written by
+ * {@code toString()}.
  */
 @Data
 @NoArgsConstructor
@@ -47,12 +49,21 @@ public class CalendarLink {
   /** When the link was created or last reset, in milliseconds since the epoch. */
   private long    createdDate;
 
-  /**
-   * Lowercase hexadecimal SHA-256 digest of the token. Kept out of
-   * {@code toString()} so that logging this object never writes it.
-   */
+  /** Lowercase hexadecimal SHA-256 digest of the token, as stored. */
   @ToString.Exclude
   private String  tokenHash;
+
+  /** The token encrypted by the platform codec, as stored. */
+  @ToString.Exclude
+  private String  tokenEncrypted;
+
+  /**
+   * The token in clear: set only by a read made for someone allowed to manage
+   * the link, only while the link still answers, and only when the stored copy
+   * can be decrypted into the token its digest names.
+   */
+  @ToString.Exclude
+  private String  token;
 
   /**
    * Whether the link still answers: false once its creator has lost the right

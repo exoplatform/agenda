@@ -18,6 +18,7 @@ package org.exoplatform.agenda.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -66,12 +67,14 @@ class CalendarLinkStorageTest {
    */
   @Test
   void aFirstLinkIsInsertedAndFlushed() {
-    CalendarLink link = storage.save(42, 7, "a".repeat(64), new Date(1000));
+    CalendarLink link = storage.save(42, 7, "a".repeat(64), "enc-a", new Date(1000));
 
     verify(dao).saveAndFlush(any());
     assertEquals(42, link.getCalendarId());
     assertEquals(7, link.getCreatorId());
     assertEquals(1000, link.getCreatedDate());
+    assertEquals("enc-a", link.getTokenEncrypted());
+    assertNull(link.getToken(), "the clear token is the service's to set, never the storage's");
     assertFalse(link.isActive(), "active is the service's to compute");
   }
 
@@ -90,11 +93,12 @@ class CalendarLinkStorageTest {
     when(dao.findByCalendarId(42)).thenReturn(null, winner);
     when(dao.saveAndFlush(any())).thenThrow(refusal);
 
-    CalendarLink link = storage.save(42, 8, "b".repeat(64), new Date(2000));
+    CalendarLink link = storage.save(42, 8, "b".repeat(64), "enc-b", new Date(2000));
 
     verify(dao).save(winner);
     assertEquals(8, link.getCreatorId(), "the later write wins, as a reset would");
     assertEquals("b".repeat(64), link.getTokenHash());
+    assertEquals("enc-b", link.getTokenEncrypted(), "with the encrypted copy of the same token");
   }
 
   /**
@@ -123,7 +127,7 @@ class CalendarLinkStorageTest {
     when(dao.saveAndFlush(any())).thenThrow(refusal);
 
     assertSame(refusal, assertThrows(DataIntegrityViolationException.class,
-                                     () -> storage.save(42, 8, "b".repeat(64), new Date())));
+                                     () -> storage.save(42, 8, "b".repeat(64), "enc-b", new Date())));
     verify(dao, never()).save(any());
   }
 

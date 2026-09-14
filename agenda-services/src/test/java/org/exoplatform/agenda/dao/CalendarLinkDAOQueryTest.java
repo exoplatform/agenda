@@ -186,6 +186,7 @@ class CalendarLinkDAOQueryTest {
     entity.setCalendarId(calendarId);
     entity.setCreatorId(creatorId);
     entity.setTokenHash(tokenHash);
+    entity.setTokenEncrypted("encrypted-" + tokenHash.charAt(0));
     entity.setCreatedDate(new Date());
     return entity;
   }

@@ -26,6 +26,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -42,6 +43,7 @@ import net.fortuna.ical4j.model.PropertyList;
 import net.fortuna.ical4j.model.component.VEvent;
 import net.fortuna.ical4j.model.parameter.Value;
 import net.fortuna.ical4j.model.property.CalScale;
+import net.fortuna.ical4j.model.property.Clazz;
 import net.fortuna.ical4j.model.property.Description;
 import net.fortuna.ical4j.model.property.DtEnd;
 import net.fortuna.ical4j.model.property.DtStamp;
@@ -68,7 +70,8 @@ import net.fortuna.ical4j.validate.ValidationException;
  * no answer link, no conference or event address. The mail channel
  * ({@link Utils#generateIcsFile}) and the CalDAV copy say more because each is
  * written for one known recipient; this one is written for nobody in
- * particular.
+ * particular. <b>A private event says less still</b>: a block of busy time
+ * titled "Busy", with its start and end and nothing else.
  * <p>
  * <b>Recurrences arrive already expanded</b>, one {@link Event} per occurrence
  * inside the window, exceptions applied — that is what
@@ -78,6 +81,11 @@ import net.fortuna.ical4j.validate.ValidationException;
  * an {@code RRULE} with its {@code EXDATE}s and {@code RECURRENCE-ID}s would be
  * a second recurrence engine beside agenda's own; the window bounds the
  * expansion.
+ * <p>
+ * <b>The same data writes the same bytes.</b> Nothing in the document depends
+ * on the moment it is written — {@code DTSTAMP} is the event's own last change —
+ * so the entity tag computed over it lets a client that refreshes an unchanged
+ * calendar get a 304.
  * <p>
  * <b>Times are written in UTC</b> and all-day events as dates, so no
  * {@code VTIMEZONE} is needed and every client places an event at the same
@@ -90,6 +98,16 @@ public final class CalendarFeedIcsWriter {
    * older {@code X-PUBLISHED-TTL} that Outlook reads carry it.
    */
   public static final Duration  REFRESH_INTERVAL = Duration.ofHours(4);
+
+  /**
+   * Most characters of event data one document carries. A safety stop against
+   * a calendar of very long descriptions served to an anonymous caller; events
+   * past it are left out, earliest kept.
+   */
+  public static final int       MAX_DOCUMENT_CHARS = 4 * 1024 * 1024;
+
+  /** The title a private event is published under. */
+  public static final String    BUSY_SUMMARY     = "Busy";
 
   private static final String   PRODUCT_ID       = "-//eXo Platform//Agenda calendar link//EN";
 
@@ -104,6 +122,9 @@ public final class CalendarFeedIcsWriter {
                                                                    Pattern.CASE_INSENSITIVE);
 
   private static final Pattern  LINE_BREAK       = Pattern.compile("\\R");
+
+  /** Written for an event that carries no date of its own at all. */
+  private static final ZonedDateTime NO_STAMP     = ZonedDateTime.of(1970, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC);
 
   private static final DateTimeFormatter OCCURRENCE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'")
                                                                              .withZone(ZoneOffset.UTC);
@@ -120,12 +141,12 @@ public final class CalendarFeedIcsWriter {
    *
    * @param calendarName name the subscribing application shows for the
    *          calendar, blank for none
-   * @param events the events to publish, occurrences expanded
+   * @param events the events to publish, occurrences expanded, earliest first
+   * @param isPrivate which events are published as busy time only
    * @param uidHost host name used to qualify event identifiers
-   * @param now the instant the document is written, for {@code DTSTAMP}
    * @return the iCalendar document, CRLF line endings, folded
    */
-  public static String write(String calendarName, List<Event> events, String uidHost, ZonedDateTime now) {
+  public static String write(String calendarName, List<Event> events, Predicate<Event> isPrivate, String uidHost) {
     net.fortuna.ical4j.model.Calendar calendar = new net.fortuna.ical4j.model.Calendar();
     PropertyList<net.fortuna.ical4j.model.Property> properties = calendar.getProperties();
     properties.add(new ProdId(PRODUCT_ID));
@@ -140,11 +161,19 @@ public final class CalendarFeedIcsWriter {
     properties.add(new RefreshInterval(durationParameter, REFRESH_INTERVAL));
     properties.add(new XProperty("X-PUBLISHED-TTL", REFRESH_INTERVAL.toString()));
     String host = StringUtils.isBlank(uidHost) ? "exo" : uidHost;
+    Predicate<Event> privateEvent = isPrivate == null ? event -> false : isPrivate;
+    long written = 0;
     if (events != null) {
       for (Event event : events) {
-        if (event != null && event.getStart() != null) {
-          calendar.getComponents().add(toVEvent(event, host, now));
+        if (event == null || event.getStart() == null) {
+          continue;
         }
+        VEvent vEvent = privateEvent.test(event) ? toBusyBlock(event, host) : toVEvent(event, host);
+        written += vEvent.toString().length();
+        if (written > MAX_DOCUMENT_CHARS) {
+          break;
+        }
+        calendar.getComponents().add(vEvent);
       }
     }
     StringWriter writer = new StringWriter();
@@ -161,14 +190,64 @@ public final class CalendarFeedIcsWriter {
    *
    * @param event the event
    * @param host host qualifying the identifier
-   * @param now the writing instant
    * @return the component
    */
-  private static VEvent toVEvent(Event event, String host, ZonedDateTime now) {
-    VEvent vEvent = new VEvent();
+  private static VEvent toVEvent(Event event, String host) {
+    // Not initialised: the no-argument constructor stamps the component with the
+    // current time, which would add a second DTSTAMP and change the document on
+    // every fetch.
+    VEvent vEvent = new VEvent(false);
     PropertyList<net.fortuna.ical4j.model.Property> properties = vEvent.getProperties();
+    addIdentityAndTime(properties, event, host);
+    properties.add(new Summary(StringUtils.defaultString(event.getSummary())));
+    if (StringUtils.isNotBlank(event.getLocation())) {
+      properties.add(new Location(event.getLocation()));
+    }
+    String description = description(event.getDescription());
+    if (StringUtils.isNotBlank(description)) {
+      properties.add(new Description(description));
+    }
+    properties.add(event.getAvailability() == EventAvailability.FREE ? Transp.TRANSPARENT : Transp.OPAQUE);
+    ZonedDateTime modified = lastChange(event);
+    if (modified != null) {
+      properties.add(new LastModified(utc(modified)));
+    }
+    return vEvent;
+  }
+
+  /**
+   * Writes a private event as busy time: its identifier, its start and end, and
+   * the title "Busy" — no description, location, attendee or address, and not
+   * even its last change.
+   *
+   * @param event the private event
+   * @param host host qualifying the identifier
+   * @return the component
+   */
+  private static VEvent toBusyBlock(Event event, String host) {
+    // Not initialised: the no-argument constructor stamps the component with the
+    // current time, which would add a second DTSTAMP and change the document on
+    // every fetch.
+    VEvent vEvent = new VEvent(false);
+    PropertyList<net.fortuna.ical4j.model.Property> properties = vEvent.getProperties();
+    addIdentityAndTime(properties, event, host);
+    properties.add(new Summary(BUSY_SUMMARY));
+    properties.add(Clazz.PRIVATE);
+    properties.add(Transp.OPAQUE);
+    return vEvent;
+  }
+
+  /**
+   * Adds what every VEVENT carries: its identifier, its stamp and its time.
+   *
+   * @param properties the component's properties
+   * @param event the event
+   * @param host host qualifying the identifier
+   */
+  private static void addIdentityAndTime(PropertyList<net.fortuna.ical4j.model.Property> properties, Event event, String host) {
     properties.add(new Uid(uid(event, host)));
-    properties.add(new DtStamp(utc(now)));
+    ZonedDateTime stamp = lastChange(event);
+    properties.add(new DtStamp(utc(stamp == null ? NO_STAMP : stamp)));
     if (event.isAllDay()) {
       LocalDate startDay = event.getStart().toLocalDate();
       LocalDate endDay = event.getEnd() == null ? startDay : event.getEnd().toLocalDate();
@@ -182,20 +261,6 @@ public final class CalendarFeedIcsWriter {
         properties.add(new DtEnd(utc(event.getEnd())));
       }
     }
-    properties.add(new Summary(StringUtils.defaultString(event.getSummary())));
-    if (StringUtils.isNotBlank(event.getLocation())) {
-      properties.add(new Location(event.getLocation()));
-    }
-    String description = description(event.getDescription());
-    if (StringUtils.isNotBlank(description)) {
-      properties.add(new Description(description));
-    }
-    properties.add(event.getAvailability() == EventAvailability.FREE ? Transp.TRANSPARENT : Transp.OPAQUE);
-    ZonedDateTime modified = event.getUpdated() == null ? event.getCreated() : event.getUpdated();
-    if (modified != null) {
-      properties.add(new LastModified(utc(modified)));
-    }
-    return vEvent;
   }
 
   /**
@@ -230,6 +295,16 @@ public final class CalendarFeedIcsWriter {
           + host;
     }
     return "agenda-link-" + event.getId() + "@" + host;
+  }
+
+  /**
+   * The last change of an event: its update, else its creation.
+   *
+   * @param event the event
+   * @return the instant, null when the event carries neither
+   */
+  private static ZonedDateTime lastChange(Event event) {
+    return event.getUpdated() == null ? event.getCreated() : event.getUpdated();
   }
 
   /**

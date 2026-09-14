@@ -29,7 +29,7 @@
       :loading="busy"
       class="agendaCalendarLinkDrawer"
       right
-      @closed="forgetUrl">
+      @closed="forget">
       <template slot="title">
         {{ $t('agenda.calendarLink.title') }}
       </template>
@@ -47,8 +47,9 @@
               indeterminate />
           </div>
           <div
-            v-else-if="state === 'created'"
-            class="agenda-calendar-link-created">
+            v-else-if="state === 'active'"
+            class="agenda-calendar-link-active">
+            <p class="mb-2">{{ activeMessage }}</p>
             <v-label for="agendaCalendarLinkUrl">
               {{ $t('agenda.calendarLink.urlLabel') }}
             </v-label>
@@ -69,13 +70,12 @@
                 {{ $t('agenda.calendarLink.copy') }}
               </v-btn>
             </div>
-            <p class="caption mt-2">{{ $t('agenda.calendarLink.shownOnce') }}</p>
           </div>
           <div
-            v-else-if="state === 'active'"
-            class="agenda-calendar-link-active">
+            v-else-if="state === 'undisplayable'"
+            class="agenda-calendar-link-undisplayable">
             <p class="mb-1">{{ activeMessage }}</p>
-            <p class="caption">{{ $t('agenda.calendarLink.activeHint') }}</p>
+            <p class="warning--text">{{ $t('agenda.calendarLink.undisplayable') }}</p>
           </div>
           <p
             v-else-if="state === 'dead'"
@@ -124,7 +124,6 @@ export default {
   data: () => ({
     calendar: null,
     status: null,
-    url: '',
     loading: false,
     saving: false,
     pendingAction: null,
@@ -139,20 +138,30 @@ export default {
       return this.loading || this.saving;
     },
     /**
-     * What the drawer shows: loading, the URL just created, an active link, a
-     * link that stopped working, or no link.
+     * The link's URL, as the server answers it: only while the link works and
+     * can be displayed, and only to someone who manages it.
      *
-     * @returns {String} loading, created, active, dead or none
+     * @returns {String} the URL, empty when there is none to show
+     */
+    url() {
+      return this.status && this.status.url || '';
+    },
+    /**
+     * What the drawer shows: loading, a working link with its URL, a working
+     * link whose URL can no longer be displayed, a link that stopped working,
+     * or no link.
+     *
+     * @returns {String} loading, active, undisplayable, dead or none
      */
     state() {
       if (this.loading) {
         return 'loading';
-      } else if (this.url) {
-        return 'created';
       } else if (!this.status || !this.status.exists) {
         return 'none';
+      } else if (!this.status.active) {
+        return 'dead';
       }
-      return this.status.active ? 'active' : 'dead';
+      return this.url ? 'active' : 'undisplayable';
     },
     /**
      * Whether the calendar has a link, working or not.
@@ -192,9 +201,9 @@ export default {
       return this.status && this.status.creatorName || this.$t('agenda.calendarLink.unknownCreator');
     },
     /**
-     * The sentence describing an active link.
+     * The sentence saying who created a working link, and when.
      *
-     * @returns {String} who created it and when
+     * @returns {String} the sentence
      */
     activeMessage() {
       const createdDate = this.status && this.status.createdDate
@@ -260,13 +269,13 @@ export default {
     open(calendar) {
       this.calendar = calendar;
       this.status = null;
-      this.url = '';
       this.pendingAction = null;
       this.$refs.calendarLinkDrawer.open();
       return this.load();
     },
     /**
-     * Reads the status of the calendar's link.
+     * Reads the status of the calendar's link, URL included when the server
+     * gives it.
      *
      * @returns {Promise} resolved once read
      */
@@ -278,12 +287,13 @@ export default {
         .finally(() => this.loading = false);
     },
     /**
-     * Creates the link, asking first when it would replace an existing one.
+     * Creates the link, asking first when it would replace an existing one —
+     * working, undisplayable or dead alike.
      *
      * @returns {Promise|void} the creation when no confirmation is needed
      */
     create() {
-      if (this.hasLink || this.url) {
+      if (this.hasLink) {
         this.pendingAction = 'reset';
         this.$refs.confirmDialog.open();
         return;
@@ -310,18 +320,15 @@ export default {
       return action === 'delete' ? this.remove() : this.save();
     },
     /**
-     * Creates or replaces the link and shows its URL, the only time it is
-     * available.
+     * Creates or replaces the link and shows the status the server answers,
+     * with the new URL.
      *
      * @returns {Promise} resolved once saved
      */
     save() {
       this.saving = true;
       return this.$calendarLinkService.saveCalendarLink(this.calendar.id)
-        .then(status => {
-          this.status = status;
-          this.url = status && status.url || '';
-        })
+        .then(status => this.status = status)
         .catch(() => this.$root.$emit('alert-message', this.$t('agenda.calendarLink.error'), 'error'))
         .finally(() => this.saving = false);
     },
@@ -334,10 +341,7 @@ export default {
     remove() {
       this.saving = true;
       return this.$calendarLinkService.deleteCalendarLink(this.calendar.id)
-        .then(() => {
-          this.status = {exists: false, active: false};
-          this.url = '';
-        })
+        .then(() => this.status = {exists: false, active: false, displayable: false})
         .catch(() => this.$root.$emit('alert-message', this.$t('agenda.calendarLink.error'), 'error'))
         .finally(() => this.saving = false);
     },
@@ -372,13 +376,14 @@ export default {
       }
     },
     /**
-     * Forgets the URL once the drawer closes: it was shown once, and reopening
-     * the drawer shows the link's status, never the URL again.
+     * Forgets the link once the drawer closes, URL included: the next opening
+     * asks the server again, which is what decides whether the URL may still be
+     * shown.
      *
      * @returns {void}
      */
-    forgetUrl() {
-      this.url = '';
+    forget() {
+      this.status = null;
     },
   },
 };

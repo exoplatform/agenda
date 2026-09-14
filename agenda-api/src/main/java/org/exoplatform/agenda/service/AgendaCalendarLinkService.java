@@ -32,12 +32,15 @@ import org.exoplatform.commons.exception.ObjectNotFoundException;
 public interface AgendaCalendarLinkService {
 
   /**
-   * Reads the link of a calendar, without its secret.
+   * Reads the link of a calendar for someone allowed to manage it. The token
+   * comes with it — so the URL can be shown again — while the link still
+   * answers and its stored copy can be decrypted; the digest and the encrypted
+   * copy never do.
    *
    * @param calendarId technical identifier of the calendar
    * @param username user asking, who must be allowed to manage the link
-   * @return the link, with {@code active} computed now, or null when the
-   *         calendar has none
+   * @return the link, with {@code active} and {@code token} computed now, or
+   *         null when the calendar has none
    * @throws ObjectNotFoundException when the calendar does not exist
    * @throws IllegalAccessException when the user may not manage its link
    */
@@ -49,7 +52,7 @@ public interface AgendaCalendarLinkService {
    *
    * @param calendarId technical identifier of the calendar
    * @param username user asking, who becomes the link's creator
-   * @return the token of the new link — the only time it is ever returned
+   * @return the token of the new link
    * @throws ObjectNotFoundException when the calendar does not exist
    * @throws IllegalAccessException when the user may not manage its link
    */

@@ -32,6 +32,8 @@ describe('Calendar link drawer', () => {
 
   const URL = 'https://tribe.example.org/agenda/rest/ical/Wz3pQyv5Hq0dS9bTf2LkMn8Rc1XeUa7GjYo4NiVhB6s.ics';
 
+  const OTHER_URL = 'https://tribe.example.org/agenda/rest/ical/Q1w2E3r4T5y6U7i8O9p0A1s2D3f4G5h6J7k8L9z0X1c.ics';
+
   const SPACE_CALENDAR = {id: 20, owner: {id: 100, providerId: 'space', space: {displayName: 'Chemistry'}}, acl: {canEdit: true}};
 
   const PERSONAL_CALENDAR = {id: 10, name: 'Work', owner: {id: 1, providerId: 'organization', profile: {fullname: 'John'}}};
@@ -84,6 +86,16 @@ describe('Calendar link drawer', () => {
     await flush();
   }
 
+  /**
+   * A working link status as the server answers it to a manager.
+   *
+   * @param {Object} overrides fields to change
+   * @returns {Object} the status
+   */
+  function activeStatus(overrides) {
+    return {exists: true, active: true, displayable: true, creatorName: 'Mary Manager', createdDate: Date.UTC(2026, 8, 1), url: URL, ...overrides};
+  }
+
   beforeAll(() => {
     global.eXo = {env: {portal: {language: 'en'}}};
   });
@@ -109,9 +121,9 @@ describe('Calendar link drawer', () => {
     };
   });
 
-  it('offers to create a link for a calendar that has none, and shows the URL once created', async () => {
+  it('offers to create a link for a calendar that has none, and shows its URL once created', async () => {
     service.getCalendarLink.mockResolvedValue({calendarId: 10, exists: false, active: false});
-    service.saveCalendarLink.mockResolvedValue({calendarId: 10, exists: true, active: true, creatorName: 'John', createdDate: 1, url: URL});
+    service.saveCalendarLink.mockResolvedValue(activeStatus({creatorName: 'John'}));
     const wrapper = mountDrawer();
 
     wrapper.vm.$root.$emit('agenda-calendar-link-drawer-open', PERSONAL_CALENDAR);
@@ -127,18 +139,32 @@ describe('Calendar link drawer', () => {
 
     expect(confirmStub.methods.open).not.toHaveBeenCalled();
     expect(service.saveCalendarLink).toHaveBeenCalledWith(10);
-    expect(wrapper.find('.agenda-calendar-link-created').exists()).toBe(true);
+    expect(wrapper.find('.agenda-calendar-link-url').attributes('value')).toBe(URL);
+  });
+
+  it('shows the URL of a working link every time the drawer opens', async () => {
+    service.getCalendarLink.mockResolvedValue(activeStatus());
+    const wrapper = mountDrawer();
+
+    await wrapper.vm.open(SPACE_CALENDAR);
+    expect(wrapper.find('.agenda-calendar-link-active').text()).toContain('Mary Manager');
+    expect(wrapper.find('.agenda-calendar-link-url').attributes('value')).toBe(URL);
+
+    wrapper.findComponent(drawerStub).vm.$emit('closed');
+    await flush();
+    expect(wrapper.find('.agenda-calendar-link-url').exists()).toBe(false);
+
+    await wrapper.vm.open(SPACE_CALENDAR);
+    expect(service.getCalendarLink).toHaveBeenCalledTimes(2);
     expect(wrapper.find('.agenda-calendar-link-url').attributes('value')).toBe(URL);
   });
 
   it('copies the URL to the clipboard and says so', async () => {
-    service.getCalendarLink.mockResolvedValue({exists: false});
-    service.saveCalendarLink.mockResolvedValue({exists: true, active: true, url: URL});
+    service.getCalendarLink.mockResolvedValue(activeStatus());
     const writeText = jest.fn().mockResolvedValue();
     Object.defineProperty(window.navigator, 'clipboard', {value: {writeText}, configurable: true});
     const wrapper = mountDrawer();
     await wrapper.vm.open(PERSONAL_CALENDAR);
-    await click(wrapper, '.agenda-calendar-link-save');
 
     await click(wrapper, '.agenda-calendar-link-copy');
 
@@ -146,14 +172,11 @@ describe('Calendar link drawer', () => {
     expect(wrapper.rootEmit).toHaveBeenCalledWith('alert-message', 'agenda.calendarLink.copied', 'success');
   });
 
-  it('shows an active link without its URL, and resets it only once confirmed', async () => {
-    service.getCalendarLink.mockResolvedValue({exists: true, active: true, creatorName: 'Mary Manager', createdDate: Date.UTC(2026, 8, 1)});
-    service.saveCalendarLink.mockResolvedValue({exists: true, active: true, creatorName: 'Paul Manager', createdDate: 2, url: URL});
+  it('resets a working link only once confirmed, and shows the new URL', async () => {
+    service.getCalendarLink.mockResolvedValue(activeStatus());
+    service.saveCalendarLink.mockResolvedValue(activeStatus({creatorName: 'Paul Manager', url: OTHER_URL}));
     const wrapper = mountDrawer();
     await wrapper.vm.open(SPACE_CALENDAR);
-
-    expect(wrapper.find('.agenda-calendar-link-active').text()).toContain('Mary Manager');
-    expect(wrapper.find('.agenda-calendar-link-url').exists()).toBe(false);
     expect(wrapper.find('.agenda-calendar-link-save').text()).toBe('agenda.calendarLink.reset');
 
     await click(wrapper, '.agenda-calendar-link-save');
@@ -165,22 +188,34 @@ describe('Calendar link drawer', () => {
     await flush();
 
     expect(service.saveCalendarLink).toHaveBeenCalledWith(20);
-    expect(wrapper.find('.agenda-calendar-link-url').attributes('value')).toBe(URL);
+    expect(wrapper.find('.agenda-calendar-link-url').attributes('value')).toBe(OTHER_URL);
   });
 
-  it('names the creator of a space link that stopped working, and offers a new link', async () => {
-    service.getCalendarLink.mockResolvedValue({exists: true, active: false, creatorName: 'Mary Manager', createdDate: 1});
+  it('says a working link whose URL cannot be displayed any more, and offers Reset', async () => {
+    service.getCalendarLink.mockResolvedValue(activeStatus({displayable: false, url: null}));
+    const wrapper = mountDrawer();
+
+    await wrapper.vm.open(PERSONAL_CALENDAR);
+
+    expect(wrapper.find('.agenda-calendar-link-undisplayable').text()).toContain('agenda.calendarLink.undisplayable');
+    expect(wrapper.find('.agenda-calendar-link-url').exists()).toBe(false);
+    expect(wrapper.find('.agenda-calendar-link-save').text()).toBe('agenda.calendarLink.reset');
+  });
+
+  it('names the creator of a space link that stopped working, shows no URL, and offers a new link', async () => {
+    service.getCalendarLink.mockResolvedValue({exists: true, active: false, displayable: false, creatorName: 'Mary Manager', createdDate: 1});
     const wrapper = mountDrawer();
 
     await wrapper.vm.open(SPACE_CALENDAR);
 
     expect(wrapper.find('.agenda-calendar-link-dead').text()).toBe('agenda.calendarLink.deadSpace(Mary Manager)');
+    expect(wrapper.find('.agenda-calendar-link-url').exists()).toBe(false);
     expect(wrapper.find('.agenda-calendar-link-save').text()).toBe('agenda.calendarLink.createNew');
     expect(wrapper.find('.agenda-calendar-link-delete').exists()).toBe(true);
   });
 
   it('deletes a link only once confirmed, and stays open on the calendar', async () => {
-    service.getCalendarLink.mockResolvedValue({exists: true, active: true, creatorName: 'John', createdDate: 1});
+    service.getCalendarLink.mockResolvedValue(activeStatus());
     service.deleteCalendarLink.mockResolvedValue();
     const wrapper = mountDrawer();
     await wrapper.vm.open(PERSONAL_CALENDAR);
@@ -196,20 +231,8 @@ describe('Calendar link drawer', () => {
     expect(drawerStub.methods.close).not.toHaveBeenCalled();
     expect(wrapper.findComponent(drawerStub).exists()).toBe(true);
     expect(wrapper.find('.agenda-calendar-link-none').exists()).toBe(true);
+    expect(wrapper.find('.agenda-calendar-link-url').exists()).toBe(false);
     expect(wrapper.find('.agenda-calendar-link-save').text()).toBe('agenda.calendarLink.create');
-  });
-
-  it('forgets the URL once closed, so reopening never shows it again', async () => {
-    service.getCalendarLink.mockResolvedValue({exists: false});
-    service.saveCalendarLink.mockResolvedValue({exists: true, active: true, url: URL});
-    const wrapper = mountDrawer();
-    await wrapper.vm.open(PERSONAL_CALENDAR);
-    await click(wrapper, '.agenda-calendar-link-save');
-
-    wrapper.findComponent(drawerStub).vm.$emit('closed');
-    await flush();
-
-    expect(wrapper.vm.url).toBe('');
   });
 
   it('is mounted once, at the application level, and never inside a calendar row', () => {

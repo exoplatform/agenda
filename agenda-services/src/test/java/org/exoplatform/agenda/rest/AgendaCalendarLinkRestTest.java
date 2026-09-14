@@ -137,28 +137,56 @@ class AgendaCalendarLinkRestTest {
   }
 
   /**
-   * The creation answers the URL, built on this WAR's REST root, once.
+   * The creation answers the URL, built on this WAR's REST root, and so does
+   * every later read made by someone the service lets manage the link.
    *
    * @throws Exception when the request fails
    */
   @Test
-  void aCreationAnswersTheUrlOnce() throws Exception {
+  void aCreationAndEveryReadAnswerTheUrl() throws Exception {
     when(service.saveCalendarLink(20, "manager")).thenReturn(TOKEN);
-    when(service.getCalendarLink(20, "manager")).thenReturn(new CalendarLink(20, 3, 1000, "digest", true));
+    when(service.getCalendarLink(20, "manager")).thenReturn(new CalendarLink(20, 3, 1000, null, null, TOKEN, true));
 
     MvcResult result = mockMvc.perform(as("manager", post("/agenda/calendars/20/link").contextPath("/agenda")))
                               .andExpect(status().isOk())
                               .andExpect(jsonPath("$.exists").value(true))
                               .andExpect(jsonPath("$.active").value(true))
+                              .andExpect(jsonPath("$.displayable").value(true))
                               .andExpect(jsonPath("$.creatorName").value("Mary Manager"))
                               .andReturn();
 
     String body = result.getResponse().getContentAsString();
     assertTrue(body.contains("/agenda/rest/ical/" + TOKEN + ".ics"), body);
-    assertFalse(body.contains("digest"), "the token digest never leaves the server");
+    assertFalse(body.contains("tokenHash") || body.contains("tokenEncrypted"), "no stored secret leaves the server");
 
-    String status = mockMvc.perform(as("manager", get("/calendars/20/link"))).andReturn().getResponse().getContentAsString();
-    assertFalse(status.contains(TOKEN), "reading the status never returns the URL");
+    String status = mockMvc.perform(as("manager", get("/agenda/calendars/20/link").contextPath("/agenda")))
+                           .andReturn()
+                           .getResponse()
+                           .getContentAsString();
+    assertTrue(status.contains("/agenda/rest/ical/" + TOKEN + ".ics"), "reading the status shows the link again: " + status);
+  }
+
+  /**
+   * A dead link, and a working one whose copy no longer decrypts, answer no
+   * URL; only the latter says it is not displayable while active.
+   *
+   * @throws Exception when the request fails
+   */
+  @Test
+  void aDeadOrUndisplayableLinkAnswersNoUrl() throws Exception {
+    when(service.getCalendarLink(20, "manager")).thenReturn(new CalendarLink(20, 3, 1000, null, null, null, false));
+    when(service.getCalendarLink(10, "owner")).thenReturn(new CalendarLink(10, 1, 1000, null, null, null, true));
+
+    mockMvc.perform(as("manager", get("/calendars/20/link")))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.active").value(false))
+           .andExpect(jsonPath("$.displayable").value(false))
+           .andExpect(jsonPath("$.url").doesNotExist());
+    mockMvc.perform(as("owner", get("/calendars/10/link")))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.active").value(true))
+           .andExpect(jsonPath("$.displayable").value(false))
+           .andExpect(jsonPath("$.url").doesNotExist());
   }
 
   /**

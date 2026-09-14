@@ -97,6 +97,11 @@ export default {
      *
      * @returns {string} calendar display name
      */
+    calendarDisplayName() {
+      const owner = this.calendar.owner;
+      const profile = owner.space || owner.profile;
+      return profile.displayName || profile.fullname || profile.fullName;
+    },
     /**
      * Whether the current user manages this space calendar, and may therefore
      * manage its private iCal link.
@@ -105,11 +110,6 @@ export default {
      */
     canManageLink() {
       return !!this.calendar && Number(this.calendar.id) > 0 && !!this.calendar.acl && !!this.calendar.acl.canEdit;
-    },
-    calendarDisplayName() {
-      const owner = this.calendar.owner;
-      const profile = owner.space || owner.profile;
-      return profile.displayName || profile.fullname || profile.fullName;
     },
   },
   watch: {

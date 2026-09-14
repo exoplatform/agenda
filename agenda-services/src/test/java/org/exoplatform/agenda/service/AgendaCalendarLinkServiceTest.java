@@ -32,6 +32,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.lang.reflect.UndeclaredThrowableException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -45,6 +46,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import javax.crypto.BadPaddingException;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -64,14 +67,18 @@ import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
+import org.exoplatform.web.security.codec.AbstractCodec;
+import org.exoplatform.web.security.codec.CodecInitializer;
 
 /**
  * Pins every rule of calendar links, on the service that holds them: who
- * manages a link, what its token is, and when it stops answering.
+ * manages a link, what its token is, who sees it again, and when it stops
+ * answering.
  * <p>
  * The storage is an in-memory stand-in rather than a mock, so a reset really
  * replaces the digest a later fetch looks up; the ACL runs through the real
- * {@code Utils} checks over mocked identity and space services.
+ * {@code Utils} checks over mocked identity and space services; the platform
+ * codec is a reversible stand-in whose key can be "replaced".
  */
 class AgendaCalendarLinkServiceTest {
 
@@ -105,6 +112,8 @@ class AgendaCalendarLinkServiceTest {
 
   private AgendaEventService         eventService;
 
+  private StandInCodec               codec;
+
   private AgendaCalendarLinkServiceImpl service;
 
   private Calendar                   deletedCalendar;
@@ -114,7 +123,7 @@ class AgendaCalendarLinkServiceTest {
    * managed by {@code manager} and {@code manager2} with {@code member} as a
    * plain member — and the service over them.
    *
-   * @throws Exception never, the mocked event read declares it
+   * @throws Exception never, the mocked codec and event read declare it
    */
   @BeforeEach
   void setUp() throws Exception {
@@ -156,38 +165,44 @@ class AgendaCalendarLinkServiceTest {
     eventService = mock(AgendaEventService.class);
     when(eventService.getEvents(any(), any(), anyLong())).thenReturn(Collections.emptyList());
 
+    codec = new StandInCodec();
+    CodecInitializer codecInitializer = mock(CodecInitializer.class);
+    when(codecInitializer.getCodec()).thenReturn(codec);
+
     storage = new InMemoryLinkStorage();
-    service = new AgendaCalendarLinkServiceImpl(storage, calendarService, eventService, identityManager, spaceService);
+    service = new AgendaCalendarLinkServiceImpl(storage, calendarService, eventService, identityManager, spaceService, codecInitializer);
     service.setClock(Clock.fixed(NOW, ZoneOffset.UTC));
   }
 
   /**
-   * A token is 32 random bytes in base64url, a new one each time, and what is
-   * stored is its SHA-256 digest — never the token.
+   * A token is 32 random bytes in base64url, a new one each time, and it is
+   * never stored in clear: once as its SHA-256 digest, once encrypted by the
+   * platform codec.
    *
    * @throws Exception when the service refuses
    */
   @Test
-  void theTokenIsARandom256BitSecretAndOnlyItsDigestIsStored() throws Exception {
+  void theTokenIsARandom256BitSecretStoredOnlyAsDigestAndEncryptedCopy() throws Exception {
     String token = service.saveCalendarLink(PERSONAL_CAL, "owner");
 
     assertTrue(token.matches("^[A-Za-z0-9_-]{43}$"), "base64url without padding: " + token);
     assertEquals(32, Base64.getUrlDecoder().decode(token).length, "256 bits of randomness");
     CalendarLink stored = storage.rows.get(PERSONAL_CAL);
-    assertNotEquals(token, stored.getTokenHash(), "the token itself is never stored");
-    assertEquals(AgendaCalendarLinkServiceImpl.hash(token), stored.getTokenHash(), "its digest is");
-    assertEquals(64, stored.getTokenHash().length());
+    assertNotEquals(token, stored.getTokenHash(), "the digest is not the token");
+    assertEquals(AgendaCalendarLinkServiceImpl.hash(token), stored.getTokenHash(), "it is its SHA-256");
+    assertNotEquals(token, stored.getTokenEncrypted(), "the stored copy is not the token in clear");
+    assertEquals(token, codec.decode(stored.getTokenEncrypted()), "it is the token encrypted by the platform codec");
     assertNotEquals(token, service.saveCalendarLink(PERSONAL_CAL, "owner"), "every creation draws a new token");
   }
 
   /**
-   * The owner of a personal calendar creates, reads and deletes its link, and
-   * the link serves the calendar.
+   * The owner of a personal calendar creates, reads and deletes its link; the
+   * read gives the token back every time, and never the stored secrets.
    *
    * @throws Exception when the service refuses
    */
   @Test
-  void theOwnerManagesTheLinkOfTheirPersonalCalendar() throws Exception {
+  void theOwnerManagesAndSeesTheLinkOfTheirPersonalCalendar() throws Exception {
     assertNull(service.getCalendarLink(PERSONAL_CAL, "owner"), "no link yet");
 
     String token = service.saveCalendarLink(PERSONAL_CAL, "owner");
@@ -196,6 +211,10 @@ class AgendaCalendarLinkServiceTest {
     assertEquals(OWNER, link.getCreatorId());
     assertEquals(NOW.toEpochMilli(), link.getCreatedDate());
     assertTrue(link.isActive());
+    assertEquals(token, link.getToken(), "the link is shown again");
+    assertEquals(token, service.getCalendarLink(PERSONAL_CAL, "owner").getToken(), "and again");
+    assertNull(link.getTokenHash(), "the digest never leaves the service");
+    assertNull(link.getTokenEncrypted(), "nor the encrypted copy");
     assertTrue(service.getCalendarFeed(token).startsWith("BEGIN:VCALENDAR"));
 
     service.deleteCalendarLink(PERSONAL_CAL, "owner");
@@ -204,12 +223,12 @@ class AgendaCalendarLinkServiceTest {
   }
 
   /**
-   * Nobody but its owner manages a personal calendar's link.
+   * Nobody but its owner manages or sees a personal calendar's link.
    *
    * @throws Exception when setting up the link fails
    */
   @Test
-  void anotherUserCannotManageAPersonalCalendarLink() throws Exception {
+  void anotherUserCannotManageOrSeeAPersonalCalendarLink() throws Exception {
     service.saveCalendarLink(PERSONAL_CAL, "owner");
     String before = storage.rows.get(PERSONAL_CAL).getTokenHash();
 
@@ -220,9 +239,9 @@ class AgendaCalendarLinkServiceTest {
   }
 
   /**
-   * PO rule 1: the link belongs to the space calendar. A second manager sees
-   * the link another manager created — creator and date, never the URL — and
-   * resetting it replaces it: the first URL stops answering, the new one
+   * PO rules 1 and 4: the link belongs to the space calendar. A second manager
+   * sees the link another manager created — creator, date and the URL itself —
+   * and resetting it replaces it: the first URL stops answering, the new one
    * answers, and the resetting manager becomes its creator.
    *
    * @throws Exception when the service refuses
@@ -234,24 +253,26 @@ class AgendaCalendarLinkServiceTest {
     CalendarLink seen = service.getCalendarLink(SPACE_CAL, "manager2");
     assertEquals(MANAGER, seen.getCreatorId(), "the second manager sees who created the link");
     assertTrue(seen.isActive());
+    assertEquals(first, seen.getToken(), "and the link itself");
 
     String second = service.saveCalendarLink(SPACE_CAL, "manager2");
 
     assertEquals(1, storage.rows.size(), "still one link for the calendar");
     assertEquals(SECOND_MANAGER, service.getCalendarLink(SPACE_CAL, "manager").getCreatorId());
+    assertEquals(second, service.getCalendarLink(SPACE_CAL, "manager").getToken(), "the first manager now sees the new link");
     assertThrows(ObjectNotFoundException.class, () -> service.getCalendarFeed(first), "the replaced URL stops answering");
     assertTrue(service.getCalendarFeed(second).startsWith("BEGIN:VCALENDAR"), "the new one answers");
   }
 
   /**
-   * PO rule 3: a plain member of the space is refused reading, creating,
-   * resetting and deleting the link, and a refused reset or delete changes
-   * nothing.
+   * PO rule 3: a plain member of the space is refused reading (and so seeing
+   * the URL), creating, resetting and deleting the link, and a refused reset or
+   * delete changes nothing.
    *
    * @throws Exception when setting up the link fails
    */
   @Test
-  void aMemberIsRefusedOnCreateResetAndDelete() throws Exception {
+  void aMemberIsRefusedOnReadCreateResetAndDelete() throws Exception {
     assertThrows(IllegalAccessException.class, () -> service.saveCalendarLink(SPACE_CAL, "member"), "create");
     assertTrue(storage.rows.isEmpty(), "a refused creation stores nothing");
 
@@ -267,8 +288,8 @@ class AgendaCalendarLinkServiceTest {
 
   /**
    * PO rule 2: a space calendar's link stops answering once its creator is no
-   * longer a manager — demoted, or gone from the space — and the drawer shows it
-   * dead to the managers who remain.
+   * longer a manager — demoted, or gone from the space — and the managers who
+   * remain see it dead, without its URL.
    *
    * @param departure how the creator stopped being a manager
    * @throws Exception when setting up the link fails
@@ -285,7 +306,9 @@ class AgendaCalendarLinkServiceTest {
     }
 
     assertThrows(ObjectNotFoundException.class, () -> service.getCalendarFeed(token));
-    assertFalse(service.getCalendarLink(SPACE_CAL, "manager2").isActive(), "the remaining manager sees it dead");
+    CalendarLink dead = service.getCalendarLink(SPACE_CAL, "manager2");
+    assertFalse(dead.isActive(), "the remaining manager sees it dead");
+    assertNull(dead.getToken(), "and a dead link gives no URL");
   }
 
   /**
@@ -303,7 +326,9 @@ class AgendaCalendarLinkServiceTest {
     alter(MANAGER, state);
 
     assertThrows(ObjectNotFoundException.class, () -> service.getCalendarFeed(token));
-    assertFalse(service.getCalendarLink(SPACE_CAL, "manager2").isActive());
+    CalendarLink dead = service.getCalendarLink(SPACE_CAL, "manager2");
+    assertFalse(dead.isActive());
+    assertNull(dead.getToken());
   }
 
   /**
@@ -324,6 +349,40 @@ class AgendaCalendarLinkServiceTest {
   }
 
   /**
+   * PO rule 4: once the codec key is replaced, the stored copy no longer
+   * decrypts. The link cannot be displayed any more — no token — but it is still
+   * active and the feed keeps answering through its digest.
+   *
+   * @throws Exception when the service refuses
+   */
+  @Test
+  void aLinkEncryptedUnderAReplacedKeyStillAnswersButCannotBeDisplayed() throws Exception {
+    String token = service.saveCalendarLink(SPACE_CAL, "manager");
+
+    codec.replaceKey();
+
+    CalendarLink link = service.getCalendarLink(SPACE_CAL, "manager2");
+    assertTrue(link.isActive(), "the link still answers");
+    assertNull(link.getToken(), "but it cannot be shown");
+    assertTrue(service.getCalendarFeed(token).startsWith("BEGIN:VCALENDAR"), "and the feed keeps working");
+  }
+
+  /**
+   * A stored copy that decrypts into another token than the one the digest
+   * names is not shown: the URL on screen is always the one that works.
+   *
+   * @throws Exception when the service refuses
+   */
+  @Test
+  void aCopyThatDecryptsIntoAnotherTokenIsNotDisplayed() throws Exception {
+    service.saveCalendarLink(PERSONAL_CAL, "owner");
+    CalendarLink stored = storage.rows.get(PERSONAL_CAL);
+    stored.setTokenEncrypted(codec.encode("B".repeat(43)));
+
+    assertNull(service.getCalendarLink(PERSONAL_CAL, "owner").getToken());
+  }
+
+  /**
    * An unknown token, a malformed one and no token at all are refused alike,
    * and each is still looked up, so a malformed token is not answered faster
    * than a real one.
@@ -340,12 +399,10 @@ class AgendaCalendarLinkServiceTest {
   /**
    * A token whose digest matches a row but which is not a well-formed token is
    * still refused.
-   *
-   * @throws Exception when setting up the row fails
    */
   @Test
-  void aMalformedTokenIsRefusedEvenWhenItsDigestIsStored() throws Exception {
-    storage.save(PERSONAL_CAL, OWNER, AgendaCalendarLinkServiceImpl.hash("short"), new Date());
+  void aMalformedTokenIsRefusedEvenWhenItsDigestIsStored() {
+    storage.save(PERSONAL_CAL, OWNER, AgendaCalendarLinkServiceImpl.hash("short"), "copy", new Date());
 
     assertThrows(ObjectNotFoundException.class, () -> service.getCalendarFeed("short"));
   }
@@ -390,6 +447,26 @@ class AgendaCalendarLinkServiceTest {
     assertEquals(now.plusDays(AgendaCalendarLinkServiceImpl.FUTURE_DAYS), filter.getValue().getEnd());
     assertTrue(document.contains("SUMMARY:Kept"));
     assertFalse(document.contains("Other calendar"), "an event of another calendar of the same owner stays out");
+  }
+
+  /**
+   * The same calendar renders the same bytes whenever it is fetched, so the
+   * entity tag computed over it lets a client refreshing an unchanged calendar
+   * get a 304.
+   *
+   * @throws Exception when the service refuses
+   */
+  @Test
+  void anUnchangedCalendarRendersTheSameDocumentAtAnotherTime() throws Exception {
+    String token = service.saveCalendarLink(PERSONAL_CAL, "owner");
+    ZonedDateTime now = ZonedDateTime.ofInstant(NOW, ZoneOffset.UTC);
+    when(eventService.getEvents(any(), any(), anyLong())).thenAnswer(invocation -> List.of(event(1, PERSONAL_CAL, "Sync", now.plusDays(1))));
+
+    String first = service.getCalendarFeed(token);
+    service.setClock(Clock.fixed(NOW.plusSeconds(3 * 3600 + 17), ZoneOffset.UTC));
+    String later = service.getCalendarFeed(token);
+
+    assertEquals(first, later);
   }
 
   /**
@@ -503,7 +580,44 @@ class AgendaCalendarLinkServiceTest {
     event.setSummary(summary);
     event.setStart(start);
     event.setEnd(start.plusMinutes(30));
+    event.setCreated(ZonedDateTime.ofInstant(NOW, ZoneOffset.UTC).minusDays(2));
     return event;
+  }
+
+  /**
+   * A reversible stand-in for the platform codec, whose key can be replaced:
+   * a copy made under the old key then fails to decode the way the real AES
+   * codec does, with a padding error wrapped in an undeclared exception.
+   */
+  static class StandInCodec extends AbstractCodec {
+
+    private String key = "key-1";
+
+    /**
+     * Replaces the key.
+     */
+    void replaceKey() {
+      key = "key-2";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String encode(String plainText) {
+      return key + ":" + new StringBuilder(plainText).reverse();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String decode(String encodedInput) {
+      if (!encodedInput.startsWith(key + ":")) {
+        throw new UndeclaredThrowableException(new BadPaddingException("Given final block not properly padded"));
+      }
+      return new StringBuilder(encodedInput.substring(key.length() + 1)).reverse().toString();
+    }
   }
 
   /**
@@ -544,8 +658,8 @@ class AgendaCalendarLinkServiceTest {
      * {@inheritDoc}
      */
     @Override
-    public CalendarLink save(long calendarId, long creatorId, String tokenHash, Date createdDate) {
-      CalendarLink link = new CalendarLink(calendarId, creatorId, createdDate.getTime(), tokenHash, false);
+    public CalendarLink save(long calendarId, long creatorId, String tokenHash, String tokenEncrypted, Date createdDate) {
+      CalendarLink link = new CalendarLink(calendarId, creatorId, createdDate.getTime(), tokenHash, tokenEncrypted, null, false);
       rows.put(calendarId, link);
       return copy(link);
     }
@@ -570,6 +684,8 @@ class AgendaCalendarLinkServiceTest {
                                              link.getCreatorId(),
                                              link.getCreatedDate(),
                                              link.getTokenHash(),
+                                             link.getTokenEncrypted(),
+                                             null,
                                              false);
     }
   }

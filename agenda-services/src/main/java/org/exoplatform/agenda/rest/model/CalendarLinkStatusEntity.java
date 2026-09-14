@@ -21,9 +21,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * What the drawer is told about the link of a calendar. Never the token's
- * digest; the URL only in the answer to a creation, the one moment it exists
- * outside the calendar application that subscribes to it.
+ * What the drawer is told about the link of a calendar, and only ever told
+ * someone allowed to manage it. Never the token's digest or encrypted copy; the
+ * URL while the link answers and can be displayed.
  */
 @Data
 @NoArgsConstructor
@@ -39,6 +39,12 @@ public class CalendarLinkStatusEntity {
   /** Whether the link still answers; false when it does not exist. */
   private boolean active;
 
+  /**
+   * Whether the URL of an answering link can be shown: false when its stored
+   * copy no longer decrypts, which only a reset repairs.
+   */
+  private boolean displayable;
+
   /** Identity identifier of the link's creator, 0 when there is no link. */
   private long    creatorId;
 
@@ -48,7 +54,7 @@ public class CalendarLinkStatusEntity {
   /** Creation date in milliseconds since the epoch, 0 when there is no link. */
   private long    createdDate;
 
-  /** The link's URL: set only in the answer to its creation. */
+  /** The link's URL, set only while it answers and can be displayed. */
   private String  url;
 
 }

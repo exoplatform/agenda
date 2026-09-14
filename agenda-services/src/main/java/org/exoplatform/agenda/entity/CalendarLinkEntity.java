@@ -32,7 +32,7 @@ import lombok.Setter;
 
 /**
  * The stored side of a calendar link: which calendar, who created it, when,
- * and the digest of its token.
+ * the digest of its token and the token encrypted by the platform codec.
  * <p>
  * {@code CALENDAR_ID} is unique in the table, so a calendar carries at most one
  * link; {@code TOKEN_HASH} is unique too, and is what a feed request is looked
@@ -66,6 +66,10 @@ public class CalendarLinkEntity implements Serializable {
   /** Lowercase hexadecimal SHA-256 digest of the token; unique. */
   @Column(name = "TOKEN_HASH", nullable = false)
   private String            tokenHash;
+
+  /** The token encrypted by the platform codec, for display to managers. */
+  @Column(name = "TOKEN_ENCRYPTED", nullable = false)
+  private String            tokenEncrypted;
 
   /** When the link was created or last reset. */
   @Column(name = "CREATED_DATE", nullable = false)

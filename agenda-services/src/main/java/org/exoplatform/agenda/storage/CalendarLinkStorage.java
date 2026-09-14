@@ -88,15 +88,16 @@ public class CalendarLinkStorage {
    * @param calendarId technical identifier of the calendar
    * @param creatorId identity identifier of the user creating the link
    * @param tokenHash digest of the new token
+   * @param tokenEncrypted the new token encrypted by the platform codec
    * @param createdDate when the link is created
    * @return the stored link
    */
-  public CalendarLink save(long calendarId, long creatorId, String tokenHash, Date createdDate) {
+  public CalendarLink save(long calendarId, long creatorId, String tokenHash, String tokenEncrypted, Date createdDate) {
     CalendarLinkEntity entity = calendarLinkDAO.findByCalendarId(calendarId);
     if (entity == null) {
       entity = new CalendarLinkEntity();
       entity.setCalendarId(calendarId);
-      fill(entity, creatorId, tokenHash, createdDate);
+      fill(entity, creatorId, tokenHash, tokenEncrypted, createdDate);
       try {
         return toModel(calendarLinkDAO.saveAndFlush(entity));
       } catch (DataIntegrityViolationException | PersistenceException e) {
@@ -106,7 +107,7 @@ public class CalendarLinkStorage {
         }
       }
     }
-    fill(entity, creatorId, tokenHash, createdDate);
+    fill(entity, creatorId, tokenHash, tokenEncrypted, createdDate);
     return toModel(calendarLinkDAO.save(entity));
   }
 
@@ -131,17 +132,19 @@ public class CalendarLinkStorage {
    * @param entity the row to fill
    * @param creatorId identity identifier of the creator
    * @param tokenHash digest of the token
+   * @param tokenEncrypted encrypted token
    * @param createdDate creation date
    */
-  private void fill(CalendarLinkEntity entity, long creatorId, String tokenHash, Date createdDate) {
+  private void fill(CalendarLinkEntity entity, long creatorId, String tokenHash, String tokenEncrypted, Date createdDate) {
     entity.setCreatorId(creatorId);
     entity.setTokenHash(tokenHash);
+    entity.setTokenEncrypted(tokenEncrypted);
     entity.setCreatedDate(createdDate);
   }
 
   /**
-   * Maps a row to its model; {@code active} is left false, it is the service's
-   * to compute.
+   * Maps a row to its model; {@code token} and {@code active} are left unset,
+   * they are the service's to compute.
    *
    * @param entity the row, may be null
    * @return the model, or null for no row
@@ -154,6 +157,8 @@ public class CalendarLinkStorage {
                             entity.getCreatorId(),
                             entity.getCreatedDate() == null ? 0 : entity.getCreatedDate().getTime(),
                             entity.getTokenHash(),
+                            entity.getTokenEncrypted(),
+                            null,
                             false);
   }
 

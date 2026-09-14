@@ -140,7 +140,7 @@ class CalendarLinkChangelogTest {
         assertTrue(columnExists(TABLE, column.name()), "column " + column.name() + " must exist");
       }
     }
-    assertEquals(5, mapped, "the entity maps five columns");
+    assertEquals(6, mapped, "the entity maps six columns");
   }
 
   /**
@@ -209,8 +209,8 @@ class CalendarLinkChangelogTest {
    */
   private void insert(long id, long calendarId, long creatorId, String tokenHash) throws SQLException {
     try (Statement statement = connection.createStatement()) {
-      statement.executeUpdate("INSERT INTO " + TABLE + " (LINK_ID, CALENDAR_ID, CREATOR_ID, TOKEN_HASH, CREATED_DATE) VALUES ("
-          + id + ", " + calendarId + ", " + creatorId + ", '" + tokenHash + "', CURRENT_TIMESTAMP)");
+      statement.executeUpdate("INSERT INTO " + TABLE + " (LINK_ID, CALENDAR_ID, CREATOR_ID, TOKEN_HASH, TOKEN_ENCRYPTED, CREATED_DATE) VALUES ("
+          + id + ", " + calendarId + ", " + creatorId + ", '" + tokenHash + "', 'encrypted', CURRENT_TIMESTAMP)");
     }
   }
 

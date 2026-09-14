@@ -100,8 +100,9 @@ public class AgendaCalendarLinkRest {
   }
 
   /**
-   * Tells whether a calendar has a link, who created it, when, and whether it
-   * still answers — never the URL.
+   * Tells whether a calendar has a link, who created it, when, whether it still
+   * answers, and — while it answers and can be displayed — its URL. Only someone
+   * allowed to manage the link gets an answer at all.
    *
    * @param request the authenticated request
    * @param calendarId technical identifier of the calendar
@@ -110,8 +111,8 @@ public class AgendaCalendarLinkRest {
   @GetMapping("calendars/{calendarId}/link")
   @Secured("users")
   @Operation(summary = "Get the status of a calendar's private link", method = "GET",
-             description = "Answers whether the calendar has a link, its creator and creation date, and whether it still"
-                 + " answers. The URL is never returned here.")
+             description = "Answers whether the calendar has a link, its creator and creation date, whether it still"
+                 + " answers, and its URL while it answers and can be displayed. Owner or space managers only.")
   @ApiResponses(value = {
       @ApiResponse(responseCode = "200", description = "Request fulfilled"),
       @ApiResponse(responseCode = "400", description = "Invalid calendar identifier"),
@@ -120,7 +121,7 @@ public class AgendaCalendarLinkRest {
   })
   public CalendarLinkStatusEntity getCalendarLink(HttpServletRequest request, @PathVariable("calendarId") long calendarId) {
     try {
-      return toEntity(calendarId, calendarLinkService.getCalendarLink(calendarId, request.getRemoteUser()), null);
+      return toEntity(request, calendarId, calendarLinkService.getCalendarLink(calendarId, request.getRemoteUser()));
     } catch (ObjectNotFoundException e) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "agenda.calendarLink.calendarNotFound");
     } catch (IllegalAccessException e) {
@@ -132,8 +133,7 @@ public class AgendaCalendarLinkRest {
 
   /**
    * Creates the link of a calendar, replacing the one it has: the previous URL
-   * stops answering at once. The answer carries the new URL, the only time it
-   * is ever returned.
+   * stops answering at once. The answer carries the new URL.
    *
    * @param request the authenticated request
    * @param calendarId technical identifier of the calendar
@@ -142,7 +142,7 @@ public class AgendaCalendarLinkRest {
   @PostMapping("calendars/{calendarId}/link")
   @Secured("users")
   @Operation(summary = "Create or reset a calendar's private link", method = "POST",
-             description = "Creates the link, replacing any existing one, and answers its URL once.")
+             description = "Creates the link, replacing any existing one, and answers its URL.")
   @ApiResponses(value = {
       @ApiResponse(responseCode = "200", description = "Link created"),
       @ApiResponse(responseCode = "400", description = "Invalid calendar identifier"),
@@ -151,9 +151,8 @@ public class AgendaCalendarLinkRest {
   })
   public CalendarLinkStatusEntity saveCalendarLink(HttpServletRequest request, @PathVariable("calendarId") long calendarId) {
     try {
-      String token = calendarLinkService.saveCalendarLink(calendarId, request.getRemoteUser());
-      CalendarLink link = calendarLinkService.getCalendarLink(calendarId, request.getRemoteUser());
-      return toEntity(calendarId, link, feedUrl(request, token));
+      calendarLinkService.saveCalendarLink(calendarId, request.getRemoteUser());
+      return toEntity(request, calendarId, calendarLinkService.getCalendarLink(calendarId, request.getRemoteUser()));
     } catch (ObjectNotFoundException e) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "agenda.calendarLink.calendarNotFound");
     } catch (IllegalAccessException e) {
@@ -241,20 +240,24 @@ public class AgendaCalendarLinkRest {
   }
 
   /**
-   * Renders a link's status.
+   * Renders a link's status. The URL is composed only from the token the
+   * service hands back, which it does only for an answering link it could
+   * decrypt, to someone allowed to manage it.
    *
+   * @param request the request, whose context the URL is built on
    * @param calendarId the calendar asked about
    * @param link the link, null when the calendar has none
-   * @param url the link's URL, only right after its creation
    * @return the entity
    */
-  private CalendarLinkStatusEntity toEntity(long calendarId, CalendarLink link, String url) {
+  private CalendarLinkStatusEntity toEntity(HttpServletRequest request, long calendarId, CalendarLink link) {
     if (link == null) {
-      return new CalendarLinkStatusEntity(calendarId, false, false, 0, null, 0, null);
+      return new CalendarLinkStatusEntity(calendarId, false, false, false, 0, null, 0, null);
     }
+    String url = link.isActive() && StringUtils.isNotBlank(link.getToken()) ? feedUrl(request, link.getToken()) : null;
     return new CalendarLinkStatusEntity(calendarId,
                                         true,
                                         link.isActive(),
+                                        url != null,
                                         link.getCreatorId(),
                                         creatorName(link.getCreatorId()),
                                         link.getCreatedDate(),

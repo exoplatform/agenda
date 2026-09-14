@@ -48,6 +48,8 @@ import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.spi.SpaceService;
+import org.exoplatform.web.security.codec.CodecInitializer;
+import org.exoplatform.web.security.security.TokenServiceInitializationException;
 
 /**
  * Holds every rule of calendar links: who manages one, what its token is, and
@@ -65,11 +67,15 @@ import org.exoplatform.social.core.space.spi.SpaceService;
  * sets {@link CalendarLink#isActive()} for the drawer, so the drawer and the
  * feed cannot disagree about a link.
  * <p>
- * <b>Tokens</b>: 32 bytes of {@link SecureRandom}, base64url without padding.
- * Only the SHA-256 digest is stored. A digest with no salt and no stretching is
- * enough for a 256-bit random secret — there is no dictionary to search — and
- * lets the feed find its row by an indexed equality. Neither the token nor its
- * digest is ever logged.
+ * <b>Tokens</b>: 32 bytes of {@link SecureRandom}, base64url without padding,
+ * stored twice and never in clear. The SHA-256 digest is what a feed request is
+ * found and compared by — no salt and no stretching are needed for a 256-bit
+ * random secret, there is no dictionary to search. A copy encrypted with the
+ * platform codec ({@link CodecInitializer}, the key every stored secret of the
+ * instance is encrypted with) lets the link be shown again to whoever may manage
+ * it; if that key is ever replaced, the copy no longer decrypts, the link can no
+ * longer be displayed, and it keeps answering through its digest until someone
+ * resets it. Neither the token, nor its digest, nor its copy is ever logged.
  */
 @Service
 public class AgendaCalendarLinkServiceImpl implements AgendaCalendarLinkService {
@@ -83,6 +89,7 @@ public class AgendaCalendarLinkServiceImpl implements AgendaCalendarLinkService 
   /**
    * Most events one document carries, occurrences counted. A safety stop for a
    * calendar with a dense recurring event, not a page: the earliest are kept.
+   * The writer adds a budget on the characters written.
    */
   public static final int         MAX_EVENTS   = 2000;
 
@@ -106,6 +113,8 @@ public class AgendaCalendarLinkServiceImpl implements AgendaCalendarLinkService 
 
   private final SpaceService      spaceService;
 
+  private final CodecInitializer  codecInitializer;
+
   private Clock                   clock        = Clock.systemUTC();
 
   /**
@@ -117,18 +126,22 @@ public class AgendaCalendarLinkServiceImpl implements AgendaCalendarLinkService 
    *          the calendar ACL for the link's creator
    * @param identityManager resolves users and space identities
    * @param spaceService resolves space management rights
+   * @param codecInitializer the platform codec the displayable copy of a token
+   *          is encrypted with
    */
   @Autowired
   public AgendaCalendarLinkServiceImpl(CalendarLinkStorage calendarLinkStorage,
                                        AgendaCalendarService agendaCalendarService,
                                        AgendaEventService agendaEventService,
                                        IdentityManager identityManager,
-                                       SpaceService spaceService) {
+                                       SpaceService spaceService,
+                                       CodecInitializer codecInitializer) {
     this.calendarLinkStorage = calendarLinkStorage;
     this.agendaCalendarService = agendaCalendarService;
     this.agendaEventService = agendaEventService;
     this.identityManager = identityManager;
     this.spaceService = spaceService;
+    this.codecInitializer = codecInitializer;
   }
 
   /**
@@ -139,9 +152,14 @@ public class AgendaCalendarLinkServiceImpl implements AgendaCalendarLinkService 
                                                                         IllegalAccessException {
     Calendar calendar = getManageableCalendar(calendarId, username);
     CalendarLink link = calendarLinkStorage.getByCalendarId(calendar.getId());
-    if (link != null) {
-      link.setActive(isAnswering(calendar, link.getCreatorId()));
+    if (link == null) {
+      return null;
     }
+    boolean active = isAnswering(calendar, link.getCreatorId());
+    link.setActive(active);
+    link.setToken(active ? displayableToken(link) : null);
+    link.setTokenHash(null);
+    link.setTokenEncrypted(null);
     return link;
   }
 
@@ -153,7 +171,7 @@ public class AgendaCalendarLinkServiceImpl implements AgendaCalendarLinkService 
     Calendar calendar = getManageableCalendar(calendarId, username);
     long creatorId = userIdentityId(username);
     String token = newToken();
-    calendarLinkStorage.save(calendar.getId(), creatorId, hash(token), Date.from(clock.instant()));
+    calendarLinkStorage.save(calendar.getId(), creatorId, hash(token), encrypt(token), Date.from(clock.instant()));
     return token;
   }
 
@@ -182,16 +200,16 @@ public class AgendaCalendarLinkServiceImpl implements AgendaCalendarLinkService 
    * Every refusal throws the same exception with the same message, and a
    * malformed token is still digested and looked up before it is refused, so
    * that the answer to an unknown token does not come back faster than the
-   * answer to a real one.
+   * answer to a real one. A link whose creator lost their right costs the
+   * permission checks on top of that lookup before it is refused: only someone
+   * already holding a once-valid token can observe that difference.
    */
   @Override
   public String getCalendarFeed(String token) throws ObjectNotFoundException {
     String presented = StringUtils.defaultString(token);
     String digest = hash(presented);
     CalendarLink link = calendarLinkStorage.getByTokenHash(digest);
-    if (link == null || !TOKEN_FORMAT.matcher(presented).matches()
-        || !MessageDigest.isEqual(digest.getBytes(StandardCharsets.US_ASCII),
-                                  StringUtils.defaultString(link.getTokenHash()).getBytes(StandardCharsets.US_ASCII))) {
+    if (link == null || !TOKEN_FORMAT.matcher(presented).matches() || !sameDigest(digest, link.getTokenHash())) {
       throw notFound();
     }
     Calendar calendar = agendaCalendarService.getCalendarById(link.getCalendarId());
@@ -200,7 +218,7 @@ public class AgendaCalendarLinkServiceImpl implements AgendaCalendarLinkService 
     }
     ZonedDateTime now = ZonedDateTime.ofInstant(clock.instant(), ZoneOffset.UTC);
     List<Event> events = readEvents(calendar, link.getCreatorId(), now);
-    return CalendarFeedIcsWriter.write(calendarName(calendar), events, uidHost(), now);
+    return CalendarFeedIcsWriter.write(calendarName(calendar), events, AgendaCalendarLinkServiceImpl::isPrivate, uidHost());
   }
 
   /**
@@ -210,6 +228,25 @@ public class AgendaCalendarLinkServiceImpl implements AgendaCalendarLinkService 
    */
   void setClock(Clock clock) {
     this.clock = clock;
+  }
+
+  /**
+   * Whether an event is published as busy time only.
+   * <p>
+   * <b>Always false today, and that is a gap, not a decision.</b> The product
+   * rule is that a private event is published as a busy block, and the writer
+   * does that; but agenda does not model a private event — {@link Event} carries
+   * no visibility or classification ({@code EventAvailability} is free/busy
+   * transparency), no connector imports one, and every reader of a calendar in
+   * eXo already sees every event it holds. This is the one place the rule is
+   * wired to, so the day agenda gains that flag, reading it here is the whole
+   * change.
+   *
+   * @param event the event
+   * @return whether only its busy time may be published
+   */
+  static boolean isPrivate(Event event) {
+    return false;
   }
 
   /**
@@ -228,6 +265,18 @@ public class AgendaCalendarLinkServiceImpl implements AgendaCalendarLinkService 
   }
 
   /**
+   * Compares two digests in constant time.
+   *
+   * @param digest the digest of the presented token
+   * @param stored the stored digest, may be null
+   * @return true when they are the same
+   */
+  private static boolean sameDigest(String digest, String stored) {
+    return MessageDigest.isEqual(digest.getBytes(StandardCharsets.US_ASCII),
+                                 StringUtils.defaultString(stored).getBytes(StandardCharsets.US_ASCII));
+  }
+
+  /**
    * Draws a new token.
    *
    * @return 32 random bytes, base64url without padding
@@ -236,6 +285,53 @@ public class AgendaCalendarLinkServiceImpl implements AgendaCalendarLinkService 
     byte[] bytes = new byte[TOKEN_BYTES];
     secureRandom.nextBytes(bytes);
     return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+  }
+
+  /**
+   * Encrypts a token with the platform codec. A link whose copy cannot be
+   * encrypted is not created at all: storing the token in clear instead is not
+   * an option.
+   *
+   * @param token the token
+   * @return the encrypted copy
+   */
+  private String encrypt(String token) {
+    try {
+      return codecInitializer.getCodec().encode(token);
+    } catch (TokenServiceInitializationException e) {
+      throw new IllegalStateException("The platform codec is not available: no calendar link can be created", e);
+    }
+  }
+
+  /**
+   * The token of a link, for display: its stored copy decrypted, provided the
+   * result is the very token the stored digest names. A copy that no longer
+   * decrypts — the codec key was replaced — or that decrypts into anything
+   * else gives no token, and the link is shown as one that cannot be displayed.
+   *
+   * @param link the stored link
+   * @return the token, or null when it cannot be displayed
+   */
+  private String displayableToken(CalendarLink link) {
+    if (StringUtils.isBlank(link.getTokenEncrypted())) {
+      return null;
+    }
+    String token;
+    try {
+      token = codecInitializer.getCodec().decode(link.getTokenEncrypted());
+    } catch (TokenServiceInitializationException | RuntimeException e) {
+      // The exception says nothing secret, but its message is left out all the
+      // same: the class is enough to tell a replaced key from a missing codec.
+      LOG.warn("The link of calendar {} can no longer be decrypted ({}); it still answers but cannot be displayed",
+               link.getCalendarId(),
+               e.getClass().getSimpleName());
+      return null;
+    }
+    if (token == null || !TOKEN_FORMAT.matcher(token).matches() || !sameDigest(hash(token), link.getTokenHash())) {
+      LOG.warn("The link of calendar {} decrypts into another token; it cannot be displayed", link.getCalendarId());
+      return null;
+    }
+    return token;
   }
 
   /**
