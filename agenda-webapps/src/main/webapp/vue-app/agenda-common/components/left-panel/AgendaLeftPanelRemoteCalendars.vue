@@ -39,9 +39,9 @@
     Nothing is drawn while loading either — a section that appears, empties
     and vanishes is worse than one that arrives when it has content.
   -->
-  <div v-if="!loading && groups.length" class="d-flex flex-column">
+  <div v-if="!loading && visibleGroups.length" class="d-flex flex-column">
     <section
-      v-for="group in groups"
+      v-for="group in visibleGroups"
       :key="group.name"
       class="agenda-left-panel-section d-flex flex-column mb-5">
       <div class="agenda-left-panel-title text-sub-title">
@@ -212,6 +212,7 @@ export default {
     calendarsRequestId: 0,
     groups: [],
     hiddenIds: [],
+    hidingIds: [],
     loading: false,
   }),
   computed: {
@@ -269,6 +270,23 @@ export default {
      */
     connectorsConnecting() {
       return (this.connectors || []).some(connector => connector && connector.loading);
+    },
+    /**
+     * The sections as drawn: the connectors' answer without the calendars a
+     * hide is in flight for (see hideCalendar), a section emptied by that
+     * dropped with them — an empty section is a question the user cannot
+     * act on, the same rule buildGroups applies.
+     *
+     * Derived rather than written back into `groups`, so that the listing
+     * and the user's pending actions never overwrite each other: a
+     * retrieval landing mid-hide still lists the calendar, and it stays out
+     * of sight all the same; a hide that fails puts its calendar back by
+     * forgetting the id, whatever else happened to the listing meanwhile.
+     *
+     * @returns {Array} the sections to draw, none of them empty
+     */
+    visibleGroups() {
+      return this.withoutCalendars(this.groups, this.hidingIds);
     },
   },
   watch: {
@@ -600,17 +618,20 @@ export default {
       return !!connector && typeof connector.hideCalendar === 'function';
     },
     /**
-     * The sections without one calendar, a section emptied by it dropped
-     * with it: an empty section is a question the user cannot act on, the
-     * same rule buildGroups applies.
+     * The sections without the given calendars, a section emptied by that
+     * dropped with them.
      *
-     * @param {Array} groups sections as drawn
-     * @param {String} calendarId identity of the calendar to leave out
-     * @returns {Array} new sections, the given ones untouched
+     * @param {Array} groups sections as the connectors answered them
+     * @param {Array} calendarIds identities of the calendars to leave out
+     * @returns {Array} new sections, the given ones untouched; the given
+     *          sections themselves when there is nothing to leave out
      */
-    withoutCalendar(groups, calendarId) {
+    withoutCalendars(groups, calendarIds) {
+      if (!calendarIds.length) {
+        return groups;
+      }
       return groups
-        .map(group => ({...group, calendars: group.calendars.filter(calendar => calendar.id !== calendarId)}))
+        .map(group => ({...group, calendars: group.calendars.filter(calendar => !calendarIds.includes(calendar.id))}))
         .filter(group => group.calendars.length);
     },
     /**
@@ -643,20 +664,32 @@ export default {
      * emitted: the grid re-reads the remote events, which the connector no
      * longer serves for a hidden collection, and this list re-asks the
      * connectors, which confirms the row gone from the server's own answer.
-     * On failure the row comes back exactly as it was and the error is said.
+     * On failure the row comes back exactly where it was and the error is
+     * said.
      *
-     * The sections are put back only if no retrieval has been started since
-     * the click: one that has is answering for the accounts as they now
-     * stand, hidden calendar included since hiding failed, and the snapshot
-     * would overwrite a fresher answer with an older one. The retrieval
-     * counter is read, never advanced, for the same reason retrieveCalendars
-     * owns it: advancing it would make an in-flight retrieval unable to
-     * clear the loading flag, and the whole component hides while loading.
+     * The row is taken out by its id, on the in-flight list visibleGroups
+     * reads, never by rewriting the sections: two hides in flight each own
+     * their id, so one failing puts back its own calendar and only that one,
+     * and a retrieval landing meanwhile — one started before the click, or
+     * by the refresh of another hide's success — neither resurrects the row
+     * nor gets overwritten by a snapshot older than it. On success the
+     * calendar is also dropped from the sections themselves before its id is
+     * released. Nothing on screen depends on that today — the refresh
+     * emitted just before hides the whole list while it re-asks the
+     * connectors, and its answer replaces the sections — but the sections
+     * then never list a calendar the server has hidden, should that refresh
+     * ever go unheard.
      *
      * The connector is called inside a promise executor: the call goes out
      * at once, and a connector throwing synchronously is handled as a
      * rejection, on the same path as a refused request, rather than escaping
      * the click handler with the row already gone.
+     *
+     * The menu's button leaves with the row, so the keyboard focus falls
+     * back to the document after the action — as it does after the personal
+     * rows' delete. Nothing in this component can hold it: the refresh the
+     * success emits unmounts every section while the connectors are
+     * re-asked (the root's v-if on `loading`).
      *
      * @param {Object} calendar calendar as buildGroups stamped it
      * @returns {Promise} resolves once the outcome has been shown, never
@@ -664,24 +697,23 @@ export default {
      */
     hideCalendar(calendar) {
       const connector = this.connectorOf(calendar);
-      if (!connector || typeof connector.hideCalendar !== 'function') {
+      if (!connector || typeof connector.hideCalendar !== 'function' || this.hidingIds.includes(calendar.id)) {
         return Promise.resolve();
       }
-      const groups = this.groups;
-      const requestId = this.calendarsRequestId;
-      this.setGroups(this.withoutCalendar(groups, calendar.id));
+      this.hidingIds = this.hidingIds.concat(calendar.id);
       return new Promise(resolve => resolve(connector.hideCalendar(calendar.id)))
         .then(() => {
+          this.setGroups(this.withoutCalendars(this.groups, [calendar.id]));
           this.forgetVisibility(calendar);
           this.$root.$emit('alert-message', this.$t('agenda.leftPanel.sharedCalendarHidden', {0: calendar.name}), 'success');
           this.$root.$emit('agenda-refresh');
         })
         .catch(error => {
           console.error(`cannot hide the calendar ${calendar.name}`, error);
-          if (requestId === this.calendarsRequestId) {
-            this.setGroups(groups);
-          }
           this.$root.$emit('alert-message', this.$t('agenda.leftPanel.hideSharedCalendarError'), 'error');
+        })
+        .finally(() => {
+          this.hidingIds = this.hidingIds.filter(id => id !== calendar.id);
         });
     },
   },
