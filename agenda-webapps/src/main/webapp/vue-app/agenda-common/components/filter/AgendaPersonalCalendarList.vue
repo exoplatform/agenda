@@ -101,13 +101,7 @@
             :value="isRowMenuOpen(calendar.id)"
             content-class="agendaCalendarRowMenu"
             offset-y
-            left>
-              </v-list-item>
-              <!--
             left
-            @input="opened => opened && refreshCalendarMenu()">
-              </v-list-item>
-              <!--
             @input="toggleRowMenu(calendar.id, $event)">
             <template #activator="{ on, attrs }">
               <v-btn
@@ -126,7 +120,7 @@
               </v-list-item>
               <!--
                 Whatever a connector adds for this calendar — the CalDAV
-                add-on's "Share…" (EXO-90253). Agenda names none of them: the
+                add-on's "Share" (EXO-90253). Agenda names none of them: the
                 connector answers its label already translated, and runs its
                 own action. A connector declaring nothing adds no row.
               -->
