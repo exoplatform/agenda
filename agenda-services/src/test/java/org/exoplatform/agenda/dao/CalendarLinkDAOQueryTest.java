@@ -169,6 +169,15 @@ class CalendarLinkDAOQueryTest {
   /**
    * The listing joins links to their calendars in one statement and keeps only
    * the calendars the given identities own, newest first, one page at a time.
+   * <p>
+   * <b>What this does not verify.</b> HSQLDB proves the grammar, the join and
+   * the filter; the plan MySQL, PostgreSQL or Oracle choose is not run here.
+   * The statement is expected to drive from the link table — small, one row per
+   * published calendar, unique on {@code CALENDAR_ID} — into the calendar
+   * table's primary key; {@code EXO_AGENDA_CALENDAR.OWNER_ID} carries no index.
+   * The Oracle limit of a thousand {@code IN} items is held by construction
+   * ({@code AgendaCalendarLinkServiceImpl.MAX_MANAGED_SPACES} plus the user's own
+   * identity), not by a run on Oracle.
    */
   @Test
   void theLinksOfTheCalendarsSomeIdentitiesOwnAreReadInOneJoin() {

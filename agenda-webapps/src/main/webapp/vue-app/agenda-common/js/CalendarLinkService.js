@@ -67,7 +67,9 @@ export function getCalendarLinks(refresh) {
 
 /**
  * Forgets the shared listing, so the next ask reads the server again. Called
- * after every change this page makes to a link.
+ * when a change to a link starts and again once it is done: a listing that
+ * started while the change was in flight may carry the state before it, and
+ * must not be the one served to the lists refreshing after it.
  *
  * @returns {void}
  */
@@ -115,6 +117,7 @@ export function saveCalendarLink(calendarId) {
     if (!resp || !resp.ok) {
       throw new Error('Error creating the calendar link');
     }
+    forgetCalendarLinks();
     return resp.json();
   });
 }
@@ -134,5 +137,6 @@ export function deleteCalendarLink(calendarId) {
     if (!resp || !resp.ok) {
       throw new Error('Error deleting the calendar link');
     }
+    forgetCalendarLinks();
   });
 }
