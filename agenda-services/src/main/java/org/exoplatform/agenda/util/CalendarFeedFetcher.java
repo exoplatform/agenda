@@ -169,11 +169,25 @@ public class CalendarFeedFetcher {
     this.totalTimeout = totalTimeout;
     this.maxRedirects = maxRedirects;
     DnsResolver resolver = new DnsResolver() {
+      /**
+       * Resolves a host through the guard, refusing the addresses it refuses.
+       *
+       * @param host the host
+       * @return the allowed addresses
+       * @throws UnknownHostException when unresolvable or refused
+       */
       @Override
       public InetAddress[] resolve(String host) throws UnknownHostException {
         return guard.resolveAllowed(host);
       }
 
+      /**
+       * Answers the host itself once the guard allows its addresses.
+       *
+       * @param host the host
+       * @return the host
+       * @throws UnknownHostException when unresolvable or refused
+       */
       @Override
       public String resolveCanonicalHostname(String host) throws UnknownHostException {
         guard.resolveAllowed(host);
@@ -287,7 +301,7 @@ public class CalendarFeedFetcher {
     }
     ScheduledFuture<?> timer = deadlines.schedule(get::cancel, remaining, TimeUnit.NANOSECONDS);
     try {
-      return httpClient.execute(get, response -> handle(response, deadline));
+      return httpClient.execute(get, response -> handle(get, response, deadline));
     } catch (FeedIOException e) {
       throw new CalendarFeedException(e.reason, e);
     } catch (IOException | RuntimeException e) {
@@ -303,12 +317,19 @@ public class CalendarFeedFetcher {
    * Reads an answer: nothing modified, a redirect to follow, a body within the
    * limit, or the failure it is.
    *
+   * <p>
+   * An answer not read to its end is aborted before the client closes it:
+   * closing a response otherwise drains its body to the declared length, so a
+   * body refused as too large, an error page or a redirect's body would still be
+   * downloaded.
+   *
+   * @param get the request, cancelled when its answer is not read to its end
    * @param response the answer
    * @param deadline the read's deadline
    * @return the answer read
    * @throws IOException carrying the reason of a failure
    */
-  private Answer handle(ClassicHttpResponse response, long deadline) throws IOException {
+  private Answer handle(HttpGet get, ClassicHttpResponse response, long deadline) throws IOException {
     int status = response.getCode();
     if (status == 304) {
       return new Answer(new FeedResponse(true,
@@ -319,12 +340,14 @@ public class CalendarFeedFetcher {
     }
     if (status == 301 || status == 302 || status == 303 || status == 307 || status == 308) {
       String location = header(response, HttpHeaders.LOCATION, Integer.MAX_VALUE);
+      get.cancel();
       if (StringUtils.isBlank(location)) {
         throw new FeedIOException(CalendarFeedException.HTTP_ERROR);
       }
       return new Answer(null, location);
     }
     if (status < 200 || status >= 300) {
+      get.cancel();
       throw new FeedIOException(CalendarFeedException.HTTP_ERROR);
     }
     HttpEntity entity = response.getEntity();
@@ -332,6 +355,7 @@ public class CalendarFeedFetcher {
       throw new FeedIOException(CalendarFeedException.NOT_A_CALENDAR);
     }
     if (entity.getContentLength() > maxBytes) {
+      get.cancel();
       throw new FeedIOException(CalendarFeedException.TOO_LARGE);
     }
     ByteArrayOutputStream body = new ByteArrayOutputStream();
@@ -342,9 +366,11 @@ public class CalendarFeedFetcher {
       while ((read = input.read(buffer)) != -1) {
         total += read;
         if (total > maxBytes) {
+          get.cancel();
           throw new FeedIOException(CalendarFeedException.TOO_LARGE);
         }
         if (System.nanoTime() >= deadline) {
+          get.cancel();
           throw new FeedIOException(CalendarFeedException.TIMEOUT);
         }
         body.write(buffer, 0, read);

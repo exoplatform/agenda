@@ -194,6 +194,39 @@ class CalendarFeedFetcherTest {
   }
 
   /**
+   * A body refused as too large by its declared length, or an error page, is not
+   * downloaded: the exchange is aborted before the client closes the response,
+   * which would otherwise drain the body to its declared end.
+   *
+   * @throws Exception when the stub fails
+   */
+  @Test
+  void aRefusedAnswerIsNotDownloaded() throws Exception {
+    java.util.concurrent.atomic.AtomicLong written = new java.util.concurrent.atomic.AtomicLong();
+    java.util.concurrent.atomic.AtomicInteger status = new java.util.concurrent.atomic.AtomicInteger(200);
+    handler = exchange -> {
+      exchange.sendResponseHeaders(status.get(), 1L << 30);
+      byte[] chunk = new byte[64 * 1024];
+      try (OutputStream output = exchange.getResponseBody()) {
+        while (written.get() < (1L << 30)) {
+          output.write(chunk);
+          written.addAndGet(chunk.length);
+        }
+      }
+    };
+
+    assertEquals(CalendarFeedException.TOO_LARGE, failure(fetcher, url("public.test", "/huge.ics")));
+    sleep(300);
+    assertTrue(written.get() < 16L * 1024 * 1024, "the refused body was downloaded: " + written.get() + " bytes");
+
+    written.set(0);
+    status.set(500);
+    assertEquals(CalendarFeedException.HTTP_ERROR, failure(fetcher, url("public.test", "/error.ics")));
+    sleep(300);
+    assertTrue(written.get() < 16L * 1024 * 1024, "the error page was downloaded: " + written.get() + " bytes");
+  }
+
+  /**
    * A link answering a calendar gives its body and its validators.
    *
    * @throws Exception when the read fails

@@ -53,8 +53,10 @@ import net.fortuna.ical4j.model.Recur;
 import net.fortuna.ical4j.model.Property;
 import net.fortuna.ical4j.model.component.VEvent;
 import net.fortuna.ical4j.model.parameter.TzId;
+import net.fortuna.ical4j.model.property.DateListProperty;
 import net.fortuna.ical4j.model.property.DateProperty;
 import net.fortuna.ical4j.model.property.ExRule;
+import net.fortuna.ical4j.model.property.RDate;
 import net.fortuna.ical4j.model.property.RRule;
 
 /**
@@ -104,6 +106,14 @@ public final class CalendarFeedParser {
    * first instance, whatever the window, and ical4j keeps what it walks.
    */
   private static final long   MAX_RULE_WORK           = 500_000;
+
+  /**
+   * How many EXDATE comparisons cost one unit of work. ical4j removes excluded
+   * instances with a list scan per instance, two comparisons per EXDATE value.
+   * A comparison was measured 28 to 96 times cheaper than a candidate date
+   * built; counting ten per unit errs on the strict side.
+   */
+  private static final int    COMPARISONS_PER_UNIT    = 10;
 
   /** Most candidate dates all the rules of one document may cost together. */
   private static final long   MAX_DOCUMENT_WORK       = 4_000_000;
@@ -377,7 +387,14 @@ public final class CalendarFeedParser {
         shortened = true;
       }
     }
-    double cost = master.getProperties(Property.RDATE).size();
+    int rdateValues = dateValues(master, Property.RDATE);
+    int exdateValues = dateValues(master, Property.EXDATE);
+    double instances = rdateValues + 1d;
+    for (Recur rule : rules) {
+      instances += stepsBetween(firstStart, end, shortestStep(rule)) * candidatesPerStep(rule) + candidatesPerStep(rule);
+    }
+    // ical4j scans every EXDATE value twice for each instance it built
+    double cost = rdateValues + exdateValues + instances * exdateValues * 2d / COMPARISONS_PER_UNIT;
     for (Recur rule : rules) {
       Duration step = shortestStep(rule);
       Instant walkFrom = rule.getCount() > 0 ? seed : firstStart;
@@ -438,6 +455,26 @@ public final class CalendarFeedParser {
     } catch (RuntimeException e) {
       return null;
     }
+  }
+
+  /**
+   * How many dates or periods the properties of a kind carry together: one
+   * RDATE or EXDATE property may list any number.
+   *
+   * @param master the series
+   * @param name RDATE or EXDATE
+   * @return the number of values
+   */
+  private static int dateValues(VEvent master, String name) {
+    int values = 0;
+    for (Object property : master.getProperties(name)) {
+      DateListProperty dates = (DateListProperty) property;
+      values += dates.getDates() == null ? 0 : dates.getDates().size();
+      if (property instanceof RDate rdate && rdate.getPeriods() != null) {
+        values += rdate.getPeriods().size();
+      }
+    }
+    return values;
   }
 
   /**

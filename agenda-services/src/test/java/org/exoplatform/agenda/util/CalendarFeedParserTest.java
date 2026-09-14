@@ -551,6 +551,48 @@ class CalendarFeedParserTest {
   }
 
   /**
+   * ical4j removes excluded instances with a scan of every EXDATE value for each
+   * instance: an hourly series excluding 290,000 dates took half a minute to
+   * read and is not expanded, while a daily series with a few hundred exclusions
+   * is read, its excluded days left out.
+   *
+   * @throws Exception when refused
+   */
+  @Test
+  void excludedDatesAreCostedForEachInstanceTheyAreScannedFor() throws Exception {
+    StringBuilder exdates = new StringBuilder("EXDATE:");
+    java.time.LocalDateTime date = java.time.LocalDateTime.of(1990, 1, 1, 0, 0);
+    for (int i = 0; i < 290_000; i++) {
+      exdates.append(i == 0 ? "" : ",").append(date.plusHours(i).format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'")));
+    }
+    StringBuilder skipped = new StringBuilder("EXDATE:");
+    for (int i = 0; i < 300; i++) {
+      skipped.append(i == 0 ? "" : ",").append(LocalDate.of(2025, 6, 1).plusDays(i).format(java.time.format.DateTimeFormatter.BASIC_ISO_DATE)).append("T090000Z");
+    }
+    ParsedCalendar parsed = assertTimeoutPreemptively(Duration.ofSeconds(10),
+                                                      () -> parse(calendar("BEGIN:VEVENT",
+                                                                           "UID:excluded@test",
+                                                                           "DTSTART:20260101T000000Z",
+                                                                           "DTEND:20260101T001000Z",
+                                                                           "RRULE:FREQ=HOURLY",
+                                                                           exdates.toString(),
+                                                                           "END:VEVENT",
+                                                                           "BEGIN:VEVENT",
+                                                                           "UID:skipping@test",
+                                                                           "DTSTART:20250601T090000Z",
+                                                                           "DTEND:20250601T100000Z",
+                                                                           "RRULE:FREQ=DAILY",
+                                                                           skipped.toString(),
+                                                                           "END:VEVENT")));
+
+    assertTrue(parsed.truncated());
+    Set<String> keys = parsed.events().stream().map(ImportedEvent::key).collect(Collectors.toSet());
+    assertTrue(keys.stream().allMatch(key -> key.startsWith("skipping@test|")), "the heavily excluded series is not read");
+    assertFalse(keys.contains("skipping@test|" + Instant.parse("2026-02-02T09:00:00Z").toEpochMilli()), "an excluded day stays out");
+    assertTrue(keys.contains("skipping@test|" + Instant.parse("2026-05-01T09:00:00Z").toEpochMilli()), "a day past the exclusions is read");
+  }
+
+  /**
    * A counted series is walked from its first instance, whatever the window: one
    * started decades ago with several instances a day is not expanded, the same
    * series started a week before the window is.

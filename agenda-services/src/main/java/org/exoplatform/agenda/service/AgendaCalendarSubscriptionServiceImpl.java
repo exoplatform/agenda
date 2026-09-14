@@ -280,8 +280,7 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
     long userIdentityId = userIdentityId(username);
     try {
       URI uri = feedFetcher.getGuard().normalize(url);
-      FeedResponse feed = readForUser(uri, null, null, userIdentityId);
-      return parse(feed.body(), clock.instant()).name();
+      return readForUser(uri, userIdentityId, clock.instant()).parsed().name();
     } catch (CalendarFeedException e) {
       throw new IllegalArgumentException(e.getCode());
     }
@@ -309,8 +308,9 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
       if (subscriptionStorage.getByUser(userIdentityId, MAX_SUBSCRIPTIONS).size() >= MAX_SUBSCRIPTIONS) {
         throw new IllegalArgumentException(TOO_MANY_SUBSCRIPTIONS);
       }
-      feed = readForUser(uri, null, null, userIdentityId);
-      parsed = parse(feed.body(), now);
+      ReadFeed answer = readForUser(uri, userIdentityId, now);
+      feed = answer.feed();
+      parsed = answer.parsed();
     } catch (CalendarFeedException e) {
       throw new IllegalArgumentException(e.getCode());
     }
@@ -384,8 +384,9 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
           if (subscriptionStorage.getByUrlKey(key) != null) {
             throw new IllegalArgumentException(ALREADY_SUBSCRIBED);
           }
-          feed = readForUser(uri, null, null, subscription.getUserIdentityId());
-          parsed = parse(feed.body(), now);
+          ReadFeed answer = readForUser(uri, subscription.getUserIdentityId(), now);
+          feed = answer.feed();
+          parsed = answer.parsed();
           newUri = uri;
           newKey = key;
         }
@@ -551,22 +552,33 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
   }
 
   /**
-   * Reads a link on behalf of a user, at most {@link #MAX_READS_PER_USER} at a
-   * time for that user on this node.
+   * A link read and its document parsed.
+   *
+   * @param feed what was read
+   * @param parsed the document read
+   */
+  private record ReadFeed(FeedResponse feed, ParsedCalendar parsed) {
+  }
+
+  /**
+   * Reads a link on behalf of a user and parses what it serves, at most
+   * {@link #MAX_READS_PER_USER} at a time for that user on this node. The permit
+   * is held across the parse too: parsing a document costs CPU as reading it
+   * costs a connection.
    *
    * @param uri the normalized URL
-   * @param etag the entity tag to send, or null
-   * @param lastModified the date to send, or null
    * @param userIdentityId the user
-   * @return what was read
+   * @param now the instant the window is computed from
+   * @return what was read and parsed
    * @throws CalendarFeedException with the reason nothing usable was read
    */
-  private FeedResponse readForUser(URI uri, String etag, String lastModified, long userIdentityId) throws CalendarFeedException {
+  private ReadFeed readForUser(URI uri, long userIdentityId, Instant now) throws CalendarFeedException {
     if (!acquireRead(userIdentityId)) {
       throw new IllegalStateException(TOO_MANY_READS);
     }
     try {
-      return read(uri, etag, lastModified, userIdentityId);
+      FeedResponse feed = read(uri, null, null, userIdentityId);
+      return new ReadFeed(feed, parse(feed.body(), now));
     } finally {
       releaseRead(userIdentityId);
     }
