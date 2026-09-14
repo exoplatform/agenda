@@ -1342,16 +1342,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     return events;
   }
 
-  /**
-   * The calendars whose events a user's pending and date-poll listings look
-   * at: those they attend events of, those they can list, and their subscribed
-   * calendars (EXO-90278), which the listing leaves out.
-   *
-   * @param userIdentity the user
-   * @return distinct technical identifiers of calendars that still exist
-   * @throws Exception when the calendars cannot be listed
-   */
-  private List<Long> getUserCalenders(Identity userIdentity) throws Exception { // NOSONAR
+  private List<Long> getUserCalenders(Identity userIdentity) throws Exception {
     List<Long> calenderIds = this.agendaEventStorage.getUserEventCalenderIds(Long.parseLong(userIdentity.getId()));
     calenderIds.addAll(this.agendaCalendarService.getCalendars(0,
                                                                this.agendaCalendarService.countCalendars(userIdentity.getRemoteId()),
@@ -1359,7 +1350,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                                  .stream()
                                                  .map(Calendar::getId)
                                                  .toList());
-    calenderIds.addAll(this.agendaCalendarService.getSubscriptionCalendarIds(Long.parseLong(userIdentity.getId())));
     return filterUserCalenders(calenderIds);
   }
 

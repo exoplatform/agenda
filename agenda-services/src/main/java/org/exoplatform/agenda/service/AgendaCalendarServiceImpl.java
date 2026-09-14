@@ -111,14 +111,6 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
    * {@inheritDoc}
    */
   @Override
-  public List<Long> getSubscriptionCalendarIds(long ownerId) {
-    return ownerId <= 0 ? Collections.emptyList() : agendaCalendarStorage.getSubscriptionCalendarIdsByOwnerId(ownerId);
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
   public int countCalendars(String username) throws Exception {
     if (username == null) {
       throw new IllegalArgumentException("Username is mandatory");

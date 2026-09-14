@@ -81,16 +81,6 @@ public interface AgendaCalendarService {
   List<Calendar> getCalendarsByOwnerIds(List<Long> ownerIds, String username) throws IllegalAccessException;
 
   /**
-   * Lists the subscribed calendars of an owner (EXO-90278), which
-   * {@link #getCalendars} and {@link #getCalendarsByOwnerIds} leave out. No
-   * permission check: for the platform's own reads.
-   *
-   * @param ownerId {@link Identity} technical identifier of the owner
-   * @return technical identifiers of the subscribed calendars, never null
-   */
-  List<Long> getSubscriptionCalendarIds(long ownerId);
-
-  /**
    * Creates a new calendar
    * 
    * @param calendar {@link Calendar} object to create

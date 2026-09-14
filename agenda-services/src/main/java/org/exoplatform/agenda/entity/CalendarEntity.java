@@ -41,10 +41,6 @@ import jakarta.persistence.Table;
     query = "SELECT count(cal.id) FROM AgendaCalendar cal WHERE cal.ownerId IN (:ownerIds) AND cal.isSubscription = FALSE"
 )
 @NamedQuery(
-    name = "AgendaCalendar.getSubscriptionCalendarIdsByOwnerId",
-    query = "SELECT cal.id FROM AgendaCalendar cal WHERE cal.ownerId = :ownerId AND cal.isSubscription = TRUE ORDER BY cal.id ASC"
-)
-@NamedQuery(
     name = "AgendaCalendar.getSystemCalendarIdsByOwnerId",
     query = "SELECT cal.id FROM AgendaCalendar cal WHERE cal.ownerId = :ownerId AND cal.isSystem = TRUE ORDER BY cal.id ASC"
 )

@@ -324,8 +324,8 @@ class CalendarSubscriptionDAOQueryTest {
   }
 
   /**
-   * The owner listings of calendars leave a subscribed calendar out, and the
-   * subscription listing finds it.
+   * The owner listings of calendars leave a subscribed calendar out, while the
+   * calendar itself is still there to read by its identifier.
    */
   @Test
   void theOwnerListingsLeaveSubscribedCalendarsOut() {
@@ -343,14 +343,10 @@ class CalendarSubscriptionDAOQueryTest {
     Long count = entityManager.createNamedQuery("AgendaCalendar.countCalendarsByOwnerIds", Long.class)
                               .setParameter("ownerIds", List.of(7L, 8L))
                               .getSingleResult();
-    List<Long> subscribed = entityManager.createNamedQuery("AgendaCalendar.getSubscriptionCalendarIdsByOwnerId", Long.class)
-                                         .setParameter("ownerId", 7L)
-                                         .getResultList();
 
     assertEquals(List.of(ids[0], ids[2]), listed);
     assertEquals(2L, count);
-    assertEquals(List.of(ids[1]), subscribed);
-    assertNotNull(entityManager.find(CalendarEntity.class, ids[1]));
+    assertTrue(entityManager.find(CalendarEntity.class, ids[1]).isSubscription());
   }
 
   /**

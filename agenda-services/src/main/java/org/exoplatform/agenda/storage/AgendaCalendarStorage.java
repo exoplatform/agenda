@@ -60,16 +60,6 @@ public class AgendaCalendarStorage {
     return this.calendarDAO.getSystemCalendarIdByOwnerId(ownerId);
   }
 
-  /**
-   * Lists the subscribed calendars (EXO-90278) of an owner.
-   *
-   * @param ownerId technical identifier of the calendar owner identity
-   * @return technical identifiers of the subscribed calendars, never null
-   */
-  public List<Long> getSubscriptionCalendarIdsByOwnerId(long ownerId) {
-    return this.calendarDAO.getSubscriptionCalendarIdsByOwnerId(ownerId);
-  }
-
   public int countCalendarsByOwners(Long... ownerIds) {
     return this.calendarDAO.countCalendarsByOwnerIds(ownerIds);
   }
