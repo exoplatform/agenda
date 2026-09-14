@@ -91,11 +91,20 @@
         <v-list-item-action
           v-if="calendar.id"
           class="my-0 ms-2 agenda-calendar-actions">
+          <!--
+            Asked again whenever the menu opens: a calendar just created is
+            given its remote counterpart by an asynchronous listener after
+            agenda has answered, so the refresh its creation emits can come too
+            early for a connector to offer anything on it (EXO-90253).
+          -->
           <v-menu
             :value="isRowMenuOpen(calendar.id)"
             content-class="agendaCalendarRowMenu"
             offset-y
             left
+            @input="opened => opened && refreshCalendarMenu()">
+              </v-list-item>
+              <!--
             @input="toggleRowMenu(calendar.id, $event)">
             <template #activator="{ on, attrs }">
               <v-btn
@@ -206,6 +215,7 @@ export default {
     calendarToDelete: null,
     connectorWarning: '',
     connectorActions: {},
+    connectorActionsAsked: 0,
   }),
   computed: {
     /**
@@ -345,6 +355,9 @@ export default {
      * @returns {Promise} resolves once every connector has answered
      */
     retrieveConnectorActions() {
+      // Only the latest question's answer is kept: an older, slower answer
+      // arriving after a newer one would bring back a menu from before.
+      const asked = ++this.connectorActionsAsked;
       const connectors = this.connectors()
         .filter(connector => connector
           && typeof connector.calendarActions === 'function'
@@ -366,8 +379,25 @@ export default {
               }
             });
           }));
-          this.connectorActions = actions;
+          if (asked === this.connectorActionsAsked) {
+            this.connectorActions = actions;
+          }
         });
+    },
+    /**
+     * Asks the connectors again what they add to a calendar's menu and what
+     * they report wrong with it, as the menu opens.
+     *
+     * The signals a creation, an edit or a deletion emits reach this list
+     * before a connector may be ready to answer: the CalDAV add-on binds a new
+     * calendar to its collection in a listener running after agenda answered
+     * the creation. Opening the menu comes later than any of that, and is the
+     * moment the answer is needed.
+     *
+     * @returns {Promise} resolves once both are asked
+     */
+    refreshCalendarMenu() {
+      return Promise.all([this.retrieveConnectorActions(), this.retrieveProblems()]);
     },
     /**
      * The connector actions offered on one calendar.
