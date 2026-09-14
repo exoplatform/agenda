@@ -51,6 +51,11 @@ public class CalendarPermission implements Cloneable, Serializable {
     this(canCreate, canEdit, canInviteeEdit, false);
   }
 
+  /**
+   * Copies the permissions, the publish flag included.
+   *
+   * @return a copy of these permissions
+   */
   @Override
   public CalendarPermission clone() { // NOSONAR
     CalendarPermission copy = new CalendarPermission(canEdit, canCreate, canInviteeEdit);
