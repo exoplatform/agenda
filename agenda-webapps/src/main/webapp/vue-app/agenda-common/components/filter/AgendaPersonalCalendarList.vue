@@ -53,29 +53,6 @@
             @change="toggle(calendar)" />
         </v-list-item-content>
         <!--
-          A published calendar (EXO-90252) carries a small sign, so a calendar anyone
-          with its link can read does not look like the others; the colour and the
-          glyph tell a working link from one that stopped. Same slot and alignment
-          as the read-only lock of the Remote rows (EXO-90236), and the same
-          wrapper carrying the role and the label, since Vuetify hides a v-icon with
-          no click listener from assistive technology.
-        -->
-        <v-list-item-action
-          v-if="linkStateOf(calendar) !== 'none'"
-          class="my-0 ms-2 flex-grow-0 justify-center agenda-calendar-published-icon">
-          <span
-            :title="publishedTooltip(calendar)"
-            :aria-label="publishedTooltip(calendar)"
-            :class="`d-flex agenda-calendar-published-${linkStateOf(calendar)}`"
-            role="img">
-            <v-icon
-              :class="linkStateOf(calendar) === 'published' ? 'text-light-color' : 'warning--text'"
-              size="14">
-              {{ linkStateOf(calendar) === 'published' ? 'fas fa-link' : 'fas fa-unlink' }}
-            </v-icon>
-          </span>
-        </v-list-item-action>
-        <!--
           A calendar that stopped synchronising sits in this list looking
           exactly like the ones that did not, which is why the notice cannot
           live only in the settings: nobody in that situation thinks to open
@@ -166,6 +143,30 @@
               </v-list-item>
             </v-list>
           </v-menu>
+        </v-list-item-action>
+        <!--
+          A published calendar (EXO-90252) carries a small sign, so a calendar anyone
+          with its link can read does not look like the others; the colour and the
+          glyph tell a working link from one that stopped. At the end of the row,
+          to the right of the menu, which keeps its place while hidden. Same alignment
+          as the read-only lock of the Remote rows (EXO-90236), and the same
+          wrapper carrying the role and the label, since Vuetify hides a v-icon with
+          no click listener from assistive technology.
+        -->
+        <v-list-item-action
+          v-if="linkStateOf(calendar) !== 'none'"
+          class="my-0 ms-2 flex-grow-0 justify-center agenda-calendar-published-icon">
+          <span
+            :title="publishedTooltip(calendar)"
+            :aria-label="publishedTooltip(calendar)"
+            :class="`d-flex agenda-calendar-published-${linkStateOf(calendar)}`"
+            role="img">
+            <v-icon
+              :class="linkStateOf(calendar) === 'published' ? 'text-light-color' : 'warning--text'"
+              size="14">
+              {{ linkStateOf(calendar) === 'published' ? 'fas fa-link' : 'fas fa-unlink' }}
+            </v-icon>
+          </span>
         </v-list-item-action>
       </v-list-item>
     </v-list>

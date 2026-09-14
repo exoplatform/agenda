@@ -148,6 +148,16 @@ describe('Calendar menus and rows follow the publishing state', () => {
       expect(sign.find('v-icon').text()).toBe('fas fa-link');
     });
 
+    it('draws the published sign at the end of the row, to the right of the menu', async () => {
+      const home = row(await mountList(), 'Home').element;
+      const menu = home.querySelector('.agenda-calendar-actions');
+      const sign = home.querySelector('.agenda-calendar-published-icon');
+      expect(menu).not.toBeNull();
+      expect(sign).not.toBeNull();
+      // DOCUMENT_POSITION_FOLLOWING: the sign comes after the menu.
+      expect(menu.compareDocumentPosition(sign) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
     it('says Publishing stopped with a warning, and signs the row differently', async () => {
       const trips = row(await mountList(), 'Trips');
 
@@ -245,6 +255,15 @@ describe('Calendar menus and rows follow the publishing state', () => {
 
       expect(wrapper.find('.agenda-calendar-link-action').classes()).toContain('agenda-calendar-link-state-stopped');
       expect(wrapper.find('.agenda-calendar-published-stopped').exists()).toBe(true);
+    });
+
+    it('draws the published sign to the right of the menu', async () => {
+      const item = (await mountItem(space(20, true))).element;
+      const menu = item.querySelector('.agenda-calendar-actions');
+      const sign = item.querySelector('.agenda-calendar-published-icon');
+      expect(menu).not.toBeNull();
+      expect(sign).not.toBeNull();
+      expect(menu.compareDocumentPosition(sign) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
     it('offers no Unpublish in the menu, whatever the state: a calendar is unpublished in the drawer', async () => {
