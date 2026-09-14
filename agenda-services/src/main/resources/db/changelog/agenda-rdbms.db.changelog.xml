@@ -423,4 +423,46 @@
     </addColumn>
   </changeSet>
 
+  <!--
+    EXO-90252: the private read-only link (iCal feed) of a calendar. One link per
+    calendar (unique CALENDAR_ID), looked up by the digest of its token (unique
+    TOKEN_HASH). No foreign key to EXO_AGENDA_CALENDAR on purpose: it would make
+    deleting any calendar that has a link fail; the link is removed by a listener
+    on the calendar deletion, and a link to a missing calendar opens nothing.
+  -->
+  <changeSet author="agenda" id="1.0.0-37">
+    <createTable tableName="EXO_AGENDA_CALENDAR_LINK">
+      <column name="LINK_ID" type="BIGINT" autoIncrement="${autoIncrement}" startWith="1">
+        <constraints nullable="false" primaryKey="true" primaryKeyName="PK_AGENDA_CALENDAR_LINK" />
+      </column>
+      <column name="CALENDAR_ID" type="BIGINT">
+        <constraints nullable="false" />
+      </column>
+      <column name="CREATOR_ID" type="BIGINT">
+        <constraints nullable="false" />
+      </column>
+      <column name="TOKEN_HASH" type="NVARCHAR(64)">
+        <constraints nullable="false" />
+      </column>
+      <column name="CREATED_DATE" type="TIMESTAMP">
+        <constraints nullable="false" />
+      </column>
+    </createTable>
+    <addUniqueConstraint tableName="EXO_AGENDA_CALENDAR_LINK" columnNames="CALENDAR_ID" constraintName="UK_AGENDA_CALENDAR_LINK_CAL" />
+    <addUniqueConstraint tableName="EXO_AGENDA_CALENDAR_LINK" columnNames="TOKEN_HASH" constraintName="UK_AGENDA_CALENDAR_LINK_HASH" />
+    <rollback>
+      <dropTable tableName="EXO_AGENDA_CALENDAR_LINK" />
+    </rollback>
+    <modifySql dbms="mysql">
+      <append value=" ENGINE=INNODB CHARSET=UTF8 COLLATE utf8_general_ci" />
+    </modifySql>
+  </changeSet>
+
+  <changeSet author="agenda" id="1.0.0-38" dbms="oracle,postgresql,hsqldb">
+    <createSequence sequenceName="SEQ_AGENDA_CALENDAR_LINK_ID" startValue="1" />
+    <rollback>
+      <dropSequence sequenceName="SEQ_AGENDA_CALENDAR_LINK_ID" />
+    </rollback>
+  </changeSet>
+
 </databaseChangeLog>

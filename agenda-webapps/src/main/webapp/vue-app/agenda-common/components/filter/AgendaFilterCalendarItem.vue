@@ -10,6 +10,38 @@
         hide-details
         @click="changeSelection" />
     </v-list-item-content>
+    <!--
+      Only a manager of the space gets the menu: its one entry manages the
+      calendar's private iCal link, which the server refuses anyone else
+      (EXO-90252). acl.canEdit is the server's own "manages this calendar"
+      answer. No menu on a space calendar not saved yet (id 0): it has nothing
+      a link could publish until it exists.
+    -->
+    <v-list-item-action
+      v-if="canManageLink"
+      class="my-0 ms-2 agenda-calendar-actions">
+      <v-menu
+        offset-y
+        left>
+        <template #activator="{ on, attrs }">
+          <v-btn
+            v-bind="attrs"
+            :title="$t('agenda.calendar.actions')"
+            icon
+            x-small
+            v-on="on">
+            <v-icon size="14">fa-ellipsis-v</v-icon>
+          </v-btn>
+        </template>
+        <v-list dense class="pa-0">
+          <v-list-item
+            class="agenda-calendar-link-action"
+            @click="openCalendarLink">
+            <v-list-item-title>{{ $t('agenda.calendarLink.menu') }}</v-list-item-title>
+          </v-list-item>
+        </v-list>
+      </v-menu>
+    </v-list-item-action>
   </v-list-item>
 </template>
 
@@ -65,6 +97,15 @@ export default {
      *
      * @returns {string} calendar display name
      */
+    /**
+     * Whether the current user manages this space calendar, and may therefore
+     * manage its private iCal link.
+     *
+     * @returns {boolean} true for a saved calendar the user can edit
+     */
+    canManageLink() {
+      return !!this.calendar && Number(this.calendar.id) > 0 && !!this.calendar.acl && !!this.calendar.acl.canEdit;
+    },
     calendarDisplayName() {
       const owner = this.calendar.owner;
       const profile = owner.space || owner.profile;
@@ -85,6 +126,15 @@ export default {
     this.checked = this.selected;
   },
   methods: {
+    /**
+     * Opens the drawer managing the calendar's private iCal link. The drawer
+     * lives once in the application, never in this row (EXO-90252).
+     *
+     * @returns {void}
+     */
+    openCalendarLink() {
+      this.$root.$emit('agenda-calendar-link-drawer-open', this.calendar);
+    },
     /**
      * Toggles the selection of this calendar and emits the new selection to
      * the parent list, without mutating the received props: unchecking the

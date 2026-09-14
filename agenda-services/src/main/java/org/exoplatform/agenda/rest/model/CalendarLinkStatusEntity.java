@@ -1,0 +1,54 @@
+/*
+ * Copyright (C) 2026 eXo Platform SAS.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License
+ * as published by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <gnu.org/licenses>.
+ */
+package org.exoplatform.agenda.rest.model;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+/**
+ * What the drawer is told about the link of a calendar. Never the token's
+ * digest; the URL only in the answer to a creation, the one moment it exists
+ * outside the calendar application that subscribes to it.
+ */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class CalendarLinkStatusEntity {
+
+  /** Technical identifier of the calendar. */
+  private long    calendarId;
+
+  /** Whether the calendar has a link at all. */
+  private boolean exists;
+
+  /** Whether the link still answers; false when it does not exist. */
+  private boolean active;
+
+  /** Identity identifier of the link's creator, 0 when there is no link. */
+  private long    creatorId;
+
+  /** Display name of the link's creator, null when unknown or no link. */
+  private String  creatorName;
+
+  /** Creation date in milliseconds since the epoch, 0 when there is no link. */
+  private long    createdDate;
+
+  /** The link's URL: set only in the answer to its creation. */
+  private String  url;
+
+}

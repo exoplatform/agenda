@@ -1,0 +1,261 @@
+/*
+ * Copyright (C) 2026 eXo Platform SAS.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License
+ * as published by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <gnu.org/licenses>.
+ */
+package org.exoplatform.agenda.util;
+
+import java.io.IOException;
+import java.io.StringWriter;
+import java.text.ParseException;
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
+import java.util.List;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+import org.apache.commons.lang3.StringUtils;
+
+import org.exoplatform.agenda.constant.EventAvailability;
+import org.exoplatform.agenda.model.Event;
+
+import net.fortuna.ical4j.data.CalendarOutputter;
+import net.fortuna.ical4j.model.Date;
+import net.fortuna.ical4j.model.DateTime;
+import net.fortuna.ical4j.model.ParameterList;
+import net.fortuna.ical4j.model.PropertyList;
+import net.fortuna.ical4j.model.component.VEvent;
+import net.fortuna.ical4j.model.parameter.Value;
+import net.fortuna.ical4j.model.property.CalScale;
+import net.fortuna.ical4j.model.property.Description;
+import net.fortuna.ical4j.model.property.DtEnd;
+import net.fortuna.ical4j.model.property.DtStamp;
+import net.fortuna.ical4j.model.property.DtStart;
+import net.fortuna.ical4j.model.property.LastModified;
+import net.fortuna.ical4j.model.property.Location;
+import net.fortuna.ical4j.model.property.Method;
+import net.fortuna.ical4j.model.property.ProdId;
+import net.fortuna.ical4j.model.property.RefreshInterval;
+import net.fortuna.ical4j.model.property.Summary;
+import net.fortuna.ical4j.model.property.Transp;
+import net.fortuna.ical4j.model.property.Uid;
+import net.fortuna.ical4j.model.property.Version;
+import net.fortuna.ical4j.model.property.XProperty;
+import net.fortuna.ical4j.validate.ValidationException;
+
+/**
+ * Writes the iCalendar document a calendar link serves.
+ * <p>
+ * <b>What it says about an event: its title, its time, its location and its
+ * description — nothing else.</b> The document is read by whoever holds the
+ * URL, with no eXo account behind them, so nothing that names or acts for a
+ * person goes in: no {@code ORGANIZER}, no {@code ATTENDEE}, no e-mail address,
+ * no answer link, no conference or event address. The mail channel
+ * ({@link Utils#generateIcsFile}) and the CalDAV copy say more because each is
+ * written for one known recipient; this one is written for nobody in
+ * particular.
+ * <p>
+ * <b>Recurrences arrive already expanded</b>, one {@link Event} per occurrence
+ * inside the window, exceptions applied — that is what
+ * {@code AgendaEventService.getEvents} answers. Each occurrence is written as a
+ * VEVENT of its own, with an identifier derived from its parent and its
+ * original start, so it keeps the same {@code UID} across refreshes. Rebuilding
+ * an {@code RRULE} with its {@code EXDATE}s and {@code RECURRENCE-ID}s would be
+ * a second recurrence engine beside agenda's own; the window bounds the
+ * expansion.
+ * <p>
+ * <b>Times are written in UTC</b> and all-day events as dates, so no
+ * {@code VTIMEZONE} is needed and every client places an event at the same
+ * instant.
+ */
+public final class CalendarFeedIcsWriter {
+
+  /**
+   * How often a client is asked to refresh. Both the RFC 7986 property and the
+   * older {@code X-PUBLISHED-TTL} that Outlook reads carry it.
+   */
+  public static final Duration  REFRESH_INTERVAL = Duration.ofHours(4);
+
+  private static final String   PRODUCT_ID       = "-//eXo Platform//Agenda calendar link//EN";
+
+  /**
+   * A line of description carrying a link that acts for somebody: an
+   * invitation answer link (agenda's own {@code /response/send}, whatever the
+   * context path it is served under) or any URL passing a {@code token}
+   * parameter. {@link InvitationText#stripFrom} removes the block eXo itself
+   * writes; this catches such a link wherever else it sits.
+   */
+  private static final Pattern  ACTING_LINK_LINE = Pattern.compile("/response/send\\b|[?&]token=",
+                                                                   Pattern.CASE_INSENSITIVE);
+
+  private static final Pattern  LINE_BREAK       = Pattern.compile("\\R");
+
+  private static final DateTimeFormatter OCCURRENCE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'")
+                                                                             .withZone(ZoneOffset.UTC);
+
+  /**
+   * Not instantiable: this class holds no state.
+   */
+  private CalendarFeedIcsWriter() {
+    // Utility class
+  }
+
+  /**
+   * Writes the document.
+   *
+   * @param calendarName name the subscribing application shows for the
+   *          calendar, blank for none
+   * @param events the events to publish, occurrences expanded
+   * @param uidHost host name used to qualify event identifiers
+   * @param now the instant the document is written, for {@code DTSTAMP}
+   * @return the iCalendar document, CRLF line endings, folded
+   */
+  public static String write(String calendarName, List<Event> events, String uidHost, ZonedDateTime now) {
+    net.fortuna.ical4j.model.Calendar calendar = new net.fortuna.ical4j.model.Calendar();
+    PropertyList<net.fortuna.ical4j.model.Property> properties = calendar.getProperties();
+    properties.add(new ProdId(PRODUCT_ID));
+    properties.add(Version.VERSION_2_0);
+    properties.add(CalScale.GREGORIAN);
+    properties.add(Method.PUBLISH);
+    if (StringUtils.isNotBlank(calendarName)) {
+      properties.add(new XProperty("X-WR-CALNAME", calendarName));
+    }
+    ParameterList durationParameter = new ParameterList();
+    durationParameter.add(Value.DURATION);
+    properties.add(new RefreshInterval(durationParameter, REFRESH_INTERVAL));
+    properties.add(new XProperty("X-PUBLISHED-TTL", REFRESH_INTERVAL.toString()));
+    String host = StringUtils.isBlank(uidHost) ? "exo" : uidHost;
+    if (events != null) {
+      for (Event event : events) {
+        if (event != null && event.getStart() != null) {
+          calendar.getComponents().add(toVEvent(event, host, now));
+        }
+      }
+    }
+    StringWriter writer = new StringWriter();
+    try {
+      new CalendarOutputter(false).output(calendar, writer);
+    } catch (IOException | ValidationException e) {
+      throw new IllegalStateException("The calendar link document could not be written", e);
+    }
+    return writer.toString();
+  }
+
+  /**
+   * Writes one event, or one occurrence of a recurring event.
+   *
+   * @param event the event
+   * @param host host qualifying the identifier
+   * @param now the writing instant
+   * @return the component
+   */
+  private static VEvent toVEvent(Event event, String host, ZonedDateTime now) {
+    VEvent vEvent = new VEvent();
+    PropertyList<net.fortuna.ical4j.model.Property> properties = vEvent.getProperties();
+    properties.add(new Uid(uid(event, host)));
+    properties.add(new DtStamp(utc(now)));
+    if (event.isAllDay()) {
+      LocalDate startDay = event.getStart().toLocalDate();
+      LocalDate endDay = event.getEnd() == null ? startDay : event.getEnd().toLocalDate();
+      // All-day end dates are exclusive in iCalendar; agenda stores the last
+      // second of the last day.
+      properties.add(new DtStart(date(startDay)));
+      properties.add(new DtEnd(date(endDay.plusDays(1))));
+    } else {
+      properties.add(new DtStart(utc(event.getStart())));
+      if (event.getEnd() != null) {
+        properties.add(new DtEnd(utc(event.getEnd())));
+      }
+    }
+    properties.add(new Summary(StringUtils.defaultString(event.getSummary())));
+    if (StringUtils.isNotBlank(event.getLocation())) {
+      properties.add(new Location(event.getLocation()));
+    }
+    String description = description(event.getDescription());
+    if (StringUtils.isNotBlank(description)) {
+      properties.add(new Description(description));
+    }
+    properties.add(event.getAvailability() == EventAvailability.FREE ? Transp.TRANSPARENT : Transp.OPAQUE);
+    ZonedDateTime modified = event.getUpdated() == null ? event.getCreated() : event.getUpdated();
+    if (modified != null) {
+      properties.add(new LastModified(utc(modified)));
+    }
+    return vEvent;
+  }
+
+  /**
+   * The organiser's own words as plain text: markup rendered out, the
+   * invitation block eXo writes into imported copies taken off, and any
+   * remaining line that carries a link acting for somebody dropped.
+   *
+   * @param html the description as the editor stored it, may be blank
+   * @return the text to publish, possibly empty
+   */
+  static String description(String html) {
+    String text = InvitationText.stripFrom(EventIcsBuilder.htmlToPlainText(html));
+    if (StringUtils.isBlank(text)) {
+      return "";
+    }
+    return Arrays.stream(LINE_BREAK.split(text))
+                 .filter(line -> !ACTING_LINK_LINE.matcher(line).find())
+                 .collect(Collectors.joining("\n"))
+                 .trim();
+  }
+
+  /**
+   * The identifier of an event in the document, stable across refreshes.
+   *
+   * @param event the event or occurrence
+   * @param host host qualifying the identifier
+   * @return the UID
+   */
+  static String uid(Event event, String host) {
+    if (event.getParentId() > 0 && event.getOccurrence() != null && event.getOccurrence().getId() != null) {
+      return "agenda-link-" + event.getParentId() + "-" + OCCURRENCE_FORMAT.format(event.getOccurrence().getId()) + "@"
+          + host;
+    }
+    return "agenda-link-" + event.getId() + "@" + host;
+  }
+
+  /**
+   * An instant as a UTC date-time value.
+   *
+   * @param dateTime the instant
+   * @return the value
+   */
+  private static DateTime utc(ZonedDateTime dateTime) {
+    DateTime value = new DateTime(dateTime.toInstant().toEpochMilli());
+    value.setUtc(true);
+    return value;
+  }
+
+  /**
+   * A day as a DATE value.
+   *
+   * @param day the day
+   * @return the value
+   */
+  private static Date date(LocalDate day) {
+    try {
+      return new Date(day.format(DateTimeFormatter.BASIC_ISO_DATE));
+    } catch (ParseException e) {
+      throw new IllegalStateException("A calendar day could not be written", e);
+    }
+  }
+
+}

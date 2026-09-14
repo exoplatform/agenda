@@ -109,6 +109,11 @@
                 <v-list-item-title>{{ $t('agenda.calendar.edit') }}</v-list-item-title>
               </v-list-item>
               <v-list-item
+                class="agenda-calendar-link-action"
+                @click="openCalendarLink(calendar)">
+                <v-list-item-title>{{ $t('agenda.calendarLink.menu') }}</v-list-item-title>
+              </v-list-item>
+              <v-list-item
                 v-if="!calendar.system"
                 @click="confirmDelete(calendar)">
                 <v-list-item-title class="error--text">{{ $t('agenda.calendar.delete') }}</v-list-item-title>
@@ -371,6 +376,16 @@ export default {
      */
     editCalendar(calendar) {
       this.$root.$emit('agenda-personal-calendar-drawer-open', calendar);
+    },
+    /**
+     * Opens the drawer managing the private iCal link of a calendar. The drawer
+     * lives once in the application, never in this list (EXO-90252).
+     *
+     * @param {Object} calendar the calendar whose link is managed
+     * @returns {void}
+     */
+    openCalendarLink(calendar) {
+      this.$root.$emit('agenda-calendar-link-drawer-open', calendar);
     },
     /**
      * The connectors registered with agenda, in the shape they register

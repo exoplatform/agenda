@@ -1,0 +1,230 @@
+/*
+ * Copyright (C) 2026 eXo Platform SAS.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License
+ * as published by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <gnu.org/licenses>.
+ */
+package org.exoplatform.agenda.util;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.io.StringReader;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+
+import org.exoplatform.agenda.constant.EventAvailability;
+import org.exoplatform.agenda.model.Event;
+import org.exoplatform.agenda.model.EventOccurrence;
+
+import net.fortuna.ical4j.data.CalendarBuilder;
+import net.fortuna.ical4j.model.Calendar;
+import net.fortuna.ical4j.model.Component;
+import net.fortuna.ical4j.model.Property;
+import net.fortuna.ical4j.model.component.VEvent;
+import net.fortuna.ical4j.model.parameter.Value;
+
+/**
+ * Parses what the feed writes back with ical4j and checks it says what a
+ * subscriber may read, and nothing more: title, time, location, description —
+ * no person, no address, no link that acts for somebody.
+ */
+class CalendarFeedIcsWriterTest {
+
+  private static final ZonedDateTime NOW  = ZonedDateTime.of(2026, 9, 14, 10, 0, 0, 0, ZoneOffset.UTC);
+
+  private static final String        HOST = "tribe.example.org";
+
+  /**
+   * A timed event is written in UTC with its title, location and description.
+   *
+   * @throws Exception when the document does not parse
+   */
+  @Test
+  void aTimedEventIsWrittenInUtcWithItsDetails() throws Exception {
+    Event event = event(11, "Weekly sync", ZonedDateTime.of(2026, 9, 15, 11, 30, 0, 0, ZoneId.of("Europe/Paris")));
+    event.setLocation("Room 4");
+    event.setDescription("<p>Agenda <b>items</b></p>");
+
+    VEvent vEvent = single(parse(CalendarFeedIcsWriter.write("Team", List.of(event), HOST, NOW)));
+
+    assertEquals("Weekly sync", vEvent.getProperty(Property.SUMMARY).getValue());
+    assertEquals("Room 4", vEvent.getProperty(Property.LOCATION).getValue());
+    assertEquals("Agenda items", vEvent.getProperty(Property.DESCRIPTION).getValue());
+    assertEquals("20260915T093000Z", vEvent.getProperty(Property.DTSTART).getValue(), "11:30 Paris is 09:30 UTC");
+    assertEquals("20260915T103000Z", vEvent.getProperty(Property.DTEND).getValue());
+    assertEquals("agenda-link-11@" + HOST, vEvent.getProperty(Property.UID).getValue());
+    assertEquals("OPAQUE", vEvent.getProperty(Property.TRANSP).getValue());
+  }
+
+  /**
+   * An all-day event is written as dates, its end exclusive.
+   *
+   * @throws Exception when the document does not parse
+   */
+  @Test
+  void anAllDayEventIsWrittenAsDatesWithAnExclusiveEnd() throws Exception {
+    Event event = event(12, "Offsite", ZonedDateTime.of(2026, 9, 20, 0, 0, 0, 0, ZoneOffset.UTC));
+    event.setAllDay(true);
+    event.setEnd(ZonedDateTime.of(2026, 9, 21, 23, 59, 59, 0, ZoneOffset.UTC));
+
+    VEvent vEvent = single(parse(CalendarFeedIcsWriter.write("Team", List.of(event), HOST, NOW)));
+
+    assertEquals(Value.DATE, vEvent.getProperty(Property.DTSTART).getParameter("VALUE"));
+    assertEquals("20260920", vEvent.getProperty(Property.DTSTART).getValue());
+    assertEquals("20260922", vEvent.getProperty(Property.DTEND).getValue(), "a two-day event ends the day after");
+  }
+
+  /**
+   * Occurrences of a recurring event get distinct identifiers that do not
+   * depend on the refresh.
+   *
+   * @throws Exception when the document does not parse
+   */
+  @Test
+  void occurrencesGetStableDistinctIdentifiers() throws Exception {
+    Event first = occurrence(20, ZonedDateTime.of(2026, 9, 16, 8, 0, 0, 0, ZoneOffset.UTC));
+    Event second = occurrence(20, ZonedDateTime.of(2026, 9, 23, 8, 0, 0, 0, ZoneOffset.UTC));
+
+    Calendar calendar = parse(CalendarFeedIcsWriter.write("Team", List.of(first, second), HOST, NOW));
+    List<VEvent> events = calendar.getComponents(Component.VEVENT);
+
+    assertEquals("agenda-link-20-20260916T080000Z@" + HOST, events.get(0).getProperty(Property.UID).getValue());
+    assertNotEquals(events.get(0).getProperty(Property.UID).getValue(), events.get(1).getProperty(Property.UID).getValue());
+    assertNull(events.get(0).getProperty(Property.RRULE), "occurrences are written expanded, never as a rule");
+  }
+
+  /**
+   * Nothing naming or acting for a person reaches the document: no organiser,
+   * no attendee, no address, no answer link, no token.
+   *
+   * @throws Exception when the document does not parse
+   */
+  @Test
+  void nothingNamingOrActingForAPersonIsWritten() throws Exception {
+    Event event = event(13, "Board", ZonedDateTime.of(2026, 9, 17, 14, 0, 0, 0, ZoneOffset.UTC));
+    event.setDescription("<p>Prepare the slides</p>"
+        + "<p>Accept: https://tribe.example.org/portal/rest/v1/agenda/events/13/response/send?response=ACCEPTED&amp;token=abc</p>"
+        + "<p>Open https://docs.example.org/file?id=4&amp;token=secret</p>"
+        + "<p>Reach john.doe@example.org</p>");
+
+    String document = CalendarFeedIcsWriter.write("Team", List.of(event), HOST, NOW);
+    VEvent vEvent = single(parse(document));
+
+    assertNull(vEvent.getProperty(Property.ORGANIZER));
+    assertNull(vEvent.getProperty(Property.ATTENDEE));
+    assertFalse(document.toLowerCase().contains("mailto:"), "no calendar user address");
+    assertFalse(document.contains("response/send"), "no answer link");
+    assertFalse(document.contains("token="), "no URL carrying a token");
+    String description = vEvent.getProperty(Property.DESCRIPTION).getValue();
+    assertTrue(description.startsWith("Prepare the slides"), "the organiser's own words stay: " + description);
+  }
+
+  /**
+   * The calendar is named, published and asks to be refreshed every few hours;
+   * a free event does not block time.
+   *
+   * @throws Exception when the document does not parse
+   */
+  @Test
+  void theCalendarCarriesItsNameAndRefreshInterval() throws Exception {
+    Event event = event(14, "Focus", ZonedDateTime.of(2026, 9, 18, 9, 0, 0, 0, ZoneOffset.UTC));
+    event.setAvailability(EventAvailability.FREE);
+
+    String document = CalendarFeedIcsWriter.write("My calendar", List.of(event), HOST, NOW);
+    Calendar calendar = parse(document);
+
+    assertEquals("PUBLISH", calendar.getProperty(Property.METHOD).getValue());
+    assertEquals("My calendar", calendar.getProperty("X-WR-CALNAME").getValue());
+    assertEquals("PT4H", calendar.getProperty("X-PUBLISHED-TTL").getValue());
+    assertTrue(document.contains("REFRESH-INTERVAL;VALUE=DURATION:PT4H"), document);
+    assertEquals("TRANSPARENT", single(calendar).getProperty(Property.TRANSP).getValue());
+    assertTrue(document.contains("\r\n"), "iCalendar lines end with CRLF");
+  }
+
+  /**
+   * An empty calendar is still a valid document.
+   *
+   * @throws Exception when the document does not parse
+   */
+  @Test
+  void anEmptyCalendarIsAValidDocument() throws Exception {
+    Calendar calendar = parse(CalendarFeedIcsWriter.write(null, List.of(), HOST, NOW));
+
+    assertTrue(calendar.getComponents(Component.VEVENT).isEmpty());
+    assertNull(calendar.getProperty("X-WR-CALNAME"));
+  }
+
+  /**
+   * Parses a document.
+   *
+   * @param document the iCalendar text
+   * @return the parsed calendar
+   * @throws Exception when it does not parse
+   */
+  private Calendar parse(String document) throws Exception {
+    return new CalendarBuilder().build(new StringReader(document));
+  }
+
+  /**
+   * The only event of a calendar.
+   *
+   * @param calendar the calendar
+   * @return its event
+   */
+  private VEvent single(Calendar calendar) {
+    List<VEvent> events = calendar.getComponents(Component.VEVENT);
+    assertEquals(1, events.size());
+    return events.get(0);
+  }
+
+  /**
+   * A one-hour event.
+   *
+   * @param id identifier
+   * @param summary title
+   * @param start start
+   * @return the event
+   */
+  private Event event(long id, String summary, ZonedDateTime start) {
+    Event event = new Event();
+    event.setId(id);
+    event.setSummary(summary);
+    event.setStart(start);
+    event.setEnd(start.plusHours(1));
+    event.setCreated(NOW.minusDays(3));
+    return event;
+  }
+
+  /**
+   * An occurrence of a recurring event, as the event service expands it.
+   *
+   * @param parentId the recurring event
+   * @param start the occurrence start
+   * @return the occurrence
+   */
+  private Event occurrence(long parentId, ZonedDateTime start) {
+    Event event = event(0, "Standup", start);
+    event.setParentId(parentId);
+    event.setOccurrence(new EventOccurrence(start));
+    return event;
+  }
+
+}
