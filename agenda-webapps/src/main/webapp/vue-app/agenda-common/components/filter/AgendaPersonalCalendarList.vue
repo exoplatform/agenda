@@ -111,7 +111,7 @@
               <v-list-item
                 class="agenda-calendar-link-action"
                 @click="openCalendarLink(calendar)">
-                <v-list-item-title>{{ $t('agenda.calendarLink.menu') }}</v-list-item-title>
+                <v-list-item-title>{{ $t('agenda.calendarPublish.menu') }}</v-list-item-title>
               </v-list-item>
               <v-list-item
                 v-if="!calendar.system"

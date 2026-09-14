@@ -130,9 +130,10 @@ describe('Calendar link drawer', () => {
     await flush();
 
     expect(drawerStub.methods.open).toHaveBeenCalled();
+    expect(wrapper.find('.drawer-stub').text()).toContain('agenda.calendarPublish.title(Work)');
     expect(service.getCalendarLink).toHaveBeenCalledWith(10);
     expect(wrapper.find('.agenda-calendar-link-none').exists()).toBe(true);
-    expect(wrapper.find('.agenda-calendar-link-save').text()).toBe('agenda.calendarLink.create');
+    expect(wrapper.find('.agenda-calendar-link-save').text()).toBe('agenda.calendarPublish.create');
     expect(wrapper.find('.agenda-calendar-link-delete').exists()).toBe(false);
 
     await click(wrapper, '.agenda-calendar-link-save');
@@ -169,7 +170,7 @@ describe('Calendar link drawer', () => {
     await click(wrapper, '.agenda-calendar-link-copy');
 
     expect(writeText).toHaveBeenCalledWith(URL);
-    expect(wrapper.rootEmit).toHaveBeenCalledWith('alert-message', 'agenda.calendarLink.copied', 'success');
+    expect(wrapper.rootEmit).toHaveBeenCalledWith('alert-message', 'agenda.calendarPublish.copied', 'success');
   });
 
   it('resets a working link only once confirmed, and shows the new URL', async () => {
@@ -177,7 +178,7 @@ describe('Calendar link drawer', () => {
     service.saveCalendarLink.mockResolvedValue(activeStatus({creatorName: 'Paul Manager', url: OTHER_URL}));
     const wrapper = mountDrawer();
     await wrapper.vm.open(SPACE_CALENDAR);
-    expect(wrapper.find('.agenda-calendar-link-save').text()).toBe('agenda.calendarLink.reset');
+    expect(wrapper.find('.agenda-calendar-link-save').text()).toBe('agenda.calendarPublish.reset');
 
     await click(wrapper, '.agenda-calendar-link-save');
 
@@ -197,9 +198,9 @@ describe('Calendar link drawer', () => {
 
     await wrapper.vm.open(PERSONAL_CALENDAR);
 
-    expect(wrapper.find('.agenda-calendar-link-undisplayable').text()).toContain('agenda.calendarLink.undisplayable');
+    expect(wrapper.find('.agenda-calendar-link-undisplayable').text()).toContain('agenda.calendarPublish.undisplayable');
     expect(wrapper.find('.agenda-calendar-link-url').exists()).toBe(false);
-    expect(wrapper.find('.agenda-calendar-link-save').text()).toBe('agenda.calendarLink.reset');
+    expect(wrapper.find('.agenda-calendar-link-save').text()).toBe('agenda.calendarPublish.reset');
   });
 
   it('names the creator of a space link that stopped working, shows no URL, and offers a new link', async () => {
@@ -208,9 +209,9 @@ describe('Calendar link drawer', () => {
 
     await wrapper.vm.open(SPACE_CALENDAR);
 
-    expect(wrapper.find('.agenda-calendar-link-dead').text()).toBe('agenda.calendarLink.deadSpace(Mary Manager)');
+    expect(wrapper.find('.agenda-calendar-link-dead').text()).toBe('agenda.calendarPublish.deadSpace(Mary Manager)');
     expect(wrapper.find('.agenda-calendar-link-url').exists()).toBe(false);
-    expect(wrapper.find('.agenda-calendar-link-save').text()).toBe('agenda.calendarLink.createNew');
+    expect(wrapper.find('.agenda-calendar-link-save').text()).toBe('agenda.calendarPublish.createNew');
     expect(wrapper.find('.agenda-calendar-link-delete').exists()).toBe(true);
   });
 
@@ -232,7 +233,7 @@ describe('Calendar link drawer', () => {
     expect(wrapper.findComponent(drawerStub).exists()).toBe(true);
     expect(wrapper.find('.agenda-calendar-link-none').exists()).toBe(true);
     expect(wrapper.find('.agenda-calendar-link-url').exists()).toBe(false);
-    expect(wrapper.find('.agenda-calendar-link-save').text()).toBe('agenda.calendarLink.create');
+    expect(wrapper.find('.agenda-calendar-link-save').text()).toBe('agenda.calendarPublish.create');
   });
 
   it('is mounted once, at the application level, and never inside a calendar row', () => {

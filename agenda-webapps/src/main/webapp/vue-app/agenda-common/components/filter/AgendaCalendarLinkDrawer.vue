@@ -31,12 +31,11 @@
       right
       @closed="forget">
       <template slot="title">
-        {{ $t('agenda.calendarLink.title') }}
+        {{ $t('agenda.calendarPublish.title', {0: calendarName}) }}
       </template>
       <template slot="content">
         <div v-if="calendar" class="pa-4">
-          <div class="text-sub-title font-weight-bold mb-2 text-truncate">{{ calendarName }}</div>
-          <p class="text-light-color">{{ $t('agenda.calendarLink.explanation') }}</p>
+          <p class="text-light-color">{{ $t('agenda.calendarPublish.explanation') }}</p>
           <div
             v-if="state === 'loading'"
             class="d-flex justify-center py-4">
@@ -51,7 +50,7 @@
             class="agenda-calendar-link-active">
             <p class="mb-2">{{ activeMessage }}</p>
             <v-label for="agendaCalendarLinkUrl">
-              {{ $t('agenda.calendarLink.urlLabel') }}
+              {{ $t('agenda.calendarPublish.urlLabel') }}
             </v-label>
             <div class="d-flex align-center mt-2">
               <v-text-field
@@ -67,7 +66,7 @@
               <v-btn
                 class="btn ms-2 agenda-calendar-link-copy"
                 @click="copy">
-                {{ $t('agenda.calendarLink.copy') }}
+                {{ $t('agenda.calendarPublish.copy') }}
               </v-btn>
             </div>
           </div>
@@ -75,7 +74,7 @@
             v-else-if="state === 'undisplayable'"
             class="agenda-calendar-link-undisplayable">
             <p class="mb-1">{{ activeMessage }}</p>
-            <p class="warning--text">{{ $t('agenda.calendarLink.undisplayable') }}</p>
+            <p class="warning--text">{{ $t('agenda.calendarPublish.undisplayable') }}</p>
           </div>
           <p
             v-else-if="state === 'dead'"
@@ -85,7 +84,7 @@
           <p
             v-else
             class="agenda-calendar-link-none">
-            {{ $t('agenda.calendarLink.none') }}
+            {{ $t('agenda.calendarPublish.none') }}
           </p>
         </div>
       </template>
@@ -96,7 +95,7 @@
             :disabled="busy"
             class="btn agenda-calendar-link-delete"
             @click="confirmDelete">
-            {{ $t('agenda.calendarLink.delete') }}
+            {{ $t('agenda.calendarPublish.delete') }}
           </v-btn>
           <v-spacer />
           <v-btn
@@ -198,7 +197,7 @@ export default {
      * @returns {String} the creator's name
      */
     creatorName() {
-      return this.status && this.status.creatorName || this.$t('agenda.calendarLink.unknownCreator');
+      return this.status && this.status.creatorName || this.$t('agenda.calendarPublish.unknownCreator');
     },
     /**
      * The sentence saying who created a working link, and when.
@@ -208,7 +207,7 @@ export default {
     activeMessage() {
       const createdDate = this.status && this.status.createdDate
         && new Date(this.status.createdDate).toLocaleDateString(eXo.env.portal.language) || '';
-      return this.$t('agenda.calendarLink.active', {0: this.creatorName, 1: createdDate});
+      return this.$t('agenda.calendarPublish.active', {0: this.creatorName, 1: createdDate});
     },
     /**
      * The sentence describing a link that stopped working.
@@ -217,8 +216,8 @@ export default {
      */
     deadMessage() {
       return this.isSpaceCalendar
-        && this.$t('agenda.calendarLink.deadSpace', {0: this.creatorName})
-        || this.$t('agenda.calendarLink.deadPersonal');
+        && this.$t('agenda.calendarPublish.deadSpace', {0: this.creatorName})
+        || this.$t('agenda.calendarPublish.deadPersonal');
     },
     /**
      * The label of the main button: creating a first link, replacing a dead
@@ -228,29 +227,29 @@ export default {
      */
     saveLabel() {
       if (this.state === 'dead') {
-        return this.$t('agenda.calendarLink.createNew');
+        return this.$t('agenda.calendarPublish.createNew');
       } else if (this.hasLink) {
-        return this.$t('agenda.calendarLink.reset');
+        return this.$t('agenda.calendarPublish.reset');
       }
-      return this.$t('agenda.calendarLink.create');
+      return this.$t('agenda.calendarPublish.create');
     },
     /**
      * @returns {String} the confirmation title of the pending action
      */
     confirmTitle() {
-      return this.pendingAction === 'delete' ? this.$t('agenda.calendarLink.deleteConfirmTitle') : this.$t('agenda.calendarLink.resetConfirmTitle');
+      return this.pendingAction === 'delete' ? this.$t('agenda.calendarPublish.deleteConfirmTitle') : this.$t('agenda.calendarPublish.resetConfirmTitle');
     },
     /**
      * @returns {String} the confirmation message of the pending action
      */
     confirmMessage() {
-      return this.pendingAction === 'delete' ? this.$t('agenda.calendarLink.deleteConfirmMessage') : this.$t('agenda.calendarLink.resetConfirmMessage');
+      return this.pendingAction === 'delete' ? this.$t('agenda.calendarPublish.deleteConfirmMessage') : this.$t('agenda.calendarPublish.resetConfirmMessage');
     },
     /**
      * @returns {String} the confirmation button label of the pending action
      */
     confirmOkLabel() {
-      return this.pendingAction === 'delete' ? this.$t('agenda.calendarLink.delete') : this.$t('agenda.calendarLink.reset');
+      return this.pendingAction === 'delete' ? this.$t('agenda.calendarPublish.delete') : this.$t('agenda.calendarPublish.reset');
     },
   },
   created() {
@@ -283,7 +282,7 @@ export default {
       this.loading = true;
       return this.$calendarLinkService.getCalendarLink(this.calendar.id)
         .then(status => this.status = status)
-        .catch(() => this.$root.$emit('alert-message', this.$t('agenda.calendarLink.loadError'), 'error'))
+        .catch(() => this.$root.$emit('alert-message', this.$t('agenda.calendarPublish.loadError'), 'error'))
         .finally(() => this.loading = false);
     },
     /**
@@ -329,7 +328,7 @@ export default {
       this.saving = true;
       return this.$calendarLinkService.saveCalendarLink(this.calendar.id)
         .then(status => this.status = status)
-        .catch(() => this.$root.$emit('alert-message', this.$t('agenda.calendarLink.error'), 'error'))
+        .catch(() => this.$root.$emit('alert-message', this.$t('agenda.calendarPublish.error'), 'error'))
         .finally(() => this.saving = false);
     },
     /**
@@ -342,7 +341,7 @@ export default {
       this.saving = true;
       return this.$calendarLinkService.deleteCalendarLink(this.calendar.id)
         .then(() => this.status = {exists: false, active: false, displayable: false})
-        .catch(() => this.$root.$emit('alert-message', this.$t('agenda.calendarLink.error'), 'error'))
+        .catch(() => this.$root.$emit('alert-message', this.$t('agenda.calendarPublish.error'), 'error'))
         .finally(() => this.saving = false);
     },
     /**
@@ -357,10 +356,10 @@ export default {
         ? clipboard.writeText(this.url)
         : Promise.reject(new Error('No clipboard'));
       return copied
-        .then(() => this.$root.$emit('alert-message', this.$t('agenda.calendarLink.copied'), 'success'))
+        .then(() => this.$root.$emit('alert-message', this.$t('agenda.calendarPublish.copied'), 'success'))
         .catch(() => {
           this.selectUrl();
-          this.$root.$emit('alert-message', this.$t('agenda.calendarLink.copyFailed'), 'warning');
+          this.$root.$emit('alert-message', this.$t('agenda.calendarPublish.copyFailed'), 'warning');
         });
     },
     /**
