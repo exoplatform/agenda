@@ -19,7 +19,10 @@ package org.exoplatform.agenda.rest;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.HashMap;
 import java.util.HexFormat;
+import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,9 +39,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.CalendarLink;
 import org.exoplatform.agenda.rest.model.CalendarLinkStatusEntity;
 import org.exoplatform.agenda.service.AgendaCalendarLinkService;
+import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.agenda.util.CalendarFeedIcsWriter;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.CommonsUtils;
@@ -74,16 +79,28 @@ import jakarta.servlet.http.HttpServletRequest;
 public class AgendaCalendarLinkRest {
 
   /** Path of the feed under the WAR's REST root, token and extension appended. */
-  public static final String              FEED_PATH     = "/rest/ical/";
+  public static final String              FEED_PATH      = "/rest/ical/";
 
   /** Extension of the feed URL: many calendar applications expect it. */
   public static final String              FEED_EXTENSION = ".ics";
 
-  private static final Log                LOG           = ExoLogger.getLogger(AgendaCalendarLinkRest.class);
+  /** The kind of a calendar a user owns. */
+  public static final String              PERSONAL       = "PERSONAL";
 
-  private static final MediaType          TEXT_CALENDAR = new MediaType("text", "calendar", StandardCharsets.UTF_8);
+  /** The kind of a calendar a space owns. */
+  public static final String              SPACE          = "SPACE";
+
+  private static final Log                LOG            = ExoLogger.getLogger(AgendaCalendarLinkRest.class);
+
+  private static final MediaType          TEXT_CALENDAR  = new MediaType("text", "calendar", StandardCharsets.UTF_8);
+
+  private static final String             FORBIDDEN      = "agenda.calendarLink.forbidden";
+
+  private static final String             NOT_FOUND      = "agenda.calendarLink.calendarNotFound";
 
   private final AgendaCalendarLinkService calendarLinkService;
+
+  private final AgendaCalendarService     agendaCalendarService;
 
   private final IdentityManager           identityManager;
 
@@ -91,12 +108,48 @@ public class AgendaCalendarLinkRest {
    * Builds the resource.
    *
    * @param calendarLinkService holder of every calendar link rule
-   * @param identityManager used to name the creator of a link
+   * @param agendaCalendarService reads the calendars a listing names
+   * @param identityManager used to name the creator of a link and the owner of
+   *          a calendar
    */
   @Autowired
-  public AgendaCalendarLinkRest(AgendaCalendarLinkService calendarLinkService, IdentityManager identityManager) {
+  public AgendaCalendarLinkRest(AgendaCalendarLinkService calendarLinkService,
+                                AgendaCalendarService agendaCalendarService,
+                                IdentityManager identityManager) {
     this.calendarLinkService = calendarLinkService;
+    this.agendaCalendarService = agendaCalendarService;
     this.identityManager = identityManager;
+  }
+
+  /**
+   * Lists the link of every calendar the user may manage one for and that has
+   * one, working or stopped — so a page draws every calendar's publishing state
+   * with one request. Never cached: an entry can carry a working capability URL.
+   *
+   * @param request the authenticated request
+   * @return the links, each with its calendar's title and kind
+   */
+  @GetMapping("calendars/links")
+  @Secured("users")
+  @Operation(summary = "List the private links of the calendars the user manages", method = "GET",
+             description = "Answers one entry per calendar that has a link, among the user's own calendars and the calendars"
+                 + " of the spaces they manage, with the same status as the per-calendar read plus the calendar's title and"
+                 + " kind.")
+  @ApiResponses(value = {
+      @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+      @ApiResponse(responseCode = "403", description = "The user has no usable identity"),
+  })
+  public ResponseEntity<List<CalendarLinkStatusEntity>> getCalendarLinks(HttpServletRequest request) {
+    try {
+      Map<String, Identity> identities = new HashMap<>();
+      List<CalendarLinkStatusEntity> entities = calendarLinkService.getCalendarLinks(request.getRemoteUser())
+                                                                   .stream()
+                                                                   .map(link -> listed(request, link, identities))
+                                                                   .toList();
+      return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(entities);
+    } catch (IllegalAccessException e) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, FORBIDDEN);
+    }
   }
 
   /**
@@ -124,11 +177,14 @@ public class AgendaCalendarLinkRest {
   public ResponseEntity<CalendarLinkStatusEntity> getCalendarLink(HttpServletRequest request,
                                                                   @PathVariable("calendarId") long calendarId) {
     try {
-      return uncached(toEntity(request, calendarId, calendarLinkService.getCalendarLink(calendarId, request.getRemoteUser())));
+      return uncached(toEntity(request,
+                               calendarId,
+                               calendarLinkService.getCalendarLink(calendarId, request.getRemoteUser()),
+                               new HashMap<>()));
     } catch (ObjectNotFoundException e) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "agenda.calendarLink.calendarNotFound");
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, NOT_FOUND);
     } catch (IllegalAccessException e) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "agenda.calendarLink.forbidden");
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, FORBIDDEN);
     } catch (IllegalArgumentException e) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
     }
@@ -157,11 +213,14 @@ public class AgendaCalendarLinkRest {
                                                                    @PathVariable("calendarId") long calendarId) {
     try {
       calendarLinkService.saveCalendarLink(calendarId, request.getRemoteUser());
-      return uncached(toEntity(request, calendarId, calendarLinkService.getCalendarLink(calendarId, request.getRemoteUser())));
+      return uncached(toEntity(request,
+                               calendarId,
+                               calendarLinkService.getCalendarLink(calendarId, request.getRemoteUser()),
+                               new HashMap<>()));
     } catch (ObjectNotFoundException e) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "agenda.calendarLink.calendarNotFound");
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, NOT_FOUND);
     } catch (IllegalAccessException e) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "agenda.calendarLink.forbidden");
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, FORBIDDEN);
     } catch (IllegalArgumentException e) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
     }
@@ -189,9 +248,9 @@ public class AgendaCalendarLinkRest {
       calendarLinkService.deleteCalendarLink(calendarId, request.getRemoteUser());
       return ResponseEntity.noContent().build();
     } catch (ObjectNotFoundException e) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "agenda.calendarLink.calendarNotFound");
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, NOT_FOUND);
     } catch (IllegalAccessException e) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "agenda.calendarLink.forbidden");
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, FORBIDDEN);
     } catch (IllegalArgumentException e) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
     }
@@ -256,6 +315,32 @@ public class AgendaCalendarLinkRest {
   }
 
   /**
+   * Renders a listed link: its status, and the title and kind of its calendar.
+   *
+   * @param request the request, whose context the URL is built on
+   * @param link the link, read by the service for a manager
+   * @param identities identities already read during this request
+   * @return the entity
+   */
+  private CalendarLinkStatusEntity listed(HttpServletRequest request, CalendarLink link, Map<String, Identity> identities) {
+    CalendarLinkStatusEntity entity = toEntity(request, link.getCalendarId(), link, identities);
+    Calendar calendar = agendaCalendarService.getCalendarById(link.getCalendarId());
+    if (calendar == null) {
+      return entity;
+    }
+    entity.setCalendarTitle(StringUtils.isNotBlank(calendar.getName()) ? calendar.getName() : calendar.getTitle());
+    entity.setSystemCalendar(calendar.isSystem() && StringUtils.isBlank(calendar.getName()));
+    Identity owner = identity(String.valueOf(calendar.getOwnerId()), identities);
+    if (owner != null && owner.isSpace()) {
+      entity.setCalendarKind(SPACE);
+      entity.setSpaceDisplayName(displayName(owner.getId(), identities));
+    } else {
+      entity.setCalendarKind(PERSONAL);
+    }
+    return entity;
+  }
+
+  /**
    * Renders a link's status. The URL is composed only from the token the
    * service hands back, which it does only for an answering link it could
    * decrypt, to someone allowed to manage it.
@@ -263,32 +348,54 @@ public class AgendaCalendarLinkRest {
    * @param request the request, whose context the URL is built on
    * @param calendarId the calendar asked about
    * @param link the link, null when the calendar has none
+   * @param identities identities already read during this request
    * @return the entity
    */
-  private CalendarLinkStatusEntity toEntity(HttpServletRequest request, long calendarId, CalendarLink link) {
+  private CalendarLinkStatusEntity toEntity(HttpServletRequest request,
+                                            long calendarId,
+                                            CalendarLink link,
+                                            Map<String, Identity> identities) {
+    CalendarLinkStatusEntity entity = new CalendarLinkStatusEntity();
+    entity.setCalendarId(calendarId);
     if (link == null) {
-      return new CalendarLinkStatusEntity(calendarId, false, false, false, 0, null, 0, null);
+      return entity;
     }
     String url = link.isActive() && StringUtils.isNotBlank(link.getToken()) ? feedUrl(request, link.getToken()) : null;
-    return new CalendarLinkStatusEntity(calendarId,
-                                        true,
-                                        link.isActive(),
-                                        url != null,
-                                        link.getCreatorId(),
-                                        creatorName(link.getCreatorId()),
-                                        link.getCreatedDate(),
-                                        url);
+    entity.setExists(true);
+    entity.setActive(link.isActive());
+    entity.setDisplayable(url != null);
+    entity.setCreatorId(link.getCreatorId());
+    entity.setCreatorName(displayName(String.valueOf(link.getCreatorId()), identities));
+    entity.setCreatedDate(link.getCreatedDate());
+    entity.setUrl(url);
+    return entity;
   }
 
   /**
-   * Names the creator of a link.
+   * Names an identity — a user's full name, a space's display name.
    *
-   * @param creatorId identity identifier of the creator
+   * @param identityId identity identifier
+   * @param identities identities already read during this request
    * @return the display name, null when it cannot be resolved
    */
-  private String creatorName(long creatorId) {
-    Identity identity = identityManager.getIdentity(String.valueOf(creatorId));
+  private String displayName(String identityId, Map<String, Identity> identities) {
+    Identity identity = identity(identityId, identities);
     return identity == null || identity.getProfile() == null ? null : identity.getProfile().getFullName();
+  }
+
+  /**
+   * Reads an identity once per request, however many links name it — as
+   * creator, as owner, or both.
+   *
+   * @param identityId identity identifier
+   * @param identities identities already read during this request
+   * @return the identity, null when it does not exist
+   */
+  private Identity identity(String identityId, Map<String, Identity> identities) {
+    if (!identities.containsKey(identityId)) {
+      identities.put(identityId, identityManager.getIdentity(identityId));
+    }
+    return identities.get(identityId);
   }
 
   /**

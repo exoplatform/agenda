@@ -57,4 +57,22 @@ public class CalendarLinkStatusEntity {
   /** The link's URL, set only while it answers and can be displayed. */
   private String  url;
 
+  /**
+   * The calendar's own name, else the title agenda derives for it; set by the
+   * listing only.
+   */
+  private String  calendarTitle;
+
+  /**
+   * Whether the calendar is its owner's default one with no name of its own —
+   * the one a page labels "My calendar"; set by the listing only.
+   */
+  private boolean systemCalendar;
+
+  /** {@code PERSONAL} or {@code SPACE}; set by the listing only. */
+  private String  calendarKind;
+
+  /** Display name of the space owning a space calendar; set by the listing only. */
+  private String  spaceDisplayName;
+
 }

@@ -50,6 +50,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import org.exoplatform.agenda.service.AgendaCalendarLinkService;
+import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.social.core.manager.IdentityManager;
 
 /**
@@ -136,6 +137,7 @@ class AgendaRestSecurityTest {
     MockHttpServletRequest request = new MockHttpServletRequest();
 
     assertNotNull(resource.getCalendarFeed("token").getBody());
+    assertThrows(AccessDeniedException.class, () -> resource.getCalendarLinks(request));
     assertThrows(AccessDeniedException.class, () -> resource.getCalendarLink(request, 10));
     assertThrows(AccessDeniedException.class, () -> resource.saveCalendarLink(request, 10));
     assertThrows(AccessDeniedException.class, () -> resource.deleteCalendarLink(request, 10));
@@ -154,6 +156,7 @@ class AgendaRestSecurityTest {
     MockHttpServletRequest request = new MockHttpServletRequest();
     request.setRemoteUser("john");
 
+    assertNotNull(resource.getCalendarLinks(request));
     assertNotNull(resource.getCalendarLink(request, 10));
     assertNotNull(resource.deleteCalendarLink(request, 10));
   }
@@ -183,7 +186,7 @@ class AgendaRestSecurityTest {
      */
     @Bean
     AgendaCalendarLinkRest agendaCalendarLinkRest(AgendaCalendarLinkService calendarLinkService) {
-      return new AgendaCalendarLinkRest(calendarLinkService, mock(IdentityManager.class));
+      return new AgendaCalendarLinkRest(calendarLinkService, mock(AgendaCalendarService.class), mock(IdentityManager.class));
     }
   }
 

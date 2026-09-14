@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -30,6 +31,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,7 +43,9 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import org.exoplatform.agenda.model.CalendarLink;
+import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.service.AgendaCalendarLinkService;
+import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.model.Profile;
@@ -61,19 +66,24 @@ class AgendaCalendarLinkRestTest {
 
   private MockMvc                   mockMvc;
 
+  private IdentityManager           identityManager;
+
+  private AgendaCalendarService     calendarService;
+
   /**
    * Builds the dispatcher over the resource.
    */
   @BeforeEach
   void setUp() {
     service = mock(AgendaCalendarLinkService.class);
-    IdentityManager identityManager = mock(IdentityManager.class);
+    identityManager = mock(IdentityManager.class);
+    calendarService = mock(AgendaCalendarService.class);
     Identity creator = new Identity("organization", "manager");
     Profile profile = new Profile(creator);
     profile.setProperty(Profile.FULL_NAME, "Mary Manager");
     creator.setProfile(profile);
     when(identityManager.getIdentity("3")).thenReturn(creator);
-    mockMvc = MockMvcBuilders.standaloneSetup(new AgendaCalendarLinkRest(service, identityManager)).build();
+    mockMvc = MockMvcBuilders.standaloneSetup(new AgendaCalendarLinkRest(service, calendarService, identityManager)).build();
   }
 
   /**
@@ -225,6 +235,84 @@ class AgendaCalendarLinkRestTest {
     mockMvc.perform(as("member", post("/calendars/0/link"))).andExpect(status().isBadRequest());
     mockMvc.perform(as("manager", delete("/calendars/20/link"))).andExpect(status().isNoContent());
     verify(service).deleteCalendarLink(20, "manager");
+  }
+
+  /**
+   * The listing answers every link the service lists, each with its calendar's
+   * title and kind, a space's display name, the URL only for a working link
+   * that can be displayed, never cached — and names each creator once, however
+   * many links they created.
+   *
+   * @throws Exception when the request fails
+   */
+  @Test
+  void theListingAnswersEveryLinkWithItsCalendar() throws Exception {
+    when(service.getCalendarLinks("manager")).thenReturn(List.of(new CalendarLink(20, 3, 2000, null, null, TOKEN, true),
+                                                                 new CalendarLink(21, 3, 1500, null, null, null, true),
+                                                                 new CalendarLink(10, 3, 1000, null, null, null, false)));
+    when(calendarService.getCalendarById(20)).thenReturn(calendar(20, 100, null, "Chemistry", false));
+    when(calendarService.getCalendarById(21)).thenReturn(calendar(21, 100, "Lab bookings", "Chemistry", false));
+    when(calendarService.getCalendarById(10)).thenReturn(calendar(10, 3, null, "Mary Manager", true));
+    Identity space = new Identity("space", "chemistry");
+    space.setId("100");
+    Profile spaceProfile = new Profile(space);
+    spaceProfile.setProperty(Profile.FULL_NAME, "Chemistry");
+    space.setProfile(spaceProfile);
+    when(identityManager.getIdentity("100")).thenReturn(space);
+
+    mockMvc.perform(as("manager", get("/agenda/calendars/links").contextPath("/agenda")))
+           .andExpect(status().isOk())
+           .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+           .andExpect(jsonPath("$.length()").value(3))
+           .andExpect(jsonPath("$[0].calendarId").value(20))
+           .andExpect(jsonPath("$[0].calendarKind").value("SPACE"))
+           .andExpect(jsonPath("$[0].spaceDisplayName").value("Chemistry"))
+           .andExpect(jsonPath("$[0].calendarTitle").value("Chemistry"))
+           .andExpect(jsonPath("$[0].url").value(org.hamcrest.Matchers.endsWith("/agenda/rest/ical/" + TOKEN + ".ics")))
+           .andExpect(jsonPath("$[0].creatorName").value("Mary Manager"))
+           .andExpect(jsonPath("$[1].calendarTitle").value("Lab bookings"))
+           .andExpect(jsonPath("$[1].active").value(true))
+           .andExpect(jsonPath("$[1].displayable").value(false))
+           .andExpect(jsonPath("$[1].url").doesNotExist())
+           .andExpect(jsonPath("$[2].calendarKind").value("PERSONAL"))
+           .andExpect(jsonPath("$[2].systemCalendar").value(true))
+           .andExpect(jsonPath("$[2].active").value(false))
+           .andExpect(jsonPath("$[2].url").doesNotExist());
+
+    verify(identityManager, times(1)).getIdentity("3");
+    verify(identityManager, times(1)).getIdentity("100");
+  }
+
+  /**
+   * A user with no usable identity is refused the listing.
+   *
+   * @throws Exception when the request fails
+   */
+  @Test
+  void aListingRefusedByTheServiceIsForbidden() throws Exception {
+    when(service.getCalendarLinks("ghost")).thenThrow(new IllegalAccessException("refused"));
+
+    mockMvc.perform(as("ghost", get("/calendars/links"))).andExpect(status().isForbidden());
+  }
+
+  /**
+   * A calendar as the calendar service answers it.
+   *
+   * @param id calendar identifier
+   * @param ownerId owner identity identifier
+   * @param name its own name, null for none
+   * @param title the title agenda derives
+   * @param system whether it is the owner's default calendar
+   * @return the calendar
+   */
+  private Calendar calendar(long id, long ownerId, String name, String title, boolean system) {
+    Calendar calendar = new Calendar();
+    calendar.setId(id);
+    calendar.setOwnerId(ownerId);
+    calendar.setName(name);
+    calendar.setTitle(title);
+    calendar.setSystem(system);
+    return calendar;
   }
 
   /**

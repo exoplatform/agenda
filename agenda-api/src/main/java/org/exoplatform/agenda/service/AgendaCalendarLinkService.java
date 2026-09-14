@@ -16,6 +16,8 @@
  */
 package org.exoplatform.agenda.service;
 
+import java.util.List;
+
 import org.exoplatform.agenda.model.CalendarLink;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 
@@ -45,6 +47,17 @@ public interface AgendaCalendarLinkService {
    * @throws IllegalAccessException when the user may not manage its link
    */
   CalendarLink getCalendarLink(long calendarId, String username) throws ObjectNotFoundException, IllegalAccessException;
+
+  /**
+   * Lists the links of every calendar the user may manage a link for — their
+   * own calendars and the calendars of the spaces they manage — that have one,
+   * working or stopped, each read as {@link #getCalendarLink} reads it.
+   *
+   * @param username user asking
+   * @return the links, newest first; bounded
+   * @throws IllegalAccessException when the user has no usable identity
+   */
+  List<CalendarLink> getCalendarLinks(String username) throws IllegalAccessException;
 
   /**
    * Creates the link of a calendar, replacing any link it already has: the

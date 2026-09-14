@@ -11,6 +11,29 @@
         @click="changeSelection" />
     </v-list-item-content>
     <!--
+      A published calendar (EXO-90252) carries a small sign, so a calendar anyone
+      with its link can read does not look like the others; the colour and the
+      glyph tell a working link from one that stopped. Same slot and alignment
+      as the read-only lock of the Remote rows (EXO-90236), and the same
+      wrapper carrying the role and the label, since Vuetify hides a v-icon with
+      no click listener from assistive technology.
+    -->
+    <v-list-item-action
+      v-if="linkStateOf(calendar) !== 'none'"
+      class="my-0 ms-2 flex-grow-0 justify-center agenda-calendar-published-icon">
+      <span
+        :title="publishedTooltip(calendar)"
+        :aria-label="publishedTooltip(calendar)"
+        :class="`d-flex agenda-calendar-published-${linkStateOf(calendar)}`"
+        role="img">
+        <v-icon
+          :class="linkStateOf(calendar) === 'published' ? 'text-light-color' : 'warning--text'"
+          size="14">
+          {{ linkStateOf(calendar) === 'published' ? 'fas fa-link' : 'fas fa-unlink' }}
+        </v-icon>
+      </span>
+    </v-list-item-action>
+    <!--
       Only a manager of the space gets the menu: its one entry manages the
       calendar's private iCal link, which the server refuses anyone else
       (EXO-90252). acl.canEdit is the server's own "manages this calendar"
@@ -34,10 +57,34 @@
           </v-btn>
         </template>
         <v-list dense class="pa-0">
+          <!--
+            Publishing (EXO-90252): one entry naming the calendar's state and opening
+            the drawer, and Unpublish once it is published, working or stopped.
+          -->
           <v-list-item
-            class="agenda-calendar-link-action"
-            @click="openCalendarLink">
-            <v-list-item-title>{{ $t('agenda.calendarPublish.menu') }}</v-list-item-title>
+            :class="`agenda-calendar-link-action agenda-calendar-link-state-${linkStateOf(calendar)}`"
+            @click="openCalendarLink(calendar)">
+            <v-list-item-title class="d-flex align-center">
+              <v-icon
+                v-if="linkStateOf(calendar) === 'published'"
+                size="14"
+                class="me-2 success--text">
+                fas fa-check
+              </v-icon>
+              <v-icon
+                v-else-if="linkStateOf(calendar) === 'stopped'"
+                size="14"
+                class="me-2 warning--text">
+                fas fa-exclamation-triangle
+              </v-icon>
+              {{ publishMenuLabel(calendar) }}
+            </v-list-item-title>
+          </v-list-item>
+          <v-list-item
+            v-if="linkStateOf(calendar) !== 'none'"
+            class="agenda-calendar-unpublish-action"
+            @click="unpublishCalendar(calendar)">
+            <v-list-item-title>{{ $t('agenda.calendarPublish.delete') }}</v-list-item-title>
           </v-list-item>
         </v-list>
       </v-menu>
@@ -46,7 +93,10 @@
 </template>
 
 <script>
+import calendarLinkMenuMixin from '../../js/CalendarLinkMenuMixin.js';
+
 export default {
+  mixins: [calendarLinkMenuMixin],
   props: {
     calendar: {
       type: Object,
@@ -126,15 +176,6 @@ export default {
     this.checked = this.selected;
   },
   methods: {
-    /**
-     * Opens the drawer managing the calendar's private iCal link. The drawer
-     * lives once in the application, never in this row (EXO-90252).
-     *
-     * @returns {void}
-     */
-    openCalendarLink() {
-      this.$root.$emit('agenda-calendar-link-drawer-open', this.calendar);
-    },
     /**
      * Toggles the selection of this calendar and emits the new selection to
      * the parent list, without mutating the received props: unchecking the

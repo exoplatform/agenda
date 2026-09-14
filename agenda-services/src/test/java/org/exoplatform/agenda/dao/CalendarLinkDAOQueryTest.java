@@ -20,16 +20,19 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.repository.support.JpaRepositoryFactory;
 
 import jakarta.persistence.EntityManager;
@@ -37,6 +40,7 @@ import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.Persistence;
 import jakarta.persistence.PersistenceException;
 
+import org.exoplatform.agenda.entity.CalendarEntity;
 import org.exoplatform.agenda.entity.CalendarLinkEntity;
 
 /**
@@ -160,6 +164,65 @@ class CalendarLinkDAOQueryTest {
 
     assertNull(dao.findByTokenHash("a".repeat(64)));
     assertEquals(0, dao.count());
+  }
+
+  /**
+   * The listing joins links to their calendars in one statement and keeps only
+   * the calendars the given identities own, newest first, one page at a time.
+   */
+  @Test
+  void theLinksOfTheCalendarsSomeIdentitiesOwnAreReadInOneJoin() {
+    long[] calendarIds = new long[4];
+    inTransaction(() -> {
+      calendarIds[0] = calendarOf(1);
+      calendarIds[1] = calendarOf(100);
+      calendarIds[2] = calendarOf(2);
+      calendarIds[3] = calendarOf(1);
+    });
+    inTransaction(() -> {
+      dao.saveAndFlush(link(calendarIds[0], 1, "a".repeat(64), new Date(1000)));
+      dao.saveAndFlush(link(calendarIds[1], 7, "b".repeat(64), new Date(3000)));
+      dao.saveAndFlush(link(calendarIds[2], 2, "c".repeat(64), new Date(2000)));
+    });
+    entityManager.clear();
+
+    List<CalendarLinkEntity> links = dao.findByCalendarOwnerIds(List.of(1L, 100L), PageRequest.of(0, 10));
+
+    assertEquals(List.of(calendarIds[1], calendarIds[0]), links.stream().map(CalendarLinkEntity::getCalendarId).toList(),
+                 "the owners' links, newest first; another user's calendar and a calendar with no link stay out");
+    assertEquals(1, dao.findByCalendarOwnerIds(List.of(1L, 100L), PageRequest.of(0, 1)).size(), "one page at a time");
+    assertTrue(dao.findByCalendarOwnerIds(List.of(3L), PageRequest.of(0, 10)).isEmpty());
+  }
+
+  /**
+   * Persists a calendar of an owner.
+   *
+   * @param ownerId owner identity identifier
+   * @return the calendar identifier
+   */
+  private long calendarOf(long ownerId) {
+    CalendarEntity calendar = new CalendarEntity();
+    calendar.setOwnerId(ownerId);
+    calendar.setColor("#000000");
+    calendar.setCreatedDate(new Date());
+    entityManager.persist(calendar);
+    entityManager.flush();
+    return calendar.getId();
+  }
+
+  /**
+   * A new link row created at a given date.
+   *
+   * @param calendarId calendar identifier
+   * @param creatorId creator identifier
+   * @param tokenHash digest
+   * @param createdDate creation date
+   * @return the entity
+   */
+  private CalendarLinkEntity link(long calendarId, long creatorId, String tokenHash, Date createdDate) {
+    CalendarLinkEntity entity = link(calendarId, creatorId, tokenHash);
+    entity.setCreatedDate(createdDate);
+    return entity;
   }
 
   /**

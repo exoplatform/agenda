@@ -22,6 +22,61 @@
 const AGENDA_REST_BASE = '/agenda/rest';
 
 /**
+ * How long a listing of every link is shared by whoever asks for it. Every row
+ * of the left panel asks when it is drawn and again on every refresh event;
+ * within this window they all get the one request the first of them made.
+ */
+const LISTING_SHARED_MS = 1000;
+
+let listing = null;
+
+let listingStartedAt = 0;
+
+/**
+ * Lists the link of every calendar the user may manage one for and that has
+ * one, working or stopped: the user's own calendars and the calendars of the
+ * spaces they manage. An entry carries its URL while the link answers and can
+ * be displayed — treat it as the secret it is.
+ *
+ * One request serves everybody asking within a second; asking again later
+ * reuses the last answer, unless asked to refresh.
+ *
+ * @param {Boolean} refresh whether the answer must be newer than the last change
+ * @returns {Promise<Array>} the links
+ */
+export function getCalendarLinks(refresh) {
+  const now = Date.now();
+  if (listing && (!refresh || now - listingStartedAt < LISTING_SHARED_MS)) {
+    return listing;
+  }
+  listingStartedAt = now;
+  listing = fetch(`${AGENDA_REST_BASE}/calendars/links`, {
+    method: 'GET',
+    credentials: 'include',
+  }).then(resp => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error retrieving the calendar links');
+    }
+    return resp.json();
+  }).catch(error => {
+    listing = null;
+    throw error;
+  });
+  return listing;
+}
+
+/**
+ * Forgets the shared listing, so the next ask reads the server again. Called
+ * after every change this page makes to a link.
+ *
+ * @returns {void}
+ */
+export function forgetCalendarLinks() {
+  listing = null;
+  listingStartedAt = 0;
+}
+
+/**
  * Reads the status of a calendar's link: whether it exists, who created it,
  * when, whether it still answers — and its URL too, while the link answers and
  * can be displayed. The server answers only the calendar's owner or a current
@@ -45,12 +100,14 @@ export function getCalendarLink(calendarId) {
 
 /**
  * Creates the link of a calendar, replacing the one it has. The answer carries
- * the new link's URL, as every later status read by its owner or a manager does.
+ * the new link's URL, as every later status read by its owner or a manager does
+ * while the link answers and can be displayed.
  *
  * @param {Number} calendarId technical identifier of the calendar
  * @returns {Promise<Object>} the status of the new link, with its url
  */
 export function saveCalendarLink(calendarId) {
+  forgetCalendarLinks();
   return fetch(`${AGENDA_REST_BASE}/calendars/${calendarId}/link`, {
     method: 'POST',
     credentials: 'include',
@@ -69,6 +126,7 @@ export function saveCalendarLink(calendarId) {
  * @returns {Promise} resolved once deleted
  */
 export function deleteCalendarLink(calendarId) {
+  forgetCalendarLinks();
   return fetch(`${AGENDA_REST_BASE}/calendars/${calendarId}/link`, {
     method: 'DELETE',
     credentials: 'include',

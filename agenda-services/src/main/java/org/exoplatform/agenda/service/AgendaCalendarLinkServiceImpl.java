@@ -23,6 +23,7 @@ import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Comparator;
 import java.util.Date;
@@ -42,11 +43,14 @@ import org.exoplatform.agenda.storage.CalendarLinkStorage;
 import org.exoplatform.agenda.util.CalendarFeedIcsWriter;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.identity.model.Identity;
+import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.web.security.codec.CodecInitializer;
 import org.exoplatform.web.security.security.TokenServiceInitializationException;
@@ -92,6 +96,19 @@ public class AgendaCalendarLinkServiceImpl implements AgendaCalendarLinkService 
    * The writer adds a budget on the characters written.
    */
   public static final int         MAX_EVENTS   = 2000;
+
+  /** Most links one listing returns. */
+  public static final int         MAX_LISTED_LINKS   = 500;
+
+  /**
+   * Most managed spaces one listing looks at. Kept under a thousand with the
+   * user's own identity: the owners go into one {@code IN} list, and Oracle
+   * refuses more than a thousand items there.
+   */
+  public static final int         MAX_MANAGED_SPACES = 900;
+
+  /** Managed spaces read per page. */
+  private static final int        SPACE_PAGE         = 100;
 
   /** Bytes of randomness in a token. */
   static final int                TOKEN_BYTES  = 32;
@@ -152,15 +169,89 @@ public class AgendaCalendarLinkServiceImpl implements AgendaCalendarLinkService 
                                                                         IllegalAccessException {
     Calendar calendar = getManageableCalendar(calendarId, username);
     CalendarLink link = calendarLinkStorage.getByCalendarId(calendar.getId());
-    if (link == null) {
-      return null;
+    return link == null ? null : forManager(calendar, link);
+  }
+
+  /**
+   * {@inheritDoc}
+   * <p>
+   * One query reads the links: the candidate calendars are those the user's
+   * own identity owns and those the spaces they manage own, and the links are
+   * joined to them in the database. Each link found is then checked again with
+   * the same rule every other method applies — so a space they stopped managing
+   * since the list of managed spaces was read is left out — and read the same
+   * way {@link #getCalendarLink} reads it. Space identities and calendars are
+   * read through the platform's cached services.
+   */
+  @Override
+  public List<CalendarLink> getCalendarLinks(String username) throws IllegalAccessException {
+    long userIdentityId = userIdentityId(username);
+    List<Long> ownerIds = new ArrayList<>();
+    ownerIds.add(userIdentityId);
+    ownerIds.addAll(managedSpaceIdentityIds(username));
+    List<CalendarLink> links = new ArrayList<>();
+    for (CalendarLink link : calendarLinkStorage.getByCalendarOwnerIds(ownerIds, MAX_LISTED_LINKS)) {
+      Calendar calendar = agendaCalendarService.getCalendarById(link.getCalendarId());
+      if (calendar != null && !calendar.isDeleted()
+          && Utils.canEditCalendar(identityManager, spaceService, calendar.getOwnerId(), userIdentityId)) {
+        links.add(forManager(calendar, link));
+      }
     }
+    return links;
+  }
+
+  /**
+   * Reads a stored link for someone allowed to manage it: whether it answers,
+   * its token when it answers and can be displayed, and never its stored
+   * secrets.
+   *
+   * @param calendar the calendar the link publishes
+   * @param link the stored link
+   * @return the same link, filled for display
+   */
+  private CalendarLink forManager(Calendar calendar, CalendarLink link) {
     boolean active = isAnswering(calendar, link.getCreatorId());
     link.setActive(active);
     link.setToken(active ? displayableToken(link) : null);
     link.setTokenHash(null);
     link.setTokenEncrypted(null);
     return link;
+  }
+
+  /**
+   * The identity identifiers of the spaces a user manages, read page by page up
+   * to {@link #MAX_MANAGED_SPACES}.
+   *
+   * @param username the user
+   * @return the space identity identifiers
+   */
+  private List<Long> managedSpaceIdentityIds(String username) {
+    ListAccess<Space> spaces = spaceService.getManagerSpaces(username);
+    List<Long> identityIds = new ArrayList<>();
+    if (spaces == null) {
+      return identityIds;
+    }
+    try {
+      int offset = 0;
+      while (offset < MAX_MANAGED_SPACES) {
+        Space[] page = spaces.load(offset, Math.min(SPACE_PAGE, MAX_MANAGED_SPACES - offset));
+        if (page == null || page.length == 0) {
+          break;
+        }
+        for (Space space : page) {
+          Identity spaceIdentity = space == null ? null
+                                                 : identityManager.getOrCreateIdentity(SpaceIdentityProvider.NAME,
+                                                                                       space.getPrettyName());
+          if (spaceIdentity != null) {
+            identityIds.add(Long.parseLong(spaceIdentity.getId()));
+          }
+        }
+        offset += page.length;
+      }
+    } catch (Exception e) {
+      throw new IllegalStateException("The spaces managed by " + username + " could not be read", e);
+    }
+    return identityIds;
   }
 
   /**

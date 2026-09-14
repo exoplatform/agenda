@@ -256,9 +256,11 @@ export default {
   },
   created() {
     this.$root.$on('agenda-calendar-link-drawer-open', this.open);
+    this.$root.$on('agenda-calendar-link-unpublish', this.askUnpublish);
   },
   beforeDestroy() {
     this.$root.$off('agenda-calendar-link-drawer-open', this.open);
+    this.$root.$off('agenda-calendar-link-unpublish', this.askUnpublish);
   },
   methods: {
     /**
@@ -302,6 +304,18 @@ export default {
       return this.save();
     },
     /**
+     * Unpublishes a calendar from a menu, without opening the drawer: the same
+     * confirmation, then the same deletion and its success message.
+     *
+     * @param {Object} calendar the calendar to unpublish
+     * @returns {void}
+     */
+    askUnpublish(calendar) {
+      this.calendar = calendar;
+      this.pendingAction = 'delete';
+      this.$refs.confirmDialog.open();
+    },
+    /**
      * Asks before deleting the link.
      *
      * @returns {void}
@@ -329,7 +343,10 @@ export default {
     save() {
       this.saving = true;
       return this.$calendarLinkService.saveCalendarLink(this.calendar.id)
-        .then(status => this.status = status)
+        .then(status => {
+          this.status = status;
+          this.notifyChanged();
+        })
         .catch(() => this.$root.$emit('alert-message', this.$t('agenda.calendarPublish.error'), 'error'))
         .finally(() => this.saving = false);
     },
@@ -342,9 +359,22 @@ export default {
     remove() {
       this.saving = true;
       return this.$calendarLinkService.deleteCalendarLink(this.calendar.id)
-        .then(() => this.status = {exists: false, active: false, displayable: false})
+        .then(() => {
+          this.status = {exists: false, active: false, displayable: false};
+          this.$root.$emit('alert-message', this.$t('agenda.calendarPublish.unpublished'), 'success');
+          this.notifyChanged();
+        })
         .catch(() => this.$root.$emit('alert-message', this.$t('agenda.calendarPublish.error'), 'error'))
         .finally(() => this.saving = false);
+    },
+    /**
+     * Tells every list drawing publishing states that a link changed, so rows,
+     * menus and the settings row read them again.
+     *
+     * @returns {void}
+     */
+    notifyChanged() {
+      this.$root.$emit('agenda-calendar-links-changed');
     },
     /**
      * Copies the URL to the clipboard, and says whether it worked: a browser

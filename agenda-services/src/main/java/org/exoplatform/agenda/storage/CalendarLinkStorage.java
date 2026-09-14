@@ -17,9 +17,11 @@
 package org.exoplatform.agenda.storage;
 
 import java.util.Date;
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
 import org.exoplatform.agenda.dao.CalendarLinkDAO;
@@ -66,6 +68,20 @@ public class CalendarLinkStorage {
    */
   public CalendarLink getByTokenHash(String tokenHash) {
     return toModel(calendarLinkDAO.findByTokenHash(tokenHash));
+  }
+
+  /**
+   * Reads the links of the calendars some identities own, in one query.
+   *
+   * @param ownerIds identity identifiers owning the calendars
+   * @param limit most links to read
+   * @return the links, newest first, empty when no owner is given
+   */
+  public List<CalendarLink> getByCalendarOwnerIds(List<Long> ownerIds, int limit) {
+    if (ownerIds == null || ownerIds.isEmpty() || limit <= 0) {
+      return List.of();
+    }
+    return calendarLinkDAO.findByCalendarOwnerIds(ownerIds, PageRequest.of(0, limit)).stream().map(this::toModel).toList();
   }
 
   /**

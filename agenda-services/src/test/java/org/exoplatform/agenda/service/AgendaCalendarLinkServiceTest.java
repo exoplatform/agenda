@@ -61,6 +61,7 @@ import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventFilter;
 import org.exoplatform.agenda.storage.CalendarLinkStorage;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
@@ -98,6 +99,8 @@ class AgendaCalendarLinkServiceTest {
 
   private static final long          SPACE_CAL      = 20;
 
+  private static final long          OTHER_CAL      = 30;
+
   private static final Instant       NOW            = Instant.parse("2026-09-14T10:00:00Z");
 
   private final Map<String, Identity> identities    = new HashMap<>();
@@ -105,6 +108,9 @@ class AgendaCalendarLinkServiceTest {
   private final Set<String>          managers       = new HashSet<>();
 
   private final Set<String>          members        = new HashSet<>();
+
+  /** Who the platform lists as a manager of the space, which may lag behind the rights check. */
+  private final Set<String>          listedManagers = new HashSet<>();
 
   private InMemoryLinkStorage        storage;
 
@@ -137,6 +143,7 @@ class AgendaCalendarLinkServiceTest {
     identities.put(String.valueOf(SPACE), spaceIdentity);
     managers.addAll(List.of("manager", "manager2"));
     members.addAll(List.of("manager", "manager2", "member"));
+    listedManagers.addAll(managers);
 
     IdentityManager identityManager = mock(IdentityManager.class);
     when(identityManager.getIdentity(anyString())).thenAnswer(invocation -> identities.get(invocation.getArgument(0)));
@@ -153,6 +160,9 @@ class AgendaCalendarLinkServiceTest {
     when(spaceService.getSpaceByPrettyName("team")).thenReturn(space);
     when(spaceService.canManageSpace(eq(space), anyString())).thenAnswer(invocation -> managers.contains(invocation.getArgument(1)));
     when(spaceService.canViewSpace(eq(space), anyString())).thenAnswer(invocation -> members.contains(invocation.getArgument(1)));
+    when(spaceService.getManagerSpaces(anyString())).thenAnswer(invocation -> spaces(listedManagers.contains(invocation.getArgument(0)) ? List.of(space)
+                                                                                                                                   : List.of()));
+    when(identityManager.getOrCreateIdentity(SpaceIdentityProvider.NAME, "team")).thenReturn(spaceIdentity);
 
     calendarService = mock(AgendaCalendarService.class);
     when(calendarService.getCalendarById(anyLong())).thenAnswer(invocation -> {
@@ -160,7 +170,8 @@ class AgendaCalendarLinkServiceTest {
       if (deletedCalendar != null && deletedCalendar.getId() == id) {
         return deletedCalendar;
       }
-      return id == PERSONAL_CAL ? calendar(PERSONAL_CAL, OWNER) : id == SPACE_CAL ? calendar(SPACE_CAL, SPACE) : null;
+      return id == PERSONAL_CAL ? calendar(PERSONAL_CAL, OWNER)
+                                : id == SPACE_CAL ? calendar(SPACE_CAL, SPACE) : id == OTHER_CAL ? calendar(OTHER_CAL, OTHER_USER) : null;
     });
     eventService = mock(AgendaEventService.class);
     when(eventService.getEvents(any(), any(), anyLong())).thenReturn(Collections.emptyList());
@@ -169,7 +180,7 @@ class AgendaCalendarLinkServiceTest {
     CodecInitializer codecInitializer = mock(CodecInitializer.class);
     when(codecInitializer.getCodec()).thenReturn(codec);
 
-    storage = new InMemoryLinkStorage();
+    storage = new InMemoryLinkStorage(Map.of(PERSONAL_CAL, OWNER, SPACE_CAL, SPACE, OTHER_CAL, OTHER_USER));
     service = new AgendaCalendarLinkServiceImpl(storage, calendarService, eventService, identityManager, spaceService, codecInitializer);
     service.setClock(Clock.fixed(NOW, ZoneOffset.UTC));
   }
@@ -524,6 +535,123 @@ class AgendaCalendarLinkServiceTest {
   }
 
   /**
+   * The listing of an owner holds their personal calendar's link and nothing of
+   * anybody else's, read in one storage query.
+   *
+   * @throws Exception when the service refuses
+   */
+  @Test
+  void anOwnerListsTheLinkOfTheirPersonalCalendarOnly() throws Exception {
+    String token = service.saveCalendarLink(PERSONAL_CAL, "owner");
+    service.saveCalendarLink(OTHER_CAL, "other");
+    service.saveCalendarLink(SPACE_CAL, "manager");
+    storage.ownerQueries = 0;
+
+    List<CalendarLink> links = service.getCalendarLinks("owner");
+
+    assertEquals(1, links.size());
+    assertEquals(PERSONAL_CAL, links.get(0).getCalendarId());
+    assertEquals(token, links.get(0).getToken(), "a working link comes with its token");
+    assertNull(links.get(0).getTokenHash(), "and never with its stored secrets");
+    assertNull(links.get(0).getTokenEncrypted());
+    assertEquals(1, storage.ownerQueries, "one query for every calendar, never one per calendar");
+  }
+
+  /**
+   * A manager lists the link of the space calendar another manager created;
+   * a plain member of the same space lists nothing.
+   *
+   * @throws Exception when the service refuses
+   */
+  @Test
+  void aManagerListsTheSpaceLinkAndAMemberDoesNot() throws Exception {
+    String token = service.saveCalendarLink(SPACE_CAL, "manager");
+
+    List<CalendarLink> managerLinks = service.getCalendarLinks("manager2");
+    assertEquals(1, managerLinks.size());
+    assertEquals(SPACE_CAL, managerLinks.get(0).getCalendarId());
+    assertEquals(MANAGER, managerLinks.get(0).getCreatorId());
+    assertEquals(token, managerLinks.get(0).getToken());
+
+    assertTrue(service.getCalendarLinks("member").isEmpty(), "a member manages no link and lists none");
+  }
+
+  /**
+   * A stopped link is listed, inactive and without its token, so the page can
+   * say why it stopped; a working link that can no longer be displayed is listed
+   * active and without its token.
+   *
+   * @throws Exception when the service refuses
+   */
+  @Test
+  void stoppedAndUndisplayableLinksAreListedWithoutTheirToken() throws Exception {
+    service.saveCalendarLink(SPACE_CAL, "manager");
+    service.saveCalendarLink(PERSONAL_CAL, "owner");
+    managers.remove("manager");
+    listedManagers.remove("manager");
+
+    CalendarLink stopped = service.getCalendarLinks("manager2").get(0);
+    assertFalse(stopped.isActive(), "the creator is no longer a manager");
+    assertEquals(MANAGER, stopped.getCreatorId(), "and the entry still names them");
+    assertNull(stopped.getToken());
+
+    codec.replaceKey();
+    CalendarLink undisplayable = service.getCalendarLinks("owner").get(0);
+    assertTrue(undisplayable.isActive());
+    assertNull(undisplayable.getToken());
+  }
+
+  /**
+   * The rights are checked again for every link found: a space the platform
+   * still lists as managed, but whose management right the user lost, gives
+   * nothing; and a link of a deleted calendar is left out.
+   *
+   * @throws Exception when the service refuses
+   */
+  @Test
+  void everyListedLinkIsCheckedAgainstTheRightsOfTheMoment() throws Exception {
+    service.saveCalendarLink(SPACE_CAL, "manager");
+    service.saveCalendarLink(PERSONAL_CAL, "owner");
+    managers.remove("manager2");
+
+    assertTrue(service.getCalendarLinks("manager2").isEmpty(), "listed as manager, no longer allowed");
+
+    deletedCalendar = calendar(PERSONAL_CAL, OWNER);
+    deletedCalendar.setDeleted(true);
+    assertTrue(service.getCalendarLinks("owner").isEmpty(), "a deleted calendar's link is not listed");
+  }
+
+  /**
+   * A user with no usable identity is refused the listing.
+   */
+  @Test
+  void aListingNeedsAUsableIdentity() {
+    identities.get(String.valueOf(OWNER)).setEnable(false);
+
+    assertThrows(IllegalAccessException.class, () -> service.getCalendarLinks("owner"));
+  }
+
+  /**
+   * A list of spaces the way the platform pages them.
+   *
+   * @param spaces the spaces
+   * @return the paged access
+   */
+  private ListAccess<Space> spaces(List<Space> spaces) {
+    return new ListAccess<>() {
+      @Override
+      public Space[] load(int offset, int limit) {
+        return spaces.stream().skip(offset).limit(limit).toArray(Space[]::new);
+      }
+
+      @Override
+      public int getSize() {
+        return spaces.size();
+      }
+    };
+  }
+
+  /**
    * Registers a user identity.
    *
    * @param id identity identifier
@@ -628,13 +756,34 @@ class AgendaCalendarLinkServiceTest {
 
     final Map<Long, CalendarLink> rows = new HashMap<>();
 
+    final Map<Long, Long>         owners;
+
     int                           lookupsByDigest;
+
+    int                           ownerQueries;
 
     /**
      * Builds the storage with no repository behind it.
+     *
+     * @param owners the owner of each calendar, as the join reads it
      */
-    InMemoryLinkStorage() {
+    InMemoryLinkStorage(Map<Long, Long> owners) {
       super(null);
+      this.owners = owners;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<CalendarLink> getByCalendarOwnerIds(List<Long> ownerIds, int limit) {
+      ownerQueries++;
+      return rows.values()
+                 .stream()
+                 .filter(link -> ownerIds.contains(owners.get(link.getCalendarId())))
+                 .limit(limit)
+                 .map(this::copy)
+                 .toList();
     }
 
     /**

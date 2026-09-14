@@ -238,6 +238,36 @@ describe('Calendar link drawer', () => {
     expect(wrapper.find('.agenda-calendar-link-save').text()).toBe('agenda.calendarPublish.create');
   });
 
+  it('unpublishes from a menu only once confirmed, without opening, and says so', async () => {
+    service.deleteCalendarLink.mockResolvedValue();
+    const wrapper = mountDrawer();
+
+    wrapper.vm.$root.$emit('agenda-calendar-link-unpublish', SPACE_CALENDAR);
+    await flush();
+
+    expect(drawerStub.methods.open).not.toHaveBeenCalled();
+    expect(confirmStub.methods.open).toHaveBeenCalled();
+    expect(service.deleteCalendarLink).not.toHaveBeenCalled();
+
+    wrapper.findComponent(confirmStub).vm.$emit('ok');
+    await flush();
+
+    expect(service.deleteCalendarLink).toHaveBeenCalledWith(20);
+    expect(wrapper.rootEmit).toHaveBeenCalledWith('alert-message', 'agenda.calendarPublish.unpublished', 'success');
+    expect(wrapper.rootEmit).toHaveBeenCalledWith('agenda-calendar-links-changed');
+  });
+
+  it('tells the lists a link changed once published', async () => {
+    service.getCalendarLink.mockResolvedValue({exists: false});
+    service.saveCalendarLink.mockResolvedValue(activeStatus());
+    const wrapper = mountDrawer();
+    await wrapper.vm.open(PERSONAL_CALENDAR);
+
+    await click(wrapper, '.agenda-calendar-link-save');
+
+    expect(wrapper.rootEmit).toHaveBeenCalledWith('agenda-calendar-links-changed');
+  });
+
   it('is mounted once, at the application level, and never inside a calendar row', () => {
     const vueApp = path.resolve(__dirname, '../../main/webapp/vue-app');
     const agenda = fs.readFileSync(path.join(vueApp, 'agenda/components/Agenda.vue'), 'utf8');
@@ -260,7 +290,7 @@ describe('Calendar link drawer', () => {
     function mountItem(calendar) {
       const wrapper = shallowMount(AgendaFilterCalendarItem, {
         propsData: {calendar, ownerIds: [100], selectedOwnerIds: []},
-        mocks: {$t: key => key},
+        mocks: {$t: key => key, $calendarLinkService: {getCalendarLinks: () => Promise.resolve([])}},
       });
       wrapper.rootEmit = jest.spyOn(wrapper.vm.$root, '$emit');
       return wrapper;

@@ -53,6 +53,29 @@
             @change="toggle(calendar)" />
         </v-list-item-content>
         <!--
+          A published calendar (EXO-90252) carries a small sign, so a calendar anyone
+          with its link can read does not look like the others; the colour and the
+          glyph tell a working link from one that stopped. Same slot and alignment
+          as the read-only lock of the Remote rows (EXO-90236), and the same
+          wrapper carrying the role and the label, since Vuetify hides a v-icon with
+          no click listener from assistive technology.
+        -->
+        <v-list-item-action
+          v-if="linkStateOf(calendar) !== 'none'"
+          class="my-0 ms-2 flex-grow-0 justify-center agenda-calendar-published-icon">
+          <span
+            :title="publishedTooltip(calendar)"
+            :aria-label="publishedTooltip(calendar)"
+            :class="`d-flex agenda-calendar-published-${linkStateOf(calendar)}`"
+            role="img">
+            <v-icon
+              :class="linkStateOf(calendar) === 'published' ? 'text-light-color' : 'warning--text'"
+              size="14">
+              {{ linkStateOf(calendar) === 'published' ? 'fas fa-link' : 'fas fa-unlink' }}
+            </v-icon>
+          </span>
+        </v-list-item-action>
+        <!--
           A calendar that stopped synchronising sits in this list looking
           exactly like the ones that did not, which is why the notice cannot
           live only in the settings: nobody in that situation thinks to open
@@ -105,13 +128,39 @@
               </v-btn>
             </template>
             <v-list dense class="pa-0">
-              <v-list-item @click="editCalendar(calendar)">
-                <v-list-item-title>{{ $t('agenda.calendar.edit') }}</v-list-item-title>
+              <!--
+                Publishing (EXO-90252): one entry naming the calendar's state and opening
+                the drawer, and Unpublish once it is published, working or stopped.
+                First in the menu, so the state reads before the actions — and
+                apart from the connector actions that follow Edit (EXO-90253).
+              -->
+              <v-list-item
+                :class="`agenda-calendar-link-action agenda-calendar-link-state-${linkStateOf(calendar)}`"
+                @click="openCalendarLink(calendar)">
+                <v-list-item-title class="d-flex align-center">
+                  <v-icon
+                    v-if="linkStateOf(calendar) === 'published'"
+                    size="14"
+                    class="me-2 success--text">
+                    fas fa-check
+                  </v-icon>
+                  <v-icon
+                    v-else-if="linkStateOf(calendar) === 'stopped'"
+                    size="14"
+                    class="me-2 warning--text">
+                    fas fa-exclamation-triangle
+                  </v-icon>
+                  {{ publishMenuLabel(calendar) }}
+                </v-list-item-title>
               </v-list-item>
               <v-list-item
-                class="agenda-calendar-link-action"
-                @click="openCalendarLink(calendar)">
-                <v-list-item-title>{{ $t('agenda.calendarPublish.menu') }}</v-list-item-title>
+                v-if="linkStateOf(calendar) !== 'none'"
+                class="agenda-calendar-unpublish-action"
+                @click="unpublishCalendar(calendar)">
+                <v-list-item-title>{{ $t('agenda.calendarPublish.delete') }}</v-list-item-title>
+              </v-list-item>
+              <v-list-item @click="editCalendar(calendar)">
+                <v-list-item-title>{{ $t('agenda.calendar.edit') }}</v-list-item-title>
               </v-list-item>
               <v-list-item
                 v-if="!calendar.system"
@@ -134,7 +183,10 @@
 </template>
 
 <script>
+import calendarLinkMenuMixin from '../../js/CalendarLinkMenuMixin.js';
+
 export default {
+  mixins: [calendarLinkMenuMixin],
   data: () => ({
     calendars: [],
     hiddenCalendarIds: [],
@@ -376,16 +428,6 @@ export default {
      */
     editCalendar(calendar) {
       this.$root.$emit('agenda-personal-calendar-drawer-open', calendar);
-    },
-    /**
-     * Opens the drawer managing the private iCal link of a calendar. The drawer
-     * lives once in the application, never in this list (EXO-90252).
-     *
-     * @param {Object} calendar the calendar whose link is managed
-     * @returns {void}
-     */
-    openCalendarLink(calendar) {
-      this.$root.$emit('agenda-calendar-link-drawer-open', calendar);
     },
     /**
      * The connectors registered with agenda, in the shape they register

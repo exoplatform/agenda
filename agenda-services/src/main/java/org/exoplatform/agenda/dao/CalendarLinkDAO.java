@@ -16,13 +16,19 @@
  */
 package org.exoplatform.agenda.dao;
 
+import java.util.Collection;
+import java.util.List;
+
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import org.exoplatform.agenda.entity.CalendarLinkEntity;
 
 /**
- * Reads and writes calendar links. Both lookups hit a unique column, so each
- * answers at most one row and needs no page.
+ * Reads and writes calendar links. The two single-row lookups hit a unique
+ * column and need no page; the listing by owners takes one.
  */
 public interface CalendarLinkDAO extends JpaRepository<CalendarLinkEntity, Long> {
 
@@ -41,5 +47,19 @@ public interface CalendarLinkDAO extends JpaRepository<CalendarLinkEntity, Long>
    * @return the link, or null when no link carries that digest
    */
   CalendarLinkEntity findByTokenHash(String tokenHash);
+
+  /**
+   * Finds the links of the calendars some identities own, in one statement: the
+   * links joined to their calendars and filtered on the calendars' owners,
+   * newest first.
+   *
+   * @param ownerIds identity identifiers owning the calendars, never empty
+   * @param pageable the page to read
+   * @return the links, newest first
+   */
+  @Query("SELECT link FROM AgendaCalendarLink link, AgendaCalendar calendar"
+      + " WHERE calendar.id = link.calendarId AND calendar.ownerId IN (:ownerIds)"
+      + " ORDER BY link.createdDate DESC, link.id DESC")
+  List<CalendarLinkEntity> findByCalendarOwnerIds(@Param("ownerIds") Collection<Long> ownerIds, Pageable pageable);
 
 }

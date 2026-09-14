@@ -32,6 +32,7 @@
   <persistence-unit name="agenda-calendar-link-test" transaction-type="RESOURCE_LOCAL">
     <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
     <class>org.exoplatform.agenda.entity.CalendarLinkEntity</class>
+    <class>org.exoplatform.agenda.entity.CalendarEntity</class>
     <exclude-unlisted-classes>true</exclude-unlisted-classes>
     <properties>
       <property name="jakarta.persistence.jdbc.driver" value="org.hsqldb.jdbc.JDBCDriver"/>
