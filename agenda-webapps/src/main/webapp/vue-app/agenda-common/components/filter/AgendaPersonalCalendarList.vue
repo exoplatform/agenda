@@ -112,6 +112,18 @@
                 <v-list-item-title>{{ $t('agenda.calendar.edit') }}</v-list-item-title>
               </v-list-item>
               <!--
+                Whatever a connector adds for this calendar — the CalDAV
+                add-on's "Share…" (EXO-90253). Agenda names none of them: the
+                connector answers its label already translated, and runs its
+                own action. A connector declaring nothing adds no row.
+              -->
+              <v-list-item
+                v-for="action in actionsOf(calendar)"
+                :key="action.id"
+                @click="runConnectorAction(action, calendar)">
+                <v-list-item-title>{{ action.label }}</v-list-item-title>
+              </v-list-item>
+              <!--
                 Publishing (EXO-90252): one entry naming the calendar's state and opening
                 the drawer, which is where a calendar is unpublished.
                 Right before Delete: Edit, then what connectors add (Share…,
@@ -193,6 +205,7 @@ export default {
     loading: false,
     calendarToDelete: null,
     connectorWarning: '',
+    connectorActions: {},
   }),
   computed: {
     /**
@@ -262,6 +275,12 @@ export default {
     // inventing another one, or worse, retrying on a timer.
     document.addEventListener('agenda-connectors-refresh', this.retrieveProblems);
     this.retrieveProblems();
+    // What connectors add to a calendar's menu, asked at the same moments as
+    // its problems and for the same reason: a connector registers after this
+    // component is created, and can say what it offers only then.
+    document.addEventListener('agenda-connectors-refresh', this.retrieveConnectorActions);
+    this.$root.$on('agenda-refresh-personal-calendars', this.retrieveConnectorActions);
+    this.retrieveConnectorActions();
     this.$root.$on('agenda-refresh-personal-calendars', this.retrieveCalendars);
     // Also on the document, so an add-on's drawer living in another Vue app —
     // the settings page has its own — can say that the set of personal
@@ -276,6 +295,8 @@ export default {
     this.$root.$off('agenda-refresh', this.retrieveProblems);
     document.removeEventListener('agenda-refresh-personal-calendars', this.retrieveProblems);
     document.removeEventListener('agenda-connectors-refresh', this.retrieveProblems);
+    document.removeEventListener('agenda-connectors-refresh', this.retrieveConnectorActions);
+    this.$root.$off('agenda-refresh-personal-calendars', this.retrieveConnectorActions);
   },
   methods: {
     /**
@@ -297,6 +318,70 @@ export default {
       return Promise.all(connectors.map(connector => Promise.resolve(connector.calendarProblems())
         .catch(() => ({}))))
         .then(answers => this.problems = Object.assign({}, ...answers));
+    },
+    /**
+     * What each connector adds to the menu of one of this user's calendars.
+     *
+     * Asked of the connectors, like their problems: which calendar a connector
+     * can act on, and what the action is called, are its own business. Agenda
+     * keeps only an id, the label as given, and which connector offered it, so
+     * a click goes back to that connector. Two connectors offering the same
+     * action id on one calendar — the same add-on registered once per server —
+     * give one row.
+     *
+     * @returns {Promise} resolves once every connector has answered
+     */
+    retrieveConnectorActions() {
+      const connectors = this.connectors()
+        .filter(connector => connector && connector.connected
+          && typeof connector.calendarActions === 'function'
+          && typeof connector.runCalendarAction === 'function');
+      if (!connectors.length) {
+        this.connectorActions = {};
+        return Promise.resolve();
+      }
+      return Promise.all(connectors.map(connector => Promise.resolve(connector.calendarActions())
+        .then(answer => ({connector: connector.name, answer: answer || {}}))
+        .catch(() => ({connector: connector.name, answer: {}}))))
+        .then(answers => {
+          const actions = {};
+          answers.forEach(({connector, answer}) => Object.keys(answer).forEach(calendarId => {
+            (answer[calendarId] || []).filter(action => action && action.id && action.label).forEach(action => {
+              const row = actions[calendarId] || (actions[calendarId] = []);
+              if (!row.some(known => known.id === action.id)) {
+                row.push({id: action.id, label: action.label, connector});
+              }
+            });
+          }));
+          this.connectorActions = actions;
+        });
+    },
+    /**
+     * The connector actions offered on one calendar.
+     *
+     * @param {Object} calendar the row being drawn
+     * @returns {Array} the actions, possibly empty
+     */
+    actionsOf(calendar) {
+      return calendar && this.connectorActions[calendar.id] || [];
+    },
+    /**
+     * Hands a menu action back to the connector that offered it, with the
+     * calendar as this list names it — the unnamed default calendar is "My
+     * calendar" here, not its owner's name.
+     *
+     * @param {Object} action the action as retrieveConnectorActions kept it
+     * @param {Object} calendar the calendar the menu belongs to
+     * @returns {Promise} resolves once the connector has taken it
+     */
+    runConnectorAction(action, calendar) {
+      const connector = this.connectors().find(one => one && one.name === action.connector);
+      if (!connector || typeof connector.runCalendarAction !== 'function') {
+        return Promise.resolve();
+      }
+      return Promise.resolve(connector.runCalendarAction(action.id,
+        Object.assign({}, calendar, {name: this.calendarLabel(calendar)})))
+        .catch(error => console.error(`cannot run ${action.id} on calendar ${calendar.id}`, error));
     },
     /**
      * @param {Object} calendar the row being drawn
