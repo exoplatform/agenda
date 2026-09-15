@@ -4,6 +4,8 @@ import AgendaUserConnectorSettings from './components/AgendaUserConnectorSetting
 import AgendaUserRemoteConnectorsSettings from './components/AgendaUserRemoteConnectorsSettings.vue';
 import AgendaUserPushSettings from './components/AgendaUserPushSettings.vue';
 import AgendaUserAvailabilitySharingSettings from './components/AgendaUserAvailabilitySharingSettings.vue';
+import AgendaUserPublishedCalendarsSettings from './components/AgendaUserPublishedCalendarsSettings.vue';
+import AgendaUserPublishedCalendarsDrawer from './components/AgendaUserPublishedCalendarsDrawer.vue';
 
 const components = {
   'agenda-user-settings': AgendaUserSettings,
@@ -12,6 +14,8 @@ const components = {
   'agenda-user-remote-connectors-settings': AgendaUserRemoteConnectorsSettings,
   'agenda-user-push-settings': AgendaUserPushSettings,
   'agenda-user-availability-sharing-settings': AgendaUserAvailabilitySharingSettings,
+  'agenda-user-published-calendars-settings': AgendaUserPublishedCalendarsSettings,
+  'agenda-user-published-calendars-drawer': AgendaUserPublishedCalendarsDrawer,
 };
 
 for (const key in components) {
