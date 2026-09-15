@@ -122,6 +122,13 @@
       open two drawers.
     -->
     <agenda-personal-calendar-drawer />
+    <!--
+      The private iCal link drawer, once for the whole application for the same
+      reason: both the personal calendar rows and the space calendar rows open
+      it through one root event, and neither row may host it — a row can go
+      away while the drawer is open (EXO-90239).
+    -->
+    <agenda-calendar-link-drawer />
   </v-app>
 </template>
 <script>
