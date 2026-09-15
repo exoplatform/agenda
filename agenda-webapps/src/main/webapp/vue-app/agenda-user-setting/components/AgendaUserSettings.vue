@@ -54,6 +54,10 @@ const OWN_ROWS = [
   // rows above are about what eXo does with this user's own calendar, and who
   // may see when that calendar is busy is the same subject.
   {id: 'availability-sharing', rank: 45, vueComponent: 'agenda-user-availability-sharing-settings'},
+  // Who can read the user's calendars from outside eXo, beside who may see
+  // when they are busy: the calendars they published as a private link
+  // (EXO-90252). The row draws nothing while nothing is published.
+  {id: 'published-calendars', rank: 46, vueComponent: 'agenda-user-published-calendars-settings'},
   // Last, and behind a rule: every row above is about the user's own
   // calendars and what eXo does with them. Other accounts are a different
   // subject, and putting them between the account and its copy switch made
