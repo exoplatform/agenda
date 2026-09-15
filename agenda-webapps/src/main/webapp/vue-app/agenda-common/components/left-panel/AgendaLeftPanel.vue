@@ -64,17 +64,42 @@
           class="flex-grow-0"
           :show-toggle-action="false"
           :show-manage-action="true" />
-        <v-btn
-          :title="$t('agenda.calendar.addCalendar')"
-          icon
-          max-width="24"
-          max-height="24"
-          class="flex-grow-0"
-          @click="openPersonalCalendarDrawer">
-          <v-icon size="14" class="text-light-color">
-            fas fa-plus
-          </v-icon>
-        </v-btn>
+        <!--
+          Adding a calendar, or subscribing to a calendar link (EXO-90278): both
+          put a calendar of the user's own in the panel. A menu driven by the
+          calendar row menus' state, so it closes on a press outside it as they
+          do (see CalendarRowMenuMixin).
+        -->
+        <v-menu
+          :value="isRowMenuOpen('add')"
+          content-class="agendaCalendarRowMenu"
+          offset-y
+          left
+          @input="toggleRowMenu('add', $event)">
+          <template #activator="{ on, attrs }">
+            <v-btn
+              v-bind="attrs"
+              :title="$t('agenda.calendarSubscription.addMenu')"
+              :aria-label="$t('agenda.calendarSubscription.addMenu')"
+              icon
+              max-width="24"
+              max-height="24"
+              class="flex-grow-0 agenda-left-panel-add"
+              v-on="on">
+              <v-icon size="14" class="text-light-color">
+                fas fa-plus
+              </v-icon>
+            </v-btn>
+          </template>
+          <v-list dense class="pa-0">
+            <v-list-item class="agenda-left-panel-add-calendar" @click="openPersonalCalendarDrawer">
+              <v-list-item-title>{{ $t('agenda.calendar.addCalendar') }}</v-list-item-title>
+            </v-list-item>
+            <v-list-item class="agenda-left-panel-subscribe" @click="openSubscriptionDrawer">
+              <v-list-item-title>{{ $t('agenda.calendarSubscription.add') }}</v-list-item-title>
+            </v-list-item>
+          </v-list>
+        </v-menu>
       </div>
       <agenda-personal-calendar-list class="agenda-left-panel-calendars" />
     </section>
@@ -98,6 +123,13 @@
     <agenda-left-panel-remote-calendars
       v-if="connectorsAvailable"
       :connectors="connectors" />
+    <!--
+      The calendars the user subscribed to by link (EXO-90278), read-only and
+      refreshed from outside: after the accounts, before the calendars of the
+      spaces. The component draws its own section, and nothing without a
+      subscription.
+    -->
+    <agenda-left-panel-subscribed-calendars />
     <!--
       Spaces: one row per space calendar, and a filter in the header for a
       user who belongs to dozens of spaces and would otherwise page through
@@ -159,7 +191,10 @@
 </template>
 
 <script>
+import calendarRowMenuMixin from '../../js/CalendarRowMenuMixin.js';
+
 export default {
+  mixins: [calendarRowMenuMixin],
   props: {
     selectedOwnerIds: {
       type: [Array, Boolean],
@@ -317,6 +352,14 @@ export default {
      */
     openPersonalCalendarDrawer() {
       this.$root.$emit('agenda-personal-calendar-drawer-open');
+    },
+    /**
+     * Opens the drawer subscribing to a calendar link (EXO-90278), mounted once
+     * in the application.
+     * @returns {void}
+     */
+    openSubscriptionDrawer() {
+      this.$root.$emit('agenda-calendar-subscription-drawer-open');
     },
     /**
      * Relays a calendar selection change to the Agenda application through the

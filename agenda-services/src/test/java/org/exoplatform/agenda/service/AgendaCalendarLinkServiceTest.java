@@ -253,6 +253,27 @@ class AgendaCalendarLinkServiceTest {
   }
 
   /**
+   * The calendar a link of this eXo publishes is found only while the link
+   * answers, exactly as its feed is served (EXO-90278, which recognises a
+   * subscription to a link of this eXo): a link whose creator's account was
+   * disabled resolves to no calendar, and neither does a token that opens
+   * nothing.
+   *
+   * @throws Exception when the service refuses
+   */
+  @Test
+  void theCalendarOfALinkIsFoundOnlyWhileTheLinkAnswers() throws Exception {
+    String token = service.saveCalendarLink(PERSONAL_CAL, "owner");
+    assertEquals(PERSONAL_CAL, service.getFeedCalendarId(token));
+
+    alter(OWNER, "disabled");
+
+    assertThrows(ObjectNotFoundException.class, () -> service.getFeedCalendarId(token),
+                 "a link whose creator was disabled resolves to no calendar");
+    assertThrows(ObjectNotFoundException.class, () -> service.getFeedCalendarId("not-a-token"));
+  }
+
+  /**
    * Nobody but its owner manages or sees a personal calendar's link.
    *
    * @throws Exception when setting up the link fails
