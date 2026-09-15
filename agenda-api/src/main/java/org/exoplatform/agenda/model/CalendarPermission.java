@@ -52,14 +52,18 @@ public class CalendarPermission implements Cloneable, Serializable {
   }
 
   /**
-   * Copies the permissions, the publish flag included.
+   * Copies the permissions, every field included. Goes through the
+   * Lombok-generated all-args constructor (all four fields, in their
+   * declared order) rather than the 3-arg constructor plus a setter: the
+   * 3-arg constructor is the one that had its first two arguments swapped
+   * here (EXO-90276) without a compiler error, because both are booleans —
+   * the all-args form leaves no field for a future addition to silently
+   * miss.
    *
    * @return a copy of these permissions
    */
   @Override
   public CalendarPermission clone() { // NOSONAR
-    CalendarPermission copy = new CalendarPermission(canEdit, canCreate, canInviteeEdit);
-    copy.setCanPublish(canPublish);
-    return copy;
+    return new CalendarPermission(canCreate, canEdit, canInviteeEdit, canPublish);
   }
 }
