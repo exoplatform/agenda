@@ -812,6 +812,11 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
     try {
       long calendarId = calendarLinkService.getFeedCalendarId(token);
       Calendar linked = agendaCalendarService.getCalendarById(calendarId);
+      // the user's own calendar is told apart from one seen through a space: the
+      // owner is the one most likely to paste the link they published themselves
+      if (linked != null && linked.getOwnerId() == userIdentityId) {
+        throw new CalendarFeedException(CalendarFeedException.OWN_CALENDAR);
+      }
       if (linked != null
           && Utils.canAccessCalendar(identityManager, spaceService, linked.getOwnerId(), userIdentityId)) {
         throw new CalendarFeedException(CalendarFeedException.ALREADY_IN_AGENDA);

@@ -26,8 +26,11 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,7 +48,9 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import org.exoplatform.agenda.model.CalendarSubscription;
 import org.exoplatform.agenda.rest.model.CalendarSubscriptionRequestEntity;
@@ -55,9 +60,10 @@ import org.exoplatform.commons.exception.ObjectNotFoundException;
 
 /**
  * Pins the REST contract of calendar subscriptions (EXO-90278): the statuses
- * the service's refusals map to, the refusal codes carried back and nothing
- * else, responses never cached, and every handler closed to an anonymous
- * request behind real method security.
+ * the service's refusals map to, the refusal code written in the body of each —
+ * never left to Spring's error page, which the platform answers without its
+ * message — and nothing else, responses never cached, and every handler closed
+ * to an anonymous request behind real method security.
  */
 class AgendaCalendarSubscriptionRestTest {
 
@@ -96,17 +102,22 @@ class AgendaCalendarSubscriptionRestTest {
   }
 
   /**
-   * The status and the reason a handler answers.
+   * Asserts a refusal: its status, a body carrying its code as
+   * {@code message} and nothing else, and no caching.
    *
-   * @param call the handler call
-   * @return the exception
+   * @param response the answer
+   * @param status the expected status
+   * @param code the expected code
    */
-  private static ResponseStatusException refused(Runnable call) {
-    return assertThrows(ResponseStatusException.class, call::run);
+  private static void assertRefusal(ResponseEntity<?> response, HttpStatus status, String code) {
+    assertEquals(status, response.getStatusCode());
+    assertEquals(Map.of("message", code), response.getBody());
+    assertEquals("no-store", response.getHeaders().getFirst(HttpHeaders.CACHE_CONTROL));
   }
 
   /**
-   * A listing maps the subscriptions with their URL and is never cached.
+   * A listing maps the subscriptions with their URL and is never cached; a user
+   * with no usable identity is refused with its code.
    *
    * @throws Exception never
    */
@@ -127,30 +138,37 @@ class AgendaCalendarSubscriptionRestTest {
     assertEquals("[CalendarSubscriptionStatusEntity(id=11, calendarId=77, name=Holidays, color=null, "
         + "url=https://feeds.example.org/holidays.ics, lastSuccessDate=0, lastAttemptDate=0, nextRefreshDate=0, "
         + "lastError=agenda.calendarSubscription.unreachable, truncated=false, createdDate=0)]", String.valueOf(response.getBody()));
+
+    when(service.getSubscriptions("john")).thenThrow(new IllegalAccessException("no identity"));
+    assertRefusal(resource.getSubscriptions(request), HttpStatus.FORBIDDEN, "agenda.calendarSubscription.forbidden");
   }
 
   /**
-   * A refused link answers 400 with its code, and a refusal whose message is not
-   * an agenda code answers a generic one: nothing else of a message goes back.
+   * A refused link answers 400 with its code in the body, and a refusal whose
+   * message is not an agenda code answers a generic one: nothing else of a
+   * message goes back.
    *
    * @throws Exception never
    */
   @Test
   void aRefusedLinkAnswersBadRequestWithItsCodeOnly() throws Exception {
-    when(service.checkUrl(anyString(), eq("john"))).thenThrow(new IllegalArgumentException("agenda.calendarSubscription.refusedAddress"));
-    ResponseStatusException check = refused(() -> resource.checkUrl(request, new CalendarSubscriptionRequestEntity("u", null, null)));
-    assertEquals(HttpStatus.BAD_REQUEST, check.getStatusCode());
-    assertEquals("agenda.calendarSubscription.refusedAddress", check.getReason());
+    when(service.checkUrl(anyString(), eq("john"))).thenThrow(new IllegalArgumentException("agenda.calendarSubscription.ownCalendar"));
+    assertRefusal(resource.checkUrl(request, new CalendarSubscriptionRequestEntity("u", null, null)),
+                  HttpStatus.BAD_REQUEST,
+                  "agenda.calendarSubscription.ownCalendar");
 
     when(service.createSubscription(any(), any(), any(), eq("john"))).thenThrow(new IllegalArgumentException("https://secret@x"));
-    ResponseStatusException create = refused(() -> resource.createSubscription(request,
-                                                                               new CalendarSubscriptionRequestEntity("u", null, null)));
-    assertEquals(HttpStatus.BAD_REQUEST, create.getStatusCode());
-    assertEquals("agenda.calendarSubscription.invalidRequest", create.getReason());
+    assertRefusal(resource.createSubscription(request, new CalendarSubscriptionRequestEntity("u", null, null)),
+                  HttpStatus.BAD_REQUEST,
+                  "agenda.calendarSubscription.invalidRequest");
+    assertRefusal(resource.createSubscription(request, null), HttpStatus.BAD_REQUEST, "agenda.calendarSubscription.invalidUrl");
+
+    when(service.updateSubscription(eq(4L), any(), any(), any(), eq("john"))).thenThrow(new IllegalArgumentException("agenda.calendarSubscription.alreadySubscribed"));
+    assertRefusal(resource.updateSubscription(request, 4, null), HttpStatus.BAD_REQUEST, "agenda.calendarSubscription.alreadySubscribed");
   }
 
   /**
-   * Not found answers 404, not the owner 403.
+   * Not found answers 404, not the owner 403, each with its code in the body.
    *
    * @throws Exception never
    */
@@ -160,16 +178,22 @@ class AgendaCalendarSubscriptionRestTest {
     when(service.updateSubscription(eq(2L), any(), any(), any(), eq("john"))).thenThrow(new IllegalAccessException("mary's"));
     doThrow(new ObjectNotFoundException("none")).when(service).deleteSubscription(1L, "john");
     doThrow(new IllegalAccessException("mary's")).when(service).deleteSubscription(2L, "john");
+    when(service.refreshSubscription(1L, "john")).thenThrow(new ObjectNotFoundException("none"));
+    when(service.refreshSubscription(2L, "john")).thenThrow(new IllegalAccessException("mary's"));
 
-    assertEquals(HttpStatus.NOT_FOUND, refused(() -> resource.updateSubscription(request, 1, null)).getStatusCode());
-    assertEquals(HttpStatus.FORBIDDEN, refused(() -> resource.updateSubscription(request, 2, null)).getStatusCode());
-    assertEquals(HttpStatus.NOT_FOUND, refused(() -> resource.deleteSubscription(request, 1)).getStatusCode());
-    assertEquals(HttpStatus.FORBIDDEN, refused(() -> resource.deleteSubscription(request, 2)).getStatusCode());
+    assertRefusal(resource.updateSubscription(request, 1, null), HttpStatus.NOT_FOUND, "agenda.calendarSubscription.notFound");
+    assertRefusal(resource.updateSubscription(request, 2, null), HttpStatus.FORBIDDEN, "agenda.calendarSubscription.forbidden");
+    assertRefusal(resource.deleteSubscription(request, 1), HttpStatus.NOT_FOUND, "agenda.calendarSubscription.notFound");
+    assertRefusal(resource.deleteSubscription(request, 2), HttpStatus.FORBIDDEN, "agenda.calendarSubscription.forbidden");
+    assertRefusal(resource.refreshSubscription(request, 1), HttpStatus.NOT_FOUND, "agenda.calendarSubscription.notFound");
+    assertRefusal(resource.refreshSubscription(request, 2), HttpStatus.FORBIDDEN, "agenda.calendarSubscription.forbidden");
     assertEquals(HttpStatus.NO_CONTENT, resource.deleteSubscription(request, 3).getStatusCode());
   }
 
   /**
-   * A refresh asked too soon answers 429, one already running 409.
+   * A refresh asked too soon, or a read beyond the user's bound, answers 429; a
+   * refresh already running 409; each with its code in the body. Any other
+   * state is not a refusal and is not answered as one.
    *
    * @throws Exception never
    */
@@ -179,16 +203,48 @@ class AgendaCalendarSubscriptionRestTest {
     when(service.refreshSubscription(2L, "john")).thenThrow(new IllegalStateException(AgendaCalendarSubscriptionServiceImpl.REFRESH_IN_PROGRESS));
     when(service.refreshSubscription(3L, "john")).thenThrow(new IllegalStateException("codec gone"));
 
-    ResponseStatusException tooSoon = refused(() -> resource.refreshSubscription(request, 1));
-    assertEquals(HttpStatus.TOO_MANY_REQUESTS, tooSoon.getStatusCode());
-    assertEquals(AgendaCalendarSubscriptionServiceImpl.REFRESH_TOO_SOON, tooSoon.getReason());
-    assertEquals(HttpStatus.CONFLICT, refused(() -> resource.refreshSubscription(request, 2)).getStatusCode());
+    assertRefusal(resource.refreshSubscription(request, 1), HttpStatus.TOO_MANY_REQUESTS, AgendaCalendarSubscriptionServiceImpl.REFRESH_TOO_SOON);
+    assertRefusal(resource.refreshSubscription(request, 2), HttpStatus.CONFLICT, AgendaCalendarSubscriptionServiceImpl.REFRESH_IN_PROGRESS);
     assertThrows(IllegalStateException.class, () -> resource.refreshSubscription(request, 3));
 
     when(service.checkUrl(anyString(), eq("john"))).thenThrow(new IllegalStateException(AgendaCalendarSubscriptionServiceImpl.TOO_MANY_READS));
-    ResponseStatusException tooMany = refused(() -> resource.checkUrl(request, new CalendarSubscriptionRequestEntity("u", null, null)));
-    assertEquals(HttpStatus.TOO_MANY_REQUESTS, tooMany.getStatusCode());
-    assertEquals(AgendaCalendarSubscriptionServiceImpl.TOO_MANY_READS, tooMany.getReason());
+    assertRefusal(resource.checkUrl(request, new CalendarSubscriptionRequestEntity("u", null, null)),
+                  HttpStatus.TOO_MANY_REQUESTS,
+                  AgendaCalendarSubscriptionServiceImpl.TOO_MANY_READS);
+  }
+
+  /**
+   * Through Spring MVC with no error page and no {@code server.error.*}
+   * property at all, the serialized answer to a refusal carries its code: the
+   * body is the resource's own, not the error page's.
+   *
+   * @throws Exception when the request fails
+   */
+  @Test
+  void theSerializedRefusalCarriesItsCodeWithoutTheErrorPage() throws Exception {
+    AgendaCalendarSubscriptionService mvcService = mock(AgendaCalendarSubscriptionService.class);
+    when(mvcService.checkUrl(anyString(), eq("alice"))).thenThrow(new IllegalArgumentException("agenda.calendarSubscription.ownCalendar"));
+    doThrow(new ObjectNotFoundException("none")).when(mvcService).deleteSubscription(9L, "alice");
+    MockMvc mvc = MockMvcBuilders.standaloneSetup(new AgendaCalendarSubscriptionRest(mvcService)).build();
+
+    var check = mvc.perform(post("/calendars/subscriptions/check").contentType(MediaType.APPLICATION_JSON)
+                                                                  .content("{\"url\":\"http://localhost:8080/agenda/rest/ical/T.ics\"}")
+                                                                  .with(sent -> {
+                                                                    sent.setRemoteUser("alice");
+                                                                    return sent;
+                                                                  }))
+                   .andReturn()
+                   .getResponse();
+    assertEquals(400, check.getStatus());
+    assertEquals("{\"message\":\"agenda.calendarSubscription.ownCalendar\"}", check.getContentAsString());
+    assertEquals("no-store", check.getHeader(HttpHeaders.CACHE_CONTROL));
+
+    var missing = mvc.perform(delete("/calendars/subscriptions/9").with(sent -> {
+      sent.setRemoteUser("alice");
+      return sent;
+    })).andReturn().getResponse();
+    assertEquals(404, missing.getStatus());
+    assertEquals("{\"message\":\"agenda.calendarSubscription.notFound\"}", missing.getContentAsString());
   }
 
   /**

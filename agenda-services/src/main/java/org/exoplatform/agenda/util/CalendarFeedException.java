@@ -68,7 +68,13 @@ public class CalendarFeedException extends Exception {
   /** A link of this eXo that opens nothing, or no longer does. */
   public static final String LINK_NOT_FOUND      = "linkNotFound";
 
-  /** A link of this eXo to a calendar the user already sees in their agenda. */
+  /** A link of this eXo to the user's own calendar. */
+  public static final String OWN_CALENDAR        = "ownCalendar";
+
+  /**
+   * A link of this eXo to a calendar the user already sees in their agenda
+   * through a space.
+   */
   public static final String ALREADY_IN_AGENDA   = "alreadyInAgenda";
 
   private static final long  serialVersionUID    = -2261016484066153471L;

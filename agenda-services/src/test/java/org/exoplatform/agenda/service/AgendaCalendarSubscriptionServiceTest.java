@@ -385,8 +385,9 @@ class AgendaCalendarSubscriptionServiceTest {
   }
 
   /**
-   * A link of this eXo publishing a calendar the user already sees — their own,
-   * or a space's they can view — is refused without any read.
+   * A link of this eXo publishing a calendar the user already sees is refused
+   * without any read, saying which: their own calendar, or a space's they can
+   * view.
    *
    * @throws Exception never
    */
@@ -406,7 +407,7 @@ class AgendaCalendarSubscriptionServiceTest {
 
     try (MockedStatic<CommonsUtils> commons = mockStatic(CommonsUtils.class)) {
       commons.when(CommonsUtils::getCurrentDomain).thenReturn("http://localhost:8080");
-      assertEquals("agenda.calendarSubscription.alreadyInAgenda",
+      assertEquals("agenda.calendarSubscription.ownCalendar",
                    assertThrows(IllegalArgumentException.class,
                                 () -> service.createSubscription("http://localhost:8080/agenda/rest/ical/TOKEN.ics",
                                                                  null,

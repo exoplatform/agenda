@@ -41,6 +41,7 @@ export const ERROR_CODES = [
   'agenda.calendarSubscription.notACalendar',
   'agenda.calendarSubscription.malformedCalendar',
   'agenda.calendarSubscription.linkNotFound',
+  'agenda.calendarSubscription.ownCalendar',
   'agenda.calendarSubscription.alreadyInAgenda',
   'agenda.calendarSubscription.alreadySubscribed',
   'agenda.calendarSubscription.tooManySubscriptions',

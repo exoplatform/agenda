@@ -36,56 +36,65 @@
         class="mx-4 mt-4"
         @submit.stop.prevent="save">
         <p class="text-light-color">{{ $t('agenda.calendarSubscription.explanation') }}</p>
-        <v-label for="agendaCalendarSubscriptionUrl">
-          {{ $t('agenda.calendarSubscription.urlLabel') }}
-        </v-label>
-        <div class="d-flex align-center mt-2">
+        <!--
+          The link, its row and its red or green message form one block with its
+          own bottom margin: the gap to the Name label is the same with or without
+          a message, where a top margin on the label did not show.
+        -->
+        <div class="agenda-calendar-subscription-link-block mb-6">
+          <v-label for="agendaCalendarSubscriptionUrl">
+            {{ $t('agenda.calendarSubscription.urlLabel') }}
+          </v-label>
+          <div class="d-flex align-center mt-2">
+            <v-text-field
+              id="agendaCalendarSubscriptionUrl"
+              v-model="url"
+              :placeholder="$t('agenda.calendarSubscription.urlPlaceholder')"
+              :aria-label="$t('agenda.calendarSubscription.urlLabel')"
+              class="pt-0 flex-grow-1 agenda-calendar-subscription-url"
+              type="url"
+              maxlength="2048"
+              outlined
+              dense
+              hide-details
+              @input="urlChanged" />
+            <v-btn
+              :loading="state === 'checking'"
+              :disabled="!hasUrl || busy"
+              class="btn ms-2 agenda-calendar-subscription-check"
+              @click="check">
+              {{ $t('agenda.calendarSubscription.check') }}
+            </v-btn>
+          </div>
+          <p
+            v-if="errorCode"
+            class="error--text mt-2 mb-0 agenda-calendar-subscription-error"
+            role="alert">
+            {{ errorMessage }}
+          </p>
+          <p
+            v-else-if="state === 'checked'"
+            class="success--text mt-2 mb-0 agenda-calendar-subscription-checked">
+            {{ $t('agenda.calendarSubscription.checked') }}
+          </p>
+        </div>
+        <div class="agenda-calendar-subscription-name-block mb-6">
+          <v-label for="agendaCalendarSubscriptionName">
+            {{ $t('agenda.calendarSubscription.nameLabel') }}
+          </v-label>
           <v-text-field
-            id="agendaCalendarSubscriptionUrl"
-            v-model="url"
-            :placeholder="$t('agenda.calendarSubscription.urlPlaceholder')"
-            :aria-label="$t('agenda.calendarSubscription.urlLabel')"
-            class="pt-0 flex-grow-1 agenda-calendar-subscription-url"
-            type="url"
-            maxlength="2048"
+            id="agendaCalendarSubscriptionName"
+            v-model="name"
+            :placeholder="$t('agenda.calendarSubscription.namePlaceholder')"
+            :aria-label="$t('agenda.calendarSubscription.nameLabel')"
+            class="mt-2 pt-0 agenda-calendar-subscription-name"
+            type="text"
+            maxlength="200"
             outlined
             dense
             hide-details
-            @input="urlChanged" />
-          <v-btn
-            :loading="state === 'checking'"
-            :disabled="!hasUrl || busy"
-            class="btn ms-2 agenda-calendar-subscription-check"
-            @click="check">
-            {{ $t('agenda.calendarSubscription.check') }}
-          </v-btn>
+            @input="nameTouched = true" />
         </div>
-        <p
-          v-if="errorCode"
-          class="error--text mt-2 mb-0 agenda-calendar-subscription-error"
-          role="alert">
-          {{ errorMessage }}
-        </p>
-        <p
-          v-else-if="state === 'checked'"
-          class="success--text mt-2 mb-0 agenda-calendar-subscription-checked">
-          {{ $t('agenda.calendarSubscription.checked') }}
-        </p>
-        <v-label for="agendaCalendarSubscriptionName" class="d-block mt-5">
-          {{ $t('agenda.calendarSubscription.nameLabel') }}
-        </v-label>
-        <v-text-field
-          id="agendaCalendarSubscriptionName"
-          v-model="name"
-          :placeholder="$t('agenda.calendarSubscription.namePlaceholder')"
-          :aria-label="$t('agenda.calendarSubscription.nameLabel')"
-          class="mt-2 mb-5 pt-0 agenda-calendar-subscription-name"
-          type="text"
-          maxlength="200"
-          outlined
-          dense
-          hide-details
-          @input="nameTouched = true" />
         <v-label>
           {{ $t('agenda.calendar.color') }}
         </v-label>

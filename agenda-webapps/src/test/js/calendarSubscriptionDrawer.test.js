@@ -156,6 +156,45 @@ describe('Calendar subscription drawer', () => {
     expect(wrapper.find('.agenda-calendar-subscription-error').exists()).toBe(false);
   });
 
+  it('says a link is to the user\'s own calendar, and apart from one seen through a space', async () => {
+    const bundle = fs.readFileSync(path.resolve(__dirname, '../../main/resources/locale/portlet/Agenda_en.properties'), 'utf8');
+    const wrapper = mountDrawer();
+    wrapper.vm.open();
+    await wrapper.setData({url: 'http://localhost:8080/agenda/rest/ical/TOKEN.ics'});
+
+    service.checkUrl.mockRejectedValue(new Error('agenda.calendarSubscription.ownCalendar'));
+    await wrapper.vm.check();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('.agenda-calendar-subscription-error').text()).toBe('agenda.calendarSubscription.ownCalendar');
+    expect(bundle).toMatch(/^agenda\.calendarSubscription\.ownCalendar=This link is to your own calendar, which is already in your agenda\.$/m);
+
+    service.checkUrl.mockRejectedValue(new Error('agenda.calendarSubscription.alreadyInAgenda'));
+    await wrapper.vm.check();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('.agenda-calendar-subscription-error').text()).toBe('agenda.calendarSubscription.alreadyInAgenda');
+    expect(bundle).toMatch(/^agenda\.calendarSubscription\.alreadyInAgenda=This calendar is already in your agenda, through a space you belong to\.$/m);
+  });
+
+  it('keeps the link, its row and its message in one block spaced from the Name field, with or without a message', async () => {
+    const wrapper = mountDrawer();
+    wrapper.vm.open();
+    await wrapper.setData({url: URL});
+
+    const linkBlock = () => wrapper.find('.agenda-calendar-subscription-link-block');
+    expect(linkBlock().classes()).toContain('mb-6');
+    expect(linkBlock().find('.agenda-calendar-subscription-url').exists()).toBe(true);
+    expect(linkBlock().find('.agenda-calendar-subscription-name').exists()).toBe(false);
+
+    await wrapper.setData({errorCode: 'agenda.calendarSubscription.refusedAddress'});
+    expect(linkBlock().find('.agenda-calendar-subscription-error').exists()).toBe(true);
+    await wrapper.setData({errorCode: null, state: 'checked'});
+    expect(linkBlock().find('.agenda-calendar-subscription-checked').exists()).toBe(true);
+
+    const nameBlock = wrapper.find('.agenda-calendar-subscription-name-block');
+    expect(nameBlock.classes()).toContain('mb-6');
+    expect(nameBlock.find('.agenda-calendar-subscription-name').exists()).toBe(true);
+  });
+
   it('subscribes with the link, the name and the colour, then refreshes the agenda and closes', async () => {
     service.createSubscription.mockResolvedValue({id: 11, name: 'Holidays'});
     const wrapper = mountDrawer();

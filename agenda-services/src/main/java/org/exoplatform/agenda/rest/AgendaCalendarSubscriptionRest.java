@@ -32,7 +32,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
 import org.exoplatform.agenda.model.CalendarSubscription;
 import org.exoplatform.agenda.rest.model.CalendarSubscriptionRequestEntity;
@@ -54,9 +53,15 @@ import jakarta.servlet.http.HttpServletRequest;
  * may be read and what is imported are {@link AgendaCalendarSubscriptionService}'s;
  * this resource maps its exceptions to statuses: 404 for a subscription that
  * does not exist, 403 for one that is not the user's, 400 with the refusal's
- * message code, 429 for a refresh asked a moment ago and 409 for one already
- * running. The asking user comes from the session, never from a parameter.
- * Responses carry URLs, which may embed a secret, and are never cached.
+ * message code, 429 for a refresh asked a moment ago or too many reads at once,
+ * and 409 for a refresh already running. The asking user comes from the session,
+ * never from a parameter. Responses carry URLs, which may embed a secret, and
+ * are never cached.
+ * <p>
+ * <b>A refusal writes its own body</b>, {@code {"message": "<code>"}}: it is not
+ * left to Spring's error page, whose message the platform does not include
+ * ({@code server.error.include-message} is no longer bound by Spring Boot 4), so
+ * the drawer would only ever see a generic error.
  */
 @RestController
 @Tag(name = "calendar-subscription", description = "Subscriptions to calendar links (iCal / webcal)")
@@ -91,11 +96,11 @@ public class AgendaCalendarSubscriptionRest {
       @ApiResponse(responseCode = "200", description = "Request fulfilled"),
       @ApiResponse(responseCode = "403", description = "The user has no usable identity"),
   })
-  public ResponseEntity<List<CalendarSubscriptionStatusEntity>> getSubscriptions(HttpServletRequest request) {
+  public ResponseEntity<?> getSubscriptions(HttpServletRequest request) {
     try {
       return uncached(subscriptionService.getSubscriptions(request.getRemoteUser()).stream().map(this::toEntity).toList());
     } catch (IllegalAccessException e) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, FORBIDDEN);
+      return refusal(HttpStatus.FORBIDDEN, FORBIDDEN);
     }
   }
 
@@ -121,11 +126,11 @@ public class AgendaCalendarSubscriptionRest {
       String name = subscriptionService.checkUrl(body == null ? null : body.getUrl(), request.getRemoteUser());
       return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(java.util.Collections.singletonMap("name", name));
     } catch (IllegalAccessException e) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, FORBIDDEN);
+      return refusal(HttpStatus.FORBIDDEN, FORBIDDEN);
     } catch (IllegalArgumentException e) {
-      throw badRequest(e);
+      return badRequest(e);
     } catch (IllegalStateException e) {
-      throw refused(e);
+      return refused(e);
     }
   }
 
@@ -145,10 +150,10 @@ public class AgendaCalendarSubscriptionRest {
       @ApiResponse(responseCode = "400", description = "The link is refused, already subscribed or serves no calendar"),
       @ApiResponse(responseCode = "403", description = "The user has no usable identity"),
   })
-  public ResponseEntity<CalendarSubscriptionStatusEntity> createSubscription(HttpServletRequest request,
+  public ResponseEntity<?> createSubscription(HttpServletRequest request,
                                                                              @RequestBody CalendarSubscriptionRequestEntity body) {
     if (body == null) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "agenda.calendarSubscription.invalidUrl");
+      return refusal(HttpStatus.BAD_REQUEST, "agenda.calendarSubscription.invalidUrl");
     }
     try {
       return uncached(toEntity(subscriptionService.createSubscription(body.getUrl(),
@@ -156,11 +161,11 @@ public class AgendaCalendarSubscriptionRest {
                                                                       body.getColor(),
                                                                       request.getRemoteUser())));
     } catch (IllegalAccessException e) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, FORBIDDEN);
+      return refusal(HttpStatus.FORBIDDEN, FORBIDDEN);
     } catch (IllegalArgumentException e) {
-      throw badRequest(e);
+      return badRequest(e);
     } catch (IllegalStateException e) {
-      throw refused(e);
+      return refused(e);
     }
   }
 
@@ -181,7 +186,7 @@ public class AgendaCalendarSubscriptionRest {
       @ApiResponse(responseCode = "403", description = "Not the user's subscription"),
       @ApiResponse(responseCode = "404", description = "Subscription not found"),
   })
-  public ResponseEntity<CalendarSubscriptionStatusEntity> updateSubscription(HttpServletRequest request,
+  public ResponseEntity<?> updateSubscription(HttpServletRequest request,
                                                                              @PathVariable("subscriptionId") long subscriptionId,
                                                                              @RequestBody CalendarSubscriptionRequestEntity body) {
     CalendarSubscriptionRequestEntity values = body == null ? new CalendarSubscriptionRequestEntity() : body;
@@ -192,13 +197,13 @@ public class AgendaCalendarSubscriptionRest {
                                                                       values.getColor(),
                                                                       request.getRemoteUser())));
     } catch (ObjectNotFoundException e) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND, NOT_FOUND);
+      return refusal(HttpStatus.NOT_FOUND, NOT_FOUND);
     } catch (IllegalAccessException e) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, FORBIDDEN);
+      return refusal(HttpStatus.FORBIDDEN, FORBIDDEN);
     } catch (IllegalArgumentException e) {
-      throw badRequest(e);
+      return badRequest(e);
     } catch (IllegalStateException e) {
-      throw refused(e);
+      return refused(e);
     }
   }
 
@@ -220,16 +225,16 @@ public class AgendaCalendarSubscriptionRest {
       @ApiResponse(responseCode = "409", description = "A refresh is running"),
       @ApiResponse(responseCode = "429", description = "Refreshed a moment ago"),
   })
-  public ResponseEntity<CalendarSubscriptionStatusEntity> refreshSubscription(HttpServletRequest request,
+  public ResponseEntity<?> refreshSubscription(HttpServletRequest request,
                                                                               @PathVariable("subscriptionId") long subscriptionId) {
     try {
       return uncached(toEntity(subscriptionService.refreshSubscription(subscriptionId, request.getRemoteUser())));
     } catch (ObjectNotFoundException e) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND, NOT_FOUND);
+      return refusal(HttpStatus.NOT_FOUND, NOT_FOUND);
     } catch (IllegalAccessException e) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, FORBIDDEN);
+      return refusal(HttpStatus.FORBIDDEN, FORBIDDEN);
     } catch (IllegalStateException e) {
-      throw refused(e);
+      return refused(e);
     }
   }
 
@@ -248,35 +253,35 @@ public class AgendaCalendarSubscriptionRest {
       @ApiResponse(responseCode = "403", description = "Not the user's subscription"),
       @ApiResponse(responseCode = "404", description = "Subscription not found"),
   })
-  public ResponseEntity<Void> deleteSubscription(HttpServletRequest request, @PathVariable("subscriptionId") long subscriptionId) {
+  public ResponseEntity<?> deleteSubscription(HttpServletRequest request, @PathVariable("subscriptionId") long subscriptionId) {
     try {
       subscriptionService.deleteSubscription(subscriptionId, request.getRemoteUser());
       return ResponseEntity.noContent().build();
     } catch (ObjectNotFoundException e) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND, NOT_FOUND);
+      return refusal(HttpStatus.NOT_FOUND, NOT_FOUND);
     } catch (IllegalAccessException e) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, FORBIDDEN);
+      return refusal(HttpStatus.FORBIDDEN, FORBIDDEN);
     }
   }
 
   /**
-   * The status of a refusal the service answers as a state: 429 for a refresh
+   * The answer to a refusal the service answers as a state: 429 for a refresh
    * asked a moment ago or a user already reading as many links as allowed, 409
-   * for a refresh already running; any other state is not a refusal and is
-   * rethrown.
+   * for a refresh already running.
    *
    * @param e the state
-   * @return the exception to throw
+   * @return the refusal
+   * @throws IllegalStateException the state itself, when it is not a refusal
    */
-  private RuntimeException refused(IllegalStateException e) {
+  private static ResponseEntity<Map<String, String>> refused(IllegalStateException e) {
     if (AgendaCalendarSubscriptionServiceImpl.REFRESH_TOO_SOON.equals(e.getMessage())
         || AgendaCalendarSubscriptionServiceImpl.TOO_MANY_READS.equals(e.getMessage())) {
-      return new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, e.getMessage());
+      return refusal(HttpStatus.TOO_MANY_REQUESTS, e.getMessage());
     }
     if (AgendaCalendarSubscriptionServiceImpl.REFRESH_IN_PROGRESS.equals(e.getMessage())) {
-      return new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage());
+      return refusal(HttpStatus.CONFLICT, e.getMessage());
     }
-    return e;
+    throw e;
   }
 
   /**
@@ -284,11 +289,23 @@ public class AgendaCalendarSubscriptionRest {
    * message could carry a URL.
    *
    * @param e the refusal
-   * @return the exception to throw
+   * @return the refusal
    */
-  private ResponseStatusException badRequest(IllegalArgumentException e) {
+  private static ResponseEntity<Map<String, String>> badRequest(IllegalArgumentException e) {
     String code = StringUtils.startsWith(e.getMessage(), "agenda.") ? e.getMessage() : "agenda.calendarSubscription.invalidRequest";
-    return new ResponseStatusException(HttpStatus.BAD_REQUEST, code);
+    return refusal(HttpStatus.BAD_REQUEST, code);
+  }
+
+  /**
+   * A refusal with its code written in the body, {@code {"message": code}}, and
+   * never cached.
+   *
+   * @param status the status
+   * @param code the message code
+   * @return the response
+   */
+  private static ResponseEntity<Map<String, String>> refusal(HttpStatus status, String code) {
+    return ResponseEntity.status(status).cacheControl(CacheControl.noStore()).body(Map.of("message", code));
   }
 
   /**
