@@ -9,3 +9,4 @@ org.exoplatform.agenda.entity.EventRecurrenceEntity
 org.exoplatform.agenda.entity.EventReminderEntity
 org.exoplatform.agenda.entity.RemoteEventEntity
 org.exoplatform.agenda.entity.RemoteProviderEntity
+org.exoplatform.agenda.entity.CalendarLinkEntity

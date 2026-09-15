@@ -92,8 +92,11 @@
           v-if="calendar.id"
           class="my-0 ms-2 agenda-calendar-actions">
           <v-menu
+            :value="isRowMenuOpen(calendar.id)"
+            content-class="agendaCalendarRowMenu"
             offset-y
-            left>
+            left
+            @input="toggleRowMenu(calendar.id, $event)">
             <template #activator="{ on, attrs }">
               <v-btn
                 v-bind="attrs"
@@ -108,6 +111,31 @@
               <v-list-item @click="editCalendar(calendar)">
                 <v-list-item-title>{{ $t('agenda.calendar.edit') }}</v-list-item-title>
               </v-list-item>
+              <!--
+                Publishing (EXO-90252): one entry naming the calendar's state and opening
+                the drawer, which is where a calendar is unpublished.
+                Right before Delete: Edit, then what connectors add (Share…,
+                EXO-90253), then Publish — BlueMind's own order.
+              -->
+              <v-list-item
+                :class="`agenda-calendar-link-action agenda-calendar-link-state-${linkStateOf(calendar)}`"
+                @click="openCalendarLink(calendar)">
+                <v-list-item-title class="d-flex align-center">
+                  <v-icon
+                    v-if="linkStateOf(calendar) === 'published'"
+                    size="14"
+                    class="me-2 success--text">
+                    fas fa-check
+                  </v-icon>
+                  <v-icon
+                    v-else-if="linkStateOf(calendar) === 'stopped'"
+                    size="14"
+                    class="me-2 warning--text">
+                    fas fa-exclamation-triangle
+                  </v-icon>
+                  {{ publishMenuLabel(calendar) }}
+                </v-list-item-title>
+              </v-list-item>
               <v-list-item
                 v-if="!calendar.system"
                 @click="confirmDelete(calendar)">
@@ -115,6 +143,30 @@
               </v-list-item>
             </v-list>
           </v-menu>
+        </v-list-item-action>
+        <!--
+          A published calendar (EXO-90252) carries a small sign, so a calendar anyone
+          with its link can read does not look like the others; the colour and the
+          glyph tell a working link from one that stopped. At the end of the row,
+          to the right of the menu, which keeps its place while hidden. Same alignment
+          as the read-only lock of the Remote rows (EXO-90236), and the same
+          wrapper carrying the role and the label, since Vuetify hides a v-icon with
+          no click listener from assistive technology.
+        -->
+        <v-list-item-action
+          v-if="linkStateOf(calendar) !== 'none'"
+          class="my-0 ms-2 flex-grow-0 justify-center agenda-calendar-published-icon">
+          <span
+            :title="publishedTooltip(calendar)"
+            :aria-label="publishedTooltip(calendar)"
+            :class="`d-flex agenda-calendar-published-${linkStateOf(calendar)}`"
+            role="img">
+            <v-icon
+              :class="linkStateOf(calendar) === 'published' ? 'text-light-color' : 'warning--text'"
+              size="14">
+              {{ linkStateOf(calendar) === 'published' ? 'fas fa-link' : 'fas fa-unlink' }}
+            </v-icon>
+          </span>
         </v-list-item-action>
       </v-list-item>
     </v-list>
@@ -129,7 +181,11 @@
 </template>
 
 <script>
+import calendarLinkMenuMixin from '../../js/CalendarLinkMenuMixin.js';
+import calendarRowMenuMixin from '../../js/CalendarRowMenuMixin.js';
+
 export default {
+  mixins: [calendarLinkMenuMixin, calendarRowMenuMixin],
   data: () => ({
     calendars: [],
     hiddenCalendarIds: [],

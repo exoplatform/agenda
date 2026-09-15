@@ -461,6 +461,43 @@ public class Utils {
   }
 
   /**
+   * Whether a user may publish a calendar as a private link, and so read, create,
+   * reset or delete that link (EXO-90252).
+   * <p>
+   * A personal calendar: its owner. A space calendar: a <b>real manager</b> of
+   * the space — a member holding the manager role, social's
+   * {@code isMember(space, user) && isManager(space, user)}. Deliberately not
+   * {@link #canEditCalendar}, whose {@code SpaceService.canManageSpace} also
+   * admits super-managers (platform administrators, holders of the space
+   * template's admin permission) who are not managers of that space: a link
+   * anyone can read from outside eXo is published by the people who run the
+   * space, and only while they do.
+   *
+   * @param identityManager {@link IdentityManager} service instance
+   * @param spaceService {@link SpaceService} service instance
+   * @param ownerId calendar owner {@link Identity} technical identifier
+   * @param userIdentityId {@link Identity} identifier of the user
+   * @return true when the user may publish the calendar
+   */
+  public static boolean canPublishCalendar(IdentityManager identityManager,
+                                           SpaceService spaceService,
+                                           long ownerId,
+                                           long userIdentityId) {
+    Identity requestedOwner = identityManager.getIdentity(String.valueOf(ownerId));
+    Identity userIdentity = identityManager.getIdentity(String.valueOf(userIdentityId));
+    if (requestedOwner == null || userIdentity == null) {
+      return false;
+    } else if (requestedOwner.isUser()) {
+      return userIdentityId == Long.parseLong(requestedOwner.getId());
+    } else if (requestedOwner.isSpace()) {
+      Space space = spaceService.getSpaceByPrettyName(requestedOwner.getRemoteId());
+      String username = userIdentity.getRemoteId();
+      return space != null && spaceService.isMember(space, username) && spaceService.isManager(space, username);
+    }
+    return false;
+  }
+
+  /**
    * @param identityManager {@link IdentityManager} service instance
    * @param spaceService {@link SpaceService} service instance
    * @param ownerId calendar owner {@link Identity} technical identifier
