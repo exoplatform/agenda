@@ -169,6 +169,11 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
                                                    ownerId);
         CalendarPermission acl = new CalendarPermission(canCreateEvent, canEditCalendar, hasRedactor);
         acl.setCanPublish(Utils.canPublishCalendar(identityManager, spaceService, ownerId, Long.parseLong(userIdentity.getId())));
+        if (calendar.isSubscription()) {
+          // A subscribed calendar (EXO-90278) is filled by its feed alone: nobody
+          // creates events in it, edits it here, or republishes it
+          acl = new CalendarPermission(false, false, false, false);
+        }
         calendar.setAcl(acl);
         resolveCalendarTitle(calendar);
       }
@@ -336,6 +341,9 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     // Refill readonly fields from Database to avoid letting users modifying
     // data using UI or REST calls
     refillReadOnlyFields(calendar);
+    if (calendar.isSubscription()) {
+      throw new IllegalAccessException("Calendar " + calendar.getId() + " is a subscribed calendar, managed through its subscription");
+    }
     Utils.checkAclByCalendarOwner(identityManager, spaceService, calendar.getOwnerId(), username);
     sanitizeAndValidateName(calendar);
     agendaCalendarStorage.updateCalendar(calendar);
@@ -390,6 +398,11 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     }
     if (calendar.isSystem()) {
       throw new IllegalStateException("Calendar with id " + calendarId + " is a system calendar, thus it couldn't be deleted");
+    }
+    if (calendar.isSubscription()) {
+      // Unsubscribing removes the subscription with its calendar; deleting the
+      // calendar alone would leave a feed refreshing into nothing (EXO-90278)
+      throw new IllegalAccessException("Calendar " + calendarId + " is a subscribed calendar, removed by unsubscribing");
     }
     Utils.checkAclByCalendarOwner(identityManager, spaceService, calendar.getOwnerId(), username);
     deleteCalendarById(calendarId);
@@ -482,6 +495,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     calendar.setOwnerId(storedCalendar.getOwnerId());
     calendar.setSystem(storedCalendar.isSystem());
     calendar.setSyncUid(storedCalendar.getSyncUid());
+    calendar.setSubscription(storedCalendar.isSubscription());
   }
 
   /**
@@ -512,6 +526,13 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
       throw new IllegalArgumentException("agenda.calendarNameExceedsMaxLength");
     }
     calendar.setName(name);
+    if (calendar.isSubscription()) {
+      // A subscribed calendar (EXO-90278) is named after its feed and listed in a
+      // section of its own: its name takes no part in the uniqueness of the
+      // owner's calendar names, in either direction, as the owner listings it is
+      // compared through leave subscribed calendars out
+      return;
+    }
     List<Long> ownerCalendarIds = agendaCalendarStorage.getCalendarIdsByOwnerIds(0,
                                                                                  Integer.MAX_VALUE,
                                                                                  calendar.getOwnerId());

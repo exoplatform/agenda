@@ -297,6 +297,33 @@ public class AgendaCalendarLinkServiceImpl implements AgendaCalendarLinkService 
    */
   @Override
   public String getCalendarFeed(String token) throws ObjectNotFoundException {
+    CalendarLink link = answeringLink(token);
+    Calendar calendar = agendaCalendarService.getCalendarById(link.getCalendarId());
+    ZonedDateTime now = ZonedDateTime.ofInstant(clock.instant(), ZoneOffset.UTC);
+    List<Event> events = readEvents(calendar, link.getCreatorId(), now);
+    return CalendarFeedIcsWriter.write(calendarName(calendar), events, AgendaCalendarLinkServiceImpl::isPrivate, uidHost());
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public long getFeedCalendarId(String token) throws ObjectNotFoundException {
+    return answeringLink(token).getCalendarId();
+  }
+
+  /**
+   * The link a token opens, refused exactly the way the feed refuses it: every
+   * refusal throws the same exception with the same message, and a malformed
+   * token is still digested and looked up before it is refused, so that the
+   * answer to an unknown token does not come back faster than the answer to a
+   * real one.
+   *
+   * @param token the token presented
+   * @return the link, which answers
+   * @throws ObjectNotFoundException when the token opens nothing
+   */
+  private CalendarLink answeringLink(String token) throws ObjectNotFoundException {
     String presented = StringUtils.defaultString(token);
     String digest = hash(presented);
     CalendarLink link = calendarLinkStorage.getByTokenHash(digest);
@@ -307,9 +334,7 @@ public class AgendaCalendarLinkServiceImpl implements AgendaCalendarLinkService 
     if (calendar == null || calendar.isDeleted() || !isAnswering(calendar, link.getCreatorId())) {
       throw notFound();
     }
-    ZonedDateTime now = ZonedDateTime.ofInstant(clock.instant(), ZoneOffset.UTC);
-    List<Event> events = readEvents(calendar, link.getCreatorId(), now);
-    return CalendarFeedIcsWriter.write(calendarName(calendar), events, AgendaCalendarLinkServiceImpl::isPrivate, uidHost());
+    return link;
   }
 
   /**
@@ -444,6 +469,11 @@ public class AgendaCalendarLinkServiceImpl implements AgendaCalendarLinkService 
     Calendar calendar = agendaCalendarService.getCalendarById(calendarId);
     if (calendar == null || calendar.isDeleted()) {
       throw new ObjectNotFoundException("Calendar with id " + calendarId + " wasn't found");
+    }
+    if (calendar.isSubscription()) {
+      // Republishing someone else's feed under an eXo link is not publishing
+      // one's calendar (EXO-90278)
+      throw new IllegalAccessException("Calendar " + calendarId + " is a subscribed calendar and cannot be published");
     }
     if (!Utils.canPublishCalendar(identityManager, spaceService, calendar.getOwnerId(), userIdentityId)) {
       throw new IllegalAccessException("User " + username + " is not allowed to manage the link of calendar " + calendarId);
