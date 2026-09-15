@@ -166,12 +166,28 @@
               icons share. Same slot the personal rows use for their menu. The
               avatar's own side margins are taken back in the panel's
               stylesheet for the same reason (agenda.less, .user-wrapper).
+
+              A resource the user subscribed to — a room, a pool vehicle —
+              is nobody's face: the connector says so with `ownerKind`, and
+              the row draws a neutral resource glyph in the avatar's place,
+              labelled "Resource: <name>" (EXO-90275). It is still a shared,
+              read-only calendar, with the same Hide menu and nothing else.
             -->
             <v-list-item-action
-              v-if="hasKnownOwner(calendar) || calendar.readOnly === true"
+              v-if="isResource(calendar) || hasKnownOwner(calendar) || calendar.readOnly === true"
               class="my-0 ms-2 flex-grow-0 justify-center">
+              <span
+                v-if="isResource(calendar)"
+                :title="resourceLabel(calendar)"
+                :aria-label="resourceLabel(calendar)"
+                role="img"
+                class="d-flex agenda-remote-calendar-resource">
+                <v-icon size="14" class="text-light-color">
+                  fas fa-cube
+                </v-icon>
+              </span>
               <exo-user-avatar
-                v-if="hasKnownOwner(calendar)"
+                v-else-if="hasKnownOwner(calendar)"
                 :profile-id="calendar.ownerUsername"
                 :name="calendar.ownerDisplayName"
                 :aria-label="sharedLabel(calendar)"
@@ -530,20 +546,50 @@ export default {
     hasKnownOwner(calendar) {
       return !!calendar
         && calendar.sharedWithMe === true
+        && !this.isResource(calendar)
         && typeof calendar.ownerUsername === 'string'
         && calendar.ownerUsername.length > 0;
+    },
+    /**
+     * Whether the calendar is a resource's the user subscribed to — a room,
+     * a pool vehicle — rather than a person's (EXO-90275).
+     *
+     * Asked of a row buildGroups stamped as shared, on the connector's word:
+     * `ownerKind` is `RESOURCE` only for such a calendar. A connector that
+     * sends no kind, or an older CalDAV add-on, draws every share as a
+     * person's, as before.
+     *
+     * @param {Object} calendar calendar as buildGroups stamped it
+     * @returns {Boolean} true when the owner is a resource
+     */
+    isResource(calendar) {
+      return !!calendar && calendar.sharedWithMe === true && calendar.ownerKind === 'RESOURCE';
+    },
+    /**
+     * What to say about a resource's calendar: "Resource: <name>", named as
+     * the connector named the resource, else by the calendar's own name.
+     *
+     * @param {Object} calendar calendar as buildGroups stamped it
+     * @returns {String} the sentence, in the user's language
+     */
+    resourceLabel(calendar) {
+      return this.$t('agenda.leftPanel.resourceCalendar', {0: calendar.ownerDisplayName || calendar.name});
     },
     /**
      * What to say about who shared a calendar: "Shared by <owner>" when the
      * connector named the owner — the eXo full name of a colleague, or the
      * server's display name of a stranger — and "Shared with you" when the
      * connector names no owner at all. Which servers can name one is the
-     * connector's business, not this panel's.
+     * connector's business, not this panel's. A resource's calendar is said
+     * to be one instead: "Resource: <name>".
      *
      * @param {Object} calendar calendar as the connector described it
      * @returns {String} the sentence, in the user's language
      */
     sharedLabel(calendar) {
+      if (this.isResource(calendar)) {
+        return this.resourceLabel(calendar);
+      }
       return calendar.ownerDisplayName
         ? this.$t('agenda.leftPanel.sharedBy', {0: calendar.ownerDisplayName})
         : this.$t('agenda.leftPanel.sharedCalendar');
