@@ -59,6 +59,7 @@ public class EntityMapper {
                                      null);
     calendar.setName(calendarEntity.getName());
     calendar.setSyncUid(calendarEntity.getSyncUid());
+    calendar.setSubscription(calendarEntity.isSubscription());
     return calendar;
   }
 
@@ -84,6 +85,7 @@ public class EntityMapper {
     calendarEntity.setSystem(calendar.isSystem());
     calendarEntity.setName(calendar.getName());
     calendarEntity.setSyncUid(calendar.getSyncUid());
+    calendarEntity.setSubscription(calendar.isSubscription());
     return calendarEntity;
   }
 
