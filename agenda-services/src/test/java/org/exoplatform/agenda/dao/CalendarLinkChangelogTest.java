@@ -58,8 +58,8 @@ class CalendarLinkChangelogTest {
 
   private static final String SEQUENCE  = "SEQ_AGENDA_CALENDAR_LINK_ID";
 
-  /** The changesets EXO-90252 adds, both run on HSQLDB. */
-  private static final int    ADDED_CHANGESETS = 2;
+  /** The first changeset EXO-90252 adds. */
+  private static final String FIRST_CHANGESET = "1.0.0-37";
 
   private Connection          connection;
 
@@ -109,7 +109,7 @@ class CalendarLinkChangelogTest {
   @Test
   void theAddedChangesetsRollBackAndReapply() throws Exception {
     update(connection);
-    liquibase(connection).rollback(ADDED_CHANGESETS, new Contexts(), new LabelExpression());
+    liquibase(connection).rollback(changesetsSince(connection, FIRST_CHANGESET), new Contexts(), new LabelExpression());
 
     assertFalse(tableExists(TABLE), "rolling back must drop the link table");
     assertFalse(sequenceExists(SEQUENCE), "and its sequence");
@@ -174,6 +174,25 @@ class CalendarLinkChangelogTest {
     SQLException refused = assertThrows(SQLException.class, () -> insert(2, 43, 7, "a".repeat(64)));
     assertTrue(refused.getMessage().toUpperCase().contains("UK_AGENDA_CALENDAR_LINK_HASH"),
                "the refusal must come from the digest uniqueness constraint: " + refused.getMessage());
+  }
+
+  /**
+   * How many changesets ran from a given one to the end of the changelog, that
+   * one included: what rolling back to just before it takes. Counted rather than
+   * written down, because every later delivery adds its own (EXO-90278).
+   *
+   * @param connection the database the changelog ran on
+   * @param firstId identifier of the first changeset to roll back
+   * @return the count
+   * @throws SQLException on a query failure
+   */
+  static int changesetsSince(Connection connection, String firstId) throws SQLException {
+    try (Statement statement = connection.createStatement();
+        ResultSet rows = statement.executeQuery("SELECT COUNT(*) FROM DATABASECHANGELOG WHERE ORDEREXECUTED >= "
+            + "(SELECT ORDEREXECUTED FROM DATABASECHANGELOG WHERE ID = '" + firstId + "')")) {
+      rows.next();
+      return rows.getInt(1);
+    }
   }
 
   /**

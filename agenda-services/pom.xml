@@ -62,6 +62,14 @@
       </exclusions>
     </dependency>
 
+    <!-- HTTP client of the calendar subscriptions (EXO-90278): its DnsResolver is
+         where the address of every connection is checked. Shipped by commons. -->
+    <dependency>
+      <groupId>org.apache.httpcomponents.client5</groupId>
+      <artifactId>httpclient5</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
     <dependency>
       <groupId>io.meeds.social</groupId>
       <artifactId>social-component-notification</artifactId>

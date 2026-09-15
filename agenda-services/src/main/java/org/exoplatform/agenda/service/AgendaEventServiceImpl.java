@@ -920,35 +920,34 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    */
   @Override
   public boolean canUpdateEvent(Event event, long userIdentityId) {
-    Calendar calendar = null;
-    if (userIdentityId == event.getCreatorId()) {
-      // Check if creator can always access to calendar or not
-      calendar = agendaCalendarService.getCalendarById(event.getCalendarId());
-      if (calendar.isDeleted()) {
-        return false;
-      }
-      if (Utils.canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), userIdentityId)) {
-        return true;
-      }
+    // The calendar is read first, and always: an event of a subscribed calendar
+    // (EXO-90278) is the feed's, and neither its creator nor its owner updates,
+    // moves or deletes it. The read is served by the calendar cache.
+    Calendar calendar = agendaCalendarService.getCalendarById(event.getCalendarId());
+    if (calendar == null || calendar.isDeleted() || calendar.isSubscription()) {
+      return false;
+    }
+    if (userIdentityId == event.getCreatorId()
+        && Utils.canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), userIdentityId)) {
+      // A creator who can still access the calendar
+      return true;
     }
     if (event.isAllowAttendeeToUpdate()
         && attendeeService.isEventAttendee(getEventIdOrParentId(event), userIdentityId)) {
       return true;
     }
-    if (calendar == null) {
-      calendar = agendaCalendarService.getCalendarById(event.getCalendarId());
-      if (calendar.isDeleted()) {
-        return false;
-      }
-    }
     return Utils.canEditCalendar(identityManager, spaceService, calendar.getOwnerId(), userIdentityId);
   }
 
   /**
-   * {@inheritDoc}
+   * {@inheritDoc} Never in a subscribed calendar (EXO-90278), whose events come
+   * from its feed alone.
    */
   @Override
   public boolean canCreateEvent(Calendar calendar, long userIdentityId) {
+    if (calendar.isSubscription()) {
+      return false;
+    }
     return Utils.canCreateEvent(identityManager, spaceService, calendar.getOwnerId(), userIdentityId);
   }
 
