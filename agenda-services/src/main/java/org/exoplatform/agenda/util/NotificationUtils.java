@@ -959,7 +959,20 @@ public class NotificationUtils {
 
   /**
    * Whether the {@code event.ics} file must be attached to the notification
-   * built for this recipient.
+   * built for this recipient, read from that recipient's own settings.
+   *
+   * <p>
+   * <b>This is the fallback, not the decision.</b> Since EXO-90247 the question
+   * is put to the add-on that would write the recipient's synced copy, through
+   * {@code AgendaRemoteCopyService} and its
+   * {@link org.exoplatform.agenda.plugin.RemoteEventCopyPlugin} — because
+   * predicting another repository's decision from settings agenda happens to be
+   * able to read is what let the two drift apart, in both directions at once:
+   * the add-on's seeding pass wrote a copy where this predicted none (the
+   * meeting twice), and later declined one where this predicted one (the
+   * meeting nowhere). What is left here is the answer for a deployment where
+   * there is no add-on to ask, and for a cancellation whose event is already
+   * gone, so no add-on can be asked about it.
    *
    * <p>
    * A recipient who keeps a CalDAV account connected with meeting copies on

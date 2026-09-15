@@ -15,6 +15,7 @@ import org.exoplatform.agenda.model.AgendaUserSettings;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.service.*;
 import org.exoplatform.agenda.util.EventIcsBuilder;
+import org.exoplatform.agenda.util.NotificationUtils;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.channel.template.AbstractTemplateBuilder;
@@ -43,6 +44,8 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
   private AgendaEventAttendeeService agendaEventAttendeeService;
 
   private AgendaUserSettingsService  agendaUserSettingsService;
+
+  private AgendaRemoteCopyService    agendaRemoteCopyService;
 
   private SpaceService               spaceService;
 
@@ -178,13 +181,16 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
 
       // The file is left out for a recipient who will hold a synced copy of
       // the same meeting: attaching it there is what makes the meeting appear
-      // twice in their calendar. The condition is a prediction and the
-      // reasoning behind it lives on shouldAttachIcsFile. Applied on every
-      // channel, not on mail alone: it is a fact about the recipient, not
-      // about the channel, and the mobile-push and web notifications never
-      // hand a file to a calendar application anyway — MessageInfo carries
-      // its attachments only into the mail Message.
-      if (shouldAttachIcsFile(identityId, agendaUserSettings)) {
+      // twice in their calendar. The question is put to the add-on that would
+      // write that copy, because it is the only party that knows — agenda
+      // predicting it from the recipient's settings is what let the two drift
+      // apart in both directions at once (EXO-90247, see
+      // AgendaRemoteCopyService). Applied on every channel, not on mail alone:
+      // it is a fact about the recipient, not about the channel, and the
+      // mobile-push and web notifications never hand a file to a calendar
+      // application anyway — MessageInfo carries its attachments only into the
+      // mail Message.
+      if (shouldAttachIcsFile(event, identityId, agendaUserSettings)) {
         Attachment attachment = new Attachment();
         byte[] icsFileBytes = generateIcsFile(notification.getValueOwnerParameter("eventId"),
                                          ownerId,
@@ -218,6 +224,46 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
     } finally {
       RequestLifeCycle.end();
     }
+  }
+
+  /**
+   * Whether this recipient's notification carries the {@code event.ics} file.
+   *
+   * <p>
+   * The decision itself lives in {@link AgendaRemoteCopyService}, which asks
+   * the add-on that would write the recipient's synced copy. This method exists
+   * only to survive that service being unresolvable — a container that has not
+   * finished starting, a stripped deployment — by falling back to the
+   * settings-derived prediction agenda made before the service existed. Falling
+   * back attaches the file in every case the prediction is unsure about, which
+   * is the direction that cannot lose an invitation.
+   *
+   * @param event the meeting the notification is about, null for a cancellation
+   *          whose event is already gone
+   * @param recipientIdentityId organization identity id of the recipient, 0 for
+   *          a guest
+   * @param recipientSettings agenda settings of that recipient, possibly null
+   * @return true when the file must be attached
+   */
+  private boolean shouldAttachIcsFile(Event event, long recipientIdentityId, AgendaUserSettings recipientSettings) {
+    AgendaRemoteCopyService remoteCopyService = getAgendaRemoteCopyService();
+    if (remoteCopyService == null) {
+      LOG.debug("The remote-copy service is not available; whether to attach event.ics is read from the recipient's settings");
+      return NotificationUtils.shouldAttachIcsFile(recipientIdentityId, recipientSettings);
+    }
+    return remoteCopyService.shouldAttachIcsFile(event, recipientIdentityId, recipientSettings);
+  }
+
+  /**
+   * The remote-copy service, resolved from the container on first use.
+   *
+   * @return the service, or null when the container holds none
+   */
+  private AgendaRemoteCopyService getAgendaRemoteCopyService() {
+    if (agendaRemoteCopyService == null) {
+      agendaRemoteCopyService = this.container.getComponentInstanceOfType(AgendaRemoteCopyService.class);
+    }
+    return agendaRemoteCopyService;
   }
 
   /**
