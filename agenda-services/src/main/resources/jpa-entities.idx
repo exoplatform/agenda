@@ -10,3 +10,5 @@ org.exoplatform.agenda.entity.EventReminderEntity
 org.exoplatform.agenda.entity.RemoteEventEntity
 org.exoplatform.agenda.entity.RemoteProviderEntity
 org.exoplatform.agenda.entity.CalendarLinkEntity
+org.exoplatform.agenda.entity.CalendarSubscriptionEntity
+org.exoplatform.agenda.entity.CalendarSubscriptionEventEntity

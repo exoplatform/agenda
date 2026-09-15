@@ -68,6 +68,9 @@ public class RestEntityBuilder {
                                                        calendar.getColor(),
                                                        calendar.getAcl());
     calendarEntity.setName(calendar.getName());
+    // Read-only for clients: toCalendar never copies it back, the stored row
+    // decides (EXO-90278)
+    calendarEntity.setSubscription(calendar.isSubscription());
     return calendarEntity;
   }
 

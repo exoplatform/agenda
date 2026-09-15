@@ -129,6 +129,12 @@
       away while the drawer is open (EXO-90239).
     -->
     <agenda-calendar-link-drawer />
+    <!--
+      Subscribing to a calendar link (EXO-90278), once for the whole application
+      for the same reason: the left panel's menu and the subscribed rows both
+      open it through one root event.
+    -->
+    <agenda-calendar-subscription-drawer />
   </v-app>
 </template>
 <script>
@@ -177,6 +183,9 @@ export default {
     failedConnectors: [],
     hiddenRemoteCalendarIds: [],
     hiddenPersonalCalendarIds: [],
+    // The subscribed calendars (EXO-90278) the user hid, apart from the personal
+    // ones: the two lists persist and change independently
+    hiddenSubscribedCalendarIds: [],
     displayedEvent: [],
     settings: {
       agendaDefaultView: 'week',
@@ -195,6 +204,16 @@ export default {
   computed: {
     spaceContextId() {
       return !this.standalone && eXo.env.portal.spaceId || null;
+    },
+    /**
+     * Every calendar of the user's own the grid hides: the personal ones and the
+     * subscribed ones (EXO-90278). Both are owned by the user, so the same server
+     * exclusion and the same local filter serve them.
+     *
+     * @returns {Array} calendar ids
+     */
+    hiddenOwnCalendarIds() {
+      return this.hiddenPersonalCalendarIds.concat(this.hiddenSubscribedCalendarIds);
     },
     /**
      * The accounts the calendar could not read, named as the user knows them.
@@ -460,6 +479,17 @@ export default {
         this.retrieveEvents();
       }
     },
+    /**
+     * Reflects a subscribed-calendar visibility change (EXO-90278) the way a
+     * personal one is reflected.
+     * @returns {void}
+     */
+    hiddenSubscribedCalendarIds() {
+      this.updateDisplayedEvents();
+      if (this.initialized) {
+        this.retrieveEvents();
+      }
+    },
   },
   created() {
     // Ensure that localStorage doesn't have a deleted event
@@ -485,6 +515,8 @@ export default {
     this.$root.$on('agenda-remote-calendars-changed', this.changeHiddenRemoteCalendars);
     this.$root.$on('agenda-personal-calendars-visibility-changed', this.changeHiddenPersonalCalendars);
     this.initHiddenPersonalCalendars();
+    this.$root.$on('agenda-subscribed-calendars-visibility-changed', this.changeHiddenSubscribedCalendars);
+    this.initHiddenSubscribedCalendars();
     this.$root.$on('agenda-settings-refresh', this.initSettings);
     this.$root.$on('agenda-event-change-owner', this.refreshProviders);
     this.initSettings();
@@ -539,7 +571,7 @@ export default {
       const localEvents = this.events.filter(event => !event.calendar
           || !event.calendar.owner
           || Number(event.calendar.owner.id) !== userIdentityId
-          || !this.hiddenPersonalCalendarIds.includes(Number(event.calendar.id)));
+          || !this.hiddenOwnCalendarIds.includes(Number(event.calendar.id)));
       if (this.remoteEvents.length) {
         // Avoid to have same event from remote and local store (pushed events from local store)
         const filtered = this.filterRemoteEvents(this.events, this.remoteEvents)
@@ -602,7 +634,7 @@ export default {
         return;
       }
       const responseTypes = this.spaceContextId && this.eventType === 'allEvents' ? null : this.eventType === 'declinedEvent' ? ['DECLINED']:['ACCEPTED', 'NEEDS_ACTION', 'TENTATIVE'];
-      return this.$eventService.getEvents(this.searchTerm, this.effectiveOwnerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, true), this.$agendaUtils.toRFC3339(this.period.end), this.limit, responseTypes, 'attendees,conferences', this.hiddenPersonalCalendarIds)
+      return this.$eventService.getEvents(this.searchTerm, this.effectiveOwnerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, true), this.$agendaUtils.toRFC3339(this.period.end), this.limit, responseTypes, 'attendees,conferences', this.hiddenOwnCalendarIds)
         .then(data => {
           if (requestId !== this.eventsRequestId) {
             // A newer retrieval was started since: its response is the one
@@ -786,6 +818,31 @@ export default {
      */
     changeHiddenPersonalCalendars(hiddenPersonalCalendarIds) {
       this.hiddenPersonalCalendarIds = (hiddenPersonalCalendarIds || []).map(Number);
+    },
+    /**
+     * Applies a new subscribed-calendar visibility selection coming from the
+     * Subscribed section of the left panel (EXO-90278).
+     *
+     * @param {Array} hiddenSubscribedCalendarIds identifiers of the subscribed
+     *          calendars whose events must be hidden
+     * @returns {void}
+     */
+    changeHiddenSubscribedCalendars(hiddenSubscribedCalendarIds) {
+      this.hiddenSubscribedCalendarIds = (hiddenSubscribedCalendarIds || []).map(Number);
+    },
+    /**
+     * Restores the subscribed-calendar visibility persisted in the browser
+     * storage by the Subscribed section (EXO-90278).
+     * @returns {void}
+     */
+    initHiddenSubscribedCalendars() {
+      try {
+        const storedValue = localStorage.getItem(`agenda.hiddenSubscribedCalendars.${eXo.env.portal.userIdentityId}`);
+        const hiddenIds = storedValue && JSON.parse(storedValue) || [];
+        this.hiddenSubscribedCalendarIds = Array.isArray(hiddenIds) ? hiddenIds.map(Number) : [];
+      } catch (e) {
+        this.hiddenSubscribedCalendarIds = [];
+      }
     },
     /**
      * Restores the personal-calendar visibility persisted in the browser

@@ -103,4 +103,16 @@ public interface AgendaCalendarLinkService {
    */
   String getCalendarFeed(String token) throws ObjectNotFoundException;
 
+  /**
+   * The calendar a token publishes, decided exactly as {@link #getCalendarFeed}
+   * decides whether to answer: a token that opens nothing there opens nothing
+   * here. Used when a user subscribes to a link of this very eXo (EXO-90278),
+   * to recognise a calendar they can already see.
+   *
+   * @param token the token presented in the URL
+   * @return technical identifier of the published calendar
+   * @throws ObjectNotFoundException when the token opens nothing
+   */
+  long getFeedCalendarId(String token) throws ObjectNotFoundException;
+
 }
