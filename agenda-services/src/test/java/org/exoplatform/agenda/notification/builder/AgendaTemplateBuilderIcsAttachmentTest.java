@@ -22,12 +22,15 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
 
 import org.junit.Assert;
 import org.junit.Test;
+import org.mockito.Mockito;
+import org.springframework.context.ApplicationContext;
 
 import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.model.AgendaConnectorAccount;
@@ -35,6 +38,8 @@ import org.exoplatform.agenda.model.AgendaUserSettings;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.notification.plugin.AgendaNotificationPlugin;
 import org.exoplatform.agenda.notification.provider.MailTemplateProvider;
+import org.exoplatform.agenda.plugin.RemoteEventCopyPlugin;
+import org.exoplatform.agenda.service.AgendaRemoteCopyService;
 import org.exoplatform.agenda.service.BaseAgendaEventTest;
 import org.exoplatform.agenda.util.NotificationUtils;
 import org.exoplatform.agenda.util.Utils;
@@ -133,6 +138,90 @@ public class AgendaTemplateBuilderIcsAttachmentTest extends BaseAgendaEventTest 
 
     Assert.assertNotNull(messageInfo);
     assertHasIcs(messageInfo);
+  }
+
+  /**
+   * <b>The Finding-2 wiring, end to end.</b> The recipient's settings predict a
+   * copy — connected to CalDAV, copies on, the global switch on — and the
+   * add-on that would write it says it is writing none. The mail must carry the
+   * file: it is the recipient's only remaining way of getting the meeting.
+   *
+   * <p>
+   * This is the case the first attempt at EXO-90247 shipped and the rig
+   * measured as total silence, and it is pinned here rather than only on the
+   * service because the service being right proves nothing about the mail if
+   * the builder still reads the old prediction. It runs the real builder, over
+   * a real event, against real persisted settings, with the add-on's answer
+   * standing in the container the builder resolves from.
+   *
+   * @throws Exception when the notification cannot be built
+   */
+  @Test
+  public void testIcsKeptWhenTheAddonDeclinesTheCopyTheSettingsPredict() throws Exception {
+    connectCaldav(testuser2Identity.getId(), true, true);
+
+    MessageInfo messageInfo = withRemoteCopyAddon(false, () -> buildMailFor("testuser2"));
+
+    Assert.assertNotNull(messageInfo);
+    assertHasIcs(messageInfo);
+  }
+
+  /**
+   * The other direction of the same wiring: the settings predict no copy — the
+   * global switch is off — and the add-on says it is writing one anyway, which
+   * is what its server-side seeding pass really does. The file goes, because
+   * attaching it there is what put the meeting twice in the recipient's
+   * calendar.
+   *
+   * @throws Exception when the notification cannot be built
+   */
+  @Test
+  public void testNoIcsWhenTheAddonWritesACopyTheSettingsDoNotPredict() throws Exception {
+    connectCaldav(testuser2Identity.getId(), false, true);
+
+    MessageInfo messageInfo = withRemoteCopyAddon(true, () -> buildMailFor("testuser2"));
+
+    Assert.assertNotNull("the message must still be built, only its attachment goes", messageInfo);
+    Assert.assertNull("a copy the add-on says it writes makes the file redundant", messageInfo.getAttachment());
+  }
+
+  /**
+   * Runs a block with one add-on registered to answer for the copies it writes,
+   * and takes it back out afterwards.
+   *
+   * <p>
+   * The service is registered in the container the builder resolves its
+   * collaborators from, which is the whole point: it pins that the builder goes
+   * through it rather than reading the settings itself.
+   *
+   * @param writesCopy what the add-on answers for every recipient
+   * @param block what to run while it is registered
+   * @return whatever the block returned
+   * @throws Exception whatever the block threw
+   */
+  private MessageInfo withRemoteCopyAddon(boolean writesCopy, MessageBuilder block) throws Exception {
+    RemoteEventCopyPlugin plugin = (event, recipientIdentityId) -> writesCopy;
+    ApplicationContext applicationContext = Mockito.mock(ApplicationContext.class);
+    Mockito.when(applicationContext.getBeansOfType(RemoteEventCopyPlugin.class))
+           .thenReturn(Collections.singletonMap("addon", plugin));
+    container.registerComponentInstance(AgendaRemoteCopyService.class, new AgendaRemoteCopyService(applicationContext));
+    try {
+      return block.build();
+    } finally {
+      container.unregisterComponent(AgendaRemoteCopyService.class);
+    }
+  }
+
+  /** What {@link #withRemoteCopyAddon(boolean, MessageBuilder)} runs. */
+  @FunctionalInterface
+  private interface MessageBuilder {
+    /**
+     * Builds the message under test.
+     *
+     * @return the message the mail channel would send
+     * @throws Exception when it cannot be built
+     */
+    MessageInfo build() throws Exception;
   }
 
   /**
