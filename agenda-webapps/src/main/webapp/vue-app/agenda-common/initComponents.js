@@ -22,6 +22,7 @@ import AgendaFilterCalendarItem from './components/filter/AgendaFilterCalendarIt
 import AgendaFilterCalendarSearch from './components/filter/AgendaFilterCalendarSearch.vue';
 import AgendaPersonalCalendarList from './components/filter/AgendaPersonalCalendarList.vue';
 import AgendaPersonalCalendarDrawer from './components/filter/AgendaPersonalCalendarDrawer.vue';
+import AgendaCalendarLinkDrawer from './components/filter/AgendaCalendarLinkDrawer.vue';
 import AgendaEventFormDestination from './components/event/form/AgendaEventFormDestination.vue';
 
 import AgendaPendingInvitationDrawer from './components/pending-date-polls/AgendaPendingInvitationDrawer.vue';
@@ -111,6 +112,7 @@ const components = {
   'agenda-filter-calendar-search': AgendaFilterCalendarSearch,
   'agenda-personal-calendar-list': AgendaPersonalCalendarList,
   'agenda-personal-calendar-drawer': AgendaPersonalCalendarDrawer,
+  'agenda-calendar-link-drawer': AgendaCalendarLinkDrawer,
   'agenda-event-form-destination': AgendaEventFormDestination,
   'agenda-create-event-button': AgendaCreateEventButton,
   'agenda-calendar-filter-button': AgendaCalendarFilterButton,
@@ -189,6 +191,7 @@ for (const key in components) {
 
 import * as eventService from './js/EventService.js';
 import * as calendarService from './js/CalendarService.js';
+import * as calendarLinkService from './js/CalendarLinkService.js';
 import * as settingsService from './js/SettingsService.js';
 import * as availabilityService from './js/AvailabilityService.js';
 import * as agendaUtils from './js/AgendaUtils.js';
@@ -202,6 +205,11 @@ const userTimeZoneId = agendaUtils.USER_TIMEZONE_ID;
 if (!Vue.prototype.$calendarService) {
   window.Object.defineProperty(Vue.prototype, '$calendarService', {
     value: calendarService,
+  });
+}
+if (!Vue.prototype.$calendarLinkService) {
+  window.Object.defineProperty(Vue.prototype, '$calendarLinkService', {
+    value: calendarLinkService,
   });
 }
 if (!Vue.prototype.$eventService) {

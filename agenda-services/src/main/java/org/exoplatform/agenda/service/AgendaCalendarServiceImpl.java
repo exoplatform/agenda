@@ -167,7 +167,9 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
         boolean hasRedactor = Utils.canInviteeEdit(identityManager,
                                                    spaceService,
                                                    ownerId);
-        calendar.setAcl(new CalendarPermission(canCreateEvent, canEditCalendar, hasRedactor));
+        CalendarPermission acl = new CalendarPermission(canCreateEvent, canEditCalendar, hasRedactor);
+        acl.setCanPublish(Utils.canPublishCalendar(identityManager, spaceService, ownerId, Long.parseLong(userIdentity.getId())));
+        calendar.setAcl(acl);
         resolveCalendarTitle(calendar);
       }
     }
@@ -237,6 +239,8 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     boolean canEditCalendar = Utils.canEditCalendar(identityManager, spaceService, ownerId, userIdentityId);
     boolean canCreateEvent = Utils.canCreateEvent(identityManager, spaceService, ownerId, userIdentityId);
     boolean canInviteeEdit = Utils.canInviteeEdit(identityManager, spaceService, ownerId);
+    CalendarPermission acl = new CalendarPermission(canCreateEvent, canEditCalendar, canInviteeEdit);
+    acl.setCanPublish(Utils.canPublishCalendar(identityManager, spaceService, ownerId, userIdentityId));
     return new Calendar(0,
                         ownerId,
                         true,
@@ -245,7 +249,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
                         null,
                         null,
                         getDefaultColor(ownerId),
-                        new CalendarPermission(canCreateEvent, canEditCalendar, canInviteeEdit));
+                        acl);
   }
 
   /**

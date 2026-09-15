@@ -105,8 +105,11 @@
               v-if="canHide(calendar)"
               class="my-0 ms-2 flex-grow-0 agenda-calendar-actions">
               <v-menu
+                :value="isRowMenuOpen(`${group.name}:${calendar.id}`)"
+                content-class="agendaCalendarRowMenu"
                 offset-y
-                left>
+                left
+                @input="toggleRowMenu(`${group.name}:${calendar.id}`, $event)">
                 <template #activator="{ on, attrs }">
                   <v-btn
                     v-bind="attrs"
@@ -194,6 +197,8 @@
 </template>
 
 <script>
+import calendarRowMenuMixin from '../../js/CalendarRowMenuMixin.js';
+
 /**
  * Label key of the section that gathers the calendars shared with the user.
  * A section is keyed and titled by its name, the provider sections by the
@@ -202,6 +207,7 @@
 const SHARED_WITH_ME_SECTION = 'agenda.leftPanel.sharedWithMe';
 
 export default {
+  mixins: [calendarRowMenuMixin],
   props: {
     connectors: {
       type: Array,
