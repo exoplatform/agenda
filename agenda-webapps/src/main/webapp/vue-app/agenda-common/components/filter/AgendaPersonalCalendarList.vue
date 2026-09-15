@@ -91,6 +91,12 @@
         <v-list-item-action
           v-if="calendar.id"
           class="my-0 ms-2 agenda-calendar-actions">
+          <!--
+            Asked again whenever the menu opens: a calendar just created is
+            given its remote counterpart by an asynchronous listener after
+            agenda has answered, so the refresh its creation emits can come too
+            early for a connector to offer anything on it (EXO-90253).
+          -->
           <v-menu
             :value="isRowMenuOpen(calendar.id)"
             content-class="agendaCalendarRowMenu"
@@ -103,13 +109,26 @@
                 v-on="on"
                 :title="$t('agenda.calendar.actions')"
                 icon
-                x-small>
+                x-small
+                @click="refreshCalendarMenu()">
                 <v-icon size="14">fa-ellipsis-v</v-icon>
               </v-btn>
             </template>
             <v-list dense class="pa-0">
               <v-list-item @click="editCalendar(calendar)">
                 <v-list-item-title>{{ $t('agenda.calendar.edit') }}</v-list-item-title>
+              </v-list-item>
+              <!--
+                Whatever a connector adds for this calendar — the CalDAV
+                add-on's "Share" (EXO-90253). Agenda names none of them: the
+                connector answers its label already translated, and runs its
+                own action. A connector declaring nothing adds no row.
+              -->
+              <v-list-item
+                v-for="action in actionsOf(calendar)"
+                :key="action.id"
+                @click="runConnectorAction(action, calendar)">
+                <v-list-item-title>{{ action.label }}</v-list-item-title>
               </v-list-item>
               <!--
                 Publishing (EXO-90252): one entry naming the calendar's state and opening
@@ -193,6 +212,9 @@ export default {
     loading: false,
     calendarToDelete: null,
     connectorWarning: '',
+    connectorActions: {},
+    connectorActionsAsked: 0,
+    problemsAsked: 0,
   }),
   computed: {
     /**
@@ -262,6 +284,17 @@ export default {
     // inventing another one, or worse, retrying on a timer.
     document.addEventListener('agenda-connectors-refresh', this.retrieveProblems);
     this.retrieveProblems();
+    // What connectors add to a calendar's menu, asked at exactly the moments
+    // its problems are, and for the same reasons: a connector registers after
+    // this component is created; a drawer in another Vue app can only signal
+    // on the document; and the general refresh follows every synchronisation,
+    // which is what binds a new calendar to the collection it can be shared
+    // through.
+    this.$root.$on('agenda-refresh-personal-calendars', this.retrieveConnectorActions);
+    this.$root.$on('agenda-refresh', this.retrieveConnectorActions);
+    document.addEventListener('agenda-refresh-personal-calendars', this.retrieveConnectorActions);
+    document.addEventListener('agenda-connectors-refresh', this.retrieveConnectorActions);
+    this.retrieveConnectorActions();
     this.$root.$on('agenda-refresh-personal-calendars', this.retrieveCalendars);
     // Also on the document, so an add-on's drawer living in another Vue app —
     // the settings page has its own — can say that the set of personal
@@ -276,6 +309,10 @@ export default {
     this.$root.$off('agenda-refresh', this.retrieveProblems);
     document.removeEventListener('agenda-refresh-personal-calendars', this.retrieveProblems);
     document.removeEventListener('agenda-connectors-refresh', this.retrieveProblems);
+    this.$root.$off('agenda-refresh-personal-calendars', this.retrieveConnectorActions);
+    this.$root.$off('agenda-refresh', this.retrieveConnectorActions);
+    document.removeEventListener('agenda-refresh-personal-calendars', this.retrieveConnectorActions);
+    document.removeEventListener('agenda-connectors-refresh', this.retrieveConnectorActions);
   },
   methods: {
     /**
@@ -285,9 +322,14 @@ export default {
      * failing, and why, is the connector's own business — agenda only knows
      * that a row should carry a warning and what sentence to show on it.
      *
+     * Only the latest question's answer is kept: the list asks again on every
+     * signal and whenever a calendar's menu opens, and an older, slower answer
+     * must not replace a newer one.
+     *
      * @returns {Promise} resolves once every connector has answered
      */
     retrieveProblems() {
+      const asked = ++this.problemsAsked;
       const connectors = (extensionRegistry.loadExtensions('agenda', 'connectors') || [])
         .filter(connector => connector && connector.connected && typeof connector.calendarProblems === 'function');
       if (!connectors.length) {
@@ -296,7 +338,100 @@ export default {
       }
       return Promise.all(connectors.map(connector => Promise.resolve(connector.calendarProblems())
         .catch(() => ({}))))
-        .then(answers => this.problems = Object.assign({}, ...answers));
+        .then(answers => {
+          if (asked === this.problemsAsked) {
+            this.problems = Object.assign({}, ...answers);
+          }
+        });
+    },
+    /**
+     * What each connector adds to the menu of one of this user's calendars.
+     *
+     * Asked of the connectors, like their problems: which calendar a connector
+     * can act on, and what the action is called, are its own business. Agenda
+     * keeps only an id, the label as given, and which connector offered it, so
+     * a click goes back to that connector. Two connectors offering the same
+     * action id on one calendar — the same add-on registered once per server —
+     * give one row.
+     *
+     * Not gated on the connector being marked connected. The connector
+     * component sets that flag once the user's settings have loaded, and
+     * nothing tells this list when that happens, so a connector asked too early
+     * would not be asked again. Which calendars an action applies to is the
+     * connector's to answer, and one with no account answers none.
+     *
+     * @returns {Promise} resolves once every connector has answered
+     */
+    retrieveConnectorActions() {
+      // Only the latest question's answer is kept: an older, slower answer
+      // arriving after a newer one would bring back a menu from before.
+      const asked = ++this.connectorActionsAsked;
+      const connectors = this.connectors()
+        .filter(connector => connector
+          && typeof connector.calendarActions === 'function'
+          && typeof connector.runCalendarAction === 'function');
+      if (!connectors.length) {
+        this.connectorActions = {};
+        return Promise.resolve();
+      }
+      return Promise.all(connectors.map(connector => Promise.resolve(connector.calendarActions())
+        .then(answer => ({connector: connector.name, answer: answer || {}}))
+        .catch(() => ({connector: connector.name, answer: {}}))))
+        .then(answers => {
+          const actions = {};
+          answers.forEach(({connector, answer}) => Object.keys(answer).forEach(calendarId => {
+            (answer[calendarId] || []).filter(action => action && action.id && action.label).forEach(action => {
+              const row = actions[calendarId] || (actions[calendarId] = []);
+              if (!row.some(known => known.id === action.id)) {
+                row.push({id: action.id, label: action.label, connector});
+              }
+            });
+          }));
+          if (asked === this.connectorActionsAsked) {
+            this.connectorActions = actions;
+          }
+        });
+    },
+    /**
+     * Asks the connectors again about actions and problems whenever the
+     * button of a calendar's menu is clicked: a calendar created during the
+     * session is bound to its CalDAV collection asynchronously, after agenda's
+     * own refresh signal, so its "Share" action may only exist by the time its
+     * menu is opened. Bound to the activator button's click rather than the
+     * menu's input so the menu's open state stays wholly the list's own; a
+     * click that closes the menu asks once more, which costs one request.
+     *
+     * @returns {Promise} resolves once both questions are answered
+     */
+    refreshCalendarMenu() {
+      return Promise.all([this.retrieveConnectorActions(), this.retrieveProblems()]);
+    },
+    /**
+     * The connector actions offered on one calendar.
+     *
+     * @param {Object} calendar the row being drawn
+     * @returns {Array} the actions, possibly empty
+     */
+    actionsOf(calendar) {
+      return calendar && this.connectorActions[calendar.id] || [];
+    },
+    /**
+     * Hands a menu action back to the connector that offered it, with the
+     * calendar as this list names it — the unnamed default calendar is "My
+     * calendar" here, not its owner's name.
+     *
+     * @param {Object} action the action as retrieveConnectorActions kept it
+     * @param {Object} calendar the calendar the menu belongs to
+     * @returns {Promise} resolves once the connector has taken it
+     */
+    runConnectorAction(action, calendar) {
+      const connector = this.connectors().find(one => one && one.name === action.connector);
+      if (!connector || typeof connector.runCalendarAction !== 'function') {
+        return Promise.resolve();
+      }
+      return Promise.resolve(connector.runCalendarAction(action.id,
+        Object.assign({}, calendar, {name: this.calendarLabel(calendar)})))
+        .catch(error => console.error(`cannot run ${action.id} on calendar ${calendar.id}`, error));
     },
     /**
      * @param {Object} calendar the row being drawn
