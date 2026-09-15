@@ -472,4 +472,134 @@
     </rollback>
   </changeSet>
 
+  <!--
+    EXO-90278: subscribing to a calendar link (iCal / webcal URL).
+    A subscription fills a personal calendar of its own, flagged IS_SUBSCRIPTION:
+    read-only, left out of the owner listings (and so of every connector binding
+    calendars to a remote account), filled by refreshes of the remote feed.
+  -->
+  <changeSet author="agenda" id="1.0.0-39">
+    <addColumn tableName="EXO_AGENDA_CALENDAR">
+      <column name="IS_SUBSCRIPTION" type="BOOLEAN" defaultValueBoolean="false">
+        <constraints nullable="false" />
+      </column>
+    </addColumn>
+    <rollback>
+      <dropColumn tableName="EXO_AGENDA_CALENDAR" columnName="IS_SUBSCRIPTION" />
+    </rollback>
+  </changeSet>
+
+  <!--
+    One row per subscription: the calendar it fills (unique), its owner, the URL
+    encrypted by the platform codec (feed URLs often embed a secret), URL_KEY =
+    SHA-256 of owner and normalized URL (unique: a user subscribes once to a URL),
+    the conditional-GET validators, the refresh schedule, the last outcome, and
+    the cluster claim of the refresh job.
+    Both unique keys are declared inside createTable: the mysql modifySql below is
+    appended to EVERY statement the changeset generates (EXO-90252).
+  -->
+  <changeSet author="agenda" id="1.0.0-40">
+    <createTable tableName="EXO_AGENDA_SUBSCRIPTION">
+      <column name="SUBSCRIPTION_ID" type="BIGINT" autoIncrement="${autoIncrement}" startWith="1">
+        <constraints nullable="false" primaryKey="true" primaryKeyName="PK_AGENDA_SUBSCRIPTION" />
+      </column>
+      <column name="CALENDAR_ID" type="BIGINT">
+        <constraints nullable="false" unique="true" uniqueConstraintName="UK_AGENDA_SUBSCRIPTION_CAL" />
+      </column>
+      <column name="USER_IDENTITY_ID" type="BIGINT">
+        <constraints nullable="false" />
+      </column>
+      <column name="URL_ENCRYPTED" type="NVARCHAR(4000)">
+        <constraints nullable="false" />
+      </column>
+      <column name="URL_KEY" type="NVARCHAR(64)">
+        <constraints nullable="false" unique="true" uniqueConstraintName="UK_AGENDA_SUBSCRIPTION_KEY" />
+      </column>
+      <column name="ETAG" type="NVARCHAR(512)" />
+      <column name="LAST_MODIFIED" type="NVARCHAR(128)" />
+      <column name="CONTENT_HASH" type="NVARCHAR(64)" />
+      <column name="REFRESH_MINUTES" type="INT" />
+      <column name="LAST_SUCCESS_DATE" type="TIMESTAMP" />
+      <column name="LAST_ATTEMPT_DATE" type="TIMESTAMP" />
+      <column name="LAST_ERROR" type="NVARCHAR(128)" />
+      <column name="TRUNCATED" type="BOOLEAN" defaultValueBoolean="false">
+        <constraints nullable="false" />
+      </column>
+      <column name="NEXT_REFRESH_DATE" type="TIMESTAMP">
+        <constraints nullable="false" />
+      </column>
+      <column name="CLAIMED_BY" type="NVARCHAR(128)" />
+      <column name="CLAIMED_DATE" type="TIMESTAMP" />
+      <column name="CREATED_DATE" type="TIMESTAMP">
+        <constraints nullable="false" />
+      </column>
+    </createTable>
+    <rollback>
+      <dropTable tableName="EXO_AGENDA_SUBSCRIPTION" />
+    </rollback>
+    <modifySql dbms="mysql">
+      <append value=" ENGINE=INNODB CHARSET=UTF8 COLLATE utf8_general_ci" />
+    </modifySql>
+  </changeSet>
+
+  <!--
+    One row per imported occurrence: which subscription, which agenda event, its
+    stable identity EVENT_KEY = SHA-256 of subscription, UID and recurrence
+    instant (unique, so a refresh updates rather than duplicates), and the hash of
+    what was imported (an unchanged occurrence is not rewritten).
+    No foreign keys, as for the calendar link: rows are removed by the service.
+  -->
+  <changeSet author="agenda" id="1.0.0-41">
+    <createTable tableName="EXO_AGENDA_SUBSCRIPTION_EVENT">
+      <column name="SUBSCRIPTION_EVENT_ID" type="BIGINT" autoIncrement="${autoIncrement}" startWith="1">
+        <constraints nullable="false" primaryKey="true" primaryKeyName="PK_AGENDA_SUB_EVENT" />
+      </column>
+      <column name="SUBSCRIPTION_ID" type="BIGINT">
+        <constraints nullable="false" />
+      </column>
+      <column name="EVENT_ID" type="BIGINT">
+        <constraints nullable="false" unique="true" uniqueConstraintName="UK_AGENDA_SUB_EVENT_EVT" />
+      </column>
+      <column name="EVENT_KEY" type="NVARCHAR(64)">
+        <constraints nullable="false" unique="true" uniqueConstraintName="UK_AGENDA_SUB_EVENT_KEY" />
+      </column>
+      <column name="CONTENT_HASH" type="NVARCHAR(64)">
+        <constraints nullable="false" />
+      </column>
+    </createTable>
+    <rollback>
+      <dropTable tableName="EXO_AGENDA_SUBSCRIPTION_EVENT" />
+    </rollback>
+    <modifySql dbms="mysql">
+      <append value=" ENGINE=INNODB CHARSET=UTF8 COLLATE utf8_general_ci" />
+    </modifySql>
+  </changeSet>
+
+  <!-- Indexes in a changeset of their own: no modifySql may reach a CREATE INDEX. -->
+  <changeSet author="agenda" id="1.0.0-42">
+    <createIndex tableName="EXO_AGENDA_SUBSCRIPTION_EVENT" indexName="IDX_AGENDA_SUB_EVENT_SUB">
+      <column name="SUBSCRIPTION_ID" />
+    </createIndex>
+    <createIndex tableName="EXO_AGENDA_SUBSCRIPTION" indexName="IDX_AGENDA_SUBSCRIPTION_DUE">
+      <column name="NEXT_REFRESH_DATE" />
+    </createIndex>
+    <createIndex tableName="EXO_AGENDA_SUBSCRIPTION" indexName="IDX_AGENDA_SUBSCRIPTION_USER">
+      <column name="USER_IDENTITY_ID" />
+    </createIndex>
+    <rollback>
+      <dropIndex tableName="EXO_AGENDA_SUBSCRIPTION" indexName="IDX_AGENDA_SUBSCRIPTION_USER" />
+      <dropIndex tableName="EXO_AGENDA_SUBSCRIPTION" indexName="IDX_AGENDA_SUBSCRIPTION_DUE" />
+      <dropIndex tableName="EXO_AGENDA_SUBSCRIPTION_EVENT" indexName="IDX_AGENDA_SUB_EVENT_SUB" />
+    </rollback>
+  </changeSet>
+
+  <changeSet author="agenda" id="1.0.0-43" dbms="oracle,postgresql,hsqldb">
+    <createSequence sequenceName="SEQ_AGENDA_SUBSCRIPTION_ID" startValue="1" />
+    <createSequence sequenceName="SEQ_AGENDA_SUBSCRIPTION_EVT_ID" startValue="1" />
+    <rollback>
+      <dropSequence sequenceName="SEQ_AGENDA_SUBSCRIPTION_EVT_ID" />
+      <dropSequence sequenceName="SEQ_AGENDA_SUBSCRIPTION_ID" />
+    </rollback>
+  </changeSet>
+
 </databaseChangeLog>

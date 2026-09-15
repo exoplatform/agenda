@@ -33,6 +33,8 @@
     <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
     <class>org.exoplatform.agenda.entity.CalendarLinkEntity</class>
     <class>org.exoplatform.agenda.entity.CalendarEntity</class>
+    <class>org.exoplatform.agenda.entity.CalendarSubscriptionEntity</class>
+    <class>org.exoplatform.agenda.entity.CalendarSubscriptionEventEntity</class>
     <exclude-unlisted-classes>true</exclude-unlisted-classes>
     <properties>
       <property name="jakarta.persistence.jdbc.driver" value="org.hsqldb.jdbc.JDBCDriver"/>
