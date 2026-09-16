@@ -2166,6 +2166,39 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     event = agendaEventService.getEventById(eventId);
     assertEquals(fieldValue, event.getAvailability().name());
 
+    // EXO-90322: the same walk for the visibility, because this is the one path
+    // that can un-mask a private event — a blank value resets it to DEFAULT —
+    // and because the modification set is what decides whether a connector
+    // rewrites every attendee's synchronised copy
+    fieldName = "visibility";
+    fieldValue = EventVisibility.PRIVATE.name();
+    agendaEventService.updateEventFields(eventId,
+                                         getFields(fieldName, fieldValue),
+                                         true,
+                                         true,
+                                         Long.parseLong(testuser1Identity.getId()));
+    eventModification = eventUpdateReference.get();
+    assertNotNull(eventModification);
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.UPDATED));
+    assertTrue(eventModification.hasModification(AgendaEventModificationType.VISIBILITY_UPDATED));
+    assertEquals("Modification types are more than expected : " + eventModification.getModificationTypes(),
+                 2,
+                 eventModification.getModificationTypes().size());
+
+    event = agendaEventService.getEventById(eventId);
+    assertEquals(fieldValue, event.getVisibility().name());
+
+    fieldValue = "";
+    agendaEventService.updateEventFields(eventId,
+                                         getFields(fieldName, fieldValue),
+                                         true,
+                                         true,
+                                         Long.parseLong(testuser1Identity.getId()));
+    event = agendaEventService.getEventById(eventId);
+    assertEquals("a blank value resets the visibility to DEFAULT, which publishes in full",
+                 EventVisibility.DEFAULT,
+                 event.getVisibility());
+
     fieldName = "status";
     fieldValue = EventStatus.TENTATIVE.name();
     agendaEventService.updateEventFields(eventId,
