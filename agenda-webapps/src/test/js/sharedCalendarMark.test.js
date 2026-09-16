@@ -30,6 +30,16 @@ import AgendaPersonalCalendarList from '../../main/webapp/vue-app/agenda-common/
  * Counts come from the connectors, are re-asked on the four signals the
  * problems and the menu entries are, and a slower older answer never replaces a
  * newer one.
+ *
+ * <p>One limit of this mount, so nobody reads more into it than it shows:
+ * `Vue.config.ignoredElements = [/^v-/]` renders every Vuetify component as an
+ * unknown DOM element, so the click assertions exercise a NATIVE listener on a
+ * plain element, not `VListItemAction`'s own. They hold today — Vuetify 2's
+ * `VListItemAction` is functional and returns `h('div', data, children)`, so
+ * `data.on` does become native listeners — but this suite would stay green if
+ * that stopped being true, and `openShare` is the only interactive affordance
+ * the feature adds. What is pinned here is the component's logic, not the
+ * binding.</p>
  */
 describe('the owner sees which of their calendars are shared', () => {
 
