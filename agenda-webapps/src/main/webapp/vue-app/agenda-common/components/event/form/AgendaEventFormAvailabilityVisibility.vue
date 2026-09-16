@@ -63,15 +63,22 @@
       would be unreachable.
 
       KNOWN BOUND, written down rather than discovered later: helpAsText is set
-      by the mobile form, and which form renders is decided by $root.isMobile,
-      which is a VIEWPORT WIDTH test (agenda/main.js) and not a hover test. So
-      a touch device wider than sm — a tablet in landscape, a touch laptop —
-      gets the full form, and there the help is behind a hover again. The
-      property that actually matters is "@media (hover: none)". BusyCoverage
-      sidesteps it by rendering its report unconditionally, which is not free
-      here: this sentence is long enough to be noise under an already dense
-      form. Closing it on hover rather than on width, or accepting the
-      residual, is the PO/designer's call and is recorded with EXO-90327.
+      by the mobile form, and which form renders is decided by $root.isMobile —
+      which is defined once per app root, in agenda/main.js and again in
+      agenda-timeline/main.js (the event dialog is mounted under both), and is
+      a VIEWPORT WIDTH test in both, with no touch or hover input. So a touch
+      device wider than sm — a tablet in landscape, a touch laptop — gets the
+      full form, and there the help is behind a hover again. The property that
+      actually matters is "@media (hover: none)".
+
+      BusyCoverage is not a drop-in precedent, but not for the reason one might
+      assume: its report is body text AND gated — the root carries v-if=
+      "visible" and each line its own guard, so it appears only when somebody
+      could not be checked. That is what makes body text cheap there and not
+      here: this help sentence has no such gate and would sit under an already
+      dense form every time. Closing it on hover rather than on width, or
+      accepting the residual, is the PO/designer's call and is recorded with
+      EXO-90327.
     -->
       <v-tooltip
         v-if="!helpAsText"
