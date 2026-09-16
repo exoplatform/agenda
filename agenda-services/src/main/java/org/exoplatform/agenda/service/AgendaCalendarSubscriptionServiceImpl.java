@@ -42,6 +42,7 @@ import org.springframework.stereotype.Service;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.constant.EventAvailability;
+import org.exoplatform.agenda.constant.EventVisibility;
 import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.CalendarSubscription;
@@ -787,6 +788,12 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
     // attends, and someone else's calendar, a holiday list or a team feed is not
     // the user's own commitment (PO decision to revisit)
     event.setAvailability(EventAvailability.FREE);
+    // Stated rather than left to the service: this path writes through the
+    // storage directly, so nothing defaults it. An imported occurrence of
+    // someone else's calendar is published like any other event of the
+    // subscriber's — the feed it came from decided nothing about that
+    // (EXO-90322)
+    event.setVisibility(EventVisibility.DEFAULT);
     // Never TENTATIVE: in agenda that status is a date poll
     event.setStatus(EventStatus.CONFIRMED);
     event.setAllowAttendeeToUpdate(false);
