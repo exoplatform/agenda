@@ -613,6 +613,26 @@
   }
 }
 
+/* The shared mark (EXO-90331) is the one calendar-row state that does
+   something when clicked — it opens the same Share drawer the row's menu
+   offers — so it says so with a pointer. Its neighbour the published sign is
+   deliberately inert and keeps the default cursor; without this the two looked
+   identical and the shortcut was undiscoverable. It stays a convenience rather
+   than a control: the keyboard path is the row menu's Share entry, which is why
+   the mark is a labelled span and not a second button on every row.
+
+   Deliberately top-level, and not nested under .agenda-left-panel like the
+   rules around the rest of the row. AgendaPersonalCalendarList is mounted
+   twice — in the left panel (AgendaLeftPanel.vue) and in the filter drawer
+   (AgendaFilterCalendarDrawer.vue, the surface that matters on mobile) — and
+   the drawer carries neither the panel class nor a panel ancestor, so a nested
+   rule reached only half the marks it draws. The class name is this
+   component's alone, so an unscoped rule cannot catch anything else and cannot
+   be defeated by where a drawer renders. */
+.agenda-calendar-shared-icon {
+  cursor: pointer;
+}
+
 .event-form-dates {
   position: relative;
 }
@@ -1244,17 +1264,6 @@
         }
       }
 
-      /* The shared mark (EXO-90331) is the one row state that does something
-         when clicked — it opens the same Share drawer the row's menu offers —
-         so it says so with a pointer. Its neighbour the published sign is
-         deliberately inert and keeps the default cursor; without this rule the
-         two looked identical and the shortcut was undiscoverable. It stays a
-         convenience rather than a control: the keyboard path is the menu
-         entry, which is why the mark is a labelled span and not a second
-         button on every row. */
-      .agenda-calendar-shared-icon {
-        cursor: pointer;
-      }
 
       /* The owner's avatar on a shared calendar sits in the same 24px column
          as the read-only lock and the section headers' icons. The shared
