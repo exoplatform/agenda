@@ -3418,6 +3418,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
             "eventCreator",
             "location",
             "https://exo.example.com/portal/dw/agenda?eventId=42",
+            EventAvailability.DEFAULT,
             Locale.getDefault(),
             dstTimeZone);
     attachment.setMimeType("text/calendar;charset=utf-8;method=PUBLISH");
@@ -3477,6 +3478,26 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
    * @return the unfolded document
    */
   private String generateIcs(String eventDescription, Locale userLocale, String eventModifierId, String eventUrl) {
+    return generateIcs(eventDescription, userLocale, eventModifierId, eventUrl, EventAvailability.DEFAULT);
+  }
+
+  /**
+   * The same, choosing what the event does to the recipient's time.
+   *
+   * @param eventDescription description to pass to the generator, HTML as the
+   *          editor would store it
+   * @param userLocale locale the labels are read in
+   * @param eventModifierId identity id to write as ORGANIZER, blank for none
+   * @param eventUrl link back to the event in eXo, null for a guest
+   * @param availability what the organiser chose on the form, null for an
+   *          event that carries none
+   * @return the unfolded document
+   */
+  private String generateIcs(String eventDescription,
+                             Locale userLocale,
+                             String eventModifierId,
+                             String eventUrl,
+                             EventAvailability availability) {
     ZonedDateTime start = getDate();
     ZonedDateTime end = start.plusHours(1);
     byte[] icsContent = generateIcsFile("42",
@@ -3490,6 +3511,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                         "Root Root",
                                         "location",
                                         eventUrl,
+                                        availability,
                                         userLocale,
                                         ZoneId.of("Europe/Paris"));
     String text = new String(icsContent, StandardCharsets.UTF_8);
@@ -3509,6 +3531,35 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                      || line.startsWith(propertyName + ";"))
                  .findFirst()
                  .orElse(null);
+  }
+
+  /**
+   * EXO-90327: the document a recipient's calendar imports — the invitation
+   * mail's <code>event.ics</code> and the <code>/ics</code> download, both
+   * written by {@code Utils.generateIcsFile} — says what the organiser chose on
+   * the form. A <code>FREE</code> event is transparent; <code>BUSY</code>,
+   * <code>DEFAULT</code> and an event that carries none are opaque.
+   * <p>
+   * <strong>TRANSP has to be present, not merely correct.</strong> RFC 5545
+   * §3.8.2.7 makes an absent <code>TRANSP</code> default to
+   * <code>OPAQUE</code>, so the document that omits it books the slot — which
+   * is what this generator did before EXO-90327, and what no test could see,
+   * because a missing property and a busy one are the same answer. The pin
+   * therefore asserts the line, not just the value.
+   *
+   */
+  @Test
+  public void testIcsCarriesTheAvailabilityAsTransp() {
+    Map<EventAvailability, String> expected = new LinkedHashMap<>();
+    expected.put(EventAvailability.FREE, "TRANSP:TRANSPARENT");
+    expected.put(EventAvailability.BUSY, "TRANSP:OPAQUE");
+    expected.put(EventAvailability.DEFAULT, "TRANSP:OPAQUE");
+    expected.put(null, "TRANSP:OPAQUE");
+
+    expected.forEach((availability, line) -> {
+      String ics = generateIcs("eventDescription", Locale.ENGLISH, "", EVENT_LINK, availability);
+      assertEquals("availability " + availability + " must be written as " + line, line, icsProperty(ics, "TRANSP"));
+    });
   }
 
   /**
@@ -3610,6 +3661,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                               "Root Root",
                                               "location",
                                               EVENT_LINK,
+                                              EventAvailability.DEFAULT,
                                               Locale.ENGLISH,
                                               ZoneId.of("Europe/Paris"));
     String ics = new String(icsContent, StandardCharsets.UTF_8).replace("\r\n ", "").replace("\n ", "");

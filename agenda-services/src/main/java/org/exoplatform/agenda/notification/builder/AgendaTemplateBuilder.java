@@ -203,6 +203,11 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
                                          eventCreator,
                                          location,
                                          mailedEventUrl(notification, identityId),
+                                         // Read from the event the notification is about, not from the
+                                         // notification's own parameters: an organiser who marked the event
+                                         // free must not have every invitee's client book the slot anyway
+                                         // (EXO-90327)
+                                         event == null ? null : event.getAvailability(),
                                          userLocale,
                                          timeZone);
         attachment.setInputStream(new ByteArrayInputStream(icsFileBytes));

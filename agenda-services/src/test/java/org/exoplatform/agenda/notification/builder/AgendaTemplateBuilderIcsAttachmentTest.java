@@ -371,6 +371,32 @@ public class AgendaTemplateBuilderIcsAttachmentTest extends BaseAgendaEventTest 
   }
 
   /**
+   * EXO-90327: the mailed document says what the organiser chose. The fixture
+   * event is created FREE ({@code BaseAgendaEventTest.newEventInstance}), so
+   * the file every invitee's client imports must carry
+   * {@code TRANSP:TRANSPARENT} and leave their time open.
+   *
+   * <p>
+   * This pins the wiring, not the writer: {@code Utils.generateIcsFile} is
+   * pinned over all four availabilities in {@code AgendaEventServiceTest}, and
+   * what can still be wrong here is the builder handing it the wrong thing —
+   * or nothing. Before EXO-90327 this document carried no {@code TRANSP} at
+   * all, which RFC 5545 §3.8.2.7 reads as {@code OPAQUE}: the organiser's
+   * choice stopped at the mail.
+   *
+   * @throws Exception when the notification cannot be built
+   */
+  @Test
+  public void testMailedIcsCarriesTheEventAvailability() throws Exception {
+    MessageInfo messageInfo = buildMailFor("testuser3");
+    assertHasIcs(messageInfo);
+
+    Assert.assertEquals("a free event must not book the invitee's time",
+                        "TRANSP:TRANSPARENT",
+                        icsProperty(icsOf(messageInfo), "TRANSP"));
+  }
+
+  /**
    * A guest has no eXo account, so the link would put them on a login screen.
    * The mail is the one channel that knows who it is going to, and it leaves
    * the link out for a guest — from URL and from the description alike.
