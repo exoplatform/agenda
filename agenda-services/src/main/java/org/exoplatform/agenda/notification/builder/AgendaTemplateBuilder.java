@@ -203,10 +203,15 @@ public class AgendaTemplateBuilder extends AbstractTemplateBuilder {
                                          eventCreator,
                                          location,
                                          mailedEventUrl(notification, identityId),
-                                         // Read from the event the notification is about, not from the
-                                         // notification's own parameters: an organiser who marked the event
-                                         // free must not have every invitee's client book the slot anyway
-                                         // (EXO-90327)
+                                         // Read live from the event, unlike every other value in this
+                                         // document, which comes from the parameters the notification
+                                         // snapshotted when it was raised — no stored parameter carries the
+                                         // availability, and the organiser's current choice is the one they
+                                         // want honoured. So a notification delivered after an edit can pair
+                                         // the snapshotted time with the current transparency; that is the
+                                         // trade-off, deliberately taken, because an organiser who marked the
+                                         // event free must not have every invitee's client book the slot
+                                         // anyway (EXO-90327)
                                          event == null ? null : event.getAvailability(),
                                          userLocale,
                                          timeZone);

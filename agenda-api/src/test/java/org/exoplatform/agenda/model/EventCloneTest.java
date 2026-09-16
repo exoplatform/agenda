@@ -20,10 +20,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
 import org.exoplatform.agenda.constant.EventAvailability;
+import org.exoplatform.agenda.constant.EventRecurrenceFrequency;
+import org.exoplatform.agenda.constant.EventRecurrenceType;
 import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.constant.EventVisibility;
 
@@ -39,6 +42,16 @@ import org.exoplatform.agenda.constant.EventVisibility;
  * the shape of the defect is the constructor call and not the field:
  * {@code CalendarPermission.clone()} shipped with two of its arguments
  * transposed (EXO-90276) for exactly this reason.
+ * <p>
+ * <strong>Every field carries a value a swap would move, which is the whole
+ * point.</strong> Two same-typed neighbours set to the same value are a
+ * transposition the assertion cannot see, and that is precisely the EXO-90276
+ * shape — four adjacent booleans. So the two adjacent booleans here disagree,
+ * and the four object fields that would otherwise be null ({@code recurrence},
+ * {@code occurrence}, {@code acl}, {@code parameters}) are given values: a
+ * {@code clone()} that wrote a literal null for any of them would otherwise
+ * pass. The distinctly-typed fields are safe by the compiler; only the
+ * same-typed neighbours and the nulls need the fixture's help.
  */
 class EventCloneTest {
 
@@ -66,10 +79,39 @@ class EventCloneTest {
     event.setAvailability(EventAvailability.FREE);
     event.setVisibility(EventVisibility.PRIVATE);
     event.setStatus(EventStatus.TENTATIVE);
+    // The two adjacent booleans disagree on purpose: equal values make a
+    // transposition between them invisible, which is the defect this test is
+    // named after
     event.setAllowAttendeeToUpdate(true);
-    event.setAllowAttendeeToInvite(true);
+    event.setAllowAttendeeToInvite(false);
+    event.setRecurrence(recurrence());
+    event.setOccurrence(new EventOccurrence(ZonedDateTime.of(2026, 9, 21, 9, 0, 0, 0, ZoneOffset.UTC)));
+    event.setAcl(new EventPermission(true, false));
+    event.setParameters(Map.of("key", "value"));
 
-    assertEquals(event, event.clone());
+    Event copy = event.clone();
+
+    assertEquals(event, copy);
+    assertEquals(event.getRecurrence(), copy.getRecurrence(), "a deep-copied field is still equal");
+    assertEquals(event.getOccurrence(), copy.getOccurrence());
+    assertEquals(event.getAcl(), copy.getAcl());
+    assertEquals(event.getParameters(), copy.getParameters());
+  }
+
+  /**
+   * A recurrence with enough of its own fields set that copying it by reference
+   * and copying it deeply are both equal, and dropping it is not.
+   *
+   * @return the recurrence
+   */
+  private EventRecurrence recurrence() {
+    EventRecurrence recurrence = new EventRecurrence();
+    recurrence.setId(3);
+    recurrence.setCount(5);
+    recurrence.setInterval(2);
+    recurrence.setFrequency(EventRecurrenceFrequency.WEEKLY);
+    recurrence.setType(EventRecurrenceType.WEEKLY);
+    return recurrence;
   }
 
   /**
