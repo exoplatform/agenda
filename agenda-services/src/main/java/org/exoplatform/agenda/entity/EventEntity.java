@@ -21,8 +21,8 @@ import java.util.Date;
 import java.util.List;
 
 import org.exoplatform.agenda.constant.EventAvailability;
-import org.exoplatform.agenda.constant.EventVisibility;
 import org.exoplatform.agenda.constant.EventStatus;
+import org.exoplatform.agenda.constant.EventVisibility;
 
 import io.meeds.common.persistence.PortableSequence;
 

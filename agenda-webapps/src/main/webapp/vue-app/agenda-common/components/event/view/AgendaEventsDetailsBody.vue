@@ -410,56 +410,6 @@ export default {
         }));
       });
     },
-    async generateICS(event) {
-      const formatDate = (date) => {
-        return date ? `${new Date(date).toISOString().replace(/[-:]/g, '').split('.')[0]}Z` : '';
-      };
-
-      const foldLine = (line) => {
-        const maxLength = 70;
-        if (line.length <= maxLength) { return line; }
-        let result = '';
-        while (line.length > maxLength) {
-          result += `${line.substring(0, maxLength)}\n`;
-          line = ` ${line.substring(maxLength)}`;
-        }
-        return result + line;
-      };
-
-      const confurl = (event.conferences && event.conferences.length > 0) ? event.conferences[0].url : '';
-      const htmlDescription = `<html><body>${this.$t('agenda.invitationText')} <b>${event.creator.dataEntity.profile.fullname}</b> ${this.$t('agenda.inSpace')} <b>${event.calendar.title}.</b>\
-      ${confurl ? `<br><br><b>${this.$t('agenda.visioLink')}</b> <a href="${confurl}">${confurl}</a>` : ''}\
-      ${event.description ? `<br><br><b>${this.$t('agenda.eventDetail')}</b><br>${event.description.replaceAll('\n', '')}</body></html>` : ''}`
-        .trim().replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
-
-      const brandingInformation = await this.$brandingService.getBrandingInformation();
-      const icsContent = 'BEGIN:VCALENDAR\r\n' +
-        'CALSCALE:GREGORIAN\r\n' +
-        'METHOD:PUBLISH\r\n' +
-        `PRODID:-//${brandingInformation.siteName}//${brandingInformation.companyName}//EN\r\n` +
-        'VERSION:2.0\r\n' +
-        'BEGIN:VEVENT\r\n' +
-        `UID:${event.id || ''}\r\n` +
-        `UID:X:${event.id || ''}\r\n` +
-        `DTSTAMP:${formatDate(new Date())}\r\n` +
-        `DTSTART:${formatDate(event.startDate)}\r\n` +
-        `DTEND:${formatDate(event.endDate)}\r\n` +
-        `SUMMARY:${event.summary || ''}\r\n` +
-        `DESCRIPTION:${htmlDescription || ''}\r\n` +
-        `X-ALT-DESC;FMTTYPE=text/html:${htmlDescription}\n` +
-        `LOCATION:${event.location || ''}\n` +
-        `URL:${confurl}\r\n` +
-        `ORGANIZER;CN=${event.creator.dataEntity.profile.fullname}:MAILTO:${event.creator.dataEntity.profile.email}\r\n` +
-        'END:VEVENT\r\n' +
-        'END:VCALENDAR\r\n';
-
-      const processAndFoldText = (text) => {
-        const lines = text.split('\n');
-        const foldedLines = lines.map(line => foldLine(line)).join('\n');
-        return foldedLines;
-      };
-      return processAndFoldText(icsContent);
-    },
     downloadICS(event) {
       return this.$eventService.generateICS(event.id, this.$agendaUtils.USER_TIMEZONE_ID).then(icsContent => {
         const blob = new Blob([icsContent], { type: 'text/calendar' });

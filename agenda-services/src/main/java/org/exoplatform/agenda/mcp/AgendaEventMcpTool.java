@@ -44,10 +44,10 @@ import org.springframework.stereotype.Service;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.constant.EventAvailability;
-import org.exoplatform.agenda.constant.EventVisibility;
 import org.exoplatform.agenda.constant.EventRecurrenceFrequency;
 import org.exoplatform.agenda.constant.EventRecurrenceType;
 import org.exoplatform.agenda.constant.EventStatus;
+import org.exoplatform.agenda.constant.EventVisibility;
 import org.exoplatform.agenda.constant.ReminderPeriodType;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.mcp.model.AgendaEventAttendeeModel;

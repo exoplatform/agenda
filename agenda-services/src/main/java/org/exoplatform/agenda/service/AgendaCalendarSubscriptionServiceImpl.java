@@ -42,8 +42,8 @@ import org.springframework.stereotype.Service;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.constant.EventAvailability;
-import org.exoplatform.agenda.constant.EventVisibility;
 import org.exoplatform.agenda.constant.EventStatus;
+import org.exoplatform.agenda.constant.EventVisibility;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.CalendarSubscription;
 import org.exoplatform.agenda.model.CalendarSubscriptionEvent;
