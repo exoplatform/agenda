@@ -98,7 +98,7 @@
           its own aria-label.
         -->
         <div class="font-weight-bold my-2">
-          {{ $t('agenda.label.showAs') }}
+          {{ $t('agenda.label.availabilityAndVisibility') }}
         </div>
         <agenda-event-form-availability-visibility :event="event" />
         <div class="d-flex flex-row my-2 align-center">

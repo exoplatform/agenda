@@ -111,8 +111,14 @@ class CalendarSubscriptionChangelogTest {
   }
 
   /**
-   * Rolling back what EXO-90278 added removes it all and leaves Publish's table,
-   * and the changelog applies again from there.
+   * Rolling back from EXO-90278's first changeset removes everything it added
+   * and leaves Publish's table, and the changelog applies again from there.
+   * <p>
+   * "From its first changeset" and not "what it added": the count reaches to the
+   * end of the changelog, so it also rolls back whatever later deliveries have
+   * appended since (EXO-90322 appended one). That is why it is counted and never
+   * written down — an assertion on the number was a measure of the changelog's
+   * length, and broke on the next delivery.
    *
    * @throws Exception when Liquibase fails
    */

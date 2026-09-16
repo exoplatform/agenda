@@ -21,6 +21,7 @@ import static org.exoplatform.agenda.dao.CalendarLinkChangelogTest.changesetsSin
 import static org.exoplatform.agenda.dao.CalendarLinkChangelogTest.update;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.sql.Connection;
@@ -137,9 +138,11 @@ class EventVisibilityChangelogTest {
 
     update(connection);
 
+    Integer stored = visibilityOf(1);
+    assertNotNull(stored, "the row that predates the column is backfilled, not left NULL");
     assertEquals(EventVisibility.DEFAULT.ordinal(),
-                 visibilityOf(1),
-                 "the row that predates the column is backfilled with DEFAULT, which does not mask");
+                 stored.intValue(),
+                 "and backfilled with DEFAULT, which does not mask");
   }
 
   /**
@@ -159,17 +162,26 @@ class EventVisibilityChangelogTest {
   }
 
   /**
-   * The stored visibility of an event.
+   * The stored visibility of an event, as an {@code Integer} so that a SQL NULL
+   * comes back as null.
+   * <p>
+   * Read with {@code getObject} and not {@code getInt}, which returns 0 for a
+   * SQL NULL — the same 0 that {@link EventVisibility#DEFAULT} has. With
+   * {@code getInt} this whole test stays green when the changeset's
+   * {@code defaultValueNumeric} is deleted: the column is then left NULL on
+   * existing rows and the assertion cannot tell that from a backfill. Measured
+   * on the HSQLDB this suite runs against, with the default declared and
+   * without it.
    *
    * @param id row identifier
-   * @return the ordinal stored in the column
+   * @return the ordinal stored in the column, null when the column is NULL
    * @throws SQLException on a query failure
    */
-  private int visibilityOf(long id) throws SQLException {
+  private Integer visibilityOf(long id) throws SQLException {
     try (Statement statement = connection.createStatement();
         ResultSet rows = statement.executeQuery("SELECT " + COLUMN + " FROM " + TABLE + " WHERE EVENT_ID = " + id)) {
       assertTrue(rows.next(), "the event row must still be there");
-      return rows.getInt(1);
+      return rows.getObject(1, Integer.class);
     }
   }
 

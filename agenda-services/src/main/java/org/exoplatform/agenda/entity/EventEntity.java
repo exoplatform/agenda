@@ -314,16 +314,20 @@ public class EventEntity implements Serializable {
    * Stored by ordinal, as AVAILABILITY is: the column is a SMALLINT the
    * changeset backfills with 0, which is {@link EventVisibility#DEFAULT}.
    * <p>
-   * Nullable, unlike AVAILABILITY next to it and unlike what symmetry would
-   * suggest, because the column it maps carries no NOT NULL either and the two
-   * must agree: Hibernate enforces {@code nullable = false} on its own at
-   * insert time, so declaring it would turn any writer that does not set the
-   * field — a DAO used directly, a future import path — into a failed event
-   * creation. The service sets it on every create and update, and a null that
-   * slipped past reads as "not masked", which is what every event did before
-   * this field existed. On a privacy flag that is the safe direction: a null
-   * cannot accidentally mask, and an event someone marked private is never
-   * null.
+   * Nullable, unlike AVAILABILITY next to it. Not because the DDL says so —
+   * AVAILABILITY's column carries no NOT NULL either and is still declared
+   * {@code nullable = false}, so the two do not have to agree — but because of
+   * what declaring it would do: Hibernate checks {@code nullable = false}
+   * itself at insert time and throws {@code PropertyValueException}, so every
+   * writer that reaches the DAO without going through
+   * {@code AgendaEventServiceImpl} — which is where the defaulting lives —
+   * would fail. Such writers exist: {@code EventDAOTest} is one, and it failed
+   * on the first run of this delivery.
+   * <p>
+   * A null that slips past anyway reads as "not masked", which is what every
+   * event did before this field existed. On a privacy flag that is the safe
+   * direction: a null cannot accidentally mask, and an event someone marked
+   * private is never null.
    */
   @Column(name = "VISIBILITY")
   private EventVisibility           visibility;
@@ -487,7 +491,10 @@ public class EventEntity implements Serializable {
   /**
    * Returns whether the event's content may be published outside eXo.
    *
-   * @return the stored visibility, never null once the row has been written
+   * @return the stored visibility; null for a row written by a path that
+   *         bypasses {@code AgendaEventServiceImpl}'s defaulting, which the
+   *         column allows on purpose (see the field). A null is read as "not
+   *         masked", never as private
    */
   public EventVisibility getVisibility() {
     return visibility;

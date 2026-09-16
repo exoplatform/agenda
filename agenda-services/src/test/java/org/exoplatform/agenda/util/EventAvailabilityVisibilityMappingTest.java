@@ -102,9 +102,19 @@ class EventAvailabilityVisibilityMappingTest {
 
   /**
    * A search hit is built by a second, separate positional constructor call,
-   * and a field forgotten there is invisible everywhere else: the unified
-   * search would answer with an event whose availability and visibility are
-   * null while the same event read by id carries them.
+   * which this pins on its own.
+   * <p>
+   * <strong>A guard, not a live path.</strong> Unified search answers null for
+   * both values whatever this constructor does, because nothing upstream fills
+   * them: {@code AgendaSearchConnector} builds every {@code EventSearchResult}
+   * from the Elasticsearch {@code _source}, which the indexing connector never
+   * writes availability or visibility into, and
+   * {@code AgendaEventServiceImpl.search} then copies only the summary,
+   * description, location and dates from the resolved occurrence. Whether the
+   * index should carry them is a decision about the mapping, not about this
+   * call. What the pin protects is the coupling: the day it does, a field
+   * forgotten here would make search answer null for an event that carries the
+   * value when read by id, and nothing else would notice.
    */
   @Test
   void aSearchResultCarriesBothValuesOut() {
