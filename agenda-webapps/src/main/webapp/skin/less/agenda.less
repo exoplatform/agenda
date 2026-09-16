@@ -1244,6 +1244,18 @@
         }
       }
 
+      /* The shared mark (EXO-90331) is the one row state that does something
+         when clicked — it opens the same Share drawer the row's menu offers —
+         so it says so with a pointer. Its neighbour the published sign is
+         deliberately inert and keeps the default cursor; without this rule the
+         two looked identical and the shortcut was undiscoverable. It stays a
+         convenience rather than a control: the keyboard path is the menu
+         entry, which is why the mark is a labelled span and not a second
+         button on every row. */
+      .agenda-calendar-shared-icon {
+        cursor: pointer;
+      }
+
       /* The owner's avatar on a shared calendar sits in the same 24px column
          as the read-only lock and the section headers' icons. The shared
          avatar component wraps its picture in mx-1 — 4px on each side, set

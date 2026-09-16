@@ -551,8 +551,17 @@ export default {
      */
     openShare(calendar) {
       const share = this.shareesOf(calendar);
-      const action = share && this.actionsOf(calendar)
-        .find(offered => offered.id === share.actionId && offered.connector === share.connector);
+      const offered = share && this.actionsOf(calendar).filter(one => one.id === share.actionId) || [];
+      // The connector that reported the count first, and any connector
+      // offering the same action second. The two are the same in every shape
+      // seen so far, but they are kept in step by two different rules — the
+      // mark keeps the largest count, the menu keeps the first offer — and a
+      // mark that silently did nothing because those rules disagreed would be
+      // indistinguishable from a broken drawer. The action id is the
+      // connector's own, and an add-on registered once per server dispatches
+      // the same drawer from either descriptor, so the fallback cannot open
+      // somebody else's.
+      const action = offered.find(one => one.connector === share.connector) || offered[0];
       return action ? this.runConnectorAction(action, calendar) : Promise.resolve();
     },
     /**

@@ -178,6 +178,28 @@ describe('the owner sees which of their calendars are shared', () => {
     expect(connector.runCalendarAction).not.toHaveBeenCalled();
   });
 
+  it('still opens the drawer when the count and the menu entry came from different connectors', async () => {
+    // Two descriptors of one add-on, one per declared server. The mark keeps
+    // the largest count and the menu keeps the first offer, so the two can name
+    // different connectors for one calendar; a mark that then did nothing would
+    // look exactly like a broken drawer.
+    const other = {
+      name: 'agenda.caldavCalendar.2',
+      calendarShares: jest.fn().mockResolvedValue({10: {sharees: 9, actionId: 'caldavShareCalendar'}}),
+      calendarActions: jest.fn().mockResolvedValue({}),
+      runCalendarAction: jest.fn().mockResolvedValue(true),
+    };
+    global.extensionRegistry = {loadExtensions: () => [connector, other]};
+
+    const wrapper = await mountList();
+    expect(wrapper.vm.shares[10].connector).toBe('agenda.caldavCalendar.2');
+
+    await row(wrapper, 'Work').find('.agenda-calendar-shared-icon').trigger('click');
+    await flush();
+
+    expect(connector.runCalendarAction).toHaveBeenCalledWith('caldavShareCalendar', expect.objectContaining({id: 10}));
+  });
+
   it('asks again on each of the four signals the problems are asked on', async () => {
     const wrapper = await mountList();
     expect(connector.calendarShares).toHaveBeenCalledTimes(1);
