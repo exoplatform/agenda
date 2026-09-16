@@ -187,6 +187,34 @@
             </v-icon>
           </span>
         </v-list-item-action>
+        <!--
+          A calendar the user has shared with colleagues (EXO-90331). The inbound
+          direction was already answered — a calendar shared WITH me carries its
+          owner's avatar — while the outbound one showed nothing at all, so the
+          only way to know which of one's own calendars were exposed was to open
+          the Share drawer on each in turn. Same wrapper, same size and same
+          alignment as the published sign above, since both are row states and a
+          row may well carry the two at once.
+
+          The click is a shortcut to the drawer that manages the share, taken
+          from the very menu entry the connector already offers, so nothing here
+          knows what a CalDAV share is. It is a shortcut and never the only path:
+          the same drawer is one keyboard-reachable menu away on the same row,
+          which is why the wrapper stays the published sign's plain labelled span
+          rather than becoming a second button on every row.
+        -->
+        <v-list-item-action
+          v-if="shareesOf(calendar)"
+          class="my-0 ms-2 flex-grow-0 justify-center agenda-calendar-shared-icon"
+          @click="openShare(calendar)">
+          <span
+            :title="sharedTooltip(calendar)"
+            :aria-label="sharedTooltip(calendar)"
+            class="d-flex"
+            role="img">
+            <v-icon class="text-light-color" size="14">fas fa-share-alt</v-icon>
+          </span>
+        </v-list-item-action>
       </v-list-item>
     </v-list>
     <exo-confirm-dialog
@@ -215,6 +243,8 @@ export default {
     connectorActions: {},
     connectorActionsAsked: 0,
     problemsAsked: 0,
+    shares: {},
+    sharesAsked: 0,
   }),
   computed: {
     /**
@@ -295,6 +325,17 @@ export default {
     document.addEventListener('agenda-refresh-personal-calendars', this.retrieveConnectorActions);
     document.addEventListener('agenda-connectors-refresh', this.retrieveConnectorActions);
     this.retrieveConnectorActions();
+    // Which of these calendars colleagues can see (EXO-90331), asked at exactly
+    // the same four moments and for exactly the same reasons: a connector
+    // registers after this component is created, a drawer in another Vue app
+    // can only signal on the document, and the general refresh is what follows
+    // a synchronisation — which is the pass that observes a share appearing or
+    // going away in the first place.
+    this.$root.$on('agenda-refresh-personal-calendars', this.retrieveShares);
+    this.$root.$on('agenda-refresh', this.retrieveShares);
+    document.addEventListener('agenda-refresh-personal-calendars', this.retrieveShares);
+    document.addEventListener('agenda-connectors-refresh', this.retrieveShares);
+    this.retrieveShares();
     this.$root.$on('agenda-refresh-personal-calendars', this.retrieveCalendars);
     // Also on the document, so an add-on's drawer living in another Vue app —
     // the settings page has its own — can say that the set of personal
@@ -313,6 +354,10 @@ export default {
     this.$root.$off('agenda-refresh', this.retrieveConnectorActions);
     document.removeEventListener('agenda-refresh-personal-calendars', this.retrieveConnectorActions);
     document.removeEventListener('agenda-connectors-refresh', this.retrieveConnectorActions);
+    this.$root.$off('agenda-refresh-personal-calendars', this.retrieveShares);
+    this.$root.$off('agenda-refresh', this.retrieveShares);
+    document.removeEventListener('agenda-refresh-personal-calendars', this.retrieveShares);
+    document.removeEventListener('agenda-connectors-refresh', this.retrieveShares);
   },
   methods: {
     /**
@@ -404,7 +449,111 @@ export default {
      * @returns {Promise} resolves once both questions are answered
      */
     refreshCalendarMenu() {
-      return Promise.all([this.retrieveConnectorActions(), this.retrieveProblems()]);
+      return Promise.all([this.retrieveConnectorActions(), this.retrieveProblems(), this.retrieveShares()]);
+    },
+    /**
+     * Which of this user's calendars each connector says colleagues can see,
+     * and how many of them.
+     *
+     * Asked of the connectors, like their problems and their menu entries:
+     * whether a calendar is exposed anywhere outside eXo, and to how many
+     * people, is knowledge only the connector holds. Agenda keeps the number,
+     * the id of the action that manages the share, and which connector
+     * answered, so a click on the mark goes back to that connector without
+     * agenda knowing any of its action names.
+     *
+     * Not gated on the connector being marked connected, for the reason
+     * retrieveConnectorActions is not: that flag is set once the user's
+     * settings have loaded and nothing tells this list when that happens, so a
+     * connector asked too early would never be asked again. A connector with no
+     * account answers nothing, which is the right answer.
+     *
+     * Only the latest question's answer is kept: an older, slower answer
+     * arriving after a newer one would bring back a mark the user has just
+     * removed.
+     *
+     * @returns {Promise} resolves once every connector has answered
+     */
+    retrieveShares() {
+      const asked = ++this.sharesAsked;
+      const connectors = this.connectors()
+        .filter(connector => connector && typeof connector.calendarShares === 'function');
+      if (!connectors.length) {
+        this.shares = {};
+        return Promise.resolve();
+      }
+      return Promise.all(connectors.map(connector => Promise.resolve(connector.calendarShares())
+        .then(answer => ({connector: connector.name, answer: answer || {}}))
+        .catch(() => ({connector: connector.name, answer: {}}))))
+        .then(answers => {
+          const shares = {};
+          answers.forEach(({connector, answer}) => Object.keys(answer).forEach(calendarId => {
+            const share = answer[calendarId];
+            const sharees = share && Number(share.sharees) || 0;
+            if (sharees > 0) {
+              // Two connectors answering for one calendar is the same add-on
+              // registered once per declared server; the calendar lives on one
+              // of them, so the larger count is the one that saw it.
+              const known = shares[calendarId];
+              if (!known || known.sharees < sharees) {
+                shares[calendarId] = {sharees, actionId: share.actionId, connector};
+              }
+            }
+          }));
+          if (asked === this.sharesAsked) {
+            this.shares = shares;
+          }
+        });
+    },
+    /**
+     * How many colleagues see one calendar, when any does.
+     *
+     * @param {Object} calendar the row being drawn
+     * @returns {Object} the share as retrieveShares kept it, or null when the
+     *          calendar is not seen by anyone
+     */
+    shareesOf(calendar) {
+      return calendar && this.shares[calendar.id] || null;
+    },
+    /**
+     * What the share mark says when the pointer rests on it.
+     *
+     * The number is a floor and the sentence is worded as one: the connector
+     * counts the colleagues it has observed, which leaves out anyone who is not
+     * a user of this platform with a connected account, and lags a share made
+     * in the last few minutes. Naming the drawer is the rest of the answer —
+     * only the drawer knows who, read from the server itself.
+     *
+     * @param {Object} calendar the calendar the mark sits on
+     * @returns {String} the sentence to show, empty when there is no mark
+     */
+    sharedTooltip(calendar) {
+      const share = this.shareesOf(calendar);
+      return share ? this.$t('agenda.calendars.sharedTooltip', {0: share.sharees}) : '';
+    },
+    /**
+     * Opens whatever manages the share of a calendar, from its mark.
+     *
+     * The very entry the connector already offers in the row's menu, found by
+     * the id the connector named in its own answer and handed back through
+     * runConnectorAction — so the drawer is opened by exactly one piece of code
+     * whichever of the two ways the user reached it, and agenda hardcodes no
+     * connector's action name.
+     *
+     * Does nothing when that entry is not offered right now: a calendar can be
+     * seen by colleagues while the connector says it can no longer be shared
+     * from eXo — an unreachable server, a calendar no longer owned on it — and
+     * a mark that opens an empty drawer would be worse than one that only
+     * informs.
+     *
+     * @param {Object} calendar the calendar the mark sits on
+     * @returns {Promise} resolves once the connector has taken it
+     */
+    openShare(calendar) {
+      const share = this.shareesOf(calendar);
+      const action = share && this.actionsOf(calendar)
+        .find(offered => offered.id === share.actionId && offered.connector === share.connector);
+      return action ? this.runConnectorAction(action, calendar) : Promise.resolve();
     },
     /**
      * The connector actions offered on one calendar.
