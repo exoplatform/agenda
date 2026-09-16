@@ -125,15 +125,18 @@ describe('The event form Show as / Visibility row', () => {
     expect(onDesktop.find('.availability-visibility-help').exists()).toBe(false);
   });
 
-  it('gives the desktop help icon the sentence as its accessible name, so the hover is not its only route', () => {
-    // Read from the source: v-icon is an ignored element here and sits inside
-    // v-tooltip's activator slot, which the harness does not render, so the
-    // attributes cannot be inspected on the mounted tree
+  it('still binds the sentence as the desktop icon accessible name, and binds it once', () => {
+    // Named for what it checks and no more. v-icon is an ignored element here
+    // and sits inside v-tooltip's activator slot, which the harness does not
+    // render, so this reads the template rather than the tree: it cannot say
+    // what a browser announces, only that the binding has not been dropped or
+    // doubled. What a screen reader and a touch device actually do is on the
+    // rig script, where a browser can answer it.
     const component = source('agenda-common/components/event/form/AgendaEventFormAvailabilityVisibility.vue');
     const icon = component.slice(component.indexOf('<v-tooltip'), component.indexOf('</v-tooltip>'));
 
     expect(icon).toContain(':aria-label="$t(\'agenda.availabilityVisibilityHelp\')"');
-    expect(icon).toContain(':title="$t(\'agenda.availabilityVisibilityHelp\')"');
+    expect(icon).not.toContain(':title=');
   });
 
   it('is asked for the body-text help by the mobile form and not by the full form', () => {

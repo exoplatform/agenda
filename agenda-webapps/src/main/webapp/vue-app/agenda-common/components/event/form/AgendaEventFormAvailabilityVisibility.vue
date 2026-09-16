@@ -60,18 +60,32 @@
       Google puts there — and body text on mobile, never a tooltip, for the
       reason AgendaEventFormBusyCoverage already wrote down in this same form:
       a tooltip does not exist on touch, so on the mobile form the sentence
-      would be unreachable. The icon carries the sentence as its accessible
-      name either way, so the help has a route that is not a hover.
+      would be unreachable.
+
+      KNOWN BOUND, written down rather than discovered later: helpAsText is set
+      by the mobile form, and which form renders is decided by $root.isMobile,
+      which is a VIEWPORT WIDTH test (agenda/main.js) and not a hover test. So
+      a touch device wider than sm — a tablet in landscape, a touch laptop —
+      gets the full form, and there the help is behind a hover again. The
+      property that actually matters is "@media (hover: none)". BusyCoverage
+      sidesteps it by rendering its report unconditionally, which is not free
+      here: this sentence is long enough to be noise under an already dense
+      form. Closing it on hover rather than on width, or accepting the
+      residual, is the PO/designer's call and is recorded with EXO-90327.
     -->
       <v-tooltip
         v-if="!helpAsText"
         bottom
         max-width="320">
         <template #activator="{on, attrs}">
+          <!--
+            aria-label and not title: aria-label is what a screen reader
+            announces, and a native title would render the browser's own
+            tooltip on top of Vuetify's, showing the same long sentence twice.
+          -->
           <v-icon
             v-bind="attrs"
             :aria-label="$t('agenda.availabilityVisibilityHelp')"
-            :title="$t('agenda.availabilityVisibilityHelp')"
             size="16"
             class="icon-default-color my-auto"
             v-on="on">
