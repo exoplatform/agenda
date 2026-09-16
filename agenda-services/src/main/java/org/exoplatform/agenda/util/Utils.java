@@ -651,6 +651,9 @@ public class Utils {
     if (newEvent.getAvailability() != oldEvent.getAvailability()) {
       eventModification.addModificationType(AgendaEventModificationType.AVAILABILITY_UPDATED);
     }
+    if (newEvent.getVisibility() != oldEvent.getVisibility()) {
+      eventModification.addModificationType(AgendaEventModificationType.VISIBILITY_UPDATED);
+    }
     if (newEvent.getStatus() != oldEvent.getStatus()) {
       eventModification.addModificationType(AgendaEventModificationType.STATUS_UPDATED);
       if (EventStatus.CONFIRMED.equals(newEvent.getStatus()) && EventStatus.TENTATIVE.equals(oldEvent.getStatus())) {

@@ -44,6 +44,7 @@ import org.springframework.stereotype.Service;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.constant.EventAvailability;
+import org.exoplatform.agenda.constant.EventVisibility;
 import org.exoplatform.agenda.constant.EventRecurrenceFrequency;
 import org.exoplatform.agenda.constant.EventRecurrenceType;
 import org.exoplatform.agenda.constant.EventStatus;
@@ -313,6 +314,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
                             endDate,
                             false,
                             EventAvailability.DEFAULT,
+                            EventVisibility.DEFAULT,
                             EventStatus.CONFIRMED,
                             buildRecurrence(recurrenceFrequency, recurrenceInterval, recurrenceUntil, recurrenceCount),
                             null,
@@ -623,6 +625,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
                             overallEnd,
                             false,
                             EventAvailability.DEFAULT,
+                            EventVisibility.DEFAULT,
                             EventStatus.TENTATIVE,
                             null,
                             null,

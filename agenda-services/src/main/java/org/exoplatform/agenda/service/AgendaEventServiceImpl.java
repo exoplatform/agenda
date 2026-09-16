@@ -276,6 +276,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (event.getAvailability() == null) {
       event.setAvailability(EventAvailability.DEFAULT);
     }
+    if (event.getVisibility() == null) {
+      event.setVisibility(EventVisibility.DEFAULT);
+    }
     if (event.getStatus() == null) {
       event.setStatus(EventStatus.CONFIRMED);
     }
@@ -327,6 +330,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                     event.getEnd(),
                                     event.isAllDay(),
                                     event.getAvailability(),
+                                    event.getVisibility(),
                                     event.getStatus(),
                                     event.getRecurrence(),
                                     event.getOccurrence(),
@@ -547,6 +551,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (event.getAvailability() == null) {
       event.setAvailability(EventAvailability.DEFAULT);
     }
+    if (event.getVisibility() == null) {
+      event.setVisibility(EventVisibility.DEFAULT);
+    }
     if (event.getStatus() == null) {
       event.setStatus(EventStatus.CONFIRMED);
     }
@@ -624,6 +631,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                     event.getEnd(),
                                     event.isAllDay(),
                                     event.getAvailability(),
+                                    event.getVisibility(),
                                     event.getStatus(),
                                     event.getRecurrence(),
                                     event.getOccurrence(),
@@ -1420,6 +1428,13 @@ public class AgendaEventServiceImpl implements AgendaEventService {
           event.setAvailability(EventAvailability.DEFAULT);
         } else {
           event.setAvailability(EventAvailability.valueOf(fieldValue.toUpperCase()));
+        }
+        break;
+      case "visibility":
+        if (StringUtils.isBlank(fieldValue)) {
+          event.setVisibility(EventVisibility.DEFAULT);
+        } else {
+          event.setVisibility(EventVisibility.valueOf(fieldValue.toUpperCase()));
         }
         break;
       case "status":

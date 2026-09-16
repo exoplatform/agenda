@@ -167,6 +167,7 @@ public class EntityMapper {
                      endDate,
                      eventEntity.isAllDay(),
                      eventEntity.getAvailability(),
+                     eventEntity.getVisibility(),
                      eventEntity.getStatus(),
                      recurrence,
                      occurrence,
@@ -186,6 +187,7 @@ public class EntityMapper {
     eventEntity.setId(event.getId() == 0 ? null : event.getId());
     eventEntity.setAllDay(event.isAllDay());
     eventEntity.setAvailability(event.getAvailability());
+    eventEntity.setVisibility(event.getVisibility());
     eventEntity.setColor(event.getColor());
     eventEntity.setCreatorId(event.getCreatorId());
     eventEntity.setModifierId(event.getModifierId());

@@ -21,6 +21,7 @@ import java.util.Date;
 import java.util.List;
 
 import org.exoplatform.agenda.constant.EventAvailability;
+import org.exoplatform.agenda.constant.EventVisibility;
 import org.exoplatform.agenda.constant.EventStatus;
 
 import io.meeds.common.persistence.PortableSequence;
@@ -308,6 +309,25 @@ public class EventEntity implements Serializable {
   @Column(name = "AVAILABILITY", nullable = false)
   private EventAvailability         availability;
 
+  /**
+   * Whether the event's content may be published outside eXo (EXO-90322).
+   * Stored by ordinal, as AVAILABILITY is: the column is a SMALLINT the
+   * changeset backfills with 0, which is {@link EventVisibility#DEFAULT}.
+   * <p>
+   * Nullable, unlike AVAILABILITY next to it and unlike what symmetry would
+   * suggest, because the column it maps carries no NOT NULL either and the two
+   * must agree: Hibernate enforces {@code nullable = false} on its own at
+   * insert time, so declaring it would turn any writer that does not set the
+   * field — a DAO used directly, a future import path — into a failed event
+   * creation. The service sets it on every create and update, and a null that
+   * slipped past reads as "not masked", which is what every event did before
+   * this field existed. On a privacy flag that is the safe direction: a null
+   * cannot accidentally mask, and an event someone marked private is never
+   * null.
+   */
+  @Column(name = "VISIBILITY")
+  private EventVisibility           visibility;
+
   @Column(name = "STATUS", nullable = false)
   private EventStatus               status;
 
@@ -462,6 +482,24 @@ public class EventEntity implements Serializable {
 
   public void setAvailability(EventAvailability availability) {
     this.availability = availability;
+  }
+
+  /**
+   * Returns whether the event's content may be published outside eXo.
+   *
+   * @return the stored visibility, never null once the row has been written
+   */
+  public EventVisibility getVisibility() {
+    return visibility;
+  }
+
+  /**
+   * Sets whether the event's content may be published outside eXo.
+   *
+   * @param visibility the visibility to store
+   */
+  public void setVisibility(EventVisibility visibility) {
+    this.visibility = visibility;
   }
 
   public EventStatus getStatus() {
