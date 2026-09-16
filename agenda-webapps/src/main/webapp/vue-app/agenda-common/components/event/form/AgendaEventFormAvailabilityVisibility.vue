@@ -27,45 +27,64 @@
   it was. That is what keeps re-saving an old event a no-op on this row.
 -->
 <template>
-  <div class="d-flex flex-row flex-wrap align-center">
-    <select
-      ref="availability"
-      v-model="availability"
-      :aria-label="$t('agenda.label.showAs')"
-      :title="$t('agenda.label.showAs')"
-      class="subtitle-1 my-auto me-4 ignore-vuetify-classes event-availability-select">
-      <option
-        v-for="option in availabilityOptions"
-        :key="option.value"
-        :value="option.value">
-        {{ option.text }}
-      </option>
-    </select>
-    <select
-      ref="visibility"
-      v-model="visibility"
-      :aria-label="$t('agenda.label.eventVisibility')"
-      :title="$t('agenda.label.eventVisibility')"
-      class="subtitle-1 my-auto me-2 ignore-vuetify-classes event-visibility-select">
-      <option
-        v-for="option in visibilityOptions"
-        :key="option.value"
-        :value="option.value">
-        {{ option.text }}
-      </option>
-    </select>
-    <v-tooltip bottom max-width="320">
-      <template #activator="{on, attrs}">
-        <v-icon
-          v-bind="attrs"
-          size="16"
-          class="icon-default-color my-auto"
-          v-on="on">
-          fas fa-question-circle
-        </v-icon>
-      </template>
+  <div class="d-flex flex-column">
+    <div class="d-flex flex-row flex-wrap align-center">
+      <select
+        ref="availability"
+        v-model="availability"
+        :aria-label="$t('agenda.label.showAs')"
+        :title="$t('agenda.label.showAs')"
+        class="subtitle-1 my-auto me-4 ignore-vuetify-classes event-availability-select">
+        <option
+          v-for="option in availabilityOptions"
+          :key="option.value"
+          :value="option.value">
+          {{ option.text }}
+        </option>
+      </select>
+      <select
+        ref="visibility"
+        v-model="visibility"
+        :aria-label="$t('agenda.label.eventVisibility')"
+        :title="$t('agenda.label.eventVisibility')"
+        class="subtitle-1 my-auto me-2 ignore-vuetify-classes event-visibility-select">
+        <option
+          v-for="option in visibilityOptions"
+          :key="option.value"
+          :value="option.value">
+          {{ option.text }}
+        </option>
+      </select>
+      <!--
+      THE HELP. A tooltip on the desktop row, where the UX asks for the (?)
+      Google puts there — and body text on mobile, never a tooltip, for the
+      reason AgendaEventFormBusyCoverage already wrote down in this same form:
+      a tooltip does not exist on touch, so on the mobile form the sentence
+      would be unreachable. The icon carries the sentence as its accessible
+      name either way, so the help has a route that is not a hover.
+    -->
+      <v-tooltip
+        v-if="!helpAsText"
+        bottom
+        max-width="320">
+        <template #activator="{on, attrs}">
+          <v-icon
+            v-bind="attrs"
+            :aria-label="$t('agenda.availabilityVisibilityHelp')"
+            :title="$t('agenda.availabilityVisibilityHelp')"
+            size="16"
+            class="icon-default-color my-auto"
+            v-on="on">
+            fas fa-question-circle
+          </v-icon>
+        </template>
+        <span>{{ $t('agenda.availabilityVisibilityHelp') }}</span>
+      </v-tooltip>
+    </div>
+    <div v-if="helpAsText" class="d-flex flex-row align-start caption mt-1 availability-visibility-help">
+      <v-icon size="14" class="me-1 mt-1 icon-default-color">fas fa-question-circle</v-icon>
       <span>{{ $t('agenda.availabilityVisibilityHelp') }}</span>
-    </v-tooltip>
+    </div>
   </div>
 </template>
 
@@ -75,6 +94,14 @@ export default {
     event: {
       type: Object,
       default: () => ({}),
+    },
+    /**
+     * Whether the help is rendered as body text rather than behind the (?).
+     * Set by the mobile form, where a hover does not exist.
+     */
+    helpAsText: {
+      type: Boolean,
+      default: false,
     },
   },
   computed: {

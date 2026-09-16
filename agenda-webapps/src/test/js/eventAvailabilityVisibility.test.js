@@ -38,11 +38,12 @@ describe('The event form Show as / Visibility row', () => {
    * Mounts the row over an event payload.
    *
    * @param {Object} event the event the form is editing
+   * @param {Object} props any other props, such as helpAsText
    * @returns {Object} the wrapper
    */
-  function mountRow(event) {
+  function mountRow(event, props) {
     return mount(AgendaEventFormAvailabilityVisibility, {
-      propsData: {event},
+      propsData: Object.assign({event}, props),
       mocks: {$t: key => key},
     });
   }
@@ -112,6 +113,34 @@ describe('The event form Show as / Visibility row', () => {
       .toEqual(['BUSY', 'FREE']);
     expect(wrapper.findAll('.event-visibility-select option').wrappers.map(option => option.element.value))
       .toEqual(['DEFAULT', 'PUBLIC', 'PRIVATE']);
+  });
+
+  it('puts the help in the page on mobile and behind the (?) on desktop', () => {
+    const onMobile = mountRow({}, {helpAsText: true});
+    const onDesktop = mountRow({});
+
+    expect(onMobile.find('v-tooltip').exists()).toBe(false);
+    expect(onMobile.find('.availability-visibility-help').text()).toContain('agenda.availabilityVisibilityHelp');
+    expect(onDesktop.find('v-tooltip').exists()).toBe(true);
+    expect(onDesktop.find('.availability-visibility-help').exists()).toBe(false);
+  });
+
+  it('gives the desktop help icon the sentence as its accessible name, so the hover is not its only route', () => {
+    // Read from the source: v-icon is an ignored element here and sits inside
+    // v-tooltip's activator slot, which the harness does not render, so the
+    // attributes cannot be inspected on the mounted tree
+    const component = source('agenda-common/components/event/form/AgendaEventFormAvailabilityVisibility.vue');
+    const icon = component.slice(component.indexOf('<v-tooltip'), component.indexOf('</v-tooltip>'));
+
+    expect(icon).toContain(':aria-label="$t(\'agenda.availabilityVisibilityHelp\')"');
+    expect(icon).toContain(':title="$t(\'agenda.availabilityVisibilityHelp\')"');
+  });
+
+  it('is asked for the body-text help by the mobile form and not by the full form', () => {
+    expect(source('agenda-common/components/event/form/mobile/AgendaEventMobileForm.vue'))
+      .toContain('help-as-text');
+    expect(source('agenda-common/components/event/form/AgendaEventFormBasicInformation.vue'))
+      .not.toContain('help-as-text');
   });
 
   /**

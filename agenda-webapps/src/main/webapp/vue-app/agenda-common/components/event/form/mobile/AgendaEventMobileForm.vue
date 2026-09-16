@@ -100,7 +100,7 @@
         <div class="font-weight-bold my-2">
           {{ $t('agenda.label.availabilityAndVisibility') }}
         </div>
-        <agenda-event-form-availability-visibility :event="event" />
+        <agenda-event-form-availability-visibility :event="event" help-as-text />
         <div class="d-flex flex-row my-2 align-center">
           <label class="font-weight-bold">{{ $t('agenda.modifyEventPermission') }}</label>
           <v-switch v-model="event.allowAttendeeToUpdate" class="pa-0 mt-0 ms-4" />
