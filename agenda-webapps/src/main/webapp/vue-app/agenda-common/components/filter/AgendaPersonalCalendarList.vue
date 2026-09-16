@@ -518,11 +518,14 @@ export default {
     /**
      * What the share mark says when the pointer rests on it.
      *
-     * The number is a floor and the sentence is worded as one: the connector
-     * counts the colleagues it has observed, which leaves out anyone who is not
-     * a user of this platform with a connected account, and lags a share made
-     * in the last few minutes. Naming the drawer is the rest of the answer —
-     * only the drawer knows who, read from the server itself.
+     * The number is a floor and the sentence is worded as one. A connector
+     * counts a share this platform itself made as soon as it is made, but a
+     * share made in the calendar account's own web client it can only observe,
+     * which leaves out anyone who is not a user of this platform with a
+     * connected account and lags such a share by a few minutes; and a calendar
+     * this platform did not create on the account, only imported from it, can
+     * be shared and is never counted. Naming the drawer is the rest of the
+     * answer — only the drawer knows who, read from the server itself.
      *
      * @param {Object} calendar the calendar the mark sits on
      * @returns {String} the sentence to show, empty when there is no mark
