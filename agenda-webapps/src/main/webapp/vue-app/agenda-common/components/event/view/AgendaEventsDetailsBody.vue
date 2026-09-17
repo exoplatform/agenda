@@ -116,6 +116,18 @@
           <v-icon size="20" class="icon-default-color pe-6">fas fa-map-marker-alt</v-icon>
           <span v-autolinker="event.location" class="align-self-center text-break"></span>
         </div>
+        <!--
+          EXO-90327 + EXO-90322: without this row the feature is invisible —
+          nobody can tell a free event from a busy one, or a private one from
+          a public one, without opening the editor. Shown only when there is
+          something to say: an event that is busy and carries no stated
+          visibility is every event created before the row existed, and
+          spelling that out on every single event is noise.
+        -->
+        <div v-if="showAvailabilityVisibility" class="event-availability align-center d-flex pb-5">
+          <v-icon size="20" class="icon-default-color pe-5">fas fa-briefcase</v-icon>
+          <span class="align-self-center text-break">{{ availabilityVisibilityLabel }}</span>
+        </div>
         <div v-if="event.description" class="event-description d-flex flex-grow-0 flex-shrink-1 pb-5">
           <v-icon size="20" class="icon-default-color align-self-start mt-2 pe-5">fas fa-align-left</v-icon>
           <span v-sanitized-html="event.description" class="align-self-center text-wrap text-left text-break rich-editor-content pt-1"></span>
@@ -263,6 +275,48 @@ export default {
     hasRecurrence() {
       return this.event.recurrence || this.event.parent && this.event.parent.recurrence;
     },
+    /**
+     * Whether the event takes the user's time. DEFAULT and an unset value both
+     * mean busy — that is what every reader of the value does with them.
+     *
+     * @returns {Boolean} true when the event is explicitly free
+     */
+    isFreeEvent() {
+      return this.event && this.event.availability === 'FREE';
+    },
+    /**
+     * The stated visibility, empty when the event states none.
+     *
+     * @returns {String} the label, or an empty string
+     */
+    eventVisibilityLabel() {
+      const visibility = this.event && this.event.visibility;
+      if (visibility === 'PUBLIC') {
+        return this.$t('agenda.visibility.public');
+      } else if (visibility === 'PRIVATE') {
+        return this.$t('agenda.visibility.private');
+      }
+      return '';
+    },
+    /**
+     * Whether the row is worth a line: only when the event says something
+     * other than the default it has always had.
+     *
+     * @returns {Boolean} true when the row is displayed
+     */
+    showAvailabilityVisibility() {
+      return this.isFreeEvent || !!this.eventVisibilityLabel;
+    },
+    /**
+     * What the row reads: the availability always, and the visibility when the
+     * event states one.
+     *
+     * @returns {String} the label
+     */
+    availabilityVisibilityLabel() {
+      const availability = this.isFreeEvent ? this.$t('agenda.availability.free') : this.$t('agenda.availability.busy');
+      return this.eventVisibilityLabel ? `${availability} · ${this.eventVisibilityLabel}` : availability;
+    },
     isRemoteEvent(){
       return this.event.type === 'remoteEvent';
     },
@@ -355,56 +409,6 @@ export default {
           }
         }));
       });
-    },
-    async generateICS(event) {
-      const formatDate = (date) => {
-        return date ? `${new Date(date).toISOString().replace(/[-:]/g, '').split('.')[0]}Z` : '';
-      };
-
-      const foldLine = (line) => {
-        const maxLength = 70;
-        if (line.length <= maxLength) { return line; }
-        let result = '';
-        while (line.length > maxLength) {
-          result += `${line.substring(0, maxLength)}\n`;
-          line = ` ${line.substring(maxLength)}`;
-        }
-        return result + line;
-      };
-
-      const confurl = (event.conferences && event.conferences.length > 0) ? event.conferences[0].url : '';
-      const htmlDescription = `<html><body>${this.$t('agenda.invitationText')} <b>${event.creator.dataEntity.profile.fullname}</b> ${this.$t('agenda.inSpace')} <b>${event.calendar.title}.</b>\
-      ${confurl ? `<br><br><b>${this.$t('agenda.visioLink')}</b> <a href="${confurl}">${confurl}</a>` : ''}\
-      ${event.description ? `<br><br><b>${this.$t('agenda.eventDetail')}</b><br>${event.description.replaceAll('\n', '')}</body></html>` : ''}`
-        .trim().replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
-
-      const brandingInformation = await this.$brandingService.getBrandingInformation();
-      const icsContent = 'BEGIN:VCALENDAR\r\n' +
-        'CALSCALE:GREGORIAN\r\n' +
-        'METHOD:PUBLISH\r\n' +
-        `PRODID:-//${brandingInformation.siteName}//${brandingInformation.companyName}//EN\r\n` +
-        'VERSION:2.0\r\n' +
-        'BEGIN:VEVENT\r\n' +
-        `UID:${event.id || ''}\r\n` +
-        `UID:X:${event.id || ''}\r\n` +
-        `DTSTAMP:${formatDate(new Date())}\r\n` +
-        `DTSTART:${formatDate(event.startDate)}\r\n` +
-        `DTEND:${formatDate(event.endDate)}\r\n` +
-        `SUMMARY:${event.summary || ''}\r\n` +
-        `DESCRIPTION:${htmlDescription || ''}\r\n` +
-        `X-ALT-DESC;FMTTYPE=text/html:${htmlDescription}\n` +
-        `LOCATION:${event.location || ''}\n` +
-        `URL:${confurl}\r\n` +
-        `ORGANIZER;CN=${event.creator.dataEntity.profile.fullname}:MAILTO:${event.creator.dataEntity.profile.email}\r\n` +
-        'END:VEVENT\r\n' +
-        'END:VCALENDAR\r\n';
-
-      const processAndFoldText = (text) => {
-        const lines = text.split('\n');
-        const foldedLines = lines.map(line => foldLine(line)).join('\n');
-        return foldedLines;
-      };
-      return processAndFoldText(icsContent);
     },
     downloadICS(event) {
       return this.$eventService.generateICS(event.id, this.$agendaUtils.USER_TIMEZONE_ID).then(icsContent => {
