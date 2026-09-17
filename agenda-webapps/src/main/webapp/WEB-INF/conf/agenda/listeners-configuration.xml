@@ -35,6 +35,12 @@
       <set-method>addListener</set-method>
       <type>org.exoplatform.agenda.listener.AgendaEventReplyListener</type>
     </component-plugin>
+    <!-- EXO-90357: a colleague is told that a calendar was shared with them -->
+    <component-plugin>
+      <name>exo.agenda.calendar.shared</name>
+      <set-method>addListener</set-method>
+      <type>org.exoplatform.agenda.listener.AgendaCalendarSharedListener</type>
+    </component-plugin>
     <component-plugin>
       <name>exo.agenda.event.poll.voted.all</name>
       <set-method>addListener</set-method>
