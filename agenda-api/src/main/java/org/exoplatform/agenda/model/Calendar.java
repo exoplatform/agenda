@@ -54,6 +54,14 @@ public class Calendar implements Cloneable {
    */
   private boolean            subscription;
 
+  /**
+   * Whether the reader sees this calendar only because its owner shared it
+   * with them (EXO-90357). Computed for a viewer after the calendar is read
+   * from the cache, exactly as {@link #acl} is — never before, since the
+   * cached instance serves every viewer.
+   */
+  private boolean            sharedWithMe;
+
   public Calendar(long id,
                   long ownerId,
                   boolean system,
@@ -94,6 +102,7 @@ public class Calendar implements Cloneable {
     calendar.setName(name);
     calendar.setSyncUid(syncUid);
     calendar.setSubscription(subscription);
+    calendar.setSharedWithMe(sharedWithMe);
     return calendar;
   }
 }

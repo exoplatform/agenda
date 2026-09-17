@@ -43,6 +43,8 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
 
   private List<String>          defaultColors;
 
+  private CalendarShareAccess   calendarShareAccess = new CalendarShareAccess();
+
   public AgendaCalendarServiceImpl(AgendaCalendarStorage agendaCalendarStorage,
                                    IdentityManager identityManager,
                                    SpaceService spaceService,
@@ -51,6 +53,28 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     this.identityManager = identityManager;
     this.spaceService = spaceService;
     this.defaultColors = initParams.getValuesParam("defaultColors").getValues();
+  }
+
+  /**
+   * Replaces how calendar shares are looked up, for tests: the default
+   * resolves the share service from the container on first use.
+   *
+   * @param calendarShareAccess the lookup
+   */
+  public void setCalendarShareAccess(CalendarShareAccess calendarShareAccess) {
+    this.calendarShareAccess = calendarShareAccess;
+  }
+
+  /**
+   * Whether a calendar is shared with a user (EXO-90357), read through the
+   * share service when it is there and as not shared when it is not.
+   *
+   * @param calendarId technical identifier of the calendar
+   * @param userIdentityId identity identifier of the reader
+   * @return true only when a share record exists
+   */
+  private boolean isSharedWith(long calendarId, long userIdentityId) {
+    return calendarShareAccess.isSharedWith(calendarId, userIdentityId);
   }
 
   /**
@@ -161,6 +185,14 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     } else {
       long userIdentityId = Long.parseLong(userIdentity.getId());
       if (!Utils.canAccessCalendar(identityManager, spaceService, ownerId, userIdentityId)) {
+        if (isSharedWith(calendarId, userIdentityId)) {
+          // A colleague the owner shared the calendar with (EXO-90357) reads it
+          // and nothing more: no creation, no edit, no publishing, no sharing on
+          calendar.setAcl(new CalendarPermission(false, false, false, false, false));
+          calendar.setSharedWithMe(true);
+          resolveCalendarTitle(calendar);
+          return calendar;
+        }
         throw new IllegalAccessException("User " + username + " is not allowed to retrieve calendar data of space "
             + calendar.getTitle());
       } else {
@@ -177,10 +209,14 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
                                                    ownerId);
         CalendarPermission acl = new CalendarPermission(canCreateEvent, canEditCalendar, hasRedactor);
         acl.setCanPublish(Utils.canPublishCalendar(identityManager, spaceService, ownerId, Long.parseLong(userIdentity.getId())));
+        // Sharing (EXO-90357) is the owner's, of a personal calendar only: a
+        // space calendar is read by its members already, and sharing one is a
+        // later decision
+        acl.setCanShare(ownerIdentity.isUser() && userIdentityId == ownerId);
         if (calendar.isSubscription()) {
           // A subscribed calendar (EXO-90278) is filled by its feed alone: nobody
-          // creates events in it, edits it here, or republishes it
-          acl = new CalendarPermission(false, false, false, false);
+          // creates events in it, edits it here, republishes it or shares it
+          acl = new CalendarPermission(false, false, false, false, false);
         }
         calendar.setAcl(acl);
         resolveCalendarTitle(calendar);

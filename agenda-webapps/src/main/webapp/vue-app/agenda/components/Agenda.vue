@@ -135,6 +135,12 @@
       open it through one root event.
     -->
     <agenda-calendar-subscription-drawer />
+    <!--
+      Sharing a calendar with colleagues (EXO-90357), once for the whole
+      application for the same reason: the personal calendar rows and their
+      shared sign open it through one root event.
+    -->
+    <agenda-calendar-share-drawer />
   </v-app>
 </template>
 <script>
@@ -186,6 +192,10 @@ export default {
     // The subscribed calendars (EXO-90278) the user hid, apart from the personal
     // ones: the two lists persist and change independently
     hiddenSubscribedCalendarIds: [],
+    // The calendars colleagues shared with the user (EXO-90357) that the
+    // "Shared with me" section draws: an inclusion the events request carries
+    // as calendarIds, since no owner selection of the user's can name them
+    sharedCalendarIds: [],
     displayedEvent: [],
     settings: {
       agendaDefaultView: 'week',
@@ -517,6 +527,7 @@ export default {
     this.initHiddenPersonalCalendars();
     this.$root.$on('agenda-subscribed-calendars-visibility-changed', this.changeHiddenSubscribedCalendars);
     this.initHiddenSubscribedCalendars();
+    this.$root.$on('agenda-shared-calendars-displayed-changed', this.changeSharedCalendars);
     this.$root.$on('agenda-settings-refresh', this.initSettings);
     this.$root.$on('agenda-event-change-owner', this.refreshProviders);
     this.initSettings();
@@ -634,7 +645,9 @@ export default {
         return;
       }
       const responseTypes = this.spaceContextId && this.eventType === 'allEvents' ? null : this.eventType === 'declinedEvent' ? ['DECLINED']:['ACCEPTED', 'NEEDS_ACTION', 'TENTATIVE'];
-      return this.$eventService.getEvents(this.searchTerm, this.effectiveOwnerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, true), this.$agendaUtils.toRFC3339(this.period.end), this.limit, responseTypes, 'attendees,conferences', this.hiddenOwnCalendarIds)
+      // No shared calendar in a space agenda: the selection is the space
+      const sharedCalendarIds = this.leftPanelAvailable ? this.sharedCalendarIds : [];
+      return this.$eventService.getEvents(this.searchTerm, this.effectiveOwnerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, true), this.$agendaUtils.toRFC3339(this.period.end), this.limit, responseTypes, 'attendees,conferences', this.hiddenOwnCalendarIds, sharedCalendarIds)
         .then(data => {
           if (requestId !== this.eventsRequestId) {
             // A newer retrieval was started since: its response is the one
@@ -829,6 +842,23 @@ export default {
      */
     changeHiddenSubscribedCalendars(hiddenSubscribedCalendarIds) {
       this.hiddenSubscribedCalendarIds = (hiddenSubscribedCalendarIds || []).map(Number);
+    },
+    /**
+     * Applies the set of shared calendars the "Shared with me" section draws
+     * (EXO-90357), and reads the events again when it changed: their events
+     * come from the eXo store, through the calendarIds of the request.
+     *
+     * @param {Array} sharedCalendarIds identifiers of the shared calendars
+     *          to draw
+     * @returns {void}
+     */
+    changeSharedCalendars(sharedCalendarIds) {
+      const next = (sharedCalendarIds || []).map(Number);
+      const changed = next.length !== this.sharedCalendarIds.length || next.some(id => !this.sharedCalendarIds.includes(id));
+      this.sharedCalendarIds = next;
+      if (changed && this.initialized) {
+        this.retrieveEvents();
+      }
     },
     /**
      * Restores the subscribed-calendar visibility persisted in the browser

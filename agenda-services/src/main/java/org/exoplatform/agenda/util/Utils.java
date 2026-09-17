@@ -36,9 +36,11 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.constant.AgendaEventModificationType;
+import org.exoplatform.agenda.constant.EventAccess;
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.constant.EventAvailability;
 import org.exoplatform.agenda.constant.EventStatus;
+import org.exoplatform.agenda.constant.EventVisibility;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.commons.utils.ListAccess;
@@ -1139,6 +1141,37 @@ public class Utils {
             .mapToObj(codePoint -> codePoint > 127 ? "&#x" + Integer.toHexString(codePoint) + ";"
                     : new String(Character.toChars(codePoint)))
             .collect(Collectors.joining());
+  }
+
+  /**
+   * Renders an event for the access its reader has (EXO-90357): the access is
+   * stamped on the event, and a {@link EventVisibility#PRIVATE} event read
+   * through a share alone becomes busy time — summary, description, location
+   * and parameters cleared, marked {@code masked} so that every render path
+   * leaves out what it would otherwise read again by identifier (attendees,
+   * conferences, reminders, date options). Everything else is returned as it
+   * is. The one helper every read path goes through, the service for the
+   * event it reads and the REST builder for the series it renders from an
+   * occurrence.
+   *
+   * @param event the event, a copy of the cached one; may be null
+   * @param access how the reader may read it; null leaves the event as it is
+   * @return the same event, masked when it must be
+   */
+  public static Event maskForAccess(Event event, EventAccess access) {
+    if (event == null || access == null) {
+      return event;
+    }
+    event.setAccess(access);
+    if (access != EventAccess.SHARED || event.getVisibility() != EventVisibility.PRIVATE) {
+      return event;
+    }
+    event.setSummary(null);
+    event.setDescription(null);
+    event.setLocation(null);
+    event.setParameters(null);
+    event.setMasked(true);
+    return event;
   }
 
 }
