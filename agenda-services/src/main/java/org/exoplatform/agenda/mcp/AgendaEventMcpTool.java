@@ -1140,7 +1140,25 @@ public class AgendaEventMcpTool implements McpToolPlugin {
                                 eventAttendees,
                                 userAnswer,
                                 getUserModel(event.getCreatorId()),
-                                null);
+                                null,
+                                isEffectivelyOpen(event));
+  }
+
+  /**
+   * The open flag is a property of the series: an occurrence, computed or
+   * exceptional, answers with its parent's value (the exceptional occurrence's
+   * own row keeps false and is not a source of truth), exactly as the REST
+   * entity does, so that one open series never lists as open here and locked
+   * there.
+   */
+  private boolean isEffectivelyOpen(Event event) {
+    if (event.getParentId() > 0) {
+      Event parentEvent = agendaEventService.getEventById(event.getParentId());
+      if (parentEvent != null) {
+        return Boolean.TRUE.equals(parentEvent.getOpen());
+      }
+    }
+    return Boolean.TRUE.equals(event.getOpen());
   }
 
   private List<EventAttendee> toEventAttendees(List<String> attendeeUsernames, boolean includeCurrentUser) {

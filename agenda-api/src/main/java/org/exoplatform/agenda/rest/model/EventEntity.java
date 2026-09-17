@@ -156,6 +156,16 @@ public class EventEntity implements Serializable, Cloneable {
 
   private transient boolean           sendInvitation;
 
+  /**
+   * Open event flag. On read: the effective value (an occurrence carries its
+   * series' value), never null — except on a search result
+   * ({@link EventSearchResultEntity}), where the flag is not indexed and stays
+   * null, meaning "unknown", never "locked". On write: optional — null means
+   * "not specified", i.e. kept as stored on update and false on creation, so
+   * that a client omitting the field can neither lock nor open an event.
+   */
+  private Boolean                     open;
+
   @Override
   public EventEntity clone() {// NOSONAR
     return new EventEntity(id,
@@ -187,6 +197,7 @@ public class EventEntity implements Serializable, Cloneable {
                            allowAttendeeToUpdate,
                            allowAttendeeToInvite,
                            parameters,
-                           sendInvitation);
+                           sendInvitation,
+                           open);
   }
 }
