@@ -19,7 +19,10 @@
     Subscribing to a calendar link, and editing a subscription (EXO-90278). One
     instance for the whole application, mounted beside the other calendar drawers
     in Agenda.vue and opened by a root event: never inside a row, which can go
-    away while the drawer is open (EXO-90239).
+    away while the drawer is open (EXO-90239). Opened with a space as its second
+    argument, it adds the calendar to that space (EXO-90373): no colour field,
+    the space's colour is taken. The space settings mount it once too, since the
+    agenda application is not on that page.
   -->
   <exo-drawer
     ref="subscriptionDrawer"
@@ -35,7 +38,7 @@
       <form
         class="mx-4 mt-4"
         @submit.stop.prevent="save">
-        <p class="text-light-color">{{ $t('agenda.calendarSubscription.explanation') }}</p>
+        <p class="text-light-color agenda-calendar-subscription-explanation">{{ explanation }}</p>
         <!--
           The link, its row and its red or green message form one block with its
           own bottom margin: the gap to the Name label is the same with or without
@@ -95,10 +98,10 @@
             hide-details
             @input="nameTouched = true" />
         </div>
-        <v-label>
+        <v-label v-if="!isSpace">
           {{ $t('agenda.calendar.color') }}
         </v-label>
-        <div class="d-flex align-center mt-2">
+        <div v-if="!isSpace" class="d-flex align-center mt-2 agenda-calendar-subscription-color">
           <v-menu
             v-model="colorMenu"
             :close-on-content-click="false"
@@ -182,6 +185,7 @@ export default {
     nameTouched: false,
     state: 'idle',
     errorCode: null,
+    space: null,
   }),
   computed: {
     /**
@@ -191,6 +195,22 @@ export default {
      */
     isEdit() {
       return !!(this.subscription && this.subscription.id);
+    },
+    /**
+     * Whether the calendar is added to a space rather than to the user's agenda.
+     *
+     * @returns {Boolean} true for a space
+     */
+    isSpace() {
+      return !!(this.space && this.space.ownerId);
+    },
+    /**
+     * @returns {String} what the drawer explains, for the user or for a space
+     */
+    explanation() {
+      return this.isSpace
+        ? this.$t('agenda.calendarSubscription.explanationSpace', {0: this.space.spaceName || ''})
+        : this.$t('agenda.calendarSubscription.explanation');
     },
     /**
      * @returns {String} the drawer title
@@ -257,9 +277,12 @@ export default {
      * Opens the drawer, empty to subscribe or filled to edit a subscription.
      *
      * @param {Object} subscription the subscription to edit, or nothing
+     * @param {Object} space {ownerId, spaceName} to add the calendar to a space,
+     *          or nothing for the user's agenda
      * @returns {void}
      */
-    open(subscription) {
+    open(subscription, space) {
+      this.space = space && space.ownerId ? space : null;
       this.subscription = subscription || null;
       this.url = subscription && subscription.url || '';
       this.name = subscription && subscription.name || '';
@@ -312,7 +335,10 @@ export default {
       const url = this.url.trim();
       this.state = 'checking';
       this.errorCode = null;
-      return this.$calendarSubscriptionService.checkUrl(url)
+      const request = this.isSpace
+        ? this.$calendarSubscriptionService.checkUrl(url, this.space.ownerId)
+        : this.$calendarSubscriptionService.checkUrl(url);
+      return request
         .then(result => {
           if (this.url.trim() !== url) {
             this.state = 'idle';
@@ -341,8 +367,12 @@ export default {
       const values = {
         url: this.hasUrl ? this.url.trim() : null,
         name: this.name && this.name.trim() || null,
-        color: this.color || null,
+        color: this.isSpace ? null : this.color || null,
       };
+      const space = this.space;
+      if (space && !this.isEdit) {
+        values.ownerId = space.ownerId;
+      }
       const editing = this.isEdit;
       let request;
       if (editing) {
@@ -358,9 +388,17 @@ export default {
       return request
         .then(saved => {
           this.state = 'idle';
-          this.$root.$emit('agenda-refresh-subscribed-calendars');
+          if (space) {
+            this.$root.$emit('agenda-space-subscriptions-changed', space.ownerId);
+          } else {
+            this.$root.$emit('agenda-refresh-subscribed-calendars');
+          }
           this.$root.$emit('agenda-refresh');
-          if (!editing) {
+          if (!editing && space) {
+            this.$root.$emit('alert-message',
+              this.$t('agenda.calendarSubscription.subscribedSpace', {0: saved && saved.name || values.name || '', 1: space.spaceName || ''}),
+              'success');
+          } else if (!editing) {
             this.$root.$emit('alert-message',
               this.$t('agenda.calendarSubscription.subscribed', {0: saved && saved.name || values.name || ''}),
               'success');

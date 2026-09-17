@@ -141,6 +141,12 @@
       shared sign open it through one root event.
     -->
     <agenda-calendar-share-drawer />
+    <!--
+      The calendars a space subscribes to (EXO-90373), once for the whole
+      application for the same reason: every space calendar row a manager sees
+      opens it through one root event.
+    -->
+    <agenda-space-subscriptions-drawer />
   </v-app>
 </template>
 <script>
