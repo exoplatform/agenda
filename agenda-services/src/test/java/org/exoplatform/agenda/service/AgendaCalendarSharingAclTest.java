@@ -39,6 +39,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import org.exoplatform.agenda.constant.CalendarShareLevel;
 import org.exoplatform.agenda.constant.EventAccess;
 import org.exoplatform.agenda.constant.EventAvailability;
 import org.exoplatform.agenda.constant.EventStatus;
@@ -61,6 +62,7 @@ import org.exoplatform.container.xml.ValuesParam;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
+import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
@@ -89,6 +91,15 @@ class AgendaCalendarSharingAclTest {
 
   private static final long        SERIES   = 600;
 
+  /** Alice's own personal calendar: what an editor may create in, and may not move the owner's events to. */
+  private static final long        ALICE_CALENDAR = 78;
+
+  /** A space, and its calendar: never shareable. */
+  private static final long        SPACE          = 9;
+
+  /** The space's calendar. */
+  private static final long        SPACE_CALENDAR = 79;
+
   private final Map<String, Identity> identities = new HashMap<>();
 
   private AgendaCalendarShareService shareService;
@@ -106,6 +117,21 @@ class AgendaCalendarSharingAclTest {
   private AgendaEventServiceImpl     eventService;
 
   private EventVisibility            visibility = EventVisibility.PRIVATE;
+
+  /** The level the owner's calendar is shared with Alice at (EXO-90378). */
+  private CalendarShareLevel         aliceLevel = CalendarShareLevel.VIEW;
+
+  /**
+   * The level the one share of this fixture grants, null for no share: the
+   * owner's calendar is shared with Alice and with nobody else.
+   *
+   * @param calendarId the calendar asked about
+   * @param identityId the reader asked about
+   * @return the level, or null
+   */
+  private CalendarShareLevel levelOf(long calendarId, long identityId) {
+    return calendarId == CALENDAR && identityId == ALICE ? aliceLevel : null;
+  }
 
   /**
    * Wires the calendar and event services over the owner's calendar, shared
@@ -126,9 +152,21 @@ class AgendaCalendarSharingAclTest {
                                                                                                    .findFirst()
                                                                                                    .orElse(null));
     shareService = mock(AgendaCalendarShareService.class);
-    when(shareService.isSharedWith(CALENDAR, ALICE)).thenReturn(true);
-    when(shareService.getSharedCalendarIds(anyLong())).thenReturn(List.of());
-    when(shareService.getSharedCalendarIds(ALICE)).thenReturn(List.of(CALENDAR));
+    // One source of truth for the share, read by every primitive, so that a
+    // test flipping the level flips what all of them answer (EXO-90378)
+    when(shareService.isSharedWith(anyLong(), anyLong())).thenAnswer(invocation -> levelOf(invocation.getArgument(0),
+                                                                                          invocation.getArgument(1)) != null);
+    when(shareService.getShareLevel(anyLong(), anyLong())).thenAnswer(invocation -> levelOf(invocation.getArgument(0),
+                                                                                           invocation.getArgument(1)));
+    when(shareService.getShareLevels(anyLong())).thenAnswer(invocation -> levelOf(CALENDAR,
+                                                                                 invocation.getArgument(0)) == null
+                                                                                                                   ? Map.of()
+                                                                                                                   : Map.of(CALENDAR,
+                                                                                                                            aliceLevel));
+    when(shareService.getSharedCalendarIds(anyLong())).thenAnswer(invocation -> levelOf(CALENDAR,
+                                                                                       invocation.getArgument(0)) == null
+                                                                                                                         ? List.of()
+                                                                                                                         : List.of(CALENDAR));
 
     calendarStorage = mock(AgendaCalendarStorage.class);
     when(calendarStorage.getCalendarById(CALENDAR)).thenAnswer(invocation -> calendar());
@@ -387,6 +425,253 @@ class AgendaCalendarSharingAclTest {
     reminderService.saveEventReminders(event(), List.of(), OWNER);
   }
 
+
+  /**
+   * An editor writes in the calendar shared with them (EXO-90378): they may
+   * create in it, and update and delete its events, exactly as its owner may.
+   * A viewer may none of it, and a stranger even less.
+   */
+  @Test
+  void anEditorCreatesUpdatesAndDeletesInTheSharedCalendar() {
+    assertFalse(eventService.canCreateEvent(calendar(), ALICE), "a viewer creates nothing");
+    assertFalse(eventService.canUpdateEvent(event(), ALICE), "and updates nothing");
+
+    aliceLevel = CalendarShareLevel.EDIT;
+
+    assertTrue(eventService.canCreateEvent(calendar(), ALICE), "an editor creates in the owner's calendar");
+    assertTrue(eventService.canUpdateEvent(event(), ALICE), "and updates its events");
+    assertTrue(eventService.canUpdateEvent(series(), ALICE), "series included");
+    assertFalse(eventService.canCreateEvent(calendar(), CAROL), "a stranger creates nothing");
+    assertFalse(eventService.canUpdateEvent(event(), CAROL), "and updates nothing");
+    assertTrue(eventService.canUpdateEvent(event(), OWNER), "and the owner keeps every right they had");
+  }
+
+  /**
+   * An edit share is a <b>reading</b> access too: the editor reads the
+   * calendar's private events in full, where a viewer reads them as busy time
+   * (EXO-90378, PO decision 2).
+   *
+   * @throws Exception when a read is refused
+   */
+  @Test
+  void anEditorReadsThePrivateEventsInFull() throws Exception {
+    assertEquals(EventAccess.SHARED, eventService.getEventAccess(event(), ALICE));
+    assertTrue(eventService.getEventById(EVENT, ZoneOffset.UTC, ALICE).isMasked());
+
+    aliceLevel = CalendarShareLevel.EDIT;
+
+    assertEquals(EventAccess.SHARED_EDIT, eventService.getEventAccess(event(), ALICE));
+    Event forAlice = eventService.getEventById(EVENT, ZoneOffset.UTC, ALICE);
+    assertFalse(forAlice.isMasked(), "an editor is not shown busy time in the calendar they write");
+    assertEquals("Dentist", forAlice.getSummary());
+    assertEquals("Tooth 12", forAlice.getDescription());
+    assertTrue(forAlice.getAcl().isCanEdit(), "and the event carries the right the UI drives edit, delete and drag from");
+    assertEquals(EventAccess.NONE, eventService.getEventAccess(event(), CAROL), "a stranger still reads nothing");
+  }
+
+  /**
+   * A listing and a search hit of the shared calendar are unmasked for an
+   * editor and masked for a viewer: the level travels through the listing's
+   * one cached read, not through a second question per event.
+   */
+  @Test
+  void aListingAndASearchHitAreUnmaskedForAnEditor() throws Exception {
+    when(eventStorage.getEventIds(any())).thenReturn(List.of(EVENT));
+    when(searchConnector.search(any())).thenAnswer(invocation -> List.of(hit()));
+    aliceLevel = CalendarShareLevel.EDIT;
+
+    List<Event> listed = eventService.getEvents(filter(List.of(CALENDAR)), ZoneOffset.UTC, ALICE);
+    assertEquals(1, listed.size());
+    assertFalse(listed.get(0).isMasked());
+    assertEquals("Dentist", listed.get(0).getSummary());
+    assertTrue(listed.get(0).getAcl().isCanEdit());
+
+    List<EventSearchResult> found = eventService.search(new AgendaEventSearchFilter(ALICE,
+                                                                                   ZoneOffset.UTC,
+                                                                                   "dent",
+                                                                                   null,
+                                                                                   null,
+                                                                                   null,
+                                                                                   0,
+                                                                                   10));
+    assertFalse(found.get(0).isMasked());
+    assertEquals("Dentist", found.get(0).getSummary());
+    assertFalse(found.get(0).getExcerpts().isEmpty(), "and the words that matched are not withheld either");
+  }
+
+  /**
+   * The calendar row an editor reads: they may create in it, and nothing
+   * more. canEdit stays false — renaming, recolouring and deleting the
+   * calendar are the owner's — and so do canPublish and canShare, so an
+   * editor can neither publish the calendar nor re-share it nor level anyone.
+   *
+   * @throws Exception when the read is refused
+   */
+  @Test
+  void anEditorsCalendarRowGrantsCreationAndNothingElse() throws Exception {
+    aliceLevel = CalendarShareLevel.EDIT;
+
+    Calendar forAlice = calendarService.getCalendarById(CALENDAR, "alice");
+
+    assertTrue(forAlice.isSharedWithMe());
+    assertEquals(CalendarShareLevel.EDIT, forAlice.getShareLevel());
+    assertTrue(forAlice.getAcl().isCanCreate());
+    assertFalse(forAlice.getAcl().isCanEdit(), "the calendar itself stays the owner's");
+    assertFalse(forAlice.getAcl().isCanPublish());
+    assertFalse(forAlice.getAcl().isCanShare(), "an editor re-shares nothing and levels nobody");
+
+    aliceLevel = CalendarShareLevel.VIEW;
+    Calendar viewer = calendarService.getCalendarById(CALENDAR, "alice");
+    assertEquals(CalendarShareLevel.VIEW, viewer.getShareLevel());
+    assertFalse(viewer.getAcl().isCanCreate(), "a downgrade takes the creation right back");
+  }
+
+  /**
+   * An editor may not move an event out of the calendar shared with them: the
+   * event is the owner's. Refused on the patch path, into their own calendar
+   * — which they may otherwise create in — and the owner is unaffected.
+   */
+  @Test
+  void anEditorCannotMoveAnEventOutOfTheSharedCalendar() {
+    when(calendarStorage.getCalendarById(ALICE_CALENDAR)).thenAnswer(invocation -> aliceCalendar());
+    aliceLevel = CalendarShareLevel.EDIT;
+    Map<String, List<String>> move = Map.of("calendarId", List.of(String.valueOf(ALICE_CALENDAR)));
+
+    assertThrows(IllegalAccessException.class,
+                 () -> eventService.updateEventFields(EVENT, move, false, false, ALICE),
+                 "the event stays in the calendar its owner shared");
+    org.mockito.Mockito.verify(eventStorage, org.mockito.Mockito.never()).updateEvent(any());
+
+    assertTrue(eventService.canCreateEvent(aliceCalendar(), ALICE), "though she may create in her own calendar");
+    assertThrows(IllegalAccessException.class,
+                 () -> eventService.updateEventFields(EVENT, move, false, false, CAROL),
+                 "a stranger is refused before the move is even looked at");
+  }
+
+  /**
+   * An editor may change every other field of the owner's events, the
+   * calendar among them as long as it does not change: the move check is a
+   * check on the move, not a veto on the patch.
+   *
+   * @throws Exception when the patch is refused
+   */
+  @Test
+  void anEditorPatchesTheOwnersEventInPlace() throws Exception {
+    when(eventStorage.updateEvent(any())).thenAnswer(invocation -> invocation.getArgument(0));
+    aliceLevel = CalendarShareLevel.EDIT;
+
+    eventService.updateEventFields(EVENT,
+                                   Map.of("summary", List.of("Moved by alice"), "calendarId", List.of(String.valueOf(CALENDAR))),
+                                   false,
+                                   false,
+                                   ALICE);
+
+    ArgumentCaptor<Event> written = ArgumentCaptor.forClass(Event.class);
+    org.mockito.Mockito.verify(eventStorage).updateEvent(written.capture());
+    assertEquals("Moved by alice", written.getValue().getSummary());
+    assertEquals(CALENDAR, written.getValue().getCalendarId(), "and it is still the owner's calendar");
+    assertEquals(ALICE, written.getValue().getModifierId(), "the change is recorded as hers");
+  }
+
+  /**
+   * An editor deletes the owner's events; a viewer does not. The refusal is
+   * the same predicate, so the pin is on the entry point the REST DELETE
+   * reaches.
+   */
+  @Test
+  void anEditorDeletesTheOwnersEventAndAViewerDoesNot() {
+    assertThrows(IllegalAccessException.class, () -> eventService.deleteEventById(EVENT, ALICE), "a viewer deletes nothing");
+
+    aliceLevel = CalendarShareLevel.EDIT;
+
+    assertTrue(eventService.canUpdateEvent(event(), ALICE), "and an editor may, through the one predicate DELETE goes through");
+    assertThrows(IllegalAccessException.class, () -> eventService.deleteEventById(EVENT, CAROL), "a stranger deletes nothing");
+  }
+
+  /**
+   * An editor may create an exceptional occurrence of a series held in the
+   * shared calendar — the case where EXO-90378 meets EXO-90381, which
+   * requires the right to update the series before an occurrence of it may be
+   * created. A viewer may not, and neither may a stranger.
+   */
+  @Test
+  void anEditorMayCreateAnExceptionalOccurrenceOfTheOwnersSeries() {
+    assertFalse(eventService.canUpdateEvent(series(), ALICE), "a viewer cannot update the series");
+
+    aliceLevel = CalendarShareLevel.EDIT;
+
+    assertTrue(eventService.canUpdateEvent(series(), ALICE),
+               "an editor may update the series, which is what creating an occurrence of it requires (EXO-90381)");
+    assertTrue(eventService.canCreateEvent(calendar(), ALICE), "and may create in the calendar it is filed in");
+    assertFalse(eventService.canUpdateEvent(series(), CAROL));
+  }
+
+  /**
+   * An editor sets their own reminders on the owner's events; a viewer is
+   * still refused (EXO-90378, PO decision 13). A reminder is per receiver:
+   * the editor's reaches nobody else.
+   *
+   * @throws Exception when a reminder is refused for a user who may set one
+   */
+  @Test
+  void anEditorSetsTheirOwnRemindersAndAViewerDoesNot() throws Exception {
+    AgendaEventReminderServiceImpl reminderService = new AgendaEventReminderServiceImpl(mock(AgendaEventReminderStorage.class),
+                                                                                       eventStorage,
+                                                                                       mock(AgendaEventAttendeeStorage.class),
+                                                                                       mock(AgendaUserSettingsService.class),
+                                                                                       mock(IdentityManager.class),
+                                                                                       mock(SpaceService.class),
+                                                                                       mock(ListenerService.class),
+                                                                                       mock(InitParams.class));
+    reminderService.setAgendaEventService(eventService);
+    assertThrows(IllegalAccessException.class, () -> reminderService.saveEventReminders(event(), List.of(), ALICE));
+
+    aliceLevel = CalendarShareLevel.EDIT;
+
+    reminderService.saveEventReminders(event(), List.of(), ALICE);
+  }
+
+  /**
+   * Without a share service to ask, nobody writes by a share either: the
+   * absent bean answers no level, never the narrower one, so an editor is as
+   * refused as a viewer.
+   */
+  @Test
+  void anAbsentShareServiceAdmitsNoEditor() {
+    aliceLevel = CalendarShareLevel.EDIT;
+    eventService.setCalendarShareAccess(new CalendarShareAccess(null));
+    calendarService.setCalendarShareAccess(new CalendarShareAccess(null));
+
+    assertFalse(eventService.canCreateEvent(calendar(), ALICE));
+    assertFalse(eventService.canUpdateEvent(event(), ALICE));
+    assertEquals(EventAccess.NONE, eventService.getEventAccess(event(), ALICE));
+    assertThrows(IllegalAccessException.class, () -> calendarService.getCalendarById(CALENDAR, "alice"));
+  }
+
+  /**
+   * A share never reaches a space calendar (EXO-90357, unchanged here): the
+   * edit branch of the write predicate asks for a calendar whose owner is a
+   * <b>user</b>, so a record naming a space calendar grants nothing.
+   */
+  @Test
+  void aShareGrantsNothingOnASpaceCalendar() {
+    Identity space = new Identity(SpaceIdentityProvider.NAME, "team");
+    space.setId(String.valueOf(SPACE));
+    identities.put(String.valueOf(SPACE), space);
+    when(calendarStorage.getCalendarById(SPACE_CALENDAR)).thenAnswer(invocation -> spaceCalendar());
+    aliceLevel = CalendarShareLevel.EDIT;
+    // A record naming the space's calendar, which the owner check must refuse
+    // on its own: the whole point is that no share ever grants on a space,
+    // whatever a row says
+    when(shareService.getShareLevel(SPACE_CALENDAR, ALICE)).thenReturn(CalendarShareLevel.EDIT);
+    when(shareService.isSharedWith(SPACE_CALENDAR, ALICE)).thenReturn(true);
+
+    assertFalse(eventService.canCreateEvent(spaceCalendar(), ALICE), "a space calendar is not shareable, so not editable");
+    Event spaceEvent = event();
+    spaceEvent.setCalendarId(SPACE_CALENDAR);
+    assertFalse(eventService.canUpdateEvent(spaceEvent, ALICE));
+  }
+
   /**
    * A filter over the event's day.
    *
@@ -466,6 +751,33 @@ class AgendaCalendarSharingAclTest {
     recurrence.setByDay(List.of("TH"));
     event.setRecurrence(recurrence);
     return event;
+  }
+
+  /**
+   * Alice's own personal calendar, the target of a move an editor may not
+   * make.
+   *
+   * @return the calendar
+   */
+  private static Calendar aliceCalendar() {
+    Calendar calendar = new Calendar();
+    calendar.setId(ALICE_CALENDAR);
+    calendar.setOwnerId(ALICE);
+    calendar.setName("Alice");
+    return calendar;
+  }
+
+  /**
+   * A space's calendar, which no share ever reaches.
+   *
+   * @return the calendar
+   */
+  private static Calendar spaceCalendar() {
+    Calendar calendar = new Calendar();
+    calendar.setId(SPACE_CALENDAR);
+    calendar.setOwnerId(SPACE);
+    calendar.setName("Team");
+    return calendar;
   }
 
   /**

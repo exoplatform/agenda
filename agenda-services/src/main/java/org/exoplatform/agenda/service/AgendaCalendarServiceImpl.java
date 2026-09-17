@@ -20,6 +20,7 @@ import java.util.*;
 
 import org.apache.commons.lang3.StringUtils;
 
+import org.exoplatform.agenda.constant.CalendarShareLevel;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.CalendarPermission;
 import org.exoplatform.agenda.storage.AgendaCalendarStorage;
@@ -66,15 +67,16 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
   }
 
   /**
-   * Whether a calendar is shared with a user (EXO-90357), read through the
-   * share service when it is there and as not shared when it is not.
+   * The level a calendar is shared with a user at (EXO-90378), null when it is
+   * not shared with them or when the share service cannot say — which is read
+   * as no share, never as the narrower level.
    *
    * @param calendarId technical identifier of the calendar
    * @param userIdentityId identity identifier of the reader
-   * @return true only when a share record exists
+   * @return the level, or null
    */
-  private boolean isSharedWith(long calendarId, long userIdentityId) {
-    return calendarShareAccess.isSharedWith(calendarId, userIdentityId);
+  private CalendarShareLevel shareLevelOf(long calendarId, long userIdentityId) {
+    return calendarShareAccess.levelOf(calendarId, userIdentityId);
   }
 
   /**
@@ -177,11 +179,16 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     } else {
       long userIdentityId = Long.parseLong(userIdentity.getId());
       if (!Utils.canAccessCalendar(identityManager, spaceService, ownerId, userIdentityId)) {
-        if (isSharedWith(calendarId, userIdentityId)) {
-          // A colleague the owner shared the calendar with (EXO-90357) reads it
-          // and nothing more: no creation, no edit, no publishing, no sharing on
-          calendar.setAcl(new CalendarPermission(false, false, false, false, false));
+        CalendarShareLevel shareLevel = shareLevelOf(calendarId, userIdentityId);
+        if (shareLevel != null) {
+          // A colleague the owner shared the calendar with (EXO-90357) reads it;
+          // one shared for editing (EXO-90378) also creates events in it, and
+          // nothing more. canEdit stays false at both levels: it gates renaming,
+          // recolouring and deleting the calendar, which stay the owner's —
+          // Utils.canEditCalendar, unchanged, is what answers for them.
+          calendar.setAcl(new CalendarPermission(shareLevel == CalendarShareLevel.EDIT, false, false, false, false));
           calendar.setSharedWithMe(true);
+          calendar.setShareLevel(shareLevel);
           resolveCalendarTitle(calendar);
           return calendar;
         }
