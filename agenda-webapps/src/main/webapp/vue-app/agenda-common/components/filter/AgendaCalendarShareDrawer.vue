@@ -346,6 +346,9 @@ export default {
      */
     sharee(value) {
       if (!value) {
+        // The autocomplete keeps its chip after the model is cleared; the
+        // attendees drawer drops it the same way.
+        this.$nextTick(() => this.$refs.shareeSuggester?.$refs?.selectAutoComplete?.deleteCurrentItem?.());
         return;
       }
       const username = value.remoteId || value.id && String(value.id).replace(/^organization:/, '');

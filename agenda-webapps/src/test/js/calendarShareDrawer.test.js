@@ -44,6 +44,10 @@ describe('Calendar share drawer', () => {
 
   let confirmStub;
 
+  let suggesterStub;
+
+  let deleteCurrentItem;
+
   /**
    * Waits for every pending promise callback.
    *
@@ -69,6 +73,7 @@ describe('Calendar share drawer', () => {
       stubs: {
         'exo-drawer': drawerStub,
         'exo-confirm-dialog': confirmStub,
+        'exo-identity-suggester': suggesterStub,
       },
     });
     wrapper.rootEmit = jest.spyOn(wrapper.vm.$root, '$emit');
@@ -113,6 +118,16 @@ describe('Calendar share drawer', () => {
         open: jest.fn(),
       },
     };
+    // The real suggester wraps a v-autocomplete under this ref; the drawer
+    // reaches it to drop the chip the autocomplete keeps once the model is
+    // cleared
+    deleteCurrentItem = jest.fn();
+    suggesterStub = {
+      template: '<div class="suggester-stub"><span ref="selectAutoComplete"></span></div>',
+      mounted() {
+        this.$refs.selectAutoComplete.deleteCurrentItem = deleteCurrentItem;
+      },
+    };
   });
 
   it('lists the colleagues in eXo, where a share also lives, and the failed delivery with its retry', async () => {
@@ -143,7 +158,7 @@ describe('Calendar share drawer', () => {
     expect(external.at(1).find('.agenda-calendar-share-adopt').exists()).toBe(true);
   });
 
-  it('shares with the colleague the suggester picked, lists the answer and tells the rows', async () => {
+  it('shares with the colleague the suggester picked, lists the answer, tells the rows and empties the field', async () => {
     const dave = {calendarId: 10, shareeIdentityId: 6, username: 'dave', displayName: 'Dave', source: 'EXO'};
     service.share.mockResolvedValue(dave);
     const wrapper = mountDrawer();
@@ -155,6 +170,7 @@ describe('Calendar share drawer', () => {
     expect(service.share).toHaveBeenCalledWith(10, 'dave');
     expect(wrapper.findAll('.agenda-calendar-sharee')).toHaveLength(3);
     expect(wrapper.vm.sharee).toBeNull();
+    expect(deleteCurrentItem).toHaveBeenCalled();
     expect(wrapper.rootEmit).toHaveBeenCalledWith('agenda-calendar-shares-changed');
     expect(wrapper.rootEmit).toHaveBeenCalledWith('alert-message', 'agenda.calendarShare.shared(Dave)', 'success');
   });
