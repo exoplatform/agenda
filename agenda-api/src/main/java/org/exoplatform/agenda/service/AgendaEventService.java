@@ -189,7 +189,8 @@ public interface AgendaEventService {
    * @param sendInvitation whether re-send invitation to attendees or not
    * @param userIdentityId user {@link Identity} identifier
    * @return Updated {@link Event}
-   * @throws IllegalAccessException when user is not allowed to update event
+   * @throws IllegalAccessException when user is not allowed to update event,
+   *           or moves it to another calendar in which they can't create events
    * @throws ObjectNotFoundException when the event identified by its technical
    *           identifier is not found
    * @throws AgendaException when the event attributes aren't valid
@@ -216,7 +217,8 @@ public interface AgendaEventService {
    *          occurrences as well or not
    * @param sendInvitation whether re-send invitation to attendees or not
    * @param userIdentityId user {@link Identity} identifier
-   * @throws IllegalAccessException when user is not allowed to update event
+   * @throws IllegalAccessException when user is not allowed to update event,
+   *           or moves it to another calendar in which they can't create events
    * @throws ObjectNotFoundException when the event identified by its technical
    *           identifier is not found
    * @throws AgendaException when the event attribute isn't valid
