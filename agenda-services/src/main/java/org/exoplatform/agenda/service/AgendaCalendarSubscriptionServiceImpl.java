@@ -598,6 +598,21 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
    * {@inheritDoc}
    */
   @Override
+  public List<Long> getSubscriptionCalendarIds(List<Long> ownerIdentityIds) {
+    if (ownerIdentityIds == null || ownerIdentityIds.isEmpty()) {
+      return List.of();
+    }
+    return ownerIdentityIds.stream()
+                           .filter(java.util.Objects::nonNull)
+                           .flatMap(ownerId -> subscriptionStorage.getCalendarIdsByOwner(ownerId, MAX_SUBSCRIPTIONS).stream())
+                           .distinct()
+                           .toList();
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
   public void followSpaceColor(Calendar calendar) {
     if (calendar == null || calendar.getId() <= 0 || calendar.isSubscription() || StringUtils.isBlank(calendar.getColor())
         || !isSpace(calendar.getOwnerId())) {

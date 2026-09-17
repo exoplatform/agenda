@@ -22,8 +22,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -35,14 +37,21 @@ import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.CalendarPermission;
+import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.model.Event;
+import org.exoplatform.agenda.model.EventAttendeeList;
+import org.exoplatform.agenda.model.EventReminder;
 import org.exoplatform.agenda.model.EventFilter;
 import org.exoplatform.agenda.search.AgendaSearchConnector;
 import org.exoplatform.agenda.storage.AgendaCalendarStorage;
+import org.exoplatform.agenda.storage.AgendaEventAttendeeStorage;
+import org.exoplatform.agenda.storage.AgendaEventReminderStorage;
 import org.exoplatform.agenda.storage.AgendaEventStorage;
+import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.container.xml.ValuesParam;
 import org.exoplatform.services.listener.ListenerService;
@@ -53,6 +62,7 @@ import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.social.metadata.MetadataService;
+import org.exoplatform.web.security.codec.CodecInitializer;
 
 /**
  * Pins that the events of a calendar a space subscribes to (EXO-90373) are read
@@ -87,6 +97,8 @@ class SpaceSubscriptionReadPathTest {
 
   private AgendaCalendarStorage  calendarStorage;
 
+  private AgendaCalendarSubscriptionService subscriptionService;
+
   private boolean                subscribed = true;
 
   /**
@@ -100,10 +112,10 @@ class SpaceSubscriptionReadPathTest {
     user(MANAGER, "manager");
     user(MEMBER, "member");
     user(OUTSIDER, "outsider");
-    Identity spaceIdentity = new Identity(SpaceIdentityProvider.NAME, "team");
+    final Identity spaceIdentity = new Identity(SpaceIdentityProvider.NAME, "team");
     spaceIdentity.setId(String.valueOf(SPACE));
     when(identityManager.getIdentity(String.valueOf(SPACE))).thenReturn(spaceIdentity);
-    Space space = new Space();
+    final Space space = new Space();
     space.setPrettyName("team");
     when(spaceService.getSpaceByPrettyName("team")).thenReturn(space);
     for (String member : List.of("manager", "member")) {
@@ -112,6 +124,21 @@ class SpaceSubscriptionReadPathTest {
       when(spaceService.canRedactOnSpace(space, member)).thenReturn(true);
     }
     when(spaceService.isManager(space, "manager")).thenReturn(true);
+    // the member belongs to this one space: what an attendee-keyed listing
+    // expands to, and what the subscribed calendars are then looked up for
+    ListAccess<Space> memberSpaces = new ListAccess<>() {
+      @Override
+      public Space[] load(int offset, int limit) {
+        return new Space[] {space};
+      }
+
+      @Override
+      public int getSize() {
+        return 1;
+      }
+    };
+    when(spaceService.getMemberSpaces(anyString())).thenReturn(memberSpaces);
+    when(identityManager.getOrCreateIdentity(SpaceIdentityProvider.NAME, "team")).thenReturn(spaceIdentity);
     when(spaceService.canManageSpace(space, "manager")).thenReturn(true);
 
     calendarService = mock(AgendaCalendarService.class);
@@ -133,6 +160,8 @@ class SpaceSubscriptionReadPathTest {
                                               mock(ListenerService.class),
                                               mock(MetadataService.class));
     eventService.setCalendarShareAccess(new CalendarShareAccess(mock(AgendaCalendarShareService.class)));
+    subscriptionService = mock(AgendaCalendarSubscriptionService.class);
+    eventService.setCalendarSubscriptionAccess(new CalendarSubscriptionAccess(subscriptionService));
     calendarStorage = mock(AgendaCalendarStorage.class);
     when(calendarStorage.getCalendarById(CALENDAR)).thenAnswer(invocation -> calendar());
   }
@@ -145,19 +174,98 @@ class SpaceSubscriptionReadPathTest {
    */
   @Test
   void aMemberReadsTheSpacesSubscribedEventsAndAnOutsiderNothing() throws Exception {
-    EventFilter filter = new EventFilter();
-    filter.setOwnerIds(List.of(SPACE));
-    filter.setStart(ZonedDateTime.of(2026, 9, 1, 0, 0, 0, 0, ZoneOffset.UTC));
-    filter.setEnd(ZonedDateTime.of(2026, 10, 1, 0, 0, 0, 0, ZoneOffset.UTC));
+    EventFilter filter = spaceFilter();
 
     eventService.getEvents(filter, ZoneId.of("UTC"), MEMBER);
-    verify(eventStorage).getEventIds(any());
+    ArgumentCaptor<EventFilter> asked = ArgumentCaptor.forClass(EventFilter.class);
+    verify(eventStorage).getEventIds(asked.capture());
+    assertEquals(List.of(SPACE), asked.getValue().getOwnerIds(), "the space's agenda asks by owner");
+    assertEquals(0, asked.getValue().getAttendeeId(), "and never by attendee");
     Event read = eventService.getEventById(500, ZoneId.of("UTC"), MEMBER);
     assertFalse(read.getAcl().isCanEdit(), "read-only for a member");
 
     assertThrows(IllegalAccessException.class, () -> eventService.getEvents(filter, ZoneId.of("UTC"), OUTSIDER));
     assertThrows(IllegalAccessException.class, () -> eventService.getEventById(500, ZoneId.of("UTC"), OUTSIDER));
     assertFalse(eventService.canAccessEvent(event(), OUTSIDER));
+  }
+
+  /**
+   * A member's own agenda reaches the space's subscribed events the way a
+   * personal subscription's owner reaches theirs — by the calendar's owner,
+   * never by an invitation nobody sent (EXO-90373). The personal agenda's
+   * default view is attendee-scoped, and a subscribed calendar's events carry
+   * no attendee row, so the calendars of the owners the reader asked for are
+   * added to the listing: ticking the space brings its subscribed calendar in,
+   * unticking it takes the owner — and those calendars — out.
+   *
+   * @throws Exception never
+   */
+  @Test
+  void aMembersOwnAgendaReachesTheSpacesSubscribedEventsByOwnerNotByInvitation() throws Exception {
+    when(subscriptionService.getSubscriptionCalendarIds(List.of(MEMBER, SPACE))).thenReturn(List.of(CALENDAR));
+    EventFilter filter = spaceFilter();
+    filter.setOwnerIds(List.of(MEMBER, SPACE));
+    filter.setAttendeeId(MEMBER);
+
+    eventService.getEvents(filter, ZoneId.of("UTC"), MEMBER);
+
+    ArgumentCaptor<EventFilter> asked = ArgumentCaptor.forClass(EventFilter.class);
+    verify(eventStorage).getEventIds(asked.capture());
+    assertEquals(List.of(CALENDAR), asked.getValue().getCalendarIds(), "the space's subscribed calendar is read too");
+    assertEquals(MEMBER, asked.getValue().getAttendeeId(), "beside the meetings the member attends");
+
+    when(subscriptionService.getSubscriptionCalendarIds(List.of(MEMBER))).thenReturn(List.of());
+    EventFilter withoutTheSpace = spaceFilter();
+    withoutTheSpace.setOwnerIds(List.of(MEMBER));
+    withoutTheSpace.setAttendeeId(MEMBER);
+
+    eventService.getEvents(withoutTheSpace, ZoneId.of("UTC"), MEMBER);
+
+    verify(eventStorage, times(2)).getEventIds(asked.capture());
+    assertEquals(List.of(), asked.getValue().getCalendarIds(), "unticking the space takes its subscribed calendar out");
+  }
+
+  /**
+   * Nobody answers such an event and nobody sets a reminder on it, member or
+   * manager: no invitation was ever sent, and the read-only contract holds for
+   * the answer and the reminder as it holds for the edit (EXO-90373).
+   *
+   * @throws Exception never
+   */
+  @Test
+  void nobodyAnswersOrRemindsOnTheSpacesSubscribedEvents() throws Exception {
+    // a real, empty attendee list, so that the refusal a mutant falls back on is
+    // the attendee check's and not a mock's NullPointerException
+    AgendaEventAttendeeStorage attendeeStorage = mock(AgendaEventAttendeeStorage.class);
+    when(attendeeStorage.getEventAttendees(anyLong())).thenReturn(EventAttendeeList.EMPTY_ATTENDEE_LIST);
+    AgendaEventAttendeeServiceImpl attendees = new AgendaEventAttendeeServiceImpl(attendeeStorage,
+                                                                                  eventStorage,
+                                                                                  mock(ListenerService.class),
+                                                                                  identityManager,
+                                                                                  spaceService,
+                                                                                  mock(CodecInitializer.class));
+    attendees.setAgendaCalendarService(calendarService);
+    InitParams reminderParams = mock(InitParams.class);
+    AgendaEventReminderServiceImpl reminders = new AgendaEventReminderServiceImpl(mock(AgendaEventReminderStorage.class),
+                                                                                  eventStorage,
+                                                                                  mock(AgendaEventAttendeeStorage.class),
+                                                                                  mock(AgendaUserSettingsService.class),
+                                                                                  identityManager,
+                                                                                  spaceService,
+                                                                                  mock(ListenerService.class),
+                                                                                  reminderParams);
+    reminders.setAgendaCalendarService(calendarService);
+
+    for (long user : new long[] {MEMBER, MANAGER}) {
+      assertTrue(assertThrows(IllegalAccessException.class,
+                              () -> attendees.sendEventResponse(500, user, EventAttendeeResponse.ACCEPTED),
+                              "no answer to an event nobody was invited to").getMessage().contains("calendar subscription"),
+                 "and refused as an event of a subscription, before any attendee question");
+      assertTrue(assertThrows(IllegalAccessException.class,
+                              () -> reminders.saveEventReminders(event(), List.of(new EventReminder()), user),
+                              "and no reminder either").getMessage().contains("calendar subscription"),
+                 "for the same reason");
+    }
   }
 
   /**
@@ -199,6 +307,19 @@ class SpaceSubscriptionReadPathTest {
     subscribed = false;
     assertTrue(service.getCalendarById(CALENDAR, "manager").getAcl().isCanPublish(), "control: the space's own calendar");
     assertEquals(SPACE, service.getCalendarById(CALENDAR, "member").getOwnerId());
+  }
+
+  /**
+   * A listing of the space's events over the displayed week.
+   *
+   * @return the filter
+   */
+  private static EventFilter spaceFilter() {
+    EventFilter filter = new EventFilter();
+    filter.setOwnerIds(List.of(SPACE));
+    filter.setStart(ZonedDateTime.of(2026, 9, 1, 0, 0, 0, 0, ZoneOffset.UTC));
+    filter.setEnd(ZonedDateTime.of(2026, 10, 1, 0, 0, 0, 0, ZoneOffset.UTC));
+    return filter;
   }
 
   /**

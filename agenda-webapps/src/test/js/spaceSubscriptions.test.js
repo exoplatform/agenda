@@ -484,6 +484,59 @@ describe('A space subscribes to calendars', () => {
 
   });
 
+  describe('an event of the space\'s subscribed calendar is read-only in the UI', () => {
+
+    const AgendaEventDetails = require('../../main/webapp/vue-app/agenda-common/components/event/view/AgendaEventDetails.vue').default;
+
+    /** What the server answers for such an event: nobody attends it, nobody edits it. */
+    const feedEvent = {
+      id: 224,
+      summary: 'alice2shareEvent',
+      acl: {canEdit: false, attendee: false},
+      attendees: [],
+      calendar: {id: 38, name: 'Alice2Share', subscription: true, owner: {id: 10, providerId: 'space', space: {displayName: 'Chemistry'}}},
+    };
+
+    /** A space event somebody was really invited to, for contrast. */
+    const invitedEvent = {
+      id: 226,
+      summary: 'eventinericspace',
+      acl: {canEdit: true, attendee: true},
+      attendees: [],
+      calendar: {id: 39, name: null, subscription: false, owner: {id: 10, providerId: 'space', space: {displayName: 'Chemistry'}}},
+    };
+
+    it('offers no answer and no actions menu, where an invited event offers both', () => {
+      const toolbar = event => {
+        const context = {event, $t, $root: {isMobile: false}};
+        return {canEdit: AgendaEventDetailsToolbar.computed.canEdit.call(context)};
+      };
+      const details = event => ({isAttendee: AgendaEventDetails.computed.isAttendee.call({event})});
+
+      expect(toolbar(feedEvent).canEdit).toBeFalsy();
+      expect(details(feedEvent).isAttendee).toBeFalsy();
+      expect(toolbar(invitedEvent).canEdit).toBe(true);
+      expect(details(invitedEvent).isAttendee).toBe(true);
+    });
+
+    it('draws the answer buttons and the menu only for an attendee and an editor', () => {
+      const toolbar = fs.readFileSync(path.resolve(__dirname,
+                                                   '../../main/webapp/vue-app/agenda-common/components/event/view/AgendaEventDetailsToolbar.vue'),
+                                      'utf8');
+      const grid = fs.readFileSync(path.resolve(__dirname,
+                                                '../../main/webapp/vue-app/agenda-common/components/calendar-body/AgendaCalendar.vue'),
+                                   'utf8');
+
+      expect(toolbar).toMatch(/<template v-if="!isTentativeEvent && isAttendee && !\$root\.isMobile">/);
+      expect(toolbar).toMatch(/<v-menu\s+v-if="canEdit"/);
+      expect(toolbar.match(/<v-list-item v-if="canEdit"/g).length).toBeGreaterThanOrEqual(2);
+      // the grid marks such an event read-only and refuses to drag or resize it
+      expect(grid).toContain('const editModeStyle = this.canEdit(event) && \'editable-event\' || \'readonly-event\';');
+      expect(grid).toMatch(/if \(!dragEvent \|\| !dragEvent\.acl \|\| !dragEvent\.acl\.canEdit\) \{/);
+    });
+
+  });
+
   it('has an English sentence for every key the space\'s screens use', () => {
     const sources = [
       'vue-app/agenda-common/components/filter/AgendaSpaceSubscriptionsDrawer.vue',

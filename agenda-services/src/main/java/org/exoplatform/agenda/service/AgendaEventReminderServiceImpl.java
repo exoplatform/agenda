@@ -63,6 +63,8 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
 
   private ListenerService            listenerService;
 
+  private AgendaCalendarService agendaCalendarService;
+
   private AgendaEventService         agendaEventService;
 
   private long                       reminderComputingPeriod = 2;
@@ -220,7 +222,47 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
   public Set<AgendaEventModificationType> saveEventReminders(Event event,
                                                              List<EventReminder> reminders,
                                                              long identityId) throws IllegalAccessException, AgendaException {
+    checkNotSubscribedByAnotherOwner(event, identityId);
     return saveEventReminders(event, null, reminders, identityId);
+  }
+
+  /**
+   * Refuses a reminder on an event a calendar subscription imported for another
+   * owner — a space's (EXO-90373).
+   * <p>
+   * Nobody is invited to such an event: it is a read-only copy of a calendar
+   * the space subscribed to, and the whole read-only contract holds for it —
+   * no answer, no edit, no reminder. The owner of a personal subscription keeps
+   * the reminders their own imported events have carried since EXO-90278. The
+   * calendar service is a Kernel component reached on first use; when it cannot
+   * be reached nothing is refused, exactly as before this guard.
+   *
+   * @param event the event a reminder is asked on
+   * @param identityId identity identifier of the user asking
+   * @throws IllegalAccessException when the event is another owner's imported copy
+   */
+  private void checkNotSubscribedByAnotherOwner(Event event, long identityId) throws IllegalAccessException {
+    if (agendaCalendarService == null) {
+      agendaCalendarService = ExoContainerContext.getService(AgendaCalendarService.class);
+    }
+    if (agendaCalendarService == null) {
+      return;
+    }
+    Calendar calendar = agendaCalendarService.getCalendarById(event.getCalendarId());
+    if (calendar != null && calendar.isSubscription() && calendar.getOwnerId() != identityId) {
+      throw new IllegalAccessException("Event " + event.getId() + " comes from a calendar subscription of identity "
+          + calendar.getOwnerId() + ": user " + identityId + " cannot set a reminder on it");
+    }
+  }
+
+  /**
+   * Replaces how the calendar of an event is read, for the tests; the default
+   * resolves the Kernel component on first use.
+   *
+   * @param agendaCalendarService the calendar service
+   */
+  public void setAgendaCalendarService(AgendaCalendarService agendaCalendarService) {
+    this.agendaCalendarService = agendaCalendarService;
   }
 
   /**

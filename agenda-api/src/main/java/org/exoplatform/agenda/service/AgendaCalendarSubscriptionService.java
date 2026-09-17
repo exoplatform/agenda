@@ -217,6 +217,20 @@ public interface AgendaCalendarSubscriptionService {
   void deleteCalendarSubscription(long calendarId);
 
   /**
+   * The calendars the subscriptions of these owners fill (EXO-90373).
+   * <p>
+   * <b>No permission check</b>: it answers which calendars belong to which
+   * owner, nothing of their content. Its caller is the event listing, which has
+   * already checked that the reader may access every owner it names.
+   *
+   * @param ownerIdentityIds identity identifiers of the owners, a user or a
+   *          space each
+   * @return technical identifiers of their subscription calendars, empty for
+   *         none
+   */
+  List<Long> getSubscriptionCalendarIds(List<Long> ownerIdentityIds);
+
+  /**
    * Gives the calendars a space's subscriptions fill the colour of a calendar
    * of that space just created or saved, so that their events keep reading as
    * the space's (EXO-90373). Nothing happens for a subscribed calendar, a user's
