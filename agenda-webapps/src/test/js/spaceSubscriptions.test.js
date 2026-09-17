@@ -381,6 +381,73 @@ describe('A space subscribes to calendars', () => {
 
   });
 
+  describe('what the space agenda asks for', () => {
+
+    const Agenda = require('../../main/webapp/vue-app/agenda/components/Agenda.vue').default;
+
+    /**
+     * Calls the agenda's event retrieval over a context standing for a page,
+     * and answers the arguments it sent to the events REST.
+     *
+     * @param {String} eventType the mode the page runs in
+     * @param {Number} spaceContextId the space the page is in, or null
+     * @returns {Array} the arguments of the one call
+     */
+    function requestedWith(eventType, spaceContextId) {
+      const getEvents = jest.fn().mockResolvedValue({events: []});
+      const context = {
+        eventsRequestId: 0,
+        eventType,
+        spaceContextId,
+        searchTerm: null,
+        limit: 0,
+        loading: false,
+        initialized: false,
+        hasMore: false,
+        events: [],
+        pageSize: 10,
+        filterCanceledEvents: true,
+        hiddenOwnCalendarIds: [],
+        sharedCalendarIds: [4242],
+        period: {start: new Date(Date.UTC(2026, 8, 14)), end: new Date(Date.UTC(2026, 8, 21))},
+        leftPanelAvailable: !spaceContextId,
+        effectiveOwnerIds: [100],
+        $eventService: {getEvents},
+        $agendaUtils: {toRFC3339: date => date.toISOString(), toDate: value => new Date(value)},
+      };
+      Agenda.methods.retrieveEventsFromStore.call(context);
+      expect(getEvents).toHaveBeenCalledTimes(1);
+      return getEvents.mock.calls[0];
+    }
+
+    /**
+     * The space agenda is owner-scoped: it sends no attendee, so the attendee
+     * row a space subscription writes on each imported event (EXO-90373 - the
+     * row that makes those events reach a member's own agenda) can never bring
+     * anything extra into the space's own view. What it shows is the events of
+     * the space's calendars, the subscribed one included, and nothing else.
+     */
+    it('asks by owner and never by attendee, so an attendee row adds nothing to it', () => {
+      const [, ownerIds, attendeeIdentityId, , , , , , , calendarIds] = requestedWith('allEvents', 42);
+
+      expect(ownerIds).toEqual([100]);
+      expect(attendeeIdentityId).toBeNull();
+      expect(calendarIds).toEqual([], 'and no shared calendar of the viewer either');
+    });
+
+    /**
+     * The personal agenda is attendee-scoped, which is why the import writes
+     * the space as an attendee: without that row the feed's events would not
+     * reach a member's own agenda at all.
+     */
+    it('is attendee-scoped in the personal agenda, which is what carries a space subscription there', () => {
+      const [, , attendeeIdentityId] = requestedWith('myEvents', null);
+
+      expect(attendeeIdentityId).toBe('1');
+    });
+
+  });
+
   it('has an English sentence for every key the space\'s screens use', () => {
     const sources = [
       'vue-app/agenda-common/components/filter/AgendaSpaceSubscriptionsDrawer.vue',
