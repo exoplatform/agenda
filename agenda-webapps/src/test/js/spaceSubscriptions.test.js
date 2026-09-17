@@ -436,6 +436,42 @@ describe('A space subscribes to calendars', () => {
     });
 
     /**
+     * A space's agenda never reads the viewer's connected accounts (EXO-90373):
+     * their events are the viewer's own, and merging them drew a second, pale
+     * row beside the space's events — the copy that account holds of the very
+     * same meeting, in the colour of a collection that has nothing to do with
+     * the space.
+     */
+    it('reads no connected account in a space, and still reads them in the personal agenda', () => {
+      const connector = {getEvents: jest.fn().mockResolvedValue({events: []})};
+      const context = () => ({
+        settingsLoaded: true,
+        connectorStatus: 1,
+        signedInConnectors: [connector],
+        remoteEvents: [{id: 'left-over'}],
+        failedConnectors: [{name: 'x'}],
+        loading: false,
+        period: {start: new Date(Date.UTC(2026, 8, 14)), end: new Date(Date.UTC(2026, 8, 21))},
+        $agendaUtils: {
+          toRFC3339: date => date.toISOString(),
+          toDate: value => new Date(value),
+          readConnectorAnswer: answer => ({events: answer.events, failed: false}),
+          splitRemoteEventResults: () => ({events: [], failedConnectors: []}),
+        },
+      });
+
+      const inSpace = {...context(), leftPanelAvailable: false};
+      Agenda.methods.retrieveRemoteEvents.call(inSpace);
+      expect(connector.getEvents).not.toHaveBeenCalled();
+      expect(inSpace.remoteEvents).toEqual([]);
+      expect(inSpace.failedConnectors).toEqual([]);
+
+      const personal = {...context(), leftPanelAvailable: true};
+      Agenda.methods.retrieveRemoteEvents.call(personal);
+      expect(connector.getEvents).toHaveBeenCalledTimes(1);
+    });
+
+    /**
      * The personal agenda is attendee-scoped, which is why the import writes
      * the space as an attendee: without that row the feed's events would not
      * reach a member's own agenda at all.

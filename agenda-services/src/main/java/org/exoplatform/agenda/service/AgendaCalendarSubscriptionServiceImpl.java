@@ -906,13 +906,17 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
 
   /**
    * Writes the occurrences of a document into the subscription's calendar: new
-   * ones created, changed ones rewritten, dropped ones removed.
+   * ones created, changed ones rewritten, dropped ones removed. A personal
+   * subscription's occurrences are attended by their owner; a space's are
+   * attended by nobody (EXO-90373).
    *
    * @param subscription the subscription
    * @param document the document read
    * @param now the instant of the refresh
    */
   private void importEvents(CalendarSubscription subscription, ParsedCalendar document, Instant now) {
+    boolean userOwned = subscription.getOwnerIdentityId() == subscription.getUserIdentityId()
+        || !isSpace(subscription.getOwnerIdentityId());
     Map<String, CalendarSubscriptionEvent> existing = new HashMap<>();
     for (CalendarSubscriptionEvent row : subscriptionStorage.getEvents(subscription.getId())) {
       existing.putIfAbsent(row.getEventKey(), row);
@@ -937,18 +941,30 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
         eventId = agendaEventStorage.updateEvent(stored).getId();
       } else {
         eventId = agendaEventStorage.createEvent(newEvent(subscription, imported, now)).getId();
-        // The owner attends the event, as the author of an event made in agenda
-        // does: the default "my events" view and the timeline list events through
-        // the attendee table, and an event nobody attends never appears there.
-        // For a space the attendee is the space (EXO-90373), as when a space is
-        // invited: those views read the attendee rows of the user's spaces, so
-        // its members see the event wherever the space's events show, and a
-        // space attendee is never expanded into a copy for each member.
-        // ACCEPTED, so it is never a pending invitation. Written through the
-        // storage: its attendee broadcast has no listener, and no invitation or
-        // notification is sent.
-        attendeeStorage.saveEventAttendee(new EventAttendee(0, eventId, subscription.getOwnerIdentityId(), EventAttendeeResponse.ACCEPTED),
-                                          eventId);
+        if (userOwned) {
+          // A personal subscription: the owner attends the event, as the author
+          // of an event made in agenda does — the default "my events" view and
+          // the timeline list events through the attendee table, and an event
+          // nobody attends never appears there. ACCEPTED, so it is never a
+          // pending invitation. Written through the storage: its attendee
+          // broadcast has no listener, and no invitation or notification is
+          // sent.
+          //
+          // A space's subscription writes NO attendee row (EXO-90373). An
+          // attendee row naming the space says "the space's members attend this
+          // meeting", and the platform reads it that way wherever it meets it:
+          // an attendee-keyed listing expands to {user} + {user's spaces}
+          // (AgendaEventServiceImpl#getEvents), so caldav's seeding of "the
+          // meetings they attend" listed every imported occurrence for every
+          // connected member and wrote a copy of it into their personal CalDAV
+          // account — which then came back as a remote event of theirs, drawn
+          // beside the space's own copy. The feed's events are the space's, not
+          // its members' commitments: they show wherever a space event with no
+          // attendee shows, the space's agenda and the "All events" view of a
+          // member who selected the space.
+          attendeeStorage.saveEventAttendee(new EventAttendee(0, eventId, subscription.getOwnerIdentityId(), EventAttendeeResponse.ACCEPTED),
+                                            eventId);
+        }
       }
       reindex(eventId);
       CalendarSubscriptionEvent saved = row == null ? new CalendarSubscriptionEvent(0, subscription.getId(), eventId, key, contentHash)

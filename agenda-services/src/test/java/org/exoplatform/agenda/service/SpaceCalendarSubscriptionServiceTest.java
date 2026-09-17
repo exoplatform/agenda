@@ -385,12 +385,7 @@ class SpaceCalendarSubscriptionServiceTest {
     ArgumentCaptor<Event> events = ArgumentCaptor.forClass(Event.class);
     verify(eventStorage, times(2)).createEvent(events.capture());
     events.getAllValues().forEach(event -> assertEquals(JOHN, event.getCreatorId()));
-    ArgumentCaptor<EventAttendee> attendees = ArgumentCaptor.forClass(EventAttendee.class);
-    verify(attendeeStorage, times(2)).saveEventAttendee(attendees.capture(), anyLong());
-    for (EventAttendee attendee : attendees.getAllValues()) {
-      assertEquals(SPACE, attendee.getIdentityId(), "the space attends, as when a space is invited");
-      assertEquals(EventAttendeeResponse.ACCEPTED, attendee.getResponse(), "never a pending invitation of its members");
-    }
+    verify(attendeeStorage, never()).saveEventAttendee(any(), anyLong());
 
     ArgumentCaptor<ExoSocialActivity> activity = ArgumentCaptor.forClass(ExoSocialActivity.class);
     verify(activityManager).saveActivityNoReturn(eq(spaceIdentity), activity.capture());
@@ -399,6 +394,37 @@ class SpaceCalendarSubscriptionServiceTest {
                  activity.getValue().getTitle(),
                  "named after the calendar, escaped");
     assertEquals("john", created.getCreatorUsername());
+  }
+
+  /**
+   * A space's imported occurrences are attended by nobody (EXO-90373), while a
+   * personal subscription's are attended by their owner.
+   * <p>
+   * An attendee row naming the space would say that the space's members attend
+   * the meeting, and every attendee-keyed listing of the platform expands to
+   * {user} + {user's spaces} — which is how caldav's seeding of "the meetings
+   * they attend" (CaldavPendingInvitationService) listed each imported
+   * occurrence for every connected member and wrote a copy of it into their
+   * personal CalDAV account, to come back as a remote event of theirs. The
+   * feed's events are the space's, not its members' commitments.
+   *
+   * @throws Exception never
+   */
+  @Test
+  void aSpacesImportedOccurrencesAreAttendedByNobody() throws Exception {
+    service.createSubscription(URL, null, null, SPACE, "john");
+    verify(eventStorage, times(2)).createEvent(any());
+    verify(attendeeStorage, never()).saveEventAttendee(any(), anyLong());
+
+    rows.clear();
+    service.createSubscription("https://feeds.example.org/mine.ics", null, null, JOHN, "john");
+
+    ArgumentCaptor<EventAttendee> attendees = ArgumentCaptor.forClass(EventAttendee.class);
+    verify(attendeeStorage, times(2)).saveEventAttendee(attendees.capture(), anyLong());
+    for (EventAttendee attendee : attendees.getAllValues()) {
+      assertEquals(JOHN, attendee.getIdentityId(), "control: a personal subscription is attended by its owner");
+      assertEquals(EventAttendeeResponse.ACCEPTED, attendee.getResponse(), "and never as a pending invitation");
+    }
   }
 
   /**
