@@ -34,6 +34,7 @@ import org.junit.Test;
 
 import org.exoplatform.agenda.constant.*;
 import org.exoplatform.agenda.exception.AgendaException;
+import org.exoplatform.agenda.exception.AgendaExceptionType;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.social.core.identity.model.Identity;
@@ -3862,5 +3863,267 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
       agendaCalendarService.deleteCalendarById(secondCalendar.getId());
       agendaCalendarService.deleteCalendarById(user2Calendar.getId());
     }
+  }
+
+  /**
+   * Moving an event to another calendar through a field patch (the
+   * {@code calendarId} field of {@code PATCH /v1/agenda/events/{id}}) requires
+   * the right to create events in the target calendar, as the full update does
+   * (EXO-90381): the creator of an event may not file it into a space calendar
+   * where they aren't a redactor, nor into another user's personal calendar. A
+   * target calendar that doesn't exist is still reported as such, before any
+   * permission is checked.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testUpdateEventFieldsMoveIntoCalendarWithoutCreateRightIsRefused() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+
+    Event eventInstance = newEventInstance(start, start.plusHours(1), false);
+    eventInstance.setRecurrence(null);
+    Event createdEvent = createEvent(eventInstance.clone(), user1IdentityId, testuser1Identity);
+    long eventId = createdEvent.getId();
+    assertEquals(calendar.getId(), createdEvent.getCalendarId());
+
+    // A space with a redactor: its other members can no longer add events
+    spaceService.addRedactor(space, testuser3Identity.getRemoteId());
+    assertTrue("testuser1 can update the event he created", agendaEventService.canUpdateEvent(createdEvent, user1IdentityId));
+    assertFalse("testuser1 isn't a redactor of the space", agendaEventService.canCreateEvent(spaceCalendar, user1IdentityId));
+
+    // 1. Into a space calendar where the user isn't a redactor
+    try {
+      agendaEventService.updateEventFields(eventId,
+                                           getFields("calendarId", String.valueOf(spaceCalendar.getId())),
+                                           false,
+                                           false,
+                                           user1IdentityId);
+      fail("Shouldn't allow to move an event into a space calendar where the user can't create events");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    assertEquals("The event must not have moved", calendar.getId(), agendaEventService.getEventById(eventId).getCalendarId());
+
+    // 1b. A patch that changes another field first stores nothing either
+    Map<String, List<String>> fields = new LinkedHashMap<>();
+    fields.put("summary", Collections.singletonList("Patched before the refused move"));
+    fields.put("calendarId", Collections.singletonList(String.valueOf(spaceCalendar.getId())));
+    try {
+      agendaEventService.updateEventFields(eventId, fields, false, false, user1IdentityId);
+      fail("Shouldn't allow to move an event into a space calendar where the user can't create events");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    Event storedEvent = agendaEventService.getEventById(eventId);
+    assertEquals("The event must not have moved", calendar.getId(), storedEvent.getCalendarId());
+    assertEquals("A field patched before the refused move must not be stored",
+                 createdEvent.getSummary(),
+                 storedEvent.getSummary());
+
+    // 2. Into another user's personal calendar
+    org.exoplatform.agenda.model.Calendar user2Calendar =
+                                                         agendaCalendarService.getOrCreateCalendarByOwnerId(Long.parseLong(testuser2Identity.getId()));
+    try {
+      agendaEventService.updateEventFields(eventId,
+                                           getFields("calendarId", String.valueOf(user2Calendar.getId())),
+                                           false,
+                                           false,
+                                           user1IdentityId);
+      fail("Shouldn't allow to move an event into another user's calendar");
+    } catch (IllegalAccessException e) {
+      // Expected
+    } finally {
+      agendaCalendarService.deleteCalendarById(user2Calendar.getId());
+    }
+    assertEquals("The event must not have moved", calendar.getId(), agendaEventService.getEventById(eventId).getCalendarId());
+
+    // 3. A target calendar that doesn't exist is reported as not found
+    assertThrows(IllegalArgumentException.class,
+                 () -> agendaEventService.updateEventFields(eventId,
+                                                            getFields("calendarId", String.valueOf(Integer.MAX_VALUE)),
+                                                            false,
+                                                            false,
+                                                            user1IdentityId));
+  }
+
+  /**
+   * The full update of an event stays refused when it moves the event into a
+   * space calendar where the user isn't a redactor (EXO-90381), as it already
+   * was for another user's personal calendar.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testUpdateEventMoveIntoSpaceCalendarWithoutCreateRightIsRefused() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+
+    Event eventInstance = newEventInstance(start, start.plusHours(1), false);
+    eventInstance.setRecurrence(null);
+    Event createdEvent = createEvent(eventInstance.clone(), user1IdentityId, testuser1Identity);
+    long eventId = createdEvent.getId();
+
+    spaceService.addRedactor(space, testuser3Identity.getRemoteId());
+    assertFalse("testuser1 isn't a redactor of the space", agendaEventService.canCreateEvent(spaceCalendar, user1IdentityId));
+
+    Event eventToMove = agendaEventService.getEventById(eventId, null, user1IdentityId).clone();
+    eventToMove.setCalendarId(spaceCalendar.getId());
+    try {
+      agendaEventService.updateEvent(eventToMove,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     null,
+                                     null,
+                                     false,
+                                     user1IdentityId);
+      fail("Shouldn't allow to move an event into a space calendar where the user can't create events");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    assertEquals("The event must not have moved", calendar.getId(), agendaEventService.getEventById(eventId).getCalendarId());
+  }
+
+  /**
+   * Legitimate calendar changes through a field patch keep working
+   * (EXO-90381): the owner moves an event between their own calendars, a space
+   * redactor moves it into the space calendar, and a patch that keeps the
+   * event in its calendar needs no right to add events there.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testUpdateEventFieldsLegitimateCalendarChangesSucceed() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+
+    Event eventInstance = newEventInstance(start, start.plusHours(1), false);
+    eventInstance.setRecurrence(null);
+    Event createdEvent = createEvent(eventInstance.clone(), user1IdentityId, testuser1Identity);
+    long eventId = createdEvent.getId();
+
+    org.exoplatform.agenda.model.Calendar secondCalendar =
+                                                          new org.exoplatform.agenda.model.Calendar(0, user1IdentityId, false, null, null, null, null, null, null);
+    secondCalendar.setName("Second calendar");
+    secondCalendar = agendaCalendarService.createCalendar(secondCalendar, testuser1Identity.getRemoteId());
+    try {
+      // 1. Between the owner's own calendars
+      agendaEventService.updateEventFields(eventId,
+                                           getFields("calendarId", String.valueOf(secondCalendar.getId())),
+                                           false,
+                                           false,
+                                           user1IdentityId);
+      assertEquals("The event must have moved to the user's second calendar",
+                   secondCalendar.getId(),
+                   agendaEventService.getEventById(eventId).getCalendarId());
+
+      // 2. A space redactor into the space calendar
+      spaceService.addRedactor(space, testuser1Identity.getRemoteId());
+      agendaEventService.updateEventFields(eventId,
+                                           getFields("calendarId", String.valueOf(spaceCalendar.getId())),
+                                           false,
+                                           false,
+                                           user1IdentityId);
+      assertEquals("The event must have moved to the space calendar",
+                   spaceCalendar.getId(),
+                   agendaEventService.getEventById(eventId).getCalendarId());
+
+      // 3. Keeping the calendar: no longer a redactor, still the event's creator
+      spaceService.addRedactor(space, testuser3Identity.getRemoteId());
+      spaceService.removeRedactor(space, testuser1Identity.getRemoteId());
+      assertFalse("testuser1 isn't a redactor of the space anymore",
+                  agendaEventService.canCreateEvent(spaceCalendar, user1IdentityId));
+      Map<String, List<String>> fields = getFields("calendarId", String.valueOf(spaceCalendar.getId()));
+      fields.put("summary", Collections.singletonList("Kept in its calendar"));
+      agendaEventService.updateEventFields(eventId, fields, false, false, user1IdentityId);
+      Event storedEvent = agendaEventService.getEventById(eventId);
+      assertEquals(spaceCalendar.getId(), storedEvent.getCalendarId());
+      assertEquals("Kept in its calendar", storedEvent.getSummary());
+    } finally {
+      agendaCalendarService.deleteCalendarById(secondCalendar.getId());
+    }
+  }
+
+  /**
+   * Creating an exceptional occurrence of a recurring event through
+   * {@code createEvent} (an event carrying a parent, as the web UI does when a
+   * single computed occurrence is edited) requires the right to update that
+   * series (EXO-90381): the right to add events to one's own calendar isn't
+   * enough, or anyone could remove an occurrence of someone else's series from
+   * its owner's views. A parent that doesn't exist is reported as not found,
+   * and the creator of the series still creates its occurrences.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testCreateEventOccurrenceRequiresUpdateRightOnSeries() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+    long user2IdentityId = Long.parseLong(testuser2Identity.getId());
+
+    Event series = createEvent(newEventInstance(start, start.plusHours(1), false), user1IdentityId, testuser1Identity);
+    long seriesId = series.getId();
+    ZonedDateTime periodStart = start.minusDays(1);
+    ZonedDateTime periodEnd = start.plusDays(5);
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series, periodStart, periodEnd, series.getTimeZoneId(), 0);
+    assertTrue("The series must have several occurrences", occurrences.size() > 1);
+    Event occurrence = occurrences.get(1);
+
+    org.exoplatform.agenda.model.Calendar user2Calendar = agendaCalendarService.getOrCreateCalendarByOwnerId(user2IdentityId);
+    try {
+      assertFalse("testuser2 can't update testuser1's series", agendaEventService.canUpdateEvent(series, user2IdentityId));
+      assertTrue("testuser2 can add events to his own calendar",
+                 agendaEventService.canCreateEvent(user2Calendar, user2IdentityId));
+
+      // 1. Another user, into his own calendar
+      try {
+        createEvent(newOccurrenceInstance(seriesId, occurrence, user2Calendar.getId()), user2IdentityId);
+        fail("Shouldn't allow to create an occurrence of a series the user can't update");
+      } catch (IllegalAccessException e) {
+        // Expected
+      }
+      assertEquals("The occurrence must still be in the series",
+                   occurrences.size(),
+                   agendaEventService.getEventOccurrencesInPeriod(series, periodStart, periodEnd, series.getTimeZoneId(), 0).size());
+
+      // 2. A parent that doesn't exist is reported as not found
+      try {
+        createEvent(newOccurrenceInstance(Integer.MAX_VALUE, occurrence, user2Calendar.getId()), user2IdentityId);
+        fail("Shouldn't allow to create an occurrence of a series that doesn't exist");
+      } catch (AgendaException e) {
+        assertEquals(AgendaExceptionType.EVENT_NOT_FOUND, e.getAgendaExceptionType());
+      }
+
+      // 3. The creator of the series, in its calendar
+      Event created = createEvent(newOccurrenceInstance(seriesId, occurrence, calendar.getId()), user1IdentityId);
+      assertEquals(seriesId, created.getParentId());
+      assertTrue("The creator's occurrence must be listed as an exceptional occurrence",
+                 agendaEventService.getExceptionalOccurrenceEvents(seriesId, null, user1IdentityId)
+                                   .stream()
+                                   .anyMatch(exceptional -> exceptional.getId() == created.getId()));
+    } finally {
+      agendaCalendarService.deleteCalendarById(user2Calendar.getId());
+    }
+  }
+
+  /**
+   * Builds the payload the web UI sends when a single computed occurrence of a
+   * series is edited: no identifier, the series as parent, the occurrence
+   * identifier and dates, and no recurrence.
+   *
+   * @param parentId the identifier of the series
+   * @param occurrence the computed occurrence being edited
+   * @param calendarId the calendar the occurrence is filed into
+   * @return the event to pass to {@code createEvent}
+   */
+  private Event newOccurrenceInstance(long parentId, Event occurrence, long calendarId) {
+    Event event = occurrence.clone();
+    event.setId(0);
+    event.setParentId(parentId);
+    event.setCalendarId(calendarId);
+    event.setRecurrence(null);
+    event.setOccurrence(new EventOccurrence(occurrence.getOccurrence().getId()));
+    return event;
   }
 }
