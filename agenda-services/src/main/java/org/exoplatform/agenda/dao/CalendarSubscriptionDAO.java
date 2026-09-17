@@ -16,6 +16,7 @@
  */
 package org.exoplatform.agenda.dao;
 
+import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 
@@ -77,6 +78,24 @@ public interface CalendarSubscriptionDAO extends JpaRepository<CalendarSubscript
    */
   @Query("SELECT s.calendarId FROM AgendaCalendarSubscription s WHERE s.ownerIdentityId = :ownerIdentityId ORDER BY s.id ASC")
   List<Long> findCalendarIdsByOwnerIdentityId(@Param("ownerIdentityId") long ownerIdentityId, Pageable pageable);
+
+  /**
+   * The calendars the subscriptions of several owners fill, in one statement
+   * (EXO-90373).
+   * <p>
+   * The per-owner query above is asked once per owner, which a listing cannot
+   * afford: a member's agenda reads their own identity and every space they
+   * belong to, and the availability reader repeats that for every attendee of
+   * a meeting being scheduled. This is the same projection over a set.
+   *
+   * @param ownerIdentityIds identity identifiers of the owners, never empty
+   *          (an empty {@code IN} list is not valid JPQL)
+   * @param pageable the page
+   * @return technical identifiers of the calendars, the oldest subscription
+   *         first
+   */
+  @Query("SELECT s.calendarId FROM AgendaCalendarSubscription s WHERE s.ownerIdentityId IN :ownerIdentityIds ORDER BY s.id ASC")
+  List<Long> findCalendarIdsByOwnerIdentityIdIn(@Param("ownerIdentityIds") Collection<Long> ownerIdentityIds, Pageable pageable);
 
   /**
    * The subscriptions due for a refresh that nobody holds a live claim on, the

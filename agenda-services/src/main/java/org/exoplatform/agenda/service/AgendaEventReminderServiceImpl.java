@@ -176,6 +176,24 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
     Utils.broadcastEvent(listenerService, "exo.agenda.event.reminders.saved", eventId, 0);
   }
 
+  /**
+   * Saves the reminders of the remaining occurrences of a recurrent event.
+   * <p>
+   * The subscription guard below is unreachable today and deliberately kept:
+   * the importer writes every occurrence of a feed as its own singleton and
+   * never sets a recurrence, so a subscribed event fails the recurrence test
+   * above before reaching it. It guards the coupling, not today's caller — the
+   * day a feed's {@code RRULE} is imported as a recurrence instead of being
+   * expanded, this path opens, and the read-only contract must not depend on
+   * that accident (EXO-90373).
+   *
+   * @param eventId technical identifier of the recurrent event
+   * @param occurrenceId the occurrence the reminders apply from
+   * @param reminders the reminders to save, may be null
+   * @param identityId identity identifier of the user asking
+   * @throws IllegalAccessException when the user may not set them
+   * @throws AgendaException when a reminder is invalid
+   */
   @Override
   public void saveUpcomingEventReminders(long eventId,
                                          ZonedDateTime occurrenceId,
@@ -185,6 +203,7 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
     if (recurringEvent.getRecurrence() == null) {
       throw new IllegalStateException("event is not recurrent");
     }
+    checkNotSubscribedByAnotherOwner(recurringEvent, identityId);
     checkNotShareeOnly(recurringEvent, identityId);
 
     if (reminders == null) {

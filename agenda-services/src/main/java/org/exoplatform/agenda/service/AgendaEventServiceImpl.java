@@ -897,10 +897,18 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       // criteria say. Those owners are the ones the reader was already allowed
       // for, checked above, so nothing new is read: unticking the space in the
       // left panel takes its owner out, and its subscribed events with it.
-      List<Long> readOwners = ownerIds == null ? attendeeSpaceIds : ownerIds;
-      List<Long> subscribed = calendarSubscriptionAccess.getSubscriptionCalendarIds(readOwners);
-      if (!subscribed.isEmpty()) {
-        calendarIds = Stream.concat(calendarIds.stream(), subscribed.stream()).distinct().toList();
+      //
+      // Unless the caller asked to be spared them: a reader computing when
+      // somebody is busy, or one listing a single attendee response, gets
+      // nothing right from events nobody was invited to, and both would pay
+      // for them out of their own event budget
+      // (EventFilter.subscribedCalendarsExcluded).
+      if (!eventFilter.isSubscribedCalendarsExcluded()) {
+        List<Long> readOwners = ownerIds == null ? attendeeSpaceIds : ownerIds;
+        List<Long> subscribed = calendarSubscriptionAccess.getSubscriptionCalendarIds(readOwners);
+        if (!subscribed.isEmpty()) {
+          calendarIds = Stream.concat(calendarIds.stream(), subscribed.stream()).distinct().toList();
+        }
       }
     } else if (ownerIds == null) {
       // If no attendee is selected, and no owners, filter events by use

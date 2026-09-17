@@ -602,11 +602,17 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
     if (ownerIdentityIds == null || ownerIdentityIds.isEmpty()) {
       return List.of();
     }
-    return ownerIdentityIds.stream()
-                           .filter(java.util.Objects::nonNull)
-                           .flatMap(ownerId -> subscriptionStorage.getCalendarIdsByOwner(ownerId, MAX_SUBSCRIPTIONS).stream())
-                           .distinct()
-                           .toList();
+    // One statement for every owner, not one per owner: this is asked on the
+    // listing path, where the owners are the reader's identity and every space
+    // they belong to, and once per attendee by the availability reader
+    List<Long> owners = ownerIdentityIds.stream().filter(java.util.Objects::nonNull).distinct().toList();
+    if (owners.isEmpty()) {
+      return List.of();
+    }
+    return subscriptionStorage.getCalendarIdsByOwners(owners, MAX_SUBSCRIPTIONS * owners.size())
+                              .stream()
+                              .distinct()
+                              .toList();
   }
 
   /**
@@ -707,7 +713,13 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
       apply(subscription, feed, null, now);
     } catch (CalendarFeedException e) {
       LOG.debug("Calendar subscription {} could not be read: {}", subscription.getId(), e.getReason());
-      if (isWithdrawnForLong(subscription, e, now)) {
+      // The copy is purged once, not on every hourly retry: forgetContent
+      // nulls the content hash, and nothing but a successful read writes it
+      // again, so the hash is the record that the purge already ran. Without
+      // this test the predicate below stays true for ever - a failure never
+      // moves the last-success date it measures from - and every retry would
+      // re-issue the same writes for the life of the instance.
+      if (subscription.getContentHash() != null && isWithdrawnForLong(subscription, e, now)) {
         purgeImported(subscription);
       }
       recordFailure(subscription, attempt, e.getCode(), now.plus(RETRY_AFTER_FAILURE));
@@ -715,9 +727,23 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
   }
 
   /**
-   * Whether a failed read is a link of this eXo withdrawn for longer than
-   * {@link #WITHDRAWN_LINK_PURGE}: nothing was imported from it since then —
-   * or since the subscription was made, when nothing ever was.
+   * Whether a failed read is a link of this eXo that answers nothing, and from
+   * which nothing has been imported for longer than
+   * {@link #WITHDRAWN_LINK_PURGE}.
+   * <p>
+   * The window is measured from the <b>last successful import</b> — or from
+   * the subscription's creation, when there never was one — and not from the
+   * first failure: no first-failure date is kept on the row. So this is "the
+   * copy is a week stale and the link answers nothing", not "the link has been
+   * withdrawn for a week". The two differ for an instance that was down for
+   * the week, where the first attempt after the outage can purge; the copy is
+   * a week stale there too, and a link published again is imported in full,
+   * {@link #purgeImported} having forgotten what was read.
+   * <p>
+   * Only a link of this eXo qualifies: {@code LINK_NOT_FOUND} is raised by the
+   * in-process branch of {@link #read}, from this platform's own database, and
+   * never by the fetcher. An external feed that answers 404 fails with an HTTP
+   * code and keeps its copy however long it fails.
    *
    * @param subscription the subscription
    * @param failure why the read failed
@@ -1294,6 +1320,14 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
    *           calendars
    */
   private String spaceColor(long spaceIdentityId, String username) throws IllegalAccessException {
+    // A space normally has one calendar, and then the two rules agree. With
+    // several, this takes the first the owner listing returns while
+    // followSpaceColor takes whichever was last saved, so the colour a new
+    // subscription is born with may differ from the one it converges to on the
+    // next save of a calendar of that space. Deliberate: making them one rule
+    // would mean reading the space's system calendar on every calendar save
+    // platform-wide, on a broadcast path, to settle a case the product does
+    // not create.
     List<Calendar> calendars = agendaCalendarService.getCalendarsByOwnerIds(List.of(spaceIdentityId), username);
     Calendar calendar = calendars == null || calendars.isEmpty() ? agendaCalendarService.createCalendarInstance(spaceIdentityId)
                                                                  : calendars.get(0);

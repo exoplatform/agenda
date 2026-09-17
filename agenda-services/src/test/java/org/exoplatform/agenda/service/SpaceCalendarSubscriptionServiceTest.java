@@ -28,6 +28,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -246,6 +247,15 @@ class SpaceCalendarSubscriptionServiceTest {
     when(storage.recordSuccess(anyLong(), anyString(), anyString(), any(), any(), any(), any(), any(), anyBoolean(), any()))
                                                                                                                              .thenReturn(true);
     when(storage.recordFailure(anyLong(), anyString(), any(), anyString(), any())).thenReturn(true);
+    // As the DAO does: forgetting what was read clears the content hash, which
+    // is the record that a withdrawn link's copy has already been purged
+    doAnswer(invocation -> {
+      CalendarSubscription stored = rows.get((Long) invocation.getArgument(0));
+      if (stored != null) {
+        stored.setContentHash(null);
+      }
+      return null;
+    }).when(storage).forgetContent(anyLong());
     when(eventStorage.createEvent(any())).thenAnswer(invocation -> {
       Event event = invocation.getArgument(0);
       event.setId(ids.incrementAndGet());
@@ -592,6 +602,10 @@ class SpaceCalendarSubscriptionServiceTest {
     row.setUrlEncrypted("enc:" + link);
     row.setCreatedDate(NOW.minus(java.time.Duration.ofDays(30)).toEpochMilli());
     row.setLastSuccessDate(NOW.minus(java.time.Duration.ofDays(6)).toEpochMilli());
+    // A row that imported something carries the hash of what it read: that is
+    // what recordSuccess writes, and what forgetContent clears once the copy
+    // has been purged
+    row.setContentHash("h");
     when(storage.getEvents(SUBSCRIPTION)).thenReturn(List.of(new CalendarSubscriptionEvent(1, SUBSCRIPTION, 501, "k", "h")));
     Event imported = new Event();
     imported.setId(501);
@@ -608,14 +622,43 @@ class SpaceCalendarSubscriptionServiceTest {
 
       row.setLastSuccessDate(NOW.minus(java.time.Duration.ofDays(7)).toEpochMilli());
       service.refreshDueSubscriptions(10);
+
+      // A third cycle, an hour later, on a row whose copy is gone. Nothing but
+      // a successful read writes the content hash again, so a failure never
+      // moves the date the purge window is measured from: without the
+      // content-hash test at the call site the predicate stays true and every
+      // retry re-issues these writes, hourly, for the life of the instance.
+      // forgetContent having cleared the hash is what stops it, and the
+      // storage stub clears it exactly as the DAO's statement does.
+      service.refreshDueSubscriptions(10);
     }
 
     verify(eventStorage).deleteEventById(501);
     verify(indexingService).unindex(anyString(), eq("501"));
     verify(storage).deleteEvent(1);
-    verify(storage).forgetContent(SUBSCRIPTION);
-    verify(storage, times(2)).recordFailure(eq(SUBSCRIPTION), anyString(), any(), eq("agenda.calendarSubscription.linkNotFound"), any());
+    verify(storage, times(1)).forgetContent(SUBSCRIPTION);
+    verify(storage, times(3)).recordFailure(eq(SUBSCRIPTION), anyString(), any(), eq("agenda.calendarSubscription.linkNotFound"), any());
     verify(storage, never()).delete(anyLong());
+  }
+
+  /**
+   * The calendars of several owners' subscriptions are read in one statement
+   * (EXO-90373).
+   * <p>
+   * This is asked on the listing path, where the owners are the reader's own
+   * identity and every space they belong to, and once per attendee by the
+   * availability reader — so one query per owner would be one query per space
+   * on every grid navigation, and a few hundred on a meeting suggestion.
+   */
+  @Test
+  void theOwnersSubscribedCalendarsAreReadInOneStatement() {
+    when(storage.getCalendarIdsByOwners(any(), anyInt())).thenReturn(List.of(77L, 78L));
+
+    List<Long> calendarIds = service.getSubscriptionCalendarIds(java.util.Arrays.asList(SPACE, JOHN, SPACE, null));
+
+    assertEquals(List.of(77L, 78L), calendarIds);
+    verify(storage, times(1)).getCalendarIdsByOwners(eq(List.of(SPACE, JOHN)), anyInt());
+    verify(storage, never()).getCalendarIdsByOwner(anyLong(), anyInt());
   }
 
   /**
@@ -680,6 +723,9 @@ class SpaceCalendarSubscriptionServiceTest {
     copy.setNextRefreshDate(source.getNextRefreshDate());
     copy.setLastSuccessDate(source.getLastSuccessDate());
     copy.setCreatedDate(source.getCreatedDate());
+    // The digest of what was last read: the refresh reads it to tell a copy it
+    // has already purged from one it still has to
+    copy.setContentHash(source.getContentHash());
     return copy;
   }
 

@@ -16,6 +16,7 @@
  */
 package org.exoplatform.agenda.storage;
 
+import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 
@@ -122,6 +123,22 @@ public class CalendarSubscriptionStorage {
    */
   public List<Long> getCalendarIdsByOwner(long ownerIdentityId, int limit) {
     return limit <= 0 ? List.of() : subscriptionDAO.findCalendarIdsByOwnerIdentityId(ownerIdentityId, PageRequest.of(0, limit));
+  }
+
+  /**
+   * Reads the calendars the subscriptions of several owners fill, in one
+   * statement (EXO-90373).
+   *
+   * @param ownerIdentityIds identity identifiers of the owners
+   * @param limit most calendars read across all of them
+   * @return technical identifiers of the calendars, empty when no owner is
+   *         named
+   */
+  public List<Long> getCalendarIdsByOwners(Collection<Long> ownerIdentityIds, int limit) {
+    if (limit <= 0 || ownerIdentityIds == null || ownerIdentityIds.isEmpty()) {
+      return List.of();
+    }
+    return subscriptionDAO.findCalendarIdsByOwnerIdentityIdIn(ownerIdentityIds, PageRequest.of(0, limit));
   }
 
   /**

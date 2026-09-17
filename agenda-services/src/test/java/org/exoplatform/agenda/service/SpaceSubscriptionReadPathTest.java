@@ -44,6 +44,7 @@ import org.exoplatform.agenda.model.CalendarPermission;
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendeeList;
+import org.exoplatform.agenda.model.EventRecurrence;
 import org.exoplatform.agenda.model.EventReminder;
 import org.exoplatform.agenda.model.EventFilter;
 import org.exoplatform.agenda.search.AgendaSearchConnector;
@@ -226,6 +227,59 @@ class SpaceSubscriptionReadPathTest {
   }
 
   /**
+   * An outsider naming the space themselves is refused before the subscribed
+   * calendars are even looked up (EXO-90373).
+   * <p>
+   * This is the one request shape for which the lookup would be asked with an
+   * owner the caller chose: attendee-scoped, so the new route fires, and
+   * {@code ownerIds} carrying a space the caller has no business reading. The
+   * check that saves it is the owner loop three lines above the lookup, and it
+   * is unconditional — so this pin exists to fail the day someone hoists the
+   * lookup above that loop, which is the refactor that would turn a display
+   * scope into an access one.
+   */
+  @Test
+  void anOutsiderNamingTheSpaceIsRefusedBeforeItsSubscribedCalendarsAreLookedUp() {
+    EventFilter filter = spaceFilter();
+    filter.setOwnerIds(List.of(SPACE));
+    filter.setAttendeeId(OUTSIDER);
+
+    assertThrows(IllegalAccessException.class, () -> eventService.getEvents(filter, ZoneId.of("UTC"), OUTSIDER));
+
+    verify(subscriptionService, never()).getSubscriptionCalendarIds(any());
+  }
+
+  /**
+   * A caller that asks to be spared the subscribed calendars gets neither the
+   * calendars nor the query that reads them (EXO-90373).
+   * <p>
+   * Two callers do: the availability and conflict readers, for which an
+   * imported event is never a busy block yet would spend their 500-event
+   * budget before the FREE test drops it; and the timeline widget under its
+   * "accepted events" filter, which names itself after a response nobody ever
+   * gave on a feed's events. Both pin their own end of it; this pins the end
+   * that honours them.
+   *
+   * @throws Exception never
+   */
+  @Test
+  void aCallerMayAskForTheListingWithoutTheOwnersSubscribedCalendars() throws Exception {
+    when(subscriptionService.getSubscriptionCalendarIds(List.of(MEMBER, SPACE))).thenReturn(List.of(CALENDAR));
+    EventFilter filter = spaceFilter();
+    filter.setOwnerIds(List.of(MEMBER, SPACE));
+    filter.setAttendeeId(MEMBER);
+    filter.setSubscribedCalendarsExcluded(true);
+
+    eventService.getEvents(filter, ZoneId.of("UTC"), MEMBER);
+
+    ArgumentCaptor<EventFilter> asked = ArgumentCaptor.forClass(EventFilter.class);
+    verify(eventStorage).getEventIds(asked.capture());
+    assertEquals(List.of(), asked.getValue().getCalendarIds(), "the subscribed calendars are left out");
+    assertEquals(MEMBER, asked.getValue().getAttendeeId(), "the meetings the member attends are still read");
+    verify(subscriptionService, never()).getSubscriptionCalendarIds(any());
+  }
+
+  /**
    * Nobody answers such an event and nobody sets a reminder on it, member or
    * manager: no invitation was ever sent, and the read-only contract holds for
    * the answer and the reminder as it holds for the edit (EXO-90373).
@@ -266,6 +320,25 @@ class SpaceSubscriptionReadPathTest {
                               "and no reminder either").getMessage().contains("calendar subscription"),
                  "for the same reason");
     }
+
+    // The occurrence path of the same writer. It is unreachable today - the
+    // importer writes every occurrence of a feed as its own singleton and
+    // never sets a recurrence, so the recurrence test above it refuses first -
+    // and it is guarded anyway: the read-only contract must not rest on that
+    // property of the importer. Reached here with a recurrent event to prove
+    // the guard runs, not to claim a caller reaches it.
+    Event recurrent = event();
+    recurrent.setRecurrence(new EventRecurrence());
+    when(eventStorage.getEventById(600)).thenReturn(recurrent);
+    recurrent.setId(600);
+
+    assertTrue(assertThrows(IllegalAccessException.class,
+                            () -> reminders.saveUpcomingEventReminders(600,
+                                                                       ZonedDateTime.of(2026, 9, 20, 9, 0, 0, 0, ZoneOffset.UTC),
+                                                                       List.of(new EventReminder()),
+                                                                       MEMBER),
+                            "nor on the remaining occurrences of one").getMessage().contains("calendar subscription"),
+               "refused as an event of a subscription there too");
   }
 
   /**

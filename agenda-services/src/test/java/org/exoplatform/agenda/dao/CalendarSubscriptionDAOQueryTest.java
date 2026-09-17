@@ -163,6 +163,16 @@ class CalendarSubscriptionDAOQueryTest {
     assertEquals(List.of(51L, 52L), dao.findCalendarIdsByOwnerIdentityId(900, PageRequest.of(0, 10)));
     assertEquals(List.of(51L), dao.findCalendarIdsByOwnerIdentityId(900, PageRequest.of(0, 1)));
     assertTrue(dao.findCalendarIdsByOwnerIdentityId(901, PageRequest.of(0, 10)).isEmpty());
+
+    // The same projection over a set, in one statement: what a listing asks
+    // for, whose owners are the reader and every space they belong to. Run
+    // here rather than asserted from the string, because an IN over a
+    // collection parameter is exactly the kind of JPQL a mock suite accepts
+    // and the engine refuses.
+    assertEquals(List.of(50L, 51L, 52L), dao.findCalendarIdsByOwnerIdentityIdIn(List.of(7L, 900L), PageRequest.of(0, 10)));
+    assertEquals(List.of(51L, 52L), dao.findCalendarIdsByOwnerIdentityIdIn(List.of(900L, 901L), PageRequest.of(0, 10)));
+    assertEquals(List.of(50L), dao.findCalendarIdsByOwnerIdentityIdIn(List.of(7L, 900L), PageRequest.of(0, 1)));
+    assertTrue(dao.findCalendarIdsByOwnerIdentityIdIn(List.of(901L), PageRequest.of(0, 10)).isEmpty());
   }
 
   /**
