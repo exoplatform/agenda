@@ -324,10 +324,19 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       throw new AgendaException(AgendaExceptionType.CALENDAR_NOT_FOUND);
     }
 
+    Event parentEvent = null;
+    if (event.getParentId() > 0) {
+      parentEvent = agendaEventStorage.getEventById(event.getParentId());
+      if (parentEvent == null) {
+        throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
+      }
+    }
+
     boolean canCreateCalendarEvents = canCreateEvent(calendar, userIdentityId);
     if (!canCreateCalendarEvents) {
       throw new IllegalAccessException("User '" + userIdentityId + "' can't create an event in calendar " + calendar.getTitle());
     }
+    checkCanCreateOccurrence(parentEvent, userIdentityId);
 
     EventOccurrence occurrence = event.getOccurrence();
     if (occurrence != null && occurrence.getId() != null) {
@@ -610,19 +619,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       throw new IllegalAccessException("User '" + userIdentityId + "' can't update event " + eventId);
     }
 
-    // Moving the event to another calendar additionally requires the right to
-    // create events in the TARGET calendar (derived from the stored calendar
-    // row, never from the request): being allowed to update an event must not
-    // grant filing it into someone else's calendar
-    if (storedEvent.getCalendarId() != calendarId && !canCreateEvent(calendar, userIdentityId)) {
-      throw new IllegalAccessException("User '" + userIdentityId + "' can't move event " + eventId + " to calendar "
-          + calendarId);
-    }
-
-    // Moving the event to another calendar additionally requires the right to
-    // create events in the TARGET calendar (derived from the stored calendar
-    // row, never from the request): being allowed to update an event must not
-    // grant filing it into someone else's calendar
+    checkCanMoveEvent(storedEvent.getCalendarId(), eventId, calendar, userIdentityId);
 
     EventOccurrence occurrence = event.getOccurrence();
     if (occurrence != null && occurrence.getId() != null) {
@@ -769,7 +766,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
           fieldValue = fieldValues.get(0);
         }
       }
-      updateEventField(event, fieldName, fieldValue);
+      updateEventField(event, fieldName, fieldValue, userIdentityId);
     }
 
     if (event.getStart().isAfter(event.getEnd())) {
@@ -1534,7 +1531,81 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }).collect(Collectors.toList());
   }
 
-  private void updateEventField(Event event, String fieldName, String fieldValue) throws AgendaException {
+  /**
+   * Checks that a user may file an event into a calendar. Keeping the event in
+   * its current calendar needs nothing more than the right to update the event,
+   * which the caller has already checked. Moving it to another calendar
+   * additionally requires the right to create events in that target calendar,
+   * derived from the stored calendar row and never from the request: being
+   * allowed to update an event must not grant filing it into a calendar where
+   * the user can't add events, such as a space where they aren't a redactor or
+   * another user's personal calendar. Both update paths go through this
+   * method: {@code updateEvent} and the {@code calendarId} field of
+   * {@code updateEventFields}. An exceptional occurrence created through
+   * {@code createEvent} is checked by {@code checkCanCreateOccurrence} instead.
+   *
+   * @param currentCalendarId the identifier of the calendar the event is stored
+   *          in
+   * @param eventId the technical identifier of the event
+   * @param targetCalendar the stored calendar the event is filed into, already
+   *          checked to exist
+   * @param userIdentityId the {@link Identity} identifier of the user moving the
+   *          event
+   * @throws IllegalAccessException when the calendar changes and the user can't
+   *           create events in the target calendar
+   */
+  private void checkCanMoveEvent(long currentCalendarId,
+                                 long eventId,
+                                 Calendar targetCalendar,
+                                 long userIdentityId) throws IllegalAccessException {
+    if (currentCalendarId != targetCalendar.getId() && !canCreateEvent(targetCalendar, userIdentityId)) {
+      throw new IllegalAccessException("User '" + userIdentityId + "' can't move event " + eventId + " to calendar "
+          + targetCalendar.getId());
+    }
+  }
+
+  /**
+   * Checks that a user may create an exceptional occurrence of a recurring
+   * event, which is what {@code createEvent} does when the event carries a
+   * parent. Such an occurrence replaces the computed one in the series for
+   * every reader, whatever calendar it is filed into, so it requires the right
+   * to update the series, as editing that occurrence in place would. The right
+   * to create events in the target calendar is checked by the caller. Without
+   * this check, anyone who can add events to their own calendar could remove an
+   * occurrence of any recurring event from the views of its owner and
+   * attendees, knowing only its identifier.
+   *
+   * @param parentEvent the stored recurring event the occurrence belongs to, or
+   *          null when the created event has no parent
+   * @param userIdentityId the {@link Identity} identifier of the user creating
+   *          the event
+   * @throws IllegalAccessException when the event has a parent that the user
+   *           can't update
+   */
+  private void checkCanCreateOccurrence(Event parentEvent, long userIdentityId) throws IllegalAccessException {
+    if (parentEvent != null && !canUpdateEvent(parentEvent, userIdentityId)) {
+      throw new IllegalAccessException("User '" + userIdentityId + "' can't create an occurrence of event "
+          + parentEvent.getId());
+    }
+  }
+
+  /**
+   * Applies one patched field to an event, without storing it. The caller has
+   * already checked that the user may update the event; moving it to another
+   * calendar ({@code calendarId}) additionally requires the right to create
+   * events in that calendar, checked here before the field is applied.
+   *
+   * @param event the event to modify, still carrying its stored calendar
+   * @param fieldName the name of the field to patch
+   * @param fieldValue the new value of the field, as sent by the client
+   * @param userIdentityId the {@link Identity} identifier of the user patching
+   *          the event
+   * @throws AgendaException when a date field is missing
+   * @throws IllegalAccessException when the event is moved to a calendar in
+   *           which the user can't create events
+   */
+  private void updateEventField(Event event, String fieldName, String fieldValue, long userIdentityId) throws AgendaException,
+                                                                                                      IllegalAccessException {
     switch (fieldName) {
       case "calendarId":
         long calendarId = Long.parseLong(fieldValue);
@@ -1545,6 +1616,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
         if (calendar == null) {
           throw new IllegalArgumentException("Event calendar with id " + calendarId + " wasn't found");
         }
+        checkCanMoveEvent(event.getCalendarId(), event.getId(), calendar, userIdentityId);
         event.setCalendarId(calendarId);
         break;
       case "summary":
