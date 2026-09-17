@@ -95,6 +95,7 @@ import org.exoplatform.agenda.service.AgendaEventService;
 import org.exoplatform.agenda.service.AgendaScheduleConflictService;
 import org.exoplatform.agenda.service.AgendaUserSettingsService;
 import org.exoplatform.agenda.util.AgendaDateUtils;
+import org.exoplatform.agenda.util.CalendarFeedIcsWriter;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.commons.utils.ListAccess;
@@ -797,7 +798,9 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     if (!userAcl.hasAccessPermission(AgendaEventAclPlugin.OBJECT_TYPE, String.valueOf(eventId), getCurrentUserAclIdentity())) {
       throw new IllegalAccessException(MSG_USER_NOT_ALLOWED_TO_ACCESS_EVENT.formatted(eventId));
     }
-    return getEventAttendees(agendaEventService.getEventById(eventId));
+    // Read as the user, so a private event of a calendar shared with them
+    // (EXO-90357) comes back masked and names nobody
+    return getEventAttendees(agendaEventService.getEventById(eventId, TIMEZONE, getCurrentUserIdentityId()));
   }
 
   // Respond to an event invitation as the current user with ACCEPTED, DECLINED or TENTATIVE (comment is not persisted).
@@ -852,7 +855,11 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     if (!userAcl.hasAccessPermission(AgendaEventAclPlugin.OBJECT_TYPE, String.valueOf(eventId), getCurrentUserAclIdentity())) {
       throw new IllegalAccessException(MSG_USER_NOT_ALLOWED_TO_ACCESS_EVENT.formatted(eventId));
     }
-    List<EventConference> conferences = agendaEventConferenceService.getEventConferences(eventId);
+    Event event = agendaEventService.getEventById(eventId, TIMEZONE, getCurrentUserIdentityId());
+    // A masked event (EXO-90357) has no conference to give: the link is part
+    // of the content withheld from a reader admitted by a share alone
+    List<EventConference> conferences = event == null || event.isMasked() ? Collections.emptyList()
+                                                                         : agendaEventConferenceService.getEventConferences(eventId);
     if (CollectionUtils.isEmpty(conferences)) {
       return new ConferenceModel(null, null);
     }
@@ -1130,7 +1137,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     return new AgendaEventModel(event.getId(),
                                 event.getParentId(),
                                 getCalendarSpaceId(event.getCalendarId()),
-                                event.getSummary(),
+                                event.isMasked() ? CalendarFeedIcsWriter.BUSY_SUMMARY : event.getSummary(),
                                 event.getDescription(),
                                 formatDate(Date.from(event.getStart()
                                                           .toInstant())),
@@ -1279,6 +1286,10 @@ public class AgendaEventMcpTool implements McpToolPlugin {
   }
 
   private String getConferenceUrl(Event event) {
+    if (event.isMasked()) {
+      // Withheld with the rest of the content (EXO-90357)
+      return null;
+    }
     long eventId = isComputedOccurrence(event) ? event.getParentId() : event.getId();
     List<EventConference> eventConferences = agendaEventConferenceService.getEventConferences(eventId);
     if (CollectionUtils.isEmpty(eventConferences)) {
@@ -1299,6 +1310,10 @@ public class AgendaEventMcpTool implements McpToolPlugin {
   }
 
   private List<AgendaEventAttendeeModel> getEventAttendees(Event event) {
+    if (event == null || event.isMasked()) {
+      // A masked event (EXO-90357) names nobody: who attends is content
+      return Collections.emptyList();
+    }
     long eventId = isComputedOccurrence(event) ? event.getParentId() : event.getId();
     EventAttendeeList eventAttendeeList = agendaEventAttendeeService.getEventAttendees(eventId);
     if (eventAttendeeList == null || CollectionUtils.isEmpty(eventAttendeeList.getEventAttendees())) {

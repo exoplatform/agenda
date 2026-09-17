@@ -23,6 +23,7 @@ import java.time.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import org.exoplatform.agenda.constant.EventAccess;
 import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.exception.AgendaException;
@@ -61,6 +62,8 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
   private SpaceService               spaceService;
 
   private ListenerService            listenerService;
+
+  private AgendaEventService         agendaEventService;
 
   private long                       reminderComputingPeriod = 2;
 
@@ -175,11 +178,12 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
   public void saveUpcomingEventReminders(long eventId,
                                          ZonedDateTime occurrenceId,
                                          List<EventReminder> reminders,
-                                         long identityId) throws AgendaException {
+                                         long identityId) throws IllegalAccessException, AgendaException {
     Event recurringEvent = eventStorage.getEventById(eventId);
     if (recurringEvent.getRecurrence() == null) {
       throw new IllegalStateException("event is not recurrent");
     }
+    checkNotShareeOnly(recurringEvent, identityId);
 
     if (reminders == null) {
       reminders = new ArrayList<>();
@@ -215,8 +219,40 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
   @Override
   public Set<AgendaEventModificationType> saveEventReminders(Event event,
                                                              List<EventReminder> reminders,
-                                                             long identityId) throws AgendaException {
+                                                             long identityId) throws IllegalAccessException, AgendaException {
     return saveEventReminders(event, null, reminders, identityId);
+  }
+
+  /**
+   * Replaces how an event's access is looked up, for tests: the default
+   * resolves the event service from the container on first use.
+   *
+   * @param agendaEventService the event service
+   */
+  public void setAgendaEventService(AgendaEventService agendaEventService) {
+    this.agendaEventService = agendaEventService;
+  }
+
+  /**
+   * Refuses a reminder to a user who reads the event only through a calendar
+   * share (EXO-90357): the reminder's notification would carry the event's
+   * title, which a private event withholds from them, and a share grants
+   * reading, not a place in the event. The event service is a Kernel
+   * component reached on first use, as the calendar service is below; when it
+   * cannot be reached the reminder is refused, never allowed.
+   *
+   * @param event the event
+   * @param identityId identity identifier of the user
+   * @throws IllegalAccessException when the user is a sharee only
+   */
+  private void checkNotShareeOnly(Event event, long identityId) throws IllegalAccessException {
+    if (agendaEventService == null) {
+      agendaEventService = ExoContainerContext.getService(AgendaEventService.class);
+    }
+    if (agendaEventService == null || agendaEventService.getEventAccess(event, identityId) == EventAccess.SHARED) {
+      throw new IllegalAccessException("User " + identityId + " reads event " + event.getId()
+          + " through a calendar share only and cannot set reminders on it");
+    }
   }
 
   @Override
@@ -259,7 +295,8 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
   private Set<AgendaEventModificationType> saveEventReminders(Event event,
                                                               ZonedDateTime fromOccurrenceId,
                                                               List<EventReminder> reminders,
-                                                              long identityId) throws AgendaException {
+                                                              long identityId) throws IllegalAccessException, AgendaException {
+    checkNotShareeOnly(event, identityId);
     long eventId = event.getId();
     boolean isRecurrentEvent = event.getRecurrence() != null;
     if (event.getStatus() == EventStatus.CANCELLED) {
@@ -341,7 +378,7 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
   private void saveExceptionalOccurrencesReminders(long eventId,
                                                    ZonedDateTime fromOccurrenceId,
                                                    List<EventReminder> reminders,
-                                                   long identityId) throws AgendaException {
+                                                   long identityId) throws IllegalAccessException, AgendaException {
     List<Long> exceptionalOccurenceEventIds = eventStorage.getExceptionalOccurenceIds(eventId);
     for (long exceptionalOccurenceEventId : exceptionalOccurenceEventIds) {
       EventAttendeeList eventAttendees = attendeeStorage.getEventAttendees(exceptionalOccurenceEventId);

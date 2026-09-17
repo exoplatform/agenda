@@ -58,6 +58,11 @@ const OWN_ROWS = [
   // when they are busy: the calendars they published as a private link
   // (EXO-90252). The row draws nothing while nothing is published.
   {id: 'published-calendars', rank: 46, vueComponent: 'agenda-user-published-calendars-settings'},
+  // The calendars colleagues shared with the user and that the user hid from
+  // their agenda (EXO-90357): where a hidden share is shown again. Right after
+  // the published calendars, the other row about what others may see; drawn
+  // only while something is hidden.
+  {id: 'hidden-shared-calendars', rank: 47, vueComponent: 'agenda-user-hidden-shared-calendars-settings'},
   // Last, and behind a rule: every row above is about the user's own
   // calendars and what eXo does with them. Other accounts are a different
   // subject, and putting them between the account and its copy switch made

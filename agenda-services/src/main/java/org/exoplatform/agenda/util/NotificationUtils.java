@@ -106,6 +106,35 @@ public class NotificationUtils {
   public static final String                                 AGENDA_VOTE_NOTIFICATION_PLUGIN                =
                                                                                              "VoteNotificationPlugin";
 
+  /** Plugin id of "a calendar was shared with you" (EXO-90357). */
+  public static final String                                 AGENDA_CALENDAR_SHARED_NOTIFICATION_PLUGIN     =
+                                                                                                        "CalendarSharedNotificationPlugin";
+
+  /** The share record handed to the calendar-shared notification (EXO-90357). */
+  public static final ArgumentLiteral<CalendarShare>         CALENDAR_SHARE                                 =
+                                                                            new ArgumentLiteral<>(CalendarShare.class, "calendar_share");
+
+  /** Stored parameter: technical identifier of the shared calendar. */
+  public static final String                                 STORED_PARAMETER_CALENDAR_ID                   = "calendarId";
+
+  /** Stored parameter: name of the shared calendar. */
+  public static final String                                 STORED_PARAMETER_CALENDAR_NAME                 = "calendarName";
+
+  /** Stored parameter: full name of the calendar's owner. */
+  public static final String                                 STORED_PARAMETER_OWNER_NAME                    = "ownerName";
+
+  /** Stored parameter: username of the calendar's owner. */
+  public static final String                                 STORED_PARAMETER_OWNER_USERNAME                = "ownerUsername";
+
+  /** Template variable: name of the shared calendar. */
+  public static final String                                 TEMPLATE_VARIABLE_CALENDAR_NAME                = "calendarName";
+
+  /** Template variable: full name of the calendar's owner. */
+  public static final String                                 TEMPLATE_VARIABLE_OWNER_NAME                   = "ownerName";
+
+  /** Template variable: link to the agenda. */
+  public static final String                                 TEMPLATE_VARIABLE_AGENDA_URL                   = "agendaURL";
+
   private static final String                                TEMPLATE_VARIABLE_EVENT_URL                    = "eventURL";
 
   private static final String                                TEMPLATE_VARIABLE_WEB_EVENT_URL                    = "webEventURL";
@@ -132,6 +161,10 @@ public class NotificationUtils {
 
   public static final PluginKey                              EVENT_DATE_VOTE_KEY                            =
                                                                                  PluginKey.key(AGENDA_VOTE_NOTIFICATION_PLUGIN);
+
+  /** Plugin key of "a calendar was shared with you" (EXO-90357). */
+  public static final PluginKey                              CALENDAR_SHARED_KEY                            =
+                                                                                 PluginKey.key(AGENDA_CALENDAR_SHARED_NOTIFICATION_PLUGIN);
 
   public static final String                                 STORED_PARAMETER_EVENT_TITLE                   = "eventTitle";
 
@@ -565,6 +598,43 @@ public class NotificationUtils {
     templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
     templateContext.put(TEMPLATE_VARIABLE_WEB_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_WEB_EVENT_URL));
     return templateContext;
+  }
+
+  /**
+   * The template context of "a calendar was shared with you" (EXO-90357): the
+   * calendar's name, its owner's, and the link to the agenda, beside the
+   * footer, read state, identifier and date every agenda notification
+   * carries.
+   *
+   * @param templateProvider the channel's provider
+   * @param notification the notification, with its stored parameters
+   * @return the context
+   */
+  public static final TemplateContext buildTemplateCalendarSharedParameters(TemplateProvider templateProvider,
+                                                                            NotificationInfo notification) {
+    String language = NotificationPluginUtils.getLanguage(notification.getTo());
+    TemplateContext templateContext = getTemplateContext(templateProvider, notification, language);
+    setFooter(notification, templateContext);
+    setRead(notification, templateContext);
+    setNotificationId(notification, templateContext);
+    setLasModifiedTime(notification, templateContext, language);
+    templateContext.put(TEMPLATE_VARIABLE_CALENDAR_NAME,
+                        StringUtils.defaultString(notification.getValueOwnerParameter(STORED_PARAMETER_CALENDAR_NAME)));
+    templateContext.put(TEMPLATE_VARIABLE_OWNER_NAME,
+                        StringUtils.defaultString(notification.getValueOwnerParameter(STORED_PARAMETER_OWNER_NAME)));
+    templateContext.put(TEMPLATE_VARIABLE_AGENDA_URL,
+                        StringUtils.defaultString(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL)));
+    return templateContext;
+  }
+
+  /**
+   * The absolute link that opens the agenda, where a calendar shared with the
+   * user sits under "Shared with me" (EXO-90357).
+   *
+   * @return the link
+   */
+  public static String getAgendaURL() {
+    return eventsBaseURL();
   }
 
   public static final MessageInfo buildMessageSubjectAndBody(TemplateContext templateContext,

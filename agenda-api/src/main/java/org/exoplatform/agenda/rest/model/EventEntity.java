@@ -163,6 +163,14 @@ public class EventEntity implements Serializable, Cloneable {
 
   private transient boolean           sendInvitation;
 
+  /**
+   * Whether the event's content was withheld from the reader (EXO-90357): a
+   * private event of a calendar shared with them, rendered as busy time. The
+   * client shows the time and nothing else; the server fills no attendee,
+   * conference, reminder or date option on it.
+   */
+  private boolean                     masked;
+
   @Override
   public EventEntity clone() {// NOSONAR
     return new EventEntity(id,
@@ -195,6 +203,7 @@ public class EventEntity implements Serializable, Cloneable {
                            allowAttendeeToUpdate,
                            allowAttendeeToInvite,
                            parameters,
-                           sendInvitation);
+                           sendInvitation,
+                           masked);
   }
 }

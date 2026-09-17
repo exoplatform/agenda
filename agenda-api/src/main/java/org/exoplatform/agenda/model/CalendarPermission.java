@@ -41,19 +41,39 @@ public class CalendarPermission implements Cloneable, Serializable {
   private boolean           canPublish;
 
   /**
-   * Builds the permissions a calendar grants, publishing left refused.
+   * Whether the user may share the calendar with colleagues (EXO-90357): the
+   * owner of a personal calendar that is not a subscription. Never a space
+   * calendar in this version, never a sharee.
+   */
+  private boolean           canShare;
+
+  /**
+   * Builds the permissions a calendar grants, publishing and sharing left
+   * refused.
    *
    * @param canCreate whether the user may create events in the calendar
    * @param canEdit whether the user may edit the calendar
    * @param canInviteeEdit whether invitees may edit the calendar's events
    */
   public CalendarPermission(boolean canCreate, boolean canEdit, boolean canInviteeEdit) {
-    this(canCreate, canEdit, canInviteeEdit, false);
+    this(canCreate, canEdit, canInviteeEdit, false, false);
+  }
+
+  /**
+   * Builds the permissions a calendar grants, sharing left refused.
+   *
+   * @param canCreate whether the user may create events in the calendar
+   * @param canEdit whether the user may edit the calendar
+   * @param canInviteeEdit whether invitees may edit the calendar's events
+   * @param canPublish whether the user may publish the calendar as a link
+   */
+  public CalendarPermission(boolean canCreate, boolean canEdit, boolean canInviteeEdit, boolean canPublish) {
+    this(canCreate, canEdit, canInviteeEdit, canPublish, false);
   }
 
   /**
    * Copies the permissions, every field included. Goes through the
-   * Lombok-generated all-args constructor (all four fields, in their
+   * Lombok-generated all-args constructor (all five fields, in their
    * declared order) rather than the 3-arg constructor plus a setter: the
    * 3-arg constructor is the one that had its first two arguments swapped
    * here (EXO-90276) without a compiler error, because both are booleans —
@@ -64,6 +84,6 @@ public class CalendarPermission implements Cloneable, Serializable {
    */
   @Override
   public CalendarPermission clone() { // NOSONAR
-    return new CalendarPermission(canCreate, canEdit, canInviteeEdit, canPublish);
+    return new CalendarPermission(canCreate, canEdit, canInviteeEdit, canPublish, canShare);
   }
 }

@@ -77,6 +77,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
   private MetadataService              metadataService;
 
+  private CalendarShareAccess          calendarShareAccess = new CalendarShareAccess();
+
   public AgendaEventServiceImpl(AgendaCalendarService agendaCalendarService,
                                 AgendaEventAttendeeService attendeeService,
                                 AgendaEventConferenceService conferenceService,
@@ -104,6 +106,16 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   }
 
   /**
+   * Replaces how calendar shares are looked up, for tests: the default
+   * resolves the share service from the container on first use.
+   *
+   * @param calendarShareAccess the lookup
+   */
+  public void setCalendarShareAccess(CalendarShareAccess calendarShareAccess) {
+    this.calendarShareAccess = calendarShareAccess;
+  }
+
+  /**
    * {@inheritDoc}
    */
   @Override
@@ -113,12 +125,13 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       return null;
     }
 
-    if (canAccessEvent(event, userIdentityId)) {
+    EventAccess access = getEventAccess(event, userIdentityId);
+    if (access != EventAccess.NONE) {
       adjustEventDatesForRead(event, timeZone);
       boolean canUpdateEvent = canUpdateEvent(event, userIdentityId);
       boolean isEventAttendee = attendeeService.isEventAttendee(getEventIdOrParentId(event), userIdentityId);
       event.setAcl(new EventPermission(canUpdateEvent, isEventAttendee));
-      return event;
+      return maskForAccess(event, access);
     } else {
       throw new IllegalAccessException("User with identity id " + userIdentityId + "is not allowed to access event with id "
           + eventId);
@@ -148,6 +161,14 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
     if (recurrentEvent.getRecurrence() == null) {
       throw new IllegalStateException("Event with id " + parentEventId + " is not a recurrent event");
+    }
+    // The parent is what a computed occurrence is read from, so it is what
+    // the reader must be allowed to read: an occurrence with no exceptional
+    // row of its own used to be handed out to anyone naming the parent's id
+    EventAccess access = getEventAccess(recurrentEvent, userIdentityId);
+    if (access == EventAccess.NONE) {
+      throw new IllegalAccessException("User with identity id " + userIdentityId + " is not allowed to access event with id "
+          + parentEventId);
     }
 
     Event event = null;
@@ -188,6 +209,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       boolean canUpdateEvent = canUpdateEvent(event, userIdentityId);
       boolean isEventAttendee = attendeeService.isEventAttendee(getEventIdOrParentId(event), userIdentityId);
       event.setAcl(new EventPermission(canUpdateEvent, isEventAttendee));
+      event = maskForAccess(event, access);
     }
     return event;
   }
@@ -841,6 +863,12 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       }
     }
 
+    // The calendars other users shared with the reader (EXO-90357): named by
+    // the client — each name checked against the reader, since an unchecked
+    // id would read any calendar — or, when the client names none and asks
+    // for no particular owner, every calendar shared with them
+    List<Long> calendarIds = sharedCalendarIdsToRead(eventFilter, userIdentityId);
+
     long attendeeId = eventFilter.getAttendeeId();
     if (attendeeId > 0) {
       if (!String.valueOf(attendeeId).contentEquals(userIdentity.getId())) {
@@ -876,6 +904,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (limit > 0) {
       EventFilter maxEndDateFilter = eventFilter.clone();
       maxEndDateFilter.setOwnerIds(ownerIds);
+      maxEndDateFilter.setCalendarIds(calendarIds);
       maxEndDateFilter.setStart(startMinusADay);
       maxEndDateFilter.setEnd(endPlusADay);
       ZonedDateTime maxEndDate = getMaxEndDate(maxEndDateFilter, userTimeZone);
@@ -887,6 +916,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
     EventFilter requestEventFilter = eventFilter.clone();
     requestEventFilter.setOwnerIds(ownerIds);
+    requestEventFilter.setCalendarIds(calendarIds);
     requestEventFilter.setStart(startMinusADay);
     requestEventFilter.setEnd(endPlusADay);
     List<Long> eventIds = this.agendaEventStorage.getEventIds(requestEventFilter);
@@ -908,22 +938,92 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    */
   @Override
   public boolean canAccessEvent(Event event, long identityId) {
+    return getEventAccess(event, identityId) != EventAccess.NONE;
+  }
+
+  /**
+   * {@inheritDoc}
+   * <p>
+   * The reading that existed before sharing — the reader may see the calendar,
+   * or is invited — is {@link EventAccess#FULL}; a reader admitted only by a
+   * share record (EXO-90357) is {@link EventAccess#SHARED}, and only a user
+   * can be one: a share names a user, never a space or a guest. The share is
+   * asked last, so nobody who could read before is ever read as a sharee.
+   */
+  @Override
+  public EventAccess getEventAccess(Event event, long identityId) {
     long calendarId = event.getCalendarId();
     Calendar calendar = agendaCalendarService.getCalendarById(calendarId);
-    if (calendar.isDeleted()) {
-      return false;
+    if (calendar == null || calendar.isDeleted()) {
+      return EventAccess.NONE;
     }
 
     Identity identity = identityManager.getIdentity(String.valueOf(identityId));
     if (identity == null) {
-      return false;
+      return EventAccess.NONE;
     }
-    if (StringUtils.equals(OrganizationIdentityProvider.NAME, identity.getProviderId())) {
-      return Utils.canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), identityId)
-          || attendeeService.isEventAttendee(getEventIdOrParentId(event), identityId);
-    } else {
-      return attendeeService.isEventAttendee(getEventIdOrParentId(event), identityId);
+    boolean user = StringUtils.equals(OrganizationIdentityProvider.NAME, identity.getProviderId());
+    if (user && Utils.canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), identityId)) {
+      return EventAccess.FULL;
     }
+    if (attendeeService.isEventAttendee(getEventIdOrParentId(event), identityId)) {
+      return EventAccess.FULL;
+    }
+    if (user && calendarShareAccess.isSharedWith(calendarId, identityId)) {
+      return EventAccess.SHARED;
+    }
+    return EventAccess.NONE;
+  }
+
+  /**
+   * Renders an event for the access its reader has, through the one helper
+   * every read path goes through, {@link Utils#maskForAccess(Event, EventAccess)}:
+   * the access is stamped on the event, and a private event read through a
+   * share alone becomes busy time (EXO-90357).
+   *
+   * @param event the event, a copy of the cached one
+   * @param access how the reader may read it
+   * @return the same event, masked when it must be
+   */
+  static Event maskForAccess(Event event, EventAccess access) {
+    return Utils.maskForAccess(event, access);
+  }
+
+  /**
+   * The shared calendars a listing reads (EXO-90357): the ones the client
+   * names, each checked against the reader, or — when it names none and
+   * restricts no owner — every calendar shared with the reader.
+   *
+   * @param eventFilter the filter as the client sent it
+   * @param userIdentityId identity identifier of the reader
+   * @return the calendar identifiers to read on top of the owner criteria,
+   *         empty for none
+   * @throws IllegalAccessException when a named calendar is neither
+   *           accessible to the reader nor shared with them
+   */
+  private List<Long> sharedCalendarIdsToRead(EventFilter eventFilter, long userIdentityId) throws IllegalAccessException {
+    List<Long> named = eventFilter.getCalendarIds();
+    if (named == null) {
+      return CollectionUtils.isEmpty(eventFilter.getOwnerIds()) ? calendarShareAccess.getSharedCalendarIds(userIdentityId)
+                                                                : Collections.emptyList();
+    }
+    List<Long> shared = null;
+    for (Long calendarId : named) {
+      Calendar calendar = calendarId == null || calendarId <= 0 ? null : agendaCalendarService.getCalendarById(calendarId);
+      if (calendar == null || calendar.isDeleted()) {
+        throw new IllegalAccessException("User '" + userIdentityId + "' is not allowed to access calendar '" + calendarId + "'");
+      }
+      if (Utils.canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), userIdentityId)) {
+        continue;
+      }
+      if (shared == null) {
+        shared = calendarShareAccess.getSharedCalendarIds(userIdentityId);
+      }
+      if (!shared.contains(calendarId)) {
+        throw new IllegalAccessException("User '" + userIdentityId + "' is not allowed to access calendar '" + calendarId + "'");
+      }
+    }
+    return new ArrayList<>(named);
   }
 
   /**
@@ -970,10 +1070,18 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (filter.getUserTimeZone() == null) {
       filter.setUserTimeZone(ZoneOffset.UTC);
     }
+    // The calendars shared with the reader (EXO-90357) are the service's to
+    // name, never the client's: set here from the share records, and only
+    // when the search is not restricted to spaces — a shared calendar is
+    // nobody's space
+    List<Long> sharedCalendarIds = CollectionUtils.isEmpty(filter.getSpaceIdentityIds())
+                                                                                        ? calendarShareAccess.getSharedCalendarIds(filter.getCurrentUserId())
+                                                                                        : Collections.emptyList();
+    filter.setSharedCalendarIds(sharedCalendarIds);
 
     List<EventSearchResult> searchResults = agendaSearchConnector.search(filter);
     final ZoneId timeZone = filter.getUserTimeZone();
-    return searchResults.stream().map(event -> {
+    return searchResults.stream().map(event -> maskSearchResult(event, sharedCalendarIds, filter.getCurrentUserId())).map(event -> {
       if (event.isRecurrent()) {
         Event recurrentEvent = agendaEventStorage.getEventById(event.getId());
         ZonedDateTime today = ZonedDateTime.now().toLocalDate().atStartOfDay(timeZone);
@@ -985,7 +1093,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
         if (occurrences != null && !occurrences.isEmpty()) {
           Event occurrenceEvent = occurrences.get(0);
-          if (occurrenceEvent.getOccurrence().isExceptional()) {
+          if (occurrenceEvent.getOccurrence().isExceptional() && !event.isMasked()) {
             event.setSummary(occurrenceEvent.getSummary());
             event.setDescription(occurrenceEvent.getDescription());
             event.setLocation(occurrenceEvent.getLocation());
@@ -1316,9 +1424,21 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     return events;
   }
 
+  /**
+   * Sets each event's permissions for the reader, and masks the private events
+   * of the calendars the reader sees only through a share (EXO-90357). The
+   * access is decided once per parent event, like the permissions, and only
+   * an event of a shared calendar pays the calendar check: the shared set is
+   * one cache hit for the whole listing.
+   *
+   * @param events the events read, copies of the cached ones
+   * @param userIdentity the reader
+   */
   private void computeEventsAcl(List<Event> events, Identity userIdentity) {
     long userIdentityId = Long.parseLong(userIdentity.getId());
     Map<Long, EventPermission> eventPermissionsMap = new HashMap<>();
+    Map<Long, EventAccess> eventAccessMap = new HashMap<>();
+    List<Long> sharedCalendarIds = calendarShareAccess.getSharedCalendarIds(userIdentityId);
     events.forEach(event -> {
       long eventId = getEventIdOrParentId(event);
       EventPermission permission = eventPermissionsMap.get(eventId);
@@ -1327,9 +1447,55 @@ public class AgendaEventServiceImpl implements AgendaEventService {
         boolean isEventAttendee = attendeeService.isEventAttendee(eventId, userIdentityId);
         permission = new EventPermission(canUpdateEvent, isEventAttendee);
         eventPermissionsMap.put(eventId, permission);
+        boolean sharedOnly = sharedCalendarIds.contains(event.getCalendarId())
+            && !isEventAttendee
+            && !canAccessCalendarOf(event, userIdentityId);
+        eventAccessMap.put(eventId, sharedOnly ? EventAccess.SHARED : EventAccess.FULL);
       }
       event.setAcl(permission);
+      maskForAccess(event, eventAccessMap.get(eventId));
     });
+  }
+
+  /**
+   * Masks a search hit the reader sees only through a share, when the stored
+   * event is private (EXO-90357): the index carries the words that matched,
+   * and the hit is the one place those words would leave through. Read
+   * through the same access primitive as every other path; only a hit of a
+   * shared calendar pays the stored read.
+   *
+   * @param result the hit as the index answered it
+   * @param sharedCalendarIds the calendars shared with the reader
+   * @param userIdentityId identity identifier of the reader
+   * @return the same hit, masked when it must be
+   */
+  private EventSearchResult maskSearchResult(EventSearchResult result, List<Long> sharedCalendarIds, long userIdentityId) {
+    if (result == null || !sharedCalendarIds.contains(result.getCalendarId())) {
+      return result;
+    }
+    Event stored = agendaEventStorage.getEventById(result.getId());
+    if (stored == null) {
+      return result;
+    }
+    result.setVisibility(stored.getVisibility());
+    if (maskForAccess(result, getEventAccess(stored, userIdentityId)).isMasked()) {
+      result.setExcerpts(Collections.emptyList());
+    }
+    return result;
+  }
+
+  /**
+   * Whether the reader may see the calendar of an event by their own right —
+   * their calendar, or a space they belong to.
+   *
+   * @param event the event
+   * @param userIdentityId identity identifier of the reader
+   * @return true when they may
+   */
+  private boolean canAccessCalendarOf(Event event, long userIdentityId) {
+    Calendar calendar = agendaCalendarService.getCalendarById(event.getCalendarId());
+    return calendar != null && !calendar.isDeleted()
+        && Utils.canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), userIdentityId);
   }
 
   private List<Event> filterEvents(List<Event> events, ZonedDateTime start, ZonedDateTime end, int limit) {

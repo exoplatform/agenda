@@ -35,10 +35,31 @@
       <set-method>addListener</set-method>
       <type>org.exoplatform.agenda.listener.AgendaEventReplyListener</type>
     </component-plugin>
+    <!-- EXO-90357: a colleague is told that a calendar was shared with them -->
+    <component-plugin>
+      <name>exo.agenda.calendar.shared</name>
+      <set-method>addListener</set-method>
+      <type>org.exoplatform.agenda.listener.AgendaCalendarSharedListener</type>
+    </component-plugin>
     <component-plugin>
       <name>exo.agenda.event.poll.voted.all</name>
       <set-method>addListener</set-method>
       <type>org.exoplatform.agenda.listener.AgendaVotesNotificationListener</type>
+    </component-plugin>
+  </external-component-plugins>
+
+  <!--
+    EXO-90357: a deleted user takes their calendar shares with them, as the
+    colleague they were shared with and as the owner of the calendars they
+    shared. Registered on the organization service like the platform's own
+    user listeners; the calendar-deletion cleanup is a Spring listener.
+  -->
+  <external-component-plugins>
+    <target-component>org.exoplatform.services.organization.OrganizationService</target-component>
+    <component-plugin>
+      <name>AgendaCalendarShareUserListener</name>
+      <set-method>addListenerPlugin</set-method>
+      <type>org.exoplatform.agenda.listener.AgendaCalendarShareUserListener</type>
     </component-plugin>
   </external-component-plugins>
 </configuration>
