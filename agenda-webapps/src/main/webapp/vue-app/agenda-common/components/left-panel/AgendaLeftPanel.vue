@@ -116,13 +116,13 @@
       keeps a calendar from showing twice, and a user whose collections are
       all materialised sees no CalDAV section. The calendars a CalDAV server
       lists as shared with the user are gathered into one "Shared with me"
-      section after the providers' own, whichever server they come from. The
-      component draws its own sections, headers included, and draws nothing
-      at all when no connected provider lists calendars.
+      section after the providers' own, whichever server they come from,
+      together with the calendars colleagues shared in eXo (EXO-90357), each
+      calendar once — which is why the component is mounted with or without
+      a connected account. It draws its own sections, headers included, and
+      draws nothing at all when nothing is listed.
     -->
-    <agenda-left-panel-remote-calendars
-      v-if="connectorsAvailable"
-      :connectors="connectors" />
+    <agenda-left-panel-remote-calendars :connectors="connectors" />
     <!--
       The calendars the user subscribed to by link (EXO-90278), read-only and
       refreshed from outside: after the accounts, before the calendars of the
@@ -221,7 +221,6 @@ export default {
     calendarsLoaded: false,
     pickerValue: null,
     pickerMonth: null,
-    connectorsAvailable: false,
     spaceFilterExpanded: false,
     spaceQuery: null,
   }),
@@ -254,20 +253,6 @@ export default {
       return eXo.env.portal.language;
     },
   },
-  created() {
-    // Whether the remote calendar feature exists here is read from the
-    // extension registry, which is NOT reactive — and connectors may register
-    // late (the CalDAV add-on registers one connector per declared server,
-    // after fetching them). As a computed this evaluated once, usually before
-    // that registration, and My Calendars silently disappeared. So it is
-    // plain data, refreshed on the same event every other connectors consumer
-    // already listens to.
-    document.addEventListener('agenda-connectors-refresh', this.refreshConnectorsAvailable);
-    this.refreshConnectorsAvailable();
-  },
-  beforeDestroy() {
-    document.removeEventListener('agenda-connectors-refresh', this.refreshConnectorsAvailable);
-  },
   watch: {
     /**
      * Lazily loads the space calendar list the first time the panel becomes
@@ -298,19 +283,6 @@ export default {
     }
   },
   methods: {
-    /**
-     * Re-reads the extension registry to decide whether any connector
-     * implements the calendar contract — which is what decides if the
-     * My Calendars section is worth showing. Not whether an account is
-     * connected: an empty section with a way to connect is how the feature
-     * is discovered.
-     *
-     * @returns {void}
-     */
-    refreshConnectorsAvailable() {
-      const connectors = extensionRegistry.loadExtensions('agenda', 'connectors') || [];
-      this.connectorsAvailable = connectors.some(connector => connector && connector.canListCalendars);
-    },
     /**
      * Triggers the initial retrieval of the space calendars displayed in the
      * Spaces section, at most once per application load.

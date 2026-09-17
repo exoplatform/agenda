@@ -1,0 +1,15 @@
+<%
+  calendarName = _ctx.escapeHTML(calendarName);
+  ownerName = _ctx.escapeHTML(ownerName);
+%>
+<div>
+    <div class="contentSmall" data-link="<%= agendaURL %>">
+        <div class="status">
+            <%
+            String owner = "<a class=\"user-name text-bold\">" + ownerName + "</a>";
+            String calendar = "<span class=\"user-name text-bold\">" + calendarName + "</span>";
+            %>
+            <%= _ctx.appRes("Notification.agenda.calendar.shared", owner, calendar) %>
+        </div>
+    </div>
+</div>

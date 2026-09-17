@@ -131,6 +131,28 @@
                 <v-list-item-title>{{ action.label }}</v-list-item-title>
               </v-list-item>
               <!--
+                Sharing with colleagues (EXO-90357): agenda's own entry, for the
+                owner of a personal calendar whether or not they connected a
+                CalDAV account — the server's word, on the calendar's
+                permissions. Before Publish, where BlueMind puts Share; a
+                connector that still adds a Share of its own sits above it
+                until it retires it.
+              -->
+              <v-list-item
+                v-if="canShare(calendar)"
+                class="agenda-calendar-share-action"
+                @click="openCalendarShare(calendar)">
+                <v-list-item-title class="d-flex align-center">
+                  <v-icon
+                    v-if="isShared(calendar)"
+                    size="14"
+                    class="me-2 success--text">
+                    fas fa-check
+                  </v-icon>
+                  {{ isShared(calendar) ? $t('agenda.calendarShare.menuShared') : $t('agenda.calendarShare.menu') }}
+                </v-list-item-title>
+              </v-list-item>
+              <!--
                 Publishing (EXO-90252): one entry naming the calendar's state and opening
                 the drawer, which is where a calendar is unpublished.
                 Right before Delete: Edit, then what connectors add (Share…,
@@ -172,6 +194,28 @@
           wrapper carrying the role and the label, since Vuetify hides a v-icon with
           no click listener from assistive technology.
         -->
+        <!--
+          A calendar shared with colleagues (EXO-90357) carries a small sign,
+          counted from eXo's own share records — a share made on a CalDAV
+          server without eXo knowing is listed in the drawer but marks nothing
+          here. No count on the sign: the drawer is one click away and names
+          the colleagues. Same wrapper idiom as the published sign, for the
+          same accessibility reason.
+        -->
+        <v-list-item-action
+          v-if="isShared(calendar)"
+          class="my-0 ms-2 flex-grow-0 justify-center agenda-calendar-shared-icon">
+          <span
+            :title="$t('agenda.calendarShare.sharedTooltip')"
+            :aria-label="$t('agenda.calendarShare.sharedTooltip')"
+            class="d-flex agenda-calendar-shared"
+            role="button"
+            tabindex="0"
+            @click="openCalendarShare(calendar)"
+            @keydown.enter="openCalendarShare(calendar)">
+            <v-icon size="14" class="text-light-color">fas fa-share-alt</v-icon>
+          </span>
+        </v-list-item-action>
         <v-list-item-action
           v-if="linkStateOf(calendar) !== 'none'"
           class="my-0 ms-2 flex-grow-0 justify-center agenda-calendar-published-icon">
@@ -201,10 +245,11 @@
 
 <script>
 import calendarLinkMenuMixin from '../../js/CalendarLinkMenuMixin.js';
+import calendarShareMenuMixin from '../../js/CalendarShareMenuMixin.js';
 import calendarRowMenuMixin from '../../js/CalendarRowMenuMixin.js';
 
 export default {
-  mixins: [calendarLinkMenuMixin, calendarRowMenuMixin],
+  mixins: [calendarLinkMenuMixin, calendarShareMenuMixin, calendarRowMenuMixin],
   data: () => ({
     calendars: [],
     hiddenCalendarIds: [],

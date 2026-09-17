@@ -95,8 +95,12 @@ public class AgendaEventContentLinkPlugin implements ContentLinkPlugin {
                                                                                      null,
                                                                                      offset,
                                                                                      limit));
+    // A hit the reader sees only through a calendar share, of a private
+    // event, is masked: it has no title to link by, and a link to content
+    // the reader cannot name is no link (EXO-90357)
     return CollectionUtils.isEmpty(events) ? Collections.emptyList() :
                                            events.stream()
+                                                 .filter(event -> event != null && !event.isMasked())
                                                  .map(this::toContentLink)
                                                  .toList();
   }

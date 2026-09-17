@@ -4,8 +4,20 @@
   "query":{
     "bool":{
       "filter":{
-        "terms":{
-          "permissions": [@permissions@]
+        "bool":{
+          "should":[
+            {
+              "terms":{
+                "permissions": [@permissions@]
+              }
+            },
+            {
+              "terms":{
+                "calendarId": [@sharedCalendarIds@]
+              }
+            }
+          ],
+          "minimum_should_match": 1
         }
       },
       "should": {

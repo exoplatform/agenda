@@ -12,3 +12,4 @@ org.exoplatform.agenda.entity.RemoteProviderEntity
 org.exoplatform.agenda.entity.CalendarLinkEntity
 org.exoplatform.agenda.entity.CalendarSubscriptionEntity
 org.exoplatform.agenda.entity.CalendarSubscriptionEventEntity
+org.exoplatform.agenda.entity.CalendarShareEntity

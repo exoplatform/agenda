@@ -447,6 +447,11 @@ public class RestUtils {
                                    ZonedDateTime occurrenceId,
                                    Map<Long, EventAttendeeList> attendeesByParentEventId,
                                    long userIdentityId) {
+    if (eventEntity.isMasked()) {
+      // A masked event (EXO-90357) shows its time and nothing else: none of
+      // what the fills read again by identifier reaches the reader
+      return;
+    }
     boolean computedOccurrence = isComputedOccurrence(eventEntity);
     long eventId = computedOccurrence ? eventEntity.getParent().getId()
                                       : eventEntity.getId();
@@ -474,6 +479,9 @@ public class RestUtils {
                                                  EventEntity eventEntity,
                                                  ZonedDateTime occurrenceId,
                                                  long userIdentityId) {
+    if (eventEntity.isMasked()) {
+      return EventAttendeeList.EMPTY_ATTENDEE_LIST;
+    }
     boolean computedOccurrence = isComputedOccurrence(eventEntity);
     long eventId = computedOccurrence ? eventEntity.getParent().getId()
                                       : eventEntity.getId();
@@ -500,6 +508,9 @@ public class RestUtils {
   public static void fillConferences(AgendaEventConferenceService agendaEventConferenceService,
                                      EventEntity eventEntity,
                                      Map<Long, List<EventConference>> conferencesByParentEventId) {
+    if (eventEntity.isMasked()) {
+      return;
+    }
     long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParent().getId()
                                                      : eventEntity.getId();
     if (conferencesByParentEventId.containsKey(eventId)) {
@@ -512,6 +523,9 @@ public class RestUtils {
 
   private static void fillConferences(AgendaEventConferenceService agendaEventConferenceService,
                                       EventEntity eventEntity) {
+    if (eventEntity.isMasked()) {
+      return;
+    }
     long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParent().getId()
                                                      : eventEntity.getId();
     List<EventConference> eventConferences = agendaEventConferenceService.getEventConferences(eventId);
@@ -522,6 +536,9 @@ public class RestUtils {
                                    EventEntity eventEntity,
                                    long userIdentityId,
                                    Map<Long, List<EventReminder>> remindersByParentEventId) {
+    if (eventEntity.isMasked()) {
+      return;
+    }
     long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParent().getId()
                                                      : eventEntity.getId();
     if (remindersByParentEventId.containsKey(eventId)) {
@@ -550,6 +567,9 @@ public class RestUtils {
                                      EventEntity eventEntity,
                                      ZoneId userTimeZone,
                                      Map<Long, List<EventDateOptionEntity>> dateOptionsByParentEventId) {
+    if (eventEntity.isMasked()) {
+      return;
+    }
     long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParent().getId()
                                                      : eventEntity.getId();
     if (dateOptionsByParentEventId.containsKey(eventId)) {
@@ -612,6 +632,9 @@ public class RestUtils {
   public static void fillReminders(AgendaEventReminderService agendaEventReminderService,
                                    EventEntity eventEntity,
                                    long userIdentityId) {
+    if (eventEntity.isMasked()) {
+      return;
+    }
     boolean computedOccurrence = isComputedOccurrence(eventEntity);
     long eventId = computedOccurrence ? eventEntity.getParent().getId()
                                       : eventEntity.getId();
@@ -637,6 +660,9 @@ public class RestUtils {
   private static void fillDateOptions(AgendaEventDatePollService agendaEventDatePollService,
                                       EventEntity eventEntity,
                                       ZoneId userTimeZone) {
+    if (eventEntity.isMasked()) {
+      return;
+    }
     long eventId = isComputedOccurrence(eventEntity) ? eventEntity.getParent().getId()
                                                      : eventEntity.getId();
     List<EventDateOption> dateOptions = agendaEventDatePollService.getEventDateOptions(eventId, userTimeZone);
