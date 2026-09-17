@@ -423,4 +423,14 @@
     </addColumn>
   </changeSet>
 
+  <!-- Open event (eXIP 7.3.0.20): anyone who can access the event may answer
+       it without being invited. Every existing event stays locked. -->
+  <changeSet author="agenda" id="1.0.0-37">
+    <addColumn tableName="EXO_AGENDA_EVENT">
+      <column name="IS_OPEN" type="BOOLEAN" defaultValueBoolean="false">
+        <constraints nullable="false" />
+      </column>
+    </addColumn>
+  </changeSet>
+
 </databaseChangeLog>

@@ -320,6 +320,14 @@ public class EventEntity implements Serializable {
   @Column(name = "ALLOW_ATTENDEE_TO_INVITE", nullable = false)
   private boolean                   allowAttendeeToInvite;
 
+  /**
+   * Open event: anyone who can access the event may answer it without being
+   * invited. A property of the series: the row of an exceptional occurrence
+   * keeps false and is ignored, the parent's value applies.
+   */
+  @Column(name = "IS_OPEN", nullable = false)
+  private boolean                   open;
+
   public Long getId() {
     return id;
   }
@@ -494,6 +502,14 @@ public class EventEntity implements Serializable {
 
   public void setAllowAttendeeToInvite(boolean allowAttendeeToInvite) {
     this.allowAttendeeToInvite = allowAttendeeToInvite;
+  }
+
+  public boolean isOpen() {
+    return open;
+  }
+
+  public void setOpen(boolean open) {
+    this.open = open;
   }
 
 }
