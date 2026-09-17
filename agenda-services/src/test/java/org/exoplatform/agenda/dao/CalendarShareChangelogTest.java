@@ -60,6 +60,9 @@ class CalendarShareChangelogTest {
   /** The first changeset EXO-90357 adds. */
   private static final String FIRST_CHANGESET = "1.0.0-45";
 
+  /** The last changeset EXO-90357 adds. */
+  private static final String LAST_CHANGESET  = "1.0.0-48";
+
   private Connection          connection;
 
   /**
@@ -101,18 +104,21 @@ class CalendarShareChangelogTest {
   }
 
   /**
-   * Rolling back the four added changesets removes what they created, and the
-   * changelog applies again from there — so none shipped with an unusable
-   * rollback.
+   * Rolling back from the first added changeset removes what the four created,
+   * and the changelog applies again from there — so none shipped with an
+   * unusable rollback. Whatever a later change appended rolls back and
+   * re-applies with them.
    *
    * @throws Exception when Liquibase fails
    */
   @Test
   void theAddedChangesetsRollBackAndReapply() throws Exception {
     CalendarLinkChangelogTest.update(connection);
-    int added = CalendarLinkChangelogTest.changesetsSince(connection, FIRST_CHANGESET);
-    assertEquals(4, added, "EXO-90357 adds the table, its unique key, its index and its sequence");
-    liquibase(connection).rollback(added, new Contexts(), new LabelExpression());
+    assertEquals(4,
+                 changesetsBetween(FIRST_CHANGESET, LAST_CHANGESET),
+                 "EXO-90357 adds the table, its unique key, its index and its sequence");
+    int since = CalendarLinkChangelogTest.changesetsSince(connection, FIRST_CHANGESET);
+    liquibase(connection).rollback(since, new Contexts(), new LabelExpression());
 
     assertFalse(tableExists(TABLE), "rolling back must drop the share table");
     assertFalse(sequenceExists(SEQUENCE), "and its sequence");
@@ -194,6 +200,24 @@ class CalendarShareChangelogTest {
   private static Liquibase liquibase(Connection connection) throws Exception {
     Database database = DatabaseFactory.getInstance().findCorrectDatabaseImplementation(new JdbcConnection(connection));
     return new Liquibase(CalendarLinkChangelogTest.CHANGELOG, new ClassLoaderResourceAccessor(), database);
+  }
+
+  /**
+   * How many changesets ran from one to another, both included.
+   *
+   * @param firstId identifier of the first changeset
+   * @param lastId identifier of the last changeset
+   * @return the count
+   * @throws SQLException on a query failure
+   */
+  private int changesetsBetween(String firstId, String lastId) throws SQLException {
+    try (Statement statement = connection.createStatement();
+        ResultSet rows = statement.executeQuery("SELECT COUNT(*) FROM DATABASECHANGELOG WHERE ORDEREXECUTED BETWEEN "
+            + "(SELECT ORDEREXECUTED FROM DATABASECHANGELOG WHERE ID = '" + firstId + "') AND "
+            + "(SELECT ORDEREXECUTED FROM DATABASECHANGELOG WHERE ID = '" + lastId + "')")) {
+      rows.next();
+      return rows.getInt(1);
+    }
   }
 
   /**
