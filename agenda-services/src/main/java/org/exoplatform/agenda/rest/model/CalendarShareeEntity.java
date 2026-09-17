@@ -53,6 +53,13 @@ public class CalendarShareeEntity {
   /** {@code EXO} or {@code ADOPTED}. */
   private String  source;
 
+  /**
+   * What the colleague may do with the calendar (EXO-90378): {@code VIEW} or
+   * {@code EDIT}. Always set — a record with no stored level reads as
+   * {@code VIEW}.
+   */
+  private String  access;
+
   /** The channel that also carries the share, null when eXo only. */
   private String  deliveredTo;
 

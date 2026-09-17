@@ -16,9 +16,10 @@
  */
 package org.exoplatform.agenda.storage;
 
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -31,6 +32,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
+import org.exoplatform.agenda.constant.CalendarShareLevel;
 import org.exoplatform.agenda.constant.CalendarShareSource;
 import org.exoplatform.agenda.dao.CalendarShareDAO;
 import org.exoplatform.agenda.entity.CalendarShareEntity;
@@ -43,10 +45,11 @@ import jakarta.persistence.PersistenceException;
  * caches the two reads every ACL decision relies on (EXO-90357).
  * <p>
  * <b>Two caches, both keyed by one explicit identifier.</b>
- * {@value #BY_VIEWER_CACHE} holds, per reader identity, the identifiers of the
- * calendars shared with them: what every event and calendar read asks, once
- * per read, on the reader's own key — a viewer is never served another's
- * list. {@value #BY_CALENDAR_CACHE} holds, per calendar, its shares: what the
+ * {@value #BY_VIEWER_CACHE} holds, per reader identity, the calendars shared
+ * with them <b>and the level of each share</b> (EXO-90378): what every event
+ * and calendar read asks, and what every write path asks too, once per
+ * request, on the reader's own key — a viewer is never served another's map,
+ * and the level is a field of the cached value, never folded into its key. {@value #BY_CALENDAR_CACHE} holds, per calendar, its shares: what the
  * owner's drawer and the delivery reads ask. A write evicts exactly the keys it
  * touches, so a revoke makes the refusal immediate; the bulk deletions that
  * cannot name their keys evict the whole cache, which they may — they run on a
@@ -95,15 +98,46 @@ public class CalendarShareStorage {
   }
 
   /**
-   * The identifiers of every calendar shared with a reader. Cached per reader;
-   * loaded once under concurrent misses.
+   * Every calendar shared with a reader and the level it is shared at
+   * (EXO-90378). The one cached read behind every share decision: cached per
+   * reader, loaded once under concurrent misses, and read through the proxy by
+   * the two derived methods below so that they cost one cache hit, not a
+   * second statement.
+   *
+   * @param viewerIdentityId identity identifier of the reader
+   * @return the level of each shared calendar by calendar identifier, never
+   *         null, empty when nothing is shared with them
+   */
+  @Cacheable(cacheNames = BY_VIEWER_CACHE, key = "#viewerIdentityId", sync = true)
+  public Map<Long, CalendarShareLevel> getShareLevels(long viewerIdentityId) {
+    Map<Long, CalendarShareLevel> levels = new LinkedHashMap<>();
+    for (Object[] row : calendarShareDAO.findCalendarLevelsByShareeIdentityId(viewerIdentityId)) {
+      levels.put(((Number) row[0]).longValue(), row[1] == null ? CalendarShareLevel.VIEW : (CalendarShareLevel) row[1]);
+    }
+    return Collections.unmodifiableMap(levels);
+  }
+
+  /**
+   * The identifiers of every calendar shared with a reader, derived from the
+   * cached level map.
    *
    * @param viewerIdentityId identity identifier of the reader
    * @return the calendar identifiers, never null
    */
-  @Cacheable(cacheNames = BY_VIEWER_CACHE, key = "#viewerIdentityId", sync = true)
   public List<Long> getSharedCalendarIds(long viewerIdentityId) {
-    return new ArrayList<>(calendarShareDAO.findCalendarIdsByShareeIdentityId(viewerIdentityId));
+    return List.copyOf(self.getShareLevels(viewerIdentityId).keySet());
+  }
+
+  /**
+   * The level a calendar is shared with a reader at: one cache hit on the
+   * reader's key.
+   *
+   * @param calendarId technical identifier of the calendar
+   * @param viewerIdentityId identity identifier of the reader
+   * @return the level, or null when the calendar is not shared with them
+   */
+  public CalendarShareLevel getShareLevel(long calendarId, long viewerIdentityId) {
+    return self.getShareLevels(viewerIdentityId).get(calendarId);
   }
 
   /**
@@ -115,7 +149,7 @@ public class CalendarShareStorage {
    * @return true when a share exists
    */
   public boolean isSharedWith(long calendarId, long viewerIdentityId) {
-    return self.getSharedCalendarIds(viewerIdentityId).contains(calendarId);
+    return self.getShareLevels(viewerIdentityId).containsKey(calendarId);
   }
 
   /**
@@ -191,6 +225,8 @@ public class CalendarShareStorage {
    * @param calendarId technical identifier of the calendar
    * @param shareeIdentityId identity identifier of the colleague
    * @param grantedById identity identifier of the user recording the share
+   * @param level what the colleague may do with the calendar; null is stored
+   *          as {@link CalendarShareLevel#VIEW}
    * @param source where the record comes from
    * @param deliveredTo the channel carrying it, may be null
    * @param deliveryRef the channel's reference, may be null
@@ -203,6 +239,7 @@ public class CalendarShareStorage {
   public CalendarShare save(long calendarId, // NOSONAR
                             long shareeIdentityId,
                             long grantedById,
+                            CalendarShareLevel level,
                             CalendarShareSource source,
                             String deliveredTo,
                             String deliveryRef,
@@ -215,6 +252,7 @@ public class CalendarShareStorage {
     entity.setCalendarId(calendarId);
     entity.setShareeIdentityId(shareeIdentityId);
     entity.setGrantedById(grantedById);
+    entity.setLevel(level == null ? CalendarShareLevel.VIEW : level);
     entity.setSource(source);
     entity.setDeliveredTo(deliveredTo);
     entity.setDeliveryRef(deliveryRef);
@@ -250,6 +288,29 @@ public class CalendarShareStorage {
     }
     entity.setDeliveredTo(deliveredTo);
     entity.setDeliveryRef(deliveryRef);
+    return toModel(calendarShareDAO.save(entity));
+  }
+
+  /**
+   * Records what a colleague may do with the calendar (EXO-90378). The two keys
+   * this touches are evicted exactly as a delivery or a hiding evicts them, so
+   * a downgrade is refused on the reader's very next request: the reader's map
+   * is dropped, and so is the owner's view of the calendar's shares.
+   *
+   * @param calendarId technical identifier of the calendar
+   * @param shareeIdentityId identity identifier of the colleague
+   * @param level the new level, null read as {@link CalendarShareLevel#VIEW}
+   * @return the updated share, or null when there is no such share
+   */
+  @Caching(evict = {
+      @CacheEvict(cacheNames = BY_VIEWER_CACHE, key = "#shareeIdentityId"),
+      @CacheEvict(cacheNames = BY_CALENDAR_CACHE, key = "#calendarId") })
+  public CalendarShare setLevel(long calendarId, long shareeIdentityId, CalendarShareLevel level) {
+    CalendarShareEntity entity = calendarShareDAO.findByCalendarIdAndShareeIdentityId(calendarId, shareeIdentityId);
+    if (entity == null) {
+      return null;
+    }
+    entity.setLevel(level == null ? CalendarShareLevel.VIEW : level);
     return toModel(calendarShareDAO.save(entity));
   }
 
@@ -354,6 +415,7 @@ public class CalendarShareStorage {
     return new CalendarShare(entity.getId() == null ? 0 : entity.getId(),
                              entity.getCalendarId(),
                              entity.getShareeIdentityId(),
+                             entity.getLevel() == null ? CalendarShareLevel.VIEW : entity.getLevel(),
                              entity.getGrantedById(),
                              entity.getCreatedDate() == null ? 0 : entity.getCreatedDate().getTime(),
                              entity.getSource(),

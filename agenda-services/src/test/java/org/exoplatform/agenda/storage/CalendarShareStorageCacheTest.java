@@ -42,6 +42,7 @@ import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import org.exoplatform.agenda.constant.CalendarShareLevel;
 import org.exoplatform.agenda.constant.CalendarShareSource;
 import org.exoplatform.agenda.dao.CalendarShareDAO;
 import org.exoplatform.agenda.entity.CalendarShareEntity;
@@ -104,8 +105,8 @@ class CalendarShareStorageCacheTest {
     assertFalse(storage.isSharedWith(CALENDAR, OTHER));
     assertFalse(storage.isSharedWith(CALENDAR, OTHER));
 
-    verify(dao, times(1)).findCalendarIdsByShareeIdentityId(VIEWER);
-    verify(dao, times(1)).findCalendarIdsByShareeIdentityId(OTHER);
+    verify(dao, times(1)).findCalendarLevelsByShareeIdentityId(VIEWER);
+    verify(dao, times(1)).findCalendarLevelsByShareeIdentityId(OTHER);
   }
 
   /**
@@ -123,8 +124,8 @@ class CalendarShareStorageCacheTest {
 
     assertFalse(storage.isSharedWith(CALENDAR, VIEWER), "the refusal must not wait for the cache to expire");
     assertTrue(storage.isSharedWith(CALENDAR, OTHER));
-    verify(dao, times(2)).findCalendarIdsByShareeIdentityId(VIEWER);
-    verify(dao, times(1)).findCalendarIdsByShareeIdentityId(OTHER);
+    verify(dao, times(2)).findCalendarLevelsByShareeIdentityId(VIEWER);
+    verify(dao, times(1)).findCalendarLevelsByShareeIdentityId(OTHER);
   }
 
   /**
@@ -134,7 +135,7 @@ class CalendarShareStorageCacheTest {
   void aNewShareIsAdmittedImmediately() {
     assertFalse(storage.isSharedWith(CALENDAR, VIEWER));
 
-    storage.save(CALENDAR, VIEWER, 1, CalendarShareSource.EXO, null, null, new Date());
+    storage.save(CALENDAR, VIEWER, 1, CalendarShareLevel.VIEW, CalendarShareSource.EXO, null, null, new Date());
 
     assertTrue(storage.isSharedWith(CALENDAR, VIEWER));
   }
@@ -177,6 +178,62 @@ class CalendarShareStorageCacheTest {
   }
 
   /**
+   * The viewer's level map is what the cache holds, and the level is a field
+   * of the value, never folded into the key (EXO-90378): two viewers of the
+   * same calendar at two levels each read their own.
+   */
+  @Test
+  void eachViewerIsServedTheirOwnLevel() {
+    rows.add(row(CALENDAR, VIEWER, CalendarShareLevel.EDIT));
+    rows.add(row(CALENDAR, OTHER, CalendarShareLevel.VIEW));
+
+    assertEquals(CalendarShareLevel.EDIT, storage.getShareLevel(CALENDAR, VIEWER));
+    assertEquals(CalendarShareLevel.VIEW, storage.getShareLevel(CALENDAR, OTHER));
+    assertEquals(CalendarShareLevel.EDIT, storage.getShareLevel(CALENDAR, VIEWER));
+    assertNull(storage.getShareLevel(CALENDAR, 99), "an identity with no share has no level");
+
+    verify(dao, times(1)).findCalendarLevelsByShareeIdentityId(VIEWER);
+    verify(dao, times(1)).findCalendarLevelsByShareeIdentityId(OTHER);
+  }
+
+  /**
+   * A downgrade is refused on the very next read (EXO-90378): setLevel evicts
+   * the sharee's map, and only theirs.
+   */
+  @Test
+  void aDowngradeIsRefusedOnTheNextRead() {
+    rows.add(row(CALENDAR, VIEWER, CalendarShareLevel.EDIT));
+    rows.add(row(CALENDAR, OTHER, CalendarShareLevel.EDIT));
+    assertEquals(CalendarShareLevel.EDIT, storage.getShareLevel(CALENDAR, VIEWER));
+    assertEquals(CalendarShareLevel.EDIT, storage.getShareLevel(CALENDAR, OTHER));
+
+    assertNotNull(storage.setLevel(CALENDAR, VIEWER, CalendarShareLevel.VIEW));
+
+    assertEquals(CalendarShareLevel.VIEW,
+                 storage.getShareLevel(CALENDAR, VIEWER),
+                 "the narrower level must not wait for the cache to expire");
+    assertEquals(CalendarShareLevel.EDIT, storage.getShareLevel(CALENDAR, OTHER), "and only the levelled sharee is dropped");
+    assertEquals(CalendarShareLevel.VIEW, storage.getShare(CALENDAR, VIEWER).getLevel(), "the calendar's list is refreshed too");
+    verify(dao, times(2)).findCalendarLevelsByShareeIdentityId(VIEWER);
+    verify(dao, times(1)).findCalendarLevelsByShareeIdentityId(OTHER);
+  }
+
+  /**
+   * An upgrade is admitted on the very next read, and levelling a colleague
+   * who has no share answers nothing.
+   */
+  @Test
+  void anUpgradeIsAdmittedOnTheNextRead() {
+    rows.add(row(CALENDAR, VIEWER, CalendarShareLevel.VIEW));
+    assertEquals(CalendarShareLevel.VIEW, storage.getShareLevel(CALENDAR, VIEWER));
+
+    assertNotNull(storage.setLevel(CALENDAR, VIEWER, CalendarShareLevel.EDIT));
+
+    assertEquals(CalendarShareLevel.EDIT, storage.getShareLevel(CALENDAR, VIEWER));
+    assertNull(storage.setLevel(CALENDAR, OTHER, CalendarShareLevel.EDIT), "no share, nothing to level");
+  }
+
+  /**
    * A row of the stand-in.
    *
    * @param calendarId calendar identifier
@@ -184,7 +241,20 @@ class CalendarShareStorageCacheTest {
    * @return the row
    */
   private static CalendarShareEntity row(long calendarId, long shareeId) {
+    return row(calendarId, shareeId, CalendarShareLevel.VIEW);
+  }
+
+  /**
+   * A row of the stand-in, at a given level.
+   *
+   * @param calendarId calendar identifier
+   * @param shareeId sharee identity identifier
+   * @param level what the sharee may do with the calendar
+   * @return the row
+   */
+  private static CalendarShareEntity row(long calendarId, long shareeId, CalendarShareLevel level) {
     CalendarShareEntity entity = new CalendarShareEntity();
+    entity.setLevel(level);
     entity.setId((long) (calendarId * 1000 + shareeId));
     entity.setCalendarId(calendarId);
     entity.setShareeIdentityId(shareeId);
@@ -234,9 +304,12 @@ class CalendarShareStorageCacheTest {
     @Bean
     CalendarShareDAO calendarShareDAO(Rows rows) {
       CalendarShareDAO dao = mock(CalendarShareDAO.class);
-      when(dao.findCalendarIdsByShareeIdentityId(anyLong())).thenAnswer(invocation -> {
+      when(dao.findCalendarLevelsByShareeIdentityId(anyLong())).thenAnswer(invocation -> {
         long shareeId = invocation.getArgument(0);
-        return rows.rows.stream().filter(row -> row.getShareeIdentityId() == shareeId).map(CalendarShareEntity::getCalendarId).toList();
+        return rows.rows.stream()
+                        .filter(row -> row.getShareeIdentityId() == shareeId)
+                        .map(row -> new Object[] { row.getCalendarId(), row.getLevel() })
+                        .toList();
       });
       when(dao.findByCalendarIdOrderByCreatedDateAscIdAsc(anyLong(), any())).thenAnswer(invocation -> {
         long calendarId = invocation.getArgument(0);
