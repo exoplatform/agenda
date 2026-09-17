@@ -59,6 +59,7 @@ import org.mockito.quality.Strictness;
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.CalendarSubscription;
+import org.exoplatform.agenda.model.CalendarSubscriptionEvent;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
 import org.exoplatform.agenda.storage.AgendaEventAttendeeStorage;
@@ -524,9 +525,102 @@ class SpaceCalendarSubscriptionServiceTest {
   }
 
   /**
-   * Stores the space's subscription, added by John.
+   * A refresh that meets a deleted space removes its subscription, calendar and
+   * events without reading the link; a space not found is only retried.
+   *
+   * @throws Exception never
    */
-  private void spaceRow() {
+  @Test
+  void aRefreshThatMeetsADeletedSpaceRemovesTheSubscription() throws Exception {
+    spaceRow();
+    when(storage.getEvents(SUBSCRIPTION)).thenReturn(List.of(new CalendarSubscriptionEvent(1, SUBSCRIPTION, 501, "k", "h")));
+    when(storage.getDueIds(any(), any(), anyInt())).thenReturn(List.of(SUBSCRIPTION));
+
+    when(identityManager.getIdentity(String.valueOf(SPACE))).thenReturn(null);
+    service.refreshDueSubscriptions(10);
+    verify(storage).recordFailure(eq(SUBSCRIPTION), anyString(), any(), eq(AgendaCalendarSubscriptionServiceImpl.USER_DISABLED), any());
+    verify(storage, never()).delete(anyLong());
+
+    spaceIdentity.setDeleted(true);
+    when(identityManager.getIdentity(String.valueOf(SPACE))).thenReturn(spaceIdentity);
+    service.refreshDueSubscriptions(10);
+
+    verify(fetcher, never()).fetch(any(), any(), any());
+    verify(storage).delete(SUBSCRIPTION);
+    verify(calendarService).deleteCalendarById(CALENDAR);
+    verify(indexingService).unindex(anyString(), eq("501"));
+  }
+
+  /**
+   * A link of this eXo withdrawn for a week loses its imported events and keeps
+   * its error, and what was read is forgotten so a link published again is
+   * imported in full; withdrawn for less, or failing for another reason, the
+   * last good copy stays.
+   *
+   * @throws Exception never
+   */
+  @Test
+  void aLinkWithdrawnForAWeekLosesItsImportedEvents() throws Exception {
+    String link = "http://localhost:8080/agenda/rest/ical/GONE.ics";
+    CalendarSubscription row = spaceRow();
+    row.setUrlEncrypted("enc:" + link);
+    row.setCreatedDate(NOW.minus(java.time.Duration.ofDays(30)).toEpochMilli());
+    row.setLastSuccessDate(NOW.minus(java.time.Duration.ofDays(6)).toEpochMilli());
+    when(storage.getEvents(SUBSCRIPTION)).thenReturn(List.of(new CalendarSubscriptionEvent(1, SUBSCRIPTION, 501, "k", "h")));
+    Event imported = new Event();
+    imported.setId(501);
+    imported.setCalendarId(CALENDAR);
+    when(eventStorage.getEventById(501)).thenReturn(imported);
+    when(linkService.getFeedCalendarId("GONE")).thenThrow(new ObjectNotFoundException("withdrawn"));
+    when(storage.getDueIds(any(), any(), anyInt())).thenReturn(List.of(SUBSCRIPTION));
+
+    try (MockedStatic<CommonsUtils> commons = mockStatic(CommonsUtils.class)) {
+      commons.when(CommonsUtils::getCurrentDomain).thenReturn("http://localhost:8080");
+      service.refreshDueSubscriptions(10);
+      verify(eventStorage, never()).deleteEventById(anyLong());
+      verify(storage, never()).forgetContent(anyLong());
+
+      row.setLastSuccessDate(NOW.minus(java.time.Duration.ofDays(7)).toEpochMilli());
+      service.refreshDueSubscriptions(10);
+    }
+
+    verify(eventStorage).deleteEventById(501);
+    verify(indexingService).unindex(anyString(), eq("501"));
+    verify(storage).deleteEvent(1);
+    verify(storage).forgetContent(SUBSCRIPTION);
+    verify(storage, times(2)).recordFailure(eq(SUBSCRIPTION), anyString(), any(), eq("agenda.calendarSubscription.linkNotFound"), any());
+    verify(storage, never()).delete(anyLong());
+  }
+
+  /**
+   * An unreachable external link keeps its copy however long it fails: only a
+   * withdrawn link of this eXo is purged.
+   *
+   * @throws Exception never
+   */
+  @Test
+  void anUnreachableLinkKeepsItsCopyHoweverLong() throws Exception {
+    CalendarSubscription row = spaceRow();
+    row.setCreatedDate(NOW.minus(java.time.Duration.ofDays(60)).toEpochMilli());
+    row.setLastSuccessDate(NOW.minus(java.time.Duration.ofDays(30)).toEpochMilli());
+    when(storage.getEvents(SUBSCRIPTION)).thenReturn(List.of(new CalendarSubscriptionEvent(1, SUBSCRIPTION, 501, "k", "h")));
+    doThrow(new org.exoplatform.agenda.util.CalendarFeedException(org.exoplatform.agenda.util.CalendarFeedException.UNREACHABLE))
+                                                                                                                               .when(fetcher)
+                                                                                                                               .fetch(any(), any(), any());
+    when(storage.getDueIds(any(), any(), anyInt())).thenReturn(List.of(SUBSCRIPTION));
+
+    service.refreshDueSubscriptions(10);
+
+    verify(eventStorage, never()).deleteEventById(anyLong());
+    verify(storage, never()).forgetContent(anyLong());
+  }
+
+  /**
+   * Stores the space's subscription, added by John.
+   *
+   * @return the stored row, which the storage copies on every read
+   */
+  private CalendarSubscription spaceRow() {
     CalendarSubscription subscription = new CalendarSubscription();
     subscription.setId(SUBSCRIPTION);
     subscription.setCalendarId(CALENDAR);
@@ -536,6 +630,7 @@ class SpaceCalendarSubscriptionServiceTest {
     subscription.setUrlKey(AgendaCalendarSubscriptionServiceImpl.urlKey(SPACE, URI.create(URL)));
     subscription.setNextRefreshDate(NOW.toEpochMilli());
     rows.put(SUBSCRIPTION, subscription);
+    return subscription;
   }
 
   /**
@@ -557,6 +652,7 @@ class SpaceCalendarSubscriptionServiceTest {
     copy.setUrlEncrypted(source.getUrlEncrypted());
     copy.setUrlKey(source.getUrlKey());
     copy.setNextRefreshDate(source.getNextRefreshDate());
+    copy.setLastSuccessDate(source.getLastSuccessDate());
     copy.setCreatedDate(source.getCreatedDate());
     return copy;
   }

@@ -168,6 +168,16 @@ public class CalendarSubscriptionStorage {
   }
 
   /**
+   * Forgets the validators and the digest of the last read (EXO-90373).
+   *
+   * @param id technical identifier
+   * @return true when the row exists
+   */
+  public boolean forgetContent(long id) {
+    return subscriptionDAO.forgetContent(id) > 0;
+  }
+
+  /**
    * Lists the subscriptions due and unclaimed.
    *
    * @param now the current instant

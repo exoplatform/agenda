@@ -146,6 +146,13 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
   /** Wait before retrying a subscription that cannot be refreshed at all. */
   public static final Duration  RETRY_AFTER_DEAD_END    = Duration.ofHours(24);
 
+  /**
+   * How long a withdrawn link of this eXo keeps its last imported copy: past
+   * it, the imported events are removed and the subscription keeps its error
+   * (EXO-90373).
+   */
+  public static final Duration  WITHDRAWN_LINK_PURGE    = Duration.ofDays(7);
+
   /** Shortest time between two refreshes asked by the owner. */
   public static final Duration  MANUAL_REFRESH_INTERVAL = Duration.ofMinutes(5);
 
@@ -567,11 +574,7 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
    */
   @Override
   public void deleteSubscription(long subscriptionId, String username) throws ObjectNotFoundException, IllegalAccessException {
-    CalendarSubscription subscription = manageable(subscriptionId, username);
-    List<CalendarSubscriptionEvent> rows = subscriptionStorage.getEvents(subscription.getId());
-    subscriptionStorage.delete(subscription.getId());
-    deleteCalendarQuietly(subscription.getCalendarId());
-    rows.forEach(row -> unindex(row.getEventId()));
+    removeSubscription(manageable(subscriptionId, username));
   }
 
   /**
@@ -668,7 +671,14 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
   private void refreshClaimed(CalendarSubscription subscription, Instant now) {
     Date attempt = Date.from(now);
     Identity owner = identityManager.getIdentity(String.valueOf(subscription.getOwnerIdentityId()));
-    if (owner == null || owner.isDeleted() || owner.isUser() && !owner.isEnable()) {
+    if (owner != null && owner.isDeleted()) {
+      // A deleted user or space keeps nothing refreshing into a calendar nobody
+      // can read any more: the subscription goes with its calendar and events
+      // (EXO-90373). An identity merely not found is not taken for a deletion.
+      removeSubscription(subscription);
+      return;
+    }
+    if (owner == null || owner.isUser() && !owner.isEnable()) {
       recordFailure(subscription, attempt, USER_DISABLED, now.plus(RETRY_AFTER_DEAD_END));
       return;
     }
@@ -682,8 +692,60 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
       apply(subscription, feed, null, now);
     } catch (CalendarFeedException e) {
       LOG.debug("Calendar subscription {} could not be read: {}", subscription.getId(), e.getReason());
+      if (isWithdrawnForLong(subscription, e, now)) {
+        purgeImported(subscription);
+      }
       recordFailure(subscription, attempt, e.getCode(), now.plus(RETRY_AFTER_FAILURE));
     }
+  }
+
+  /**
+   * Whether a failed read is a link of this eXo withdrawn for longer than
+   * {@link #WITHDRAWN_LINK_PURGE}: nothing was imported from it since then —
+   * or since the subscription was made, when nothing ever was.
+   *
+   * @param subscription the subscription
+   * @param failure why the read failed
+   * @param now the instant of the refresh
+   * @return true when its imported copy is to be removed
+   */
+  private static boolean isWithdrawnForLong(CalendarSubscription subscription, CalendarFeedException failure, Instant now) {
+    if (!(CalendarFeedException.CODE_PREFIX + CalendarFeedException.LINK_NOT_FOUND).equals(failure.getCode())) {
+      return false;
+    }
+    long lastGood = subscription.getLastSuccessDate() > 0 ? subscription.getLastSuccessDate() : subscription.getCreatedDate();
+    return lastGood > 0 && now.toEpochMilli() - lastGood >= WITHDRAWN_LINK_PURGE.toMillis();
+  }
+
+  /**
+   * Removes the events a subscription imported, and forgets what was read, so
+   * that a link published again is imported again in full.
+   *
+   * @param subscription the subscription, claimed by this node
+   */
+  private void purgeImported(CalendarSubscription subscription) {
+    for (CalendarSubscriptionEvent row : subscriptionStorage.getEvents(subscription.getId())) {
+      Event stored = agendaEventStorage.getEventById(row.getEventId());
+      if (stored != null && stored.getCalendarId() == subscription.getCalendarId()) {
+        agendaEventStorage.deleteEventById(row.getEventId());
+      }
+      unindex(row.getEventId());
+      subscriptionStorage.deleteEvent(row.getId());
+    }
+    subscriptionStorage.forgetContent(subscription.getId());
+  }
+
+  /**
+   * Removes a subscription, its calendar and every event it imported, with no
+   * permission check.
+   *
+   * @param subscription the subscription
+   */
+  private void removeSubscription(CalendarSubscription subscription) {
+    List<CalendarSubscriptionEvent> rows = subscriptionStorage.getEvents(subscription.getId());
+    subscriptionStorage.delete(subscription.getId());
+    deleteCalendarQuietly(subscription.getCalendarId());
+    rows.forEach(row -> unindex(row.getEventId()));
   }
 
   /**

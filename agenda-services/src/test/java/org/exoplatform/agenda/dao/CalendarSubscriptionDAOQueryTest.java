@@ -323,6 +323,33 @@ class CalendarSubscriptionDAOQueryTest {
   }
 
   /**
+   * Forgetting what was read clears the validators and the digest, and nothing
+   * else (EXO-90373).
+   */
+  @Test
+  void forgettingTheContentClearsTheValidatorsAndTheDigestOnly() {
+    long id = inTransaction(() -> {
+      CalendarSubscriptionEntity entity = subscription(1, 7, "a", NOW, NOW);
+      entity.setEtag("\"v1\"");
+      entity.setLastModified("yesterday");
+      entity.setContentHash("h");
+      entity.setLastError("agenda.calendarSubscription.linkNotFound");
+      return dao.saveAndFlush(entity).getId();
+    });
+
+    assertEquals(1, (int) inTransaction(() -> dao.forgetContent(id)));
+    assertEquals(0, (int) inTransaction(() -> dao.forgetContent(id + 1000)));
+    entityManager.clear();
+    CalendarSubscriptionEntity forgotten = dao.findById(id).orElseThrow();
+    assertNull(forgotten.getEtag());
+    assertNull(forgotten.getLastModified());
+    assertNull(forgotten.getContentHash());
+    assertEquals("agenda.calendarSubscription.linkNotFound", forgotten.getLastError());
+    assertEquals("enc-a", forgotten.getUrlEncrypted());
+    assertEquals(Date.from(NOW), forgotten.getNextRefreshDate());
+  }
+
+  /**
    * A save of the entity writes only the columns it changed: a validator another
    * writer committed after the entity was read survives an edit of another
    * column.

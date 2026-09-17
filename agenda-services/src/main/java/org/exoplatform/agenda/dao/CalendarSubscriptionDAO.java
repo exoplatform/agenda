@@ -192,6 +192,19 @@ public interface CalendarSubscriptionDAO extends JpaRepository<CalendarSubscript
   int release(@Param("id") long id, @Param("node") String node);
 
   /**
+   * Forgets the validators and the digest of the last read, so that the next
+   * read that answers imports again whatever it answers — once the imported
+   * events were purged (EXO-90373).
+   *
+   * @param id technical identifier of the subscription
+   * @return one when the row exists, zero otherwise
+   */
+  @Transactional
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Query("UPDATE AgendaCalendarSubscription s SET s.etag = NULL, s.lastModified = NULL, s.contentHash = NULL WHERE s.id = :id")
+  int forgetContent(@Param("id") long id);
+
+  /**
    * Points a subscription at a new URL and makes it due at once, forgetting the
    * validators and the digest of the previous URL.
    *
