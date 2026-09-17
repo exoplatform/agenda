@@ -16,7 +16,6 @@ import AgendaPeriodSelector from './components/top-toolbar/AgendaPeriodSelector.
 import AgendaLeftPanel from './components/left-panel/AgendaLeftPanel.vue';
 import AgendaLeftPanelRemoteCalendars from './components/left-panel/AgendaLeftPanelRemoteCalendars.vue';
 import AgendaLeftPanelSubscribedCalendars from './components/left-panel/AgendaLeftPanelSubscribedCalendars.vue';
-import AgendaLeftPanelSharedCalendars from './components/left-panel/AgendaLeftPanelSharedCalendars.vue';
 
 import AgendaFilterCalendarDrawer from './components/filter/AgendaFilterCalendarDrawer.vue';
 import AgendaFilterCalendarList from './components/filter/AgendaFilterCalendarList.vue';
@@ -112,7 +111,6 @@ const components = {
   'agenda-left-panel': AgendaLeftPanel,
   'agenda-left-panel-remote-calendars': AgendaLeftPanelRemoteCalendars,
   'agenda-left-panel-subscribed-calendars': AgendaLeftPanelSubscribedCalendars,
-  'agenda-left-panel-shared-calendars': AgendaLeftPanelSharedCalendars,
   'agenda-filter-calendar-drawer': AgendaFilterCalendarDrawer,
   'agenda-filter-calendar-list': AgendaFilterCalendarList,
   'agenda-filter-calendar-item': AgendaFilterCalendarItem,

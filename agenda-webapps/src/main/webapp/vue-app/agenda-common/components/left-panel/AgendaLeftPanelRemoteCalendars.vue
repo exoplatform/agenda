@@ -18,12 +18,13 @@
   <!--
     One section per connected provider, titled with the provider's own label,
     so a calendar's header says where it comes from — the generic "Remote"
-    header said only that it comes from somewhere else. The calendars a
-    CalDAV server serves because someone else shared them with the user are
-    the exception: they sit in one section titled "Shared with me", whichever
-    server they come from, because what the user needs to know about such a
-    calendar is not which server holds it but that it is someone else's — see
-    buildGroups below.
+    header said only that it comes from somewhere else. The calendars someone
+    else shared with the user are the exception: they sit in one section
+    titled "Shared with me", whether a colleague shared them in eXo
+    (EXO-90357) or a CalDAV server lists them as shared, whichever server,
+    because what the user needs to know about such a calendar is not where it
+    is held but that it is someone else's — see buildGroups below. Drawn with
+    or without a connected account, since an eXo share needs none.
 
     Sections are drawn here rather than by the panel, and only once there is
     something in them: this component is the only thing that knows which
@@ -115,6 +116,8 @@
             <v-list-item-action
               v-if="canHide(calendar)"
               class="my-0 ms-2 flex-grow-0 agenda-calendar-actions">
+              <!-- One menu whichever the source: Hide goes through agenda's own
+                   record for an eXo share, through the connector for a server's -->
               <v-menu
                 :value="isRowMenuOpen(`${group.name}:${calendar.id}`)"
                 content-class="agendaCalendarRowMenu"
@@ -133,7 +136,7 @@
                   </v-btn>
                 </template>
                 <v-list dense class="pa-0">
-                  <v-list-item @click="hideCalendar(calendar)">
+                  <v-list-item class="agenda-shared-calendar-hide" @click="hideCalendar(calendar)">
                     <v-list-item-title>{{ $t('agenda.leftPanel.hideSharedCalendar') }}</v-list-item-title>
                   </v-list-item>
                 </v-list>
@@ -250,12 +253,14 @@ export default {
     // retrieveCalendars.
     retrieval: null,
     retrievalTimer: 0,
-    // What eXo's own "Shared with me" section draws already (EXO-90357): the
-    // delivery references its shares carry, the CalDAV collection each
-    // colleague sees. A row of this section that answers to one of them is
-    // the server's copy of a share eXo records, and is left out — drawn twice,
-    // the calendar would put every event on the grid twice.
-    nativeSharedRefs: [],
+    // The eXo shares the user unticked, by calendar id, remembered per user in
+    // the browser: a display choice, distinct from hiding for good
+    nativeHiddenIds: [],
+    // The connector rows buildGroups left out as the server's copy of an eXo
+    // share (EXO-90357): drawn once, through the native row, their remote
+    // events must stay off the grid too — drawn twice, every event of the
+    // calendar would be on the grid twice
+    twinIds: [],
   }),
   computed: {
     /**
@@ -328,24 +333,27 @@ export default {
      * @returns {Array} the sections to draw, none of them empty
      */
     visibleGroups() {
-      return this.withoutCalendars(this.groups, this.hidingIds.concat(this.nativelySharedIds));
+      return this.withoutCalendars(this.groups, this.hidingIds);
     },
     /**
-     * The rows of the connectors' answer that eXo's own section draws already:
-     * the shared rows whose collection is one a native share was delivered
-     * to, compared on decoded paths as every calendar id is.
-     *
-     * @returns {Array} the identifiers of those rows
+     * @returns {String} the browser storage key of the eXo shares the user
+     *          unticked, per user
      */
-    nativelySharedIds() {
-      if (!this.nativeSharedRefs.length) {
-        return [];
-      }
-      const refs = this.nativeSharedRefs.map(this.comparablePath);
+    nativeStorageKey() {
+      return `agenda.hiddenSharedCalendars.${eXo.env.portal.userIdentityId}`;
+    },
+    /**
+     * The eXo shares whose events the grid must ask for: the drawn native
+     * rows the user left ticked. Published to the agenda, which sends them to
+     * the events REST as calendarIds.
+     *
+     * @returns {Array} calendar identifiers
+     */
+    displayedNativeIds() {
       const ids = [];
-      this.groups.forEach(group => group.calendars.forEach(calendar => {
-        if (calendar.sharedWithMe === true && refs.includes(this.comparablePath(calendar.id))) {
-          ids.push(calendar.id);
+      this.visibleGroups.forEach(group => group.calendars.forEach(calendar => {
+        if (this.isNative(calendar) && this.isDisplayed(calendar)) {
+          ids.push(Number(calendar.calendarId));
         }
       }));
       return ids;
@@ -353,13 +361,23 @@ export default {
   },
   watch: {
     /**
+     * Tells the grid which eXo shares to draw, whenever the set changes.
+     * @returns {void}
+     */
+    displayedNativeIds: {
+      immediate: true,
+      handler() {
+        this.$root.$emit('agenda-shared-calendars-displayed-changed', this.displayedNativeIds.slice());
+      },
+    },
+    /**
      * Keeps the server's copy of a natively drawn share off the grid too: its
      * events are the ones eXo draws through the native share, and the grid
      * hides remote events by calendar id — the same set the checkboxes feed.
      * @returns {void}
      */
-    nativelySharedIds() {
-      this.$root.$emit('agenda-remote-calendars-changed', this.hiddenIds.concat(this.nativelySharedIds));
+    twinIds() {
+      this.$root.$emit('agenda-remote-calendars-changed', this.hiddenIds.concat(this.twinIds));
     },
     /**
      * Reacts to an account being connected or disconnected while the agenda is
@@ -394,11 +412,13 @@ export default {
     },
   },
   created() {
+    this.nativeHiddenIds = this.readNativeHiddenIds();
     this.retrieveCalendars();
-    // eXo's own "Shared with me" section says which shares it draws; asked
-    // for once here in case it answered before this section existed
-    this.$root.$on('agenda-native-shared-calendars', this.setNativeSharedRefs);
-    this.$root.$emit('agenda-native-shared-calendars-requested');
+    // A share changes on the owner's side, and the settings page shows a
+    // hidden calendar again from another Vue app: the root signal for the
+    // agenda, a document event for the boundary the other app cannot cross
+    this.$root.$on('agenda-refresh-shared-calendars', this.retrieveCalendars);
+    document.addEventListener('agenda-refresh-shared-calendars', this.retrieveCalendars);
     // The same signal the personal list listens to, because materialising a
     // collection changes both panels at once: it leaves this one and joins
     // that one. Listening on only one side is what let a calendar sit under
@@ -423,19 +443,11 @@ export default {
   beforeDestroy() {
     this.$root.$off('agenda-refresh-personal-calendars', this.retrieveCalendars);
     this.$root.$off('agenda-refresh', this.retrieveCalendars);
-    this.$root.$off('agenda-native-shared-calendars', this.setNativeSharedRefs);
+    this.$root.$off('agenda-refresh-shared-calendars', this.retrieveCalendars);
+    document.removeEventListener('agenda-refresh-shared-calendars', this.retrieveCalendars);
     window.clearTimeout(this.retrievalTimer);
   },
   methods: {
-    /**
-     * Records what eXo's own section draws, as it announces it.
-     *
-     * @param {Array} refs the delivery references of the native shares
-     * @returns {void}
-     */
-    setNativeSharedRefs(refs) {
-      this.nativeSharedRefs = Array.isArray(refs) ? refs.filter(ref => typeof ref === 'string' && ref.length) : [];
-    },
     /**
      * A calendar identifier as compared: decoded, without a trailing slash.
      * The connector sends collection hrefs, the native share carries what its
@@ -462,6 +474,40 @@ export default {
      */
     setGroups(groups) {
       this.groups = groups;
+    },
+    /**
+     * Whether a row is an eXo share, drawn from agenda's own record rather
+     * than a connector's listing.
+     *
+     * @param {Object} calendar a row
+     * @returns {Boolean} true for an eXo share
+     */
+    isNative(calendar) {
+      return !!calendar && calendar.source === 'native';
+    },
+    /**
+     * Reads the calendars colleagues shared with the user in eXo. Asked
+     * alongside the connectors, in the same gathered request, so the section
+     * is replaced once with both answers. A failure keeps what is drawn:
+     * nothing, on the first read — a section that empties on a network hiccup
+     * would read as shares that went away. Absent the share service — an
+     * app without it — there are none.
+     *
+     * @returns {Promise<Array>} the shares, hidden ones included; never
+     *          rejects
+     */
+    listNativeShares() {
+      const service = this.$calendarShareService;
+      if (!service || typeof service.getSharedWithMe !== 'function') {
+        return Promise.resolve([]);
+      }
+      return Promise.resolve()
+        .then(() => service.getSharedWithMe())
+        .then(calendars => calendars || [])
+        .catch(error => {
+          console.error('cannot list the calendars shared with me', error);
+          return null;
+        });
     },
     /**
      * Asks every sectioned connector for the calendars of the account behind
@@ -525,11 +571,7 @@ export default {
       // disconnect landing while a listing is in flight is not overwritten by
       // that listing's answer.
       const requestId = ++this.calendarsRequestId;
-      if (!connectors.length) {
-        this.setGroups([]);
-        return Promise.resolve();
-      }
-      return Promise.all(connectors.map(connector =>
+      const listings = connectors.map(connector =>
         connector.listCalendars()
           // The calendar eXo writes its copies to is left out of the list: it
           // holds nothing but duplicates of events the agenda already shows,
@@ -540,24 +582,31 @@ export default {
             console.error(`cannot list the calendars of ${connector.name}`, error);
             return {connector, calendars: []};
           })
-      )).then(answers => {
+      );
+      return Promise.all([this.listNativeShares(), ...listings]).then(([nativeShares, ...answers]) => {
         if (requestId !== this.calendarsRequestId) {
           // A newer retrieval was started since: its answer is the one that
           // reflects the accounts as they now stand.
           return;
         }
-        this.setGroups(this.buildGroups(answers));
+        // A native listing that failed keeps the native rows drawn now: a
+        // section that empties on a hiccup reads as shares that went away
+        const drawnNative = nativeShares || this.nativeRowsOf(this.groups);
+        const {groups, twinIds} = this.buildGroups(answers, drawnNative);
+        this.setGroups(groups);
+        this.twinIds = twinIds;
       });
     },
     /**
-     * Turns the connectors' answers into the sections to draw.
+     * Turns the connectors' answers and the eXo shares into the sections to
+     * draw.
      *
      * One section per provider, in the connectors' order, holding what the
-     * account itself owns; then one "Shared with me" section holding, across
-     * every CalDAV server, the calendars someone else shared with the user.
-     * A provider that answered with nothing, or with shared calendars only,
-     * gets no section of its own: an empty section is a question the user
-     * cannot act on.
+     * account itself owns; then one "Shared with me" section holding, by
+     * calendar name, the calendars someone else shared with the user — in
+     * eXo, or on a CalDAV server, whichever server. A provider that answered
+     * with nothing, or with shared calendars only, gets no section of its
+     * own: an empty section is a question the user cannot act on.
      *
      * The shared calendars are gathered rather than left under their server
      * because the server's name answers the wrong question. Under "Bluemind",
@@ -571,57 +620,115 @@ export default {
      * also lands right above Spaces, the other list of calendars the user
      * does not own.
      *
-     * What counts as shared is the CalDAV connector's word, `shared` on the
-     * calendar it listed, and is distinct from `readOnly`: an own calendar the
-     * synchronisation has not taken in yet is read-only here for a moment,
-     * and is still the user's own, so it keeps its server's section. A
-     * connector that lists no `shared` flag at all — an older CalDAV add-on —
-     * answers exactly as before: every calendar under its server's name. The
-     * other providers are not asked: Google lists no such flag, and its
-     * calendars stay where they were, lock included.
+     * An eXo share (EXO-90357) is one row of that section, keyed
+     * `native:<calendarId>` and stamped `source: 'native'`: it draws the
+     * owner's avatar, hides through agenda's own record and feeds the grid by
+     * calendar id. A share the user hid for good is left out; it comes back
+     * from the Hidden calendars of the settings. A share also delivered to a
+     * CalDAV server is listed by that server too, as the collection the
+     * delivery recorded: that connector row is the same calendar, and is left
+     * out — compared on decoded paths, since the connector and the channel
+     * may encode the href differently — while its identifier is answered as
+     * a twin, so its remote events stay off the grid as well. The native row
+     * is the one kept: its events come from eXo, its menu is the native one.
+     *
+     * What counts as shared on a connector's side is the CalDAV connector's
+     * word, `shared` on the calendar it listed, and is distinct from
+     * `readOnly`: an own calendar the synchronisation has not taken in yet is
+     * read-only here for a moment, and is still the user's own, so it keeps
+     * its server's section. A connector that lists no `shared` flag at all —
+     * an older CalDAV add-on — answers exactly as before: every calendar
+     * under its server's name. The other providers are not asked: Google
+     * lists no such flag, and its calendars stay where they were, lock
+     * included.
      *
      * The verdict is taken once, here, and stamped on the row as
      * `sharedWithMe`: the section, the hover and the owner marker all read
      * the stamp rather than each re-reading the connector's fields, so a row
-     * cannot land in a server's section and still be labelled as a share —
-     * which is what happened when the hover read `shared` off every
-     * provider and the marker read `ownerUsername` off every row. The
-     * connector's own object is left as it answered it; the stamp goes on a
-     * copy.
-     *
-     * A shared row is also stamped with the name of the connector that listed
-     * it, `connectorName`: the section it lands in is not its server's, so
-     * nothing else on the row says which connector to ask when the user acts
-     * on it (see hideCalendar). The name and not the connector itself, so the
-     * row stays plain data — the descriptor is looked up again among the
-     * connected connectors at the moment of acting, which is also what keeps
-     * a menu from acting on an account disconnected since the row was drawn.
+     * cannot land in a server's section and still be labelled as a share.
+     * The connector's own object is left as it answered it; the stamp goes on
+     * a copy. A shared connector row is also stamped with the name of the
+     * connector that listed it, `connectorName`, since the section it lands
+     * in is not its server's and nothing else on the row says which connector
+     * to ask when the user acts on it (see hideCalendar) — the name and not
+     * the connector itself, so the row stays plain data.
      *
      * @param {Array} answers one entry per connector asked, `{connector,
      *          calendars}`, in the connectors' order
-     * @returns {Array} the sections, each `{name, calendars}` with a label key
-     *          for a name, none of them empty
+     * @param {Array} nativeShares the eXo shares as agenda lists them, hidden
+     *          ones included
+     * @returns {Object} `{groups, twinIds}`: the sections, each `{name,
+     *          calendars}` with a label key for a name, none of them empty;
+     *          and the identifiers of the connector rows left out as twins
      */
-    buildGroups(answers) {
-      const sharedCalendars = [];
+    buildGroups(answers, nativeShares) {
       const groups = [];
+      const nativeRows = (nativeShares || [])
+        .filter(share => share && !share.hidden)
+        .map(share => this.nativeRowOf(share));
+      const nativeRefs = nativeRows.map(row => row.deliveryRef).filter(ref => !!ref).map(this.comparablePath);
+      const twinIds = [];
+      const sharedRows = [];
       answers.forEach(({connector, calendars}) => {
         const own = [];
         calendars.forEach(calendar => {
-          if (this.isSharedCalendar(connector, calendar)) {
-            sharedCalendars.push({...calendar, sharedWithMe: true, connectorName: connector.name});
-          } else {
+          if (!this.isSharedCalendar(connector, calendar)) {
             own.push(calendar);
+          } else if (nativeRefs.includes(this.comparablePath(calendar.id))) {
+            twinIds.push(calendar.id);
+          } else {
+            sharedRows.push({...calendar, sharedWithMe: true, connectorName: connector.name});
           }
         });
         if (own.length) {
           groups.push({name: connector.name, calendars: own});
         }
       });
-      if (sharedCalendars.length) {
-        groups.push({name: SHARED_WITH_ME_SECTION, calendars: sharedCalendars});
+      const shared = nativeRows.concat(sharedRows);
+      if (shared.length) {
+        shared.sort((first, second) => String(first.name || '').localeCompare(String(second.name || ''), undefined, {sensitivity: 'base'}));
+        groups.push({name: SHARED_WITH_ME_SECTION, calendars: shared});
       }
-      return groups;
+      return {groups, twinIds};
+    },
+    /**
+     * An eXo share as a row of the section: the same fields a connector's
+     * shared row carries, so the template draws both alike, plus the
+     * calendar id the native actions work with.
+     *
+     * @param {Object} share the share as agenda lists it
+     * @returns {Object} the row
+     */
+    nativeRowOf(share) {
+      return {
+        id: `native:${share.calendarId}`,
+        source: 'native',
+        calendarId: Number(share.calendarId),
+        name: share.name,
+        color: share.color,
+        readOnly: true,
+        shared: true,
+        sharedWithMe: true,
+        ownerUsername: share.ownerUsername,
+        ownerDisplayName: share.ownerDisplayName,
+        deliveryRef: share.deliveryRef,
+      };
+    },
+    /**
+     * The eXo shares drawn in the given sections, as agenda lists them: what
+     * a native listing that failed falls back to.
+     *
+     * @param {Array} groups the sections
+     * @returns {Array} the shares
+     */
+    nativeRowsOf(groups) {
+      const shares = [];
+      groups.forEach(group => group.calendars.forEach(calendar => {
+        if (this.isNative(calendar)) {
+          shares.push({...calendar, hidden: false});
+        }
+      }));
+      return shares;
     },
     /**
      * Whether a calendar belongs to someone else and was shared with the user.
@@ -733,6 +840,9 @@ export default {
      * @returns {Boolean} true when its events are shown
      */
     isDisplayed(calendar) {
+      if (this.isNative(calendar)) {
+        return !this.nativeHiddenIds.includes(Number(calendar.calendarId));
+      }
       return !this.hiddenIds.includes(calendar.id);
     },
     /**
@@ -744,10 +854,41 @@ export default {
      * @returns {void}
      */
     toggle(calendar) {
+      if (this.isNative(calendar)) {
+        const calendarId = Number(calendar.calendarId);
+        this.nativeHiddenIds = this.nativeHiddenIds.includes(calendarId)
+          ? this.nativeHiddenIds.filter(id => id !== calendarId)
+          : this.nativeHiddenIds.concat(calendarId);
+        this.writeNativeHiddenIds();
+        return;
+      }
       this.hiddenIds = this.isDisplayed(calendar)
         ? this.hiddenIds.concat(calendar.id)
         : this.hiddenIds.filter(id => id !== calendar.id);
-      this.$root.$emit('agenda-remote-calendars-changed', this.hiddenIds.concat(this.nativelySharedIds));
+      this.$root.$emit('agenda-remote-calendars-changed', this.hiddenIds.concat(this.twinIds));
+    },
+    /**
+     * @returns {Array} the unticked eXo shares stored for this user
+     */
+    readNativeHiddenIds() {
+      try {
+        const stored = JSON.parse(localStorage.getItem(this.nativeStorageKey) || '[]');
+        return Array.isArray(stored) ? stored.map(Number) : [];
+      } catch (e) {
+        return [];
+      }
+    },
+    /**
+     * Stores the unticked eXo shares for this user.
+     *
+     * @returns {void}
+     */
+    writeNativeHiddenIds() {
+      try {
+        localStorage.setItem(this.nativeStorageKey, JSON.stringify(this.nativeHiddenIds));
+      } catch (e) {
+        // A browser refusing storage keeps the choice for this page only
+      }
     },
     /**
      * The connector that listed a shared row, found again by the name
@@ -778,6 +919,9 @@ export default {
     canHide(calendar) {
       if (!calendar || calendar.sharedWithMe !== true) {
         return false;
+      }
+      if (this.isNative(calendar)) {
+        return true;
       }
       const connector = this.connectorOf(calendar);
       return !!connector && typeof connector.hideCalendar === 'function';
@@ -832,7 +976,7 @@ export default {
         return;
       }
       this.hiddenIds = this.hiddenIds.filter(id => id !== calendar.id);
-      this.$root.$emit('agenda-remote-calendars-changed', this.hiddenIds.concat(this.nativelySharedIds));
+      this.$root.$emit('agenda-remote-calendars-changed', this.hiddenIds.concat(this.twinIds));
     },
     /**
      * Hides a shared calendar for good, through the connector that listed it.
@@ -875,6 +1019,9 @@ export default {
      *          rejects
      */
     hideCalendar(calendar) {
+      if (this.isNative(calendar)) {
+        return this.hideNativeCalendar(calendar);
+      }
       const connector = this.connectorOf(calendar);
       if (!connector || typeof connector.hideCalendar !== 'function' || this.hidingIds.includes(calendar.id)) {
         return Promise.resolve();
@@ -886,6 +1033,37 @@ export default {
           this.forgetVisibility(calendar);
           this.$root.$emit('alert-message', this.$t('agenda.leftPanel.sharedCalendarHidden', {0: calendar.name}), 'success');
           this.$root.$emit('agenda-refresh');
+        })
+        .catch(error => {
+          console.error(`cannot hide the calendar ${calendar.name}`, error);
+          this.$root.$emit('alert-message', this.$t('agenda.leftPanel.hideSharedCalendarError'), 'error');
+        })
+        .finally(() => {
+          this.hidingIds = this.hidingIds.filter(id => id !== calendar.id);
+        });
+    },
+    /**
+     * Hides an eXo share for good: the row goes at once, agenda records the
+     * choice on the share, the snackbar says where it can be shown again.
+     * The share itself stays — the owner still lists the user — and the
+     * calendar comes back from the Hidden calendars of the settings, which
+     * are told by a document event, the one signal that crosses into that
+     * app. On failure the row comes back and the error is said.
+     *
+     * @param {Object} calendar the native row
+     * @returns {Promise} resolves once the outcome has been shown; never
+     *          rejects
+     */
+    hideNativeCalendar(calendar) {
+      if (this.hidingIds.includes(calendar.id)) {
+        return Promise.resolve();
+      }
+      this.hidingIds = this.hidingIds.concat(calendar.id);
+      return this.$calendarShareService.setHidden(calendar.calendarId, true)
+        .then(() => {
+          this.setGroups(this.withoutCalendars(this.groups, [calendar.id]));
+          this.$root.$emit('alert-message', this.$t('agenda.leftPanel.sharedCalendarHidden', {0: calendar.name}), 'success');
+          document.dispatchEvent(new CustomEvent('agenda-refresh-shared-calendars'));
         })
         .catch(error => {
           console.error(`cannot hide the calendar ${calendar.name}`, error);
