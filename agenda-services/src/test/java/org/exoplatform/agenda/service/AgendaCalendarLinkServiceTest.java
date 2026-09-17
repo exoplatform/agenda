@@ -55,6 +55,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 
+import org.exoplatform.agenda.constant.EventVisibility;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.CalendarLink;
 import org.exoplatform.agenda.model.Event;
@@ -566,6 +567,73 @@ class AgendaCalendarLinkServiceTest {
     assertTrue(document.contains("SUMMARY:E1\r\n"), "the earliest event is kept");
     assertFalse(document.contains("SUMMARY:E" + (AgendaCalendarLinkServiceImpl.MAX_EVENTS + 5) + "\r\n"),
                 "the latest is dropped");
+  }
+
+  /**
+   * EXO-90322: the published feed masks a PRIVATE event and nothing else. A
+   * PUBLIC one and a DEFAULT one — DEFAULT being what every event stored before
+   * the flag existed carries — keep their title, location and description.
+   *
+   * @throws Exception when the service refuses
+   */
+  @Test
+  void onlyAPrivateEventIsPublishedAsABusyBlock() throws Exception {
+    String token = service.saveCalendarLink(PERSONAL_CAL, "owner");
+    ZonedDateTime now = ZonedDateTime.ofInstant(NOW, ZoneOffset.UTC);
+    Event secret = event(1, PERSONAL_CAL, "Salary review", now.plusHours(1));
+    secret.setLocation("HR office");
+    secret.setVisibility(EventVisibility.PRIVATE);
+    Event stated = event(2, PERSONAL_CAL, "Team lunch", now.plusHours(2));
+    stated.setVisibility(EventVisibility.PUBLIC);
+    Event legacy = event(3, PERSONAL_CAL, "Weekly sync", now.plusHours(3));
+    legacy.setVisibility(EventVisibility.DEFAULT);
+    when(eventService.getEvents(any(), any(), anyLong())).thenReturn(List.of(secret, stated, legacy));
+
+    String document = service.getCalendarFeed(token);
+
+    assertFalse(document.contains("Salary review"), "the private event's title does not leave eXo");
+    assertFalse(document.contains("HR office"), "nor its location");
+    assertTrue(document.contains("SUMMARY:Busy\r\n"), "it is published as a busy block");
+    assertTrue(document.contains("SUMMARY:Team lunch\r\n"), "a public event keeps its title");
+    assertTrue(document.contains("SUMMARY:Weekly sync\r\n"), "and so does one whose visibility was never set");
+  }
+
+  /**
+   * EXO-90322: an event whose visibility was never written at all — a null the
+   * service defaults away on every write, but which a stale cached row or a
+   * connector could still hand the feed — is published in full, as it was
+   * before the flag existed. Only PRIVATE masks.
+   *
+   * @throws Exception when the service refuses
+   */
+  @Test
+  void anEventWithNoVisibilityAtAllIsPublishedInFull() throws Exception {
+    String token = service.saveCalendarLink(PERSONAL_CAL, "owner");
+    ZonedDateTime now = ZonedDateTime.ofInstant(NOW, ZoneOffset.UTC);
+    Event unset = event(1, PERSONAL_CAL, "Weekly sync", now.plusHours(1));
+    assertNull(unset.getVisibility(), "the fixture really carries no visibility");
+    when(eventService.getEvents(any(), any(), anyLong())).thenReturn(List.of(unset));
+
+    assertTrue(service.getCalendarFeed(token).contains("SUMMARY:Weekly sync\r\n"));
+  }
+
+  /**
+   * EXO-90322: the predicate the feed is wired to reads the event's own
+   * visibility, and nothing else. This is the line that used to be a hardcoded
+   * {@code false}, so it is pinned on its own as well as through the document.
+   */
+  @Test
+  void isPrivateReadsTheEventVisibility() {
+    Event event = new Event();
+
+    assertFalse(AgendaCalendarLinkServiceImpl.isPrivate(event), "no visibility set");
+    event.setVisibility(EventVisibility.DEFAULT);
+    assertFalse(AgendaCalendarLinkServiceImpl.isPrivate(event), "DEFAULT does not mask");
+    event.setVisibility(EventVisibility.PUBLIC);
+    assertFalse(AgendaCalendarLinkServiceImpl.isPrivate(event), "PUBLIC does not mask");
+    event.setVisibility(EventVisibility.PRIVATE);
+    assertTrue(AgendaCalendarLinkServiceImpl.isPrivate(event), "PRIVATE masks");
+    assertFalse(AgendaCalendarLinkServiceImpl.isPrivate(null), "and no event masks nothing");
   }
 
   /**

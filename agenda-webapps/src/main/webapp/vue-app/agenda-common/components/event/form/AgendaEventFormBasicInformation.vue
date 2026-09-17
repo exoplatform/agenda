@@ -86,6 +86,16 @@
           :conference-provider="conferenceProvider"
           class="my-auto"
           icon-class="me-10" />
+        <!--
+          EXO-90327 + EXO-90322: after the colour and recurrence rows and
+          before the description, which is where Google Calendar puts the same
+          pair — someone arriving from there finds it where they expect, and
+          the what/where/when block at the top is left alone.
+        -->
+        <div class="d-flex flex-row align-center">
+          <v-icon size="20" class="icon-default-color my-auto me-12">fas fa-briefcase</v-icon>
+          <agenda-event-form-availability-visibility :event="event" />
+        </div>
         <div class="d-flex flex-row">
           <v-flex class="flex-grow-0">
             <v-icon size="20" class="icon-default-color mt-3 me-11">fas fa-align-left</v-icon>

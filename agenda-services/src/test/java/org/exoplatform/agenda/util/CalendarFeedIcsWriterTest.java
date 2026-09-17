@@ -29,6 +29,8 @@ import java.time.ZonedDateTime;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import org.exoplatform.agenda.constant.EventAvailability;
 import org.exoplatform.agenda.model.Event;
@@ -271,6 +273,49 @@ class CalendarFeedIcsWriterTest {
 
     assertTrue(calendar.getComponents(Component.VEVENT).isEmpty());
     assertNull(calendar.getProperty("X-WR-CALNAME"));
+  }
+
+  /**
+   * EXO-90327: what a subscriber's calendar does with the time is read from the
+   * event's availability. FREE is transparent; BUSY, DEFAULT, and an event that
+   * carries none at all are opaque — DEFAULT keeps meaning busy, which is what
+   * every event stored before the control existed carries.
+   *
+   * @param availability the event's availability, "none" for an unset one
+   * @param expected the TRANSP the document must carry
+   * @throws Exception when the document does not parse
+   */
+  @ParameterizedTest
+  @CsvSource({ "FREE,TRANSPARENT", "BUSY,OPAQUE", "DEFAULT,OPAQUE", "none,OPAQUE" })
+  void transparencyIsReadFromTheAvailability(String availability, String expected) throws Exception {
+    Event event = event(60, "Conference week", ZonedDateTime.of(2026, 9, 21, 9, 0, 0, 0, ZoneOffset.UTC));
+    if (!"none".equals(availability)) {
+      event.setAvailability(EventAvailability.valueOf(availability));
+    }
+
+    VEvent written = single(parse(write(List.of(event))));
+
+    assertEquals(expected, written.getProperty(Property.TRANSP).getValue());
+  }
+
+  /**
+   * EXO-90327 meeting EXO-90322: masking an event's content must not silently
+   * take its time back. A private event marked free is still a busy block with
+   * no title — and still transparent, so a subscriber's calendar does not read
+   * the user as booked.
+   *
+   * @throws Exception when the document does not parse
+   */
+  @Test
+  void aPrivateFreeEventIsMaskedWithoutBlockingTheTime() throws Exception {
+    Event event = event(61, "Conference week", ZonedDateTime.of(2026, 9, 22, 9, 0, 0, 0, ZoneOffset.UTC));
+    event.setAvailability(EventAvailability.FREE);
+
+    VEvent busy = single(parse(CalendarFeedIcsWriter.write("Team", List.of(event), e -> true, HOST)));
+
+    assertEquals("Busy", busy.getProperty(Property.SUMMARY).getValue(), "its content is still masked");
+    assertEquals("PRIVATE", busy.getProperty(Property.CLASS).getValue());
+    assertEquals("TRANSPARENT", busy.getProperty(Property.TRANSP).getValue(), "and it does not block the time");
   }
 
   /**

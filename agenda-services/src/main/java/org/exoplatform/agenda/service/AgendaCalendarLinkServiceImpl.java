@@ -35,6 +35,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import org.exoplatform.agenda.constant.EventVisibility;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.CalendarLink;
 import org.exoplatform.agenda.model.Event;
@@ -347,22 +348,28 @@ public class AgendaCalendarLinkServiceImpl implements AgendaCalendarLinkService 
   }
 
   /**
-   * Whether an event is published as busy time only.
+   * Whether an event is published as busy time only: it is, exactly when the
+   * event's own visibility says {@link EventVisibility#PRIVATE} (EXO-90322).
    * <p>
-   * <b>Always false today, and that is a gap, not a decision.</b> The product
-   * rule is that a private event is published as a busy block, and the writer
-   * does that; but agenda does not model a private event — {@link Event} carries
-   * no visibility or classification ({@code EventAvailability} is free/busy
-   * transparency), no connector imports one, and every reader of a calendar in
-   * eXo already sees every event it holds. This is the one place the rule is
-   * wired to, so the day agenda gains that flag, reading it here is the whole
-   * change.
+   * <b>Only {@code PRIVATE} masks.</b> {@link EventVisibility#DEFAULT} is what
+   * every event stored before EXO-90322 carries — the column was backfilled
+   * with it — so reading it as "not masked" is what keeps the published
+   * documents of existing links byte-for-byte what they were. It nominally
+   * means "inherit", and there is nothing to inherit from: agenda models no
+   * per-calendar visibility. The day it does, this method is where that default
+   * is resolved, and nowhere else.
+   * <p>
+   * <b>This is the publish boundary, not an eXo ACL.</b> Marking an event
+   * private hides its content from a subscriber holding the calendar's link; it
+   * changes nothing for a reader inside eXo, who still sees every event of a
+   * calendar they may read. Narrowing that is a separate decision with a
+   * separate mechanism.
    *
    * @param event the event
    * @return whether only its busy time may be published
    */
   static boolean isPrivate(Event event) {
-    return false;
+    return event != null && event.getVisibility() == EventVisibility.PRIVATE;
   }
 
   /**
