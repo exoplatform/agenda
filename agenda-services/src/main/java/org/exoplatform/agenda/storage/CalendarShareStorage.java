@@ -359,8 +359,7 @@ public class CalendarShareStorage {
                              entity.getSource(),
                              entity.getDeliveredTo(),
                              entity.getDeliveryRef(),
-                             entity.isHidden(),
-                             null);
+                             entity.isHidden());
   }
 
 }

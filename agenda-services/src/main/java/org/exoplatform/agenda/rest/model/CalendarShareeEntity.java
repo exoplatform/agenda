@@ -55,7 +55,4 @@ public class CalendarShareeEntity {
   /** The channel that also carries the share, null when eXo only. */
   private String  deliveredTo;
 
-  /** Why the last delivery failed, null when it did not. */
-  private String  deliveryWarning;
-
 }

@@ -114,8 +114,7 @@ export function getShares(calendarId) {
 }
 
 /**
- * Shares a calendar with a colleague. The answer carries a deliveryWarning
- * when a channel should have carried the share and could not.
+ * Shares a calendar with a colleague.
  *
  * @param {Number} calendarId technical identifier of the calendar
  * @param {String} username the colleague
@@ -144,20 +143,6 @@ export function unshare(calendarId, shareeIdentityId) {
     method: 'DELETE',
     credentials: 'include',
   }).then(resp => readJson(resp, 'agenda.share.error')).finally(forgetShareCounts);
-}
-
-/**
- * Asks the channels again to carry a share they do not carry yet.
- *
- * @param {Number} calendarId technical identifier of the calendar
- * @param {Number} shareeIdentityId identity identifier of the colleague
- * @returns {Promise<Object>} the share, with a warning when it failed again
- */
-export function redeliver(calendarId, shareeIdentityId) {
-  return fetch(`${AGENDA_REST_BASE}/calendars/${calendarId}/shares/${shareeIdentityId}/deliver`, {
-    method: 'POST',
-    credentials: 'include',
-  }).then(resp => readJson(resp, 'agenda.share.error'));
 }
 
 /**

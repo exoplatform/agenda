@@ -144,7 +144,6 @@ class AgendaCalendarShareServiceTest {
     assertEquals(ALICE, share.getShareeIdentityId());
     assertEquals(CalendarShareSource.EXO, share.getSource());
     assertNull(share.getDeliveredTo());
-    assertNull(share.getDeliveryWarning());
     assertTrue(service.isSharedWith(PERSONAL_CAL, ALICE));
     assertEquals(List.of(PERSONAL_CAL), service.getSharedCalendarIds(ALICE));
     verify(listenerService).broadcast(eq(AgendaCalendarShareService.CALENDAR_SHARED_EVENT), any(CalendarShare.class), eq(OWNER));
@@ -192,41 +191,40 @@ class AgendaCalendarShareServiceTest {
 
     assertEquals("caldav:1", share.getDeliveredTo());
     assertEquals("/calendars/alice/shared-10/", share.getDeliveryRef());
-    assertNull(share.getDeliveryWarning());
     assertEquals("caldav:1", storage.rows.get(0).getDeliveredTo());
   }
 
   /**
-   * A channel that fails leaves the record standing, eXo-only, with a warning
-   * the owner can retry; sharing again retries the delivery without writing a
-   * second row, and a retry that succeeds records the channel.
+   * A channel that fails leaves the record standing, eXo-only and not
+   * delivered, with nothing reported to the owner; sharing again asks the
+   * channels again without writing a second row, and a delivery that then
+   * succeeds records the channel. Nothing is retried on its own.
    *
    * @throws Exception when the share is refused
    */
   @Test
-  void aFailedDeliveryKeepsTheRecordWithAWarningAndCanBeRetried() throws Exception {
-    channel.answer = ChannelDelivery.failed("SHAREE_NOT_CONNECTED");
+  void aFailedDeliveryKeepsTheRecordUndeliveredAndSilent() throws Exception {
+    channel.answer = ChannelDelivery.failed("SERVER_UNREACHABLE");
 
     CalendarShare share = service.share(PERSONAL_CAL, "alice", "owner");
 
-    assertEquals("SHAREE_NOT_CONNECTED", share.getDeliveryWarning());
     assertNull(share.getDeliveredTo());
     assertTrue(service.isSharedWith(PERSONAL_CAL, ALICE), "the eXo record stands on a server failure");
     assertEquals(1, storage.rows.size());
+    assertNull(storage.rows.get(0).getDeliveredTo(), "so a delivery can be attempted later");
 
-    assertEquals("SHAREE_NOT_CONNECTED", service.share(PERSONAL_CAL, "alice", "owner").getDeliveryWarning());
-    assertEquals(1, storage.rows.size(), "sharing again is a retry, never a second row");
-    assertEquals(2, channel.deliveries);
+    assertNull(service.share(PERSONAL_CAL, "alice", "owner").getDeliveredTo());
+    assertEquals(1, storage.rows.size(), "sharing again writes no second row");
+    assertEquals(2, channel.deliveries, "and asks the channel again");
 
     channel.answer = ChannelDelivery.delivered("caldav:1", null);
-    CalendarShare redelivered = service.redeliver(PERSONAL_CAL, ALICE, "owner");
-    assertEquals("caldav:1", redelivered.getDeliveredTo());
-    assertNull(redelivered.getDeliveryWarning());
-    assertThrows(ObjectNotFoundException.class, () -> service.redeliver(PERSONAL_CAL, DISABLED, "owner"), "no record, nothing to retry");
+    assertEquals("caldav:1", service.share(PERSONAL_CAL, "alice", "owner").getDeliveredTo());
+    assertEquals("caldav:1", storage.rows.get(0).getDeliveredTo());
   }
 
   /**
-   * A channel that throws is read as a failure, and the record stands.
+   * A channel that throws is read as a failure: the record stands, not
+   * delivered.
    *
    * @throws Exception when the share is refused
    */
@@ -236,7 +234,7 @@ class AgendaCalendarShareServiceTest {
 
     CalendarShare share = service.share(PERSONAL_CAL, "alice", "owner");
 
-    assertEquals("IllegalStateException", share.getDeliveryWarning());
+    assertNull(share.getDeliveredTo());
     assertTrue(service.isSharedWith(PERSONAL_CAL, ALICE));
   }
 
@@ -369,7 +367,7 @@ class AgendaCalendarShareServiceTest {
   void theSharedWithMeListingLeavesOutDeadCalendars() throws Exception {
     channel.answer = ChannelDelivery.notApplicable();
     service.share(PERSONAL_CAL, "alice", "owner");
-    storage.rows.add(new CalendarShare(9, 77, ALICE, OWNER, 0, CalendarShareSource.EXO, null, null, false, null));
+    storage.rows.add(new CalendarShare(9, 77, ALICE, OWNER, 0, CalendarShareSource.EXO, null, null, false));
     when(calendarService.getCalendarById(77L)).thenReturn(null);
 
     assertEquals(List.of(PERSONAL_CAL), service.getSharedWithMe("alice").stream().map(CalendarShare::getCalendarId).toList());
@@ -416,7 +414,6 @@ class AgendaCalendarShareServiceTest {
     CalendarShare share = service.share(PERSONAL_CAL, "alice", "owner");
 
     assertNull(share.getDeliveredTo());
-    assertNull(share.getDeliveryWarning());
     assertTrue(service.getExternalShares(PERSONAL_CAL, "owner").isEmpty());
     service.unshare(PERSONAL_CAL, ALICE, "owner");
     assertFalse(service.isSharedWith(PERSONAL_CAL, ALICE));
@@ -645,8 +642,7 @@ class AgendaCalendarShareServiceTest {
                                             source,
                                             deliveredTo,
                                             deliveryRef,
-                                            false,
-                                            null);
+                                            false);
       rows.add(row);
       return row.clone();
     }

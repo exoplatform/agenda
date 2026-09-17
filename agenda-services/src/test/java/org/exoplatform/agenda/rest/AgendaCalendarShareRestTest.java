@@ -102,15 +102,15 @@ class AgendaCalendarShareRestTest {
   }
 
   /**
-   * Sharing answers the record, naming the colleague, with the warning a
-   * failed delivery left, and is never cached.
+   * Sharing answers the record, naming the colleague, and is never cached;
+   * a failed delivery leaves no trace on the answer.
    *
    * @throws Exception when the request fails
    */
   @Test
-  void sharingAnswersTheRecordWithItsWarning() throws Exception {
+  void sharingAnswersTheRecord() throws Exception {
     CalendarShare share = share();
-    share.setDeliveryWarning("SHAREE_NOT_CONNECTED");
+    share.setDeliveredTo(null);
     when(service.share(CALENDAR, "alice", "owner")).thenReturn(share);
 
     mockMvc.perform(as("owner", post("/calendars/20/shares").contentType(MediaType.APPLICATION_JSON).content("{\"username\":\"alice\"}")))
@@ -120,7 +120,8 @@ class AgendaCalendarShareRestTest {
            .andExpect(jsonPath("$.username").value("alice"))
            .andExpect(jsonPath("$.displayName").value("Alice Liddell"))
            .andExpect(jsonPath("$.source").value("EXO"))
-           .andExpect(jsonPath("$.deliveryWarning").value("SHAREE_NOT_CONNECTED"))
+           .andExpect(jsonPath("$.deliveryWarning").doesNotExist())
+           .andExpect(jsonPath("$.deliveredTo").doesNotExist())
            .andExpect(jsonPath("$.disabled").value(false));
   }
 
@@ -184,28 +185,6 @@ class AgendaCalendarShareRestTest {
     mockMvc.perform(as("owner", delete("/calendars/20/shares/3"))).andExpect(status().isNoContent());
     verify(service).unshare(CALENDAR, 3, "owner");
     mockMvc.perform(as("stranger", delete("/calendars/20/shares/3"))).andExpect(status().isForbidden());
-  }
-
-  /**
-   * A retry answers the record; a retry with no record is 404 with the code
-   * as reason.
-   *
-   * @throws Exception when the request fails
-   */
-  @Test
-  void retryAnswersTheRecord() throws Exception {
-    CalendarShare delivered = share();
-    delivered.setDeliveryWarning(null);
-    when(service.redeliver(CALENDAR, 3, "owner")).thenReturn(delivered);
-    when(service.redeliver(CALENDAR, 4, "owner")).thenThrow(new ObjectNotFoundException(AgendaCalendarShareService.SHARE_NOT_FOUND));
-
-    mockMvc.perform(as("owner", post("/calendars/20/shares/3/deliver")))
-           .andExpect(status().isOk())
-           .andExpect(jsonPath("$.deliveredTo").value("caldav:1"))
-           .andExpect(jsonPath("$.deliveryWarning").doesNotExist());
-    mockMvc.perform(as("owner", post("/calendars/20/shares/4/deliver")))
-           .andExpect(status().isNotFound())
-           .andExpect(status().reason(AgendaCalendarShareService.SHARE_NOT_FOUND));
   }
 
   /**
@@ -273,7 +252,7 @@ class AgendaCalendarShareRestTest {
    * @return the share
    */
   private static CalendarShare share() {
-    return new CalendarShare(5, CALENDAR, 3, 1, 1000, CalendarShareSource.EXO, "caldav:1", "/cal/alice/shared/", false, null);
+    return new CalendarShare(5, CALENDAR, 3, 1, 1000, CalendarShareSource.EXO, "caldav:1", "/cal/alice/shared/", false);
   }
 
   /**

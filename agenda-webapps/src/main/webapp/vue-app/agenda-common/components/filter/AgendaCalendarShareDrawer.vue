@@ -108,38 +108,16 @@
                         {{ $t('agenda.calendarShare.disabledSharee') }}
                       </span>
                     </v-list-item-title>
-                    <v-list-item-subtitle class="d-flex align-center flex-wrap">
-                      <span class="me-2 agenda-calendar-share-access">{{ $t('agenda.calendarShare.access.view') }}</span>
-                      <!--
-                        Where the share also lives: the chip says the server, read
-                        from the channel id the record carries, so a colleague who
-                        reads the calendar in their own CalDAV client is told so.
-                      -->
-                      <v-chip
-                        v-if="share.deliveredTo"
-                        x-small
-                        outlined
-                        class="me-2 agenda-calendar-share-channel">
-                        {{ $t('agenda.calendarShare.alsoOn', {0: channelLabel(share.deliveredTo)}) }}
-                      </v-chip>
-                      <span
-                        v-if="share.deliveryWarning"
-                        class="warning--text agenda-calendar-share-warning">
-                        {{ warningLabel(share.deliveryWarning) }}
-                      </span>
+                    <!--
+                      Whether a channel also carries the share to a calendar
+                      server is invisible here: "shared with" means the colleague
+                      can see the calendar, however it reaches them.
+                    -->
+                    <v-list-item-subtitle>
+                      <span class="agenda-calendar-share-access">{{ $t('agenda.calendarShare.access.view') }}</span>
                     </v-list-item-subtitle>
                   </v-list-item-content>
                   <v-list-item-action class="d-flex flex-row align-center my-0">
-                    <v-btn
-                      v-if="share.deliveryWarning"
-                      :disabled="busy"
-                      :title="$t('agenda.calendarShare.retry')"
-                      class="primary--text text-none px-1 agenda-calendar-share-retry"
-                      small
-                      text
-                      @click="retry(share)">
-                      {{ $t('agenda.calendarShare.retry') }}
-                    </v-btn>
                     <v-btn
                       :disabled="busy"
                       :title="$t('agenda.calendarShare.unshare')"
@@ -238,19 +216,6 @@
 </template>
 
 <script>
-/**
- * The failure codes a channel can answer, each with a sentence of its own in
- * the bundle; anything else is worded with the code itself.
- */
-const WARNING_CODES = [
-  'SHAREE_NOT_CONNECTED',
-  'CALENDAR_NOT_ON_SERVER',
-  'NOT_READ_ONLY',
-  'SHAREE_HAS_OTHER_ACCESS',
-  'FOREIGN_ACCESS_NOT_PRESERVED',
-  'SERVER_UNREACHABLE',
-];
-
 export default {
   data: () => ({
     calendar: null,
@@ -438,8 +403,8 @@ export default {
         .finally(() => this.loading = false);
     },
     /**
-     * Shares the calendar with a colleague and lists the answer, warning
-     * included; a refusal is worded under the field.
+     * Shares the calendar with a colleague and lists the answer; a refusal is
+     * worded under the field.
      *
      * @param {String} username the colleague
      * @returns {Promise} resolved once shared or refused
@@ -452,11 +417,7 @@ export default {
           this.shares = this.shares.filter(row => row.shareeIdentityId !== share.shareeIdentityId).concat(share);
           this.externalShares = this.externalShares.filter(row => row.shareeIdentityId !== share.shareeIdentityId);
           this.notifyChanged();
-          if (share.deliveryWarning) {
-            this.$root.$emit('alert-message', this.$t('agenda.calendarShare.sharedWithWarning', {0: share.displayName || username}), 'warning');
-          } else {
-            this.$root.$emit('alert-message', this.$t('agenda.calendarShare.shared', {0: share.displayName || username}), 'success');
-          }
+          this.$root.$emit('alert-message', this.$t('agenda.calendarShare.shared', {0: share.displayName || username}), 'success');
         })
         .catch(error => this.error = this.errorLabel(error))
         .finally(() => this.saving = false);
@@ -520,26 +481,6 @@ export default {
         .finally(() => this.saving = false);
     },
     /**
-     * Asks the channels again to carry a share.
-     *
-     * @param {Object} share the share whose delivery failed
-     * @returns {Promise} resolved once attempted
-     */
-    retry(share) {
-      this.saving = true;
-      return this.$calendarShareService.redeliver(this.calendar.id, share.shareeIdentityId)
-        .then(answer => {
-          this.shares = this.shares.map(row => (row.shareeIdentityId === answer.shareeIdentityId ? answer : row));
-          if (answer.deliveryWarning) {
-            this.$root.$emit('alert-message', this.warningLabel(answer.deliveryWarning), 'warning');
-          } else {
-            this.$root.$emit('alert-message', this.$t('agenda.calendarShare.delivered', {0: this.channelLabel(answer.deliveredTo)}), 'success');
-          }
-        })
-        .catch(error => this.$root.$emit('alert-message', this.errorLabel(error), 'error'))
-        .finally(() => this.saving = false);
-    },
-    /**
      * Removes on the server a share eXo does not record.
      *
      * @param {Object} external the external share
@@ -567,8 +508,10 @@ export default {
       document.dispatchEvent(new CustomEvent('agenda-calendar-shares-changed'));
     },
     /**
-     * A channel id, worded: the server's host for a CalDAV channel, the id
-     * itself for anything else.
+     * A channel id, worded for the access held outside eXo — the server's
+     * host for a CalDAV channel, the id itself for anything else. Only the
+     * "outside eXo" rows name their server: delivery is invisible on a
+     * colleague's row.
      *
      * @param {String} channelId the channel id, caldav:<serverId>
      * @returns {String} the label
@@ -580,15 +523,6 @@ export default {
       const connectors = extensionRegistry.loadExtensions('agenda', 'connectors') || [];
       const connector = connectors.find(one => one && typeof one.channelLabel === 'function' && one.channelLabel(channelId));
       return connector && connector.channelLabel(channelId) || channelId.replace(/^caldav:/, 'CalDAV ');
-    },
-    /**
-     * A delivery failure, worded.
-     *
-     * @param {String} code the channel's code
-     * @returns {String} the sentence
-     */
-    warningLabel(code) {
-      return WARNING_CODES.includes(code) ? this.$t(`agenda.calendarShare.warning.${code}`) : this.$t('agenda.calendarShare.warning.other', {0: code});
     },
     /**
      * What to call access held outside eXo: the name the channel gives, else

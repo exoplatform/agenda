@@ -81,13 +81,6 @@ public class CalendarShare implements Cloneable {
   private boolean             hidden;
 
   /**
-   * A code naming why the last delivery attempt failed, set on the answer to a
-   * share or a retry and never stored: the record stands, the channel does not
-   * carry it yet, and the drawer offers to try again.
-   */
-  private String              deliveryWarning;
-
-  /**
    * Copies the record.
    *
    * @return a copy
@@ -102,8 +95,7 @@ public class CalendarShare implements Cloneable {
                              source,
                              deliveredTo,
                              deliveryRef,
-                             hidden,
-                             deliveryWarning);
+                             hidden);
   }
 
 }

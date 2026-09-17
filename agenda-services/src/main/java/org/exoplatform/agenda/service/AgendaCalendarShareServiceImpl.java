@@ -156,21 +156,6 @@ public class AgendaCalendarShareServiceImpl implements AgendaCalendarShareServic
    * {@inheritDoc}
    */
   @Override
-  public CalendarShare redeliver(long calendarId, long shareeIdentityId, String ownerUsername) throws ObjectNotFoundException,
-                                                                                                IllegalAccessException {
-    long ownerIdentityId = userIdentityId(ownerUsername);
-    Calendar calendar = getOwnedCalendar(calendarId, ownerIdentityId, ownerUsername);
-    CalendarShare share = calendarShareStorage.getShare(calendar.getId(), shareeIdentityId);
-    if (share == null) {
-      throw new ObjectNotFoundException(SHARE_NOT_FOUND);
-    }
-    return deliver(share, ownerUsername);
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
   public List<CalendarShare> getShares(long calendarId, String ownerUsername) throws ObjectNotFoundException,
                                                                                 IllegalAccessException {
     Calendar calendar = getOwnedCalendar(calendarId, userIdentityId(ownerUsername), ownerUsername);
@@ -396,27 +381,29 @@ public class AgendaCalendarShareServiceImpl implements AgendaCalendarShareServic
   }
 
   /**
-   * Asks every channel to carry a share, records the first that does, and
-   * reports the first failure back on the answer. A channel that throws is
-   * read as a failure with the exception's class as code.
+   * Asks every channel to carry a share and records the first that does.
+   * Delivery is invisible to the owner: a channel that fails, or throws, is
+   * logged at WARN with the owner, the colleague, the calendar and the cause,
+   * and the record stands with {@code deliveredTo} null, so a delivery can be
+   * attempted later. Nothing is retried on its own.
    *
    * @param share the record
    * @param ownerUsername the owner
-   * @return the record, updated with its delivery, or with a warning
+   * @return the record, updated with its delivery when one channel took it
    */
   private CalendarShare deliver(CalendarShare share, String ownerUsername) {
-    String failure = null;
     for (CalendarShareChannelPlugin channel : channels()) {
       ChannelDelivery delivery;
       try {
         delivery = channel.deliver(share, ownerUsername);
       } catch (RuntimeException | LinkageError e) {
-        LOG.warn("Channel {} failed to carry the share of calendar {} with {}",
+        LOG.warn("Channel {} failed to carry the share of calendar {} by {} with colleague {}; the share stands in eXo, not delivered",
                  channel.getClass().getName(),
                  share.getCalendarId(),
+                 ownerUsername,
                  share.getShareeIdentityId(),
                  e);
-        delivery = ChannelDelivery.failed(e.getClass().getSimpleName());
+        continue;
       }
       if (delivery == null || delivery.getStatus() == ChannelDelivery.Status.NOT_APPLICABLE) {
         continue;
@@ -429,13 +416,14 @@ public class AgendaCalendarShareServiceImpl implements AgendaCalendarShareServic
                                                                    delivery.getDeliveryRef());
         return delivered == null ? share : delivered;
       }
-      if (failure == null) {
-        failure = StringUtils.defaultIfBlank(delivery.getFailureCode(), "DELIVERY_FAILED");
-      }
+      LOG.warn("Channel {} did not carry the share of calendar {} by {} with colleague {}: {}; the share stands in eXo, not delivered",
+               channelId(channel),
+               share.getCalendarId(),
+               ownerUsername,
+               share.getShareeIdentityId(),
+               StringUtils.defaultIfBlank(delivery.getFailureCode(), "DELIVERY_FAILED"));
     }
-    CalendarShare answer = share.clone();
-    answer.setDeliveryWarning(failure);
-    return answer;
+    return share;
   }
 
   /**

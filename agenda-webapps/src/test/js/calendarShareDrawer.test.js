@@ -30,9 +30,10 @@ describe('Calendar share drawer', () => {
 
   const CALENDAR = {id: 10, name: 'Work', acl: {canShare: true}};
 
-  const ALICE = {calendarId: 10, shareeIdentityId: 3, username: 'alice', displayName: 'Alice Liddell', source: 'EXO', deliveredTo: 'caldav:1', deliveryWarning: null, disabled: false};
+  const ALICE = {calendarId: 10, shareeIdentityId: 3, username: 'alice', displayName: 'Alice Liddell', source: 'EXO', deliveredTo: 'caldav:1', disabled: false};
 
-  const BOB = {calendarId: 10, shareeIdentityId: 4, username: 'bob', displayName: 'Bob Builder', source: 'EXO', deliveredTo: null, deliveryWarning: 'SHAREE_NOT_CONNECTED', disabled: false};
+  /** Shared in eXo only: no channel carried it, which the row never says. */
+  const BOB = {calendarId: 10, shareeIdentityId: 4, username: 'bob', displayName: 'Bob Builder', source: 'EXO', deliveredTo: null, disabled: false};
 
   const OUTSIDE = {channelId: 'caldav:1', externalId: 'grant-9', kind: 'OUTSIDE_EXO', shareeIdentityId: 0, displayName: '_SERVICE', email: 'exo.service@y.org', removable: true, readOnly: false};
 
@@ -101,7 +102,6 @@ describe('Calendar share drawer', () => {
       getShares: jest.fn().mockResolvedValue({shares: [ALICE, BOB], externalShares: [OUTSIDE, EVERYONE]}),
       share: jest.fn(),
       unshare: jest.fn().mockResolvedValue(),
-      redeliver: jest.fn(),
       removeExternalShare: jest.fn().mockResolvedValue(),
     };
     drawerStub = {
@@ -129,7 +129,7 @@ describe('Calendar share drawer', () => {
     };
   });
 
-  it('lists the colleagues in eXo, where a share also lives, and the failed delivery with its retry', async () => {
+  it('lists the colleagues as plain rows, whether or not a server also carries the share', async () => {
     const wrapper = mountDrawer();
 
     await open(wrapper);
@@ -138,10 +138,13 @@ describe('Calendar share drawer', () => {
     const rows = wrapper.findAll('.agenda-calendar-sharee');
     expect(rows).toHaveLength(2);
     expect(rows.at(0).find('.agenda-calendar-sharee-name').text()).toContain('Alice Liddell');
-    expect(rows.at(0).find('.agenda-calendar-share-channel').text()).toBe('agenda.calendarShare.alsoOn(CalDAV 1)');
-    expect(rows.at(0).find('.agenda-calendar-share-retry').exists()).toBe(false);
-    expect(rows.at(1).find('.agenda-calendar-share-warning').text()).toBe('agenda.calendarShare.warning.SHAREE_NOT_CONNECTED');
-    expect(rows.at(1).find('.agenda-calendar-share-retry').exists()).toBe(true);
+    expect(rows.at(1).find('.agenda-calendar-sharee-name').text()).toContain('Bob Builder');
+    rows.wrappers.forEach(row => {
+      expect(row.find('.agenda-calendar-share-access').text()).toBe('agenda.calendarShare.access.view');
+      expect(row.find('.agenda-calendar-share-unshare').exists()).toBe(true);
+      expect(row.find('.v-chip').exists()).toBe(false);
+      expect(row.text()).not.toMatch(/deliver|retry|also on/i);
+    });
   });
 
   it('lists the access held outside eXo apart, read-only, with its level and the address', async () => {
@@ -249,20 +252,6 @@ describe('Calendar share drawer', () => {
     expect(wrapper.findAll('.agenda-calendar-sharee')).toHaveLength(1);
     expect(service.getShares).toHaveBeenCalledTimes(2);
     expect(wrapper.rootEmit).toHaveBeenCalledWith('agenda-calendar-shares-changed');
-  });
-
-  it('retries a failed delivery and shows the outcome', async () => {
-    service.redeliver.mockResolvedValue({...BOB, deliveredTo: 'caldav:1', deliveryWarning: null});
-    const wrapper = mountDrawer();
-    await open(wrapper);
-
-    await wrapper.find('.agenda-calendar-share-retry').trigger('click');
-    await flush();
-
-    expect(service.redeliver).toHaveBeenCalledWith(10, 4);
-    expect(wrapper.find('.agenda-calendar-share-retry').exists()).toBe(false);
-    expect(wrapper.findAll('.agenda-calendar-share-channel')).toHaveLength(2);
-    expect(wrapper.rootEmit).toHaveBeenCalledWith('alert-message', 'agenda.calendarShare.delivered(CalDAV 1)', 'success');
   });
 
   it('removes a server share from the server', async () => {

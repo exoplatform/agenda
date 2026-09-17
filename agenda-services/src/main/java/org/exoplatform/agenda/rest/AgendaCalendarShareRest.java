@@ -212,39 +212,6 @@ public class AgendaCalendarShareRest {
   }
 
   /**
-   * Asks the channels again to carry a share they do not carry yet.
-   *
-   * @param request the authenticated request
-   * @param calendarId technical identifier of the calendar
-   * @param shareeIdentityId identity identifier of the colleague
-   * @return the share, with a warning when the delivery failed again
-   */
-  @PostMapping("calendars/{calendarId}/shares/{shareeIdentityId}/deliver")
-  @Secured("users")
-  @Operation(summary = "Retry the delivery of a share to its channel", method = "POST",
-             description = "Owner only. The eXo record is untouched; the channels are asked again.")
-  @ApiResponses(value = {
-      @ApiResponse(responseCode = "200", description = "Delivery attempted"),
-      @ApiResponse(responseCode = "400", description = "Invalid calendar identifier"),
-      @ApiResponse(responseCode = "403", description = "The user does not own the calendar"),
-      @ApiResponse(responseCode = "404", description = "Calendar or share not found"),
-  })
-  public ResponseEntity<CalendarShareeEntity> redeliver(HttpServletRequest request,
-                                                        @PathVariable("calendarId") long calendarId,
-                                                        @PathVariable("shareeIdentityId") long shareeIdentityId) {
-    try {
-      CalendarShare share = calendarShareService.redeliver(calendarId, shareeIdentityId, request.getRemoteUser());
-      return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(toShareeEntity(share, new HashMap<>()));
-    } catch (ObjectNotFoundException e) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
-    } catch (IllegalAccessException e) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, FORBIDDEN);
-    } catch (IllegalArgumentException e) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
-    }
-  }
-
-  /**
    * Removes a share that exists on a channel's server without an eXo record.
    *
    * @param request the authenticated request
@@ -384,7 +351,6 @@ public class AgendaCalendarShareRest {
     entity.setCreatedDate(share.getCreatedDate());
     entity.setSource(share.getSource() == null ? null : share.getSource().name());
     entity.setDeliveredTo(share.getDeliveredTo());
-    entity.setDeliveryWarning(share.getDeliveryWarning());
     Identity sharee = identity(String.valueOf(share.getShareeIdentityId()), identities);
     if (sharee != null) {
       entity.setUsername(sharee.getRemoteId());

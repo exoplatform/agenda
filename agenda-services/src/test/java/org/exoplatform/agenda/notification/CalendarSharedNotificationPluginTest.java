@@ -174,7 +174,7 @@ class CalendarSharedNotificationPluginTest {
    * @return the share
    */
   private static CalendarShare share() {
-    return new CalendarShare(5, 20, 3, 1, 1000, CalendarShareSource.EXO, null, null, false, null);
+    return new CalendarShare(5, 20, 3, 1, 1000, CalendarShareSource.EXO, null, null, false);
   }
 
   /**

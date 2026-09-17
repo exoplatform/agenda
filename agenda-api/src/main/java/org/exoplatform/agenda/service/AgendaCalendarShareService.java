@@ -69,14 +69,16 @@ public interface AgendaCalendarShareService {
 
   /**
    * Shares a calendar with a colleague, then asks every delivery channel to
-   * carry it. Sharing again with the same colleague changes nothing in eXo and
-   * only retries a delivery that has not happened.
+   * carry it. Delivery is invisible to the user sharing: the record stands
+   * whatever a channel answers, a channel that fails is logged and the
+   * record's {@code deliveredTo} stays null. Sharing again with the same
+   * colleague changes nothing in eXo and only asks the channels again for a
+   * delivery that has not happened.
    *
    * @param calendarId technical identifier of the calendar
    * @param shareeUsername the colleague
    * @param ownerUsername the user sharing, who must own the calendar
-   * @return the record, with {@code CalendarShare.getDeliveryWarning()} set when
-   *         a channel should have carried it and could not
+   * @return the record
    * @throws ObjectNotFoundException when the calendar does not exist
    * @throws IllegalAccessException when the user does not own it, or it is a
    *           space calendar or a subscription
@@ -100,19 +102,6 @@ public interface AgendaCalendarShareService {
    */
   void unshare(long calendarId, long shareeIdentityId, String ownerUsername) throws ObjectNotFoundException,
                                                                              IllegalAccessException;
-
-  /**
-   * Asks the channels again to carry a share they do not carry yet.
-   *
-   * @param calendarId technical identifier of the calendar
-   * @param shareeIdentityId identity identifier of the colleague
-   * @param ownerUsername the owner
-   * @return the record, with a warning when the delivery failed again
-   * @throws ObjectNotFoundException when the calendar or the share does not exist
-   * @throws IllegalAccessException when the user does not own the calendar
-   */
-  CalendarShare redeliver(long calendarId, long shareeIdentityId, String ownerUsername) throws ObjectNotFoundException,
-                                                                                         IllegalAccessException;
 
   /**
    * The colleagues a calendar is shared with, oldest share first.
