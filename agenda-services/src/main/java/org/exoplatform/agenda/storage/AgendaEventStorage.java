@@ -75,6 +75,7 @@ public class AgendaEventStorage {
                                      attendeeIds,
                                      responseTypes,
                                      eventFilter.getExcludedCalendarIds(),
+                                     eventFilter.getCalendarIds(),
                                      limit);
   }
 

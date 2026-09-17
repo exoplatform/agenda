@@ -617,4 +617,82 @@
     </rollback>
   </changeSet>
 
+  <!--
+    EXO-90357: a personal calendar shared, read-only, with a colleague. One row
+    per (calendar, colleague): the unique key spans two columns, so it cannot
+    be declared inside createTable and gets a changeset of its own below — the
+    mysql modifySql here is appended to EVERY statement this changeset
+    generates, and an addUniqueConstraint here would become
+    "ALTER TABLE ... ENGINE=INNODB" (EXO-90252). SOURCE says whether the owner
+    shared from eXo or recorded a share that already existed on a server;
+    DELIVERED_TO names the channel that also carries it (caldav:<serverId>)
+    and DELIVERY_REF what that channel handed back to recognise its delivery;
+    HIDDEN is the colleague's own choice to hide the calendar, which never
+    deletes the share. No access column: this version is read-only, write
+    access is a later, additive changeset.
+    No foreign key to EXO_AGENDA_CALENDAR, as for the link table: rows are
+    removed by a listener on the calendar deletion, and a row pointing at a
+    missing calendar grants nothing — every read checks the calendar first.
+  -->
+  <changeSet author="agenda" id="1.0.0-45">
+    <createTable tableName="EXO_AGENDA_CALENDAR_SHARE">
+      <column name="SHARE_ID" type="BIGINT" autoIncrement="${autoIncrement}" startWith="1">
+        <constraints nullable="false" primaryKey="true" primaryKeyName="PK_AGENDA_CALENDAR_SHARE" />
+      </column>
+      <column name="CALENDAR_ID" type="BIGINT">
+        <constraints nullable="false" />
+      </column>
+      <column name="SHAREE_IDENTITY_ID" type="BIGINT">
+        <constraints nullable="false" />
+      </column>
+      <column name="GRANTED_BY_IDENTITY_ID" type="BIGINT">
+        <constraints nullable="false" />
+      </column>
+      <column name="CREATED_DATE" type="TIMESTAMP">
+        <constraints nullable="false" />
+      </column>
+      <column name="SOURCE" type="NVARCHAR(50)">
+        <constraints nullable="false" />
+      </column>
+      <column name="DELIVERED_TO" type="NVARCHAR(200)" />
+      <column name="DELIVERY_REF" type="NVARCHAR(1024)" />
+      <column name="HIDDEN" type="BOOLEAN" defaultValueBoolean="false">
+        <constraints nullable="false" />
+      </column>
+    </createTable>
+    <rollback>
+      <dropTable tableName="EXO_AGENDA_CALENDAR_SHARE" />
+    </rollback>
+    <modifySql dbms="mysql">
+      <append value=" ENGINE=INNODB CHARSET=UTF8 COLLATE utf8_general_ci" />
+    </modifySql>
+  </changeSet>
+
+  <!-- The two-column unique key, apart from the createTable so that no modifySql reaches it. -->
+  <changeSet author="agenda" id="1.0.0-46">
+    <addUniqueConstraint tableName="EXO_AGENDA_CALENDAR_SHARE"
+                         columnNames="CALENDAR_ID, SHAREE_IDENTITY_ID"
+                         constraintName="UK_AGENDA_CALENDAR_SHARE" />
+    <rollback>
+      <dropUniqueConstraint tableName="EXO_AGENDA_CALENDAR_SHARE" constraintName="UK_AGENDA_CALENDAR_SHARE" />
+    </rollback>
+  </changeSet>
+
+  <!-- The sharee index in a changeset of its own: no modifySql may reach a CREATE INDEX. -->
+  <changeSet author="agenda" id="1.0.0-47">
+    <createIndex tableName="EXO_AGENDA_CALENDAR_SHARE" indexName="IDX_AGENDA_CALENDAR_SHARE_SHAREE">
+      <column name="SHAREE_IDENTITY_ID" />
+    </createIndex>
+    <rollback>
+      <dropIndex tableName="EXO_AGENDA_CALENDAR_SHARE" indexName="IDX_AGENDA_CALENDAR_SHARE_SHAREE" />
+    </rollback>
+  </changeSet>
+
+  <changeSet author="agenda" id="1.0.0-48" dbms="oracle,postgresql,hsqldb">
+    <createSequence sequenceName="SEQ_AGENDA_CALENDAR_SHARE_ID" startValue="1" />
+    <rollback>
+      <dropSequence sequenceName="SEQ_AGENDA_CALENDAR_SHARE_ID" />
+    </rollback>
+  </changeSet>
+
 </databaseChangeLog>

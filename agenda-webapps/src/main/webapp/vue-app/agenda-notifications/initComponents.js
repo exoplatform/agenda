@@ -20,6 +20,7 @@ import DatePollPlugin from './components/DatePollPlugin.vue';
 import PollVotePlugin from './components/PollVotePlugin.vue';
 import EventReplyPlugin from './components/EventReplyPlugin.vue';
 import EventReminderPlugin from './components/EventReminderPlugin.vue';
+import CalendarSharedPlugin from './components/CalendarSharedPlugin.vue';
 
 const components = {
   'user-notification-agenda-event': AgendaEventPlugin,
@@ -27,6 +28,7 @@ const components = {
   'user-notification-poll-vote': PollVotePlugin,
   'user-notification-event-reply': EventReplyPlugin,
   'user-notification-event-reminder': EventReminderPlugin,
+  'user-notification-calendar-shared': CalendarSharedPlugin,
 };
 
 for (const key in components) {

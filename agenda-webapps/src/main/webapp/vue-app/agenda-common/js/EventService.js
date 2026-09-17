@@ -17,9 +17,11 @@ import {deleteEventWebConferencing, saveEventWebConferencing} from './EventWebCo
  *          out of the results, whatever the selected owners bring in: the
  *          personal calendars of a user all share one owner, so ownerIds
  *          alone cannot express a selection among them
+ * @param {Array} calendarIds identifiers of the calendars other users shared
+ *          with the user whose events are wanted too, may be empty (EXO-90357)
  * @returns {Promise} resolved with the event list
  */
-export function getEvents(query, ownerIds, attendeeIdentityId, start, end, limit, responseTypes, expand, excludedCalendarIds) {
+export function getEvents(query, ownerIds, attendeeIdentityId, start, end, limit, responseTypes, expand, excludedCalendarIds, calendarIds) {
   if (typeof start === 'object') {
     start = toRFC3339(start);
   }
@@ -57,6 +59,12 @@ export function getEvents(query, ownerIds, attendeeIdentityId, start, end, limit
 
   if (excludedCalendarIds && excludedCalendarIds.length) {
     params.excludedCalendarIds = excludedCalendarIds;
+  }
+
+  // The calendars colleagues shared with the user (EXO-90357), asked for on
+  // top of the owner selection: the server checks each against the user
+  if (calendarIds && calendarIds.length) {
+    params.calendarIds = calendarIds;
   }
 
   params = $.param(params, true);

@@ -72,7 +72,7 @@ describe('Hidden calendars of the agenda grid', () => {
   it('asks the server to leave out every hidden calendar of the user, subscribed ones included', () => {
     const source = fs.readFileSync(path.resolve(__dirname, '../../main/webapp/vue-app/agenda/components/Agenda.vue'), 'utf8');
 
-    expect(source).toContain("'attendees,conferences', this.hiddenOwnCalendarIds)");
+    expect(source).toContain("'attendees,conferences', this.hiddenOwnCalendarIds, sharedCalendarIds)");
     expect(source).toContain("this.$root.$on('agenda-subscribed-calendars-visibility-changed', this.changeHiddenSubscribedCalendars);");
   });
 
