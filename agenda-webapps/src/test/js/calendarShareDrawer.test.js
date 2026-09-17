@@ -1,0 +1,280 @@
+/*
+ * Copyright (C) 2026 eXo Platform SAS.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
+import Vue from 'vue';
+import {shallowMount} from '@vue/test-utils';
+
+import AgendaCalendarShareDrawer from '../../main/webapp/vue-app/agenda-common/components/filter/AgendaCalendarShareDrawer.vue';
+
+/**
+ * The calendar share drawer (EXO-90357): what the owner sees — the
+ * colleagues in eXo, where a share also lives, a failed delivery and its
+ * retry, the shares a server holds outside eXo — and what each action does.
+ */
+describe('Calendar share drawer', () => {
+
+  Vue.config.ignoredElements = [/^v-/, 'exo-user-avatar', 'exo-identity-suggester'];
+
+  const CALENDAR = {id: 10, name: 'Work', acl: {canShare: true}};
+
+  const ALICE = {calendarId: 10, shareeIdentityId: 3, username: 'alice', displayName: 'Alice Liddell', source: 'EXO', deliveredTo: 'caldav:1', deliveryWarning: null, disabled: false};
+
+  const BOB = {calendarId: 10, shareeIdentityId: 4, username: 'bob', displayName: 'Bob Builder', source: 'EXO', deliveredTo: null, deliveryWarning: 'SHAREE_NOT_CONNECTED', disabled: false};
+
+  const OUTSIDE = {channelId: 'caldav:1', externalId: 'grant-9', kind: 'OUTSIDE_EXO', shareeIdentityId: 0, displayName: 'x@y.org', removable: true, readOnly: true};
+
+  const CAROL_ON_SERVER = {channelId: 'caldav:1', externalId: 'grant-5', kind: 'EXO_USER', shareeIdentityId: 5, displayName: 'Carol', removable: true, readOnly: true};
+
+  let service;
+
+  let drawerStub;
+
+  let confirmStub;
+
+  /**
+   * Waits for every pending promise callback.
+   *
+   * @returns {Promise} resolved on the next macrotask
+   */
+  function flush() {
+    return new Promise(resolve => setTimeout(resolve));
+  }
+
+  /**
+   * Mounts the drawer with eXo's $t and the service mocked.
+   *
+   * @returns {Object} the wrapper
+   */
+  function mountDrawer() {
+    const wrapper = shallowMount(AgendaCalendarShareDrawer, {
+      mocks: {
+        // A share refusal code is worded by the bundle; the drawer falls back
+        // to its generic sentence for a code the bundle does not know
+        $t: (key, args) => (args && `${key}(${Object.values(args).join('|')})`) || (key.startsWith('agenda.share.') ? `${key} (worded)` : key),
+        $calendarShareService: service,
+      },
+      stubs: {
+        'exo-drawer': drawerStub,
+        'exo-confirm-dialog': confirmStub,
+      },
+    });
+    wrapper.rootEmit = jest.spyOn(wrapper.vm.$root, '$emit');
+    return wrapper;
+  }
+
+  /**
+   * Opens the drawer on the calendar and waits for its listing.
+   *
+   * @param {Object} wrapper the wrapper
+   * @returns {Promise} resolved once listed
+   */
+  async function open(wrapper) {
+    wrapper.vm.$root.$emit('agenda-calendar-share-drawer-open', CALENDAR);
+    await flush();
+  }
+
+  beforeAll(() => {
+    global.eXo = {env: {portal: {language: 'en', userName: 'owner'}}};
+    global.extensionRegistry = {loadExtensions: () => []};
+  });
+
+  beforeEach(() => {
+    service = {
+      getShares: jest.fn().mockResolvedValue({shares: [ALICE, BOB], externalShares: [OUTSIDE, CAROL_ON_SERVER]}),
+      share: jest.fn(),
+      unshare: jest.fn().mockResolvedValue(),
+      redeliver: jest.fn(),
+      adopt: jest.fn(),
+      removeExternalShare: jest.fn().mockResolvedValue(),
+    };
+    drawerStub = {
+      template: '<div class="drawer-stub"><slot name="title"></slot><slot name="content"></slot><slot name="footer"></slot></div>',
+      methods: {
+        open: jest.fn(),
+        close: jest.fn(),
+      },
+    };
+    confirmStub = {
+      template: '<div class="confirm-stub"></div>',
+      methods: {
+        open: jest.fn(),
+      },
+    };
+  });
+
+  it('lists the colleagues in eXo, where a share also lives, and the failed delivery with its retry', async () => {
+    const wrapper = mountDrawer();
+
+    await open(wrapper);
+
+    expect(drawerStub.methods.open).toHaveBeenCalled();
+    const rows = wrapper.findAll('.agenda-calendar-sharee');
+    expect(rows).toHaveLength(2);
+    expect(rows.at(0).find('.agenda-calendar-sharee-name').text()).toContain('Alice Liddell');
+    expect(rows.at(0).find('.agenda-calendar-share-channel').text()).toBe('agenda.calendarShare.alsoOn(CalDAV 1)');
+    expect(rows.at(0).find('.agenda-calendar-share-retry').exists()).toBe(false);
+    expect(rows.at(1).find('.agenda-calendar-share-warning').text()).toBe('agenda.calendarShare.warning.SHAREE_NOT_CONNECTED');
+    expect(rows.at(1).find('.agenda-calendar-share-retry').exists()).toBe(true);
+  });
+
+  it('lists the shares a server holds outside eXo apart, with Record in eXo for a colleague only', async () => {
+    const wrapper = mountDrawer();
+
+    await open(wrapper);
+
+    const external = wrapper.findAll('.agenda-calendar-external-share');
+    expect(external).toHaveLength(2);
+    expect(external.at(0).text()).toContain('x@y.org');
+    expect(external.at(0).find('.agenda-calendar-share-adopt').exists()).toBe(false);
+    expect(external.at(0).find('.agenda-calendar-share-remove-external').exists()).toBe(true);
+    expect(external.at(1).find('.agenda-calendar-share-adopt').exists()).toBe(true);
+  });
+
+  it('shares with the colleague the suggester picked, lists the answer and tells the rows', async () => {
+    const dave = {calendarId: 10, shareeIdentityId: 6, username: 'dave', displayName: 'Dave', source: 'EXO'};
+    service.share.mockResolvedValue(dave);
+    const wrapper = mountDrawer();
+    await open(wrapper);
+
+    await wrapper.setData({sharee: {id: 'organization:dave', remoteId: 'dave', providerId: 'organization'}});
+    await flush();
+
+    expect(service.share).toHaveBeenCalledWith(10, 'dave');
+    expect(wrapper.findAll('.agenda-calendar-sharee')).toHaveLength(3);
+    expect(wrapper.vm.sharee).toBeNull();
+    expect(wrapper.rootEmit).toHaveBeenCalledWith('agenda-calendar-shares-changed');
+    expect(wrapper.rootEmit).toHaveBeenCalledWith('alert-message', 'agenda.calendarShare.shared(Dave)', 'success');
+  });
+
+  it('asks first when the calendar holds copies of the owner\'s eXo meetings, and shares on OK only', async () => {
+    service.getShares.mockResolvedValue({shares: [], externalShares: [], meetingCopies: true});
+    service.share.mockResolvedValue({calendarId: 10, shareeIdentityId: 6, username: 'dave', displayName: 'Dave', source: 'EXO'});
+    const wrapper = mountDrawer();
+    await open(wrapper);
+
+    await wrapper.setData({sharee: {id: 'organization:dave', remoteId: 'dave', providerId: 'organization'}});
+    await flush();
+
+    expect(confirmStub.methods.open).toHaveBeenCalled();
+    expect(service.share).not.toHaveBeenCalled();
+    expect(wrapper.vm.confirmTitle).toBe('agenda.calendarShare.confirmMeetingCopies.title');
+    expect(wrapper.vm.confirmMessage).toBe('');
+    expect(wrapper.vm.confirmOkLabel).toBe('agenda.calendarShare.confirmMeetingCopies.ok');
+
+    wrapper.vm.cancelled();
+    expect(service.share).not.toHaveBeenCalled();
+
+    await wrapper.setData({sharee: {id: 'organization:dave', remoteId: 'dave', providerId: 'organization'}});
+    await flush();
+    await wrapper.vm.confirmed();
+    await flush();
+
+    expect(service.share).toHaveBeenCalledTimes(1);
+    expect(service.share).toHaveBeenCalledWith(10, 'dave');
+  });
+
+  it('shares without a question when the calendar holds no meeting copies', async () => {
+    service.getShares.mockResolvedValue({shares: [], externalShares: [], meetingCopies: false});
+    service.share.mockResolvedValue({calendarId: 10, shareeIdentityId: 6, username: 'dave', displayName: 'Dave', source: 'EXO'});
+    const wrapper = mountDrawer();
+    await open(wrapper);
+
+    await wrapper.setData({sharee: {id: 'organization:dave', remoteId: 'dave', providerId: 'organization'}});
+    await flush();
+
+    expect(confirmStub.methods.open).not.toHaveBeenCalled();
+    expect(service.share).toHaveBeenCalledWith(10, 'dave');
+  });
+
+  it('words a refusal under the field rather than in a snackbar', async () => {
+    service.share.mockRejectedValue(new Error('agenda.share.shareeIsOwner'));
+    const wrapper = mountDrawer();
+    await open(wrapper);
+
+    await wrapper.setData({sharee: {id: 'organization:owner', remoteId: 'owner', providerId: 'organization'}});
+    await flush();
+
+    expect(wrapper.find('.agenda-calendar-share-error').text()).toBe('agenda.share.shareeIsOwner (worded)');
+    expect(wrapper.findAll('.agenda-calendar-sharee')).toHaveLength(2);
+  });
+
+  it('asks before revoking, then revokes and reads the list again', async () => {
+    const wrapper = mountDrawer();
+    await open(wrapper);
+
+    await wrapper.findAll('.agenda-calendar-share-unshare').at(0).trigger('click');
+    expect(confirmStub.methods.open).toHaveBeenCalled();
+    expect(service.unshare).not.toHaveBeenCalled();
+
+    service.getShares.mockResolvedValue({shares: [BOB], externalShares: [OUTSIDE, CAROL_ON_SERVER]});
+    await wrapper.vm.unshare();
+    await flush();
+
+    expect(service.unshare).toHaveBeenCalledWith(10, 3);
+    expect(wrapper.findAll('.agenda-calendar-sharee')).toHaveLength(1);
+    expect(service.getShares).toHaveBeenCalledTimes(2);
+    expect(wrapper.rootEmit).toHaveBeenCalledWith('agenda-calendar-shares-changed');
+  });
+
+  it('retries a failed delivery and shows the outcome', async () => {
+    service.redeliver.mockResolvedValue({...BOB, deliveredTo: 'caldav:1', deliveryWarning: null});
+    const wrapper = mountDrawer();
+    await open(wrapper);
+
+    await wrapper.find('.agenda-calendar-share-retry').trigger('click');
+    await flush();
+
+    expect(service.redeliver).toHaveBeenCalledWith(10, 4);
+    expect(wrapper.find('.agenda-calendar-share-retry').exists()).toBe(false);
+    expect(wrapper.findAll('.agenda-calendar-share-channel')).toHaveLength(2);
+    expect(wrapper.rootEmit).toHaveBeenCalledWith('alert-message', 'agenda.calendarShare.delivered(CalDAV 1)', 'success');
+  });
+
+  it('records a server share in eXo and moves it to the colleagues', async () => {
+    service.adopt.mockResolvedValue({calendarId: 10, shareeIdentityId: 5, username: 'carol', displayName: 'Carol', source: 'ADOPTED', deliveredTo: 'caldav:1'});
+    const wrapper = mountDrawer();
+    await open(wrapper);
+
+    await wrapper.find('.agenda-calendar-share-adopt').trigger('click');
+    await flush();
+
+    expect(service.adopt).toHaveBeenCalledWith(10, 5, 'caldav:1');
+    expect(wrapper.findAll('.agenda-calendar-sharee')).toHaveLength(3);
+    expect(wrapper.findAll('.agenda-calendar-external-share')).toHaveLength(1);
+  });
+
+  it('removes a server share from the server', async () => {
+    const wrapper = mountDrawer();
+    await open(wrapper);
+
+    await wrapper.find('.agenda-calendar-share-remove-external').trigger('click');
+    await flush();
+
+    expect(service.removeExternalShare).toHaveBeenCalledWith(10, 'caldav:1', 'grant-9');
+    expect(wrapper.findAll('.agenda-calendar-external-share')).toHaveLength(1);
+  });
+
+  it('says so when the calendar is shared with nobody', async () => {
+    service.getShares.mockResolvedValue({shares: [], externalShares: []});
+    const wrapper = mountDrawer();
+
+    await open(wrapper);
+
+    expect(wrapper.find('.agenda-calendar-share-none').exists()).toBe(true);
+    expect(wrapper.find('.agenda-calendar-share-external-title').exists()).toBe(false);
+  });
+
+});

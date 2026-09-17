@@ -124,6 +124,13 @@
       v-if="connectorsAvailable"
       :connectors="connectors" />
     <!--
+      The calendars colleagues shared with the user in eXo (EXO-90357): its
+      own "Shared with me" section, drawn whether or not a connector exists,
+      right after the accounts' sections. A share also delivered to a CalDAV
+      server is drawn here and left out of the connector's section above.
+    -->
+    <agenda-left-panel-shared-calendars />
+    <!--
       The calendars the user subscribed to by link (EXO-90278), read-only and
       refreshed from outside: after the accounts, before the calendars of the
       spaces. The component draws its own section, and nothing without a

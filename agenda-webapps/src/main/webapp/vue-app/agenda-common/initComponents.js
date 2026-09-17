@@ -16,6 +16,7 @@ import AgendaPeriodSelector from './components/top-toolbar/AgendaPeriodSelector.
 import AgendaLeftPanel from './components/left-panel/AgendaLeftPanel.vue';
 import AgendaLeftPanelRemoteCalendars from './components/left-panel/AgendaLeftPanelRemoteCalendars.vue';
 import AgendaLeftPanelSubscribedCalendars from './components/left-panel/AgendaLeftPanelSubscribedCalendars.vue';
+import AgendaLeftPanelSharedCalendars from './components/left-panel/AgendaLeftPanelSharedCalendars.vue';
 
 import AgendaFilterCalendarDrawer from './components/filter/AgendaFilterCalendarDrawer.vue';
 import AgendaFilterCalendarList from './components/filter/AgendaFilterCalendarList.vue';
@@ -25,6 +26,7 @@ import AgendaPersonalCalendarList from './components/filter/AgendaPersonalCalend
 import AgendaPersonalCalendarDrawer from './components/filter/AgendaPersonalCalendarDrawer.vue';
 import AgendaCalendarLinkDrawer from './components/filter/AgendaCalendarLinkDrawer.vue';
 import AgendaCalendarSubscriptionDrawer from './components/filter/AgendaCalendarSubscriptionDrawer.vue';
+import AgendaCalendarShareDrawer from './components/filter/AgendaCalendarShareDrawer.vue';
 import AgendaEventFormDestination from './components/event/form/AgendaEventFormDestination.vue';
 
 import AgendaPendingInvitationDrawer from './components/pending-date-polls/AgendaPendingInvitationDrawer.vue';
@@ -110,6 +112,7 @@ const components = {
   'agenda-left-panel': AgendaLeftPanel,
   'agenda-left-panel-remote-calendars': AgendaLeftPanelRemoteCalendars,
   'agenda-left-panel-subscribed-calendars': AgendaLeftPanelSubscribedCalendars,
+  'agenda-left-panel-shared-calendars': AgendaLeftPanelSharedCalendars,
   'agenda-filter-calendar-drawer': AgendaFilterCalendarDrawer,
   'agenda-filter-calendar-list': AgendaFilterCalendarList,
   'agenda-filter-calendar-item': AgendaFilterCalendarItem,
@@ -118,6 +121,7 @@ const components = {
   'agenda-personal-calendar-drawer': AgendaPersonalCalendarDrawer,
   'agenda-calendar-link-drawer': AgendaCalendarLinkDrawer,
   'agenda-calendar-subscription-drawer': AgendaCalendarSubscriptionDrawer,
+  'agenda-calendar-share-drawer': AgendaCalendarShareDrawer,
   'agenda-event-form-destination': AgendaEventFormDestination,
   'agenda-create-event-button': AgendaCreateEventButton,
   'agenda-calendar-filter-button': AgendaCalendarFilterButton,
@@ -199,6 +203,7 @@ import * as eventService from './js/EventService.js';
 import * as calendarService from './js/CalendarService.js';
 import * as calendarLinkService from './js/CalendarLinkService.js';
 import * as calendarSubscriptionService from './js/CalendarSubscriptionService.js';
+import * as calendarShareService from './js/CalendarShareService.js';
 import * as settingsService from './js/SettingsService.js';
 import * as availabilityService from './js/AvailabilityService.js';
 import * as agendaUtils from './js/AgendaUtils.js';
@@ -222,6 +227,11 @@ if (!Vue.prototype.$calendarLinkService) {
 if (!Vue.prototype.$calendarSubscriptionService) {
   window.Object.defineProperty(Vue.prototype, '$calendarSubscriptionService', {
     value: calendarSubscriptionService,
+  });
+}
+if (!Vue.prototype.$calendarShareService) {
+  window.Object.defineProperty(Vue.prototype, '$calendarShareService', {
+    value: calendarShareService,
   });
 }
 if (!Vue.prototype.$eventService) {
