@@ -320,14 +320,15 @@ class AgendaCalendarShareServiceTest {
   void externalSharesAreReadLiveWithoutTheRecordedSharees() throws Exception {
     channel.answer = ChannelDelivery.delivered("caldav:1", null);
     service.share(PERSONAL_CAL, "alice", "owner");
-    channel.external = List.of(new ExternalShare(null, "grant-alice", "EXO_USER", ALICE, "Alice", true, true),
-                               new ExternalShare(null, "grant-bob", "EXO_USER", 4, "Bob", true, true),
+    channel.external = List.of(new ExternalShare("caldav:1", "grant-alice", "EXO_USER", ALICE, "Alice", true, true),
+                               new ExternalShare("caldav:1", "grant-bob", "EXO_USER", 4, "Bob", true, true),
                                new ExternalShare(null, "grant-out", "OUTSIDE_EXO", 0, "someone@else.org", true, true));
 
     List<ExternalShare> external = service.getExternalShares(PERSONAL_CAL, "owner");
 
     assertEquals(List.of("grant-bob", "grant-out"), external.stream().map(ExternalShare::getExternalId).toList());
-    assertEquals("caldav:1", external.get(0).getChannelId());
+    assertEquals("caldav:1", external.get(0).getChannelId(), "the channel's qualified id, naming the server, is kept");
+    assertEquals("caldav", external.get(1).getChannelId(), "a row without one gets the channel's bare id");
     assertThrows(IllegalAccessException.class, () -> service.getExternalShares(PERSONAL_CAL, "alice"));
 
     channel.failure = new IllegalStateException("server down");
@@ -492,11 +493,14 @@ class AgendaCalendarShareServiceTest {
     int                 withdrawals;
 
     /**
-     * {@inheritDoc}
+     * The bare channel id: its deliveries say {@code caldav:1}, the server,
+     * and the service must still find this channel for them by that prefix.
+     *
+     * @return {@code caldav}
      */
     @Override
     public String id() {
-      return "caldav:1";
+      return "caldav";
     }
 
     /**

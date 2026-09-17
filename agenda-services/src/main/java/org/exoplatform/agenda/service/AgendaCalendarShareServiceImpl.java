@@ -234,7 +234,12 @@ public class AgendaCalendarShareServiceImpl implements AgendaCalendarShareServic
         List<ExternalShare> listed = channel.listExternalShares(calendar.getId(), ownerUsername, recorded);
         if (listed != null) {
           listed.stream().filter(share -> share != null && !recorded.contains(share.getShareeIdentityId())).forEach(share -> {
-            share.setChannelId(channelId(channel));
+            // The channel's own, qualified id when it gave one — caldav:<serverId>
+            // — so the row names the server the grant is on and a removal
+            // reaches the same channel by prefix; the bare id otherwise
+            if (StringUtils.isBlank(share.getChannelId())) {
+              share.setChannelId(channelId(channel));
+            }
             external.add(share);
           });
         }
@@ -476,16 +481,33 @@ public class AgendaCalendarShareServiceImpl implements AgendaCalendarShareServic
   }
 
   /**
-   * The channel bearing an identifier.
+   * The channel bearing an identifier: the one whose id a record's
+   * {@code deliveredTo} is, or qualifies — a channel answering {@code caldav}
+   * stamps its deliveries {@code caldav:<serverId>} to say which server holds
+   * the grant.
    *
-   * @param channelId the identifier
+   * @param channelId the identifier a record carries
    * @return the channel, or null
    */
   private CalendarShareChannelPlugin channel(String channelId) {
     if (StringUtils.isBlank(channelId)) {
       return null;
     }
-    return channels().stream().filter(channel -> StringUtils.equals(channelId(channel), channelId)).findFirst().orElse(null);
+    return channels().stream()
+                     .filter(channel -> carries(channelId(channel), channelId))
+                     .findFirst()
+                     .orElse(null);
+  }
+
+  /**
+   * Whether a channel's id is, or is the prefix of, a delivery's channel id.
+   *
+   * @param id the channel's id
+   * @param deliveredTo the delivery's channel id
+   * @return true when the channel carried the delivery
+   */
+  private static boolean carries(String id, String deliveredTo) {
+    return StringUtils.equals(id, deliveredTo) || StringUtils.startsWith(deliveredTo, id + ":");
   }
 
   /**

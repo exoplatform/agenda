@@ -58,8 +58,10 @@ import org.exoplatform.agenda.model.ExternalShare;
 public interface CalendarShareChannelPlugin {
 
   /**
-   * The channel's identifier, stored on the records it carries —
-   * {@code caldav:<serverId>}. Stable across restarts.
+   * The channel's identifier — {@code caldav}. Stable across restarts. A
+   * delivery may qualify it with the server that holds the grant,
+   * {@code caldav:<serverId>}, on the record's {@code deliveredTo}: agenda
+   * resolves the channel by that prefix when it withdraws the share.
    *
    * @return the identifier, never blank
    */
