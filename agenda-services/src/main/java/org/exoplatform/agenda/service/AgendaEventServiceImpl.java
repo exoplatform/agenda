@@ -347,6 +347,17 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                     event.isAllowAttendeeToUpdate(),
                                     event.isAllowAttendeeToInvite());
 
+    // 'open' is not part of the positional constructor above: set it explicitly
+    // or it is silently lost. Absent on the wire means locked at creation. The
+    // invariant (canBeOpen) is enforced here, not only by the UI hiding the
+    // padlock: an occurrence created through this path (the form's "this
+    // occurrence only" posts the computed occurrence with its parent and the
+    // parent's flag) keeps false in its own row, a date poll and a personal
+    // calendar event are never open. The status read is the one
+    // checkAndComputeDateOptions just derived from the date options.
+    eventToCreate.setOpen(Boolean.TRUE.equals(event.getOpen())
+        && canBeOpen(eventToCreate.getParentId(), eventToCreate.getStatus(), calendar));
+
     Event createdEvent = agendaEventStorage.createEvent(eventToCreate);
     createOrUpdateEventProperties(event.getParameters(), createdEvent);
     long eventId = createdEvent.getId();
@@ -457,6 +468,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     exceptionalEvent.setParentId(parentEvent.getId());
     exceptionalEvent.setRecurrence(null);
     exceptionalEvent.setOccurrence(new EventOccurrence(occurrenceId, true, false));
+    // The open flag is a property of the series: the occurrence row keeps false
+    // and is ignored, its effective value is always read from the parent
+    exceptionalEvent.setOpen(false);
     ZonedDateTime start = exceptionalEvent.getStart();
     ZonedDateTime end = exceptionalEvent.getEnd();
     long diffInSeconds = end.toEpochSecond() - start.toEpochSecond();
@@ -645,6 +659,19 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                     null,
                                     allowAttendeeToUpdate,
                                     allowAttendeeToInvite);
+
+    // 'open' is not part of the positional constructor above. A payload that
+    // does not state it (null) keeps the stored value, so no client can lock or
+    // open an event by omission; an explicit value is applied under the same
+    // canUpdateEvent right as the rest of the save. The invariant (canBeOpen)
+    // is evaluated on the TARGET calendar and the derived status, so moving an
+    // event to a personal calendar or turning it into a date poll locks it. The
+    // row of an occurrence (stored parentId, never the client's) always keeps
+    // false: the flag is a property of the series, and the wire carries the
+    // parent's value for an occurrence, so a full save of an occurrence must
+    // not write that value back into it.
+    boolean open = event.getOpen() == null ? Boolean.TRUE.equals(storedEvent.getOpen()) : event.getOpen();
+    eventToUpdate.setOpen(open && canBeOpen(storedEvent.getParentId(), eventToUpdate.getStatus(), calendar));
 
     // Delete exceptional occurrences when updating the whole recurrent event
     if (eventToUpdate.getRecurrence() != null || storedEvent.getRecurrence() != null) {
@@ -967,6 +994,35 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       return false;
     }
     return Utils.canCreateEvent(identityManager, spaceService, calendar.getOwnerId(), userIdentityId);
+  }
+
+  /**
+   * Where the open flag may be true at all, whatever the client sends: a
+   * standalone event (an occurrence row keeps false, the series' value
+   * applies), that is not a date poll (open date polls are another eXIP,
+   * 7.3.0.40 — decided 2026-09-17), in a space calendar (in a personal calendar
+   * nobody but the owner and the invitees can reach the event, so there is
+   * nobody to open it to). The server-side invariant behind the board's rules,
+   * independent of the UI hiding the padlock.
+   *
+   * @param parentId the stored parent id (the event's own id when it is the
+   *          series or a standalone event)
+   * @param status the status the save is about to store, as derived from the
+   *          date options
+   * @param calendar the calendar the event is saved into
+   * @return whether the open flag may be stored as true
+   */
+  private boolean canBeOpen(long parentId, EventStatus status, Calendar calendar) {
+    return parentId <= 0 && status != EventStatus.TENTATIVE && isSpaceCalendar(calendar);
+  }
+
+  /**
+   * In a personal calendar nobody but the owner and the invitees can reach the
+   * event, so there is nobody to open it to.
+   */
+  private boolean isSpaceCalendar(Calendar calendar) {
+    Identity owner = calendar == null ? null : identityManager.getIdentity(String.valueOf(calendar.getOwnerId()));
+    return owner != null && owner.isSpace();
   }
 
   /**

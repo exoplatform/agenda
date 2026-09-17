@@ -151,7 +151,7 @@ public class EntityMapper {
       // Set updatedDate = null when no update was made on Event
       updatedDate = AgendaDateUtils.fromDate(eventEntity.getUpdatedDate());
     }
-    return new Event(eventEntity.getId(),
+    Event event = new Event(eventEntity.getId(),
                      parentId,
                      eventEntity.getCalendar().getId(),
                      eventEntity.getCreatorId(),
@@ -174,6 +174,9 @@ public class EntityMapper {
                      null,
                      eventEntity.isAllowAttendeeToUpdate(),
                      eventEntity.isAllowAttendeeToInvite());
+    // Not part of the positional constructor: set explicitly or it is lost
+    event.setOpen(eventEntity.isOpen());
+    return event;
   }
 
   public static EventEntity toEntity(Event event) {
@@ -207,6 +210,7 @@ public class EntityMapper {
     }
     eventEntity.setAllowAttendeeToInvite(event.isAllowAttendeeToInvite());
     eventEntity.setAllowAttendeeToUpdate(event.isAllowAttendeeToUpdate());
+    eventEntity.setOpen(Boolean.TRUE.equals(event.getOpen()));
     eventEntity.setTimeZoneId(eventZoneId.getId());
 
     ZonedDateTime start = event.getStart();
