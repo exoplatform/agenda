@@ -684,6 +684,16 @@ export default {
           groups.push({name: connector.name, calendars: own});
         }
       });
+      // A delivered share whose server copy is not among the rows the
+      // connectors listed may be drawn twice: the honest degradation, said
+      // once here so that a doubled row has a trace to start from. Nothing
+      // to say when no connector listed anything: there is no copy to draw
+      if (answers.length) {
+        deliveries
+          .filter(delivery => !answers.some(({connector, calendars}) => calendars
+            .some(calendar => this.isDeliveryOf(connector, calendar, delivery))))
+          .forEach(delivery => console.warn(`Shared calendar ${delivery.calendarId} delivered to ${delivery.deliveredTo} as ${delivery.deliveryRef} has no listed server copy to leave out; it may be drawn twice`));
+      }
       const shared = nativeRows.concat(sharedRows);
       if (shared.length) {
         shared.sort((first, second) => String(first.name || '').localeCompare(String(second.name || ''), undefined, {sensitivity: 'base'}));

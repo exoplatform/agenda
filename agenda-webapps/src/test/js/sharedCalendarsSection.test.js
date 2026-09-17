@@ -47,6 +47,8 @@ describe('One "Shared with me" section for eXo shares and server shares', () => 
 
   let service;
 
+  let warn;
+
   /**
    * Waits for every pending promise callback and the gathered retrieval's
    * timer, with real timers.
@@ -136,6 +138,7 @@ describe('One "Shared with me" section for eXo shares and server shares', () => 
   });
 
   beforeEach(() => {
+    warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
     localStorage.clear();
     // The stand-in remembers a hide, as the server does
     const rows = [BOB_CAL, CAROL_CAL, HIDDEN_CAL].map(calendar => ({...calendar}));
@@ -153,6 +156,7 @@ describe('One "Shared with me" section for eXo shares and server shares', () => 
   });
 
   afterEach(() => {
+    warn.mockRestore();
     document.body.innerHTML = '';
   });
 
@@ -175,6 +179,8 @@ describe('One "Shared with me" section for eXo shares and server shares', () => 
     expect(wrapper.findAll('.agenda-calendar-settings').at(0).find('v-list-item-content').attributes('title')).toBe('Bob — agenda.leftPanel.sharedBy(Bob Builder)');
     expect(wrapper.findAll('.agenda-calendar-settings').at(0).find('exo-user-avatar').attributes('profile-id')).toBe('bob');
     expect(wrapper.rootEmit).toHaveBeenCalledWith('agenda-shared-calendars-displayed-changed', [41, 42]);
+    // No connector listed anything: there is no server copy to leave out, nothing to say
+    expect(warn).not.toHaveBeenCalled();
   });
 
   it('draws one heading with an eXo share and a server share together, each calendar once, the delivered share through its eXo row', async () => {
@@ -223,9 +229,11 @@ describe('One "Shared with me" section for eXo shares and server shares', () => 
 
     await answer(deferred, [bobUnderMyHome]);
 
-    // Drawn twice: the honest degradation when nothing can tell the two apart
+    // Drawn twice: the honest degradation when nothing can tell the two
+    // apart, said once in the console so a doubled row has a trace
     expect(names(wrapper)).toEqual(['Bob', 'Bob', 'Carol']);
     expect(wrapper.rootEmit).toHaveBeenCalledWith('agenda-remote-calendars-changed', []);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('Shared calendar 41 delivered to caldav:1'));
   });
 
   it('keeps the rows mounted while both sources are asked again', async () => {

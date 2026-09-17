@@ -71,7 +71,8 @@ public interface CalendarShareChannelPlugin {
   String id();
 
   /**
-   * Carries a share the owner just recorded, or asked to retry.
+   * Carries a share the owner just recorded, or shared again while it was
+   * still undelivered.
    *
    * @param share the eXo record, never null
    * @param ownerUsername the owner of the calendar
