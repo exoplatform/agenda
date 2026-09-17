@@ -333,7 +333,8 @@ public abstract class BaseAgendaEventTest {
                      null,
                      false,
                      false,
-                     new HashMap<>());
+                     new HashMap<>(),
+                     null);
   }
 
   protected void begin() {
