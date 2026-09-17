@@ -602,4 +602,19 @@
     </rollback>
   </changeSet>
 
+  <!--
+    EXO-90322: whether an event's content may leave eXo through a published
+    calendar link. Stored by ordinal like AVAILABILITY next to it, so the
+    backfill value 0 is EventVisibility.DEFAULT — every event written before
+    this changeset keeps publishing in full, which is what it did.
+  -->
+  <changeSet author="agenda" id="1.0.0-44">
+    <addColumn tableName="EXO_AGENDA_EVENT">
+      <column name="VISIBILITY" type="SMALLINT" defaultValueNumeric="0" />
+    </addColumn>
+    <rollback>
+      <dropColumn tableName="EXO_AGENDA_EVENT" columnName="VISIBILITY" />
+    </rollback>
+  </changeSet>
+
 </databaseChangeLog>

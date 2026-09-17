@@ -111,16 +111,25 @@ class CalendarSubscriptionChangelogTest {
   }
 
   /**
-   * Rolling back what EXO-90278 added removes it all and leaves Publish's table,
-   * and the changelog applies again from there.
+   * Rolling back from EXO-90278's first changeset removes everything it added
+   * and leaves Publish's table, and the changelog applies again from there.
+   * <p>
+   * "From its first changeset" and not "what it added": the count reaches to the
+   * end of the changelog, so it also rolls back whatever later deliveries have
+   * appended since (EXO-90322 appended one). That is why it is counted and never
+   * written down — an assertion on the number was a measure of the changelog's
+   * length, and broke on the next delivery.
    *
    * @throws Exception when Liquibase fails
    */
   @Test
   void theAddedChangesetsRollBackAndReapply() throws Exception {
     CalendarLinkChangelogTest.update(connection);
+    // Counted, never written down: rolling back reaches from EXO-90278's first
+    // changeset to the end of the changelog, so every later delivery adds one
+    // (EXO-90322 did). What the count must be is not what this test is about —
+    // the assertions below are.
     int added = CalendarLinkChangelogTest.changesetsSince(connection, FIRST_CHANGESET);
-    assertEquals(5, added, "EXO-90278 adds five changesets");
 
     liquibase(connection).rollback(added, new Contexts(), new LabelExpression());
 
