@@ -1063,7 +1063,7 @@ class AgendaEventMcpToolTest {
   void getEventAttendeesPublicSucceeds() throws Exception {
     when(userAcl.hasAccessPermission(any(), eq(String.valueOf(EVENT_ID)), any(org.exoplatform.services.security.Identity.class))).thenReturn(true);
     Event event = buildEvent(EVENT_ID, CALENDAR_ID, START, END, EventStatus.CONFIRMED);
-    when(agendaEventService.getEventById(EVENT_ID)).thenReturn(event);
+    when(agendaEventService.getEventById(EVENT_ID, ZoneOffset.UTC, USER_IDENTITY_ID)).thenReturn(event);
     when(agendaEventAttendeeService.getEventAttendees(EVENT_ID))
                                                                 .thenReturn(new EventAttendeeList(List.of(new EventAttendee(1L,
                                                                                                                             0L,
@@ -1073,6 +1073,47 @@ class AgendaEventMcpToolTest {
 
     assertEquals(1, attendees.size());
     assertEquals(EventAttendeeResponse.ACCEPTED, attendees.get(0).getResponse());
+  }
+
+  /**
+   * A private event of a calendar shared with the user (EXO-90357) comes back
+   * masked from the checked read, and the tool then names nobody: the
+   * attendees are content, read again by identifier, and the read as the user
+   * is what tells the tool not to.
+   */
+  @Test
+  void getEventAttendeesOfAMaskedEventNamesNobody() throws Exception {
+    when(userAcl.hasAccessPermission(any(), eq(String.valueOf(EVENT_ID)), any(org.exoplatform.services.security.Identity.class))).thenReturn(true);
+    Event event = buildEvent(EVENT_ID, CALENDAR_ID, START, END, EventStatus.CONFIRMED);
+    event.setMasked(true);
+    when(agendaEventService.getEventById(EVENT_ID, ZoneOffset.UTC, USER_IDENTITY_ID)).thenReturn(event);
+    when(agendaEventAttendeeService.getEventAttendees(EVENT_ID))
+                                                                .thenReturn(new EventAttendeeList(List.of(new EventAttendee(1L,
+                                                                                                                            0L,
+                                                                                                                            EventAttendeeResponse.ACCEPTED))));
+
+    assertTrue(tool.getEventAttendees(EVENT_ID).isEmpty());
+    Mockito.verify(agendaEventAttendeeService, Mockito.never()).getEventAttendees(EVENT_ID);
+  }
+
+  /**
+   * The conference link of a masked event is withheld with the rest of its
+   * content (EXO-90357).
+   */
+  @Test
+  void getEventConferenceOfAMaskedEventGivesNone() throws Exception {
+    when(userAcl.hasAccessPermission(any(), eq(String.valueOf(EVENT_ID)), any(org.exoplatform.services.security.Identity.class))).thenReturn(true);
+    Event event = buildEvent(EVENT_ID, CALENDAR_ID, START, END, EventStatus.CONFIRMED);
+    event.setMasked(true);
+    when(agendaEventService.getEventById(EVENT_ID, ZoneOffset.UTC, USER_IDENTITY_ID)).thenReturn(event);
+    EventConference conference = new EventConference();
+    conference.setUrl("https://meet.example/room");
+    when(agendaEventConferenceService.getEventConferences(EVENT_ID)).thenReturn(List.of(conference));
+
+    ConferenceModel model = tool.getEventConference(EVENT_ID);
+
+    assertNull(model.getUrl());
+    assertNull(model.getType());
   }
 
   @Test
@@ -1126,6 +1167,12 @@ class AgendaEventMcpToolTest {
   @Test
   void getEventConferenceSucceeds() throws Exception {
     when(userAcl.hasAccessPermission(any(), eq(String.valueOf(EVENT_ID)), any(org.exoplatform.services.security.Identity.class))).thenReturn(true);
+    when(agendaEventService.getEventById(EVENT_ID, ZoneOffset.UTC, USER_IDENTITY_ID))
+                                                                                     .thenReturn(buildEvent(EVENT_ID,
+                                                                                                            CALENDAR_ID,
+                                                                                                            START,
+                                                                                                            END,
+                                                                                                            EventStatus.CONFIRMED));
     EventConference conference = new EventConference();
     conference.setType("jitsi");
     conference.setUrl("https://meet.example/room");

@@ -17,6 +17,7 @@
 package org.exoplatform.agenda.util;
 
 import java.time.*;
+import java.util.Locale;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -39,6 +40,12 @@ public class RestEntityBuilder {
   private static final String IDENTITIES_REST_PATH = "/v1/social/identities"; // NOSONAR
 
   private static final String IDENTITIES_EXPAND    = "all";
+
+  /** Bundle key of the title shown for a masked event (EXO-90357). */
+  private static final String MASKED_SUMMARY_KEY   = "agenda.busy";
+
+  /** The title of a masked event when the bundle cannot be read. */
+  private static final String MASKED_SUMMARY       = "Busy";
 
   private RestEntityBuilder() {
   }
@@ -71,6 +78,8 @@ public class RestEntityBuilder {
     // Read-only for clients: toCalendar never copies it back, the stored row
     // decides (EXO-90278)
     calendarEntity.setSubscription(calendar.isSubscription());
+    // Read-only too: computed for the viewer by the service (EXO-90357)
+    calendarEntity.setSharedWithMe(calendar.isSharedWithMe());
     return calendarEntity;
   }
 
@@ -236,6 +245,7 @@ public class RestEntityBuilder {
                                                                                           userTimeZone,
                                                                                           true);
     eventSearchResultEntity.setExcerpts(eventSearchResult.getExcerpts());
+    eventSearchResultEntity.setMasked(eventSearchResult.isMasked());
     return eventSearchResultEntity;
   }
 
@@ -302,7 +312,7 @@ public class RestEntityBuilder {
                                          getIdentityEntity(identityManager, event.getCreatorId()),
                                          AgendaDateUtils.toRFC3339Date(event.getCreated()),
                                          AgendaDateUtils.toRFC3339Date(event.getUpdated()),
-                                         event.getSummary(),
+                                         event.isMasked() ? maskedSummary() : event.getSummary(),
                                          HTMLSanitizer.sanitize(HtmlUtils.transform(event.getDescription(), null)),
                                          event.getLocation(),
                                          event.getColor(),
@@ -334,7 +344,7 @@ public class RestEntityBuilder {
                              getIdentityEntity(identityManager, event.getCreatorId()),
                              AgendaDateUtils.toRFC3339Date(event.getCreated()),
                              AgendaDateUtils.toRFC3339Date(event.getUpdated()),
-                             event.getSummary(),
+                             event.isMasked() ? maskedSummary() : event.getSummary(),
                              HTMLSanitizer.sanitize(HtmlUtils.transform(event.getDescription(), null)),
                              event.getLocation(),
                              event.getColor(),
@@ -355,7 +365,24 @@ public class RestEntityBuilder {
                              event.isAllowAttendeeToUpdate(),
                              event.isAllowAttendeeToInvite(),
                              null,
-                             false);
+                             false,
+                             event.isMasked());
+    }
+  }
+
+  /**
+   * The title a client shows for an event whose content is withheld from the
+   * reader (EXO-90357): "Busy" in the reader's language, the same word the
+   * published feed writes for a private event. Read once per entity, for the
+   * signed-in user; a bundle that cannot be read leaves the bare word.
+   *
+   * @return the label
+   */
+  private static String maskedSummary() {
+    try {
+      return Utils.getResourceBundleLabel(Locale.of(Utils.getUserLanguage(RestUtils.getCurrentUser())), MASKED_SUMMARY_KEY);
+    } catch (RuntimeException e) {
+      return MASKED_SUMMARY;
     }
   }
 

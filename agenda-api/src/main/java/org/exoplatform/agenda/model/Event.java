@@ -106,6 +106,16 @@ public class Event implements Cloneable {
 
   private Map<String, String> parameters;
 
+  /**
+   * Whether the event's content was withheld from the reader (EXO-90357): a
+   * {@link EventVisibility#PRIVATE} event read by someone who sees its
+   * calendar only through a share is rendered as busy time — summary,
+   * description, location, attendees, conferences and reminders cleared —
+   * and says so here, so that every render path skips what it would otherwise
+   * read again by identifier. Computed per reader, never stored.
+   */
+  private boolean           masked;
+
   public Event(long id,
                long parentId,
                long calendarId,
@@ -154,6 +164,87 @@ public class Event implements Cloneable {
     this.allowAttendeeToInvite = allowAttendeeToInvite;
   }
 
+  /**
+   * Builds an event with its parameters, as read for nobody in particular:
+   * nothing masked. The signature every caller used before EXO-90357 added
+   * {@link #masked}, kept so that they build the same event.
+   *
+   * @param id technical identifier
+   * @param parentId parent event identifier
+   * @param calendarId calendar identifier
+   * @param creatorId creator identity identifier
+   * @param modifierId last modifier identity identifier
+   * @param created creation instant
+   * @param updated last update instant
+   * @param summary title
+   * @param description description
+   * @param location location
+   * @param color colour
+   * @param timeZoneId time zone the event was created in
+   * @param start start
+   * @param end end
+   * @param allDay whether all-day
+   * @param availability whether it takes the reader's time
+   * @param visibility whether its content may be read outside eXo
+   * @param status status
+   * @param recurrence recurrence details
+   * @param occurrence occurrence details
+   * @param acl the reader's permissions
+   * @param allowAttendeeToUpdate whether attendees may update it
+   * @param allowAttendeeToInvite whether attendees may invite
+   * @param parameters free parameters
+   */
+  public Event(long id, // NOSONAR
+               long parentId,
+               long calendarId,
+               long creatorId,
+               long modifierId,
+               ZonedDateTime created,
+               ZonedDateTime updated,
+               String summary,
+               String description,
+               String location,
+               String color,
+               ZoneId timeZoneId,
+               ZonedDateTime start,
+               ZonedDateTime end,
+               boolean allDay,
+               EventAvailability availability,
+               EventVisibility visibility,
+               EventStatus status,
+               EventRecurrence recurrence,
+               EventOccurrence occurrence,
+               EventPermission acl,
+               boolean allowAttendeeToUpdate,
+               boolean allowAttendeeToInvite,
+               Map<String, String> parameters) {
+    this(id,
+         parentId,
+         calendarId,
+         creatorId,
+         modifierId,
+         created,
+         updated,
+         summary,
+         description,
+         location,
+         color,
+         timeZoneId,
+         start,
+         end,
+         allDay,
+         availability,
+         visibility,
+         status,
+         recurrence,
+         occurrence,
+         acl,
+         allowAttendeeToUpdate,
+         allowAttendeeToInvite,
+         parameters,
+         false);
+  }
+
   @Override
   public Event clone() { // NOSONAR
     return new Event(id,
@@ -179,6 +270,7 @@ public class Event implements Cloneable {
                      acl == null ? null : acl.clone(),
                      allowAttendeeToUpdate,
                      allowAttendeeToInvite,
-                     parameters);
+                     parameters,
+                     masked);
   }
 }

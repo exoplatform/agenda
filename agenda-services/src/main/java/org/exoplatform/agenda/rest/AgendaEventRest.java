@@ -201,7 +201,14 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                 required = false
                             )
                             @QueryParam("excludedCalendarIds")
-                            List<Long> excludedCalendarIds) {
+                            List<Long> excludedCalendarIds,
+                            @Parameter(
+                                description = "Technical identifiers of the calendars other users shared with the authenticated user, whose events are wanted on top of the owner selection (EXO-90357)."
+                                    + " Each is checked against the user; a calendar they may not read refuses the whole request.",
+                                required = false
+                            )
+                            @QueryParam("calendarIds")
+                            List<Long> calendarIds) {
 
     if (StringUtils.isBlank(start)) {
       return Response.status(Status.BAD_REQUEST).entity("Start datetime is mandatory").build();
@@ -235,6 +242,10 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                                 endDatetime,
                                                 limit);
       eventFilter.setExcludedCalendarIds(excludedCalendarIds);
+      // Absent means none: the client names the shared calendars it draws.
+      // Only a caller of the service itself gets the "every shared calendar"
+      // default a null carries, which is what the MCP tools rely on
+      eventFilter.setCalendarIds(calendarIds == null ? Collections.emptyList() : calendarIds);
       List<Event> events = agendaEventService.getEvents(eventFilter, userTimeZone, userIdentityId);
       Map<Long, EventAttendeeList> attendeesByParentEventId = new HashMap<>();
       Map<Long, List<EventConference>> conferencesByParentEventId = new HashMap<>();
@@ -1846,15 +1857,18 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       if (eventCreatorIdentity != null) {
         eventCreator = eventCreatorIdentity.getProfile().getFullName();
       }
-      List<EventConference> eventConferences = agendaEventConferenceService.getEventConferences(event.getId());
+      // A masked event (EXO-90357) is exported as the busy block the published
+      // feed writes for it: its time, the word "Busy", and no conference
+      List<EventConference> eventConferences = event.isMasked() ? Collections.emptyList()
+                                                                : agendaEventConferenceService.getEventConferences(event.getId());
       String conferenceURL = "";
       if(eventConferences != null && !eventConferences.isEmpty()) {
         conferenceURL = eventConferences.getFirst().getUrl();
       }
       byte[] iCSContent = Utils.generateIcsFile(String.valueOf(event.getId()),
               String.valueOf(agendaCalendarService.getCalendarById(event.getCalendarId()).getOwnerId()),
-              event.getSummary(),
-              HtmlUtils.transform(event.getDescription(), null),
+              event.isMasked() ? CalendarFeedIcsWriter.BUSY_SUMMARY : event.getSummary(),
+              event.isMasked() ? null : HtmlUtils.transform(event.getDescription(), null),
               AgendaDateUtils.toRFC3339Date(event.getStart()),
               AgendaDateUtils.toRFC3339Date(event.getEnd()),
               conferenceURL,

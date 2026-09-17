@@ -1,0 +1,744 @@
+/*
+ * Copyright (C) 2026 eXo Platform SAS.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License
+ * as published by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <gnu.org/licenses>.
+ */
+package org.exoplatform.agenda.service;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationContext;
+
+import org.exoplatform.agenda.constant.CalendarShareSource;
+import org.exoplatform.agenda.model.Calendar;
+import org.exoplatform.agenda.model.CalendarShare;
+import org.exoplatform.agenda.model.ChannelDelivery;
+import org.exoplatform.agenda.model.ExternalShare;
+import org.exoplatform.agenda.plugin.CalendarShareChannelPlugin;
+import org.exoplatform.agenda.storage.CalendarShareStorage;
+import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.services.listener.ListenerService;
+import org.exoplatform.social.core.identity.model.Identity;
+import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
+import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
+import org.exoplatform.social.core.manager.IdentityManager;
+
+/**
+ * Pins every rule of calendar sharing on the service that holds them
+ * (EXO-90357): who shares what with whom, in which order the refusals come,
+ * and how a delivery channel is composed with the eXo record.
+ * <p>
+ * The storage is an in-memory stand-in rather than a mock, so a share really
+ * exists for the reads that follow it; the channel is a scripted plugin the
+ * tests hand to the Spring context stand-in.
+ */
+class AgendaCalendarShareServiceTest {
+
+  private static final long        OWNER        = 1;
+
+  private static final long        ALICE        = 2;
+
+  private static final long        DISABLED     = 3;
+
+  private static final long        SPACE        = 100;
+
+  private static final long        PERSONAL_CAL = 10;
+
+  private static final long        SPACE_CAL    = 20;
+
+  private static final long        SUBSCRIBED   = 30;
+
+  private final Map<String, Identity> identities = new HashMap<>();
+
+  private InMemoryShareStorage       storage;
+
+  private AgendaCalendarService      calendarService;
+
+  private ListenerService            listenerService;
+
+  private ScriptedChannel            channel;
+
+  private ApplicationContext         applicationContext;
+
+  private AgendaCalendarShareServiceImpl service;
+
+  /**
+   * Builds the owner's personal calendar, a space calendar, a subscribed
+   * calendar, and the service over them with one scripted channel.
+   */
+  @BeforeEach
+  void setUp() {
+    identities.clear();
+    user(OWNER, "owner", true);
+    user(ALICE, "alice", true);
+    user(DISABLED, "disabled", false);
+    Identity space = new Identity(SpaceIdentityProvider.NAME, "space");
+    space.setId(String.valueOf(SPACE));
+    identities.put(String.valueOf(SPACE), space);
+    IdentityManager identityManager = mock(IdentityManager.class);
+    when(identityManager.getIdentity(anyString())).thenAnswer(invocation -> identities.get(invocation.<String> getArgument(0)));
+    when(identityManager.getOrCreateUserIdentity(anyString())).thenAnswer(invocation -> identities.values()
+                                                                                                   .stream()
+                                                                                                   .filter(Identity::isUser)
+                                                                                                   .filter(identity -> identity.getRemoteId()
+                                                                                                                               .equals(invocation.getArgument(0)))
+                                                                                                   .findFirst()
+                                                                                                   .orElse(null));
+    calendarService = mock(AgendaCalendarService.class);
+    when(calendarService.getCalendarById(PERSONAL_CAL)).thenAnswer(invocation -> calendar(PERSONAL_CAL, OWNER, false));
+    when(calendarService.getCalendarById(SPACE_CAL)).thenAnswer(invocation -> calendar(SPACE_CAL, SPACE, false));
+    when(calendarService.getCalendarById(SUBSCRIBED)).thenAnswer(invocation -> calendar(SUBSCRIBED, OWNER, true));
+    listenerService = mock(ListenerService.class);
+    storage = new InMemoryShareStorage();
+    channel = new ScriptedChannel();
+    applicationContext = mock(ApplicationContext.class);
+    when(applicationContext.getBeansOfType(CalendarShareChannelPlugin.class)).thenReturn(Map.of("caldav", channel));
+    service = new AgendaCalendarShareServiceImpl(storage, calendarService, identityManager, listenerService, applicationContext);
+  }
+
+  /**
+   * The owner shares their personal calendar with a colleague: a record is
+   * written, the platform is told, and the channel that says it is none of
+   * its business leaves the record eXo-only.
+   *
+   * @throws Exception when the share is refused
+   */
+  @Test
+  void theOwnerSharesAPersonalCalendar() throws Exception {
+    channel.answer = ChannelDelivery.notApplicable();
+
+    CalendarShare share = service.share(PERSONAL_CAL, "alice", "owner");
+
+    assertEquals(ALICE, share.getShareeIdentityId());
+    assertEquals(CalendarShareSource.EXO, share.getSource());
+    assertNull(share.getDeliveredTo());
+    assertNull(share.getDeliveryWarning());
+    assertTrue(service.isSharedWith(PERSONAL_CAL, ALICE));
+    assertEquals(List.of(PERSONAL_CAL), service.getSharedCalendarIds(ALICE));
+    verify(listenerService).broadcast(eq(AgendaCalendarShareService.CALENDAR_SHARED_EVENT), any(CalendarShare.class), eq(OWNER));
+  }
+
+  /**
+   * The refusals come in the contract's order: an unknown calendar before
+   * the owner check, the owner check before the sharee's validity.
+   */
+  @Test
+  void theRefusalsComeInOrder() {
+    assertThrows(ObjectNotFoundException.class, () -> service.share(99, "nobody", "alice"), "missing calendar first, even for a stranger");
+    assertThrows(IllegalAccessException.class, () -> service.share(PERSONAL_CAL, "nobody", "alice"), "then the owner check, before the sharee");
+    IllegalArgumentException unknown = assertThrows(IllegalArgumentException.class, () -> service.share(PERSONAL_CAL, "nobody", "owner"));
+    assertEquals(AgendaCalendarShareService.SHAREE_UNKNOWN, unknown.getMessage());
+    IllegalArgumentException self = assertThrows(IllegalArgumentException.class, () -> service.share(PERSONAL_CAL, "owner", "owner"));
+    assertEquals(AgendaCalendarShareService.SHAREE_IS_OWNER, self.getMessage());
+    IllegalArgumentException disabled = assertThrows(IllegalArgumentException.class, () -> service.share(PERSONAL_CAL, "disabled", "owner"));
+    assertEquals(AgendaCalendarShareService.SHAREE_DISABLED, disabled.getMessage());
+    assertThrows(IllegalArgumentException.class, () -> service.share(0, "alice", "owner"));
+    assertTrue(storage.rows.isEmpty(), "no refusal writes a row");
+  }
+
+  /**
+   * Neither a space calendar nor a subscribed calendar is shareable in this
+   * version, whoever asks.
+   */
+  @Test
+  void spaceAndSubscribedCalendarsAreNotShareable() {
+    assertThrows(IllegalAccessException.class, () -> service.share(SPACE_CAL, "alice", "owner"));
+    assertThrows(IllegalAccessException.class, () -> service.share(SUBSCRIBED, "alice", "owner"));
+    assertTrue(storage.rows.isEmpty());
+  }
+
+  /**
+   * A channel that delivers is recorded on the row, with its reference.
+   *
+   * @throws Exception when the share is refused
+   */
+  @Test
+  void aDeliveringChannelIsRecordedOnTheRow() throws Exception {
+    channel.answer = ChannelDelivery.delivered("caldav:1", "/calendars/alice/shared-10/");
+
+    CalendarShare share = service.share(PERSONAL_CAL, "alice", "owner");
+
+    assertEquals("caldav:1", share.getDeliveredTo());
+    assertEquals("/calendars/alice/shared-10/", share.getDeliveryRef());
+    assertNull(share.getDeliveryWarning());
+    assertEquals("caldav:1", storage.rows.get(0).getDeliveredTo());
+  }
+
+  /**
+   * A channel that fails leaves the record standing, eXo-only, with a warning
+   * the owner can retry; sharing again retries the delivery without writing a
+   * second row, and a retry that succeeds records the channel.
+   *
+   * @throws Exception when the share is refused
+   */
+  @Test
+  void aFailedDeliveryKeepsTheRecordWithAWarningAndCanBeRetried() throws Exception {
+    channel.answer = ChannelDelivery.failed("SHAREE_NOT_CONNECTED");
+
+    CalendarShare share = service.share(PERSONAL_CAL, "alice", "owner");
+
+    assertEquals("SHAREE_NOT_CONNECTED", share.getDeliveryWarning());
+    assertNull(share.getDeliveredTo());
+    assertTrue(service.isSharedWith(PERSONAL_CAL, ALICE), "the eXo record stands on a server failure");
+    assertEquals(1, storage.rows.size());
+
+    assertEquals("SHAREE_NOT_CONNECTED", service.share(PERSONAL_CAL, "alice", "owner").getDeliveryWarning());
+    assertEquals(1, storage.rows.size(), "sharing again is a retry, never a second row");
+    assertEquals(2, channel.deliveries);
+
+    channel.answer = ChannelDelivery.delivered("caldav:1", null);
+    CalendarShare redelivered = service.redeliver(PERSONAL_CAL, ALICE, "owner");
+    assertEquals("caldav:1", redelivered.getDeliveredTo());
+    assertNull(redelivered.getDeliveryWarning());
+    assertThrows(ObjectNotFoundException.class, () -> service.redeliver(PERSONAL_CAL, DISABLED, "owner"), "no record, nothing to retry");
+  }
+
+  /**
+   * A channel that throws is read as a failure, and the record stands.
+   *
+   * @throws Exception when the share is refused
+   */
+  @Test
+  void aThrowingChannelIsReadAsAFailure() throws Exception {
+    channel.failure = new IllegalStateException("server down");
+
+    CalendarShare share = service.share(PERSONAL_CAL, "alice", "owner");
+
+    assertEquals("IllegalStateException", share.getDeliveryWarning());
+    assertTrue(service.isSharedWith(PERSONAL_CAL, ALICE));
+  }
+
+  /**
+   * Revoking withdraws from the channel first, then deletes the record; a
+   * channel that cannot withdraw does not keep the record alive. Unsharing a
+   * colleague without a record succeeds silently.
+   *
+   * @throws Exception when the share is refused
+   */
+  @Test
+  void revokingWithdrawsThenDeletesWhateverTheChannelAnswers() throws Exception {
+    channel.answer = ChannelDelivery.delivered("caldav:1", null);
+    service.share(PERSONAL_CAL, "alice", "owner");
+    channel.withdrawAnswer = false;
+
+    service.unshare(PERSONAL_CAL, ALICE, "owner");
+
+    assertEquals(1, channel.withdrawals, "the channel is asked to withdraw a share it carries");
+    assertFalse(service.isSharedWith(PERSONAL_CAL, ALICE), "and the record goes even when it could not");
+    verify(listenerService).broadcast(eq(AgendaCalendarShareService.CALENDAR_UNSHARED_EVENT), any(CalendarShare.class), eq(OWNER));
+
+    service.unshare(PERSONAL_CAL, ALICE, "owner");
+    assertEquals(1, channel.withdrawals, "nothing to withdraw for a colleague without a record");
+    assertThrows(IllegalAccessException.class, () -> service.unshare(PERSONAL_CAL, ALICE, "alice"), "only the owner revokes");
+  }
+
+  /**
+   * An eXo-only record asks no channel to withdraw.
+   *
+   * @throws Exception when the share is refused
+   */
+  @Test
+  void anExoOnlyRecordAsksNoChannelToWithdraw() throws Exception {
+    channel.answer = ChannelDelivery.notApplicable();
+    service.share(PERSONAL_CAL, "alice", "owner");
+
+    service.unshare(PERSONAL_CAL, ALICE, "owner");
+
+    assertEquals(0, channel.withdrawals);
+    assertFalse(service.isSharedWith(PERSONAL_CAL, ALICE));
+  }
+
+  /**
+   * Adopting records a share the channel already carries, without delivering,
+   * and is idempotent; a channel that holds no such grant, or no channel with
+   * that id, refuses.
+   *
+   * @throws Exception when the adoption is refused
+   */
+  @Test
+  void adoptingRecordsAChannelsShareWithoutDelivering() throws Exception {
+    channel.adoptAnswer = "/calendars/alice/shared-10/";
+
+    CalendarShare adopted = service.adopt(PERSONAL_CAL, ALICE, "caldav:1", "owner");
+
+    assertEquals(CalendarShareSource.ADOPTED, adopted.getSource());
+    assertEquals("caldav:1", adopted.getDeliveredTo());
+    assertEquals("/calendars/alice/shared-10/", adopted.getDeliveryRef());
+    assertEquals(0, channel.deliveries, "the server is not touched");
+    assertEquals(adopted.getId(), service.adopt(PERSONAL_CAL, ALICE, "caldav:1", "owner").getId(), "idempotent");
+    assertEquals(1, storage.rows.size());
+
+    channel.adoptAnswer = null;
+    IllegalArgumentException refused = assertThrows(IllegalArgumentException.class,
+                                                    () -> service.adopt(PERSONAL_CAL, DISABLED, "caldav:1", "owner"));
+    assertEquals(AgendaCalendarShareService.SHAREE_DISABLED, refused.getMessage());
+    user(4, "bob", true);
+    IllegalArgumentException noGrant = assertThrows(IllegalArgumentException.class, () -> service.adopt(PERSONAL_CAL, 4, "caldav:1", "owner"));
+    assertEquals(AgendaCalendarShareService.NO_CHANNEL, noGrant.getMessage());
+    assertThrows(IllegalArgumentException.class, () -> service.adopt(PERSONAL_CAL, 4, "nowhere:9", "owner"));
+  }
+
+  /**
+   * The external shares are read live from the channels, the recorded sharees
+   * left out, and a channel that throws empties nothing but its own answer.
+   *
+   * @throws Exception when the listing is refused
+   */
+  @Test
+  void externalSharesAreReadLiveWithoutTheRecordedSharees() throws Exception {
+    channel.answer = ChannelDelivery.delivered("caldav:1", null);
+    service.share(PERSONAL_CAL, "alice", "owner");
+    channel.external = List.of(new ExternalShare(null, "grant-alice", "EXO_USER", ALICE, "Alice", true, true),
+                               new ExternalShare(null, "grant-bob", "EXO_USER", 4, "Bob", true, true),
+                               new ExternalShare(null, "grant-out", "OUTSIDE_EXO", 0, "someone@else.org", true, true));
+
+    List<ExternalShare> external = service.getExternalShares(PERSONAL_CAL, "owner");
+
+    assertEquals(List.of("grant-bob", "grant-out"), external.stream().map(ExternalShare::getExternalId).toList());
+    assertEquals("caldav:1", external.get(0).getChannelId());
+    assertThrows(IllegalAccessException.class, () -> service.getExternalShares(PERSONAL_CAL, "alice"));
+
+    channel.failure = new IllegalStateException("server down");
+    assertTrue(service.getExternalShares(PERSONAL_CAL, "owner").isEmpty());
+  }
+
+  /**
+   * A sharee hides a calendar and shows it again without the share going
+   * anywhere; a calendar not shared with them cannot be hidden.
+   *
+   * @throws Exception when the share is refused
+   */
+  @Test
+  void hidingNeverDeletesTheShare() throws Exception {
+    channel.answer = ChannelDelivery.notApplicable();
+    service.share(PERSONAL_CAL, "alice", "owner");
+
+    service.setHidden(PERSONAL_CAL, "alice", true);
+
+    assertTrue(service.getSharedWithMe("alice").get(0).isHidden());
+    assertTrue(service.isSharedWith(PERSONAL_CAL, ALICE), "hidden is not revoked");
+    assertEquals(1, service.getShares(PERSONAL_CAL, "owner").size(), "the owner still lists the colleague");
+    service.setHidden(PERSONAL_CAL, "alice", false);
+    assertFalse(service.getSharedWithMe("alice").get(0).isHidden());
+    assertThrows(ObjectNotFoundException.class, () -> service.setHidden(SPACE_CAL, "alice", true));
+  }
+
+  /**
+   * The listing for a sharee leaves out a share whose calendar is gone or
+   * whose owner is gone.
+   *
+   * @throws Exception when the share is refused
+   */
+  @Test
+  void theSharedWithMeListingLeavesOutDeadCalendars() throws Exception {
+    channel.answer = ChannelDelivery.notApplicable();
+    service.share(PERSONAL_CAL, "alice", "owner");
+    storage.rows.add(new CalendarShare(9, 77, ALICE, OWNER, 0, CalendarShareSource.EXO, null, null, false, null));
+    when(calendarService.getCalendarById(77L)).thenReturn(null);
+
+    assertEquals(List.of(PERSONAL_CAL), service.getSharedWithMe("alice").stream().map(CalendarShare::getCalendarId).toList());
+
+    identities.get(String.valueOf(OWNER)).setDeleted(true);
+    assertTrue(service.getSharedWithMe("alice").isEmpty(), "a deleted owner's calendar is not listed");
+  }
+
+  /**
+   * The counts and the cleanups delegate to the storage with the identities
+   * they name, and a disconnect only clears the delivery.
+   *
+   * @throws Exception when the share is refused
+   */
+  @Test
+  void countsAndCleanupsNameTheirIdentities() throws Exception {
+    channel.answer = ChannelDelivery.delivered("caldav:1", null);
+    service.share(PERSONAL_CAL, "alice", "owner");
+
+    assertEquals(Map.of(PERSONAL_CAL, 1L), service.countShareesByCalendar("owner"));
+
+    service.clearDelivery(OWNER, "caldav:1");
+    assertNull(storage.rows.get(0).getDeliveredTo());
+    assertTrue(service.isSharedWith(PERSONAL_CAL, ALICE), "the eXo share stays after a disconnect");
+
+    service.deleteSharesOfUser(ALICE);
+    assertFalse(service.isSharedWith(PERSONAL_CAL, ALICE));
+    service.share(PERSONAL_CAL, "alice", "owner");
+    service.deleteShares(PERSONAL_CAL);
+    assertFalse(service.isSharedWith(PERSONAL_CAL, ALICE));
+    verify(applicationContext, never()).getBean(anyString());
+  }
+
+  /**
+   * Without any channel installed, sharing is eXo-only and everything else
+   * still works.
+   *
+   * @throws Exception when the share is refused
+   */
+  @Test
+  void withoutAChannelSharingIsExoOnly() throws Exception {
+    when(applicationContext.getBeansOfType(CalendarShareChannelPlugin.class)).thenReturn(Map.of());
+
+    CalendarShare share = service.share(PERSONAL_CAL, "alice", "owner");
+
+    assertNull(share.getDeliveredTo());
+    assertNull(share.getDeliveryWarning());
+    assertTrue(service.getExternalShares(PERSONAL_CAL, "owner").isEmpty());
+    user(4, "bob", true);
+    assertThrows(IllegalArgumentException.class, () -> service.adopt(PERSONAL_CAL, 4, "caldav:1", "owner"), "nothing to adopt from");
+    service.unshare(PERSONAL_CAL, ALICE, "owner");
+    assertFalse(service.isSharedWith(PERSONAL_CAL, ALICE));
+  }
+
+  /**
+   * Whether the calendar holds meeting copies is the channels' word, owner
+   * only: any channel saying so is enough, a channel that throws says nothing,
+   * and no channel means no copies.
+   *
+   * @throws Exception when the read is refused
+   */
+  @Test
+  void meetingCopiesAreTheChannelsWord() throws Exception {
+    assertFalse(service.holdsMeetingCopies(PERSONAL_CAL, "owner"));
+    channel.meetingCopies = true;
+    assertTrue(service.holdsMeetingCopies(PERSONAL_CAL, "owner"));
+    assertThrows(IllegalAccessException.class, () -> service.holdsMeetingCopies(PERSONAL_CAL, "alice"));
+    assertThrows(ObjectNotFoundException.class, () -> service.holdsMeetingCopies(99, "owner"));
+    channel.failure = new IllegalStateException("server down");
+    assertFalse(service.holdsMeetingCopies(PERSONAL_CAL, "owner"), "a channel that cannot answer copies nothing");
+    when(applicationContext.getBeansOfType(CalendarShareChannelPlugin.class)).thenReturn(Map.of());
+    assertFalse(service.holdsMeetingCopies(PERSONAL_CAL, "owner"));
+  }
+
+  /**
+   * Registers a user identity.
+   *
+   * @param id identity identifier
+   * @param username username
+   * @param enabled whether enabled
+   */
+  private void user(long id, String username, boolean enabled) {
+    Identity identity = new Identity(OrganizationIdentityProvider.NAME, username);
+    identity.setId(String.valueOf(id));
+    identity.setEnable(enabled);
+    identities.put(String.valueOf(id), identity);
+  }
+
+  /**
+   * A calendar.
+   *
+   * @param id calendar identifier
+   * @param ownerId owner identity identifier
+   * @param subscription whether subscribed
+   * @return the calendar
+   */
+  private static Calendar calendar(long id, long ownerId, boolean subscription) {
+    Calendar calendar = new Calendar();
+    calendar.setId(id);
+    calendar.setOwnerId(ownerId);
+    calendar.setSubscription(subscription);
+    return calendar;
+  }
+
+  /**
+   * A channel answering what the test scripted.
+   */
+  private static class ScriptedChannel implements CalendarShareChannelPlugin {
+
+    ChannelDelivery     answer         = ChannelDelivery.notApplicable();
+
+    RuntimeException    failure;
+
+    boolean             withdrawAnswer = true;
+
+    String              adoptAnswer;
+
+    List<ExternalShare> external       = List.of();
+
+    boolean             meetingCopies;
+
+    int                 deliveries;
+
+    int                 withdrawals;
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String id() {
+      return "caldav:1";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ChannelDelivery deliver(CalendarShare share, String ownerUsername) {
+      deliveries++;
+      if (failure != null) {
+        throw failure;
+      }
+      return answer;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean withdraw(CalendarShare share, String ownerUsername) {
+      withdrawals++;
+      return withdrawAnswer;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<ExternalShare> listExternalShares(long calendarId, String ownerUsername, List<Long> recordedShareeIds) {
+      if (failure != null) {
+        throw failure;
+      }
+      return external;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean removeExternalShare(long calendarId, String externalId, String ownerUsername) {
+      return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String adopt(long calendarId, long shareeIdentityId, String ownerUsername) {
+      return adoptAnswer;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean holdsMeetingCopies(long calendarId, String ownerUsername) {
+      if (failure != null) {
+        throw failure;
+      }
+      return meetingCopies;
+    }
+  }
+
+  /**
+   * A storage over a list, with the storage's own contract: no cache, so
+   * every read sees the last write.
+   */
+  private static class InMemoryShareStorage extends CalendarShareStorage {
+
+    final List<CalendarShare> rows = new ArrayList<>();
+
+    private long              nextId = 1;
+
+    /**
+     * Builds the stand-in.
+     */
+    InMemoryShareStorage() {
+      super(null);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<Long> getSharedCalendarIds(long viewerIdentityId) {
+      return rows.stream().filter(row -> row.getShareeIdentityId() == viewerIdentityId).map(CalendarShare::getCalendarId).toList();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean isSharedWith(long calendarId, long viewerIdentityId) {
+      return getSharedCalendarIds(viewerIdentityId).contains(calendarId);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<CalendarShare> getShares(long calendarId) {
+      return rows.stream().filter(row -> row.getCalendarId() == calendarId).map(CalendarShare::clone).toList();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public CalendarShare getShare(long calendarId, long shareeIdentityId) {
+      return find(calendarId, shareeIdentityId) == null ? null : find(calendarId, shareeIdentityId).clone();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<CalendarShare> getSharesOfSharee(long shareeIdentityId, int limit) {
+      return rows.stream().filter(row -> row.getShareeIdentityId() == shareeIdentityId).map(CalendarShare::clone).toList();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Map<Long, Long> countShareesByCalendar(long ownerIdentityId) {
+      Map<Long, Long> counts = new HashMap<>();
+      rows.forEach(row -> counts.merge(row.getCalendarId(), 1L, Long::sum));
+      return counts;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public CalendarShare save(long calendarId,
+                              long shareeIdentityId,
+                              long grantedById,
+                              CalendarShareSource source,
+                              String deliveredTo,
+                              String deliveryRef,
+                              Date createdDate) {
+      CalendarShare existing = find(calendarId, shareeIdentityId);
+      if (existing != null) {
+        return existing.clone();
+      }
+      CalendarShare row = new CalendarShare(nextId++,
+                                            calendarId,
+                                            shareeIdentityId,
+                                            grantedById,
+                                            createdDate.getTime(),
+                                            source,
+                                            deliveredTo,
+                                            deliveryRef,
+                                            false,
+                                            null);
+      rows.add(row);
+      return row.clone();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public CalendarShare setDelivery(long calendarId, long shareeIdentityId, String deliveredTo, String deliveryRef) {
+      CalendarShare row = find(calendarId, shareeIdentityId);
+      if (row == null) {
+        return null;
+      }
+      row.setDeliveredTo(deliveredTo);
+      row.setDeliveryRef(deliveryRef);
+      return row.clone();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public CalendarShare setHidden(long calendarId, long shareeIdentityId, boolean hidden) {
+      CalendarShare row = find(calendarId, shareeIdentityId);
+      if (row == null) {
+        return null;
+      }
+      row.setHidden(hidden);
+      return row.clone();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean delete(long calendarId, long shareeIdentityId) {
+      return rows.removeIf(row -> row.getCalendarId() == calendarId && row.getShareeIdentityId() == shareeIdentityId);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int deleteByCalendarId(long calendarId) {
+      int before = rows.size();
+      rows.removeIf(row -> row.getCalendarId() == calendarId);
+      return before - rows.size();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int deleteOfUser(long identityId) {
+      int before = rows.size();
+      rows.removeIf(row -> row.getShareeIdentityId() == identityId);
+      return before - rows.size();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int clearDelivery(long ownerIdentityId, String channelId) {
+      int cleared = 0;
+      for (CalendarShare row : rows) {
+        if (channelId.equals(row.getDeliveredTo())) {
+          row.setDeliveredTo(null);
+          row.setDeliveryRef(null);
+          cleared++;
+        }
+      }
+      return cleared;
+    }
+
+    /**
+     * The row of a pair.
+     *
+     * @param calendarId calendar identifier
+     * @param shareeIdentityId sharee identity identifier
+     * @return the row, or null
+     */
+    private CalendarShare find(long calendarId, long shareeIdentityId) {
+      return rows.stream()
+                 .filter(row -> row.getCalendarId() == calendarId && row.getShareeIdentityId() == shareeIdentityId)
+                 .findFirst()
+                 .orElse(null);
+    }
+  }
+
+}
