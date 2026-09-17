@@ -152,7 +152,10 @@ public class RestEntityBuilder {
                      eventEntity.getAcl(),
                      eventEntity.isAllowAttendeeToUpdate(),
                      eventEntity.isAllowAttendeeToInvite(),
-                     eventEntity.getParameters());
+                     eventEntity.getParameters(),
+                     false,
+                     null,
+                     eventEntity.getOpen());
   }
 
   public static EventDateOption toEventDateOption(EventDateOptionEntity dateOptionEntity, ZoneId userTimeZone) {
@@ -306,6 +309,9 @@ public class RestEntityBuilder {
       parentEvent = getEventEntity(agendaCalendarService, agendaEventService, identityManager, parentId, userTimeZone, event.getAccess());
     }
 
+    // A search hit is built from the index, which does not carry the flag: it
+    // stays null there ("unknown"), deliberately not collapsed to false
+    Boolean open = effectiveOpen(parentEvent, event);
     if (isSearch) {
       return new EventSearchResultEntity(event.getId(),
                                          parentEvent,
@@ -338,6 +344,7 @@ public class RestEntityBuilder {
                                          event.isAllowAttendeeToInvite(),
                                          null,
                                          false,
+                                         open,
                                          null);
     } else {
       return new EventEntity(event.getId(),
@@ -372,7 +379,9 @@ public class RestEntityBuilder {
                              event.isAllowAttendeeToInvite(),
                              null,
                              false,
-                             event.isMasked());
+                             event.isMasked(),
+                             // never null on read
+                             Boolean.TRUE.equals(open));
     }
   }
 
@@ -390,6 +399,23 @@ public class RestEntityBuilder {
     } catch (RuntimeException e) {
       return MASKED_SUMMARY;
     }
+  }
+
+  /**
+   * The open flag is a property of the series: an occurrence carries its
+   * parent's value on the wire, so the client never has to look the parent up
+   * (the occurrence's own row keeps false and is not a source of truth).
+   * Package-private so that the rule can be pinned without the JAX-RS context
+   * the rest of the entity building needs.
+   *
+   * @param parentEvent the parent entity already built for an occurrence,
+   *          null for a standalone event or a search hit
+   * @param event the event being put on the wire
+   * @return the parent's flag when there is a parent, the event's own otherwise
+   *         (may be null for a search hit, whose source carries no flag)
+   */
+  static Boolean effectiveOpen(EventEntity parentEvent, Event event) {
+    return parentEvent != null ? parentEvent.getOpen() : event.getOpen();
   }
 
   private static CalendarEntity getCalendarEntity(AgendaCalendarService agendaCalendarService,

@@ -60,8 +60,11 @@ class CalendarShareChangelogTest {
   /** The first changeset EXO-90357 adds. */
   private static final String FIRST_CHANGESET = "1.0.0-45";
 
-  /** The column EXO-90378 adds, last changeset of the changelog. */
+  /** The column EXO-90378 adds. */
   private static final String LEVEL_COLUMN    = "ACCESS_LEVEL";
+
+  /** The changeset EXO-90378 adds the column in. */
+  private static final String LEVEL_CHANGESET = "1.0.0-51";
 
   private Connection          connection;
 
@@ -222,7 +225,10 @@ class CalendarShareChangelogTest {
   @Test
   void theAccessLevelRollsBackAloneAndBackfillsOnReapply() throws Exception {
     CalendarLinkChangelogTest.update(connection);
-    liquibase(connection).rollback(1, new Contexts(), new LabelExpression());
+    // Counted from EXO-90378's changeset to the end of the changelog, so it also
+    // rolls back what later deliveries appended after it
+    int since = CalendarLinkChangelogTest.changesetsSince(connection, LEVEL_CHANGESET);
+    liquibase(connection).rollback(since, new Contexts(), new LabelExpression());
 
     assertFalse(columnExists(TABLE, LEVEL_COLUMN), "rolling back EXO-90378 must drop the access level column");
     assertTrue(tableExists(TABLE), "and leave the share table of EXO-90357 where it was");

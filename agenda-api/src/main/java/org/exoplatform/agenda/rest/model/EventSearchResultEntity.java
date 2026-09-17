@@ -50,6 +50,7 @@ public class EventSearchResultEntity extends EventEntity {
                                  final boolean allowAttendeeToInvite,
                                  final Map<String, String> parameters,
                                  final boolean sendInvitation,
+                                 final Boolean open,
                                  List<String> excerpts) {
     super(id,
           parent,
@@ -83,7 +84,8 @@ public class EventSearchResultEntity extends EventEntity {
           allowAttendeeToInvite,
           parameters,
           sendInvitation,
-          false);
+          false,
+          open);
     this.excerpts = excerpts;
   }
 
