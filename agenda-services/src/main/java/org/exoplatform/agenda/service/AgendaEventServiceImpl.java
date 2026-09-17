@@ -665,6 +665,11 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
     AgendaEventModification eventModifications = new AgendaEventModification(eventId, event.getCalendarId(), userIdentityId);
     eventModifications.addModificationType(AgendaEventModificationType.UPDATED);
+    // The modification is detected on the incoming event, whose 'open' is what
+    // the client asked for (null when it did not ask at all); the audit must
+    // report what was written instead, or it would announce a toggle on every
+    // partial payload and stay silent when a move actually locked the event
+    event.setOpen(eventToUpdate.getOpen());
     Utils.detectEventModifiedFields(event, storedEvent, eventModifications);
     if (eventToUpdate.getOccurrence() != null && eventModifications.hasModifiedDate()) {
       eventToUpdate.getOccurrence().setDatesModified(true);
@@ -771,6 +776,34 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
     if (event.getStart().isAfter(event.getEnd())) {
       throw new AgendaException(AgendaExceptionType.EVENT_START_DATE_BEFORE_END_DATE);
+    }
+
+    // Both checks below are evaluated after the field loop, on the calendar the
+    // event lands in, so that a patch moving it and changing something else at
+    // once is judged where it ends up rather than where it started.
+    Calendar targetCalendar = agendaCalendarService.getCalendarById(event.getCalendarId());
+
+    // Moving the event to another calendar additionally requires the right to
+    // create events in the TARGET calendar, exactly as the full-save path
+    // requires it: being allowed to update an event must not grant filing it
+    // into someone else's calendar — and canUpdateEvent above is satisfied by a
+    // mere attendee when allowAttendeeToUpdate is set
+    if (originalEvent.getCalendarId() != event.getCalendarId() && !canCreateEvent(targetCalendar, userIdentityId)) {
+      throw new IllegalAccessException("User '" + userIdentityId + "' can't move event " + eventId + " to calendar "
+          + event.getCalendarId());
+    }
+
+    // What happens when the open invariant fails depends on who asked: a patch
+    // that carries 'open' is a deliberate act and is refused, while a patch that
+    // merely moves an already open event into a personal calendar, or turns it
+    // into a date poll, locks it silently — the same outcome the full-save path
+    // gives that operation.
+    if (Boolean.TRUE.equals(event.getOpen())
+        && !canBeOpen(event.getParentId(), event.getStatus(), targetCalendar)) {
+      if (fields.containsKey("open")) {
+        throw new IllegalArgumentException("agenda.openEvent.notAllowed");
+      }
+      event.setOpen(false);
     }
 
     // Delete exceptional occurrences when updating the whole recurrent event
@@ -1492,8 +1525,14 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       case "allowAttendeeToInvite":
         event.setAllowAttendeeToInvite(Boolean.parseBoolean(fieldValue));
         break;
+      case "open":
+        // The invariant (canBeOpen) is checked once, after the whole field set
+        // is applied, so that a patch changing the calendar and the flag at
+        // once is evaluated on the calendar it lands in
+        event.setOpen(Boolean.parseBoolean(fieldValue));
+        break;
       default:
-        throw new UnsupportedOperationException();
+        throw new IllegalArgumentException("agenda.eventFieldNotSupported");
     }
   }
 

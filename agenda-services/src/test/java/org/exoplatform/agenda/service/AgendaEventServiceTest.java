@@ -64,10 +64,12 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(Boolean.TRUE, agendaEventService.getEventById(eventId).getOpen());
     assertEquals(Boolean.TRUE, agendaEventService.getEventById(eventId, null, userIdentityId).getOpen());
 
-    // A full save that does not state the flag (null) keeps it
+    // A full save that does not state the flag (null) keeps it, and reports no
+    // toggle: the audit follows what was written, not what the payload carried
     Event storedEvent = agendaEventService.getEventById(eventId, ZoneOffset.UTC, userIdentityId);
     Event updatedEvent = storedEvent.clone();
     updatedEvent.setOpen(null);
+    eventUpdateReference.set(null);
     agendaEventService.updateEvent(updatedEvent,
                                    Collections.emptyList(),
                                    Collections.emptyList(),
@@ -77,6 +79,8 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                    false,
                                    userIdentityId);
     assertEquals(Boolean.TRUE, agendaEventService.getEventById(eventId).getOpen());
+    assertNotNull(eventUpdateReference.get());
+    assertFalse(eventUpdateReference.get().hasModification(AgendaEventModificationType.OPEN_UPDATED));
 
     // An explicit value is applied by the same save
     updatedEvent = agendaEventService.getEventById(eventId, ZoneOffset.UTC, userIdentityId).clone();
@@ -105,10 +109,12 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(Boolean.TRUE, agendaEventService.getEventById(eventId).getOpen());
 
     // Moved to a personal calendar with the flag unspecified: the invariant is
-    // evaluated on the target calendar, so the event is locked by the move
+    // evaluated on the target calendar, so the event is locked by the move —
+    // and the audit reports that toggle, which the payload never asked for
     updatedEvent = agendaEventService.getEventById(eventId, ZoneOffset.UTC, userIdentityId).clone();
     updatedEvent.setCalendarId(calendar.getId());
     updatedEvent.setOpen(null);
+    eventUpdateReference.set(null);
     agendaEventService.updateEvent(updatedEvent,
                                    Collections.emptyList(),
                                    Collections.emptyList(),
@@ -118,6 +124,8 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                    false,
                                    userIdentityId);
     assertEquals(Boolean.FALSE, agendaEventService.getEventById(eventId).getOpen());
+    assertNotNull(eventUpdateReference.get());
+    assertTrue(eventUpdateReference.get().hasModification(AgendaEventModificationType.OPEN_UPDATED));
 
     // Absent at creation means locked
     Event lockedEvent = newEventInstance(start, start, true);
@@ -166,6 +174,127 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                                            userIdentityId);
     assertEquals(EventStatus.TENTATIVE, agendaEventService.getEventById(createdDatePoll.getId()).getStatus());
     assertEquals(Boolean.FALSE, agendaEventService.getEventById(createdDatePoll.getId()).getOpen());
+  }
+
+  /**
+   * eXIP 7.3.0.20 Open Event, US02 (EXO-89478): the padlock of the event page
+   * patches the flag. The right is the event's existing edit right; an
+   * invariant of US01 is refused when the patch asks to open, and applied
+   * silently — locking the event, as the full-save path does — when the patch
+   * merely moves an already-open event; the toggle resets no participant
+   * answer.
+   */
+  @Test
+  public void testOpenEventPatchedFromTheEventPage() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorIdentityId = Long.parseLong(testuser1Identity.getId());
+    long attendeeIdentityId = Long.parseLong(testuser2Identity.getId());
+
+    Event event = newEventInstance(start, start, true);
+    event.setCalendarId(spaceCalendar.getId());
+    event.setRecurrence(null);
+    Event createdEvent = createEvent(event.clone(), creatorIdentityId, testuser2Identity);
+    long eventId = createdEvent.getId();
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(eventId).getOpen());
+
+    // An attendee answers before the toggle
+    agendaEventAttendeeService.sendEventResponse(eventId, attendeeIdentityId, EventAttendeeResponse.ACCEPTED);
+    assertEquals(EventAttendeeResponse.ACCEPTED,
+                 agendaEventAttendeeService.getEventResponse(eventId, null, attendeeIdentityId));
+
+    // A user without the edit right cannot toggle
+    try {
+      agendaEventService.updateEventFields(eventId, getFields("open", "true"), false, false, attendeeIdentityId);
+      fail("An attendee without update right should not open the event");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(eventId).getOpen());
+
+    // The editor opens it, and no answer is reset by the toggle
+    agendaEventService.updateEventFields(eventId, getFields("open", "true"), false, false, creatorIdentityId);
+    assertEquals(Boolean.TRUE, agendaEventService.getEventById(eventId).getOpen());
+    assertEquals(EventAttendeeResponse.ACCEPTED,
+                 agendaEventAttendeeService.getEventResponse(eventId, null, attendeeIdentityId));
+    assertNotNull(eventUpdateReference.get());
+    assertTrue(eventUpdateReference.get().hasModification(AgendaEventModificationType.OPEN_UPDATED));
+
+    // ... and locks it again
+    agendaEventService.updateEventFields(eventId, getFields("open", "false"), false, false, creatorIdentityId);
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(eventId).getOpen());
+    assertEquals(EventAttendeeResponse.ACCEPTED,
+                 agendaEventAttendeeService.getEventResponse(eventId, null, attendeeIdentityId));
+
+    // A patch that does not touch the flag leaves it, and reports no toggle
+    eventUpdateReference.set(null);
+    agendaEventService.updateEventFields(eventId, getFields("summary", "patched"), false, false, creatorIdentityId);
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(eventId).getOpen());
+    assertFalse(eventUpdateReference.get().hasModification(AgendaEventModificationType.OPEN_UPDATED));
+
+    // Opening a personal-calendar event is refused, not silently ignored
+    Event personalEvent = newEventInstance(start, start, true);
+    personalEvent.setRecurrence(null);
+    Event createdPersonalEvent = createEvent(personalEvent.clone(), creatorIdentityId, testuser2Identity);
+    try {
+      agendaEventService.updateEventFields(createdPersonalEvent.getId(),
+                                           getFields("open", "true"),
+                                           false,
+                                           false,
+                                           creatorIdentityId);
+      fail("A personal calendar event should not be opened");
+    } catch (IllegalArgumentException e) {
+      assertEquals("agenda.openEvent.notAllowed", e.getMessage());
+    }
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(createdPersonalEvent.getId()).getOpen());
+
+    // Being allowed to update an event does not grant filing it into a calendar
+    // one may not create in: the patch path enforces this like the full save,
+    // and canUpdateEvent is satisfied by a mere attendee when the event allows
+    // attendees to update it
+    Event sharedEvent = newEventInstance(start, start, true);
+    sharedEvent.setCalendarId(spaceCalendar.getId());
+    sharedEvent.setRecurrence(null);
+    sharedEvent.setAllowAttendeeToUpdate(true);
+    Event createdSharedEvent = createEvent(sharedEvent.clone(), creatorIdentityId, testuser2Identity);
+    assertTrue(agendaEventService.canUpdateEvent(agendaEventService.getEventById(createdSharedEvent.getId()),
+                                                 attendeeIdentityId));
+    try {
+      agendaEventService.updateEventFields(createdSharedEvent.getId(),
+                                           getFields("calendarId", String.valueOf(calendar.getId())),
+                                           false,
+                                           false,
+                                           attendeeIdentityId);
+      fail("An attendee should not move the event into a calendar they cannot create in");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    assertEquals(spaceCalendar.getId(), agendaEventService.getEventById(createdSharedEvent.getId()).getCalendarId());
+
+    // An unsupported field is a caller error too (400), not a server error
+    try {
+      agendaEventService.updateEventFields(eventId, getFields("unknownField", "value"), false, false, creatorIdentityId);
+      fail("An unsupported field should be refused");
+    } catch (IllegalArgumentException e) {
+      assertEquals("agenda.eventFieldNotSupported", e.getMessage());
+    }
+
+    // A patch that does not carry the flag never fails on it: an already-open
+    // event stays patchable on any other field
+    agendaEventService.updateEventFields(eventId, getFields("open", "true"), false, false, creatorIdentityId);
+    agendaEventService.updateEventFields(eventId, getFields("location", "elsewhere"), false, false, creatorIdentityId);
+    assertEquals(Boolean.TRUE, agendaEventService.getEventById(eventId).getOpen());
+
+    // ... and moving that open event to a personal calendar locks it silently,
+    // as a full save of the same operation does — and the audit says so
+    eventUpdateReference.set(null);
+    agendaEventService.updateEventFields(eventId,
+                                         getFields("calendarId", String.valueOf(calendar.getId())),
+                                         false,
+                                         false,
+                                         creatorIdentityId);
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(eventId).getOpen());
+    assertNotNull(eventUpdateReference.get());
+    assertTrue(eventUpdateReference.get().hasModification(AgendaEventModificationType.OPEN_UPDATED));
   }
 
   /**
@@ -2083,8 +2212,9 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                            true,
                                            Long.parseLong(testuser1Identity.getId()));
       fail();
-    } catch (UnsupportedOperationException e) {
-      // Expected
+    } catch (IllegalArgumentException e) {
+      // Expected: an unsupported field is a caller error (400), was 500
+      assertEquals("agenda.eventFieldNotSupported", e.getMessage());
     }
 
     try {
@@ -2094,8 +2224,9 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                            true,
                                            Long.parseLong(testuser1Identity.getId()));
       fail();
-    } catch (UnsupportedOperationException e) {
-      // Expected
+    } catch (IllegalArgumentException e) {
+      // Expected: an unsupported field is a caller error (400), was 500
+      assertEquals("agenda.eventFieldNotSupported", e.getMessage());
     }
 
     try {
@@ -2105,8 +2236,9 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                            true,
                                            Long.parseLong(testuser1Identity.getId()));
       fail();
-    } catch (UnsupportedOperationException e) {
-      // Expected
+    } catch (IllegalArgumentException e) {
+      // Expected: an unsupported field is a caller error (400), was 500
+      assertEquals("agenda.eventFieldNotSupported", e.getMessage());
     }
 
     try {
@@ -2116,8 +2248,9 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                            true,
                                            Long.parseLong(testuser1Identity.getId()));
       fail();
-    } catch (UnsupportedOperationException e) {
-      // Expected
+    } catch (IllegalArgumentException e) {
+      // Expected: an unsupported field is a caller error (400), was 500
+      assertEquals("agenda.eventFieldNotSupported", e.getMessage());
     }
 
     try {
@@ -2127,8 +2260,9 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                            true,
                                            Long.parseLong(testuser1Identity.getId()));
       fail();
-    } catch (UnsupportedOperationException e) {
-      // Expected
+    } catch (IllegalArgumentException e) {
+      // Expected: an unsupported field is a caller error (400), was 500
+      assertEquals("agenda.eventFieldNotSupported", e.getMessage());
     }
 
     try {
@@ -2138,8 +2272,9 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                            true,
                                            Long.parseLong(testuser1Identity.getId()));
       fail();
-    } catch (UnsupportedOperationException e) {
-      // Expected
+    } catch (IllegalArgumentException e) {
+      // Expected: an unsupported field is a caller error (400), was 500
+      assertEquals("agenda.eventFieldNotSupported", e.getMessage());
     }
 
     createdEvent = newEventInstance(start, start, allDay);
