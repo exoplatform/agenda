@@ -80,7 +80,8 @@ public class EventSearchResultEntity extends EventEntity {
           allowAttendeeToUpdate,
           allowAttendeeToInvite,
           parameters,
-          sendInvitation);
+          sendInvitation,
+          false);
     this.excerpts = excerpts;
   }
 

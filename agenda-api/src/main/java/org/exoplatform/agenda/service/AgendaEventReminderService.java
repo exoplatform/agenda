@@ -60,7 +60,9 @@ public interface AgendaEventReminderService {
    *          updating his/her reminders on the event
    * @return {@link Set} of {@link AgendaEventModificationType} containing
    *         modifications made on event reminders
-   * @throws IllegalAccessException when user isn't an attendee of the event
+   * @throws IllegalAccessException when the user reads the event only through
+   *           a calendar share (EXO-90357): a reminder would notify them of an
+   *           event whose content may be withheld from them
    * @throws AgendaException when a reminder datetime can't be computed
    */
   Set<AgendaEventModificationType> saveEventReminders(Event event,
@@ -86,12 +88,15 @@ public interface AgendaEventReminderService {
    * @param reminders {@link List} of {@link EventReminder}
    * @param userIdentityId User technical identifier ({@link Identity#getId()})
    *          updating his/her reminders on the event
+   * @throws IllegalAccessException when the user reads the event only through
+   *           a calendar share (EXO-90357): a reminder would notify them of an
+   *           event whose content may be withheld from them
    * @throws AgendaException when an error occurs while saving reminders
    */
   void saveUpcomingEventReminders(long eventId,
                                   ZonedDateTime occurrenceId,
                                   List<EventReminder> reminders,
-                                  long userIdentityId) throws AgendaException;
+                                  long userIdentityId) throws IllegalAccessException, AgendaException;
 
   /**
    * @return period used to compute reminder of occurrences of a recurrent event
