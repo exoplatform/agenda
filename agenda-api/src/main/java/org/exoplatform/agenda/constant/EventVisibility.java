@@ -24,13 +24,15 @@ package org.exoplatform.agenda.constant;
  * may be shown. The two travel together in the form because they answer the two
  * halves of the same question, and they are honoured in two different places.
  * <p>
- * <strong>Where it is honoured today: the published calendar link, and only
- * there.</strong> A {@link #PRIVATE} event is published as a busy block — its
- * time, and the word "Busy" — by {@code CalendarFeedIcsWriter}, through
- * {@code AgendaCalendarLinkServiceImpl.isPrivate}. Inside eXo it changes
- * nothing: everyone who may read the calendar still reads every event it holds,
- * exactly as before. Widening it to readers inside eXo would be a new ACL rule,
- * not a new value here, and is deliberately out of EXO-90322.
+ * <strong>Where it is honoured: at every boundary a reader crosses only
+ * because the calendar was shared.</strong> A {@link #PRIVATE} event is
+ * published as a busy block — its time, and the word "Busy" — by
+ * {@code CalendarFeedIcsWriter}, through
+ * {@code AgendaCalendarLinkServiceImpl.isPrivate}; and since EXO-90357 it is
+ * rendered the same way, masked, to a colleague who reads the calendar through
+ * a share ({@link EventAccess#SHARED}). For everyone who could read the
+ * calendar before sharing existed — its owner, the members of its space, the
+ * invitees — it changes nothing.
  * <p>
  * The constants are stored by ordinal (the column is a {@code SMALLINT}, as
  * {@code AVAILABILITY} is), so <strong>their order is the storage format</strong>:
