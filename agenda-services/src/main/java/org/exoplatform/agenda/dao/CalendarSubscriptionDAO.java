@@ -49,21 +49,34 @@ public interface CalendarSubscriptionDAO extends JpaRepository<CalendarSubscript
   CalendarSubscriptionEntity findByCalendarId(long calendarId);
 
   /**
-   * Finds the subscription of a user to a URL.
+   * Finds the subscription of an owner to a URL.
    *
-   * @param urlKey SHA-256 of the user and the normalized URL
+   * @param urlKey SHA-256 of the owner and the normalized URL
    * @return the subscription, or null when none
    */
   CalendarSubscriptionEntity findByUrlKey(String urlKey);
 
   /**
-   * Finds a user's subscriptions.
+   * Finds the subscriptions of an owner: a user's personal ones, or a space's
+   * (EXO-90373).
    *
-   * @param userIdentityId identity identifier of the user
+   * @param ownerIdentityId identity identifier of the owner
    * @param pageable the page, whose sort orders them
    * @return the subscriptions, never null
    */
-  List<CalendarSubscriptionEntity> findByUserIdentityId(long userIdentityId, Pageable pageable);
+  List<CalendarSubscriptionEntity> findByOwnerIdentityId(long ownerIdentityId, Pageable pageable);
+
+  /**
+   * The calendars an owner's subscriptions fill, so that a space's subscribed
+   * calendars can take the space's colour (EXO-90373).
+   *
+   * @param ownerIdentityId identity identifier of the owner
+   * @param pageable the page
+   * @return technical identifiers of the calendars, the oldest subscription
+   *         first
+   */
+  @Query("SELECT s.calendarId FROM AgendaCalendarSubscription s WHERE s.ownerIdentityId = :ownerIdentityId ORDER BY s.id ASC")
+  List<Long> findCalendarIdsByOwnerIdentityId(@Param("ownerIdentityId") long ownerIdentityId, Pageable pageable);
 
   /**
    * The subscriptions due for a refresh that nobody holds a live claim on, the

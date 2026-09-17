@@ -61,6 +61,9 @@ class CalendarSubscriptionChangelogTest {
 
   private static final String FIRST_CHANGESET = "1.0.0-39";
 
+  /** The first changeset EXO-90373 adds. */
+  private static final String OWNER_CHANGESET = "1.0.0-49";
+
   private Connection          connection;
 
   /**
@@ -156,7 +159,7 @@ class CalendarSubscriptionChangelogTest {
   void everyColumnTheEntitiesMapExists() throws Exception {
     CalendarLinkChangelogTest.update(connection);
 
-    assertEquals(17, mappedColumnsExist(CalendarSubscriptionEntity.class));
+    assertEquals(18, mappedColumnsExist(CalendarSubscriptionEntity.class));
     assertEquals(5, mappedColumnsExist(CalendarSubscriptionEventEntity.class));
     assertTrue(columnExists("EXO_AGENDA_CALENDAR", CalendarEntity.class.getDeclaredField("isSubscription")
                                                                        .getAnnotation(Column.class)
@@ -194,8 +197,51 @@ class CalendarSubscriptionChangelogTest {
   void theIndexesExist() throws Exception {
     CalendarLinkChangelogTest.update(connection);
 
-    assertTrue(indexes(SUBSCRIPTION).containsAll(Set.of("IDX_AGENDA_SUBSCRIPTION_DUE", "IDX_AGENDA_SUBSCRIPTION_USER")));
+    assertTrue(indexes(SUBSCRIPTION).containsAll(Set.of("IDX_AGENDA_SUBSCRIPTION_DUE",
+                                                        "IDX_AGENDA_SUBSCRIPTION_USER",
+                                                        "IDX_AGENDA_SUBSCRIPTION_OWNER")));
     assertTrue(indexes(SUBSCRIPTION_EVENT).contains("IDX_AGENDA_SUB_EVENT_SUB"));
+  }
+
+  /**
+   * EXO-90373's changesets roll back and apply again over personal
+   * subscriptions: rolling them back removes the owner column and its index
+   * and keeps the rows; applying them again gives every existing row its user
+   * as its owner, and the column then refuses a row with no owner.
+   *
+   * @throws Exception when Liquibase fails
+   */
+  @Test
+  void theOwnerColumnRollsBackAndIsBackfilledWithTheUser() throws Exception {
+    CalendarLinkChangelogTest.update(connection);
+    int added = CalendarLinkChangelogTest.changesetsSince(connection, OWNER_CHANGESET);
+
+    liquibase(connection).rollback(added, new Contexts(), new LabelExpression());
+
+    assertFalse(columnExists(SUBSCRIPTION, "OWNER_IDENTITY_ID"));
+    assertFalse(indexes(SUBSCRIPTION).contains("IDX_AGENDA_SUBSCRIPTION_OWNER"));
+    assertTrue(indexes(SUBSCRIPTION).contains("IDX_AGENDA_SUBSCRIPTION_USER"), "and nothing that came before");
+    try (Statement statement = connection.createStatement()) {
+      statement.executeUpdate("INSERT INTO " + SUBSCRIPTION
+          + " (SUBSCRIPTION_ID, CALENDAR_ID, USER_IDENTITY_ID, URL_ENCRYPTED, URL_KEY, NEXT_REFRESH_DATE, CREATED_DATE)"
+          + " VALUES (1, 42, 7, 'enc', '" + "a".repeat(64) + "', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)");
+    }
+
+    CalendarLinkChangelogTest.update(connection);
+
+    assertTrue(indexes(SUBSCRIPTION).contains("IDX_AGENDA_SUBSCRIPTION_OWNER"));
+    try (Statement statement = connection.createStatement();
+        ResultSet rows = statement.executeQuery("SELECT OWNER_IDENTITY_ID FROM " + SUBSCRIPTION + " WHERE SUBSCRIPTION_ID = 1")) {
+      assertTrue(rows.next(), "the row stayed through the rollback");
+      assertEquals(7, rows.getLong(1), "an existing subscription is owned by the user who subscribed");
+    }
+    assertThrows(SQLException.class, () -> {
+      try (Statement statement = connection.createStatement()) {
+        statement.executeUpdate("INSERT INTO " + SUBSCRIPTION
+            + " (SUBSCRIPTION_ID, CALENDAR_ID, USER_IDENTITY_ID, URL_ENCRYPTED, URL_KEY, NEXT_REFRESH_DATE, CREATED_DATE)"
+            + " VALUES (2, 43, 7, 'enc', '" + "b".repeat(64) + "', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)");
+      }
+    }, "a row with no owner is refused");
   }
 
   /**
@@ -240,8 +286,9 @@ class CalendarSubscriptionChangelogTest {
   private void subscription(long id, long calendarId, String key) throws SQLException {
     try (Statement statement = connection.createStatement()) {
       statement.executeUpdate("INSERT INTO " + SUBSCRIPTION
-          + " (SUBSCRIPTION_ID, CALENDAR_ID, USER_IDENTITY_ID, URL_ENCRYPTED, URL_KEY, NEXT_REFRESH_DATE, CREATED_DATE) VALUES ("
-          + id + ", " + calendarId + ", 7, 'enc', '" + key.repeat(64) + "', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)");
+          + " (SUBSCRIPTION_ID, CALENDAR_ID, USER_IDENTITY_ID, OWNER_IDENTITY_ID, URL_ENCRYPTED, URL_KEY, NEXT_REFRESH_DATE,"
+          + " CREATED_DATE) VALUES (" + id + ", " + calendarId + ", 7, 7, 'enc', '" + key.repeat(64)
+          + "', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)");
     }
   }
 

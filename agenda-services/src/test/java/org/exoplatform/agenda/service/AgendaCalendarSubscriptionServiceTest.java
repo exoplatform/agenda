@@ -865,6 +865,7 @@ class AgendaCalendarSubscriptionServiceTest {
     subscription.setId(SUBSCRIPTION);
     subscription.setCalendarId(CALENDAR);
     subscription.setUserIdentityId(JOHN);
+    subscription.setOwnerIdentityId(JOHN);
     subscription.setUrlEncrypted(urlEncrypted);
     subscription.setUrlKey("url-key");
     subscription.setContentHash(contentHash);
@@ -888,6 +889,7 @@ class AgendaCalendarSubscriptionServiceTest {
     copy.setId(source.getId());
     copy.setCalendarId(source.getCalendarId());
     copy.setUserIdentityId(source.getUserIdentityId());
+    copy.setOwnerIdentityId(source.getOwnerIdentityId());
     copy.setUrlEncrypted(source.getUrlEncrypted());
     copy.setUrlKey(source.getUrlKey());
     copy.setEtag(source.getEtag());

@@ -111,11 +111,11 @@ class CalendarSubscriptionDAOQueryTest {
   }
 
   /**
-   * A subscription is found by its calendar, by its key and among its user's,
+   * A subscription is found by its calendar, by its key and among its owner's,
    * oldest first.
    */
   @Test
-  void aSubscriptionIsFoundByCalendarKeyAndUser() {
+  void aSubscriptionIsFoundByCalendarKeyAndOwner() {
     inTransaction(() -> {
       dao.saveAndFlush(subscription(42, 7, "a", NOW, NOW.minusSeconds(60)));
       dao.saveAndFlush(subscription(43, 7, "b", NOW, NOW.minusSeconds(120)));
@@ -127,10 +127,42 @@ class CalendarSubscriptionDAOQueryTest {
     assertEquals(43, dao.findByUrlKey("b".repeat(64)).getCalendarId());
     assertNull(dao.findByUrlKey("z".repeat(64)));
     assertEquals(List.of(43L, 42L),
-                 dao.findByUserIdentityId(7, PageRequest.of(0, 10, Sort.by("createdDate").ascending()))
+                 dao.findByOwnerIdentityId(7, PageRequest.of(0, 10, Sort.by("createdDate").ascending()))
                     .stream()
                     .map(CalendarSubscriptionEntity::getCalendarId)
                     .toList());
+  }
+
+  /**
+   * A space's subscriptions are its own (EXO-90373): listed by the space as
+   * owner, not by the manager who added them, whose personal ones stay apart;
+   * the calendars they fill are listed by owner, oldest subscription first.
+   */
+  @Test
+  void aSpaceSubscriptionIsListedByItsOwnerNotByItsCreator() {
+    inTransaction(() -> {
+      dao.saveAndFlush(subscription(50, 7, "a", NOW, NOW));
+      CalendarSubscriptionEntity first = subscription(51, 7, "b", NOW, NOW.minusSeconds(60));
+      first.setOwnerIdentityId(900);
+      dao.saveAndFlush(first);
+      CalendarSubscriptionEntity second = subscription(52, 8, "c", NOW, NOW);
+      second.setOwnerIdentityId(900);
+      dao.saveAndFlush(second);
+    });
+    entityManager.clear();
+
+    assertEquals(List.of(50L),
+                 dao.findByOwnerIdentityId(7, PageRequest.of(0, 10)).stream().map(CalendarSubscriptionEntity::getCalendarId).toList(),
+                 "the manager's own listing leaves the space's out");
+    assertEquals(List.of(51L, 52L),
+                 dao.findByOwnerIdentityId(900, PageRequest.of(0, 10, Sort.by("createdDate").ascending()))
+                    .stream()
+                    .map(CalendarSubscriptionEntity::getCalendarId)
+                    .toList());
+    assertEquals(7, dao.findByCalendarId(51).getUserIdentityId(), "the creator is kept apart from the owner");
+    assertEquals(List.of(51L, 52L), dao.findCalendarIdsByOwnerIdentityId(900, PageRequest.of(0, 10)));
+    assertEquals(List.of(51L), dao.findCalendarIdsByOwnerIdentityId(900, PageRequest.of(0, 1)));
+    assertTrue(dao.findCalendarIdsByOwnerIdentityId(901, PageRequest.of(0, 10)).isEmpty());
   }
 
   /**
@@ -402,6 +434,7 @@ class CalendarSubscriptionDAOQueryTest {
     CalendarSubscriptionEntity entity = new CalendarSubscriptionEntity();
     entity.setCalendarId(calendarId);
     entity.setUserIdentityId(userIdentityId);
+    entity.setOwnerIdentityId(userIdentityId);
     entity.setUrlEncrypted("enc-" + key);
     entity.setUrlKey(key.repeat(64));
     entity.setNextRefreshDate(Date.from(nextRefresh));

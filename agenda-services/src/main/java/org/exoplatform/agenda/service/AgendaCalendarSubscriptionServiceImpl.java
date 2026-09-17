@@ -261,7 +261,7 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
   @Override
   public List<CalendarSubscription> getSubscriptions(String username) throws IllegalAccessException {
     long userIdentityId = userIdentityId(username);
-    return subscriptionStorage.getByUser(userIdentityId, MAX_SUBSCRIPTIONS).stream().map(this::forOwner).toList();
+    return subscriptionStorage.getByOwner(userIdentityId, MAX_SUBSCRIPTIONS).stream().map(this::forOwner).toList();
   }
 
   /**
@@ -306,7 +306,7 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
       if (subscriptionStorage.getByUrlKey(urlKey) != null) {
         throw new IllegalArgumentException(ALREADY_SUBSCRIBED);
       }
-      if (subscriptionStorage.getByUser(userIdentityId, MAX_SUBSCRIPTIONS).size() >= MAX_SUBSCRIPTIONS) {
+      if (subscriptionStorage.getByOwner(userIdentityId, MAX_SUBSCRIPTIONS).size() >= MAX_SUBSCRIPTIONS) {
         throw new IllegalArgumentException(TOO_MANY_SUBSCRIPTIONS);
       }
       ReadFeed answer = readForUser(uri, userIdentityId, now);
@@ -328,6 +328,7 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
       CalendarSubscription subscription = new CalendarSubscription();
       subscription.setCalendarId(calendar.getId());
       subscription.setUserIdentityId(userIdentityId);
+      subscription.setOwnerIdentityId(userIdentityId);
       subscription.setUrlEncrypted(encrypt(uri.toString()));
       subscription.setUrlKey(urlKey);
       subscription.setCreatedDate(now.toEpochMilli());
@@ -380,7 +381,7 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
     if (StringUtils.isNotBlank(url)) {
       try {
         URI uri = feedFetcher.getGuard().normalize(url);
-        String key = urlKey(subscription.getUserIdentityId(), uri);
+        String key = urlKey(subscription.getOwnerIdentityId(), uri);
         if (!key.equals(subscription.getUrlKey())) {
           if (subscriptionStorage.getByUrlKey(key) != null) {
             throw new IllegalArgumentException(ALREADY_SUBSCRIBED);
@@ -1017,14 +1018,16 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
   }
 
   /**
-   * The key of a user's subscription to a URL.
+   * The key of an owner's subscription to a URL: for a personal subscription
+   * the owner is the user, so the keys stored before a space could subscribe
+   * are unchanged (EXO-90373).
    *
-   * @param userIdentityId the user
+   * @param ownerIdentityId the owner, a user or a space
    * @param uri the normalized URL
    * @return lowercase hexadecimal SHA-256
    */
-  static String urlKey(long userIdentityId, URI uri) {
-    return CalendarFeedParserAccess.sha256((userIdentityId + "\n" + uri).getBytes(StandardCharsets.UTF_8));
+  static String urlKey(long ownerIdentityId, URI uri) {
+    return CalendarFeedParserAccess.sha256((ownerIdentityId + "\n" + uri).getBytes(StandardCharsets.UTF_8));
   }
 
   /**
