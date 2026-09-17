@@ -183,6 +183,24 @@ describe('One "Shared with me" section for eXo shares and server shares', () => 
     expect(warn).not.toHaveBeenCalled();
   });
 
+  it('marks a calendar shared for editing with a pencil and says so in the hover', async () => {
+    // Bob shared for editing, Carol for viewing (EXO-90378)
+    service.getSharedWithMe.mockResolvedValue([Object.assign({}, BOB_CAL, {access: 'EDIT'}),
+                                               Object.assign({}, CAROL_CAL, {access: 'VIEW'})]);
+
+    const wrapper = await mountSection();
+
+    const rows = wrapper.findAll('.agenda-calendar-settings');
+    expect(rows.at(0).find('.agenda-remote-calendar-editable').exists()).toBe(true);
+    expect(rows.at(0).find('v-list-item-content').attributes('title'))
+      .toBe('Bob — agenda.leftPanel.sharedCalendarEditable(Bob Builder)');
+    expect(rows.at(1).find('.agenda-remote-calendar-editable').exists()).toBe(false);
+    expect(rows.at(1).find('v-list-item-content').attributes('title'))
+      .toBe('Carol — agenda.leftPanel.sharedBy(Carol)');
+    // The owner's avatar stays where it was, at both levels
+    expect(rows.at(0).find('exo-user-avatar').attributes('profile-id')).toBe('bob');
+  });
+
   it('draws one heading with an eXo share and a server share together, each calendar once, the delivered share through its eXo row', async () => {
     const deferred = deferredConnector();
     const wrapper = await mountSection([deferred.connector]);
