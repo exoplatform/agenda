@@ -43,6 +43,194 @@ import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 
 public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
+  /**
+   * eXIP 7.3.0.20 Open Event, US01 (EXO-89477): the flag is carried end to end
+   * by the full saves that rebuild the Event positionally, is kept when a save
+   * does not state it, and is never true on a personal calendar. Reads go
+   * through the cached storage, which returns a clone: a clone() that dropped
+   * the field would fail the first assertion.
+   */
+  @Test
+  public void testOpenEventFlagCarriedByFullSaves() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long userIdentityId = Long.parseLong(testuser1Identity.getId());
+
+    // Created open in a space calendar
+    Event event = newEventInstance(start, start, true);
+    event.setCalendarId(spaceCalendar.getId());
+    event.setRecurrence(null);
+    event.setOpen(true);
+    Event createdEvent = createEvent(event.clone(), userIdentityId, testuser2Identity);
+    long eventId = createdEvent.getId();
+    assertEquals(Boolean.TRUE, agendaEventService.getEventById(eventId).getOpen());
+    assertEquals(Boolean.TRUE, agendaEventService.getEventById(eventId, null, userIdentityId).getOpen());
+
+    // A full save that does not state the flag (null) keeps it
+    Event storedEvent = agendaEventService.getEventById(eventId, ZoneOffset.UTC, userIdentityId);
+    Event updatedEvent = storedEvent.clone();
+    updatedEvent.setOpen(null);
+    agendaEventService.updateEvent(updatedEvent,
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   userIdentityId);
+    assertEquals(Boolean.TRUE, agendaEventService.getEventById(eventId).getOpen());
+
+    // An explicit value is applied by the same save
+    updatedEvent = agendaEventService.getEventById(eventId, ZoneOffset.UTC, userIdentityId).clone();
+    updatedEvent.setOpen(false);
+    agendaEventService.updateEvent(updatedEvent,
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   userIdentityId);
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(eventId).getOpen());
+
+    // An explicit true by an editor opens it through the same save
+    updatedEvent = agendaEventService.getEventById(eventId, ZoneOffset.UTC, userIdentityId).clone();
+    updatedEvent.setOpen(true);
+    agendaEventService.updateEvent(updatedEvent,
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   userIdentityId);
+    assertEquals(Boolean.TRUE, agendaEventService.getEventById(eventId).getOpen());
+
+    // Moved to a personal calendar with the flag unspecified: the invariant is
+    // evaluated on the target calendar, so the event is locked by the move
+    updatedEvent = agendaEventService.getEventById(eventId, ZoneOffset.UTC, userIdentityId).clone();
+    updatedEvent.setCalendarId(calendar.getId());
+    updatedEvent.setOpen(null);
+    agendaEventService.updateEvent(updatedEvent,
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   userIdentityId);
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(eventId).getOpen());
+
+    // Absent at creation means locked
+    Event lockedEvent = newEventInstance(start, start, true);
+    lockedEvent.setCalendarId(spaceCalendar.getId());
+    lockedEvent.setRecurrence(null);
+    lockedEvent.setOpen(null);
+    Event createdLockedEvent = createEvent(lockedEvent.clone(), userIdentityId, testuser2Identity);
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(createdLockedEvent.getId()).getOpen());
+
+    // Never open on a personal calendar, whatever the client sends
+    Event personalEvent = newEventInstance(start, start, true);
+    personalEvent.setRecurrence(null);
+    personalEvent.setOpen(true);
+    Event createdPersonalEvent = createEvent(personalEvent.clone(), userIdentityId, testuser2Identity);
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(createdPersonalEvent.getId()).getOpen());
+
+    // ... nor through a full save that states it
+    Event personalUpdate = agendaEventService.getEventById(createdPersonalEvent.getId(), ZoneOffset.UTC, userIdentityId).clone();
+    personalUpdate.setOpen(true);
+    agendaEventService.updateEvent(personalUpdate,
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   userIdentityId);
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(createdPersonalEvent.getId()).getOpen());
+
+    // Never open on a date poll either (open date polls are eXIP 7.3.0.40): the
+    // status is derived by the server from the date options, not sent by the
+    // client, so the invariant reads the derived status
+    Event datePoll = newEventInstance(start, start, true);
+    datePoll.setCalendarId(spaceCalendar.getId());
+    datePoll.setRecurrence(null);
+    datePoll.setOpen(true);
+    List<EventDateOption> dateOptions = Arrays.asList(new EventDateOption(0, 0, start, start.plusHours(1), false, false, null),
+                                                      new EventDateOption(0, 0, start.plusDays(1), start.plusDays(1).plusHours(1), false, false, null));
+    Event createdDatePoll = agendaEventService.createEvent(datePoll.clone(),
+                                                           Collections.emptyList(),
+                                                           Collections.emptyList(),
+                                                           Collections.emptyList(),
+                                                           dateOptions,
+                                                           null,
+                                                           false,
+                                                           userIdentityId);
+    assertEquals(EventStatus.TENTATIVE, agendaEventService.getEventById(createdDatePoll.getId()).getStatus());
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(createdDatePoll.getId()).getOpen());
+  }
+
+  /**
+   * eXIP 7.3.0.20 Open Event, US01 (EXO-89477): the flag is a property of the
+   * series. An exceptional occurrence's own row stays false, and the REST
+   * entity built for that occurrence carries the parent's value, so the client
+   * never has to look the parent up.
+   */
+  @Test
+  public void testOpenEventFlagOfOccurrenceIsTheSeriesValue() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long userIdentityId = Long.parseLong(testuser1Identity.getId());
+
+    Event event = newEventInstance(start, start, true);
+    event.setCalendarId(spaceCalendar.getId());
+    event.setOpen(true);
+    Event createdEvent = createEvent(event.clone(), userIdentityId, testuser2Identity);
+    assertNotNull(createdEvent.getRecurrence());
+    assertEquals(Boolean.TRUE, agendaEventService.getEventById(createdEvent.getId()).getOpen());
+
+    Event exceptionalOccurrence = agendaEventService.saveEventExceptionalOccurrence(createdEvent.getId(), start);
+    assertNotNull(exceptionalOccurrence);
+    assertTrue(exceptionalOccurrence.getParentId() > 0);
+    // The occurrence row is not a source of truth for the flag
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(exceptionalOccurrence.getId()).getOpen());
+
+    // A full save of the occurrence carrying the effective value (what the
+    // detail page sends back on drawer close) must not write it into the row
+    Event occurrenceUpdate = agendaEventService.getEventById(exceptionalOccurrence.getId(), ZoneOffset.UTC, userIdentityId).clone();
+    occurrenceUpdate.setOpen(true);
+    agendaEventService.updateEvent(occurrenceUpdate,
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   userIdentityId);
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(exceptionalOccurrence.getId()).getOpen());
+
+    // The form's "this occurrence only" creates the exceptional occurrence
+    // through createEvent, with the parent's flag on the wire: same rule
+    ZonedDateTime otherOccurrenceId = start.plusDays(1);
+    Event formOccurrence = newEventInstance(otherOccurrenceId, otherOccurrenceId, true);
+    formOccurrence.setCalendarId(spaceCalendar.getId());
+    formOccurrence.setRecurrence(null);
+    formOccurrence.setParentId(createdEvent.getId());
+    formOccurrence.setOccurrence(new EventOccurrence(otherOccurrenceId, true, false));
+    formOccurrence.setOpen(true);
+    Event createdOccurrence = createEvent(formOccurrence.clone(), userIdentityId, testuser2Identity);
+    assertTrue(createdOccurrence.getParentId() > 0);
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(createdOccurrence.getId()).getOpen());
+
+    // The parent keeps the truth the wire will carry for that occurrence
+    assertEquals(Boolean.TRUE, agendaEventService.getEventById(createdEvent.getId()).getOpen());
+    // NOTE: RestEntityBuilder.fromEvent cannot be called from here: building the
+    // calendar owner's identity entity goes through the social
+    // EntityBuilder.updateCachedEtagValue, which dereferences
+    // ApplicationContextImpl.getCurrent() (null outside a JAX-RS request:
+    // NPE on ApplicationContext.getProperties(), observed 2026-09-17). The
+    // resolution rule the wire applies is pinned on its own in
+    // RestEntityBuilderOpenFlagTest.
+  }
+
   /** A link back to the event in eXo, of the shape NotificationUtils mints. */
   private static final String EVENT_LINK      = "http://localhost:8080/portal/dw/agenda?eventId=42";
 
