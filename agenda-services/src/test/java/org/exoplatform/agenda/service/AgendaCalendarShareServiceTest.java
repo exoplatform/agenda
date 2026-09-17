@@ -369,8 +369,8 @@ class AgendaCalendarShareServiceTest {
   @Test
   void aReadOnlyGrantToAColleagueIsRecordedOnceAndSilently() throws Exception {
     user(4, "bob", true);
-    channel.external = List.of(new ExternalShare("caldav:1", "bob", "EXO_USER", 4, "Bob", true, true, null, "/calendars/owner/shared-10/"),
-                               new ExternalShare("caldav:1", "dis", "EXO_USER", DISABLED, "Disabled", true, true, null, "/calendars/owner/shared-10/"));
+    channel.external = List.of(new ExternalShare("caldav:1", "bob", "EXO_USER", 4, "Bob", true, true, "VIEW", null, "/calendars/owner/shared-10/"),
+                               new ExternalShare("caldav:1", "dis", "EXO_USER", DISABLED, "Disabled", true, true, "VIEW", null, "/calendars/owner/shared-10/"));
 
     List<ExternalShare> external = service.getExternalShares(PERSONAL_CAL, "owner");
     List<ExternalShare> again = service.getExternalShares(PERSONAL_CAL, "owner");
@@ -389,6 +389,50 @@ class AgendaCalendarShareServiceTest {
   }
 
   /**
+   * A grant a channel reports as an edit share — one of exactly the shape eXo
+   * writes — is adopted as an EDIT record (EXO-90378); one it reports as
+   * anything else stays outside eXo, however removable it says it is, because
+   * a record whose level eXo cannot reproduce would lie about what the server
+   * allows.
+   *
+   * @throws Exception when the listing is refused
+   */
+  @Test
+  void anEditShapedGrantIsAdoptedAtEditAndAWiderOneIsNot() throws Exception {
+    user(4, "bob", true);
+    user(5, "carol", true);
+    channel.external = List.of(new ExternalShare("caldav:1", "bob", "EXO_USER", 4, "Bob", true, false, "EDIT", null, "/c/"),
+                               new ExternalShare("caldav:1", "carol", "EXO_USER", 5, "Carol", true, false, "MORE", null, "/c/"));
+
+    List<ExternalShare> external = service.getExternalShares(PERSONAL_CAL, "owner");
+
+    assertEquals(List.of("carol"), external.stream().map(ExternalShare::getExternalId).toList());
+    assertEquals(1, storage.rows.size());
+    assertEquals(4, storage.rows.get(0).getShareeIdentityId());
+    assertEquals(CalendarShareLevel.EDIT, storage.rows.get(0).getLevel(), "adopted at the level the server holds");
+    assertEquals(CalendarShareSource.ADOPTED, storage.rows.get(0).getSource());
+    assertEquals(0, channel.deliveries, "the server is not touched");
+  }
+
+  /**
+   * A channel that carried the share at a narrower level than the record asks
+   * for (BlueMind, until its write grant is proved) delivers all the same: the
+   * record keeps the owner's level, which is what decides every right in eXo.
+   *
+   * @throws Exception when the share is refused
+   */
+  @Test
+  void aChannelCarryingANarrowerLevelStillDelivers() throws Exception {
+    channel.answer = ChannelDelivery.delivered("caldav:1", "/c/", CalendarShareLevel.VIEW);
+
+    CalendarShare share = service.share(PERSONAL_CAL, "alice", CalendarShareLevel.EDIT, "owner");
+
+    assertEquals(CalendarShareLevel.EDIT, share.getLevel(), "the eXo level is the owner's choice, not the server's");
+    assertEquals("caldav:1", share.getDeliveredTo(), "and the share is delivered, not failed");
+    assertEquals(CalendarShareLevel.EDIT, service.getShareLevel(PERSONAL_CAL, ALICE));
+  }
+
+  /**
    * The external shares are read live from the channels, the recorded sharees
    * left out, and a channel that throws empties nothing but its own answer.
    *
@@ -398,8 +442,8 @@ class AgendaCalendarShareServiceTest {
   void externalSharesAreReadLiveWithoutTheRecordedSharees() throws Exception {
     channel.answer = ChannelDelivery.delivered("caldav:1", null);
     service.share(PERSONAL_CAL, "alice", CalendarShareLevel.VIEW, "owner");
-    channel.external = List.of(new ExternalShare("caldav:1", "grant-alice", "EXO_USER", ALICE, "Alice", true, true, null, "/c/"),
-                               new ExternalShare("caldav:1", "grant-bob", "EXO_USER", 4, "Bob", false, false, null, "/c/"),
+    channel.external = List.of(new ExternalShare("caldav:1", "grant-alice", "EXO_USER", ALICE, "Alice", true, true, "VIEW", null, "/c/"),
+                               new ExternalShare("caldav:1", "grant-bob", "EXO_USER", 4, "Bob", false, false, "MORE", null, "/c/"),
                                new ExternalShare(null, "grant-out", "OUTSIDE_EXO", 0, "someone@else.org", true, true));
 
     List<ExternalShare> external = service.getExternalShares(PERSONAL_CAL, "owner");

@@ -263,7 +263,8 @@ public class AgendaCalendarShareServiceImpl implements AgendaCalendarShareServic
    *         outside eXo
    */
   private boolean record(Calendar calendar, ExternalShare share, long ownerIdentityId) {
-    if (share.getShareeIdentityId() <= 0 || !share.isReadOnly() || StringUtils.isBlank(share.getDeliveryRef())) {
+    CalendarShareLevel level = adoptableLevel(share);
+    if (share.getShareeIdentityId() <= 0 || level == null || StringUtils.isBlank(share.getDeliveryRef())) {
       return false;
     }
     try {
@@ -271,7 +272,7 @@ public class AgendaCalendarShareServiceImpl implements AgendaCalendarShareServic
       CalendarShare recorded = calendarShareStorage.save(calendar.getId(),
                                                          shareeId,
                                                          ownerIdentityId,
-                                                         CalendarShareLevel.VIEW,
+                                                         level,
                                                          CalendarShareSource.ADOPTED,
                                                          share.getChannelId(),
                                                          share.getDeliveryRef(),
@@ -285,6 +286,29 @@ public class AgendaCalendarShareServiceImpl implements AgendaCalendarShareServic
                 e.getMessage());
       return false;
     }
+  }
+
+  /**
+   * The level a grant held on a channel's server can be adopted as
+   * (EXO-90378), null for a grant eXo does not write and therefore never
+   * adopts.
+   * <p>
+   * A read-only grant is a {@code VIEW} share, as it was in EXO-90357. A grant
+   * the channel reports as {@code EDIT} is one of exactly the shape eXo writes
+   * for an edit share — the channel is what knows that shape, and it says so
+   * here rather than handing over privileges agenda would have to read.
+   * Anything else stays outside eXo, listed to the owner as access held
+   * elsewhere: adopting a grant eXo cannot reproduce would make a record whose
+   * level lies about what the server allows.
+   *
+   * @param share the grant as the channel listed it
+   * @return the level to record it at, or null to leave it outside eXo
+   */
+  private static CalendarShareLevel adoptableLevel(ExternalShare share) {
+    if (share.isReadOnly()) {
+      return CalendarShareLevel.VIEW;
+    }
+    return CalendarShareLevel.EDIT.name().equalsIgnoreCase(share.getAccess()) ? CalendarShareLevel.EDIT : null;
   }
 
   /**
@@ -476,6 +500,20 @@ public class AgendaCalendarShareServiceImpl implements AgendaCalendarShareServic
       }
       if (delivery.getStatus() == ChannelDelivery.Status.DELIVERED) {
         String channelId = StringUtils.defaultIfBlank(delivery.getChannelId(), channelId(channel));
+        // A channel that carried the share at a narrower level than the record
+        // asked for (EXO-90378) is not a failure: the colleague edits in eXo,
+        // and the server simply shows them less. Logged, never surfaced — the
+        // owner is told nothing about a delivery, at any level.
+        if (delivery.getDeliveredLevel() != null && delivery.getDeliveredLevel() != share.getLevel()) {
+          LOG.warn("Channel {} carried the share of calendar {} by {} with colleague {} at level {} rather than {};"
+              + " the eXo level stands and decides every right in eXo",
+                   channelId,
+                   share.getCalendarId(),
+                   ownerUsername,
+                   share.getShareeIdentityId(),
+                   delivery.getDeliveredLevel(),
+                   share.getLevel());
+        }
         CalendarShare delivered = calendarShareStorage.setDelivery(share.getCalendarId(),
                                                                    share.getShareeIdentityId(),
                                                                    channelId,
