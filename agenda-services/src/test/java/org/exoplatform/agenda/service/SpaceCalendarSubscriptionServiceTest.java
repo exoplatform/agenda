@@ -482,6 +482,48 @@ class SpaceCalendarSubscriptionServiceTest {
   }
 
   /**
+   * A colour saved on the space's calendar is given to the calendars the space's
+   * subscriptions fill, the ones already in that colour left alone; a user's
+   * calendar, a subscribed calendar or a blank colour recolours nothing.
+   *
+   * @throws Exception never
+   */
+  @Test
+  void theSpacesSubscribedCalendarsFollowTheSpacesColour() throws Exception {
+    Calendar first = calendarOf(77, SPACE);
+    first.setSubscription(true);
+    first.setColor("#abcdef");
+    Calendar second = calendarOf(78, SPACE);
+    second.setSubscription(true);
+    second.setColor("#FF0000");
+    when(calendarService.getCalendarById(77)).thenReturn(first);
+    when(calendarService.getCalendarById(78)).thenReturn(second);
+    when(storage.getCalendarIdsByOwner(eq(SPACE), anyInt())).thenReturn(List.of(77L, 78L));
+    when(storage.getCalendarIdsByOwner(eq(JOHN), anyInt())).thenReturn(List.of(77L, 78L));
+
+    Calendar johnsCalendar = calendarOf(9, JOHN);
+    johnsCalendar.setColor("#000000");
+    service.followSpaceColor(johnsCalendar);
+    Calendar subscribed = calendarOf(77, SPACE);
+    subscribed.setSubscription(true);
+    subscribed.setColor("#000000");
+    service.followSpaceColor(subscribed);
+    Calendar blank = calendarOf(5, SPACE);
+    service.followSpaceColor(blank);
+    verify(calendarService, never()).updateCalendar(any(Calendar.class));
+
+    Calendar spaceCalendar = calendarOf(5, SPACE);
+    spaceCalendar.setColor("#ff0000");
+    service.followSpaceColor(spaceCalendar);
+
+    ArgumentCaptor<Calendar> recoloured = ArgumentCaptor.forClass(Calendar.class);
+    verify(calendarService, times(1)).updateCalendar(recoloured.capture());
+    assertEquals(77, recoloured.getValue().getId(), "the one already in that colour, whatever its case, is left alone");
+    assertEquals("#ff0000", recoloured.getValue().getColor());
+    assertTrue(recoloured.getValue().isSubscription(), "and it stays a subscribed calendar");
+  }
+
+  /**
    * Stores the space's subscription, added by John.
    */
   private void spaceRow() {

@@ -595,6 +595,32 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
    * {@inheritDoc}
    */
   @Override
+  public void followSpaceColor(Calendar calendar) {
+    if (calendar == null || calendar.getId() <= 0 || calendar.isSubscription() || StringUtils.isBlank(calendar.getColor())
+        || !isSpace(calendar.getOwnerId())) {
+      return;
+    }
+    for (Long calendarId : subscriptionStorage.getCalendarIdsByOwner(calendar.getOwnerId(), MAX_SUBSCRIPTIONS)) {
+      Calendar subscribed = calendarId == null ? null : agendaCalendarService.getCalendarById(calendarId);
+      if (subscribed == null || !subscribed.isSubscription() || calendar.getColor().equalsIgnoreCase(subscribed.getColor())) {
+        continue;
+      }
+      subscribed.setColor(calendar.getColor());
+      try {
+        // Saved without a permission check, keeping the flag: the storage evicts
+        // the cached calendar, and the update it broadcasts is a subscribed
+        // calendar's, which this method leaves alone
+        agendaCalendarService.updateCalendar(subscribed);
+      } catch (ObjectNotFoundException e) {
+        LOG.debug("The subscribed calendar {} was deleted meanwhile", calendarId);
+      }
+    }
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
   public int refreshDueSubscriptions(int batchSize) {
     Instant now = clock.instant();
     int refreshed = 0;

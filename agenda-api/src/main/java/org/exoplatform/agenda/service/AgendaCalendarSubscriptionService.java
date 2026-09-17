@@ -217,6 +217,17 @@ public interface AgendaCalendarSubscriptionService {
   void deleteCalendarSubscription(long calendarId);
 
   /**
+   * Gives the calendars a space's subscriptions fill the colour of a calendar
+   * of that space just created or saved, so that their events keep reading as
+   * the space's (EXO-90373). Nothing happens for a subscribed calendar, a user's
+   * calendar, or a colour they already have. No permission check: the calendar
+   * was saved by a path that made its own.
+   *
+   * @param calendar the calendar as saved
+   */
+  void followSpaceColor(org.exoplatform.agenda.model.Calendar calendar);
+
+  /**
    * Refreshes the subscriptions whose refresh is due, at most a batch of them,
    * each claimed in the database first so that a single node of a cluster
    * refreshes it.
