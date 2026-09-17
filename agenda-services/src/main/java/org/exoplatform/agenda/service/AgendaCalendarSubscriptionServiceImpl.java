@@ -34,8 +34,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiFunction;
 import java.util.regex.Pattern;
 
+import org.apache.commons.lang3.LocaleUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -65,16 +67,26 @@ import org.exoplatform.commons.search.index.IndexingService;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
+import org.exoplatform.social.core.activity.model.ExoSocialActivity;
+import org.exoplatform.social.core.activity.model.ExoSocialActivityImpl;
 import org.exoplatform.social.core.identity.model.Identity;
+import org.exoplatform.social.core.manager.ActivityManager;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.web.security.codec.CodecInitializer;
 import org.exoplatform.web.security.security.TokenServiceInitializationException;
 
 /**
- * Holds every rule of calendar subscriptions (EXO-90278).
+ * Holds every rule of calendar subscriptions (EXO-90278), personal or of a
+ * space (EXO-90373).
  * <p>
- * <b>Stored events.</b> A subscription fills a personal calendar of its own,
+ * <b>Owners.</b> A subscription belongs to the owner of the calendar it fills: a
+ * user, who alone manages it, or a space, whose real managers manage it whoever
+ * added it. A space's calendar is a storage detail: it takes the space's colour,
+ * its events are attended by the space, and every reader of the space's
+ * calendar reads them.
+ * <p>
+ * <b>Stored events.</b> A subscription fills a calendar of its own,
  * flagged as a subscription, with one agenda event per occurrence of the feed in
  * the window — so imported events appear in every view, the search and the
  * preview like any other. They are written through {@link AgendaEventStorage},
@@ -89,7 +101,8 @@ import org.exoplatform.web.security.security.TokenServiceInitializationException
  * path of a published calendar — is read in the process, through
  * {@link AgendaCalendarLinkService}, with the token checks the anonymous feed
  * applies; and refused when the calendar it publishes is one the user already
- * sees. Every other link is read by {@link CalendarFeedFetcher}, whose guard
+ * sees — for a space, when it is one of the space's own. Every other link is
+ * read by {@link CalendarFeedFetcher}, whose guard
  * decides which addresses the platform may reach.
  * <p>
  * <b>Refreshing.</b> A refresh is claimed in the database before it runs, by the
@@ -100,8 +113,8 @@ import org.exoplatform.web.security.security.TokenServiceInitializationException
  * copy and records its message code.
  * <p>
  * <b>Secrets.</b> Feed URLs often embed one; a URL is stored encrypted with the
- * platform codec, compared through a digest, returned to its owner only, and
- * never logged.
+ * platform codec, compared through a digest, returned to whoever manages the
+ * subscription only, and never logged.
  */
 @Service
 public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubscriptionService {
@@ -180,6 +193,12 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
    */
   public static final int       MAX_READS_PER_USER      = 2;
 
+  /** Bundle key of the text of the activity announcing a space's subscription. */
+  static final String           SPACE_ACTIVITY_LABEL    = "agenda.calendarSubscription.spaceActivity";
+
+  /** The text of that activity when the bundle cannot be read. */
+  static final String           SPACE_ACTIVITY_DEFAULT  = "Added the calendar <b>{0}</b> to the agenda of this space.";
+
   /** Path of a published calendar's feed on this eXo, token and extension appended. */
   static final String           OWN_FEED_PATH           = "/agenda/rest/ical/";
 
@@ -211,9 +230,13 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
 
   private final IndexingService             indexingService;
 
+  private final ActivityManager             activityManager;
+
   private final String                      node;
 
   private Clock                             clock                   = Clock.systemUTC();
+
+  private BiFunction<String, String, String> labelResolver          = AgendaCalendarSubscriptionServiceImpl::translatedLabel;
 
   /**
    * Builds the service.
@@ -229,6 +252,8 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
    * @param codecInitializer the platform codec URLs are encrypted with
    * @param indexingService keeps the search index in step with the imported
    *          events
+   * @param activityManager posts the activity announcing a space's
+   *          subscription
    */
   @Autowired
   public AgendaCalendarSubscriptionServiceImpl(CalendarSubscriptionStorage subscriptionStorage, // NOSONAR
@@ -240,7 +265,8 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
                                                IdentityManager identityManager,
                                                SpaceService spaceService,
                                                CodecInitializer codecInitializer,
-                                               IndexingService indexingService) {
+                                               IndexingService indexingService,
+                                               ActivityManager activityManager) {
     this.subscriptionStorage = subscriptionStorage;
     this.agendaCalendarService = agendaCalendarService;
     this.agendaEventStorage = agendaEventStorage;
@@ -251,6 +277,7 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
     this.spaceService = spaceService;
     this.codecInitializer = codecInitializer;
     this.indexingService = indexingService;
+    this.activityManager = activityManager;
     this.node = StringUtils.left(ManagementFactory.getRuntimeMXBean().getName() + "/" + UUID.randomUUID().toString().substring(0, 8),
                                  128);
   }
@@ -261,7 +288,31 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
   @Override
   public List<CalendarSubscription> getSubscriptions(String username) throws IllegalAccessException {
     long userIdentityId = userIdentityId(username);
-    return subscriptionStorage.getByOwner(userIdentityId, MAX_SUBSCRIPTIONS).stream().map(this::forOwner).toList();
+    return subscriptionStorage.getByOwner(userIdentityId, MAX_SUBSCRIPTIONS).stream().map(this::forManager).toList();
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<CalendarSubscription> getSubscriptions(long ownerIdentityId, String username) throws ObjectNotFoundException,
+                                                                                            IllegalAccessException {
+    long userIdentityId = userIdentityId(username);
+    Identity owner = manageableOwner(ownerIdentityId, userIdentityId, username);
+    return subscriptionStorage.getByOwner(Long.parseLong(owner.getId()), MAX_SUBSCRIPTIONS).stream().map(this::forManager).toList();
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public boolean canManageSubscriptions(long ownerIdentityId, String username) {
+    try {
+      manageableOwner(ownerIdentityId, userIdentityId(username), username);
+      return true;
+    } catch (ObjectNotFoundException | IllegalAccessException e) {
+      return false;
+    }
   }
 
   /**
@@ -270,7 +321,7 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
   @Override
   public CalendarSubscription getSubscription(long subscriptionId, String username) throws ObjectNotFoundException,
                                                                                     IllegalAccessException {
-    return forOwner(owned(subscriptionId, username));
+    return forManager(manageable(subscriptionId, username));
   }
 
   /**
@@ -279,12 +330,16 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
   @Override
   public String checkUrl(String url, String username) throws IllegalAccessException {
     long userIdentityId = userIdentityId(username);
-    try {
-      URI uri = feedFetcher.getGuard().normalize(url);
-      return readForUser(uri, userIdentityId, clock.instant()).parsed().name();
-    } catch (CalendarFeedException e) {
-      throw new IllegalArgumentException(e.getCode());
-    }
+    return check(url, identityManager.getIdentity(String.valueOf(userIdentityId)), userIdentityId);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public String checkUrl(String url, long ownerIdentityId, String username) throws ObjectNotFoundException, IllegalAccessException {
+    long userIdentityId = userIdentityId(username);
+    return check(url, manageableOwner(ownerIdentityId, userIdentityId, username), userIdentityId);
   }
 
   /**
@@ -293,6 +348,62 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
   @Override
   public CalendarSubscription createSubscription(String url, String name, String color, String username) throws IllegalAccessException {
     long userIdentityId = userIdentityId(username);
+    return create(url, name, color, identityManager.getIdentity(String.valueOf(userIdentityId)), userIdentityId, username);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public CalendarSubscription createSubscription(String url,
+                                                 String name,
+                                                 String color,
+                                                 long ownerIdentityId,
+                                                 String username) throws ObjectNotFoundException, IllegalAccessException {
+    long userIdentityId = userIdentityId(username);
+    return create(url, name, color, manageableOwner(ownerIdentityId, userIdentityId, username), userIdentityId, username);
+  }
+
+  /**
+   * Reads a link once for an owner, storing nothing.
+   *
+   * @param url the URL as typed
+   * @param owner the owner the link would be subscribed for
+   * @param userIdentityId the user asking, whose read permits are used
+   * @return the calendar's own name, or null
+   */
+  private String check(String url, Identity owner, long userIdentityId) {
+    try {
+      URI uri = feedFetcher.getGuard().normalize(url);
+      return readForUser(uri, userIdentityId, owner, clock.instant()).parsed().name();
+    } catch (CalendarFeedException e) {
+      throw new IllegalArgumentException(e.getCode());
+    }
+  }
+
+  /**
+   * Subscribes an owner the user may manage to a link: reads it, creates the
+   * owner's calendar flagged as a subscription, stores the subscription claimed
+   * and imports its events. A space's calendar takes the space's colour, and a
+   * space's new subscription is announced in its stream.
+   *
+   * @param url the URL as typed
+   * @param name the name given, may be blank
+   * @param color the colour given, may be blank; ignored for a space
+   * @param owner the owner, already checked as manageable by the user
+   * @param userIdentityId the user asking, recorded as who added it
+   * @param username the user asking
+   * @return the subscription as its managers read it
+   * @throws IllegalAccessException when the calendar cannot be created for the
+   *           owner by the user
+   */
+  private CalendarSubscription create(String url,
+                                      String name,
+                                      String color,
+                                      Identity owner,
+                                      long userIdentityId,
+                                      String username) throws IllegalAccessException {
+    long ownerIdentityId = Long.parseLong(owner.getId());
     String cleanName = cleanName(name);
     String cleanColor = cleanColor(color);
     Instant now = clock.instant();
@@ -302,14 +413,14 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
     String urlKey;
     try {
       uri = feedFetcher.getGuard().normalize(url);
-      urlKey = urlKey(userIdentityId, uri);
+      urlKey = urlKey(ownerIdentityId, uri);
       if (subscriptionStorage.getByUrlKey(urlKey) != null) {
         throw new IllegalArgumentException(ALREADY_SUBSCRIBED);
       }
-      if (subscriptionStorage.getByOwner(userIdentityId, MAX_SUBSCRIPTIONS).size() >= MAX_SUBSCRIPTIONS) {
+      if (subscriptionStorage.getByOwner(ownerIdentityId, MAX_SUBSCRIPTIONS).size() >= MAX_SUBSCRIPTIONS) {
         throw new IllegalArgumentException(TOO_MANY_SUBSCRIPTIONS);
       }
-      ReadFeed answer = readForUser(uri, userIdentityId, now);
+      ReadFeed answer = readForUser(uri, userIdentityId, owner, now);
       feed = answer.feed();
       parsed = answer.parsed();
     } catch (CalendarFeedException e) {
@@ -317,9 +428,11 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
     }
 
     Calendar calendar = new Calendar();
-    calendar.setOwnerId(userIdentityId);
+    calendar.setOwnerId(ownerIdentityId);
     calendar.setName(cleanName == null ? defaultName(parsed.name(), uri) : cleanName);
-    calendar.setColor(cleanColor);
+    // A space's subscribed calendar is never shown as a calendar of its own: its
+    // events read as the space's, in the space's colour (EXO-90373)
+    calendar.setColor(owner.isSpace() ? spaceColor(ownerIdentityId, username) : cleanColor);
     calendar.setSubscription(true);
     calendar = agendaCalendarService.createCalendar(calendar, username);
 
@@ -328,7 +441,7 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
       CalendarSubscription subscription = new CalendarSubscription();
       subscription.setCalendarId(calendar.getId());
       subscription.setUserIdentityId(userIdentityId);
-      subscription.setOwnerIdentityId(userIdentityId);
+      subscription.setOwnerIdentityId(ownerIdentityId);
       subscription.setUrlEncrypted(encrypt(uri.toString()));
       subscription.setUrlKey(urlKey);
       subscription.setCreatedDate(now.toEpochMilli());
@@ -350,11 +463,14 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
     try {
       apply(created, feed, parsed, now);
     } catch (RuntimeException e) {
-      // The subscription exists and its failure is recorded on it: the owner sees
-      // it with its warning, a refresh retries it, and unsubscribing removes it
+      // The subscription exists and its failure is recorded on it: its managers
+      // see it with its warning, a refresh retries it, and removing it removes it
       LOG.warn("The first import of calendar subscription {} failed", created.getId(), e);
     }
-    return forOwner(subscriptionStorage.getById(created.getId()));
+    if (owner.isSpace()) {
+      announceInSpace(owner, userIdentityId, username, calendar.getName(), created.getId());
+    }
+    return forManager(subscriptionStorage.getById(created.getId()));
   }
 
   /**
@@ -366,13 +482,14 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
                                                  String name,
                                                  String color,
                                                  String username) throws ObjectNotFoundException, IllegalAccessException {
-    CalendarSubscription subscription = owned(subscriptionId, username);
+    CalendarSubscription subscription = manageable(subscriptionId, username);
     Calendar calendar = agendaCalendarService.getCalendarById(subscription.getCalendarId());
     if (calendar == null) {
       throw new ObjectNotFoundException("The calendar of subscription " + subscriptionId + " wasn't found");
     }
     String cleanName = cleanName(name);
-    String cleanColor = cleanColor(color);
+    // A space's subscribed calendar follows the space's colour (EXO-90373)
+    String cleanColor = isSpace(subscription.getOwnerIdentityId()) ? null : cleanColor(color);
     Instant now = clock.instant();
     URI newUri = null;
     String newKey = null;
@@ -386,7 +503,10 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
           if (subscriptionStorage.getByUrlKey(key) != null) {
             throw new IllegalArgumentException(ALREADY_SUBSCRIBED);
           }
-          ReadFeed answer = readForUser(uri, subscription.getUserIdentityId(), now);
+          ReadFeed answer = readForUser(uri,
+                                        userIdentityId(username),
+                                        identityManager.getIdentity(String.valueOf(subscription.getOwnerIdentityId())),
+                                        now);
           feed = answer.feed();
           parsed = answer.parsed();
           newUri = uri;
@@ -410,7 +530,7 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
         apply(subscriptionStorage.getById(subscriptionId), feed, parsed, now);
       }
     }
-    return forOwner(subscriptionStorage.getById(subscriptionId));
+    return forManager(subscriptionStorage.getById(subscriptionId));
   }
 
   /**
@@ -419,13 +539,16 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
   @Override
   public CalendarSubscription refreshSubscription(long subscriptionId, String username) throws ObjectNotFoundException,
                                                                                         IllegalAccessException {
-    CalendarSubscription subscription = owned(subscriptionId, username);
+    CalendarSubscription subscription = manageable(subscriptionId, username);
     Instant now = clock.instant();
     if (subscription.getLastAttemptDate() > 0
         && now.toEpochMilli() - subscription.getLastAttemptDate() < MANUAL_REFRESH_INTERVAL.toMillis()) {
       throw new IllegalStateException(REFRESH_TOO_SOON);
     }
-    if (!acquireRead(subscription.getUserIdentityId())) {
+    // The permit is the user's who asks: the abuse it bounds is one person
+    // looping, whichever subscription they loop on
+    long readerIdentityId = userIdentityId(username);
+    if (!acquireRead(readerIdentityId)) {
       throw new IllegalStateException(TOO_MANY_READS);
     }
     try {
@@ -434,9 +557,9 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
       }
       refreshClaimed(subscriptionStorage.getById(subscriptionId), now);
     } finally {
-      releaseRead(subscription.getUserIdentityId());
+      releaseRead(readerIdentityId);
     }
-    return forOwner(subscriptionStorage.getById(subscriptionId));
+    return forManager(subscriptionStorage.getById(subscriptionId));
   }
 
   /**
@@ -444,7 +567,7 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
    */
   @Override
   public void deleteSubscription(long subscriptionId, String username) throws ObjectNotFoundException, IllegalAccessException {
-    CalendarSubscription subscription = owned(subscriptionId, username);
+    CalendarSubscription subscription = manageable(subscriptionId, username);
     List<CalendarSubscriptionEvent> rows = subscriptionStorage.getEvents(subscription.getId());
     subscriptionStorage.delete(subscription.getId());
     deleteCalendarQuietly(subscription.getCalendarId());
@@ -518,8 +641,8 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
    */
   private void refreshClaimed(CalendarSubscription subscription, Instant now) {
     Date attempt = Date.from(now);
-    Identity owner = identityManager.getIdentity(String.valueOf(subscription.getUserIdentityId()));
-    if (owner == null || owner.isDeleted() || !owner.isEnable()) {
+    Identity owner = identityManager.getIdentity(String.valueOf(subscription.getOwnerIdentityId()));
+    if (owner == null || owner.isDeleted() || owner.isUser() && !owner.isEnable()) {
       recordFailure(subscription, attempt, USER_DISABLED, now.plus(RETRY_AFTER_DEAD_END));
       return;
     }
@@ -529,7 +652,7 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
       return;
     }
     try {
-      FeedResponse feed = read(uri, subscription.getEtag(), subscription.getLastModified(), subscription.getUserIdentityId());
+      FeedResponse feed = read(uri, subscription.getEtag(), subscription.getLastModified(), owner);
       apply(subscription, feed, null, now);
     } catch (CalendarFeedException e) {
       LOG.debug("Calendar subscription {} could not be read: {}", subscription.getId(), e.getReason());
@@ -569,17 +692,18 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
    * costs a connection.
    *
    * @param uri the normalized URL
-   * @param userIdentityId the user
+   * @param userIdentityId the user asking, whose permits are used
+   * @param owner the owner the link is read for, a user or a space
    * @param now the instant the window is computed from
    * @return what was read and parsed
    * @throws CalendarFeedException with the reason nothing usable was read
    */
-  private ReadFeed readForUser(URI uri, long userIdentityId, Instant now) throws CalendarFeedException {
+  private ReadFeed readForUser(URI uri, long userIdentityId, Identity owner, Instant now) throws CalendarFeedException {
     if (!acquireRead(userIdentityId)) {
       throw new IllegalStateException(TOO_MANY_READS);
     }
     try {
-      FeedResponse feed = read(uri, null, null, userIdentityId);
+      FeedResponse feed = read(uri, null, null, owner);
       return new ReadFeed(feed, parse(feed.body(), now));
     } finally {
       releaseRead(userIdentityId);
@@ -728,10 +852,14 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
         // The owner attends the event, as the author of an event made in agenda
         // does: the default "my events" view and the timeline list events through
         // the attendee table, and an event nobody attends never appears there.
+        // For a space the attendee is the space (EXO-90373), as when a space is
+        // invited: those views read the attendee rows of the user's spaces, so
+        // its members see the event wherever the space's events show, and a
+        // space attendee is never expanded into a copy for each member.
         // ACCEPTED, so it is never a pending invitation. Written through the
         // storage: its attendee broadcast has no listener, and no invitation or
         // notification is sent.
-        attendeeStorage.saveEventAttendee(new EventAttendee(0, eventId, subscription.getUserIdentityId(), EventAttendeeResponse.ACCEPTED),
+        attendeeStorage.saveEventAttendee(new EventAttendee(0, eventId, subscription.getOwnerIdentityId(), EventAttendeeResponse.ACCEPTED),
                                           eventId);
       }
       reindex(eventId);
@@ -808,11 +936,11 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
    * @param uri the normalized URL
    * @param etag the entity tag to send, or null
    * @param lastModified the date to send, or null
-   * @param userIdentityId the subscriber
+   * @param owner the owner the link is read for, a user or a space
    * @return what was read
    * @throws CalendarFeedException with the reason nothing usable was read
    */
-  private FeedResponse read(URI uri, String etag, String lastModified, long userIdentityId) throws CalendarFeedException {
+  private FeedResponse read(URI uri, String etag, String lastModified, Identity owner) throws CalendarFeedException {
     String token = ownFeedToken(uri);
     if (token == null) {
       return feedFetcher.fetch(uri, etag, lastModified);
@@ -820,14 +948,22 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
     try {
       long calendarId = calendarLinkService.getFeedCalendarId(token);
       Calendar linked = agendaCalendarService.getCalendarById(calendarId);
-      // the user's own calendar is told apart from one seen through a space: the
-      // owner is the one most likely to paste the link they published themselves
-      if (linked != null && linked.getOwnerId() == userIdentityId) {
-        throw new CalendarFeedException(CalendarFeedException.OWN_CALENDAR);
-      }
-      if (linked != null
-          && Utils.canAccessCalendar(identityManager, spaceService, linked.getOwnerId(), userIdentityId)) {
-        throw new CalendarFeedException(CalendarFeedException.ALREADY_IN_AGENDA);
+      long ownerIdentityId = Long.parseLong(owner.getId());
+      if (owner.isSpace()) {
+        // A space may subscribe to another space's calendar, or a colleague's,
+        // never to its own: its members already read it (EXO-90373)
+        if (linked != null && linked.getOwnerId() == ownerIdentityId) {
+          throw new CalendarFeedException(CalendarFeedException.OWN_SPACE_CALENDAR);
+        }
+      } else {
+        // the user's own calendar is told apart from one seen through a space:
+        // the owner is the one most likely to paste the link they published
+        if (linked != null && linked.getOwnerId() == ownerIdentityId) {
+          throw new CalendarFeedException(CalendarFeedException.OWN_CALENDAR);
+        }
+        if (linked != null && Utils.canAccessCalendar(identityManager, spaceService, linked.getOwnerId(), ownerIdentityId)) {
+          throw new CalendarFeedException(CalendarFeedException.ALREADY_IN_AGENDA);
+        }
       }
       return new FeedResponse(false, calendarLinkService.getCalendarFeed(token).getBytes(StandardCharsets.UTF_8), null, null);
     } catch (ObjectNotFoundException e) {
@@ -914,13 +1050,14 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
   }
 
   /**
-   * A subscription as its owner reads it: the URL decrypted, the name and colour
-   * of its calendar, and none of the stored secrets or validators.
+   * A subscription as whoever manages it reads it: the URL decrypted, the name
+   * and colour of its calendar, who added it, and none of the stored secrets or
+   * validators.
    *
    * @param subscription the stored subscription
-   * @return the same subscription, filled for its owner
+   * @return the same subscription, filled for its managers
    */
-  private CalendarSubscription forOwner(CalendarSubscription subscription) {
+  private CalendarSubscription forManager(CalendarSubscription subscription) {
     if (subscription == null) {
       return null;
     }
@@ -933,6 +1070,11 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
       subscription.setName(calendar.getName());
       subscription.setColor(calendar.getColor());
     }
+    Identity creator = identityManager.getIdentity(String.valueOf(subscription.getUserIdentityId()));
+    if (creator != null) {
+      subscription.setCreatorUsername(creator.getRemoteId());
+      subscription.setCreatorFullName(creator.getProfile() == null ? creator.getRemoteId() : creator.getProfile().getFullName());
+    }
     subscription.setUrlEncrypted(null);
     subscription.setUrlKey(null);
     subscription.setEtag(null);
@@ -943,24 +1085,179 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
   }
 
   /**
-   * A subscription of the user's.
+   * A subscription the user may manage: their own, or one of a space they are a
+   * real manager of (EXO-90373).
    *
    * @param subscriptionId technical identifier
    * @param username the user
    * @return the stored subscription
    * @throws ObjectNotFoundException when none exists
-   * @throws IllegalAccessException when it is not the user's
+   * @throws IllegalAccessException when the user may not manage it
    */
-  private CalendarSubscription owned(long subscriptionId, String username) throws ObjectNotFoundException, IllegalAccessException {
+  private CalendarSubscription manageable(long subscriptionId, String username) throws ObjectNotFoundException, IllegalAccessException {
     long userIdentityId = userIdentityId(username);
     CalendarSubscription subscription = subscriptionId <= 0 ? null : subscriptionStorage.getById(subscriptionId);
     if (subscription == null) {
       throw new ObjectNotFoundException("Calendar subscription " + subscriptionId + " wasn't found");
     }
-    if (subscription.getUserIdentityId() != userIdentityId) {
-      throw new IllegalAccessException("User " + username + " is not the owner of calendar subscription " + subscriptionId);
+    Identity owner = identityManager.getIdentity(String.valueOf(subscription.getOwnerIdentityId()));
+    if (owner == null || !canManage(owner, userIdentityId)) {
+      throw new IllegalAccessException("User " + username + " may not manage calendar subscription " + subscriptionId);
     }
     return subscription;
+  }
+
+  /**
+   * The owner of subscriptions, when the user may manage them.
+   *
+   * @param ownerIdentityId identity identifier of the owner
+   * @param userIdentityId identity identifier of the user
+   * @param username the user
+   * @return the owner's identity
+   * @throws ObjectNotFoundException when the owner does not exist or was deleted
+   * @throws IllegalAccessException when the user may not manage its
+   *           subscriptions
+   */
+  private Identity manageableOwner(long ownerIdentityId, long userIdentityId, String username) throws ObjectNotFoundException,
+                                                                                               IllegalAccessException {
+    Identity owner = ownerIdentityId <= 0 ? null : identityManager.getIdentity(String.valueOf(ownerIdentityId));
+    if (owner == null || owner.isDeleted()) {
+      throw new ObjectNotFoundException("Identity " + ownerIdentityId + " wasn't found");
+    }
+    if (!canManage(owner, userIdentityId)) {
+      throw new IllegalAccessException("User " + username + " may not manage the calendar subscriptions of identity " + ownerIdentityId);
+    }
+    return owner;
+  }
+
+  /**
+   * Whether a user may manage an owner's subscriptions: a user's are their own
+   * alone; a space's are its real managers', a member holding the manager role
+   * ({@link Utils#canPublishCalendar}), never a super-manager who is not one nor
+   * a redactor — the rule publishing a space calendar follows, since adding a
+   * calendar to a space is managing the space's agenda. Any other kind of owner
+   * has none.
+   *
+   * @param owner the owner's identity
+   * @param userIdentityId identity identifier of the user
+   * @return true when the user may manage them
+   */
+  private boolean canManage(Identity owner, long userIdentityId) {
+    long ownerIdentityId = Long.parseLong(owner.getId());
+    if (owner.isUser()) {
+      return ownerIdentityId == userIdentityId;
+    } else if (owner.isSpace()) {
+      return Utils.canPublishCalendar(identityManager, spaceService, ownerIdentityId, userIdentityId);
+    }
+    return false;
+  }
+
+  /**
+   * Whether an identity is a space.
+   *
+   * @param identityId identity identifier
+   * @return true for an existing space identity
+   */
+  private boolean isSpace(long identityId) {
+    Identity identity = identityManager.getIdentity(String.valueOf(identityId));
+    return identity != null && identity.isSpace();
+  }
+
+  /**
+   * The colour of a space's calendar, the one its settings show and its events
+   * are drawn in: the first calendar the space's listing returns, or the colour
+   * the space's calendar will take when it is created.
+   *
+   * @param spaceIdentityId identity identifier of the space
+   * @param username a manager of the space
+   * @return the colour, or null to let the calendar service pick one
+   * @throws IllegalAccessException when the user may not read the space's
+   *           calendars
+   */
+  private String spaceColor(long spaceIdentityId, String username) throws IllegalAccessException {
+    List<Calendar> calendars = agendaCalendarService.getCalendarsByOwnerIds(List.of(spaceIdentityId), username);
+    Calendar calendar = calendars == null || calendars.isEmpty() ? agendaCalendarService.createCalendarInstance(spaceIdentityId)
+                                                                 : calendars.get(0);
+    return calendar == null ? null : calendar.getColor();
+  }
+
+  /**
+   * Posts, as the manager who added it, one activity in the space's stream
+   * saying a calendar was added to its agenda (EXO-90373): the members are told
+   * there rather than by a notification. A failure is logged and never undoes
+   * the subscription.
+   *
+   * @param space the space's identity
+   * @param creatorIdentityId identity identifier of the manager
+   * @param username the manager
+   * @param calendarName the name of the calendar added
+   * @param subscriptionId technical identifier of the subscription, for the log
+   */
+  private void announceInSpace(Identity space, long creatorIdentityId, String username, String calendarName, long subscriptionId) {
+    if (activityManager == null) {
+      return;
+    }
+    try {
+      ExoSocialActivity activity = new ExoSocialActivityImpl();
+      activity.setUserId(String.valueOf(creatorIdentityId));
+      activity.setTitle(spaceActivityTitle(username, calendarName));
+      activityManager.saveActivityNoReturn(space, activity);
+    } catch (RuntimeException e) {
+      LOG.warn("The space stream could not be told that calendar subscription {} was added", subscriptionId, e);
+    }
+  }
+
+  /**
+   * The text of the space activity, in the language of the manager who posts
+   * it, the calendar name escaped: the stream renders the title as markup.
+   *
+   * @param username the manager
+   * @param calendarName the name of the calendar added
+   * @return the text
+   */
+  String spaceActivityTitle(String username, String calendarName) {
+    String pattern = null;
+    try {
+      pattern = labelResolver.apply(username, SPACE_ACTIVITY_LABEL);
+    } catch (RuntimeException | LinkageError e) {
+      LOG.debug("The space activity text could not be translated: {}", e.getMessage());
+    }
+    if (StringUtils.isBlank(pattern) || SPACE_ACTIVITY_LABEL.equals(pattern) || !pattern.contains("{0}")) {
+      pattern = SPACE_ACTIVITY_DEFAULT;
+    }
+    return StringUtils.replace(pattern, "{0}", escapeMarkup(StringUtils.defaultString(calendarName)));
+  }
+
+  /**
+   * A label of agenda's bundle in the language of a user, as the platform
+   * resolves both.
+   *
+   * @param username the user
+   * @param key the bundle key
+   * @return the label, or the key when the bundle has none
+   */
+  private static String translatedLabel(String username, String key) {
+    return Utils.getResourceBundleLabel(LocaleUtils.toLocale(Utils.getUserLanguage(username)), key);
+  }
+
+  /**
+   * Replaces how labels are translated, for the tests, which run with no
+   * container to read bundles from.
+   *
+   * @param labelResolver the user and the key to the label
+   */
+  void setLabelResolver(BiFunction<String, String, String> labelResolver) {
+    this.labelResolver = labelResolver;
+  }
+
+  /**
+   * Escapes the characters that change how markup is read.
+   *
+   * @param text the text
+   * @return the escaped text
+   */
+  private static String escapeMarkup(String text) {
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;").replace("'", "&#39;");
   }
 
   /**

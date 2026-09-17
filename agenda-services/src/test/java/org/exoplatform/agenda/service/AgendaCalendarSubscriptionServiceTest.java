@@ -89,6 +89,7 @@ import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
+import org.exoplatform.social.core.manager.ActivityManager;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
@@ -152,6 +153,9 @@ class AgendaCalendarSubscriptionServiceTest {
 
   @Mock
   private IndexingService                       indexingService;
+
+  @Mock
+  private ActivityManager                       activityManager;
 
   private final Map<Long, CalendarSubscription> rows         = new HashMap<>();
 
@@ -226,7 +230,8 @@ class AgendaCalendarSubscriptionServiceTest {
                                                         identityManager,
                                                         spaceService,
                                                         codecInitializer,
-                                                        indexingService);
+                                                        indexingService,
+                                                        activityManager);
     service.setClock(Clock.fixed(NOW, ZoneOffset.UTC));
   }
 
