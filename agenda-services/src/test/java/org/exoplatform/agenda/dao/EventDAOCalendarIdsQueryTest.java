@@ -17,6 +17,7 @@
 package org.exoplatform.agenda.dao;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -204,7 +205,8 @@ class EventDAOCalendarIdsQueryTest {
     Set<Long> ids = ids(dao.getEventIds(START, END, List.of(READER), null, null, null, List.of(sharedCalendar), 0));
 
     assertEquals(Set.of(ownEventAttended, sharedEventNotAttended, sharedEventAttended), ids);
-    assertEquals(otherEventNotAttended + otherEventAttended > 0, true, "the stranger's events exist and were not listed");
+    assertFalse(ids.contains(otherEventNotAttended), "the stranger's event nobody invited the reader to is not listed");
+    assertFalse(ids.contains(otherEventAttended), "the stranger's event the reader attends is not listed by calendar either");
   }
 
   /**

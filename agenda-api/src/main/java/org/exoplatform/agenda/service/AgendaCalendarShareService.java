@@ -55,8 +55,11 @@ public interface AgendaCalendarShareService {
   /** Message code: the calendar identifier is not positive. */
   String INVALID_CALENDAR        = "agenda.share.invalidCalendar";
 
-  /** Message code: no channel carries this share, so nothing can be redelivered or removed there. */
+  /** Message code: no channel carries this share, so nothing can be removed there. */
   String NO_CHANNEL              = "agenda.share.noChannel";
+
+  /** Message code: the channel could not remove a share held on its server. */
+  String SHARE_NOT_REMOVED       = "agenda.share.notRemoved";
 
   /** Message code: the sharee has no record on this calendar. */
   String SHARE_NOT_FOUND         = "agenda.share.notFound";

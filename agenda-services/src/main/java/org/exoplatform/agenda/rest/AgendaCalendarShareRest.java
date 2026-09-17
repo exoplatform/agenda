@@ -147,13 +147,14 @@ public class AgendaCalendarShareRest {
    * @param request the authenticated request
    * @param calendarId technical identifier of the calendar
    * @param body {@code {"username": "..."}}
-   * @return the share, with a warning when a channel could not carry it
+   * @return the share, naming the channel that also carries it when one does
    */
   @PostMapping("calendars/{calendarId}/shares")
   @Secured("users")
   @Operation(summary = "Share a calendar with a colleague", method = "POST",
              description = "Owner only. Records the share in eXo, then asks every delivery channel to carry it; the record"
-                 + " stands whatever the channels answer, and a failed delivery is reported as a warning.")
+                 + " stands whatever the channels answer. A failed delivery is logged server-side and leaves the share"
+                 + " eXo-only; the answer carries no warning.")
   @ApiResponses(value = {
       @ApiResponse(responseCode = "200", description = "Calendar shared"),
       @ApiResponse(responseCode = "400", description = "Unknown, disabled or self sharee, or invalid calendar identifier"),
@@ -223,12 +224,14 @@ public class AgendaCalendarShareRest {
   @DeleteMapping("calendars/{calendarId}/external-shares/{channelId}/{externalId}")
   @Secured("users")
   @Operation(summary = "Remove a share held on a channel's server", method = "DELETE",
-             description = "Owner only. The channel removes the grant on its server.")
+             description = "Owner only. The channel removes the grant on its server; a server that refuses, or cannot be"
+                 + " reached, answers 409 with the code agenda.share.notRemoved and the grant stands where it was.")
   @ApiResponses(value = {
       @ApiResponse(responseCode = "204", description = "Share removed"),
-      @ApiResponse(responseCode = "400", description = "Invalid calendar identifier"),
+      @ApiResponse(responseCode = "400", description = "Invalid calendar identifier or missing share identifier"),
       @ApiResponse(responseCode = "403", description = "The user does not own the calendar"),
       @ApiResponse(responseCode = "404", description = "Calendar or channel not found"),
+      @ApiResponse(responseCode = "409", description = "The channel could not remove the share on its server"),
   })
   public ResponseEntity<Void> removeExternalShare(HttpServletRequest request,
                                                   @PathVariable("calendarId") long calendarId,
@@ -243,6 +246,10 @@ public class AgendaCalendarShareRest {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, FORBIDDEN);
     } catch (IllegalArgumentException e) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
+    } catch (IllegalStateException e) {
+      // The server holding the grant is what stands in the way, not the
+      // request: a conflict with its state, named so the drawer can word it
+      throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage());
     }
   }
 

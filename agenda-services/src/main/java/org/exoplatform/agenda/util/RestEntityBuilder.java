@@ -21,6 +21,7 @@ import java.util.Locale;
 
 import org.apache.commons.lang3.StringUtils;
 
+import org.exoplatform.agenda.constant.EventAccess;
 import org.exoplatform.agenda.constant.ReminderPeriodType;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
@@ -299,7 +300,10 @@ public class RestEntityBuilder {
     long parentId = event.getParentId();
     EventEntity parentEvent = null;
     if (parentId > 0 && parentId != event.getId()) {
-      parentEvent = getEventEntity(agendaCalendarService, agendaEventService, identityManager, parentId, userTimeZone);
+      // The series is rendered for the same reader as its occurrence: a
+      // colleague admitted through a share alone reads a private series as
+      // busy time here too (EXO-90357)
+      parentEvent = getEventEntity(agendaCalendarService, agendaEventService, identityManager, parentId, userTimeZone, event.getAccess());
     }
 
     if (isSearch) {
@@ -323,7 +327,7 @@ public class RestEntityBuilder {
                                          event.getAvailability(),
                                          event.getVisibility(),
                                          event.getStatus(),
-                                         ((EventSearchResult) event).isRecurrent() && recurrenceEntity == null ? getEventEntity(agendaCalendarService, agendaEventService, identityManager, event.getId(), userTimeZone).getRecurrence() : recurrenceEntity,
+                                         ((EventSearchResult) event).isRecurrent() && recurrenceEntity == null ? getEventEntity(agendaCalendarService, agendaEventService, identityManager, event.getId(), userTimeZone, event.getAccess()).getRecurrence() : recurrenceEntity,
                                          occurrenceEntity,
                                          event.getAcl(),
                                          null,
@@ -396,16 +400,38 @@ public class RestEntityBuilder {
     return fromCalendar(identityManager, calendar);
   }
 
+  /**
+   * Renders an event read by identifier on behalf of another — the series of
+   * an occurrence, the recurrence of a search hit — for the reader of that
+   * other event. The read is the unchecked one, since the reader was already
+   * admitted to the event this one is rendered from; what that admission
+   * allows them to see of it is decided by the same rule as for the event
+   * itself (EXO-90357): read through a share alone, a private series is busy
+   * time.
+   *
+   * @param agendaCalendarService reads the calendar
+   * @param agendaEventService reads the event
+   * @param identityManager names the people
+   * @param eventId technical identifier of the event to render
+   * @param userTimeZone the reader's time zone
+   * @param access how the reader may read the event this one is rendered
+   *          from; null for a read on nobody's behalf, rendered as stored
+   * @return the entity, or null for no such event
+   */
   private static EventEntity getEventEntity(AgendaCalendarService agendaCalendarService,
                                             AgendaEventService agendaEventService,
                                             IdentityManager identityManager,
                                             long eventId,
-                                            ZoneId userTimeZone) {
+                                            ZoneId userTimeZone,
+                                            EventAccess access) {
     if (eventId <= 0) {
       return null;
     }
     Event event = agendaEventService.getEventById(eventId);
-    return fromEvent(agendaCalendarService, agendaEventService, identityManager, event, userTimeZone);
+    if (event == null) {
+      return null;
+    }
+    return fromEvent(agendaCalendarService, agendaEventService, identityManager, Utils.maskForAccess(event, access), userTimeZone);
   }
 
   private static IdentityEntity getIdentityEntity(IdentityManager identityManager, long ownerId) {

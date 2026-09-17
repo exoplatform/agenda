@@ -21,8 +21,9 @@ import lombok.NoArgsConstructor;
 
 /**
  * A calendar share as the owner's drawer lists it (EXO-90357): the colleague,
- * how the share came to be, which channel also carries it, and the warning a
- * failed delivery left.
+ * how the share came to be, and which channel also carries it. A failed
+ * delivery leaves no trace here: the drawer shows the share, not its
+ * delivery.
  */
 @Data
 @NoArgsConstructor

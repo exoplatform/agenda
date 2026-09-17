@@ -247,6 +247,32 @@ class AgendaCalendarShareRestTest {
   }
 
   /**
+   * Removing a share held on a channel's server answers no content when the
+   * channel removed it, and a conflict bearing the code when the channel
+   * could not — a server refusal is neither a bad request nor a server error
+   * of eXo's.
+   *
+   * @throws Exception when the request fails
+   */
+  @Test
+  void removingAnExternalShareAnswersNoContentOrAConflictTheDrawerCanWord() throws Exception {
+    doThrow(new IllegalStateException(AgendaCalendarShareService.SHARE_NOT_REMOVED)).when(service)
+                                                                                     .removeExternalShare(CALENDAR, "caldav:1", "refused", "owner");
+    doThrow(new ObjectNotFoundException(AgendaCalendarShareService.NO_CHANNEL)).when(service)
+                                                                                .removeExternalShare(CALENDAR, "matrix:1", "grant-9", "owner");
+
+    mockMvc.perform(as("owner", delete("/calendars/20/external-shares/caldav:1/grant-9")))
+           .andExpect(status().isNoContent());
+    verify(service).removeExternalShare(CALENDAR, "caldav:1", "grant-9", "owner");
+    mockMvc.perform(as("owner", delete("/calendars/20/external-shares/caldav:1/refused")))
+           .andExpect(status().isConflict())
+           .andExpect(status().reason(AgendaCalendarShareService.SHARE_NOT_REMOVED));
+    mockMvc.perform(as("owner", delete("/calendars/20/external-shares/matrix:1/grant-9")))
+           .andExpect(status().isNotFound())
+           .andExpect(status().reason(AgendaCalendarShareService.NO_CHANNEL));
+  }
+
+  /**
    * The share the owner made with Alice, carried by a CalDAV channel.
    *
    * @return the share

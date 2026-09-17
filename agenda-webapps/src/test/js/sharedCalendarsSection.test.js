@@ -196,6 +196,38 @@ describe('One "Shared with me" section for eXo shares and server shares', () => 
     expect(wrapper.rootEmit).toHaveBeenCalledWith('agenda-shared-calendars-displayed-changed', [41, 42]);
   });
 
+  it('lets the connector say which of its rows is the server copy of a delivered share, when it can', async () => {
+    // A server that lists a subscribed collection under the colleague's own
+    // home spells it differently from what the channel recorded at delivery:
+    // only the connector knows both spellings name one container
+    const bobUnderMyHome = {id: '/dav/calendars/__uids__/ME-UID/calendar%3ADefault%3ABOB/', name: 'Bob', shared: true, readOnly: true, ownerUsername: 'bob', ownerDisplayName: 'Bob Builder'};
+    const deferred = deferredConnector();
+    const asked = [];
+    deferred.connector.isDeliveryOf = (calendar, delivery) => {
+      asked.push([calendar.id, delivery.deliveredTo, delivery.deliveryRef]);
+      return delivery.deliveredTo === 'caldav:1' && calendar.id.endsWith('BOB/');
+    };
+    const wrapper = await mountSection([deferred.connector]);
+
+    await answer(deferred, [bobUnderMyHome, ERIC_ON_SERVER]);
+
+    expect(names(wrapper)).toEqual(['Bob', 'Carol', 'Eric']);
+    expect(asked).toContainEqual([bobUnderMyHome.id, 'caldav:1', BOB_CAL.deliveryRef]);
+    expect(wrapper.rootEmit).toHaveBeenCalledWith('agenda-remote-calendars-changed', [bobUnderMyHome.id]);
+  });
+
+  it('matches the server copy on the collection path alone for a connector that cannot say', async () => {
+    const bobUnderMyHome = {id: '/dav/calendars/__uids__/ME-UID/calendar%3ADefault%3ABOB/', name: 'Bob', shared: true, readOnly: true, ownerUsername: 'bob', ownerDisplayName: 'Bob Builder'};
+    const deferred = deferredConnector();
+    const wrapper = await mountSection([deferred.connector]);
+
+    await answer(deferred, [bobUnderMyHome]);
+
+    // Drawn twice: the honest degradation when nothing can tell the two apart
+    expect(names(wrapper)).toEqual(['Bob', 'Bob', 'Carol']);
+    expect(wrapper.rootEmit).toHaveBeenCalledWith('agenda-remote-calendars-changed', []);
+  });
+
   it('keeps the rows mounted while both sources are asked again', async () => {
     const deferred = deferredConnector();
     const wrapper = await mountSection([deferred.connector]);

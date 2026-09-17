@@ -20,6 +20,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Map;
 
+import org.exoplatform.agenda.constant.EventAccess;
 import org.exoplatform.agenda.constant.EventAvailability;
 import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.constant.EventVisibility;
@@ -115,6 +116,17 @@ public class Event implements Cloneable {
    * read again by identifier. Computed per reader, never stored.
    */
   private boolean           masked;
+
+  /**
+   * How the reader this event was rendered for may read it (EXO-90357):
+   * {@link EventAccess#SHARED} when they see its calendar only through a
+   * share, {@link EventAccess#FULL} otherwise, null when read for nobody in
+   * particular. Carried so that what is rendered <em>from</em> this event —
+   * the parent series of an occurrence — is masked by the same rule as the
+   * event itself: {@link #masked} alone cannot say, since an occurrence and
+   * its series may differ in visibility. Computed per reader, never stored.
+   */
+  private EventAccess       access;
 
   public Event(long id,
                long parentId,
@@ -242,7 +254,8 @@ public class Event implements Cloneable {
          allowAttendeeToUpdate,
          allowAttendeeToInvite,
          parameters,
-         false);
+         false,
+         null);
   }
 
   @Override
@@ -271,6 +284,7 @@ public class Event implements Cloneable {
                      allowAttendeeToUpdate,
                      allowAttendeeToInvite,
                      parameters,
-                     masked);
+                     masked,
+                     access);
   }
 }

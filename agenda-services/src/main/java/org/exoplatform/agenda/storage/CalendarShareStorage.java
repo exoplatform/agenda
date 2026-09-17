@@ -342,7 +342,7 @@ public class CalendarShareStorage {
   }
 
   /**
-   * Maps a row to its model; the delivery warning is the service's to set.
+   * Maps a row to its model.
    *
    * @param entity the row, may be null
    * @return the model, or null for no row

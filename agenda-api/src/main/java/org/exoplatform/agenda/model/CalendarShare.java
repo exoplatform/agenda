@@ -59,9 +59,11 @@ public class CalendarShare implements Cloneable {
   private CalendarShareSource source;
 
   /**
-   * The delivery channel that also carries the share, as
-   * {@code CalendarShareChannelPlugin.id()} names it — {@code caldav:<serverId>}
-   * — or null when the share exists in eXo only.
+   * The delivery channel that also carries the share — the plugin's
+   * {@code CalendarShareChannelPlugin.id()}, or the qualified identifier it
+   * stamped the delivery with, {@code caldav:<serverId>}, which agenda resolves
+   * back to the plugin by its {@code id()} prefix — or null when the share
+   * exists in eXo only.
    */
   private String              deliveredTo;
 

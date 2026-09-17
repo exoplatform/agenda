@@ -34,9 +34,12 @@ import org.exoplatform.agenda.model.ExternalShare;
  * enforced by agenda's own ACL, for every owner — including one who never
  * connected a CalDAV account. A channel is asked, after the record is written,
  * to carry the same share where it can; its answer never decides whether the
- * share exists. A channel that fails leaves the record standing with a warning
- * the owner can retry; a channel that says the share is none of its business
- * leaves the record eXo-only.
+ * share exists. A channel that fails leaves the record standing, undelivered:
+ * agenda logs the failure at WARN and tells the owner nothing, and nothing is
+ * retried on its own. A channel that says the share is none of its business
+ * leaves the record eXo-only. A grant a channel holds for a colleague of this
+ * deployment that agenda has no record of is recorded silently, as an adopted
+ * share, the moment the owner lists their shares.
  *
  * <h2>How it is registered</h2>
  *

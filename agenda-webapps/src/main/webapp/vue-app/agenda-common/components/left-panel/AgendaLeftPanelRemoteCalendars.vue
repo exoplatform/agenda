@@ -666,7 +666,7 @@ export default {
       const nativeRows = (nativeShares || [])
         .filter(share => share && !share.hidden)
         .map(share => this.nativeRowOf(share));
-      const nativeRefs = nativeRows.map(row => row.deliveryRef).filter(ref => !!ref).map(this.comparablePath);
+      const deliveries = nativeRows.filter(row => !!row.deliveryRef);
       const twinIds = [];
       const sharedRows = [];
       answers.forEach(({connector, calendars}) => {
@@ -674,7 +674,7 @@ export default {
         calendars.forEach(calendar => {
           if (!this.isSharedCalendar(connector, calendar)) {
             own.push(calendar);
-          } else if (nativeRefs.includes(this.comparablePath(calendar.id))) {
+          } else if (deliveries.some(delivery => this.isDeliveryOf(connector, calendar, delivery))) {
             twinIds.push(calendar.id);
           } else {
             sharedRows.push({...calendar, sharedWithMe: true, connectorName: connector.name});
@@ -711,8 +711,31 @@ export default {
         sharedWithMe: true,
         ownerUsername: share.ownerUsername,
         ownerDisplayName: share.ownerDisplayName,
+        deliveredTo: share.deliveredTo,
         deliveryRef: share.deliveryRef,
       };
+    },
+    /**
+     * Whether a connector's shared row is the server's copy of an eXo share
+     * delivered to that server — drawn through its eXo row, so the copy is
+     * left out. The connector that listed the row decides when it can: it
+     * knows how its server spells, to the colleague, the collection the
+     * channel recorded at delivery (a server may list a subscribed
+     * collection under the colleague's own home). A connector that offers
+     * no `isDeliveryOf` is matched on the collection path alone, decoded
+     * and without a trailing slash.
+     *
+     * @param {Object} connector the connector that listed the row
+     * @param {Object} calendar the connector's row
+     * @param {Object} delivery the eXo share's row, with `deliveredTo` and
+     *          `deliveryRef` as the channel recorded them
+     * @returns {Boolean} true when the row is the delivery's server copy
+     */
+    isDeliveryOf(connector, calendar, delivery) {
+      if (connector && typeof connector.isDeliveryOf === 'function') {
+        return !!connector.isDeliveryOf(calendar, delivery);
+      }
+      return this.comparablePath(calendar && calendar.id) === this.comparablePath(delivery.deliveryRef);
     },
     /**
      * The eXo shares drawn in the given sections, as agenda lists them: what

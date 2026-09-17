@@ -976,28 +976,17 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   }
 
   /**
-   * Renders an event for the access its reader has: a private event read
-   * through a share alone becomes busy time (EXO-90357) — summary,
-   * description, location and conference cleared, marked
-   * {@code masked} ({@link Event}) so that every render path leaves out what
-   * it would otherwise read again by identifier (attendees, conferences,
-   * reminders, date options). Everything else is returned as it is. The one
-   * helper every read path goes through.
+   * Renders an event for the access its reader has, through the one helper
+   * every read path goes through, {@link Utils#maskForAccess(Event, EventAccess)}:
+   * the access is stamped on the event, and a private event read through a
+   * share alone becomes busy time (EXO-90357).
    *
    * @param event the event, a copy of the cached one
    * @param access how the reader may read it
    * @return the same event, masked when it must be
    */
   static Event maskForAccess(Event event, EventAccess access) {
-    if (event == null || access != EventAccess.SHARED || event.getVisibility() != EventVisibility.PRIVATE) {
-      return event;
-    }
-    event.setSummary(null);
-    event.setDescription(null);
-    event.setLocation(null);
-    event.setParameters(null);
-    event.setMasked(true);
-    return event;
+    return Utils.maskForAccess(event, access);
   }
 
   /**

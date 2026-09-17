@@ -22,11 +22,14 @@
     the reason the link drawer is not (EXO-90239).
 
     Agenda owns the share: the record is written here whether or not the owner
-    connected a CalDAV account. A channel that also carries it is named on the
-    row as a chip; a channel that should have and could not leaves a warning
-    and a Retry. The shares a server holds that eXo does not record are listed
-    apart, read live from the channel, with Remove when the server allows it
-    and "Record in eXo" for a colleague of this deployment.
+    connected a CalDAV account. Delivery to a calendar server is invisible to
+    the person sharing: no chip, no warning, no retry — a failed delivery is
+    logged server-side and the share stands in eXo. One list of colleagues: a
+    share made directly on a server for a colleague of this deployment is
+    recorded silently when the drawer opens and listed like any other. Access
+    held on a server by principals that are not eXo users is listed apart,
+    read-only, read live from the channel, with Remove when the server allows
+    it.
   -->
   <div>
     <exo-drawer

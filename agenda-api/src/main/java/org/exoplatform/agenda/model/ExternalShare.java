@@ -37,7 +37,13 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ExternalShare {
 
-  /** The channel that listed it, as {@code CalendarShareChannelPlugin.id()} names it. */
+  /**
+   * The channel that listed it: the plugin's
+   * {@code CalendarShareChannelPlugin.id()}, or the qualified identifier it
+   * stamps its deliveries with — {@code caldav:<serverId>} — so a removal
+   * reaches the same server; agenda resolves the plugin by its {@code id()}
+   * prefix.
+   */
   private String  channelId;
 
   /**

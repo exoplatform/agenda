@@ -55,10 +55,13 @@ import org.exoplatform.social.core.manager.IdentityManager;
  * <b>Delivery</b>: the record is written first and stands whatever the
  * channels answer. Each registered {@link CalendarShareChannelPlugin} is asked
  * to carry the share; the first that delivers is recorded on the row, a
- * failure is reported back as a warning the owner can retry, and a channel
- * that says the share is none of its business leaves the row eXo-only. The
- * plugins are collected from the Spring context at the moment they are asked,
- * so an add-on booting after agenda is found all the same — the idiom of
+ * failure is logged at WARN and leaves the row undelivered — the owner is told
+ * nothing and nothing is retried on its own — and a channel that says the
+ * share is none of its business leaves the row eXo-only. A grant a channel
+ * holds for a colleague that eXo has no record of is recorded silently, as an
+ * adopted share, when the owner lists their shares. The plugins are collected
+ * from the Spring context at the moment they are asked, so an add-on booting
+ * after agenda is found all the same — the idiom of
  * {@link AgendaRemoteCopyService}.
  * <p>
  * <b>Revoking</b> withdraws from the channel first, then deletes the row
@@ -267,6 +270,11 @@ public class AgendaCalendarShareServiceImpl implements AgendaCalendarShareServic
 
   /**
    * {@inheritDoc}
+   * <p>
+   * A channel that answers false — the server refused, or could not be
+   * reached — is an {@link IllegalStateException} bearing
+   * {@link #SHARE_NOT_REMOVED}: the request was well formed and allowed, the
+   * state on the server is what stands in the way.
    */
   @Override
   public void removeExternalShare(long calendarId,
@@ -282,7 +290,8 @@ public class AgendaCalendarShareServiceImpl implements AgendaCalendarShareServic
       throw new IllegalArgumentException(SHARE_NOT_FOUND);
     }
     if (!channel.removeExternalShare(calendar.getId(), externalId, ownerUsername)) {
-      throw new IllegalStateException("Channel " + channelId + " could not remove the share " + externalId);
+      LOG.debug("Channel {} could not remove the share {} of calendar {}", channelId, externalId, calendarId);
+      throw new IllegalStateException(SHARE_NOT_REMOVED);
     }
   }
 

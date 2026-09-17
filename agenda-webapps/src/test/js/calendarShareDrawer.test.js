@@ -20,9 +20,9 @@ import {shallowMount} from '@vue/test-utils';
 import AgendaCalendarShareDrawer from '../../main/webapp/vue-app/agenda-common/components/filter/AgendaCalendarShareDrawer.vue';
 
 /**
- * The calendar share drawer (EXO-90357): what the owner sees — the
- * colleagues in eXo, where a share also lives, a failed delivery and its
- * retry, the shares a server holds outside eXo — and what each action does.
+ * The calendar share drawer (EXO-90357): what the owner sees — one list of
+ * colleagues, nothing about where a share was delivered, the access held on
+ * a server outside eXo — and what each action does.
  */
 describe('Calendar share drawer', () => {
 

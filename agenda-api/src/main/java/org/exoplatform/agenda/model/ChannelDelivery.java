@@ -27,8 +27,8 @@ import lombok.Data;
  * says under which reference; {@link Status#NOT_APPLICABLE} — this share is
  * none of the channel's business (the owner or the colleague has no account
  * there, the calendar lives on no server); {@link Status#FAILED} — the channel
- * should have carried it and could not, with a code the drawer can word and
- * offer to retry.
+ * should have carried it and could not, with a code agenda logs at WARN; the
+ * record then stands undelivered and the owner is told nothing.
  */
 @Data
 public class ChannelDelivery {
@@ -43,8 +43,11 @@ public class ChannelDelivery {
   private final Status status;
 
   /**
-   * The channel that carries the share, as {@code CalendarShareChannelPlugin.id()}
-   * names it; set on {@link Status#DELIVERED} only.
+   * The channel that carries the share: the plugin's
+   * {@code CalendarShareChannelPlugin.id()}, or the qualified identifier it
+   * stamps its deliveries with when one bean serves several servers —
+   * {@code caldav:<serverId>}, which agenda resolves back to the plugin by
+   * its {@code id()} prefix. Set on {@link Status#DELIVERED} only.
    */
   private final String channelId;
 
