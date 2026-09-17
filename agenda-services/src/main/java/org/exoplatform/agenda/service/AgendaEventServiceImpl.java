@@ -29,6 +29,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.exoplatform.agenda.constant.*;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
+import org.exoplatform.agenda.model.CalendarEditorChange;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.search.AgendaSearchConnector;
@@ -414,6 +415,10 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     } else if (createdEvent.getStatus() == EventStatus.CANCELLED) {
       Utils.broadcastEvent(listenerService, Utils.POST_DELETE_AGENDA_EVENT_EVENT, eventModifications, null);
     }
+    notifyOwnerOfEditorChange(createdEvent,
+                              userIdentityId,
+                              CalendarEditorChange.Kind.ADDED,
+                              writeRightOf(createdEvent, userIdentityId));
     return createdEvent;
   }
 
@@ -719,6 +724,10 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                          Utils.POST_UPDATE_AGENDA_EVENT_EVENT,
                          eventModifications,
                          new EventAttendeeList(concernedAttendees));
+    notifyOwnerOfEditorChange(updatedEvent,
+                              userIdentityId,
+                              CalendarEditorChange.Kind.CHANGED,
+                              writeRightOf(updatedEvent, userIdentityId));
 
     return updatedEvent;
   }
@@ -801,6 +810,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
 
     Utils.broadcastEvent(listenerService, Utils.POST_UPDATE_AGENDA_EVENT_EVENT, eventModifications, null);
+    notifyOwnerOfEditorChange(event, userIdentityId, CalendarEditorChange.Kind.CHANGED, writeRightOf(event, userIdentityId));
   }
 
   /**
@@ -822,6 +832,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       throw new IllegalAccessException("User " + userIdentityId + " hasn't enough privileges to delete event with id " + eventId);
     }
     EventAttendeeList eventAttendeeList = attendeeService.getEventAttendees(event.getId());
+    // Read while the event and its attendee rows are still there: after the
+    // deletion an attendee allowed to update would read as a share editor
+    EventWriteRight right = writeRightOf(event, userIdentityId);
 
     agendaEventStorage.deleteEventById(eventId);
 
@@ -834,6 +847,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     // the event, so a listener that needs to reach them can no longer look them
     // up by event id
     Utils.broadcastEvent(listenerService, Utils.POST_DELETE_AGENDA_EVENT_EVENT, eventModifications, eventAttendeeList);
+    notifyOwnerOfEditorChange(event, userIdentityId, CalendarEditorChange.Kind.REMOVED, right);
     return event;
   }
 
@@ -1076,6 +1090,49 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       }
     }
     return new ArrayList<>(named);
+  }
+
+
+  /**
+   * Tells the calendar's owner that a colleague they shared it with for
+   * editing wrote in it (EXO-90378), and tells them nothing otherwise.
+   * <p>
+   * The decision lives here, in the service, because it is the one place that
+   * knows by what right the writer wrote: {@link EventWriteRight#SHARE_EDITOR}
+   * and nothing else. A change by the owner, by a space manager, by the
+   * event's creator or by an attendee allowed to update raises nothing — the
+   * owner is told about the one case they cannot otherwise see coming.
+   * <p>
+   * Everything the notification needs is captured now, the summary included: a
+   * deletion leaves no event to read afterwards, and the three kinds must read
+   * alike. A failure to broadcast is never a failure to write.
+   *
+   * @param event the event, as it stood when the change was made
+   * @param userIdentityId {@link Identity} identifier of the writer
+   * @param kind what they did
+   * @param right the right they wrote by, taken <b>before</b> the write where
+   *          the write removes what the right is read from — a deletion takes
+   *          the attendee rows with it, and an attendee allowed to update
+   *          would read as a share editor afterwards
+   */
+  private void notifyOwnerOfEditorChange(Event event,
+                                         long userIdentityId,
+                                         CalendarEditorChange.Kind kind,
+                                         EventWriteRight right) {
+    if (event == null || right != EventWriteRight.SHARE_EDITOR) {
+      return;
+    }
+    Calendar calendar = agendaCalendarService.getCalendarById(event.getCalendarId());
+    if (calendar == null || calendar.isDeleted() || calendar.getOwnerId() == userIdentityId) {
+      return;
+    }
+    CalendarEditorChange change = new CalendarEditorChange(calendar.getId(),
+                                                           calendar.getOwnerId(),
+                                                           userIdentityId,
+                                                           event.getId(),
+                                                           StringUtils.defaultString(event.getSummary()),
+                                                           kind);
+    Utils.broadcastEvent(listenerService, CALENDAR_EDITED_BY_SHAREE_EVENT, change, calendar.getOwnerId());
   }
 
   /**

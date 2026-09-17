@@ -144,6 +144,10 @@ export default {
     editableShares: [],
     selectedValue: null,
     initialized: false,
+    // Whom this component last proposed as the only attendee (EXO-90378), so
+    // that changing the destination again replaces exactly that proposal and
+    // never a colleague the user themselves added
+    proposedAttendeeId: null,
   }),
   computed: {
     /**
@@ -240,6 +244,7 @@ export default {
         // not to them (EXO-90378): the owner block must name that colleague,
         // which is what the server checks the calendar row against
         const share = this.editableShareOf(calendarId);
+        this.proposeDefaultAttendee(share);
         this.$set(this.event.calendar, 'id', calendarId);
         this.$set(this.event.calendar, 'owner', share ? {
           id: String(share.ownerId),
@@ -302,6 +307,46 @@ export default {
           this.editableShares.sort((first, second) => String(first.name || '').localeCompare(String(second.name || '')));
         })
         .catch(() => this.editableShares = []);
+    },
+    /**
+     * Proposes whom a new event is with, when the destination changes
+     * (EXO-90378): the calendar's owner for a calendar shared with this user
+     * for editing — an event an editor files in a colleague's calendar is a
+     * meeting with that colleague, and they would otherwise have to be added
+     * by hand every time — and the signed-in user again for one of their own.
+     * <p>
+     * Only a proposal, and only ever over another proposal: it replaces the
+     * lone attendee this component itself put there, or an empty list, and
+     * never a list the user has touched. Never on an event being edited.
+     *
+     * @param {Object} share the share the destination names, null for one of
+     *        the user's own calendars
+     * @returns {void}
+     */
+    proposeDefaultAttendee(share) {
+      if (this.event.id || this.event.occurrence) {
+        return;
+      }
+      const attendees = this.event.attendees || [];
+      const only = attendees.length === 1 && attendees[0].identity && attendees[0].identity.id;
+      const replaceable = attendees.length === 0
+        || String(only) === String(this.proposedAttendeeId)
+        || String(only) === String(this.userIdentityId);
+      if (!replaceable) {
+        return;
+      }
+      if (share) {
+        this.$set(this.event, 'attendees', [{identity: {
+          id: String(share.ownerId),
+          providerId: 'organization',
+          remoteId: share.ownerUsername,
+          profile: {fullname: share.ownerDisplayName, avatar: share.ownerAvatarUrl},
+        }}]);
+        this.proposedAttendeeId = String(share.ownerId);
+      } else if (this.proposedAttendeeId) {
+        this.$set(this.event, 'attendees', []);
+        this.proposedAttendeeId = null;
+      }
     },
     /**
      * The share a destination names, when it names one shared with this user

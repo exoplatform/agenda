@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -40,6 +41,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import org.exoplatform.agenda.constant.CalendarShareLevel;
+import org.exoplatform.agenda.model.CalendarEditorChange;
 import org.exoplatform.agenda.constant.EventAccess;
 import org.exoplatform.agenda.constant.EventAvailability;
 import org.exoplatform.agenda.constant.EventStatus;
@@ -116,10 +118,15 @@ class AgendaCalendarSharingAclTest {
 
   private AgendaEventServiceImpl     eventService;
 
+  private ListenerService            listenerService;
+
   private EventVisibility            visibility = EventVisibility.PRIVATE;
 
   /** The level the owner's calendar is shared with Alice at (EXO-90378). */
   private CalendarShareLevel         aliceLevel = CalendarShareLevel.VIEW;
+
+  /** Whether the fixture's event lets its attendees update it. */
+  private boolean                    attendeeMayUpdate;
 
   /**
    * The level the one share of this fixture grants, null for no share: the
@@ -186,6 +193,7 @@ class AgendaCalendarSharingAclTest {
     @SuppressWarnings("unchecked")
     ListAccess<Space> noSpaces = mock(ListAccess.class);
     when(spaceService.getMemberSpaces(anyString())).thenReturn(noSpaces);
+    listenerService = mock(ListenerService.class);
     eventService = new AgendaEventServiceImpl(calendarService,
                                               attendeeService,
                                               mock(AgendaEventConferenceService.class),
@@ -196,7 +204,7 @@ class AgendaCalendarSharingAclTest {
                                               eventStorage,
                                               identityManager,
                                               spaceService,
-                                              mock(ListenerService.class),
+                                              listenerService,
                                               mock(MetadataService.class));
     eventService.setCalendarShareAccess(new CalendarShareAccess(shareService));
   }
@@ -632,6 +640,76 @@ class AgendaCalendarSharingAclTest {
   }
 
   /**
+   * The owner is told what an editor changed in their calendar (EXO-90378),
+   * and told nothing when they changed it themselves. The decision is the
+   * service's — it is the one place that knows by what right the writer wrote
+   * — and the change carries the event's summary, captured at the write.
+   *
+   * @throws Exception when a patch is refused
+   */
+  @Test
+  void theOwnerIsToldWhatAnEditorChangedAndNothingOfTheirOwnChanges() throws Exception {
+    when(eventStorage.updateEvent(any())).thenAnswer(invocation -> invocation.getArgument(0));
+    aliceLevel = CalendarShareLevel.EDIT;
+
+    eventService.updateEventFields(EVENT, Map.of("summary", List.of("Moved by alice")), false, false, ALICE);
+
+    ArgumentCaptor<CalendarEditorChange> change = ArgumentCaptor.forClass(CalendarEditorChange.class);
+    org.mockito.Mockito.verify(listenerService).broadcast(eq(AgendaEventService.CALENDAR_EDITED_BY_SHAREE_EVENT),
+                                                         change.capture(),
+                                                         eq(OWNER));
+    assertEquals(CALENDAR, change.getValue().getCalendarId());
+    assertEquals(OWNER, change.getValue().getOwnerIdentityId());
+    assertEquals(ALICE, change.getValue().getModifierIdentityId());
+    assertEquals(CalendarEditorChange.Kind.CHANGED, change.getValue().getKind());
+    assertEquals("Moved by alice", change.getValue().getEventSummary(), "the summary as it stands after the change");
+
+    eventService.updateEventFields(EVENT, Map.of("summary", List.of("Moved by bob")), false, false, OWNER);
+
+    org.mockito.Mockito.verify(listenerService, org.mockito.Mockito.times(1))
+                       .broadcast(eq(AgendaEventService.CALENDAR_EDITED_BY_SHAREE_EVENT), any(), any());
+  }
+
+  /**
+   * A change by someone whose right is an older one raises nothing: an
+   * attendee the event lets update it writes by that right, not by the share,
+   * and the owner is told about the one case they cannot otherwise see coming
+   * (EXO-90378). This is the case the share check itself answers for — the
+   * owner's own change is caught a line later, by the owner guard.
+   *
+   * @throws Exception when a patch is refused
+   */
+  @Test
+  void aWriterHoldingAnOlderRightRaisesNoChangeNotification() throws Exception {
+    when(eventStorage.updateEvent(any())).thenAnswer(invocation -> invocation.getArgument(0));
+    // Alice attends and the event lets its attendees update it: an older right
+    // than the share, and the one writeRightOf answers before it
+    attendeeMayUpdate = true;
+    when(attendeeService.isEventAttendee(EVENT, ALICE)).thenReturn(true);
+    aliceLevel = CalendarShareLevel.EDIT;
+
+    eventService.updateEventFields(EVENT, Map.of("summary", List.of("Moved by alice")), false, false, ALICE);
+
+    org.mockito.Mockito.verify(listenerService, org.mockito.Mockito.never())
+                       .broadcast(eq(AgendaEventService.CALENDAR_EDITED_BY_SHAREE_EVENT), any(), any());
+  }
+
+  /**
+   * A viewer changes nothing, so there is nothing to tell the owner about: the
+   * refusal comes first and no change is ever broadcast.
+   */
+  @Test
+  void aViewerRaisesNoChangeNotification() throws Exception {
+    aliceLevel = CalendarShareLevel.VIEW;
+
+    assertThrows(IllegalAccessException.class,
+                 () -> eventService.updateEventFields(EVENT, Map.of("summary", List.of("x")), false, false, ALICE));
+
+    org.mockito.Mockito.verify(listenerService, org.mockito.Mockito.never())
+                       .broadcast(eq(AgendaEventService.CALENDAR_EDITED_BY_SHAREE_EVENT), any(), any());
+  }
+
+  /**
    * Without a share service to ask, nobody writes by a share either: the
    * absent bean answers no level, never the narrower one, so an editor is as
    * refused as a viewer.
@@ -727,6 +805,7 @@ class AgendaCalendarSharingAclTest {
     event.setDescription("Tooth 12");
     event.setLocation("Downtown");
     event.setVisibility(visibility);
+    event.setAllowAttendeeToUpdate(attendeeMayUpdate);
     event.setAvailability(EventAvailability.BUSY);
     event.setStatus(EventStatus.CONFIRMED);
     event.setStart(ZonedDateTime.of(2026, 10, 1, 9, 0, 0, 0, ZoneOffset.UTC));

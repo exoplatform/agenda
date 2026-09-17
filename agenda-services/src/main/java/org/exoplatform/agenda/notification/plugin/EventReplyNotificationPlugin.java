@@ -22,6 +22,7 @@ import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.container.xml.ValueParam;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
+import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.spi.SpaceService;
 
@@ -66,6 +67,18 @@ public class EventReplyNotificationPlugin extends BaseNotificationPlugin {
     return this.notificationId;
   }
 
+  /**
+   * Whether an identity is a user of this deployment — a space owns a
+   * calendar too, and a space is nobody to notify.
+   *
+   * @param identityId identity identifier
+   * @return true for a user
+   */
+  private boolean isUser(long identityId) {
+    Identity identity = identityManager.getIdentity(String.valueOf(identityId));
+    return identity != null && !identity.isDeleted() && identity.isUser();
+  }
+
   @Override
   public boolean isValid(NotificationContext ctx) {
     if (getEventId(ctx) == 0) {
@@ -102,7 +115,17 @@ public class EventReplyNotificationPlugin extends BaseNotificationPlugin {
                                                    .collect(Collectors.toSet());
         eventAttendeeIds.add(event.getCreatorId());
         eventAttendeeIds.remove(eventParticipantId);
-        receivers = eventAttendeeIds;
+        receivers = new HashSet<>(eventAttendeeIds);
+      }
+      // The owner of a personal calendar hears the replies to a meeting held
+      // in it, even when a colleague they shared it with for editing created
+      // it (EXO-90378): the replies go to the creator, and without this the
+      // owner would never learn who accepted a meeting in their own calendar.
+      // Never the replier themselves, and never a space — a space calendar's
+      // owner is the space, which is nobody to notify.
+      if (calendar != null && !calendar.isDeleted() && calendar.getOwnerId() != event.getCreatorId()
+          && calendar.getOwnerId() != eventParticipantId && isUser(calendar.getOwnerId())) {
+        receivers.add(calendar.getOwnerId());
       }
       setEventReminderNotificationRecipients(identityManager, notification, receivers.toArray(new Long[receivers.size()]));
     }

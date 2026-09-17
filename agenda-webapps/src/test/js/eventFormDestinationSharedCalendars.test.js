@@ -121,6 +121,48 @@ describe('Event form destination with calendars shared for editing', () => {
     expect(event.calendar.owner).toEqual({id: '5', providerId: 'organization', remoteId: 'alice'});
   });
 
+  it('proposes the calendar owner as the only attendee of a new event filed in their calendar', async () => {
+    const event = {calendar: {}, attendees: [{identity: {id: '5', providerId: 'organization', remoteId: 'alice'}}]};
+    const wrapper = await mountDestination(event);
+
+    wrapper.vm.selectedValue = 'calendar-41';
+    await flush();
+
+    expect(event.attendees).toHaveLength(1);
+    expect(event.attendees[0].identity).toMatchObject({id: '9', remoteId: 'bob'});
+
+    // Going back to one of the user's own calendars takes the proposal back;
+    // the attendees component puts the signed-in user in again
+    wrapper.vm.selectedValue = 'calendar-2';
+    await flush();
+
+    expect(event.attendees).toEqual([]);
+  });
+
+  it('never replaces attendees the user themselves picked', async () => {
+    const chosen = [
+      {identity: {id: '5', providerId: 'organization', remoteId: 'alice'}},
+      {identity: {id: '77', providerId: 'organization', remoteId: 'zoe'}},
+    ];
+    const event = {calendar: {}, attendees: chosen};
+    const wrapper = await mountDestination(event);
+
+    wrapper.vm.selectedValue = 'calendar-41';
+    await flush();
+
+    expect(event.attendees).toBe(chosen);
+  });
+
+  it('proposes nothing on an event being edited', async () => {
+    const event = {id: 77, calendar: {}, attendees: []};
+    const wrapper = await mountDestination(event);
+
+    wrapper.vm.selectedValue = 'calendar-41';
+    await flush();
+
+    expect(event.attendees).toEqual([]);
+  });
+
   it('keeps an event of a calendar shared for editing where it is filed, rather than reading it as a space event', async () => {
     const event = {
       id: 77,
