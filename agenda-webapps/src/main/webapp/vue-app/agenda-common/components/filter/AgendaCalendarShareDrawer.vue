@@ -350,11 +350,15 @@ export default {
       }
       const username = value.remoteId || value.id && String(value.id).replace(/^organization:/, '');
       this.sharee = null;
-      // The autocomplete keeps its chip after the model is cleared; the
-      // attendees drawer drops it the same way. Now, not on the next tick:
-      // the field is disabled while the share is saved, and a disabled
-      // autocomplete ignores the request.
-      this.$refs.shareeSuggester?.$refs?.selectAutoComplete?.deleteCurrentItem?.();
+      // The suggester's own model is cleared, but the autocomplete under it
+      // keeps the picked item as a chip (seen on the rig: its internal value
+      // still holds the colleague once the suggester's is null, and
+      // deleteCurrentItem drops nothing while no item is keyboard-selected).
+      // Its value is emptied directly.
+      const autocomplete = this.$refs.shareeSuggester?.$refs?.selectAutoComplete;
+      if (autocomplete) {
+        autocomplete.internalValue = null;
+      }
       if (!username) {
         return;
       }

@@ -46,7 +46,7 @@ describe('Calendar share drawer', () => {
 
   let suggesterStub;
 
-  let deleteCurrentItem;
+  let autocomplete;
 
   /**
    * Waits for every pending promise callback.
@@ -119,13 +119,13 @@ describe('Calendar share drawer', () => {
       },
     };
     // The real suggester wraps a v-autocomplete under this ref; the drawer
-    // reaches it to drop the chip the autocomplete keeps once the model is
-    // cleared
-    deleteCurrentItem = jest.fn();
+    // reaches it to empty the value the autocomplete keeps, as a chip, once
+    // the suggester's own model is cleared
+    autocomplete = {internalValue: {id: 'organization:dave'}};
     suggesterStub = {
-      template: '<div class="suggester-stub"><span ref="selectAutoComplete"></span></div>',
-      mounted() {
-        this.$refs.selectAutoComplete.deleteCurrentItem = deleteCurrentItem;
+      template: '<div class="suggester-stub"></div>',
+      created() {
+        this.$refs.selectAutoComplete = autocomplete;
       },
     };
   });
@@ -170,7 +170,7 @@ describe('Calendar share drawer', () => {
     expect(service.share).toHaveBeenCalledWith(10, 'dave');
     expect(wrapper.findAll('.agenda-calendar-sharee')).toHaveLength(3);
     expect(wrapper.vm.sharee).toBeNull();
-    expect(deleteCurrentItem).toHaveBeenCalled();
+    expect(autocomplete.internalValue).toBeNull();
     expect(wrapper.rootEmit).toHaveBeenCalledWith('agenda-calendar-shares-changed');
     expect(wrapper.rootEmit).toHaveBeenCalledWith('alert-message', 'agenda.calendarShare.shared(Dave)', 'success');
   });
