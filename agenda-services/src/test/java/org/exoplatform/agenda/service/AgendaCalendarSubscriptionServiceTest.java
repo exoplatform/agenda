@@ -68,6 +68,7 @@ import org.mockito.quality.Strictness;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.constant.EventAvailability;
+import org.exoplatform.agenda.constant.EventVisibility;
 import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.CalendarSubscription;
@@ -315,6 +316,12 @@ class AgendaCalendarSubscriptionServiceTest {
       assertFalse(event.isAllowAttendeeToUpdate());
       assertFalse(event.isAllowAttendeeToInvite());
       assertEquals(EventAvailability.FREE, event.getAvailability(), "a subscribed event never makes its owner busy");
+      // This path writes through the storage, so nothing defaults the value for
+      // it: stated here because a null would be a row the service never wrote
+      // (EXO-90322)
+      assertEquals(EventVisibility.DEFAULT,
+                   event.getVisibility(),
+                   "and is published like any other event of the subscriber's");
     }
     ArgumentCaptor<EventAttendee> attendees = ArgumentCaptor.forClass(EventAttendee.class);
     ArgumentCaptor<Long> attendedEvents = ArgumentCaptor.forClass(Long.class);

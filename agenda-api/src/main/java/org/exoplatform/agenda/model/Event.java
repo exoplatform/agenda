@@ -22,6 +22,7 @@ import java.util.Map;
 
 import org.exoplatform.agenda.constant.EventAvailability;
 import org.exoplatform.agenda.constant.EventStatus;
+import org.exoplatform.agenda.constant.EventVisibility;
 
 import lombok.*;
 
@@ -82,6 +83,12 @@ public class Event implements Cloneable {
 
   private EventAvailability availability;
 
+  /**
+   * Whether the event's content may be read outside eXo. Honoured by the
+   * published calendar link only; inside eXo it changes nothing.
+   */
+  private EventVisibility   visibility;
+
   private EventStatus       status;
 
   /**
@@ -115,6 +122,7 @@ public class Event implements Cloneable {
                ZonedDateTime end,
                boolean allDay,
                EventAvailability availability,
+               EventVisibility visibility,
                EventStatus status,
                EventRecurrence recurrence,
                EventOccurrence occurrence,
@@ -137,6 +145,7 @@ public class Event implements Cloneable {
     this.end = end;
     this.allDay = allDay;
     this.availability = availability;
+    this.visibility = visibility;
     this.status = status;
     this.recurrence = recurrence;
     this.occurrence = occurrence;
@@ -163,6 +172,7 @@ public class Event implements Cloneable {
                      end,
                      allDay,
                      availability,
+                     visibility,
                      status,
                      recurrence == null ? null : recurrence.clone(),
                      occurrence == null ? null : occurrence.clone(),
