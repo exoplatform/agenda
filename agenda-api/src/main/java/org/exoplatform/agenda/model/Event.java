@@ -99,6 +99,15 @@ public class Event implements Cloneable {
 
   private Map<String, String> parameters;
 
+  /**
+   * Whether anyone who can access the event may answer it without being
+   * invited (open event). On a write, {@code null} means "not specified": the
+   * stored value is kept on update and the event is created locked. Never
+   * {@code null} once read from storage. The flag is a property of the series:
+   * an occurrence reads its parent's value.
+   */
+  private Boolean           open;
+
   public Event(long id,
                long parentId,
                long calendarId,
@@ -169,6 +178,7 @@ public class Event implements Cloneable {
                      acl == null ? null : acl.clone(),
                      allowAttendeeToUpdate,
                      allowAttendeeToInvite,
-                     parameters);
+                     parameters,
+                     open);
   }
 }
