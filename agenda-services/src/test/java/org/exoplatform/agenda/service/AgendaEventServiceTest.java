@@ -34,6 +34,7 @@ import org.junit.Test;
 
 import org.exoplatform.agenda.constant.*;
 import org.exoplatform.agenda.exception.AgendaException;
+import org.exoplatform.agenda.exception.AgendaExceptionType;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.social.core.identity.model.Identity;
@@ -3904,6 +3905,22 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     }
     assertEquals("The event must not have moved", calendar.getId(), agendaEventService.getEventById(eventId).getCalendarId());
 
+    // 1b. A patch that changes another field first stores nothing either
+    Map<String, List<String>> fields = new LinkedHashMap<>();
+    fields.put("summary", Collections.singletonList("Patched before the refused move"));
+    fields.put("calendarId", Collections.singletonList(String.valueOf(spaceCalendar.getId())));
+    try {
+      agendaEventService.updateEventFields(eventId, fields, false, false, user1IdentityId);
+      fail("Shouldn't allow to move an event into a space calendar where the user can't create events");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    Event storedEvent = agendaEventService.getEventById(eventId);
+    assertEquals("The event must not have moved", calendar.getId(), storedEvent.getCalendarId());
+    assertEquals("A field patched before the refused move must not be stored",
+                 createdEvent.getSummary(),
+                 storedEvent.getSummary());
+
     // 2. Into another user's personal calendar
     org.exoplatform.agenda.model.Calendar user2Calendar =
                                                          agendaCalendarService.getOrCreateCalendarByOwnerId(Long.parseLong(testuser2Identity.getId()));
@@ -4026,5 +4043,87 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     } finally {
       agendaCalendarService.deleteCalendarById(secondCalendar.getId());
     }
+  }
+
+  /**
+   * Creating an exceptional occurrence of a recurring event through
+   * {@code createEvent} (an event carrying a parent, as the web UI does when a
+   * single computed occurrence is edited) requires the right to update that
+   * series (EXO-90381): the right to add events to one's own calendar isn't
+   * enough, or anyone could remove an occurrence of someone else's series from
+   * its owner's views. A parent that doesn't exist is reported as not found,
+   * and the creator of the series still creates its occurrences.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testCreateEventOccurrenceRequiresUpdateRightOnSeries() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+    long user2IdentityId = Long.parseLong(testuser2Identity.getId());
+
+    Event series = createEvent(newEventInstance(start, start.plusHours(1), false), user1IdentityId, testuser1Identity);
+    long seriesId = series.getId();
+    ZonedDateTime periodStart = start.minusDays(1);
+    ZonedDateTime periodEnd = start.plusDays(5);
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series, periodStart, periodEnd, series.getTimeZoneId(), 0);
+    assertTrue("The series must have several occurrences", occurrences.size() > 1);
+    Event occurrence = occurrences.get(1);
+
+    org.exoplatform.agenda.model.Calendar user2Calendar = agendaCalendarService.getOrCreateCalendarByOwnerId(user2IdentityId);
+    try {
+      assertFalse("testuser2 can't update testuser1's series", agendaEventService.canUpdateEvent(series, user2IdentityId));
+      assertTrue("testuser2 can add events to his own calendar",
+                 agendaEventService.canCreateEvent(user2Calendar, user2IdentityId));
+
+      // 1. Another user, into his own calendar
+      try {
+        createEvent(newOccurrenceInstance(seriesId, occurrence, user2Calendar.getId()), user2IdentityId);
+        fail("Shouldn't allow to create an occurrence of a series the user can't update");
+      } catch (IllegalAccessException e) {
+        // Expected
+      }
+      assertEquals("The occurrence must still be in the series",
+                   occurrences.size(),
+                   agendaEventService.getEventOccurrencesInPeriod(series, periodStart, periodEnd, series.getTimeZoneId(), 0).size());
+
+      // 2. A parent that doesn't exist is reported as not found
+      try {
+        createEvent(newOccurrenceInstance(Integer.MAX_VALUE, occurrence, user2Calendar.getId()), user2IdentityId);
+        fail("Shouldn't allow to create an occurrence of a series that doesn't exist");
+      } catch (AgendaException e) {
+        assertEquals(AgendaExceptionType.EVENT_NOT_FOUND, e.getAgendaExceptionType());
+      }
+
+      // 3. The creator of the series, in its calendar
+      Event created = createEvent(newOccurrenceInstance(seriesId, occurrence, calendar.getId()), user1IdentityId);
+      assertEquals(seriesId, created.getParentId());
+      assertTrue("The creator's occurrence must be listed as an exceptional occurrence",
+                 agendaEventService.getExceptionalOccurrenceEvents(seriesId, null, user1IdentityId)
+                                   .stream()
+                                   .anyMatch(exceptional -> exceptional.getId() == created.getId()));
+    } finally {
+      agendaCalendarService.deleteCalendarById(user2Calendar.getId());
+    }
+  }
+
+  /**
+   * Builds the payload the web UI sends when a single computed occurrence of a
+   * series is edited: no identifier, the series as parent, the occurrence
+   * identifier and dates, and no recurrence.
+   *
+   * @param parentId the identifier of the series
+   * @param occurrence the computed occurrence being edited
+   * @param calendarId the calendar the occurrence is filed into
+   * @return the event to pass to {@code createEvent}
+   */
+  private Event newOccurrenceInstance(long parentId, Event occurrence, long calendarId) {
+    Event event = occurrence.clone();
+    event.setId(0);
+    event.setParentId(parentId);
+    event.setCalendarId(calendarId);
+    event.setRecurrence(null);
+    event.setOccurrence(new EventOccurrence(occurrence.getOccurrence().getId()));
+    return event;
   }
 }

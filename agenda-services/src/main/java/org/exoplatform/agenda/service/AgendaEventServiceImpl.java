@@ -324,10 +324,19 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       throw new AgendaException(AgendaExceptionType.CALENDAR_NOT_FOUND);
     }
 
+    Event parentEvent = null;
+    if (event.getParentId() > 0) {
+      parentEvent = agendaEventStorage.getEventById(event.getParentId());
+      if (parentEvent == null) {
+        throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
+      }
+    }
+
     boolean canCreateCalendarEvents = canCreateEvent(calendar, userIdentityId);
     if (!canCreateCalendarEvents) {
       throw new IllegalAccessException("User '" + userIdentityId + "' can't create an event in calendar " + calendar.getTitle());
     }
+    checkCanCreateOccurrence(parentEvent, userIdentityId);
 
     EventOccurrence occurrence = event.getOccurrence();
     if (occurrence != null && occurrence.getId() != null) {
@@ -1530,8 +1539,10 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * derived from the stored calendar row and never from the request: being
    * allowed to update an event must not grant filing it into a calendar where
    * the user can't add events, such as a space where they aren't a redactor or
-   * another user's personal calendar. Every path that changes the calendar of
-   * an event goes through this method.
+   * another user's personal calendar. Both update paths go through this
+   * method: {@code updateEvent} and the {@code calendarId} field of
+   * {@code updateEventFields}. An exceptional occurrence created through
+   * {@code createEvent} is checked by {@code checkCanCreateOccurrence} instead.
    *
    * @param currentCalendarId the identifier of the calendar the event is stored
    *          in
@@ -1550,6 +1561,31 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (currentCalendarId != targetCalendar.getId() && !canCreateEvent(targetCalendar, userIdentityId)) {
       throw new IllegalAccessException("User '" + userIdentityId + "' can't move event " + eventId + " to calendar "
           + targetCalendar.getId());
+    }
+  }
+
+  /**
+   * Checks that a user may create an exceptional occurrence of a recurring
+   * event, which is what {@code createEvent} does when the event carries a
+   * parent. Such an occurrence replaces the computed one in the series for
+   * every reader, whatever calendar it is filed into, so it requires the right
+   * to update the series, as editing that occurrence in place would. The right
+   * to create events in the target calendar is checked by the caller. Without
+   * this check, anyone who can add events to their own calendar could remove an
+   * occurrence of any recurring event from the views of its owner and
+   * attendees, knowing only its identifier.
+   *
+   * @param parentEvent the stored recurring event the occurrence belongs to, or
+   *          null when the created event has no parent
+   * @param userIdentityId the {@link Identity} identifier of the user creating
+   *          the event
+   * @throws IllegalAccessException when the event has a parent that the user
+   *           can't update
+   */
+  private void checkCanCreateOccurrence(Event parentEvent, long userIdentityId) throws IllegalAccessException {
+    if (parentEvent != null && !canUpdateEvent(parentEvent, userIdentityId)) {
+      throw new IllegalAccessException("User '" + userIdentityId + "' can't create an occurrence of event "
+          + parentEvent.getId());
     }
   }
 
