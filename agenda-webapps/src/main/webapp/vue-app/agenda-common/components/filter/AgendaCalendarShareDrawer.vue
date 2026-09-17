@@ -52,6 +52,7 @@
             v-model="sharee"
             :labels="suggesterLabels"
             :ignore-items="ignoredItems"
+            :search-options="searchOptions"
             :disabled="busy"
             name="calendarSharee"
             class="agenda-calendar-share-suggester"
@@ -274,6 +275,17 @@ export default {
     calendarName() {
       const calendar = this.calendar || {};
       return calendar.name || calendar.title || this.$t('agenda.myCalendar');
+    },
+    /**
+     * The options the suggester searches with: no space scope, so the endpoint
+     * suggests the owner's connections and then every other user — the
+     * object the attendee drawer passes for a personal calendar, and one the
+     * suggester cannot do without.
+     *
+     * @returns {Object} the search options
+     */
+    searchOptions() {
+      return {currentUser: ''};
     },
     /**
      * @returns {Object} the suggester's labels
