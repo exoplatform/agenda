@@ -36,10 +36,21 @@
     however the count came out. Owning its own root is what makes the decision
     actually take effect.
 
-    Nothing is drawn while loading either — a section that appears, empties
-    and vanishes is worse than one that arrives when it has content.
+    The sections stay on screen while the connectors are asked again, and
+    are replaced only once the new answer is in (EXO-90355). The root used to
+    hide itself for the whole of every retrieval, on the theory that a
+    section which appears, empties and vanishes is worse than one that
+    arrives with content — true of the first load, where there is nothing to
+    show yet and visibleGroups is empty anyway, and exactly the flicker on
+    every later one: agenda-refresh fires on each event saved, answered or
+    pushed, and the connectors prop is rebuilt on every
+    agenda-connectors-refresh, so "Shared with me" unmounted and remounted,
+    rows and headers, on nearly every action in the agenda. Keyed by the
+    calendar's id, a row is patched in place when the answer replaces it,
+    and a share that went away leaves with the answer that no longer lists
+    it.
   -->
-  <div v-if="!loading && visibleGroups.length" class="d-flex flex-column">
+  <div v-if="visibleGroups.length" class="d-flex flex-column">
     <section
       v-for="group in visibleGroups"
       :key="group.name"
@@ -235,7 +246,10 @@ export default {
     groups: [],
     hiddenIds: [],
     hidingIds: [],
-    loading: false,
+    // The retrieval scheduled but not yet sent, and its timer — see
+    // retrieveCalendars.
+    retrieval: null,
+    retrievalTimer: 0,
   }),
   computed: {
     /**
@@ -370,6 +384,7 @@ export default {
   beforeDestroy() {
     this.$root.$off('agenda-refresh-personal-calendars', this.retrieveCalendars);
     this.$root.$off('agenda-refresh', this.retrieveCalendars);
+    window.clearTimeout(this.retrievalTimer);
   },
   methods: {
     /**
@@ -394,15 +409,45 @@ export default {
      * dropped: one unreachable account must not empty the other providers'
      * sections.
      *
-     * @returns {void}
+     * One user action reaches here several times over (EXO-90355): a drawer
+     * emits agenda-refresh-personal-calendars and agenda-refresh back to
+     * back, a share drawer's agenda-connectors-refresh has the connectors
+     * prop rebuilt — a new array every time — which fires the
+     * connectedConnectors watcher, and connecting fires the two watchers in
+     * the same flush. Each call used to send its own request, and with the
+     * sections hidden for the whole of each one the panel emptied and refilled
+     * as many times. So the calls of one turn are gathered into one request:
+     * the first schedules it for right after the current task and its
+     * microtasks — where the watchers run — and the next ones join it. The
+     * gap is one timer tick, so a share that appears or goes still shows on
+     * the very signal that reports it.
+     *
+     * @returns {Promise} resolves once the gathered request has answered and
+     *          the sections are drawn; never rejects
      */
     retrieveCalendars() {
-      const connectors = this.connectedConnectors;
-      if (!connectors.length) {
-        this.setGroups([]);
-        return;
+      if (!this.retrieval) {
+        this.retrieval = new Promise(resolve => {
+          this.retrievalTimer = window.setTimeout(() => {
+            this.retrieval = null;
+            resolve(this.askConnectors());
+          });
+        });
       }
-      this.loading = true;
+      return this.retrieval;
+    },
+    /**
+     * Sends the request retrieveCalendars gathered: asks every sectioned
+     * connector now and replaces the sections with what they answer.
+     *
+     * The sections on screen stay as they are until the answer is in: a
+     * retrieval is most often a re-read after an action elsewhere, and a list
+     * that blanks while it re-reads is the flicker of EXO-90355.
+     *
+     * @returns {Promise} resolves once the sections are drawn; never rejects
+     */
+    askConnectors() {
+      const connectors = this.connectedConnectors;
       // Connecting fires two of these in quick succession — one the moment the
       // account is marked connected, one once its first synchronisation has
       // finished — and they answer different things. Landing out of order,
@@ -410,9 +455,15 @@ export default {
       // account as it no longer stands, until the page is reloaded.
       //
       // The same guard the events grid uses, for the same reason: only the
-      // newest request may write.
+      // newest request may write. Taken before the early return too, so a
+      // disconnect landing while a listing is in flight is not overwritten by
+      // that listing's answer.
       const requestId = ++this.calendarsRequestId;
-      Promise.all(connectors.map(connector =>
+      if (!connectors.length) {
+        this.setGroups([]);
+        return Promise.resolve();
+      }
+      return Promise.all(connectors.map(connector =>
         connector.listCalendars()
           // The calendar eXo writes its copies to is left out of the list: it
           // holds nothing but duplicates of events the agenda already shows,
@@ -430,10 +481,6 @@ export default {
           return;
         }
         this.setGroups(this.buildGroups(answers));
-      }).finally(() => {
-        if (requestId === this.calendarsRequestId) {
-          this.loading = false;
-        }
       });
     },
     /**
@@ -742,11 +789,11 @@ export default {
      * by the refresh of another hide's success — neither resurrects the row
      * nor gets overwritten by a snapshot older than it. On success the
      * calendar is also dropped from the sections themselves before its id is
-     * released. Nothing on screen depends on that today — the refresh
-     * emitted just before hides the whole list while it re-asks the
-     * connectors, and its answer replaces the sections — but the sections
-     * then never list a calendar the server has hidden, should that refresh
-     * ever go unheard.
+     * released: the sections stay on screen while the refresh emitted just
+     * after re-asks the connectors, so this is what keeps the row from
+     * reappearing between the release of its id and the answer — and the
+     * sections never list a calendar the server has hidden, should that
+     * refresh ever go unheard.
      *
      * The connector is called inside a promise executor: the call goes out
      * at once, and a connector throwing synchronously is handled as a
@@ -755,9 +802,7 @@ export default {
      *
      * The menu's button leaves with the row, so the keyboard focus falls
      * back to the document after the action — as it does after the personal
-     * rows' delete. Nothing in this component can hold it: the refresh the
-     * success emits unmounts every section while the connectors are
-     * re-asked (the root's v-if on `loading`).
+     * rows' delete.
      *
      * @param {Object} calendar calendar as buildGroups stamped it
      * @returns {Promise} resolves once the outcome has been shown, never
