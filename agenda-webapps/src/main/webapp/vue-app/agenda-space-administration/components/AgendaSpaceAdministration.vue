@@ -98,10 +98,20 @@
               </v-list-item-subtitle>
             </v-list-item-content>
             <v-list-item-action>
+              <!--
+                The edit action of this settings page, as its other rows draw it
+                (social's SpaceSettingAccess, SpaceSettingCategories,
+                SpaceSettingPublicSite, SpaceSettingSubspaces): a small icon
+                button, fa-edit at 18 in the default icon colour, its tooltip
+                naming what it edits.
+              -->
               <v-btn
-                class="btn agenda-space-subscriptions-manage"
+                :title="$t('agenda.space.settings.subscriptions.button.tooltip')"
+                small
+                icon
+                class="agenda-space-subscriptions-manage"
                 @click="openSubscriptions">
-                {{ $t('agenda.space.settings.subscriptions.manage') }}
+                <v-icon size="18" class="icon-default-color">fa-edit</v-icon>
               </v-btn>
             </v-list-item-action>
           </v-list-item>

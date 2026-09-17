@@ -304,6 +304,24 @@ describe('A space subscribes to calendars', () => {
       expect(wrapper.find('.agenda-space-subscriptions-action').exists()).toBe(false);
     });
 
+    it('opens the drawer from the settings page\'s own edit action, drawn as its sibling rows draw theirs', () => {
+      const settings = fs.readFileSync(path.resolve(__dirname,
+                                                    '../../main/webapp/vue-app/agenda-space-administration/components/AgendaSpaceAdministration.vue'),
+                                       'utf8');
+      const row = settings.slice(settings.indexOf('agenda-space-subscriptions-setting'),
+                                 settings.indexOf('</v-list>', settings.indexOf('agenda-space-subscriptions-setting')));
+
+      // social's SpaceSettingAccess / SpaceSettingCategories / SpaceSettingPublicSite
+      // / SpaceSettingSubspaces all draw this one control, and this page is theirs
+      expect(row).toMatch(/<v-btn\s+:title="\$t\('agenda\.space\.settings\.subscriptions\.button\.tooltip'\)"\s+small\s+icon/);
+      expect(row).toContain('<v-icon size="18" class="icon-default-color">fa-edit</v-icon>');
+      expect(row).toContain('@click="openSubscriptions"');
+      expect(row).not.toContain('agenda.space.settings.subscriptions.manage');
+      expect(row).toContain('agenda.space.settings.subscriptions.title');
+      expect(row).toContain('agenda.space.settings.subscriptions.count');
+      expect(bundle).not.toMatch(/^agenda\.space\.settings\.subscriptions\.manage=/m);
+    });
+
     it('is mounted once in the agenda and once in the space settings, where the common module is loaded', () => {
       const read = file => fs.readFileSync(path.resolve(__dirname, '../../main/webapp', file), 'utf8');
       const agenda = read('vue-app/agenda/components/Agenda.vue');
