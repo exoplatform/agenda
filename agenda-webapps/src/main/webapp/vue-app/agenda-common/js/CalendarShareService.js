@@ -161,24 +161,6 @@ export function redeliver(calendarId, shareeIdentityId) {
 }
 
 /**
- * Records in eXo a share a channel's server already holds.
- *
- * @param {Number} calendarId technical identifier of the calendar
- * @param {Number} shareeIdentityId identity identifier of the colleague
- * @param {String} channelId the channel that listed the share
- * @returns {Promise<Object>} the share
- */
-export function adopt(calendarId, shareeIdentityId, channelId) {
-  forgetShareCounts();
-  return fetch(`${AGENDA_REST_BASE}/calendars/${calendarId}/shares/${shareeIdentityId}/adopt`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({channelId}),
-  }).then(resp => readJson(resp, 'agenda.share.error')).finally(forgetShareCounts);
-}
-
-/**
  * Removes a share a channel's server holds without an eXo record.
  *
  * @param {Number} calendarId technical identifier of the calendar

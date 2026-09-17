@@ -281,33 +281,34 @@ class AgendaCalendarShareServiceTest {
   }
 
   /**
-   * Adopting records a share the channel already carries, without delivering,
-   * and is idempotent; a channel that holds no such grant, or no channel with
-   * that id, refuses.
+   * A read-only grant a channel holds for a colleague is recorded, silently,
+   * the moment the owner lists their shares: an adopted share, delivered to
+   * the channel, that the server is never asked about, that is recorded once
+   * over repeated listings, and that notifies nobody. A grant to a colleague
+   * who cannot be shared with — disabled here — stays outside eXo.
    *
-   * @throws Exception when the adoption is refused
+   * @throws Exception when the listing is refused
    */
   @Test
-  void adoptingRecordsAChannelsShareWithoutDelivering() throws Exception {
-    channel.adoptAnswer = "/calendars/alice/shared-10/";
+  void aReadOnlyGrantToAColleagueIsRecordedOnceAndSilently() throws Exception {
+    user(4, "bob", true);
+    channel.external = List.of(new ExternalShare("caldav:1", "bob", "EXO_USER", 4, "Bob", true, true, null, "/calendars/owner/shared-10/"),
+                               new ExternalShare("caldav:1", "dis", "EXO_USER", DISABLED, "Disabled", true, true, null, "/calendars/owner/shared-10/"));
 
-    CalendarShare adopted = service.adopt(PERSONAL_CAL, ALICE, "caldav:1", "owner");
+    List<ExternalShare> external = service.getExternalShares(PERSONAL_CAL, "owner");
+    List<ExternalShare> again = service.getExternalShares(PERSONAL_CAL, "owner");
 
+    assertEquals(List.of("dis"), external.stream().map(ExternalShare::getExternalId).toList(), "the disabled colleague's grant stays outside eXo");
+    assertEquals(List.of("dis"), again.stream().map(ExternalShare::getExternalId).toList());
+    assertEquals(1, storage.rows.size(), "recorded once over two listings");
+    CalendarShare adopted = storage.rows.get(0);
+    assertEquals(4, adopted.getShareeIdentityId());
     assertEquals(CalendarShareSource.ADOPTED, adopted.getSource());
     assertEquals("caldav:1", adopted.getDeliveredTo());
-    assertEquals("/calendars/alice/shared-10/", adopted.getDeliveryRef());
+    assertEquals("/calendars/owner/shared-10/", adopted.getDeliveryRef());
     assertEquals(0, channel.deliveries, "the server is not touched");
-    assertEquals(adopted.getId(), service.adopt(PERSONAL_CAL, ALICE, "caldav:1", "owner").getId(), "idempotent");
-    assertEquals(1, storage.rows.size());
-
-    channel.adoptAnswer = null;
-    IllegalArgumentException refused = assertThrows(IllegalArgumentException.class,
-                                                    () -> service.adopt(PERSONAL_CAL, DISABLED, "caldav:1", "owner"));
-    assertEquals(AgendaCalendarShareService.SHAREE_DISABLED, refused.getMessage());
-    user(4, "bob", true);
-    IllegalArgumentException noGrant = assertThrows(IllegalArgumentException.class, () -> service.adopt(PERSONAL_CAL, 4, "caldav:1", "owner"));
-    assertEquals(AgendaCalendarShareService.NO_CHANNEL, noGrant.getMessage());
-    assertThrows(IllegalArgumentException.class, () -> service.adopt(PERSONAL_CAL, 4, "nowhere:9", "owner"));
+    assertTrue(service.isSharedWith(PERSONAL_CAL, 4), "from then on a native share");
+    verify(listenerService, never()).broadcast(eq(AgendaCalendarShareService.CALENDAR_SHARED_EVENT), any(), any());
   }
 
   /**
@@ -320,15 +321,17 @@ class AgendaCalendarShareServiceTest {
   void externalSharesAreReadLiveWithoutTheRecordedSharees() throws Exception {
     channel.answer = ChannelDelivery.delivered("caldav:1", null);
     service.share(PERSONAL_CAL, "alice", "owner");
-    channel.external = List.of(new ExternalShare("caldav:1", "grant-alice", "EXO_USER", ALICE, "Alice", true, true),
-                               new ExternalShare("caldav:1", "grant-bob", "EXO_USER", 4, "Bob", true, true),
+    channel.external = List.of(new ExternalShare("caldav:1", "grant-alice", "EXO_USER", ALICE, "Alice", true, true, null, "/c/"),
+                               new ExternalShare("caldav:1", "grant-bob", "EXO_USER", 4, "Bob", false, false, null, "/c/"),
                                new ExternalShare(null, "grant-out", "OUTSIDE_EXO", 0, "someone@else.org", true, true));
 
     List<ExternalShare> external = service.getExternalShares(PERSONAL_CAL, "owner");
 
-    assertEquals(List.of("grant-bob", "grant-out"), external.stream().map(ExternalShare::getExternalId).toList());
+    assertEquals(List.of("grant-bob", "grant-out"), external.stream().map(ExternalShare::getExternalId).toList(),
+                 "a colleague holding more than reading, and someone outside eXo, are access held outside eXo");
     assertEquals("caldav:1", external.get(0).getChannelId(), "the channel's qualified id, naming the server, is kept");
     assertEquals("caldav", external.get(1).getChannelId(), "a row without one gets the channel's bare id");
+    assertEquals(1, storage.rows.size(), "nothing recorded: alice already is, bob can edit, the other is no user");
     assertThrows(IllegalAccessException.class, () -> service.getExternalShares(PERSONAL_CAL, "alice"));
 
     channel.failure = new IllegalStateException("server down");
@@ -415,8 +418,6 @@ class AgendaCalendarShareServiceTest {
     assertNull(share.getDeliveredTo());
     assertNull(share.getDeliveryWarning());
     assertTrue(service.getExternalShares(PERSONAL_CAL, "owner").isEmpty());
-    user(4, "bob", true);
-    assertThrows(IllegalArgumentException.class, () -> service.adopt(PERSONAL_CAL, 4, "caldav:1", "owner"), "nothing to adopt from");
     service.unshare(PERSONAL_CAL, ALICE, "owner");
     assertFalse(service.isSharedWith(PERSONAL_CAL, ALICE));
   }
@@ -482,7 +483,6 @@ class AgendaCalendarShareServiceTest {
 
     boolean             withdrawAnswer = true;
 
-    String              adoptAnswer;
 
     List<ExternalShare> external       = List.of();
 
@@ -541,14 +541,6 @@ class AgendaCalendarShareServiceTest {
     @Override
     public boolean removeExternalShare(long calendarId, String externalId, String ownerUsername) {
       return true;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public String adopt(long calendarId, long shareeIdentityId, String ownerUsername) {
-      return adoptAnswer;
     }
 
     /**

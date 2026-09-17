@@ -22,13 +22,15 @@ import lombok.NoArgsConstructor;
 
 /**
  * A share of a calendar that exists on a delivery channel's server but not as
- * an eXo record (EXO-90357): what the owner's drawer lists under "Not shared in
- * eXo", read live from the channel.
+ * an eXo record (EXO-90357), read live from the channel.
  * <p>
- * A share granted to a user of this deployment can be recorded in eXo
- * ({@link #shareeIdentityId} set); the others — an address outside eXo, the
- * whole server, a published link — are listed for the owner's information and
- * can only be removed on the server, when the channel says they can.
+ * A read-only share granted to a user of this deployment ({@link #shareeIdentityId}
+ * set, {@link #readOnly}) is recorded in eXo silently, as an adopted share, the
+ * moment the owner lists their shares — {@link #deliveryRef} is what the record
+ * then carries. The others — an address outside eXo, the whole server, a
+ * published link, a colleague holding more than reading — are listed to the
+ * owner as access held outside eXo, and can only be removed on the server,
+ * when the channel says they can.
  */
 @Data
 @NoArgsConstructor
@@ -59,7 +61,38 @@ public class ExternalShare {
   /** Whether the share can be removed on the server from eXo. */
   private boolean removable;
 
-  /** Whether the share grants more than reading, in which case it cannot be recorded as is. */
+  /** Whether the share grants reading only; a share granting more cannot be recorded as is. */
   private boolean readOnly;
+
+  /** The grantee's mail address, when the channel knows one; may be null. */
+  private String  email;
+
+  /**
+   * What an eXo record adopting this share carries as its delivery reference
+   * — for CalDAV the collection href, which the sharee's own listing of the
+   * server is told apart by; null when the share cannot be recorded.
+   */
+  private String  deliveryRef;
+
+  /**
+   * A share without an address or a delivery reference.
+   *
+   * @param channelId the channel that listed it
+   * @param externalId the channel's own identifier of the grant
+   * @param kind what kind of grantee holds it
+   * @param shareeIdentityId identity identifier of the sharee, else 0
+   * @param displayName how the channel names the grantee
+   * @param removable whether it can be removed on the server from eXo
+   * @param readOnly whether it grants reading only
+   */
+  public ExternalShare(String channelId,
+                       String externalId,
+                       String kind,
+                       long shareeIdentityId,
+                       String displayName,
+                       boolean removable,
+                       boolean readOnly) {
+    this(channelId, externalId, kind, shareeIdentityId, displayName, removable, readOnly, null, null);
+  }
 
 }

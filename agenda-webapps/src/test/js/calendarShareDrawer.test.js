@@ -34,9 +34,9 @@ describe('Calendar share drawer', () => {
 
   const BOB = {calendarId: 10, shareeIdentityId: 4, username: 'bob', displayName: 'Bob Builder', source: 'EXO', deliveredTo: null, deliveryWarning: 'SHAREE_NOT_CONNECTED', disabled: false};
 
-  const OUTSIDE = {channelId: 'caldav:1', externalId: 'grant-9', kind: 'OUTSIDE_EXO', shareeIdentityId: 0, displayName: 'x@y.org', removable: true, readOnly: true};
+  const OUTSIDE = {channelId: 'caldav:1', externalId: 'grant-9', kind: 'OUTSIDE_EXO', shareeIdentityId: 0, displayName: '_SERVICE', email: 'exo.service@y.org', removable: true, readOnly: false};
 
-  const CAROL_ON_SERVER = {channelId: 'caldav:1', externalId: 'grant-5', kind: 'EXO_USER', shareeIdentityId: 5, displayName: 'Carol', removable: true, readOnly: true};
+  const EVERYONE = {channelId: 'caldav:1', externalId: '{DAV:}all', kind: 'EVERYONE', shareeIdentityId: 0, displayName: null, removable: false, readOnly: true};
 
   let service;
 
@@ -67,7 +67,7 @@ describe('Calendar share drawer', () => {
       mocks: {
         // A share refusal code is worded by the bundle; the drawer falls back
         // to its generic sentence for a code the bundle does not know
-        $t: (key, args) => (args && `${key}(${Object.values(args).join('|')})`) || (key.startsWith('agenda.share.') ? `${key} (worded)` : key),
+        $t: (key, args) => (args && `${key}(${Object.values(args).join('|')})`) || ((key.startsWith('agenda.share.') || key.startsWith('agenda.calendarShare.kind.')) ? `${key} (worded)` : key),
         $calendarShareService: service,
       },
       stubs: {
@@ -98,11 +98,10 @@ describe('Calendar share drawer', () => {
 
   beforeEach(() => {
     service = {
-      getShares: jest.fn().mockResolvedValue({shares: [ALICE, BOB], externalShares: [OUTSIDE, CAROL_ON_SERVER]}),
+      getShares: jest.fn().mockResolvedValue({shares: [ALICE, BOB], externalShares: [OUTSIDE, EVERYONE]}),
       share: jest.fn(),
       unshare: jest.fn().mockResolvedValue(),
       redeliver: jest.fn(),
-      adopt: jest.fn(),
       removeExternalShare: jest.fn().mockResolvedValue(),
     };
     drawerStub = {
@@ -145,17 +144,24 @@ describe('Calendar share drawer', () => {
     expect(rows.at(1).find('.agenda-calendar-share-retry').exists()).toBe(true);
   });
 
-  it('lists the shares a server holds outside eXo apart, with Record in eXo for a colleague only', async () => {
+  it('lists the access held outside eXo apart, read-only, with its level and the address', async () => {
     const wrapper = mountDrawer();
 
     await open(wrapper);
 
+    expect(wrapper.find('.agenda-calendar-share-sharees-title').text()).toBe('agenda.calendarShare.sharedWith');
+    expect(wrapper.find('.agenda-calendar-share-external-title').text()).toBe('agenda.calendarShare.alsoHasAccess');
     const external = wrapper.findAll('.agenda-calendar-external-share');
     expect(external).toHaveLength(2);
-    expect(external.at(0).text()).toContain('x@y.org');
-    expect(external.at(0).find('.agenda-calendar-share-adopt').exists()).toBe(false);
+    expect(external.at(0).find('.agenda-calendar-external-name').text()).toContain('_SERVICE');
+    expect(external.at(0).find('.agenda-calendar-external-email').text()).toBe('exo.service@y.org');
+    expect(external.at(0).find('.agenda-calendar-share-access').text()).toBe('agenda.calendarShare.access.edit');
     expect(external.at(0).find('.agenda-calendar-share-remove-external').exists()).toBe(true);
-    expect(external.at(1).find('.agenda-calendar-share-adopt').exists()).toBe(true);
+    expect(external.at(1).find('.agenda-calendar-external-name').text()).toBe('agenda.calendarShare.kind.EVERYONE (worded)');
+    expect(external.at(1).find('.agenda-calendar-share-access').text()).toBe('agenda.calendarShare.access.view');
+    expect(external.at(1).find('.agenda-calendar-share-remove-external').exists()).toBe(false);
+    expect(wrapper.text()).not.toMatch(/record/i);
+    expect(wrapper.find('.agenda-calendar-share-none').exists()).toBe(false);
   });
 
   it('shares with the colleague the suggester picked, lists the answer, tells the rows and empties the field', async () => {
@@ -235,7 +241,7 @@ describe('Calendar share drawer', () => {
     expect(confirmStub.methods.open).toHaveBeenCalled();
     expect(service.unshare).not.toHaveBeenCalled();
 
-    service.getShares.mockResolvedValue({shares: [BOB], externalShares: [OUTSIDE, CAROL_ON_SERVER]});
+    service.getShares.mockResolvedValue({shares: [BOB], externalShares: [OUTSIDE, EVERYONE]});
     await wrapper.vm.unshare();
     await flush();
 
@@ -259,19 +265,6 @@ describe('Calendar share drawer', () => {
     expect(wrapper.rootEmit).toHaveBeenCalledWith('alert-message', 'agenda.calendarShare.delivered(CalDAV 1)', 'success');
   });
 
-  it('records a server share in eXo and moves it to the colleagues', async () => {
-    service.adopt.mockResolvedValue({calendarId: 10, shareeIdentityId: 5, username: 'carol', displayName: 'Carol', source: 'ADOPTED', deliveredTo: 'caldav:1'});
-    const wrapper = mountDrawer();
-    await open(wrapper);
-
-    await wrapper.find('.agenda-calendar-share-adopt').trigger('click');
-    await flush();
-
-    expect(service.adopt).toHaveBeenCalledWith(10, 5, 'caldav:1');
-    expect(wrapper.findAll('.agenda-calendar-sharee')).toHaveLength(3);
-    expect(wrapper.findAll('.agenda-calendar-external-share')).toHaveLength(1);
-  });
-
   it('removes a server share from the server', async () => {
     const wrapper = mountDrawer();
     await open(wrapper);
@@ -281,15 +274,28 @@ describe('Calendar share drawer', () => {
 
     expect(service.removeExternalShare).toHaveBeenCalledWith(10, 'caldav:1', 'grant-9');
     expect(wrapper.findAll('.agenda-calendar-external-share')).toHaveLength(1);
+    expect(wrapper.rootEmit).toHaveBeenCalledWith('alert-message', 'agenda.calendarShare.externalRemoved(_SERVICE)', 'success');
   });
 
-  it('says so when the calendar is shared with nobody', async () => {
+  it('says so when the calendar is shared with nobody, and only then', async () => {
     service.getShares.mockResolvedValue({shares: [], externalShares: []});
     const wrapper = mountDrawer();
-
     await open(wrapper);
-
     expect(wrapper.find('.agenda-calendar-share-none').exists()).toBe(true);
+    expect(wrapper.find('.agenda-calendar-share-sharees-title').exists()).toBe(false);
+    expect(wrapper.find('.agenda-calendar-share-external-title').exists()).toBe(false);
+
+    // Access held outside eXo alone is still access: the calendar is not
+    // "shared with nobody"
+    service.getShares.mockResolvedValue({shares: [], externalShares: [OUTSIDE]});
+    await open(wrapper);
+    expect(wrapper.find('.agenda-calendar-share-none').exists()).toBe(false);
+    expect(wrapper.find('.agenda-calendar-share-external-title').exists()).toBe(true);
+
+    service.getShares.mockResolvedValue({shares: [ALICE], externalShares: []});
+    await open(wrapper);
+    expect(wrapper.find('.agenda-calendar-share-none').exists()).toBe(false);
+    expect(wrapper.find('.agenda-calendar-share-sharees-title').exists()).toBe(true);
     expect(wrapper.find('.agenda-calendar-share-external-title').exists()).toBe(false);
   });
 

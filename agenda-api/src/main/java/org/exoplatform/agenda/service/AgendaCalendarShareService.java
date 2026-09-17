@@ -55,7 +55,7 @@ public interface AgendaCalendarShareService {
   /** Message code: the calendar identifier is not positive. */
   String INVALID_CALENDAR        = "agenda.share.invalidCalendar";
 
-  /** Message code: no channel carries this share, so nothing can be redelivered or adopted. */
+  /** Message code: no channel carries this share, so nothing can be redelivered or removed there. */
   String NO_CHANNEL              = "agenda.share.noChannel";
 
   /** Message code: the sharee has no record on this calendar. */
@@ -115,23 +115,6 @@ public interface AgendaCalendarShareService {
                                                                                          IllegalAccessException;
 
   /**
-   * Records in eXo a share that already exists on a channel's server, without
-   * touching the server. Idempotent: an existing record is returned as is.
-   *
-   * @param calendarId technical identifier of the calendar
-   * @param shareeIdentityId identity identifier of the colleague
-   * @param channelId the channel that carries the share
-   * @param ownerUsername the owner
-   * @return the record
-   * @throws ObjectNotFoundException when the calendar does not exist
-   * @throws IllegalAccessException when the user does not own it
-   * @throws IllegalArgumentException when the sharee is unknown, disabled or
-   *           the owner, or no channel with that id carries the share
-   */
-  CalendarShare adopt(long calendarId, long shareeIdentityId, String channelId, String ownerUsername) throws ObjectNotFoundException,
-                                                                                                        IllegalAccessException;
-
-  /**
    * The colleagues a calendar is shared with, oldest share first.
    *
    * @param calendarId technical identifier of the calendar
@@ -143,12 +126,19 @@ public interface AgendaCalendarShareService {
   List<CalendarShare> getShares(long calendarId, String ownerUsername) throws ObjectNotFoundException, IllegalAccessException;
 
   /**
-   * The shares of a calendar that exist on the channels' servers without an
-   * eXo record, read live from every channel.
+   * The access a calendar's channels hold outside eXo, read live from every
+   * channel. A read-only grant to a user of this deployment is not answered:
+   * it is recorded, silently and without touching the server, as an adopted
+   * share ({@code CalendarShareSource.ADOPTED}, delivered to the channel that
+   * listed it), from then on a native share like any other — counted, seen by
+   * the colleague under "Shared with me", revocable. Recording is idempotent
+   * and notifies nobody: the colleague already had access. What is answered
+   * is the rest: an address outside eXo, the whole server, a published link,
+   * a colleague holding more than reading.
    *
    * @param calendarId technical identifier of the calendar
    * @param ownerUsername the owner
-   * @return the external shares, possibly empty
+   * @return the access held outside eXo, possibly empty
    * @throws ObjectNotFoundException when the calendar does not exist
    * @throws IllegalAccessException when the user does not own it
    */

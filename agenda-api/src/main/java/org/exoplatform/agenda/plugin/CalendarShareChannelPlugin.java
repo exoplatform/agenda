@@ -90,9 +90,12 @@ public interface CalendarShareChannelPlugin {
 
   /**
    * The shares of a calendar that exist on this channel's server without an
-   * eXo record, read live: what the owner's drawer lists as not shared in eXo.
-   * The channel leaves out every grantee agenda already holds a record for —
-   * {@code recordedShareeIds} — so a delivered share is never listed twice.
+   * eXo record, read live. The channel leaves out every grantee agenda already
+   * holds a record for — {@code recordedShareeIds} — so a delivered share is
+   * never listed twice. A read-only grant to a user of this deployment carries
+   * its {@code deliveryRef}: agenda records it as an adopted share, silently
+   * and without touching the server, the moment the owner lists their shares.
+   * Every other grant is listed to the owner as access held outside eXo.
    *
    * @param calendarId technical identifier of the calendar
    * @param ownerUsername the owner of the calendar
@@ -128,18 +131,5 @@ public interface CalendarShareChannelPlugin {
   default boolean holdsMeetingCopies(long calendarId, String ownerUsername) {
     return false;
   }
-
-  /**
-   * Answers the reference to store on a record the owner adopts from this
-   * channel: an existing grant on the server becomes an eXo record without the
-   * server being touched.
-   *
-   * @param calendarId technical identifier of the calendar
-   * @param shareeIdentityId identity identifier of the colleague
-   * @param ownerUsername the owner of the calendar
-   * @return the channel's reference for that grant, or null when the channel
-   *         holds no such grant
-   */
-  String adopt(long calendarId, long shareeIdentityId, String ownerUsername);
 
 }

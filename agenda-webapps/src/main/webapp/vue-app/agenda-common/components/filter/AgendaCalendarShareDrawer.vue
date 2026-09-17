@@ -74,116 +74,126 @@
           </div>
           <template v-else>
             <p
-              v-if="!shares.length"
+              v-if="!shares.length && !externalShares.length"
               class="text-light-color mt-4 agenda-calendar-share-none">
               {{ $t('agenda.calendarShare.none') }}
             </p>
-            <v-list v-else class="pa-0 mt-2" dense>
-              <v-list-item
-                v-for="share in shares"
-                :key="share.shareeIdentityId"
-                class="px-0 agenda-calendar-sharee">
-                <v-list-item-avatar size="32" class="me-2">
-                  <exo-user-avatar
-                    :profile-id="share.username"
-                    :name="share.displayName"
-                    :size="32"
-                    avatar />
-                </v-list-item-avatar>
-                <v-list-item-content>
-                  <v-list-item-title class="agenda-calendar-sharee-name">
-                    {{ share.displayName || share.username }}
-                    <span
-                      v-if="share.disabled"
-                      class="text-light-color caption ms-1 agenda-calendar-sharee-disabled">
-                      {{ $t('agenda.calendarShare.disabledSharee') }}
-                    </span>
-                  </v-list-item-title>
-                  <v-list-item-subtitle class="d-flex align-center flex-wrap">
-                    <!--
-                      Where the share also lives: the chip says the server, read
-                      from the channel id the record carries, so a colleague who
-                      reads the calendar in their own CalDAV client is told so.
-                    -->
-                    <v-chip
-                      v-if="share.deliveredTo"
-                      x-small
-                      outlined
-                      class="me-2 agenda-calendar-share-channel">
-                      {{ $t('agenda.calendarShare.alsoOn', {0: channelLabel(share.deliveredTo)}) }}
-                    </v-chip>
-                    <span
-                      v-if="share.deliveryWarning"
-                      class="warning--text agenda-calendar-share-warning">
-                      {{ warningLabel(share.deliveryWarning) }}
-                    </span>
-                  </v-list-item-subtitle>
-                </v-list-item-content>
-                <v-list-item-action class="d-flex flex-row align-center my-0">
-                  <v-btn
-                    v-if="share.deliveryWarning"
-                    :disabled="busy"
-                    :title="$t('agenda.calendarShare.retry')"
-                    class="primary--text text-none px-1 agenda-calendar-share-retry"
-                    small
-                    text
-                    @click="retry(share)">
-                    {{ $t('agenda.calendarShare.retry') }}
-                  </v-btn>
-                  <v-btn
-                    :disabled="busy"
-                    :title="$t('agenda.calendarShare.unshare')"
-                    :aria-label="$t('agenda.calendarShare.unshareOf', {0: share.displayName || share.username})"
-                    class="agenda-calendar-share-unshare"
-                    icon
-                    small
-                    @click="confirmUnshare(share)">
-                    <v-icon size="16">fas fa-times</v-icon>
-                  </v-btn>
-                </v-list-item-action>
-              </v-list-item>
-            </v-list>
             <!--
-              What a server holds that eXo does not know: shares granted there
-              directly, a whole-server grant, a published link. Listed for the
-              owner's information, removable on the server when the channel says
-              so, and recordable in eXo for a colleague of this deployment — the
-              migration path of shares made before this feature.
+              The one list of colleagues: a share made in eXo and a share made
+              on the calendar server directly look the same, since the latter
+              is recorded in eXo, silently, when this list is read.
+            -->
+            <template v-if="shares.length">
+              <p class="font-weight-bold mt-4 mb-1 agenda-calendar-share-sharees-title">
+                {{ $t('agenda.calendarShare.sharedWith') }}
+              </p>
+              <v-list class="pa-0" dense>
+                <v-list-item
+                  v-for="share in shares"
+                  :key="share.shareeIdentityId"
+                  class="px-0 agenda-calendar-sharee">
+                  <v-list-item-avatar size="32" class="me-2">
+                    <exo-user-avatar
+                      :profile-id="share.username"
+                      :name="share.displayName"
+                      :size="32"
+                      avatar />
+                  </v-list-item-avatar>
+                  <v-list-item-content>
+                    <v-list-item-title class="agenda-calendar-sharee-name">
+                      {{ share.displayName || share.username }}
+                      <span
+                        v-if="share.disabled"
+                        class="text-light-color caption ms-1 agenda-calendar-sharee-disabled">
+                        {{ $t('agenda.calendarShare.disabledSharee') }}
+                      </span>
+                    </v-list-item-title>
+                    <v-list-item-subtitle class="d-flex align-center flex-wrap">
+                      <span class="me-2 agenda-calendar-share-access">{{ $t('agenda.calendarShare.access.view') }}</span>
+                      <!--
+                        Where the share also lives: the chip says the server, read
+                        from the channel id the record carries, so a colleague who
+                        reads the calendar in their own CalDAV client is told so.
+                      -->
+                      <v-chip
+                        v-if="share.deliveredTo"
+                        x-small
+                        outlined
+                        class="me-2 agenda-calendar-share-channel">
+                        {{ $t('agenda.calendarShare.alsoOn', {0: channelLabel(share.deliveredTo)}) }}
+                      </v-chip>
+                      <span
+                        v-if="share.deliveryWarning"
+                        class="warning--text agenda-calendar-share-warning">
+                        {{ warningLabel(share.deliveryWarning) }}
+                      </span>
+                    </v-list-item-subtitle>
+                  </v-list-item-content>
+                  <v-list-item-action class="d-flex flex-row align-center my-0">
+                    <v-btn
+                      v-if="share.deliveryWarning"
+                      :disabled="busy"
+                      :title="$t('agenda.calendarShare.retry')"
+                      class="primary--text text-none px-1 agenda-calendar-share-retry"
+                      small
+                      text
+                      @click="retry(share)">
+                      {{ $t('agenda.calendarShare.retry') }}
+                    </v-btn>
+                    <v-btn
+                      :disabled="busy"
+                      :title="$t('agenda.calendarShare.unshare')"
+                      :aria-label="$t('agenda.calendarShare.unshareOf', {0: share.displayName || share.username})"
+                      class="agenda-calendar-share-unshare"
+                      icon
+                      small
+                      @click="confirmUnshare(share)">
+                      <v-icon size="16">fas fa-times</v-icon>
+                    </v-btn>
+                  </v-list-item-action>
+                </v-list-item>
+              </v-list>
+            </template>
+            <!--
+              Access held outside eXo, for the owner's information: an address
+              outside eXo, the whole server, a published link, a colleague who
+              can edit. Read-only here, but for the grants the channel lets eXo
+              remove on the server.
             -->
             <template v-if="externalShares.length">
               <p class="font-weight-bold mt-4 mb-1 agenda-calendar-share-external-title">
-                {{ $t('agenda.calendarShare.notInExo') }}
+                {{ $t('agenda.calendarShare.alsoHasAccess') }}
               </p>
-              <p class="text-light-color caption">{{ $t('agenda.calendarShare.notInExoExplanation') }}</p>
               <v-list class="pa-0" dense>
                 <v-list-item
                   v-for="external in externalShares"
                   :key="`${external.channelId}:${external.externalId}`"
                   class="px-0 agenda-calendar-external-share">
                   <v-list-item-content>
-                    <v-list-item-title>{{ external.displayName }}</v-list-item-title>
+                    <v-list-item-title class="agenda-calendar-external-name">
+                      {{ externalName(external) }}
+                      <span
+                        v-if="external.email && external.email !== externalName(external)"
+                        class="text-light-color caption ms-1 agenda-calendar-external-email">
+                        {{ external.email }}
+                      </span>
+                    </v-list-item-title>
                     <v-list-item-subtitle>
-                      {{ $t('agenda.calendarShare.onServer', {0: channelLabel(external.channelId)}) }}
-                      <span v-if="external.kind && external.kind !== 'EXO_USER'" class="ms-1">
-                        ({{ kindLabel(external.kind) }})
+                      <span class="me-2 agenda-calendar-share-access">
+                        {{ external.readOnly === false ? $t('agenda.calendarShare.access.edit') : $t('agenda.calendarShare.access.view') }}
+                      </span>
+                      <span class="text-light-color caption">
+                        {{ $t('agenda.calendarShare.onServer', {0: channelLabel(external.channelId)}) }}
                       </span>
                     </v-list-item-subtitle>
                   </v-list-item-content>
-                  <v-list-item-action class="d-flex flex-row align-center my-0">
+                  <v-list-item-action
+                    v-if="external.removable"
+                    class="d-flex flex-row align-center my-0">
                     <v-btn
-                      v-if="external.shareeIdentityId > 0 && external.readOnly !== false"
-                      :disabled="busy"
-                      class="primary--text text-none px-1 agenda-calendar-share-adopt"
-                      small
-                      text
-                      @click="adopt(external)">
-                      {{ $t('agenda.calendarShare.recordInExo') }}
-                    </v-btn>
-                    <v-btn
-                      v-if="external.removable"
                       :disabled="busy"
                       :title="$t('agenda.calendarShare.removeExternal')"
-                      :aria-label="$t('agenda.calendarShare.removeExternalOf', {0: external.displayName})"
+                      :aria-label="$t('agenda.calendarShare.removeExternalOf', {0: externalName(external)})"
                       class="agenda-calendar-share-remove-external"
                       icon
                       small
@@ -530,24 +540,6 @@ export default {
         .finally(() => this.saving = false);
     },
     /**
-     * Records in eXo a share the server already holds.
-     *
-     * @param {Object} external the external share
-     * @returns {Promise} resolved once recorded
-     */
-    adopt(external) {
-      this.saving = true;
-      return this.$calendarShareService.adopt(this.calendar.id, external.shareeIdentityId, external.channelId)
-        .then(share => {
-          this.shares = this.shares.filter(row => row.shareeIdentityId !== share.shareeIdentityId).concat(share);
-          this.externalShares = this.externalShares.filter(row => row !== external);
-          this.notifyChanged();
-          this.$root.$emit('alert-message', this.$t('agenda.calendarShare.recorded', {0: share.displayName || external.displayName}), 'success');
-        })
-        .catch(error => this.$root.$emit('alert-message', this.errorLabel(error), 'error'))
-        .finally(() => this.saving = false);
-    },
-    /**
      * Removes on the server a share eXo does not record.
      *
      * @param {Object} external the external share
@@ -558,7 +550,7 @@ export default {
       return this.$calendarShareService.removeExternalShare(this.calendar.id, external.channelId, external.externalId)
         .then(() => {
           this.externalShares = this.externalShares.filter(row => row !== external);
-          this.$root.$emit('alert-message', this.$t('agenda.calendarShare.externalRemoved', {0: external.displayName}), 'success');
+          this.$root.$emit('alert-message', this.$t('agenda.calendarShare.externalRemoved', {0: this.externalName(external)}), 'success');
         })
         .catch(error => this.$root.$emit('alert-message', this.errorLabel(error), 'error'))
         .finally(() => this.saving = false);
@@ -599,15 +591,23 @@ export default {
       return WARNING_CODES.includes(code) ? this.$t(`agenda.calendarShare.warning.${code}`) : this.$t('agenda.calendarShare.warning.other', {0: code});
     },
     /**
-     * A grantee kind, worded.
+     * What to call access held outside eXo: the name the channel gives, else
+     * the address, else the kind of grantee worded — everyone on the server,
+     * a published link.
      *
-     * @param {String} kind the channel's kind
-     * @returns {String} the label
+     * @param {Object} external the access
+     * @returns {String} the name
      */
-    kindLabel(kind) {
-      const key = `agenda.calendarShare.kind.${kind}`;
+    externalName(external) {
+      if (external.displayName) {
+        return external.displayName;
+      }
+      if (external.email) {
+        return external.email;
+      }
+      const key = `agenda.calendarShare.kind.${external.kind}`;
       const label = this.$t(key);
-      return label === key ? kind : label;
+      return label === key ? external.kind || '' : label;
     },
     /**
      * A refusal, worded: the server's message code when the bundle has a

@@ -171,46 +171,6 @@ public class AgendaCalendarShareServiceImpl implements AgendaCalendarShareServic
    * {@inheritDoc}
    */
   @Override
-  public CalendarShare adopt(long calendarId,
-                             long shareeIdentityId,
-                             String channelId,
-                             String ownerUsername) throws ObjectNotFoundException, IllegalAccessException {
-    long ownerIdentityId = userIdentityId(ownerUsername);
-    Calendar calendar = getOwnedCalendar(calendarId, ownerIdentityId, ownerUsername);
-    long validShareeId = validSharee(identityManager.getIdentity(String.valueOf(shareeIdentityId)), ownerIdentityId);
-    CalendarShare existing = calendarShareStorage.getShare(calendar.getId(), validShareeId);
-    if (existing != null) {
-      return existing;
-    }
-    CalendarShareChannelPlugin channel = channel(channelId);
-    if (channel == null) {
-      throw new IllegalArgumentException(NO_CHANNEL);
-    }
-    String deliveryRef;
-    try {
-      deliveryRef = channel.adopt(calendar.getId(), validShareeId, ownerUsername);
-    } catch (RuntimeException | LinkageError e) {
-      LOG.warn("Channel {} could not confirm the share of calendar {} with {} to adopt it", channelId, calendarId, validShareeId, e);
-      throw new IllegalArgumentException(NO_CHANNEL);
-    }
-    if (deliveryRef == null) {
-      throw new IllegalArgumentException(NO_CHANNEL);
-    }
-    CalendarShare share = calendarShareStorage.save(calendar.getId(),
-                                                    validShareeId,
-                                                    ownerIdentityId,
-                                                    CalendarShareSource.ADOPTED,
-                                                    channelId,
-                                                    deliveryRef,
-                                                    Date.from(clock.instant()));
-    broadcast(CALENDAR_SHARED_EVENT, share, ownerIdentityId);
-    return share;
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
   public List<CalendarShare> getShares(long calendarId, String ownerUsername) throws ObjectNotFoundException,
                                                                                 IllegalAccessException {
     Calendar calendar = getOwnedCalendar(calendarId, userIdentityId(ownerUsername), ownerUsername);
@@ -223,31 +183,79 @@ public class AgendaCalendarShareServiceImpl implements AgendaCalendarShareServic
   @Override
   public List<ExternalShare> getExternalShares(long calendarId, String ownerUsername) throws ObjectNotFoundException,
                                                                                         IllegalAccessException {
-    Calendar calendar = getOwnedCalendar(calendarId, userIdentityId(ownerUsername), ownerUsername);
-    List<Long> recorded = calendarShareStorage.getShares(calendar.getId())
-                                              .stream()
-                                              .map(CalendarShare::getShareeIdentityId)
-                                              .toList();
+    long ownerIdentityId = userIdentityId(ownerUsername);
+    Calendar calendar = getOwnedCalendar(calendarId, ownerIdentityId, ownerUsername);
+    List<Long> recorded = new ArrayList<>(calendarShareStorage.getShares(calendar.getId())
+                                                              .stream()
+                                                              .map(CalendarShare::getShareeIdentityId)
+                                                              .toList());
     List<ExternalShare> external = new ArrayList<>();
     for (CalendarShareChannelPlugin channel : channels()) {
       try {
         List<ExternalShare> listed = channel.listExternalShares(calendar.getId(), ownerUsername, recorded);
-        if (listed != null) {
-          listed.stream().filter(share -> share != null && !recorded.contains(share.getShareeIdentityId())).forEach(share -> {
-            // The channel's own, qualified id when it gave one — caldav:<serverId>
-            // — so the row names the server the grant is on and a removal
-            // reaches the same channel by prefix; the bare id otherwise
-            if (StringUtils.isBlank(share.getChannelId())) {
-              share.setChannelId(channelId(channel));
-            }
+        if (listed == null) {
+          continue;
+        }
+        for (ExternalShare share : listed) {
+          if (share == null || recorded.contains(share.getShareeIdentityId())) {
+            continue;
+          }
+          // The channel's own, qualified id when it gave one — caldav:<serverId>
+          // — so the row names the server the grant is on and a removal
+          // reaches the same channel by prefix; the bare id otherwise
+          if (StringUtils.isBlank(share.getChannelId())) {
+            share.setChannelId(channelId(channel));
+          }
+          if (record(calendar, share, ownerIdentityId)) {
+            recorded.add(share.getShareeIdentityId());
+          } else {
             external.add(share);
-          });
+          }
         }
       } catch (RuntimeException | LinkageError e) {
         LOG.warn("Channel {} could not list the external shares of calendar {}", channel.getClass().getName(), calendarId, e);
       }
     }
     return external;
+  }
+
+  /**
+   * Records, as an adopted share, a read-only grant a channel holds for a
+   * colleague of this deployment — the "one list, recorded silently" rule:
+   * a share made on the calendar server is a share like any other. The
+   * server is not touched, the record is idempotent through the storage's
+   * unique key, and nobody is notified: the colleague already had access,
+   * and a listing must be safe to repeat. A colleague who cannot be shared
+   * with — gone, disabled, the owner — is left to the channel's list.
+   *
+   * @param calendar the calendar
+   * @param share the channel's share
+   * @param ownerIdentityId the owner
+   * @return true when the share is now an eXo record, false when it stays
+   *         outside eXo
+   */
+  private boolean record(Calendar calendar, ExternalShare share, long ownerIdentityId) {
+    if (share.getShareeIdentityId() <= 0 || !share.isReadOnly() || StringUtils.isBlank(share.getDeliveryRef())) {
+      return false;
+    }
+    try {
+      long shareeId = validSharee(identityManager.getIdentity(String.valueOf(share.getShareeIdentityId())), ownerIdentityId);
+      CalendarShare recorded = calendarShareStorage.save(calendar.getId(),
+                                                         shareeId,
+                                                         ownerIdentityId,
+                                                         CalendarShareSource.ADOPTED,
+                                                         share.getChannelId(),
+                                                         share.getDeliveryRef(),
+                                                         Date.from(clock.instant()));
+      return recorded != null;
+    } catch (RuntimeException e) {
+      LOG.debug("The share of calendar {} with {} held on {} is not recorded in eXo: {}",
+                calendar.getId(),
+                share.getShareeIdentityId(),
+                share.getChannelId(),
+                e.getMessage());
+      return false;
+    }
   }
 
   /**

@@ -146,7 +146,9 @@ class AgendaCalendarShareRestTest {
   }
 
   /**
-   * The owner's listing carries the eXo shares and the external ones apart.
+   * The owner's listing carries the eXo shares and the access held outside
+   * eXo apart, the channels asked first so a grant they hold for a colleague
+   * is recorded before the shares are read.
    *
    * @throws Exception when the request fails
    */
@@ -164,6 +166,9 @@ class AgendaCalendarShareRestTest {
            .andExpect(jsonPath("$.shares[0].deliveredTo").value("caldav:1"))
            .andExpect(jsonPath("$.externalShares[0].externalId").value("grant-9"))
            .andExpect(jsonPath("$.externalShares[0].kind").value("OUTSIDE_EXO"));
+    org.mockito.InOrder order = org.mockito.Mockito.inOrder(service);
+    order.verify(service).getExternalShares(CALENDAR, "owner");
+    order.verify(service).getShares(CALENDAR, "owner");
   }
 
   /**
@@ -182,20 +187,17 @@ class AgendaCalendarShareRestTest {
   }
 
   /**
-   * A retry and an adoption answer the record; a retry with no record is 404
-   * with the code as reason.
+   * A retry answers the record; a retry with no record is 404 with the code
+   * as reason.
    *
    * @throws Exception when the request fails
    */
   @Test
-  void retryAndAdoptionAnswerTheRecord() throws Exception {
+  void retryAnswersTheRecord() throws Exception {
     CalendarShare delivered = share();
     delivered.setDeliveryWarning(null);
     when(service.redeliver(CALENDAR, 3, "owner")).thenReturn(delivered);
     when(service.redeliver(CALENDAR, 4, "owner")).thenThrow(new ObjectNotFoundException(AgendaCalendarShareService.SHARE_NOT_FOUND));
-    CalendarShare adopted = share();
-    adopted.setSource(CalendarShareSource.ADOPTED);
-    when(service.adopt(CALENDAR, 3, "caldav:1", "owner")).thenReturn(adopted);
 
     mockMvc.perform(as("owner", post("/calendars/20/shares/3/deliver")))
            .andExpect(status().isOk())
@@ -204,9 +206,6 @@ class AgendaCalendarShareRestTest {
     mockMvc.perform(as("owner", post("/calendars/20/shares/4/deliver")))
            .andExpect(status().isNotFound())
            .andExpect(status().reason(AgendaCalendarShareService.SHARE_NOT_FOUND));
-    mockMvc.perform(as("owner", post("/calendars/20/shares/3/adopt").contentType(MediaType.APPLICATION_JSON).content("{\"channelId\":\"caldav:1\"}")))
-           .andExpect(status().isOk())
-           .andExpect(jsonPath("$.source").value("ADOPTED"));
   }
 
   /**

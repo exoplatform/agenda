@@ -118,11 +118,13 @@ public class AgendaCalendarShareRest {
                                                        @PathVariable("calendarId") long calendarId) {
     try {
       Map<String, Identity> identities = new HashMap<>();
+      // The channels first: a read-only grant they hold for a colleague is
+      // recorded as a share on the way, and the list of shares must hold it
+      List<ExternalShare> externalShares = calendarShareService.getExternalShares(calendarId, request.getRemoteUser());
       List<CalendarShareeEntity> shares = calendarShareService.getShares(calendarId, request.getRemoteUser())
                                                               .stream()
                                                               .map(share -> toShareeEntity(share, identities))
                                                               .toList();
-      List<ExternalShare> externalShares = calendarShareService.getExternalShares(calendarId, request.getRemoteUser());
       Map<String, Object> body = new HashMap<>();
       body.put("shares", shares);
       body.put("externalShares", externalShares);
@@ -235,44 +237,6 @@ public class AgendaCalendarShareRest {
       return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(toShareeEntity(share, new HashMap<>()));
     } catch (ObjectNotFoundException e) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
-    } catch (IllegalAccessException e) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, FORBIDDEN);
-    } catch (IllegalArgumentException e) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
-    }
-  }
-
-  /**
-   * Records in eXo a share that already exists on a channel's server.
-   *
-   * @param request the authenticated request
-   * @param calendarId technical identifier of the calendar
-   * @param shareeIdentityId identity identifier of the colleague
-   * @param body {@code {"channelId": "caldav:<serverId>"}}
-   * @return the record
-   */
-  @PostMapping("calendars/{calendarId}/shares/{shareeIdentityId}/adopt")
-  @Secured("users")
-  @Operation(summary = "Record in eXo a share a channel's server already holds", method = "POST",
-             description = "Owner only. The server is not touched. Recording an already recorded share answers it as is.")
-  @ApiResponses(value = {
-      @ApiResponse(responseCode = "200", description = "Share recorded"),
-      @ApiResponse(responseCode = "400", description = "Unknown, disabled or self sharee, or no such channel share"),
-      @ApiResponse(responseCode = "403", description = "The user does not own the calendar"),
-      @ApiResponse(responseCode = "404", description = "Calendar not found"),
-  })
-  public ResponseEntity<CalendarShareeEntity> adopt(HttpServletRequest request,
-                                                    @PathVariable("calendarId") long calendarId,
-                                                    @PathVariable("shareeIdentityId") long shareeIdentityId,
-                                                    @RequestBody Map<String, String> body) {
-    try {
-      CalendarShare share = calendarShareService.adopt(calendarId,
-                                                       shareeIdentityId,
-                                                       body == null ? null : body.get("channelId"),
-                                                       request.getRemoteUser());
-      return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(toShareeEntity(share, new HashMap<>()));
-    } catch (ObjectNotFoundException e) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND, NOT_FOUND);
     } catch (IllegalAccessException e) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, FORBIDDEN);
     } catch (IllegalArgumentException e) {
