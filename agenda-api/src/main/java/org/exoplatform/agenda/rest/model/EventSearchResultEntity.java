@@ -5,6 +5,7 @@ import java.util.Map;
 
 import org.exoplatform.agenda.constant.EventAvailability;
 import org.exoplatform.agenda.constant.EventStatus;
+import org.exoplatform.agenda.constant.EventVisibility;
 import org.exoplatform.agenda.model.EventConference;
 import org.exoplatform.agenda.model.EventPermission;
 import org.exoplatform.social.rest.entity.IdentityEntity;
@@ -36,6 +37,7 @@ public class EventSearchResultEntity extends EventEntity {
                                  final String end,
                                  final boolean allDay,
                                  final EventAvailability availability,
+                                 final EventVisibility visibility,
                                  final EventStatus status,
                                  final EventRecurrenceEntity recurrence,
                                  final EventOccurrenceEntity occurrence,
@@ -66,6 +68,7 @@ public class EventSearchResultEntity extends EventEntity {
           end,
           allDay,
           availability,
+          visibility,
           status,
           recurrence,
           occurrence,

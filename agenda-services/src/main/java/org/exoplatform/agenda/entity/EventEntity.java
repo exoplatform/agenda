@@ -22,6 +22,7 @@ import java.util.List;
 
 import org.exoplatform.agenda.constant.EventAvailability;
 import org.exoplatform.agenda.constant.EventStatus;
+import org.exoplatform.agenda.constant.EventVisibility;
 
 import io.meeds.common.persistence.PortableSequence;
 
@@ -308,6 +309,29 @@ public class EventEntity implements Serializable {
   @Column(name = "AVAILABILITY", nullable = false)
   private EventAvailability         availability;
 
+  /**
+   * Whether the event's content may be published outside eXo (EXO-90322).
+   * Stored by ordinal, as AVAILABILITY is: the column is a SMALLINT the
+   * changeset backfills with 0, which is {@link EventVisibility#DEFAULT}.
+   * <p>
+   * Nullable, unlike AVAILABILITY next to it. Not because the DDL says so —
+   * AVAILABILITY's column carries no NOT NULL either and is still declared
+   * {@code nullable = false}, so the two do not have to agree — but because of
+   * what declaring it would do: Hibernate checks {@code nullable = false}
+   * itself at insert time and throws {@code PropertyValueException}, so every
+   * writer that reaches the DAO without going through
+   * {@code AgendaEventServiceImpl} — which is where the defaulting lives —
+   * would fail. Such writers exist: {@code EventDAOTest} is one, and it failed
+   * on the first run of this delivery.
+   * <p>
+   * A null that slips past anyway reads as "not masked", which is what every
+   * event did before this field existed. On a privacy flag that is the safe
+   * direction: a null cannot accidentally mask, and an event someone marked
+   * private is never null.
+   */
+  @Column(name = "VISIBILITY")
+  private EventVisibility           visibility;
+
   @Column(name = "STATUS", nullable = false)
   private EventStatus               status;
 
@@ -462,6 +486,27 @@ public class EventEntity implements Serializable {
 
   public void setAvailability(EventAvailability availability) {
     this.availability = availability;
+  }
+
+  /**
+   * Returns whether the event's content may be published outside eXo.
+   *
+   * @return the stored visibility; null for a row written by a path that
+   *         bypasses {@code AgendaEventServiceImpl}'s defaulting, which the
+   *         column allows on purpose (see the field). A null is read as "not
+   *         masked", never as private
+   */
+  public EventVisibility getVisibility() {
+    return visibility;
+  }
+
+  /**
+   * Sets whether the event's content may be published outside eXo.
+   *
+   * @param visibility the visibility to store
+   */
+  public void setVisibility(EventVisibility visibility) {
+    this.visibility = visibility;
   }
 
   public EventStatus getStatus() {

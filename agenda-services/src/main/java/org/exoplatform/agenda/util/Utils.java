@@ -37,6 +37,7 @@ import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
+import org.exoplatform.agenda.constant.EventAvailability;
 import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.commons.utils.CommonsUtils;
@@ -651,6 +652,9 @@ public class Utils {
     if (newEvent.getAvailability() != oldEvent.getAvailability()) {
       eventModification.addModificationType(AgendaEventModificationType.AVAILABILITY_UPDATED);
     }
+    if (newEvent.getVisibility() != oldEvent.getVisibility()) {
+      eventModification.addModificationType(AgendaEventModificationType.VISIBILITY_UPDATED);
+    }
     if (newEvent.getStatus() != oldEvent.getStatus()) {
       eventModification.addModificationType(AgendaEventModificationType.STATUS_UPDATED);
       if (EventStatus.CONFIRMED.equals(newEvent.getStatus()) && EventStatus.TENTATIVE.equals(oldEvent.getStatus())) {
@@ -1004,6 +1008,13 @@ public class Utils {
    *          screen for a guest, so the caller — which is the only party that
    *          knows who the mail is going to — leaves it out for one
    *          (EXO-89751)
+   * @param availability whether the event takes the recipient's time, written
+   *          as <code>TRANSP</code>. {@code FREE} is transparent, everything
+   *          else — including {@code DEFAULT} and a null — is opaque, the same
+   *          reading {@code CalendarFeedIcsWriter} and the CalDAV writer use.
+   *          It must be written rather than left out: RFC 5545 §3.8.2.7 makes
+   *          an absent <code>TRANSP</code> default to <code>OPAQUE</code>, so
+   *          saying nothing is saying "busy" (EXO-90327)
    * @param userLocale locale of the recipient, the one the labels are read in
    * @param timeZone time zone the dates are written in
    * @return the iCalendar document, UTF-8 encoded
@@ -1018,6 +1029,7 @@ public class Utils {
                                        String eventCreatorFullName,
                                        String location,
                                        String eventUrl,
+                                       EventAvailability availability,
                                        Locale userLocale,
                                        ZoneId timeZone) {
     IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
@@ -1036,6 +1048,7 @@ public class Utils {
     DateTime endDateTime = new DateTime(Date.from(endDate.toInstant()), ical4jTimezone);
     VEvent vEvent = new VEvent(startDateTime, endDateTime, eventSummary);
     vEvent.getProperties().add(uid);
+    vEvent.getProperties().add(availability == EventAvailability.FREE ? Transp.TRANSPARENT : Transp.OPAQUE);
     /* Create calendar */
     net.fortuna.ical4j.model.Calendar calendar = new net.fortuna.ical4j.model.Calendar();
     // ProdId writes the property name itself: the argument is the value alone,

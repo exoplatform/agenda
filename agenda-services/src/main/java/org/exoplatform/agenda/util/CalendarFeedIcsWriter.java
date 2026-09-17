@@ -226,6 +226,14 @@ public final class CalendarFeedIcsWriter {
    * the title "Busy" — no description, location, attendee or address, and not
    * even its last change: its {@code DTSTAMP} is a constant, so the document does
    * not tell when the private event was edited.
+   * <p>
+   * Its {@code TRANSP} is read from the event's availability, the same way
+   * {@link #toVEvent} reads it (EXO-90327). Masking answers "may a subscriber
+   * see what this is"; availability answers "does it take the user's time", and
+   * hiding the first must not silently change the second — an event the user
+   * marked free stays free once it is also marked private. Until availability
+   * became settable there was no event this could tell apart, which is why the
+   * constant {@code OPAQUE} it replaces was right before and is not now.
    *
    * @param event the private event
    * @param host host qualifying the identifier
@@ -240,7 +248,7 @@ public final class CalendarFeedIcsWriter {
     addIdentityAndTime(properties, event, host, NO_STAMP);
     properties.add(new Summary(BUSY_SUMMARY));
     properties.add(Clazz.PRIVATE);
-    properties.add(Transp.OPAQUE);
+    properties.add(event.getAvailability() == EventAvailability.FREE ? Transp.TRANSPARENT : Transp.OPAQUE);
     return vEvent;
   }
 
