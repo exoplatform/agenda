@@ -518,21 +518,20 @@ export default {
     /**
      * What the share mark says when the pointer rests on it.
      *
-     * The number is a floor and the sentence is worded as one. A connector
-     * counts a share this platform itself made as soon as it is made, but a
-     * share made in the calendar account's own web client it can only observe,
-     * which leaves out anyone who is not a user of this platform with a
-     * connected account and lags such a share by a few minutes; and a calendar
-     * this platform did not create on the account, only imported from it, can
-     * be shared and is never counted. Naming the drawer is the rest of the
-     * answer — only the drawer knows who, read from the server itself.
+     * No count, by decision (PO, 2026-09-17). The connector's number is only a
+     * floor: a share this platform made is counted at once, one made in the
+     * calendar account's own web client only once observed and only for
+     * users of this platform with a connected account, and a calendar this
+     * platform imported rather than created is never counted. A sentence
+     * carrying that number reads as exact whatever its wording, so the mark
+     * says only that the calendar is shared and names the drawer, which alone
+     * knows who, read from the server itself.
      *
      * @param {Object} calendar the calendar the mark sits on
      * @returns {String} the sentence to show, empty when there is no mark
      */
     sharedTooltip(calendar) {
-      const share = this.shareesOf(calendar);
-      return share ? this.$t('agenda.calendars.sharedTooltip', {0: share.sharees}) : '';
+      return this.shareesOf(calendar) ? this.$t('agenda.calendars.sharedTooltip') : '';
     },
     /**
      * Opens whatever manages the share of a calendar, from its mark.

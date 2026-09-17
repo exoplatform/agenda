@@ -115,7 +115,7 @@ describe('the owner sees which of their calendars are shared', () => {
     global.extensionRegistry = {loadExtensions: () => [connector]};
   });
 
-  it('marks a shared calendar, and says how many colleagues see it', async () => {
+  it('marks a shared calendar, and says it is shared without claiming how many', async () => {
     const work = row(await mountList(), 'Work');
 
     const mark = work.find('.agenda-calendar-shared-icon');
@@ -124,8 +124,8 @@ describe('the owner sees which of their calendars are shared', () => {
     expect(mark.find('v-icon').classes()).toContain('text-light-color');
     expect(mark.find('v-icon').attributes('size')).toBe('14');
     const sign = mark.find('span');
-    expect(sign.attributes('title')).toBe('agenda.calendars.sharedTooltip(3)');
-    expect(sign.attributes('aria-label')).toBe('agenda.calendars.sharedTooltip(3)');
+    expect(sign.attributes('title')).toBe('agenda.calendars.sharedTooltip');
+    expect(sign.attributes('aria-label')).toBe('agenda.calendars.sharedTooltip');
     expect(sign.attributes('role')).toBe('img');
   });
 
