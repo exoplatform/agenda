@@ -117,7 +117,35 @@
                       can see the calendar, however it reaches them.
                     -->
                     <v-list-item-subtitle>
-                      <span class="agenda-calendar-share-access">{{ $t('agenda.calendarShare.access.view') }}</span>
+                      <!--
+                        The level the owner gave this colleague (EXO-90378),
+                        and the one control that changes it. A menu rather
+                        than a select: the row is a list item, and two entries
+                        do not need a field.
+                      -->
+                      <v-menu offset-y>
+                        <template #activator="{ on, attrs }">
+                          <button
+                            v-bind="attrs"
+                            :disabled="busy"
+                            :aria-label="$t('agenda.calendarShare.accessOf', {0: share.displayName || share.username})"
+                            type="button"
+                            class="agenda-calendar-share-access text-light-color caption"
+                            v-on="on">
+                            {{ accessLabel(share) }}
+                            <v-icon size="10" class="ms-1">fas fa-caret-down</v-icon>
+                          </button>
+                        </template>
+                        <v-list dense>
+                          <v-list-item
+                            v-for="level in accessLevels"
+                            :key="level"
+                            :class="`agenda-calendar-share-access-${level.toLowerCase()}`"
+                            @click="changeLevel(share, level)">
+                            <v-list-item-title>{{ levelLabel(level) }}</v-list-item-title>
+                          </v-list-item>
+                        </v-list>
+                      </v-menu>
                     </v-list-item-subtitle>
                   </v-list-item-content>
                   <v-list-item-action class="d-flex flex-row align-center my-0">
@@ -201,7 +229,8 @@
       </template>
     </exo-drawer>
     <!--
-      One dialog, two questions: revoking a share, and sharing a calendar
+      One dialog, three questions: revoking a share, lowering a colleague
+      from Can edit to Can view (EXO-90378), and sharing a calendar
       that receives copies of the owner's eXo meetings (EXO-90345) — the
       titles, descriptions and spaces of every meeting they attend, private
       spaces included. That one is a title only, no explanation, asked once
@@ -235,6 +264,9 @@ export default {
     // The colleague the suggester picked while the meeting-copies question is
     // open; shared with on OK, forgotten on cancel
     pendingSharee: null,
+    // The colleague being lowered from Can edit to Can view while that
+    // question is open (EXO-90378); lowered on OK, forgotten on cancel
+    toDowngrade: null,
   }),
   computed: {
     /**
@@ -287,11 +319,23 @@ export default {
       return items;
     },
     /**
+     * The levels a colleague can be given, in the order the menu offers them
+     * (EXO-90378). Two, and only two: the enum the server stores.
+     *
+     * @returns {Array} the level names
+     */
+    accessLevels() {
+      return ['VIEW', 'EDIT'];
+    },
+    /**
      * @returns {String} the title of the open question
      */
     confirmTitle() {
-      return this.pendingSharee
-        ? this.$t('agenda.calendarShare.confirmMeetingCopies.title')
+      if (this.pendingSharee) {
+        return this.$t('agenda.calendarShare.confirmMeetingCopies.title');
+      }
+      return this.toDowngrade
+        ? this.$t('agenda.calendarShare.downgradeConfirmTitle')
         : this.$t('agenda.calendarShare.unshareConfirmTitle');
     },
     /**
@@ -302,6 +346,12 @@ export default {
       if (this.pendingSharee) {
         return '';
       }
+      if (this.toDowngrade) {
+        // One sentence, and it says what does not happen: the events the
+        // colleague created stay in the owner's calendar (EXO-90378)
+        const lowered = this.toDowngrade;
+        return this.$t('agenda.calendarShare.downgradeConfirmMessage', {0: lowered.displayName || lowered.username});
+      }
       const share = this.toUnshare;
       return share && this.$t('agenda.calendarShare.unshareConfirmMessage', {0: share.displayName || share.username}) || '';
     },
@@ -309,8 +359,11 @@ export default {
      * @returns {String} the label of the open question's OK button
      */
     confirmOkLabel() {
-      return this.pendingSharee
-        ? this.$t('agenda.calendarShare.confirmMeetingCopies.ok')
+      if (this.pendingSharee) {
+        return this.$t('agenda.calendarShare.confirmMeetingCopies.ok');
+      }
+      return this.toDowngrade
+        ? this.$t('agenda.calendarShare.downgradeConfirmOk')
         : this.$t('agenda.calendarShare.unshare');
     },
   },
@@ -433,8 +486,79 @@ export default {
      */
     confirmUnshare(share) {
       this.pendingSharee = null;
+      this.toDowngrade = null;
       this.toUnshare = share;
       this.$refs.confirmDialog.open();
+    },
+    /**
+     * The level a share carries, VIEW for a record that names none.
+     *
+     * @param {Object} share the share
+     * @returns {String} the level name
+     */
+    levelOf(share) {
+      return share && share.access === 'EDIT' ? 'EDIT' : 'VIEW';
+    },
+    /**
+     * @param {String} level the level name
+     * @returns {String} how that level is worded
+     */
+    levelLabel(level) {
+      return level === 'EDIT' ? this.$t('agenda.calendarShare.access.edit') : this.$t('agenda.calendarShare.access.view');
+    },
+    /**
+     * @param {Object} share the share
+     * @returns {String} how its level is worded
+     */
+    accessLabel(share) {
+      return this.levelLabel(this.levelOf(share));
+    },
+    /**
+     * Changes what a colleague may do with the calendar (EXO-90378). Raising
+     * the level is immediate; lowering it asks first, because the sentence
+     * the owner needs is what does <b>not</b> happen — the events the
+     * colleague created stay in this calendar.
+     *
+     * @param {Object} share the share
+     * @param {String} level the level to give them
+     * @returns {Promise} resolved once recorded, or once the question is open
+     */
+    changeLevel(share, level) {
+      if (this.levelOf(share) === level) {
+        return Promise.resolve();
+      }
+      if (level === 'VIEW') {
+        this.pendingSharee = null;
+        this.toUnshare = null;
+        this.toDowngrade = share;
+        this.$refs.confirmDialog.open();
+        return Promise.resolve();
+      }
+      return this.setLevel(share, level);
+    },
+    /**
+     * Records a colleague's level and redraws their row.
+     *
+     * @param {Object} share the share
+     * @param {String} level the level to give them
+     * @returns {Promise} resolved once recorded
+     */
+    setLevel(share, level) {
+      this.saving = true;
+      return this.$calendarShareService.setLevel(this.calendar.id, share.shareeIdentityId, level)
+        .then(() => {
+          this.shares = this.shares.map(row => {
+            return row.shareeIdentityId === share.shareeIdentityId ? Object.assign({}, row, {access: level}) : row;
+          });
+          const changed = this.$t('agenda.calendarShare.accessChanged', {
+            0: share.displayName || share.username,
+            1: this.levelLabel(level),
+          });
+          this.notifyChanged();
+          this.$root.$emit('alert-message', changed, 'success');
+        })
+        .catch(error => this.$root.$emit('alert-message', this.errorLabel(error), 'error'))
+        .finally(() => this.saving = false);
     },
     /**
      * Runs what the owner confirmed: the share of a calendar holding meeting
@@ -448,6 +572,11 @@ export default {
         this.pendingSharee = null;
         return this.share(username);
       }
+      const lowered = this.toDowngrade;
+      if (lowered) {
+        this.toDowngrade = null;
+        return this.setLevel(lowered, 'VIEW');
+      }
       return this.unshare();
     },
     /**
@@ -458,6 +587,7 @@ export default {
      */
     cancelled() {
       this.pendingSharee = null;
+      this.toDowngrade = null;
     },
     /**
      * Revokes the share the owner confirmed.
