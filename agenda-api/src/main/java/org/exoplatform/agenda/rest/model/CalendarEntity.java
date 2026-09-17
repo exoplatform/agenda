@@ -52,6 +52,12 @@ public class CalendarEntity implements Serializable, Cloneable {
   /** Whether the calendar holds a subscribed calendar link (EXO-90278). */
   private boolean            subscription;
 
+  /**
+   * Whether the reader sees the calendar only because its owner shared it
+   * with them (EXO-90357). Read-only for clients.
+   */
+  private boolean            sharedWithMe;
+
   public CalendarEntity(long id,
                         IdentityEntity owner,
                         boolean system,
@@ -85,6 +91,7 @@ public class CalendarEntity implements Serializable, Cloneable {
                                                        acl == null ? null : acl.clone());
     calendarEntity.setName(name);
     calendarEntity.setSubscription(subscription);
+    calendarEntity.setSharedWithMe(sharedWithMe);
     return calendarEntity;
   }
 }

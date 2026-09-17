@@ -21,6 +21,7 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
 
+import org.exoplatform.agenda.constant.EventAccess;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
@@ -31,12 +32,19 @@ public interface AgendaEventService {
   /**
    * Retrieves the list of events available for a designated user filtered by
    * criteria defined in a filter.
-   * 
+   * <p>
+   * The filter's {@code calendarIds} ({@link EventFilter}) name the
+   * calendars other users shared with the reader (EXO-90357): each is checked
+   * against the reader — accessible, or shared with them — and the whole
+   * request is refused otherwise. A private event of a shared calendar comes
+   * back masked ({@code Event.isMasked()}).
+   *
    * @param eventFilter a filter used to define criteria to get list of objects
    * @param userIdentityId user {@link Identity} identifier
    * @param userTimeZone User time zone
    * @return {@link List} of {@link Event} accessible to user
-   * @throws IllegalAccessException when user is not allowed to access events
+   * @throws IllegalAccessException when user is not allowed to access events,
+   *           or names a calendar in {@code calendarIds} they may not read
    */
   List<Event> getEvents(EventFilter eventFilter,
                         ZoneId userTimeZone,
@@ -241,6 +249,18 @@ public interface AgendaEventService {
    *         {@link Identity} or is an {@link EventAttendee}, else return false.
    */
   boolean canAccessEvent(Event event, long identityId);
+
+  /**
+   * How a user may read an event (EXO-90357): fully, only through a calendar
+   * share — in which case a private event is rendered as busy time — or not at
+   * all. {@link #canAccessEvent} is this answer being anything but
+   * {@link EventAccess#NONE}.
+   *
+   * @param event {@link Event} to check
+   * @param identityId {@link Identity} technical identifier of the reader
+   * @return the access, never null
+   */
+  EventAccess getEventAccess(Event event, long identityId);
 
   /**
    * Check whether user can update or delete an event or not.
