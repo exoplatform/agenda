@@ -59,6 +59,33 @@
             {{ $t('agenda.label.searchParticipant') }}
           </div>
           <v-spacer />
+          <!--
+            Open-event padlock (eXIP 7.3.0.20), left of the filter. Space
+            calendars only, never on a date poll. The drawer only renders the
+            state and emits: the host decides what a click means (an immediate
+            PATCH on the detail page, a form value saved with the event in the
+            creation / edit form). A viewer who cannot edit gets the icon and
+            its title, no button: nothing to click, no hover background.
+          -->
+          <template v-if="showOpenToggle">
+            <v-btn
+              v-if="editable"
+              icon
+              small
+              class="flex-shrink-0 me-1"
+              :title="openToggleTitle"
+              @click="$emit('toggle-open')">
+              <v-icon size="20" :class="openIconClass">{{ openIcon }}</v-icon>
+            </v-btn>
+            <v-icon
+              v-else
+              size="20"
+              class="flex-shrink-0 me-3"
+              :class="openIconClass"
+              :title="openToggleTitle">
+              {{ openIcon }}
+            </v-icon>
+          </template>
           <v-btn
             icon
             small
@@ -172,6 +199,55 @@ export default {
     };
   },
   computed: {
+    isSpaceCalendarEvent() {
+      const owner = this.event && this.event.calendar && this.event.calendar.owner;
+      return !!(owner && (owner.providerId === 'space' || !!owner.space));
+    },
+    /**
+     * A stored date poll carries status TENTATIVE, but that status is set by
+     * the server at save time: while a poll is being created, or a confirmed
+     * event is being turned into one, the form's own notion is "more than one
+     * date option". Both are needed for the padlock to stay off a date poll
+     * in every host (D2).
+     *
+     * @returns {Boolean} whether the event is, or is becoming, a date poll
+     */
+    isDatePoll() {
+      if (!this.event) {
+        return false;
+      }
+      return this.event.status === 'TENTATIVE'
+        || !!(this.event.dateOptions && this.event.dateOptions.length > 1);
+    },
+    /**
+     * The padlock has nobody to open the event to on a personal calendar, and
+     * open date polls are another eXIP (7.3.0.40): both hide it. In the
+     * creation form this follows the calendar currently selected.
+     *
+     * @returns {Boolean} whether the open-event padlock is rendered
+     */
+    showOpenToggle() {
+      return this.isSpaceCalendarEvent && !this.isDatePoll;
+    },
+    isOpenEvent() {
+      return !!(this.event && this.event.open);
+    },
+    openIcon() {
+      return this.isOpenEvent ? 'fas fa-lock-open' : 'fas fa-lock';
+    },
+    openIconClass() {
+      return this.isOpenEvent ? 'primary--text' : 'icon-default-color';
+    },
+    openToggleTitle() {
+      if (this.editable) {
+        return this.isOpenEvent
+          ? this.$t('agenda.openEvent.open.editable.tooltip')
+          : this.$t('agenda.openEvent.locked.editable.tooltip');
+      }
+      return this.isOpenEvent
+        ? this.$t('agenda.openEvent.open.tooltip')
+        : this.$t('agenda.openEvent.locked.tooltip');
+    },
     responseFilterOptions() {
       return [
         {value: 'ALL', icon: 'fas fa-calendar-check', label: this.$t('agenda.label.all'), title: this.$t('agenda.filter.title.all'), color: null, colorClass: null},

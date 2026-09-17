@@ -73,4 +73,8 @@ public class AgendaEventModel {
   // Optional conflict report populated on conflict-aware create/update; omitted (null) on plain reads
   private ConflictsModel                 conflicts;
 
+  // Open event: anyone who can access the event may answer it without being invited
+  @JsonProperty("is_open")
+  private Boolean                        open;
+
 }
