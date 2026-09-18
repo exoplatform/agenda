@@ -703,8 +703,11 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       value = {
           @ApiResponse(responseCode = "200", description = "Request fulfilled"),
           @ApiResponse(responseCode = "404", description = "Object not found"),
-          @ApiResponse(responseCode = "400", description = "Invalid query input"),
-          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(
+              responseCode = "400",
+              description = "Invalid query input: unsupported field, or a value the event's invariants refuse. The body carries the message code"
+          ),
+          @ApiResponse(responseCode = "403", description = "Forbidden operation"),
           @ApiResponse(responseCode = "500", description = "Internal server error"),
       }
   )
@@ -801,9 +804,17 @@ public class AgendaEventRest implements ResourceContainer, Startable {
     } catch (AgendaException e) {
       LOG.debug("Error in event validation", e);
       return Response.serverError().entity(e.getAgendaExceptionType().getCompleteMessage()).build();
+    } catch (IllegalArgumentException e) {
+      // An unsupported field, or a value the invariants refuse, is a caller
+      // error and not an incident: the message is a code the frontend and
+      // third-party integrators can act on. Was a 500 through the generic catch
+      LOG.debug("Invalid field patched on event {}", eventId, e);
+      return Response.status(Status.BAD_REQUEST).entity(e.getMessage()).build();
     } catch (IllegalAccessException e) {
-      LOG.error("User '{}' attempts to update a non authorized event", RestUtils.getCurrentUser(), e);
-      return Response.status(Status.UNAUTHORIZED).build();
+      // Was a 401: the platform REST contract answers 403 when the caller is
+      // authenticated but not allowed (backend-spring.md §5)
+      LOG.debug("User '{}' attempts to update a non authorized event", RestUtils.getCurrentUser(), e);
+      return Response.status(Status.FORBIDDEN).build();
     } catch (Exception e) {
       LOG.warn("Error updating an event", e);
       return Response.serverError().entity(e.getMessage()).build();

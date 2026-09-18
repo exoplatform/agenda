@@ -608,6 +608,9 @@ public class Utils {
     if (newEvent.isAllowAttendeeToInvite() != oldEvent.isAllowAttendeeToInvite()) {
       eventModification.addModificationType(AgendaEventModificationType.ALLOW_INVITE_UPDATED);
     }
+    if (!Objects.equals(newEvent.getOpen(), oldEvent.getOpen())) {
+      eventModification.addModificationType(AgendaEventModificationType.OPEN_UPDATED);
+    }
     if (newEvent.getCalendarId() != oldEvent.getCalendarId()) {
       eventModification.addModificationType(AgendaEventModificationType.OWNER_UPDATED);
     }

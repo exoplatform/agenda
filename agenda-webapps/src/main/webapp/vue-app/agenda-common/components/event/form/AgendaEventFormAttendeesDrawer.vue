@@ -188,6 +188,18 @@ export default {
       type: Boolean,
       default: true,
     },
+    /**
+     * Whether this host can apply a change that belongs to the whole series.
+     * The open flag is one: the event page patches the series id and says so,
+     * while the event form saves one event and, on an occurrence, offers a
+     * scope dialog that does not carry the flag to the series. The padlock is
+     * therefore hidden rather than shown lying, when a host that cannot reach
+     * the series displays an occurrence.
+     */
+    appliesOnSeries: {
+      type: Boolean,
+      default: false,
+    },
   },
   data() {
     return {
@@ -202,6 +214,9 @@ export default {
     isSpaceCalendarEvent() {
       const owner = this.event && this.event.calendar && this.event.calendar.owner;
       return !!(owner && (owner.providerId === 'space' || !!owner.space));
+    },
+    isOccurrence() {
+      return !!(this.event && (this.event.occurrence || this.event.parent));
     },
     /**
      * A stored date poll carries status TENTATIVE, but that status is set by
@@ -227,7 +242,7 @@ export default {
      * @returns {Boolean} whether the open-event padlock is rendered
      */
     showOpenToggle() {
-      return this.isSpaceCalendarEvent && !this.isDatePoll;
+      return this.isSpaceCalendarEvent && !this.isDatePoll && (!this.isOccurrence || this.appliesOnSeries);
     },
     isOpenEvent() {
       return !!(this.event && this.event.open);
