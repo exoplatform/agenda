@@ -55,6 +55,26 @@ public class EventFilter implements Cloneable {
    */
   private List<Long>                  calendarIds;
 
+  /**
+   * Whether the calendars filled by the subscriptions of the owners this
+   * listing reads must be left out of it (EXO-90373).
+   * <p>
+   * A subscribed calendar is a read-only copy of somebody else's calendar and
+   * its events carry no attendee row, so an attendee-keyed listing reaches
+   * them only because the service adds those calendars to
+   * {@link #calendarIds}. That is what a member's own agenda wants and what
+   * this flag switches off, for the two kinds of caller that must not see
+   * them: a reader computing when somebody is <b>busy</b> (an imported event
+   * is nobody's commitment — it is always {@code FREE} — and reading them only
+   * spends the caller's event budget), and a listing that names itself after
+   * an attendee <b>response</b> nobody ever gave on them.
+   * <p>
+   * It is a display scope and never an authorisation: the calendars it drops
+   * belong to owners the reader was already checked against, so leaving it
+   * false widens nothing.
+   */
+  private boolean                     subscribedCalendarsExcluded;
+
   public EventFilter(long attendeeId,
                      List<Long> ownerIds,
                      List<EventAttendeeResponse> responseTypes,
@@ -110,7 +130,8 @@ public class EventFilter implements Cloneable {
                            offset,
                            limit,
                            excludedCalendarIds,
-                           calendarIds);
+                           calendarIds,
+                           subscribedCalendarsExcluded);
   }
 
 }

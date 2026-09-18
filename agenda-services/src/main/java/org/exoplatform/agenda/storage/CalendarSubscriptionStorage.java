@@ -16,6 +16,7 @@
  */
 package org.exoplatform.agenda.storage;
 
+import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 
@@ -85,9 +86,9 @@ public class CalendarSubscriptionStorage {
   }
 
   /**
-   * Reads a user's subscription to a URL.
+   * Reads an owner's subscription to a URL.
    *
-   * @param urlKey the key of the user and the URL
+   * @param urlKey the key of the owner and the URL
    * @return the subscription, or null
    */
   public CalendarSubscription getByUrlKey(String urlKey) {
@@ -95,26 +96,54 @@ public class CalendarSubscriptionStorage {
   }
 
   /**
-   * Reads a user's subscriptions, oldest first.
+   * Reads an owner's subscriptions, oldest first: a user's personal ones, or a
+   * space's (EXO-90373).
    *
-   * @param userIdentityId identity identifier of the user
+   * @param ownerIdentityId identity identifier of the owner
    * @param limit most subscriptions read
    * @return the subscriptions
    */
-  public List<CalendarSubscription> getByUser(long userIdentityId, int limit) {
+  public List<CalendarSubscription> getByOwner(long ownerIdentityId, int limit) {
     if (limit <= 0) {
       return List.of();
     }
-    return subscriptionDAO.findByUserIdentityId(userIdentityId,
-                                                PageRequest.of(0, limit, Sort.by("createdDate").ascending().and(Sort.by("id"))))
+    return subscriptionDAO.findByOwnerIdentityId(ownerIdentityId,
+                                                 PageRequest.of(0, limit, Sort.by("createdDate").ascending().and(Sort.by("id"))))
                           .stream()
                           .map(this::toModel)
                           .toList();
   }
 
   /**
+   * Reads the calendars an owner's subscriptions fill (EXO-90373).
+   *
+   * @param ownerIdentityId identity identifier of the owner
+   * @param limit most calendars read
+   * @return technical identifiers of the calendars
+   */
+  public List<Long> getCalendarIdsByOwner(long ownerIdentityId, int limit) {
+    return limit <= 0 ? List.of() : subscriptionDAO.findCalendarIdsByOwnerIdentityId(ownerIdentityId, PageRequest.of(0, limit));
+  }
+
+  /**
+   * Reads the calendars the subscriptions of several owners fill, in one
+   * statement (EXO-90373).
+   *
+   * @param ownerIdentityIds identity identifiers of the owners
+   * @param limit most calendars read across all of them
+   * @return technical identifiers of the calendars, empty when no owner is
+   *         named
+   */
+  public List<Long> getCalendarIdsByOwners(Collection<Long> ownerIdentityIds, int limit) {
+    if (limit <= 0 || ownerIdentityIds == null || ownerIdentityIds.isEmpty()) {
+      return List.of();
+    }
+    return subscriptionDAO.findCalendarIdsByOwnerIdentityIdIn(ownerIdentityIds, PageRequest.of(0, limit));
+  }
+
+  /**
    * Inserts a subscription. The insert is flushed, so that the engine's refusal
-   * of a second subscription of the user to the URL surfaces here.
+   * of a second subscription of the owner to the URL surfaces here.
    *
    * @param subscription the subscription, without identifier
    * @return the stored subscription, or null when a subscription with the same
@@ -124,6 +153,7 @@ public class CalendarSubscriptionStorage {
     CalendarSubscriptionEntity entity = new CalendarSubscriptionEntity();
     entity.setCalendarId(subscription.getCalendarId());
     entity.setUserIdentityId(subscription.getUserIdentityId());
+    entity.setOwnerIdentityId(subscription.getOwnerIdentityId());
     entity.setUrlEncrypted(subscription.getUrlEncrypted());
     entity.setUrlKey(subscription.getUrlKey());
     entity.setNextRefreshDate(date(subscription.getNextRefreshDate()));
@@ -144,7 +174,7 @@ public class CalendarSubscriptionStorage {
    * @param urlEncrypted the new URL encrypted
    * @param urlKey the key of the new URL
    * @param now the instant it becomes due
-   * @return false when the user already subscribes to that URL
+   * @return false when the owner already subscribes to that URL
    */
   public boolean updateUrl(long id, String urlEncrypted, String urlKey, Date now) {
     try {
@@ -152,6 +182,16 @@ public class CalendarSubscriptionStorage {
     } catch (DataIntegrityViolationException | PersistenceException e) {
       return false;
     }
+  }
+
+  /**
+   * Forgets the validators and the digest of the last read (EXO-90373).
+   *
+   * @param id technical identifier
+   * @return true when the row exists
+   */
+  public boolean forgetContent(long id) {
+    return subscriptionDAO.forgetContent(id) > 0;
   }
 
   /**
@@ -327,6 +367,7 @@ public class CalendarSubscriptionStorage {
     subscription.setId(entity.getId());
     subscription.setCalendarId(entity.getCalendarId());
     subscription.setUserIdentityId(entity.getUserIdentityId());
+    subscription.setOwnerIdentityId(entity.getOwnerIdentityId());
     subscription.setUrlEncrypted(entity.getUrlEncrypted());
     subscription.setUrlKey(entity.getUrlKey());
     subscription.setEtag(entity.getEtag());
