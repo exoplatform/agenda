@@ -111,11 +111,11 @@ class CalendarSubscriptionDAOQueryTest {
   }
 
   /**
-   * A subscription is found by its calendar, by its key and among its user's,
+   * A subscription is found by its calendar, by its key and among its owner's,
    * oldest first.
    */
   @Test
-  void aSubscriptionIsFoundByCalendarKeyAndUser() {
+  void aSubscriptionIsFoundByCalendarKeyAndOwner() {
     inTransaction(() -> {
       dao.saveAndFlush(subscription(42, 7, "a", NOW, NOW.minusSeconds(60)));
       dao.saveAndFlush(subscription(43, 7, "b", NOW, NOW.minusSeconds(120)));
@@ -127,10 +127,52 @@ class CalendarSubscriptionDAOQueryTest {
     assertEquals(43, dao.findByUrlKey("b".repeat(64)).getCalendarId());
     assertNull(dao.findByUrlKey("z".repeat(64)));
     assertEquals(List.of(43L, 42L),
-                 dao.findByUserIdentityId(7, PageRequest.of(0, 10, Sort.by("createdDate").ascending()))
+                 dao.findByOwnerIdentityId(7, PageRequest.of(0, 10, Sort.by("createdDate").ascending()))
                     .stream()
                     .map(CalendarSubscriptionEntity::getCalendarId)
                     .toList());
+  }
+
+  /**
+   * A space's subscriptions are its own (EXO-90373): listed by the space as
+   * owner, not by the manager who added them, whose personal ones stay apart;
+   * the calendars they fill are listed by owner, oldest subscription first.
+   */
+  @Test
+  void aSpaceSubscriptionIsListedByItsOwnerNotByItsCreator() {
+    inTransaction(() -> {
+      dao.saveAndFlush(subscription(50, 7, "a", NOW, NOW));
+      CalendarSubscriptionEntity first = subscription(51, 7, "b", NOW, NOW.minusSeconds(60));
+      first.setOwnerIdentityId(900);
+      dao.saveAndFlush(first);
+      CalendarSubscriptionEntity second = subscription(52, 8, "c", NOW, NOW);
+      second.setOwnerIdentityId(900);
+      dao.saveAndFlush(second);
+    });
+    entityManager.clear();
+
+    assertEquals(List.of(50L),
+                 dao.findByOwnerIdentityId(7, PageRequest.of(0, 10)).stream().map(CalendarSubscriptionEntity::getCalendarId).toList(),
+                 "the manager's own listing leaves the space's out");
+    assertEquals(List.of(51L, 52L),
+                 dao.findByOwnerIdentityId(900, PageRequest.of(0, 10, Sort.by("createdDate").ascending()))
+                    .stream()
+                    .map(CalendarSubscriptionEntity::getCalendarId)
+                    .toList());
+    assertEquals(7, dao.findByCalendarId(51).getUserIdentityId(), "the creator is kept apart from the owner");
+    assertEquals(List.of(51L, 52L), dao.findCalendarIdsByOwnerIdentityId(900, PageRequest.of(0, 10)));
+    assertEquals(List.of(51L), dao.findCalendarIdsByOwnerIdentityId(900, PageRequest.of(0, 1)));
+    assertTrue(dao.findCalendarIdsByOwnerIdentityId(901, PageRequest.of(0, 10)).isEmpty());
+
+    // The same projection over a set, in one statement: what a listing asks
+    // for, whose owners are the reader and every space they belong to. Run
+    // here rather than asserted from the string, because an IN over a
+    // collection parameter is exactly the kind of JPQL a mock suite accepts
+    // and the engine refuses.
+    assertEquals(List.of(50L, 51L, 52L), dao.findCalendarIdsByOwnerIdentityIdIn(List.of(7L, 900L), PageRequest.of(0, 10)));
+    assertEquals(List.of(51L, 52L), dao.findCalendarIdsByOwnerIdentityIdIn(List.of(900L, 901L), PageRequest.of(0, 10)));
+    assertEquals(List.of(50L), dao.findCalendarIdsByOwnerIdentityIdIn(List.of(7L, 900L), PageRequest.of(0, 1)));
+    assertTrue(dao.findCalendarIdsByOwnerIdentityIdIn(List.of(901L), PageRequest.of(0, 10)).isEmpty());
   }
 
   /**
@@ -291,6 +333,33 @@ class CalendarSubscriptionDAOQueryTest {
   }
 
   /**
+   * Forgetting what was read clears the validators and the digest, and nothing
+   * else (EXO-90373).
+   */
+  @Test
+  void forgettingTheContentClearsTheValidatorsAndTheDigestOnly() {
+    long id = inTransaction(() -> {
+      CalendarSubscriptionEntity entity = subscription(1, 7, "a", NOW, NOW);
+      entity.setEtag("\"v1\"");
+      entity.setLastModified("yesterday");
+      entity.setContentHash("h");
+      entity.setLastError("agenda.calendarSubscription.linkNotFound");
+      return dao.saveAndFlush(entity).getId();
+    });
+
+    assertEquals(1, (int) inTransaction(() -> dao.forgetContent(id)));
+    assertEquals(0, (int) inTransaction(() -> dao.forgetContent(id + 1000)));
+    entityManager.clear();
+    CalendarSubscriptionEntity forgotten = dao.findById(id).orElseThrow();
+    assertNull(forgotten.getEtag());
+    assertNull(forgotten.getLastModified());
+    assertNull(forgotten.getContentHash());
+    assertEquals("agenda.calendarSubscription.linkNotFound", forgotten.getLastError());
+    assertEquals("enc-a", forgotten.getUrlEncrypted());
+    assertEquals(Date.from(NOW), forgotten.getNextRefreshDate());
+  }
+
+  /**
    * A save of the entity writes only the columns it changed: a validator another
    * writer committed after the entity was read survives an edit of another
    * column.
@@ -402,6 +471,7 @@ class CalendarSubscriptionDAOQueryTest {
     CalendarSubscriptionEntity entity = new CalendarSubscriptionEntity();
     entity.setCalendarId(calendarId);
     entity.setUserIdentityId(userIdentityId);
+    entity.setOwnerIdentityId(userIdentityId);
     entity.setUrlEncrypted("enc-" + key);
     entity.setUrlKey(key.repeat(64));
     entity.setNextRefreshDate(Date.from(nextRefresh));
