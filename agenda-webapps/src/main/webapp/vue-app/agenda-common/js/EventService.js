@@ -235,6 +235,16 @@ export function updateEventFields(event, eventFields, updateAllOccurrences, send
     }).then((resp) => {
       if (resp && resp.ok) {
         return resp.json();
+      } else if (resp) {
+        // A 400 carries a message code in its body (agenda.openEvent.notAllowed,
+        // agenda.eventFieldNotSupported...): handed to the caller, which may
+        // translate it instead of showing a generic error
+        return resp.text().then(body => {
+          const error = new Error('Error updating event');
+          error.status = resp.status;
+          error.code = (body || '').trim().replace(/^"|"$/g, '');
+          throw error;
+        });
       } else {
         throw new Error('Error updating event');
       }

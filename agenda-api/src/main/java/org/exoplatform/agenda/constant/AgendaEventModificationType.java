@@ -31,4 +31,5 @@ public enum AgendaEventModificationType {
   REMINDER_DELETED,
   ALLOW_INVITE_UPDATED,
   ALLOW_MODIFY_UPDATED,
+  OPEN_UPDATED,
 }
