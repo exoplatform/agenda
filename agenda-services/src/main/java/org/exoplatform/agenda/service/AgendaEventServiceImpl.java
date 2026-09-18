@@ -20,6 +20,7 @@ import java.time.*;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ObjectUtils;
@@ -78,6 +79,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   private MetadataService              metadataService;
 
   private CalendarShareAccess          calendarShareAccess = new CalendarShareAccess();
+
+  private CalendarSubscriptionAccess   calendarSubscriptionAccess = new CalendarSubscriptionAccess();
 
   public AgendaEventServiceImpl(AgendaCalendarService agendaCalendarService,
                                 AgendaEventAttendeeService attendeeService,
@@ -845,6 +848,17 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   }
 
   /**
+   * Replaces how the calendars of an owner's subscriptions are looked up, for
+   * tests: the default resolves the subscription service from the container on
+   * first use.
+   *
+   * @param calendarSubscriptionAccess the lookup
+   */
+  public void setCalendarSubscriptionAccess(CalendarSubscriptionAccess calendarSubscriptionAccess) {
+    this.calendarSubscriptionAccess = calendarSubscriptionAccess;
+  }
+
+  /**
    * {@inheritDoc}
    */
   @Override
@@ -884,6 +898,28 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       }
       List<Long> attendeeSpaceIds = Utils.getCalendarOwnersOfUser(spaceService, identityManager, userIdentity);
       eventFilter.setAttendeeWithSpacesIds(attendeeSpaceIds);
+      // The events a calendar subscription imported are nobody's invitation
+      // (EXO-90373): a subscribed calendar is a read-only copy of someone
+      // else's calendar, so a space's import writes no attendee row, and an
+      // attendee-keyed listing — the personal agenda's default view — would
+      // hide them. They belong to their owner, so the subscribed calendars of
+      // the owners this listing reads are added to it, whatever the attendee
+      // criteria say. Those owners are the ones the reader was already allowed
+      // for, checked above, so nothing new is read: unticking the space in the
+      // left panel takes its owner out, and its subscribed events with it.
+      //
+      // Unless the caller asked to be spared them: a reader computing when
+      // somebody is busy, or one listing a single attendee response, gets
+      // nothing right from events nobody was invited to, and both would pay
+      // for them out of their own event budget
+      // (EventFilter.subscribedCalendarsExcluded).
+      if (!eventFilter.isSubscribedCalendarsExcluded()) {
+        List<Long> readOwners = ownerIds == null ? attendeeSpaceIds : ownerIds;
+        List<Long> subscribed = calendarSubscriptionAccess.getSubscriptionCalendarIds(readOwners);
+        if (!subscribed.isEmpty()) {
+          calendarIds = Stream.concat(calendarIds.stream(), subscribed.stream()).distinct().toList();
+        }
+      }
     } else if (ownerIds == null) {
       // If no attendee is selected, and no owners, filter events by use
       // spaceIds

@@ -34,7 +34,8 @@ import lombok.Setter;
  * The stored side of a calendar subscription (EXO-90278).
  * <p>
  * {@code CALENDAR_ID} and {@code URL_KEY} are unique in the table: a calendar
- * holds one subscription, a user subscribes once to a URL. {@link DynamicUpdate}
+ * holds one subscription, an owner — a user or a space — subscribes once to a
+ * URL. {@link DynamicUpdate}
  * because three writers share the row — the owner's edits, the refresh outcome
  * and the job's claim — and the refresh writes go through targeted UPDATE
  * statements that name their own columns, so a save of the entity must never
@@ -59,9 +60,16 @@ public class CalendarSubscriptionEntity implements Serializable {
   @Column(name = "CALENDAR_ID", nullable = false)
   private long              calendarId;
 
-  /** Identity identifier of the user who subscribed. */
+  /** Identity identifier of the user who subscribed: who added it. */
   @Column(name = "USER_IDENTITY_ID", nullable = false)
   private long              userIdentityId;
+
+  /**
+   * Identity identifier of the owner of the calendar the feed fills: the user
+   * for a personal subscription, the space for a space's (EXO-90373).
+   */
+  @Column(name = "OWNER_IDENTITY_ID", nullable = false)
+  private long              ownerIdentityId;
 
   /** The URL encrypted by the platform codec. */
   @Column(name = "URL_ENCRYPTED", nullable = false)

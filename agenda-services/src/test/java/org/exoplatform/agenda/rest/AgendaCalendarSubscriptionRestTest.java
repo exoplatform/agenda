@@ -25,8 +25,11 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 import java.util.List;
@@ -54,6 +57,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import org.exoplatform.agenda.model.CalendarSubscription;
 import org.exoplatform.agenda.rest.model.CalendarSubscriptionRequestEntity;
+import org.exoplatform.agenda.rest.model.CalendarSubscriptionStatusEntity;
 import org.exoplatform.agenda.service.AgendaCalendarSubscriptionService;
 import org.exoplatform.agenda.service.AgendaCalendarSubscriptionServiceImpl;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
@@ -131,16 +135,17 @@ class AgendaCalendarSubscriptionRestTest {
     subscription.setLastError("agenda.calendarSubscription.unreachable");
     when(service.getSubscriptions("john")).thenReturn(List.of(subscription));
 
-    ResponseEntity<?> response = resource.getSubscriptions(request);
+    ResponseEntity<?> response = resource.getSubscriptions(request, null);
 
     assertEquals(HttpStatus.OK, response.getStatusCode());
     assertEquals("no-store", response.getHeaders().getFirst(HttpHeaders.CACHE_CONTROL));
-    assertEquals("[CalendarSubscriptionStatusEntity(id=11, calendarId=77, name=Holidays, color=null, "
+    assertEquals("[CalendarSubscriptionStatusEntity(id=11, calendarId=77, ownerId=0, creatorId=0, creatorUsername=null, "
+        + "creatorFullName=null, name=Holidays, color=null, "
         + "url=https://feeds.example.org/holidays.ics, lastSuccessDate=0, lastAttemptDate=0, nextRefreshDate=0, "
         + "lastError=agenda.calendarSubscription.unreachable, truncated=false, createdDate=0)]", String.valueOf(response.getBody()));
 
     when(service.getSubscriptions("john")).thenThrow(new IllegalAccessException("no identity"));
-    assertRefusal(resource.getSubscriptions(request), HttpStatus.FORBIDDEN, "agenda.calendarSubscription.forbidden");
+    assertRefusal(resource.getSubscriptions(request, null), HttpStatus.FORBIDDEN, "agenda.calendarSubscription.forbidden");
   }
 
   /**
@@ -259,7 +264,7 @@ class AgendaCalendarSubscriptionRestTest {
     when(service.refreshSubscription(anyLong(), anyString())).thenReturn(new CalendarSubscription());
     CalendarSubscriptionRequestEntity body = new CalendarSubscriptionRequestEntity("https://feeds.example.org/a.ics", null, null);
 
-    assertNotNull(resource.getSubscriptions(request));
+    assertNotNull(resource.getSubscriptions(request, null));
     assertNotNull(resource.checkUrl(request, body));
     assertNotNull(resource.createSubscription(request, body));
     assertNotNull(resource.updateSubscription(request, 1, body));
@@ -270,12 +275,109 @@ class AgendaCalendarSubscriptionRestTest {
                          .setAuthentication(new AnonymousAuthenticationToken("key",
                                                                              "__anonim",
                                                                              List.of(new SimpleGrantedAuthority("guests"))));
-    assertThrows(AccessDeniedException.class, () -> resource.getSubscriptions(request));
+    assertThrows(AccessDeniedException.class, () -> resource.getSubscriptions(request, null));
     assertThrows(AccessDeniedException.class, () -> resource.checkUrl(request, body));
     assertThrows(AccessDeniedException.class, () -> resource.createSubscription(request, body));
     assertThrows(AccessDeniedException.class, () -> resource.updateSubscription(request, 1, body));
     assertThrows(AccessDeniedException.class, () -> resource.refreshSubscription(request, 1));
     assertThrows(AccessDeniedException.class, () -> resource.deleteSubscription(request, 1));
+  }
+
+  /**
+   * A named owner reaches the owner's methods of the service (EXO-90373), none
+   * reaches the user's own; the listing names the owner and who added each
+   * subscription; an owner that does not exist answers 404, one the user does
+   * not manage 403, a refused link 400 — each with its code in the body.
+   *
+   * @throws Exception never
+   */
+  @Test
+  void aSpaceOwnerIsPassedToTheServiceAndItsRefusalsMapTo404403And400() throws Exception {
+    CalendarSubscription subscription = new CalendarSubscription();
+    subscription.setId(12);
+    subscription.setCalendarId(78);
+    subscription.setOwnerIdentityId(100);
+    subscription.setUserIdentityId(1);
+    subscription.setCreatorUsername("john");
+    subscription.setCreatorFullName("John Smith");
+    when(service.getSubscriptions(100L, "john")).thenReturn(List.of(subscription));
+    when(service.createSubscription(eq("u"), any(), any(), eq(100L), eq("john"))).thenReturn(subscription);
+    when(service.checkUrl("u", 100L, "john")).thenReturn("Team");
+
+    ResponseEntity<?> listing = resource.getSubscriptions(request, 100L);
+    assertEquals(HttpStatus.OK, listing.getStatusCode());
+    List<?> entities = (List<?>) listing.getBody();
+    CalendarSubscriptionStatusEntity entity = (CalendarSubscriptionStatusEntity) entities.get(0);
+    assertEquals(100, entity.getOwnerId());
+    assertEquals(1, entity.getCreatorId());
+    assertEquals("john", entity.getCreatorUsername());
+    assertEquals("John Smith", entity.getCreatorFullName());
+    assertEquals(Map.of("name", "Team"), resource.checkUrl(request, new CalendarSubscriptionRequestEntity(100L, "u", null, null)).getBody());
+    assertEquals(12, ((CalendarSubscriptionStatusEntity) resource.createSubscription(request,
+                                                                                     new CalendarSubscriptionRequestEntity(100L, "u", null, null))
+                                                                 .getBody()).getId());
+    verify(service, never()).getSubscriptions("john");
+    verify(service, never()).createSubscription(any(), any(), any(), eq("john"));
+    verify(service, never()).checkUrl(any(), eq("john"));
+
+    when(service.getSubscriptions(999L, "john")).thenThrow(new ObjectNotFoundException("no owner"));
+    when(service.getSubscriptions(200L, "john")).thenThrow(new IllegalAccessException("not a manager"));
+    assertRefusal(resource.getSubscriptions(request, 999L), HttpStatus.NOT_FOUND, "agenda.calendarSubscription.ownerNotFound");
+    assertRefusal(resource.getSubscriptions(request, 200L), HttpStatus.FORBIDDEN, "agenda.calendarSubscription.forbidden");
+
+    when(service.checkUrl("u", 999L, "john")).thenThrow(new ObjectNotFoundException("no owner"));
+    when(service.checkUrl("u", 200L, "john")).thenThrow(new IllegalAccessException("not a manager"));
+    when(service.checkUrl("own", 100L, "john")).thenThrow(new IllegalArgumentException("agenda.calendarSubscription.ownSpaceCalendar"));
+    assertRefusal(resource.checkUrl(request, new CalendarSubscriptionRequestEntity(999L, "u", null, null)),
+                  HttpStatus.NOT_FOUND,
+                  "agenda.calendarSubscription.ownerNotFound");
+    assertRefusal(resource.checkUrl(request, new CalendarSubscriptionRequestEntity(200L, "u", null, null)),
+                  HttpStatus.FORBIDDEN,
+                  "agenda.calendarSubscription.forbidden");
+    assertRefusal(resource.checkUrl(request, new CalendarSubscriptionRequestEntity(100L, "own", null, null)),
+                  HttpStatus.BAD_REQUEST,
+                  "agenda.calendarSubscription.ownSpaceCalendar");
+
+    when(service.createSubscription(eq("u"), any(), any(), eq(999L), eq("john"))).thenThrow(new ObjectNotFoundException("no owner"));
+    when(service.createSubscription(eq("u"), any(), any(), eq(200L), eq("john"))).thenThrow(new IllegalAccessException("not a manager"));
+    assertRefusal(resource.createSubscription(request, new CalendarSubscriptionRequestEntity(999L, "u", null, null)),
+                  HttpStatus.NOT_FOUND,
+                  "agenda.calendarSubscription.ownerNotFound");
+    assertRefusal(resource.createSubscription(request, new CalendarSubscriptionRequestEntity(200L, "u", null, null)),
+                  HttpStatus.FORBIDDEN,
+                  "agenda.calendarSubscription.forbidden");
+  }
+
+  /**
+   * Through Spring MVC, the owner travels as the listing's query parameter and
+   * as the subscribing body's {@code ownerId}.
+   *
+   * @throws Exception when the request fails
+   */
+  @Test
+  void theOwnerTravelsAsAQueryParameterAndInTheBody() throws Exception {
+    AgendaCalendarSubscriptionService mvcService = mock(AgendaCalendarSubscriptionService.class);
+    when(mvcService.getSubscriptions(100L, "alice")).thenThrow(new IllegalAccessException("not a manager"));
+    when(mvcService.createSubscription("https://feeds.example.org/a.ics", "Team", null, 100L, "alice"))
+                                                                                                    .thenThrow(new ObjectNotFoundException("no owner"));
+    MockMvc mvc = MockMvcBuilders.standaloneSetup(new AgendaCalendarSubscriptionRest(mvcService)).build();
+
+    var listing = mvc.perform(get("/calendars/subscriptions").param("ownerId", "100").with(sent -> {
+      sent.setRemoteUser("alice");
+      return sent;
+    })).andReturn().getResponse();
+    assertEquals(403, listing.getStatus());
+
+    var created = mvc.perform(post("/calendars/subscriptions").contentType(MediaType.APPLICATION_JSON)
+                                                              .content("{\"url\":\"https://feeds.example.org/a.ics\",\"name\":\"Team\",\"ownerId\":100}")
+                                                              .with(sent -> {
+                                                                sent.setRemoteUser("alice");
+                                                                return sent;
+                                                              }))
+                     .andReturn()
+                     .getResponse();
+    assertEquals(404, created.getStatus());
+    assertEquals("{\"message\":\"agenda.calendarSubscription.ownerNotFound\"}", created.getContentAsString());
   }
 
   /**
