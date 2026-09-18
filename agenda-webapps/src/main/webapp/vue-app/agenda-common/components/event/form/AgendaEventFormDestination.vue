@@ -138,8 +138,16 @@ export default {
   },
   data: () => ({
     personalCalendars: [],
+    // The calendars a colleague shared with this user for editing
+    // (EXO-90378): a second group of the destination select, because an
+    // editor creates in the owner's calendar from their own agenda
+    editableShares: [],
     selectedValue: null,
     initialized: false,
+    // Whom this component last proposed as the only attendee (EXO-90378), so
+    // that changing the destination again replaces exactly that proposal and
+    // never a colleague the user themselves added
+    proposedAttendeeId: null,
   }),
   computed: {
     /**
@@ -176,6 +184,17 @@ export default {
         value: `calendar-${calendar.id}`,
         color: calendar.color,
       }));
+      // Then the calendars shared with this user for editing (EXO-90378),
+      // under a header of their own so the owner's name is never mistaken for
+      // one of the user's own calendars
+      if (this.editableShares.length) {
+        items.push({header: this.$t('agenda.destination.sharedEditable')});
+        this.editableShares.forEach(share => items.push({
+          text: share.name,
+          value: `calendar-${share.calendarId}`,
+          color: share.color,
+        }));
+      }
       items.push({divider: true});
       items.push({
         text: this.$t('agenda.destination.spaces'),
@@ -221,8 +240,17 @@ export default {
         }
       } else {
         const calendarId = Number(String(this.selectedValue).replace('calendar-', ''));
+        // A calendar shared with this user for editing belongs to its owner,
+        // not to them (EXO-90378): the owner block must name that colleague,
+        // which is what the server checks the calendar row against
+        const share = this.editableShareOf(calendarId);
+        this.proposeDefaultAttendee(share);
         this.$set(this.event.calendar, 'id', calendarId);
-        this.$set(this.event.calendar, 'owner', {
+        this.$set(this.event.calendar, 'owner', share ? {
+          id: String(share.ownerId),
+          providerId: 'organization',
+          remoteId: share.ownerUsername,
+        } : {
           id: String(this.userIdentityId),
           providerId: 'organization',
           remoteId: eXo.env.portal.userName,
@@ -252,12 +280,83 @@ export default {
           this.personalCalendars = data && data.calendars || [];
           this.personalCalendars.sort((calendar1, calendar2) => (calendar2.system - calendar1.system)
             || this.calendarLabel(calendar1).localeCompare(this.calendarLabel(calendar2)));
-          this.initializeSelection();
+          return this.retrieveEditableShares();
         })
+        .then(() => this.initializeSelection())
         .finally(() => {
           this.initialized = true;
           this.$emit('initialized');
         });
+    },
+    /**
+     * The calendars a colleague shared with this user for editing
+     * (EXO-90378), hidden ones left out: hiding a calendar takes it out of
+     * the agenda, so it has no business being a destination either. A
+     * failure leaves the group empty — the user's own calendars are what the
+     * form cannot do without.
+     *
+     * @returns {Promise} resolved once read
+     */
+    retrieveEditableShares() {
+      if (!this.$calendarShareService) {
+        return Promise.resolve();
+      }
+      return this.$calendarShareService.getSharedWithMe()
+        .then(shares => {
+          this.editableShares = (shares || []).filter(share => share.access === 'EDIT' && !share.hidden);
+          this.editableShares.sort((first, second) => String(first.name || '').localeCompare(String(second.name || '')));
+        })
+        .catch(() => this.editableShares = []);
+    },
+    /**
+     * Proposes whom a new event is with, when the destination changes
+     * (EXO-90378): the calendar's owner for a calendar shared with this user
+     * for editing — an event an editor files in a colleague's calendar is a
+     * meeting with that colleague, and they would otherwise have to be added
+     * by hand every time — and the signed-in user again for one of their own.
+     * <p>
+     * Only a proposal, and only ever over another proposal: it replaces the
+     * lone attendee this component itself put there, or an empty list, and
+     * never a list the user has touched. Never on an event being edited.
+     *
+     * @param {Object} share the share the destination names, null for one of
+     *        the user's own calendars
+     * @returns {void}
+     */
+    proposeDefaultAttendee(share) {
+      if (this.event.id || this.event.occurrence) {
+        return;
+      }
+      const attendees = this.event.attendees || [];
+      const only = attendees.length === 1 && attendees[0].identity && attendees[0].identity.id;
+      const replaceable = attendees.length === 0
+        || String(only) === String(this.proposedAttendeeId)
+        || String(only) === String(this.userIdentityId);
+      if (!replaceable) {
+        return;
+      }
+      if (share) {
+        this.$set(this.event, 'attendees', [{identity: {
+          id: String(share.ownerId),
+          providerId: 'organization',
+          remoteId: share.ownerUsername,
+          profile: {fullname: share.ownerDisplayName, avatar: share.ownerAvatarUrl},
+        }}]);
+        this.proposedAttendeeId = String(share.ownerId);
+      } else if (this.proposedAttendeeId) {
+        this.$set(this.event, 'attendees', []);
+        this.proposedAttendeeId = null;
+      }
+    },
+    /**
+     * The share a destination names, when it names one shared with this user
+     * for editing (EXO-90378).
+     *
+     * @param {Number} calendarId technical identifier of the calendar
+     * @returns {Object} the share, or null
+     */
+    editableShareOf(calendarId) {
+      return this.editableShares.find(share => Number(share.calendarId) === Number(calendarId)) || null;
     },
     /**
      * Computes the initial selection from the event being created or edited.
@@ -275,7 +374,13 @@ export default {
         && (storedOwner.id || storedOwner.providerId || storedOwner.remoteId) ? storedOwner : null;
       const ownerIsUser = owner && (String(owner.id) === String(this.userIdentityId)
         || owner.providerId === 'organization' && owner.remoteId === eXo.env.portal.userName);
-      if (owner && !ownerIsUser) {
+      if (owner && !ownerIsUser && this.event.calendar.id && this.editableShareOf(this.event.calendar.id)) {
+        // Editing an event of a calendar a colleague shared with this user for
+        // editing (EXO-90378): asked before the space branch, since its owner
+        // is not this user either. It stays where it is filed — an editor may
+        // not move an event out, and this select would be the only way to try.
+        this.selectedValue = `calendar-${Number(this.event.calendar.id)}`;
+      } else if (owner && !ownerIsUser) {
         // Editing (or pre-filling) an event belonging to a space
         this.selectedValue = 'spaces';
       } else if (ownerIsUser && this.event.calendar.id

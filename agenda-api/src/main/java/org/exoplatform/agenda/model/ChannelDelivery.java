@@ -16,6 +16,8 @@
  */
 package org.exoplatform.agenda.model;
 
+import org.exoplatform.agenda.constant.CalendarShareLevel;
+
 import lombok.Data;
 
 /**
@@ -62,6 +64,22 @@ public class ChannelDelivery {
   private final String failureCode;
 
   /**
+   * The level the channel's server actually holds for the colleague
+   * (EXO-90378), on {@link Status#DELIVERED} only, and null when the channel
+   * carried exactly the level the record asked for — the ordinary case, which
+   * needs no answer.
+   * <p>
+   * A channel that <b>can</b> carry a share but <b>cannot</b> carry it at the
+   * level asked says so here rather than failing: the share is delivered at the
+   * narrower level, agenda logs the difference at WARN, and the record keeps
+   * the level the owner chose, which is what decides every right inside eXo.
+   * BlueMind is the case this exists for — its {@code CS:share} grants reading
+   * and nothing else until a spike proves otherwise — and a colleague who
+   * cannot edit from their phone still edits in eXo.
+   */
+  private final CalendarShareLevel deliveredLevel;
+
+  /**
    * Builds an answer.
    *
    * @param status the outcome
@@ -69,11 +87,16 @@ public class ChannelDelivery {
    * @param deliveryRef the channel's reference, on a delivery
    * @param failureCode the failure code, on a failure
    */
-  private ChannelDelivery(Status status, String channelId, String deliveryRef, String failureCode) {
+  private ChannelDelivery(Status status,
+                          String channelId,
+                          String deliveryRef,
+                          String failureCode,
+                          CalendarShareLevel deliveredLevel) {
     this.status = status;
     this.channelId = channelId;
     this.deliveryRef = deliveryRef;
     this.failureCode = failureCode;
+    this.deliveredLevel = deliveredLevel;
   }
 
   /**
@@ -84,7 +107,21 @@ public class ChannelDelivery {
    * @return the answer
    */
   public static ChannelDelivery delivered(String channelId, String deliveryRef) {
-    return new ChannelDelivery(Status.DELIVERED, channelId, deliveryRef, null);
+    return new ChannelDelivery(Status.DELIVERED, channelId, deliveryRef, null, null);
+  }
+
+  /**
+   * The channel granted the share on its side, at the level it names — which
+   * may be narrower than the record's (EXO-90378).
+   *
+   * @param channelId the channel, never blank
+   * @param deliveryRef the channel's reference, may be null
+   * @param deliveredLevel the level the server now holds, null for "the one
+   *          the record asked"
+   * @return the answer
+   */
+  public static ChannelDelivery delivered(String channelId, String deliveryRef, CalendarShareLevel deliveredLevel) {
+    return new ChannelDelivery(Status.DELIVERED, channelId, deliveryRef, null, deliveredLevel);
   }
 
   /**
@@ -93,7 +130,7 @@ public class ChannelDelivery {
    * @return the answer
    */
   public static ChannelDelivery notApplicable() {
-    return new ChannelDelivery(Status.NOT_APPLICABLE, null, null, null);
+    return new ChannelDelivery(Status.NOT_APPLICABLE, null, null, null, null);
   }
 
   /**
@@ -103,7 +140,7 @@ public class ChannelDelivery {
    * @return the answer
    */
   public static ChannelDelivery failed(String failureCode) {
-    return new ChannelDelivery(Status.FAILED, null, null, failureCode);
+    return new ChannelDelivery(Status.FAILED, null, null, failureCode, null);
   }
 
 }
