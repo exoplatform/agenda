@@ -728,4 +728,27 @@
     </rollback>
   </changeSet>
 
+  <!--
+    EXO-90378: what a colleague may do with a calendar shared with them, VIEW
+    or EDIT, stored by name beside SOURCE. Additive and backward-compatible on
+    purpose: defaultValue="VIEW" backfills every row EXO-90357 wrote, so a
+    share made before this feature keeps granting exactly what it granted —
+    reading — and no upgrade plugin is needed. The rollback is written out
+    rather than left to Liquibase: the file's rule is that a changeset states
+    its own rollback, and an addColumn whose automatic rollback is implicit
+    reads as an oversight next to the ones above.
+    No index: the level is never a search criterion — it is read with the row,
+    on the sharee index or on the unique key, and filtered in memory.
+  -->
+  <changeSet author="agenda" id="1.0.0-51">
+    <addColumn tableName="EXO_AGENDA_CALENDAR_SHARE">
+      <column name="ACCESS_LEVEL" type="NVARCHAR(20)" defaultValue="VIEW">
+        <constraints nullable="false" />
+      </column>
+    </addColumn>
+    <rollback>
+      <dropColumn tableName="EXO_AGENDA_CALENDAR_SHARE" columnName="ACCESS_LEVEL" />
+    </rollback>
+  </changeSet>
+
 </databaseChangeLog>
