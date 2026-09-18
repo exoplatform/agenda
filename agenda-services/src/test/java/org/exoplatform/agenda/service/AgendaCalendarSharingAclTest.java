@@ -661,7 +661,7 @@ class AgendaCalendarSharingAclTest {
 
     assertNotNull(eventService.createEvent(occurrenceOfSeries(), null, null, null, null, null, false, ALICE));
     ArgumentCaptor<Event> written = ArgumentCaptor.forClass(Event.class);
-    org.mockito.Mockito.verify(eventStorage).createEvent(written.capture());
+    verify(eventStorage).createEvent(written.capture());
     assertEquals(SERIES, written.getValue().getParentId(), "the occurrence amends the owner's series");
     assertEquals(CALENDAR, written.getValue().getCalendarId(), "and is filed where the series is");
   }
