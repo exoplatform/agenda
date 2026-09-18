@@ -16,7 +16,8 @@
  */
 
 /**
- * The user's subscriptions to calendar links (EXO-90278), served by agenda's
+ * The subscriptions to calendar links of the user (EXO-90278) and of the spaces
+ * the user manages (EXO-90373), served by agenda's
  * Spring REST under this WAR's own context. Every answer carrying a subscription
  * carries its URL, which may embed a secret: nothing here caches one.
  */
@@ -43,6 +44,8 @@ export const ERROR_CODES = [
   'agenda.calendarSubscription.linkNotFound',
   'agenda.calendarSubscription.ownCalendar',
   'agenda.calendarSubscription.alreadyInAgenda',
+  'agenda.calendarSubscription.ownSpaceCalendar',
+  'agenda.calendarSubscription.ownerNotFound',
   'agenda.calendarSubscription.alreadySubscribed',
   'agenda.calendarSubscription.tooManySubscriptions',
   'agenda.calendarSubscription.urlUnreadable',
@@ -58,6 +61,12 @@ export const ERROR_CODES = [
   'agenda.calendarSubscription.invalidRequest',
   'agenda.calendarNameAlreadyExists',
 ];
+
+/**
+ * The refusal code of a link of this eXo its publisher withdrew: the one a
+ * space's managers are warned about in words of their own (EXO-90373).
+ */
+export const WITHDRAWN_CODE = 'agenda.calendarSubscription.linkNotFound';
 
 /**
  * The bundle key of the sentence to show for a refusal code.
@@ -110,29 +119,33 @@ function send(url, method, body) {
 }
 
 /**
- * Lists the user's subscriptions, oldest first.
+ * Lists the subscriptions, oldest first: the user's own, or those of a space
+ * the user manages.
  *
+ * @param {Number} ownerId the space's identity id, nothing for the user's own
  * @returns {Promise<Array>} the subscriptions
  */
-export function getSubscriptions() {
-  return send(SUBSCRIPTIONS_URL, 'GET');
+export function getSubscriptions(ownerId) {
+  return send(ownerId ? `${SUBSCRIPTIONS_URL}?ownerId=${encodeURIComponent(ownerId)}` : SUBSCRIPTIONS_URL, 'GET');
 }
 
 /**
  * Checks a link without subscribing: the server reads it once.
  *
  * @param {String} url the link as typed
+ * @param {Number} ownerId the space's identity id, nothing for the user's own
  * @returns {Promise<Object>} {name}, the calendar's own name or null
  */
-export function checkUrl(url) {
-  return send(`${SUBSCRIPTIONS_URL}/check`, 'POST', {url});
+export function checkUrl(url, ownerId) {
+  return send(`${SUBSCRIPTIONS_URL}/check`, 'POST', ownerId ? {url, ownerId} : {url});
 }
 
 /**
  * Subscribes to a link.
  *
- * @param {Object} subscription {url, name, color}; a blank name takes the
- *          calendar's own, a blank colour an automatic one
+ * @param {Object} subscription {url, name, color}, with ownerId for a space;
+ *          a blank name takes the calendar's own, a blank colour an automatic
+ *          one, and a space's calendar always takes the space's colour
  * @returns {Promise<Object>} the subscription
  */
 export function createSubscription(subscription) {
