@@ -336,11 +336,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       }
     }
 
-    boolean canCreateCalendarEvents = canCreateEvent(calendar, userIdentityId);
-    if (!canCreateCalendarEvents) {
-      throw new IllegalAccessException("User '" + userIdentityId + "' can't create an event in calendar " + calendar.getTitle());
-    }
-    checkCanCreateOccurrence(parentEvent, userIdentityId);
+    checkCanCreateEvent(parentEvent, calendar, userIdentityId);
 
     EventOccurrence occurrence = event.getOccurrence();
     if (occurrence != null && occurrence.getId() != null) {
@@ -1736,7 +1732,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * another user's personal calendar. Both update paths go through this
    * method: {@code updateEvent} and the {@code calendarId} field of
    * {@code updateEventFields}. An exceptional occurrence created through
-   * {@code createEvent} is checked by {@code checkCanCreateOccurrence} instead.
+   * {@code createEvent} is checked by {@link #checkCanCreateEvent} instead,
+   * which asks the creation right only when that occurrence is filed into a
+   * calendar other than its series' (EXO-90382).
    *
    * @param storedEvent the event as it is stored, carrying the calendar it is
    *          currently filed in
@@ -1772,27 +1770,58 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   }
 
   /**
-   * Checks that a user may create an exceptional occurrence of a recurring
-   * event, which is what {@code createEvent} does when the event carries a
-   * parent. Such an occurrence replaces the computed one in the series for
-   * every reader, whatever calendar it is filed into, so it requires the right
-   * to update the series, as editing that occurrence in place would. The right
-   * to create events in the target calendar is checked by the caller. Without
-   * this check, anyone who can add events to their own calendar could remove an
-   * occurrence of any recurring event from the views of its owner and
-   * attendees, knowing only its identifier.
+   * Checks that a user may create an event, and is the one place that decides
+   * it: {@code createEvent} asks nothing else.
+   * <p>
+   * An ordinary event — no parent — needs the right to add events to its
+   * calendar, and nothing has changed for it.
+   * <p>
+   * An event carrying a parent is an <b>exceptional occurrence</b>: it replaces
+   * the computed occurrence in the series for every reader, so it always
+   * requires the right to update the series (EXO-90381), as editing that
+   * occurrence in place would. Without that, anyone able to add events to their
+   * own calendar could remove one date of any recurring event from the views of
+   * its owner and attendees, knowing only its identifier.
+   * <p>
+   * That update right is also <b>enough</b>, as long as the occurrence stays in
+   * the series' own calendar (EXO-90382). The reason is in the protocol: on a
+   * CalDAV server a repeating meeting is <b>one object</b>, and an override for
+   * a single date is written inside that same object — our own {@code IcsMerger}
+   * merges "overrides into the same object, with its own properties", and
+   * pushing an override "replaces only the override for that instance". The
+   * server therefore asks for write on the existing meeting and never for a
+   * create. eXo is the outlier: it stores the exception as a separate row, and
+   * asking that row for a creation right excluded people who may plainly change
+   * the whole series — an attendee the organiser allowed to update the event, a
+   * creator who is no longer a redactor of the space, an editor of a calendar
+   * shared with them (EXO-90378) — from changing one date of it.
+   * <p>
+   * Filing the occurrence into <b>another</b> calendar is a different act: that
+   * is a creation there, and it keeps the creation right, exactly as moving an
+   * event does ({@link #checkCanMoveEvent}).
    *
    * @param parentEvent the stored recurring event the occurrence belongs to, or
    *          null when the created event has no parent
+   * @param calendar the stored calendar the event is filed into, already
+   *          checked to exist
    * @param userIdentityId the {@link Identity} identifier of the user creating
    *          the event
-   * @throws IllegalAccessException when the event has a parent that the user
-   *           can't update
+   * @throws IllegalAccessException when the event has a parent the user can't
+   *           update, or when the user can't add events to the calendar and the
+   *           event is not an occurrence staying in its series' calendar
    */
-  private void checkCanCreateOccurrence(Event parentEvent, long userIdentityId) throws IllegalAccessException {
-    if (parentEvent != null && !canUpdateEvent(parentEvent, userIdentityId)) {
-      throw new IllegalAccessException("User '" + userIdentityId + "' can't create an occurrence of event "
-          + parentEvent.getId());
+  private void checkCanCreateEvent(Event parentEvent, Calendar calendar, long userIdentityId) throws IllegalAccessException {
+    if (parentEvent != null) {
+      if (!canUpdateEvent(parentEvent, userIdentityId)) {
+        throw new IllegalAccessException("User '" + userIdentityId + "' can't create an occurrence of event "
+            + parentEvent.getId());
+      }
+      if (parentEvent.getCalendarId() == calendar.getId()) {
+        return;
+      }
+    }
+    if (!canCreateEvent(calendar, userIdentityId)) {
+      throw new IllegalAccessException("User '" + userIdentityId + "' can't create an event in calendar " + calendar.getTitle());
     }
   }
 

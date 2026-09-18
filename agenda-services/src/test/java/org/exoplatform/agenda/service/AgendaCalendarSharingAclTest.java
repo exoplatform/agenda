@@ -36,6 +36,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,6 +52,7 @@ import org.exoplatform.agenda.model.AgendaEventSearchFilter;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventFilter;
+import org.exoplatform.agenda.model.EventOccurrence;
 import org.exoplatform.agenda.model.EventRecurrence;
 import org.exoplatform.agenda.model.EventSearchResult;
 import org.exoplatform.agenda.constant.EventRecurrenceFrequency;
@@ -93,6 +95,9 @@ class AgendaCalendarSharingAclTest {
   private static final long        EVENT    = 500;
 
   private static final long        SERIES   = 600;
+
+  /** The identifier the storage gives the exceptional occurrence it is asked to write. */
+  private static final long        NEW_EVENT = 601;
 
   /** Alice's own personal calendar: what an editor may create in, and may not move the owner's events to. */
   private static final long        ALICE_CALENDAR = 78;
@@ -619,6 +624,47 @@ class AgendaCalendarSharingAclTest {
   }
 
   /**
+   * An editor edits one date of the owner's series for real, through the write
+   * the web UI makes: an exceptional occurrence filed into the owner's
+   * calendar, where the series is (EXO-90382). A viewer is still refused, and
+   * so is a stranger — the update right on the series is the only thing that
+   * branch asks for, so it is the only thing refusing them.
+   * <p>
+   * The editor's half is a non-regression pin, not a grant this change makes:
+   * an edit share already grants creation in the shared calendar (EXO-90378),
+   * so it passed before the relaxation too. The refusals are what bite.
+   *
+   * @throws Exception when a write is refused for a user who may make it
+   */
+  @Test
+  void anEditorEditsOneDateOfTheOwnersSeriesAndAViewerDoesNot() throws Exception {
+    AtomicReference<Event> stored = new AtomicReference<>();
+    when(eventStorage.createEvent(any())).thenAnswer(invocation -> {
+      Event created = invocation.<Event> getArgument(0).clone();
+      created.setId(NEW_EVENT);
+      stored.set(created);
+      return created;
+    });
+    when(eventStorage.getEventById(NEW_EVENT)).thenAnswer(invocation -> stored.get());
+
+    assertThrows(IllegalAccessException.class,
+                 () -> eventService.createEvent(occurrenceOfSeries(), null, null, null, null, null, false, ALICE),
+                 "a viewer edits no date of the owner's series");
+    assertThrows(IllegalAccessException.class,
+                 () -> eventService.createEvent(occurrenceOfSeries(), null, null, null, null, null, false, CAROL),
+                 "and neither does a stranger");
+    org.mockito.Mockito.verify(eventStorage, org.mockito.Mockito.never()).createEvent(any());
+
+    aliceLevel = CalendarShareLevel.EDIT;
+
+    assertNotNull(eventService.createEvent(occurrenceOfSeries(), null, null, null, null, null, false, ALICE));
+    ArgumentCaptor<Event> written = ArgumentCaptor.forClass(Event.class);
+    org.mockito.Mockito.verify(eventStorage).createEvent(written.capture());
+    assertEquals(SERIES, written.getValue().getParentId(), "the occurrence amends the owner's series");
+    assertEquals(CALENDAR, written.getValue().getCalendarId(), "and is filed where the series is");
+  }
+
+  /**
    * An editor sets their own reminders on the owner's events; a viewer is
    * still refused (EXO-90378, PO decision 13). A reminder is per receiver:
    * the editor's reaches nobody else.
@@ -885,6 +931,28 @@ class AgendaCalendarSharingAclTest {
     recurrence.setInterval(1);
     recurrence.setByDay(List.of("TH"));
     event.setRecurrence(recurrence);
+    return event;
+  }
+
+  /**
+   * The payload the web UI sends when one date of the owner's series is
+   * edited: no identifier, the series as parent, the series' own calendar, the
+   * occurrence identifier, and no recurrence.
+   *
+   * @return the event to pass to {@code createEvent}
+   */
+  private static Event occurrenceOfSeries() {
+    Event event = new Event();
+    event.setParentId(SERIES);
+    event.setCalendarId(CALENDAR);
+    event.setSummary("Standup, moved");
+    event.setStatus(EventStatus.CONFIRMED);
+    event.setAvailability(EventAvailability.BUSY);
+    event.setVisibility(EventVisibility.DEFAULT);
+    event.setTimeZoneId(ZoneOffset.UTC);
+    event.setStart(ZonedDateTime.of(2026, 10, 8, 10, 0, 0, 0, ZoneOffset.UTC));
+    event.setEnd(ZonedDateTime.of(2026, 10, 8, 11, 0, 0, 0, ZoneOffset.UTC));
+    event.setOccurrence(new EventOccurrence(ZonedDateTime.of(2026, 10, 8, 9, 0, 0, 0, ZoneOffset.UTC)));
     return event;
   }
 
