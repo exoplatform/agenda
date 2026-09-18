@@ -29,6 +29,15 @@ import AgendaLeftPanelRemoteCalendars from '../../main/webapp/vue-app/agenda-com
  * spells the principal with when it publishes no display name — so what is
  * pinned here is that the panel renders whatever name arrived, as text, and
  * that a row carrying no name at all keeps the generic sentence.
+ *
+ * Which assertions carry the mutation evidence, and which only pin the
+ * behaviour going forward: the two named cases and the bundle case fail
+ * against the code before EXO-90350, because the lock then reads the generic
+ * key. The two cases that expect the generic sentence fail against it as
+ * well, but for a reason of their own — `agenda-remote-calendar-read-only` is
+ * a handle this change adds, so the lookup finds nothing rather than finding
+ * the wrong words. They are guards on what must not drift, not proof that the
+ * branch was ever wrong.
  */
 describe('A calendar shared from outside this eXo names its owner in the lock', () => {
 
@@ -155,11 +164,15 @@ describe('A calendar shared from outside this eXo names its owner in the lock', 
 
     const lock = wrapper.find('.agenda-remote-calendar-read-only');
     // The name travels in an attribute: the characters the server sent, whole,
-    // and no element built from them anywhere in the row
+    // and no element built from them anywhere in the row. What kills a switch
+    // to `v-html` is the absence of an element, not the absence of the script
+    // it would have run: jsdom fetches nothing, so the injected `onerror`
+    // never fires whether the markup was parsed or not, and asking after its
+    // effect would pass over a page that had just built the image.
     expect(lock.attributes('title')).toBe(`agenda.leftPanel.sharedByReadOnly(${injected})`);
+    expect(lock.element.innerHTML).not.toContain('<img');
     expect(lock.element.querySelector('img')).toBeNull();
     expect(document.body.querySelector('img')).toBeNull();
-    expect(window.__owned).toBeUndefined();
   });
 
   it('ships the sentence in the English bundle, with the owner and the read-only part', () => {
