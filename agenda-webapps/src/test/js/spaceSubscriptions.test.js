@@ -143,7 +143,10 @@ describe('A space subscribes to calendars', () => {
       const rows = wrapper.findAll('.agenda-space-subscription');
 
       expect(rows.at(0).find('.agenda-space-subscription-warning').exists()).toBe(false);
-      expect(rows.at(1).find('.agenda-space-subscription-warning').text()).toContain('agenda.calendarSubscription.withdrawn');
+      // ROWS[1] is a withdrawn link that never imported: the row says so above
+      // (line "Not refreshed yet") and the warning agrees with it
+      expect(rows.at(1).find('.agenda-space-subscription-warning').text())
+        .toContain('agenda.calendarSubscription.withdrawnNeverImported');
       expect(rows.at(2).find('.agenda-space-subscription-warning').text())
         .toContain('agenda.calendarSubscription.neverImported(agenda.calendarSubscription.unreachable)');
       expect(rows.at(2).find('.agenda-space-subscription-warning').text()).not.toContain('agenda.calendarSubscription.withdrawn');
@@ -171,6 +174,7 @@ describe('A space subscribes to calendars', () => {
 
       const withdrawn = rows.at(0).find('.agenda-space-subscription-warning').text();
       expect(withdrawn).toContain('agenda.calendarSubscription.withdrawn');
+      expect(withdrawn).not.toContain('agenda.calendarSubscription.withdrawnNeverImported');
       expect(withdrawn).not.toContain('agenda.calendarSubscription.stillImported');
 
       const unanswered = rows.at(1).find('.agenda-space-subscription-warning').text();
@@ -179,13 +183,47 @@ describe('A space subscribes to calendars', () => {
       expect(unanswered).not.toContain('agenda.calendarSubscription.withdrawn');
     });
 
+    /*
+     * EXO-90402, review round 1: the third state. A withdrawn link the space
+     * never imported anything from is not promised a cleanup either — the
+     * purge is guarded on the digest of a read that succeeded, which such a
+     * subscription never carries, so nothing is ever removed from it and there
+     * is nothing to remove. The row already says "Not refreshed yet" one line
+     * above; the warning is not allowed to contradict it.
+     */
+    it('promises no cleanup to a withdrawn link that never imported, whose row already says it never refreshed', async () => {
+      service.getSubscriptions.mockResolvedValue([
+        {id: 23, calendarId: 83, name: 'Kickoff', creatorFullName: 'Anne Doe', creatorUsername: 'anne',
+          createdDate: Date.UTC(2026, 7, 3), lastSuccessDate: 0,
+          lastError: 'agenda.calendarSubscription.linkNotFound'},
+      ]);
+      const wrapper = await openSpaceDrawer();
+      const row = wrapper.findAll('.agenda-space-subscription').at(0);
+
+      expect(row.find('.agenda-space-subscription-refreshed').text()).toBe('agenda.calendarSubscription.neverRefreshed');
+      const warning = row.find('.agenda-space-subscription-warning').text();
+      expect(warning).toContain('agenda.calendarSubscription.withdrawnNeverImported');
+      // not the sentence that dates a cleanup from a refresh this row never had
+      expect(warning).not.toContain('agenda.calendarSubscription.withdrawn(');
+      expect(warning.replace('agenda.calendarSubscription.withdrawnNeverImported', ''))
+        .not.toContain('agenda.calendarSubscription.withdrawn');
+    });
+
     it('ships an English sentence per case: a week for the withdrawn link, events kept for the address', () => {
       const withdrawn = bundle.match(/^agenda\.calendarSubscription\.withdrawn=(.*)$/m)[1];
+      const withdrawnNeverImported = bundle.match(/^agenda\.calendarSubscription\.withdrawnNeverImported=(.*)$/m)[1];
       const stillImported = bundle.match(/^agenda\.calendarSubscription\.stillImported=(.*)$/m)[1];
       const neverImported = bundle.match(/^agenda\.calendarSubscription\.neverImported=(.*)$/m)[1];
 
       expect(withdrawn).toContain('removed a week after the last refresh');
+      // The rule, not the present state: the purge runs once and the row keeps
+      // its failure for good, so a sentence saying the events are on screen now
+      // would be false from that hour on, for good (review round 1)
+      expect(withdrawn).not.toContain('still see');
       // The cleanup is never promised where it does not happen
+      expect(withdrawnNeverImported).not.toContain('week');
+      expect(withdrawnNeverImported).not.toContain('still see');
+      expect(withdrawnNeverImported).toContain('shows no events');
       expect(stillImported).not.toContain('week');
       expect(stillImported).not.toContain('removed');
       expect(stillImported).toContain('Nothing has been imported since {1}');
@@ -226,7 +264,9 @@ describe('A space subscribes to calendars', () => {
       await wrapper.vm.refresh(wrapper.vm.subscriptions[1]);
 
       expect(service.refreshSubscription).toHaveBeenCalledWith(12);
-      expect(wrapper.rootEmit).toHaveBeenCalledWith('alert-message', 'agenda.calendarSubscription.withdrawn', 'warning');
+      // ROWS[1] never imported, so the snackbar carries that state's sentence
+      expect(wrapper.rootEmit)
+        .toHaveBeenCalledWith('alert-message', 'agenda.calendarSubscription.withdrawnNeverImported', 'warning');
       expect(wrapper.rootEmit).toHaveBeenCalledWith('agenda-refresh');
       expect(wrapper.vm.refreshingIds).toEqual([]);
     });

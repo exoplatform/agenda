@@ -250,11 +250,14 @@ export default {
      * of the one thing the two cases do not share: what becomes of the events
      * already imported (EXO-90402).
      *
-     * Two states, and they are the two the row can tell apart at the moment it
-     * is drawn. `lastError` being {@link WITHDRAWN_CODE} is a link of this eXo
-     * that opens nothing: only the in-process branch of the refresh raises it,
-     * from this platform's own database, so it is eXo's own certain word that
-     * the publisher withdrew the link — and it is the only failure on which the
+     * Which failure, and whether anything was ever imported: the two questions
+     * the row can answer at the moment it is drawn, and between them they pick
+     * the sentence.
+     *
+     * `lastError` being {@link WITHDRAWN_CODE} is a link of this eXo that opens
+     * nothing: only the in-process branch of the refresh raises it, from this
+     * platform's own database, so it is eXo's own certain word that the
+     * publisher withdrew the link — and it is the only failure on which the
      * imported events are removed, a week after the last refresh
      * (`AgendaCalendarSubscriptionServiceImpl#isWithdrawnForLong`). Any other
      * failure — an external ICS or webcal address that stopped answering, most
@@ -263,21 +266,42 @@ export default {
      * are. It used to promise the week-long cleanup for both, which the product
      * performs for one.
      *
-     * The reason keeps its place at the head of either sentence: a manager who
-     * is to act on the warning needs to know what the link answered, not only
-     * what happens to the events.
+     * A withdrawn link that never imported anything is the third state, and it
+     * is told apart because the cleanup does not reach it either: the purge is
+     * guarded on the digest of a read that succeeded
+     * (`refreshClaimed`, `getContentHash() != null`), which a subscription that
+     * never imported does not carry, so nothing is ever removed from it and it
+     * has nothing to remove. Promising it a cleanup would be the very fault
+     * this change came to mend, one state further along, and the row would say
+     * so directly under its own "Not refreshed yet".
      *
-     * Which date: the last successful import, the very one the row's own "Last
-     * refresh" line shows, so the two never disagree. A subscription that never
-     * imported anything has none to show and no events either, and says that
-     * instead.
+     * What is deliberately not claimed, in any of the three, is that the events
+     * are on screen *now*. The purge runs once and the row then keeps its
+     * failure for good — `forgetContent` clears the validators and the digest
+     * and leaves the date, `recordFailure` re-arms the retry — so from a week
+     * after the last refresh onwards a withdrawn link sits there, for ever,
+     * with no events left. A sentence in the present tense would be false from
+     * that hour on, and no field on the row can tell that hour from the one
+     * before it. The rule is stated instead, which holds on both sides of it.
+     *
+     * The reason keeps its place at the head of the two sentences that carry
+     * one: a manager who is to act on the warning needs to know what the link
+     * answered, not only what happens to the events.
+     *
+     * Which date: the last successful refresh — the very one the row's own
+     * "Last refresh" line shows, so the two never disagree. Successful, not
+     * importing: a 304 and a body whose digest has not changed both record it
+     * and import nothing, which is why the sentence it dates says nothing has
+     * been *imported* since, and stays true either way.
      *
      * @param {Object} subscription a row
      * @returns {String} the warning
      */
     warningLabel(subscription) {
       if (subscription.lastError === WITHDRAWN_CODE) {
-        return this.$t('agenda.calendarSubscription.withdrawn');
+        return subscription.lastSuccessDate
+          ? this.$t('agenda.calendarSubscription.withdrawn')
+          : this.$t('agenda.calendarSubscription.withdrawnNeverImported');
       }
       const reason = this.$t(errorMessageKey(subscription.lastError));
       return subscription.lastSuccessDate
