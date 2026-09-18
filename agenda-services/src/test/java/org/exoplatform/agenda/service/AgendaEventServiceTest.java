@@ -298,6 +298,63 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
   }
 
   /**
+   * eXIP 7.3.0.20 Open Event, US02 (EXO-89478): on the event page of an
+   * occurrence, the padlock patches the SERIES id with
+   * {@code updateAllOccurrences = false}. That boolean is load-bearing: with
+   * {@code true}, {@code updateEventFields} deletes every exceptional
+   * occurrence of the series, which is the very reason the flag is a property
+   * of the series (spec §5). This pins the flow the page performs: the series
+   * flips and reports the toggle once, the exceptional occurrence survives
+   * with its own row still false (the wire carries the parent's value,
+   * {@code RestEntityBuilderOpenFlagTest}), and the page still resolves that
+   * surviving row for the occurrence.
+   * <p>
+   * Mutation note: with the {@code updateAllOccurrences} guard removed, the
+   * run dies inside {@code deleteExceptionalOccurences} (the occurrence's
+   * conference rows still reference the deleted event) before the survival
+   * assertions are reached; the pin kills the mutant either way.
+   */
+  @Test
+  public void testOpenEventPatchedOnTheSeriesKeepsItsExceptionalOccurrences() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorIdentityId = Long.parseLong(testuser1Identity.getId());
+
+    Event series = newEventInstance(start, start, true);
+    series.setCalendarId(spaceCalendar.getId());
+    Event createdSeries = createEvent(series.clone(), creatorIdentityId, testuser2Identity);
+    long seriesId = createdSeries.getId();
+    assertNotNull(createdSeries.getRecurrence());
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(seriesId).getOpen());
+
+    Event exceptionalOccurrence = agendaEventService.saveEventExceptionalOccurrence(seriesId, start);
+    assertNotNull(exceptionalOccurrence);
+    assertEquals(1, agendaEventService.getExceptionalOccurrenceEvents(seriesId, ZoneOffset.UTC, creatorIdentityId).size());
+
+    // What AgendaEventAttendees.toggleOpen sends for an occurrence of the series
+    eventUpdateReference.set(null);
+    agendaEventService.updateEventFields(seriesId, getFields("open", "true"), false, false, creatorIdentityId);
+
+    assertEquals(Boolean.TRUE, agendaEventService.getEventById(seriesId).getOpen());
+    assertNotNull(eventUpdateReference.get());
+    assertTrue(eventUpdateReference.get().hasModification(AgendaEventModificationType.OPEN_UPDATED));
+
+    // The exceptional occurrence survives the toggle, and its own row stays
+    // false: the flag is read on the series
+    List<Event> exceptionalOccurrences = agendaEventService.getExceptionalOccurrenceEvents(seriesId,
+                                                                                            ZoneOffset.UTC,
+                                                                                            creatorIdentityId);
+    assertEquals(1, exceptionalOccurrences.size());
+    assertEquals(exceptionalOccurrence.getId(), exceptionalOccurrences.get(0).getId());
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(exceptionalOccurrence.getId()).getOpen());
+
+    // The occurrence the page resolves is that surviving row, under the series
+    Event pageOccurrence = agendaEventService.getEventOccurrence(seriesId, start, ZoneOffset.UTC, creatorIdentityId);
+    assertNotNull(pageOccurrence);
+    assertEquals(exceptionalOccurrence.getId(), pageOccurrence.getId());
+    assertEquals(seriesId, pageOccurrence.getParentId());
+  }
+
+  /**
    * eXIP 7.3.0.20 Open Event, US01 (EXO-89477): the flag is a property of the
    * series. An exceptional occurrence's own row stays false, and the REST
    * entity built for that occurrence carries the parent's value, so the client

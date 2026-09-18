@@ -171,6 +171,11 @@ export default {
      * accepted, and the parent with it, since the drawer and the answer buttons
      * read the effective value from either object.
      *
+     * updateAllOccurrences stays false on purpose: with true, the service
+     * deletes every exceptional occurrence of the series (the date-change
+     * save passes !!recurrence because it means to). The flag is read on the
+     * series, so nothing needs to be propagated.
+     *
      * @returns {void}
      */
     toggleOpen() {
@@ -190,7 +195,14 @@ export default {
             this.$set(this.event.parent, 'open', open);
           }
         })
-        .catch(() => this.$root.$emit('alert-message', this.$t('agenda.openEvent.updateError'), 'error'))
+        .catch(error => {
+          // The server refuses with a message code (a stale page: the event was
+          // moved to a personal calendar or turned into a date poll meanwhile);
+          // shown when the bundle knows it, the generic text otherwise
+          const code = error && error.code;
+          const message = code && this.$te(code) ? this.$t(code) : this.$t('agenda.openEvent.updateError');
+          this.$root.$emit('alert-message', message, 'error');
+        })
         .finally(() => this.togglingOpen = false);
     },
     openDrawer(responseFilter) {
