@@ -28,6 +28,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 
+import org.exoplatform.agenda.constant.CalendarShareLevel;
 import org.exoplatform.agenda.constant.CalendarShareSource;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.CalendarShare;
@@ -117,17 +118,23 @@ public class AgendaCalendarShareServiceImpl implements AgendaCalendarShareServic
    * {@inheritDoc}
    */
   @Override
-  public CalendarShare share(long calendarId, String shareeUsername, String ownerUsername) throws ObjectNotFoundException,
-                                                                                              IllegalAccessException {
+  public CalendarShare share(long calendarId,
+                             String shareeUsername,
+                             CalendarShareLevel level,
+                             String ownerUsername) throws ObjectNotFoundException, IllegalAccessException {
     long ownerIdentityId = userIdentityId(ownerUsername);
     Calendar calendar = getOwnedCalendar(calendarId, ownerIdentityId, ownerUsername);
     Identity sharee = StringUtils.isBlank(shareeUsername) ? null : identityManager.getOrCreateUserIdentity(shareeUsername);
     long shareeIdentityId = validSharee(sharee, ownerIdentityId);
     CalendarShare existing = calendarShareStorage.getShare(calendar.getId(), shareeIdentityId);
+    // An existing record keeps the level it was levelled at: sharing again is a
+    // retry of the delivery (EXO-90357) and must not widen a right on its own —
+    // setLevel is the one call that changes a level (EXO-90378)
     CalendarShare share = existing != null ? existing
                                            : calendarShareStorage.save(calendar.getId(),
                                                                        shareeIdentityId,
                                                                        ownerIdentityId,
+                                                                       level == null ? CalendarShareLevel.VIEW : level,
                                                                        CalendarShareSource.EXO,
                                                                        null,
                                                                        null,
@@ -136,6 +143,39 @@ public class AgendaCalendarShareServiceImpl implements AgendaCalendarShareServic
       broadcast(CALENDAR_SHARED_EVENT, share, ownerIdentityId);
     }
     return StringUtils.isBlank(share.getDeliveredTo()) ? deliver(share, ownerUsername) : share;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public CalendarShare setLevel(long calendarId,
+                                long shareeIdentityId,
+                                CalendarShareLevel level,
+                                String ownerUsername) throws ObjectNotFoundException, IllegalAccessException {
+    if (level == null) {
+      throw new IllegalArgumentException(LEVEL_MANDATORY);
+    }
+    long ownerIdentityId = userIdentityId(ownerUsername);
+    Calendar calendar = getOwnedCalendar(calendarId, ownerIdentityId, ownerUsername);
+    CalendarShare existing = calendarShareStorage.getShare(calendar.getId(), shareeIdentityId);
+    if (existing == null) {
+      throw new ObjectNotFoundException("Calendar " + calendarId + " is not shared with identity " + shareeIdentityId);
+    }
+    CalendarShare share = existing.getLevel() == level ? existing
+                                                       : calendarShareStorage.setLevel(calendar.getId(),
+                                                                                       shareeIdentityId,
+                                                                                       level);
+    if (share == null) {
+      throw new ObjectNotFoundException("Calendar " + calendarId + " is not shared with identity " + shareeIdentityId);
+    }
+    if (existing.getLevel() != level) {
+      broadcast(CALENDAR_SHARE_LEVEL_CHANGED_EVENT, share, ownerIdentityId);
+    }
+    // The channels are asked whatever the eXo record did: a level change is a
+    // fresh chance to deliver a share that never was delivered, and a delivered
+    // share must have its grant reconciled to the level it now carries
+    return deliver(share, ownerUsername);
   }
 
   /**
@@ -223,7 +263,8 @@ public class AgendaCalendarShareServiceImpl implements AgendaCalendarShareServic
    *         outside eXo
    */
   private boolean record(Calendar calendar, ExternalShare share, long ownerIdentityId) {
-    if (share.getShareeIdentityId() <= 0 || !share.isReadOnly() || StringUtils.isBlank(share.getDeliveryRef())) {
+    CalendarShareLevel level = adoptableLevel(share);
+    if (share.getShareeIdentityId() <= 0 || level == null || StringUtils.isBlank(share.getDeliveryRef())) {
       return false;
     }
     try {
@@ -231,6 +272,7 @@ public class AgendaCalendarShareServiceImpl implements AgendaCalendarShareServic
       CalendarShare recorded = calendarShareStorage.save(calendar.getId(),
                                                          shareeId,
                                                          ownerIdentityId,
+                                                         level,
                                                          CalendarShareSource.ADOPTED,
                                                          share.getChannelId(),
                                                          share.getDeliveryRef(),
@@ -244,6 +286,29 @@ public class AgendaCalendarShareServiceImpl implements AgendaCalendarShareServic
                 e.getMessage());
       return false;
     }
+  }
+
+  /**
+   * The level a grant held on a channel's server can be adopted as
+   * (EXO-90378), null for a grant eXo does not write and therefore never
+   * adopts.
+   * <p>
+   * A read-only grant is a {@code VIEW} share, as it was in EXO-90357. A grant
+   * the channel reports as {@code EDIT} is one of exactly the shape eXo writes
+   * for an edit share — the channel is what knows that shape, and it says so
+   * here rather than handing over privileges agenda would have to read.
+   * Anything else stays outside eXo, listed to the owner as access held
+   * elsewhere: adopting a grant eXo cannot reproduce would make a record whose
+   * level lies about what the server allows.
+   *
+   * @param share the grant as the channel listed it
+   * @return the level to record it at, or null to leave it outside eXo
+   */
+  private static CalendarShareLevel adoptableLevel(ExternalShare share) {
+    if (share.isReadOnly()) {
+      return CalendarShareLevel.VIEW;
+    }
+    return CalendarShareLevel.EDIT.name().equalsIgnoreCase(share.getAccess()) ? CalendarShareLevel.EDIT : null;
   }
 
   /**
@@ -346,6 +411,22 @@ public class AgendaCalendarShareServiceImpl implements AgendaCalendarShareServic
    * {@inheritDoc}
    */
   @Override
+  public CalendarShareLevel getShareLevel(long calendarId, long viewerIdentityId) {
+    return calendarId <= 0 || viewerIdentityId <= 0 ? null : calendarShareStorage.getShareLevel(calendarId, viewerIdentityId);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Map<Long, CalendarShareLevel> getShareLevels(long viewerIdentityId) {
+    return viewerIdentityId <= 0 ? Map.of() : calendarShareStorage.getShareLevels(viewerIdentityId);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
   public List<Long> getSharedCalendarIds(long viewerIdentityId) {
     return viewerIdentityId > 0 ? new ArrayList<>(calendarShareStorage.getSharedCalendarIds(viewerIdentityId)) : List.of();
   }
@@ -419,6 +500,20 @@ public class AgendaCalendarShareServiceImpl implements AgendaCalendarShareServic
       }
       if (delivery.getStatus() == ChannelDelivery.Status.DELIVERED) {
         String channelId = StringUtils.defaultIfBlank(delivery.getChannelId(), channelId(channel));
+        // A channel that carried the share at a narrower level than the record
+        // asked for (EXO-90378) is not a failure: the colleague edits in eXo,
+        // and the server simply shows them less. Logged, never surfaced — the
+        // owner is told nothing about a delivery, at any level.
+        if (delivery.getDeliveredLevel() != null && delivery.getDeliveredLevel() != share.getLevel()) {
+          LOG.warn("Channel {} carried the share of calendar {} by {} with colleague {} at level {} rather than {};"
+              + " the eXo level stands and decides every right in eXo",
+                   channelId,
+                   share.getCalendarId(),
+                   ownerUsername,
+                   share.getShareeIdentityId(),
+                   delivery.getDeliveredLevel(),
+                   share.getLevel());
+        }
         CalendarShare delivered = calendarShareStorage.setDelivery(share.getCalendarId(),
                                                                    share.getShareeIdentityId(),
                                                                    channelId,

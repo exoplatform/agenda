@@ -30,6 +30,20 @@ import org.exoplatform.social.core.identity.model.Identity;
 public interface AgendaEventService {
 
   /**
+   * Broadcast once a colleague holding an <b>edit share</b> on a personal
+   * calendar (EXO-90378) — and holding no older right over the event — added,
+   * changed or removed one of its events; source the
+   * {@link org.exoplatform.agenda.model.CalendarEditorChange}, data the
+   * calendar owner's identity identifier.
+   * <p>
+   * Raised by the event service alone, which is the one place that knows by
+   * what right a writer wrote. The owner is told about the one case they
+   * cannot otherwise see coming; a change of their own, of a space manager, of
+   * the event's creator or of an attendee allowed to update raises nothing.
+   */
+  String CALENDAR_EDITED_BY_SHAREE_EVENT = "exo.agenda.calendar.editedBySharee";
+
+  /**
    * Retrieves the list of events available for a designated user filtered by
    * criteria defined in a filter.
    * <p>

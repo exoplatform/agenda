@@ -71,10 +71,21 @@ public interface CalendarShareChannelPlugin {
   String id();
 
   /**
-   * Carries a share the owner just recorded, or shared again while it was
-   * still undelivered.
+   * Makes this channel's grant match a share record: carries a share the owner
+   * just recorded, shared again while it was still undelivered, or levelled
+   * (EXO-90378).
+   * <p>
+   * <b>Idempotent, and reconciling.</b> The record's
+   * {@code CalendarShare.getLevel()} is what the channel must end up holding:
+   * {@code EDIT} over an existing read grant widens it, {@code VIEW} over an
+   * edit grant narrows it, and either over a grant that already matches writes
+   * nothing. A channel that can carry the share but not at that level answers
+   * {@link ChannelDelivery#delivered(String, String, org.exoplatform.agenda.constant.CalendarShareLevel)}
+   * naming the level it does hold, rather than failing: the share still stands
+   * in eXo at the level the owner chose, and that is what decides every right
+   * inside eXo.
    *
-   * @param share the eXo record, never null
+   * @param share the eXo record, never null, carrying the level to match
    * @param ownerUsername the owner of the calendar
    * @return what happened, never null
    */
@@ -96,8 +107,10 @@ public interface CalendarShareChannelPlugin {
    * The shares of a calendar that exist on this channel's server without an
    * eXo record, read live. The channel leaves out every grantee agenda already
    * holds a record for — {@code recordedShareeIds} — so a delivered share is
-   * never listed twice. A read-only grant to a user of this deployment carries
-   * its {@code deliveryRef}: agenda records it as an adopted share, silently
+   * never listed twice. A grant to a user of this deployment whose shape eXo
+   * itself writes — {@code ExternalShare.access} {@code VIEW} or {@code EDIT}
+   * (EXO-90378) — carries its {@code deliveryRef}: agenda records it as an
+   * adopted share at that level, silently
    * and without touching the server, the moment the owner lists their shares.
    * Every other grant is listed to the owner as access held outside eXo.
    *
