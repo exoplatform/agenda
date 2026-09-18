@@ -61,6 +61,8 @@
       ref="attendeesDrawer"
       :event="event"
       :editable="canEdit"
+      applies-on-series
+      @toggle-open="toggleOpen"
       @closed="saveAttendeesIfEditable" />
   </div>
 </template>
@@ -155,9 +157,54 @@ export default {
   data() {
     return {
       attendeesSnapshot: null,
+      togglingOpen: false,
     };
   },
   methods: {
+    /**
+     * Opens or locks the event from the detail page, where the event exists and
+     * the change applies at once (the form host saves it with the form
+     * instead).
+     *
+     * The flag belongs to the series, so the patch targets the parent when an
+     * occurrence is displayed; the local event is updated only once the server
+     * accepted, and the parent with it, since the drawer and the answer buttons
+     * read the effective value from either object.
+     *
+     * updateAllOccurrences stays false on purpose: with true, the service
+     * deletes every exceptional occurrence of the series (the date-change
+     * save passes !!recurrence because it means to). The flag is read on the
+     * series, so nothing needs to be propagated.
+     *
+     * @returns {void}
+     */
+    toggleOpen() {
+      if (!this.event || this.togglingOpen) {
+        return;
+      }
+      const seriesId = this.event.parent && this.event.parent.id || this.event.id;
+      if (!seriesId) {
+        return;
+      }
+      const open = !this.event.open;
+      this.togglingOpen = true;
+      this.$eventService.updateEventFields({id: seriesId}, {open}, false, false)
+        .then(() => {
+          this.$set(this.event, 'open', open);
+          if (this.event.parent) {
+            this.$set(this.event.parent, 'open', open);
+          }
+        })
+        .catch(error => {
+          // The server refuses with a message code (a stale page: the event was
+          // moved to a personal calendar or turned into a date poll meanwhile);
+          // shown when the bundle knows it, the generic text otherwise
+          const code = error && error.code;
+          const message = code && this.$te(code) ? this.$t(code) : this.$t('agenda.openEvent.updateError');
+          this.$root.$emit('alert-message', message, 'error');
+        })
+        .finally(() => this.togglingOpen = false);
+    },
     openDrawer(responseFilter) {
       this.attendeesSnapshot = (this.event && this.event.attendees || [])
         .map(a => a.identity.remoteId).sort().join(',');
