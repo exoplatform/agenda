@@ -21,6 +21,7 @@ import java.util.Map;
 
 import org.exoplatform.agenda.constant.CalendarShareLevel;
 import org.exoplatform.agenda.model.CalendarShare;
+import org.exoplatform.agenda.model.ChannelShares;
 import org.exoplatform.agenda.model.ExternalShare;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 
@@ -200,6 +201,27 @@ public interface AgendaCalendarShareService {
    * @throws IllegalAccessException when the user does not own it
    */
   boolean holdsMeetingCopies(long calendarId, String ownerUsername) throws ObjectNotFoundException, IllegalAccessException;
+
+  /**
+   * What every channel has to say about a calendar in one pass (EXO-90385):
+   * the access held outside eXo, as {@link #getExternalShares} answers it, and
+   * whether a channel writes the owner's eXo meeting copies into it, as
+   * {@link #holdsMeetingCopies} answers it.
+   *
+   * <p>
+   * What the Share drawer asks, and the reason this exists: asking the two
+   * separately makes every channel hold the same conversation with its server
+   * twice, which on a remote CalDAV server is seconds of latency per opening.
+   * The adoption of a read-only grant into an eXo record happens here exactly
+   * as it does in {@link #getExternalShares} — same rule, same silence.
+   *
+   * @param calendarId technical identifier of the calendar
+   * @param ownerUsername the owner
+   * @return the access held outside eXo and the meeting-copies flag, never null
+   * @throws ObjectNotFoundException when the calendar does not exist
+   * @throws IllegalAccessException when the user does not own it
+   */
+  ChannelShares getChannelShares(long calendarId, String ownerUsername) throws ObjectNotFoundException, IllegalAccessException;
 
   /**
    * Removes a share on a channel's server, at the owner's request.
