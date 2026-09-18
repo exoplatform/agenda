@@ -81,9 +81,49 @@
               </v-list-item-action>
             </v-list-item-action>
           </v-list-item>
+          <!--
+            The calendars the space subscribes to (EXO-90373), next to the colour
+            their events take: for a real manager of the space only, the rule the
+            server applies to them.
+          -->
+          <v-list-item
+            v-if="canManageSubscriptions"
+            class="pa-0 agenda-space-subscriptions-setting">
+            <v-list-item-content>
+              <v-list-item-title>
+                {{ $t('agenda.space.settings.subscriptions.title') }}
+              </v-list-item-title>
+              <v-list-item-subtitle class="agenda-space-subscriptions-count">
+                {{ $t('agenda.space.settings.subscriptions.count', {0: subscriptionsCount}) }}
+              </v-list-item-subtitle>
+            </v-list-item-content>
+            <v-list-item-action>
+              <!--
+                The edit action of this settings page, as its other rows draw it
+                (social's SpaceSettingAccess, SpaceSettingCategories,
+                SpaceSettingPublicSite, SpaceSettingSubspaces): a small icon
+                button, fa-edit at 18 in the default icon colour, its tooltip
+                naming what it edits.
+              -->
+              <v-btn
+                :title="$t('agenda.space.settings.subscriptions.button.tooltip')"
+                small
+                icon
+                class="agenda-space-subscriptions-manage"
+                @click="openSubscriptions">
+                <v-icon size="18" class="icon-default-color">fa-edit</v-icon>
+              </v-btn>
+            </v-list-item-action>
+          </v-list-item>
         </v-list>
       </v-card>
     </template>
+    <!--
+      The agenda application is not on this page: the drawers it would host are
+      mounted here, once, and opened by the same root events.
+    -->
+    <agenda-space-subscriptions-drawer v-if="canManageSubscriptions" />
+    <agenda-calendar-subscription-drawer v-if="canManageSubscriptions" />
   </v-app>
 </template>
 <script>
@@ -93,6 +133,8 @@ export default {
     calendarColor: null,
     newCalendarColor: null,
     calendar: {},
+    currentSpace: null,
+    subscriptionsCount: 0,
     saving: false,
     menu: false,
     swatches: [
@@ -110,8 +152,33 @@ export default {
     calendarColourMenuId() {
       return `settingsMenu${this.calendarOwnerId}`;
     },
+    /**
+     * Whether the user is a real manager of the space, the server's own answer
+     * for publishing its calendar, which is also who manages the calendars the
+     * space subscribes to.
+     *
+     * @returns {Boolean} true for a real manager
+     */
+    canManageSubscriptions() {
+      return !!(this.calendar && this.calendar.acl && this.calendar.acl.canPublish && this.calendarOwnerId);
+    },
+  },
+  watch: {
+    /**
+     * Counts the space's subscriptions once the user is known to manage them.
+     *
+     * @param {Boolean} canManage whether the user manages them
+     * @returns {void}
+     */
+    canManageSubscriptions(canManage) {
+      if (canManage) {
+        this.countSubscriptions();
+      }
+    },
   },
   created() {
+    this.$root.$on('agenda-space-subscriptions-changed', this.countSubscriptions);
+    this.$root.$on('agenda-space-subscriptions-removed', this.countSubscriptions);
     this.getCalendar();
     $(document).on('click', (e) => {
       if (e.target && !$(e.target).parents(`.${this.calendarColourMenuId}`).length) {
@@ -120,7 +187,42 @@ export default {
       }
     });
   },
-  methods: {    
+  beforeDestroy() {
+    this.$root.$off('agenda-space-subscriptions-changed', this.countSubscriptions);
+    this.$root.$off('agenda-space-subscriptions-removed', this.countSubscriptions);
+  },
+  methods: {
+    /**
+     * Counts the calendars the space subscribes to; a failure leaves the count
+     * as it was.
+     *
+     * @returns {Promise} resolved once counted
+     */
+    countSubscriptions() {
+      if (!this.canManageSubscriptions || !this.$calendarSubscriptionService) {
+        return Promise.resolve();
+      }
+      return this.$calendarSubscriptionService.getSubscriptions(this.calendarOwnerId)
+        .then(subscriptions => this.subscriptionsCount = subscriptions && subscriptions.length || 0)
+        .catch(() => null);
+    },
+    /**
+     * Opens the drawer of the calendars the space subscribes to.
+     *
+     * @returns {void}
+     */
+    openSubscriptions() {
+      const space = this.currentSpace;
+      this.$root.$emit('agenda-space-subscriptions-drawer-open', {
+        ownerId: this.calendarOwnerId,
+        spaceName: space && (space.displayName || space.prettyName) || '',
+      });
+    },
+    /**
+     * Reads the space's calendar, the one whose colour the settings show.
+     *
+     * @returns {void}
+     */
     getCalendar() {
       if (eXo.env.portal.spaceId) {
         const spaceId = eXo.env.portal.spaceId;

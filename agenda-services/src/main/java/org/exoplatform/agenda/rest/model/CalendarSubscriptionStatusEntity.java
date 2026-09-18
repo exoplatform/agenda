@@ -20,8 +20,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * A calendar subscription as its owner sees it (EXO-90278). It carries the URL,
- * which may embed a secret: responses holding one are never cached.
+ * A calendar subscription as whoever manages it sees it (EXO-90278): its user,
+ * or a space's managers (EXO-90373). It carries the URL, which may embed a
+ * secret: responses holding one are never cached.
  */
 @Data
 @NoArgsConstructor
@@ -32,6 +33,18 @@ public class CalendarSubscriptionStatusEntity {
 
   /** The calendar its events are imported into. */
   private long    calendarId;
+
+  /** Identity identifier of the owner: the user, or the space. */
+  private long    ownerId;
+
+  /** Identity identifier of the user who added it. */
+  private long    creatorId;
+
+  /** Username of the user who added it. */
+  private String  creatorUsername;
+
+  /** Full name of the user who added it. */
+  private String  creatorFullName;
 
   /** The calendar name. */
   private String  name;
