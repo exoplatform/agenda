@@ -38,14 +38,19 @@
                 dark
                 @click="openEventDetails(event)">
                 <v-list-item-content class="event-timeline-detail-content">
-                  <strong class="text-truncate" :class="event.type === 'remoteEvent' && 'primary--text'">{{ event.summary }}</strong>
+                  <!-- A row read live from a connected account is a row like
+                       any other: it is painted with its calendar's colour and
+                       written in white over it. The theme primary this used to
+                       force here was picked when such a row was drawn on the
+                       card's own background; over a colour it is the one row of
+                       the list nobody can read. -->
+                  <strong class="text-truncate">{{ event.summary }}</strong>
                   <div v-if="event.allDay">
                     {{ $t('agenda.allDay') }}
                   </div>
                   <div
                     v-else
-                    class="d-flex flex-row"
-                    :class="event.type === 'remoteEvent' && 'primary--text'">
+                    class="d-flex flex-row">
                     <div v-if="event.startsOnBeginningOfDay">
                       {{ $t('agenda.beginningOfTheDay') }}
                     </div>
@@ -63,10 +68,14 @@
                       :format="timeFormat" />
                     <!-- the account the event belongs to, not "the"
                          connected one: several can be connected at once -->
+                    <!-- white like the rest of the row when the identity is a
+                         font icon; an uploaded logo keeps the white tile the
+                         connector avatar draws behind an image -->
                     <agenda-connector-avatar
                       v-if="event.type === 'remoteEvent'"
                       :connector="event.connector || connectedConnector"
-                      class="white ms-auto me-1"
+                      class="ms-auto me-1"
+                      icon-class="white--text"
                       size="16" />
                   </div>
                 </v-list-item-content>

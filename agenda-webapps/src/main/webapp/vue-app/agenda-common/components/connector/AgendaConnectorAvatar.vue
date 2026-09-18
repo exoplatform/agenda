@@ -16,12 +16,13 @@
  */
 <template>
   <v-avatar
+    :class="!displayIcon && 'white'"
     :size="size"
     tile>
     <v-icon
       v-if="displayIcon"
       :size="iconSize"
-      class="icon-default-color">
+      :class="iconClass">
       {{ connector.icon }}
     </v-icon>
     <img
@@ -38,6 +39,12 @@
  * wins, else the font icon chosen in admin, else the connector's packaged
  * avatar. A hardcoded connector (Google, Office 365...) carries neither
  * `icon` nor `imageUrl` and keeps rendering its packaged avatar untouched.
+ *
+ * The white tile belongs to the IMAGE, not to the avatar: a logo is drawn for
+ * a light backdrop and needs one wherever it lands, while a font icon takes
+ * the colour it is given and a white square behind it is just a white square.
+ * Deciding it here rather than at each call site is what keeps a surface from
+ * showing a blank tile the day an administrator swaps an image for a glyph.
  */
 export default {
   props: {
@@ -48,6 +55,16 @@ export default {
     size: {
       type: [Number, String],
       default: 24,
+    },
+    /*
+     * The colour of the font icon, for the surfaces that do not draw it on the
+     * card's own background: a row painted with its calendar's colour carries
+     * its glyph in white like the rest of its text. An image is unaffected —
+     * it brings its own colours.
+     */
+    iconClass: {
+      type: String,
+      default: 'icon-default-color',
     },
   },
   computed: {
