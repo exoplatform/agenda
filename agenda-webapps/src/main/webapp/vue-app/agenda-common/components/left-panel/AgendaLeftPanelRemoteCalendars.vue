@@ -200,14 +200,30 @@
                   fas fa-cube
                 </v-icon>
               </span>
-              <exo-user-avatar
-                v-else-if="hasKnownOwner(calendar)"
-                :profile-id="calendar.ownerUsername"
-                :name="calendar.ownerDisplayName"
-                :aria-label="sharedLabel(calendar)"
-                :size="20"
-                avatar
-                popover />
+              <span v-else-if="hasKnownOwner(calendar)" class="d-flex align-center">
+                <!--
+                  A calendar shared for editing (EXO-90378) carries a pencil
+                  beside its owner's avatar, where a read-only one carries
+                  nothing: the marker says what the row lets the user do, and
+                  the hover says it in words.
+                -->
+                <v-icon
+                  v-if="calendar.editable === true"
+                  :title="sharedLabel(calendar)"
+                  :aria-label="sharedLabel(calendar)"
+                  size="12"
+                  role="img"
+                  class="text-light-color me-1 agenda-remote-calendar-editable">
+                  fas fa-pencil-alt
+                </v-icon>
+                <exo-user-avatar
+                  :profile-id="calendar.ownerUsername"
+                  :name="calendar.ownerDisplayName"
+                  :aria-label="sharedLabel(calendar)"
+                  :size="20"
+                  avatar
+                  popover />
+              </span>
               <span
                 v-else
                 :title="$t('agenda.leftPanel.readOnlyCalendar')"
@@ -716,7 +732,11 @@ export default {
         calendarId: Number(share.calendarId),
         name: share.name,
         color: share.color,
-        readOnly: true,
+        // What the owner let this colleague do (EXO-90378): a Can-view share
+        // is read-only as every share was in EXO-90357; a Can-edit one is
+        // not, and the row says so with a pencil beside the owner's avatar
+        readOnly: share.access !== 'EDIT',
+        editable: share.access === 'EDIT',
         shared: true,
         sharedWithMe: true,
         ownerUsername: share.ownerUsername,
@@ -834,7 +854,8 @@ export default {
      * server's display name of a stranger — and "Shared with you" when the
      * connector names no owner at all. Which servers can name one is the
      * connector's business, not this panel's. A resource's calendar is said
-     * to be one instead: "Resource: <name>".
+     * to be one instead: "Resource: <name>". A calendar shared for editing
+     * (EXO-90378) says that too: "Shared by <owner> — you can edit".
      *
      * @param {Object} calendar calendar as the connector described it
      * @returns {String} the sentence, in the user's language
@@ -843,9 +864,14 @@ export default {
       if (this.isResource(calendar)) {
         return this.resourceLabel(calendar);
       }
-      return calendar.ownerDisplayName
-        ? this.$t('agenda.leftPanel.sharedBy', {0: calendar.ownerDisplayName})
-        : this.$t('agenda.leftPanel.sharedCalendar');
+      if (!calendar.ownerDisplayName) {
+        return this.$t('agenda.leftPanel.sharedCalendar');
+      }
+      // A share the owner granted for editing says so in the same breath as
+      // who shared it (EXO-90378): one sentence, one hover
+      return calendar.editable === true
+        ? this.$t('agenda.leftPanel.sharedCalendarEditable', {0: calendar.ownerDisplayName})
+        : this.$t('agenda.leftPanel.sharedBy', {0: calendar.ownerDisplayName});
     },
     /**
      * The row's hover: the calendar's full name, and on a calendar shared

@@ -19,6 +19,7 @@ package org.exoplatform.agenda.service;
 import java.util.List;
 import java.util.Map;
 
+import org.exoplatform.agenda.constant.CalendarShareLevel;
 import org.exoplatform.agenda.model.CalendarShare;
 import org.exoplatform.agenda.model.ExternalShare;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
@@ -64,11 +65,21 @@ public interface AgendaCalendarShareService {
   /** Message code: the sharee has no record on this calendar. */
   String SHARE_NOT_FOUND         = "agenda.share.notFound";
 
+  /** Message code: no access level was given for a share (EXO-90378). */
+  String LEVEL_MANDATORY         = "agenda.share.levelMandatory";
+
   /** Broadcast once a share is recorded; source the {@link CalendarShare}, data the owner identity id. */
   String CALENDAR_SHARED_EVENT   = "exo.agenda.calendar.shared";
 
   /** Broadcast once a share is deleted by its owner; source the {@link CalendarShare}, data the owner identity id. */
   String CALENDAR_UNSHARED_EVENT = "exo.agenda.calendar.unshared";
+
+  /**
+   * Broadcast once the owner changes what a colleague may do with a shared
+   * calendar (EXO-90378); source the {@link CalendarShare} as it now stands,
+   * data the owner identity id.
+   */
+  String CALENDAR_SHARE_LEVEL_CHANGED_EVENT = "exo.agenda.calendar.share.levelChanged";
 
   /**
    * Shares a calendar with a colleague, then asks every delivery channel to
@@ -80,6 +91,12 @@ public interface AgendaCalendarShareService {
    *
    * @param calendarId technical identifier of the calendar
    * @param shareeUsername the colleague
+   * @param level what the colleague may do with the calendar (EXO-90378); null
+   *          shares at {@link CalendarShareLevel#VIEW}, the default of the
+   *          drawer and of every share made before that feature. Sharing again
+   *          with a colleague who already has a record does <b>not</b> change
+   *          their level — {@link #setLevel} is what changes it, so that a
+   *          repeated share can never quietly widen a right.
    * @param ownerUsername the user sharing, who must own the calendar
    * @return the record
    * @throws ObjectNotFoundException when the calendar does not exist
@@ -88,8 +105,42 @@ public interface AgendaCalendarShareService {
    * @throws IllegalArgumentException when the sharee is unknown, disabled, or
    *           the owner
    */
-  CalendarShare share(long calendarId, String shareeUsername, String ownerUsername) throws ObjectNotFoundException,
-                                                                                       IllegalAccessException;
+  CalendarShare share(long calendarId,
+                      String shareeUsername,
+                      CalendarShareLevel level,
+                      String ownerUsername) throws ObjectNotFoundException, IllegalAccessException;
+
+  /**
+   * Changes what a colleague may do with a calendar shared with them
+   * (EXO-90378), then asks the delivery channels to make their grant match the
+   * new level. The owner's call, and only theirs: a colleague — an editor
+   * included — can neither level themselves nor level anyone else, because
+   * this goes through the same owner check as sharing and unsharing.
+   * <p>
+   * Setting the level a share already has is not an error and still asks the
+   * channels: a level change is a fresh chance for a delivery that never
+   * happened, exactly as sharing again is. Delivery stays invisible — a
+   * channel that cannot carry the new level is logged at WARN and the eXo
+   * level stands, which is what decides every right inside eXo.
+   * <p>
+   * Downgrading {@link CalendarShareLevel#EDIT} to {@link CalendarShareLevel#VIEW}
+   * moves nothing: the events the colleague created are the calendar's, and
+   * they simply stop being theirs to change.
+   *
+   * @param calendarId technical identifier of the calendar
+   * @param shareeIdentityId identity identifier of the colleague
+   * @param level the new level, never null
+   * @param ownerUsername the user levelling, who must own the calendar
+   * @return the record as it now stands
+   * @throws ObjectNotFoundException when the calendar does not exist, or it is
+   *           not shared with that colleague
+   * @throws IllegalAccessException when the user does not own the calendar
+   * @throws IllegalArgumentException when no level is given
+   */
+  CalendarShare setLevel(long calendarId,
+                         long shareeIdentityId,
+                         CalendarShareLevel level,
+                         String ownerUsername) throws ObjectNotFoundException, IllegalAccessException;
 
   /**
    * Withdraws a share from the channel that carries it, then deletes the
@@ -214,6 +265,25 @@ public interface AgendaCalendarShareService {
    * @return the calendar identifiers, possibly empty, never null
    */
   List<Long> getSharedCalendarIds(long viewerIdentityId);
+
+  /**
+   * The level a calendar is shared with an identity at (EXO-90378): the write
+   * primitive, read from the same cached map as {@link #isSharedWith}.
+   *
+   * @param calendarId technical identifier of the calendar
+   * @param viewerIdentityId identity identifier of the user
+   * @return the level, or null when the calendar is not shared with them
+   */
+  CalendarShareLevel getShareLevel(long calendarId, long viewerIdentityId);
+
+  /**
+   * Every calendar shared with an identity and the level of each (EXO-90378):
+   * what a listing asks once, instead of asking per event.
+   *
+   * @param viewerIdentityId identity identifier of the user
+   * @return the levels by calendar identifier, possibly empty, never null
+   */
+  Map<Long, CalendarShareLevel> getShareLevels(long viewerIdentityId);
 
   /**
    * Deletes every share of a calendar, once the calendar is deleted. No

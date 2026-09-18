@@ -32,6 +32,7 @@ import java.util.Locale;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import org.exoplatform.agenda.constant.CalendarShareLevel;
 import org.exoplatform.agenda.constant.CalendarShareSource;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.CalendarShare;
@@ -174,7 +175,7 @@ class CalendarSharedNotificationPluginTest {
    * @return the share
    */
   private static CalendarShare share() {
-    return new CalendarShare(5, 20, 3, 1, 1000, CalendarShareSource.EXO, null, null, false);
+    return new CalendarShare(5, 20, 3, CalendarShareLevel.VIEW, 1, 1000, CalendarShareSource.EXO, null, null, false);
   }
 
   /**

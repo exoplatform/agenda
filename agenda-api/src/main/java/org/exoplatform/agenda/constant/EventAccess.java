@@ -35,9 +35,24 @@ public enum EventAccess {
 
   /**
    * The user reads the event only because its calendar was shared with them
-   * (a {@code CalendarShare} record). A {@link EventVisibility#PRIVATE} event
-   * is then rendered as busy time: its content is masked.
+   * (a {@code CalendarShare} record) <b>for viewing</b>. A
+   * {@link EventVisibility#PRIVATE} event is then rendered as busy time: its
+   * content is masked.
    */
-  SHARED;
+  SHARED,
+
+  /**
+   * The user reads the event only because its calendar was shared with them
+   * (EXO-90378) <b>for editing</b>. Nothing is masked: an editor acts in the
+   * owner's calendar as the owner would, so they see a
+   * {@link EventVisibility#PRIVATE} event in full — a delegate who cannot read
+   * the private meeting they are asked to move is not a delegate. They may set
+   * their own reminders on it, which a {@link #SHARED} reader may not.
+   * <p>
+   * This is a <b>reading</b> access, and it grants no write on its own: what an
+   * editor may write is decided by {@code AgendaEventService.canUpdateEvent}
+   * and {@code canCreateEvent}, which read the share level themselves.
+   */
+  SHARED_EDIT;
 
 }

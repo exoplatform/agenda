@@ -16,11 +16,13 @@
  */
 package org.exoplatform.agenda.rest;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -42,6 +44,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import org.exoplatform.agenda.constant.CalendarShareLevel;
 import org.exoplatform.agenda.constant.CalendarShareSource;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.CalendarShare;
@@ -111,7 +114,7 @@ class AgendaCalendarShareRestTest {
   void sharingAnswersTheRecord() throws Exception {
     CalendarShare share = share();
     share.setDeliveredTo(null);
-    when(service.share(CALENDAR, "alice", "owner")).thenReturn(share);
+    when(service.share(CALENDAR, "alice", CalendarShareLevel.VIEW, "owner")).thenReturn(share);
 
     mockMvc.perform(as("owner", post("/calendars/20/shares").contentType(MediaType.APPLICATION_JSON).content("{\"username\":\"alice\"}")))
            .andExpect(status().isOk())
@@ -133,9 +136,9 @@ class AgendaCalendarShareRestTest {
    */
   @Test
   void theRefusalsMapToNotFoundThenForbiddenThenBadRequest() throws Exception {
-    when(service.share(99, "alice", "owner")).thenThrow(new ObjectNotFoundException("gone"));
-    when(service.share(CALENDAR, "alice", "stranger")).thenThrow(new IllegalAccessException("not yours"));
-    when(service.share(CALENDAR, "nobody", "owner")).thenThrow(new IllegalArgumentException(AgendaCalendarShareService.SHAREE_UNKNOWN));
+    when(service.share(99, "alice", CalendarShareLevel.VIEW, "owner")).thenThrow(new ObjectNotFoundException("gone"));
+    when(service.share(CALENDAR, "alice", CalendarShareLevel.VIEW, "stranger")).thenThrow(new IllegalAccessException("not yours"));
+    when(service.share(CALENDAR, "nobody", CalendarShareLevel.VIEW, "owner")).thenThrow(new IllegalArgumentException(AgendaCalendarShareService.SHAREE_UNKNOWN));
 
     mockMvc.perform(as("owner", post("/calendars/99/shares").contentType(MediaType.APPLICATION_JSON).content("{\"username\":\"alice\"}")))
            .andExpect(status().isNotFound());
@@ -144,6 +147,74 @@ class AgendaCalendarShareRestTest {
     mockMvc.perform(as("owner", post("/calendars/20/shares").contentType(MediaType.APPLICATION_JSON).content("{\"username\":\"nobody\"}")))
            .andExpect(status().isBadRequest())
            .andExpect(status().reason(AgendaCalendarShareService.SHAREE_UNKNOWN));
+  }
+
+  /**
+   * A share request naming a level shares at that level, and the answer says
+   * which level the record carries (EXO-90378).
+   *
+   * @throws Exception when the request fails
+   */
+  @Test
+  void sharingCanNameALevelAndTheAnswerCarriesIt() throws Exception {
+    CalendarShare share = share();
+    share.setLevel(CalendarShareLevel.EDIT);
+    when(service.share(CALENDAR, "alice", CalendarShareLevel.EDIT, "owner")).thenReturn(share);
+
+    mockMvc.perform(as("owner",
+                       post("/calendars/20/shares").contentType(MediaType.APPLICATION_JSON)
+                                                   .content("{\"username\":\"alice\",\"access\":\"EDIT\"}")))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.access").value("EDIT"));
+  }
+
+  /**
+   * Levelling a colleague answers no content, and the level the request named
+   * is the one the service is asked for (EXO-90378).
+   *
+   * @throws Exception when the request fails
+   */
+  @Test
+  void levellingAColleagueAnswersNoContent() throws Exception {
+    mockMvc.perform(as("owner",
+                       put("/calendars/20/shares/3").contentType(MediaType.APPLICATION_JSON)
+                                                    .content("{\"access\":\"EDIT\"}")))
+           .andExpect(status().isNoContent());
+
+    verify(service).setLevel(CALENDAR, 3, CalendarShareLevel.EDIT, "owner");
+  }
+
+  /**
+   * A level request that names no level, or one this version does not know,
+   * is a bad request — never a silent VIEW, which would read as a deliberate
+   * downgrade (EXO-90378). The other refusals map 404 then 403, as sharing's
+   * do.
+   *
+   * @throws Exception when the request fails
+   */
+  @Test
+  void anUnnamedOrUnknownLevelIsABadRequest() throws Exception {
+    mockMvc.perform(as("owner", put("/calendars/20/shares/3").contentType(MediaType.APPLICATION_JSON).content("{}")))
+           .andExpect(status().isBadRequest())
+           .andExpect(status().reason(AgendaCalendarShareService.LEVEL_MANDATORY));
+    mockMvc.perform(as("owner",
+                       put("/calendars/20/shares/3").contentType(MediaType.APPLICATION_JSON)
+                                                    .content("{\"access\":\"MANAGE\"}")))
+           .andExpect(status().isBadRequest())
+           .andExpect(status().reason(AgendaCalendarShareService.LEVEL_MANDATORY));
+    verify(service, never()).setLevel(anyLong(), anyLong(), any(), anyString());
+
+    when(service.setLevel(eq(99L), anyLong(), any(), anyString())).thenThrow(new ObjectNotFoundException("gone"));
+    when(service.setLevel(eq(CALENDAR), anyLong(), any(), eq("stranger"))).thenThrow(new IllegalAccessException("not yours"));
+
+    mockMvc.perform(as("owner",
+                       put("/calendars/99/shares/3").contentType(MediaType.APPLICATION_JSON)
+                                                    .content("{\"access\":\"VIEW\"}")))
+           .andExpect(status().isNotFound());
+    mockMvc.perform(as("stranger",
+                       put("/calendars/20/shares/3").contentType(MediaType.APPLICATION_JSON)
+                                                    .content("{\"access\":\"VIEW\"}")))
+           .andExpect(status().isForbidden());
   }
 
   /**
@@ -278,7 +349,7 @@ class AgendaCalendarShareRestTest {
    * @return the share
    */
   private static CalendarShare share() {
-    return new CalendarShare(5, CALENDAR, 3, 1, 1000, CalendarShareSource.EXO, "caldav:1", "/cal/alice/shared/", false);
+    return new CalendarShare(5, CALENDAR, 3, CalendarShareLevel.VIEW, 1, 1000, CalendarShareSource.EXO, "caldav:1", "/cal/alice/shared/", false);
   }
 
   /**

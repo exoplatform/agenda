@@ -55,6 +55,13 @@ public class SharedCalendarEntity {
   /** When the calendar was shared, in milliseconds since the epoch. */
   private long    sharedDate;
 
+  /**
+   * What the sharee may do with the calendar (EXO-90378): {@code VIEW} to read
+   * it, {@code EDIT} to write events in it. What the left panel draws its
+   * marker from, and what the event form's destination select filters on.
+   */
+  private String  access;
+
   /** The channel that also carries the share, null when eXo only. */
   private String  deliveredTo;
 
