@@ -166,7 +166,9 @@
               connector names only by a display name — a share made on the
               server by someone who is not a user here — has no profile to
               link, so that row keeps the lock and names the owner in the
-              hover.
+              hover: "Shared by Marie Dupont — read-only" (EXO-90350), where
+              the lock alone used to say only that the calendar is read-only
+              and nothing about who shared it.
 
               The icon alone would not be announced: Vuetify hides a v-icon
               that has no click listener from assistive technology, so the
@@ -226,10 +228,10 @@
               </span>
               <span
                 v-else
-                :title="$t('agenda.leftPanel.readOnlyCalendar')"
-                :aria-label="$t('agenda.leftPanel.readOnlyCalendar')"
+                :title="readOnlyLabel(calendar)"
+                :aria-label="readOnlyLabel(calendar)"
                 role="img"
-                class="d-flex">
+                class="d-flex agenda-remote-calendar-read-only">
                 <v-icon size="14" class="text-light-color">
                   fas fa-lock
                 </v-icon>
@@ -872,6 +874,41 @@ export default {
       return calendar.editable === true
         ? this.$t('agenda.leftPanel.sharedCalendarEditable', {0: calendar.ownerDisplayName})
         : this.$t('agenda.leftPanel.sharedBy', {0: calendar.ownerDisplayName});
+    },
+    /**
+     * What the lock says: "Shared by <owner> — read-only" when the calendar
+     * is one shared with the user and the connector named its owner
+     * (EXO-90350), and the generic read-only sentence otherwise.
+     *
+     * The lock is only ever drawn on a read-only calendar — the row's marker
+     * slot is drawn for a resource, for a share whose owner is an eXo user,
+     * or for `readOnly`, and the first two take the glyph before this branch
+     * is reached — so naming the owner and saying "read-only" in one breath
+     * is true wherever this shows. Which calendars it covers: a share made
+     * on the calendar server by somebody this deployment cannot match to one
+     * of its users, whom the connector names by a display name alone. The
+     * user's own read-only calendars carry no owner — the connector leaves
+     * the owner fields null unless the calendar is shared — and keep the
+     * sentence they always had; the stamp is tested all the same, so that a
+     * connector that ever named one does not turn a lock into a share.
+     *
+     * The name is the calendar server's, which is text this deployment did
+     * not author: it reaches the DOM through an attribute binding, never
+     * through `v-html`, so a name carrying markup is shown as the characters
+     * the server sent and is never parsed.
+     *
+     * The name the connector sends is already the best one it could get —
+     * the owner principal's display name, else the address or login the
+     * server spells the principal with — so nothing is asked of the server
+     * here; the address fallback is the connector's, not this panel's.
+     *
+     * @param {Object} calendar calendar as buildGroups stamped it
+     * @returns {String} the sentence, in the user's language
+     */
+    readOnlyLabel(calendar) {
+      return calendar && calendar.sharedWithMe === true && calendar.ownerDisplayName
+        ? this.$t('agenda.leftPanel.sharedByReadOnly', {0: calendar.ownerDisplayName})
+        : this.$t('agenda.leftPanel.readOnlyCalendar');
     },
     /**
      * The row's hover: the calendar's full name, and on a calendar shared
