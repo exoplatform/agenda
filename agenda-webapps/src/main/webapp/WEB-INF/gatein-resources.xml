@@ -276,6 +276,10 @@
       <minify>false</minify>
       <path>/js/agendaSpaceAdministration.bundle.js</path>
     </script>
+    <!-- the drawers managing the calendars a space subscribes to, and their service (EXO-90373) -->
+    <depends>
+      <module>AgendaCommon</module>
+    </depends>
     <depends>
       <module>vue</module>
     </depends>
