@@ -17,7 +17,9 @@
 package org.exoplatform.agenda.service;
 
 import java.util.List;
+import java.util.Map;
 
+import org.exoplatform.agenda.constant.CalendarShareLevel;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -36,7 +38,10 @@ import org.exoplatform.services.log.Log;
  * <b>Absent means not shared, never allowed.</b> Every answer here widens an
  * ACL: a lookup that fails, a bean that is not there yet, an exception inside
  * it, all read as "no share", so that nothing this class cannot establish ever
- * lets a reader through.
+ * lets a reader through. Since EXO-90378 the same rule carries the level: a
+ * level that cannot be established is <b>no level at all</b> — null, not
+ * {@link CalendarShareLevel#VIEW} — so an unreachable share service admits no
+ * reader and, a fortiori, no writer.
  */
 public class CalendarShareAccess {
 
@@ -77,6 +82,66 @@ public class CalendarShareAccess {
     } catch (RuntimeException | LinkageError e) {
       LOG.warn("The shares of calendar {} could not be read for identity {}; it is read as not shared", calendarId, identityId, e);
       return false;
+    }
+  }
+
+  /**
+   * The level a calendar is shared with an identity at (EXO-90378).
+   *
+   * @param calendarId technical identifier of the calendar
+   * @param identityId identity identifier of the reader
+   * @return the level, or null when the calendar is not shared with them or
+   *         the share service cannot say
+   */
+  public CalendarShareLevel levelOf(long calendarId, long identityId) {
+    AgendaCalendarShareService service = service();
+    if (service == null || calendarId <= 0 || identityId <= 0) {
+      return null;
+    }
+    try {
+      return service.getShareLevel(calendarId, identityId);
+    } catch (RuntimeException | LinkageError e) {
+      LOG.warn("The share level of calendar {} could not be read for identity {}; it is read as not shared",
+               calendarId,
+               identityId,
+               e);
+      return null;
+    }
+  }
+
+  /**
+   * Whether a calendar is shared with an identity at the level that lets them
+   * write events in it. The one question every write path of
+   * {@code AgendaEventServiceImpl} asks of a share.
+   *
+   * @param calendarId technical identifier of the calendar
+   * @param identityId identity identifier of the user
+   * @return true only when the share service says the level is
+   *         {@link CalendarShareLevel#EDIT}
+   */
+  public boolean isSharedForEditWith(long calendarId, long identityId) {
+    return levelOf(calendarId, identityId) == CalendarShareLevel.EDIT;
+  }
+
+  /**
+   * Every calendar shared with an identity and the level of each (EXO-90378):
+   * what a listing asks once instead of asking per event.
+   *
+   * @param identityId identity identifier of the reader
+   * @return the levels by calendar identifier, empty when none or when they
+   *         cannot be read
+   */
+  public Map<Long, CalendarShareLevel> levelsOf(long identityId) {
+    AgendaCalendarShareService service = service();
+    if (service == null || identityId <= 0) {
+      return Map.of();
+    }
+    try {
+      Map<Long, CalendarShareLevel> levels = service.getShareLevels(identityId);
+      return levels == null ? Map.of() : levels;
+    } catch (RuntimeException | LinkageError e) {
+      LOG.warn("The calendars shared with identity {} could not be read; none is read", identityId, e);
+      return Map.of();
     }
   }
 

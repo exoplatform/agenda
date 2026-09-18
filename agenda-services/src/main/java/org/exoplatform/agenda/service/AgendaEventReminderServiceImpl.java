@@ -296,15 +296,20 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
 
   /**
    * Refuses a reminder to a user who reads the event only through a calendar
-   * share (EXO-90357): the reminder's notification would carry the event's
-   * title, which a private event withholds from them, and a share grants
-   * reading, not a place in the event. The event service is a Kernel
-   * component reached on first use, as the calendar service is below; when it
-   * cannot be reached the reminder is refused, never allowed.
+   * share granted for <b>viewing</b> (EXO-90357): the reminder's notification
+   * would carry the event's title, which a private event withholds from them,
+   * and a view share grants reading, not a place in the event. A share granted
+   * for <b>editing</b> ({@link EventAccess#SHARED_EDIT}, EXO-90378) is not
+   * refused: an editor writes the calendar's events, sees the private ones in
+   * full and so has nothing withheld, and a reminder is per receiver — theirs
+   * reaches nobody else. The event service is a Kernel component reached on
+   * first use, as the calendar service is below; when it cannot be reached the
+   * reminder is refused, never allowed.
    *
    * @param event the event
    * @param identityId identity identifier of the user
-   * @throws IllegalAccessException when the user is a sharee only
+   * @throws IllegalAccessException when the user holds a view share and
+   *           nothing more
    */
   private void checkNotShareeOnly(Event event, long identityId) throws IllegalAccessException {
     if (agendaEventService == null) {
@@ -312,7 +317,7 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
     }
     if (agendaEventService == null || agendaEventService.getEventAccess(event, identityId) == EventAccess.SHARED) {
       throw new IllegalAccessException("User " + identityId + " reads event " + event.getId()
-          + " through a calendar share only and cannot set reminders on it");
+          + " through a view calendar share only and cannot set reminders on it");
     }
   }
 

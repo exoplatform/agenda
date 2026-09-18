@@ -29,6 +29,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.exoplatform.agenda.constant.*;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
+import org.exoplatform.agenda.model.CalendarEditorChange;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.search.AgendaSearchConnector;
@@ -414,6 +415,10 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     } else if (createdEvent.getStatus() == EventStatus.CANCELLED) {
       Utils.broadcastEvent(listenerService, Utils.POST_DELETE_AGENDA_EVENT_EVENT, eventModifications, null);
     }
+    notifyOwnerOfEditorChange(createdEvent,
+                              userIdentityId,
+                              CalendarEditorChange.Kind.ADDED,
+                              writeRightOf(createdEvent, userIdentityId));
     return createdEvent;
   }
 
@@ -616,7 +621,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       throw new IllegalAccessException("User '" + userIdentityId + "' can't update event " + eventId);
     }
 
-    checkCanMoveEvent(storedEvent.getCalendarId(), eventId, calendar, userIdentityId);
+    checkCanMoveEvent(storedEvent, calendar, userIdentityId);
 
     if (event.getVisibility() == null) {
       // Not stated keeps what is stored, never DEFAULT: visibility decides what
@@ -729,6 +734,10 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                          Utils.POST_UPDATE_AGENDA_EVENT_EVENT,
                          eventModifications,
                          new EventAttendeeList(concernedAttendees));
+    notifyOwnerOfEditorChange(updatedEvent,
+                              userIdentityId,
+                              CalendarEditorChange.Kind.CHANGED,
+                              writeRightOf(updatedEvent, userIdentityId));
 
     return updatedEvent;
   }
@@ -811,6 +820,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
 
     Utils.broadcastEvent(listenerService, Utils.POST_UPDATE_AGENDA_EVENT_EVENT, eventModifications, null);
+    notifyOwnerOfEditorChange(event, userIdentityId, CalendarEditorChange.Kind.CHANGED, writeRightOf(event, userIdentityId));
   }
 
   /**
@@ -832,6 +842,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       throw new IllegalAccessException("User " + userIdentityId + " hasn't enough privileges to delete event with id " + eventId);
     }
     EventAttendeeList eventAttendeeList = attendeeService.getEventAttendees(event.getId());
+    // Read while the event and its attendee rows are still there: after the
+    // deletion an attendee allowed to update would read as a share editor
+    EventWriteRight right = writeRightOf(event, userIdentityId);
 
     agendaEventStorage.deleteEventById(eventId);
 
@@ -844,6 +857,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     // the event, so a listener that needs to reach them can no longer look them
     // up by event id
     Utils.broadcastEvent(listenerService, Utils.POST_DELETE_AGENDA_EVENT_EVENT, eventModifications, eventAttendeeList);
+    notifyOwnerOfEditorChange(event, userIdentityId, CalendarEditorChange.Kind.REMOVED, right);
     return event;
   }
 
@@ -989,9 +1003,12 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * <p>
    * The reading that existed before sharing — the reader may see the calendar,
    * or is invited — is {@link EventAccess#FULL}; a reader admitted only by a
-   * share record (EXO-90357) is {@link EventAccess#SHARED}, and only a user
-   * can be one: a share names a user, never a space or a guest. The share is
-   * asked last, so nobody who could read before is ever read as a sharee.
+   * share record (EXO-90357) is {@link EventAccess#SHARED} when the share is
+   * for viewing and {@link EventAccess#SHARED_EDIT} when it is for editing
+   * (EXO-90378), and only a user can be either: a share names a user, never a
+   * space or a guest. The share is asked last, so nobody who could read before
+   * is ever read as a sharee, and it is asked <b>once</b> — the level comes
+   * back with the answer, from the reader's own cached map.
    */
   @Override
   public EventAccess getEventAccess(Event event, long identityId) {
@@ -1012,10 +1029,26 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (attendeeService.isEventAttendee(getEventIdOrParentId(event), identityId)) {
       return EventAccess.FULL;
     }
-    if (user && calendarShareAccess.isSharedWith(calendarId, identityId)) {
-      return EventAccess.SHARED;
+    if (user) {
+      CalendarShareLevel level = calendarShareAccess.levelOf(calendarId, identityId);
+      if (level != null) {
+        return accessOf(level);
+      }
     }
     return EventAccess.NONE;
+  }
+
+  /**
+   * How a share of a given level is read (EXO-90378). The one place the two
+   * vocabularies meet, so a level added later has a single line to answer for
+   * rather than a condition repeated across the read paths.
+   *
+   * @param level the level of the share, never null here
+   * @return {@link EventAccess#SHARED_EDIT} for an edit share,
+   *         {@link EventAccess#SHARED} otherwise
+   */
+  private static EventAccess accessOf(CalendarShareLevel level) {
+    return level == CalendarShareLevel.EDIT ? EventAccess.SHARED_EDIT : EventAccess.SHARED;
   }
 
   /**
@@ -1069,40 +1102,163 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     return new ArrayList<>(named);
   }
 
+
   /**
-   * {@inheritDoc}
+   * Tells the calendar's owner that a colleague they shared it with for
+   * editing wrote in it (EXO-90378), and tells them nothing otherwise.
+   * <p>
+   * The decision lives here, in the service, because it is the one place that
+   * knows by what right the writer wrote: {@link EventWriteRight#SHARE_EDITOR}
+   * and nothing else. A change by the owner, by a space manager, by the
+   * event's creator or by an attendee allowed to update raises nothing — the
+   * owner is told about the one case they cannot otherwise see coming.
+   * <p>
+   * Everything the notification needs is captured now, the summary included: a
+   * deletion leaves no event to read afterwards, and the three kinds must read
+   * alike. A failure to broadcast is never a failure to write.
+   *
+   * @param event the event, as it stood when the change was made
+   * @param userIdentityId {@link Identity} identifier of the writer
+   * @param kind what they did
+   * @param right the right they wrote by, taken <b>before</b> the write where
+   *          the write removes what the right is read from — a deletion takes
+   *          the attendee rows with it, and an attendee allowed to update
+   *          would read as a share editor afterwards
    */
-  @Override
-  public boolean canUpdateEvent(Event event, long userIdentityId) {
+  private void notifyOwnerOfEditorChange(Event event,
+                                         long userIdentityId,
+                                         CalendarEditorChange.Kind kind,
+                                         EventWriteRight right) {
+    if (event == null || right != EventWriteRight.SHARE_EDITOR) {
+      return;
+    }
+    Calendar calendar = agendaCalendarService.getCalendarById(event.getCalendarId());
+    if (calendar == null || calendar.isDeleted() || calendar.getOwnerId() == userIdentityId) {
+      return;
+    }
+    CalendarEditorChange change = new CalendarEditorChange(calendar.getId(),
+                                                           calendar.getOwnerId(),
+                                                           userIdentityId,
+                                                           event.getId(),
+                                                           StringUtils.defaultString(event.getSummary()),
+                                                           kind);
+    Utils.broadcastEvent(listenerService, CALENDAR_EDITED_BY_SHAREE_EVENT, change, calendar.getOwnerId());
+  }
+
+  /**
+   * By what right a user may write an event (EXO-90378) — the one predicate
+   * behind every write in this service, and therefore behind REST, drag and
+   * drop, the ACL plugin and the MCP write tools, none of which check anything
+   * of their own.
+   * <p>
+   * The rights are asked in the order in which they were added, and the share
+   * is asked <b>last</b>: a user who could already write the event by any
+   * older right is never answered {@link EventWriteRight#SHARE_EDITOR}, so the
+   * share's own restriction — an editor may not move an event out of the
+   * calendar, {@link #checkCanMoveEvent} — never narrows a right somebody
+   * already had.
+   */
+  private enum EventWriteRight {
+
+    /** No right at all: the write is refused. */
+    NONE,
+
+    /** The user owns the calendar, or manages the space that does. */
+    CALENDAR,
+
+    /** The user created the event and may still see its calendar. */
+    CREATOR,
+
+    /** The user attends the event, which lets its attendees update it. */
+    ATTENDEE,
+
+    /**
+     * The user's only right is a calendar share granted for editing
+     * (EXO-90378): they write events in the owner's personal calendar as the
+     * owner would, and may not move one out of it.
+     */
+    SHARE_EDITOR
+  }
+
+  /**
+   * By what right a user may write an event, {@link EventWriteRight#NONE} for
+   * none.
+   *
+   * @param event the event, as stored
+   * @param userIdentityId {@link Identity} identifier of the user
+   * @return the right, never null
+   */
+  private EventWriteRight writeRightOf(Event event, long userIdentityId) {
     // The calendar is read first, and always: an event of a subscribed calendar
     // (EXO-90278) is the feed's, and neither its creator nor its owner updates,
     // moves or deletes it. The read is served by the calendar cache.
     Calendar calendar = agendaCalendarService.getCalendarById(event.getCalendarId());
     if (calendar == null || calendar.isDeleted() || calendar.isSubscription()) {
-      return false;
+      return EventWriteRight.NONE;
     }
     if (userIdentityId == event.getCreatorId()
         && Utils.canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), userIdentityId)) {
       // A creator who can still access the calendar
-      return true;
+      return EventWriteRight.CREATOR;
     }
     if (event.isAllowAttendeeToUpdate()
         && attendeeService.isEventAttendee(getEventIdOrParentId(event), userIdentityId)) {
-      return true;
+      return EventWriteRight.ATTENDEE;
     }
-    return Utils.canEditCalendar(identityManager, spaceService, calendar.getOwnerId(), userIdentityId);
+    if (Utils.canEditCalendar(identityManager, spaceService, calendar.getOwnerId(), userIdentityId)) {
+      return EventWriteRight.CALENDAR;
+    }
+    return isSharedForEdit(calendar, userIdentityId) ? EventWriteRight.SHARE_EDITOR : EventWriteRight.NONE;
+  }
+
+  /**
+   * Whether a calendar is one user's personal calendar that its owner shared
+   * with another user for editing (EXO-90378).
+   * <p>
+   * Personal calendars only, as EXO-90357: a space calendar is read by its
+   * members and written by its redactors and managers, and is not shareable.
+   * Users only on both ends: a share names a user, never a space, never a
+   * guest. The level comes from {@link CalendarShareAccess}, which answers no
+   * level — never the narrower one — when the share service cannot be reached,
+   * so an unreachable share service admits no editor.
+   *
+   * @param calendar the calendar, already known to exist and not to be a
+   *          subscription
+   * @param userIdentityId {@link Identity} identifier of the user
+   * @return true when the user holds an edit share on it
+   */
+  private boolean isSharedForEdit(Calendar calendar, long userIdentityId) {
+    Identity owner = identityManager.getIdentity(String.valueOf(calendar.getOwnerId()));
+    if (owner == null || !owner.isUser()) {
+      return false;
+    }
+    Identity user = identityManager.getIdentity(String.valueOf(userIdentityId));
+    if (user == null || !user.isUser()) {
+      return false;
+    }
+    return calendarShareAccess.isSharedForEditWith(calendar.getId(), userIdentityId);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public boolean canUpdateEvent(Event event, long userIdentityId) {
+    return writeRightOf(event, userIdentityId) != EventWriteRight.NONE;
   }
 
   /**
    * {@inheritDoc} Never in a subscribed calendar (EXO-90278), whose events come
-   * from its feed alone.
+   * from its feed alone. A colleague holding an edit share on a personal
+   * calendar creates in it as its owner would (EXO-90378).
    */
   @Override
   public boolean canCreateEvent(Calendar calendar, long userIdentityId) {
     if (calendar.isSubscription()) {
       return false;
     }
-    return Utils.canCreateEvent(identityManager, spaceService, calendar.getOwnerId(), userIdentityId);
+    return Utils.canCreateEvent(identityManager, spaceService, calendar.getOwnerId(), userIdentityId)
+        || isSharedForEdit(calendar, userIdentityId);
   }
 
   /**
@@ -1469,10 +1625,11 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
   /**
    * Sets each event's permissions for the reader, and masks the private events
-   * of the calendars the reader sees only through a share (EXO-90357). The
+   * of the calendars the reader sees only through a <b>view</b> share
+   * (EXO-90357); an edit share (EXO-90378) reads the calendar in full. The
    * access is decided once per parent event, like the permissions, and only
-   * an event of a shared calendar pays the calendar check: the shared set is
-   * one cache hit for the whole listing.
+   * an event of a shared calendar pays the calendar check: the reader's share
+   * levels are one cache hit for the whole listing.
    *
    * @param events the events read, copies of the cached ones
    * @param userIdentity the reader
@@ -1481,7 +1638,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     long userIdentityId = Long.parseLong(userIdentity.getId());
     Map<Long, EventPermission> eventPermissionsMap = new HashMap<>();
     Map<Long, EventAccess> eventAccessMap = new HashMap<>();
-    List<Long> sharedCalendarIds = calendarShareAccess.getSharedCalendarIds(userIdentityId);
+    Map<Long, CalendarShareLevel> shareLevels = calendarShareAccess.levelsOf(userIdentityId);
     events.forEach(event -> {
       long eventId = getEventIdOrParentId(event);
       EventPermission permission = eventPermissionsMap.get(eventId);
@@ -1490,10 +1647,11 @@ public class AgendaEventServiceImpl implements AgendaEventService {
         boolean isEventAttendee = attendeeService.isEventAttendee(eventId, userIdentityId);
         permission = new EventPermission(canUpdateEvent, isEventAttendee);
         eventPermissionsMap.put(eventId, permission);
-        boolean sharedOnly = sharedCalendarIds.contains(event.getCalendarId())
+        CalendarShareLevel level = shareLevels.get(event.getCalendarId());
+        boolean sharedOnly = level != null
             && !isEventAttendee
             && !canAccessCalendarOf(event, userIdentityId);
-        eventAccessMap.put(eventId, sharedOnly ? EventAccess.SHARED : EventAccess.FULL);
+        eventAccessMap.put(eventId, sharedOnly ? accessOf(level) : EventAccess.FULL);
       }
       event.setAcl(permission);
       maskForAccess(event, eventAccessMap.get(eventId));
@@ -1590,22 +1748,35 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * {@code updateEventFields}. An exceptional occurrence created through
    * {@code createEvent} is checked by {@code checkCanCreateOccurrence} instead.
    *
-   * @param currentCalendarId the identifier of the calendar the event is stored
-   *          in
-   * @param eventId the technical identifier of the event
+   * @param storedEvent the event as it is stored, carrying the calendar it is
+   *          currently filed in
    * @param targetCalendar the stored calendar the event is filed into, already
    *          checked to exist
    * @param userIdentityId the {@link Identity} identifier of the user moving the
    *          event
    * @throws IllegalAccessException when the calendar changes and the user can't
-   *           create events in the target calendar
+   *           create events in the target calendar, or their only right over
+   *           the event is an edit share on the calendar it leaves
    */
-  private void checkCanMoveEvent(long currentCalendarId,
-                                 long eventId,
+  private void checkCanMoveEvent(Event storedEvent,
                                  Calendar targetCalendar,
                                  long userIdentityId) throws IllegalAccessException {
-    if (currentCalendarId != targetCalendar.getId() && !canCreateEvent(targetCalendar, userIdentityId)) {
-      throw new IllegalAccessException("User '" + userIdentityId + "' can't move event " + eventId + " to calendar "
+    if (storedEvent.getCalendarId() == targetCalendar.getId()) {
+      return;
+    }
+    // A colleague whose only right over the event is an edit share (EXO-90378)
+    // may write it where it is and nowhere else: the event is the owner's, and
+    // taking it out of their calendar — into the editor's own, or anywhere they
+    // may create — would remove it from the calendar its owner shared. Asked
+    // before the target check, which such a move would often pass. Anyone with
+    // an older right is unaffected: the share is the last right writeRightOf
+    // answers, so it is answered only when there is no other.
+    if (writeRightOf(storedEvent, userIdentityId) == EventWriteRight.SHARE_EDITOR) {
+      throw new IllegalAccessException("User '" + userIdentityId + "' edits calendar " + storedEvent.getCalendarId()
+          + " through a share and can't move event " + storedEvent.getId() + " out of it");
+    }
+    if (!canCreateEvent(targetCalendar, userIdentityId)) {
+      throw new IllegalAccessException("User '" + userIdentityId + "' can't move event " + storedEvent.getId() + " to calendar "
           + targetCalendar.getId());
     }
   }
@@ -1662,7 +1833,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
         if (calendar == null) {
           throw new IllegalArgumentException("Event calendar with id " + calendarId + " wasn't found");
         }
-        checkCanMoveEvent(event.getCalendarId(), event.getId(), calendar, userIdentityId);
+        checkCanMoveEvent(event, calendar, userIdentityId);
         event.setCalendarId(calendarId);
         break;
       case "summary":

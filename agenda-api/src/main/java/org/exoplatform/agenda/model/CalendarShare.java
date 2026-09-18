@@ -16,6 +16,7 @@
  */
 package org.exoplatform.agenda.model;
 
+import org.exoplatform.agenda.constant.CalendarShareLevel;
 import org.exoplatform.agenda.constant.CalendarShareSource;
 
 import lombok.AllArgsConstructor;
@@ -32,8 +33,11 @@ import lombok.NoArgsConstructor;
  * {@link #deliveryRef} what the channel handed back to recognise its own
  * delivery again — the collection the colleague now sees, typically.
  * <p>
- * Read access only: write access is a later, additive column, not a field of
- * this version.
+ * {@link #level} is what the colleague may do with it (EXO-90378): read it, or
+ * also write events in it. Absent from a record read before that column
+ * existed, and from one a caller builds without it — {@code null} is read as
+ * {@link CalendarShareLevel#VIEW} by {@link #getLevel()}, never as the wider
+ * level.
  */
 @Data
 @NoArgsConstructor
@@ -48,6 +52,13 @@ public class CalendarShare implements Cloneable {
 
   /** Identity identifier of the colleague the calendar is shared with. */
   private long                shareeIdentityId;
+
+  /**
+   * What the colleague may do with the calendar (EXO-90378). Never null on a
+   * stored record; {@link #getLevel()} answers {@link CalendarShareLevel#VIEW}
+   * for a record built without one.
+   */
+  private CalendarShareLevel  level;
 
   /** Identity identifier of the user who shared, or recorded, the calendar. */
   private long                grantedById;
@@ -83,6 +94,26 @@ public class CalendarShare implements Cloneable {
   private boolean             hidden;
 
   /**
+   * What the colleague may do with the calendar, the narrower level for a
+   * record that names none: a share whose level cannot be established grants
+   * reading, never writing.
+   *
+   * @return the level, never null
+   */
+  public CalendarShareLevel getLevel() {
+    return level == null ? CalendarShareLevel.VIEW : level;
+  }
+
+  /**
+   * Whether the colleague may write events in the calendar.
+   *
+   * @return true when the level is {@link CalendarShareLevel#EDIT}
+   */
+  public boolean isEditor() {
+    return getLevel() == CalendarShareLevel.EDIT;
+  }
+
+  /**
    * Copies the record.
    *
    * @return a copy
@@ -92,6 +123,7 @@ public class CalendarShare implements Cloneable {
     return new CalendarShare(id,
                              calendarId,
                              shareeIdentityId,
+                             level,
                              grantedById,
                              createdDate,
                              source,

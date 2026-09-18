@@ -21,6 +21,7 @@ import java.util.Date;
 
 import org.hibernate.annotations.DynamicUpdate;
 
+import org.exoplatform.agenda.constant.CalendarShareLevel;
 import org.exoplatform.agenda.constant.CalendarShareSource;
 
 import io.meeds.common.persistence.PortableSequence;
@@ -43,7 +44,8 @@ import lombok.Setter;
  * is shared once with a colleague, and sharing again is a retry of the
  * delivery, never a second row. {@link DynamicUpdate} because the row has two
  * writers — the owner's delivery updates {@code DELIVERED_TO} while the sharee
- * may be flipping {@code HIDDEN} — and each must write only its own column.
+ * may be flipping {@code HIDDEN}, and the owner's level change writes
+ * {@code ACCESS_LEVEL} (EXO-90378) — and each must write only its own column.
  */
 @Entity(name = "AgendaCalendarShare")
 @Table(name = "EXO_AGENDA_CALENDAR_SHARE")
@@ -67,6 +69,16 @@ public class CalendarShareEntity implements Serializable {
   /** Identity identifier of the colleague the calendar is shared with. */
   @Column(name = "SHAREE_IDENTITY_ID", nullable = false)
   private long                shareeIdentityId;
+
+  /**
+   * What the colleague may do with the calendar (EXO-90378), stored by name
+   * beside {@code SOURCE}: {@code VIEW} or {@code EDIT}. Not null, and
+   * {@code VIEW} by the column's default, so every row written before the
+   * column existed reads as the level it was granted at.
+   */
+  @Enumerated(EnumType.STRING)
+  @Column(name = "ACCESS_LEVEL", nullable = false)
+  private CalendarShareLevel  level;
 
   /** Identity identifier of the user who shared or recorded the calendar. */
   @Column(name = "GRANTED_BY_IDENTITY_ID", nullable = false)

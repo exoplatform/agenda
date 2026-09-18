@@ -41,6 +41,12 @@
       <set-method>addListener</set-method>
       <type>org.exoplatform.agenda.listener.AgendaCalendarSharedListener</type>
     </component-plugin>
+    <!-- EXO-90378: the owner is told what a colleague changed in their calendar -->
+    <component-plugin>
+      <name>exo.agenda.calendar.editedBySharee</name>
+      <set-method>addListener</set-method>
+      <type>org.exoplatform.agenda.listener.AgendaCalendarEditedListener</type>
+    </component-plugin>
     <component-plugin>
       <name>exo.agenda.event.poll.voted.all</name>
       <set-method>addListener</set-method>
