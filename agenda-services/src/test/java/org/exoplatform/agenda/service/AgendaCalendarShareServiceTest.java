@@ -46,6 +46,7 @@ import org.exoplatform.agenda.constant.CalendarShareSource;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.CalendarShare;
 import org.exoplatform.agenda.model.ChannelDelivery;
+import org.exoplatform.agenda.model.ChannelShares;
 import org.exoplatform.agenda.model.ExternalShare;
 import org.exoplatform.agenda.plugin.CalendarShareChannelPlugin;
 import org.exoplatform.agenda.storage.CalendarShareStorage;
@@ -563,6 +564,52 @@ class AgendaCalendarShareServiceTest {
   }
 
   /**
+   * <b>One ask per channel per opening of the drawer</b> (EXO-90385). What the
+   * Share drawer reads — the access held outside eXo and the meeting-copies
+   * warning — comes from a single call to each channel, so a channel that can
+   * answer both from one read of its server is never made to read twice. The
+   * channel here answers both itself; the owner check and the adoption of a
+   * read-only grant are unchanged.
+   *
+   * @throws Exception when the read is refused
+   */
+  @Test
+  void theDrawersAskIsOneCallPerChannel() throws Exception {
+    OneReadChannel single = new OneReadChannel();
+    single.external = List.of(new ExternalShare("caldav:1", "grant-9", "OUTSIDE_EXO", 0, "x@y.org", true, true));
+    single.meetingCopies = true;
+    when(applicationContext.getBeansOfType(CalendarShareChannelPlugin.class)).thenReturn(Map.of("single", single));
+
+    ChannelShares answer = service.getChannelShares(PERSONAL_CAL, "owner");
+
+    assertEquals(1, answer.shares().size());
+    assertEquals("grant-9", answer.shares().get(0).getExternalId());
+    assertTrue(answer.meetingCopies(), "the flag the one read carried");
+    assertEquals(1, single.listCalls, "one ask");
+    assertEquals(0, single.separateCalls, "and neither of the two it stands for");
+    assertThrows(IllegalAccessException.class, () -> service.getChannelShares(PERSONAL_CAL, "alice"));
+    assertThrows(ObjectNotFoundException.class, () -> service.getChannelShares(99, "owner"));
+  }
+
+  /**
+   * A channel written before EXO-90385 — one that does not override
+   * {@code listShares} — still answers both, through the SPI's default, and
+   * agenda reads it exactly as it did.
+   *
+   * @throws Exception when the read is refused
+   */
+  @Test
+  void aChannelThatDoesNotOverrideTheOneAskStillAnswersBoth() throws Exception {
+    channel.external = List.of(new ExternalShare("caldav:1", "grant-9", "OUTSIDE_EXO", 0, "x@y.org", true, true));
+    channel.meetingCopies = true;
+
+    ChannelShares answer = service.getChannelShares(PERSONAL_CAL, "owner");
+
+    assertEquals(1, answer.shares().size());
+    assertTrue(answer.meetingCopies());
+  }
+
+  /**
    * Registers a user identity.
    *
    * @param id identity identifier
@@ -676,6 +723,82 @@ class AgendaCalendarShareServiceTest {
         throw failure;
       }
       return meetingCopies;
+    }
+  }
+
+  /**
+   * A channel that answers the drawer's two questions from one read
+   * (EXO-90385), as the CalDAV one does, and counts what it was asked.
+   */
+  private static class OneReadChannel implements CalendarShareChannelPlugin {
+
+    List<ExternalShare> external = List.of();
+
+    boolean             meetingCopies;
+
+    /** How many times the one ask was made. */
+    int                 listCalls;
+
+    /** How many times either of the two methods it stands for was made. */
+    int                 separateCalls;
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String id() {
+      return "one-read";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ChannelDelivery deliver(CalendarShare share, String ownerUsername) {
+      return ChannelDelivery.notApplicable();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean withdraw(CalendarShare share, String ownerUsername) {
+      return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<ExternalShare> listExternalShares(long calendarId, String ownerUsername, List<Long> recordedShareeIds) {
+      separateCalls++;
+      return external;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean removeExternalShare(long calendarId, String externalId, String ownerUsername) {
+      return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean holdsMeetingCopies(long calendarId, String ownerUsername) {
+      separateCalls++;
+      return meetingCopies;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ChannelShares listShares(long calendarId, String ownerUsername, List<Long> recordedShareeIds) {
+      listCalls++;
+      return new ChannelShares(external, meetingCopies);
     }
   }
 

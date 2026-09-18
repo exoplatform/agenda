@@ -33,6 +33,7 @@ import org.exoplatform.agenda.constant.CalendarShareSource;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.CalendarShare;
 import org.exoplatform.agenda.model.ChannelDelivery;
+import org.exoplatform.agenda.model.ChannelShares;
 import org.exoplatform.agenda.model.ExternalShare;
 import org.exoplatform.agenda.plugin.CalendarShareChannelPlugin;
 import org.exoplatform.agenda.storage.CalendarShareStorage;
@@ -211,6 +212,21 @@ public class AgendaCalendarShareServiceImpl implements AgendaCalendarShareServic
   @Override
   public List<ExternalShare> getExternalShares(long calendarId, String ownerUsername) throws ObjectNotFoundException,
                                                                                         IllegalAccessException {
+    return getChannelShares(calendarId, ownerUsername).shares();
+  }
+
+  /**
+   * {@inheritDoc}
+   * <p>
+   * One pass over the channels, one ask each (EXO-90385): a channel answers
+   * the grants its server holds and the meeting-copies flag out of the same
+   * read, so the drawer no longer makes every channel talk to its server
+   * twice. A channel that throws contributes nothing and no warning, exactly
+   * as the two separate asks did — the list was empty and the flag false.
+   */
+  @Override
+  public ChannelShares getChannelShares(long calendarId, String ownerUsername) throws ObjectNotFoundException,
+                                                                                 IllegalAccessException {
     long ownerIdentityId = userIdentityId(ownerUsername);
     Calendar calendar = getOwnedCalendar(calendarId, ownerIdentityId, ownerUsername);
     List<Long> recorded = new ArrayList<>(calendarShareStorage.getShares(calendar.getId())
@@ -218,13 +234,20 @@ public class AgendaCalendarShareServiceImpl implements AgendaCalendarShareServic
                                                               .map(CalendarShare::getShareeIdentityId)
                                                               .toList());
     List<ExternalShare> external = new ArrayList<>();
+    boolean meetingCopies = false;
     for (CalendarShareChannelPlugin channel : channels()) {
       try {
-        List<ExternalShare> listed = channel.listExternalShares(calendar.getId(), ownerUsername, recorded);
-        if (listed == null) {
+        ChannelShares answer = channel.listShares(calendar.getId(), ownerUsername, recorded);
+        if (answer == null) {
           continue;
         }
-        for (ExternalShare share : listed) {
+        // Any channel saying so is enough: the warning is about this calendar
+        // holding the copies, whichever channel writes them
+        meetingCopies = meetingCopies || answer.meetingCopies();
+        if (answer.shares() == null) {
+          continue;
+        }
+        for (ExternalShare share : answer.shares()) {
           if (share == null || recorded.contains(share.getShareeIdentityId())) {
             continue;
           }
@@ -244,7 +267,7 @@ public class AgendaCalendarShareServiceImpl implements AgendaCalendarShareServic
         LOG.warn("Channel {} could not list the external shares of calendar {}", channel.getClass().getName(), calendarId, e);
       }
     }
-    return external;
+    return new ChannelShares(external, meetingCopies);
   }
 
   /**

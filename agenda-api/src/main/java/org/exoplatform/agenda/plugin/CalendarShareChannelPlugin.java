@@ -20,6 +20,7 @@ import java.util.List;
 
 import org.exoplatform.agenda.model.CalendarShare;
 import org.exoplatform.agenda.model.ChannelDelivery;
+import org.exoplatform.agenda.model.ChannelShares;
 import org.exoplatform.agenda.model.ExternalShare;
 
 /**
@@ -147,6 +148,41 @@ public interface CalendarShareChannelPlugin {
    */
   default boolean holdsMeetingCopies(long calendarId, String ownerUsername) {
     return false;
+  }
+
+  /**
+   * Everything this channel has to say about a calendar when the owner opens
+   * the Share drawer (EXO-90385): {@link #listExternalShares} and
+   * {@link #holdsMeetingCopies}, in one ask.
+   *
+   * <p>
+   * <b>Why agenda asks this one rather than the two.</b>
+   * The two answers come out of the same conversation with the channel's
+   * server, and a channel asked for them separately holds that conversation
+   * twice — resolving the same collection, asking the same account. Against a
+   * remote CalDAV server that is seconds of pure latency on every opening of
+   * the drawer. A channel that can answer both from one read <b>overrides this
+   * method</b> and does so; the default below keeps the two calls, so a channel
+   * written before EXO-90385 needs no change and behaves exactly as it did.
+   *
+   * <p>
+   * Same contract as the two methods it stands for, including their
+   * tolerances: the external shares are those the channel's server holds that
+   * agenda has no record of, {@code recordedShareeIds} left out, and the flag
+   * is what {@link #holdsMeetingCopies} means. A channel that cannot read the
+   * server answers an empty list, and still answers the flag as best it can —
+   * a missed warning exposes the owner's meetings while a false one costs a
+   * click.
+   *
+   * @param calendarId technical identifier of the calendar
+   * @param ownerUsername the owner of the calendar
+   * @param recordedShareeIds identity identifiers of the colleagues agenda
+   *          already holds a record for, never null
+   * @return the external shares and the meeting-copies flag, never null
+   */
+  default ChannelShares listShares(long calendarId, String ownerUsername, List<Long> recordedShareeIds) {
+    return new ChannelShares(listExternalShares(calendarId, ownerUsername, recordedShareeIds),
+                             holdsMeetingCopies(calendarId, ownerUsername));
   }
 
 }
