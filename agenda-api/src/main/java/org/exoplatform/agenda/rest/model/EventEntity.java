@@ -71,6 +71,14 @@ public class EventEntity implements Serializable, Cloneable {
 
   private IdentityEntity              creator;
 
+  /**
+   * Who last changed the event (EXO-90378), when that is not its creator —
+   * a colleague the owner shared the calendar with for editing, typically.
+   * Null when nobody but the creator has touched it, so a client shows the
+   * line only when there is something to say.
+   */
+  private IdentityEntity              modifier;
+
   private String                      created;
 
   private String                      updated;
@@ -180,6 +188,7 @@ public class EventEntity implements Serializable, Cloneable {
                            remoteProviderName,
                            calendar,
                            creator,
+                           modifier,
                            created,
                            updated,
                            summary,

@@ -71,6 +71,21 @@ public interface CalendarShareDAO extends JpaRepository<CalendarShareEntity, Lon
   List<Long> findCalendarIdsByShareeIdentityId(@Param("shareeIdentityId") long shareeIdentityId);
 
   /**
+   * Every calendar shared with a colleague and the level it is shared at
+   * (EXO-90378): what the ACL of every read <b>and every write</b> relies on,
+   * so the two columns only and one statement, served by the same sharee
+   * index as the identifiers above. Answered as rows rather than as a
+   * constructor expression so the projection stays a plain JPQL select the
+   * engine parses on any dialect.
+   *
+   * @param shareeIdentityId identity identifier of the colleague
+   * @return one {@code [calendarId, level]} row per share
+   */
+  @Query("SELECT share.calendarId, share.level FROM AgendaCalendarShare share"
+      + " WHERE share.shareeIdentityId = :shareeIdentityId")
+  List<Object[]> findCalendarLevelsByShareeIdentityId(@Param("shareeIdentityId") long shareeIdentityId);
+
+  /**
    * How many colleagues each calendar of an owner is shared with, in one
    * statement: the shares joined to their calendars and filtered on the
    * calendars' owner, as {@code CalendarLinkDAO.findByCalendarOwnerIds} does.

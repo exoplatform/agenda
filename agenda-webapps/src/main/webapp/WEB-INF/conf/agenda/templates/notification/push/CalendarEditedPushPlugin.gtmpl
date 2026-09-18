@@ -1,0 +1,27 @@
+<%
+  calendarName = _ctx.escapeHTML(calendarName);
+  modifierName = _ctx.escapeHTML(modifierName);
+  changedEventSummary = _ctx.escapeHTML(changedEventSummary);
+%>
+<div>
+    <div class="contentSmall" data-link="<%= agendaURL %>">
+        <div class="status">
+            <%
+            String modifier = "<a class=\"user-name text-bold\">" + modifierName + "</a>";
+            String calendar = "<span class=\"user-name text-bold\">" + calendarName + "</span>";
+            String summary = "<span class=\"user-name text-bold\">" + changedEventSummary + "</span>";
+            String key = "Notification.agenda.calendar.edited.changed";
+            if ("ADDED".equals(changeKind)) {
+              key = "Notification.agenda.calendar.edited.added";
+            } else if ("REMOVED".equals(changeKind)) {
+              key = changedEventSummary == null || changedEventSummary.isEmpty()
+                    ? "Notification.agenda.calendar.edited.removed.untitled"
+                    : "Notification.agenda.calendar.edited.removed";
+            }
+            %>
+            <%= "Notification.agenda.calendar.edited.removed.untitled".equals(key)
+                ? _ctx.appRes(key, modifier, calendar)
+                : _ctx.appRes(key, modifier, summary, calendar) %>
+        </div>
+    </div>
+</div>
