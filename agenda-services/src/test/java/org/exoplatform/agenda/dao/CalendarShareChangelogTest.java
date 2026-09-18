@@ -60,6 +60,9 @@ class CalendarShareChangelogTest {
   /** The first changeset EXO-90357 adds. */
   private static final String FIRST_CHANGESET = "1.0.0-45";
 
+  /** The column EXO-90378 adds, last changeset of the changelog. */
+  private static final String LEVEL_COLUMN    = "ACCESS_LEVEL";
+
   private Connection          connection;
 
   /**
@@ -101,9 +104,9 @@ class CalendarShareChangelogTest {
   }
 
   /**
-   * Rolling back the four added changesets removes what they created, and the
-   * changelog applies again from there — so none shipped with an unusable
-   * rollback.
+   * Rolling back every changeset the share feature added removes what they
+   * created, and the changelog applies again from there — so none shipped with
+   * an unusable rollback.
    *
    * @throws Exception when Liquibase fails
    */
@@ -114,7 +117,8 @@ class CalendarShareChangelogTest {
     // it also rolls back what later deliveries appended (EXO-90373 appended
     // two): the four of EXO-90357 are a floor, not the count
     int added = CalendarLinkChangelogTest.changesetsSince(connection, FIRST_CHANGESET);
-    assertTrue(added >= 4, "EXO-90357 adds the table, its unique key, its index and its sequence");
+    assertTrue(added >= 5,
+               "EXO-90357 adds the table, its unique key, its index and its sequence; EXO-90378 the access level");
     liquibase(connection).rollback(added, new Contexts(), new LabelExpression());
 
     assertFalse(tableExists(TABLE), "rolling back must drop the share table");
@@ -147,7 +151,7 @@ class CalendarShareChangelogTest {
         assertTrue(columnExists(TABLE, column.name()), "column " + column.name() + " must exist");
       }
     }
-    assertEquals(9, mapped, "the entity maps nine columns");
+    assertEquals(10, mapped, "the entity maps ten columns, the access level of EXO-90378 included");
   }
 
   /**
@@ -184,6 +188,54 @@ class CalendarShareChangelogTest {
         ResultSet rows = statement.executeQuery("SELECT HIDDEN FROM " + TABLE + " WHERE SHARE_ID = 1")) {
       assertTrue(rows.next());
       assertFalse(rows.getBoolean(1));
+    }
+  }
+
+  /**
+   * A row inserted without an access level is a VIEW share (EXO-90378): the
+   * column's default is what makes every share EXO-90357 wrote keep granting
+   * exactly what it granted, reading, with no upgrade plugin. Inserted through
+   * the very statement {@link #insert(long, long, long)} used before the column
+   * existed, so this is the backfill, not a value the test chose.
+   *
+   * @throws Exception when Liquibase fails
+   */
+  @Test
+  void aShareIsGrantedForViewingByDefault() throws Exception {
+    CalendarLinkChangelogTest.update(connection);
+    insert(1, 42, 7);
+
+    try (Statement statement = connection.createStatement();
+        ResultSet rows = statement.executeQuery("SELECT ACCESS_LEVEL FROM " + TABLE + " WHERE SHARE_ID = 1")) {
+      assertTrue(rows.next());
+      assertEquals("VIEW", rows.getString(1));
+    }
+  }
+
+  /**
+   * The access level changeset rolls back on its own — the column goes, the
+   * table and every row-bearing column of EXO-90357 stay — and applies again,
+   * backfilling the rows that were there while it was rolled back.
+   *
+   * @throws Exception when Liquibase fails
+   */
+  @Test
+  void theAccessLevelRollsBackAloneAndBackfillsOnReapply() throws Exception {
+    CalendarLinkChangelogTest.update(connection);
+    liquibase(connection).rollback(1, new Contexts(), new LabelExpression());
+
+    assertFalse(columnExists(TABLE, LEVEL_COLUMN), "rolling back EXO-90378 must drop the access level column");
+    assertTrue(tableExists(TABLE), "and leave the share table of EXO-90357 where it was");
+    assertTrue(columnExists(TABLE, "HIDDEN"), "with its own columns");
+    insert(1, 42, 7);
+
+    CalendarLinkChangelogTest.update(connection);
+
+    assertTrue(columnExists(TABLE, LEVEL_COLUMN), "re-applying must add the column back");
+    try (Statement statement = connection.createStatement();
+        ResultSet rows = statement.executeQuery("SELECT ACCESS_LEVEL FROM " + TABLE + " WHERE SHARE_ID = 1")) {
+      assertTrue(rows.next());
+      assertEquals("VIEW", rows.getString(1), "and backfill the row that was written while it was rolled back");
     }
   }
 

@@ -326,10 +326,28 @@ export default {
       this.stepper--;
       this.$forceUpdate();
     },
+    /**
+     * Sends the event to be saved.
+     *
+     * The destination's owner identifier is copied onto the payload from the
+     * calendar the form resolved, which is how a destination the user picked
+     * reaches the server as an identity id rather than a name. It is copied
+     * only when there IS such a calendar (EXO-90378): a calendar a colleague
+     * shared with this user is not among the calendars the form can look up —
+     * the lookup asks for the owner's calendars, and this user may read only
+     * the one shared with them — so it resolves to null, and the event's own
+     * owner block, which came from the server with the event, is already
+     * right. Dereferencing it unguarded threw a TypeError here and the save
+     * died in the browser: no request, no error, nothing.
+     *
+     * @returns {void}
+     */
     saveEvent() {
       this.event.start = this.event.startDate && this.$agendaUtils.toRFC3339(this.event.startDate) || this.$agendaUtils.toRFC3339(new Date());
       this.event.end = this.event.endDate && this.$agendaUtils.toRFC3339(this.event.endDate) || this.$agendaUtils.toRFC3339(new Date());
-      this.event.calendar.owner.id = this.selectedCalendar.owner.id;
+      if (this.selectedCalendar && this.selectedCalendar.owner && this.event.calendar && this.event.calendar.owner) {
+        this.event.calendar.owner.id = this.selectedCalendar.owner.id;
+      }
       this.$root.$emit('agenda-event-save', this.event);
     },
     nextStep() {

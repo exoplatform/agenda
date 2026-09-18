@@ -314,6 +314,7 @@ public class RestEntityBuilder {
                                          null,
                                          getCalendarEntity(agendaCalendarService, identityManager, event.getCalendarId()),
                                          getIdentityEntity(identityManager, event.getCreatorId()),
+                                         getModifierEntity(identityManager, event),
                                          AgendaDateUtils.toRFC3339Date(event.getCreated()),
                                          AgendaDateUtils.toRFC3339Date(event.getUpdated()),
                                          event.isMasked() ? maskedSummary() : event.getSummary(),
@@ -346,6 +347,7 @@ public class RestEntityBuilder {
                              null,
                              getCalendarEntity(agendaCalendarService, identityManager, event.getCalendarId()),
                              getIdentityEntity(identityManager, event.getCreatorId()),
+                             getModifierEntity(identityManager, event),
                              AgendaDateUtils.toRFC3339Date(event.getCreated()),
                              AgendaDateUtils.toRFC3339Date(event.getUpdated()),
                              event.isMasked() ? maskedSummary() : event.getSummary(),
@@ -432,6 +434,29 @@ public class RestEntityBuilder {
       return null;
     }
     return fromEvent(agendaCalendarService, agendaEventService, identityManager, Utils.maskForAccess(event, access), userTimeZone);
+  }
+
+  /**
+   * Who last changed an event, when that is not its creator (EXO-90378): the
+   * line the details show so the owner of a shared calendar can see that a
+   * colleague touched one of their events. Null when the modifier is the
+   * creator, is not recorded, or cannot be resolved — a client then shows
+   * nothing rather than a name it cannot word.
+   * <p>
+   * Stated limit: a change a colleague makes from their own CalDAV client
+   * reaches eXo through the calendar owner's account sweep, and is recorded as
+   * the owner's.
+   *
+   * @param identityManager the identity service
+   * @param event the event, as stored
+   * @return the modifier's identity entity, or null
+   */
+  private static IdentityEntity getModifierEntity(IdentityManager identityManager, Event event) {
+    long modifierId = event.getModifierId();
+    if (modifierId <= 0 || modifierId == event.getCreatorId()) {
+      return null;
+    }
+    return getIdentityEntity(identityManager, modifierId);
   }
 
   private static IdentityEntity getIdentityEntity(IdentityManager identityManager, long ownerId) {
