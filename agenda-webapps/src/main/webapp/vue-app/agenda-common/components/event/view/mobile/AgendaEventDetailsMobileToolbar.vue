@@ -1,6 +1,15 @@
 <template>
   <div class="d-flex flex-row py-2">
+    <!-- an event fetched live from a connected account holds no eXo calendar
+         and no owner at all: it reads as the account it came from, exactly as
+         the desktop header reads it (EXO-89825) -->
+    <agenda-connector-avatar
+      v-if="isRemoteEvent"
+      :connector="eventConnector"
+      class="mx-3 my-auto"
+      size="32" />
     <v-avatar
+      v-else
       height="32"
       min-height="32"
       width="32"
@@ -14,7 +23,22 @@
       <strong :title="event.summary" class="event-header-title text-truncate">
         {{ event.summary }}
       </strong>
-      <div class="text-truncate d-flex">
+      <!-- the collection the event actually lives in, never the generic
+           "Personal Calendar": a connected account holds several, and a label
+           that names none of them identifies nothing. The title carries the
+           collection href, which is what tells two same-named collections
+           apart when one has to be tracked down. -->
+      <div
+        v-if="isRemoteEvent"
+        :title="remoteCalendarTitle"
+        class="text-truncate d-flex">
+        <span>{{ $t('agenda.label.in') }}</span>
+        <span class="text-truncate ps-1 remote-calendar-label">{{ remoteCalendarLabel }}</span>
+      </div>
+      <!-- "in" is a preposition, not a line: with nothing to name after it, it
+           says nothing and looks broken. The whole line goes rather than the
+           label alone -->
+      <div v-else-if="ownerDisplayName" class="text-truncate d-flex">
         <span>{{ $t('agenda.label.in') }}</span>
         <a :href="calendarOwnerLink" class="text-truncate calendar-owner-link ps-1">{{ ownerDisplayName }}</a>
       </div>
@@ -62,7 +86,10 @@
   </div>
 </template>
 <script>
+import remoteEventCalendarMixin from '../../../../js/RemoteEventCalendarMixin.js';
+
 export default {
+  mixins: [remoteEventCalendarMixin],
   props: {
     event: {
       type: Object,

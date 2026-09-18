@@ -32,20 +32,25 @@
                 v-for="(event, i) in limitedEventsByDates[month][eventDay]"
                 :key="i"
                 :title="event.summary"
-                :style="{background: event?.color || event?.calendar?.color, borderLeft: `5px solid ${event?.color || event?.calendar?.color || '#2196F3'}`}"
+                :style="rowColorStyle(event)"
                 :class="event.type === 'remoteEvent' && 'remote-event'"
                 class="event-timeline-detail d-flex flex-column white--text px-2 py-0 mb-2 border-radius"
                 dark
                 @click="openEventDetails(event)">
                 <v-list-item-content class="event-timeline-detail-content">
-                  <strong class="text-truncate" :class="event.type === 'remoteEvent' && 'primary--text'">{{ event.summary }}</strong>
+                  <!-- A row read live from a connected account is a row like
+                       any other: it is painted with its calendar's colour and
+                       written in white over it. The theme primary this used to
+                       force here was picked when such a row was drawn on the
+                       card's own background; over a colour it is the one row of
+                       the list nobody can read. -->
+                  <strong class="text-truncate">{{ event.summary }}</strong>
                   <div v-if="event.allDay">
                     {{ $t('agenda.allDay') }}
                   </div>
                   <div
                     v-else
-                    class="d-flex flex-row"
-                    :class="event.type === 'remoteEvent' && 'primary--text'">
+                    class="d-flex flex-row">
                     <div v-if="event.startsOnBeginningOfDay">
                       {{ $t('agenda.beginningOfTheDay') }}
                     </div>
@@ -63,10 +68,14 @@
                       :format="timeFormat" />
                     <!-- the account the event belongs to, not "the"
                          connected one: several can be connected at once -->
+                    <!-- white like the rest of the row when the identity is a
+                         font icon; an uploaded logo keeps the white tile the
+                         connector avatar draws behind an image -->
                     <agenda-connector-avatar
                       v-if="event.type === 'remoteEvent'"
                       :connector="event.connector || connectedConnector"
-                      class="white ms-auto me-1"
+                      class="ms-auto me-1"
+                      icon-class="white--text"
                       size="16" />
                   </div>
                 </v-list-item-content>
@@ -80,10 +89,18 @@
   <agenda-empty-timeline v-else-if="!loading" :can-create-event="canCreateEvent" />
 </template>
 <script>
+/*
+ * The colour a row falls back to when neither the event nor its calendar
+ * names one — agenda's own default blue, the same one the left edge of this
+ * row has always used and the same one the calendar grid paints with
+ * (AgendaCalendar.getEventBorderColor).
+ */
+const DEFAULT_EVENT_COLOR = '#2196F3';
+
 export default {
   props: {
     events: {
-      type: Object,
+      type: Array,
       default: null,
     },
     periodStartDate: {
@@ -224,6 +241,30 @@ export default {
     this.$root.$emit('agenda-event-limit-increment');
   },
   methods: {
+    /**
+     * The colour a row is painted and edged with: the event's own, else its
+     * calendar's — the chain this list has always used.
+     *
+     * <p>
+     * With two corrections a row written in white cannot do without. The first
+     * is that the placeholder white Office 365 and Exchange write on every
+     * event they return is not a colour: painted, it puts the row's white text
+     * on a white ground, which is how a row of those accounts became
+     * unreadable the moment it stopped forcing a colour of its own onto its
+     * title. The second is that a row left with no colour at all takes the
+     * same default the left edge has always taken, rather than falling through
+     * to the card underneath — the second way to end up white on white, and
+     * the one a connector reaches by declaring nothing rather than white.
+     *
+     * @param {Object} event the event the row draws
+     * @returns {Object} the style binding for the row
+     */
+    rowColorStyle(event) {
+      const color = this.$agendaUtils.paintableColor(event && event.color)
+        || this.$agendaUtils.paintableColor(event && event.calendar && event.calendar.color)
+        || DEFAULT_EVENT_COLOR;
+      return {background: color, borderLeft: `5px solid ${color}`};
+    },
     addEventByDateInMap(event, date, map) {
       const monthDate = new Date(date.getFullYear(), date.getMonth());
       if (!map[monthDate]) {

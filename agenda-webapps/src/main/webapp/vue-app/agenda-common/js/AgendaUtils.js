@@ -435,8 +435,41 @@ export function isShortEvent(event) {
  * Nothing else can produce it: eXo's own swatches hold no white, and the
  * CalDAV palette walks a derived colour down until it clears WCAG AA against
  * white, which white itself never does.
+ *
+ * Every spelling of it a surface can actually be handed, not just the one the
+ * connectors write: a CalDAV server publishes whatever its own palette holds,
+ * and `#fff` is the same white as `#FFFFFF`. This is the list the calendar grid
+ * has been refusing since EXO-89623, held here since EXO-90393 so that the
+ * grid, its chips and the mobile list refuse one set rather than three
+ * overlapping ones — the mobile list reached this rule through a one-spelling
+ * check and would have painted a `white` the grid throws away.
  */
-const PLACEHOLDER_EVENT_COLOR = '#FFFFFF';
+const PLACEHOLDER_EVENT_COLORS = ['#fff', '#ffff', '#ffffff', '#ffffffff', 'white'];
+
+/**
+ * Whether a declared colour is one a surface may actually paint with.
+ *
+ * <p>
+ * Everything but white is. White is what a connector writes when its provider
+ * gave it no colour to pass on, and a surface that paints it gets a white
+ * block — invisible on a light ground, and a lie about which calendar the row
+ * came from on any other.
+ *
+ * <p>
+ * Held as its own rule rather than inlined in {@link calendarColor} because a
+ * surface that needs a fallback cannot use that function: it answers the whole
+ * chain at once, and the two links of that chain have to be filtered
+ * separately before a default can be reached.
+ *
+ * @param {String} color the colour an event or a calendar declares
+ * @returns {String} the same colour, or empty when it is the placeholder
+ */
+export function paintableColor(color) {
+  return color
+    && !PLACEHOLDER_EVENT_COLORS.includes(String(color).trim().toLowerCase())
+    && color
+    || '';
+}
 
 /**
  * The colour an event is recognised by: its calendar's, else the one set on
@@ -460,7 +493,7 @@ const PLACEHOLDER_EVENT_COLOR = '#FFFFFF';
  */
 export function calendarColor(event) {
   const color = event && (event.calendar && event.calendar.color || event.color) || '';
-  return color.toUpperCase() === PLACEHOLDER_EVENT_COLOR ? '' : color;
+  return paintableColor(color);
 }
 
 export function addOpacity(hexColor, opacity) {
