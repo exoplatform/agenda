@@ -165,8 +165,16 @@ export default {
             this.$root.$emit('agenda-connector-mirror-calendar-open', connector);
           }
         })
-        .catch(error => console.error('cannot tell whether the connected account already holds a calendar for the copies;'
-                                      + ' the creation step is not offered', error));
+        // Terminal, deliberately, and worded for whatever reaches it: the
+        // `catch` of a chain also catches its own `then`, so a listener
+        // throwing on the open event lands here beside a failed read. Moving
+        // it up onto the read alone would be worse than imprecise — a `catch`
+        // that swallows and returns resumes the chain with `undefined`, which
+        // the next `then` reads as "no destination" and offers the step for,
+        // reinstating exactly the defect this commit removes.
+        .catch(error => console.error('the calendar-creation step was not offered after connecting'
+                                      + ` ${connector && connector.name}: either the account's destination could not be read,`
+                                      + ' or offering the step failed', error));
     },
     /**
      * The calendar an account already uses for the copies, asked of the

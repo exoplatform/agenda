@@ -156,6 +156,18 @@ describe('Offering the calendar that receives the copies', () => {
      * The same, for a connector that fails by throwing rather than by
      * rejecting — one failure, two shapes, and only one of them used to reach
      * the branch that swallowed it.
+     *
+     * <p>What the second shape cost is worth naming, because it is not the
+     * offer: a synchronous throw escaped `offerMirrorCalendarUnlessPresent`
+     * into `connect`'s own `catch`, which sets
+     * `errorMessage = $t('agenda.connectionFailure')`. The account was
+     * connected, and the screen said the connection had failed.</p>
+     *
+     * <p>No connector the platform ships takes this path — the CalDAV one
+     * answers `getMirrorCalendar` with a `fetch` chain, which rejects rather
+     * than throws. It is a guard on the contract the extension point
+     * publishes, for a connector contributed by somebody else, and it is
+     * pinned here because nothing else in the product would catch it.</p>
      */
     it('offers nothing when the connector throws instead of rejecting', async () => {
       const host = receiver();
