@@ -38,7 +38,7 @@ import org.springframework.web.server.ResponseStatusException;
 import org.exoplatform.agenda.constant.CalendarShareLevel;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.CalendarShare;
-import org.exoplatform.agenda.model.ExternalShare;
+import org.exoplatform.agenda.model.ChannelShares;
 import org.exoplatform.agenda.rest.model.CalendarShareeEntity;
 import org.exoplatform.agenda.rest.model.SharedCalendarEntity;
 import org.exoplatform.agenda.service.AgendaCalendarService;
@@ -119,19 +119,20 @@ public class AgendaCalendarShareRest {
                                                        @PathVariable("calendarId") long calendarId) {
     try {
       Map<String, Identity> identities = new HashMap<>();
-      // The channels first: a read-only grant they hold for a colleague is
-      // recorded as a share on the way, and the list of shares must hold it
-      List<ExternalShare> externalShares = calendarShareService.getExternalShares(calendarId, request.getRemoteUser());
+      // The channels first, and once (EXO-90385): a read-only grant they hold
+      // for a colleague is recorded as a share on the way, and the list of
+      // shares must hold it. The same ask answers whether sharing exposes the
+      // owner's eXo meetings (EXO-90345), which the drawer asks a confirmation
+      // for — asking it separately made every channel talk to its server twice
+      ChannelShares channelShares = calendarShareService.getChannelShares(calendarId, request.getRemoteUser());
       List<CalendarShareeEntity> shares = calendarShareService.getShares(calendarId, request.getRemoteUser())
                                                               .stream()
                                                               .map(share -> toShareeEntity(share, identities))
                                                               .toList();
       Map<String, Object> body = new HashMap<>();
       body.put("shares", shares);
-      body.put("externalShares", externalShares);
-      // Whether sharing exposes the owner's eXo meetings (EXO-90345): the
-      // drawer asks once before sharing when it does
-      body.put("meetingCopies", calendarShareService.holdsMeetingCopies(calendarId, request.getRemoteUser()));
+      body.put("externalShares", channelShares.shares());
+      body.put("meetingCopies", channelShares.meetingCopies());
       return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(body);
     } catch (ObjectNotFoundException e) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, NOT_FOUND);
