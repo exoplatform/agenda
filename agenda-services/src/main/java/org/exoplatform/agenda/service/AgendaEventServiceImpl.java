@@ -454,8 +454,10 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * before the attendees exist, so for a creator whom this very payload admits
    * as an attendee, {@code canEdit} and {@code isEventAttendee} come back
    * false on the returned object. No caller reads them today — the REST layer
-   * re-reads the event before answering, the MCP tool reads the dates and the
-   * masking flag, and {@code caldav-integration} reads the identifier — but a
+   * re-reads the event before answering, the two MCP-side tools
+   * ({@code AgendaEventMcpTool} and the enterprise {@code AgendaEventAiTool})
+   * read the dates and the masking flag, and {@code caldav-integration} reads
+   * the identifier — but a
    * caller that did would read them stale.
    *
    * @param eventId identifier of the row just created
@@ -1993,6 +1995,18 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * EXO-90382 — the rule it relaxes never reached the other-calendar branch —
    * and closing it is a separate decision, not a property of this method today.
    * <p>
+   * The <b>bound</b> this leaves, stated rather than left to be re-derived: one
+   * row per date the series' rule generates, in the series' own calendar, for
+   * as long as that rule runs — which for a series with no overall end is
+   * unbounded in absolute terms, since the window handed to
+   * {@link #seriesHasOccurrence} is explicit and never falls back on
+   * {@code Utils.getOccurrences}' five-year cap. Each such row carries the
+   * payload's own summary and times, stored verbatim, and takes its date out of
+   * the series in exchange. That is the cardinality the feature itself has — a
+   * user edits each date, over time — and it is inside the grant the organiser
+   * made; revoking it is the organiser unticking
+   * {@code allowAttendeeToUpdate}.
+   * <p>
    * What the payload <b>is</b> decides that, not merely what it points at. The
    * relaxed branch is entered only by a real exceptional occurrence of a real
    * series — see {@link #isExceptionalOccurrenceOf}. Carrying a parent is not
@@ -2144,10 +2158,19 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * reused: it admits any date inside the span — every Wednesday of a Monday
    * series, and every future date of a series with no end at all.
    * <p>
-   * It <b>fails closed</b>: a frequency this window cannot resolve — an
-   * hourly or finer rule, which only an import can produce and which
-   * {@link #getEventOccurrence} cannot read either — is asked for the creation
-   * right rather than let through.
+   * It <b>fails closed</b>: a frequency this window cannot resolve — an hourly
+   * or finer rule — is asked for the creation right rather than let through.
+   * Such a rule is <b>not</b> only an import artefact, which is worth saying
+   * because the shorter sentence invites the next reader to decide the case
+   * cannot happen: {@code EventRecurrenceFrequency} carries {@code HOURLY},
+   * {@code MINUTELY} and {@code SECONDLY}; the recurrence drawer does not offer
+   * them, but a plain REST payload reaches them through
+   * {@code RestEntityBuilder}, and {@code create_agenda_event} advertises them
+   * to the model in {@code ai-tool-definitions.json}.
+   * {@link #getEventOccurrence} expands the same window with the same limit, so
+   * <i>reading</i> one of those occurrences is already broken the same way; and
+   * {@link #inheritSeriesAttendees} asks a different question, so such a row
+   * still gets its attendees and is not left an orphan.
    *
    * @param parentEvent the stored series, its recurrence already known to be
    *          non-null

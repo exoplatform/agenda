@@ -649,12 +649,37 @@ class AgendaCalendarSharingAclTest {
     });
     when(eventStorage.getEventById(NEW_EVENT)).thenAnswer(invocation -> stored.get());
 
-    assertThrows(IllegalAccessException.class,
-                 () -> eventService.createEvent(occurrenceOfSeries(), null, null, null, null, null, false, ALICE),
-                 "a viewer edits no date of the owner's series");
-    assertThrows(IllegalAccessException.class,
-                 () -> eventService.createEvent(occurrenceOfSeries(), null, null, null, null, null, false, CAROL),
-                 "and neither does a stranger");
+    // The message, not only the type: checkCanCreateEvent throws
+    // IllegalAccessException twice over, and this pin's javadoc claims it is
+    // the update right on the series that refuses these two — assertThrows on
+    // the type alone would pass just as well if the creation right had
+    // refused them instead
+    IllegalAccessException viewerRefusal =
+                                         assertThrows(IllegalAccessException.class,
+                                                      () -> eventService.createEvent(occurrenceOfSeries(),
+                                                                                     null,
+                                                                                     null,
+                                                                                     null,
+                                                                                     null,
+                                                                                     null,
+                                                                                     false,
+                                                                                     ALICE),
+                                                      "a viewer edits no date of the owner's series");
+    assertTrue(viewerRefusal.getMessage().contains("can't create an occurrence of event"),
+               "and it is the series' update right that refuses them: " + viewerRefusal.getMessage());
+    IllegalAccessException strangerRefusal =
+                                           assertThrows(IllegalAccessException.class,
+                                                        () -> eventService.createEvent(occurrenceOfSeries(),
+                                                                                       null,
+                                                                                       null,
+                                                                                       null,
+                                                                                       null,
+                                                                                       null,
+                                                                                       false,
+                                                                                       CAROL),
+                                                        "and neither does a stranger");
+    assertTrue(strangerRefusal.getMessage().contains("can't create an occurrence of event"),
+               "for the same reason: " + strangerRefusal.getMessage());
     verify(eventStorage, never()).createEvent(any());
 
     aliceLevel = CalendarShareLevel.EDIT;
