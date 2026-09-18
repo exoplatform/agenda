@@ -77,6 +77,12 @@ public class CalendarFeedException extends Exception {
    */
   public static final String ALREADY_IN_AGENDA   = "alreadyInAgenda";
 
+  /**
+   * The link publishes a calendar of the space subscribing to it: the space's
+   * members already see its events (EXO-90373).
+   */
+  public static final String OWN_SPACE_CALENDAR  = "ownSpaceCalendar";
+
   private static final long  serialVersionUID    = -2261016484066153471L;
 
   private final String       reason;

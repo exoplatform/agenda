@@ -45,6 +45,7 @@ import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
 import org.exoplatform.agenda.model.EventAttendeeList;
+import org.exoplatform.agenda.model.EventFilter;
 import org.exoplatform.agenda.model.EventOccurrence;
 import org.exoplatform.agenda.model.ScheduleConflict;
 import org.exoplatform.agenda.model.ScheduleConflictEvent;
@@ -236,6 +237,29 @@ class AgendaScheduleConflictServiceImplTest {
 
     assertTrue(result.getConflicts().isEmpty());
     assertFalse(result.isTruncated());
+  }
+
+  /**
+   * The subscribed calendars of the user's spaces are left out of the conflict
+   * read (EXO-90373).
+   * <p>
+   * An imported event is nobody's commitment — it is forced FREE on import and
+   * {@code occupiesTime} drops it — but only after {@code CONFLICT_QUERY_LIMIT}
+   * events have been read and truncated to, which would cost a real clash its
+   * place in the answer. The flag keeps them out of the query, so the flag is
+   * what this pins.
+   *
+   * @throws Exception never
+   */
+  @Test
+  void theConflictReadDoesNotSpendItsBudgetOnTheSpacesSubscribedCalendars() throws Exception {
+    givenEvents();
+
+    conflictService.getScheduleConflicts(WINDOW_START, WINDOW_END, USER);
+
+    verify(agendaEventService).getEvents(argThat(EventFilter::isSubscribedCalendarsExcluded),
+                                         eq(ZoneOffset.UTC),
+                                         eq(USER));
   }
 
   // --- what is deliberately not a conflict ------------------------------------

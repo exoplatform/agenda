@@ -111,6 +111,11 @@ public class AgendaScheduleConflictServiceImpl implements AgendaScheduleConflict
                                          start,
                                          end,
                                          CONFLICT_QUERY_LIMIT);
+    // The calendars the user's spaces subscribed to are not read (EXO-90373):
+    // an imported event is nobody's commitment - it is forced FREE on import
+    // and occupiesTime() drops it - but only after CONFLICT_QUERY_LIMIT has
+    // been spent on it, which would cost a real clash its place in the answer.
+    filter.setSubscribedCalendarsExcluded(true);
     List<Event> events = agendaEventService.getEvents(filter, TIMEZONE, userIdentityId);
     if (events == null) {
       return new ScheduleConflicts(List.of(), false);

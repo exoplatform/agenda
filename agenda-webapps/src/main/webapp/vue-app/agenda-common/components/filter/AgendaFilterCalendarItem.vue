@@ -61,6 +61,20 @@
               {{ publishMenuLabel(calendar) }}
             </v-list-item-title>
           </v-list-item>
+          <!--
+            A space's subscribed calendars (EXO-90373): its managers add and
+            remove them in the drawer this entry opens. The same gate as
+            publishing, a real manager of the space, which the server applies too.
+          -->
+          <v-list-item
+            v-if="isSpaceCalendar"
+            class="agenda-space-subscriptions-action"
+            @click="openSpaceSubscriptions">
+            <v-list-item-title class="d-flex align-center">
+              <v-icon size="14" class="me-2">fas fa-rss</v-icon>
+              {{ $t('agenda.calendarSubscription.spaceMenu') }}
+            </v-list-item-title>
+          </v-list-item>
         </v-list>
       </v-menu>
     </v-list-item-action>
@@ -162,6 +176,15 @@ export default {
     canManageLink() {
       return !!this.calendar && Number(this.calendar.id) > 0 && !!this.calendar.acl && !!this.calendar.acl.canPublish;
     },
+    /**
+     * Whether the row is a space's calendar, whose managers manage the
+     * calendars the space subscribes to.
+     *
+     * @returns {boolean} true for a space's calendar
+     */
+    isSpaceCalendar() {
+      return !!this.calendar && !!this.calendar.owner && this.calendar.owner.providerId === 'space';
+    },
   },
   watch: {
     /**
@@ -177,6 +200,19 @@ export default {
     this.checked = this.selected;
   },
   methods: {
+    /**
+     * Opens the drawer listing the calendars the space subscribes to. It lives
+     * once in the application, never in a row.
+     *
+     * @returns {void}
+     */
+    openSpaceSubscriptions() {
+      const owner = this.calendar.owner;
+      this.$root.$emit('agenda-space-subscriptions-drawer-open', {
+        ownerId: Number(owner.id),
+        spaceName: this.calendarDisplayName,
+      });
+    },
     /**
      * Toggles the selection of this calendar and emits the new selection to
      * the parent list, without mutating the received props: unchecking the
