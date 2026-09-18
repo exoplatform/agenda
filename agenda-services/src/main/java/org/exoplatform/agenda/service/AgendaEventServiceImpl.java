@@ -373,7 +373,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     createOrUpdateEventProperties(event.getParameters(), createdEvent);
     long eventId = createdEvent.getId();
 
-    createdEvent = getEventById(eventId, event.getTimeZoneId(), userIdentityId);
+    createdEvent = readCreatedEvent(eventId, event.getTimeZoneId(), userIdentityId);
 
     AgendaEventModification eventModifications =
                                                new AgendaEventModification(eventId,
@@ -402,6 +402,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                          sendInvitation,
                                          false,
                                          eventModifications);
+    } else {
+      inheritSeriesAttendees(createdEvent);
     }
 
     if (createdEvent.getStatus() == EventStatus.TENTATIVE) {
@@ -416,6 +418,120 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                               CalendarEditorChange.Kind.ADDED,
                               writeRightOf(createdEvent, userIdentityId));
     return createdEvent;
+  }
+
+  /**
+   * Reads back the row {@link #createEvent} has just written, the way
+   * {@link #getEventById(long, ZoneId, long)} reads any event — storage read,
+   * dates adjusted to the reader's zone, {@code acl} stamped on it, rendered
+   * through {@link Utils#maskForAccess(Event, EventAccess)} — but
+   * <b>without asking the read ACL again</b> (EXO-90408).
+   * <p>
+   * Asking it here is a second ruling on a different question. The write has
+   * already been decided a few lines earlier by {@code checkCanCreateEvent},
+   * from the payload; the read ACL is then asked of a row the payload has
+   * <b>not been fully applied to</b> — attendees, reminders and conferences are
+   * all stored after this point. An exceptional occurrence created by somebody
+   * who may update the series but cannot see the calendar it is filed in
+   * (EXO-90382) therefore carries no attendee row at this instant,
+   * {@link #getEventAccess(Event, long)} answers {@link EventAccess#NONE}, and
+   * the creator is refused the event they were just allowed to create. The row
+   * is committed regardless — the transaction is the storage's, not this
+   * method's — so the caller gets a 401 on a successful write, and the
+   * occurrence is left with no attendee at all: invisible to every
+   * attendee-keyed listing, while
+   * {@code AgendaEvent.getExceptionalOccurenceIdsByPeriod} matches it on its
+   * parent alone, so {@code filterExceptionalEvents} takes that date out of the
+   * series for every reader, the organiser included.
+   * <p>
+   * The event is rendered as {@link EventAccess#FULL}: the only reader here is
+   * the creator, on the row they have just been allowed to create, so nothing
+   * is masked. The call is kept so the access is stamped on the returned event
+   * exactly as every other read path stamps it.
+   * <p>
+   * <b>The one cost, stated</b>: the {@code acl} stamped here is computed
+   * before the attendees exist, so for a creator whom this very payload admits
+   * as an attendee, {@code canEdit} and {@code isEventAttendee} come back
+   * false on the returned object. No caller reads them today — the REST layer
+   * re-reads the event before answering, the MCP tool reads the dates and the
+   * masking flag, and {@code caldav-integration} reads the identifier — but a
+   * caller that did would read them stale.
+   *
+   * @param eventId identifier of the row just created
+   * @param timeZone the zone the dates are read in, may be null
+   * @param userIdentityId identity identifier of the creator
+   * @return the created event read in full, or null when the row is gone
+   */
+  private Event readCreatedEvent(long eventId, ZoneId timeZone, long userIdentityId) {
+    Event event = agendaEventStorage.getEventById(eventId);
+    if (event == null) {
+      return null;
+    }
+    adjustEventDatesForRead(event, timeZone);
+    boolean canUpdateEvent = canUpdateEvent(event, userIdentityId);
+    boolean isEventAttendee = attendeeService.isEventAttendee(getEventIdOrParentId(event), userIdentityId);
+    event.setAcl(new EventPermission(canUpdateEvent, isEventAttendee));
+    return maskForAccess(event, EventAccess.FULL);
+  }
+
+  /**
+   * Gives a freshly created exceptional occurrence the attendees its series
+   * carries for that date, when the payload that created it named none
+   * (EXO-90408).
+   * <p>
+   * The invariant is not new: it is the one
+   * {@link #saveEventExceptionalOccurrence(long, ZonedDateTime)} already keeps
+   * when it detaches one date of a series, by copying the parent's attendees
+   * for that occurrence and handing them to
+   * {@link #createEventExceptionalOccurrence}. An occurrence created through
+   * {@link #createEvent} is the same object made by the other door, so it owes
+   * the same thing. Without it the row is an orphan: nobody is invited to it,
+   * so no attendee-keyed listing returns it, while
+   * {@code AgendaEvent.getExceptionalOccurenceIdsByPeriod} matches it on its
+   * parent alone — so {@code filterExceptionalEvents} removes that date from
+   * the series for everyone and nothing replaces it. The date simply
+   * disappears from the organiser's and the invitees' calendars.
+   * <p>
+   * The same mechanism is reused deliberately —
+   * {@link AgendaEventAttendeeService#getEventAttendees(long)} filtered to the
+   * occurrence, then {@link #cleanupAttendeeIds(List)} so the rows are created
+   * against the occurrence rather than updated on the series — and it is
+   * called with the same arguments
+   * {@link #createEventExceptionalOccurrence} uses: no creator, so the
+   * responses already given on the series travel with the copy instead of
+   * being reset, and <b>no invitation</b>, because these people were invited to
+   * the series by whoever organised it and are not being invited to anything
+   * new. That last point also keeps this path clear of the invitation mail and
+   * its ICS attachment, which an all-day event does not survive unshifted.
+   * <p>
+   * It applies to a <b>real exceptional occurrence only</b> — a parent and an
+   * occurrence identifier. An ordinary event created with no attendee is a
+   * legitimate event with no attendee and is left exactly as it was.
+   *
+   * @param occurrence the row just created, never null here
+   */
+  private void inheritSeriesAttendees(Event occurrence) {
+    if (occurrence == null || occurrence.getParentId() <= 0) {
+      return;
+    }
+    EventOccurrence eventOccurrence = occurrence.getOccurrence();
+    if (eventOccurrence == null || eventOccurrence.getId() == null) {
+      return;
+    }
+    EventAttendeeList seriesAttendees = attendeeService.getEventAttendees(occurrence.getParentId());
+    if (seriesAttendees == null) {
+      return;
+    }
+    List<EventAttendee> inherited = cleanupAttendeeIds(seriesAttendees.getEventAttendees(eventOccurrence.getId()));
+    if (inherited.isEmpty()) {
+      return;
+    }
+    attendeeService.saveEventAttendees(occurrence,
+                                       inherited,
+                                       0,
+                                       false,
+                                       occurrence.getStatus() != EventStatus.CONFIRMED,
+                                       null);
   }
 
   /**
