@@ -26,6 +26,7 @@ import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.constant.*;
 import org.exoplatform.agenda.exception.EventInvitationExpiredException;
+import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.plugin.AgendaGuestUserIdentityProvider;
 import org.exoplatform.agenda.storage.AgendaEventAttendeeStorage;
@@ -37,6 +38,7 @@ import org.exoplatform.commons.api.notification.model.PluginKey;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.notification.impl.NotificationContextImpl;
 import org.exoplatform.services.listener.ListenerService;
+import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.identity.model.Identity;
@@ -72,6 +74,8 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
   private SpaceService               spaceService;
 
   private CodecInitializer           codecInitializer;
+
+  private AgendaCalendarService       agendaCalendarService;
 
   public AgendaEventAttendeeServiceImpl(AgendaEventAttendeeStorage attendeeStorage,
                                         AgendaEventStorage eventStorage,
@@ -213,6 +217,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       throw new ObjectNotFoundException("Identity with id " + identityId + " wasn't found");
     }
 
+    checkNotSubscribedByAnotherOwner(event, identityId);
     if (!isEventAttendee(eventId, identityId)) {
       throw new IllegalAccessException("User with identity id " + identityId + " isn't attendee of event with id " + eventId);
     }
@@ -251,6 +256,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       throw new ObjectNotFoundException("Identity with id " + identityId + " wasn't found");
     }
 
+    checkNotSubscribedByAnotherOwner(event, identityId);
     if (!isEventAttendee(eventId, identityId)) {
       throw new IllegalAccessException("User with identity id " + identityId + " isn't attendee of event with id " + eventId);
     }
@@ -476,9 +482,51 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    * {@inheritDoc}
    */
   @Override
-  public boolean isEventAttendee(long eventId, long identityId) {
+  public boolean isEventAttendee(long eventId, long identityId) { // NOSONAR
     EventAttendeeList eventAttendees = getEventAttendees(eventId);
     return Utils.isEventAttendee(identityManager, spaceService, identityId, eventAttendees);
+  }
+
+  /**
+   * Replaces how the calendar of an event is read, for the tests; the default
+   * resolves the Kernel component on first use.
+   *
+   * @param agendaCalendarService the calendar service
+   */
+  public void setAgendaCalendarService(AgendaCalendarService agendaCalendarService) {
+    this.agendaCalendarService = agendaCalendarService;
+  }
+
+  /**
+   * Refuses an answer to an event imported by a subscription somebody else
+   * owns — a space's (EXO-90373).
+   * <p>
+   * Such an event is a copy of a calendar the owner subscribed to: nobody was
+   * invited to it, it is read-only everywhere else
+   * ({@code AgendaEventServiceImpl#canUpdateEvent}), and an answer recorded on
+   * it would be an answer to an invitation that does not exist. The owner of a
+   * personal subscription is left alone: their own imported events carry their
+   * attendee row by design (EXO-90278). The calendar service is a Kernel
+   * component reached on first use; when it cannot be reached the answer is
+   * allowed, as it was before this guard — the attendee check below is what
+   * refuses it in fact, since a space's imported event has no attendee at all.
+   *
+   * @param event the event being answered
+   * @param identityId identity identifier of the user answering
+   * @throws IllegalAccessException when the event is another owner's imported copy
+   */
+  private void checkNotSubscribedByAnotherOwner(Event event, long identityId) throws IllegalAccessException {
+    if (agendaCalendarService == null) {
+      agendaCalendarService = ExoContainerContext.getService(AgendaCalendarService.class);
+    }
+    if (agendaCalendarService == null) {
+      return;
+    }
+    Calendar calendar = agendaCalendarService.getCalendarById(event.getCalendarId());
+    if (calendar != null && calendar.isSubscription() && calendar.getOwnerId() != identityId) {
+      throw new IllegalAccessException("Event " + event.getId() + " comes from a calendar subscription of identity "
+          + calendar.getOwnerId() + ": user " + identityId + " cannot answer it");
+    }
   }
 
   /**

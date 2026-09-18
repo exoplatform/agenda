@@ -269,7 +269,9 @@ describe('Calendar menus and rows follow the publishing state', () => {
     it('offers no Unpublish in the menu, whatever the state: a calendar is unpublished in the drawer', async () => {
       for (const id of [20, 21, 22]) {
         const wrapper = await mountItem(space(id, true));
-        expect(titlesOf(wrapper)).toHaveLength(1);
+        // one publishing entry; the space's subscribed calendars (EXO-90373)
+        // are another entry of the same menu
+        expect(titlesOf(wrapper).filter(title => title.includes('agenda.calendarPublish'))).toHaveLength(1);
         expect(offersUnpublish(wrapper)).toBe(false);
       }
     });

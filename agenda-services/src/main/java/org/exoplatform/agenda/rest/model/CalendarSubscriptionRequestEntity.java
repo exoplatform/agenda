@@ -29,6 +29,12 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class CalendarSubscriptionRequestEntity {
 
+  /**
+   * The owner of the subscription to check or create: a space's identity
+   * identifier for a space's (EXO-90373), none for the user's own.
+   */
+  private Long   ownerId;
+
   /** The calendar link, as typed. */
   private String url;
 
@@ -37,5 +43,16 @@ public class CalendarSubscriptionRequestEntity {
 
   /** The calendar colour, {@code #RRGGBB}. */
   private String color;
+
+  /**
+   * A request for the user's own subscription.
+   *
+   * @param url the calendar link
+   * @param name the calendar name
+   * @param color the calendar colour
+   */
+  public CalendarSubscriptionRequestEntity(String url, String name, String color) {
+    this(null, url, name, color);
+  }
 
 }

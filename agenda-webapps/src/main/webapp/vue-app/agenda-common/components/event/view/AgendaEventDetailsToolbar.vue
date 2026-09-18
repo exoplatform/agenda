@@ -191,15 +191,28 @@ export default {
       return this.ownerProfile && (this.ownerProfile.avatar || this.ownerProfile.avatarUrl);
     },
     /**
+     * Whether the event comes from a calendar a space subscribes to (EXO-90373),
+     * whose events read as the space's.
+     *
+     * @returns {Boolean} true for such an event
+     */
+    isSpaceSubscription() {
+      const calendar = this.event && this.event.calendar;
+      return !!(calendar && calendar.subscription && calendar.owner && calendar.owner.providerId === 'space');
+    },
+    /**
      * The label of the calendar holding the event: the calendar's
      * user-defined name when it has one — two named personal calendars must
-     * be tellable apart — else the owner display name exactly as before.
+     * be tellable apart — else the owner display name exactly as before; a
+     * calendar a space subscribes to always reads as the space.
      *
      * @returns {String} calendar display label
      */
     ownerDisplayName() {
       const calendarName = this.event && this.event.calendar && this.event.calendar.name;
-      if (calendarName) {
+      // A calendar a space subscribes to is never shown as a calendar: its
+      // events read as the space's (EXO-90373)
+      if (calendarName && !this.isSpaceSubscription) {
         return calendarName;
       }
       return this.ownerProfile && (this.ownerProfile.displayName || this.ownerProfile.fullname || this.ownerProfile.fullName);

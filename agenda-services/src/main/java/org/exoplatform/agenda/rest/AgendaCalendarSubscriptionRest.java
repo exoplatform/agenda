@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import org.exoplatform.agenda.model.CalendarSubscription;
@@ -41,18 +42,20 @@ import org.exoplatform.agenda.service.AgendaCalendarSubscriptionServiceImpl;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 
 /**
- * Manages the user's subscriptions to calendar links (EXO-90278).
+ * Manages subscriptions to calendar links: the user's own (EXO-90278), and a
+ * space's for its managers, named by {@code ownerId} (EXO-90373).
  * <p>
  * <b>No rule lives here.</b> Who may read or change a subscription, which links
  * may be read and what is imported are {@link AgendaCalendarSubscriptionService}'s;
- * this resource maps its exceptions to statuses: 404 for a subscription that
- * does not exist, 403 for one that is not the user's, 400 with the refusal's
+ * this resource maps its exceptions to statuses: 404 for a subscription or an
+ * owner that does not exist, 403 for one the user may not manage, 400 with the refusal's
  * message code, 429 for a refresh asked a moment ago or too many reads at once,
  * and 409 for a refresh already running. The asking user comes from the session,
  * never from a parameter. Responses carry URLs, which may embed a secret, and
@@ -71,6 +74,8 @@ public class AgendaCalendarSubscriptionRest {
 
   private static final String                     NOT_FOUND = "agenda.calendarSubscription.notFound";
 
+  private static final String                     OWNER_NOT_FOUND = "agenda.calendarSubscription.ownerNotFound";
+
   private final AgendaCalendarSubscriptionService subscriptionService;
 
   /**
@@ -84,21 +89,32 @@ public class AgendaCalendarSubscriptionRest {
   }
 
   /**
-   * Lists the user's subscriptions.
+   * Lists the subscriptions of an owner: the user's own when none is named, a
+   * space's for one of its managers otherwise.
    *
    * @param request the request
+   * @param ownerId identity identifier of the owner, or null for the user
    * @return the subscriptions
    */
   @GetMapping("calendars/subscriptions")
   @Secured("users")
-  @Operation(summary = "List the user's calendar subscriptions", method = "GET")
+  @Operation(summary = "List the calendar subscriptions of the user, or of a space the user manages", method = "GET")
   @ApiResponses(value = {
       @ApiResponse(responseCode = "200", description = "Request fulfilled"),
-      @ApiResponse(responseCode = "403", description = "The user has no usable identity"),
+      @ApiResponse(responseCode = "403", description = "The user has no usable identity, or does not manage the owner"),
+      @ApiResponse(responseCode = "404", description = "The owner does not exist"),
   })
-  public ResponseEntity<?> getSubscriptions(HttpServletRequest request) {
+  public ResponseEntity<?> getSubscriptions(HttpServletRequest request,
+                                            @Parameter(description = "Identity identifier of the space, none for the user's own")
+                                            @RequestParam(name = "ownerId", required = false)
+                                            Long ownerId) {
     try {
-      return uncached(subscriptionService.getSubscriptions(request.getRemoteUser()).stream().map(this::toEntity).toList());
+      List<CalendarSubscription> subscriptions = ownerId == null ? subscriptionService.getSubscriptions(request.getRemoteUser())
+                                                                 : subscriptionService.getSubscriptions(ownerId,
+                                                                                                        request.getRemoteUser());
+      return uncached(subscriptions.stream().map(this::toEntity).toList());
+    } catch (ObjectNotFoundException e) {
+      return refusal(HttpStatus.NOT_FOUND, OWNER_NOT_FOUND);
     } catch (IllegalAccessException e) {
       return refusal(HttpStatus.FORBIDDEN, FORBIDDEN);
     }
@@ -118,13 +134,19 @@ public class AgendaCalendarSubscriptionRest {
   @ApiResponses(value = {
       @ApiResponse(responseCode = "200", description = "The link serves a calendar"),
       @ApiResponse(responseCode = "400", description = "The link is refused or serves no calendar; the body carries the reason code"),
-      @ApiResponse(responseCode = "403", description = "The user has no usable identity"),
+      @ApiResponse(responseCode = "403", description = "The user has no usable identity, or does not manage the owner"),
+      @ApiResponse(responseCode = "404", description = "The owner does not exist"),
   })
   public ResponseEntity<Map<String, String>> checkUrl(HttpServletRequest request,
                                                       @RequestBody CalendarSubscriptionRequestEntity body) {
     try {
-      String name = subscriptionService.checkUrl(body == null ? null : body.getUrl(), request.getRemoteUser());
+      String url = body == null ? null : body.getUrl();
+      Long ownerId = body == null ? null : body.getOwnerId();
+      String name = ownerId == null ? subscriptionService.checkUrl(url, request.getRemoteUser())
+                                    : subscriptionService.checkUrl(url, ownerId, request.getRemoteUser());
       return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(java.util.Collections.singletonMap("name", name));
+    } catch (ObjectNotFoundException e) {
+      return refusal(HttpStatus.NOT_FOUND, OWNER_NOT_FOUND);
     } catch (IllegalAccessException e) {
       return refusal(HttpStatus.FORBIDDEN, FORBIDDEN);
     } catch (IllegalArgumentException e) {
@@ -148,7 +170,8 @@ public class AgendaCalendarSubscriptionRest {
   @ApiResponses(value = {
       @ApiResponse(responseCode = "200", description = "Subscribed"),
       @ApiResponse(responseCode = "400", description = "The link is refused, already subscribed or serves no calendar"),
-      @ApiResponse(responseCode = "403", description = "The user has no usable identity"),
+      @ApiResponse(responseCode = "403", description = "The user has no usable identity, or does not manage the owner"),
+      @ApiResponse(responseCode = "404", description = "The owner does not exist"),
   })
   public ResponseEntity<?> createSubscription(HttpServletRequest request,
                                                                              @RequestBody CalendarSubscriptionRequestEntity body) {
@@ -156,10 +179,18 @@ public class AgendaCalendarSubscriptionRest {
       return refusal(HttpStatus.BAD_REQUEST, "agenda.calendarSubscription.invalidUrl");
     }
     try {
-      return uncached(toEntity(subscriptionService.createSubscription(body.getUrl(),
-                                                                      body.getName(),
-                                                                      body.getColor(),
-                                                                      request.getRemoteUser())));
+      CalendarSubscription created = body.getOwnerId() == null ? subscriptionService.createSubscription(body.getUrl(),
+                                                                                                        body.getName(),
+                                                                                                        body.getColor(),
+                                                                                                        request.getRemoteUser())
+                                                               : subscriptionService.createSubscription(body.getUrl(),
+                                                                                                        body.getName(),
+                                                                                                        body.getColor(),
+                                                                                                        body.getOwnerId(),
+                                                                                                        request.getRemoteUser());
+      return uncached(toEntity(created));
+    } catch (ObjectNotFoundException e) {
+      return refusal(HttpStatus.NOT_FOUND, OWNER_NOT_FOUND);
     } catch (IllegalAccessException e) {
       return refusal(HttpStatus.FORBIDDEN, FORBIDDEN);
     } catch (IllegalArgumentException e) {
@@ -329,6 +360,10 @@ public class AgendaCalendarSubscriptionRest {
     CalendarSubscriptionStatusEntity entity = new CalendarSubscriptionStatusEntity();
     entity.setId(subscription.getId());
     entity.setCalendarId(subscription.getCalendarId());
+    entity.setOwnerId(subscription.getOwnerIdentityId());
+    entity.setCreatorId(subscription.getUserIdentityId());
+    entity.setCreatorUsername(subscription.getCreatorUsername());
+    entity.setCreatorFullName(subscription.getCreatorFullName());
     entity.setName(subscription.getName());
     entity.setColor(subscription.getColor());
     entity.setUrl(subscription.getUrl());

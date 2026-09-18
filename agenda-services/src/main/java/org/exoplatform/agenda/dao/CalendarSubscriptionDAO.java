@@ -16,6 +16,7 @@
  */
 package org.exoplatform.agenda.dao;
 
+import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 
@@ -49,21 +50,52 @@ public interface CalendarSubscriptionDAO extends JpaRepository<CalendarSubscript
   CalendarSubscriptionEntity findByCalendarId(long calendarId);
 
   /**
-   * Finds the subscription of a user to a URL.
+   * Finds the subscription of an owner to a URL.
    *
-   * @param urlKey SHA-256 of the user and the normalized URL
+   * @param urlKey SHA-256 of the owner and the normalized URL
    * @return the subscription, or null when none
    */
   CalendarSubscriptionEntity findByUrlKey(String urlKey);
 
   /**
-   * Finds a user's subscriptions.
+   * Finds the subscriptions of an owner: a user's personal ones, or a space's
+   * (EXO-90373).
    *
-   * @param userIdentityId identity identifier of the user
+   * @param ownerIdentityId identity identifier of the owner
    * @param pageable the page, whose sort orders them
    * @return the subscriptions, never null
    */
-  List<CalendarSubscriptionEntity> findByUserIdentityId(long userIdentityId, Pageable pageable);
+  List<CalendarSubscriptionEntity> findByOwnerIdentityId(long ownerIdentityId, Pageable pageable);
+
+  /**
+   * The calendars an owner's subscriptions fill, so that a space's subscribed
+   * calendars can take the space's colour (EXO-90373).
+   *
+   * @param ownerIdentityId identity identifier of the owner
+   * @param pageable the page
+   * @return technical identifiers of the calendars, the oldest subscription
+   *         first
+   */
+  @Query("SELECT s.calendarId FROM AgendaCalendarSubscription s WHERE s.ownerIdentityId = :ownerIdentityId ORDER BY s.id ASC")
+  List<Long> findCalendarIdsByOwnerIdentityId(@Param("ownerIdentityId") long ownerIdentityId, Pageable pageable);
+
+  /**
+   * The calendars the subscriptions of several owners fill, in one statement
+   * (EXO-90373).
+   * <p>
+   * The per-owner query above is asked once per owner, which a listing cannot
+   * afford: a member's agenda reads their own identity and every space they
+   * belong to, and the availability reader repeats that for every attendee of
+   * a meeting being scheduled. This is the same projection over a set.
+   *
+   * @param ownerIdentityIds identity identifiers of the owners, never empty
+   *          (an empty {@code IN} list is not valid JPQL)
+   * @param pageable the page
+   * @return technical identifiers of the calendars, the oldest subscription
+   *         first
+   */
+  @Query("SELECT s.calendarId FROM AgendaCalendarSubscription s WHERE s.ownerIdentityId IN :ownerIdentityIds ORDER BY s.id ASC")
+  List<Long> findCalendarIdsByOwnerIdentityIdIn(@Param("ownerIdentityIds") Collection<Long> ownerIdentityIds, Pageable pageable);
 
   /**
    * The subscriptions due for a refresh that nobody holds a live claim on, the
@@ -177,6 +209,19 @@ public interface CalendarSubscriptionDAO extends JpaRepository<CalendarSubscript
   @Modifying(clearAutomatically = true, flushAutomatically = true)
   @Query("UPDATE AgendaCalendarSubscription s SET s.claimedBy = NULL, s.claimedDate = NULL WHERE s.id = :id AND s.claimedBy = :node")
   int release(@Param("id") long id, @Param("node") String node);
+
+  /**
+   * Forgets the validators and the digest of the last read, so that the next
+   * read that answers imports again whatever it answers — once the imported
+   * events were purged (EXO-90373).
+   *
+   * @param id technical identifier of the subscription
+   * @return one when the row exists, zero otherwise
+   */
+  @Transactional
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Query("UPDATE AgendaCalendarSubscription s SET s.etag = NULL, s.lastModified = NULL, s.contentHash = NULL WHERE s.id = :id")
+  int forgetContent(@Param("id") long id);
 
   /**
    * Points a subscription at a new URL and makes it due at once, forgetting the
