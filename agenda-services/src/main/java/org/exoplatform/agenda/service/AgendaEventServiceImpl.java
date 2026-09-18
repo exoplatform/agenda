@@ -515,7 +515,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * being invited to anything new, so no mail leaves on this path. That also
    * keeps it clear of the invitation mail's ICS attachment
    * ({@code AgendaTemplateBuilder} attaches {@code Utils.generateIcsFile}'s
-   * output for an {@code ADDED} + {@code CONFIRMED} notification), which an
+   * output for an {@code ADDED} + {@code CONFIRMED} notification, where the
+   * recipient's own {@code shouldAttachIcsFile} allows it), which an
    * all-day event does not survive unshifted: that writer takes no all-day
    * flag and never emits {@code VALUE=DATE}, so a day stored at UTC midnight
    * reaches a recipient west of it as the previous evening.
@@ -530,20 +531,32 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * {@code ACCEPTED} for the one who is — the modifier's own copied answer no
    * more survives than anybody else's. That is the same end state an
    * occurrence whose payload names attendees already reaches, so the two doors
-   * agree — but it is the listener that decides it, not these arguments.
+   * agree — but it is the listener that decides it, not these arguments. The
+   * pins therefore assert that end state and name the listener; the two
+   * arguments themselves have no observable effect here, so nothing pins them,
+   * and a change to the listener would change this contract with the suite
+   * still green.
    * {@code resetResponses} is kept as
    * {@code status != CONFIRMED} to mirror the sibling; note the sibling reads
    * the <b>parent's</b> status, its event being a clone of it, while this path
    * reads the payload's, which {@code createEvent} has already defaulted to
    * {@code CONFIRMED}.
    * <p>
-   * It applies to a <b>real exceptional occurrence only</b>, and to exactly the
-   * payloads {@link #checkCanCreateEvent} relaxes the creation right for: the
-   * same {@link #isExceptionalOccurrenceOf} decides both, so a payload that
-   * merely names a parent — a non-repeating one, another occurrence, or a
-   * series on a date it does not have — takes nothing from anywhere. An
-   * ordinary event created with no attendee is a legitimate event with no
-   * attendee and is left exactly as it was.
+   * It applies to a payload shaped like an amendment of one date of a series —
+   * {@link #isAmendmentOfADateOf} — so a payload merely naming a parent takes
+   * nothing from anywhere, whether that parent is a non-repeating event or
+   * another occurrence, whose recurrence {@code createEvent} nulls. That is
+   * <b>not</b> the same set {@link #checkCanCreateEvent} relaxes the creation
+   * right for, and deliberately so: the relaxation asks two further things —
+   * the date must be one the series has, and it must not already be amended —
+   * and this is a <b>superset</b> of it. Everything it covers and the
+   * relaxation does not is a row a caller who <b>holds</b> the creation right
+   * has legitimately created: a second amendment of the same date, one filed
+   * into another calendar, one whose identifier the date check could not
+   * resolve. Each of those is an exceptional occurrence and each owes its
+   * attendees; withholding them would leave the orphan this method exists to
+   * prevent. An ordinary event created with no attendee is a legitimate event
+   * with no attendee and is left exactly as it was.
    *
    * @param occurrence the row just created, never null here
    * @param event the payload that created it, as the client sent it
@@ -551,7 +564,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    *          when it names none
    */
   private void inheritSeriesAttendees(Event occurrence, Event event, Event parentEvent) {
-    if (occurrence == null || parentEvent == null || !isExceptionalOccurrenceOf(event, parentEvent)) {
+    if (occurrence == null || parentEvent == null || !isAmendmentOfADateOf(event, parentEvent)) {
       return;
     }
     EventOccurrence eventOccurrence = occurrence.getOccurrence();
@@ -2024,7 +2037,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
         throw new IllegalAccessException("User '" + userIdentityId + "' can't create an occurrence of event "
             + parentEvent.getId());
       }
-      if (isExceptionalOccurrenceOf(event, parentEvent) && parentEvent.getCalendarId() == calendar.getId()
+      if (parentEvent.getCalendarId() == calendar.getId() && isExceptionalOccurrenceOf(event, parentEvent)
           && !hasExceptionalOccurrence(parentEvent, event.getOccurrence().getId())) {
         return;
       }
@@ -2073,35 +2086,85 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * @return true when the payload amends one date of that series
    */
   private boolean isExceptionalOccurrenceOf(Event event, Event parentEvent) {
+    return isAmendmentOfADateOf(event, parentEvent)
+        && seriesHasOccurrence(parentEvent, event.getOccurrence().getId());
+  }
+
+  /**
+   * Whether a payload is shaped like an amendment of one date of the stored
+   * event it names as parent: the parent is a <b>series</b>, and the payload
+   * carries an <b>occurrence identifier</b>.
+   * <p>
+   * Split out of {@link #isExceptionalOccurrenceOf} so that the two questions
+   * asked of such a payload stay separable. This one is about the payload and
+   * its parent; {@link #seriesHasOccurrence} is about the <b>date</b>, and that
+   * is the security-relevant half — it is what stops a client naming a date the
+   * series does not have. {@link #inheritSeriesAttendees} deliberately asks
+   * only this one: a row that was created anyway, by a caller who holds the
+   * creation right and whose identifier the date check could not resolve, must
+   * still get the series' attendees, or it is exactly the orphan EXO-90408
+   * exists to prevent — {@code filterExceptionalEvents} knows nothing of these
+   * guards and still takes that date out of the series for every reader.
+   * Sharing one predicate would have tied who gets invited to a permission
+   * decision, in the direction that hurts.
+   *
+   * @param event the event to create, as the client sent it
+   * @param parentEvent the stored event it names as parent, never null here
+   * @return true when the payload is shaped like an amendment of one of its
+   *         dates
+   */
+  private static boolean isAmendmentOfADateOf(Event event, Event parentEvent) {
     return parentEvent.getRecurrence() != null
         && event.getOccurrence() != null
-        && event.getOccurrence().getId() != null
-        && seriesHasOccurrence(parentEvent, event.getOccurrence().getId());
+        && event.getOccurrence().getId() != null;
   }
 
   /**
    * Whether a series really has an occurrence on the date an identifier names.
    * <p>
    * The series is expanded around that date and the identifier is matched
-   * against what comes out, exactly as {@link #getEventOccurrence} matches the
-   * identifier a reader asks for: first on the instant, then — for the same
-   * reason that method needs the second pass — on the UTC date alone, because
-   * an all-day occurrence's identifier is normalised
-   * ({@code Utils.getOccurrenceId}) and a client may echo back the one it was
-   * given in another zone. The window is the day before to the day after, with
-   * a limit of three, so the expansion is bounded even for a series with no
-   * overall end.
+   * against what comes out <b>on the UTC date</b>, which is the granularity the
+   * rest of the exceptional-occurrence machinery already works at:
+   * {@code AgendaEventStorage.getExceptionalOccurrenceEvent} queries the
+   * identifier's UTC day, and {@code filterExceptionalEvents} matches on
+   * {@code withZoneSameInstant(UTC).toLocalDate()}. Matching the instant alone
+   * would be stricter than either, and would refuse the case
+   * {@code filterExceptionalEvents} names in its own comment — an identifier
+   * computed by the previous algorithm, on the right date at another
+   * time of day. Because the row still replaces the computed occurrence at
+   * that granularity, an identifier this admits costs the series its date in
+   * exchange rather than adding to it. The window is the day before to the day
+   * after, with a limit of three, the same window and limit
+   * {@link #getEventOccurrence} expands for a reader — enough for every
+   * frequency the recurrence editor offers, since none of them yields more than
+   * three occurrences over three days.
    * <p>
    * The range test {@code createEventExceptionalOccurrence} makes
    * ({@code overallStart - 1 day <= date <= overallEnd}) is deliberately not
    * reused: it admits any date inside the span — every Wednesday of a Monday
    * series, and every future date of a series with no end at all.
+   * <p>
+   * It <b>fails closed</b>: a frequency this window cannot resolve — an
+   * hourly or finer rule, which only an import can produce and which
+   * {@link #getEventOccurrence} cannot read either — is asked for the creation
+   * right rather than let through.
    *
    * @param parentEvent the stored series, its recurrence already known to be
    *          non-null
    * @param occurrenceId the date the payload claims to amend
    * @return true when the series has an occurrence on that date
    */
+  private boolean seriesHasOccurrence(Event parentEvent, ZonedDateTime occurrenceId) {
+    LocalDate occurrenceDateUTC = occurrenceId.withZoneSameInstant(ZoneOffset.UTC).toLocalDate();
+    List<Event> occurrences = Utils.getOccurrences(parentEvent,
+                                                   occurrenceDateUTC.minusDays(1),
+                                                   occurrenceDateUTC.plusDays(1),
+                                                   3);
+    return occurrences.stream()
+                      .map(occurrence -> occurrence.getOccurrence().getId().withZoneSameInstant(ZoneOffset.UTC))
+                      .anyMatch(id -> id.toLocalDate().equals(occurrenceDateUTC));
+  }
+
   /**
    * Whether the series already carries an exceptional occurrence for that
    * date.
@@ -2124,17 +2187,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    */
   private boolean hasExceptionalOccurrence(Event parentEvent, ZonedDateTime occurrenceId) {
     return agendaEventStorage.getExceptionalOccurrenceEvent(parentEvent.getId(), occurrenceId) != null;
-  }
-
-  private boolean seriesHasOccurrence(Event parentEvent, ZonedDateTime occurrenceId) {
-    ZonedDateTime occurrenceIdUTC = occurrenceId.withZoneSameInstant(ZoneOffset.UTC);
-    List<Event> occurrences = Utils.getOccurrences(parentEvent,
-                                                   occurrenceIdUTC.toLocalDate().minusDays(1),
-                                                   occurrenceIdUTC.toLocalDate().plusDays(1),
-                                                   3);
-    return occurrences.stream()
-                      .map(occurrence -> occurrence.getOccurrence().getId().withZoneSameInstant(ZoneOffset.UTC))
-                      .anyMatch(id -> id.equals(occurrenceIdUTC) || id.toLocalDate().equals(occurrenceIdUTC.toLocalDate()));
   }
 
   /**

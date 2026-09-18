@@ -940,6 +940,14 @@ class AgendaCalendarSharingAclTest {
    * The payload the web UI sends when one date of the owner's series is
    * edited: no identifier, the series as parent, the series' own calendar, the
    * occurrence identifier, and no recurrence.
+   * <p>
+   * The date is load-bearing and the arithmetic is worth stating, because
+   * {@code createEvent} runs a real recurrence expansion over the hand-built
+   * parent above: 2026-10-01 is a Thursday and {@code series()} repeats weekly
+   * on Thursdays, so 2026-10-08 is genuinely the next occurrence. Move either
+   * date and this stops being an amendment of a date the series has — which is
+   * what {@code checkCanCreateEvent} asks — and the allowance half of the pin
+   * fails with nothing pointing at why.
    *
    * @return the event to pass to {@code createEvent}
    */

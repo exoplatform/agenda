@@ -4712,6 +4712,60 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
   }
 
   /**
+   * An identifier on a date the series has, at another time of day, is still
+   * an amendment of that date (review round 3 of EXO-90382 + EXO-90408).
+   * <p>
+   * The date check matches on the UTC date, not on the instant, and this is
+   * the half of it that a match on the instant alone would refuse. It is not a
+   * looseness: it is the granularity the rest of the machinery already works
+   * at — {@code getExceptionalOccurrenceEvent} queries the identifier's UTC
+   * day, and {@code filterExceptionalEvents} matches on the UTC date before
+   * anything else — which is why such a row still replaces the computed
+   * occurrence rather than being added beside it, asserted here through the
+   * organiser's own listing. {@code filterExceptionalEvents} names the case in
+   * its own comment: an identifier computed by the previous algorithm.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testCreateOccurrenceAtAnotherTimeOfTheSameDateIsStillThatDate() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+    long user2IdentityId = Long.parseLong(testuser2Identity.getId());
+
+    Event seriesInstance = newEventInstance(start, start.plusHours(1), false);
+    seriesInstance.setAllowAttendeeToUpdate(true);
+    Event series = createEvent(seriesInstance, user1IdentityId, testuser1Identity, testuser2Identity);
+    long seriesId = series.getId();
+
+    assertFalse("testuser2 can't add events to testuser1's personal calendar",
+                agendaEventService.canCreateEvent(calendar, user2IdentityId));
+
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series,
+                                                                            start.minusDays(1),
+                                                                            start.plusDays(5),
+                                                                            series.getTimeZoneId(),
+                                                                            0);
+    assertTrue("The series must have several occurrences", occurrences.size() > 1);
+    Event occurrence = occurrences.get(1);
+
+    ZonedDateTime exact = occurrence.getOccurrence().getId().withZoneSameInstant(ZoneOffset.UTC);
+    ZonedDateTime sameDayOtherTime = exact.toLocalDate().atStartOfDay(ZoneOffset.UTC).plusHours(11);
+    assertNotEquals("The two identifiers must differ as instants, or the pin proves nothing", exact, sameDayOtherTime);
+    assertEquals("and name the same UTC date", exact.toLocalDate(), sameDayOtherTime.toLocalDate());
+
+    Event payload = newOccurrenceInstance(seriesId, occurrence, calendar.getId());
+    payload.setOccurrence(new EventOccurrence(sameDayOtherTime));
+    Event created = createEvent(payload, user2IdentityId);
+    assertNotNull("An identifier on that date at another time must still amend that date", created);
+
+    // And it replaces the computed date rather than being added beside it
+    List<Event> onThatDay = listOnDayOf(occurrence, user1IdentityId);
+    assertEquals("The organiser must still see exactly one event on that date", 1, onThatDay.size());
+    assertEquals("and it must be the amendment", created.getId(), onThatDay.get(0).getId());
+  }
+
+  /**
    * Amending one date of a series is a thing there is one of (review round 2 of
    * EXO-90382 + EXO-90408).
    * <p>
