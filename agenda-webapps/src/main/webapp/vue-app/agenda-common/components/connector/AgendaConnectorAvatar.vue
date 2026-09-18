@@ -16,7 +16,7 @@
  */
 <template>
   <v-avatar
-    :class="!displayIcon && 'white'"
+    :class="showImage && 'white'"
     :size="size"
     tile>
     <v-icon
@@ -25,8 +25,10 @@
       :class="iconClass">
       {{ connector.icon }}
     </v-icon>
+    <!-- no connector to draw means no image either: an empty src is not an
+         empty image, it is a second request for the page itself -->
     <img
-      v-else
+      v-else-if="showImage"
       :src="imageSrc"
       :alt="altText">
   </v-avatar>
@@ -77,6 +79,17 @@ export default {
      */
     displayIcon() {
       return !!(this.connector && this.connector.icon && !this.connector.imageUrl);
+    },
+    /**
+     * Whether an image is what this avatar draws — and therefore whether the
+     * white tile belongs on it. False for the font icon AND for the case where
+     * there is nothing at all to draw, so a caller passing no connector gets an
+     * empty square rather than a white one holding a broken image.
+     *
+     * @returns {Boolean} true when an image renders
+     */
+    showImage() {
+      return !this.displayIcon && !!this.imageSrc;
     },
     /**
      * The image to render when the identity is not a font icon: the uploaded

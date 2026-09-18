@@ -18,6 +18,7 @@ import Vue from 'vue';
 import {mount} from '@vue/test-utils';
 
 import AgendaTimeline from '../../main/webapp/vue-app/agenda-common/components/calendar-body/mobile/AgendaTimeline.vue';
+import {paintableColor} from '../../main/webapp/vue-app/agenda-common/js/AgendaUtils.js';
 
 /**
  * A row read live from a connected account is written like every other row of
@@ -74,7 +75,9 @@ describe('A live-read row of the mobile timeline', () => {
       },
       mocks: {
         $t: key => key,
-        $agendaUtils: {areDatesOnSameDay: () => true},
+        // the real rule, not a stub: which colours count as paintable is
+        // exactly what the white-row pins below are about
+        $agendaUtils: {areDatesOnSameDay: () => true, paintableColor},
       },
     });
   }
@@ -90,12 +93,80 @@ describe('A live-read row of the mobile timeline', () => {
     });
   });
 
-  it('leaves the rows of the stored events exactly as they were', () => {
+  /**
+   * The stored row is pinned against what it rendered before EXO-90393, not
+   * against itself: an earlier version of this test mounted the same code
+   * twice and compared the two, which holds for any code at all. These are the
+   * literal classes and inline style the base revision emitted.
+   */
+  it('leaves a stored row painted and written exactly as it was', () => {
+    const row = mountWith([STORED_EVENT, LIVE_READ_EVENT]).findAll('.event-timeline-detail').at(0);
+
+    expect(row.attributes('style'))
+      .toBe('background: rgb(49, 154, 179); border-left: 5px solid #319ab3;');
+    expect(row.classes()).toContain('white--text');
+    expect(row.classes()).not.toContain('remote-event');
+    expect(row.find('.event-timeline-detail-content strong').text()).toBe('Sprint review');
+  });
+
+  /**
+   * A live-read row does not change the row beside it — the property the
+   * replaced test was actually able to check, kept for what it is worth.
+   */
+  it('does not alter the row beside it', () => {
     const storedOnly = mountWith([STORED_EVENT]);
     const mixed = mountWith([STORED_EVENT, LIVE_READ_EVENT]);
 
     expect(mixed.findAll('.event-timeline-detail').at(0).html())
       .toBe(storedOnly.findAll('.event-timeline-detail').at(0).html());
+  });
+
+  /**
+   * The regression the removal of `primary--text` opened, and the reason the
+   * row's colour now goes through the shared paintable rule.
+   *
+   * <p>Office 365 and Exchange write `#FFFFFF` on every event they return
+   * (AgendaUtils' PLACEHOLDER_EVENT_COLOR), their providers giving them no
+   * calendar colour to pass on. Painted, that put the row's own white text on
+   * a white ground — the whole row invisible, on the mobile list and on the
+   * desktop home-page widget that mounts this same component. Before
+   * EXO-90393 the forced `primary--text` hid the problem; nothing hides it
+   * now, so the colour itself has to be refused.</p>
+   */
+  it('refuses the placeholder white those connectors declare, rather than painting it', () => {
+    ['#FFFFFF', '#ffffff', 'white'].forEach(declared => {
+      const row = mountWith([Object.assign({}, LIVE_READ_EVENT, {color: declared})])
+        .findAll('.event-timeline-detail').at(0);
+
+      expect(row.attributes('style'))
+        .toBe('background: rgb(33, 150, 243); border-left: 5px solid #2196F3;');
+    });
+  });
+
+  /**
+   * The same invisibility reached by the other door: a connector that declares
+   * no colour at all left the row with no background, i.e. the card's own
+   * white, under the very same white text. The left edge always had the
+   * default; the body now has it too.
+   */
+  it('falls back to the default colour when nothing declares one, rather than to the card', () => {
+    const bare = Object.assign({}, LIVE_READ_EVENT);
+    delete bare.color;
+    const row = mountWith([bare]).findAll('.event-timeline-detail').at(0);
+
+    expect(row.attributes('style'))
+      .toBe('background: rgb(33, 150, 243); border-left: 5px solid #2196F3;');
+  });
+
+  /**
+   * A colour a connector genuinely publishes is still the row's colour — the
+   * guard refuses the placeholder, not every colour it is given.
+   */
+  it('still paints a colour a connector genuinely publishes', () => {
+    const row = mountWith([LIVE_READ_EVENT]).findAll('.event-timeline-detail').at(0);
+
+    expect(row.attributes('style'))
+      .toBe('background: rgb(188, 75, 75); border-left: 5px solid #bc4b4b;');
   });
 
   it('draws the account marker white and without a tile of its own, since the row is coloured', () => {

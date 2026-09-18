@@ -79,6 +79,19 @@ describe('The connector avatar', () => {
     expect(mountWith(connector, {iconClass: 'white--text'}).find('v-icon').classes()).not.toContain('icon-default-color');
   });
 
+  /**
+   * With no connector to draw there is nothing to draw: an `<img>` with an
+   * empty src is not an empty image, it is the browser fetching the page
+   * again, and a white tile around it announces an identity that is not there.
+   */
+  it('draws nothing at all, and no tile, when it is given no connector', () => {
+    const wrapper = mount(AgendaConnectorAvatar, {mocks: {$t: key => key}});
+
+    expect(wrapper.find('img').exists()).toBe(false);
+    expect(wrapper.find('v-icon').exists()).toBe(false);
+    expect(wrapper.classes()).not.toContain('white');
+  });
+
   it('lets an uploaded image win over a font icon, as the admin screens do', () => {
     const wrapper = mountWith({name: 'agenda.caldavCalendar', icon: 'fa-server', imageUrl: '/caldav/rest/servers/6/image?v=1'});
 

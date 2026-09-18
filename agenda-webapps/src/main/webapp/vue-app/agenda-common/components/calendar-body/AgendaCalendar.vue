@@ -352,17 +352,19 @@ export default {
      * this keeps the grid legible whatever a connector declares, and Office
      * 365 and Exchange still hardcode it.
      *
+     * Since EXO-90393 the rule itself lives in AgendaUtils, because the mobile
+     * list needs the same one: this grid refused five spellings of white while
+     * `calendarColor` refused a single one, and a row that reached the list
+     * through the second was painted with a colour the grid would have thrown
+     * away. Kept as a method so the grid's own call sites and this note stay
+     * where a reader of the grid will find them.
+     *
      * @param {String} colour the colour the event declares
      * @returns {String} the colour to use, or an empty string when it cannot
      *          be read
      */
     usableEventColour(colour) {
-      if (!colour) {
-        return '';
-      }
-      const normalised = String(colour).trim().toLowerCase();
-      const white = ['#fff', '#ffff', '#ffffff', '#ffffffff', 'white'].includes(normalised);
-      return white ? '' : colour;
+      return this.$agendaUtils.paintableColor(colour);
     },
     getEventColor(event) {
       if (!event.acl || !event.acl.attendee) {
