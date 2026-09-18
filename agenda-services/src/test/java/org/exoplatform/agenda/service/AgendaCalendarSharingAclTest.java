@@ -28,6 +28,8 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.ZoneOffset;
@@ -653,7 +655,7 @@ class AgendaCalendarSharingAclTest {
     assertThrows(IllegalAccessException.class,
                  () -> eventService.createEvent(occurrenceOfSeries(), null, null, null, null, null, false, CAROL),
                  "and neither does a stranger");
-    org.mockito.Mockito.verify(eventStorage, org.mockito.Mockito.never()).createEvent(any());
+    verify(eventStorage, never()).createEvent(any());
 
     aliceLevel = CalendarShareLevel.EDIT;
 

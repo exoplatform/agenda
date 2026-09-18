@@ -336,7 +336,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       }
     }
 
-    checkCanCreateEvent(parentEvent, calendar, userIdentityId);
+    checkCanCreateEvent(event, parentEvent, calendar, userIdentityId);
 
     EventOccurrence occurrence = event.getOccurrence();
     if (occurrence != null && occurrence.getId() != null) {
@@ -1797,20 +1797,24 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * {@code SHARE_EDITOR}, so on the series' own calendar such an editor already
    * held both rights and the old rule never stopped them.
    * <p>
-   * The protocol says the same of the <i>shape</i>, and it is worth stating
-   * exactly, because it is easy to overstate. A series and its overrides are
-   * <b>one object at one address</b>: an override adopts
-   * the series' UID and is written into that same object — our own
-   * {@code IcsMerger} merges "overrides into the same object, with its own
-   * properties", and pushing an override "replaces only the override for that
-   * instance" — so nothing ever allocates a second address for an override.
-   * What is <b>not</b> true is that the server is never asked for a create: the
-   * connector's first push of a series the user has no copy of yet mints a UID
-   * and creates the object ({@code If-None-Match: *}). That changes nothing
-   * here, because every outbound write goes into the pushing user's <b>own</b>
-   * account, under their own credentials, into their own collection — there is
-   * no remote counterpart of {@link #canCreateEvent} for this relaxation to
-   * bypass.
+   * The protocol corroborates the <i>shape</i>, and only the shape. Stated as
+   * the connector's code has it rather than as its prose reads: an override
+   * adopts the series' UID — {@code CaldavPushService.adoptOrMintUid} is keyed
+   * on the parent's identifier, not the occurrence's — and the address is
+   * {@code <collection>/<uid>.ics} with no occurrence component
+   * ({@code objectHref}), so nothing ever allocates a second address for an
+   * override. Two things are <b>not</b> true and are recorded here so the next
+   * reader does not lean on them: the server is not "never asked for a create"
+   * (the first push of a series the user has no copy of yet mints a UID and
+   * creates the object under {@code If-None-Match: *}); and {@code IcsMerger}'s
+   * "pushing an override replaces only the override for that instance"
+   * describes a branch the shipped push does not take, since the sole call site
+   * passes {@code occurrence = false}. Neither affects this rule: every
+   * outbound write goes into the pushing user's <b>own</b> account, under their
+   * own credentials, into their own collection, so there is no remote
+   * counterpart of {@link #canCreateEvent} for this relaxation to bypass. The
+   * rule stands on the eXo-side reason above; CalDAV is corroboration, not the
+   * justification.
    * <p>
    * Filing the occurrence into <b>another</b> calendar is a different act: that
    * is a creation there, so the creation right is kept, the same requirement
@@ -1819,7 +1823,20 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * an edit share, and this one does not. That asymmetry is older than
    * EXO-90382 — the rule it relaxes never reached the other-calendar branch —
    * and closing it is a separate decision, not a property of this method today.
+   * <p>
+   * What the payload <b>is</b> decides that, not merely what it points at. The
+   * relaxed branch is entered only by a real exceptional occurrence of a real
+   * series — see {@link #isExceptionalOccurrenceOf}. Carrying a parent is not
+   * enough: {@code parentId} comes from the client, nothing else in
+   * {@code createEvent} requires the payload to be an occurrence, and a payload
+   * that is not one keeps its own recurrence and is stored as an ordinary
+   * event. Without that guard, naming any updatable event as parent would file
+   * an arbitrary event — a whole new series, with its own summary and dates —
+   * into the calendar that event happens to live in, which for an attendee
+   * allowed to update it is a calendar they may not write to at all. Such a
+   * payload falls through to the creation right, as it always did.
    *
+   * @param event the event to create, as the client sent it
    * @param parentEvent the stored recurring event the occurrence belongs to, or
    *          null when the created event has no parent
    * @param calendar the stored calendar the event is filed into, already
@@ -1830,19 +1847,47 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    *           update, or when the user can't add events to the calendar and the
    *           event is not an occurrence staying in its series' calendar
    */
-  private void checkCanCreateEvent(Event parentEvent, Calendar calendar, long userIdentityId) throws IllegalAccessException {
+  private void checkCanCreateEvent(Event event,
+                                   Event parentEvent,
+                                   Calendar calendar,
+                                   long userIdentityId) throws IllegalAccessException {
     if (parentEvent != null) {
       if (!canUpdateEvent(parentEvent, userIdentityId)) {
         throw new IllegalAccessException("User '" + userIdentityId + "' can't create an occurrence of event "
             + parentEvent.getId());
       }
-      if (parentEvent.getCalendarId() == calendar.getId()) {
+      if (isExceptionalOccurrenceOf(event, parentEvent) && parentEvent.getCalendarId() == calendar.getId()) {
         return;
       }
     }
     if (!canCreateEvent(calendar, userIdentityId)) {
       throw new IllegalAccessException("User '" + userIdentityId + "' can't create an event in calendar " + calendar.getTitle());
     }
+  }
+
+  /**
+   * Whether a payload handed to {@code createEvent} really is an exceptional
+   * occurrence of the stored event it names as parent, which is the only thing
+   * {@link #checkCanCreateEvent} relaxes the creation right for.
+   * <p>
+   * Both halves are load-bearing and neither is checked anywhere else on the
+   * create path. The payload must carry an <b>occurrence identifier</b> — the
+   * date it replaces; without one {@code createEvent} keeps the payload's own
+   * recurrence ({@code if (occurrence != null && occurrence.getId() != null)
+   * event.setRecurrence(null)}) and stores an ordinary event, so an
+   * occurrence-less payload naming a parent is a new event, not an amendment
+   * of one. And the parent must be a <b>series</b>: there is no such thing as
+   * one date of a non-repeating event, which is why
+   * {@code createEventExceptionalOccurrence} refuses that parent outright.
+   *
+   * @param event the event to create, as the client sent it
+   * @param parentEvent the stored event it names as parent, never null here
+   * @return true when the payload amends one date of that series
+   */
+  private static boolean isExceptionalOccurrenceOf(Event event, Event parentEvent) {
+    return parentEvent.getRecurrence() != null
+        && event.getOccurrence() != null
+        && event.getOccurrence().getId() != null;
   }
 
   /**

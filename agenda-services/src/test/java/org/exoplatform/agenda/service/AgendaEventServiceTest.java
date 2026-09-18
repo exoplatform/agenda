@@ -4337,6 +4337,71 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
   }
 
   /**
+   * Naming a parent is not the same as amending one date of it, and only the
+   * second relaxes the creation right (EXO-90382, review round 1).
+   * <p>
+   * The attacker here is the strongest one the relaxed branch admits: an
+   * attendee the organiser allowed to update <b>one plain, non-repeating</b>
+   * event of their personal calendar. That grant gives {@code canUpdateEvent}
+   * on that event — {@code writeRightOf}'s attendee branch asks for no calendar
+   * access at all — while {@code canCreateEvent} on the organiser's calendar
+   * stays false. They then post an event that is <b>not</b> an occurrence: no
+   * occurrence identifier, its own recurrence, its own summary and dates,
+   * naming that event as parent and that calendar as destination. Without the
+   * {@code isExceptionalOccurrenceOf} guard the write is accepted and a whole
+   * new series appears in the organiser's calendar, expanded over its own
+   * dates; the organiser is not even notified, because the read-back throws
+   * before the attendees are saved.
+   * <p>
+   * Two assertions, and the second is the one that bites: the call is refused,
+   * and nothing of the attacker's lands in the organiser's calendar. Asserting
+   * the refusal alone would not do — the read-back throws the same exception
+   * type after a successful write.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testCreateNonOccurrenceNamingAParentStillNeedsCreateRight() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+    long user4IdentityId = Long.parseLong(testuser4Identity.getId());
+
+    Event hostInstance = newEventInstance(start, start.plusHours(1), false);
+    hostInstance.setRecurrence(null);
+    hostInstance.setAllowAttendeeToUpdate(true);
+    Event host = createEvent(hostInstance, user1IdentityId, testuser4Identity);
+    assertEquals(calendar.getId(), host.getCalendarId());
+    assertNull("The host event is deliberately not a series", agendaEventService.getEventById(host.getId()).getRecurrence());
+    assertTrue("testuser4 may update the event they were invited to",
+               agendaEventService.canUpdateEvent(agendaEventService.getEventById(host.getId()), user4IdentityId));
+    assertFalse("testuser4 can't add events to testuser1's personal calendar",
+                agendaEventService.canCreateEvent(calendar, user4IdentityId));
+
+    Event payload = newEventInstance(start.plusDays(10), start.plusDays(10).plusHours(1), false);
+    payload.setId(0);
+    payload.setParentId(host.getId());
+    payload.setCalendarId(calendar.getId());
+    payload.setOccurrence(null);
+    payload.setSummary("Injected by an attendee");
+    assertNotNull("The payload carries a recurrence of its own", payload.getRecurrence());
+
+    try {
+      createEvent(payload, user4IdentityId);
+      fail("Shouldn't let an attendee file an arbitrary event into a calendar they can't create in");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+
+    List<Event> owned = agendaEventService.getEvents(new EventFilter(Collections.singletonList(user1IdentityId),
+                                                                     start.minusDays(1),
+                                                                     start.plusDays(30)),
+                                                     ZoneOffset.UTC,
+                                                     user1IdentityId);
+    assertTrue("Nothing of the attendee's must land in the organiser's calendar",
+               owned.stream().noneMatch(event -> "Injected by an attendee".equals(event.getSummary())));
+  }
+
+  /**
    * Builds the payload the web UI sends when a single computed occurrence of a
    * series is edited: no identifier, the series as parent, the occurrence
    * identifier and dates, and no recurrence.
