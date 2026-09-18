@@ -163,7 +163,16 @@ public interface CalendarShareChannelPlugin {
    * remote CalDAV server that is seconds of pure latency on every opening of
    * the drawer. A channel that can answer both from one read <b>overrides this
    * method</b> and does so; the default below keeps the two calls, so a channel
-   * written before EXO-90385 needs no change and behaves exactly as it did.
+   * written before EXO-90385 needs no change and behaves as it did.
+   *
+   * <p>
+   * The default asks the two <b>independently</b>, each under its own guard,
+   * because agenda now has a single call in which to lose both: before
+   * EXO-90385 it ran two loops over the channels with a guard each, so a
+   * channel whose list read threw was still asked for the flag and could still
+   * raise the warning. Folding the two into one call without the two guards
+   * would silence the warning for that channel — the expensive direction, per
+   * the tolerance below.
    *
    * <p>
    * Same contract as the two methods it stands for, including their
@@ -181,8 +190,19 @@ public interface CalendarShareChannelPlugin {
    * @return the external shares and the meeting-copies flag, never null
    */
   default ChannelShares listShares(long calendarId, String ownerUsername, List<Long> recordedShareeIds) {
-    return new ChannelShares(listExternalShares(calendarId, ownerUsername, recordedShareeIds),
-                             holdsMeetingCopies(calendarId, ownerUsername));
+    List<ExternalShare> listed;
+    try {
+      listed = listExternalShares(calendarId, ownerUsername, recordedShareeIds);
+    } catch (RuntimeException | LinkageError e) {
+      // The flag is still owed: an unreadable access list must not silently
+      // turn the warning off, which is what one shared guard would have done
+      listed = List.of();
+    }
+    try {
+      return new ChannelShares(listed, holdsMeetingCopies(calendarId, ownerUsername));
+    } catch (RuntimeException | LinkageError e) {
+      return new ChannelShares(listed, false);
+    }
   }
 
 }

@@ -610,6 +610,29 @@ class AgendaCalendarShareServiceTest {
   }
 
   /**
+   * <b>A failed list read does not silence the meeting-copies warning</b>
+   * (EXO-90385 review round 1). Before EXO-90385 agenda made two passes over
+   * the channels with a guard each, so a channel whose list read threw was
+   * still asked for the flag and could still raise the warning. There is now
+   * one call in which to lose both, and the SPI default is what keeps them
+   * apart — it guards each of the two questions it asks. A missed warning
+   * exposes the owner's meetings, while a false one costs a click, so this is
+   * the direction that must not regress.
+   *
+   * @throws Exception when the read is refused
+   */
+  @Test
+  void aChannelThatCannotListItsSharesStillRaisesTheMeetingCopiesWarning() throws Exception {
+    channel.listFailure = new IllegalStateException("the access list could not be read");
+    channel.meetingCopies = true;
+
+    ChannelShares answer = service.getChannelShares(PERSONAL_CAL, "owner");
+
+    assertTrue(answer.shares().isEmpty(), "the list the channel could not read");
+    assertTrue(answer.meetingCopies(), "the warning it could still answer");
+  }
+
+  /**
    * Registers a user identity.
    *
    * @param id identity identifier
@@ -647,6 +670,13 @@ class AgendaCalendarShareServiceTest {
     ChannelDelivery     answer         = ChannelDelivery.notApplicable();
 
     RuntimeException    failure;
+
+    /**
+     * Fails the list read alone, leaving the meeting-copies answer intact —
+     * the one case a single {@link #failure} cannot express, and the one the
+     * SPI default has to keep apart (EXO-90385).
+     */
+    RuntimeException    listFailure;
 
     boolean             withdrawAnswer = true;
 
@@ -700,6 +730,9 @@ class AgendaCalendarShareServiceTest {
      */
     @Override
     public List<ExternalShare> listExternalShares(long calendarId, String ownerUsername, List<Long> recordedShareeIds) {
+      if (listFailure != null) {
+        throw listFailure;
+      }
       if (failure != null) {
         throw failure;
       }
