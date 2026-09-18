@@ -130,21 +130,43 @@ export default {
      * what is already there reads as the connection having lost something,
      * and invites the user to make a second calendar beside the first.
      *
-     * A check that fails answers nothing, so the step is offered as it was
-     * before: an account left with no destination copies nowhere, which is
-     * the worse of the two ways to be wrong.
+     * <b>A check that fails is not an account without a destination</b>
+     * (EXO-90396). It used to be read as one, and the step was offered on the
+     * failure branch too — on the reasoning that copying nowhere is the worse
+     * way to be wrong. The reasoning held only while the answer was in doubt:
+     * a server that could not be reached for one moment says nothing at all
+     * about whether the account has a destination, and offering to create one
+     * on the strength of that told a user the connection had left something
+     * out when it had not. It cost a transient 500 to show it — the account
+     * had a destination, the copies were landing in it, and the drawer offered
+     * to create a calendar over the top. So a failure offers nothing, and a
+     * genuine "there is none" still offers the step exactly as before.
+     *
+     * Nothing is shown to the user here: the connection they asked for
+     * succeeded, and the destination is not the question they just answered.
+     * Where a destination that cannot be read IS the question — the copy
+     * setting in the user settings — it is already read on every render and
+     * reported in words (`retrieveDestination`, `pushEventsCheck*`), which is
+     * where a message about it belongs rather than in a toast over a page
+     * whose task went through.
      *
      * @param {Object} connector the connector just connected
-     * @returns {void}
+     * @returns {Promise} resolves once the step has been offered or declined
      */
     offerMirrorCalendarUnlessPresent(connector) {
-      Promise.resolve(this.readMirrorCalendar(connector))
+      // Called through a `then` rather than wrapped in `Promise.resolve(...)`,
+      // so that a connector throwing synchronously lands in the same catch as
+      // one rejecting: a failure must not offer the step, by whichever of the
+      // two ways it failed.
+      return Promise.resolve()
+        .then(() => this.readMirrorCalendar(connector))
         .then(mirror => {
           if (!mirror) {
             this.$root.$emit('agenda-connector-mirror-calendar-open', connector);
           }
         })
-        .catch(() => this.$root.$emit('agenda-connector-mirror-calendar-open', connector));
+        .catch(error => console.error('cannot tell whether the connected account already holds a calendar for the copies;'
+                                      + ' the creation step is not offered', error));
     },
     /**
      * The calendar an account already uses for the copies, asked of the
