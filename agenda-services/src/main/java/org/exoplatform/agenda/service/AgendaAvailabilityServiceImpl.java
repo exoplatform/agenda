@@ -460,6 +460,14 @@ public class AgendaAvailabilityServiceImpl implements AgendaAvailabilityService 
                                          start,
                                          end,
                                          BUSY_QUERY_LIMIT);
+    // The calendars the target's spaces subscribed to are not read (EXO-90373).
+    // An imported event is a read-only copy of somebody else's calendar, forced
+    // FREE on import, so it can never become a busy block - and it would be
+    // dropped only by the FREE test below, after BUSY_QUERY_LIMIT has already
+    // been spent. A space subscribed to a dense feed would otherwise push the
+    // target's own accepted meetings out of the window and have this service
+    // report booked hours as free.
+    filter.setSubscribedCalendarsExcluded(true);
     List<Event> events = agendaEventService.getEvents(filter, TIMEZONE, targetIdentityId);
     List<TimeBlock> blocks = new ArrayList<>();
     for (Event event : events) {
