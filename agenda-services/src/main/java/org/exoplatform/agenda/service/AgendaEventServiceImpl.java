@@ -1784,21 +1784,41 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * its owner and attendees, knowing only its identifier.
    * <p>
    * That update right is also <b>enough</b>, as long as the occurrence stays in
-   * the series' own calendar (EXO-90382). The reason is in the protocol: on a
-   * CalDAV server a repeating meeting is <b>one object</b>, and an override for
-   * a single date is written inside that same object — our own {@code IcsMerger}
-   * merges "overrides into the same object, with its own properties", and
-   * pushing an override "replaces only the override for that instance". The
-   * server therefore asks for write on the existing meeting and never for a
-   * create. eXo is the outlier: it stores the exception as a separate row, and
-   * asking that row for a creation right excluded people who may plainly change
-   * the whole series — an attendee the organiser allowed to update the event, a
-   * creator who is no longer a redactor of the space, an editor of a calendar
-   * shared with them (EXO-90378) — from changing one date of it.
+   * the series' own calendar (EXO-90382). The reason is that an exceptional
+   * occurrence is a <b>change to the series</b>, not a new entry in the
+   * calendar it is filed into. eXo is the outlier in storing that change as a
+   * separate row, and asking that row for a creation right excluded people who
+   * may plainly change the whole series — an attendee the organiser allowed to
+   * update the event, and a creator who is no longer a redactor of the space —
+   * from changing one date of it. Those two are the whole population this
+   * relaxes for, and it is worth naming who is <b>not</b> in it: an editor of a
+   * calendar shared with them (EXO-90378). {@link #canCreateEvent} answers true
+   * for an edit share exactly when {@code writeRightOf} answers
+   * {@code SHARE_EDITOR}, so on the series' own calendar such an editor already
+   * held both rights and the old rule never stopped them.
+   * <p>
+   * The protocol says the same of the <i>shape</i>, and it is worth stating
+   * exactly, because it is easy to overstate. A series and its overrides are
+   * <b>one object at one address</b>: an override adopts
+   * the series' UID and is written into that same object — our own
+   * {@code IcsMerger} merges "overrides into the same object, with its own
+   * properties", and pushing an override "replaces only the override for that
+   * instance" — so nothing ever allocates a second address for an override.
+   * What is <b>not</b> true is that the server is never asked for a create: the
+   * connector's first push of a series the user has no copy of yet mints a UID
+   * and creates the object ({@code If-None-Match: *}). That changes nothing
+   * here, because every outbound write goes into the pushing user's <b>own</b>
+   * account, under their own credentials, into their own collection — there is
+   * no remote counterpart of {@link #canCreateEvent} for this relaxation to
+   * bypass.
    * <p>
    * Filing the occurrence into <b>another</b> calendar is a different act: that
-   * is a creation there, and it keeps the creation right, exactly as moving an
-   * event does ({@link #checkCanMoveEvent}).
+   * is a creation there, so the creation right is kept, the same requirement
+   * {@link #checkCanMoveEvent} makes of a move. Only that requirement, though:
+   * that method also refuses outright a user whose sole right over the event is
+   * an edit share, and this one does not. That asymmetry is older than
+   * EXO-90382 — the rule it relaxes never reached the other-calendar branch —
+   * and closing it is a separate decision, not a property of this method today.
    *
    * @param parentEvent the stored recurring event the occurrence belongs to, or
    *          null when the created event has no parent
