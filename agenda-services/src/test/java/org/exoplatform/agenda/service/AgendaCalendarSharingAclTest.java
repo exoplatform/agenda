@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -95,6 +96,9 @@ class AgendaCalendarSharingAclTest {
 
   /** Alice's own personal calendar: what an editor may create in, and may not move the owner's events to. */
   private static final long        ALICE_CALENDAR = 78;
+
+  /** Another calendar of the owner's, shared with nobody. */
+  private static final long        OTHER_CALENDAR = 80;
 
   /** A space, and its calendar: never shareable. */
   private static final long        SPACE          = 9;
@@ -707,6 +711,58 @@ class AgendaCalendarSharingAclTest {
 
     org.mockito.Mockito.verify(listenerService, org.mockito.Mockito.never())
                        .broadcast(eq(AgendaEventService.CALENDAR_EDITED_BY_SHAREE_EVENT), any(), any());
+  }
+
+  /**
+   * The owner's calendar listing is per calendar, not per owner (EXO-90378):
+   * a colleague the owner shared <b>one</b> calendar with is served that one
+   * and not the owner's others, instead of being refused the whole listing
+   * because of them.
+   * <p>
+   * This is the listing the event form asks for when it resolves an event's
+   * destination. While it answered 401, the form resolved no calendar, and
+   * saving an event of a shared calendar died in the browser before any
+   * request was issued — the defect the PO hit on the rig.
+   *
+   * @throws Exception when the listing is refused
+   */
+  @Test
+  void theOwnersListingServesTheSharedCalendarAndLeavesTheirOthersOut() throws Exception {
+    // The owner has two calendars; only CALENDAR is shared with Alice
+    Calendar other = calendar();
+    other.setId(OTHER_CALENDAR);
+    other.setName("Private");
+    when(calendarStorage.getCalendarById(OTHER_CALENDAR)).thenAnswer(invocation -> {
+      Calendar copy = calendar();
+      copy.setId(OTHER_CALENDAR);
+      copy.setName("Private");
+      return copy;
+    });
+    when(calendarStorage.getCalendarIdsByOwnerIds(anyInt(), anyInt(), any(Long[].class))).thenReturn(List.of(CALENDAR,
+                                                                                                            OTHER_CALENDAR));
+    aliceLevel = CalendarShareLevel.EDIT;
+
+    List<Calendar> forAlice = calendarService.getCalendarsByOwnerIds(List.of(OWNER), "alice");
+
+    assertEquals(1, forAlice.size(), "the shared calendar, and not the owner's other one");
+    assertEquals(CALENDAR, forAlice.get(0).getId());
+    assertTrue(forAlice.get(0).isSharedWithMe());
+    assertTrue(forAlice.get(0).getAcl().isCanCreate());
+
+    List<Calendar> forOwner = calendarService.getCalendarsByOwnerIds(List.of(OWNER), "owner");
+    assertEquals(2, forOwner.size(), "the owner still gets every calendar of theirs");
+  }
+
+  /**
+   * A stranger is still refused the whole listing: leaving out what they may
+   * not read must not turn a refusal into an empty answer, which would let
+   * anyone ask after anyone's calendars.
+   */
+  @Test
+  void aStrangerIsStillRefusedTheOwnersListing() {
+    when(calendarStorage.getCalendarIdsByOwnerIds(anyInt(), anyInt(), any(Long[].class))).thenReturn(List.of(CALENDAR));
+
+    assertThrows(IllegalAccessException.class, () -> calendarService.getCalendarsByOwnerIds(List.of(OWNER), "carol"));
   }
 
   /**

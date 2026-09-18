@@ -123,12 +123,31 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
                                                                                   Integer.MAX_VALUE,
                                                                                   ownerIds.toArray(new Long[0]));
     List<Calendar> calendars = new ArrayList<>();
+    // One owner's calendars are not one permission (EXO-90378). A colleague
+    // the owner shared ONE of their calendars with may read that one and none
+    // of the others, so a refusal on any single calendar cannot be the answer
+    // for the listing: the ones the caller may read are returned and the rest
+    // are left out. Nothing is returned here that getCalendarById would not
+    // have returned on its own, so this only ever narrows what comes back.
+    IllegalAccessException refused = null;
     for (Long calendarId : calendarsIds) {
-      Calendar calendar = getCalendarById(calendarId, username);
+      Calendar calendar;
+      try {
+        calendar = getCalendarById(calendarId, username);
+      } catch (IllegalAccessException e) {
+        refused = e;
+        continue;
+      }
       if (calendar.isDeleted()) {
         continue;
       }
       calendars.add(calendar);
+    }
+    // A caller who may read nothing of what there was to read is still
+    // refused, exactly as before: an owner's listing is not a way to learn
+    // that their calendars exist.
+    if (calendars.isEmpty() && refused != null) {
+      throw refused;
     }
     return calendars;
   }
