@@ -43,6 +43,7 @@ import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.model.AvailabilityConflicts;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventDateOption;
+import org.exoplatform.agenda.model.EventFilter;
 import org.exoplatform.agenda.model.TimeBlock;
 import org.exoplatform.agenda.model.UserAvailability;
 import org.exoplatform.commons.utils.ListAccess;
@@ -158,6 +159,33 @@ class AgendaAvailabilityServiceImplTest {
     // is that this read is unreachable except through the gate above, which
     // the refusal tests pin.
     verify(agendaEventService).getEvents(argThat(filter -> filter.getAttendeeId() == COLLEAGUE),
+                                         eq(ZoneOffset.UTC),
+                                         eq(COLLEAGUE));
+  }
+
+  /**
+   * The subscribed calendars of the target's spaces are left out of the busy
+   * read (EXO-90373).
+   * <p>
+   * An imported event is forced FREE on import, so it can never become a busy
+   * block — but it is dropped only by the FREE test, after
+   * {@code BUSY_QUERY_LIMIT} events have been read and truncated to. A space
+   * subscribed to a dense feed would otherwise spend that budget and push the
+   * target's own accepted meetings out of the answer, and this service would
+   * report booked hours as free. The flag is what keeps them out of the query
+   * in the first place, so it is the flag this pins.
+   *
+   * @throws Exception never
+   */
+  @Test
+  void theBusyReadDoesNotSpendItsBudgetOnTheSpacesSubscribedCalendars() throws Exception {
+    sharing(COLLEAGUE, AvailabilitySharing.SHARED_SPACES);
+    membersOfASameSpace("user400", "user5");
+    when(agendaEventService.getEvents(any(), eq(ZoneOffset.UTC), eq(COLLEAGUE))).thenReturn(List.of(busyEvent(9, 10)));
+
+    availabilityService.getAvailability(List.of(COLLEAGUE), WINDOW_START, WINDOW_END, ASKER);
+
+    verify(agendaEventService).getEvents(argThat(EventFilter::isSubscribedCalendarsExcluded),
                                          eq(ZoneOffset.UTC),
                                          eq(COLLEAGUE));
   }
