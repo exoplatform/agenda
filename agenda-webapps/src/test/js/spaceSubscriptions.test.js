@@ -145,8 +145,53 @@ describe('A space subscribes to calendars', () => {
       expect(rows.at(0).find('.agenda-space-subscription-warning').exists()).toBe(false);
       expect(rows.at(1).find('.agenda-space-subscription-warning').text()).toContain('agenda.calendarSubscription.withdrawn');
       expect(rows.at(2).find('.agenda-space-subscription-warning').text())
-        .toContain('agenda.calendarSubscription.lastErrorTooltip(agenda.calendarSubscription.unreachable)');
+        .toContain('agenda.calendarSubscription.neverImported(agenda.calendarSubscription.unreachable)');
       expect(rows.at(2).find('.agenda-space-subscription-warning').text()).not.toContain('agenda.calendarSubscription.withdrawn');
+    });
+
+    /*
+     * EXO-90402: the week-long cleanup is promised to the one case the product
+     * performs it for. Only a withdrawn link of this eXo purges; an external
+     * address that stops answering is retried for ever and keeps its events,
+     * and the two now have a sentence each.
+     */
+    it('promises the week-long cleanup only for a withdrawn eXo link, and says an unanswered address keeps its events', async () => {
+      service.getSubscriptions.mockResolvedValue([
+        // A withdrawn eXo link that did import once: its copy goes
+        {id: 21, calendarId: 81, name: 'Company', creatorFullName: 'Anne Doe', creatorUsername: 'anne',
+          createdDate: Date.UTC(2026, 7, 1), lastSuccessDate: Date.UTC(2026, 8, 10, 6, 0),
+          lastError: 'agenda.calendarSubscription.linkNotFound'},
+        // An external address that stopped answering after importing: its copy stays
+        {id: 22, calendarId: 82, name: 'Conferences', creatorFullName: 'Anne Doe', creatorUsername: 'anne',
+          createdDate: Date.UTC(2026, 7, 2), lastSuccessDate: Date.UTC(2026, 8, 11, 7, 30),
+          lastError: 'agenda.calendarSubscription.timeout'},
+      ]);
+      const wrapper = await openSpaceDrawer();
+      const rows = wrapper.findAll('.agenda-space-subscription');
+
+      const withdrawn = rows.at(0).find('.agenda-space-subscription-warning').text();
+      expect(withdrawn).toContain('agenda.calendarSubscription.withdrawn');
+      expect(withdrawn).not.toContain('agenda.calendarSubscription.stillImported');
+
+      const unanswered = rows.at(1).find('.agenda-space-subscription-warning').text();
+      expect(unanswered).toContain(`agenda.calendarSubscription.stillImported(agenda.calendarSubscription.timeout|${
+        wrapper.vm.formatDate(Date.UTC(2026, 8, 11, 7, 30), true)})`);
+      expect(unanswered).not.toContain('agenda.calendarSubscription.withdrawn');
+    });
+
+    it('ships an English sentence per case: a week for the withdrawn link, events kept for the address', () => {
+      const withdrawn = bundle.match(/^agenda\.calendarSubscription\.withdrawn=(.*)$/m)[1];
+      const stillImported = bundle.match(/^agenda\.calendarSubscription\.stillImported=(.*)$/m)[1];
+      const neverImported = bundle.match(/^agenda\.calendarSubscription\.neverImported=(.*)$/m)[1];
+
+      expect(withdrawn).toContain('removed a week after the last refresh');
+      // The cleanup is never promised where it does not happen
+      expect(stillImported).not.toContain('week');
+      expect(stillImported).not.toContain('removed');
+      expect(stillImported).toContain('Nothing has been imported since {1}');
+      expect(stillImported).toContain('stay as they are');
+      expect(neverImported).not.toContain('week');
+      expect(neverImported).toContain('shows no events');
     });
 
     it('says the space has none, and shows a refused listing in place', async () => {

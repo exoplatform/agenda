@@ -246,9 +246,31 @@ export default {
         : this.$t('agenda.calendarSubscription.neverRefreshed');
     },
     /**
-     * The warning of a subscription whose last refresh failed: a link its
-     * publisher withdrew says so, and that members still see the last copy;
-     * any other failure gives its reason.
+     * The warning of a subscription whose last refresh failed, in the words
+     * of the one thing the two cases do not share: what becomes of the events
+     * already imported (EXO-90402).
+     *
+     * Two states, and they are the two the row can tell apart at the moment it
+     * is drawn. `lastError` being {@link WITHDRAWN_CODE} is a link of this eXo
+     * that opens nothing: only the in-process branch of the refresh raises it,
+     * from this platform's own database, so it is eXo's own certain word that
+     * the publisher withdrew the link — and it is the only failure on which the
+     * imported events are removed, a week after the last refresh
+     * (`AgendaCalendarSubscriptionServiceImpl#isWithdrawnForLong`). Any other
+     * failure — an external ICS or webcal address that stopped answering, most
+     * of them — is retried for ever and purges nothing, so the warning says
+     * since when nothing has been imported and that the events stay as they
+     * are. It used to promise the week-long cleanup for both, which the product
+     * performs for one.
+     *
+     * The reason keeps its place at the head of either sentence: a manager who
+     * is to act on the warning needs to know what the link answered, not only
+     * what happens to the events.
+     *
+     * Which date: the last successful import, the very one the row's own "Last
+     * refresh" line shows, so the two never disagree. A subscription that never
+     * imported anything has none to show and no events either, and says that
+     * instead.
      *
      * @param {Object} subscription a row
      * @returns {String} the warning
@@ -257,7 +279,10 @@ export default {
       if (subscription.lastError === WITHDRAWN_CODE) {
         return this.$t('agenda.calendarSubscription.withdrawn');
       }
-      return this.$t('agenda.calendarSubscription.lastErrorTooltip', {0: this.$t(errorMessageKey(subscription.lastError))});
+      const reason = this.$t(errorMessageKey(subscription.lastError));
+      return subscription.lastSuccessDate
+        ? this.$t('agenda.calendarSubscription.stillImported', {0: reason, 1: this.formatDate(subscription.lastSuccessDate, true)})
+        : this.$t('agenda.calendarSubscription.neverImported', {0: reason});
     },
     /**
      * Refreshes a subscription now; the row takes the answer, a failure of the
