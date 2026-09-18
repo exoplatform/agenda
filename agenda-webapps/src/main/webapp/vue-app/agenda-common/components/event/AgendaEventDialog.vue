@@ -172,7 +172,7 @@ export default {
     this.$root.$on('agenda-event-form', (agendaEvent, displayTimeInForm, openDateOptions) => {
       this.isNew = agendaEvent.id ? !agendaEvent.id : !agendaEvent.parent || !agendaEvent.parent.id;
       if (this.isNew) {
-        if (!this.calendars?.length || (this.calendars[0] && !this.calendars.some(c => c?.acl?.canCreate))) {
+        if (this.calendars?.length && this.calendars[0] && !this.calendars.some(c => c?.acl?.canCreate)) {
           return;
         }
         this.isForm = true;
