@@ -118,16 +118,36 @@ export function getShares(calendarId) {
  *
  * @param {Number} calendarId technical identifier of the calendar
  * @param {String} username the colleague
+ * @param {String} access what the colleague may do with it, VIEW or EDIT
+ *        (EXO-90378); left out to share at VIEW, the default
  * @returns {Promise<Object>} the share
  */
-export function share(calendarId, username) {
+export function share(calendarId, username, access) {
   forgetShareCounts();
   return fetch(`${AGENDA_REST_BASE}/calendars/${calendarId}/shares`, {
     method: 'POST',
     credentials: 'include',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({username}),
+    body: JSON.stringify(access ? {username, access} : {username}),
   }).then(resp => readJson(resp, 'agenda.share.error')).finally(forgetShareCounts);
+}
+
+/**
+ * Changes what a colleague may do with a calendar shared with them
+ * (EXO-90378). The owner's call, and only theirs.
+ *
+ * @param {Number} calendarId technical identifier of the calendar
+ * @param {Number} shareeIdentityId identity identifier of the colleague
+ * @param {String} access the new level, VIEW or EDIT
+ * @returns {Promise} resolved once the level is recorded
+ */
+export function setLevel(calendarId, shareeIdentityId, access) {
+  return fetch(`${AGENDA_REST_BASE}/calendars/${calendarId}/shares/${shareeIdentityId}`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({access}),
+  }).then(resp => readJson(resp, 'agenda.share.error'));
 }
 
 /**

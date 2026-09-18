@@ -1146,7 +1146,7 @@ public class Utils {
   /**
    * Renders an event for the access its reader has (EXO-90357): the access is
    * stamped on the event, and a {@link EventVisibility#PRIVATE} event read
-   * through a share alone becomes busy time — summary, description, location
+   * through a <b>view</b> share alone becomes busy time — summary, description, location
    * and parameters cleared, marked {@code masked} so that every render path
    * leaves out what it would otherwise read again by identifier (attendees,
    * conferences, reminders, date options). Everything else is returned as it

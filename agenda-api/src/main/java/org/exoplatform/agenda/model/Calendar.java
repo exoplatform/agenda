@@ -16,6 +16,8 @@
 */
 package org.exoplatform.agenda.model;
 
+import org.exoplatform.agenda.constant.CalendarShareLevel;
+
 import lombok.*;
 
 @Data
@@ -62,6 +64,17 @@ public class Calendar implements Cloneable {
    */
   private boolean            sharedWithMe;
 
+  /**
+   * What a reader who sees this calendar only through a share may do with it
+   * (EXO-90378): {@code VIEW} to read it, {@code EDIT} to write events in it.
+   * Null for anyone else — the owner, a space member, a reader with no share —
+   * so the field is read as "no share", never as a level. Computed for a
+   * viewer after the calendar is read from the cache, exactly as {@link #acl}
+   * and {@link #sharedWithMe} are, since the cached instance serves every
+   * viewer.
+   */
+  private CalendarShareLevel shareLevel;
+
   public Calendar(long id,
                   long ownerId,
                   boolean system,
@@ -102,6 +115,7 @@ public class Calendar implements Cloneable {
     calendar.setSyncUid(syncUid);
     calendar.setSubscription(subscription);
     calendar.setSharedWithMe(sharedWithMe);
+    calendar.setShareLevel(shareLevel);
     return calendar;
   }
 }

@@ -114,6 +114,33 @@ public class NotificationUtils {
   public static final ArgumentLiteral<CalendarShare>         CALENDAR_SHARE                                 =
                                                                             new ArgumentLiteral<>(CalendarShare.class, "calendar_share");
 
+  /** Plugin id of "a colleague changed something in your calendar" (EXO-90378). */
+  public static final String                                 AGENDA_CALENDAR_EDITED_NOTIFICATION_PLUGIN     =
+                                                                                                        "CalendarEditedNotificationPlugin";
+
+  /** The change handed to the calendar-edited notification (EXO-90378). */
+  public static final ArgumentLiteral<CalendarEditorChange>  CALENDAR_EDITOR_CHANGE                         =
+                                                                            new ArgumentLiteral<>(CalendarEditorChange.class,
+                                                                                                  "calendar_editor_change");
+
+  /** Stored parameter: full name of the colleague who made the change (EXO-90378). */
+  public static final String                                 STORED_PARAMETER_MODIFIER_NAME                 = "modifierName";
+
+  /** Stored parameter: what the colleague did, ADDED, CHANGED or REMOVED (EXO-90378). */
+  public static final String                                 STORED_PARAMETER_CHANGE_KIND                   = "changeKind";
+
+  /** Stored parameter: the event's summary as it stood when the change was made (EXO-90378). */
+  public static final String                                 STORED_PARAMETER_CHANGED_EVENT_SUMMARY         = "changedEventSummary";
+
+  /** Template variable: full name of the colleague who made the change (EXO-90378). */
+  public static final String                                 TEMPLATE_VARIABLE_MODIFIER_NAME                = "modifierName";
+
+  /** Template variable: what the colleague did (EXO-90378). */
+  public static final String                                 TEMPLATE_VARIABLE_CHANGE_KIND                  = "changeKind";
+
+  /** Template variable: the event's summary (EXO-90378). */
+  public static final String                                 TEMPLATE_VARIABLE_CHANGED_EVENT_SUMMARY        = "changedEventSummary";
+
   /** Stored parameter: technical identifier of the shared calendar. */
   public static final String                                 STORED_PARAMETER_CALENDAR_ID                   = "calendarId";
 
@@ -165,6 +192,10 @@ public class NotificationUtils {
   /** Plugin key of "a calendar was shared with you" (EXO-90357). */
   public static final PluginKey                              CALENDAR_SHARED_KEY                            =
                                                                                  PluginKey.key(AGENDA_CALENDAR_SHARED_NOTIFICATION_PLUGIN);
+
+  /** Plugin key of "a colleague changed something in your calendar" (EXO-90378). */
+  public static final PluginKey                              CALENDAR_EDITED_KEY                            =
+                                                                                 PluginKey.key(AGENDA_CALENDAR_EDITED_NOTIFICATION_PLUGIN);
 
   public static final String                                 STORED_PARAMETER_EVENT_TITLE                   = "eventTitle";
 
@@ -622,6 +653,38 @@ public class NotificationUtils {
                         StringUtils.defaultString(notification.getValueOwnerParameter(STORED_PARAMETER_CALENDAR_NAME)));
     templateContext.put(TEMPLATE_VARIABLE_OWNER_NAME,
                         StringUtils.defaultString(notification.getValueOwnerParameter(STORED_PARAMETER_OWNER_NAME)));
+    templateContext.put(TEMPLATE_VARIABLE_AGENDA_URL,
+                        StringUtils.defaultString(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL)));
+    return templateContext;
+  }
+
+  /**
+   * The template context of the calendar-edited notification (EXO-90378): the
+   * colleague's name, what they did, the event's summary and the calendar's
+   * name, beside the footer, read state, identifier and date every agenda
+   * notification carries. Everything was stored when the notification was
+   * made, so nothing is read again — a deleted event has nothing left to read.
+   *
+   * @param templateProvider the channel's provider
+   * @param notification the notification, with its stored parameters
+   * @return the context
+   */
+  public static final TemplateContext buildTemplateCalendarEditedParameters(TemplateProvider templateProvider,
+                                                                            NotificationInfo notification) {
+    String language = NotificationPluginUtils.getLanguage(notification.getTo());
+    TemplateContext templateContext = getTemplateContext(templateProvider, notification, language);
+    setFooter(notification, templateContext);
+    setRead(notification, templateContext);
+    setNotificationId(notification, templateContext);
+    setLasModifiedTime(notification, templateContext, language);
+    templateContext.put(TEMPLATE_VARIABLE_CALENDAR_NAME,
+                        StringUtils.defaultString(notification.getValueOwnerParameter(STORED_PARAMETER_CALENDAR_NAME)));
+    templateContext.put(TEMPLATE_VARIABLE_MODIFIER_NAME,
+                        StringUtils.defaultString(notification.getValueOwnerParameter(STORED_PARAMETER_MODIFIER_NAME)));
+    templateContext.put(TEMPLATE_VARIABLE_CHANGE_KIND,
+                        StringUtils.defaultIfBlank(notification.getValueOwnerParameter(STORED_PARAMETER_CHANGE_KIND), "CHANGED"));
+    templateContext.put(TEMPLATE_VARIABLE_CHANGED_EVENT_SUMMARY,
+                        StringUtils.defaultString(notification.getValueOwnerParameter(STORED_PARAMETER_CHANGED_EVENT_SUMMARY)));
     templateContext.put(TEMPLATE_VARIABLE_AGENDA_URL,
                         StringUtils.defaultString(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL)));
     return templateContext;

@@ -35,6 +35,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import org.exoplatform.agenda.constant.CalendarShareLevel;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.CalendarShare;
 import org.exoplatform.agenda.model.ExternalShare;
@@ -167,6 +168,7 @@ public class AgendaCalendarShareRest {
     try {
       CalendarShare share = calendarShareService.share(calendarId,
                                                        body == null ? null : body.get("username"),
+                                                       CalendarShareLevel.of(body == null ? null : body.get("access")),
                                                        request.getRemoteUser());
       return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(toShareeEntity(share, new HashMap<>()));
     } catch (ObjectNotFoundException e) {
@@ -176,6 +178,75 @@ public class AgendaCalendarShareRest {
     } catch (IllegalArgumentException e) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
     }
+  }
+
+  /**
+   * Changes what a colleague may do with a calendar shared with them
+   * (EXO-90378).
+   *
+   * @param request the authenticated request
+   * @param calendarId technical identifier of the calendar
+   * @param shareeIdentityId identity identifier of the colleague
+   * @param body {@code {"access": "VIEW"|"EDIT"}}
+   * @return no content
+   */
+  @PutMapping("calendars/{calendarId}/shares/{shareeIdentityId}")
+  @Secured("users")
+  @Operation(summary = "Change what a colleague may do with a shared calendar", method = "PUT",
+             description = "Owner only. VIEW lets the colleague read the calendar, EDIT lets them create, change and"
+                 + " delete events in it and nothing more — never move an event out of it, rename, publish, share on or"
+                 + " level anyone. The channel carrying the share is asked to match its grant to the new level; a channel"
+                 + " that cannot is logged server-side and the eXo level stands, which is what decides every right in eXo."
+                 + " Downgrading moves nothing: the events the colleague created stay in the owner's calendar.")
+  @ApiResponses(value = {
+      @ApiResponse(responseCode = "204", description = "Level changed"),
+      @ApiResponse(responseCode = "400", description = "Missing or unknown access level, or invalid calendar identifier"),
+      @ApiResponse(responseCode = "403", description = "The user does not own the calendar"),
+      @ApiResponse(responseCode = "404", description = "Calendar not found, or not shared with that colleague"),
+  })
+  public ResponseEntity<Void> setLevel(HttpServletRequest request,
+                                       @PathVariable("calendarId") long calendarId,
+                                       @PathVariable("shareeIdentityId") long shareeIdentityId,
+                                       @RequestBody Map<String, String> body) {
+    String access = body == null ? null : body.get("access");
+    // The level is named, never inferred: an absent or unknown name is a bad
+    // request, not a silent VIEW, so that a client typo can never look like a
+    // deliberate downgrade
+    CalendarShareLevel level = level(access);
+    if (level == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, AgendaCalendarShareService.LEVEL_MANDATORY);
+    }
+    try {
+      calendarShareService.setLevel(calendarId, shareeIdentityId, level, request.getRemoteUser());
+      return ResponseEntity.noContent().build();
+    } catch (ObjectNotFoundException e) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, NOT_FOUND);
+    } catch (IllegalAccessException e) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, FORBIDDEN);
+    } catch (IllegalArgumentException e) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
+    }
+  }
+
+  /**
+   * The level a request names, or null when it names none this version knows.
+   * Unlike {@link CalendarShareLevel#of(String)}, which reads an unknown stored
+   * value as the narrower level, a request that cannot be understood is
+   * refused rather than narrowed.
+   *
+   * @param access the level as the client wrote it, may be null
+   * @return the level, or null when the name is blank or unknown
+   */
+  private CalendarShareLevel level(String access) {
+    if (StringUtils.isBlank(access)) {
+      return null;
+    }
+    for (CalendarShareLevel candidate : CalendarShareLevel.values()) {
+      if (candidate.name().equalsIgnoreCase(access.trim())) {
+        return candidate;
+      }
+    }
+    return null;
   }
 
   /**
@@ -357,6 +428,7 @@ public class AgendaCalendarShareRest {
     entity.setShareeIdentityId(share.getShareeIdentityId());
     entity.setCreatedDate(share.getCreatedDate());
     entity.setSource(share.getSource() == null ? null : share.getSource().name());
+    entity.setAccess(share.getLevel().name());
     entity.setDeliveredTo(share.getDeliveredTo());
     Identity sharee = identity(String.valueOf(share.getShareeIdentityId()), identities);
     if (sharee != null) {
@@ -389,6 +461,7 @@ public class AgendaCalendarShareRest {
     entity.setColor(calendar.getColor());
     entity.setOwnerId(calendar.getOwnerId());
     entity.setSharedDate(share.getCreatedDate());
+    entity.setAccess(share.getLevel().name());
     entity.setDeliveredTo(share.getDeliveredTo());
     entity.setDeliveryRef(share.getDeliveryRef());
     entity.setHidden(share.isHidden());

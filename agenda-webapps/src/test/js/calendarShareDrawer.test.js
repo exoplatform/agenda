@@ -30,10 +30,10 @@ describe('Calendar share drawer', () => {
 
   const CALENDAR = {id: 10, name: 'Work', acl: {canShare: true}};
 
-  const ALICE = {calendarId: 10, shareeIdentityId: 3, username: 'alice', displayName: 'Alice Liddell', source: 'EXO', deliveredTo: 'caldav:1', disabled: false};
+  const ALICE = {calendarId: 10, shareeIdentityId: 3, username: 'alice', displayName: 'Alice Liddell', source: 'EXO', access: 'VIEW', deliveredTo: 'caldav:1', disabled: false};
 
   /** Shared in eXo only: no channel carried it, which the row never says. */
-  const BOB = {calendarId: 10, shareeIdentityId: 4, username: 'bob', displayName: 'Bob Builder', source: 'EXO', deliveredTo: null, disabled: false};
+  const BOB = {calendarId: 10, shareeIdentityId: 4, username: 'bob', displayName: 'Bob Builder', source: 'EXO', access: 'EDIT', deliveredTo: null, disabled: false};
 
   const OUTSIDE = {channelId: 'caldav:1', externalId: 'grant-9', kind: 'OUTSIDE_EXO', shareeIdentityId: 0, displayName: '_SERVICE', email: 'exo.service@y.org', removable: true, readOnly: false};
 
@@ -44,6 +44,8 @@ describe('Calendar share drawer', () => {
   let drawerStub;
 
   let confirmStub;
+
+  let menuStub;
 
   let suggesterStub;
 
@@ -75,6 +77,10 @@ describe('Calendar share drawer', () => {
         'exo-drawer': drawerStub,
         'exo-confirm-dialog': confirmStub,
         'exo-identity-suggester': suggesterStub,
+        // The level control is a v-menu whose activator is a scoped slot; an
+        // ignored element would render neither, so it is stubbed to render
+        // both the trigger and the list
+        'v-menu': menuStub,
       },
     });
     wrapper.rootEmit = jest.spyOn(wrapper.vm.$root, '$emit');
@@ -101,6 +107,7 @@ describe('Calendar share drawer', () => {
     service = {
       getShares: jest.fn().mockResolvedValue({shares: [ALICE, BOB], externalShares: [OUTSIDE, EVERYONE]}),
       share: jest.fn(),
+      setLevel: jest.fn().mockResolvedValue(),
       unshare: jest.fn().mockResolvedValue(),
       removeExternalShare: jest.fn().mockResolvedValue(),
     };
@@ -116,6 +123,12 @@ describe('Calendar share drawer', () => {
       methods: {
         open: jest.fn(),
       },
+    };
+    // The level control is a v-menu whose activator is a scoped slot; an
+    // ignored element would render neither it nor the list, so it is stubbed
+    // to render both
+    menuStub = {
+      template: '<div class="menu-stub"><slot name="activator" v-bind="{on: {}, attrs: {}}"></slot><slot></slot></div>',
     };
     // The real suggester wraps a v-autocomplete under this ref; the drawer
     // reaches it to empty the value the autocomplete keeps, as a chip, once
@@ -139,8 +152,11 @@ describe('Calendar share drawer', () => {
     expect(rows).toHaveLength(2);
     expect(rows.at(0).find('.agenda-calendar-sharee-name').text()).toContain('Alice Liddell');
     expect(rows.at(1).find('.agenda-calendar-sharee-name').text()).toContain('Bob Builder');
+    // Each row says its own level (EXO-90378), and it is the one control that
+    // changes it: a record with no level reads as Can view
+    expect(rows.at(0).find('.agenda-calendar-share-access').text()).toContain('agenda.calendarShare.access.view');
+    expect(rows.at(1).find('.agenda-calendar-share-access').text()).toContain('agenda.calendarShare.access.edit');
     rows.wrappers.forEach(row => {
-      expect(row.find('.agenda-calendar-share-access').text()).toBe('agenda.calendarShare.access.view');
       expect(row.find('.agenda-calendar-share-unshare').exists()).toBe(true);
       expect(row.find('.v-chip').exists()).toBe(false);
       expect(row.text()).not.toMatch(/deliver|retry|also on/i);
@@ -234,6 +250,65 @@ describe('Calendar share drawer', () => {
 
     expect(wrapper.find('.agenda-calendar-share-error').text()).toBe('agenda.share.shareeIsOwner (worded)');
     expect(wrapper.findAll('.agenda-calendar-sharee')).toHaveLength(2);
+  });
+
+  it('raises a colleague to Can edit at once, without a question', async () => {
+    const wrapper = mountDrawer();
+    await open(wrapper);
+
+    await wrapper.vm.changeLevel(ALICE, 'EDIT');
+    await flush();
+
+    expect(service.setLevel).toHaveBeenCalledWith(10, 3, 'EDIT');
+    expect(confirmStub.methods.open).not.toHaveBeenCalled();
+    expect(wrapper.findAll('.agenda-calendar-sharee').at(0).find('.agenda-calendar-share-access').text())
+      .toContain('agenda.calendarShare.access.edit');
+    expect(wrapper.rootEmit).toHaveBeenCalledWith('agenda-calendar-shares-changed');
+  });
+
+  it('asks before lowering a colleague to Can view, and says their events stay', async () => {
+    const wrapper = mountDrawer();
+    await open(wrapper);
+
+    await wrapper.vm.changeLevel(BOB, 'VIEW');
+
+    expect(confirmStub.methods.open).toHaveBeenCalled();
+    expect(service.setLevel).not.toHaveBeenCalled();
+    expect(wrapper.vm.confirmTitle).toBe('agenda.calendarShare.downgradeConfirmTitle');
+    expect(wrapper.vm.confirmMessage).toBe('agenda.calendarShare.downgradeConfirmMessage(Bob Builder)');
+
+    await wrapper.vm.confirmed();
+    await flush();
+
+    expect(service.setLevel).toHaveBeenCalledWith(10, 4, 'VIEW');
+    expect(wrapper.findAll('.agenda-calendar-sharee').at(1).find('.agenda-calendar-share-access').text())
+      .toContain('agenda.calendarShare.access.view');
+  });
+
+  it('forgets the colleague when the downgrade question is closed without OK', async () => {
+    const wrapper = mountDrawer();
+    await open(wrapper);
+
+    await wrapper.vm.changeLevel(BOB, 'VIEW');
+    wrapper.vm.cancelled();
+    await flush();
+
+    expect(service.setLevel).not.toHaveBeenCalled();
+    expect(wrapper.vm.confirmTitle).toBe('agenda.calendarShare.unshareConfirmTitle');
+    expect(wrapper.findAll('.agenda-calendar-sharee').at(1).find('.agenda-calendar-share-access').text())
+      .toContain('agenda.calendarShare.access.edit');
+  });
+
+  it('picking the level a colleague already has writes nothing', async () => {
+    const wrapper = mountDrawer();
+    await open(wrapper);
+
+    await wrapper.vm.changeLevel(ALICE, 'VIEW');
+    await wrapper.vm.changeLevel(BOB, 'EDIT');
+    await flush();
+
+    expect(service.setLevel).not.toHaveBeenCalled();
+    expect(confirmStub.methods.open).not.toHaveBeenCalled();
   });
 
   it('asks before revoking, then revokes and reads the list again', async () => {
