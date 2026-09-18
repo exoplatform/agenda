@@ -48,6 +48,7 @@ import org.exoplatform.agenda.constant.CalendarShareLevel;
 import org.exoplatform.agenda.constant.CalendarShareSource;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.CalendarShare;
+import org.exoplatform.agenda.model.ChannelShares;
 import org.exoplatform.agenda.model.ExternalShare;
 import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.agenda.service.AgendaCalendarShareService;
@@ -227,9 +228,15 @@ class AgendaCalendarShareRestTest {
   @Test
   void theListingCarriesExoAndExternalSharesApart() throws Exception {
     when(service.getShares(CALENDAR, "owner")).thenReturn(List.of(share()));
-    when(service.getExternalShares(CALENDAR, "owner"))
-                                                      .thenReturn(List.of(new ExternalShare("caldav:1", "grant-9", "OUTSIDE_EXO", 0, "x@y.org", true, true)));
-    when(service.holdsMeetingCopies(CALENDAR, "owner")).thenReturn(true);
+    when(service.getChannelShares(CALENDAR, "owner"))
+                                                     .thenReturn(new ChannelShares(List.of(new ExternalShare("caldav:1",
+                                                                                                             "grant-9",
+                                                                                                             "OUTSIDE_EXO",
+                                                                                                             0,
+                                                                                                             "x@y.org",
+                                                                                                             true,
+                                                                                                             true)),
+                                                                                   true));
 
     mockMvc.perform(as("owner", get("/calendars/20/shares")))
            .andExpect(status().isOk())
@@ -239,8 +246,12 @@ class AgendaCalendarShareRestTest {
            .andExpect(jsonPath("$.externalShares[0].externalId").value("grant-9"))
            .andExpect(jsonPath("$.externalShares[0].kind").value("OUTSIDE_EXO"));
     org.mockito.InOrder order = org.mockito.Mockito.inOrder(service);
-    order.verify(service).getExternalShares(CALENDAR, "owner");
+    order.verify(service).getChannelShares(CALENDAR, "owner");
     order.verify(service).getShares(CALENDAR, "owner");
+    // One ask, not two (EXO-90385): the drawer's warning rides on the same
+    // answer as the external shares, so no channel is made to read twice
+    verify(service, never()).holdsMeetingCopies(anyLong(), anyString());
+    verify(service, never()).getExternalShares(anyLong(), anyString());
   }
 
   /**
