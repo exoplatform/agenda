@@ -136,6 +136,19 @@
           <v-icon size="20" class="icon-default-color pe-5">fas fa-briefcase</v-icon>
           <span class="align-self-center text-break">{{ availabilityVisibilityLabel }}</span>
         </div>
+        <!--
+          EXO-90378: who last changed the event, when that is not whoever
+          created it — a colleague the owner shared the calendar with for
+          editing, typically. The server sends the modifier only in that case,
+          so the row appears only when there is something to say. A change
+          made from a colleague's own CalDAV client reaches eXo through the
+          owner's account and is recorded as theirs; that limit is the
+          server's, not this row's.
+        -->
+        <div v-if="lastChangedBy" class="event-last-modifier align-center d-flex pb-5">
+          <v-icon size="20" class="icon-default-color pe-5">fas fa-user-edit</v-icon>
+          <span class="align-self-center text-break">{{ lastChangedBy }}</span>
+        </div>
         <div v-if="event.description" class="event-description d-flex flex-grow-0 flex-shrink-1 pb-5">
           <v-icon size="20" class="icon-default-color align-self-start mt-2 pe-5">fas fa-align-left</v-icon>
           <span v-sanitized-html="event.description" class="align-self-center text-wrap text-left text-break rich-editor-content pt-1"></span>
@@ -324,6 +337,19 @@ export default {
     availabilityVisibilityLabel() {
       const availability = this.isFreeEvent ? this.$t('agenda.availability.free') : this.$t('agenda.availability.busy');
       return this.eventVisibilityLabel ? `${availability} · ${this.eventVisibilityLabel}` : availability;
+    },
+    /**
+     * "Last changed by <name>" (EXO-90378), or nothing. The server sends a
+     * modifier only when it differs from the creator, so this row appears
+     * exactly when it has something to say and never on an event nobody but
+     * its creator has touched.
+     *
+     * @returns {String} the sentence, empty when there is none
+     */
+    lastChangedBy() {
+      const modifier = this.event && this.event.modifier;
+      const name = modifier && (modifier.profile && modifier.profile.fullname || modifier.fullname || modifier.remoteId);
+      return name ? this.$t('agenda.event.lastChangedBy', {0: name}) : '';
     },
     isRemoteEvent(){
       return this.event.type === 'remoteEvent';
